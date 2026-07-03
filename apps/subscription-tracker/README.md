@@ -34,6 +34,34 @@ keep tabs on pending refunds. Data is stored locally in the browser
   how much you'd save per year by switching off monthly billing.
 - **Notes & cancel links** — attach a free-text note and a direct
   manage/cancel URL to any subscription.
+- **Sorting** — sort subscriptions by name, price, or renewal date.
+- **Click-to-filter chart** — click a category in the spending chart to
+  filter the subscription list to it.
+- **Confirm + undo delete** — deleting asks for confirmation, then shows an
+  undo toast for a few seconds.
+- **Duplicate subscription** — clone an existing subscription in one click.
+- **Bulk pause/resume** — pause or resume every subscription in a category
+  at once (shown when a category filter is active).
+- **Cancellation savings ledger** — deleting an active subscription logs its
+  annualized cost to a running "saved from cancellations" total.
+- **Idle detection** — set a last-used date and get an "idle 30+ days"
+  badge on subscriptions you haven't touched in a month.
+- **JSON backup/restore** — full-fidelity export/import of all data
+  (subscriptions, budgets, refunds, cancellation log).
+- **CSV import** — bring in subscriptions from a previously exported CSV.
+- **`/` keyboard shortcut** — jumps focus to the subscription search box.
+- **Theme toggle** — light/dark/system, persisted.
+- **Weekly summary line** — a one-line recap of this week's renewals and
+  ending trials.
+- **Price hike impact stat** — lifetime annualized cost of all recorded
+  price increases.
+- **Refund tabs & sorting** — filter refunds by pending/received/overdue,
+  sort by amount, and see total received this calendar year.
+- **Budget overview card** — total budgeted vs. total spend at a glance.
+- **Show full cost vs. your share** — global toggle for how split
+  subscriptions display their price.
+- **Copy summary** — copies a plain-text summary of your finances to the
+  clipboard.
 
 ## Setup
 

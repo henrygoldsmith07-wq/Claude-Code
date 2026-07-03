@@ -15,9 +15,10 @@ const COLORS = [
 
 interface Props {
   spendByCategory: Record<string, number>;
+  onSelectCategory?: (category: string) => void;
 }
 
-export default function CategoryChart({ spendByCategory }: Props) {
+export default function CategoryChart({ spendByCategory, onSelectCategory }: Props) {
   const entries = Object.entries(spendByCategory).filter(([, cents]) => cents > 0);
   const total = entries.reduce((sum, [, cents]) => sum + cents, 0);
 
@@ -46,7 +47,11 @@ export default function CategoryChart({ spendByCategory }: Props) {
               strokeWidth={22}
               strokeDasharray={`${dash} ${circumference - dash}`}
               strokeDashoffset={-offset}
-            />
+              onClick={() => onSelectCategory?.(category)}
+              className={onSelectCategory ? "cursor-pointer" : undefined}
+            >
+              <title>{category}</title>
+            </circle>
           );
           offset += dash;
           return segment;
@@ -59,7 +64,17 @@ export default function CategoryChart({ spendByCategory }: Props) {
               className="h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: COLORS[i % COLORS.length] }}
             />
-            <span>{category}</span>
+            {onSelectCategory ? (
+              <button
+                type="button"
+                onClick={() => onSelectCategory(category)}
+                className="hover:underline"
+              >
+                {category}
+              </button>
+            ) : (
+              <span>{category}</span>
+            )}
             <span className="text-zinc-500">
               {formatCents(cents)} ({((cents / total) * 100).toFixed(0)}%)
             </span>

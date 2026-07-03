@@ -21,6 +21,7 @@ export default function SubscriptionForm({ onAdd }: Props) {
   const [yearlyPrice, setYearlyPrice] = useState("");
   const [notes, setNotes] = useState("");
   const [cancelUrl, setCancelUrl] = useState("");
+  const [lastUsedDate, setLastUsedDate] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,6 +44,7 @@ export default function SubscriptionForm({ onAdd }: Props) {
       yearlyPriceCents: yearlyPriceCents && !Number.isNaN(yearlyPriceCents) ? yearlyPriceCents : null,
       notes: notes.trim(),
       cancelUrl: cancelUrl.trim() || null,
+      lastUsedDate: lastUsedDate || null,
     });
 
     setName("");
@@ -54,6 +56,7 @@ export default function SubscriptionForm({ onAdd }: Props) {
     setYearlyPrice("");
     setNotes("");
     setCancelUrl("");
+    setLastUsedDate("");
     setShowMore(false);
   }
 
@@ -200,6 +203,15 @@ export default function SubscriptionForm({ onAdd }: Props) {
               onChange={(e) => setNotes(e.target.value)}
               placeholder="optional"
               className="w-48 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-500">Last used</label>
+            <input
+              value={lastUsedDate}
+              onChange={(e) => setLastUsedDate(e.target.value)}
+              type="date"
+              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
           </div>
         </div>

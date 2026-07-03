@@ -20,6 +20,14 @@ export interface Subscription {
   yearlyPriceCents: number | null;
   notes: string;
   cancelUrl: string | null;
+  lastUsedDate: string | null;
+}
+
+export interface CancellationLogEntry {
+  id: string;
+  name: string;
+  monthlyEquivalentCentsAtCancellation: number;
+  cancelledAt: string;
 }
 
 export type RefundStatus = "pending" | "received" | "overdue";
@@ -30,6 +38,7 @@ export interface Refund {
   amountCents: number;
   expectedDate: string | null;
   status: RefundStatus;
+  receivedAt: string | null;
 }
 
 export interface Budget {

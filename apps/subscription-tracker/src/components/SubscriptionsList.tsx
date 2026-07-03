@@ -1,33 +1,68 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { formatCents, daysUntil, yourShareCents, annualSwitchSavingsCents } from "@/lib/money";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  formatCents,
+  daysUntil,
+  daysSince,
+  yourShareCents,
+  annualSwitchSavingsCents,
+} from "@/lib/money";
 import { CATEGORIES } from "@/lib/categories";
 import type { Subscription } from "@/lib/types";
 
 interface Props {
   subscriptions: Subscription[];
+  search: string;
+  onSearchChange: (value: string) => void;
+  categoryFilter: string;
+  onCategoryFilterChange: (value: string) => void;
+  showShare: boolean;
   onUpdatePrice: (id: string, newAmountCents: number) => void;
   onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onBulkSetActive: (category: string, active: boolean) => void;
 }
 
 type StatusFilter = "all" | "active" | "paused" | "trial";
+type SortKey = "name" | "price" | "renewal";
 
 export default function SubscriptionsList({
   subscriptions,
+  search,
+  onSearchChange,
+  categoryFilter,
+  onCategoryFilterChange,
+  showShare,
   onUpdatePrice,
   onToggleActive,
   onDelete,
+  onDuplicate,
+  onBulkSetActive,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("renewal");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleKeydown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+      if (e.key === "/" && !isTyping) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeydown);
+    return () => document.removeEventListener("keydown", handleKeydown);
+  }, []);
 
   const filtered = useMemo(() => {
-    return subscriptions.filter((sub) => {
+    const result = subscriptions.filter((sub) => {
       if (search && !sub.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (categoryFilter !== "all" && sub.category !== categoryFilter) return false;
       if (statusFilter === "active" && !sub.active) return false;
@@ -35,7 +70,14 @@ export default function SubscriptionsList({
       if (statusFilter === "trial" && !sub.isTrial) return false;
       return true;
     });
-  }, [subscriptions, search, categoryFilter, statusFilter]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...result].sort((a, b) => {
+      if (sortKey === "name") return a.name.localeCompare(b.name) * dir;
+      if (sortKey === "price") return (a.amountCents - b.amountCents) * dir;
+      return a.nextRenewalDate.localeCompare(b.nextRenewalDate) * dir;
+    });
+  }, [subscriptions, search, categoryFilter, statusFilter, sortKey, sortDir]);
 
   function startEdit(sub: Subscription) {
     setEditingId(sub.id);
@@ -50,6 +92,12 @@ export default function SubscriptionsList({
     setEditingId(null);
   }
 
+  function handleDelete(sub: Subscription) {
+    if (window.confirm(`Delete ${sub.name}? You can undo this right after.`)) {
+      onDelete(sub.id);
+    }
+  }
+
   if (subscriptions.length === 0) {
     return <p className="text-sm text-zinc-500">No subscriptions yet. Add one above.</p>;
   }
@@ -58,14 +106,15 @@ export default function SubscriptionsList({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
         <input
+          ref={searchRef}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name"
-          className="w-40 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search by name (press /)"
+          className="w-44 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
+          onChange={(e) => onCategoryFilterChange(e.target.value)}
           className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
           <option value="all">All categories</option>
@@ -85,6 +134,41 @@ export default function SubscriptionsList({
           <option value="paused">Paused</option>
           <option value="trial">Trial</option>
         </select>
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          <option value="renewal">Sort: renewal date</option>
+          <option value="name">Sort: name</option>
+          <option value="price">Sort: price</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+          className="rounded-md border border-zinc-300 px-2 py-1.5 text-xs dark:border-zinc-700"
+          title="Toggle sort direction"
+        >
+          {sortDir === "asc" ? "↑" : "↓"}
+        </button>
+        {categoryFilter !== "all" && (
+          <>
+            <button
+              type="button"
+              onClick={() => onBulkSetActive(categoryFilter, false)}
+              className="text-xs text-zinc-500 hover:underline"
+            >
+              Pause all {categoryFilter}
+            </button>
+            <button
+              type="button"
+              onClick={() => onBulkSetActive(categoryFilter, true)}
+              className="text-xs text-zinc-500 hover:underline"
+            >
+              Resume all {categoryFilter}
+            </button>
+          </>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -95,11 +179,13 @@ export default function SubscriptionsList({
             const days = daysUntil(sub.nextRenewalDate);
             const hadPriceHike = sub.priceHistory.some((h) => h.amountCents < sub.amountCents);
             const shareCents = yourShareCents(sub.amountCents, sub.splitCount);
+            const displayCents = showShare ? shareCents : sub.amountCents;
             const savingsCents = annualSwitchSavingsCents(
               sub.amountCents,
               sub.billingCycle,
               sub.yearlyPriceCents,
             );
+            const idle = sub.lastUsedDate !== null && daysSince(sub.lastUsedDate) >= 30;
             return (
               <li
                 key={sub.id}
@@ -125,6 +211,11 @@ export default function SubscriptionsList({
                     {sub.splitCount > 1 && (
                       <span className="rounded bg-purple-100 px-1.5 py-0.5 text-xs font-normal text-purple-800 dark:bg-purple-950 dark:text-purple-300">
                         split {sub.splitCount} ways · your share {formatCents(shareCents)}
+                      </span>
+                    )}{" "}
+                    {idle && (
+                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-normal text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        idle 30+ days
                       </span>
                     )}
                   </span>
@@ -162,7 +253,7 @@ export default function SubscriptionsList({
                       onClick={() => startEdit(sub)}
                       className="font-mono text-sm hover:underline"
                     >
-                      {formatCents(sub.amountCents)}
+                      {formatCents(displayCents)}
                     </button>
                   )}
                   {sub.cancelUrl && (
@@ -176,13 +267,19 @@ export default function SubscriptionsList({
                     </a>
                   )}
                   <button
+                    onClick={() => onDuplicate(sub.id)}
+                    className="text-xs text-zinc-500 hover:underline"
+                  >
+                    Duplicate
+                  </button>
+                  <button
                     onClick={() => onToggleActive(sub.id)}
                     className="text-xs text-zinc-500 hover:underline"
                   >
                     {sub.active ? "Pause" : "Resume"}
                   </button>
                   <button
-                    onClick={() => onDelete(sub.id)}
+                    onClick={() => handleDelete(sub)}
                     className="text-xs text-red-600 hover:underline dark:text-red-400"
                   >
                     Delete

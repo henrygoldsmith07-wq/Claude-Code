@@ -42,3 +42,7 @@ export function daysUntil(dateStr: string): number {
   now.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
+
+export function daysSince(dateStr: string): number {
+  return -daysUntil(dateStr);
+}
