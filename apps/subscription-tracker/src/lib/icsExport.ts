@@ -15,7 +15,7 @@ export function buildRenewalsIcs(subscriptions: Subscription[]): string {
       `UID:${sub.id}@subscription-tracker`,
       `DTSTART;VALUE=DATE:${date}`,
       `DTEND;VALUE=DATE:${date}`,
-      `SUMMARY:${sub.name} renews (${formatCents(sub.amountCents)})`,
+      `SUMMARY:${sub.name} renews (${formatCents(sub.amountCents, sub.currencyCode)})`,
       `RRULE:FREQ=${sub.billingCycle === "yearly" ? "YEARLY" : sub.billingCycle === "weekly" ? "WEEKLY" : "MONTHLY"}`,
       "END:VEVENT",
     );

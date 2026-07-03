@@ -29,11 +29,18 @@ export function annualSwitchSavingsCents(
   return Math.max(0, annualEquivalentCents(amountCents, cycle) - yearlyPriceCents);
 }
 
-export function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
+export function formatCents(cents: number, currencyCode: string = "USD"): string {
+  try {
+    return (cents / 100).toLocaleString("en-US", {
+      style: "currency",
+      currency: currencyCode,
+    });
+  } catch {
+    return (cents / 100).toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+    });
+  }
 }
 
 export function daysUntil(dateStr: string): number {

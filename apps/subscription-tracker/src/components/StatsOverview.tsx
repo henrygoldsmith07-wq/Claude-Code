@@ -70,6 +70,7 @@ export default function StatsOverview({
                 {s.name} —{" "}
                 {formatCents(
                   annualEquivalentCents(yourShareCents(s.amountCents, s.splitCount), s.billingCycle),
+                  s.currencyCode,
                 )}
                 /yr
               </li>

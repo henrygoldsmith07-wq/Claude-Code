@@ -27,7 +27,7 @@ export default function SummaryBanners({ upcomingRenewals, trialsEndingSoon }: P
           <ul className="flex flex-col gap-1">
             {trialsEndingSoon.map((s) => (
               <li key={s.id} className="text-sm text-blue-900 dark:text-blue-200">
-                {s.name} starts charging {formatCents(s.amountCents)} on {s.trialEndsDate} —{" "}
+                {s.name} starts charging {formatCents(s.amountCents, s.currencyCode)} on {s.trialEndsDate} —{" "}
                 cancel now if you don&apos;t want it
               </li>
             ))}
