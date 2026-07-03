@@ -46,3 +46,9 @@ export interface Budget {
   category: string;
   monthlyLimitCents: number;
 }
+
+export interface ToastState {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
