@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { CURRENCIES } from "@/lib/currencies";
 import type { Theme } from "@/lib/useTheme";
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
   onThemeChange: (theme: Theme) => void;
   showShare: boolean;
   onShowShareChange: (value: boolean) => void;
+  preferredCurrency: string;
+  onPreferredCurrencyChange: (value: string) => void;
   onExportBackup: () => void;
   onImportBackup: (file: File) => void;
   onImportCsv: (file: File) => void;
@@ -21,6 +24,8 @@ export default function SettingsBar({
   onThemeChange,
   showShare,
   onShowShareChange,
+  preferredCurrency,
+  onPreferredCurrencyChange,
   onExportBackup,
   onImportBackup,
   onImportCsv,
@@ -59,6 +64,19 @@ export default function SettingsBar({
         />
         Show your share (not full cost)
       </label>
+
+      <select
+        value={preferredCurrency}
+        onChange={(e) => onPreferredCurrencyChange(e.target.value)}
+        className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+        title="Default currency for new subscriptions"
+      >
+        {CURRENCIES.map((c) => (
+          <option key={c.code} value={c.code}>
+            Default currency: {c.code} ({c.symbol})
+          </option>
+        ))}
+      </select>
 
       <button
         onClick={handleCopy}

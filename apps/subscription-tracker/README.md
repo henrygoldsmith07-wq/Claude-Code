@@ -74,6 +74,9 @@ keep tabs on pending refunds. Data is stored locally in the browser
   its own proper symbol/formatting (€9.99, £5.99, ¥1000, etc). No
   conversion — aggregate totals sum raw amounts across currencies, same
   as before, so they stay approximate if you mix currencies.
+- **Default currency preference** — set your preferred currency once in
+  the settings bar and every new subscription defaults to it (the form
+  still lets you override per subscription in "More options").
 - **Archive** — hide a subscription from the main list without deleting it;
   view/restore archived subscriptions from the status filter.
 - **Multi-select bulk delete** — select several subscriptions and delete

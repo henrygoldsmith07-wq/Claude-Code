@@ -6,10 +6,11 @@ import type { BillingCycle, Subscription } from "@/lib/types";
 
 interface Props {
   categories: string[];
+  defaultCurrencyCode: string;
   onAdd: (sub: Omit<Subscription, "id" | "priceHistory" | "active">) => void;
 }
 
-export default function SubscriptionForm({ categories, onAdd }: Props) {
+export default function SubscriptionForm({ categories, defaultCurrencyCode, onAdd }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string>(categories[0]);
   const [amount, setAmount] = useState("");
@@ -25,7 +26,10 @@ export default function SubscriptionForm({ categories, onAdd }: Props) {
   const [lastUsedDate, setLastUsedDate] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [owner, setOwner] = useState("");
-  const [currencyCode, setCurrencyCode] = useState<string>(CURRENCIES[0].code);
+  const [manualCurrencyCode, setManualCurrencyCode] = useState<string | null>(null);
+  const currencyCode = manualCurrencyCode ?? defaultCurrencyCode;
+
+  const currencySymbol = CURRENCIES.find((c) => c.code === currencyCode)?.symbol ?? currencyCode;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,7 +73,7 @@ export default function SubscriptionForm({ categories, onAdd }: Props) {
     setLastUsedDate("");
     setPaymentMethod("");
     setOwner("");
-    setCurrencyCode(CURRENCIES[0].code);
+    setManualCurrencyCode(null);
     setShowMore(false);
   }
 
@@ -101,7 +105,7 @@ export default function SubscriptionForm({ categories, onAdd }: Props) {
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Amount ($)</label>
+          <label className="text-xs font-medium text-zinc-500">Amount ({currencySymbol})</label>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -188,7 +192,7 @@ export default function SubscriptionForm({ categories, onAdd }: Props) {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Annual plan price ($)</label>
+            <label className="text-xs font-medium text-zinc-500">Annual plan price ({currencySymbol})</label>
             <input
               value={yearlyPrice}
               onChange={(e) => setYearlyPrice(e.target.value)}
@@ -249,7 +253,7 @@ export default function SubscriptionForm({ categories, onAdd }: Props) {
             <label className="text-xs font-medium text-zinc-500">Billed in</label>
             <select
               value={currencyCode}
-              onChange={(e) => setCurrencyCode(e.target.value)}
+              onChange={(e) => setManualCurrencyCode(e.target.value)}
               className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             >
               {CURRENCIES.map((c) => (
