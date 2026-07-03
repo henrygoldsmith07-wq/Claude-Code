@@ -13,7 +13,11 @@ keep tabs on pending refunds. Data is stored locally in the browser
   price in history and flags the subscription with a "price hike" badge.
 - **AI cancellation suggestions** — Claude reviews your active subscriptions
   for category overlap, price hikes, or commonly-forgotten services and
-  suggests what's worth reviewing.
+  suggests what's worth reviewing. Each visitor can paste their own
+  Anthropic API key (stored only in their browser's localStorage, sent
+  directly to the app's own API route per-request) instead of relying on
+  a shared server-side key — useful for a public deployment where you
+  don't want to foot everyone's AI usage.
 - **Budgets** — set a monthly limit per category and see spend vs. budget
   with a progress bar that turns red when you're over.
 - **Refunds** — track pending refunds, mark them received, and see overdue
@@ -97,8 +101,9 @@ npm install
 cp .env.example .env.local
 ```
 
-Set `ANTHROPIC_API_KEY` in `.env.local` to enable AI cancellation
-suggestions. Everything else works without any configuration.
+Set `ANTHROPIC_API_KEY` in `.env.local` for a server-wide fallback key, or
+leave it unset and let each visitor paste their own key in the AI insights
+panel. Everything else works without any configuration.
 
 ```bash
 npm run dev

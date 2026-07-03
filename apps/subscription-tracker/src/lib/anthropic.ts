@@ -3,16 +3,12 @@ import type { Subscription } from "./types";
 
 const MODEL = "claude-sonnet-5";
 
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
+function getClient(apiKey?: string): Anthropic {
+  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new Error("No Anthropic API key provided. Add your own key in the AI insights panel.");
   }
-  if (!client) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
-  return client;
+  return new Anthropic({ apiKey: key });
 }
 
 export interface CancellationSuggestion {
@@ -47,8 +43,9 @@ const OUTPUT_TOOL = {
 
 export async function suggestCancellations(
   subscriptions: Subscription[],
+  apiKey?: string,
 ): Promise<CancellationSuggestion[]> {
-  const anthropic = getClient();
+  const anthropic = getClient(apiKey);
 
   const summary = subscriptions
     .filter((s) => s.active)

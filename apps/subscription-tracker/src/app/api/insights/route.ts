@@ -3,7 +3,7 @@ import { suggestCancellations } from "@/lib/anthropic";
 import type { Subscription } from "@/lib/types";
 
 export async function POST(request: Request) {
-  let body: { subscriptions?: Subscription[] };
+  let body: { subscriptions?: Subscription[]; apiKey?: string };
   try {
     body = await request.json();
   } catch {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const suggestions = await suggestCancellations(body.subscriptions);
+    const suggestions = await suggestCancellations(body.subscriptions, body.apiKey);
     return NextResponse.json({ suggestions });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Insight generation failed";

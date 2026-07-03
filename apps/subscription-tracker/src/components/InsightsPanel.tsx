@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocalStorage } from "@/lib/useLocalStorage";
 import type { Subscription } from "@/lib/types";
 
 interface Suggestion {
@@ -9,6 +10,7 @@ interface Suggestion {
 }
 
 export default function InsightsPanel({ subscriptions }: { subscriptions: Subscription[] }) {
+  const [apiKey, setApiKey] = useLocalStorage<string>("anthropicApiKey", "");
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function InsightsPanel({ subscriptions }: { subscriptions: Subscr
       const res = await fetch("/api/insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscriptions }),
+        body: JSON.stringify({ subscriptions, apiKey: apiKey || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Something went wrong");
@@ -35,6 +37,20 @@ export default function InsightsPanel({ subscriptions }: { subscriptions: Subscr
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-zinc-500">
+          Your Anthropic API key (optional — stored only in this browser)
+        </label>
+        <input
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          type="password"
+          placeholder="sk-ant-..."
+          autoComplete="off"
+          className="w-64 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        />
+      </div>
+
       <button
         onClick={handleAnalyze}
         disabled={loading || subscriptions.filter((s) => s.active).length === 0}
