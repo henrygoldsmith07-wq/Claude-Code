@@ -2,13 +2,15 @@
 
 import { useMemo } from "react";
 import { useLocalStorage } from "@/lib/useLocalStorage";
-import { monthlyEquivalentCents, formatCents, daysUntil } from "@/lib/money";
+import { monthlyEquivalentCents, annualEquivalentCents, formatCents, daysUntil } from "@/lib/money";
+import { buildCsv, downloadCsv } from "@/lib/csvExport";
 import type { Budget, Refund, Subscription } from "@/lib/types";
 import SubscriptionForm from "./SubscriptionForm";
 import SubscriptionsList from "./SubscriptionsList";
 import BudgetsSection from "./BudgetsSection";
 import RefundsSection from "./RefundsSection";
 import InsightsPanel from "./InsightsPanel";
+import CategoryChart from "./CategoryChart";
 
 export default function Dashboard() {
   const [subscriptions, setSubscriptions] = useLocalStorage<Subscription[]>(
@@ -51,6 +53,37 @@ export default function Dashboard() {
   const pendingRefundsCents = refunds
     .filter((r) => r.status !== "received")
     .reduce((sum, r) => sum + r.amountCents, 0);
+
+  const totalAnnualCents = totalMonthlyCents * 12;
+
+  const topExpenseSubs = useMemo(
+    () =>
+      [...activeSubs]
+        .sort(
+          (a, b) =>
+            annualEquivalentCents(b.amountCents, b.billingCycle) -
+            annualEquivalentCents(a.amountCents, a.billingCycle),
+        )
+        .slice(0, 3),
+    [activeSubs],
+  );
+
+  const trialsEndingSoon = useMemo(
+    () =>
+      activeSubs
+        .filter((s) => s.isTrial && s.trialEndsDate)
+        .filter((s) => {
+          const days = daysUntil(s.trialEndsDate as string);
+          return days >= 0 && days <= 7;
+        })
+        .sort((a, b) => (a.trialEndsDate as string).localeCompare(b.trialEndsDate as string)),
+    [activeSubs],
+  );
+
+  function handleExportCsv() {
+    const csv = buildCsv(subscriptions, budgets, refunds);
+    downloadCsv(csv, `subscription-tracker-export-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
 
   function addSubscription(sub: Omit<Subscription, "id" | "priceHistory" | "active">) {
     setSubscriptions([
@@ -110,10 +143,57 @@ export default function Dashboard() {
 
   return (
     <div className="flex w-full max-w-4xl flex-col gap-10">
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-zinc-500">
+          {subscriptions.length} subscription{subscriptions.length === 1 ? "" : "s"} tracked
+        </p>
+        <button
+          onClick={handleExportCsv}
+          className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      {trialsEndingSoon.length > 0 && (
+        <section className="flex flex-col gap-1 rounded-md border border-blue-300 bg-blue-50 px-4 py-3 dark:border-blue-900 dark:bg-blue-950">
+          <h2 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+            Free trials ending soon
+          </h2>
+          <ul className="flex flex-col gap-1">
+            {trialsEndingSoon.map((s) => (
+              <li key={s.id} className="text-sm text-blue-900 dark:text-blue-200">
+                {s.name} starts charging {formatCents(s.amountCents)} on {s.trialEndsDate} —{" "}
+                cancel now if you don&apos;t want it
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <StatCard label="Monthly subscription spend" value={formatCents(totalMonthlyCents)} />
+        <StatCard label="Projected annual cost" value={formatCents(totalAnnualCents)} />
         <StatCard label="Pending refunds" value={formatCents(pendingRefundsCents)} />
         <StatCard label="Renewing this week" value={String(upcomingRenewals.length)} />
+      </section>
+
+      {topExpenseSubs.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold text-zinc-500">Most expensive (annualized)</h2>
+          <ul className="flex flex-col gap-1">
+            {topExpenseSubs.map((s) => (
+              <li key={s.id} className="text-sm">
+                {s.name} — {formatCents(annualEquivalentCents(s.amountCents, s.billingCycle))}/yr
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold">Spending breakdown</h2>
+        <CategoryChart spendByCategory={spendByCategory} />
       </section>
 
       {upcomingRenewals.length > 0 && (

@@ -1,0 +1,66 @@
+import { monthlyEquivalentCents } from "./money";
+import type { Budget, Refund, Subscription } from "./types";
+
+function escapeCsvField(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function toCsvRow(fields: (string | number)[]): string {
+  return fields.map((f) => escapeCsvField(String(f))).join(",");
+}
+
+export function buildCsv(
+  subscriptions: Subscription[],
+  budgets: Budget[],
+  refunds: Refund[],
+): string {
+  const lines: string[] = [];
+
+  lines.push("Subscriptions");
+  lines.push(
+    toCsvRow(["Name", "Category", "Amount", "Billing Cycle", "Monthly Equivalent", "Next Renewal", "Active", "Trial"]),
+  );
+  for (const s of subscriptions) {
+    lines.push(
+      toCsvRow([
+        s.name,
+        s.category,
+        (s.amountCents / 100).toFixed(2),
+        s.billingCycle,
+        (monthlyEquivalentCents(s.amountCents, s.billingCycle) / 100).toFixed(2),
+        s.nextRenewalDate,
+        s.active ? "yes" : "no",
+        s.isTrial ? `yes (ends ${s.trialEndsDate ?? "unknown"})` : "no",
+      ]),
+    );
+  }
+
+  lines.push("");
+  lines.push("Budgets");
+  lines.push(toCsvRow(["Category", "Monthly Limit"]));
+  for (const b of budgets) {
+    lines.push(toCsvRow([b.category, (b.monthlyLimitCents / 100).toFixed(2)]));
+  }
+
+  lines.push("");
+  lines.push("Refunds");
+  lines.push(toCsvRow(["Merchant", "Amount", "Expected Date", "Status"]));
+  for (const r of refunds) {
+    lines.push(toCsvRow([r.merchant, (r.amountCents / 100).toFixed(2), r.expectedDate ?? "", r.status]));
+  }
+
+  return lines.join("\n");
+}
+
+export function downloadCsv(csv: string, filename: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}

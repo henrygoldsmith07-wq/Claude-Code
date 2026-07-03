@@ -14,17 +14,30 @@ export default function SubscriptionForm({ onAdd }: Props) {
   const [amount, setAmount] = useState("");
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [nextRenewalDate, setNextRenewalDate] = useState("");
+  const [isTrial, setIsTrial] = useState(false);
+  const [trialEndsDate, setTrialEndsDate] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const amountCents = Math.round(parseFloat(amount) * 100);
     if (!name.trim() || Number.isNaN(amountCents) || !nextRenewalDate) return;
+    if (isTrial && !trialEndsDate) return;
 
-    onAdd({ name: name.trim(), category, amountCents, billingCycle, nextRenewalDate });
+    onAdd({
+      name: name.trim(),
+      category,
+      amountCents,
+      billingCycle,
+      nextRenewalDate,
+      isTrial,
+      trialEndsDate: isTrial ? trialEndsDate : null,
+    });
 
     setName("");
     setAmount("");
     setNextRenewalDate("");
+    setIsTrial(false);
+    setTrialEndsDate("");
   }
 
   return (
@@ -88,6 +101,30 @@ export default function SubscriptionForm({ onAdd }: Props) {
           className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>
+      <div className="flex items-center gap-2 pb-1.5">
+        <input
+          id="isTrial"
+          type="checkbox"
+          checked={isTrial}
+          onChange={(e) => setIsTrial(e.target.checked)}
+          className="h-4 w-4"
+        />
+        <label htmlFor="isTrial" className="text-xs font-medium text-zinc-500">
+          Free trial
+        </label>
+      </div>
+      {isTrial && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-zinc-500">Trial ends</label>
+          <input
+            value={trialEndsDate}
+            onChange={(e) => setTrialEndsDate(e.target.value)}
+            required
+            type="date"
+            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
+      )}
       <button
         type="submit"
         className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"

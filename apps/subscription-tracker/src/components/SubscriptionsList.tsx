@@ -58,6 +58,11 @@ export default function SubscriptionsList({
                   <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-normal text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                     price hike
                   </span>
+                )}{" "}
+                {sub.isTrial && (
+                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-normal text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                    trial{sub.trialEndsDate ? ` ends ${sub.trialEndsDate}` : ""}
+                  </span>
                 )}
               </span>
               <span className="text-xs text-zinc-500">

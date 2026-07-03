@@ -18,6 +18,13 @@ keep tabs on pending refunds. Data is stored locally in the browser
   with a progress bar that turns red when you're over.
 - **Refunds** — track pending refunds, mark them received, and see overdue
   ones flagged automatically.
+- **Spending breakdown** — a donut chart of active monthly spend by category.
+- **Annual cost projection** — total projected yearly cost, plus your top 3
+  most expensive subscriptions (annualized).
+- **Free trial reminders** — mark a subscription as a free trial with an end
+  date and get a prominent warning banner before it starts charging.
+- **CSV export** — export subscriptions, budgets, and refunds to CSV for
+  spreadsheets or tax prep.
 
 ## Setup
 

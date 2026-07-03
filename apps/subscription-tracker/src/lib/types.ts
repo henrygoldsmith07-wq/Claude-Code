@@ -14,6 +14,8 @@ export interface Subscription {
   nextRenewalDate: string;
   priceHistory: PriceHistoryEntry[];
   active: boolean;
+  isTrial: boolean;
+  trialEndsDate: string | null;
 }
 
 export type RefundStatus = "pending" | "received" | "overdue";

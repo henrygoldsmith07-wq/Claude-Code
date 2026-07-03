@@ -12,6 +12,10 @@ export function monthlyEquivalentCents(amountCents: number, cycle: BillingCycle)
   }
 }
 
+export function annualEquivalentCents(amountCents: number, cycle: BillingCycle): number {
+  return monthlyEquivalentCents(amountCents, cycle) * 12;
+}
+
 export function formatCents(cents: number): string {
   return (cents / 100).toLocaleString("en-US", {
     style: "currency",
