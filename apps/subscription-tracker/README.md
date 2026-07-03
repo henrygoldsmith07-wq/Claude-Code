@@ -69,8 +69,11 @@ keep tabs on pending refunds. Data is stored locally in the browser
 - **Favorites** — star a subscription to pin it to the top of the list.
 - **Payment method & owner** — tag a subscription with which card it bills
   to and who in the household owns it; both show in the list.
-- **Billing currency tag** — display-only currency code per subscription
-  (no conversion math, just a label).
+- **Multi-currency subscriptions** — pick a billing currency per
+  subscription from 20 supported currencies; each amount displays with
+  its own proper symbol/formatting (€9.99, £5.99, ¥1000, etc). No
+  conversion — aggregate totals sum raw amounts across currencies, same
+  as before, so they stay approximate if you mix currencies.
 - **Archive** — hide a subscription from the main list without deleting it;
   view/restore archived subscriptions from the status filter.
 - **Multi-select bulk delete** — select several subscriptions and delete

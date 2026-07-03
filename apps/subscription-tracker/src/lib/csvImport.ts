@@ -44,6 +44,7 @@ export function parseSubscriptionsCsv(
   const nameIdx = columns.indexOf("Name");
   const categoryIdx = columns.indexOf("Category");
   const amountIdx = columns.indexOf("Amount");
+  const currencyIdx = columns.indexOf("Currency");
   const cycleIdx = columns.indexOf("Billing Cycle");
   const renewalIdx = columns.indexOf("Next Renewal");
 
@@ -83,7 +84,7 @@ export function parseSubscriptionsCsv(
       isFavorite: false,
       paymentMethod: "",
       owner: "",
-      currencyCode: "USD",
+      currencyCode: fields[currencyIdx]?.trim() || "USD",
       archived: false,
       createdAt: new Date().toISOString(),
     });

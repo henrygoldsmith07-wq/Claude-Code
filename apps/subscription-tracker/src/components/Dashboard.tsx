@@ -166,7 +166,7 @@ export default function Dashboard() {
           <ul className="flex flex-col gap-1">
             {stats.upcomingRenewals.map((s) => (
               <li key={s.id} className="text-sm">
-                {s.name} — {formatCents(s.amountCents)} on {s.nextRenewalDate}
+                {s.name} — {formatCents(s.amountCents, s.currencyCode)} on {s.nextRenewalDate}
               </li>
             ))}
           </ul>

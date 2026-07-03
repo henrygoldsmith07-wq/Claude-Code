@@ -51,7 +51,7 @@ export async function suggestCancellations(
     .filter((s) => s.active)
     .map((s) => {
       const priceChanged = s.priceHistory.length > 1;
-      return `- ${s.name} (${s.category}): $${(s.amountCents / 100).toFixed(2)}/${s.billingCycle}${priceChanged ? ", price has changed since first added" : ""}`;
+      return `- ${s.name} (${s.category}): ${(s.amountCents / 100).toFixed(2)} ${s.currencyCode}/${s.billingCycle}${priceChanged ? ", price has changed since first added" : ""}`;
     })
     .join("\n");
 

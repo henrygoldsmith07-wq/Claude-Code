@@ -72,7 +72,7 @@ export default function SubscriptionRow({
             <button onClick={() => onToggleFavorite(sub.id)} className="mr-1" title="Favorite">
               {sub.isFavorite ? "★" : "☆"}
             </button>
-            {sub.name} ({sub.currencyCode}){" "}
+            {sub.name}{" "}
             {hadPriceHike && (
               <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-normal text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                 price hike
@@ -85,7 +85,7 @@ export default function SubscriptionRow({
             )}{" "}
             {sub.splitCount > 1 && (
               <span className="rounded bg-purple-100 px-1.5 py-0.5 text-xs font-normal text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                split {sub.splitCount} ways · your share {formatCents(shareCents)}
+                split {sub.splitCount} ways · your share {formatCents(shareCents, sub.currencyCode)}
               </span>
             )}{" "}
             {idle && (
@@ -102,7 +102,7 @@ export default function SubscriptionRow({
           </span>
           {savingsCents > 0 && (
             <span className="text-xs text-emerald-600 dark:text-emerald-400">
-              Save {formatCents(savingsCents)}/yr switching to the annual plan
+              Save {formatCents(savingsCents, sub.currencyCode)}/yr switching to the annual plan
             </span>
           )}
           {sub.notes && <span className="text-xs text-zinc-500">{sub.notes}</span>}
@@ -125,7 +125,7 @@ export default function SubscriptionRow({
           </div>
         ) : (
           <button onClick={() => setEditing(true)} className="font-mono text-sm hover:underline">
-            {formatCents(displayCents)}
+            {formatCents(displayCents, sub.currencyCode)}
           </button>
         )}
         {sub.cancelUrl && (
