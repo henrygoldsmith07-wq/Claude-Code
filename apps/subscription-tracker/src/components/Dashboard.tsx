@@ -34,6 +34,10 @@ export default function Dashboard() {
     [],
   );
   const [showShare, setShowShare] = useLocalStorage<boolean>("showShare", false);
+  const [preferredCurrency, setPreferredCurrency] = useLocalStorage<string>(
+    "preferredCurrency",
+    "USD",
+  );
 
   const { theme, setTheme } = useTheme();
   const { allCategories, customCategories, addCategory, removeCategory } = useCategories();
@@ -119,6 +123,8 @@ export default function Dashboard() {
           onThemeChange={setTheme}
           showShare={showShare}
           onShowShareChange={setShowShare}
+          preferredCurrency={preferredCurrency}
+          onPreferredCurrencyChange={setPreferredCurrency}
           onExportBackup={handleExportBackup}
           onImportBackup={handleImportBackup}
           onImportCsv={handleImportCsv}
@@ -175,7 +181,11 @@ export default function Dashboard() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Subscriptions</h2>
-        <SubscriptionForm categories={allCategories} onAdd={addSubscription} />
+        <SubscriptionForm
+          categories={allCategories}
+          defaultCurrencyCode={preferredCurrency}
+          onAdd={addSubscription}
+        />
         <SubscriptionsList
           categories={allCategories}
           subscriptions={subscriptions}
