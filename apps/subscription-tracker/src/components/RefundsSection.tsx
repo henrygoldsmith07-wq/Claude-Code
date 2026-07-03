@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { formatCents } from "@/lib/money";
+import { buildRefundsCsv, downloadCsv } from "@/lib/csvExport";
 import type { Refund } from "@/lib/types";
 
 interface Props {
@@ -19,6 +20,10 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
   const [expectedDate, setExpectedDate] = useState("");
   const [tab, setTab] = useState<Tab>("all");
   const [sortDesc, setSortDesc] = useState(true);
+
+  function handleExport() {
+    downloadCsv(buildRefundsCsv(refunds), `refunds-export-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -56,7 +61,7 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
 
   return (
     <div className="flex flex-col gap-4">
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 print:hidden">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-zinc-500">Merchant</label>
           <input
@@ -94,6 +99,15 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
         >
           Track
         </button>
+        {refunds.length > 0 && (
+          <button
+            type="button"
+            onClick={handleExport}
+            className="text-xs text-zinc-500 hover:underline"
+          >
+            Export refunds CSV
+          </button>
+        )}
       </form>
 
       {refunds.length === 0 ? (

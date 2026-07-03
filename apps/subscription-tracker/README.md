@@ -62,6 +62,33 @@ keep tabs on pending refunds. Data is stored locally in the browser
   subscriptions display their price.
 - **Copy summary** — copies a plain-text summary of your finances to the
   clipboard.
+- **Favorites** — star a subscription to pin it to the top of the list.
+- **Payment method & owner** — tag a subscription with which card it bills
+  to and who in the household owns it; both show in the list.
+- **Billing currency tag** — display-only currency code per subscription
+  (no conversion math, just a label).
+- **Archive** — hide a subscription from the main list without deleting it;
+  view/restore archived subscriptions from the status filter.
+- **Multi-select bulk delete** — select several subscriptions and delete
+  them together.
+- **Custom categories** — add and remove your own categories beyond the
+  built-in list.
+- **Category quick-filter chips** — one-click category filters with live
+  counts, above the subscription list.
+- **Renewal urgency colors** — the "renews in Nd" text turns red inside 3
+  days, amber inside 7.
+- **Mark used today** — one click to update a subscription's last-used date
+  to today.
+- **Search matches notes too** — not just the subscription name.
+- **Lifetime stats** — total subscriptions ever cancelled, and an estimated
+  lifetime amount paid based on each subscription's start date.
+- **Renewals calendar export (.ics)** — download upcoming renewals as
+  recurring calendar events for any calendar app.
+- **Print report** — a print-friendly view of your stats and subscriptions
+  (forms and controls are hidden when printing).
+- **Per-section CSV export** — export just budgets or just refunds.
+- **Auto-dismissing toasts** — notifications (including undo-delete) clear
+  themselves after a few seconds.
 
 ## Setup
 

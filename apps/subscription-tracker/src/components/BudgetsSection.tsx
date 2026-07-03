@@ -1,19 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { CATEGORIES } from "@/lib/categories";
 import { formatCents } from "@/lib/money";
+import { buildBudgetsCsv, downloadCsv } from "@/lib/csvExport";
 import type { Budget } from "@/lib/types";
 
 interface Props {
+  categories: string[];
   budgets: Budget[];
   spendByCategory: Record<string, number>;
   onSetBudget: (category: string, monthlyLimitCents: number) => void;
 }
 
-export default function BudgetsSection({ budgets, spendByCategory, onSetBudget }: Props) {
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+export default function BudgetsSection({ categories, budgets, spendByCategory, onSetBudget }: Props) {
+  const [category, setCategory] = useState<string>(categories[0]);
   const [limit, setLimit] = useState("");
+
+  function handleExport() {
+    downloadCsv(buildBudgetsCsv(budgets), `budgets-export-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +34,7 @@ export default function BudgetsSection({ budgets, spendByCategory, onSetBudget }
 
   return (
     <div className="flex flex-col gap-4">
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 print:hidden">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-zinc-500">Category</label>
           <select
@@ -37,7 +42,7 @@ export default function BudgetsSection({ budgets, spendByCategory, onSetBudget }
             onChange={(e) => setCategory(e.target.value)}
             className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           >
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -63,6 +68,15 @@ export default function BudgetsSection({ budgets, spendByCategory, onSetBudget }
         >
           Set budget
         </button>
+        {budgets.length > 0 && (
+          <button
+            type="button"
+            onClick={handleExport}
+            className="text-xs text-zinc-500 hover:underline"
+          >
+            Export budgets CSV
+          </button>
+        )}
       </form>
 
       {categoriesWithSpend.length === 0 ? (

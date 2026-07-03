@@ -46,3 +46,12 @@ export function daysUntil(dateStr: string): number {
 export function daysSince(dateStr: string): number {
   return -daysUntil(dateStr);
 }
+
+export function estimateLifetimePaidCents(
+  amountCents: number,
+  cycle: BillingCycle,
+  createdAt: string,
+): number {
+  const monthsElapsed = Math.max(0, daysSince(createdAt.slice(0, 10)) / 30);
+  return Math.round(monthlyEquivalentCents(amountCents, cycle) * monthsElapsed);
+}

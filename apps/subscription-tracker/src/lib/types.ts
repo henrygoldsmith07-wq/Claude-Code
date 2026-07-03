@@ -21,6 +21,12 @@ export interface Subscription {
   notes: string;
   cancelUrl: string | null;
   lastUsedDate: string | null;
+  isFavorite: boolean;
+  paymentMethod: string;
+  owner: string;
+  currencyCode: string;
+  archived: boolean;
+  createdAt: string;
 }
 
 export interface CancellationLogEntry {

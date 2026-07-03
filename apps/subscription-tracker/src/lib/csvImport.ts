@@ -80,6 +80,12 @@ export function parseSubscriptionsCsv(
       notes: "",
       cancelUrl: null,
       lastUsedDate: null,
+      isFavorite: false,
+      paymentMethod: "",
+      owner: "",
+      currencyCode: "USD",
+      archived: false,
+      createdAt: new Date().toISOString(),
     });
   }
 

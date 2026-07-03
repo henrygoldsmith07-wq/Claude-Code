@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { CATEGORIES } from "@/lib/categories";
+import { CURRENCIES } from "@/lib/currencies";
 import type { BillingCycle, Subscription } from "@/lib/types";
 
 interface Props {
+  categories: string[];
   onAdd: (sub: Omit<Subscription, "id" | "priceHistory" | "active">) => void;
 }
 
-export default function SubscriptionForm({ onAdd }: Props) {
+export default function SubscriptionForm({ categories, onAdd }: Props) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+  const [category, setCategory] = useState<string>(categories[0]);
   const [amount, setAmount] = useState("");
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [nextRenewalDate, setNextRenewalDate] = useState("");
@@ -22,6 +23,9 @@ export default function SubscriptionForm({ onAdd }: Props) {
   const [notes, setNotes] = useState("");
   const [cancelUrl, setCancelUrl] = useState("");
   const [lastUsedDate, setLastUsedDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [owner, setOwner] = useState("");
+  const [currencyCode, setCurrencyCode] = useState<string>(CURRENCIES[0].code);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +49,12 @@ export default function SubscriptionForm({ onAdd }: Props) {
       notes: notes.trim(),
       cancelUrl: cancelUrl.trim() || null,
       lastUsedDate: lastUsedDate || null,
+      isFavorite: false,
+      paymentMethod: paymentMethod.trim(),
+      owner: owner.trim(),
+      currencyCode,
+      archived: false,
+      createdAt: new Date().toISOString(),
     });
 
     setName("");
@@ -57,11 +67,14 @@ export default function SubscriptionForm({ onAdd }: Props) {
     setNotes("");
     setCancelUrl("");
     setLastUsedDate("");
+    setPaymentMethod("");
+    setOwner("");
+    setCurrencyCode(CURRENCIES[0].code);
     setShowMore(false);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 print:hidden">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-zinc-500">Name</label>
@@ -80,7 +93,7 @@ export default function SubscriptionForm({ onAdd }: Props) {
             onChange={(e) => setCategory(e.target.value)}
             className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           >
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -213,6 +226,38 @@ export default function SubscriptionForm({ onAdd }: Props) {
               type="date"
               className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-500">Payment method</label>
+            <input
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              placeholder="Visa 4242"
+              className="w-32 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-500">Owner</label>
+            <input
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+              placeholder="optional"
+              className="w-28 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-500">Billed in</label>
+            <select
+              value={currencyCode}
+              onChange={(e) => setCurrencyCode(e.target.value)}
+              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} ({c.symbol})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       )}

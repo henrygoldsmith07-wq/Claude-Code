@@ -13,6 +13,7 @@ interface Props {
   onImportCsv: (file: File) => void;
   onCopySummary: () => void;
   onExportCsv: () => void;
+  onExportIcs: () => void;
 }
 
 export default function SettingsBar({
@@ -25,6 +26,7 @@ export default function SettingsBar({
   onImportCsv,
   onCopySummary,
   onExportCsv,
+  onExportIcs,
 }: Props) {
   const backupInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -37,7 +39,7 @@ export default function SettingsBar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 text-xs">
+    <div className="flex flex-wrap items-center gap-3 text-xs print:hidden">
       <select
         value={theme}
         onChange={(e) => onThemeChange(e.target.value as Theme)}
@@ -77,6 +79,20 @@ export default function SettingsBar({
         className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
       >
         Backup (JSON)
+      </button>
+
+      <button
+        onClick={onExportIcs}
+        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+      >
+        Renewals calendar (.ics)
+      </button>
+
+      <button
+        onClick={() => window.print()}
+        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+      >
+        Print report
       </button>
 
       <button

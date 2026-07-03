@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  formatCents,
-  daysUntil,
-  daysSince,
-  yourShareCents,
-  annualSwitchSavingsCents,
-} from "@/lib/money";
-import { CATEGORIES } from "@/lib/categories";
 import type { Subscription } from "@/lib/types";
+import SubscriptionRow from "./SubscriptionRow";
+import CategoryChips from "./CategoryChips";
 
 interface Props {
+  categories: string[];
   subscriptions: Subscription[];
   search: string;
   onSearchChange: (value: string) => void;
@@ -21,14 +16,19 @@ interface Props {
   onUpdatePrice: (id: string, newAmountCents: number) => void;
   onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
+  onBulkDelete: (ids: string[]) => void;
   onDuplicate: (id: string) => void;
   onBulkSetActive: (category: string, active: boolean) => void;
+  onToggleFavorite: (id: string) => void;
+  onToggleArchive: (id: string) => void;
+  onMarkUsedToday: (id: string) => void;
 }
 
-type StatusFilter = "all" | "active" | "paused" | "trial";
+type StatusFilter = "all" | "active" | "paused" | "trial" | "archived";
 type SortKey = "name" | "price" | "renewal";
 
 export default function SubscriptionsList({
+  categories,
   subscriptions,
   search,
   onSearchChange,
@@ -38,14 +38,17 @@ export default function SubscriptionsList({
   onUpdatePrice,
   onToggleActive,
   onDelete,
+  onBulkDelete,
   onDuplicate,
   onBulkSetActive,
+  onToggleFavorite,
+  onToggleArchive,
+  onMarkUsedToday,
 }: Props) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("renewal");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,9 +64,28 @@ export default function SubscriptionsList({
     return () => document.removeEventListener("keydown", handleKeydown);
   }, []);
 
+  const countByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const sub of subscriptions) {
+      if (sub.archived) continue;
+      map[sub.category] = (map[sub.category] ?? 0) + 1;
+    }
+    return map;
+  }, [subscriptions]);
+
   const filtered = useMemo(() => {
     const result = subscriptions.filter((sub) => {
-      if (search && !sub.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (statusFilter === "archived") {
+        if (!sub.archived) return false;
+      } else if (sub.archived) {
+        return false;
+      }
+      if (search) {
+        const term = search.toLowerCase();
+        if (!sub.name.toLowerCase().includes(term) && !sub.notes.toLowerCase().includes(term)) {
+          return false;
+        }
+      }
       if (categoryFilter !== "all" && sub.category !== categoryFilter) return false;
       if (statusFilter === "active" && !sub.active) return false;
       if (statusFilter === "paused" && sub.active) return false;
@@ -72,29 +94,34 @@ export default function SubscriptionsList({
     });
 
     const dir = sortDir === "asc" ? 1 : -1;
-    return [...result].sort((a, b) => {
+    const sorted = [...result].sort((a, b) => {
       if (sortKey === "name") return a.name.localeCompare(b.name) * dir;
       if (sortKey === "price") return (a.amountCents - b.amountCents) * dir;
       return a.nextRenewalDate.localeCompare(b.nextRenewalDate) * dir;
     });
+    return sorted.sort((a, b) => Number(b.isFavorite) - Number(a.isFavorite));
   }, [subscriptions, search, categoryFilter, statusFilter, sortKey, sortDir]);
 
-  function startEdit(sub: Subscription) {
-    setEditingId(sub.id);
-    setEditValue((sub.amountCents / 100).toFixed(2));
-  }
-
-  function submitEdit(id: string) {
-    const cents = Math.round(parseFloat(editValue) * 100);
-    if (!Number.isNaN(cents)) {
-      onUpdatePrice(id, cents);
-    }
-    setEditingId(null);
-  }
-
-  function handleDelete(sub: Subscription) {
+  function handleDeleteRow(sub: Subscription) {
     if (window.confirm(`Delete ${sub.name}? You can undo this right after.`)) {
       onDelete(sub.id);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (window.confirm(`Delete ${selected.size} selected subscription(s)?`)) {
+      onBulkDelete(Array.from(selected));
+      setSelected(new Set());
     }
   }
 
@@ -104,13 +131,19 @@ export default function SubscriptionsList({
 
   return (
     <div className="flex flex-col gap-3">
+      <CategoryChips
+        countByCategory={countByCategory}
+        categoryFilter={categoryFilter}
+        onSelect={onCategoryFilterChange}
+      />
+
       <div className="flex flex-wrap items-end gap-3">
         <input
           ref={searchRef}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search by name (press /)"
-          className="w-44 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          placeholder="Search name or notes (press /)"
+          className="w-48 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
         <select
           value={categoryFilter}
@@ -118,7 +151,7 @@ export default function SubscriptionsList({
           className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
           <option value="all">All categories</option>
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -133,6 +166,7 @@ export default function SubscriptionsList({
           <option value="active">Active</option>
           <option value="paused">Paused</option>
           <option value="trial">Trial</option>
+          <option value="archived">Archived</option>
         </select>
         <select
           value={sortKey}
@@ -169,125 +203,37 @@ export default function SubscriptionsList({
             </button>
           </>
         )}
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={handleBulkDelete}
+            className="text-xs text-red-600 hover:underline dark:text-red-400"
+          >
+            Delete {selected.size} selected
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
         <p className="text-sm text-zinc-500">No subscriptions match your filters.</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {filtered.map((sub) => {
-            const days = daysUntil(sub.nextRenewalDate);
-            const hadPriceHike = sub.priceHistory.some((h) => h.amountCents < sub.amountCents);
-            const shareCents = yourShareCents(sub.amountCents, sub.splitCount);
-            const displayCents = showShare ? shareCents : sub.amountCents;
-            const savingsCents = annualSwitchSavingsCents(
-              sub.amountCents,
-              sub.billingCycle,
-              sub.yearlyPriceCents,
-            );
-            const idle = sub.lastUsedDate !== null && daysSince(sub.lastUsedDate) >= 30;
-            return (
-              <li
-                key={sub.id}
-                className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm ${
-                  sub.active
-                    ? "border-zinc-200 dark:border-zinc-800"
-                    : "border-zinc-200 opacity-50 dark:border-zinc-800"
-                }`}
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium">
-                    {sub.name}{" "}
-                    {hadPriceHike && (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-normal text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        price hike
-                      </span>
-                    )}{" "}
-                    {sub.isTrial && (
-                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-normal text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                        trial{sub.trialEndsDate ? ` ends ${sub.trialEndsDate}` : ""}
-                      </span>
-                    )}{" "}
-                    {sub.splitCount > 1 && (
-                      <span className="rounded bg-purple-100 px-1.5 py-0.5 text-xs font-normal text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                        split {sub.splitCount} ways · your share {formatCents(shareCents)}
-                      </span>
-                    )}{" "}
-                    {idle && (
-                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-normal text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                        idle 30+ days
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    {sub.category} · {sub.billingCycle} ·{" "}
-                    {days >= 0 ? `renews in ${days}d` : `renewal overdue`}
-                  </span>
-                  {savingsCents > 0 && (
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                      Save {formatCents(savingsCents)}/yr switching to the annual plan
-                    </span>
-                  )}
-                  {sub.notes && <span className="text-xs text-zinc-500">{sub.notes}</span>}
-                </div>
-                <div className="flex items-center gap-3">
-                  {editingId === sub.id ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        autoFocus
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        type="number"
-                        step="0.01"
-                        className="w-20 rounded border border-zinc-300 px-1.5 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                      />
-                      <button
-                        onClick={() => submitEdit(sub.id)}
-                        className="text-xs font-medium text-blue-600 dark:text-blue-400"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => startEdit(sub)}
-                      className="font-mono text-sm hover:underline"
-                    >
-                      {formatCents(displayCents)}
-                    </button>
-                  )}
-                  {sub.cancelUrl && (
-                    <a
-                      href={sub.cancelUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-zinc-500 hover:underline"
-                    >
-                      Cancel ↗
-                    </a>
-                  )}
-                  <button
-                    onClick={() => onDuplicate(sub.id)}
-                    className="text-xs text-zinc-500 hover:underline"
-                  >
-                    Duplicate
-                  </button>
-                  <button
-                    onClick={() => onToggleActive(sub.id)}
-                    className="text-xs text-zinc-500 hover:underline"
-                  >
-                    {sub.active ? "Pause" : "Resume"}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(sub)}
-                    className="text-xs text-red-600 hover:underline dark:text-red-400"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            );
-          })}
+          {filtered.map((sub) => (
+            <SubscriptionRow
+              key={sub.id}
+              sub={sub}
+              showShare={showShare}
+              selected={selected.has(sub.id)}
+              onToggleSelect={toggleSelect}
+              onUpdatePrice={onUpdatePrice}
+              onToggleActive={onToggleActive}
+              onDelete={handleDeleteRow}
+              onDuplicate={onDuplicate}
+              onToggleFavorite={onToggleFavorite}
+              onToggleArchive={onToggleArchive}
+              onMarkUsedToday={onMarkUsedToday}
+            />
+          ))}
         </ul>
       )}
     </div>

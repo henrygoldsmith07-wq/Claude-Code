@@ -9,6 +9,8 @@ interface Props {
   totalBudgetCents: number;
   lifetimeSavedFromCancellations: number;
   priceHikeImpactCents: number;
+  totalCancelledCount: number;
+  totalLifetimePaidCents: number;
   topExpenseSubs: Subscription[];
 }
 
@@ -20,6 +22,8 @@ export default function StatsOverview({
   totalBudgetCents,
   lifetimeSavedFromCancellations,
   priceHikeImpactCents,
+  totalCancelledCount,
+  totalLifetimePaidCents,
   topExpenseSubs,
 }: Props) {
   return (
@@ -48,6 +52,11 @@ export default function StatsOverview({
           label="Price hike impact (annualized)"
           value={formatCents(priceHikeImpactCents)}
         />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard label="Subscriptions cancelled (all time)" value={String(totalCancelledCount)} />
+        <StatCard label="Estimated lifetime paid" value={formatCents(totalLifetimePaidCents)} />
       </section>
 
       {topExpenseSubs.length > 0 && (

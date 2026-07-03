@@ -91,6 +91,47 @@ export function useSubscriptionActions(
     });
   }
 
+  function bulkDeleteSubscriptions(ids: string[]) {
+    const idSet = new Set(ids);
+    const toDelete = subscriptions.filter((s) => idSet.has(s.id));
+    if (toDelete.length === 0) return;
+
+    setSubscriptions(subscriptions.filter((s) => !idSet.has(s.id)));
+
+    const newEntries: CancellationLogEntry[] = toDelete
+      .filter((s) => s.active)
+      .map((s) => ({
+        id: crypto.randomUUID(),
+        name: s.name,
+        monthlyEquivalentCentsAtCancellation: monthlyEquivalentCents(s.amountCents, s.billingCycle),
+        cancelledAt: new Date().toISOString(),
+      }));
+    if (newEntries.length > 0) {
+      setCancellationLog([...cancellationLog, ...newEntries]);
+    }
+
+    setToast({ message: `Deleted ${toDelete.length} subscription(s)` });
+  }
+
+  function toggleFavorite(id: string) {
+    setSubscriptions(
+      subscriptions.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s)),
+    );
+  }
+
+  function toggleArchive(id: string) {
+    setSubscriptions(
+      subscriptions.map((s) => (s.id === id ? { ...s, archived: !s.archived } : s)),
+    );
+  }
+
+  function markUsedToday(id: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    setSubscriptions(
+      subscriptions.map((s) => (s.id === id ? { ...s, lastUsedDate: today } : s)),
+    );
+  }
+
   return {
     addSubscription,
     updateSubscriptionPrice,
@@ -98,5 +139,9 @@ export function useSubscriptionActions(
     bulkSetActive,
     duplicateSubscription,
     deleteSubscription,
+    bulkDeleteSubscriptions,
+    toggleFavorite,
+    toggleArchive,
+    markUsedToday,
   };
 }

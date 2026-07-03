@@ -3,6 +3,7 @@ import {
   monthlyEquivalentCents,
   annualEquivalentCents,
   yourShareCents,
+  estimateLifetimePaidCents,
   daysUntil,
 } from "./money";
 import type { Budget, CancellationLogEntry, Refund, Subscription } from "./types";
@@ -13,7 +14,18 @@ export function useDashboardStats(
   budgets: Budget[],
   cancellationLog: CancellationLogEntry[],
 ) {
-  const activeSubs = useMemo(() => subscriptions.filter((s) => s.active), [subscriptions]);
+  const activeSubs = useMemo(
+    () => subscriptions.filter((s) => s.active && !s.archived),
+    [subscriptions],
+  );
+
+  const countByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of activeSubs) {
+      map[s.category] = (map[s.category] ?? 0) + 1;
+    }
+    return map;
+  }, [activeSubs]);
 
   const totalMonthlyCents = useMemo(
     () =>
@@ -106,8 +118,18 @@ export function useDashboardStats(
     [subscriptions],
   );
 
+  const totalLifetimePaidCents = useMemo(
+    () =>
+      subscriptions.reduce(
+        (sum, s) => sum + estimateLifetimePaidCents(s.amountCents, s.billingCycle, s.createdAt),
+        0,
+      ),
+    [subscriptions],
+  );
+
   return {
     activeSubs,
+    countByCategory,
     totalMonthlyCents,
     spendByCategory,
     upcomingRenewals,
@@ -118,5 +140,7 @@ export function useDashboardStats(
     trialsEndingSoon,
     lifetimeSavedFromCancellations,
     priceHikeImpactCents,
+    totalCancelledCount: cancellationLog.length,
+    totalLifetimePaidCents,
   };
 }

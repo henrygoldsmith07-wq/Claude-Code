@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { useTheme } from "@/lib/useTheme";
+import { useCategories } from "@/lib/useCategories";
 import { useDashboardStats } from "@/lib/useDashboardStats";
 import { useSubscriptionActions } from "@/lib/useSubscriptionActions";
 import { useDataPortability } from "@/lib/useDataPortability";
 import { formatCents } from "@/lib/money";
+import { buildRenewalsIcs, downloadIcs } from "@/lib/icsExport";
 import type { Budget, CancellationLogEntry, Refund, Subscription, ToastState } from "@/lib/types";
 import SubscriptionForm from "./SubscriptionForm";
 import SubscriptionsList from "./SubscriptionsList";
@@ -15,6 +17,7 @@ import RefundsSection from "./RefundsSection";
 import InsightsPanel from "./InsightsPanel";
 import CategoryChart from "./CategoryChart";
 import SettingsBar from "./SettingsBar";
+import CategoryManager from "./CategoryManager";
 import Toast from "./Toast";
 import StatsOverview from "./StatsOverview";
 import SummaryBanners from "./SummaryBanners";
@@ -33,6 +36,7 @@ export default function Dashboard() {
   const [showShare, setShowShare] = useLocalStorage<boolean>("showShare", false);
 
   const { theme, setTheme } = useTheme();
+  const { allCategories, customCategories, addCategory, removeCategory } = useCategories();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -46,7 +50,15 @@ export default function Dashboard() {
     bulkSetActive,
     duplicateSubscription,
     deleteSubscription,
+    bulkDeleteSubscriptions,
+    toggleFavorite,
+    toggleArchive,
+    markUsedToday,
   } = useSubscriptionActions(subscriptions, setSubscriptions, cancellationLog, setCancellationLog, setToast);
+
+  function handleExportIcs() {
+    downloadIcs(buildRenewalsIcs(subscriptions), "subscription-renewals.ics");
+  }
 
   const { handleExportCsv, handleExportBackup, handleImportBackup, handleImportCsv, handleCopySummary } =
     useDataPortability(
@@ -112,6 +124,12 @@ export default function Dashboard() {
           onImportCsv={handleImportCsv}
           onCopySummary={handleCopySummary}
           onExportCsv={handleExportCsv}
+          onExportIcs={handleExportIcs}
+        />
+        <CategoryManager
+          customCategories={customCategories}
+          onAdd={addCategory}
+          onRemove={removeCategory}
         />
       </div>
 
@@ -128,12 +146,18 @@ export default function Dashboard() {
         totalBudgetCents={stats.totalBudgetCents}
         lifetimeSavedFromCancellations={stats.lifetimeSavedFromCancellations}
         priceHikeImpactCents={stats.priceHikeImpactCents}
+        totalCancelledCount={stats.totalCancelledCount}
+        totalLifetimePaidCents={stats.totalLifetimePaidCents}
         topExpenseSubs={stats.topExpenseSubs}
       />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Spending breakdown</h2>
-        <CategoryChart spendByCategory={stats.spendByCategory} onSelectCategory={setCategoryFilter} />
+        <CategoryChart
+          spendByCategory={stats.spendByCategory}
+          countByCategory={stats.countByCategory}
+          onSelectCategory={setCategoryFilter}
+        />
       </section>
 
       {stats.upcomingRenewals.length > 0 && (
@@ -151,8 +175,9 @@ export default function Dashboard() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Subscriptions</h2>
-        <SubscriptionForm onAdd={addSubscription} />
+        <SubscriptionForm categories={allCategories} onAdd={addSubscription} />
         <SubscriptionsList
+          categories={allCategories}
           subscriptions={subscriptions}
           search={search}
           onSearchChange={setSearch}
@@ -162,8 +187,12 @@ export default function Dashboard() {
           onUpdatePrice={updateSubscriptionPrice}
           onToggleActive={toggleActive}
           onDelete={deleteSubscription}
+          onBulkDelete={bulkDeleteSubscriptions}
           onDuplicate={duplicateSubscription}
           onBulkSetActive={bulkSetActive}
+          onToggleFavorite={toggleFavorite}
+          onToggleArchive={toggleArchive}
+          onMarkUsedToday={markUsedToday}
         />
       </section>
 
@@ -175,6 +204,7 @@ export default function Dashboard() {
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Budgets</h2>
         <BudgetsSection
+          categories={allCategories}
           budgets={budgets}
           spendByCategory={stats.spendByCategory}
           onSetBudget={setBudget}

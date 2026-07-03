@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 interface Props {
   message: string;
   actionLabel?: string;
@@ -8,6 +10,11 @@ interface Props {
 }
 
 export default function Toast({ message, actionLabel, onAction, onDismiss }: Props) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 6000);
+    return () => clearTimeout(timer);
+  }, [message, onDismiss]);
+
   return (
     <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
       <span>{message}</span>

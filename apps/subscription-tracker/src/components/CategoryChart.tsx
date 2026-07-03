@@ -15,10 +15,11 @@ const COLORS = [
 
 interface Props {
   spendByCategory: Record<string, number>;
+  countByCategory?: Record<string, number>;
   onSelectCategory?: (category: string) => void;
 }
 
-export default function CategoryChart({ spendByCategory, onSelectCategory }: Props) {
+export default function CategoryChart({ spendByCategory, countByCategory, onSelectCategory }: Props) {
   const entries = Object.entries(spendByCategory).filter(([, cents]) => cents > 0);
   const total = entries.reduce((sum, [, cents]) => sum + cents, 0);
 
@@ -77,6 +78,7 @@ export default function CategoryChart({ spendByCategory, onSelectCategory }: Pro
             )}
             <span className="text-zinc-500">
               {formatCents(cents)} ({((cents / total) * 100).toFixed(0)}%)
+              {countByCategory && ` · ${countByCategory[category] ?? 0} sub(s)`}
             </span>
           </li>
         ))}
