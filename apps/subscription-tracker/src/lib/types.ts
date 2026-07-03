@@ -16,6 +16,10 @@ export interface Subscription {
   active: boolean;
   isTrial: boolean;
   trialEndsDate: string | null;
+  splitCount: number;
+  yearlyPriceCents: number | null;
+  notes: string;
+  cancelUrl: string | null;
 }
 
 export type RefundStatus = "pending" | "received" | "overdue";

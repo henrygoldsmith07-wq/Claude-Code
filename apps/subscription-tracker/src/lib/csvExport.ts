@@ -1,4 +1,4 @@
-import { monthlyEquivalentCents } from "./money";
+import { monthlyEquivalentCents, yourShareCents } from "./money";
 import type { Budget, Refund, Subscription } from "./types";
 
 function escapeCsvField(value: string): string {
@@ -21,9 +21,23 @@ export function buildCsv(
 
   lines.push("Subscriptions");
   lines.push(
-    toCsvRow(["Name", "Category", "Amount", "Billing Cycle", "Monthly Equivalent", "Next Renewal", "Active", "Trial"]),
+    toCsvRow([
+      "Name",
+      "Category",
+      "Amount",
+      "Billing Cycle",
+      "Monthly Equivalent",
+      "Split Between",
+      "Your Share",
+      "Next Renewal",
+      "Active",
+      "Trial",
+      "Cancel URL",
+      "Notes",
+    ]),
   );
   for (const s of subscriptions) {
+    const shareCents = yourShareCents(s.amountCents, s.splitCount);
     lines.push(
       toCsvRow([
         s.name,
@@ -31,9 +45,13 @@ export function buildCsv(
         (s.amountCents / 100).toFixed(2),
         s.billingCycle,
         (monthlyEquivalentCents(s.amountCents, s.billingCycle) / 100).toFixed(2),
+        s.splitCount,
+        (shareCents / 100).toFixed(2),
         s.nextRenewalDate,
         s.active ? "yes" : "no",
         s.isTrial ? `yes (ends ${s.trialEndsDate ?? "unknown"})` : "no",
+        s.cancelUrl ?? "",
+        s.notes,
       ]),
     );
   }

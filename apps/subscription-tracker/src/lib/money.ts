@@ -16,6 +16,19 @@ export function annualEquivalentCents(amountCents: number, cycle: BillingCycle):
   return monthlyEquivalentCents(amountCents, cycle) * 12;
 }
 
+export function yourShareCents(amountCents: number, splitCount: number): number {
+  return Math.round(amountCents / Math.max(1, splitCount));
+}
+
+export function annualSwitchSavingsCents(
+  amountCents: number,
+  cycle: BillingCycle,
+  yearlyPriceCents: number | null,
+): number {
+  if (yearlyPriceCents === null || cycle !== "monthly") return 0;
+  return Math.max(0, annualEquivalentCents(amountCents, cycle) - yearlyPriceCents);
+}
+
 export function formatCents(cents: number): string {
   return (cents / 100).toLocaleString("en-US", {
     style: "currency",

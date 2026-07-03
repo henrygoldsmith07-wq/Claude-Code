@@ -2,7 +2,13 @@
 
 import { useMemo } from "react";
 import { useLocalStorage } from "@/lib/useLocalStorage";
-import { monthlyEquivalentCents, annualEquivalentCents, formatCents, daysUntil } from "@/lib/money";
+import {
+  monthlyEquivalentCents,
+  annualEquivalentCents,
+  yourShareCents,
+  formatCents,
+  daysUntil,
+} from "@/lib/money";
 import { buildCsv, downloadCsv } from "@/lib/csvExport";
 import type { Budget, Refund, Subscription } from "@/lib/types";
 import SubscriptionForm from "./SubscriptionForm";
@@ -25,7 +31,9 @@ export default function Dashboard() {
   const totalMonthlyCents = useMemo(
     () =>
       activeSubs.reduce(
-        (sum, s) => sum + monthlyEquivalentCents(s.amountCents, s.billingCycle),
+        (sum, s) =>
+          sum +
+          monthlyEquivalentCents(yourShareCents(s.amountCents, s.splitCount), s.billingCycle),
         0,
       ),
     [activeSubs],
@@ -34,7 +42,8 @@ export default function Dashboard() {
   const spendByCategory = useMemo(() => {
     const map: Record<string, number> = {};
     for (const s of activeSubs) {
-      map[s.category] = (map[s.category] ?? 0) + monthlyEquivalentCents(s.amountCents, s.billingCycle);
+      const shareCents = yourShareCents(s.amountCents, s.splitCount);
+      map[s.category] = (map[s.category] ?? 0) + monthlyEquivalentCents(shareCents, s.billingCycle);
     }
     return map;
   }, [activeSubs]);
@@ -61,8 +70,8 @@ export default function Dashboard() {
       [...activeSubs]
         .sort(
           (a, b) =>
-            annualEquivalentCents(b.amountCents, b.billingCycle) -
-            annualEquivalentCents(a.amountCents, a.billingCycle),
+            annualEquivalentCents(yourShareCents(b.amountCents, b.splitCount), b.billingCycle) -
+            annualEquivalentCents(yourShareCents(a.amountCents, a.splitCount), a.billingCycle),
         )
         .slice(0, 3),
     [activeSubs],
@@ -172,19 +181,25 @@ export default function Dashboard() {
       )}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <StatCard label="Monthly subscription spend" value={formatCents(totalMonthlyCents)} />
-        <StatCard label="Projected annual cost" value={formatCents(totalAnnualCents)} />
+        <StatCard label="Your monthly spend" value={formatCents(totalMonthlyCents)} />
+        <StatCard label="Your projected annual cost" value={formatCents(totalAnnualCents)} />
         <StatCard label="Pending refunds" value={formatCents(pendingRefundsCents)} />
         <StatCard label="Renewing this week" value={String(upcomingRenewals.length)} />
       </section>
 
       {topExpenseSubs.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-zinc-500">Most expensive (annualized)</h2>
+          <h2 className="text-sm font-semibold text-zinc-500">
+            Most expensive to you (annualized, your share)
+          </h2>
           <ul className="flex flex-col gap-1">
             {topExpenseSubs.map((s) => (
               <li key={s.id} className="text-sm">
-                {s.name} — {formatCents(annualEquivalentCents(s.amountCents, s.billingCycle))}/yr
+                {s.name} —{" "}
+                {formatCents(
+                  annualEquivalentCents(yourShareCents(s.amountCents, s.splitCount), s.billingCycle),
+                )}
+                /yr
               </li>
             ))}
           </ul>

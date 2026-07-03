@@ -25,6 +25,15 @@ keep tabs on pending refunds. Data is stored locally in the browser
   date and get a prominent warning banner before it starts charging.
 - **CSV export** — export subscriptions, budgets, and refunds to CSV for
   spreadsheets or tax prep.
+- **Search & filter** — filter the subscription list by name, category, or
+  status (active/paused/trial).
+- **Split subscriptions** — mark a subscription as split between multiple
+  people; all spend totals, budgets, and the annualized "most expensive"
+  list use your actual share, not the full charge.
+- **Annual plan savings** — enter what the annual plan would cost and see
+  how much you'd save per year by switching off monthly billing.
+- **Notes & cancel links** — attach a free-text note and a direct
+  manage/cancel URL to any subscription.
 
 ## Setup
 
