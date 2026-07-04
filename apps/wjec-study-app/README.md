@@ -21,17 +21,29 @@ rather than passive note re-reading. Data is stored locally in the browser
   explanation, rather than just re-reading content.
 - **Retrieval within a session** — a flashcard graded "Again" is
   re-inserted a few cards later in the same session for another attempt,
-  instead of waiting until tomorrow.
+  instead of waiting until tomorrow. Lesson sections work the same way when
+  marked "Need review".
+- **Interpolated testing during instruction** — lessons pause after each
+  short section for a check-your-understanding question you attempt before
+  seeing the answer, rather than reading a wall of text straight through.
 
 ## Features
 
 - Curriculum-organised topics across Chemistry, Physics, Biology and Maths.
-- Claude-generated flashcards and multiple-choice quizzes per topic, cached
-  locally so they only need generating once.
+- Claude-generated flashcards, multiple-choice quizzes, and interactive
+  lessons per topic, cached locally so they only need generating once.
 - Per-topic and per-subject mastery, blending spaced-repetition progress
   with recent quiz accuracy.
 - A day-streak counter and a "study all due" button that interleaves due
   cards across every subject at once.
+- **Study plans** — set an exam date per subject and get a daily "today's
+  focus" list that covers every remaining topic in time, prioritising
+  untouched and weak ones.
+- **Gamification** — XP for reviews, quizzes and lessons, levels, a longest
+  day-streak, and badges for milestones.
+- **NotebookLM links** — save a NotebookLM notebook URL per topic (there's
+  no public API to auto-create one, so this just stores and opens a link
+  you made yourself), with a bulk JSON import for pasting in many at once.
 
 ## Setup
 

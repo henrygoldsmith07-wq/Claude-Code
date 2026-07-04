@@ -3,8 +3,23 @@
 import { useCallback, useMemo } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 import { createCard, reviewCard } from "./sm2";
-import type { Flashcard, QuizAttempt, QuizQuestion, RecallGrade, SubjectId } from "./types";
-import type { GeneratedFlashcard, GeneratedQuizQuestion } from "./anthropic";
+import { computeStreak } from "./stats";
+import {
+  XP_LESSON_COMPLETE_BONUS,
+  XP_PER_CARD_GRADE,
+  XP_PER_LESSON_SECTION,
+  XP_PER_QUIZ_CORRECT,
+  XP_PER_STUDY_DAY,
+} from "./gamification";
+import type {
+  Flashcard,
+  LessonSection,
+  QuizAttempt,
+  QuizQuestion,
+  RecallGrade,
+  SubjectId,
+} from "./types";
+import type { GeneratedFlashcard, GeneratedLessonSection, GeneratedQuizQuestion } from "./anthropic";
 
 function toDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -22,6 +37,28 @@ export function useStudyData() {
   );
   const [studyDays, setStudyDays] = useLocalStorage<string[]>("wjec-study-days", []);
   const [apiKey, setApiKey] = useLocalStorage<string>("wjec-study-api-key", "");
+  const [examDates, setExamDates] = useLocalStorage<Record<string, string>>(
+    "wjec-study-exam-dates",
+    {},
+  );
+  const [lessonBank, setLessonBank] = useLocalStorage<Record<string, LessonSection[]>>(
+    "wjec-study-lesson-bank",
+    {},
+  );
+  const [lessonCompletions, setLessonCompletions] = useLocalStorage<string[]>(
+    "wjec-study-lesson-completions",
+    [],
+  );
+  const [notebookLinks, setNotebookLinks] = useLocalStorage<Record<string, string>>(
+    "wjec-study-notebook-links",
+    {},
+  );
+  const [xp, setXp] = useLocalStorage<number>("wjec-study-xp", 0);
+  const [totalReviews, setTotalReviews] = useLocalStorage<number>("wjec-study-total-reviews", 0);
+  const [longestStreak, setLongestStreak] = useLocalStorage<number>(
+    "wjec-study-longest-streak",
+    0,
+  );
 
   const cardList = useMemo(() => Object.values(cards), [cards]);
 
@@ -37,8 +74,12 @@ export function useStudyData() {
 
   const recordStudyDay = useCallback(() => {
     const today = toDateOnly(new Date());
+    if (studyDays.includes(today)) return;
     setStudyDays((prev) => (prev.includes(today) ? prev : [...prev, today]));
-  }, [setStudyDays]);
+    setXp((prev) => prev + XP_PER_STUDY_DAY);
+    const newStreak = computeStreak([...studyDays, today]);
+    setLongestStreak((prev) => Math.max(prev, newStreak));
+  }, [studyDays, setStudyDays, setXp, setLongestStreak]);
 
   const addGeneratedCards = useCallback(
     (subjectId: SubjectId, topicId: string, generated: GeneratedFlashcard[]) => {
@@ -70,6 +111,13 @@ export function useStudyData() {
     [setQuizBank],
   );
 
+  const setLessonForTopic = useCallback(
+    (topicId: string, generated: GeneratedLessonSection[]) => {
+      setLessonBank((prev) => ({ ...prev, [topicId]: generated }));
+    },
+    [setLessonBank],
+  );
+
   const gradeCard = useCallback(
     (cardId: string, grade: RecallGrade) => {
       setCards((prev) => {
@@ -77,9 +125,11 @@ export function useStudyData() {
         if (!card) return prev;
         return { ...prev, [cardId]: reviewCard(card, grade) };
       });
+      setTotalReviews((prev) => prev + 1);
+      setXp((prev) => prev + XP_PER_CARD_GRADE[grade]);
       recordStudyDay();
     },
-    [setCards, recordStudyDay],
+    [setCards, setTotalReviews, setXp, recordStudyDay],
   );
 
   const recordQuizAttempt = useCallback(
@@ -93,9 +143,58 @@ export function useStudyData() {
         completedAt: new Date().toISOString(),
       };
       setQuizAttempts((prev) => [...prev, attempt]);
+      setXp((prev) => prev + score * XP_PER_QUIZ_CORRECT);
       recordStudyDay();
     },
-    [setQuizAttempts, recordStudyDay],
+    [setQuizAttempts, setXp, recordStudyDay],
+  );
+
+  const completeLesson = useCallback(
+    (topicId: string, sectionCount: number) => {
+      setLessonCompletions((prev) => (prev.includes(topicId) ? prev : [...prev, topicId]));
+      setXp((prev) => prev + sectionCount * XP_PER_LESSON_SECTION + XP_LESSON_COMPLETE_BONUS);
+      recordStudyDay();
+    },
+    [setLessonCompletions, setXp, recordStudyDay],
+  );
+
+  const setExamDate = useCallback(
+    (subjectId: SubjectId, date: string) => {
+      setExamDates((prev) => ({ ...prev, [subjectId]: date }));
+    },
+    [setExamDates],
+  );
+
+  const clearExamDate = useCallback(
+    (subjectId: SubjectId) => {
+      setExamDates((prev) => {
+        const next = { ...prev };
+        delete next[subjectId];
+        return next;
+      });
+    },
+    [setExamDates],
+  );
+
+  const setNotebookLink = useCallback(
+    (topicId: string, url: string) => {
+      setNotebookLinks((prev) => {
+        if (!url) {
+          const next = { ...prev };
+          delete next[topicId];
+          return next;
+        }
+        return { ...prev, [topicId]: url };
+      });
+    },
+    [setNotebookLinks],
+  );
+
+  const bulkImportNotebookLinks = useCallback(
+    (links: Record<string, string>) => {
+      setNotebookLinks((prev) => ({ ...prev, ...links }));
+    },
+    [setNotebookLinks],
   );
 
   return {
@@ -107,9 +206,22 @@ export function useStudyData() {
     studyDays,
     apiKey,
     setApiKey,
+    examDates,
+    setExamDate,
+    clearExamDate,
+    lessonBank,
+    lessonCompletions,
+    notebookLinks,
+    setNotebookLink,
+    bulkImportNotebookLinks,
+    xp,
+    totalReviews,
+    longestStreak,
     addGeneratedCards,
     setQuizForTopic,
+    setLessonForTopic,
     gradeCard,
     recordQuizAttempt,
+    completeLesson,
   };
 }

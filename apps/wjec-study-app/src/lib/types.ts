@@ -44,3 +44,10 @@ export interface QuizAttempt {
   total: number;
   completedAt: string;
 }
+
+export interface LessonSection {
+  heading: string;
+  explanation: string;
+  checkQuestion: string;
+  checkAnswer: string;
+}

@@ -1,6 +1,8 @@
 "use client";
 
+import type { Badge } from "@/lib/gamification";
 import type { SubjectId } from "@/lib/types";
+import GamificationPanel from "./GamificationPanel";
 
 export interface SubjectSummary {
   id: SubjectId;
@@ -15,13 +17,27 @@ interface Props {
   streak: number;
   totalDue: number;
   subjects: SubjectSummary[];
+  level: number;
+  xpProgress: number;
+  badges: Badge[];
   onOpenSubject: (id: SubjectId) => void;
   onStudyAllDue: () => void;
 }
 
-export default function Dashboard({ streak, totalDue, subjects, onOpenSubject, onStudyAllDue }: Props) {
+export default function Dashboard({
+  streak,
+  totalDue,
+  subjects,
+  level,
+  xpProgress,
+  badges,
+  onOpenSubject,
+  onStudyAllDue,
+}: Props) {
   return (
     <div className="flex w-full flex-col gap-4">
+      <GamificationPanel level={level} xpProgress={xpProgress} badges={badges} />
+
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <div>
           <p className="text-2xl font-semibold">{streak}</p>

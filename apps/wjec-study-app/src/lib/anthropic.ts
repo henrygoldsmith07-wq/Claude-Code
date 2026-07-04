@@ -22,6 +22,13 @@ export interface GeneratedQuizQuestion {
   explanation: string;
 }
 
+export interface GeneratedLessonSection {
+  heading: string;
+  explanation: string;
+  checkQuestion: string;
+  checkAnswer: string;
+}
+
 const FLASHCARD_TOOL = {
   name: "emit_flashcards",
   description: "Return flashcards for active-recall revision of an A-level topic.",
@@ -84,6 +91,41 @@ const QUIZ_TOOL = {
   },
 };
 
+const LESSON_TOOL = {
+  name: "emit_lesson",
+  description: "Return an interactive lesson teaching an A-level topic in short sections.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      sections: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            heading: { type: "string", description: "Short heading for this section." },
+            explanation: {
+              type: "string",
+              description:
+                "2-4 sentences teaching one sub-idea at A-level depth, building on earlier sections.",
+            },
+            checkQuestion: {
+              type: "string",
+              description:
+                "A quick check-your-understanding question the student should try to answer from the explanation just given, before seeing the answer.",
+            },
+            checkAnswer: {
+              type: "string",
+              description: "The concise correct answer to checkQuestion, with a one-line reason.",
+            },
+          },
+          required: ["heading", "explanation", "checkQuestion", "checkAnswer"],
+        },
+      },
+    },
+    required: ["sections"],
+  },
+};
+
 export async function generateFlashcards(
   subjectName: string,
   topicTitle: string,
@@ -138,4 +180,31 @@ export async function generateQuizQuestions(
     throw new Error("Claude did not return structured output");
   }
   return (toolUse.input as { questions: GeneratedQuizQuestion[] }).questions;
+}
+
+export async function generateLesson(
+  subjectName: string,
+  topicTitle: string,
+  apiKey?: string,
+): Promise<GeneratedLessonSection[]> {
+  const anthropic = getClient(apiKey);
+
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    tools: [LESSON_TOOL],
+    tool_choice: { type: "tool", name: LESSON_TOOL.name },
+    messages: [
+      {
+        role: "user",
+        content: `Write a short interactive lesson teaching a WJEC/Eduqas A-level ${subjectName} student the topic "${topicTitle}", as 4-6 sections. Each section should teach one sub-idea building on the previous ones, at A-level depth, then pose a quick check-your-understanding question the student should attempt before revealing the answer. Keep explanations concise and concrete (use a worked example or specific instance where useful) rather than a vague overview.`,
+      },
+    ],
+  });
+
+  const toolUse = message.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return structured output");
+  }
+  return (toolUse.input as { sections: GeneratedLessonSection[] }).sections;
 }
