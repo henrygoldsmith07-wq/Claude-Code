@@ -12,15 +12,20 @@ interface Props {
 export default function LessonSession({ sections, onComplete, onFinish }: Props) {
   const [queue, setQueue] = useState(sections);
   const [index, setIndex] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  const [attempt, setAttempt] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
   const [done, setDone] = useState(false);
 
   const section = queue[index];
 
-  function handleNext(needsReview: boolean) {
+  function handleSelect(optionIndex: number) {
+    if (selected !== null) return;
+    setSelected(optionIndex);
+  }
+
+  function handleNext() {
+    const correct = selected === section.correctIndex;
     let nextQueue = queue;
-    if (needsReview) {
+    if (!correct) {
       nextQueue = [...queue];
       const insertAt = Math.min(nextQueue.length, index + 3);
       nextQueue.splice(insertAt, 0, section);
@@ -33,8 +38,7 @@ export default function LessonSession({ sections, onComplete, onFinish }: Props)
       setQueue(nextQueue);
       setIndex(nextIndex);
     }
-    setRevealed(false);
-    setAttempt("");
+    setSelected(null);
   }
 
   if (done) {
@@ -74,42 +78,38 @@ export default function LessonSession({ sections, onComplete, onFinish }: Props)
           </p>
           <p className="mt-1 text-sm">{section.checkQuestion}</p>
 
-          {!revealed ? (
-            <>
-              <textarea
-                value={attempt}
-                onChange={(e) => setAttempt(e.target.value)}
-                placeholder="Type your answer attempt (not graded — just for you)…"
-                rows={3}
-                className="mt-2 w-full rounded-lg border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-              />
+          <div className="mt-2 flex flex-col gap-2">
+            {section.checkOptions.map((option, i) => {
+              const isCorrect = i === section.correctIndex;
+              const isSelected = i === selected;
+              let className =
+                "rounded-lg border border-zinc-300 px-4 py-2 text-left text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
+              if (selected !== null && isCorrect) {
+                className =
+                  "rounded-lg border border-emerald-500 bg-emerald-100 px-4 py-2 text-left text-sm dark:bg-emerald-950";
+              } else if (isSelected) {
+                className =
+                  "rounded-lg border border-red-500 bg-red-100 px-4 py-2 text-left text-sm dark:bg-red-950";
+              }
+              return (
+                <button key={i} onClick={() => handleSelect(i)} className={className}>
+                  {selected !== null && isCorrect ? "✓ " : ""}
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+
+          {selected !== null && (
+            <div className="mt-3 flex flex-col gap-3">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">{section.checkExplanation}</p>
               <button
-                onClick={() => setRevealed(true)}
-                className="mt-2 rounded-full border border-zinc-300 px-4 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                onClick={handleNext}
+                className="self-start rounded-full bg-zinc-900 px-4 py-1.5 text-sm text-white dark:bg-white dark:text-zinc-900"
               >
-                Show answer
+                {index + 1 >= queue.length ? "Finish" : "Next section"}
               </button>
-            </>
-          ) : (
-            <>
-              <p className="mt-2 rounded-lg bg-zinc-100 p-3 text-sm dark:bg-zinc-800">
-                {section.checkAnswer}
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => handleNext(false)}
-                  className="rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-medium hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900"
-                >
-                  Got it
-                </button>
-                <button
-                  onClick={() => handleNext(true)}
-                  className="rounded-full bg-amber-100 px-4 py-1.5 text-sm font-medium hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900"
-                >
-                  Need review
-                </button>
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>

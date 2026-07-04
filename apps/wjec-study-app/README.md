@@ -21,11 +21,12 @@ rather than passive note re-reading. Data is stored locally in the browser
   explanation, rather than just re-reading content.
 - **Retrieval within a session** — a flashcard graded "Again" is
   re-inserted a few cards later in the same session for another attempt,
-  instead of waiting until tomorrow. Lesson sections work the same way when
-  marked "Need review".
+  instead of waiting until tomorrow. A lesson section you answer incorrectly
+  does the same automatically.
 - **Interpolated testing during instruction** — lessons pause after each
-  short section for a check-your-understanding question you attempt before
-  seeing the answer, rather than reading a wall of text straight through.
+  short section for a 4-option check-your-understanding question with
+  instant right/wrong feedback, rather than reading a wall of text straight
+  through.
 
 ## Features
 

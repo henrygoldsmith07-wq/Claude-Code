@@ -49,7 +49,9 @@ export interface LessonSection {
   heading: string;
   explanation: string;
   checkQuestion: string;
-  checkAnswer: string;
+  checkOptions: string[];
+  correctIndex: number;
+  checkExplanation: string;
 }
 
 export interface Note {

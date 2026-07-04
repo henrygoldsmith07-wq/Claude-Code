@@ -26,7 +26,9 @@ export interface GeneratedLessonSection {
   heading: string;
   explanation: string;
   checkQuestion: string;
-  checkAnswer: string;
+  checkOptions: string[];
+  correctIndex: number;
+  checkExplanation: string;
 }
 
 const FLASHCARD_TOOL = {
@@ -111,14 +113,30 @@ const LESSON_TOOL = {
             checkQuestion: {
               type: "string",
               description:
-                "A quick check-your-understanding question the student should try to answer from the explanation just given, before seeing the answer.",
+                "A quick check-your-understanding question testing the sub-idea just explained in this section.",
             },
-            checkAnswer: {
+            checkOptions: {
+              type: "array",
+              items: { type: "string" },
+              description: "Exactly 4 plausible options, in the order they should be shown.",
+            },
+            correctIndex: {
+              type: "integer",
+              description: "0-based index of the correct option within checkOptions.",
+            },
+            checkExplanation: {
               type: "string",
-              description: "The concise correct answer to checkQuestion, with a one-line reason.",
+              description: "One or two sentences explaining why the correct option is right.",
             },
           },
-          required: ["heading", "explanation", "checkQuestion", "checkAnswer"],
+          required: [
+            "heading",
+            "explanation",
+            "checkQuestion",
+            "checkOptions",
+            "correctIndex",
+            "checkExplanation",
+          ],
         },
       },
     },
@@ -197,7 +215,7 @@ export async function generateLesson(
     messages: [
       {
         role: "user",
-        content: `Write a short interactive lesson teaching a WJEC/Eduqas A-level ${subjectName} student the topic "${topicTitle}", as 4-6 sections. Each section should teach one sub-idea building on the previous ones, at A-level depth, then pose a quick check-your-understanding question the student should attempt before revealing the answer. Keep explanations concise and concrete (use a worked example or specific instance where useful) rather than a vague overview.`,
+        content: `Write a short interactive lesson teaching a WJEC/Eduqas A-level ${subjectName} student the topic "${topicTitle}", as 4-6 sections. Each section should teach one sub-idea building on the previous ones, at A-level depth, then check understanding with a 4-option multiple-choice question testing that specific sub-idea (one clearly correct option, three plausible distractors based on common misconceptions). Keep explanations concise and concrete (use a worked example or specific instance where useful) rather than a vague overview.`,
       },
     ],
   });
