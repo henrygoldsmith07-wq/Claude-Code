@@ -25,7 +25,6 @@ interface Props {
   onStudyTopic: (topicId: string) => void;
   onStartQuiz: (topicId: string) => void;
   onStartLesson: (topicId: string) => void;
-  onBack: () => void;
 }
 
 type Busy = "cards" | "quiz" | "lesson" | undefined;
@@ -47,7 +46,6 @@ export default function TopicList({
   onStudyTopic,
   onStartQuiz,
   onStartLesson,
-  onBack,
 }: Props) {
   const topics = topicsForSubject(subjectId);
   const [loading, setLoading] = useState<Record<string, Busy>>({});
@@ -67,13 +65,6 @@ export default function TopicList({
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <button
-        onClick={onBack}
-        className="self-start text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-      >
-        Back to dashboard
-      </button>
-
       <StudyPlanPanel
         examDate={examDate}
         todaysFocus={todaysFocus}

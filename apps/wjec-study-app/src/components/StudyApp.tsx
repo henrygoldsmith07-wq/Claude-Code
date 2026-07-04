@@ -10,17 +10,15 @@ import type { Flashcard, RecallGrade, SubjectId } from "@/lib/types";
 import ApiKeyBar from "./ApiKeyBar";
 import NotebookLinksPanel from "./NotebookLinksPanel";
 import Dashboard, { type SubjectSummary } from "./Dashboard";
-import TopicList from "./TopicList";
 import StudySession from "./StudySession";
 import QuizSession from "./QuizSession";
 import LessonSession from "./LessonSession";
 
 type View =
   | { mode: "dashboard" }
-  | { mode: "subject"; subjectId: SubjectId }
-  | { mode: "study"; queue: Flashcard[]; returnTo: View }
-  | { mode: "quiz"; subjectId: SubjectId; topicId: string; returnTo: View }
-  | { mode: "lesson"; subjectId: SubjectId; topicId: string; returnTo: View };
+  | { mode: "study"; queue: Flashcard[] }
+  | { mode: "quiz"; subjectId: SubjectId; topicId: string }
+  | { mode: "lesson"; subjectId: SubjectId; topicId: string };
 
 const SESSION_LIMIT = 30;
 
@@ -162,25 +160,25 @@ export default function StudyApp() {
   function studyTopic(topicId: string) {
     const queue = buildInterleavedQueue(cardsForTopic(topicId), SESSION_LIMIT);
     if (queue.length === 0) return;
-    setView({ mode: "study", queue, returnTo: view });
+    setView({ mode: "study", queue });
   }
 
   function studyAllDue() {
     const queue = buildInterleavedQueue(cardList, SESSION_LIMIT);
     if (queue.length === 0) return;
-    setView({ mode: "study", queue, returnTo: { mode: "dashboard" } });
+    setView({ mode: "study", queue });
   }
 
   function startQuiz(topicId: string) {
     const topic = findTopic(topicId);
     if (!topic) return;
-    setView({ mode: "quiz", subjectId: topic.subjectId, topicId, returnTo: view });
+    setView({ mode: "quiz", subjectId: topic.subjectId, topicId });
   }
 
   function startLesson(topicId: string) {
     const topic = findTopic(topicId);
     if (!topic) return;
-    setView({ mode: "lesson", subjectId: topic.subjectId, topicId, returnTo: view });
+    setView({ mode: "lesson", subjectId: topic.subjectId, topicId });
   }
 
   return (
@@ -207,22 +205,14 @@ export default function StudyApp() {
           level={level}
           xpProgress={xpProgress}
           badges={badges}
-          onOpenSubject={(subjectId) => setView({ mode: "subject", subjectId })}
-          onStudyAllDue={studyAllDue}
-        />
-      )}
-
-      {view.mode === "subject" && (
-        <TopicList
-          subjectId={view.subjectId}
           cardsForTopic={cardsForTopic}
           quizBank={quizBank}
           quizAttempts={quizAttempts}
           lessonBank={lessonBank}
           notebookLinks={notebookLinks}
-          examDate={examDates[view.subjectId]}
-          onSetExamDate={(date) => setExamDate(view.subjectId, date)}
-          onClearExamDate={() => clearExamDate(view.subjectId)}
+          examDates={examDates}
+          onSetExamDate={setExamDate}
+          onClearExamDate={clearExamDate}
           onSetNotebookLink={setNotebookLink}
           onGenerateCards={generateCardsForTopic}
           onGenerateQuiz={generateQuizForTopic}
@@ -230,7 +220,7 @@ export default function StudyApp() {
           onStudyTopic={studyTopic}
           onStartQuiz={startQuiz}
           onStartLesson={startLesson}
-          onBack={() => setView({ mode: "dashboard" })}
+          onStudyAllDue={studyAllDue}
         />
       )}
 
@@ -238,7 +228,7 @@ export default function StudyApp() {
         <StudySession
           initialQueue={view.queue}
           onGrade={(cardId, grade: RecallGrade) => gradeCard(cardId, grade)}
-          onFinish={() => setView(view.returnTo)}
+          onFinish={() => setView({ mode: "dashboard" })}
         />
       )}
 
@@ -246,7 +236,7 @@ export default function StudyApp() {
         <QuizSession
           questions={quizBank[view.topicId] ?? []}
           onComplete={(score, total) => recordQuizAttempt(view.subjectId, view.topicId, score, total)}
-          onFinish={() => setView(view.returnTo)}
+          onFinish={() => setView({ mode: "dashboard" })}
         />
       )}
 
@@ -254,7 +244,7 @@ export default function StudyApp() {
         <LessonSession
           sections={lessonBank[view.topicId] ?? []}
           onComplete={(sectionCount) => completeLesson(view.topicId, sectionCount)}
-          onFinish={() => setView(view.returnTo)}
+          onFinish={() => setView({ mode: "dashboard" })}
         />
       )}
     </div>
