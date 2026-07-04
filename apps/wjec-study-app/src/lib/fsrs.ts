@@ -89,6 +89,30 @@ export function isDue(card: Flashcard, now = new Date()): boolean {
   return card.dueDate <= toDateOnly(now);
 }
 
+// Predicts the probability (0-1) that this card will still be recalled at
+// a given future date, by extrapolating its current stability/difficulty
+// forward with FSRS's forgetting curve — the same model used to schedule
+// reviews, but queried for an arbitrary date (e.g. an exam) rather than
+// "today". A card that's never been reviewed has no memory model yet.
+export function predictRetrievability(card: Flashcard, atDate: Date): number | null {
+  if (card.reps === 0) return null;
+
+  const fsrsCard: FsrsCard = {
+    due: new Date(card.dueDate + "T00:00:00Z"),
+    stability: card.stability,
+    difficulty: card.difficulty,
+    elapsed_days: 0,
+    scheduled_days: 0,
+    learning_steps: 0,
+    reps: card.reps,
+    lapses: card.lapses,
+    state: card.state as State,
+    last_review: card.lastReviewedAt ? new Date(card.lastReviewedAt) : undefined,
+  };
+
+  return scheduler.get_retrievability(fsrsCard, atDate, false);
+}
+
 // A card is treated as mastered once its stability (the interval at which
 // predicted recall is ~90%) reaches this many days.
 export function isMastered(card: Flashcard): boolean {

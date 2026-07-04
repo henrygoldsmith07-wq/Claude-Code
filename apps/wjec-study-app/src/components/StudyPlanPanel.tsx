@@ -6,6 +6,7 @@ import type { Topic } from "@/lib/types";
 interface Props {
   examDate: string | undefined;
   todaysFocus: Topic[];
+  upcomingDays: Topic[][];
   onSetExamDate: (date: string) => void;
   onClearExamDate: () => void;
   onSelectTopic: (topicId: string) => void;
@@ -14,6 +15,7 @@ interface Props {
 export default function StudyPlanPanel({
   examDate,
   todaysFocus,
+  upcomingDays,
   onSetExamDate,
   onClearExamDate,
   onSelectTopic,
@@ -69,6 +71,19 @@ export default function StudyPlanPanel({
                 >
                   {topic.title}
                 </button>
+              ))}
+            </div>
+          )}
+
+          {upcomingDays.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1 border-t border-dashed border-zinc-200 pt-2 dark:border-zinc-800">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Coming up
+              </p>
+              {upcomingDays.map((dayTopics, i) => (
+                <p key={i} className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Day {i + 2}: {dayTopics.length === 0 ? "—" : dayTopics.map((t) => t.title).join(", ")}
+                </p>
               ))}
             </div>
           )}

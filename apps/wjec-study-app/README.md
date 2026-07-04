@@ -43,9 +43,15 @@ rather than passive note re-reading. Data is stored locally in the browser
   with recent quiz accuracy.
 - A day-streak counter and a "study all due" button that interleaves due
   cards across every subject at once.
-- **Study plans** — set an exam date per subject and get a daily "today's
-  focus" list that covers every remaining topic in time, prioritising
-  untouched and weak ones.
+- **Study plans** — set an exam date per subject and get a full day-by-day
+  plan through to the exam, not just a same-day checklist. Each topic's
+  urgency is FSRS's own forgetting curve extrapolated forward to the exam
+  date itself (how likely you are to still recall it *then*, not just
+  whether it's due today), blended with recent quiz accuracy; untouched
+  topics and anything already due for everyday review always come first.
+  The weakest topics are spread onto the earliest remaining days so they
+  get the most spaced-repetition exposure before the exam, without
+  overloading any single day.
 - **Gamification** — XP for reviews, quizzes and lessons, levels, a longest
   day-streak, and badges for milestones.
 - **NotebookLM links** — save a NotebookLM notebook URL per topic (there's

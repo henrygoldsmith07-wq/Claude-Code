@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { topicsForSubject } from "@/lib/curriculum";
 import { dueCount, masteryPercent, recentAttemptsForTopic } from "@/lib/stats";
-import { daysUntil, topicsForToday } from "@/lib/studyPlan";
+import { buildStudySchedule } from "@/lib/studyPlan";
 import type {
   Flashcard,
   LessonSection,
@@ -71,9 +71,9 @@ export default function TopicList({
     }
   }
 
-  const todaysFocus = examDate
-    ? topicsForToday(topics, cardsForTopic, quizAttempts, daysUntil(examDate))
-    : [];
+  const schedule = examDate ? buildStudySchedule(topics, cardsForTopic, quizAttempts, examDate) : [];
+  const todaysFocus = schedule[0] ?? [];
+  const upcomingDays = schedule.slice(1, 4);
 
   return (
     <div className="flex w-full flex-col gap-3">
@@ -90,6 +90,7 @@ export default function TopicList({
       <StudyPlanPanel
         examDate={examDate}
         todaysFocus={todaysFocus}
+        upcomingDays={upcomingDays}
         onSetExamDate={onSetExamDate}
         onClearExamDate={onClearExamDate}
         onSelectTopic={(topicId) => {
