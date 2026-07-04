@@ -67,3 +67,18 @@ export function computeStreak(studyDays: string[], now = new Date()): number {
   }
   return streak;
 }
+
+export interface HeatmapDay {
+  date: string;
+  studied: boolean;
+}
+
+export function studyHeatmap(studyDays: string[], days = 84, now = new Date()): HeatmapDay[] {
+  const set = new Set(studyDays);
+  const result: HeatmapDay[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const date = toDateOnly(new Date(now.getTime() - i * 86400000));
+    result.push({ date, studied: set.has(date) });
+  }
+  return result;
+}

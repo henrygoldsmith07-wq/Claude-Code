@@ -22,6 +22,7 @@ interface Props {
   level: number;
   xpProgress: number;
   badges: Badge[];
+  accent?: string;
   cardsForTopic: (topicId: string) => Flashcard[];
   quizBank: Record<string, QuizQuestion[]>;
   quizAttempts: QuizAttempt[];
@@ -47,6 +48,7 @@ export default function Dashboard({
   level,
   xpProgress,
   badges,
+  accent,
   cardsForTopic,
   quizBank,
   quizAttempts,
@@ -68,7 +70,7 @@ export default function Dashboard({
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <GamificationPanel level={level} xpProgress={xpProgress} badges={badges} />
+      <GamificationPanel level={level} xpProgress={xpProgress} badges={badges} accent={accent} />
 
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <div>

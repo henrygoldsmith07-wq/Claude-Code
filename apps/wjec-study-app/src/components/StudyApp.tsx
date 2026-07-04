@@ -1,26 +1,52 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { SUBJECTS, TOPICS, findTopic, topicsForSubject } from "@/lib/curriculum";
 import { buildInterleavedQueue } from "@/lib/scheduler";
 import { computeStreak, dueCount, masteryPercent, recentAttemptsForTopic } from "@/lib/stats";
 import { computeBadges, levelForXp, xpIntoLevel } from "@/lib/gamification";
 import { useStudyData } from "@/lib/useStudyData";
-import type { Flashcard, RecallGrade, SubjectId } from "@/lib/types";
+import { useTimeLog } from "@/lib/useTimeLog";
+import { THEME_OPTIONS } from "@/lib/shop";
+import { useLocalStorage } from "@/lib/useLocalStorage";
+import type { Flashcard, RecallGrade, SessionKind, SubjectId } from "@/lib/types";
 import ApiKeyBar from "./ApiKeyBar";
 import NotebookLinksPanel from "./NotebookLinksPanel";
+import TabBar from "./TabBar";
 import Dashboard, { type SubjectSummary } from "./Dashboard";
 import StudySession from "./StudySession";
 import QuizSession from "./QuizSession";
 import LessonSession from "./LessonSession";
+import QaPanel from "./QaPanel";
+import MindMapPanel from "./MindMapPanel";
+import PracticeTestPanel from "./PracticeTestPanel";
+import NoteBank from "./NoteBank";
+import TaskBoard from "./TaskBoard";
+import FocusTimer from "./FocusTimer";
+import AudioOverviewPanel from "./AudioOverviewPanel";
+import TimeAnalyticsPanel from "./TimeAnalyticsPanel";
+import ShopPanel from "./ShopPanel";
 
 type View =
   | { mode: "dashboard" }
-  | { mode: "study"; queue: Flashcard[] }
+  | { mode: "study"; queue: Flashcard[]; subjectId: SubjectId | null }
   | { mode: "quiz"; subjectId: SubjectId; topicId: string }
   | { mode: "lesson"; subjectId: SubjectId; topicId: string };
 
 const SESSION_LIMIT = 30;
+
+const TABS = [
+  { id: "study", label: "Study" },
+  { id: "ask", label: "Ask AI" },
+  { id: "tests", label: "Practice Tests" },
+  { id: "mindmap", label: "Mind Maps" },
+  { id: "notes", label: "Notes" },
+  { id: "tasks", label: "Tasks" },
+  { id: "focus", label: "Focus Timer" },
+  { id: "audio", label: "Audio Overviews" },
+  { id: "analytics", label: "Analytics" },
+  { id: "shop", label: "Shop" },
+];
 
 export default function StudyApp() {
   const {
@@ -50,9 +76,13 @@ export default function StudyApp() {
     recordQuizAttempt,
     completeLesson,
   } = useStudyData();
+  const { logSession } = useTimeLog();
 
   const [view, setView] = useState<View>({ mode: "dashboard" });
+  const [activeTab, setActiveTab] = useState("study");
   const [error, setError] = useState<string | null>(null);
+  const [accent, setAccent] = useLocalStorage<string>("wjec-accent-color", THEME_OPTIONS[0].accent);
+  const sessionStartRef = useRef(0);
 
   const streak = computeStreak(studyDays);
   const totalDue = dueCount(cardList);
@@ -157,28 +187,39 @@ export default function StudyApp() {
     }
   }
 
+  function enterSession(next: View) {
+    sessionStartRef.current = Date.now();
+    setView(next);
+  }
+
+  function finishSession(kind: SessionKind, subjectId: SubjectId | null) {
+    logSession(kind, subjectId, Date.now() - sessionStartRef.current);
+    setView({ mode: "dashboard" });
+  }
+
   function studyTopic(topicId: string) {
+    const topic = findTopic(topicId);
     const queue = buildInterleavedQueue(cardsForTopic(topicId), SESSION_LIMIT);
     if (queue.length === 0) return;
-    setView({ mode: "study", queue });
+    enterSession({ mode: "study", queue, subjectId: topic?.subjectId ?? null });
   }
 
   function studyAllDue() {
     const queue = buildInterleavedQueue(cardList, SESSION_LIMIT);
     if (queue.length === 0) return;
-    setView({ mode: "study", queue });
+    enterSession({ mode: "study", queue, subjectId: null });
   }
 
   function startQuiz(topicId: string) {
     const topic = findTopic(topicId);
     if (!topic) return;
-    setView({ mode: "quiz", subjectId: topic.subjectId, topicId });
+    enterSession({ mode: "quiz", subjectId: topic.subjectId, topicId });
   }
 
   function startLesson(topicId: string) {
     const topic = findTopic(topicId);
     if (!topic) return;
-    setView({ mode: "lesson", subjectId: topic.subjectId, topicId });
+    enterSession({ mode: "lesson", subjectId: topic.subjectId, topicId });
   }
 
   return (
@@ -197,38 +238,11 @@ export default function StudyApp() {
         </p>
       )}
 
-      {view.mode === "dashboard" && (
-        <Dashboard
-          streak={streak}
-          totalDue={totalDue}
-          subjects={subjectSummaries}
-          level={level}
-          xpProgress={xpProgress}
-          badges={badges}
-          cardsForTopic={cardsForTopic}
-          quizBank={quizBank}
-          quizAttempts={quizAttempts}
-          lessonBank={lessonBank}
-          notebookLinks={notebookLinks}
-          examDates={examDates}
-          onSetExamDate={setExamDate}
-          onClearExamDate={clearExamDate}
-          onSetNotebookLink={setNotebookLink}
-          onGenerateCards={generateCardsForTopic}
-          onGenerateQuiz={generateQuizForTopic}
-          onGenerateLesson={generateLessonForTopic}
-          onStudyTopic={studyTopic}
-          onStartQuiz={startQuiz}
-          onStartLesson={startLesson}
-          onStudyAllDue={studyAllDue}
-        />
-      )}
-
       {view.mode === "study" && (
         <StudySession
           initialQueue={view.queue}
           onGrade={(cardId, grade: RecallGrade) => gradeCard(cardId, grade)}
-          onFinish={() => setView({ mode: "dashboard" })}
+          onFinish={() => finishSession("study", view.subjectId)}
         />
       )}
 
@@ -236,7 +250,7 @@ export default function StudyApp() {
         <QuizSession
           questions={quizBank[view.topicId] ?? []}
           onComplete={(score, total) => recordQuizAttempt(view.subjectId, view.topicId, score, total)}
-          onFinish={() => setView({ mode: "dashboard" })}
+          onFinish={() => finishSession("quiz", view.subjectId)}
         />
       )}
 
@@ -244,8 +258,51 @@ export default function StudyApp() {
         <LessonSession
           sections={lessonBank[view.topicId] ?? []}
           onComplete={(sectionCount) => completeLesson(view.topicId, sectionCount)}
-          onFinish={() => setView({ mode: "dashboard" })}
+          onFinish={() => finishSession("lesson", view.subjectId)}
         />
+      )}
+
+      {view.mode === "dashboard" && (
+        <>
+          <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
+
+          {activeTab === "study" && (
+            <Dashboard
+              streak={streak}
+              totalDue={totalDue}
+              subjects={subjectSummaries}
+              level={level}
+              xpProgress={xpProgress}
+              badges={badges}
+              accent={accent}
+              cardsForTopic={cardsForTopic}
+              quizBank={quizBank}
+              quizAttempts={quizAttempts}
+              lessonBank={lessonBank}
+              notebookLinks={notebookLinks}
+              examDates={examDates}
+              onSetExamDate={setExamDate}
+              onClearExamDate={clearExamDate}
+              onSetNotebookLink={setNotebookLink}
+              onGenerateCards={generateCardsForTopic}
+              onGenerateQuiz={generateQuizForTopic}
+              onGenerateLesson={generateLessonForTopic}
+              onStudyTopic={studyTopic}
+              onStartQuiz={startQuiz}
+              onStartLesson={startLesson}
+              onStudyAllDue={studyAllDue}
+            />
+          )}
+          {activeTab === "ask" && <QaPanel apiKey={apiKey} />}
+          {activeTab === "tests" && <PracticeTestPanel apiKey={apiKey} />}
+          {activeTab === "mindmap" && <MindMapPanel apiKey={apiKey} />}
+          {activeTab === "notes" && <NoteBank apiKey={apiKey} />}
+          {activeTab === "tasks" && <TaskBoard />}
+          {activeTab === "focus" && <FocusTimer />}
+          {activeTab === "audio" && <AudioOverviewPanel apiKey={apiKey} />}
+          {activeTab === "analytics" && <TimeAnalyticsPanel studyDays={studyDays} />}
+          {activeTab === "shop" && <ShopPanel xp={xp} onAccentChange={setAccent} />}
+        </>
       )}
     </div>
   );
