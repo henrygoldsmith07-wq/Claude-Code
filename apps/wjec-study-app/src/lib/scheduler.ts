@@ -1,5 +1,5 @@
 import type { Flashcard } from "./types";
-import { isDue } from "./sm2";
+import { isDue } from "./fsrs";
 
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items];
@@ -10,11 +10,10 @@ function shuffle<T>(items: T[]): T[] {
   return copy;
 }
 
-// Lower easiness factor means the topic is being forgotten faster, i.e. it's
-// the weaker one; a group of never-reviewed cards (EF still at the 2.5
-// default) is treated as average difficulty rather than automatically weak.
+// Lower stability means the topic is being forgotten faster (shorter
+// interval until predicted recall drops to 90%), i.e. it's the weaker one.
 function weaknessScore(cards: Flashcard[]): number {
-  const total = cards.reduce((sum, c) => sum + c.easinessFactor, 0);
+  const total = cards.reduce((sum, c) => sum + c.stability, 0);
   return -(total / cards.length);
 }
 
@@ -22,9 +21,9 @@ function weaknessScore(cards: Flashcard[]): number {
 // one topic at a time. Interleaved practice forces retrieval cues to be
 // reconstructed each time rather than carried over from the previous card,
 // which produces better long-term retention than blocked practice even
-// though it feels harder in the moment. Topics with a lower average
-// easiness factor (i.e. weaker recall) are placed earlier in the rotation,
-// so a session capped by `limit` still reaches the weakest material first.
+// though it feels harder in the moment. Topics with lower average stability
+// (i.e. weaker recall) are placed earlier in the rotation, so a session
+// capped by `limit` still reaches the weakest material first.
 export function buildInterleavedQueue(cards: Flashcard[], limit?: number, now = new Date()): Flashcard[] {
   const due = shuffle(cards.filter((c) => isDue(c, now)));
 

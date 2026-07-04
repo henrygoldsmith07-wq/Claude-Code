@@ -7,14 +7,18 @@ rather than passive note re-reading. Data is stored locally in the browser
 
 ## Learning science behind it
 
-- **Spaced repetition (SM-2 algorithm)** — every flashcard review schedules
-  its own next review date. Cards you recall easily get pushed further out;
-  cards you forget come back tomorrow. This targets the "spacing effect":
-  review effort concentrates on material about to be forgotten instead of
-  material you already know.
+- **Spaced repetition (FSRS)** — every flashcard review schedules its own
+  next review date using [FSRS](https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler)
+  (Free Spaced Repetition Scheduler), the modern, empirically-fit successor
+  to the older SM-2 algorithm that current Anki uses by default. Rather
+  than one fixed "easiness" multiplier, FSRS tracks each card's memory
+  stability and difficulty separately and reschedules it for the point
+  where predicted recall probability decays to 90%. This targets the
+  "spacing effect": review effort concentrates on material about to be
+  forgotten instead of material you already know.
 - **Interleaved practice** — study sessions mix topics and subjects instead
   of blocking through one topic at a time, and weight weaker topics (lower
-  recall easiness) earlier in the queue. Interleaving feels harder in the
+  memory stability) earlier in the queue. Interleaving feels harder in the
   moment but produces better long-term retention than blocked practice.
 - **Active recall & the testing effect** — quizzes require producing an
   answer before seeing it, with immediate corrective feedback and an

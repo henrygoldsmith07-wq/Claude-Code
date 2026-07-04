@@ -17,10 +17,12 @@ export interface Flashcard {
   topicId: string;
   front: string;
   back: string;
-  repetitions: number;
-  easinessFactor: number;
-  intervalDays: number;
   dueDate: string;
+  stability: number;
+  difficulty: number;
+  reps: number;
+  lapses: number;
+  state: number;
   lastReviewedAt: string | null;
 }
 

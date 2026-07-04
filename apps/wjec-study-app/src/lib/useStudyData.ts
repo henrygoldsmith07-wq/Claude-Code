@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useLocalStorage } from "./useLocalStorage";
-import { createCard, reviewCard } from "./sm2";
+import { createCard, reviewCard } from "./fsrs";
 import { computeStreak } from "./stats";
 import {
   XP_LESSON_COMPLETE_BONUS,

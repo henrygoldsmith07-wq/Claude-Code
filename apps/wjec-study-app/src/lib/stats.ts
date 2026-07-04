@@ -1,5 +1,5 @@
 import type { Flashcard, QuizAttempt } from "./types";
-import { isDue, isMastered, MASTERED_INTERVAL_DAYS } from "./sm2";
+import { isDue, isMastered, MASTERED_STABILITY_DAYS } from "./fsrs";
 
 export function dueCount(cards: Flashcard[], now = new Date()): number {
   return cards.filter((c) => isDue(c, now)).length;
@@ -9,16 +9,16 @@ export function masteredCount(cards: Flashcard[]): number {
   return cards.filter(isMastered).length;
 }
 
-// Blends how well cards in this set are retained (interval reached vs. the
-// mastery threshold) with recent quiz accuracy, so mastery reflects both
-// spaced-repetition progress and active-recall performance.
+// Blends how well cards in this set are retained (FSRS stability reached
+// vs. the mastery threshold) with recent quiz accuracy, so mastery
+// reflects both spaced-repetition progress and active-recall performance.
 export function masteryPercent(cards: Flashcard[], recentAttempts: QuizAttempt[]): number {
   if (cards.length === 0 && recentAttempts.length === 0) return 0;
 
   const cardScore =
     cards.length === 0
       ? null
-      : cards.reduce((sum, c) => sum + Math.min(1, c.intervalDays / MASTERED_INTERVAL_DAYS), 0) /
+      : cards.reduce((sum, c) => sum + Math.min(1, c.stability / MASTERED_STABILITY_DAYS), 0) /
         cards.length;
 
   const quizScore =
