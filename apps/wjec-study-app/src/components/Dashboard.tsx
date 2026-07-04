@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { TOPICS } from "@/lib/curriculum";
 import type { Badge } from "@/lib/gamification";
-import type { Flashcard, LessonSection, QuizAttempt, QuizQuestion, SubjectId } from "@/lib/types";
+import type { Flashcard, LessonSection, QuizAttempt, QuizQuestion, SubjectId, Topic } from "@/lib/types";
 import GamificationPanel from "./GamificationPanel";
 import TopicList from "./TopicList";
 
@@ -39,6 +40,8 @@ interface Props {
   onStartQuiz: (topicId: string) => void;
   onStartLesson: (topicId: string) => void;
   onStudyAllDue: () => void;
+  onGenerateAllLessons: (topics: Topic[]) => void;
+  bulkLessonProgress: { done: number; total: number } | null;
 }
 
 export default function Dashboard({
@@ -65,6 +68,8 @@ export default function Dashboard({
   onStartQuiz,
   onStartLesson,
   onStudyAllDue,
+  onGenerateAllLessons,
+  bulkLessonProgress,
 }: Props) {
   const [expanded, setExpanded] = useState<Partial<Record<SubjectId, boolean>>>({});
 
@@ -81,14 +86,37 @@ export default function Dashboard({
           <p className="text-2xl font-semibold">{totalDue}</p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">cards due across all subjects</p>
         </div>
-        <button
-          onClick={onStudyAllDue}
-          disabled={totalDue === 0}
-          className="ml-auto rounded-full bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
-        >
-          Study all due (interleaved)
-        </button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            onClick={() => onGenerateAllLessons(TOPICS)}
+            disabled={bulkLessonProgress !== null}
+            className="rounded-full border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            Generate all lessons
+          </button>
+          <button
+            onClick={onStudyAllDue}
+            disabled={totalDue === 0}
+            className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+          >
+            Study all due (interleaved)
+          </button>
+        </div>
       </div>
+
+      {bulkLessonProgress && (
+        <div className="flex items-center gap-3 rounded-xl border border-zinc-300 bg-white p-3 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+          <span className="shrink-0">
+            Generating lessons: {bulkLessonProgress.done} / {bulkLessonProgress.total}
+          </span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+            <div
+              className="h-full rounded-full bg-violet-500"
+              style={{ width: `${(bulkLessonProgress.done / bulkLessonProgress.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
         {subjects.map((s) => (
@@ -147,6 +175,8 @@ export default function Dashboard({
                   onStudyTopic={onStudyTopic}
                   onStartQuiz={onStartQuiz}
                   onStartLesson={onStartLesson}
+                  onGenerateAllLessons={onGenerateAllLessons}
+                  bulkLessonProgress={bulkLessonProgress}
                 />
               </div>
             )}

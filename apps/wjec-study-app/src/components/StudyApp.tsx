@@ -5,11 +5,12 @@ import { SUBJECTS, TOPICS, findTopic, topicsForSubject } from "@/lib/curriculum"
 import { buildInterleavedQueue } from "@/lib/scheduler";
 import { computeStreak, dueCount, masteryPercent, recentAttemptsForTopic } from "@/lib/stats";
 import { computeBadges, levelForXp, xpIntoLevel } from "@/lib/gamification";
+import { mapWithConcurrency } from "@/lib/concurrency";
 import { useStudyData } from "@/lib/useStudyData";
 import { useTimeLog } from "@/lib/useTimeLog";
 import { THEME_OPTIONS } from "@/lib/shop";
 import { useLocalStorage } from "@/lib/useLocalStorage";
-import type { Flashcard, RecallGrade, SessionKind, SubjectId } from "@/lib/types";
+import type { Flashcard, RecallGrade, SessionKind, SubjectId, Topic } from "@/lib/types";
 import ApiKeyBar from "./ApiKeyBar";
 import NotebookLinksPanel from "./NotebookLinksPanel";
 import TabBar from "./TabBar";
@@ -82,6 +83,9 @@ export default function StudyApp() {
   const [activeTab, setActiveTab] = useState("study");
   const [error, setError] = useState<string | null>(null);
   const [accent, setAccent] = useLocalStorage<string>("wjec-accent-color", THEME_OPTIONS[0].accent);
+  const [bulkLessonProgress, setBulkLessonProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const sessionStartRef = useRef(0);
 
   const streak = computeStreak(studyDays);
@@ -185,6 +189,21 @@ export default function StudyApp() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate lesson");
     }
+  }
+
+  async function generateAllLessons(topics: Topic[]) {
+    if (bulkLessonProgress) return;
+    const pending = topics.filter((t) => !lessonBank[t.id]);
+    if (pending.length === 0) return;
+    setError(null);
+    setBulkLessonProgress({ done: 0, total: pending.length });
+    let done = 0;
+    await mapWithConcurrency(pending, 3, async (topic) => {
+      await generateLessonForTopic(topic.id);
+      done += 1;
+      setBulkLessonProgress({ done, total: pending.length });
+    });
+    setBulkLessonProgress(null);
   }
 
   function enterSession(next: View) {
@@ -291,6 +310,8 @@ export default function StudyApp() {
               onStartQuiz={startQuiz}
               onStartLesson={startLesson}
               onStudyAllDue={studyAllDue}
+              onGenerateAllLessons={generateAllLessons}
+              bulkLessonProgress={bulkLessonProgress}
             />
           )}
           {activeTab === "ask" && <QaPanel apiKey={apiKey} />}

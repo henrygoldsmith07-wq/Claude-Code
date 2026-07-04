@@ -19,6 +19,7 @@ interface Props {
   onStartQuiz: () => void;
   onStartLesson: () => void;
   onSetNotebookLink: (url: string) => void;
+  lessonsLocked?: boolean;
 }
 
 export default function TopicRow({
@@ -37,6 +38,7 @@ export default function TopicRow({
   onStartQuiz,
   onStartLesson,
   onSetNotebookLink,
+  lessonsLocked,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingLink, setEditingLink] = useState(false);
@@ -110,7 +112,7 @@ export default function TopicRow({
             ) : (
               <button
                 onClick={onGenerateLesson}
-                disabled={busy === "lesson"}
+                disabled={busy === "lesson" || lessonsLocked}
                 className="rounded-full border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
                 {busy === "lesson" ? "Generating…" : "Generate lesson"}

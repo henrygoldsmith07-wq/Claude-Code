@@ -31,7 +31,9 @@ rather than passive note re-reading. Data is stored locally in the browser
 
 - Curriculum-organised topics across Chemistry, Physics, Biology and Maths.
 - Claude-generated flashcards, multiple-choice quizzes, and interactive
-  lessons per topic, cached locally so they only need generating once.
+  lessons per topic, cached locally so they only need generating once. A
+  "Generate all lessons" action (globally or per subject) bulk-generates the
+  lesson for every topic that doesn't have one yet, a few requests at a time.
 - Per-topic and per-subject mastery, blending spaced-repetition progress
   with recent quiz accuracy.
 - A day-streak counter and a "study all due" button that interleaves due
