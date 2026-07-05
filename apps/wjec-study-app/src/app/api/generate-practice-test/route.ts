@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { findSubject, findTopic } from "@/lib/curriculum";
 import { generatePracticeTest } from "@/lib/anthropicAssistant";
+import { checkRateLimit } from "@/lib/rateLimit";
 import type { PracticeFormat } from "@/lib/types";
 
 const VALID_FORMATS: PracticeFormat[] = ["mcq", "matching", "fill-blank"];
 
 export async function POST(request: Request) {
+  // Calls the paid Anthropic API — rate limit per client to prevent abuse.
+  const limited = checkRateLimit(request, {
+    name: "generate-practice-test",
+    limit: 15,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   let body: { topicId?: string; formats?: PracticeFormat[]; count?: number; apiKey?: string };
   try {
     body = await request.json();
