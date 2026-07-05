@@ -1,0 +1,16 @@
+{
+  "name": "rtk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLI that filters noisy command output down to what an LLM agent actually needs, to cut tool-call tokens",
+  "bin": {
+    "rtk": "./bin/rtk.js"
+  },
+  "main": "src/cli.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
