@@ -150,3 +150,39 @@ export interface AudioOverview {
   script: AudioScriptLine[];
   audioDataUrl: string | null;
 }
+
+export type StudyPlanMode = "list" | "calendar";
+
+export interface CalendarBlock {
+  id: string;
+  day: string;
+  startHour: number;
+  durationHours: number;
+  title: string;
+  subjectId: SubjectId | null;
+  topicId: string | null;
+}
+
+export type MotivationTone = "encouraging" | "loss-aversion";
+
+export interface MotivationalPrompt {
+  tone: MotivationTone;
+  message: string;
+}
+
+// A chained sequence of question/answer steps building toward an
+// extended-response (6-mark style) answer — each step's question follows
+// from the previous step's answer, e.g. "why does X happen?" -> "why does
+// that underlying cause happen?" -> a compare/contrast step.
+export interface ChainFlashcardStep {
+  question: string;
+  answer: string;
+}
+
+export interface ChainFlashcard {
+  id: string;
+  subjectId: SubjectId;
+  topicId: string;
+  title: string;
+  steps: ChainFlashcardStep[];
+}

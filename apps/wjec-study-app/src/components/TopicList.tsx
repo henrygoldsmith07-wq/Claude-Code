@@ -5,10 +5,12 @@ import { topicsForSubject } from "@/lib/curriculum";
 import { dueCount, masteryPercent, recentAttemptsForTopic } from "@/lib/stats";
 import { buildStudySchedule } from "@/lib/studyPlan";
 import type {
+  CalendarBlock,
   Flashcard,
   LessonSection,
   QuizAttempt,
   QuizQuestion,
+  StudyPlanMode,
   SubjectId,
   Topic,
 } from "@/lib/types";
@@ -34,6 +36,12 @@ interface Props {
   onStartLesson: (topicId: string) => void;
   onGenerateAllLessons: (topics: Topic[]) => void;
   bulkLessonProgress: { done: number; total: number } | null;
+  studyPlanMode: StudyPlanMode;
+  onStudyPlanModeChange: (mode: StudyPlanMode) => void;
+  calendarBlocks: CalendarBlock[];
+  onScheduleTopic: (topic: Topic, day: string, startHour: number) => void;
+  onMoveCalendarBlock: (id: string, day: string, startHour: number) => void;
+  onDeleteCalendarBlock: (id: string) => void;
 }
 
 type Busy = "cards" | "quiz" | "lesson" | undefined;
@@ -57,6 +65,12 @@ export default function TopicList({
   onStartLesson,
   onGenerateAllLessons,
   bulkLessonProgress,
+  studyPlanMode,
+  onStudyPlanModeChange,
+  calendarBlocks,
+  onScheduleTopic,
+  onMoveCalendarBlock,
+  onDeleteCalendarBlock,
 }: Props) {
   const topics = topicsForSubject(subjectId);
   const [loading, setLoading] = useState<Record<string, Busy>>({});
@@ -100,6 +114,12 @@ export default function TopicList({
             onStudyTopic(topicId);
           }
         }}
+        mode={studyPlanMode}
+        onModeChange={onStudyPlanModeChange}
+        calendarBlocks={calendarBlocks.filter((b) => b.subjectId === subjectId)}
+        onScheduleTopic={onScheduleTopic}
+        onMoveBlock={onMoveCalendarBlock}
+        onDeleteBlock={onDeleteCalendarBlock}
       />
 
       {topics.map((topic) => {

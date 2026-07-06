@@ -8,10 +8,20 @@ import { computeBadges, levelForXp, xpIntoLevel } from "@/lib/gamification";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { useStudyData } from "@/lib/useStudyData";
 import { useTimeLog } from "@/lib/useTimeLog";
+import { useCalendarBlocks } from "@/lib/useCalendarBlocks";
 import { useLocalStorage } from "@/lib/useLocalStorage";
-import { setAccentThemeAction } from "@/lib/supabase/actions";
+import { setAccentThemeAction, setStudyPlanModeAction } from "@/lib/supabase/actions";
+import { FALLBACK_MOTIVATIONAL_PROMPTS } from "@/lib/motivation";
 import type { InitialStudyData } from "@/lib/supabase/loadInitialData";
-import type { Flashcard, RecallGrade, SessionKind, SubjectId, Topic } from "@/lib/types";
+import type {
+  Flashcard,
+  MotivationalPrompt,
+  RecallGrade,
+  SessionKind,
+  StudyPlanMode,
+  SubjectId,
+  Topic,
+} from "@/lib/types";
 import ApiKeyBar from "./ApiKeyBar";
 import NotebookLinksPanel from "./NotebookLinksPanel";
 import TabBar from "./TabBar";
@@ -30,6 +40,7 @@ import TimeAnalyticsPanel from "./TimeAnalyticsPanel";
 import ShopPanel from "./ShopPanel";
 import StudyRoomPanel from "./StudyRoomPanel";
 import RevisionTrackerPanel from "./RevisionTrackerPanel";
+import ChainFlashcardPanel from "./ChainFlashcardPanel";
 
 type View =
   | { mode: "dashboard" }
@@ -44,6 +55,7 @@ const TABS = [
   { id: "tracker", label: "Revision Tracker" },
   { id: "ask", label: "Ask AI" },
   { id: "tests", label: "Practice Tests" },
+  { id: "chains", label: "Chained Flashcards" },
   { id: "mindmap", label: "Mind Maps" },
   { id: "notes", label: "Notes" },
   { id: "tasks", label: "Tasks" },
@@ -81,6 +93,10 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
     completeLesson,
   } = useStudyData(initialData);
   const { sessions, logSession } = useTimeLog(initialData.timeSessions);
+  const { blocks: calendarBlocks, addBlock, moveBlock, deleteBlock } = useCalendarBlocks(
+    initialData.calendarBlocks,
+  );
+  const [studyPlanMode, setStudyPlanMode] = useState<StudyPlanMode>(initialData.profile.studyPlanMode);
 
   // The visitor's own Anthropic API key is a device-level secret, not synced
   // account data, so it stays in localStorage.
@@ -93,6 +109,9 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
   const [unlockedThemes, setUnlockedThemes] = useState<string[]>(initialData.profile.unlockedThemes);
   const [bulkLessonProgress, setBulkLessonProgress] = useState<{ done: number; total: number } | null>(
     null,
+  );
+  const [motivationalPrompts, setMotivationalPrompts] = useState<MotivationalPrompt[]>(
+    FALLBACK_MOTIVATIONAL_PROMPTS,
   );
   const sessionStartRef = useRef(0);
 
@@ -230,16 +249,44 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
     setView({ mode: "dashboard" });
   }
 
+  // Refreshes the motivational nudge pool for the subject being studied,
+  // falling back to the static curated list immediately so the session never
+  // waits on this. A subject-less (interleaved "study all due") session just
+  // keeps the fallback list, which is generic enough to still fit.
+  async function loadMotivationForSubject(subjectId: SubjectId | null) {
+    setMotivationalPrompts(FALLBACK_MOTIVATIONAL_PROMPTS);
+    if (!subjectId) return;
+    try {
+      const res = await fetch("/api/generate-motivation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subjectId,
+          examDate: examDates[subjectId] ?? null,
+          apiKey: apiKey || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.prompts) && data.prompts.length > 0) {
+        setMotivationalPrompts(data.prompts);
+      }
+    } catch {
+      // Keep the fallback prompts — a failed fetch here shouldn't block studying.
+    }
+  }
+
   function studyTopic(topicId: string) {
     const topic = findTopic(topicId);
     const queue = buildInterleavedQueue(cardsForTopic(topicId), SESSION_LIMIT);
     if (queue.length === 0) return;
+    void loadMotivationForSubject(topic?.subjectId ?? null);
     enterSession({ mode: "study", queue, subjectId: topic?.subjectId ?? null });
   }
 
   function studyAllDue() {
     const queue = buildInterleavedQueue(cardList, SESSION_LIMIT);
     if (queue.length === 0) return;
+    void loadMotivationForSubject(null);
     enterSession({ mode: "study", queue, subjectId: null });
   }
 
@@ -253,6 +300,22 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
     const topic = findTopic(topicId);
     if (!topic) return;
     enterSession({ mode: "lesson", subjectId: topic.subjectId, topicId });
+  }
+
+  function changeStudyPlanMode(mode: StudyPlanMode) {
+    setStudyPlanMode(mode);
+    void setStudyPlanModeAction(mode);
+  }
+
+  function scheduleTopic(topic: Topic, day: string, startHour: number) {
+    void addBlock({
+      day,
+      startHour,
+      durationHours: 1,
+      title: topic.title,
+      subjectId: topic.subjectId,
+      topicId: topic.id,
+    });
   }
 
   return (
@@ -276,6 +339,7 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
           initialQueue={view.queue}
           onGrade={(cardId, grade: RecallGrade) => gradeCard(cardId, grade)}
           onFinish={() => finishSession("study", view.subjectId)}
+          motivationalPrompts={motivationalPrompts}
         />
       )}
 
@@ -326,6 +390,12 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
               onStudyAllDue={studyAllDue}
               onGenerateAllLessons={generateAllLessons}
               bulkLessonProgress={bulkLessonProgress}
+              studyPlanMode={studyPlanMode}
+              onStudyPlanModeChange={changeStudyPlanMode}
+              calendarBlocks={calendarBlocks}
+              onScheduleTopic={scheduleTopic}
+              onMoveCalendarBlock={moveBlock}
+              onDeleteCalendarBlock={deleteBlock}
             />
           )}
           {activeTab === "tracker" && (
@@ -343,6 +413,7 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
             />
           )}
           {activeTab === "tests" && <PracticeTestPanel apiKey={apiKey} />}
+          {activeTab === "chains" && <ChainFlashcardPanel apiKey={apiKey} />}
           {activeTab === "mindmap" && <MindMapPanel apiKey={apiKey} />}
           {activeTab === "notes" && <NoteBank apiKey={apiKey} initialNotes={initialData.notes} />}
           {activeTab === "tasks" && <TaskBoard initialTasks={initialData.tasks} />}

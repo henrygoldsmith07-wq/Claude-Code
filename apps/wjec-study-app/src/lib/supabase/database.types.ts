@@ -67,6 +67,113 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_blocks: {
+        Row: {
+          created_at: string
+          day: string
+          duration_hours: number
+          id: string
+          start_hour: number
+          subject_id: string | null
+          title: string
+          topic_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          duration_hours?: number
+          id?: string
+          start_hour: number
+          subject_id?: string | null
+          title: string
+          topic_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          duration_hours?: number
+          id?: string
+          start_hour?: number
+          subject_id?: string | null
+          title?: string
+          topic_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_blocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chain_flashcard_content: {
+        Row: {
+          created_at: string
+          id: string
+          steps: Json
+          subject_id: string
+          title: string
+          topic_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          steps: Json
+          subject_id: string
+          title: string
+          topic_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          steps?: Json
+          subject_id?: string
+          title?: string
+          topic_id?: string
+        }
+        Relationships: []
+      }
+      chain_flashcard_progress: {
+        Row: {
+          chain_id: string
+          last_completed_at: string | null
+          times_completed: number
+          user_id: string
+        }
+        Insert: {
+          chain_id: string
+          last_completed_at?: string | null
+          times_completed?: number
+          user_id: string
+        }
+        Update: {
+          chain_id?: string
+          last_completed_at?: string | null
+          times_completed?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chain_flashcard_progress_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "chain_flashcard_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chain_flashcard_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_dates: {
         Row: {
           exam_date: string
@@ -221,6 +328,30 @@ export type Database = {
         }
         Relationships: []
       }
+      motivational_prompts_content: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          subject_id: string
+          tone: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          subject_id: string
+          tone: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          subject_id?: string
+          tone?: string
+        }
+        Relationships: []
+      }
       notebook_links: {
         Row: {
           topic_id: string
@@ -328,6 +459,7 @@ export type Database = {
           id: string
           last_study_date: string | null
           longest_streak: number
+          study_plan_mode: string
           total_reviews: number
           unlocked_themes: string[]
           updated_at: string
@@ -342,6 +474,7 @@ export type Database = {
           id: string
           last_study_date?: string | null
           longest_streak?: number
+          study_plan_mode?: string
           total_reviews?: number
           unlocked_themes?: string[]
           updated_at?: string
@@ -356,6 +489,7 @@ export type Database = {
           id?: string
           last_study_date?: string | null
           longest_streak?: number
+          study_plan_mode?: string
           total_reviews?: number
           unlocked_themes?: string[]
           updated_at?: string

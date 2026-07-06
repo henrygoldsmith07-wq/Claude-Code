@@ -1,7 +1,8 @@
 "use client";
 
 import { daysUntil } from "@/lib/studyPlan";
-import type { Topic } from "@/lib/types";
+import type { CalendarBlock, StudyPlanMode, Topic } from "@/lib/types";
+import StudyCalendar from "./StudyCalendar";
 
 interface Props {
   examDate: string | undefined;
@@ -10,6 +11,12 @@ interface Props {
   onSetExamDate: (date: string) => void;
   onClearExamDate: () => void;
   onSelectTopic: (topicId: string) => void;
+  mode: StudyPlanMode;
+  onModeChange: (mode: StudyPlanMode) => void;
+  calendarBlocks: CalendarBlock[];
+  onScheduleTopic: (topic: Topic, day: string, startHour: number) => void;
+  onMoveBlock: (id: string, day: string, startHour: number) => void;
+  onDeleteBlock: (id: string) => void;
 }
 
 export default function StudyPlanPanel({
@@ -19,6 +26,12 @@ export default function StudyPlanPanel({
   onSetExamDate,
   onClearExamDate,
   onSelectTopic,
+  mode,
+  onModeChange,
+  calendarBlocks,
+  onScheduleTopic,
+  onMoveBlock,
+  onDeleteBlock,
 }: Props) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
@@ -43,6 +56,33 @@ export default function StudyPlanPanel({
             </button>
           </>
         )}
+
+        {examDate && (
+          <div className="ml-auto flex gap-1 rounded-full border border-zinc-300 p-0.5 text-xs dark:border-zinc-700">
+            <button
+              onClick={() => onModeChange("list")}
+              aria-pressed={mode === "list"}
+              className={
+                mode === "list"
+                  ? "rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
+                  : "rounded-full px-3 py-1 text-zinc-600 dark:text-zinc-400"
+              }
+            >
+              List
+            </button>
+            <button
+              onClick={() => onModeChange("calendar")}
+              aria-pressed={mode === "calendar"}
+              className={
+                mode === "calendar"
+                  ? "rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
+                  : "rounded-full px-3 py-1 text-zinc-600 dark:text-zinc-400"
+              }
+            >
+              Calendar
+            </button>
+          </div>
+        )}
       </div>
 
       {!examDate && (
@@ -52,7 +92,7 @@ export default function StudyPlanPanel({
         </p>
       )}
 
-      {examDate && (
+      {examDate && mode === "list" && (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Today&apos;s focus
@@ -88,6 +128,19 @@ export default function StudyPlanPanel({
             </div>
           )}
         </div>
+      )}
+
+      {examDate && mode === "calendar" && (
+        <StudyCalendar
+          unscheduledTopics={[...todaysFocus, ...upcomingDays.flat()].filter(
+            (t, i, arr) => arr.findIndex((x) => x.id === t.id) === i,
+          )}
+          blocks={calendarBlocks}
+          onScheduleTopic={onScheduleTopic}
+          onMoveBlock={onMoveBlock}
+          onDeleteBlock={onDeleteBlock}
+          onSelectTopic={onSelectTopic}
+        />
       )}
     </div>
   );

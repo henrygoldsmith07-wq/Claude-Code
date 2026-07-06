@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { TOPICS } from "@/lib/curriculum";
 import type { Badge } from "@/lib/gamification";
-import type { Flashcard, LessonSection, QuizAttempt, QuizQuestion, SubjectId, Topic } from "@/lib/types";
+import type {
+  CalendarBlock,
+  Flashcard,
+  LessonSection,
+  QuizAttempt,
+  QuizQuestion,
+  StudyPlanMode,
+  SubjectId,
+  Topic,
+} from "@/lib/types";
 import GamificationPanel from "./GamificationPanel";
 import TopicList from "./TopicList";
 
@@ -42,6 +51,12 @@ interface Props {
   onStudyAllDue: () => void;
   onGenerateAllLessons: (topics: Topic[]) => void;
   bulkLessonProgress: { done: number; total: number } | null;
+  studyPlanMode: StudyPlanMode;
+  onStudyPlanModeChange: (mode: StudyPlanMode) => void;
+  calendarBlocks: CalendarBlock[];
+  onScheduleTopic: (topic: Topic, day: string, startHour: number) => void;
+  onMoveCalendarBlock: (id: string, day: string, startHour: number) => void;
+  onDeleteCalendarBlock: (id: string) => void;
 }
 
 export default function Dashboard({
@@ -70,6 +85,12 @@ export default function Dashboard({
   onStudyAllDue,
   onGenerateAllLessons,
   bulkLessonProgress,
+  studyPlanMode,
+  onStudyPlanModeChange,
+  calendarBlocks,
+  onScheduleTopic,
+  onMoveCalendarBlock,
+  onDeleteCalendarBlock,
 }: Props) {
   const [expanded, setExpanded] = useState<Partial<Record<SubjectId, boolean>>>({});
 
@@ -177,6 +198,12 @@ export default function Dashboard({
                   onStartLesson={onStartLesson}
                   onGenerateAllLessons={onGenerateAllLessons}
                   bulkLessonProgress={bulkLessonProgress}
+                  studyPlanMode={studyPlanMode}
+                  onStudyPlanModeChange={onStudyPlanModeChange}
+                  calendarBlocks={calendarBlocks}
+                  onScheduleTopic={onScheduleTopic}
+                  onMoveCalendarBlock={onMoveCalendarBlock}
+                  onDeleteCalendarBlock={onDeleteCalendarBlock}
                 />
               </div>
             )}
