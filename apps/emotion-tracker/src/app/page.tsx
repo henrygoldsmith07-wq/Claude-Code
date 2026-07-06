@@ -12,7 +12,7 @@ import Toast from "@/components/Toast";
 
 export default function Home() {
   const [entries, setEntries] = useLocalStorage<Entry[]>("reflectEntries", []);
-  const [apiKey, setApiKey] = useLocalStorage<string>("anthropicApiKey", "");
+  const [apiKey, setApiKey] = useLocalStorage<string>("geminiApiKey", "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
