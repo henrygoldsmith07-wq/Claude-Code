@@ -316,3 +316,64 @@ export async function setAccentThemeAction(accent: string, unlockedThemes: strin
     .update({ accent_theme: accent, unlocked_themes: unlockedThemes })
     .eq("id", userId);
 }
+
+export async function setStudyPlanModeAction(mode: "list" | "calendar") {
+  const { supabase, userId } = await requireUser();
+  await supabase.from("profiles").update({ study_plan_mode: mode }).eq("id", userId);
+}
+
+export async function addCalendarBlockAction(input: {
+  day: string;
+  startHour: number;
+  durationHours: number;
+  title: string;
+  subjectId: SubjectId | null;
+  topicId: string | null;
+}): Promise<string> {
+  const { supabase, userId } = await requireUser();
+  const { data, error } = await supabase
+    .from("calendar_blocks")
+    .insert({
+      user_id: userId,
+      day: input.day,
+      start_hour: input.startHour,
+      duration_hours: input.durationHours,
+      title: input.title,
+      subject_id: input.subjectId,
+      topic_id: input.topicId,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id;
+}
+
+export async function moveCalendarBlockAction(id: string, day: string, startHour: number) {
+  const { supabase, userId } = await requireUser();
+  await supabase
+    .from("calendar_blocks")
+    .update({ day, start_hour: startHour })
+    .eq("id", id)
+    .eq("user_id", userId);
+}
+
+export async function deleteCalendarBlockAction(id: string) {
+  const { supabase, userId } = await requireUser();
+  await supabase.from("calendar_blocks").delete().eq("id", id).eq("user_id", userId);
+}
+
+export async function recordChainFlashcardCompletionAction(chainId: string) {
+  const { supabase, userId } = await requireUser();
+  const { data: existing } = await supabase
+    .from("chain_flashcard_progress")
+    .select("times_completed")
+    .eq("user_id", userId)
+    .eq("chain_id", chainId)
+    .maybeSingle();
+  await supabase.from("chain_flashcard_progress").upsert({
+    user_id: userId,
+    chain_id: chainId,
+    times_completed: (existing?.times_completed ?? 0) + 1,
+    last_completed_at: new Date().toISOString(),
+  });
+}

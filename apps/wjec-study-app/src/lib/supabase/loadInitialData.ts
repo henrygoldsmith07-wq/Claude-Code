@@ -2,12 +2,14 @@ import { createClient } from "./server";
 import type {
   AnchorDocument,
   AudioOverview,
+  CalendarBlock,
   Flashcard,
   LessonSection,
   Note,
   QaMessage,
   QuizAttempt,
   QuizQuestion,
+  StudyPlanMode,
   SubjectId,
   Task,
   TimeSession,
@@ -23,7 +25,9 @@ export interface InitialStudyData {
     totalReviews: number;
     accentTheme: string;
     unlockedThemes: string[];
+    studyPlanMode: StudyPlanMode;
   };
+  calendarBlocks: CalendarBlock[];
   cards: Record<string, Flashcard>;
   quizBank: Record<string, QuizQuestion[]>;
   quizAttempts: QuizAttempt[];
@@ -64,6 +68,7 @@ export async function loadInitialData(userId: string): Promise<InitialStudyData>
     audioScriptRes,
     userAudioRes,
     badgesRes,
+    calendarBlocksRes,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase.from("flashcard_content").select("id, subject_id, topic_id, front, back"),
@@ -88,6 +93,7 @@ export async function loadInitialData(userId: string): Promise<InitialStudyData>
     supabase.from("audio_script_content").select("topic_id, script"),
     supabase.from("user_audio_overviews").select("topic_id, audio_data_url").eq("user_id", userId),
     supabase.from("user_badges").select("badge_id").eq("user_id", userId),
+    supabase.from("calendar_blocks").select("*").eq("user_id", userId),
   ]);
 
   const profile = profileRes.data!;
@@ -167,7 +173,17 @@ export async function loadInitialData(userId: string): Promise<InitialStudyData>
       totalReviews: profile.total_reviews,
       accentTheme: profile.accent_theme,
       unlockedThemes: profile.unlocked_themes,
+      studyPlanMode: profile.study_plan_mode as StudyPlanMode,
     },
+    calendarBlocks: (calendarBlocksRes.data ?? []).map((b) => ({
+      id: b.id,
+      day: b.day,
+      startHour: b.start_hour,
+      durationHours: b.duration_hours,
+      title: b.title,
+      subjectId: b.subject_id as SubjectId | null,
+      topicId: b.topic_id,
+    })),
     cards,
     quizBank,
     quizAttempts: (quizAttemptsRes.data ?? []).map((a) => ({

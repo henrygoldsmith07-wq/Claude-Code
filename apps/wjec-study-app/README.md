@@ -54,7 +54,22 @@ shared table so each topic is only generated once for everyone.
   topics and anything already due for everyday review always come first.
   The weakest topics are spread onto the earliest remaining days so they
   get the most spaced-repetition exposure before the exam, without
-  overloading any single day.
+  overloading any single day. The plan is a plain day-by-day list by
+  default; switch it to **Calendar** mode to drag topics onto specific hours
+  of specific days on a month/day grid instead — entirely optional, a toggle
+  per subject.
+- **Active-learning nudges** — every few flashcards during a study session, a
+  short Claude-generated nudge appears, alternating an encouraging framing
+  ("picture acing this exam") with a loss-aversion one ("skip this now and
+  you're relearning it the night before") — subject- and exam-date-aware
+  when available, with a curated static fallback so a session never waits on
+  a network call to start.
+- **Chained flashcards** — for extended-response (6-mark style) questions,
+  a linked sequence of flashcards where each answer is the stepping stone to
+  the next question (e.g. "why does a symptom occur?" → "what's the
+  underlying mechanism?" → a compare/contrast synthesis step), so the full
+  answer is built by the student one deliberate step at a time rather than
+  read as a finished block.
 - **Gamification** — XP for reviews, quizzes and lessons, levels, a longest
   day-streak, and badges for milestones.
 - **NotebookLM links** — save a NotebookLM notebook URL per topic (there's
@@ -103,6 +118,13 @@ shared table so each topic is only generated once for everyone.
 - **Security** — RLS is enabled on every user-scoped table with
   `auth.uid() = user_id` policies; the shared content cache is
   read/insert-only for authenticated users.
+- **Evidence-grounded generation** — every content-generation prompt (flashcards,
+  quizzes, lessons, Q&A, chained flashcards) carries a shared system
+  instruction directing Claude to separate well-established consensus from
+  contested or oversimplified explanations, rather than presenting a single
+  generalized narrative as settled fact. There's no Consensus API
+  integration (no credentials available) — this is a prompt-level substitute,
+  not a real literature-search backend.
 
 ## Setup
 

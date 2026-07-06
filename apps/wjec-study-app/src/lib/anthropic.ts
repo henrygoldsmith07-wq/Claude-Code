@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { EVIDENCE_GROUNDED_SYSTEM_PROMPT } from "./evidenceGrounding";
 
 const MODEL = "claude-sonnet-5";
 
@@ -155,6 +156,7 @@ export async function generateFlashcards(
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 2048,
+    system: EVIDENCE_GROUNDED_SYSTEM_PROMPT,
     tools: [FLASHCARD_TOOL],
     tool_choice: { type: "tool", name: FLASHCARD_TOOL.name },
     messages: [
@@ -183,6 +185,7 @@ export async function generateQuizQuestions(
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 2048,
+    system: EVIDENCE_GROUNDED_SYSTEM_PROMPT,
     tools: [QUIZ_TOOL],
     tool_choice: { type: "tool", name: QUIZ_TOOL.name },
     messages: [
@@ -210,6 +213,7 @@ export async function generateLesson(
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 2048,
+    system: EVIDENCE_GROUNDED_SYSTEM_PROMPT,
     tools: [LESSON_TOOL],
     tool_choice: { type: "tool", name: LESSON_TOOL.name },
     messages: [

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { PracticeFormat } from "./types";
+import { EVIDENCE_GROUNDED_SYSTEM_PROMPT } from "./evidenceGrounding";
+import type { MotivationTone, PracticeFormat } from "./types";
 
 const MODEL = "claude-sonnet-5";
 
@@ -26,9 +27,11 @@ export async function answerQuestion(
   const anthropic = getClient(apiKey);
 
   const system =
-    mode === "guided"
+    (mode === "guided"
       ? "You are a patient WJEC/Eduqas A-level tutor. Break your answer down step by step, building understanding incrementally rather than jumping straight to the final answer. Keep each step short."
-      : "You are a WJEC/Eduqas A-level tutor. Answer clearly and concisely.";
+      : "You are a WJEC/Eduqas A-level tutor. Answer clearly and concisely.") +
+    " " +
+    EVIDENCE_GROUNDED_SYSTEM_PROMPT;
 
   const anchorPrefix = anchorText
     ? `Answer only using the following source material — if it doesn't contain the answer, say so rather than using outside knowledge:\n\n"""\n${anchorText.slice(0, 12000)}\n"""\n\n`
@@ -260,6 +263,139 @@ export async function generateAudioScript(
     throw new Error("Claude did not return structured output");
   }
   return (toolUse.input as { script: GeneratedAudioLine[] }).script;
+}
+
+export interface GeneratedMotivationalPrompt {
+  tone: MotivationTone;
+  message: string;
+}
+
+const MOTIVATION_TOOL = {
+  name: "emit_motivational_prompts",
+  description: "Return short motivational nudges shown during a study session.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      prompts: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            tone: { type: "string", enum: ["encouraging", "loss-aversion"] },
+            message: {
+              type: "string",
+              description: "One sentence, direct, second person. No hashtags or emoji.",
+            },
+          },
+          required: ["tone", "message"],
+        },
+      },
+    },
+    required: ["prompts"],
+  },
+};
+
+export async function generateMotivationalPrompts(
+  subjectName: string,
+  examDate: string | null,
+  apiKey?: string,
+): Promise<GeneratedMotivationalPrompt[]> {
+  const anthropic = getClient(apiKey);
+
+  const examContext = examDate
+    ? `Their ${subjectName} exam is on ${examDate} — you can reference the approaching date for urgency.`
+    : `They haven't set an exam date for ${subjectName} yet, so keep it general rather than date-specific.`;
+
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 1024,
+    tools: [MOTIVATION_TOOL],
+    tool_choice: { type: "tool", name: MOTIVATION_TOOL.name },
+    messages: [
+      {
+        role: "user",
+        content: `Write 6 short motivational nudges for an A-level ${subjectName} student mid-way through a flashcard revision session, so studying stays active rather than passive. Write 3 in an "encouraging" tone (warm, forward-looking, picturing the payoff of acing the exam) and 3 in a "loss-aversion" tone (naming what's genuinely at stake or missed out on if they don't put the work in now) — direct and honest, not guilt-tripping or dramatic. ${examContext}`,
+      },
+    ],
+  });
+
+  const toolUse = message.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return structured output");
+  }
+  return (toolUse.input as { prompts: GeneratedMotivationalPrompt[] }).prompts;
+}
+
+export interface GeneratedChainFlashcardStep {
+  question: string;
+  answer: string;
+}
+
+export interface GeneratedChainFlashcard {
+  title: string;
+  steps: GeneratedChainFlashcardStep[];
+}
+
+const CHAIN_FLASHCARD_TOOL = {
+  name: "emit_chain_flashcard",
+  description:
+    "Return one chained sequence of flashcards that builds step-by-step toward an extended-response (6-mark style) answer.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      title: {
+        type: "string",
+        description: "Short title naming the overall extended-response question this chain builds toward.",
+      },
+      steps: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: {
+              type: "string",
+              description:
+                "A question whose answer is the next link in the causal/comparative chain — each step should follow from the previous step's answer.",
+            },
+            answer: {
+              type: "string",
+              description: "The concise, exam-accurate answer to this step's question.",
+            },
+          },
+          required: ["question", "answer"],
+        },
+      },
+    },
+    required: ["title", "steps"],
+  },
+};
+
+export async function generateChainFlashcards(
+  subjectName: string,
+  topicTitle: string,
+  apiKey?: string,
+): Promise<GeneratedChainFlashcard> {
+  const anthropic = getClient(apiKey);
+
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    system: EVIDENCE_GROUNDED_SYSTEM_PROMPT,
+    tools: [CHAIN_FLASHCARD_TOOL],
+    tool_choice: { type: "tool", name: CHAIN_FLASHCARD_TOOL.name },
+    messages: [
+      {
+        role: "user",
+        content: `Pick one substantial extended-response (6-mark style) question a WJEC/Eduqas A-level ${subjectName} exam could ask on "${topicTitle}" — ideally one built from a chain of cause-and-effect, or a compare/contrast between two related things in this topic. Break it into 4-6 linked flashcard steps where each question's answer is the stepping stone to the next question (e.g. "why does X happen?" -> answer leads into "why does that underlying cause happen?" -> ... -> a final compare/synthesis step), so working through the whole chain in order builds the full extended-response answer.`,
+      },
+    ],
+  });
+
+  const toolUse = message.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude did not return structured output");
+  }
+  return toolUse.input as GeneratedChainFlashcard;
 }
 
 export async function extractTextFromImage(
