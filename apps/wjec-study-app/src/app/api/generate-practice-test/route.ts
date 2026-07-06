@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { findSubject, findTopic } from "@/lib/curriculum";
-import { generatePracticeTest } from "@/lib/anthropicAssistant";
+import { generatePracticeTest, type GeneratedPracticeItem } from "@/lib/anthropicAssistant";
+import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 import type { PracticeFormat } from "@/lib/types";
 
 const VALID_FORMATS: PracticeFormat[] = ["mcq", "matching", "fill-blank"];
@@ -27,10 +29,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "At least one valid format is required" }, { status: 400 });
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
   const count = Math.min(Math.max(body.count ?? 8, 1), 15);
 
   try {
-    const items = await generatePracticeTest(subject.name, topic.title, formats, count, body.apiKey);
+    const { data: existing, error: selectError } = await supabase
+      .from("practice_test_content")
+      .select("items")
+      .eq("topic_id", topic.id)
+      .maybeSingle();
+    if (selectError) throw new Error(selectError.message);
+
+    let items: GeneratedPracticeItem[];
+    if (existing) {
+      items = existing.items as unknown as GeneratedPracticeItem[];
+    } else {
+      items = await generatePracticeTest(subject.name, topic.title, formats, count, body.apiKey);
+      const { error: insertError } = await supabase
+        .from("practice_test_content")
+        .insert({ topic_id: topic.id, subject_id: topic.subjectId, items: items as unknown as Json });
+      if (insertError) throw new Error(insertError.message);
+    }
+
     return NextResponse.json({ items });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Practice test generation failed";

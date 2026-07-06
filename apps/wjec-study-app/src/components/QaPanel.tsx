@@ -2,12 +2,15 @@
 
 import { useRef, useState } from "react";
 import { useQaAssistant } from "@/lib/useQaAssistant";
+import type { AnchorDocument, QaMessage } from "@/lib/types";
 
 interface Props {
   apiKey: string;
+  initialDocuments: AnchorDocument[];
+  initialHistory: QaMessage[];
 }
 
-export default function QaPanel({ apiKey }: Props) {
+export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Props) {
   const {
     documents,
     activeDocumentId,
@@ -17,7 +20,7 @@ export default function QaPanel({ apiKey }: Props) {
     history,
     addMessage,
     clearHistory,
-  } = useQaAssistant();
+  } = useQaAssistant({ documents: initialDocuments, history: initialHistory });
 
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState<"direct" | "guided">("direct");

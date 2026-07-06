@@ -2,8 +2,11 @@
 
 A study app for WJEC/Eduqas A-level Chemistry, Physics, Biology and Maths,
 built around the study techniques with the strongest evidence behind them
-rather than passive note re-reading. Data is stored locally in the browser
-(localStorage) — no account or backend required.
+rather than passive note re-reading. Data is stored per-user in Supabase
+(Postgres + Auth), so progress syncs across devices behind a sign-in, with
+Row Level Security ensuring each student only ever sees their own data.
+Claude-generated content (flashcards, quizzes, lessons, etc.) is cached in a
+shared table so each topic is only generated once for everyone.
 
 ## Learning science behind it
 
@@ -74,8 +77,32 @@ rather than passive note re-reading. Data is stored locally in the browser
   licensed music assets, so no real lo-fi tracks).
 - **Audio overviews** — Claude writes a two-host discussion script per
   topic; your own ElevenLabs API key turns it into playable audio.
-- **Analytics** — a study-day heatmap and a time-by-subject breakdown.
+- **Analytics** — a study-day heatmap, a time-by-subject breakdown, and a
+  this-week-vs-last-week trend (a gentle nudge, not a streak you get punished
+  for breaking).
+- **Study Room** — a live Supabase Realtime presence list of who else is
+  studying right now, plus an XP leaderboard read through a hardened
+  `SECURITY DEFINER` function so peers' standings are visible without exposing
+  the rest of anyone's profile.
 - **Shop** — spend coins earned from XP to unlock accent color themes.
+
+## Architecture
+
+- **Auth & data** — [`@supabase/ssr`](https://supabase.com/docs/guides/auth/server-side)
+  with `createServerClient` in Server Components / Server Actions and
+  `createBrowserClient` in Client Components. Next.js Middleware refreshes the
+  session cookie on every request (and gates every route behind a sign-in) so
+  a session never expires mid-study.
+- **Server-rendered initial data** — the page is a Server Component that reads
+  the user's whole study dataset from Supabase in one pass and hands it to the
+  client, so there's no client-side loading spinner on first paint (a
+  `loading.tsx` skeleton covers the navigation itself).
+- **Optimistic writes** — task status flips, card grades, note adds, etc.
+  update React state immediately and persist via Server Actions in the
+  background.
+- **Security** — RLS is enabled on every user-scoped table with
+  `auth.uid() = user_id` policies; the shared content cache is
+  read/insert-only for authenticated users.
 
 ## Setup
 
@@ -88,6 +115,13 @@ Set `ANTHROPIC_API_KEY` in `.env.local` for a server-wide fallback key, or
 leave it unset and let each visitor paste their own key in the app instead.
 Audio overviews additionally need a visitor-supplied ElevenLabs API key,
 entered in the Audio Overviews tab (not read from an environment variable).
+
+The app now requires a Supabase project for accounts and persistence. Set:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+in `.env.local` (Project Settings → API in your Supabase dashboard).
 
 ```bash
 npm run dev

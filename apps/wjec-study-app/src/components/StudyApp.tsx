@@ -8,8 +8,9 @@ import { computeBadges, levelForXp, xpIntoLevel } from "@/lib/gamification";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { useStudyData } from "@/lib/useStudyData";
 import { useTimeLog } from "@/lib/useTimeLog";
-import { THEME_OPTIONS } from "@/lib/shop";
 import { useLocalStorage } from "@/lib/useLocalStorage";
+import { setAccentThemeAction } from "@/lib/supabase/actions";
+import type { InitialStudyData } from "@/lib/supabase/loadInitialData";
 import type { Flashcard, RecallGrade, SessionKind, SubjectId, Topic } from "@/lib/types";
 import ApiKeyBar from "./ApiKeyBar";
 import NotebookLinksPanel from "./NotebookLinksPanel";
@@ -27,6 +28,7 @@ import FocusTimer from "./FocusTimer";
 import AudioOverviewPanel from "./AudioOverviewPanel";
 import TimeAnalyticsPanel from "./TimeAnalyticsPanel";
 import ShopPanel from "./ShopPanel";
+import StudyRoomPanel from "./StudyRoomPanel";
 
 type View =
   | { mode: "dashboard" }
@@ -44,12 +46,13 @@ const TABS = [
   { id: "notes", label: "Notes" },
   { id: "tasks", label: "Tasks" },
   { id: "focus", label: "Focus Timer" },
+  { id: "rooms", label: "Study Room" },
   { id: "audio", label: "Audio Overviews" },
   { id: "analytics", label: "Analytics" },
   { id: "shop", label: "Shop" },
 ];
 
-export default function StudyApp() {
+export default function StudyApp({ userId, initialData }: { userId: string; initialData: InitialStudyData }) {
   const {
     cardList,
     cardsForTopic,
@@ -57,8 +60,6 @@ export default function StudyApp() {
     quizBank,
     quizAttempts,
     studyDays,
-    apiKey,
-    setApiKey,
     examDates,
     setExamDate,
     clearExamDate,
@@ -76,13 +77,18 @@ export default function StudyApp() {
     gradeCard,
     recordQuizAttempt,
     completeLesson,
-  } = useStudyData();
-  const { logSession } = useTimeLog();
+  } = useStudyData(initialData);
+  const { sessions, logSession } = useTimeLog(initialData.timeSessions);
+
+  // The visitor's own Anthropic API key is a device-level secret, not synced
+  // account data, so it stays in localStorage.
+  const [apiKey, setApiKey] = useLocalStorage<string>("wjec-study-api-key", "");
 
   const [view, setView] = useState<View>({ mode: "dashboard" });
   const [activeTab, setActiveTab] = useState("study");
   const [error, setError] = useState<string | null>(null);
-  const [accent, setAccent] = useLocalStorage<string>("wjec-accent-color", THEME_OPTIONS[0].accent);
+  const [accent, setAccent] = useState<string>(initialData.profile.accentTheme);
+  const [unlockedThemes, setUnlockedThemes] = useState<string[]>(initialData.profile.unlockedThemes);
   const [bulkLessonProgress, setBulkLessonProgress] = useState<{ done: number; total: number } | null>(
     null,
   );
@@ -90,6 +96,12 @@ export default function StudyApp() {
 
   const streak = computeStreak(studyDays);
   const totalDue = dueCount(cardList);
+
+  function applyTheme(nextAccent: string, nextUnlocked: string[]) {
+    setAccent(nextAccent);
+    setUnlockedThemes(nextUnlocked);
+    void setAccentThemeAction(nextAccent, nextUnlocked);
+  }
 
   const subjectSummaries: SubjectSummary[] = useMemo(
     () =>
@@ -314,15 +326,37 @@ export default function StudyApp() {
               bulkLessonProgress={bulkLessonProgress}
             />
           )}
-          {activeTab === "ask" && <QaPanel apiKey={apiKey} />}
+          {activeTab === "ask" && (
+            <QaPanel
+              apiKey={apiKey}
+              initialDocuments={initialData.anchorDocuments}
+              initialHistory={initialData.qaHistory}
+            />
+          )}
           {activeTab === "tests" && <PracticeTestPanel apiKey={apiKey} />}
           {activeTab === "mindmap" && <MindMapPanel apiKey={apiKey} />}
-          {activeTab === "notes" && <NoteBank apiKey={apiKey} />}
-          {activeTab === "tasks" && <TaskBoard />}
-          {activeTab === "focus" && <FocusTimer />}
-          {activeTab === "audio" && <AudioOverviewPanel apiKey={apiKey} />}
-          {activeTab === "analytics" && <TimeAnalyticsPanel studyDays={studyDays} />}
-          {activeTab === "shop" && <ShopPanel xp={xp} onAccentChange={setAccent} />}
+          {activeTab === "notes" && <NoteBank apiKey={apiKey} initialNotes={initialData.notes} />}
+          {activeTab === "tasks" && <TaskBoard initialTasks={initialData.tasks} />}
+          {activeTab === "focus" && (
+            <FocusTimer onLogFocus={(ms) => logSession("focus", null, ms)} />
+          )}
+          {activeTab === "rooms" && (
+            <StudyRoomPanel userId={userId} displayName={initialData.profile.displayName ?? ""} />
+          )}
+          {activeTab === "audio" && (
+            <AudioOverviewPanel apiKey={apiKey} initialOverviews={initialData.audioOverviews} />
+          )}
+          {activeTab === "analytics" && (
+            <TimeAnalyticsPanel studyDays={studyDays} sessions={sessions} />
+          )}
+          {activeTab === "shop" && (
+            <ShopPanel
+              xp={xp}
+              accent={accent}
+              unlockedThemes={unlockedThemes}
+              onChange={applyTheme}
+            />
+          )}
         </>
       )}
     </div>

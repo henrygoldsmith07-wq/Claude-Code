@@ -3,14 +3,16 @@
 import { useState } from "react";
 import { SUBJECTS, findSubject, topicsForSubject } from "@/lib/curriculum";
 import { useAudioOverview } from "@/lib/useAudioOverview";
-import type { SubjectId } from "@/lib/types";
+import type { AudioOverview, SubjectId } from "@/lib/types";
 
 interface Props {
   apiKey: string;
+  initialOverviews: Record<string, AudioOverview>;
 }
 
-export default function AudioOverviewPanel({ apiKey }: Props) {
-  const { elevenLabsKey, setElevenLabsKey, overviews, setScript, setAudio } = useAudioOverview();
+export default function AudioOverviewPanel({ apiKey, initialOverviews }: Props) {
+  const { elevenLabsKey, setElevenLabsKey, overviews, setScript, setAudio } =
+    useAudioOverview(initialOverviews);
   const [subjectId, setSubjectId] = useState<SubjectId>(SUBJECTS[0].id);
   const topics = topicsForSubject(subjectId);
   const [topicId, setTopicId] = useState(topics[0].id);

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { findSubject, findTopic } from "@/lib/curriculum";
 import { generateLesson } from "@/lib/anthropic";
+import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
+import type { LessonSection } from "@/lib/types";
 
 export async function POST(request: Request) {
   let body: { topicId?: string; apiKey?: string };
@@ -19,8 +22,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unknown subject" }, { status: 400 });
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
   try {
-    const sections = await generateLesson(subject.name, topic.title, body.apiKey);
+    const { data: existing, error: selectError } = await supabase
+      .from("lesson_content")
+      .select("sections")
+      .eq("topic_id", topic.id)
+      .maybeSingle();
+    if (selectError) throw new Error(selectError.message);
+
+    let sections: LessonSection[];
+    if (existing) {
+      sections = existing.sections as unknown as LessonSection[];
+    } else {
+      sections = await generateLesson(subject.name, topic.title, body.apiKey);
+      const { error: insertError } = await supabase
+        .from("lesson_content")
+        .insert({ topic_id: topic.id, subject_id: topic.subjectId, sections: sections as unknown as Json });
+      if (insertError) throw new Error(insertError.message);
+    }
+
     return NextResponse.json({ sections });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Lesson generation failed";
