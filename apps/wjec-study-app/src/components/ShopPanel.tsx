@@ -1,30 +1,32 @@
 "use client";
 
-import { useLocalStorage } from "@/lib/useLocalStorage";
 import { coinsForXp, THEME_OPTIONS } from "@/lib/shop";
 
 interface Props {
   xp: number;
-  onAccentChange: (accent: string) => void;
+  accent: string;
+  unlockedThemes: string[];
+  onChange: (accent: string, unlockedThemes: string[]) => void;
 }
 
-export default function ShopPanel({ xp, onAccentChange }: Props) {
-  const [unlocked, setUnlocked] = useLocalStorage<string[]>("wjec-unlocked-themes", ["violet"]);
-  const [selectedThemeId, setSelectedThemeId] = useLocalStorage<string>("wjec-selected-theme", "violet");
+export default function ShopPanel({ xp, accent, unlockedThemes, onChange }: Props) {
   const coins = coinsForXp(xp);
-  const spent = THEME_OPTIONS.filter((t) => unlocked.includes(t.id)).reduce((sum, t) => sum + t.cost, 0);
+  const spent = THEME_OPTIONS.filter((t) => unlockedThemes.includes(t.id)).reduce(
+    (sum, t) => sum + t.cost,
+    0,
+  );
   const available = coins - spent;
+  const selectedThemeId = THEME_OPTIONS.find((t) => t.accent === accent)?.id;
 
   function selectTheme(id: string) {
-    setSelectedThemeId(id);
     const theme = THEME_OPTIONS.find((t) => t.id === id);
-    if (theme) onAccentChange(theme.accent);
+    if (theme) onChange(theme.accent, unlockedThemes);
   }
 
   function unlockTheme(id: string, cost: number) {
     if (available < cost) return;
-    setUnlocked((prev) => [...prev, id]);
-    selectTheme(id);
+    const theme = THEME_OPTIONS.find((t) => t.id === id);
+    if (theme) onChange(theme.accent, [...unlockedThemes, id]);
   }
 
   return (
@@ -36,13 +38,17 @@ export default function ShopPanel({ xp, onAccentChange }: Props) {
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {THEME_OPTIONS.map((theme) => {
-          const isUnlocked = unlocked.includes(theme.id);
+          const isUnlocked = unlockedThemes.includes(theme.id);
           const isSelected = theme.id === selectedThemeId;
           return (
             <button
               key={theme.id}
               onClick={() => (isUnlocked ? selectTheme(theme.id) : unlockTheme(theme.id, theme.cost))}
               disabled={!isUnlocked && available < theme.cost}
+              aria-pressed={isSelected}
+              aria-label={
+                isUnlocked ? `Use ${theme.name} theme` : `Unlock ${theme.name} theme for ${theme.cost} coins`
+              }
               className={
                 isSelected
                   ? "flex flex-col items-center gap-1 rounded-lg border-2 p-3 text-xs"

@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { useLocalStorage } from "./useLocalStorage";
-import { createCard, reviewCard } from "./fsrs";
-import { computeStreak } from "./stats";
+import { useCallback, useMemo, useState } from "react";
+import { reviewCard } from "./fsrs";
 import {
   XP_LESSON_COMPLETE_BONUS,
   XP_PER_CARD_GRADE,
@@ -11,6 +9,17 @@ import {
   XP_PER_QUIZ_CORRECT,
   XP_PER_STUDY_DAY,
 } from "./gamification";
+import { computeStreak } from "./stats";
+import {
+  clearExamDateAction,
+  completeLessonAction,
+  gradeCardAction,
+  recordQuizAttemptAction,
+  setExamDateAction,
+  setNotebookLinkAction,
+  bulkImportNotebookLinksAction,
+} from "./supabase/actions";
+import type { InitialStudyData } from "./supabase/loadInitialData";
 import type {
   Flashcard,
   LessonSection,
@@ -19,46 +28,28 @@ import type {
   RecallGrade,
   SubjectId,
 } from "./types";
-import type { GeneratedFlashcard, GeneratedLessonSection, GeneratedQuizQuestion } from "./anthropic";
 
 function toDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function useStudyData() {
-  const [cards, setCards] = useLocalStorage<Record<string, Flashcard>>("wjec-study-cards", {});
-  const [quizBank, setQuizBank] = useLocalStorage<Record<string, QuizQuestion[]>>(
-    "wjec-study-quiz-bank",
-    {},
-  );
-  const [quizAttempts, setQuizAttempts] = useLocalStorage<QuizAttempt[]>(
-    "wjec-study-quiz-attempts",
-    [],
-  );
-  const [studyDays, setStudyDays] = useLocalStorage<string[]>("wjec-study-days", []);
-  const [apiKey, setApiKey] = useLocalStorage<string>("wjec-study-api-key", "");
-  const [examDates, setExamDates] = useLocalStorage<Record<string, string>>(
-    "wjec-study-exam-dates",
-    {},
-  );
-  const [lessonBank, setLessonBank] = useLocalStorage<Record<string, LessonSection[]>>(
-    "wjec-study-lesson-bank",
-    {},
-  );
-  const [lessonCompletions, setLessonCompletions] = useLocalStorage<string[]>(
-    "wjec-study-lesson-completions",
-    [],
-  );
-  const [notebookLinks, setNotebookLinks] = useLocalStorage<Record<string, string>>(
-    "wjec-study-notebook-links",
-    {},
-  );
-  const [xp, setXp] = useLocalStorage<number>("wjec-study-xp", 0);
-  const [totalReviews, setTotalReviews] = useLocalStorage<number>("wjec-study-total-reviews", 0);
-  const [longestStreak, setLongestStreak] = useLocalStorage<number>(
-    "wjec-study-longest-streak",
-    0,
-  );
+// Holds a mirror of the user's Supabase-backed study data in React state,
+// hydrated once from the server on load. Writes update local state
+// immediately (optimistic) and are persisted via Server Actions in the
+// background, so the UI stays instant while the database is the source of
+// truth across devices.
+export function useStudyData(initial: InitialStudyData) {
+  const [cards, setCards] = useState<Record<string, Flashcard>>(initial.cards);
+  const [quizBank, setQuizBank] = useState<Record<string, QuizQuestion[]>>(initial.quizBank);
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>(initial.quizAttempts);
+  const [studyDays, setStudyDays] = useState<string[]>(initial.studyDays);
+  const [examDates, setExamDates] = useState<Record<string, string>>(initial.examDates);
+  const [lessonBank, setLessonBank] = useState<Record<string, LessonSection[]>>(initial.lessonBank);
+  const [lessonCompletions, setLessonCompletions] = useState<string[]>(initial.lessonCompletions);
+  const [notebookLinks, setNotebookLinks] = useState<Record<string, string>>(initial.notebookLinks);
+  const [xp, setXp] = useState<number>(initial.profile.xp);
+  const [totalReviews, setTotalReviews] = useState<number>(initial.profile.totalReviews);
+  const [longestStreak, setLongestStreak] = useState<number>(initial.profile.longestStreak);
 
   const cardList = useMemo(() => Object.values(cards), [cards]);
 
@@ -72,51 +63,41 @@ export function useStudyData() {
     [cardList],
   );
 
-  const recordStudyDay = useCallback(() => {
+  const markStudyDayLocally = useCallback(() => {
     const today = toDateOnly(new Date());
-    if (studyDays.includes(today)) return;
-    setStudyDays((prev) => (prev.includes(today) ? prev : [...prev, today]));
-    setXp((prev) => prev + XP_PER_STUDY_DAY);
-    const newStreak = computeStreak([...studyDays, today]);
-    setLongestStreak((prev) => Math.max(prev, newStreak));
-  }, [studyDays, setStudyDays, setXp, setLongestStreak]);
+    setStudyDays((prev) => {
+      if (prev.includes(today)) return prev;
+      const next = [...prev, today];
+      setXp((x) => x + XP_PER_STUDY_DAY);
+      setLongestStreak((l) => Math.max(l, computeStreak(next)));
+      return next;
+    });
+  }, []);
 
+  // Flashcards/quizzes/lessons are fetched (and cached in Supabase) by the
+  // API routes, which return the full hydrated objects; these setters just
+  // merge the results into local state.
   const addGeneratedCards = useCallback(
-    (subjectId: SubjectId, topicId: string, generated: GeneratedFlashcard[]) => {
+    (_subjectId: SubjectId, _topicId: string, generatedCards: Flashcard[]) => {
       setCards((prev) => {
         const next = { ...prev };
-        generated.forEach((g, i) => {
-          const id = `${topicId}-card-${Date.now()}-${i}`;
-          next[id] = createCard(id, subjectId, topicId, g.front, g.back);
-        });
+        for (const c of generatedCards) next[c.id] = c;
         return next;
       });
     },
-    [setCards],
+    [],
   );
 
   const setQuizForTopic = useCallback(
-    (subjectId: SubjectId, topicId: string, generated: GeneratedQuizQuestion[]) => {
-      const questions: QuizQuestion[] = generated.map((g, i) => ({
-        id: `${topicId}-quiz-${Date.now()}-${i}`,
-        subjectId,
-        topicId,
-        question: g.question,
-        options: g.options,
-        correctIndex: g.correctIndex,
-        explanation: g.explanation,
-      }));
+    (_subjectId: SubjectId, topicId: string, questions: QuizQuestion[]) => {
       setQuizBank((prev) => ({ ...prev, [topicId]: questions }));
     },
-    [setQuizBank],
+    [],
   );
 
-  const setLessonForTopic = useCallback(
-    (topicId: string, generated: GeneratedLessonSection[]) => {
-      setLessonBank((prev) => ({ ...prev, [topicId]: generated }));
-    },
-    [setLessonBank],
-  );
+  const setLessonForTopic = useCallback((topicId: string, sections: LessonSection[]) => {
+    setLessonBank((prev) => ({ ...prev, [topicId]: sections }));
+  }, []);
 
   const gradeCard = useCallback(
     (cardId: string, grade: RecallGrade) => {
@@ -127,15 +108,16 @@ export function useStudyData() {
       });
       setTotalReviews((prev) => prev + 1);
       setXp((prev) => prev + XP_PER_CARD_GRADE[grade]);
-      recordStudyDay();
+      markStudyDayLocally();
+      void gradeCardAction(cardId, grade);
     },
-    [setCards, setTotalReviews, setXp, recordStudyDay],
+    [markStudyDayLocally],
   );
 
   const recordQuizAttempt = useCallback(
     (subjectId: SubjectId, topicId: string, score: number, total: number) => {
       const attempt: QuizAttempt = {
-        id: `${topicId}-attempt-${Date.now()}`,
+        id: `local-${Date.now()}`,
         subjectId,
         topicId,
         score,
@@ -144,58 +126,52 @@ export function useStudyData() {
       };
       setQuizAttempts((prev) => [...prev, attempt]);
       setXp((prev) => prev + score * XP_PER_QUIZ_CORRECT);
-      recordStudyDay();
+      markStudyDayLocally();
+      void recordQuizAttemptAction(subjectId, topicId, score, total);
     },
-    [setQuizAttempts, setXp, recordStudyDay],
+    [markStudyDayLocally],
   );
 
   const completeLesson = useCallback(
     (topicId: string, sectionCount: number) => {
       setLessonCompletions((prev) => (prev.includes(topicId) ? prev : [...prev, topicId]));
       setXp((prev) => prev + sectionCount * XP_PER_LESSON_SECTION + XP_LESSON_COMPLETE_BONUS);
-      recordStudyDay();
+      markStudyDayLocally();
+      void completeLessonAction(topicId, sectionCount);
     },
-    [setLessonCompletions, setXp, recordStudyDay],
+    [markStudyDayLocally],
   );
 
-  const setExamDate = useCallback(
-    (subjectId: SubjectId, date: string) => {
-      setExamDates((prev) => ({ ...prev, [subjectId]: date }));
-    },
-    [setExamDates],
-  );
+  const setExamDate = useCallback((subjectId: SubjectId, date: string) => {
+    setExamDates((prev) => ({ ...prev, [subjectId]: date }));
+    void setExamDateAction(subjectId, date);
+  }, []);
 
-  const clearExamDate = useCallback(
-    (subjectId: SubjectId) => {
-      setExamDates((prev) => {
+  const clearExamDate = useCallback((subjectId: SubjectId) => {
+    setExamDates((prev) => {
+      const next = { ...prev };
+      delete next[subjectId];
+      return next;
+    });
+    void clearExamDateAction(subjectId);
+  }, []);
+
+  const setNotebookLink = useCallback((topicId: string, url: string) => {
+    setNotebookLinks((prev) => {
+      if (!url) {
         const next = { ...prev };
-        delete next[subjectId];
+        delete next[topicId];
         return next;
-      });
-    },
-    [setExamDates],
-  );
+      }
+      return { ...prev, [topicId]: url };
+    });
+    void setNotebookLinkAction(topicId, url);
+  }, []);
 
-  const setNotebookLink = useCallback(
-    (topicId: string, url: string) => {
-      setNotebookLinks((prev) => {
-        if (!url) {
-          const next = { ...prev };
-          delete next[topicId];
-          return next;
-        }
-        return { ...prev, [topicId]: url };
-      });
-    },
-    [setNotebookLinks],
-  );
-
-  const bulkImportNotebookLinks = useCallback(
-    (links: Record<string, string>) => {
-      setNotebookLinks((prev) => ({ ...prev, ...links }));
-    },
-    [setNotebookLinks],
-  );
+  const bulkImportNotebookLinks = useCallback((links: Record<string, string>) => {
+    setNotebookLinks((prev) => ({ ...prev, ...links }));
+    void bulkImportNotebookLinksAction(links);
+  }, []);
 
   return {
     cardList,
@@ -204,8 +180,6 @@ export function useStudyData() {
     quizBank,
     quizAttempts,
     studyDays,
-    apiKey,
-    setApiKey,
     examDates,
     setExamDate,
     clearExamDate,

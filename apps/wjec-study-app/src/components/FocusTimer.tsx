@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { playAmbientSound, stopAmbientSound, type AmbientSound } from "@/lib/ambientSound";
-import { useTimeLog } from "@/lib/useTimeLog";
 
 const AMBIENT_OPTIONS: { id: AmbientSound; label: string }[] = [
   { id: "off", label: "Off" },
@@ -11,22 +10,68 @@ const AMBIENT_OPTIONS: { id: AmbientSound; label: string }[] = [
   { id: "rain", label: "Rain-like" },
 ];
 
-export default function FocusTimer() {
-  const { logSession } = useTimeLog();
-  const [studyMinutes, setStudyMinutes] = useState(25);
-  const [breakMinutes, setBreakMinutes] = useState(5);
-  const [phase, setPhase] = useState<"study" | "break">("study");
-  const [secondsLeft, setSecondsLeft] = useState(studyMinutes * 60);
-  const [running, setRunning] = useState(false);
+// Persisted so a refresh or tab switch mid-session doesn't lose the countdown.
+const PERSIST_KEY = "wjec-focus-timer";
+interface PersistedTimer {
+  phase: "study" | "break";
+  secondsLeft: number;
+  running: boolean;
+  studyMinutes: number;
+  breakMinutes: number;
+  savedAt: number;
+}
+
+interface Props {
+  onLogFocus: (durationMs: number) => void;
+}
+
+// Reads any persisted in-progress timer once, advancing it by however long
+// the tab was closed using the saved wall-clock timestamp. FocusTimer only
+// mounts client-side (when its tab is opened), so reading localStorage during
+// lazy state init is safe and avoids a setState-in-effect cascade.
+function restore(): PersistedTimer | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(PERSIST_KEY);
+  if (!raw) return null;
+  try {
+    const saved = JSON.parse(raw) as PersistedTimer;
+    const elapsedWhileAway = saved.running ? Math.floor((Date.now() - saved.savedAt) / 1000) : 0;
+    return { ...saved, secondsLeft: Math.max(0, saved.secondsLeft - elapsedWhileAway) };
+  } catch {
+    return null;
+  }
+}
+
+export default function FocusTimer({ onLogFocus }: Props) {
+  const saved = restore();
+  const [studyMinutes, setStudyMinutes] = useState(saved?.studyMinutes ?? 25);
+  const [breakMinutes, setBreakMinutes] = useState(saved?.breakMinutes ?? 5);
+  const [phase, setPhase] = useState<"study" | "break">(saved?.phase ?? "study");
+  const [secondsLeft, setSecondsLeft] = useState(saved?.secondsLeft ?? 25 * 60);
+  const [running, setRunning] = useState(saved?.running ?? false);
   const [ambient, setAmbient] = useState<AmbientSound>("off");
   const elapsedRef = useRef(0);
+
+  useEffect(() => {
+    const state: PersistedTimer = {
+      phase,
+      secondsLeft,
+      running,
+      studyMinutes,
+      breakMinutes,
+      savedAt: Date.now(),
+    };
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PERSIST_KEY, JSON.stringify(state));
+    }
+  }, [phase, secondsLeft, running, studyMinutes, breakMinutes]);
 
   useEffect(() => {
     if (!running) return;
     const interval = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
-          if (phase === "study") logSession("focus", null, elapsedRef.current * 1000 + 1000);
+          if (phase === "study") onLogFocus(elapsedRef.current * 1000 + 1000);
           elapsedRef.current = 0;
           const nextPhase = phase === "study" ? "break" : "study";
           setPhase(nextPhase);
@@ -37,7 +82,7 @@ export default function FocusTimer() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [running, phase, studyMinutes, breakMinutes, logSession]);
+  }, [running, phase, studyMinutes, breakMinutes, onLogFocus]);
 
   useEffect(() => {
     playAmbientSound(running ? ambient : "off");
@@ -46,7 +91,7 @@ export default function FocusTimer() {
 
   function handleStop() {
     if (phase === "study" && elapsedRef.current > 0) {
-      logSession("focus", null, elapsedRef.current * 1000);
+      onLogFocus(elapsedRef.current * 1000);
     }
     elapsedRef.current = 0;
     setRunning(false);

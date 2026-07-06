@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
-import { useLocalStorage } from "./useLocalStorage";
+import { useCallback, useState } from "react";
+import { addNoteAction, deleteNoteAction } from "./supabase/actions";
 import type { Note, SubjectId } from "./types";
 
-export function useNotes() {
-  const [notes, setNotes] = useLocalStorage<Note[]>("wjec-notes", []);
+export function useNotes(initial: Note[]) {
+  const [notes, setNotes] = useState<Note[]>(initial);
 
   const addNote = useCallback(
-    (input: {
+    async (input: {
       title: string;
       body: string;
       sketchDataUrl: string | null;
@@ -18,8 +18,9 @@ export function useNotes() {
       topicId: string | null;
     }) => {
       const now = new Date().toISOString();
+      const tempId = `local-${Date.now()}`;
       const note: Note = {
-        id: `note-${Date.now()}`,
+        id: tempId,
         title: input.title,
         body: input.body,
         sketchDataUrl: input.sketchDataUrl,
@@ -31,17 +32,21 @@ export function useNotes() {
         updatedAt: now,
       };
       setNotes((prev) => [note, ...prev]);
+      try {
+        const id = await addNoteAction(input);
+        setNotes((prev) => prev.map((n) => (n.id === tempId ? { ...n, id } : n)));
+      } catch {
+        setNotes((prev) => prev.filter((n) => n.id !== tempId));
+      }
       return note;
     },
-    [setNotes],
+    [],
   );
 
-  const deleteNote = useCallback(
-    (id: string) => {
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-    },
-    [setNotes],
-  );
+  const deleteNote = useCallback((id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    void deleteNoteAction(id);
+  }, []);
 
   return { notes, addNote, deleteNote };
 }

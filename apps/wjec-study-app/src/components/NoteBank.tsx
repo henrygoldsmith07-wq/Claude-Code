@@ -2,10 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useNotes } from "@/lib/useNotes";
+import type { Note } from "@/lib/types";
 import SketchPad from "./SketchPad";
 
 interface Props {
   apiKey: string;
+  initialNotes: Note[];
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -17,8 +19,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-export default function NoteBank({ apiKey }: Props) {
-  const { notes, addNote, deleteNote } = useNotes();
+export default function NoteBank({ apiKey, initialNotes }: Props) {
+  const { notes, addNote, deleteNote } = useNotes(initialNotes);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tagsInput, setTagsInput] = useState("");

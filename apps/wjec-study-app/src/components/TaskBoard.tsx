@@ -10,8 +10,15 @@ const COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: "done", label: "Done" },
 ];
 
-function TaskCard({ task }: { task: Task }) {
-  const { deleteTask, addSubtask, toggleSubtask, addLink } = useTasks();
+interface TaskCardProps {
+  task: Task;
+  onDelete: (id: string) => void;
+  onAddSubtask: (taskId: string, title: string) => void;
+  onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onAddLink: (taskId: string, link: string) => void;
+}
+
+function TaskCard({ task, onDelete, onAddSubtask, onToggleSubtask, onAddLink }: TaskCardProps) {
   const [subtaskDraft, setSubtaskDraft] = useState("");
   const [linkDraft, setLinkDraft] = useState("");
 
@@ -23,14 +30,18 @@ function TaskCard({ task }: { task: Task }) {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="font-medium">{task.title}</p>
-        <button onClick={() => deleteTask(task.id)} className="text-zinc-400 hover:text-red-600">
+        <button
+          onClick={() => onDelete(task.id)}
+          aria-label={`Delete task ${task.title}`}
+          className="text-zinc-400 hover:text-red-600"
+        >
           ×
         </button>
       </div>
 
       {task.subtasks.map((s) => (
         <label key={s.id} className="flex items-center gap-1.5">
-          <input type="checkbox" checked={s.done} onChange={() => toggleSubtask(task.id, s.id)} />
+          <input type="checkbox" checked={s.done} onChange={() => onToggleSubtask(task.id, s.id)} />
           <span className={s.done ? "text-zinc-400 line-through" : ""}>{s.title}</span>
         </label>
       ))}
@@ -39,10 +50,11 @@ function TaskCard({ task }: { task: Task }) {
         onChange={(e) => setSubtaskDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && subtaskDraft.trim()) {
-            addSubtask(task.id, subtaskDraft.trim());
+            onAddSubtask(task.id, subtaskDraft.trim());
             setSubtaskDraft("");
           }
         }}
+        aria-label="Add a subtask"
         placeholder="+ subtask"
         className="rounded border border-zinc-200 px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900"
       />
@@ -63,10 +75,11 @@ function TaskCard({ task }: { task: Task }) {
         onChange={(e) => setLinkDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && linkDraft.trim()) {
-            addLink(task.id, linkDraft.trim());
+            onAddLink(task.id, linkDraft.trim());
             setLinkDraft("");
           }
         }}
+        aria-label="Attach a link"
         placeholder="+ attach a link"
         className="rounded border border-zinc-200 px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900"
       />
@@ -74,8 +87,9 @@ function TaskCard({ task }: { task: Task }) {
   );
 }
 
-export default function TaskBoard() {
-  const { tasks, addTask, setTaskStatus } = useTasks();
+export default function TaskBoard({ initialTasks }: { initialTasks: Task[] }) {
+  const { tasks, addTask, deleteTask, setTaskStatus, addSubtask, toggleSubtask, addLink } =
+    useTasks(initialTasks);
   const [draft, setDraft] = useState("");
 
   return (
@@ -90,6 +104,7 @@ export default function TaskBoard() {
               setDraft("");
             }
           }}
+          aria-label="New task"
           placeholder="New task…"
           className="flex-1 rounded-full border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
@@ -123,7 +138,14 @@ export default function TaskBoard() {
             {tasks
               .filter((t) => t.status === col.status)
               .map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onDelete={deleteTask}
+                  onAddSubtask={addSubtask}
+                  onToggleSubtask={toggleSubtask}
+                  onAddLink={addLink}
+                />
               ))}
           </div>
         ))}

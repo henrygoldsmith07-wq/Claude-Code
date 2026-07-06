@@ -67,6 +67,20 @@ export function createCard(
   return toFlashcard(id, subjectId, topicId, front, back, createEmptyCard(new Date()));
 }
 
+// The FSRS state for a card that has never been reviewed, for seeding a new
+// per-user progress row against shared, already-generated card content.
+export function initialReviewState() {
+  const card = createEmptyCard(new Date());
+  return {
+    dueDate: toDateOnly(card.due),
+    stability: card.stability,
+    difficulty: card.difficulty,
+    reps: card.reps,
+    lapses: card.lapses,
+    state: card.state as number,
+  };
+}
+
 export function reviewCard(card: Flashcard, grade: RecallGrade, now = new Date()): Flashcard {
   const fsrsCard: FsrsCard = {
     due: new Date(card.dueDate + "T00:00:00Z"),

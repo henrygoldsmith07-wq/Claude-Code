@@ -20,3 +20,23 @@ export function formatDuration(ms: number): string {
   if (hours === 0) return `${minutes}m`;
   return `${hours}h ${minutes}m`;
 }
+
+// Total study time in the last 7 days versus the 7 days before that, so the
+// analytics can encourage honest week-on-week trends rather than punishing
+// broken streaks.
+export function weeklyTrend(sessions: TimeSession[], now = Date.now()): {
+  thisWeekMs: number;
+  lastWeekMs: number;
+} {
+  const day = 86400000;
+  const thisWeekStart = now - 7 * day;
+  const lastWeekStart = now - 14 * day;
+  let thisWeekMs = 0;
+  let lastWeekMs = 0;
+  for (const s of sessions) {
+    const t = new Date(s.startedAt).getTime();
+    if (t >= thisWeekStart) thisWeekMs += s.durationMs;
+    else if (t >= lastWeekStart) lastWeekMs += s.durationMs;
+  }
+  return { thisWeekMs, lastWeekMs };
+}
