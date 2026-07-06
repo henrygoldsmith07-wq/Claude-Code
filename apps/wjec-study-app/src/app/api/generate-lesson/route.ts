@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { findSubject, findTopic } from "@/lib/curriculum";
 import { generateLesson } from "@/lib/anthropic";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import type { LessonSection } from "@/lib/types";
 
 export async function POST(request: Request) {
+  // Calls the paid Anthropic API — rate limit per client to prevent abuse.
+  const limited = checkRateLimit(request, { name: "generate-lesson", limit: 20, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: { topicId?: string; apiKey?: string };
   try {
     body = await request.json();

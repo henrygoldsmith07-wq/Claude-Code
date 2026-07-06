@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import { findSubject, findTopic } from "@/lib/curriculum";
 import { generateFlashcards } from "@/lib/anthropic";
 import { initialReviewState } from "@/lib/fsrs";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import type { Flashcard } from "@/lib/types";
 
 export async function POST(request: Request) {
+  // Calls the paid Anthropic API — rate limit per client to prevent abuse.
+  const limited = checkRateLimit(request, { name: "generate-cards", limit: 20, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: { topicId?: string; count?: number; apiKey?: string };
   try {
     body = await request.json();

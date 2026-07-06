@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { generateEpisodeOutputs } from "@/lib/anthropic";
 import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/rateLimit";
 import type { GenerateRequest } from "@/lib/types";
 
 const MAX_TRANSCRIPT_LENGTH = 60000;
 
 export async function POST(request: Request) {
+  // Calls the paid Anthropic API — rate limit per client so it can't be
+  // spammed to run up the account owner's bill.
+  const limited = checkRateLimit(request, { name: "generate", limit: 10, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: GenerateRequest;
   try {
     body = await request.json();

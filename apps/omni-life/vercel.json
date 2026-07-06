@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/morning-alignment",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/continuous-optimization",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/evening-reflection",
+      "schedule": "0 21 * * *"
+    }
+  ]
+}
