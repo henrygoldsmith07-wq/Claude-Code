@@ -11,7 +11,7 @@ export default async function Home() {
   const initialData = await loadInitialData(user!.id);
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 dark:bg-black">
+    <div className="flex flex-1 flex-col items-center bg-[#f3f0e9] px-6 py-16">
       <main className="flex w-full max-w-4xl flex-col items-start gap-8">
         <div className="flex w-full items-start justify-between gap-4">
           <div className="flex flex-col gap-2">

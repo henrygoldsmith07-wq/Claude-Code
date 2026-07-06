@@ -29,6 +29,7 @@ import AudioOverviewPanel from "./AudioOverviewPanel";
 import TimeAnalyticsPanel from "./TimeAnalyticsPanel";
 import ShopPanel from "./ShopPanel";
 import StudyRoomPanel from "./StudyRoomPanel";
+import RevisionTrackerPanel from "./RevisionTrackerPanel";
 
 type View =
   | { mode: "dashboard" }
@@ -40,6 +41,7 @@ const SESSION_LIMIT = 30;
 
 const TABS = [
   { id: "study", label: "Study" },
+  { id: "tracker", label: "Revision Tracker" },
   { id: "ask", label: "Ask AI" },
   { id: "tests", label: "Practice Tests" },
   { id: "mindmap", label: "Mind Maps" },
@@ -324,6 +326,13 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
               onStudyAllDue={studyAllDue}
               onGenerateAllLessons={generateAllLessons}
               bulkLessonProgress={bulkLessonProgress}
+            />
+          )}
+          {activeTab === "tracker" && (
+            <RevisionTrackerPanel
+              cardsForTopic={cardsForTopic}
+              quizAttempts={quizAttempts}
+              onStudyTopic={studyTopic}
             />
           )}
           {activeTab === "ask" && (

@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 dark:bg-black">
+    <div className="flex flex-1 flex-col items-center bg-[#f3f0e9] px-6 py-16">
       <div className="flex w-full max-w-4xl flex-col gap-8" aria-hidden="true">
         <div className="flex flex-col gap-3">
           <div className="h-8 w-72 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
