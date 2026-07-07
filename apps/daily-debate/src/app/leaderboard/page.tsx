@@ -1,17 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
+import { auth } from "@/lib/auth";
+import { getDb } from "@/lib/db/client";
+import { serializeProfile } from "@/lib/db/serialize";
 import AppHeader from "@/components/AppHeader";
 
 export default async function LeaderboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("total_points", { ascending: false })
-    .limit(50);
+  const session = await auth();
+  const db = await getDb();
+  const docs = await db.collection("profiles").find({}).sort({ total_points: -1 }).limit(50).toArray();
+  const profiles = docs.map(serializeProfile);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -30,11 +26,11 @@ export default async function LeaderboardPage() {
               </tr>
             </thead>
             <tbody>
-              {(profiles ?? []).map((profile, index) => (
+              {profiles.map((profile, index) => (
                 <tr
                   key={profile.id}
                   className={`tabular border-b border-[var(--rule)] last:border-0 ${
-                    profile.id === user?.id ? "bg-[var(--accent-soft)]" : ""
+                    profile.id === session?.user?.id ? "bg-[var(--accent-soft)]" : ""
                   }`}
                 >
                   <td className="px-4 py-3 text-zinc-500">{index + 1}</td>

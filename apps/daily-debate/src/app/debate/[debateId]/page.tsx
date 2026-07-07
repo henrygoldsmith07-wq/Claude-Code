@@ -1,42 +1,41 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { ObjectId } from "mongodb";
+import { auth } from "@/lib/auth";
+import { getDb } from "@/lib/db/client";
+import { serializeDebate, serializeTopic, serializeTurn } from "@/lib/db/serialize";
 import AppHeader from "@/components/AppHeader";
 import DebateRoom from "@/components/DebateRoom";
-import type { SoloDebate, SoloDebateTurn } from "@/lib/types";
 
 export default async function DebatePage({ params }: { params: Promise<{ debateId: string }> }) {
   const { debateId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) notFound();
+  const session = await auth();
+  if (!session?.user?.id) notFound();
+  if (!ObjectId.isValid(debateId)) notFound();
 
-  const { data: debate } = await supabase
-    .from("solo_debates")
-    .select("*")
-    .eq("id", debateId)
-    .eq("user_id", user.id)
-    .single();
-  if (!debate) notFound();
+  const db = await getDb();
+  const debateDoc = await db.collection("solo_debates").findOne({
+    _id: new ObjectId(debateId),
+    user_id: new ObjectId(session.user.id),
+  });
+  if (!debateDoc) notFound();
 
-  const { data: topic } = await supabase.from("daily_topics").select("*").eq("id", debate.topic_id).single();
-  if (!topic) notFound();
+  const topicDoc = await db.collection("daily_topics").findOne({ _id: debateDoc.topic_id });
+  if (!topicDoc) notFound();
 
-  const { data: turns } = await supabase
-    .from("solo_debate_turns")
-    .select("*")
-    .eq("debate_id", debateId)
-    .order("round_number", { ascending: true });
+  const turnDocs = await db
+    .collection("solo_debate_turns")
+    .find({ debate_id: debateDoc._id })
+    .sort({ round_number: 1 })
+    .toArray();
 
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 py-8">
         <DebateRoom
-          debate={debate as unknown as SoloDebate}
-          topic={topic}
-          initialTurns={(turns ?? []) as unknown as SoloDebateTurn[]}
+          debate={serializeDebate(debateDoc)}
+          topic={serializeTopic(topicDoc)}
+          initialTurns={turnDocs.map(serializeTurn)}
         />
       </main>
     </div>

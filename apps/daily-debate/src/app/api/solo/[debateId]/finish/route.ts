@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { ObjectId } from "mongodb";
+import { auth } from "@/lib/auth";
+import { getDb } from "@/lib/db/client";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { summarizeSoloDebate } from "@/lib/anthropic";
 import { levelForPoints, updateStreak } from "@/lib/gamification";
@@ -10,27 +12,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
   if (limited) return limited;
 
   const { debateId } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!ObjectId.isValid(debateId)) return NextResponse.json({ error: "Debate not found." }, { status: 404 });
 
-  const { data: debate, error: debateError } = await supabase
-    .from("solo_debates")
-    .select("*")
-    .eq("id", debateId)
-    .eq("user_id", user.id)
-    .single();
-  if (debateError || !debate) return NextResponse.json({ error: "Debate not found." }, { status: 404 });
+  const db = await getDb();
+  const debates = db.collection("solo_debates");
+  const userId = new ObjectId(session.user.id);
+  const debate = await debates.findOne({ _id: new ObjectId(debateId), user_id: userId });
+  if (!debate) return NextResponse.json({ error: "Debate not found." }, { status: 404 });
   if (debate.status === "completed") return NextResponse.json({ error: "Debate already completed." }, { status: 409 });
 
-  const { data: turns, error: turnsError } = await supabase
-    .from("solo_debate_turns")
-    .select("*")
-    .eq("debate_id", debateId)
-    .order("round_number", { ascending: true });
-  if (turnsError || !turns) return NextResponse.json({ error: "Failed to load turns." }, { status: 500 });
+  const turns = await db
+    .collection("solo_debate_turns")
+    .find({ debate_id: debate._id })
+    .sort({ round_number: 1 })
+    .toArray();
 
   const answered = turns.filter((turn) => turn.user_message);
   if (answered.length < MIN_ROUNDS) {
@@ -42,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
 
   const totalScore = answered.reduce((sum, turn) => sum + (turn.turn_score ?? 0), 0);
 
-  const { data: topic } = await supabase.from("daily_topics").select("title").eq("id", debate.topic_id).single();
+  const topic = await db.collection("daily_topics").findOne({ _id: debate.topic_id });
 
   const transcript = answered
     .map((turn) => `AI: ${turn.ai_message}\nUser: ${turn.user_message}`)
@@ -56,26 +53,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
     summary = { overallFeedback: "Great work completing the debate.", strengths: [], improvements: [] };
   }
 
-  await supabase
-    .from("solo_debates")
-    .update({ status: "completed", total_score: totalScore, completed_at: new Date().toISOString() })
-    .eq("id", debateId);
+  await debates.updateOne(
+    { _id: debate._id },
+    { $set: { status: "completed", total_score: totalScore, completed_at: new Date().toISOString() } },
+  );
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const profiles = db.collection("profiles");
+  const profile = await profiles.findOne({ _id: userId });
   if (profile) {
     const today = new Date().toISOString().slice(0, 10);
     const streak = updateStreak(today, profile.last_activity_date, profile.current_streak, profile.longest_streak);
     const newTotalPoints = profile.total_points + totalScore;
-    await supabase
-      .from("profiles")
-      .update({
-        total_points: newTotalPoints,
-        level: levelForPoints(newTotalPoints),
-        current_streak: streak.current_streak,
-        longest_streak: streak.longest_streak,
-        last_activity_date: streak.last_activity_date,
-      })
-      .eq("id", user.id);
+    await profiles.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          total_points: newTotalPoints,
+          level: levelForPoints(newTotalPoints),
+          current_streak: streak.current_streak,
+          longest_streak: streak.longest_streak,
+          last_activity_date: streak.last_activity_date,
+        },
+      },
+    );
   }
 
   return NextResponse.json({ totalScore, summary });

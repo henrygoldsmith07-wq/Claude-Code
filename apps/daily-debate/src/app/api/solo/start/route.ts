@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { ObjectId } from "mongodb";
+import { auth } from "@/lib/auth";
+import { getDb } from "@/lib/db/client";
+import { serializeDebate, serializeTurn } from "@/lib/db/serialize";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { debateOpening } from "@/lib/anthropic";
 import type { DebateSide } from "@/lib/types";
@@ -8,35 +11,32 @@ export async function POST(request: Request) {
   const limited = checkRateLimit(request, { name: "solo-start", limit: 10, windowMs: 60_000 });
   if (limited) return limited;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
   const topicId = typeof body?.topicId === "string" ? body.topicId : null;
   const side: DebateSide | null = body?.side === "for" || body?.side === "against" ? body.side : null;
-  if (!topicId || !side) {
+  if (!topicId || !ObjectId.isValid(topicId) || !side) {
     return NextResponse.json({ error: "topicId and side are required." }, { status: 400 });
   }
 
-  const { data: topic, error: topicError } = await supabase
-    .from("daily_topics")
-    .select("*")
-    .eq("id", topicId)
-    .single();
-  if (topicError || !topic) return NextResponse.json({ error: "Topic not found." }, { status: 404 });
+  const db = await getDb();
+  const topic = await db.collection("daily_topics").findOne({ _id: new ObjectId(topicId) });
+  if (!topic) return NextResponse.json({ error: "Topic not found." }, { status: 404 });
 
-  const { data: debate, error: debateError } = await supabase
-    .from("solo_debates")
-    .insert({ user_id: user.id, topic_id: topicId, side, round_count: 1 })
-    .select("*")
-    .single();
-  if (debateError || !debate) {
-    console.error("Failed to create solo debate:", debateError);
-    return NextResponse.json({ error: "Failed to start debate." }, { status: 500 });
-  }
+  const debates = db.collection("solo_debates");
+  const now = new Date().toISOString();
+  const debateInsert = await debates.insertOne({
+    user_id: new ObjectId(session.user.id),
+    topic_id: new ObjectId(topicId),
+    side,
+    status: "active",
+    round_count: 1,
+    total_score: null,
+    created_at: now,
+    completed_at: null,
+  });
 
   const aiSide: DebateSide = side === "for" ? "against" : "for";
   let aiMessage: string;
@@ -47,15 +47,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to generate AI opening." }, { status: 502 });
   }
 
-  const { data: turn, error: turnError } = await supabase
-    .from("solo_debate_turns")
-    .insert({ debate_id: debate.id, round_number: 1, ai_message: aiMessage })
-    .select("*")
-    .single();
-  if (turnError || !turn) {
-    console.error("Failed to create opening turn:", turnError);
+  const turns = db.collection("solo_debate_turns");
+  const turnInsert = await turns.insertOne({
+    debate_id: debateInsert.insertedId,
+    round_number: 1,
+    ai_message: aiMessage,
+    user_message: null,
+    input_mode: "text",
+    scores: null,
+    turn_score: null,
+    feedback: null,
+    created_at: now,
+  });
+
+  const debateDoc = await debates.findOne({ _id: debateInsert.insertedId });
+  const turnDoc = await turns.findOne({ _id: turnInsert.insertedId });
+  if (!debateDoc || !turnDoc) {
     return NextResponse.json({ error: "Failed to start debate." }, { status: 500 });
   }
 
-  return NextResponse.json({ debate, turn });
+  return NextResponse.json({ debate: serializeDebate(debateDoc), turn: serializeTurn(turnDoc) });
 }

@@ -95,10 +95,6 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
           {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
         </div>
       )}
-
-      <Link href="/pvp" className="text-center text-sm text-zinc-400 hover:text-[var(--foreground)]">
-        Or challenge another player on today&apos;s topic →
-      </Link>
     </div>
   );
 }
