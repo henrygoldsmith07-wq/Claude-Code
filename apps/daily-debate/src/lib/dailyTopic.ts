@@ -1,13 +1,13 @@
 import { getDb } from "./db/client";
 import { serializeTopic } from "./db/serialize";
-import { generateDailyTopic } from "./anthropic";
+import { generateDailyTopic } from "./gemini";
 import type { DailyTopic } from "./types";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Returns today's topic, generating and persisting one via Claude the first
+// Returns today's topic, generating and persisting one via Gemini the first
 // time it's requested each day.
 export async function getOrCreateTodayTopic(): Promise<DailyTopic> {
   const db = await getDb();

@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { summarizeSoloDebate } from "@/lib/anthropic";
+import { summarizeSoloDebate } from "@/lib/gemini";
 import { levelForPoints, updateStreak } from "@/lib/gamification";
 import { MIN_ROUNDS } from "@/lib/types";
 

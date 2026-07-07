@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import { serializeTurn } from "@/lib/db/serialize";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { debateTurn } from "@/lib/anthropic";
+import { debateTurn } from "@/lib/gemini";
 import { pointsForTurn } from "@/lib/gamification";
 import type { InputMode } from "@/lib/types";
 

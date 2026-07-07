@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import { serializeDebate, serializeTurn } from "@/lib/db/serialize";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { debateOpening } from "@/lib/anthropic";
+import { debateOpening } from "@/lib/gemini";
 import type { DebateSide } from "@/lib/types";
 
 export async function POST(request: Request) {
