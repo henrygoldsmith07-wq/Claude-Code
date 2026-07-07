@@ -170,3 +170,37 @@ export async function summarizeSoloDebate(params: {
 
   return parseJson<DebateSummary>(response.text);
 }
+
+export interface PvpJudgeResult {
+  winner: "a" | "b" | "tie";
+  playerAScore: number;
+  playerBScore: number;
+  rationale: string;
+}
+
+const JUDGE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    playerAScore: { type: Type.INTEGER, description: "Player A's score out of 100 for argument quality across the whole match." },
+    playerBScore: { type: Type.INTEGER, description: "Player B's score out of 100 for argument quality across the whole match." },
+    winner: { type: Type.STRING, enum: ["a", "b", "tie"], description: "Who made the stronger case overall." },
+    rationale: { type: Type.STRING, description: "2-4 sentences explaining the verdict, citing specific moments from the transcript." },
+  },
+  required: ["playerAScore", "playerBScore", "winner", "rationale"],
+};
+
+export async function judgePvpMatch(params: {
+  topicTitle: string;
+  topicPrompt: string;
+  playerASide: DebateSide;
+  transcript: string;
+}): Promise<PvpJudgeResult> {
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: `You are a neutral, rigorous debate judge. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nPlayer A argued "${params.playerASide}"; Player B argued the opposite side.\n\nTranscript:\n${params.transcript}\n\nJudge purely on the quality of reasoning, evidence, and rebuttals — not on which side of the topic is "correct". Score each player out of 100 and declare a winner (or tie).`,
+    config: { responseMimeType: "application/json", responseSchema: JUDGE_SCHEMA },
+  });
+
+  return parseJson<PvpJudgeResult>(response.text);
+}

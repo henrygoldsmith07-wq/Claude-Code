@@ -61,6 +61,39 @@ export interface Profile {
   created_at: string;
 }
 
+export interface PvpMatch {
+  id: string;
+  topic_id: string;
+  player_a: string;
+  player_b: string;
+  player_a_side: DebateSide;
+  status: "active" | "completed";
+  round_limit: number;
+  current_round: number;
+  current_turn_player: string | null;
+  winner_id: string | null;
+  judge_verdict: PvpVerdict | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface PvpTurn {
+  id: string;
+  match_id: string;
+  player_id: string;
+  round_number: number;
+  message: string;
+  input_mode: InputMode;
+  created_at: string;
+}
+
+export interface PvpVerdict {
+  winner: "a" | "b" | "tie";
+  playerAScore: number;
+  playerBScore: number;
+  rationale: string;
+}
+
 export interface DebateSummary {
   overallFeedback: string;
   strengths: string[];

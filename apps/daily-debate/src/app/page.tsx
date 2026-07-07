@@ -1,6 +1,4 @@
-import { ObjectId } from "mongodb";
-import { auth } from "@/lib/auth";
-import { getDb } from "@/lib/db/client";
+import { createClient } from "@/lib/supabase/server";
 import { getOrCreateTodayTopic } from "@/lib/dailyTopic";
 import AppHeader from "@/components/AppHeader";
 import TopicCard from "@/components/TopicCard";
@@ -10,18 +8,24 @@ import TopicCard from "@/components/TopicCard";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const topic = await getOrCreateTodayTopic();
 
-  let activeDebateId: string | null = null;
-  if (session?.user?.id) {
-    const db = await getDb();
-    const activeDebate = await db.collection("solo_debates").findOne(
-      { user_id: new ObjectId(session.user.id), topic_id: new ObjectId(topic.id), status: "active" },
-      { sort: { created_at: -1 } },
-    );
-    activeDebateId = activeDebate ? activeDebate._id.toString() : null;
-  }
+  const { data: activeDebate } = user
+    ? await supabase
+        .from("solo_debates")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("topic_id", topic.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -31,7 +35,7 @@ export default async function DashboardPage() {
           <p className="text-xs uppercase tracking-wide text-zinc-500">Today&apos;s topic</p>
           <h1 className="text-2xl font-semibold tracking-tight">{topic.title}</h1>
         </div>
-        <TopicCard topic={topic} activeDebateId={activeDebateId} />
+        <TopicCard topic={topic} activeDebateId={activeDebate?.id ?? null} />
       </main>
     </div>
   );
