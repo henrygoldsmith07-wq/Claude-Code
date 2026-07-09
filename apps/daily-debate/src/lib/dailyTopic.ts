@@ -1,12 +1,12 @@
 import { createServiceClient } from "./supabase/server";
-import { generateDailyTopic } from "./anthropic";
+import { generateDailyTopic } from "./gemini";
 import type { DailyTopic } from "./types";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Returns today's topic, generating and persisting one via Claude the first
+// Returns today's topic, generating and persisting one via Gemini the first
 // time it's requested each day. Uses the service client so any signed-in
 // user can trigger generation without needing elevated RLS permissions.
 export async function getOrCreateTodayTopic(): Promise<DailyTopic> {

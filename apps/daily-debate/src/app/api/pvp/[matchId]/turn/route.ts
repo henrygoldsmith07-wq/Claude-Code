@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { judgePvpMatch } from "@/lib/anthropic";
+import { judgePvpMatch } from "@/lib/gemini";
 import { levelForPoints, updateStreak } from "@/lib/gamification";
 import type { InputMode } from "@/lib/types";
 
