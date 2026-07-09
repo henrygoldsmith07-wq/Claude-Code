@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import NewsGlobe from "@/components/NewsGlobe";
+import FavoriteButton from "@/components/FavoriteButton";
+import TopicLegend from "@/components/TopicLegend";
 import { getTopicBySlug, TOPIC_EMOJI, TOPIC_LINKS, TOPIC_SLUGS } from "@/lib/topics";
 
 export async function generateMetadata({ params }: { params: Promise<{ topic: string }> }) {
@@ -36,6 +38,10 @@ export default async function TopicGlobePage({
           Pick a country to read its latest {name.toLowerCase()} news.
         </p>
 
+        <div className="pointer-events-auto mt-3 flex justify-center">
+          <FavoriteButton kind="topic" id={slug} label={`${TOPIC_EMOJI[name]} ${name}`} size="sm" />
+        </div>
+
         {/* Switch to another topic's globe */}
         <div className="pointer-events-auto mt-4 flex flex-wrap justify-center gap-2">
           {TOPIC_LINKS.map((t) => (
@@ -62,6 +68,8 @@ export default async function TopicGlobePage({
           showArcs={name === "World & Conflict"}
         />
       </div>
+
+      <TopicLegend />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">
         Hover to highlight a country · click for its {name.toLowerCase()} news

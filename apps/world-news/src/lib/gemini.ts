@@ -37,6 +37,11 @@ export interface NewsPoint {
   location: string;
   lat: number;
   lng: number;
+  // ISO 3166-1 alpha-2 of the country the item is in ("" if unknown). Used to
+  // relate news across countries when hovering.
+  countryCode: string;
+  // Short lowercase tags (entities/themes) that let related items be linked.
+  tags: string[];
 }
 
 // An active conflict / front line, drawn as an arc in war-map mode.
@@ -99,13 +104,13 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
     { "topic": "<one of the topic names above>", "summary": "<2-4 sentence neutral summary>", "keyPoints": ["<short factual bullet>", "..."] }
   ],
   "points": [
-    { "topic": "<one of the topic names above>", "headline": "<short headline of a specific news item>", "location": "<city or region name>", "lat": <decimal latitude>, "lng": <decimal longitude> }
+    { "topic": "<one of the topic names above>", "headline": "<short headline of a specific news item>", "location": "<city or region name>", "lat": <decimal latitude>, "lng": <decimal longitude>, "countryCode": "<ISO 3166-1 alpha-2 country code>", "tags": ["<2-4 short lowercase tags: key people, organisations, or themes>"] }
   ],
   "conflicts": [
     { "label": "<short description of an active conflict / front line>", "fromLat": <n>, "fromLng": <n>, "toLat": <n>, "toLng": <n> }
   ]
 }
-Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 5-12 specific, geolocatable news items within ${countryName}, each with the approximate real coordinates of the city/region it concerns. For "conflicts", only include active armed conflicts or front lines relevant to ${countryName} (from and to the two places involved); use [] if there are none. If there is no meaningful recent news for ${countryName} at all, return {"topics": [], "points": [], "conflicts": []}.`;
+Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 5-12 specific, geolocatable news items within ${countryName}, each with the approximate real coordinates of the city/region it concerns, its ISO country code, and 2-4 lowercase tags (shared tags should link related stories). For "conflicts", only include active armed conflicts or front lines relevant to ${countryName} (from and to the two places involved); use [] if there are none. If there is no meaningful recent news for ${countryName} at all, return {"topics": [], "points": [], "conflicts": []}.`;
 }
 
 function buildWorldPrompt(): string {
@@ -126,13 +131,13 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
     { "topic": "<one of the topic names above>", "summary": "<2-4 sentence neutral summary>", "keyPoints": ["<short factual bullet>", "..."] }
   ],
   "points": [
-    { "topic": "<one of the topic names above>", "headline": "<short headline of a specific news item>", "location": "<city or region name>", "lat": <decimal latitude>, "lng": <decimal longitude> }
+    { "topic": "<one of the topic names above>", "headline": "<short headline of a specific news item>", "location": "<city or region name>", "lat": <decimal latitude>, "lng": <decimal longitude>, "countryCode": "<ISO 3166-1 alpha-2 country code>", "tags": ["<2-4 short lowercase tags: key people, organisations, or themes>"] }
   ],
   "conflicts": [
     { "label": "<short description of an active conflict / front line>", "fromLat": <n>, "fromLng": <n>, "toLat": <n>, "toLng": <n> }
   ]
 }
-Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 10-20 specific, geolocatable news items from around the world, each with the approximate real coordinates of the city/region it concerns, spread across different regions. For "conflicts", include the major active armed conflicts / front lines worldwide (from and to the two places involved); use [] if none.`;
+Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 10-20 specific, geolocatable news items from around the world spread across different regions, each with the approximate real coordinates of the city/region it concerns, its ISO country code, and 2-4 lowercase tags (use the SAME tag on stories that are part of the same event or theme so related news can be linked). For "conflicts", include the major active armed conflicts / front lines worldwide (from and to the two places involved); use [] if none.`;
 }
 
 // Pull a JSON object out of the model's text, tolerating stray prose or code
@@ -175,12 +180,28 @@ function normalisePoints(raw: NewsPoint[]): NewsPoint[] {
     if (!inLatRange(p.lat) || !inLngRange(p.lng)) continue;
     const topic =
       TOPICS.find((t) => t.toLowerCase() === String(p.topic).trim().toLowerCase()) ?? "";
+    const tags = Array.isArray(p.tags)
+      ? Array.from(
+          new Set(
+            p.tags
+              .filter((t): t is string => typeof t === "string")
+              .map((t) => t.trim().toLowerCase())
+              .filter(Boolean),
+          ),
+        ).slice(0, 5)
+      : [];
+    const countryCode =
+      typeof p.countryCode === "string" && /^[A-Za-z]{2}$/.test(p.countryCode.trim())
+        ? p.countryCode.trim().toUpperCase()
+        : "";
     points.push({
       topic,
       headline: p.headline.trim(),
       location: typeof p.location === "string" ? p.location.trim() : "",
       lat: p.lat,
       lng: p.lng,
+      countryCode,
+      tags,
     });
   }
   return points.slice(0, 40);

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import NewsGlobe from "@/components/NewsGlobe";
+import TopicLegend from "@/components/TopicLegend";
+import FavoritesBar from "@/components/FavoritesBar";
 import { TOPIC_LINKS } from "@/lib/topics";
 
 export default function HomePage() {
@@ -37,11 +39,15 @@ export default function HomePage() {
             </Link>
           ))}
         </div>
+
+        <FavoritesBar />
       </div>
 
       <div className="absolute inset-0">
         <NewsGlobe worldPoints />
       </div>
+
+      <TopicLegend />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">
         Hover to highlight a country · click to open its news
