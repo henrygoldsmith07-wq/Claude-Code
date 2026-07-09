@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import type { ConflictLine, NewsPoint } from "@/lib/gemini";
+import { dotColor } from "@/lib/topicColors";
 
 // react-globe.gl touches `window` on import, so it must never load during SSR.
 const Globe = dynamic(() => import("react-globe.gl"), {
@@ -28,18 +29,6 @@ const OCEAN_MATERIAL = new THREE.MeshPhongMaterial({
   emissive: "#060d17",
   shininess: 6,
 });
-
-// Dot colour per topic, so news points are visually grouped by theme.
-const TOPIC_DOT_COLORS: Record<string, string> = {
-  Politics: "#f59e0b",
-  "Economy & Business": "#34d399",
-  "World & Conflict": "#f87171",
-  "Science & Health": "#22d3ee",
-  Technology: "#a78bfa",
-  "Society & Culture": "#f472b6",
-  Sport: "#facc15",
-};
-const DEFAULT_DOT = "#93c5fd";
 
 // Rough centroid of a GeoJSON feature: average of all its coordinate pairs.
 // Good enough to point the camera at a country.
@@ -213,6 +202,28 @@ export default function NewsGlobe({
     : basePoints;
   const shownArcs = showArcs ? (arcs ?? fetchedConflicts) : [];
 
+  // Relate news across countries: when hovering a country that has dots, tags
+  // shared by its stories light up matching dots in other countries.
+  const hoveredCode = hovered?.properties.iso_a2;
+  const localPoints = hoveredCode
+    ? shownPoints.filter((p) => p.countryCode === hoveredCode)
+    : [];
+  const relatedTags =
+    localPoints.length > 0
+      ? new Set(localPoints.flatMap((p) => p.tags))
+      : null;
+  // "local" = in the hovered country, "related" = elsewhere sharing a tag,
+  // "dim" = unrelated (only while a country with news is hovered).
+  const relationOf = (p: NewsPoint): "local" | "related" | "dim" | "none" => {
+    if (!relatedTags || !hoveredCode) return "none";
+    if (p.countryCode === hoveredCode) return "local";
+    if (p.tags.some((t) => relatedTags.has(t))) return "related";
+    return "dim";
+  };
+  const relatedCount = relatedTags
+    ? shownPoints.filter((p) => relationOf(p) === "related").length
+    : 0;
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
       {size.width > 0 && size.height > 0 && (
@@ -254,15 +265,32 @@ export default function NewsGlobe({
           pointsData={shownPoints}
           pointLat={(d: object) => (d as NewsPoint).lat}
           pointLng={(d: object) => (d as NewsPoint).lng}
-          pointColor={(d: object) => TOPIC_DOT_COLORS[(d as NewsPoint).topic] ?? DEFAULT_DOT}
-          pointAltitude={0.03}
-          pointRadius={0.45}
+          pointColor={(d: object) => {
+            const rel = relationOf(d as NewsPoint);
+            if (rel === "related") return "#ffffff";
+            if (rel === "dim") return "rgba(147,197,253,0.22)";
+            return dotColor((d as NewsPoint).topic);
+          }}
+          pointAltitude={(d: object) => (relationOf(d as NewsPoint) === "related" ? 0.06 : 0.03)}
+          pointRadius={(d: object) => {
+            const rel = relationOf(d as NewsPoint);
+            return rel === "related" ? 0.62 : rel === "local" ? 0.55 : 0.45;
+          }}
           pointsMerge={false}
           pointLabel={(d: object) => {
             const p = d as NewsPoint;
-            return `<div style="max-width:220px;font:500 12px sans-serif;color:#fff;background:#0e131fee;padding:6px 9px;border-radius:8px;border:1px solid #222b3d">
+            const tags = p.tags?.length
+              ? `<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">${p.tags
+                  .map(
+                    (t) =>
+                      `<span style="font-size:10px;color:#cbd5e1;background:#1e2636;border:1px solid #2a3348;border-radius:999px;padding:1px 6px">#${t}</span>`,
+                  )
+                  .join("")}</div>`
+              : "";
+            return `<div style="max-width:230px;font:500 12px sans-serif;color:#fff;background:#0e131fee;padding:6px 9px;border-radius:8px;border:1px solid #222b3d">
               <div style="font-weight:700">${p.headline}</div>
               ${p.location ? `<div style="color:#8a94a8;margin-top:2px">${p.location}${p.topic ? " · " + p.topic : ""}</div>` : ""}
+              ${tags}
             </div>`;
           }}
           arcsData={shownArcs}
@@ -286,7 +314,13 @@ export default function NewsGlobe({
       {hovered && (
         <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-rule bg-panel/90 px-5 py-2 text-sm font-medium backdrop-blur">
           {hovered.properties.name}{" "}
-          <span className="text-muted">· click to read the news</span>
+          {relatedCount > 0 ? (
+            <span className="text-accent">
+              · {relatedCount} related {relatedCount === 1 ? "story" : "stories"} elsewhere
+            </span>
+          ) : (
+            <span className="text-muted">· click to read the news</span>
+          )}
         </div>
       )}
     </div>

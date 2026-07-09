@@ -7,6 +7,7 @@ import { getTopicBySlug, TOPIC_SLUGS } from "@/lib/topics";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
 import NewsGlobe from "@/components/NewsGlobe";
+import FavoriteButton from "@/components/FavoriteButton";
 
 // News is fetched live (with a short cache in getCountryNews), so never
 // prerender this at build time.
@@ -148,13 +149,16 @@ export default async function CountryPage({
       </div>
 
       <Shell title={news.country} back={back}>
-        <div className="-mt-4 mb-6 flex items-center justify-between gap-3">
+        <div className="-mt-4 mb-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted">Updated {generated}</p>
-          {topicName && (
-            <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
-              View all topics →
-            </Link>
-          )}
+          <div className="flex items-center gap-3">
+            {topicName && (
+              <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
+                View all topics →
+              </Link>
+            )}
+            <FavoriteButton kind="country" id={code.toLowerCase()} label={news.country} size="sm" />
+          </div>
         </div>
 
         {topicName && (
