@@ -34,6 +34,37 @@ export default function NewsGlobe() {
   const [hovered, setHovered] = useState<CountryFeature | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
+  // Countries whose Gemini summary we've already kicked off, so hovering the
+  // same country (or the globe spinning past it) doesn't refire the request.
+  const warmed = useRef<Set<string>>(new Set());
+  // Pending debounce timer, so a quick sweep across the globe doesn't warm
+  // every country the pointer grazes — only ones it rests on briefly.
+  const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Kick off (and cache) a country's news in the background so it's ready by
+  // the time the user clicks. Hits the same cached path the page reads from.
+  const warmCountry = (code: string) => {
+    const key = code.toLowerCase();
+    if (warmed.current.has(key)) return;
+    warmed.current.add(key);
+    router.prefetch(`/country/${key}`);
+    fetch(`/api/country/${key}`).catch(() => {
+      // Let it retry on a later hover if the prewarm request fails.
+      warmed.current.delete(key);
+    });
+  };
+
+  // Debounced hover: warm the country only after the pointer rests on it,
+  // and cancel if it moves off first.
+  const handleHover = (feat: object | null) => {
+    const country = feat as CountryFeature | null;
+    setHovered(country);
+    if (warmTimer.current) clearTimeout(warmTimer.current);
+    const code = country?.properties?.iso_a2;
+    if (!code) return;
+    warmTimer.current = setTimeout(() => warmCountry(code), 300);
+  };
+
   // Load the bundled country polygons once.
   useEffect(() => {
     let active = true;
@@ -68,6 +99,13 @@ export default function NewsGlobe() {
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  // Cancel any pending prewarm when the globe unmounts.
+  useEffect(() => {
+    return () => {
+      if (warmTimer.current) clearTimeout(warmTimer.current);
     };
   }, []);
 
@@ -115,7 +153,7 @@ export default function NewsGlobe() {
               (d as CountryFeature).properties.name
             }</div>`
           }
-          onPolygonHover={(d: object | null) => setHovered(d as CountryFeature | null)}
+          onPolygonHover={handleHover}
           onPolygonClick={navigate}
           polygonsTransitionDuration={200}
         />
