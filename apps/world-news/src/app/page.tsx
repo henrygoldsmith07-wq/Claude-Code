@@ -2,7 +2,7 @@ import NewsGlobe from "@/components/NewsGlobe";
 
 export default function HomePage() {
   return (
-    <main className="relative flex flex-1 flex-col overflow-hidden">
+    <main className="relative h-dvh w-full overflow-hidden">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 pt-8 text-center">
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
           Impartial · AI-summarised · Grounded in real sources
@@ -16,7 +16,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className="relative flex-1">
+      <div className="absolute inset-0">
         <NewsGlobe />
       </div>
 

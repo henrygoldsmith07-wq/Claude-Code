@@ -50,15 +50,25 @@ export default function NewsGlobe() {
     };
   }, []);
 
-  // Keep the canvas sized to its container.
+  // Keep the canvas sized to its container, falling back to the viewport if the
+  // container ever measures zero (e.g. a collapsed flex parent) so the globe
+  // never renders into a zero-height canvas.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const update = () => setSize({ width: el.clientWidth, height: el.clientHeight });
+    const update = () =>
+      setSize({
+        width: el.clientWidth || window.innerWidth,
+        height: el.clientHeight || window.innerHeight,
+      });
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   // Gentle auto-rotation for the "spinning globe" feel.
@@ -84,7 +94,7 @@ export default function NewsGlobe() {
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
-      {size.width > 0 && (
+      {size.width > 0 && size.height > 0 && (
         <Globe
           ref={globeRef}
           width={size.width}
