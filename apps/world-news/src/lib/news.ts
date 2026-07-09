@@ -10,11 +10,22 @@ import {
   type Scope,
 } from "./snapshots";
 
-// How long a summary is reused before we ask Gemini again. News moves fast but
-// re-summarising on every page view would be wasteful and slow, so we
-// regenerate at most once per window (mirrors daily-debate's "generate once per
-// day" intent).
-const REVALIDATE_SECONDS = 6 * 60 * 60; // 6 hours
+// Once a place's news is generated on a given day it should stay fixed for the
+// rest of that day, so a country reads the same all day rather than changing on
+// each visit. We cache until the end of the current UTC day; a new day gets a
+// new cache key (see cacheDay) and regenerates.
+function secondsUntilEndOfUtcDay(): number {
+  const now = new Date();
+  const endOfDay = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0,
+    0,
+    0,
+  );
+  return Math.max(60, Math.floor((endOfDay - now.getTime()) / 1000));
+}
 
 // Raised when the route param isn't a country we know about.
 export class UnknownCountryError extends Error {
@@ -43,7 +54,7 @@ function loadToday(scope: Scope, code: string, generate: () => Promise<CountryNe
       return fresh;
     },
     ["news", scope, code, cacheDay()],
-    { revalidate: REVALIDATE_SECONDS },
+    { revalidate: secondsUntilEndOfUtcDay() },
   )();
 }
 
