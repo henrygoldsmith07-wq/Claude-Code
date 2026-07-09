@@ -40,7 +40,7 @@ export default function HomePage() {
       </div>
 
       <div className="absolute inset-0">
-        <NewsGlobe />
+        <NewsGlobe worldPoints />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">

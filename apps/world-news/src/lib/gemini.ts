@@ -30,12 +30,32 @@ export interface NewsSource {
   url: string;
 }
 
+// A single geolocated news item, plotted as a dot on the maps.
+export interface NewsPoint {
+  topic: string;
+  headline: string;
+  location: string;
+  lat: number;
+  lng: number;
+}
+
+// An active conflict / front line, drawn as an arc in war-map mode.
+export interface ConflictLine {
+  label: string;
+  fromLat: number;
+  fromLng: number;
+  toLat: number;
+  toLng: number;
+}
+
 export interface CountryNews {
   country: string;
   code: string;
   generatedAt: string;
   topics: TopicSummary[];
   sources: NewsSource[];
+  points: NewsPoint[];
+  conflicts: ConflictLine[];
 }
 
 // Raised when GEMINI_API_KEY isn't configured, so callers can render a clear
@@ -77,9 +97,15 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
 {
   "topics": [
     { "topic": "<one of the topic names above>", "summary": "<2-4 sentence neutral summary>", "keyPoints": ["<short factual bullet>", "..."] }
+  ],
+  "points": [
+    { "topic": "<one of the topic names above>", "headline": "<short headline of a specific news item>", "location": "<city or region name>", "lat": <decimal latitude>, "lng": <decimal longitude> }
+  ],
+  "conflicts": [
+    { "label": "<short description of an active conflict / front line>", "fromLat": <n>, "fromLng": <n>, "toLat": <n>, "toLng": <n> }
   ]
 }
-Each summary should be 2-4 sentences. Provide 2-4 keyPoints per topic. If there is no meaningful recent news for ${countryName} at all, return {"topics": []}.`;
+Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 5-12 specific, geolocatable news items within ${countryName}, each with the approximate real coordinates of the city/region it concerns. For "conflicts", only include active armed conflicts or front lines relevant to ${countryName} (from and to the two places involved); use [] if there are none. If there is no meaningful recent news for ${countryName} at all, return {"topics": [], "points": [], "conflicts": []}.`;
 }
 
 function buildWorldPrompt(): string {
@@ -98,14 +124,24 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
 {
   "topics": [
     { "topic": "<one of the topic names above>", "summary": "<2-4 sentence neutral summary>", "keyPoints": ["<short factual bullet>", "..."] }
+  ],
+  "points": [
+    { "topic": "<one of the topic names above>", "headline": "<short headline of a specific news item>", "location": "<city or region name>", "lat": <decimal latitude>, "lng": <decimal longitude> }
+  ],
+  "conflicts": [
+    { "label": "<short description of an active conflict / front line>", "fromLat": <n>, "fromLng": <n>, "toLat": <n>, "toLng": <n> }
   ]
 }
-Each summary should be 2-4 sentences. Provide 2-4 keyPoints per topic.`;
+Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 10-20 specific, geolocatable news items from around the world, each with the approximate real coordinates of the city/region it concerns, spread across different regions. For "conflicts", include the major active armed conflicts / front lines worldwide (from and to the two places involved); use [] if none.`;
 }
 
 // Pull a JSON object out of the model's text, tolerating stray prose or code
 // fences the model may add despite instructions.
-function extractJson(text: string): { topics: TopicSummary[] } {
+function extractJson(text: string): {
+  topics: TopicSummary[];
+  points: NewsPoint[];
+  conflicts: ConflictLine[];
+} {
   let candidate = text.trim();
   const fence = candidate.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) candidate = fence[1].trim();
@@ -114,9 +150,58 @@ function extractJson(text: string): { topics: TopicSummary[] } {
   if (start !== -1 && end !== -1 && end > start) {
     candidate = candidate.slice(start, end + 1);
   }
-  const parsed = JSON.parse(candidate) as { topics?: unknown };
-  const topics = Array.isArray(parsed.topics) ? (parsed.topics as TopicSummary[]) : [];
-  return { topics };
+  const parsed = JSON.parse(candidate) as {
+    topics?: unknown;
+    points?: unknown;
+    conflicts?: unknown;
+  };
+  return {
+    topics: Array.isArray(parsed.topics) ? (parsed.topics as TopicSummary[]) : [],
+    points: Array.isArray(parsed.points) ? (parsed.points as NewsPoint[]) : [],
+    conflicts: Array.isArray(parsed.conflicts) ? (parsed.conflicts as ConflictLine[]) : [],
+  };
+}
+
+const isFiniteNum = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+const inLatRange = (n: number) => n >= -90 && n <= 90;
+const inLngRange = (n: number) => n >= -180 && n <= 180;
+
+// Keep only well-formed points with valid coordinates, tagged to a known topic.
+function normalisePoints(raw: NewsPoint[]): NewsPoint[] {
+  const points: NewsPoint[] = [];
+  for (const p of raw) {
+    if (!p || typeof p.headline !== "string" || !p.headline.trim()) continue;
+    if (!isFiniteNum(p.lat) || !isFiniteNum(p.lng)) continue;
+    if (!inLatRange(p.lat) || !inLngRange(p.lng)) continue;
+    const topic =
+      TOPICS.find((t) => t.toLowerCase() === String(p.topic).trim().toLowerCase()) ?? "";
+    points.push({
+      topic,
+      headline: p.headline.trim(),
+      location: typeof p.location === "string" ? p.location.trim() : "",
+      lat: p.lat,
+      lng: p.lng,
+    });
+  }
+  return points.slice(0, 40);
+}
+
+// Keep only conflict arcs with valid endpoint coordinates.
+function normaliseConflicts(raw: ConflictLine[]): ConflictLine[] {
+  const conflicts: ConflictLine[] = [];
+  for (const c of raw) {
+    if (!c || typeof c.label !== "string" || !c.label.trim()) continue;
+    if (![c.fromLat, c.toLat].every((n) => isFiniteNum(n) && inLatRange(n))) continue;
+    if (![c.fromLng, c.toLng].every((n) => isFiniteNum(n) && inLngRange(n))) continue;
+    conflicts.push({
+      label: c.label.trim(),
+      fromLat: c.fromLat,
+      fromLng: c.fromLng,
+      toLat: c.toLat,
+      toLng: c.toLng,
+    });
+  }
+  return conflicts.slice(0, 20);
 }
 
 // Normalise/validate model output into clean TopicSummary rows, dropping
@@ -183,12 +268,19 @@ async function runSummary(
 
   const text = response.text ?? "";
   let topics: TopicSummary[] = [];
+  let points: NewsPoint[] = [];
+  let conflicts: ConflictLine[] = [];
   try {
-    topics = normaliseTopics(extractJson(text).topics);
+    const parsed = extractJson(text);
+    topics = normaliseTopics(parsed.topics);
+    points = normalisePoints(parsed.points);
+    conflicts = normaliseConflicts(parsed.conflicts);
   } catch {
     // Grounded responses occasionally wrap JSON in commentary we can't parse;
-    // fall back to an empty topic list so the page renders an empty state.
+    // fall back to empty lists so the page renders an empty state.
     topics = [];
+    points = [];
+    conflicts = [];
   }
 
   const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks as
@@ -201,6 +293,8 @@ async function runSummary(
     generatedAt: new Date().toISOString(),
     topics,
     sources: extractSources(chunks),
+    points,
+    conflicts,
   };
 }
 

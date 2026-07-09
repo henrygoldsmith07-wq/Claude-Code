@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
+import type { ConflictLine, NewsPoint } from "@/lib/gemini";
 
 // react-globe.gl touches `window` on import, so it must never load during SSR.
 const Globe = dynamic(() => import("react-globe.gl"), {
@@ -16,8 +17,10 @@ const Globe = dynamic(() => import("react-globe.gl"), {
   ),
 });
 
+type Ring = [number, number][]; // [lng, lat] pairs
 interface CountryFeature {
   properties: { name: string; iso_a2: string; iso_a3: string };
+  geometry: { type: string; coordinates: unknown };
 }
 
 const OCEAN_MATERIAL = new THREE.MeshPhongMaterial({
@@ -26,29 +29,84 @@ const OCEAN_MATERIAL = new THREE.MeshPhongMaterial({
   shininess: 6,
 });
 
-export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
+// Dot colour per topic, so news points are visually grouped by theme.
+const TOPIC_DOT_COLORS: Record<string, string> = {
+  Politics: "#f59e0b",
+  "Economy & Business": "#34d399",
+  "World & Conflict": "#f87171",
+  "Science & Health": "#22d3ee",
+  Technology: "#a78bfa",
+  "Society & Culture": "#f472b6",
+  Sport: "#facc15",
+};
+const DEFAULT_DOT = "#93c5fd";
+
+// Rough centroid of a GeoJSON feature: average of all its coordinate pairs.
+// Good enough to point the camera at a country.
+function centroidOf(feature: CountryFeature): { lat: number; lng: number } | null {
+  const rings: Ring[] = [];
+  const geom = feature.geometry;
+  if (geom.type === "Polygon") rings.push(...(geom.coordinates as Ring[]));
+  else if (geom.type === "MultiPolygon")
+    for (const poly of geom.coordinates as Ring[][]) rings.push(...poly);
+  let lat = 0;
+  let lng = 0;
+  let n = 0;
+  for (const ring of rings)
+    for (const [x, y] of ring) {
+      lng += x;
+      lat += y;
+      n++;
+    }
+  if (!n) return null;
+  return { lat: lat / n, lng: lng / n };
+}
+
+interface NewsGlobeProps {
+  /** Carried on country clicks so the destination is topic-scoped. */
+  topicSlug?: string;
+  /** Restrict rendered dots to this topic (globe topic modes). */
+  topicName?: string;
+  /** Fetch the worldwide news points from /api/world and plot them. */
+  worldPoints?: boolean;
+  /** Explicit dots to plot (e.g. a single country's points). */
+  points?: NewsPoint[];
+  /** Explicit conflict arcs to draw. */
+  arcs?: ConflictLine[];
+  /** Draw conflict arcs ("war lines"). */
+  showArcs?: boolean;
+  /** Zoom the camera to this country's centroid on load. */
+  focusCode?: string;
+  /** Auto-rotate the globe (default true). */
+  autoRotate?: boolean;
+}
+
+export default function NewsGlobe({
+  topicSlug,
+  topicName,
+  worldPoints = false,
+  points,
+  arcs,
+  showArcs = false,
+  focusCode,
+  autoRotate = true,
+}: NewsGlobeProps = {}) {
   const router = useRouter();
-  // When set, country clicks/prefetches carry a ?topic= filter so the country
-  // page shows only that topic.
   const query = topicSlug ? `?topic=${topicSlug}` : "";
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [features, setFeatures] = useState<CountryFeature[]>([]);
   const [hovered, setHovered] = useState<CountryFeature | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [ready, setReady] = useState(false);
+  const [fetchedPoints, setFetchedPoints] = useState<NewsPoint[]>([]);
+  const [fetchedConflicts, setFetchedConflicts] = useState<ConflictLine[]>([]);
 
-  // Countries whose route we've already prefetched, so the spinning globe
-  // doesn't re-prefetch the same one repeatedly.
   const prefetched = useRef<Set<string>>(new Set());
-  // Debounce timer so a quick sweep across the globe doesn't prefetch every
-  // country the pointer grazes — only ones it rests on briefly.
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Prefetch only the country ROUTE (JS + loading shell) on hover — this is
-  // free and makes navigation snappy. We deliberately do NOT trigger the
-  // Gemini news request here: it's a metered, grounded API call, and warming
-  // it for every hovered country burns through the free-tier daily quota. The
-  // summary is generated on click instead, then cached.
+  // Prefetch only the country ROUTE (free JS/shell) on hover — never the metered
+  // Gemini call, which would burn the free-tier quota.
   const handleHover = (feat: object | null) => {
     const country = feat as CountryFeature | null;
     setHovered(country);
@@ -69,17 +127,31 @@ export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
       .then((data) => {
         if (active) setFeatures(data.features ?? []);
       })
-      .catch(() => {
-        /* leave the globe bare rather than crashing */
-      });
+      .catch(() => {});
     return () => {
       active = false;
     };
   }, []);
 
-  // Keep the canvas sized to its container, falling back to the viewport if the
-  // container ever measures zero (e.g. a collapsed flex parent) so the globe
-  // never renders into a zero-height canvas.
+  // Fetch worldwide news points/conflicts (globe modes). Non-blocking: the globe
+  // renders immediately and dots pop in when ready.
+  useEffect(() => {
+    if (!worldPoints) return;
+    let active = true;
+    fetch("/api/world")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setFetchedPoints(Array.isArray(data.points) ? data.points : []);
+        setFetchedConflicts(Array.isArray(data.conflicts) ? data.conflicts : []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [worldPoints]);
+
+  // Keep the canvas sized to its container (fall back to the viewport).
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -98,14 +170,12 @@ export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
     };
   }, []);
 
-  // Cancel any pending prefetch timer when the globe unmounts.
   useEffect(() => {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
     };
   }, []);
 
-  // Gentle auto-rotation for the "spinning globe" feel.
   const handleReady = () => {
     const globe = globeRef.current;
     if (!globe) return;
@@ -114,17 +184,34 @@ export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
       autoRotateSpeed: number;
       enableZoom: boolean;
     };
-    controls.autoRotate = true;
+    controls.autoRotate = autoRotate;
     controls.autoRotateSpeed = 0.45;
     controls.enableZoom = true;
     globe.pointOfView({ lat: 20, lng: 10, altitude: 2.4 }, 0);
+    setReady(true);
   };
+
+  // Once the globe is ready and polygons are loaded, zoom to the focused country.
+  useEffect(() => {
+    if (!ready || !focusCode || features.length === 0) return;
+    const feat = features.find(
+      (f) => f.properties.iso_a2 === focusCode.toUpperCase(),
+    );
+    const c = feat && centroidOf(feat);
+    if (c) globeRef.current?.pointOfView({ lat: c.lat, lng: c.lng, altitude: 1.3 }, 800);
+  }, [ready, focusCode, features]);
 
   const navigate = (feat: object | null) => {
     const country = feat as CountryFeature | null;
     const code = country?.properties?.iso_a2;
     if (code) router.push(`/country/${code.toLowerCase()}${query}`);
   };
+
+  const basePoints = points ?? fetchedPoints;
+  const shownPoints = topicName
+    ? basePoints.filter((p) => p.topic === topicName)
+    : basePoints;
+  const shownArcs = showArcs ? (arcs ?? fetchedConflicts) : [];
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
@@ -140,8 +227,20 @@ export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
           atmosphereColor="#4f8cff"
           atmosphereAltitude={0.18}
           polygonsData={features}
-          polygonAltitude={(d: object) => (d === hovered ? 0.06 : 0.01)}
-          polygonCapColor={(d: object) => (d === hovered ? "#4f8cff" : "#22406b")}
+          polygonAltitude={(d: object) =>
+            d === hovered
+              ? 0.06
+              : (d as CountryFeature).properties.iso_a2 === focusCode?.toUpperCase()
+                ? 0.03
+                : 0.01
+          }
+          polygonCapColor={(d: object) =>
+            d === hovered
+              ? "#4f8cff"
+              : (d as CountryFeature).properties.iso_a2 === focusCode?.toUpperCase()
+                ? "#2f5fae"
+                : "#22406b"
+          }
           polygonSideColor={() => "rgba(79,140,255,0.15)"}
           polygonStrokeColor={() => "#0a1524"}
           polygonLabel={(d: object) =>
@@ -152,6 +251,36 @@ export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
           onPolygonHover={handleHover}
           onPolygonClick={navigate}
           polygonsTransitionDuration={200}
+          pointsData={shownPoints}
+          pointLat={(d: object) => (d as NewsPoint).lat}
+          pointLng={(d: object) => (d as NewsPoint).lng}
+          pointColor={(d: object) => TOPIC_DOT_COLORS[(d as NewsPoint).topic] ?? DEFAULT_DOT}
+          pointAltitude={0.03}
+          pointRadius={0.45}
+          pointsMerge={false}
+          pointLabel={(d: object) => {
+            const p = d as NewsPoint;
+            return `<div style="max-width:220px;font:500 12px sans-serif;color:#fff;background:#0e131fee;padding:6px 9px;border-radius:8px;border:1px solid #222b3d">
+              <div style="font-weight:700">${p.headline}</div>
+              ${p.location ? `<div style="color:#8a94a8;margin-top:2px">${p.location}${p.topic ? " · " + p.topic : ""}</div>` : ""}
+            </div>`;
+          }}
+          arcsData={shownArcs}
+          arcStartLat={(d: object) => (d as ConflictLine).fromLat}
+          arcStartLng={(d: object) => (d as ConflictLine).fromLng}
+          arcEndLat={(d: object) => (d as ConflictLine).toLat}
+          arcEndLng={(d: object) => (d as ConflictLine).toLng}
+          arcColor={() => ["rgba(248,113,113,0.2)", "#f87171"]}
+          arcStroke={0.6}
+          arcAltitudeAutoScale={0.4}
+          arcDashLength={0.4}
+          arcDashGap={0.2}
+          arcDashAnimateTime={1600}
+          arcLabel={(d: object) =>
+            `<div style="font:600 12px sans-serif;color:#fecaca;background:#0e131fee;padding:5px 8px;border-radius:6px;border:1px solid #7f1d1d">⚔ ${
+              (d as ConflictLine).label
+            }</div>`
+          }
         />
       )}
       {hovered && (
