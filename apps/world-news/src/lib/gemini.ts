@@ -1,6 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
-const MODEL = "gemini-2.5-flash";
+// gemini-2.0-flash supports Google Search grounding and has a much larger free
+// daily quota than 2.5-flash (which is only ~20 requests/day), so casual
+// browsing doesn't exhaust it.
+const MODEL = "gemini-2.0-flash";
 
 // Fixed topic set every country summary is organised into. Kept stable so the
 // UI can render consistent sections regardless of what Gemini returns.
@@ -41,6 +44,15 @@ export class MissingApiKeyError extends Error {
   constructor() {
     super("GEMINI_API_KEY is not configured.");
     this.name = "MissingApiKeyError";
+  }
+}
+
+// Raised when Gemini returns 429 (quota / rate limit) so the page can show a
+// clear "try again shortly" message instead of a generic failure.
+export class RateLimitError extends Error {
+  constructor() {
+    super("Gemini rate limit or quota exceeded.");
+    this.name = "RateLimitError";
   }
 }
 
@@ -130,14 +142,21 @@ export async function summariseCountryNews(
 ): Promise<CountryNews> {
   const ai = getClient();
 
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: buildPrompt(countryName),
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.3,
-    },
-  });
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: MODEL,
+      contents: buildPrompt(countryName),
+      config: {
+        tools: [{ googleSearch: {} }],
+        temperature: 0.3,
+      },
+    });
+  } catch (error) {
+    // Surface quota/rate-limit (429) as a typed error so the UI can explain it.
+    if ((error as { status?: number })?.status === 429) throw new RateLimitError();
+    throw error;
+  }
 
   const text = response.text ?? "";
   let topics: TopicSummary[] = [];

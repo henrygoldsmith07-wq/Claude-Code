@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCountryName } from "@/lib/countries";
 import { getCountryNews, UnknownCountryError } from "@/lib/news";
-import { MissingApiKeyError, type CountryNews } from "@/lib/gemini";
+import { MissingApiKeyError, RateLimitError, type CountryNews } from "@/lib/gemini";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
 
@@ -61,6 +61,20 @@ export default async function CountryPage({ params }: { params: Promise<{ code: 
                 aistudio.google.com/apikey
               </a>
               .
+            </p>
+          </div>
+        </Shell>
+      );
+    }
+    if (error instanceof RateLimitError) {
+      return (
+        <Shell title={getCountryName(code) ?? "News"}>
+          <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+            <p className="font-medium text-foreground">Free-tier limit reached.</p>
+            <p className="mt-2">
+              Gemini&apos;s free tier caps how much news can be generated in a short
+              window. Please wait a minute and try again — already-loaded countries stay
+              cached. To lift the limit, enable billing on your Google AI Studio key.
             </p>
           </div>
         </Shell>
