@@ -82,6 +82,27 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
 Each summary should be 2-4 sentences. Provide 2-4 keyPoints per topic. If there is no meaningful recent news for ${countryName} at all, return {"topics": []}.`;
 }
 
+function buildWorldPrompt(): string {
+  return `You are an impartial international news editor. Using Google Search, find the most important news happening around the world right now (focus on roughly the last 7 days). Prioritise globally significant developments across multiple regions, not just one country.
+
+Summarise it, organised into these topics: ${TOPICS.join(", ")}.
+
+Editorial rules — this must be strictly neutral:
+- Write in a plain, factual, non-partisan tone. No loaded or emotive language.
+- Present multiple sides of contested issues. Where credible outlets disagree, say so explicitly and attribute claims rather than asserting one side as fact.
+- Prefer verifiable, recent developments over speculation or opinion.
+- Draw from different parts of the world; don't over-index on a single country.
+- Only include a topic if there is genuinely noteworthy recent news for it.
+
+Return ONLY a single JSON object (no prose, no markdown fences) with this exact shape:
+{
+  "topics": [
+    { "topic": "<one of the topic names above>", "summary": "<2-4 sentence neutral summary>", "keyPoints": ["<short factual bullet>", "..."] }
+  ]
+}
+Each summary should be 2-4 sentences. Provide 2-4 keyPoints per topic.`;
+}
+
 // Pull a JSON object out of the model's text, tolerating stray prose or code
 // fences the model may add despite instructions.
 function extractJson(text: string): { topics: TopicSummary[] } {
@@ -134,10 +155,12 @@ function extractSources(chunks: GroundingChunk[] | undefined): NewsSource[] {
   return sources;
 }
 
-// Search + summarise current news for one country, split into topics, with the
-// grounding sources attached. Throws MissingApiKeyError if the key is unset.
-export async function summariseCountryNews(
-  countryName: string,
+// Run a grounded prompt and shape the result into topic summaries + sources.
+// Shared by the country and world summarisers. Throws MissingApiKeyError if the
+// key is unset, or RateLimitError on a 429.
+async function runSummary(
+  prompt: string,
+  label: string,
   code: string,
 ): Promise<CountryNews> {
   const ai = getClient();
@@ -146,7 +169,7 @@ export async function summariseCountryNews(
   try {
     response = await ai.models.generateContent({
       model: MODEL,
-      contents: buildPrompt(countryName),
+      contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.3,
@@ -173,10 +196,21 @@ export async function summariseCountryNews(
     | undefined;
 
   return {
-    country: countryName,
+    country: label,
     code,
     generatedAt: new Date().toISOString(),
     topics,
     sources: extractSources(chunks),
   };
+}
+
+// Search + summarise current news for one country, split into topics, with the
+// grounding sources attached.
+export function summariseCountryNews(countryName: string, code: string): Promise<CountryNews> {
+  return runSummary(buildPrompt(countryName), countryName, code);
+}
+
+// Search + summarise the most important news worldwide, split into topics.
+export function summariseWorldNews(): Promise<CountryNews> {
+  return runSummary(buildWorldPrompt(), "Around the World", "world");
 }
