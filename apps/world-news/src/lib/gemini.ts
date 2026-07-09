@@ -108,7 +108,7 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
     { "label": "<short name of an active conflict / front line>", "path": [[<lat>, <lng>], [<lat>, <lng>], [<lat>, <lng>]] }
   ]
 }
-Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 5-12 specific, geolocatable news items within ${countryName}, each with the approximate real coordinates of the city/region it concerns, its ISO country code, and 2-4 lowercase tags (shared tags should link related stories). For "conflicts", only include active armed conflicts or front lines relevant to ${countryName}; trace each front line as an ordered "path" of 3-8 [lat, lng] points following its real geography (not a straight line). Use [] if there are none. If there is no meaningful recent news for ${countryName} at all, return {"topics": [], "points": [], "conflicts": []}.`;
+Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 5-12 specific, geolocatable news items within ${countryName}, each with the approximate real coordinates of the city/region it concerns, its ISO country code, and 2-4 lowercase tags (shared tags should link related stories). For "conflicts", only include active armed conflicts or front lines relevant to ${countryName}; trace each front line in detail as an ordered "path" of 8-20 [lat, lng] points closely following its real geography (not a straight line). Use [] if there are none. If there is no meaningful recent news for ${countryName} at all, return {"topics": [], "points": [], "conflicts": []}.`;
 }
 
 function buildWorldPrompt(): string {
@@ -135,7 +135,7 @@ Return ONLY a single JSON object (no prose, no markdown fences) with this exact 
     { "label": "<short name of an active conflict / front line>", "path": [[<lat>, <lng>], [<lat>, <lng>], [<lat>, <lng>]] }
   ]
 }
-Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 10-20 specific, geolocatable news items from around the world spread across different regions, each with the approximate real coordinates of the city/region it concerns, its ISO country code, and 2-4 lowercase tags (use the SAME tag on stories that are part of the same event or theme so related news can be linked). For "conflicts", include the major active armed conflicts / front lines worldwide; trace each front line as an ordered "path" of 3-8 [lat, lng] points following its real geography (not a straight line). Use [] if none.`;
+Each summary should be 2-4 sentences with 2-4 keyPoints. For "points", give 10-20 specific, geolocatable news items from around the world spread across different regions, each with the approximate real coordinates of the city/region it concerns, its ISO country code, and 2-4 lowercase tags (use the SAME tag on stories that are part of the same event or theme so related news can be linked). For "conflicts", include the major active armed conflicts / front lines worldwide; trace each front line in detail as an ordered "path" of 8-20 [lat, lng] points closely following its real geography (not a straight line). Use [] if none.`;
 }
 
 // Pull a JSON object out of the model's text, tolerating stray prose or code
@@ -219,7 +219,7 @@ function normaliseConflicts(raw: unknown[]): ConflictLine[] {
       if (!isFiniteNum(lat) || !isFiniteNum(lng)) continue;
       if (!inLatRange(lat) || !inLngRange(lng)) continue;
       path.push([lat, lng]);
-      if (path.length >= 12) break;
+      if (path.length >= 24) break;
     }
     if (path.length < 2) continue;
     conflicts.push({ label: c.label.trim(), path });

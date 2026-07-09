@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { ConflictLine } from "@/lib/gemini";
+import { densifyPath } from "@/lib/geo";
 
 interface Feature {
   properties: { name: string; iso_a2: string };
@@ -52,7 +53,9 @@ export default function ConflictMap({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const path = conflict.path;
+  // Densify to a detailed (≥50-node) front line so the flat map traces the
+  // conflict's geography rather than a coarse zig-zag.
+  const path = densifyPath(conflict.path, 50);
   const lats = path.map((p) => p[0]);
   const lngs = path.map((p) => p[1]);
   // Bounding box around the front line, padded so surrounding areas are visible.
@@ -155,7 +158,7 @@ export default function ConflictMap({
               strokeLinecap="round"
             />
             {path.map(([lat, lng], i) => (
-              <circle key={i} cx={px(lng)} cy={py(lat)} r={3.5} fill="#fca5a5" stroke="#7f1d1d" />
+              <circle key={i} cx={px(lng)} cy={py(lat)} r={1.8} fill="#fca5a5" />
             ))}
           </svg>
         </div>

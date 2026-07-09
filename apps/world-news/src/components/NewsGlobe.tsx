@@ -7,6 +7,7 @@ import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import type { ConflictLine, NewsPoint } from "@/lib/gemini";
 import { dotColor } from "@/lib/topicColors";
+import { densifyPath } from "@/lib/geo";
 import ConflictMap from "@/components/ConflictMap";
 
 // react-globe.gl touches `window` on import, so it must never load during SSR.
@@ -322,7 +323,7 @@ export default function NewsGlobe({
             </div>`;
           }}
           pathsData={shownArcs}
-          pathPoints={(d: object) => (d as ConflictLine).path}
+          pathPoints={(d: object) => densifyPath((d as ConflictLine).path, 50)}
           pathPointLat={(p: unknown) => (p as [number, number])[0]}
           pathPointLng={(p: unknown) => (p as [number, number])[1]}
           pathColor={() => "#f87171"}
