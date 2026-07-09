@@ -319,18 +319,18 @@ export default function NewsGlobe({
               ${tags}
             </div>`;
           }}
-          arcsData={shownArcs}
-          arcStartLat={(d: object) => (d as ConflictLine).fromLat}
-          arcStartLng={(d: object) => (d as ConflictLine).fromLng}
-          arcEndLat={(d: object) => (d as ConflictLine).toLat}
-          arcEndLng={(d: object) => (d as ConflictLine).toLng}
-          arcColor={() => ["rgba(248,113,113,0.2)", "#f87171"]}
-          arcStroke={0.6}
-          arcAltitudeAutoScale={0.4}
-          arcDashLength={0.4}
-          arcDashGap={0.2}
-          arcDashAnimateTime={1600}
-          arcLabel={(d: object) =>
+          pathsData={shownArcs}
+          pathPoints={(d: object) => (d as ConflictLine).path}
+          pathPointLat={(p: unknown) => (p as [number, number])[0]}
+          pathPointLng={(p: unknown) => (p as [number, number])[1]}
+          pathColor={() => "#f87171"}
+          pathStroke={1.4}
+          pathPointAlt={0.012}
+          pathDashLength={0.5}
+          pathDashGap={0.18}
+          pathDashAnimateTime={1600}
+          pathTransitionDuration={0}
+          pathLabel={(d: object) =>
             `<div style="font:600 12px sans-serif;color:#fecaca;background:#0e131fee;padding:5px 8px;border-radius:6px;border:1px solid #7f1d1d">⚔ ${
               (d as ConflictLine).label
             }</div>`
