@@ -7,6 +7,7 @@ import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import type { ConflictLine, NewsPoint } from "@/lib/gemini";
 import { dotColor } from "@/lib/topicColors";
+import ConflictMap from "@/components/ConflictMap";
 
 // react-globe.gl touches `window` on import, so it must never load during SSR.
 const Globe = dynamic(() => import("react-globe.gl"), {
@@ -91,6 +92,7 @@ export default function NewsGlobe({
   const [fetchedPoints, setFetchedPoints] = useState<NewsPoint[]>([]);
   const [fetchedConflicts, setFetchedConflicts] = useState<ConflictLine[]>([]);
   const [streamedPoints, setStreamedPoints] = useState<NewsPoint[]>([]);
+  const [openConflict, setOpenConflict] = useState<ConflictLine | null>(null);
 
   const prefetched = useRef<Set<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -330,10 +332,11 @@ export default function NewsGlobe({
           pathDashGap={0.18}
           pathDashAnimateTime={1600}
           pathTransitionDuration={0}
+          onPathClick={(d: object) => setOpenConflict(d as ConflictLine)}
           pathLabel={(d: object) =>
             `<div style="font:600 12px sans-serif;color:#fecaca;background:#0e131fee;padding:5px 8px;border-radius:6px;border:1px solid #7f1d1d">⚔ ${
               (d as ConflictLine).label
-            }</div>`
+            } · click to expand</div>`
           }
         />
       )}
@@ -348,6 +351,13 @@ export default function NewsGlobe({
             <span className="text-muted">· click to read the news</span>
           )}
         </div>
+      )}
+      {openConflict && (
+        <ConflictMap
+          conflict={openConflict}
+          features={features}
+          onClose={() => setOpenConflict(null)}
+        />
       )}
     </div>
   );
