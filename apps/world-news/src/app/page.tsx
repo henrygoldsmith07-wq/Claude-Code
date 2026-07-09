@@ -1,3 +1,4 @@
+import Link from "next/link";
 import NewsGlobe from "@/components/NewsGlobe";
 
 export default function HomePage() {
@@ -14,6 +15,12 @@ export default function HomePage() {
           Spin the globe and pick any country to read what&apos;s happening there,
           split by topic and written to stay neutral.
         </p>
+        <Link
+          href="/world"
+          className="pointer-events-auto mt-4 inline-block rounded-full border border-rule bg-panel/80 px-5 py-2 text-sm font-medium text-foreground backdrop-blur transition-colors hover:border-accent hover:text-accent"
+        >
+          🌍 Top news around the world →
+        </Link>
       </div>
 
       <div className="absolute inset-0">

@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { getCountryName, normaliseCode } from "./countries";
-import { summariseCountryNews, type CountryNews } from "./gemini";
+import { summariseCountryNews, summariseWorldNews, type CountryNews } from "./gemini";
 
 // How long a country's summary is reused before we ask Gemini again. News
 // moves fast but re-summarising on every page view would be wasteful and slow,
@@ -33,6 +33,19 @@ export async function getCountryNews(rawCode: string): Promise<CountryNews> {
   const cached = unstable_cache(
     () => summariseCountryNews(name, code),
     ["country-news", code, cacheDay()],
+    { revalidate: REVALIDATE_SECONDS },
+  );
+
+  return cached();
+}
+
+// Fetch (and cache) the topic-split, grounded summary of the most important
+// news worldwide. MissingApiKeyError / RateLimitError propagate from the
+// Gemini layer.
+export async function getWorldNews(): Promise<CountryNews> {
+  const cached = unstable_cache(
+    () => summariseWorldNews(),
+    ["world-news", cacheDay()],
     { revalidate: REVALIDATE_SECONDS },
   );
 
