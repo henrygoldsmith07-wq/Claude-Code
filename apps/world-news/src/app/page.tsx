@@ -1,5 +1,6 @@
 import Link from "next/link";
 import NewsGlobe from "@/components/NewsGlobe";
+import { TOPIC_LINKS } from "@/lib/topics";
 
 export default function HomePage() {
   return (
@@ -21,6 +22,21 @@ export default function HomePage() {
         >
           🌍 Top news around the world →
         </Link>
+
+        <div className="pointer-events-auto mx-auto mt-4 flex max-w-xl flex-wrap justify-center gap-2">
+          <span className="w-full text-xs uppercase tracking-wide text-muted">
+            Or explore a topic on its own globe
+          </span>
+          {TOPIC_LINKS.map((t) => (
+            <Link
+              key={t.slug}
+              href={`/topic/${t.slug}`}
+              className="rounded-full border border-rule bg-panel/70 px-3 py-1 text-xs text-muted backdrop-blur transition-colors hover:border-accent hover:text-accent"
+            >
+              {t.emoji} {t.topic}
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="absolute inset-0">

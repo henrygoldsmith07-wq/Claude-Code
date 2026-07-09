@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCountryName } from "@/lib/countries";
 import { getCountryNews, UnknownCountryError } from "@/lib/news";
 import { MissingApiKeyError, RateLimitError, type CountryNews } from "@/lib/gemini";
+import { getTopicBySlug, TOPIC_SLUGS } from "@/lib/topics";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
 
@@ -16,26 +17,47 @@ export async function generateMetadata({ params }: { params: Promise<{ code: str
   return { title: name ? `${name} — World News Globe` : "World News Globe" };
 }
 
-function BackLink() {
-  return (
-    <Link href="/" className="text-sm text-accent underline-offset-2 hover:underline">
-      ← Back to the globe
-    </Link>
-  );
+interface BackTarget {
+  href: string;
+  label: string;
 }
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+function Shell({
+  title,
+  back,
+  children,
+}: {
+  title: string;
+  back: BackTarget;
+  children: React.ReactNode;
+}) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
-      <BackLink />
+      <Link href={back.href} className="text-sm text-accent underline-offset-2 hover:underline">
+        {back.label}
+      </Link>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
       <div className="mt-6">{children}</div>
     </main>
   );
 }
 
-export default async function CountryPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function CountryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ code: string }>;
+  searchParams?: Promise<{ topic?: string }>;
+}) {
   const { code } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const topicSlug = typeof sp.topic === "string" ? sp.topic : undefined;
+  const topicName = topicSlug ? getTopicBySlug(topicSlug) : null;
+
+  // When a topic filter is active, the back link returns to that topic's globe.
+  const back: BackTarget = topicName
+    ? { href: `/topic/${TOPIC_SLUGS[topicName]}`, label: `← Back to ${topicName} globe` }
+    : { href: "/", label: "← Back to the globe" };
 
   let news: CountryNews;
   try {
@@ -45,7 +67,7 @@ export default async function CountryPage({ params }: { params: Promise<{ code: 
     if (error instanceof MissingApiKeyError) {
       const name = getCountryName(code) ?? "This country";
       return (
-        <Shell title={name}>
+        <Shell title={name} back={back}>
           <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
             <p className="font-medium text-foreground">Gemini API key not configured.</p>
             <p className="mt-2">
@@ -68,7 +90,7 @@ export default async function CountryPage({ params }: { params: Promise<{ code: 
     }
     if (error instanceof RateLimitError) {
       return (
-        <Shell title={getCountryName(code) ?? "News"}>
+        <Shell title={getCountryName(code) ?? "News"} back={back}>
           <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
             <p className="font-medium text-foreground">Free-tier limit reached.</p>
             <p className="mt-2">
@@ -82,7 +104,7 @@ export default async function CountryPage({ params }: { params: Promise<{ code: 
     }
     console.error("Failed to load country news:", error);
     return (
-      <Shell title={getCountryName(code) ?? "News"}>
+      <Shell title={getCountryName(code) ?? "News"} back={back}>
         <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
           Couldn&apos;t load the news right now. Please try again in a moment.
         </div>
@@ -95,17 +117,35 @@ export default async function CountryPage({ params }: { params: Promise<{ code: 
     timeStyle: "short",
   });
 
-  return (
-    <Shell title={news.country}>
-      <p className="-mt-4 mb-6 text-xs text-muted">Updated {generated}</p>
+  // Filter to a single topic when the page was opened from a topic globe.
+  const shownTopics = topicName
+    ? news.topics.filter((t) => t.topic === topicName)
+    : news.topics;
 
-      {news.topics.length === 0 ? (
+  return (
+    <Shell title={news.country} back={back}>
+      <div className="-mt-4 mb-6 flex items-center justify-between gap-3">
+        <p className="text-xs text-muted">Updated {generated}</p>
+        {topicName && (
+          <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
+            View all topics →
+          </Link>
+        )}
+      </div>
+
+      {topicName && (
+        <p className="mb-4 text-sm font-medium text-foreground">{topicName}</p>
+      )}
+
+      {shownTopics.length === 0 ? (
         <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
-          No significant recent news surfaced for {news.country}. Try again later.
+          {topicName
+            ? `No significant recent ${topicName.toLowerCase()} news surfaced for ${news.country}.`
+            : `No significant recent news surfaced for ${news.country}. Try again later.`}
         </div>
       ) : (
         <div className="space-y-4">
-          {news.topics.map((topic) => (
+          {shownTopics.map((topic) => (
             <TopicSection key={topic.topic} topic={topic} />
           ))}
           <SourceList sources={news.sources} />

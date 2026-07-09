@@ -26,8 +26,11 @@ const OCEAN_MATERIAL = new THREE.MeshPhongMaterial({
   shininess: 6,
 });
 
-export default function NewsGlobe() {
+export default function NewsGlobe({ topicSlug }: { topicSlug?: string } = {}) {
   const router = useRouter();
+  // When set, country clicks/prefetches carry a ?topic= filter so the country
+  // page shows only that topic.
+  const query = topicSlug ? `?topic=${topicSlug}` : "";
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [features, setFeatures] = useState<CountryFeature[]>([]);
@@ -54,7 +57,7 @@ export default function NewsGlobe() {
     if (!code || prefetched.current.has(code)) return;
     hoverTimer.current = setTimeout(() => {
       prefetched.current.add(code);
-      router.prefetch(`/country/${code}`);
+      router.prefetch(`/country/${code}${query}`);
     }, 300);
   };
 
@@ -120,7 +123,7 @@ export default function NewsGlobe() {
   const navigate = (feat: object | null) => {
     const country = feat as CountryFeature | null;
     const code = country?.properties?.iso_a2;
-    if (code) router.push(`/country/${code.toLowerCase()}`);
+    if (code) router.push(`/country/${code.toLowerCase()}${query}`);
   };
 
   return (
