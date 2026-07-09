@@ -55,7 +55,12 @@ export default async function TopicGlobePage({
       </div>
 
       <div className="absolute inset-0">
-        <NewsGlobe topicSlug={slug} />
+        <NewsGlobe
+          topicSlug={slug}
+          topicName={name}
+          worldPoints
+          showArcs={name === "World & Conflict"}
+        />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">

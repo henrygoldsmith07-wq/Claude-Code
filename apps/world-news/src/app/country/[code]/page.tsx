@@ -6,6 +6,7 @@ import { MissingApiKeyError, RateLimitError, type CountryNews } from "@/lib/gemi
 import { getTopicBySlug, TOPIC_SLUGS } from "@/lib/topics";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
+import NewsGlobe from "@/components/NewsGlobe";
 
 // News is fetched live (with a short cache in getCountryNews), so never
 // prerender this at build time.
@@ -121,36 +122,60 @@ export default async function CountryPage({
   const shownTopics = topicName
     ? news.topics.filter((t) => t.topic === topicName)
     : news.topics;
+  const shownPoints = topicName
+    ? news.points.filter((p) => p.topic === topicName)
+    : news.points;
+  const showArcs = topicName ? topicName === "World & Conflict" : true;
 
   return (
-    <Shell title={news.country} back={back}>
-      <div className="-mt-4 mb-6 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted">Updated {generated}</p>
-        {topicName && (
-          <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
-            View all topics →
-          </Link>
-        )}
+    <>
+      {/* Map: zoomed to the country with a dot at each news location. */}
+      <div className="relative h-[52vh] min-h-[320px] w-full border-b border-rule">
+        <NewsGlobe
+          focusCode={code}
+          topicSlug={topicSlug}
+          points={shownPoints}
+          arcs={news.conflicts}
+          showArcs={showArcs}
+          autoRotate={false}
+        />
+        <div className="pointer-events-none absolute inset-x-0 top-0 p-4 text-center">
+          <span className="rounded-full border border-rule bg-panel/80 px-4 py-1.5 text-sm font-medium backdrop-blur">
+            {news.country}
+            {topicName ? ` · ${topicName}` : ""} · {shownPoints.length} news points
+          </span>
+        </div>
       </div>
 
-      {topicName && (
-        <p className="mb-4 text-sm font-medium text-foreground">{topicName}</p>
-      )}
+      <Shell title={news.country} back={back}>
+        <div className="-mt-4 mb-6 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted">Updated {generated}</p>
+          {topicName && (
+            <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
+              View all topics →
+            </Link>
+          )}
+        </div>
 
-      {shownTopics.length === 0 ? (
-        <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
-          {topicName
-            ? `No significant recent ${topicName.toLowerCase()} news surfaced for ${news.country}.`
-            : `No significant recent news surfaced for ${news.country}. Try again later.`}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {shownTopics.map((topic) => (
-            <TopicSection key={topic.topic} topic={topic} />
-          ))}
-          <SourceList sources={news.sources} />
-        </div>
-      )}
-    </Shell>
+        {topicName && (
+          <p className="mb-4 text-sm font-medium text-foreground">{topicName}</p>
+        )}
+
+        {shownTopics.length === 0 ? (
+          <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+            {topicName
+              ? `No significant recent ${topicName.toLowerCase()} news surfaced for ${news.country}.`
+              : `No significant recent news surfaced for ${news.country}. Try again later.`}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {shownTopics.map((topic) => (
+              <TopicSection key={topic.topic} topic={topic} />
+            ))}
+            <SourceList sources={news.sources} />
+          </div>
+        )}
+      </Shell>
+    </>
   );
 }
