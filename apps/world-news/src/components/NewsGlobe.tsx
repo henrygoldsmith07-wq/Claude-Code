@@ -90,6 +90,7 @@ export default function NewsGlobe({
   const [ready, setReady] = useState(false);
   const [fetchedPoints, setFetchedPoints] = useState<NewsPoint[]>([]);
   const [fetchedConflicts, setFetchedConflicts] = useState<ConflictLine[]>([]);
+  const [streamedPoints, setStreamedPoints] = useState<NewsPoint[]>([]);
 
   const prefetched = useRef<Set<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,8 +123,8 @@ export default function NewsGlobe({
     };
   }, []);
 
-  // Fetch worldwide news points/conflicts (globe modes). Non-blocking: the globe
-  // renders immediately and dots pop in when ready.
+  // Fetch worldwide conflicts + a fallback set of points (globe modes).
+  // Non-blocking: the globe renders immediately and data pops in when ready.
   useEffect(() => {
     if (!worldPoints) return;
     let active = true;
@@ -138,6 +139,28 @@ export default function NewsGlobe({
     return () => {
       active = false;
     };
+  }, [worldPoints]);
+
+  // Stream geolocated news dots (GDELT + Groq) so they appear on the map as
+  // they're generated. Falls back to the /api/world points above if the stream
+  // yields nothing (no GROQ key / source unreachable).
+  useEffect(() => {
+    if (!worldPoints || typeof window === "undefined" || !("EventSource" in window)) return;
+    const es = new EventSource("/api/world/stream");
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "point" && msg.point) {
+          setStreamedPoints((prev) => [...prev, msg.point as NewsPoint]);
+        } else if (msg.type === "done") {
+          es.close();
+        }
+      } catch {
+        /* ignore malformed frame */
+      }
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
   }, [worldPoints]);
 
   // Keep the canvas sized to its container (fall back to the viewport).
@@ -196,7 +219,10 @@ export default function NewsGlobe({
     if (code) router.push(`/country/${code.toLowerCase()}${query}`);
   };
 
-  const basePoints = points ?? fetchedPoints;
+  // Prefer explicit points (country map); otherwise use the streamed GDELT/Groq
+  // dots, falling back to the /api/world (Gemini) points if the stream is empty.
+  const worldData = streamedPoints.length > 0 ? streamedPoints : fetchedPoints;
+  const basePoints = points ?? worldData;
   const shownPoints = topicName
     ? basePoints.filter((p) => p.topic === topicName)
     : basePoints;
