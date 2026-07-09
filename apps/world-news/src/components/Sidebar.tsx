@@ -55,6 +55,13 @@ export default function Sidebar({
             🌍 Top news around the world
           </Link>
 
+          <Link
+            href="/feed"
+            className="mt-2 block rounded-lg border border-rule bg-panel px-3 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          >
+            ★ My feed
+          </Link>
+
           {/* Topics */}
           <div className="mt-6">
             <p className="mb-2 text-xs uppercase tracking-wide text-muted">Topics</p>

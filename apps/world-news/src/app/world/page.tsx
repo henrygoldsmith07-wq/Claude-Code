@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { getWorldNews } from "@/lib/news";
+import { getWorldNews, getWorldArchiveDates } from "@/lib/news";
 import { MissingApiKeyError, RateLimitError, type CountryNews } from "@/lib/gemini";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
 import TimeAgo from "@/components/TimeAgo";
 import PodcastPlayer from "@/components/PodcastPlayer";
+import TimelineControl from "@/components/TimelineControl";
 
 // News is fetched live (with a short cache in getWorldNews), so never
 // prerender this at build time.
@@ -29,7 +30,44 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default async function WorldPage() {
+export default async function WorldPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ date?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const dateParam = typeof sp.date === "string" ? sp.date : undefined;
+
+  const archiveDates = await getWorldArchiveDates().catch(() => []);
+  const timeline = (
+    <TimelineControl dates={archiveDates} current={dateParam} basePath="/world" />
+  );
+
+  // Historical view: load the archived world snapshot for the requested date.
+  if (dateParam) {
+    const archived = await getWorldNews(dateParam);
+    return (
+      <Shell>
+        {timeline}
+        {!archived || archived.topics.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+            No archived world news for this date.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-muted">
+              Archived snapshot · <TimeAgo iso={archived.generatedAt} prefix="generated " />
+            </p>
+            {archived.topics.map((topic) => (
+              <TopicSection key={topic.topic} topic={topic} />
+            ))}
+            <SourceList sources={archived.sources} />
+          </div>
+        )}
+      </Shell>
+    );
+  }
+
   let news: CountryNews;
   try {
     news = await getWorldNews();
@@ -94,6 +132,7 @@ export default async function WorldPage() {
       ) : (
         <div className="space-y-4">
           <PodcastPlayer scope="world" title="Around the World" />
+          {archiveDates.length >= 2 && timeline}
           {news.topics.map((topic) => (
             <TopicSection key={topic.topic} topic={topic} />
           ))}

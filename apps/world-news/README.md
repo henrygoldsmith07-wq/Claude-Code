@@ -12,8 +12,8 @@ Science & Health, Technology, Society & Culture, and Sport.
 - [`react-globe.gl`](https://github.com/vasturiano/react-globe.gl) (three.js) for the globe
 - [`@google/genai`](https://www.npmjs.com/package/@google/genai) — Gemini SDK with the
   `google_search` grounding tool
-- No database, no login. Summaries are cached per country/day via Next.js
-  `unstable_cache` (6-hour revalidate).
+- No login. Summaries are cached per country/day via Next.js `unstable_cache`
+  (6-hour revalidate), and optionally persisted to Supabase for history + pre-caching.
 
 ## Setup
 
@@ -23,9 +23,32 @@ cp .env.example .env.local   # then paste your key
 npm run dev
 ```
 
-Set `GEMINI_API_KEY` in `.env.local` — get one free at
-<https://aistudio.google.com/apikey>. Without it the globe still works, but country pages
-show a "configure your key" message.
+### Environment variables
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | yes | Summarise news via Gemini + Google Search grounding. Free key: <https://aistudio.google.com/apikey>. |
+| `GROQ_API_KEY` | no | Tags the geolocated news dots and writes the audio-briefing podcast scripts. Free: <https://console.groq.com/keys>. Falls back to a local script when unset. |
+| `SUPABASE_URL` | no | Supabase project URL — enables the historical timeline + scheduled pre-caching. |
+| `SUPABASE_SERVICE_ROLE_KEY` | no | **Secret**, server-side only. Supabase → Settings → API → `service_role`. Set in Vercel env, never commit. |
+| `CRON_SECRET` | no | Shared secret guarding `/api/cron/refresh`; Vercel Cron sends it as a Bearer token. |
+
+Without `GEMINI_API_KEY` the globe still works, but country pages show a "configure your
+key" message. Without Supabase the app simply generates news live per request (no history).
+
+### Timeline & pre-caching (Supabase)
+
+The `news_snapshots` table stores one summary per place per day. It powers:
+
+- **Historical timeline** — a date slider on country/world pages to scrub back through
+  past days (`?date=YYYY-MM-DD` loads that day's snapshot).
+- **Scheduled pre-caching** — `vercel.json` registers a daily cron that calls
+  `/api/cron/refresh`, which regenerates the world summary and a small set of major
+  countries and stores them, so real visits load instantly without re-hitting Gemini.
+
+To enable: create a Supabase project, run the migration in
+`supabase/migrations/`, then set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+`CRON_SECRET` in Vercel.
 
 ## How it works
 
