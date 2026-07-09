@@ -8,6 +8,8 @@ import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
 import NewsGlobe from "@/components/NewsGlobe";
 import FavoriteButton from "@/components/FavoriteButton";
+import TimeAgo from "@/components/TimeAgo";
+import PodcastPlayer from "@/components/PodcastPlayer";
 
 // News is fetched live (with a short cache in getCountryNews), so never
 // prerender this at build time.
@@ -114,11 +116,6 @@ export default async function CountryPage({
     );
   }
 
-  const generated = new Date(news.generatedAt).toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
   // Filter to a single topic when the page was opened from a topic globe.
   const shownTopics = topicName
     ? news.topics.filter((t) => t.topic === topicName)
@@ -150,7 +147,9 @@ export default async function CountryPage({
 
       <Shell title={news.country} back={back}>
         <div className="-mt-4 mb-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-muted">Updated {generated}</p>
+          <p className="text-xs text-muted">
+            <TimeAgo iso={news.generatedAt} />
+          </p>
           <div className="flex items-center gap-3">
             {topicName && (
               <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
@@ -160,6 +159,10 @@ export default async function CountryPage({
             <FavoriteButton kind="country" id={code.toLowerCase()} label={news.country} size="sm" />
           </div>
         </div>
+
+        {shownTopics.length > 0 && (
+          <PodcastPlayer scope="country" code={code.toLowerCase()} title={news.country} />
+        )}
 
         {topicName && (
           <p className="mb-4 text-sm font-medium text-foreground">{topicName}</p>

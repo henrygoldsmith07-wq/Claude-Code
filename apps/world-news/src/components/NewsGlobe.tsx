@@ -70,6 +70,8 @@ interface NewsGlobeProps {
   focusCode?: string;
   /** Auto-rotate the globe (default true). */
   autoRotate?: boolean;
+  /** Show a country search box that flies the camera to the picked country. */
+  searchable?: boolean;
 }
 
 export default function NewsGlobe({
@@ -81,6 +83,7 @@ export default function NewsGlobe({
   showArcs = false,
   focusCode,
   autoRotate = true,
+  searchable = false,
 }: NewsGlobeProps = {}) {
   const router = useRouter();
   const query = topicSlug ? `?topic=${topicSlug}` : "";
@@ -94,6 +97,8 @@ export default function NewsGlobe({
   const [fetchedConflicts, setFetchedConflicts] = useState<ConflictLine[]>([]);
   const [streamedPoints, setStreamedPoints] = useState<NewsPoint[]>([]);
   const [openConflict, setOpenConflict] = useState<ConflictLine | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCode, setSearchCode] = useState<string | null>(null);
 
   const prefetched = useRef<Set<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -253,8 +258,107 @@ export default function NewsGlobe({
     ? shownPoints.filter((p) => relationOf(p) === "related").length
     : 0;
 
+  // Breaking-news glow: cluster dots by country (or a coarse geo cell when the
+  // country is unknown) so busy places get bigger dots and a pulsing ring.
+  const clusterKey = (p: NewsPoint) =>
+    p.countryCode || `${Math.round(p.lat)}_${Math.round(p.lng)}`;
+  const clusters = new Map<string, { count: number; lat: number; lng: number; topic: string }>();
+  for (const p of shownPoints) {
+    const k = clusterKey(p);
+    const c = clusters.get(k);
+    if (c) {
+      c.count++;
+      c.lat += p.lat;
+      c.lng += p.lng;
+    } else {
+      clusters.set(k, { count: 1, lat: p.lat, lng: p.lng, topic: p.topic });
+    }
+  }
+  const clusterSize = (p: NewsPoint) => clusters.get(clusterKey(p))?.count ?? 1;
+  const withAlpha = (hex: string, a: number) => {
+    const m = hex.replace("#", "");
+    const n = m.length === 3 ? m.split("").map((c) => c + c).join("") : m;
+    const r = parseInt(n.slice(0, 2), 16);
+    const g = parseInt(n.slice(2, 4), 16);
+    const b = parseInt(n.slice(4, 6), 16);
+    return `rgba(${r || 0},${g || 0},${b || 0},${a})`;
+  };
+  // The busiest clusters (hotspots) get an animated pulse ring on the globe.
+  const rings = Array.from(clusters.values())
+    .filter((c) => c.count >= 2)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+    .map((c) => ({
+      lat: c.lat / c.count,
+      lng: c.lng / c.count,
+      color: dotColor(c.topic),
+      count: c.count,
+    }));
+
+  // Country search: match names against the loaded polygons; picking one flies
+  // the camera to its centroid and highlights it.
+  const q = searchQuery.trim().toLowerCase();
+  const searchName = searchCode
+    ? features.find((f) => f.properties.iso_a2 === searchCode)?.properties.name
+    : null;
+  // Show matches while typing, but not once a result is committed (query equals
+  // the picked country's name), so the dropdown collapses after a selection.
+  const searchResults =
+    searchable && q.length > 0 && searchName?.toLowerCase() !== q
+      ? features
+          .filter((f) => f.properties.name.toLowerCase().includes(q))
+          .slice(0, 8)
+      : [];
+  const selectCountry = (f: CountryFeature) => {
+    const c = centroidOf(f);
+    if (c) globeRef.current?.pointOfView({ lat: c.lat, lng: c.lng, altitude: 1.3 }, 900);
+    setSearchCode(f.properties.iso_a2);
+    setSearchQuery(f.properties.name);
+  };
+  const isMarked = (iso: string) =>
+    iso === searchCode || iso === focusCode?.toUpperCase();
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
+      {searchable && (
+        <div className="absolute left-1/2 top-3 z-30 w-72 max-w-[80vw] -translate-x-1/2">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearchCode(null);
+            }}
+            placeholder="Search a country…"
+            aria-label="Search a country"
+            className="w-full rounded-lg border border-rule bg-panel/90 px-3 py-2 text-sm outline-none backdrop-blur placeholder:text-muted focus:border-accent"
+          />
+          {searchResults.length > 0 && (
+            <ul className="mt-1 max-h-64 overflow-y-auto rounded-lg border border-rule bg-panel/95 py-1 text-sm shadow-xl backdrop-blur">
+              {searchResults.map((f) => (
+                <li key={f.properties.iso_a2}>
+                  <button
+                    type="button"
+                    onClick={() => selectCountry(f)}
+                    className="block w-full px-3 py-1.5 text-left hover:bg-panel-soft"
+                  >
+                    {f.properties.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {searchCode && searchName && searchResults.length === 0 && (
+            <button
+              type="button"
+              onClick={() => router.push(`/country/${searchCode.toLowerCase()}${query}`)}
+              className="mt-1 block w-full rounded-lg border border-accent/60 bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/20"
+            >
+              Open {searchName} news →
+            </button>
+          )}
+        </div>
+      )}
       {size.width > 0 && size.height > 0 && (
         <Globe
           ref={globeRef}
@@ -270,14 +374,14 @@ export default function NewsGlobe({
           polygonAltitude={(d: object) =>
             d === hovered
               ? 0.06
-              : (d as CountryFeature).properties.iso_a2 === focusCode?.toUpperCase()
+              : isMarked((d as CountryFeature).properties.iso_a2)
                 ? 0.03
                 : 0.01
           }
           polygonCapColor={(d: object) =>
             d === hovered
               ? "#4f8cff"
-              : (d as CountryFeature).properties.iso_a2 === focusCode?.toUpperCase()
+              : isMarked((d as CountryFeature).properties.iso_a2)
                 ? "#2f5fae"
                 : "#22406b"
           }
@@ -302,8 +406,12 @@ export default function NewsGlobe({
           }}
           pointAltitude={(d: object) => (relationOf(d as NewsPoint) === "related" ? 0.06 : 0.03)}
           pointRadius={(d: object) => {
-            const rel = relationOf(d as NewsPoint);
-            return rel === "related" ? 0.62 : rel === "local" ? 0.55 : 0.45;
+            const p = d as NewsPoint;
+            const rel = relationOf(p);
+            const base = rel === "related" ? 0.62 : rel === "local" ? 0.55 : 0.45;
+            // Bigger dots where more stories cluster (breaking-news hotspots).
+            const glow = Math.min(0.5, (clusterSize(p) - 1) * 0.12);
+            return base + glow;
           }}
           pointsMerge={false}
           pointLabel={(d: object) => {
@@ -339,6 +447,15 @@ export default function NewsGlobe({
               (d as ConflictLine).label
             } · click to expand</div>`
           }
+          ringsData={rings}
+          ringLat={(d: object) => (d as { lat: number }).lat}
+          ringLng={(d: object) => (d as { lng: number }).lng}
+          ringColor={(d: object) => (t: number) =>
+            withAlpha((d as { color: string }).color, Math.max(0, 1 - t))
+          }
+          ringMaxRadius={(d: object) => 2 + Math.min(4, (d as { count: number }).count)}
+          ringPropagationSpeed={2}
+          ringRepeatPeriod={1400}
         />
       )}
       {hovered && (

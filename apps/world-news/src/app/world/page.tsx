@@ -3,6 +3,8 @@ import { getWorldNews } from "@/lib/news";
 import { MissingApiKeyError, RateLimitError, type CountryNews } from "@/lib/gemini";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
+import TimeAgo from "@/components/TimeAgo";
+import PodcastPlayer from "@/components/PodcastPlayer";
 
 // News is fetched live (with a short cache in getWorldNews), so never
 // prerender this at build time.
@@ -79,14 +81,11 @@ export default async function WorldPage() {
     );
   }
 
-  const generated = new Date(news.generatedAt).toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
   return (
     <Shell>
-      <p className="-mt-4 mb-6 text-xs text-muted">Updated {generated}</p>
+      <p className="-mt-4 mb-4 text-xs text-muted">
+        <TimeAgo iso={news.generatedAt} />
+      </p>
 
       {news.topics.length === 0 ? (
         <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
@@ -94,6 +93,7 @@ export default async function WorldPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          <PodcastPlayer scope="world" title="Around the World" />
           {news.topics.map((topic) => (
             <TopicSection key={topic.topic} topic={topic} />
           ))}

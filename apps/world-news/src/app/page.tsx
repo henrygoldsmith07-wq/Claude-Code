@@ -9,7 +9,7 @@ export default function HomePage() {
       <Sidebar topics={TOPIC_LINKS} />
 
       <div className="absolute inset-0">
-        <NewsGlobe worldPoints />
+        <NewsGlobe worldPoints searchable />
       </div>
 
       <TopicLegend />
