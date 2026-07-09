@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import NewsGlobe from "@/components/NewsGlobe";
 import FavoriteButton from "@/components/FavoriteButton";
 import TopicLegend from "@/components/TopicLegend";
+import Sidebar from "@/components/Sidebar";
 import { getTopicBySlug, TOPIC_EMOJI, TOPIC_LINKS, TOPIC_SLUGS } from "@/lib/topics";
 
 export async function generateMetadata({ params }: { params: Promise<{ topic: string }> }) {
@@ -24,39 +24,17 @@ export default async function TopicGlobePage({
 
   return (
     <main className="relative h-dvh w-full overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 pt-8 text-center">
-        <Link
-          href="/"
-          className="pointer-events-auto text-xs font-medium uppercase tracking-[0.2em] text-muted hover:text-accent"
-        >
-          ← World News Globe
-        </Link>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+      <Sidebar topics={TOPIC_LINKS} activeSlug={slug} />
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 pt-4 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {TOPIC_EMOJI[name]} {name}
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted">
           Pick a country to read its latest {name.toLowerCase()} news.
         </p>
-
         <div className="pointer-events-auto mt-3 flex justify-center">
           <FavoriteButton kind="topic" id={slug} label={`${TOPIC_EMOJI[name]} ${name}`} size="sm" />
-        </div>
-
-        {/* Switch to another topic's globe */}
-        <div className="pointer-events-auto mt-4 flex flex-wrap justify-center gap-2">
-          {TOPIC_LINKS.map((t) => (
-            <Link
-              key={t.slug}
-              href={`/topic/${t.slug}`}
-              className={`rounded-full border px-3 py-1 text-xs backdrop-blur transition-colors ${
-                t.slug === slug
-                  ? "border-accent bg-accent/15 text-accent"
-                  : "border-rule bg-panel/70 text-muted hover:border-accent hover:text-accent"
-              }`}
-            >
-              {t.emoji} {t.topic}
-            </Link>
-          ))}
         </div>
       </div>
 
