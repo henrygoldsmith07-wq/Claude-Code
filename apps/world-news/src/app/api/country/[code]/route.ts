@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCountryNews, UnknownCountryError } from "@/lib/news";
-import { MissingApiKeyError } from "@/lib/gemini";
+import { MissingApiKeyError, RateLimitError } from "@/lib/gemini";
 
 export async function GET(
   _request: Request,
@@ -18,6 +18,12 @@ export async function GET(
       return NextResponse.json(
         { error: "GEMINI_API_KEY is not configured." },
         { status: 503 },
+      );
+    }
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: "Gemini rate limit or quota exceeded. Try again shortly." },
+        { status: 429 },
       );
     }
     console.error("Failed to load country news:", error);
