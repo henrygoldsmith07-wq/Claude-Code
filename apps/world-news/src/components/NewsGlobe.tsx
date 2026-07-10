@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { GlobeMethods } from "react-globe.gl";
-import * as THREE from "three";
 import type { ConflictLine, NewsPoint } from "@/lib/gemini";
 import { dotColor } from "@/lib/topicColors";
 import { densifyPath } from "@/lib/geo";
@@ -25,12 +24,6 @@ interface CountryFeature {
   properties: { name: string; iso_a2: string; iso_a3: string };
   geometry: { type: string; coordinates: unknown };
 }
-
-const OCEAN_MATERIAL = new THREE.MeshPhongMaterial({
-  color: "#0d1b2e",
-  emissive: "#060d17",
-  shininess: 6,
-});
 
 // Rough centroid of a GeoJSON feature: average of all its coordinate pairs.
 // Good enough to point the camera at a country.
@@ -366,7 +359,8 @@ export default function NewsGlobe({
           height={size.height}
           onGlobeReady={handleReady}
           backgroundColor="rgba(0,0,0,0)"
-          globeMaterial={OCEAN_MATERIAL}
+          globeImageUrl="/textures/earth-blue-marble.jpg"
+          bumpImageUrl="/textures/earth-topology.png"
           showAtmosphere
           atmosphereColor="#4f8cff"
           atmosphereAltitude={0.18}
@@ -380,13 +374,13 @@ export default function NewsGlobe({
           }
           polygonCapColor={(d: object) =>
             d === hovered
-              ? "#4f8cff"
+              ? "rgba(79,140,255,0.55)"
               : isMarked((d as CountryFeature).properties.iso_a2)
-                ? "#2f5fae"
-                : "#22406b"
+                ? "rgba(79,140,255,0.35)"
+                : "rgba(79,140,255,0.02)"
           }
           polygonSideColor={() => "rgba(79,140,255,0.15)"}
-          polygonStrokeColor={() => "#0a1524"}
+          polygonStrokeColor={() => "rgba(255,255,255,0.18)"}
           polygonLabel={(d: object) =>
             `<div style="font:600 13px sans-serif;color:#fff;background:#0e131fdd;padding:4px 8px;border-radius:6px;border:1px solid #222b3d">${
               (d as CountryFeature).properties.name

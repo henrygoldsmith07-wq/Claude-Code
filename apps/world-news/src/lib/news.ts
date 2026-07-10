@@ -41,21 +41,39 @@ function cacheDay(): string {
   return today();
 }
 
+// Signals a generation that came back empty (no topics). Thrown inside the
+// cached loader so the empty result is NOT cached/persisted for the day — the
+// next visit retries instead of showing a blank page all day.
+class EmptyResultError extends Error {
+  constructor(readonly payload: CountryNews) {
+    super("Generated summary was empty.");
+    this.name = "EmptyResultError";
+  }
+}
+
 // Load today's news for a place: prefer a stored snapshot (written by a visit
 // or the pre-cache cron), otherwise generate it live and persist it. Wrapped in
 // unstable_cache so repeated views in one window skip even the snapshot read.
+// Only successful (non-empty) results are cached/persisted, so a failed or empty
+// generation is retried on the next visit rather than sticking for the day.
 function loadToday(scope: Scope, code: string, generate: () => Promise<CountryNews>) {
   return unstable_cache(
     async (): Promise<CountryNews> => {
       const stored = await getSnapshot(scope, code, today());
-      if (stored) return stored;
+      if (stored && stored.topics.length > 0) return stored;
       const fresh = await generate();
+      if (fresh.topics.length === 0) throw new EmptyResultError(fresh);
       await saveSnapshot(scope, code, fresh);
       return fresh;
     },
     ["news", scope, code, cacheDay()],
     { revalidate: secondsUntilEndOfUtcDay() },
-  )();
+  )().catch((error) => {
+    // Rejections aren't cached, so an empty result is returned (rendered once)
+    // without being locked in — the next request will regenerate.
+    if (error instanceof EmptyResultError) return error.payload;
+    throw error;
+  });
 }
 
 // Fetch the topic-split, grounded news summary for one country. When `date` is
