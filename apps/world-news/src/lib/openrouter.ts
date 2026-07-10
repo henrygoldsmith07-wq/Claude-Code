@@ -14,12 +14,10 @@ export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
 
-// Requested model rollover: tencent/hy3:free until 21 July 2026 (UTC), then
-// poolside/laguna-m.1:free. Override with OPENROUTER_MODEL if set.
+// The OpenRouter model that organises the GDELT articles. Defaults to a known
+// free instruct model; override with the OPENROUTER_MODEL env var.
 export function currentModel(): string {
-  if (process.env.OPENROUTER_MODEL) return process.env.OPENROUTER_MODEL;
-  const cutover = Date.UTC(2026, 6, 21); // month is 0-indexed: 6 = July
-  return Date.now() >= cutover ? "poolside/laguna-m.1:free" : "tencent/hy3:free";
+  return process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
 }
 
 function stripFences(text: string): string {
