@@ -1,9 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
-// gemini-2.5-flash-lite supports Google Search grounding and has the largest
-// free-tier daily quota (~1,000 requests/day), so casual browsing is very
-// unlikely to exhaust it.
-const MODEL = "gemini-2.5-flash-lite";
+// gemini-2.0-flash reliably returns grounded JSON with Google Search and has a
+// generous free-tier daily quota (~200 requests/day). gemini-2.5-flash-lite was
+// tried for its larger quota but frequently returned empty grounded responses,
+// so summaries came back blank. With per-day caching + snapshots each place is
+// generated at most once a day, so 200/day is ample.
+const MODEL = "gemini-2.0-flash";
 
 // Fixed topic set every country summary is organised into. Kept stable so the
 // UI can render consistent sections regardless of what Gemini returns.
