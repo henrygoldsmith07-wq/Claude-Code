@@ -25,6 +25,23 @@ interface CountryFeature {
   geometry: { type: string; coordinates: unknown };
 }
 
+// A streamed news point carries the time it appeared, so it can "pop" in.
+type TimedPoint = NewsPoint & { _appeared?: number };
+
+// How long a dot's pop-in animation runs.
+const POP_MS = 620;
+
+// Ease-out-back: grows from ~0, overshoots just past 1, then settles — a "pop".
+function popScale(appeared?: number): number {
+  if (!appeared) return 1;
+  const t = Math.min(1, (Date.now() - appeared) / POP_MS);
+  if (t >= 1) return 1;
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  const eased = 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+  return Math.max(0.04, eased);
+}
+
 // Rough centroid of a GeoJSON feature: average of all its coordinate pairs.
 // Good enough to point the camera at a country.
 function centroidOf(feature: CountryFeature): { lat: number; lng: number } | null {
@@ -88,7 +105,8 @@ export default function NewsGlobe({
   const [ready, setReady] = useState(false);
   const [fetchedPoints, setFetchedPoints] = useState<NewsPoint[]>([]);
   const [fetchedConflicts, setFetchedConflicts] = useState<ConflictLine[]>([]);
-  const [streamedPoints, setStreamedPoints] = useState<NewsPoint[]>([]);
+  const [streamedPoints, setStreamedPoints] = useState<TimedPoint[]>([]);
+  const [, setPopTick] = useState(0);
   const [openConflict, setOpenConflict] = useState<ConflictLine | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCode, setSearchCode] = useState<string | null>(null);
@@ -152,7 +170,11 @@ export default function NewsGlobe({
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === "point" && msg.point) {
-          setStreamedPoints((prev) => [...prev, msg.point as NewsPoint]);
+          // Stamp the arrival time so the dot pops in on the map.
+          setStreamedPoints((prev) => [
+            ...prev,
+            { ...(msg.point as NewsPoint), _appeared: Date.now() },
+          ]);
         } else if (msg.type === "done") {
           es.close();
         }
@@ -163,6 +185,20 @@ export default function NewsGlobe({
     es.onerror = () => es.close();
     return () => es.close();
   }, [worldPoints]);
+
+  // While any dot is still popping in, re-render each frame so the pop animates.
+  useEffect(() => {
+    const stillPopping = () =>
+      streamedPoints.some((p) => p._appeared && Date.now() - p._appeared < POP_MS);
+    if (!stillPopping()) return;
+    let raf = 0;
+    const loop = () => {
+      setPopTick((t) => t + 1);
+      if (stillPopping()) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [streamedPoints]);
 
   // Keep the canvas sized to its container (fall back to the viewport).
   useEffect(() => {
@@ -202,6 +238,31 @@ export default function NewsGlobe({
     controls.enableZoom = true;
     globe.pointOfView({ lat: 20, lng: 10, altitude: 2.4 }, 0);
     setReady(true);
+
+    // Sharpen the satellite texture at grazing angles with anisotropic
+    // filtering for higher perceived definition. Best-effort: the imperative
+    // material/renderer accessors aren't in every react-globe.gl version, so
+    // guard and never throw (antialiasing via rendererConfig still applies).
+    const g = globe as unknown as {
+      globeMaterial?: () => { map?: { anisotropy: number; needsUpdate: boolean } | null };
+      renderer?: () => { capabilities?: { getMaxAnisotropy?: () => number } };
+    };
+    const sharpen = (attempt = 0) => {
+      try {
+        if (typeof g.globeMaterial !== "function" || typeof g.renderer !== "function") return;
+        const map = g.globeMaterial().map;
+        const maxAniso = g.renderer().capabilities?.getMaxAnisotropy?.() ?? 8;
+        if (map) {
+          map.anisotropy = maxAniso;
+          map.needsUpdate = true;
+        } else if (attempt < 12) {
+          setTimeout(() => sharpen(attempt + 1), 250);
+        }
+      } catch {
+        /* accessor unavailable — rely on antialiasing */
+      }
+    };
+    sharpen();
   };
 
   // Once the globe is ready and polygons are loaded, zoom to the focused country.
@@ -227,6 +288,12 @@ export default function NewsGlobe({
   const shownPoints = topicName
     ? basePoints.filter((p) => p.topic === topicName)
     : basePoints;
+  // While dots are popping in, hand the globe a fresh array each frame so it
+  // re-evaluates the (time-based) radius and animates the pop.
+  const anyPopping = shownPoints.some(
+    (p) => (p as TimedPoint)._appeared && Date.now() - (p as TimedPoint)._appeared! < POP_MS,
+  );
+  const pointsForGlobe = anyPopping ? [...shownPoints] : shownPoints;
   const shownArcs = showArcs ? (arcs ?? fetchedConflicts) : [];
 
   // Relate news across countries: when hovering a country that has dots, tags
@@ -358,6 +425,7 @@ export default function NewsGlobe({
           width={size.width}
           height={size.height}
           onGlobeReady={handleReady}
+          rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
           backgroundColor="rgba(0,0,0,0)"
           globeImageUrl="/textures/earth-blue-marble.jpg"
           bumpImageUrl="/textures/earth-topology.png"
@@ -389,7 +457,7 @@ export default function NewsGlobe({
           onPolygonHover={handleHover}
           onPolygonClick={navigate}
           polygonsTransitionDuration={200}
-          pointsData={shownPoints}
+          pointsData={pointsForGlobe}
           pointLat={(d: object) => (d as NewsPoint).lat}
           pointLng={(d: object) => (d as NewsPoint).lng}
           pointColor={(d: object) => {
@@ -400,12 +468,13 @@ export default function NewsGlobe({
           }}
           pointAltitude={(d: object) => (relationOf(d as NewsPoint) === "related" ? 0.06 : 0.03)}
           pointRadius={(d: object) => {
-            const p = d as NewsPoint;
+            const p = d as TimedPoint;
             const rel = relationOf(p);
             const base = rel === "related" ? 0.62 : rel === "local" ? 0.55 : 0.45;
             // Bigger dots where more stories cluster (breaking-news hotspots).
             const glow = Math.min(0.5, (clusterSize(p) - 1) * 0.12);
-            return base + glow;
+            // Pop in from ~nothing as the dot streams onto the map.
+            return (base + glow) * popScale(p._appeared);
           }}
           pointsMerge={false}
           pointLabel={(d: object) => {

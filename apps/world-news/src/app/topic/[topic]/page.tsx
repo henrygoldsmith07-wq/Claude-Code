@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import NewsGlobe from "@/components/NewsGlobe";
 import FavoriteButton from "@/components/FavoriteButton";
-import TopicLegend from "@/components/TopicLegend";
 import Sidebar from "@/components/Sidebar";
 import { getTopicBySlug, TOPIC_EMOJI, TOPIC_LINKS, TOPIC_SLUGS } from "@/lib/topics";
 
@@ -46,8 +45,6 @@ export default async function TopicGlobePage({
           showArcs={name === "World & Conflict"}
         />
       </div>
-
-      <TopicLegend />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">
         Hover to highlight a country · click for its {name.toLowerCase()} news

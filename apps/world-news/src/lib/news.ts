@@ -81,28 +81,46 @@ function loadToday(scope: Scope, code: string, generate: () => Promise<CountryNe
 // is GDELT (real articles) organised by the OpenRouter model; Gemini (grounded
 // search) is the fallback when OpenRouter is unconfigured, errors, or yields
 // nothing usable. When OpenRouter is unset, this is just the Gemini path.
-async function generateCountry(name: string, code: string): Promise<CountryNews> {
+// Shared generator: OpenRouter (GDELT-grounded) first, Gemini fallback, with
+// logging at each hop so an empty/"not loading" result is diagnosable from the
+// runtime logs.
+async function generate(
+  scope: "world" | "country",
+  label: string,
+  code: string,
+  gemini: () => Promise<CountryNews>,
+  countryName?: string,
+): Promise<CountryNews> {
   if (openrouterConfigured()) {
     try {
-      const via = await summariseViaOpenRouter("country", name, code, name);
-      if (via && via.topics.length > 0) return via;
-    } catch {
-      // fall through to Gemini
+      const via = await summariseViaOpenRouter(scope, label, code, countryName);
+      if (via && via.topics.length > 0) {
+        console.log(`[news] ${label}: OpenRouter produced ${via.topics.length} topics`);
+        return via;
+      }
+      console.warn(`[news] ${label}: OpenRouter yielded no topics — falling back to Gemini`);
+    } catch (error) {
+      console.warn(`[news] ${label}: OpenRouter error (${(error as Error).message}) — falling back to Gemini`);
     }
   }
-  return summariseCountryNews(name, code);
+  try {
+    const result = await gemini();
+    if (result.topics.length === 0) {
+      console.warn(`[news] ${label}: Gemini returned no topics (empty result)`);
+    }
+    return result;
+  } catch (error) {
+    console.error(`[news] ${label}: Gemini failed — ${(error as Error).name}`);
+    throw error;
+  }
 }
 
-async function generateWorld(): Promise<CountryNews> {
-  if (openrouterConfigured()) {
-    try {
-      const via = await summariseViaOpenRouter("world", "Around the World", "world");
-      if (via && via.topics.length > 0) return via;
-    } catch {
-      // fall through to Gemini
-    }
-  }
-  return summariseWorldNews();
+function generateCountry(name: string, code: string): Promise<CountryNews> {
+  return generate("country", name, code, () => summariseCountryNews(name, code), name);
+}
+
+function generateWorld(): Promise<CountryNews> {
+  return generate("world", "Around the World", "world", () => summariseWorldNews());
 }
 
 // Fetch the topic-split, grounded news summary for one country. When `date` is

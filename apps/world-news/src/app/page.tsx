@@ -1,5 +1,4 @@
 import NewsGlobe from "@/components/NewsGlobe";
-import TopicLegend from "@/components/TopicLegend";
 import Sidebar from "@/components/Sidebar";
 import { TOPIC_LINKS } from "@/lib/topics";
 
@@ -11,8 +10,6 @@ export default function HomePage() {
       <div className="absolute inset-0">
         <NewsGlobe worldPoints searchable />
       </div>
-
-      <TopicLegend />
 
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">
         Hover to highlight a country · click to open its news
