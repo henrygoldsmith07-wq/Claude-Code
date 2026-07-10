@@ -32,7 +32,7 @@ npm run dev
 | `GEMINI_API_KEY_2` … `GEMINI_API_KEY_20` | no | Alternative to `GEMINI_API_KEYS`: extra keys as individually numbered vars. Both forms can be combined; duplicates are de-duped. |
 | `GROQ_API_KEY` | no | Tags the geolocated news dots and writes the audio-briefing podcast scripts. Free: <https://console.groq.com/keys>. Falls back to a local script when unset. |
 | `OPENROUTER_API_KEY` | no | Makes OpenRouter the **primary** news source: real GDELT articles organised by an OpenRouter model into topic summaries + points (Gemini becomes the fallback). Key: <https://openrouter.ai/keys>. |
-| `OPENROUTER_MODEL` | no | Override the OpenRouter model. Defaults to `tencent/hy3:free`, switching to `poolside/laguna-m.1:free` on 21 Jul 2026. The model only *organises* real GDELT data, so it can't fabricate news. |
+| `OPENROUTER_MODEL` | no | Override the OpenRouter model. Defaults to `meta-llama/llama-3.3-70b-instruct:free`. The model only *organises* real GDELT data, so it can't fabricate news. |
 | `SUPABASE_URL` | no | Supabase project URL — enables the historical timeline + scheduled pre-caching. |
 | `SUPABASE_SERVICE_ROLE_KEY` | no | **Secret**, server-side only. Supabase → Settings → API → `service_role`. Set in Vercel env, never commit. |
 | `CRON_SECRET` | no | Shared secret guarding `/api/cron/refresh`; Vercel Cron sends it as a Bearer token. |
