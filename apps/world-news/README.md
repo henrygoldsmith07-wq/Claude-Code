@@ -28,6 +28,7 @@ npm run dev
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | yes | Summarise news via Gemini + Google Search grounding. Free key: <https://aistudio.google.com/apikey>. |
+| `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3` | no | Extra free Gemini keys (e.g. on other Google accounts). The app rotates to the next key when one hits its daily quota (429), multiplying the free allowance. |
 | `GROQ_API_KEY` | no | Tags the geolocated news dots and writes the audio-briefing podcast scripts. Free: <https://console.groq.com/keys>. Falls back to a local script when unset. |
 | `SUPABASE_URL` | no | Supabase project URL — enables the historical timeline + scheduled pre-caching. |
 | `SUPABASE_SERVICE_ROLE_KEY` | no | **Secret**, server-side only. Supabase → Settings → API → `service_role`. Set in Vercel env, never commit. |

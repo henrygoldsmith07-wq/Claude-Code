@@ -81,10 +81,19 @@ export class RateLimitError extends Error {
   }
 }
 
-function getClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new MissingApiKeyError();
-  return new GoogleGenAI({ apiKey });
+// All configured Gemini API keys, in priority order. A second (or third) free
+// key on another Google account doubles/triples the daily quota — the app
+// rotates to the next key when one hits its 429 daily cap.
+function getApiKeys(): string[] {
+  const keys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+  ]
+    .map((k) => k?.trim())
+    .filter((k): k is string => Boolean(k));
+  if (keys.length === 0) throw new MissingApiKeyError();
+  return keys;
 }
 
 function buildPrompt(countryName: string): string {
@@ -273,23 +282,30 @@ async function runSummary(
   label: string,
   code: string,
 ): Promise<CountryNews> {
-  const ai = getClient();
+  const keys = getApiKeys();
 
+  // Try each key in turn: on a 429 (daily quota exhausted) rotate to the next
+  // key; any other error propagates. If every key is exhausted, surface a typed
+  // RateLimitError so the UI can explain it.
   let response;
-  try {
-    response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.3,
-      },
-    });
-  } catch (error) {
-    // Surface quota/rate-limit (429) as a typed error so the UI can explain it.
-    if ((error as { status?: number })?.status === 429) throw new RateLimitError();
-    throw error;
+  for (const apiKey of keys) {
+    const ai = new GoogleGenAI({ apiKey });
+    try {
+      response = await ai.models.generateContent({
+        model: MODEL,
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          temperature: 0.3,
+        },
+      });
+      break;
+    } catch (error) {
+      if ((error as { status?: number })?.status === 429) continue;
+      throw error;
+    }
   }
+  if (!response) throw new RateLimitError();
 
   const text = response.text ?? "";
   let topics: TopicSummary[] = [];
