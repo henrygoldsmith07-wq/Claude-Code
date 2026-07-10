@@ -81,17 +81,21 @@ export class RateLimitError extends Error {
   }
 }
 
-// All configured Gemini API keys, in priority order. A second (or third) free
-// key on another Google account doubles/triples the daily quota — the app
-// rotates to the next key when one hits its 429 daily cap.
+// All configured Gemini API keys, in priority order. Extra free keys (each on
+// its own Google account) multiply the daily quota — the app rotates to the
+// next key when one hits its 429 daily cap. Provide keys either as a single
+// comma/space/newline-separated list in GEMINI_API_KEYS (easiest for many), or
+// as individually numbered vars GEMINI_API_KEY, GEMINI_API_KEY_2 … up to _20.
 function getApiKeys(): string[] {
-  const keys = [
+  const raw: (string | undefined)[] = [
+    ...(process.env.GEMINI_API_KEYS ?? "").split(/[\s,]+/),
     process.env.GEMINI_API_KEY,
-    process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY_3,
-  ]
-    .map((k) => k?.trim())
-    .filter((k): k is string => Boolean(k));
+  ];
+  for (let i = 2; i <= 20; i++) raw.push(process.env[`GEMINI_API_KEY_${i}`]);
+
+  const keys = Array.from(
+    new Set(raw.map((k) => k?.trim()).filter((k): k is string => Boolean(k))),
+  );
   if (keys.length === 0) throw new MissingApiKeyError();
   return keys;
 }
