@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCountryName } from "@/lib/countries";
-import { getCountryNews, UnknownCountryError } from "@/lib/news";
+import { getCountryNews, getCountryArchiveDates, UnknownCountryError } from "@/lib/news";
 import { MissingApiKeyError, RateLimitError, type CountryNews } from "@/lib/gemini";
 import { getTopicBySlug, TOPIC_SLUGS } from "@/lib/topics";
 import TopicSection from "@/components/TopicSection";
 import SourceList from "@/components/SourceList";
 import NewsGlobe from "@/components/NewsGlobe";
 import FavoriteButton from "@/components/FavoriteButton";
+import TimeAgo from "@/components/TimeAgo";
+import PodcastPlayer from "@/components/PodcastPlayer";
+import TimelineControl from "@/components/TimelineControl";
 
 // News is fetched live (with a short cache in getCountryNews), so never
 // prerender this at build time.
@@ -49,17 +52,74 @@ export default async function CountryPage({
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams?: Promise<{ topic?: string }>;
+  searchParams?: Promise<{ topic?: string; date?: string }>;
 }) {
   const { code } = await params;
   const sp = searchParams ? await searchParams : {};
   const topicSlug = typeof sp.topic === "string" ? sp.topic : undefined;
   const topicName = topicSlug ? getTopicBySlug(topicSlug) : null;
+  const dateParam = typeof sp.date === "string" ? sp.date : undefined;
 
   // When a topic filter is active, the back link returns to that topic's globe.
   const back: BackTarget = topicName
     ? { href: `/topic/${TOPIC_SLUGS[topicName]}`, label: `← Back to ${topicName} globe` }
     : { href: "/", label: "← Back to the globe" };
+
+  // Archive dates power the timeline slider (empty when Supabase isn't set up).
+  const archiveDates = await getCountryArchiveDates(code).catch(() => []);
+  const timeline = (
+    <TimelineControl
+      dates={archiveDates}
+      current={dateParam}
+      basePath={`/country/${code.toLowerCase()}`}
+      extraQuery={topicSlug ? `topic=${topicSlug}` : ""}
+    />
+  );
+
+  // Historical view: load the archived snapshot for the requested date.
+  if (dateParam) {
+    let archived: CountryNews | null;
+    try {
+      archived = await getCountryNews(code, dateParam);
+    } catch (error) {
+      if (error instanceof UnknownCountryError) notFound();
+      throw error;
+    }
+    const name = getCountryName(code) ?? "News";
+    if (!archived) {
+      return (
+        <Shell title={name} back={back}>
+          {timeline}
+          <div className="mt-4 rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+            No archived news for {name} on this date.
+          </div>
+        </Shell>
+      );
+    }
+    const arcTopics = topicName
+      ? archived.topics.filter((t) => t.topic === topicName)
+      : archived.topics;
+    return (
+      <Shell title={name} back={back}>
+        {timeline}
+        <p className="mt-4 mb-4 text-xs text-muted">
+          Archived snapshot · <TimeAgo iso={archived.generatedAt} prefix="generated " />
+        </p>
+        {arcTopics.length === 0 ? (
+          <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+            No news recorded for {name} on this date.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {arcTopics.map((topic) => (
+              <TopicSection key={topic.topic} topic={topic} />
+            ))}
+            <SourceList sources={archived.sources} />
+          </div>
+        )}
+      </Shell>
+    );
+  }
 
   let news: CountryNews;
   try {
@@ -114,11 +174,6 @@ export default async function CountryPage({
     );
   }
 
-  const generated = new Date(news.generatedAt).toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
   // Filter to a single topic when the page was opened from a topic globe.
   const shownTopics = topicName
     ? news.topics.filter((t) => t.topic === topicName)
@@ -150,7 +205,9 @@ export default async function CountryPage({
 
       <Shell title={news.country} back={back}>
         <div className="-mt-4 mb-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-muted">Updated {generated}</p>
+          <p className="text-xs text-muted">
+            <TimeAgo iso={news.generatedAt} />
+          </p>
           <div className="flex items-center gap-3">
             {topicName && (
               <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
@@ -161,8 +218,14 @@ export default async function CountryPage({
           </div>
         </div>
 
+        {shownTopics.length > 0 && (
+          <PodcastPlayer scope="country" code={code.toLowerCase()} title={news.country} />
+        )}
+
+        {archiveDates.length >= 2 && <div className="mt-4">{timeline}</div>}
+
         {topicName && (
-          <p className="mb-4 text-sm font-medium text-foreground">{topicName}</p>
+          <p className="mb-4 mt-4 text-sm font-medium text-foreground">{topicName}</p>
         )}
 
         {shownTopics.length === 0 ? (
