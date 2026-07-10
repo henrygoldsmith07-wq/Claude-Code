@@ -1,4 +1,4 @@
-import type { NewsPoint } from "./gemini";
+import type { NewsPoint, NewsSource } from "./gemini";
 import { TOPICS } from "./gemini";
 
 // GDELT's public GEO 2.0 API returns geolocated news as GeoJSON — free, no key,
@@ -27,6 +27,13 @@ function firstTitle(html: string | undefined): string {
   if (!html) return "";
   const m = html.match(/<a[^>]*>([^<]+)<\/a>/i);
   return m ? m[1].trim() : "";
+}
+
+// Pull the first article link out of GDELT's HTML blob (a real source URL).
+function firstLink(html: string | undefined): string {
+  if (!html) return "";
+  const m = html.match(/href=["']([^"']+)["']/i);
+  return m ? m[1] : "";
 }
 
 // Fetch geolocated news points for one topic. Never throws — returns [] on any
@@ -83,3 +90,61 @@ export async function fetchTopicGeoNews(
 
 // All topics, in canonical order.
 export const GDELT_TOPICS = TOPICS as readonly string[];
+
+// Fetch real geolocated articles across every topic — worldwide, or scoped to a
+// country when countryName is given (the name is added to each query). Returns
+// the points (real coordinates) plus real source links. This is the grounding
+// the OpenRouter organiser summarises, so the news stays real rather than
+// model-invented.
+export async function fetchScopeGeoNews(
+  countryName?: string,
+  perTopic = 8,
+): Promise<{ points: NewsPoint[]; sources: NewsSource[] }> {
+  const points: NewsPoint[] = [];
+  const sourceMap = new Map<string, string>();
+
+  for (const topic of TOPICS) {
+    const base = TOPIC_QUERIES[topic];
+    if (!base) continue;
+    const query = countryName ? `"${countryName}" ${base}` : base;
+    const url =
+      "https://api.gdeltproject.org/api/v2/geo/geo?" +
+      new URLSearchParams({
+        query,
+        format: "GeoJSON",
+        timespan: "3d",
+        sortby: "count",
+      }).toString();
+
+    try {
+      const res = await fetch(url, {
+        headers: { "user-agent": "world-news-globe/1.0" },
+        next: { revalidate: 60 * 60 },
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { features?: GeoFeature[] };
+      let added = 0;
+      for (const f of Array.isArray(data.features) ? data.features : []) {
+        const coords = f.geometry?.coordinates;
+        if (!coords || coords.length < 2) continue;
+        const [lng, lat] = coords;
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const name = (f.properties?.name ?? "").trim();
+        const headline =
+          firstTitle(f.properties?.html) || (name ? `Reports from ${name}` : "News");
+        const link = firstLink(f.properties?.html);
+        points.push({ topic, headline, location: name, lat, lng, countryCode: "", tags: [] });
+        if (link && !sourceMap.has(link)) sourceMap.set(link, headline);
+        if (++added >= perTopic) break;
+      }
+    } catch {
+      // Skip this topic on any failure; other topics still contribute.
+    }
+  }
+
+  const sources: NewsSource[] = Array.from(sourceMap, ([url, title]) => ({ url, title })).slice(
+    0,
+    20,
+  );
+  return { points: points.slice(0, 48), sources };
+}

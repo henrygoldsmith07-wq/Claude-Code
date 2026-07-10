@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { getCountryName, normaliseCode } from "./countries";
 import { summariseCountryNews, summariseWorldNews, type CountryNews } from "./gemini";
+import { summariseViaOpenRouter, openrouterConfigured } from "./openrouter";
 import {
   getSnapshot,
   saveSnapshot,
@@ -76,6 +77,34 @@ function loadToday(scope: Scope, code: string, generate: () => Promise<CountryNe
   });
 }
 
+// Generate a place's news. When OPENROUTER_API_KEY is set, the primary source
+// is GDELT (real articles) organised by the OpenRouter model; Gemini (grounded
+// search) is the fallback when OpenRouter is unconfigured, errors, or yields
+// nothing usable. When OpenRouter is unset, this is just the Gemini path.
+async function generateCountry(name: string, code: string): Promise<CountryNews> {
+  if (openrouterConfigured()) {
+    try {
+      const via = await summariseViaOpenRouter("country", name, code, name);
+      if (via && via.topics.length > 0) return via;
+    } catch {
+      // fall through to Gemini
+    }
+  }
+  return summariseCountryNews(name, code);
+}
+
+async function generateWorld(): Promise<CountryNews> {
+  if (openrouterConfigured()) {
+    try {
+      const via = await summariseViaOpenRouter("world", "Around the World", "world");
+      if (via && via.topics.length > 0) return via;
+    } catch {
+      // fall through to Gemini
+    }
+  }
+  return summariseWorldNews();
+}
+
 // Fetch the topic-split, grounded news summary for one country. When `date` is
 // given, returns that day's archived snapshot (or null if none exists).
 // Throws UnknownCountryError for unrecognised codes; MissingApiKeyError /
@@ -92,7 +121,7 @@ export async function getCountryNews(
   const key = code.toLowerCase();
 
   if (date) return getSnapshot("country", key, date);
-  return loadToday("country", key, () => summariseCountryNews(name, code));
+  return loadToday("country", key, () => generateCountry(name, code));
 }
 
 // Fetch the grounded summary of the most important news worldwide. With `date`,
@@ -101,7 +130,7 @@ export async function getWorldNews(): Promise<CountryNews>;
 export async function getWorldNews(date: string): Promise<CountryNews | null>;
 export async function getWorldNews(date?: string): Promise<CountryNews | null> {
   if (date) return getSnapshot("world", "world", date);
-  return loadToday("world", "world", () => summariseWorldNews());
+  return loadToday("world", "world", () => generateWorld());
 }
 
 // Available archive dates for a place, newest first (empty if no history).
