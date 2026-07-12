@@ -6,11 +6,9 @@ links to its raw source; open the raw file only when the summary isn't enough.
 
 ## Core Training Document
 
-> Not yet created. Record an audio memo covering personal goals, constraints,
-> and project expectations, hand the transcript to Claude, and say:
-> *"Analyze this context, interview me to fill in what I missed, and save it
-> as our core training document."* Save the result as
-> `wiki/core-training-document.md` and link it here.
+[core-training-document.md](core-training-document.md) — goals, constraints,
+and operating expectations (owner interview, 2026-07-12). Ground truth for
+`/improve-system`; open Tier-3 questions live in its backlog section.
 
 ## Resources
 
