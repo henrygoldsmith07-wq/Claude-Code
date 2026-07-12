@@ -77,10 +77,17 @@ pages, or components.
    actual). **Known debt**: data is localStorage (per-browser, no sync) via
    `src/lib/os/storage.ts` — that hook is the single seam for a later
    Supabase swap.
-3. **Wiring** — real NotebookLM share URLs on the notebook cards; deploy
+3. **Third-level systems** ✅ — ten more mini-apps one level deeper:
+   Study gains Focus Timer, Grade Tracker, and Quick Cards; Builder gains
+   Idea Vault (impact÷effort ranking that promotes ideas into the Ship
+   Pipeline via the shared `lib/os/pipeline.ts` model) and Launch Checklist
+   (eight shipping steps per app); Health gains Water Tracker, Meal Log,
+   and Screen Time; Money gains Savings Goals and Wishlist. Same
+   localStorage seam as phase 2.
+4. **Wiring** — real NotebookLM share URLs on the notebook cards; deploy
    `wjec-study-app` and point its tile at the live URL; feed App Income from
    omni-life's Stripe webhook; light up Google Fit/Hevy in Fitness & Sleep.
-4. **Product split (later)** — if Study OS earns attention from other
+5. **Product split (later)** — if Study OS earns attention from other
    students, extract it behind its own domain; the personal tree just links
    to it.
 
