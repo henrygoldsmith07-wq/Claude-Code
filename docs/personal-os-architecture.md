@@ -68,16 +68,19 @@ pages, or components.
 
 ## Build order
 
-1. **Life OS hub** *(this change)* — the `/os` tree live inside omni-life,
-   every area mapped including gaps.
-2. **Study OS deepening** — real NotebookLM share URLs on the notebook cards;
-   deploy `wjec-study-app` and point its tile at the live URL; build the Exam
-   Planner (highest-value gap: dates + countdown + timetable).
-3. **Money & Health wiring** — deploy subscription-tracker and
-   emotion-tracker; surface Stripe income per app in Money OS.
-4. **Builder OS pipeline** — turn App Portfolio statuses into the
-   ship/kill pipeline the core training document calls for.
-5. **Product split (later)** — if Study OS earns attention from other
+1. **Life OS hub** ✅ — the `/os` tree live inside omni-life, every area
+   mapped including gaps.
+2. **Sub-OS mini-apps** ✅ — all seven planned systems built as working
+   pages: Exam Planner (countdowns + 7-day revision rotation), Notes Vault,
+   Ship Pipeline (kanban seeded with the eight apps), Habits (streaks),
+   Fitness & Sleep log, App Income (per-app leaderboard), Budget (plan vs
+   actual). **Known debt**: data is localStorage (per-browser, no sync) via
+   `src/lib/os/storage.ts` — that hook is the single seam for a later
+   Supabase swap.
+3. **Wiring** — real NotebookLM share URLs on the notebook cards; deploy
+   `wjec-study-app` and point its tile at the live URL; feed App Income from
+   omni-life's Stripe webhook; light up Google Fit/Hevy in Fitness & Sleep.
+4. **Product split (later)** — if Study OS earns attention from other
    students, extract it behind its own domain; the personal tree just links
    to it.
 
