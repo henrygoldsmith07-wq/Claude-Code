@@ -42,8 +42,12 @@ in `/wiki`, and the improvement loop turns it into workspace upgrades.
 
 ### Routines (cloud Routines, fresh session per run)
 
-- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday 09:00 UTC
-- **System Improvements**: `/improve-system` — Tuesday & Friday 14:00 UTC
+- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday 00:00 UK time
+  (cron `0 23 * * 1,4` UTC)
+- **System Improvements**: `/improve-system` — Tuesday & Friday 01:00 UK time
+  (cron `0 0 * * 2,5` UTC), one hour after ingestion
+- Cron is UTC, so both shift an hour later in UK winter (GMT); notifications
+  are off — results surface only via the "Knowledge base updates" PR
 
 Both routines work on the shared branch `knowledge-base-updates` (created from
 `main` if absent, checked out if it exists) so the afternoon improvement run
