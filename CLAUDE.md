@@ -40,10 +40,15 @@ in `/wiki`, and the improvement loop turns it into workspace upgrades.
 | `/data-ingestion` | Master orchestration: runs all three syncs, reconciles the wiki |
 | `/improve-system` | Improvement loop: auto-applies low-risk hygiene, writes sign-off proposals to `output/review_[date].md` |
 
-### Routines (schedule via desktop app → Local routines)
+### Routines (cloud Routines, fresh session per run)
 
-- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday mornings
-- **System Improvements**: `/improve-system` — Tuesday & Friday afternoons
+- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday 09:00 UTC
+- **System Improvements**: `/improve-system` — Tuesday & Friday 14:00 UTC
+
+Both routines work on the shared branch `knowledge-base-updates` (created from
+`main` if absent, checked out if it exists) so the afternoon improvement run
+sees the morning's ingested data. They commit and push to that branch and keep
+a single draft PR open; merge it periodically to fold knowledge into `main`.
 
 ### Loop Hygiene
 
