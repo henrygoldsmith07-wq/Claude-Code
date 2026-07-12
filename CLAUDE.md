@@ -12,6 +12,48 @@
 - Keep files under 500 lines
 - Validate input at system boundaries
 
+## Self-Improving System (Knowledge Base)
+
+The workspace maintains a learning loop: data flows into `/raw`, gets indexed
+in `/wiki`, and the improvement loop turns it into workspace upgrades.
+
+### Directory Contract
+
+| Path | Purpose | Rules |
+|------|---------|-------|
+| `raw/` | Unstructured resources (session digests, meeting logs, exports, text dumps) | Append-only; never edit in place; naming `YYYY-MM-DD_<source>_<topic>.md` |
+| `raw/sessions/`, `raw/ecosystem/`, `raw/curated/` | Pipeline landing zones | Written only by the sync skills; each tracks a `.last-sync` timestamp |
+| `wiki/` | Table of contents indexing `/raw` (`wiki/index.md`) plus topic pages | Read this FIRST to map project metadata — never bulk-parse `/raw`; every raw file must have an index row |
+| `output/` | Improvement-loop artifacts | Review files `review_YYYY-MM-DD.md` (sign-off checklists) and hidden log `.improvement-log.md` (auto-applied changes) |
+
+`raw/`, `wiki/`, and `output/` are the sanctioned exceptions to the
+"no working files in root" rule above.
+
+### Skills
+
+| Skill | Role |
+|-------|------|
+| `/add-new-resource` | Manually ingest one file: copy to `/raw`, evaluate, index in `/wiki` |
+| `/sync-claude-sessions` | Digest local CLI session history → `raw/sessions/` |
+| `/sync-ecosystem-data` | Pull meeting/email/calendar signals → `raw/ecosystem/` |
+| `/sync-curated-content` | Extract claims from the `+newsletter` Gmail alias → `raw/curated/` |
+| `/data-ingestion` | Master orchestration: runs all three syncs, reconciles the wiki |
+| `/improve-system` | Improvement loop: auto-applies low-risk hygiene, writes sign-off proposals to `output/review_[date].md` |
+
+### Routines (schedule via desktop app → Local routines)
+
+- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday mornings
+- **System Improvements**: `/improve-system` — Tuesday & Friday afternoons
+
+### Loop Hygiene
+
+- After any long, highly successful session, run `/improve-system` immediately
+  ("compress feedback loops") — don't wait for the routine
+- `/improve-system` may auto-apply only low-risk data hygiene; anything
+  touching `.claude/` or this file requires a `[ ] Approve` sign-off in the
+  review file
+- Prefer deleting or fixing a failing skill over whiteboarding a perfect one
+
 ## Agent Comms (SendMessage-First Coordination)
 
 Named agents coordinate via `SendMessage`, not polling or shared state.
