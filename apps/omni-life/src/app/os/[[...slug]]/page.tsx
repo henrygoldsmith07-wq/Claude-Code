@@ -1,61 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { findNode, nodeHref, OsNode, OsStatus } from '@/lib/os/tree';
-
-const statusStyles: Record<OsStatus, { label: string; className: string }> = {
-  live: { label: 'Live', className: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  built: { label: 'Built · not deployed', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-  planned: { label: 'Planned', className: 'bg-gray-500/10 text-gray-400 border-gray-600/30' },
-};
-
-function StatusBadge({ status }: { status: OsStatus }) {
-  const { label, className } = statusStyles[status];
-  return (
-    <span className={`inline-block text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border ${className}`}>
-      {label}
-    </span>
-  );
-}
-
-function Tile({ node, trail }: { node: OsNode; trail: OsNode[] }) {
-  const inner = (
-    <div className="h-full bg-gray-950 border border-gray-800 rounded-2xl p-5 transition-all duration-200 hover:border-blue-500/40 hover:bg-gray-900/60">
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-3xl">{node.icon}</span>
-        <StatusBadge status={node.status} />
-      </div>
-      <h3 className="text-lg font-semibold text-white">
-        {node.name}
-        {node.href && <span className="text-gray-500 text-sm ml-1">↗</span>}
-      </h3>
-      <p className="text-sm text-gray-500 mt-1">{node.tagline}</p>
-      {node.children && (
-        <p className="text-xs text-gray-600 mt-3 uppercase tracking-widest">
-          {node.children.length} system{node.children.length === 1 ? '' : 's'} inside
-        </p>
-      )}
-    </div>
-  );
-
-  if (node.href) {
-    return (
-      <a href={node.href} target="_blank" rel="noopener noreferrer" className="block h-full">
-        {inner}
-      </a>
-    );
-  }
-  return (
-    <Link href={nodeHref([...trail, node])} className="block h-full">
-      {inner}
-    </Link>
-  );
-}
+import { findNode, nodeHref } from '@/lib/os/tree';
+import TileGrid, { StatusBadge } from '@/components/os/tile-grid';
+import WorkflowPanel from '@/components/os/workflow-panel';
 
 export default function OsPage({ params }: { params: { slug?: string[] } }) {
   const resolved = findNode(params.slug ?? []);
   if (!resolved) notFound();
   const { node, trail } = resolved;
+
+  // '' at the root (all areas), area slug at levels below it
+  const workflowScope = trail.length === 1 ? '' : trail[1].slug;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -92,12 +48,10 @@ export default function OsPage({ params }: { params: { slug?: string[] } }) {
           )}
         </header>
 
+        <WorkflowPanel scope={workflowScope} />
+
         {node.children ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {node.children.map((child) => (
-              <Tile key={child.slug} node={child} trail={trail} />
-            ))}
-          </div>
+          <TileGrid node={node} trail={trail} />
         ) : (
           <div className="bg-gray-950 border border-gray-800 rounded-2xl p-6 max-w-2xl">
             <StatusBadge status={node.status} />

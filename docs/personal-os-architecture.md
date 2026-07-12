@@ -66,6 +66,27 @@ with children drill one level deeper.
 Adding a new OS at any depth = adding a node to `tree.ts`. No new routes,
 pages, or components.
 
+### Data flows up the chain
+
+Every mini-app publishes a **signal** — its one headline stat, computed from
+the same localStorage it stores to (`lib/os/signals.ts`). `collectSignals()`
+rolls them up recursively: a sub-OS tile shows its children's signals and the
+Life OS root shows the top signal from every area, so the top level is a live
+status board ("Next exam: Chemistry in 5d", "£12 earned this month"), not a
+menu.
+
+### Agentic workflows
+
+`lib/os/workflows.ts` is the sense→decide→act layer: rules watch each OS's
+data and surface suggested actions in a ⚡ panel on the root and area pages.
+Some deep-link to the right system; some execute in one click (promote a
+high-ratio idea into the Ship Pipeline, save a habit streak, log a glass of
+water). Mutations broadcast `DATA_EVENT` so tiles and panels recompute live.
+Current rules: exam-crunch focus nudge, weak-subject rotation weighting,
+net-wrong flashcard sweep, promote-best-idea, too-much-WIP, finish-nearest
+-launch, streak rescue, hydration nudge, sleep guard, over-budget flag, and
+affordable-must-have.
+
 ## Build order
 
 1. **Life OS hub** ✅ — the `/os` tree live inside omni-life, every area
