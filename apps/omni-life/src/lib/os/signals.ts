@@ -173,6 +173,99 @@ const leafSignals: Record<string, () => Signal | null> = {
     const saved = goals.reduce((s, g) => s + g.saved, 0);
     return saved > 0 ? { text: `${gbp(saved)} saved`, tone: 'good' } : null;
   },
+  'study/reading-list': () => {
+    const items = read<{ status: string }[]>('os.study.reading', []);
+    const reading = items.filter((i) => i.status === 'reading').length;
+    const queued = items.filter((i) => i.status === 'queued').length;
+    if (reading + queued === 0) return null;
+    return { text: `${reading} reading · ${queued} queued`, tone: 'neutral' };
+  },
+  'study/question-bank': () => {
+    const open = read<{ resolved: boolean }[]>('os.study.questions', []).filter((q) => !q.resolved).length;
+    return open > 0 ? { text: `${open} open question${open === 1 ? '' : 's'}`, tone: 'warn' } : null;
+  },
+  'study/study-goals': () => {
+    const goals = read<{ target: number; done: number }[]>('os.study.goals', []);
+    if (goals.length === 0) return null;
+    const hit = goals.filter((g) => g.done >= g.target).length;
+    return {
+      text: `Goals ${hit}/${goals.length} hit`,
+      tone: hit === goals.length ? 'good' : 'neutral',
+    };
+  },
+  'builder/bug-tracker': () => {
+    const open = read<{ severity: string; fixed: boolean }[]>('os.builder.bugs', []).filter((b) => !b.fixed);
+    if (open.length === 0) return null;
+    return {
+      text: `${open.length} open bug${open.length === 1 ? '' : 's'}`,
+      tone: open.some((b) => b.severity === 'high') ? 'bad' : 'warn',
+    };
+  },
+  'builder/experiments': () => {
+    const running = read<{ status: string }[]>('os.builder.experiments', []).filter((e) => e.status === 'running').length;
+    return running > 0 ? { text: `${running} experiment${running === 1 ? '' : 's'} running`, tone: 'neutral' } : null;
+  },
+  'builder/tech-debt': () => {
+    const owed = read<{ pain: number; cleared: boolean }[]>('os.builder.debt', []).filter((d) => !d.cleared);
+    if (owed.length === 0) return null;
+    return {
+      text: `${owed.length} debt item${owed.length === 1 ? '' : 's'}`,
+      tone: owed.some((d) => d.pain >= 3) ? 'bad' : 'warn',
+    };
+  },
+  'health/steps': () => {
+    const log = read<Record<string, number>>('os.health.steps', {});
+    const target = read<number>('os.health.steps.target', 8000);
+    const steps = log[today()];
+    if (steps === undefined) return null;
+    return {
+      text: `${steps.toLocaleString()} steps`,
+      tone: steps >= target ? 'good' : 'neutral',
+    };
+  },
+  'health/mindfulness': () => {
+    const mins = read<{ date: string; minutes: number }[]>('os.health.mindfulness', [])
+      .filter((s) => s.date === today()).reduce((s, x) => s + x.minutes, 0);
+    return mins > 0 ? { text: `${mins} min mindful today`, tone: 'good' } : null;
+  },
+  'health/gratitude': () => {
+    const n = read<{ date: string }[]>('os.health.gratitude', []).filter((e) => e.date === today()).length;
+    if (n === 0) return null;
+    return { text: `Gratitude ${Math.min(n, 3)}/3`, tone: n >= 3 ? 'good' : 'neutral' };
+  },
+  'money/owed': () => {
+    const open = read<{ amount: number; direction: string; settled: boolean }[]>('os.money.owed', [])
+      .filter((i) => !i.settled);
+    if (open.length === 0) return null;
+    const net = open.reduce((s, i) => s + (i.direction === 'they-owe' ? i.amount : -i.amount), 0);
+    return {
+      text: `Net ${net >= 0 ? '+' : '−'}${gbp(Math.abs(net))} owed`,
+      tone: net >= 0 ? 'good' : 'bad',
+    };
+  },
+  'money/accounts': () => {
+    const accounts = read<{ balance: number }[]>('os.money.accounts', []);
+    if (accounts.length === 0) return null;
+    const total = accounts.reduce((s, a) => s + a.balance, 0);
+    return { text: `Net worth ${gbp(total)}`, tone: total >= 0 ? 'good' : 'bad' };
+  },
+  'money/bills': () => {
+    const bills = read<{ name: string; dueDay: number }[]>('os.money.bills', []);
+    if (bills.length === 0) return null;
+    const now = new Date();
+    const soonest = bills
+      .map((b) => {
+        const due = new Date(now.getFullYear(), now.getMonth(), b.dueDay);
+        if (due < new Date(now.getFullYear(), now.getMonth(), now.getDate())) due.setMonth(due.getMonth() + 1);
+        const days = Math.round((due.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
+        return { name: b.name, days };
+      })
+      .sort((a, b) => a.days - b.days)[0];
+    return {
+      text: soonest.days === 0 ? `${soonest.name} due TODAY` : `${soonest.name} due in ${soonest.days}d`,
+      tone: soonest.days <= 3 ? 'warn' : 'neutral',
+    };
+  },
   'money/wishlist': () => {
     const items = read<{ price: number; bought: boolean }[]>('os.money.wishlist', []);
     const open = items.filter((i) => !i.bought);

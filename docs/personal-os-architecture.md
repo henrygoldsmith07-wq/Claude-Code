@@ -105,10 +105,17 @@ affordable-must-have.
    (eight shipping steps per app); Health gains Water Tracker, Meal Log,
    and Screen Time; Money gains Savings Goals and Wishlist. Same
    localStorage seam as phase 2.
-4. **Wiring** — real NotebookLM share URLs on the notebook cards; deploy
+4. **Ten systems per area** ✅ — every sub-OS now holds exactly ten
+   systems. New: Reading List, Question Bank, Study Goals (Study); Bug
+   Tracker, Marketing Log, Experiments, Tech Debt, Learning Log (Builder);
+   Steps, Mindfulness, Symptoms Journal, Gratitude (Health); Owed & Owing,
+   Net Worth, Price Watch, Gift Planner, Bills Calendar (Money). The tree
+   config split into per-area modules under `lib/os/areas/`; new systems
+   publish signals into the roll-up like the rest.
+5. **Wiring** — real NotebookLM share URLs on the notebook cards; deploy
    `wjec-study-app` and point its tile at the live URL; feed App Income from
    omni-life's Stripe webhook; light up Google Fit/Hevy in Fitness & Sleep.
-5. **Product split (later)** — if Study OS earns attention from other
+6. **Product split (later)** — if Study OS earns attention from other
    students, extract it behind its own domain; the personal tree just links
    to it.
 
