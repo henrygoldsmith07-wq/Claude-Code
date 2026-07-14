@@ -14,8 +14,15 @@ knowledge. Runs standalone or as step 1 of `/data-ingestion`.
    timestamp). If missing, default to 14 days ago.
 2. **Locate session data.** Claude Code stores transcripts under
    `~/.claude/projects/<project-slug>/*.jsonl`. List files modified after the
-   last sync point. If the directory doesn't exist or nothing is new, record
-   that and skip to step 6.
+   last sync point.
+   - **Cloud fallback**: in a fresh remote container (scheduled routine runs),
+     that directory is missing or holds only this session — the owner's desktop
+     CLI history is unreachable there. Do NOT report "nothing new"; instead
+     digest the *current* session so far (its task, outcome, mistakes,
+     corrections) as the sole entry, and state in the report that full local
+     history syncs only when this skill runs on the desktop.
+   - If there is genuinely nothing to digest (no history AND no meaningful
+     current-session activity), record that and skip to step 6.
 3. **Digest, don't dump.** For each new/updated session, extract only:
    - Date, project, one-line task description
    - Outcome (succeeded / abandoned / partial)

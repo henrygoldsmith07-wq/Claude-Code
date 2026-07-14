@@ -38,5 +38,6 @@ End with a single consolidated summary:
 - Wiki:      <rows added, topic pages created/updated>
 ```
 
-Do not commit unless the user asks; the improvement loop reviews these files
-before they're worth committing.
+When run by a scheduled routine, commit and push to `knowledge-base-updates`
+as the routine prompt instructs — an ephemeral container discards uncommitted
+work. Otherwise do not commit unless the user asks.
