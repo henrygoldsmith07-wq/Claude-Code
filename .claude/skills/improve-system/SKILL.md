@@ -70,4 +70,7 @@ answer inline.
 ```
 
 If there were zero findings in every tier, say so and skip creating a review
-file. Do not commit unless the user asks.
+file. When run by a scheduled routine, commit and push to
+`knowledge-base-updates` as the routine prompt instructs — an ephemeral
+container discards uncommitted work. Otherwise do not commit unless the user
+asks.
