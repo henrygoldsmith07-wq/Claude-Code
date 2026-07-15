@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { getFactorRatings } from "@/lib/ratings";
 import AppHeader from "@/components/AppHeader";
+import RatingBreakdown from "@/components/RatingBreakdown";
 
 export default async function LeaderboardPage() {
   const supabase = await createClient();
@@ -13,12 +15,15 @@ export default async function LeaderboardPage() {
     .order("total_points", { ascending: false })
     .limit(50);
 
+  const ratings = user ? await getFactorRatings(supabase, user.id) : null;
+
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
         <h1 className="text-2xl font-semibold tracking-tight">Leaderboard</h1>
-        <div className="overflow-hidden rounded-xl border border-[var(--rule)] bg-[var(--panel)]">
+        {ratings && <RatingBreakdown ratings={ratings} />}
+        <div className="surface-card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--rule)] text-left text-xs uppercase tracking-wide text-zinc-500">

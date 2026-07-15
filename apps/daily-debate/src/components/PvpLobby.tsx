@@ -47,11 +47,11 @@ export default function PvpLobby() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-8 text-center">
+    <div className="surface-card flex flex-col items-center gap-4 p-8 text-center">
       {searching ? (
         <>
           <p className="text-sm text-zinc-300">Looking for an opponent on today&apos;s topic…</p>
-          <button type="button" onClick={cancelSearch} className="rounded-full border border-[var(--rule)] px-4 py-2 text-sm text-zinc-300">
+          <button type="button" onClick={cancelSearch} className="btn btn-ghost px-4 py-2 text-sm">
             Cancel
           </button>
         </>
@@ -61,11 +61,7 @@ export default function PvpLobby() {
             You&apos;ll be randomly assigned a side and take turns arguing. After {5} rounds each, an AI judge scores
             the match and declares a winner.
           </p>
-          <button
-            type="button"
-            onClick={findOpponent}
-            className="rounded-full bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white"
-          >
+          <button type="button" onClick={findOpponent} className="btn btn-primary px-6 py-2.5 text-sm">
             Find an opponent
           </button>
         </>

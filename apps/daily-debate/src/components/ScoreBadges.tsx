@@ -14,7 +14,7 @@ export default function ScoreBadges({ scores }: { scores: TurnScores }) {
       {(Object.keys(LABELS) as (keyof TurnScores)[]).map((key) => (
         <span
           key={key}
-          className="tabular rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs text-[var(--accent)]"
+          className="chip-elevated tabular rounded-full px-2 py-0.5 text-xs text-[var(--accent)]"
         >
           {LABELS[key]} {scores[key]}/10
         </span>
