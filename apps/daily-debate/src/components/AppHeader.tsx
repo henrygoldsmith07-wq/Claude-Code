@@ -30,12 +30,15 @@ export default async function AppHeader() {
       </nav>
       <div className="flex items-center gap-4 text-sm">
         {profile && (
-          <span className="tabular text-zinc-400" title={`${pointsIntoLevel(profile.total_points)}/${POINTS_PER_LEVEL} pts into level ${profile.level}`}>
+          <span
+            className="chip-elevated tabular rounded-full px-3 py-1 text-zinc-300"
+            title={`${pointsIntoLevel(profile.total_points)}/${POINTS_PER_LEVEL} pts into level ${profile.level}`}
+          >
             Lvl {profile.level} · {profile.total_points} pts · 🔥 {profile.current_streak}
           </span>
         )}
         <form action={signOut}>
-          <button type="submit" className="text-zinc-500 hover:text-[var(--foreground)]">
+          <button type="submit" className="btn btn-ghost px-3 py-1 text-xs">
             Sign out
           </button>
         </form>

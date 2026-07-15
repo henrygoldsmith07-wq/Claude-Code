@@ -92,7 +92,7 @@ export default function PvpRoom({
         </p>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+      <div className="surface-card flex flex-1 flex-col gap-3 overflow-y-auto p-4">
         {turns.map((turn) => {
           const mine = turn.player_id === currentUserId;
           return (
@@ -117,7 +117,7 @@ export default function PvpRoom({
           <p className="text-center text-sm text-zinc-500">Waiting for your opponent…</p>
         )
       ) : (
-        <div className="flex flex-col gap-3 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+        <div className="surface-card flex flex-col gap-3 p-6">
           <h2 className="text-lg font-semibold">
             {match.winner_id === null
               ? "Tie!"
@@ -134,10 +134,10 @@ export default function PvpRoom({
             </>
           )}
           <div className="flex gap-3 pt-2">
-            <Link href="/pvp" className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white">
+            <Link href="/pvp" className="btn btn-primary px-4 py-2 text-sm">
               Find another match
             </Link>
-            <Link href="/leaderboard" className="rounded-full border border-[var(--rule)] px-4 py-2 text-sm text-zinc-300">
+            <Link href="/leaderboard" className="btn btn-ghost px-4 py-2 text-sm">
               Leaderboard
             </Link>
           </div>

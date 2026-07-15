@@ -74,7 +74,7 @@ export default function DebateRoom({
 
   if (result) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+      <div className="surface-card flex flex-col gap-4 p-6">
         <h2 className="text-xl font-semibold">Debate complete — {result.totalScore} pts</h2>
         <p className="text-sm text-zinc-300">{result.summary.overallFeedback}</p>
         {result.summary.strengths.length > 0 && (
@@ -98,10 +98,10 @@ export default function DebateRoom({
           </div>
         )}
         <div className="flex gap-3 pt-2">
-          <Link href="/" className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white">
+          <Link href="/" className="btn btn-primary px-4 py-2 text-sm">
             Back to today
           </Link>
-          <Link href="/leaderboard" className="rounded-full border border-[var(--rule)] px-4 py-2 text-sm text-zinc-300">
+          <Link href="/leaderboard" className="btn btn-ghost px-4 py-2 text-sm">
             View leaderboard
           </Link>
         </div>
@@ -124,7 +124,7 @@ export default function DebateRoom({
         </p>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+      <div className="surface-card flex flex-1 flex-col gap-4 overflow-y-auto p-4">
         {turns.map((turn) => (
           <div key={turn.id} className="flex flex-col gap-2">
             <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[var(--accent-soft)] px-3 py-2 text-sm">
@@ -152,7 +152,7 @@ export default function DebateRoom({
           type="button"
           onClick={finishDebate}
           disabled={finishing}
-          className="rounded-full border border-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent)] disabled:opacity-40"
+          className="btn chip-elevated px-4 py-2 text-sm text-[var(--accent)] disabled:opacity-40"
         >
           {finishing ? "Scoring your debate…" : "Finish & get scored"}
         </button>

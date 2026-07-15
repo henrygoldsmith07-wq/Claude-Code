@@ -30,7 +30,7 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
   }
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+    <div className="surface-card flex flex-col gap-6 p-6">
       <div>
         <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs text-[var(--accent)]">
           {topic.category}
@@ -53,10 +53,7 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
       </div>
 
       {activeDebateId ? (
-        <Link
-          href={`/debate/${activeDebateId}`}
-          className="rounded-full bg-[var(--accent)] px-4 py-2 text-center text-sm font-medium text-white"
-        >
+        <Link href={`/debate/${activeDebateId}`} className="btn btn-primary px-4 py-2 text-center text-sm">
           Continue your debate
         </Link>
       ) : (
@@ -67,8 +64,8 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
               type="button"
               onClick={() => setSide("for")}
               aria-pressed={side === "for"}
-              className={`flex-1 rounded-full border px-4 py-2 text-sm font-medium ${
-                side === "for" ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--rule)] text-zinc-400"
+              className={`btn flex-1 px-4 py-2 text-sm ${
+                side === "for" ? "chip-elevated text-[var(--accent)]" : "btn-ghost"
               }`}
             >
               Argue For
@@ -77,19 +74,14 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
               type="button"
               onClick={() => setSide("against")}
               aria-pressed={side === "against"}
-              className={`flex-1 rounded-full border px-4 py-2 text-sm font-medium ${
-                side === "against" ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--rule)] text-zinc-400"
+              className={`btn flex-1 px-4 py-2 text-sm ${
+                side === "against" ? "chip-elevated text-[var(--accent)]" : "btn-ghost"
               }`}
             >
               Argue Against
             </button>
           </div>
-          <button
-            type="button"
-            onClick={startDebate}
-            disabled={starting}
-            className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-          >
+          <button type="button" onClick={startDebate} disabled={starting} className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40">
             {starting ? "Starting…" : "Start solo debate"}
           </button>
           {error && <p className="text-sm text-[var(--bad)]">{error}</p>}

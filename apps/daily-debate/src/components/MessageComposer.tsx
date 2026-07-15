@@ -58,8 +58,8 @@ export default function MessageComposer({
             type="button"
             onClick={toggleListening}
             disabled={disabled}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
-              listening ? "border-[var(--bad)] text-[var(--bad)]" : "border-[var(--rule)] text-zinc-400"
+            className={`btn px-3 py-1.5 text-xs disabled:opacity-40 ${
+              listening ? "border border-[var(--bad)] text-[var(--bad)]" : "btn-ghost"
             }`}
           >
             {listening ? "● Listening… tap to stop" : "🎙️ Speak instead"}
@@ -71,7 +71,7 @@ export default function MessageComposer({
           type="button"
           onClick={submit}
           disabled={disabled || !displayValue.trim()}
-          className="rounded-full bg-[var(--accent)] px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+          className="btn btn-primary px-4 py-1.5 text-sm disabled:opacity-40"
         >
           Send
         </button>
