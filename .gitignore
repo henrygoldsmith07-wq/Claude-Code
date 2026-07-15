@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Runtime artifacts
+.claude-flow/
+
+# Secrets & local credentials — never commit these
+.env
+google_token.json
+msal_cache.bin
