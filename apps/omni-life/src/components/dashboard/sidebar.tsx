@@ -10,6 +10,7 @@ interface SidebarProps {
 export default function Sidebar({ activeSection }: SidebarProps) {
   const sections = [
     { id: 'overview', label: 'Overview', href: '/' },
+    { id: 'life-os', label: 'Life OS', href: '/os' },
     { id: 'health', label: 'Health', href: '/#health' },
     { id: 'finance', label: 'Finances', href: '/#finance' },
     { id: 'calendar', label: 'Calendar', href: '/#calendar' },
