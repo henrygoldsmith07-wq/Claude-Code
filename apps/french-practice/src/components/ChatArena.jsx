@@ -95,20 +95,33 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
 
   return (
     <div className="flex flex-col h-full">
-      {/* scenario selector */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/80 bg-slate-900/50">
-        <label htmlFor="scenario" className="sr-only">Scénario</label>
-        <select
-          id="scenario"
-          value={scenario.id}
-          onChange={(e) => changeScenario(e.target.value)}
-          className="flex-1 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500"
-        >
-          {SCENARIOS.map((s) => (
-            <option key={s.id} value={s.id}>{s.emoji} {s.title}</option>
-          ))}
-        </select>
-        <RateSlider rate={ttsRate} onChange={onTtsRate} />
+      {/* scenario card rail */}
+      <div className="border-b border-slate-800/80 bg-slate-900/50 px-3 pt-2.5 pb-2 space-y-1.5">
+        <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choix du scénario">
+          {SCENARIOS.map((s) => {
+            const active = s.id === scenario.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => changeScenario(s.id)}
+                aria-pressed={active}
+                className={`shrink-0 flex items-center gap-2 pl-2.5 pr-3.5 py-2 rounded-2xl border-2 border-b-4 text-left transition-colors ${
+                  active
+                    ? 'border-emerald-500 bg-emerald-500/10'
+                    : 'border-slate-700/70 bg-slate-800/60 hover:border-slate-500'
+                }`}
+              >
+                <span className="text-2xl" aria-hidden="true">{s.emoji}</span>
+                <span className={`text-xs font-extrabold whitespace-nowrap ${active ? 'text-emerald-300' : 'text-slate-300'}`}>
+                  {s.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex justify-end pr-1">
+          <RateSlider rate={ttsRate} onChange={onTtsRate} />
+        </div>
       </div>
 
       {/* transcript */}
@@ -128,7 +141,12 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
           </div>
         ))}
         {phase === 'thinking' && (
-          <div className="flex justify-start"><Spinner label="Votre partenaire réfléchit…" /></div>
+          <div className="flex items-end gap-2 bubble-in" aria-label="Votre partenaire écrit…">
+            <Avatar />
+            <div className="bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3.5 flex gap-1.5">
+              <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+            </div>
+          </div>
         )}
         {error && (
           <p role="alert" className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2">
@@ -188,7 +206,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
               <button
                 onClick={() => send(draft)}
                 disabled={!draft.trim()}
-                className="flex-1 min-h-11 rounded-xl bg-emerald-500 text-slate-950 font-bold text-sm hover:bg-emerald-400 active:scale-[0.98] transition disabled:opacity-40"
+                className="btn-3d btn-3d-emerald flex-1 min-h-11 rounded-2xl font-extrabold text-sm"
               >
                 Envoyer →
               </button>
@@ -199,7 +217,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
             <button
               onClick={askHint}
               disabled={busy || hintLevel >= 3}
-              className="min-h-11 px-3 rounded-xl bg-slate-800 text-amber-300 text-xs font-semibold hover:bg-slate-700 disabled:opacity-40 whitespace-nowrap"
+              className="btn-3d btn-3d-amber min-h-11 px-3 rounded-2xl border text-xs font-extrabold whitespace-nowrap"
             >
               💡 {hintLevel === 0 ? 'Un indice' : `Indice ${Math.min(3, hintLevel + 1)}/3`}
             </button>
@@ -221,7 +239,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
               onClick={recorder.start}
               disabled={busy}
               aria-label="Enregistrer ma réponse"
-              className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xl grid place-items-center shadow-lg shadow-emerald-500/25 active:scale-90 transition disabled:opacity-40"
+              className="btn-3d btn-3d-emerald w-14 h-14 rounded-full text-xl grid place-items-center shadow-lg shadow-emerald-500/25"
             >
               {phase === 'transcribing' ? <span className="w-5 h-5 rounded-full border-2 border-slate-900 border-t-transparent animate-spin" /> : '🎙️'}
             </button>
@@ -234,11 +252,22 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
   );
 }
 
+function Avatar() {
+  return (
+    <span
+      className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-600/30 border border-emerald-500/40 grid place-items-center text-lg mb-1"
+      aria-hidden="true"
+    >
+      🇫🇷
+    </span>
+  );
+}
+
 function AiBubble({ text, translation, ttsRate }) {
   const [showTranslation, setShowTranslation] = useState(false);
   return (
     <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%] bubble-in">
-      <span className="text-xl mb-1" aria-hidden="true">🇫🇷</span>
+      <Avatar />
       <div className="bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3 space-y-2">
         <p className="text-[15px] text-slate-100 leading-relaxed">{text}</p>
         {showTranslation && <p className="text-xs text-slate-400 italic border-t border-slate-700 pt-2">{translation}</p>}
@@ -262,7 +291,7 @@ function UserBubble({ turn }) {
   return (
     <div className="flex flex-col items-end gap-1.5 bubble-in">
       <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%]">
-        <div className="bg-emerald-600/90 rounded-2xl rounded-br-md px-4 py-3">
+        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl rounded-br-md px-4 py-3 shadow-md shadow-emerald-900/40">
           <p className="text-[15px] text-white leading-relaxed">{turn.userText}</p>
         </div>
         <ScoreBadge value={evaluation.scores.overall} />

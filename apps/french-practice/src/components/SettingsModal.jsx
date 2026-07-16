@@ -88,7 +88,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
                 <button
                   onClick={save}
                   disabled={state === 'checking' || !draft.trim()}
-                  className="px-4 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold disabled:opacity-40 hover:bg-emerald-400 active:scale-95 transition min-h-12"
+                  className="btn-3d btn-3d-emerald px-4 rounded-2xl text-sm font-extrabold min-h-12"
                 >
                   {state === 'checking' ? '…' : 'Valider'}
                 </button>

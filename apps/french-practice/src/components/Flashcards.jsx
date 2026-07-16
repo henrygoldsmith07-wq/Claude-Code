@@ -52,11 +52,20 @@ export default function Flashcards({ apiKey, mockMode }) {
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-md mx-auto space-y-5">
         <div className="text-center">
-          <h2 className="text-lg font-bold text-slate-100">🃏 « Du coup » — Mots de liaison</h2>
+          <h2 className="text-lg font-extrabold text-slate-100">🃏 « Du coup » — Mots de liaison</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Carte {index + 1}/{FLASHCARDS.length}
-            {cardSrs && <span className="ml-2 text-teal-400">· révisée ×{cardSrs.reps}, intervalle {cardSrs.interval} j</span>}
+            {cardSrs && <span className="text-teal-400">révisée ×{cardSrs.reps} · intervalle {cardSrs.interval} j</span>}
           </p>
+          <div className="flex justify-center gap-1.5 mt-2" aria-label={`Carte ${index + 1} sur ${FLASHCARDS.length}`}>
+            {FLASHCARDS.map((c, i) => (
+              <span
+                key={c.id}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? 'w-5 bg-emerald-400' : srs[c.id] ? 'w-1.5 bg-teal-600' : 'w-1.5 bg-slate-700'
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* 3D flip card */}
@@ -133,7 +142,7 @@ export default function Flashcards({ apiKey, mockMode }) {
                 <button
                   onClick={submitSentence}
                   disabled={!challenge.sentence.trim()}
-                  className="w-full min-h-11 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold hover:bg-emerald-400 disabled:opacity-40"
+                  className="btn-3d btn-3d-emerald w-full min-h-11 rounded-2xl text-sm font-extrabold"
                 >
                   Vérifier ma phrase
                 </button>

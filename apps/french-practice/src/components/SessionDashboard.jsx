@@ -149,7 +149,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
               <div className="flex gap-3">
                 <button
                   onClick={share}
-                  className="min-h-11 px-5 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold hover:bg-emerald-400 active:scale-95 transition"
+                  className="btn-3d btn-3d-emerald min-h-11 px-5 rounded-2xl text-sm font-extrabold"
                 >
                   📤 Carte de progrès
                 </button>

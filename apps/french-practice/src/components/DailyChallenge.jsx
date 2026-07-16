@@ -113,7 +113,7 @@ export default function DailyChallenge({ apiKey, mockMode }) {
         ) : (
           <button
             onClick={() => { setResult(null); recorder.start(); }}
-            className="min-h-13 px-8 py-3.5 rounded-2xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 active:scale-95 transition shadow-lg shadow-emerald-500/25"
+            className="btn-3d btn-3d-emerald min-h-13 px-8 py-3.5 rounded-2xl font-extrabold shadow-lg shadow-emerald-500/25"
           >
             🎙️ C'est parti !
           </button>

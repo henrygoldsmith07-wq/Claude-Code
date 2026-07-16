@@ -6,6 +6,7 @@ const KEYS = {
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel }
+  xp: 'fp.xp', // lifetime experience points
 };
 
 function read(key, fallback) {
@@ -42,6 +43,16 @@ export function saveSession(summary) {
   sessions.push({ ...summary, date: new Date().toISOString() });
   write(KEYS.sessions, sessions.slice(-10));
   bumpStreak();
+}
+
+// ---- experience points (10 XP per point of overall turn score / 10) ----
+
+export const getXp = () => read(KEYS.xp, 0);
+
+export function addXp(amount) {
+  const total = getXp() + Math.max(0, Math.round(amount));
+  write(KEYS.xp, total);
+  return total;
 }
 
 // ---- daily streak ----
