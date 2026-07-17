@@ -59,6 +59,11 @@ validated against the `/models` endpoint before being stored. Or flip on
   mini-podcasts (monologues), two-voice dialogues (distinct French voices or
   pitch-shifted speakers), radio-style news bulletins, and movie-style scenes.
   Dictée lives here too. All audio is synthesized locally — no external media.
+- **Reading hub** — graded readers, a branching interactive story ("La porte
+  bleue" — you choose what happens), magazine articles, news items, and
+  public-domain classics (La Fontaine). Dual-language toggle, per-word
+  tap-to-translate (text gloss → vocabulary dictionary → cached LLM lookup)
+  with one-tap save to the notebook, and comprehension quizzes.
 - **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
   feelings, a picture deck of everyday objects, idioms, slang & argot,
   regional French (Québec/Belgium/South) and filler words. Every card has a

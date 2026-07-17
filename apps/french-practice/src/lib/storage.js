@@ -12,6 +12,7 @@ const KEYS = {
   habits: 'fp.habits', // [{ text, key, count, lastSeen }] — recurring mistakes
   notebook: 'fp.notebook', // [{ id, fr, en, note, addedAt }] — saved words
   grammar: 'fp.grammar', // { [topicId]: { best, attempts, lastAt } } — quiz results
+  wordCache: 'fp.wordCache', // { [word]: translation } — tap-to-translate lookups
 };
 
 function read(key, fallback) {
@@ -158,6 +159,18 @@ export function removeFromNotebook(id) {
   const nb = getNotebook().filter((e) => e.id !== id);
   write(KEYS.notebook, nb);
   return nb;
+}
+
+// ---- tap-to-translate word cache ----
+
+export const getCachedWord = (word) => read(KEYS.wordCache, {})[word] ?? null;
+
+export function cacheWord(word, translation) {
+  const cache = read(KEYS.wordCache, {});
+  cache[word] = translation;
+  const keys = Object.keys(cache);
+  if (keys.length > 500) delete cache[keys[0]]; // crude LRU-ish cap
+  write(KEYS.wordCache, cache);
 }
 
 // ---- grammar quiz progress ----

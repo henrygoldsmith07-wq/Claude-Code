@@ -9,6 +9,7 @@ import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
 import Speaking from './components/Speaking';
 import Listening from './components/Listening';
+import Reading from './components/Reading';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
@@ -17,13 +18,14 @@ import {
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Volume, Layers, Terminal, Book } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Volume, BookOpen, Layers, Terminal, Book } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
   ['speaking', Mic, 'Speaking'],
   ['listening', Volume, 'Listening'],
+  ['reading', BookOpen, 'Reading'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
 ];
@@ -258,6 +260,9 @@ export default function App() {
               onXp={awardXp}
               onActivity={handleActivity}
             />
+          )}
+          {tab === 'reading' && (
+            <Reading apiKey={apiKey} mockMode={settings.mockMode} onXp={awardXp} />
           )}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'grammar' && (

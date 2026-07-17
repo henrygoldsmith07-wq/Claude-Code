@@ -232,6 +232,20 @@ export async function accentFeedback(apiKey, { target, heard, level = 'B1', mock
   return String(json.feedback || '');
 }
 
+// ---- tap-to-translate single-word lookup ----
+
+export async function translateWord(apiKey, { word, context, mock }) {
+  if (mock) return '(mock translation — add an API key for real lookups)';
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: 'You are a French-English dictionary. Given a French word and the sentence it appears in, reply ONLY as JSON: {"translation": "concise English translation of the word AS USED in that sentence (max 8 words, include the base form if inflected)"}',
+    },
+    { role: 'user', content: `Word: "${word}"\nSentence: "${context}"` },
+  ], { label: 'translate-word', temperature: 0.2 });
+  return String(json.translation || '');
+}
+
 // ---- flashcard sentence verification ----
 
 export async function checkSentence(apiKey, { card, sentence, mock }) {
