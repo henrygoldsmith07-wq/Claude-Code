@@ -8,6 +8,7 @@ import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
 import Speaking from './components/Speaking';
+import Listening from './components/Listening';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
@@ -16,12 +17,13 @@ import {
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Volume, Layers, Terminal, Book } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
   ['speaking', Mic, 'Speaking'],
+  ['listening', Volume, 'Listening'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
 ];
@@ -50,6 +52,7 @@ export default function App() {
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
   const [speakingMode, setSpeakingMode] = useState(null); // null = hub; deep-linked by Home/path
+  const [listeningMode, setListeningMode] = useState(null); // null = hub; 'dictation' | track id
 
   useEffect(() => {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
@@ -113,8 +116,8 @@ export default function App() {
         setLastScores(null);
       }
     }
-    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'speaking', cards: 'cards', quickfire: 'speaking' };
-    if (lesson.type === 'dictation') setSpeakingMode('dictation');
+    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'listening', cards: 'cards', quickfire: 'speaking' };
+    if (lesson.type === 'dictation') setListeningMode('dictation');
     if (lesson.type === 'quickfire') setSpeakingMode('quickfire');
     setTab(tabFor[lesson.type] || 'arena');
   };
@@ -243,6 +246,15 @@ export default function App() {
               mockMode={settings.mockMode}
               ttsRate={settings.ttsRate}
               level={settings.level}
+              onXp={awardXp}
+              onActivity={handleActivity}
+            />
+          )}
+          {tab === 'listening' && (
+            <Listening
+              mode={listeningMode}
+              onModeChange={setListeningMode}
+              ttsRate={settings.ttsRate}
               onXp={awardXp}
               onActivity={handleActivity}
             />

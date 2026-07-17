@@ -54,6 +54,11 @@ validated against the `/models` endpoint before being stored. Or flip on
   - **Dictée** — pure listening drill: type what you hear, word-diff scored.
 - **Free Talk** — an open-ended Arena scenario with no script: your partner
   follows your lead, asks open questions, and still scores every turn.
+- **Listening hub** — TTS-narrated tracks with listen-first transcripts,
+  per-line highlighting, a 0.5–1.5× speed slider and comprehension quizzes:
+  mini-podcasts (monologues), two-voice dialogues (distinct French voices or
+  pitch-shifted speakers), radio-style news bulletins, and movie-style scenes.
+  Dictée lives here too. All audio is synthesized locally — no external media.
 - **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
   feelings, a picture deck of everyday objects, idioms, slang & argot,
   regional French (Québec/Belgium/South) and filler words. Every card has a

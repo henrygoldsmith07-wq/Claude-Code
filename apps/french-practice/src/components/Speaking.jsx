@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import DailyChallenge from './DailyChallenge';
-import Dictation from './Dictation';
 import Pronunciation from './Pronunciation';
-import { Mic, Volume, Clock, MessageCircle, ChevronLeft, ChevronRight } from './icons';
+import { Mic, Clock, MessageCircle, ChevronLeft, ChevronRight } from './icons';
 
 // Speaking hub: the practice drills that aren't full conversations.
 // Pronunciation (read aloud) and Shadowing (listen & repeat) score your
-// speech via Whisper; Quick Fire builds flow; Dictée trains the ear.
+// speech via Whisper; Quick Fire builds flow.
 
 const MODES = [
   {
@@ -27,12 +26,6 @@ const MODES = [
     title: 'Quick Fire',
     subtitle: '45 seconds of open improv with WPM tracking',
   },
-  {
-    id: 'dictation',
-    icon: Volume,
-    title: 'Dictée',
-    subtitle: 'Type what you hear — pure listening training',
-  },
 ];
 
 export default function Speaking({ mode, onModeChange, apiKey, mockMode, ttsRate, level, onXp, onActivity }) {
@@ -46,7 +39,7 @@ export default function Speaking({ mode, onModeChange, apiKey, mockMode, ttsRate
           <div className="text-center">
             <h2 className="text-lg font-semibold text-ink">Speaking practice</h2>
             <p className="text-xs text-ink2 mt-1">
-              Short drills for the mouth and the ear. For full conversations, head to the Arena.
+              Short drills for the mouth. Full conversations live in the Arena; ear training in Listening.
             </p>
           </div>
           <div className="space-y-2.5">
@@ -94,7 +87,6 @@ export default function Speaking({ mode, onModeChange, apiKey, mockMode, ttsRate
           <Pronunciation mode="shadow" apiKey={apiKey} mockMode={mockMode} ttsRate={ttsRate} level={level} onXp={onXp} />
         )}
         {mode === 'quickfire' && <DailyChallenge apiKey={apiKey} mockMode={mockMode} onActivity={onActivity} />}
-        {mode === 'dictation' && <Dictation ttsRate={ttsRate} onXp={onXp} onActivity={onActivity} />}
       </div>
     </div>
   );
