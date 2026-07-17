@@ -4,6 +4,7 @@ import Waveform from './Waveform';
 import { randomTopic } from '../lib/data';
 import { transcribe } from '../lib/groq';
 import { Spinner } from './ui';
+import { RefreshCw, Mic, Square } from './icons';
 
 // "Think on Your Feet": random topic, 45-second countdown, WPM flow tracking.
 
@@ -72,7 +73,7 @@ export default function DailyChallenge({ apiKey, mockMode }) {
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-lg mx-auto space-y-6 text-center">
         <div>
-          <h2 className="text-lg font-bold text-ink">⚡ Quick Fire</h2>
+          <h2 className="text-lg font-bold text-ink">Quick Fire</h2>
           <p className="text-xs text-ink2 mt-1">45 seconds to improvise on a French topic. No prep!</p>
         </div>
 
@@ -80,8 +81,8 @@ export default function DailyChallenge({ apiKey, mockMode }) {
           <p className="text-[11px] uppercase tracking-wider text-ink2 font-bold mb-2">Your topic</p>
           <p className="text-lg text-ink font-medium leading-snug" lang="fr">{topic.fr}</p>
           <p className="text-xs text-ink3 italic mt-1.5">{topic.en}</p>
-          <button onClick={newTopic} disabled={recorder.recording} className="mt-3 text-xs text-ink2 hover:text-ink min-h-9 disabled:opacity-40">
-            🎲 New topic
+          <button onClick={newTopic} disabled={recorder.recording} className="mt-3 inline-flex items-center gap-1.5 text-xs text-ink2 hover:text-ink min-h-9 disabled:opacity-40">
+            <RefreshCw size={12} /> New topic
           </button>
         </div>
 
@@ -99,7 +100,7 @@ export default function DailyChallenge({ apiKey, mockMode }) {
               />
             </svg>
             <div className="absolute inset-0 grid place-items-center">
-              <span className="text-3xl font-black text-ink tabular-nums">{remaining}</span>
+              <span className="text-3xl font-bold text-ink tabular-nums">{remaining}</span>
             </div>
           </div>
         </div>
@@ -112,7 +113,7 @@ export default function DailyChallenge({ apiKey, mockMode }) {
               className="rec-pulse w-16 h-16 mx-auto rounded-full bg-accent text-onaccent text-2xl grid place-items-center active:scale-90 transition"
               aria-label="Finish now"
             >
-              ◼
+              <Square size={20} />
             </button>
           </div>
         ) : transcribing ? (
@@ -120,9 +121,9 @@ export default function DailyChallenge({ apiKey, mockMode }) {
         ) : (
           <button
             onClick={() => { setResult(null); recorder.start(); }}
-            className="btn-3d btn-3d-primary min-h-13 px-8 py-3.5 rounded-2xl font-extrabold shadow-lg shadow-black/15"
+            className="btn btn-primary min-h-13 px-8 py-3.5 rounded-xl"
           >
-            🎙️ Go!
+            <Mic size={16} /> Start speaking
           </button>
         )}
 
@@ -138,8 +139,8 @@ export default function DailyChallenge({ apiKey, mockMode }) {
               <Stat label="Seconds" value={result.seconds} />
             </div>
             <p className="text-[11px] text-ink3 text-center">
-              {result.wpm >= 100 ? 'Very fluid pace — relaxed native level! 🚀'
-                : result.wpm >= 70 ? 'Good conversational pace, keep going! 👏'
+              {result.wpm >= 100 ? 'Very fluid pace — relaxed native level.'
+                : result.wpm >= 70 ? 'Good conversational pace, keep going.'
                 : result.wpm >= 40 ? 'Steady pace — aim for 70+ words/min for more flow.'
                 : 'Build confidence: keep talking without stopping, mistakes and all.'}
             </p>
@@ -157,7 +158,7 @@ export default function DailyChallenge({ apiKey, mockMode }) {
 function Stat({ label, value, accent }) {
   return (
     <div>
-      <div className={`text-2xl font-black tabular-nums ${accent ? 'text-ink' : 'text-ink'}`}>{value}</div>
+      <div className={`text-2xl font-bold tabular-nums ${accent ? 'text-ink' : 'text-ink'}`}>{value}</div>
       <div className="text-[10px] text-ink3 mt-0.5">{label}</div>
     </div>
   );

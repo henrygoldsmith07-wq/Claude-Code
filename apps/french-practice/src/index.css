@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
-/* Nunito variable font, self-hosted (no CDN dependency) */
+/* Inter variable font, self-hosted (no CDN dependency) */
 @font-face {
-  font-family: "Nunito";
+  font-family: "Inter";
   font-style: normal;
   font-weight: 200 1000;
   font-display: swap;
-  src: url("./assets/fonts/nunito-latin.woff2") format("woff2");
+  src: url("./assets/fonts/inter-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Nunito";
+  font-family: "Inter";
   font-style: normal;
   font-weight: 200 1000;
   font-display: swap;
-  src: url("./assets/fonts/nunito-latin-ext.woff2") format("woff2");
+  src: url("./assets/fonts/inter-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -30,7 +30,6 @@
   --ink-3: #9b9b9b;
   --accent: #111111;
   --on-accent: #fafafa;
-  --edge: #8a8a8a; /* 3D button bottom edge, works on both themes */
 }
 .dark {
   color-scheme: dark;
@@ -43,12 +42,11 @@
   --ink-3: #6b6b6b;
   --accent: #f5f5f5;
   --on-accent: #0a0a0a;
-  --edge: #7a7a7a;
 }
 
 /* expose the tokens as Tailwind color utilities (bg-surface, text-ink, …) */
 @theme inline {
-  --font-sans: "Nunito", "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface2: var(--surface-2);
@@ -71,22 +69,32 @@ body {
   transition: background-color 0.25s ease;
 }
 
-/* ---- chunky "press-down" buttons ---- */
-.btn-3d {
-  border-bottom-width: 4px;
-  transition: transform 0.08s ease, border-bottom-width 0.08s ease, filter 0.15s ease;
+/* ---- refined flat buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.1s ease, box-shadow 0.15s ease;
 }
-.btn-3d:active:not(:disabled) {
-  border-bottom-width: 0px;
-  transform: translateY(4px);
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { opacity: 0.4; }
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
-.btn-3d:disabled { opacity: 0.4; }
-.btn-3d-primary { background: var(--accent); border-color: var(--edge); color: var(--on-accent); }
-.btn-3d-primary:hover:not(:disabled) { filter: brightness(0.92); }
-.dark .btn-3d-primary:hover:not(:disabled) { filter: brightness(1.1); }
-.btn-3d-secondary { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
-.btn-3d-secondary:hover:not(:disabled) { filter: brightness(0.96); }
-.dark .btn-3d-secondary:hover:not(:disabled) { filter: brightness(1.2); }
+.btn-primary:hover:not(:disabled) { filter: brightness(0.9); }
+.dark .btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--ink-3); }
 
 /* ---- typing indicator (three bouncing dots) ---- */
 @keyframes dot-bounce {

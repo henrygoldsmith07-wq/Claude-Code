@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, Spinner } from './ui';
+import { X as XIcon } from './icons';
 import { validateKey } from '../lib/groq';
 import { setApiKey, clearApiKey } from '../lib/storage';
 
@@ -20,7 +21,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
       setApiKey(key);
       onKeyChange(key);
       setState('ok');
-      setMessage(`Key validated in ${latency} ms ✓`);
+      setMessage(`Key validated in ${latency} ms`);
       setDraft('');
     } catch (e) {
       setState('bad');
@@ -52,7 +53,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
             aria-label="Close"
             className="w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2"
           >
-            ✕
+            <XIcon size={16} />
           </button>
         </div>
 
@@ -88,7 +89,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
                 <button
                   onClick={save}
                   disabled={state === 'checking' || !draft.trim()}
-                  className="btn-3d btn-3d-primary px-4 rounded-2xl text-sm font-extrabold min-h-12"
+                  className="btn btn-primary px-4 rounded-xl text-sm min-h-12"
                 >
                   {state === 'checking' ? '…' : 'Validate'}
                 </button>

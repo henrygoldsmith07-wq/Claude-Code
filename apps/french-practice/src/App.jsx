@@ -9,11 +9,12 @@ import SettingsModal from './components/SettingsModal';
 import { SCENARIOS } from './lib/data';
 import { getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, MessageCircle, Clock, Layers, Terminal } from './components/icons';
 
 const TABS = [
-  ['arena', '💬', 'Arena'],
-  ['challenge', '⚡', 'Quick Fire'],
-  ['cards', '🃏', 'Cards'],
+  ['arena', MessageCircle, 'Arena'],
+  ['challenge', Clock, 'Quick Fire'],
+  ['cards', Layers, 'Cards'],
 ];
 
 export default function App() {
@@ -77,23 +78,22 @@ export default function App() {
     <div className="h-dvh flex flex-col bg-bg text-ink font-sans">
       {/* header */}
       <header className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-surface backdrop-blur">
-        <h1 className="font-black text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
-          <span className="text-ink">Le Studio</span>{' '}
-          <span aria-hidden="true" className="hidden sm:inline">🗣️</span>
-          <span className="sr-only">French speaking practice</span>
+        <h1 className="font-bold text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
+          Le Studio
+          <span className="sr-only"> — French speaking practice</span>
         </h1>
         <span
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold whitespace-nowrap ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
             streak.count > 0 ? 'bg-surface2 text-ink' : 'bg-surface2 text-ink3'
           }`}
           title="Day streak"
         >
-          🔥 {streak.count}
+          <Flame size={13} /> {streak.count}
         </span>
-        <span className="relative flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-extrabold whitespace-nowrap" title="Experience points">
-          ⚡ {xp.toLocaleString('en-GB')} XP
+        <span className="relative flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-semibold whitespace-nowrap" title="Experience points">
+          <Bolt size={13} /> {xp.toLocaleString('en-GB')} XP
           {xpGain && (
-            <span key={xpGain.id} className="xp-pop absolute -top-1 right-0 text-ink font-black text-xs pointer-events-none">
+            <span key={xpGain.id} className="xp-pop absolute -top-1 right-0 text-ink font-bold text-xs pointer-events-none">
               +{xpGain.amount}
             </span>
           )}
@@ -102,9 +102,9 @@ export default function App() {
           {tab === 'arena' && history.length > 0 && (
             <button
               onClick={endSession}
-              className="btn-3d btn-3d-secondary min-h-10 px-3.5 rounded-2xl border text-xs font-extrabold"
+              className="btn btn-secondary min-h-10 px-3.5 rounded-xl text-xs"
             >
-              🏁 End Session
+              End Session
             </button>
           )}
           <button
@@ -113,14 +113,14 @@ export default function App() {
             title={isDark ? 'Light mode' : 'Dark mode'}
             className="w-10 h-10 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink text-lg"
           >
-            {isDark ? '☀️' : '🌙'}
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <button
             onClick={() => setSettingsOpen(true)}
             aria-label="Settings"
             className="w-10 h-10 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink text-lg"
           >
-            ⚙️
+            <Gear size={18} />
           </button>
         </div>
       </header>
@@ -129,16 +129,16 @@ export default function App() {
       {!ready && (
         <button
           onClick={() => setSettingsOpen(true)}
-          className="fade-in mx-4 mt-3 flex items-center gap-3 text-left bg-surface2 border-2 border-b-4 border-line rounded-2xl px-4 py-3 hover:border-ink3 transition"
+          className="fade-in mx-4 mt-3 flex items-center gap-3 text-left bg-surface2 border border-line rounded-xl px-4 py-3 hover:border-ink3 transition"
         >
-          <span className="text-3xl" aria-hidden="true">🔑</span>
+          <span className="w-10 h-10 grid place-items-center rounded-xl bg-surface border border-line text-ink" aria-hidden="true"><Key size={18} /></span>
           <span className="flex-1">
-            <span className="block text-sm font-extrabold text-ink">Welcome to the Studio!</span>
+            <span className="block text-sm font-semibold text-ink">Welcome to the Studio!</span>
             <span className="block text-xs text-ink2 mt-0.5">
               Add your free Groq API key to start speaking French — tap here.
             </span>
           </span>
-          <span className="text-ink font-black" aria-hidden="true">→</span>
+          <span className="text-ink2" aria-hidden="true"><ArrowRight size={16} /></span>
         </button>
       )}
 
@@ -178,7 +178,7 @@ export default function App() {
         {TABS.map(([id, icon, label]) => (
           <TabButton key={id} id={id} icon={icon} label={label} active={tab === id} onClick={setTab} />
         ))}
-        {settings.devPanel && <TabButton id="dev" icon="🛠" label="Dev" active={tab === 'dev'} onClick={setTab} />}
+        {settings.devPanel && <TabButton id="dev" icon={Terminal} label="Dev" active={tab === 'dev'} onClick={setTab} />}
       </nav>
 
       <SettingsModal
@@ -202,22 +202,17 @@ export default function App() {
   );
 }
 
-function TabButton({ id, icon, label, active, onClick }) {
+function TabButton({ id, icon: TabIcon, label, active, onClick }) {
   return (
     <button
       onClick={() => onClick(id)}
       aria-current={active ? 'page' : undefined}
-      className="flex-1 flex flex-col items-center gap-0.5 py-2 min-h-14 text-[11px] font-extrabold transition-colors"
+      className={`flex-1 flex flex-col items-center gap-1 py-2.5 min-h-14 text-[11px] font-medium transition-colors ${
+        active ? 'text-ink' : 'text-ink3 hover:text-ink2'
+      }`}
     >
-      <span
-        aria-hidden="true"
-        className={`text-lg px-4 py-0.5 rounded-full transition-all ${
-          active ? 'bg-surface2 scale-105' : ''
-        }`}
-      >
-        {icon}
-      </span>
-      <span className={active ? 'text-ink' : 'text-ink3'}>{label}</span>
+      <TabIcon size={18} />
+      {label}
     </button>
   );
 }
