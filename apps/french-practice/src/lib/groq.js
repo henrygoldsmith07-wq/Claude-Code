@@ -1,7 +1,7 @@
 // Groq API client — pure fetch, no SDK. Every call reports latency + token
 // usage to an optional telemetry sink so the Dev Panel can display metrics.
 
-import { mockTurn, mockReport, mockHint, mockSentenceCheck, mockAccentFeedback } from './mocks';
+import { mockTurn, mockReport, mockHint, mockSentenceCheck, mockAccentFeedback, mockWritingFeedback, mockCompletion } from './mocks';
 
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';
@@ -230,6 +230,52 @@ export async function accentFeedback(apiKey, { target, heard, level = 'B1', mock
     },
   ], { label: 'accent-feedback', temperature: 0.4 });
   return String(json.feedback || '');
+}
+
+// ---- writing correction & essay feedback ----
+
+export async function writingFeedback(apiKey, { text, prompt, level = 'B1', depth = 'quick', mock }) {
+  if (mock) return mockWritingFeedback(depth);
+  const essay = depth === 'essay';
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: `You are a French writing teacher reviewing a CEFR ${level} learner's ${essay ? 'essay' : 'short text'}${prompt ? ` written to the prompt: "${prompt}"` : ''}.
+${LEVEL_NOTES[level] || LEVEL_NOTES.B1}
+Reply ONLY as JSON:
+{
+  "corrections": "Markdown corrections IN ENGLISH quoting the French. Wrap wrong French in <s></s> and fixes in <mark></mark>. Cover every real error${essay ? ', grouped by type' : ''}.",
+  "strengths": ["1-3 specific things done well, quoting their French"],
+  "suggestions": ["${essay ? '2-3 concrete improvements: structure, connectors, register, richer vocabulary' : '1-2 quick wins for next time'}"],
+  "scores": { "grammar": 0-100, "vocabulary": 0-100${essay ? ', "structure": 0-100' : ''}, "overall": 0-100 }
+}`,
+    },
+    { role: 'user', content: text },
+  ], { label: essay ? 'essay-feedback' : 'writing-feedback', temperature: 0.4 });
+  const scores = json.scores || {};
+  for (const k of Object.keys(scores)) {
+    scores[k] = Math.max(0, Math.min(100, Math.round(Number(scores[k]) || 0)));
+  }
+  return {
+    corrections: String(json.corrections || ''),
+    strengths: Array.isArray(json.strengths) ? json.strengths.map(String) : [],
+    suggestions: Array.isArray(json.suggestions) ? json.suggestions.map(String) : [],
+    scores,
+  };
+}
+
+// ---- sentence-completion judging ----
+
+export async function judgeCompletion(apiKey, { starter, completion, level = 'B1', mock }) {
+  if (mock) return mockCompletion();
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: `A CEFR ${level} French learner must complete the sentence starter "${starter}" naturally and grammatically. Judge their completion of the FULL sentence. Reply ONLY as JSON: {"natural": true|false, "feedback": "short feedback in English quoting the French; if flawed, give the corrected full sentence"}`,
+    },
+    { role: 'user', content: `${starter} ${completion}` },
+  ], { label: 'completion-check', temperature: 0.3 });
+  return { natural: Boolean(json.natural), feedback: String(json.feedback || '') };
 }
 
 // ---- tap-to-translate single-word lookup ----

@@ -43,7 +43,7 @@ validated against the `/models` endpoint before being stored. Or flip on
   into a graded report: strengths, stubborn habits, tomorrow's focus, progress
   rings, canvas radar chart, 10-session trend line, streaks, and a shareable
   PNG progress card.
-- **Speaking hub** — four drills in one tab:
+- **Speaking hub** — drills for the mouth (under the Skills tab):
   - **Pronunciation** — read a sentence aloud; Whisper transcribes it and a
     word-level diff scores how much was recognized, with unrecognized words
     underlined as trouble spots and an LLM "accent coach" naming the exact
@@ -59,6 +59,11 @@ validated against the `/models` endpoint before being stored. Or flip on
   mini-podcasts (monologues), two-voice dialogues (distinct French voices or
   pitch-shifted speakers), radio-style news bulletins, and movie-style scenes.
   Dictée lives here too. All audio is synthesized locally — no external media.
+- **Writing hub** — a typing drill (copy sentences exactly, accents and all),
+  sentence completion judged by the AI, free writing from prompts with full
+  correction, and an essay studio with structured feedback (corrections,
+  strengths, suggestions, grammar/vocabulary/structure scores). Handwriting
+  support is intentionally omitted — French uses the Latin script.
 - **Reading hub** — graded readers, a branching interactive story ("La porte
   bleue" — you choose what happens), magazine articles, news items, and
   public-domain classics (La Fontaine). Dual-language toggle, per-word

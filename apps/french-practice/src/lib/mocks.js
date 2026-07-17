@@ -54,6 +54,27 @@ export function mockAccentFeedback() {
   return "Good rhythm overall. The recognizer stumbled on «voudrais» — make sure the French r comes from the back of the throat, and round your lips tightly for the u in «du». (Mock mode — add a real API key for genuine accent analysis.)";
 }
 
+export function mockWritingFeedback(depth) {
+  const essay = depth === 'essay';
+  return {
+    corrections: "Nice work overall. One slip: <s>je suis allé au la plage</s> <mark>je suis allé à la plage</mark> — «à + la» never contracts. (Mock mode.)",
+    strengths: ['Good use of the passé composé («je suis allé»).', 'Clear, simple sentence rhythm.'],
+    suggestions: essay
+      ? ['Add connectors between paragraphs («d\'abord», «ensuite», «enfin»).', 'Vary sentence openings — three sentences start with «je».']
+      : ['Try one sentence with «qui» or «que» next time.'],
+    scores: essay
+      ? { grammar: 82, vocabulary: 76, structure: 70, overall: 76 }
+      : { grammar: 84, vocabulary: 78, overall: 81 },
+  };
+}
+
+export function mockCompletion() {
+  return {
+    natural: true,
+    feedback: 'Natural and correct — «Si j\'avais le temps, je voyagerais plus» is exactly right. (Mock mode.)',
+  };
+}
+
 export function mockReport() {
   return {
     session_grade: 'B+',

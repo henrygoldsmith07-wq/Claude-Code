@@ -7,9 +7,7 @@ import Grammar from './components/Grammar';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
-import Speaking from './components/Speaking';
-import Listening from './components/Listening';
-import Reading from './components/Reading';
+import Skills from './components/Skills';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
@@ -18,14 +16,12 @@ import {
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Volume, BookOpen, Layers, Terminal, Book } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
-  ['speaking', Mic, 'Speaking'],
-  ['listening', Volume, 'Listening'],
-  ['reading', BookOpen, 'Reading'],
+  ['skills', Mic, 'Skills'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
 ];
@@ -53,6 +49,7 @@ export default function App() {
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
+  const [skillArea, setSkillArea] = useState(null); // null = skills hub; speaking|listening|reading|writing
   const [speakingMode, setSpeakingMode] = useState(null); // null = hub; deep-linked by Home/path
   const [listeningMode, setListeningMode] = useState(null); // null = hub; 'dictation' | track id
 
@@ -118,9 +115,9 @@ export default function App() {
         setLastScores(null);
       }
     }
-    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'listening', cards: 'cards', quickfire: 'speaking' };
-    if (lesson.type === 'dictation') setListeningMode('dictation');
-    if (lesson.type === 'quickfire') setSpeakingMode('quickfire');
+    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'skills', cards: 'cards', quickfire: 'skills' };
+    if (lesson.type === 'dictation') { setSkillArea('listening'); setListeningMode('dictation'); }
+    if (lesson.type === 'quickfire') { setSkillArea('speaking'); setSpeakingMode('quickfire'); }
     setTab(tabFor[lesson.type] || 'arena');
   };
 
@@ -240,29 +237,25 @@ export default function App() {
               setScenario={setScenario}
             />
           )}
-          {tab === 'speaking' && (
-            <Speaking
-              mode={speakingMode}
-              onModeChange={setSpeakingMode}
-              apiKey={apiKey}
-              mockMode={settings.mockMode}
-              ttsRate={settings.ttsRate}
-              level={settings.level}
-              onXp={awardXp}
-              onActivity={handleActivity}
+          {tab === 'skills' && (
+            <Skills
+              area={skillArea}
+              onAreaChange={(a) => {
+                setSkillArea(a);
+                if (a !== 'speaking') setSpeakingMode(null);
+                if (a !== 'listening') setListeningMode(null);
+              }}
+              speaking={{ mode: speakingMode, onModeChange: setSpeakingMode }}
+              listening={{ mode: listeningMode, onModeChange: setListeningMode }}
+              common={{
+                apiKey,
+                mockMode: settings.mockMode,
+                ttsRate: settings.ttsRate,
+                level: settings.level,
+                onXp: awardXp,
+                onActivity: handleActivity,
+              }}
             />
-          )}
-          {tab === 'listening' && (
-            <Listening
-              mode={listeningMode}
-              onModeChange={setListeningMode}
-              ttsRate={settings.ttsRate}
-              onXp={awardXp}
-              onActivity={handleActivity}
-            />
-          )}
-          {tab === 'reading' && (
-            <Reading apiKey={apiKey} mockMode={settings.mockMode} onXp={awardXp} />
           )}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'grammar' && (
