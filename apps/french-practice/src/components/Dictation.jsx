@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FLASHCARDS, SCENARIOS } from '../lib/data';
+import { allEntries } from '../lib/vocab';
 import { speak, stopSpeaking } from '../lib/tts';
 import { Play, Volume, RefreshCw, Check } from './icons';
 
@@ -10,6 +11,10 @@ import { Play, Volume, RefreshCw, Check } from './icons';
 const POOL = [
   ...FLASHCARDS.map((c) => ({ text: c.example, translation: c.exampleTranslation })),
   ...SCENARIOS.map((s) => ({ text: s.opener, translation: s.openerTranslation })),
+  // Vocabulary pack examples widen the pool (skip filler — already included above).
+  ...allEntries()
+    .filter((e) => !e.id.startsWith('du-') && FLASHCARDS.every((c) => c.id !== e.id))
+    .map((e) => ({ text: e.example, translation: e.exampleEn })),
 ];
 
 const randomSentence = (excludeText) => {

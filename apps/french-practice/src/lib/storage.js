@@ -10,6 +10,7 @@ const KEYS = {
   xpDay: 'fp.xpDay', // { day: 'YYYY-MM-DD', amount } — today's XP toward the goal
   active: 'fp.activeSession', // { scenarioId, history } — in-flight conversation
   habits: 'fp.habits', // [{ text, key, count, lastSeen }] — recurring mistakes
+  notebook: 'fp.notebook', // [{ id, fr, en, note, addedAt }] — saved words
 };
 
 function read(key, fallback) {
@@ -136,6 +137,26 @@ function bumpStreak() {
   const s = getStreak();
   if (s.lastDay === today) return;
   write(KEYS.streak, { count: s.count + 1, lastDay: today });
+}
+
+// ---- vocabulary notebook (one-click saved words) ----
+
+export const getNotebook = () => read(KEYS.notebook, []);
+
+export const isInNotebook = (id) => getNotebook().some((e) => e.id === id);
+
+export function saveToNotebook({ id, fr, en, note = '' }) {
+  const nb = getNotebook();
+  if (nb.some((e) => e.id === id)) return nb;
+  nb.unshift({ id, fr, en, note, addedAt: new Date().toISOString() });
+  write(KEYS.notebook, nb.slice(0, 200));
+  return nb;
+}
+
+export function removeFromNotebook(id) {
+  const nb = getNotebook().filter((e) => e.id !== id);
+  write(KEYS.notebook, nb);
+  return nb;
 }
 
 // ---- spaced repetition (simple SM-2-ish intervals, in days) ----

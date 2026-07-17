@@ -3,7 +3,7 @@ import ChatArena from './components/ChatArena';
 import FeedbackWidget from './components/FeedbackWidget';
 import SessionDashboard from './components/SessionDashboard';
 import DailyChallenge from './components/DailyChallenge';
-import Flashcards from './components/Flashcards';
+import Vocabulary from './components/Vocabulary';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
@@ -23,7 +23,7 @@ const TABS = [
   ['arena', MessageCircle, 'Arena'],
   ['challenge', Clock, 'Quick Fire'],
   ['dictation', Volume, 'Dictée'],
-  ['cards', Layers, 'Cards'],
+  ['cards', Layers, 'Vocab'],
 ];
 
 export default function App() {
@@ -229,7 +229,7 @@ export default function App() {
           )}
           {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} onActivity={handleActivity} />}
-          {tab === 'cards' && <Flashcards apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
+          {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'dev' && (
             <DevPanel
               telemetry={telemetry}

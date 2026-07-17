@@ -47,9 +47,15 @@ validated against the `/models` endpoint before being stored. Or flip on
 - **Dictée** — pure listening drill: the app speaks a hidden French sentence
   (normal or 0.75× speed), you type what you heard, and a word-level diff
   scores your accuracy. Fully offline (local TTS + diff).
-- **Flashcards** — filler-word deck run as a true spaced-repetition queue
-  (due cards first), with 3D flip animation, SRS ratings,
-  normal + 0.75× slow TTS, and an LLM-verified "use it in a sentence" test.
+- **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
+  feelings, a picture deck of everyday objects, idioms, slang & argot,
+  regional French (Québec/Belgium/South) and filler words. Every card has a
+  frequency rank (Top 100 → Niche), example sentence with translation, TTS
+  pronunciation (word, sentence, 0.75× slow), synonyms/antonyms,
+  collocations and register notes — plus an LLM-verified "use it in a
+  sentence" challenge. One-click save any word to a personal notebook (with
+  your own custom entries), and review everything through a cross-pack
+  spaced-repetition queue.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

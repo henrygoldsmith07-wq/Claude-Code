@@ -1,6 +1,7 @@
 import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits } from '../lib/storage';
 import LearningPath from './LearningPath';
-import { FLASHCARDS, SCENARIOS } from '../lib/data';
+import { SCENARIOS } from '../lib/data';
+import { allEntryIds } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
@@ -21,7 +22,7 @@ export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, o
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
-  const dueCount = getDueCardIds(FLASHCARDS.map((c) => c.id)).length;
+  const dueCount = getDueCardIds(allEntryIds()).length;
   const habits = getHabits().slice(0, 3);
   const sessions = getSessions();
   const suggested = suggestScenario(sessions);
@@ -122,7 +123,7 @@ export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, o
           />
           <ActionCard
             icon={Layers}
-            title={dueCount > 0 ? `Review ${dueCount} card${dueCount > 1 ? 's' : ''}` : 'Browse flashcards'}
+            title={dueCount > 0 ? `Review ${dueCount} word${dueCount > 1 ? 's' : ''}` : 'Browse vocabulary packs'}
             subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
             badge={dueCount > 0 ? String(dueCount) : null}
             onClick={() => onNavigate('cards')}
