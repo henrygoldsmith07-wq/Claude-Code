@@ -136,9 +136,12 @@ async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } 
 // ---- conversational turn evaluation ----
 
 const LEVEL_NOTES = {
+  A1: 'The learner is CEFR A1 (beginner). Use very short present-tense sentences and the most frequent vocabulary only. Repeat key words. Score very generously — reward any successful communication.',
   A2: 'The learner is CEFR A2 (elementary). Use short, simple sentences, present/passé composé, high-frequency vocabulary. Be forgiving in scoring.',
   B1: 'The learner is CEFR B1 (intermediate). Use natural everyday French with some idioms; a full range of common tenses is fair game.',
   B2: 'The learner is CEFR B2 (upper-intermediate). Speak at near-native pace and complexity, use idioms and subjonctif freely, and score with higher expectations.',
+  C1: 'The learner is CEFR C1 (advanced). Use sophisticated, fully native French — nuance, register shifts, cultural references. Score strictly: naturalness and precision matter.',
+  C2: 'The learner is CEFR C2 (mastery). Treat them as a native peer: rapid, idiomatic, stylistically demanding French. Only flawless, natural production scores highly.',
 };
 
 const TURN_SYSTEM = `Tu es un partenaire de conversation français chaleureux pour un apprenant. Tu joues un rôle dans un scénario donné.
@@ -149,6 +152,7 @@ You MUST reply with ONLY a JSON object in exactly this shape:
   "translation": "English translation of the reply.",
   "corrections": "Constructive markdown-formatted corrections of the learner's grammar, spelling, or vocabulary, WRITTEN IN ENGLISH (quote the French words being discussed). Wrap removed/wrong French words in <s></s> tags and corrected French words in <mark></mark> tags. If the sentence was perfect, say so warmly in English.",
   "native_alternative": "How a native French speaker would express the learner's idea using common slang, modern structures, and phrases.",
+  "grammar_topic": "If the learner's main mistake maps to one of these topics, its id; otherwise null: present (present tense conjugation), articles (articles & partitives), negation, passe-compose (passé composé vs imparfait), futur-conditionnel (future & conditional), subjonctif (subjunctive).",
   "scores": { "grammar": 0-100, "naturalness": 0-100, "relevance": 0-100, "fluency": 0-100, "overall": 0-100 }
 }
 Scores are integers. "overall" = 0.30*grammar + 0.30*naturalness + 0.20*relevance + 0.20*fluency (rounded).`;
@@ -165,6 +169,7 @@ function normalizeTurn(json) {
     translation: String(json.translation || ''),
     corrections: String(json.corrections || ''),
     native_alternative: String(json.native_alternative || ''),
+    grammar_topic: json.grammar_topic ? String(json.grammar_topic) : null,
     scores,
   };
 }

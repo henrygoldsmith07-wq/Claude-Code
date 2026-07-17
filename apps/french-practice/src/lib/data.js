@@ -77,6 +77,52 @@ export const SCENARIOS = [
   },
 ];
 
+// Goal-specific scenarios (business & school learning paths).
+SCENARIOS.push(
+  {
+    id: 'entretien',
+    title: 'Job Interview',
+    setup: 'You are interviewing for a position at a French company. The hiring manager wants to know about you.',
+    aiRole: "Responsable RH professionnel(le) mais bienveillant(e) qui mène un entretien d'embauche.",
+    opener: "Bonjour, asseyez-vous ! Merci d'être venu(e). Alors, parlez-moi un peu de vous et de votre parcours.",
+    openerTranslation: "Hello, have a seat! Thanks for coming. So, tell me a little about yourself and your background.",
+    curveball: "Demande au candidat de décrire un échec professionnel et ce qu'il en a appris.",
+    staticHints: [
+      "Vocabulary: «un poste» (a position), «une expérience» (experience), «un point fort» (a strength).",
+      "Start with: «Alors, j'ai travaillé pendant… » or «Je suis quelqu'un de…»",
+      "«J'ai trois ans d'expérience dans ce domaine et je cherche un nouveau défi.» — I have three years' experience in this field and I'm looking for a new challenge.",
+    ],
+  },
+  {
+    id: 'reunion',
+    title: 'Team Meeting',
+    setup: 'You are giving a project update in a weekly team meeting at your French office.',
+    aiRole: "Chef(fe) de projet qui anime la réunion et pose des questions précises sur l'avancement.",
+    opener: "Bon, on va commencer. Où est-ce qu'on en est sur le projet ? Vous pouvez nous faire un point rapide ?",
+    openerTranslation: "Right, let's get started. Where are we on the project? Can you give us a quick update?",
+    curveball: "Annonce que le client vient d'avancer la date de livraison d'une semaine — demande comment on s'adapte.",
+    staticHints: [
+      "Vocabulary: «l'avancement» (progress), «un délai» (a deadline), «en retard / dans les temps» (behind / on schedule).",
+      "Start with: «Alors, pour le moment, on a terminé…»",
+      "«On est dans les temps : la première phase est terminée et on commence les tests cette semaine.» — We're on schedule: phase one is done and we start testing this week.",
+    ],
+  },
+  {
+    id: 'cours',
+    title: 'Office Hours',
+    setup: "You are meeting your French professor during office hours to discuss an assignment you're struggling with.",
+    aiRole: "Professeur(e) d'université exigeant(e) mais qui aime aider les étudiants motivés.",
+    opener: "Entrez ! Vous vouliez me voir à propos du devoir, c'est ça ? Qu'est-ce qui vous pose problème ?",
+    openerTranslation: "Come in! You wanted to see me about the assignment, right? What's giving you trouble?",
+    curveball: "Propose à l'étudiant(e) de présenter son travail devant la classe la semaine prochaine — observe sa réaction.",
+    staticHints: [
+      "Vocabulary: «un devoir» (an assignment), «une consigne» (an instruction), «un délai supplémentaire» (an extension).",
+      "Start with: «En fait, je n'ai pas bien compris…»",
+      "«En fait, je n'ai pas bien compris la deuxième question — est-ce que vous pourriez me l'expliquer ?» — Actually, I didn't quite understand the second question — could you explain it to me?",
+    ],
+  }
+);
+
 export const DAILY_TOPICS = [
   { fr: "Décrivez votre petit-déjeuner idéal.", en: 'Describe your ideal breakfast.' },
   { fr: "Racontez la dernière fois que vous avez été en retard.", en: 'Tell the story of the last time you were late.' },

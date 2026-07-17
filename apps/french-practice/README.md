@@ -14,12 +14,18 @@ npm run build    # static build in dist/
 ```
 
 Add a free Groq API key (console.groq.com) via the settings modal, and pick
-your CEFR level (A2/B1/B2) — it calibrates the AI's complexity and scoring — it is
+your CEFR level (A1–C2) — it calibrates the AI's complexity and scoring — it is
 validated against the `/models` endpoint before being stored. Or flip on
 **Mock Mode** in settings → Dev Panel to explore the whole app offline.
 
 ## Features
 
+- **Learning Path** — pick a goal (travel, school, business, fluency), take a
+  12-question placement test (A1–C2), and follow a personal roadmap of units
+  whose lessons reuse the app's activities (conversations, dictée, SRS cards,
+  quick fire). Each unit ends in a scored conversation checkpoint; two strong
+  checkpoints in a row move your CEFR level up, and every LLM prompt tracks it.
+  When flashcards pile up, a smart-review step is suggested before the lesson.
 - **Home dashboard** — the daily loop: XP goal ring, streak, a personalized
   "Today's focus" carried over from your last session report, the count of
   flashcards due for review, and a suggested (least-practiced) scenario.
@@ -41,9 +47,21 @@ validated against the `/models` endpoint before being stored. Or flip on
 - **Dictée** — pure listening drill: the app speaks a hidden French sentence
   (normal or 0.75× speed), you type what you heard, and a word-level diff
   scores your accuracy. Fully offline (local TTS + diff).
-- **Flashcards** — filler-word deck run as a true spaced-repetition queue
-  (due cards first), with 3D flip animation, SRS ratings,
-  normal + 0.75× slow TTS, and an LLM-verified "use it in a sentence" test.
+- **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
+  feelings, a picture deck of everyday objects, idioms, slang & argot,
+  regional French (Québec/Belgium/South) and filler words. Every card has a
+  frequency rank (Top 100 → Niche), example sentence with translation, TTS
+  pronunciation (word, sentence, 0.75× slow), synonyms/antonyms,
+  collocations and register notes — plus an LLM-verified "use it in a
+  sentence" challenge. One-click save any word to a personal notebook (with
+  your own custom entries), and review everything through a cross-pack
+  spaced-repetition queue.
+- **Grammar** — a reference library of six CEFR-tagged topics (present tense
+  through subjunctive), each an interactive lesson: explanation with spoken
+  examples and a "watch out" note, drills with instant feedback, tap-to-order
+  sentence building, and a scored quiz (best kept; 80+ = mastered). After a
+  conversation mistake, the Arena shows a grammar tip that deep-links into
+  the matching lesson.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`
