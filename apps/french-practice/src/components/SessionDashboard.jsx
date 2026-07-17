@@ -39,7 +39,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
         if (cancelled) return;
         setReport(r);
         saveSession({ scenarioId: scenario.id, turns: history.length, report: r });
-        onSessionSaved?.();
+        onSessionSaved?.(r);
       } catch (e) {
         if (!cancelled) setError(e.message);
       }

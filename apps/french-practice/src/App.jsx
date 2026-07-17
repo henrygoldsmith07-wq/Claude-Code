@@ -8,6 +8,8 @@ import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
 import Dictation from './components/Dictation';
+import PathSetup from './components/PathSetup';
+import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
@@ -44,6 +46,8 @@ export default function App() {
   const [streakTick, setStreakTick] = useState(0);
   const [xp, setXp] = useState(getXp);
   const [xpGain, setXpGain] = useState(null); // { amount, id } for the pop animation
+  const [path, setPath] = useState(getPath);
+  const [pathSetupOpen, setPathSetupOpen] = useState(false);
 
   useEffect(() => {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
@@ -85,6 +89,30 @@ export default function App() {
   const handleTurn = (scores) => {
     setLastScores(scores);
     awardXp(Math.max(1, Math.round(scores.overall / 10)));
+  };
+
+  // Learning-path progression: components report activity; the path engine
+  // decides whether it satisfies the current lesson / checkpoint.
+  const handleActivity = (evt) => {
+    const result = applyActivity(getPath(), evt);
+    if (!result.changed) return;
+    setPath({ ...result.path });
+    if (result.levelChange === 'up') {
+      updateSettings({ ...settings, level: result.path.cefr });
+    }
+  };
+
+  const startLesson = (lesson) => {
+    if (lesson.scenarioId) {
+      const s = SCENARIOS.find((x) => x.id === lesson.scenarioId);
+      if (s && s.id !== scenario.id) {
+        setScenario(s);
+        setHistory([]);
+        setLastScores(null);
+      }
+    }
+    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'dictation', cards: 'cards', quickfire: 'challenge' };
+    setTab(tabFor[lesson.type] || 'arena');
   };
 
   const endSession = () => {
@@ -172,6 +200,9 @@ export default function App() {
             <HomeDashboard
               dailyGoal={settings.dailyGoal}
               level={settings.level}
+              path={path}
+              onStartLesson={startLesson}
+              onOpenSetup={() => setPathSetupOpen(true)}
               onNavigate={setTab}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
@@ -196,9 +227,9 @@ export default function App() {
               setScenario={setScenario}
             />
           )}
-          {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} />}
-          {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} />}
-          {tab === 'cards' && <Flashcards apiKey={apiKey} mockMode={settings.mockMode} />}
+          {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
+          {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} onActivity={handleActivity} />}
+          {tab === 'cards' && <Flashcards apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'dev' && (
             <DevPanel
               telemetry={telemetry}
@@ -236,7 +267,19 @@ export default function App() {
         scenario={scenario}
         history={history}
         level={settings.level}
-        onSessionSaved={() => setStreakTick((t) => t + 1)}
+        onSessionSaved={(report) => {
+          setStreakTick((t) => t + 1);
+          handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
+        }}
+      />
+      <PathSetup
+        open={pathSetupOpen}
+        onClose={() => setPathSetupOpen(false)}
+        onCreated={(p) => {
+          setPath(p);
+          setPathSetupOpen(false);
+          updateSettings({ ...settings, level: p.cefr });
+        }}
       />
     </div>
   );

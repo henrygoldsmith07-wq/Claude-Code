@@ -19,7 +19,7 @@ const RATINGS = [
   ['easy', 'Easy', 'bg-accent text-onaccent border-accent'],
 ];
 
-export default function Flashcards({ apiKey, mockMode }) {
+export default function Flashcards({ apiKey, mockMode, onActivity }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [srsTick, setSrsTick] = useState(0); // re-render after a rating
@@ -53,6 +53,7 @@ export default function Flashcards({ apiKey, mockMode }) {
   const rate = (rating) => {
     rateCard(card.id, rating);
     setSrsTick((t) => t + 1);
+    onActivity?.({ type: 'cards', rating });
     setTimeout(() => go(1), 250);
   };
 

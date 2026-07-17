@@ -1,4 +1,5 @@
 import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits } from '../lib/storage';
+import LearningPath from './LearningPath';
 import { FLASHCARDS, SCENARIOS } from '../lib/data';
 import { TrendChart } from './charts';
 import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, SCENARIO_ICONS } from './icons';
@@ -16,7 +17,7 @@ function suggestScenario(sessions) {
   return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScenario }) {
+export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onPickScenario }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -34,6 +35,14 @@ export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScen
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-lg mx-auto space-y-5">
+        {/* learning path: today's lesson + roadmap */}
+        <LearningPath
+          path={path}
+          dueCount={dueCount}
+          onStartLesson={onStartLesson}
+          onOpenSetup={onOpenSetup}
+        />
+
         {/* daily goal + streak */}
         <section className="flex items-center gap-4 bg-surface border border-line rounded-2xl p-5">
           <div className="relative shrink-0" role="img" aria-label={`Daily goal: ${todayXp} of ${dailyGoal} XP`}>

@@ -48,7 +48,7 @@ function diffWords(target, attempt) {
   return hit;
 }
 
-export default function Dictation({ ttsRate, onXp }) {
+export default function Dictation({ ttsRate, onXp, onActivity }) {
   const [sentence, setSentence] = useState(() => randomSentence());
   const [input, setInput] = useState('');
   const [played, setPlayed] = useState(false);
@@ -69,6 +69,7 @@ export default function Dictation({ ttsRate, onXp }) {
     const accuracy = Math.round((matched / Math.max(1, target.length)) * 100);
     const gained = Math.max(1, Math.round(accuracy / 10));
     onXp(gained);
+    onActivity?.({ type: 'dictation', accuracy });
     setResult({ hits, accuracy, gained });
   };
 

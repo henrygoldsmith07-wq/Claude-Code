@@ -10,7 +10,7 @@ import { RefreshCw, Mic, Square } from './icons';
 
 const CHALLENGE_SECONDS = 45;
 
-export default function DailyChallenge({ apiKey, mockMode }) {
+export default function DailyChallenge({ apiKey, mockMode, onActivity }) {
   const [topic, setTopic] = useState(randomTopic);
   const [remaining, setRemaining] = useState(CHALLENGE_SECONDS);
   const [result, setResult] = useState(null); // { transcript, wpm, seconds }
@@ -28,6 +28,7 @@ export default function DailyChallenge({ apiKey, mockMode }) {
         const seconds = Math.min(CHALLENGE_SECONDS, durationMs / 1000);
         const words = transcript.split(/\s+/).filter(Boolean).length;
         setResult({ transcript, seconds: Math.round(seconds), words, wpm: Math.round(words / (seconds / 60)) });
+        onActivity?.({ type: 'quickfire', wpm: Math.round(words / (seconds / 60)) });
       } catch (e) {
         setError(e.message);
       }

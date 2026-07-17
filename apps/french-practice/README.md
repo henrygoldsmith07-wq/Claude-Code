@@ -14,12 +14,18 @@ npm run build    # static build in dist/
 ```
 
 Add a free Groq API key (console.groq.com) via the settings modal, and pick
-your CEFR level (A2/B1/B2) — it calibrates the AI's complexity and scoring — it is
+your CEFR level (A1–C2) — it calibrates the AI's complexity and scoring — it is
 validated against the `/models` endpoint before being stored. Or flip on
 **Mock Mode** in settings → Dev Panel to explore the whole app offline.
 
 ## Features
 
+- **Learning Path** — pick a goal (travel, school, business, fluency), take a
+  12-question placement test (A1–C2), and follow a personal roadmap of units
+  whose lessons reuse the app's activities (conversations, dictée, SRS cards,
+  quick fire). Each unit ends in a scored conversation checkpoint; two strong
+  checkpoints in a row move your CEFR level up, and every LLM prompt tracks it.
+  When flashcards pile up, a smart-review step is suggested before the lesson.
 - **Home dashboard** — the daily loop: XP goal ring, streak, a personalized
   "Today's focus" carried over from your last session report, the count of
   flashcards due for review, and a suggested (least-practiced) scenario.

@@ -113,13 +113,13 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
               <span className="block text-[11px] text-ink3">Calibrates the AI's complexity and scoring</span>
             </span>
             <div className="flex rounded-xl border border-line overflow-hidden" role="radiogroup" aria-label="CEFR level">
-              {['A2', 'B1', 'B2'].map((lvl) => (
+              {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((lvl) => (
                 <button
                   key={lvl}
                   role="radio"
                   aria-checked={settings.level === lvl}
                   onClick={() => onSettingsChange({ ...settings, level: lvl })}
-                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                  className={`px-2 py-2 text-xs font-semibold transition-colors ${
                     settings.level === lvl ? 'bg-accent text-onaccent' : 'bg-surface text-ink2 hover:text-ink'
                   }`}
                 >

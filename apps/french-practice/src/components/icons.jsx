@@ -112,6 +112,22 @@ export const Pencil = (p) => (
   <Icon {...p}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /></Icon>
 );
 
+export const Briefcase = (p) => (
+  <Icon {...p}><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /><rect width="20" height="14" x="2" y="6" rx="2" /></Icon>
+);
+export const GraduationCap = (p) => (
+  <Icon {...p}><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" /><path d="M22 10v6" /><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" /></Icon>
+);
+export const Lock = (p) => (
+  <Icon {...p}><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>
+);
+export const CheckCircle = (p) => (
+  <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></Icon>
+);
+export const Map = (p) => (
+  <Icon {...p}><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /><path d="M15 5.764v15" /><path d="M9 3.236v15" /></Icon>
+);
+
 // Per-scenario icon lookup for the arena card rail.
 export const SCENARIO_ICONS = {
   bistro: Utensils,
@@ -119,4 +135,7 @@ export const SCENARIO_ICONS = {
   vol: Plane,
   marche: Basket,
   colloc: Home,
+  entretien: Briefcase,
+  reunion: MessageCircle,
+  cours: GraduationCap,
 };

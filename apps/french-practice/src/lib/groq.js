@@ -136,9 +136,12 @@ async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } 
 // ---- conversational turn evaluation ----
 
 const LEVEL_NOTES = {
+  A1: 'The learner is CEFR A1 (beginner). Use very short present-tense sentences and the most frequent vocabulary only. Repeat key words. Score very generously — reward any successful communication.',
   A2: 'The learner is CEFR A2 (elementary). Use short, simple sentences, present/passé composé, high-frequency vocabulary. Be forgiving in scoring.',
   B1: 'The learner is CEFR B1 (intermediate). Use natural everyday French with some idioms; a full range of common tenses is fair game.',
   B2: 'The learner is CEFR B2 (upper-intermediate). Speak at near-native pace and complexity, use idioms and subjonctif freely, and score with higher expectations.',
+  C1: 'The learner is CEFR C1 (advanced). Use sophisticated, fully native French — nuance, register shifts, cultural references. Score strictly: naturalness and precision matter.',
+  C2: 'The learner is CEFR C2 (mastery). Treat them as a native peer: rapid, idiomatic, stylistically demanding French. Only flawless, natural production scores highly.',
 };
 
 const TURN_SYSTEM = `Tu es un partenaire de conversation français chaleureux pour un apprenant. Tu joues un rôle dans un scénario donné.
