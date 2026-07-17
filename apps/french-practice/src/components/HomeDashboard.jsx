@@ -1,7 +1,7 @@
 import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits } from '../lib/storage';
 import { FLASHCARDS, SCENARIOS } from '../lib/data';
 import { TrendChart } from './charts';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -117,6 +117,12 @@ export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScen
             subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
             badge={dueCount > 0 ? String(dueCount) : null}
             onClick={() => onNavigate('cards')}
+          />
+          <ActionCard
+            icon={Volume}
+            title="Dictée"
+            subtitle="Train your ear — type what you hear"
+            onClick={() => onNavigate('dictation')}
           />
           <ActionCard
             icon={Clock}

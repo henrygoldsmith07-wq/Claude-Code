@@ -38,6 +38,9 @@ validated against the `/models` endpoint before being stored. Or flip on
   rings, canvas radar chart, 10-session trend line, streaks, and a shareable
   PNG progress card.
 - **Quick Fire** — 45-second improv challenges (French topics with English translations) and WPM flow tracking.
+- **Dictée** — pure listening drill: the app speaks a hidden French sentence
+  (normal or 0.75× speed), you type what you heard, and a word-level diff
+  scores your accuracy. Fully offline (local TTS + diff).
 - **Flashcards** — filler-word deck run as a true spaced-repetition queue
   (due cards first), with 3D flip animation, SRS ratings,
   normal + 0.75× slow TTS, and an LLM-verified "use it in a sentence" test.

@@ -7,18 +7,20 @@ import Flashcards from './components/Flashcards';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
+import Dictation from './components/Dictation';
 import { SCENARIOS } from './lib/data';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal, Volume } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
   ['challenge', Clock, 'Quick Fire'],
+  ['dictation', Volume, 'Dictée'],
   ['cards', Layers, 'Cards'],
 ];
 
@@ -75,11 +77,14 @@ export default function App() {
   const streak = getStreak();
   void streakTick;
 
-  const handleTurn = (scores) => {
-    setLastScores(scores);
-    const gained = Math.max(1, Math.round(scores.overall / 10));
+  const awardXp = (gained) => {
     setXp(addXp(gained));
     setXpGain({ amount: gained, id: Date.now() });
+  };
+
+  const handleTurn = (scores) => {
+    setLastScores(scores);
+    awardXp(Math.max(1, Math.round(scores.overall / 10)));
   };
 
   const endSession = () => {
@@ -192,6 +197,7 @@ export default function App() {
             />
           )}
           {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} />}
+          {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} />}
           {tab === 'cards' && <Flashcards apiKey={apiKey} mockMode={settings.mockMode} />}
           {tab === 'dev' && (
             <DevPanel
