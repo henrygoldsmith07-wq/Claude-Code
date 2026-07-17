@@ -30,8 +30,9 @@ export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
 
+// theme: null = follow the OS preference; 'dark' | 'light' once toggled
 export const getSettings = () =>
-  read(KEYS.settings, { ttsRate: 1, mockMode: false, devPanel: false });
+  read(KEYS.settings, { ttsRate: 1, mockMode: false, devPanel: false, theme: null });
 export const setSettings = (s) => write(KEYS.settings, s);
 
 // ---- session history (last 10 kept for trend charts) ----

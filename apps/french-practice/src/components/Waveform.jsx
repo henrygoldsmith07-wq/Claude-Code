@@ -28,6 +28,8 @@ export default function Waveform({ analyserRef, peakDb, elapsed }) {
       const { width, height } = canvas.getBoundingClientRect();
       ctx.clearRect(0, 0, width, height);
       if (!analyser) return;
+      // resolve the theme's ink color each frame so a theme switch mid-recording is picked up
+      const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#111';
 
       const bins = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(bins);
@@ -48,11 +50,13 @@ export default function Waveform({ analyserRef, peakDb, elapsed }) {
         const h = Math.max(2, v * mid * 0.92);
         const x = (i / barCount) * width + barW * 0.3;
         const alpha = 0.35 + v * 0.65;
-        ctx.fillStyle = `rgba(52, 211, 153, ${alpha})`;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = ink;
         ctx.beginPath();
         ctx.roundRect(x, mid - h, barW, h * 2, barW / 2);
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
     };
     draw();
 
@@ -62,20 +66,20 @@ export default function Waveform({ analyserRef, peakDb, elapsed }) {
     };
   }, [analyserRef]);
 
-  // dB meter: -60 dBFS → 0%, 0 dBFS → 100%
+  // dB meter: -60 dBFS → 0%, 0 dBFS → 100%. Monochrome: the bar fades with
+  // level and switches to a hazard stripe when close to clipping.
   const meterPct = Math.max(0, Math.min(100, ((peakDb + 60) / 60) * 100));
-  const meterColor =
-    peakDb > -3 ? 'bg-rose-500' : peakDb > -12 ? 'bg-amber-400' : 'bg-emerald-400';
+  const clipping = peakDb > -3;
 
   return (
     <div className="w-full fade-in">
       <canvas ref={canvasRef} className="w-full h-16 sm:h-20" aria-hidden="true" />
       <div className="flex items-center gap-3 mt-1 px-1">
-        <span className="text-[11px] font-mono text-slate-500 w-12">
+        <span className="text-[11px] font-mono text-ink3 w-12">
           {String(Math.floor(elapsed / 60)).padStart(1, '0')}:{String(elapsed % 60).padStart(2, '0')}
         </span>
         <div
-          className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden"
+          className="flex-1 h-1.5 rounded-full bg-surface2 overflow-hidden"
           role="meter"
           aria-label="Niveau du micro"
           aria-valuemin={-60}
@@ -83,11 +87,16 @@ export default function Waveform({ analyserRef, peakDb, elapsed }) {
           aria-valuenow={Math.round(Math.max(-60, peakDb))}
         >
           <div
-            className={`h-full rounded-full transition-[width] duration-75 ${meterColor}`}
-            style={{ width: `${meterPct}%` }}
+            className="h-full rounded-full transition-[width] duration-75 bg-ink"
+            style={{
+              width: `${meterPct}%`,
+              backgroundImage: clipping
+                ? 'repeating-linear-gradient(45deg, transparent 0 4px, var(--surface-2) 4px 8px)'
+                : 'none',
+            }}
           />
         </div>
-        <span className="text-[11px] font-mono text-slate-500 w-16 text-right">
+        <span className="text-[11px] font-mono text-ink3 w-16 text-right">
           {peakDb <= -60 ? '−∞' : peakDb.toFixed(1)} dB
         </span>
       </div>

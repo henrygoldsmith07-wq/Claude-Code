@@ -21,15 +21,15 @@ function ScoreRows({ scores }) {
         return (
           <div key={key}>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-300">
-                {label} <span className="text-slate-600">×{weight.toFixed(2)}</span>
+              <span className="text-ink2">
+                {label} <span className="text-ink3">×{weight.toFixed(2)}</span>
               </span>
               <span className={`font-bold font-mono ${c.text}`}>{v}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-surface2 overflow-hidden">
               <div
-                className={`h-full rounded-full ${c.bg} transition-all duration-700`}
-                style={{ width: `${v}%` }}
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${v}%`, background: c.ring }}
               />
             </div>
           </div>
@@ -47,14 +47,14 @@ export default function FeedbackWidget({ scores, turnCount }) {
   return (
     <>
       {/* Desktop: persistent side pane */}
-      <aside className="hidden lg:flex flex-col w-72 shrink-0 border-l border-slate-800/80 bg-slate-900/40 p-5 gap-4">
+      <aside className="hidden lg:flex flex-col w-72 shrink-0 border-l border-line bg-surface p-5 gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-100">Ce tour</h3>
-          <span className="text-[11px] text-slate-500">Tour {turnCount}</span>
+          <h3 className="text-sm font-bold text-ink">Ce tour</h3>
+          <span className="text-[11px] text-ink3">Tour {turnCount}</span>
         </div>
         <div className="flex items-center gap-3">
           <ScoreBadge value={composite} size="lg" />
-          <p className="text-[11px] text-slate-500 leading-snug">
+          <p className="text-[11px] text-ink3 leading-snug">
             Score pondéré<br />0,30 G + 0,30 N + 0,20 P + 0,20 F
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function FeedbackWidget({ scores, turnCount }) {
       </button>
       {sheetOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-slate-950/70 flex items-end"
+          className="lg:hidden fixed inset-0 z-40 bg-black/50 flex items-end"
           onClick={() => setSheetOpen(false)}
           role="presentation"
         >
@@ -80,20 +80,20 @@ export default function FeedbackWidget({ scores, turnCount }) {
             aria-modal="true"
             aria-label="Détail des scores"
             onClick={(e) => e.stopPropagation()}
-            className="sheet-enter w-full bg-slate-900 border-t border-slate-700/60 rounded-t-3xl p-5 pb-safe space-y-4"
+            className="sheet-enter w-full bg-surface border-t border-line rounded-t-3xl p-5 pb-safe space-y-4"
           >
-            <div className="w-10 h-1 rounded-full bg-slate-700 mx-auto" aria-hidden="true" />
+            <div className="w-10 h-1 rounded-full bg-line mx-auto" aria-hidden="true" />
             <div className="flex items-center gap-3">
               <ScoreBadge value={composite} size="lg" />
               <div>
-                <h3 className="text-sm font-bold text-slate-100">Score du tour {turnCount}</h3>
-                <p className="text-[11px] text-slate-500">0,30 G + 0,30 N + 0,20 P + 0,20 F</p>
+                <h3 className="text-sm font-bold text-ink">Score du tour {turnCount}</h3>
+                <p className="text-[11px] text-ink3">0,30 G + 0,30 N + 0,20 P + 0,20 F</p>
               </div>
             </div>
             <ScoreRows scores={scores} />
             <button
               onClick={() => setSheetOpen(false)}
-              className="w-full min-h-11 rounded-xl bg-slate-800 text-slate-300 text-sm font-medium"
+              className="w-full min-h-11 rounded-xl bg-surface2 text-ink2 text-sm font-medium"
             >
               Fermer
             </button>
