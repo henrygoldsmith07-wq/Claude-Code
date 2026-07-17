@@ -1,6 +1,8 @@
 # Le Studio 🗣️ — French Speaking Practice
 
 A single-page React + Tailwind app for practicing intermediate French speaking.
+The interface is English-first; only the practice material (conversation, topics,
+examples) is in French, always with translations on hand.
 100% client-side — no backend. Your Groq API key lives only in `localStorage`.
 
 ## Run
@@ -26,11 +28,11 @@ validated against the `/models` endpoint before being stored. Or flip on
   auto-submit after 3.5 s of silence.
 - **Micro-feedback loop** — Whisper `whisper-large-v3-turbo` transcription
   (editable before sending) → `llama-3.1-8b-instant` strict-JSON evaluation.
-- **Session report card** — "Terminer la Session" compiles the conversation
+- **Session report card** — "End Session" compiles the conversation
   into a graded report: strengths, stubborn habits, tomorrow's focus, progress
   rings, canvas radar chart, 10-session trend line, streaks, and a shareable
   PNG progress card.
-- **Tac au tac** — 45-second improv challenges with WPM flow tracking.
+- **Quick Fire** — 45-second improv challenges (French topics with English translations) and WPM flow tracking.
 - **Flashcards** — filler-word deck with 3D flip animation, SRS ratings,
   normal + 0.75× slow TTS, and an LLM-verified "use it in a sentence" test.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.

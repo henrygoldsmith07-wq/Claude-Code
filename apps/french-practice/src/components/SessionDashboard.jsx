@@ -6,7 +6,7 @@ import { saveSession, getSessions, getStreak } from '../lib/storage';
 
 // "Terminer la Session" overlay: report card + rings + radar + trends + share.
 
-const RADAR_AXES = ['Grammaire', 'Fluidité', 'Vocabulaire', 'Prononciation', 'Rapidité'];
+const RADAR_AXES = ['Grammar', 'Fluency', 'Vocabulary', 'Pronunciation', 'Speed'];
 
 function radarValues(avg, history) {
   // Vocabulary/pronunciation/speed are derived proxies from what we measure.
@@ -65,7 +65,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
     if (navigator.share && navigator.canShare) {
       try {
         const blob = await (await fetch(url)).blob();
-        const file = new File([blob], 'progres-francais.png', { type: 'image/png' });
+        const file = new File([blob], 'french-progress.png', { type: 'image/png' });
         if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
       } catch { /* user cancelled */ }
     }
@@ -76,17 +76,17 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
       <div className="p-6 space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-bold text-ink">Bilan de session 📋</h2>
-            <p className="text-xs text-ink2 mt-0.5">{scenario.title} · {history.length} tour{history.length > 1 ? 's' : ''}</p>
+            <h2 className="text-xl font-bold text-ink">Session Report 📋</h2>
+            <p className="text-xs text-ink2 mt-0.5">{scenario.title} · {history.length} turn{history.length > 1 ? 's' : ''}</p>
           </div>
-          <button onClick={close} aria-label="Fermer" className="w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2">✕</button>
+          <button onClick={close} aria-label="Close" className="w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2">✕</button>
         </div>
 
         {error && (
           <p role="alert" className="text-sm text-ink bg-surface2 border border-line rounded-xl px-4 py-3">{error}</p>
         )}
         {!report && !error && (
-          <div className="py-16 text-center"><Spinner label="Votre professeur rédige le bilan…" /></div>
+          <div className="py-16 text-center"><Spinner label="Your teacher is writing the report…" /></div>
         )}
 
         {report && (
@@ -95,16 +95,16 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
             <div className="flex flex-wrap items-center gap-6">
               <div className="text-center">
                 <div className="text-6xl font-black text-ink">{report.session_grade}</div>
-                <div className="text-[11px] text-ink3 mt-1">Note globale</div>
+                <div className="text-[11px] text-ink3 mt-1">Overall grade</div>
               </div>
               <div className="text-center">
                 <div className="text-4xl font-black text-ink">{streak.count}🔥</div>
-                <div className="text-[11px] text-ink3 mt-1">Jours d'affilée</div>
+                <div className="text-[11px] text-ink3 mt-1">Day streak</div>
               </div>
               <div className="flex flex-wrap gap-3 ml-auto">
-                <ProgressRing value={report.average_scores.overall} label="Global" />
-                <ProgressRing value={report.average_scores.grammar} label="Grammaire" size={70} />
-                <ProgressRing value={report.average_scores.fluency} label="Fluidité" size={70} />
+                <ProgressRing value={report.average_scores.overall} label="Overall" />
+                <ProgressRing value={report.average_scores.grammar} label="Grammar" size={70} />
+                <ProgressRing value={report.average_scores.fluency} label="Fluency" size={70} />
               </div>
             </div>
 
@@ -115,19 +115,19 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
               </div>
               <div className="space-y-4 text-sm">
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink mb-1.5">💪 Points forts</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink mb-1.5">💪 Strengths</h3>
                   <ul className="space-y-1 text-ink">
                     {report.strengths.map((s, i) => <li key={i} className="flex gap-2"><span className="text-ink2">•</span>{s}</li>)}
                   </ul>
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink mb-1.5">🔁 Habitudes tenaces</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink mb-1.5">🔁 Stubborn habits</h3>
                   <ul className="space-y-1 text-ink">
                     {report.stubborn_habits.map((s, i) => <li key={i} className="flex gap-2"><span className="text-ink2">•</span>{s}</li>)}
                   </ul>
                 </div>
                 <div className="bg-surface2 border border-line rounded-xl px-4 py-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink2 mb-1">🎯 Focus de demain</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink2 mb-1">🎯 Tomorrow's focus</h3>
                   <p className="text-ink">{report.tomorrow_focus}</p>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
             {/* trend over the last 10 sessions */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-ink2 mb-2">
-                Progression ({pastSessions.length} dernière{pastSessions.length > 1 ? 's' : ''} session{pastSessions.length > 1 ? 's' : ''})
+                Progress (last {pastSessions.length} session{pastSessions.length > 1 ? 's' : ''})
               </h3>
               <TrendChart sessions={pastSessions} />
             </div>
@@ -144,22 +144,22 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
             {/* share card */}
             <div className="flex flex-col items-center gap-3 pt-2 border-t border-line">
               {shareUrl && (
-                <img src={shareUrl} alt="Carte de progrès partageable" className="rounded-xl max-w-full sm:max-w-md border border-line" />
+                <img src={shareUrl} alt="Shareable progress card" className="rounded-xl max-w-full sm:max-w-md border border-line" />
               )}
               <div className="flex gap-3">
                 <button
                   onClick={share}
                   className="btn-3d btn-3d-primary min-h-11 px-5 rounded-2xl text-sm font-extrabold"
                 >
-                  📤 Carte de progrès
+                  📤 Progress card
                 </button>
                 {shareUrl && (
                   <a
                     href={shareUrl}
-                    download="progres-francais.png"
+                    download="french-progress.png"
                     className="min-h-11 px-5 rounded-xl bg-surface2 text-ink text-sm font-semibold grid place-items-center hover:bg-line"
                   >
-                    ⬇ Télécharger
+                    ⬇ Download
                   </a>
                 )}
               </div>

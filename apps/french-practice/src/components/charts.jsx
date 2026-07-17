@@ -24,7 +24,7 @@ export function ProgressRing({ value, label, size = 84 }) {
   const c = scoreColor(value);
   return (
     <figure className="flex flex-col items-center gap-1">
-      <svg width={size} height={size} role="img" aria-label={`${label} : ${value} sur 100`}>
+      <svg width={size} height={size} role="img" aria-label={`${label}: ${value} out of 100`}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth="7" />
         <circle
           cx={size / 2}
@@ -131,7 +131,7 @@ export function RadarChart({ axes, values, size = 260 }) {
       ref={ref}
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`Radar : ${axes.map((a, i) => `${a} ${values[i]}`).join(', ')}`}
+      aria-label={`Radar: ${axes.map((a, i) => `${a} ${values[i]}`).join(', ')}`}
     />
   );
 }
@@ -145,7 +145,7 @@ export function TrendChart({ sessions }) {
   if (points.length < 2) {
     return (
       <p className="text-xs text-ink3 italic py-6 text-center">
-        Terminez au moins deux sessions pour voir votre progression 📈
+        Finish at least two sessions to see your progress 📈
       </p>
     );
   }
@@ -159,7 +159,7 @@ export function TrendChart({ sessions }) {
       viewBox={`0 0 ${w} ${h}`}
       className="w-full"
       role="img"
-      aria-label={`Tendance sur ${points.length} sessions : ${points.join(', ')}`}
+      aria-label={`Trend over ${points.length} sessions: ${points.join(', ')}`}
     >
       {[25, 50, 75, 100].map((g) => (
         <g key={g}>
@@ -196,22 +196,22 @@ export function renderShareCard({ grade, scores, streak, scenarioTitle }) {
 
   ctx.fillStyle = theme.ink;
   ctx.font = 'bold 15px system-ui';
-  ctx.fillText('LE STUDIO — PRATIQUE DU FRANÇAIS 🇫🇷', 36, 52);
+  ctx.fillText('LE STUDIO — FRENCH PRACTICE 🇫🇷', 36, 52);
   ctx.fillStyle = theme.ink;
   ctx.font = 'bold 88px system-ui';
   ctx.fillText(grade, 36, 160);
   ctx.fillStyle = theme.ink2;
   ctx.font = '16px system-ui';
-  ctx.fillText(`Scénario : ${scenarioTitle}`, 36, 196);
-  ctx.fillText(`Série : ${streak} jour${streak > 1 ? 's' : ''} 🔥`, 36, 222);
-  ctx.fillText(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 36, 248);
+  ctx.fillText(`Scenario: ${scenarioTitle}`, 36, 196);
+  ctx.fillText(`Streak: ${streak} day${streak > 1 ? 's' : ''} 🔥`, 36, 222);
+  ctx.fillText(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 36, 248);
 
   const rows = [
-    ['Grammaire', scores.grammar],
-    ['Naturel', scores.naturalness],
-    ['Pertinence', scores.relevance],
-    ['Fluidité', scores.fluency],
-    ['Global', scores.overall],
+    ['Grammar', scores.grammar],
+    ['Naturalness', scores.naturalness],
+    ['Relevance', scores.relevance],
+    ['Fluency', scores.fluency],
+    ['Overall', scores.overall],
   ];
   rows.forEach(([label, v], i) => {
     const bx = 36 + i * 118;

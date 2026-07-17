@@ -11,9 +11,9 @@ import { getApiKey, getSettings, setSettings as persistSettings, getStreak, getX
 import { setTelemetrySink } from './lib/groq';
 
 const TABS = [
-  ['arena', '💬', 'Arène'],
-  ['challenge', '⚡', 'Tac au tac'],
-  ['cards', '🃏', 'Cartes'],
+  ['arena', '💬', 'Arena'],
+  ['challenge', '⚡', 'Quick Fire'],
+  ['cards', '🃏', 'Cards'],
 ];
 
 export default function App() {
@@ -80,18 +80,18 @@ export default function App() {
         <h1 className="font-black text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
           <span className="text-ink">Le Studio</span>{' '}
           <span aria-hidden="true" className="hidden sm:inline">🗣️</span>
-          <span className="sr-only">Pratique du français</span>
+          <span className="sr-only">French speaking practice</span>
         </h1>
         <span
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold whitespace-nowrap ${
             streak.count > 0 ? 'bg-surface2 text-ink' : 'bg-surface2 text-ink3'
           }`}
-          title="Série de jours"
+          title="Day streak"
         >
           🔥 {streak.count}
         </span>
-        <span className="relative flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-extrabold whitespace-nowrap" title="Points d'expérience">
-          ⚡ {xp.toLocaleString('fr-FR')} XP
+        <span className="relative flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-extrabold whitespace-nowrap" title="Experience points">
+          ⚡ {xp.toLocaleString('en-GB')} XP
           {xpGain && (
             <span key={xpGain.id} className="xp-pop absolute -top-1 right-0 text-ink font-black text-xs pointer-events-none">
               +{xpGain.amount}
@@ -104,20 +104,20 @@ export default function App() {
               onClick={endSession}
               className="btn-3d btn-3d-secondary min-h-10 px-3.5 rounded-2xl border text-xs font-extrabold"
             >
-              🏁 Terminer
+              🏁 End Session
             </button>
           )}
           <button
             onClick={toggleTheme}
-            aria-label={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-            title={isDark ? 'Mode clair' : 'Mode sombre'}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={isDark ? 'Light mode' : 'Dark mode'}
             className="w-10 h-10 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink text-lg"
           >
             {isDark ? '☀️' : '🌙'}
           </button>
           <button
             onClick={() => setSettingsOpen(true)}
-            aria-label="Réglages"
+            aria-label="Settings"
             className="w-10 h-10 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink text-lg"
           >
             ⚙️
@@ -133,9 +133,9 @@ export default function App() {
         >
           <span className="text-3xl" aria-hidden="true">🔑</span>
           <span className="flex-1">
-            <span className="block text-sm font-extrabold text-ink">Bienvenue au Studio !</span>
+            <span className="block text-sm font-extrabold text-ink">Welcome to the Studio!</span>
             <span className="block text-xs text-ink2 mt-0.5">
-              Ajoutez votre clé API Groq (gratuite) pour commencer à parler français — touchez ici.
+              Add your free Groq API key to start speaking French — tap here.
             </span>
           </span>
           <span className="text-ink font-black" aria-hidden="true">→</span>
@@ -174,7 +174,7 @@ export default function App() {
       </div>
 
       {/* bottom tab bar */}
-      <nav className="flex border-t border-line bg-surface backdrop-blur pb-safe" aria-label="Navigation principale">
+      <nav className="flex border-t border-line bg-surface backdrop-blur pb-safe" aria-label="Main navigation">
         {TABS.map(([id, icon, label]) => (
           <TabButton key={id} id={id} icon={icon} label={label} active={tab === id} onClick={setTab} />
         ))}

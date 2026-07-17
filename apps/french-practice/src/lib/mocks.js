@@ -11,14 +11,14 @@ const MOCK_REPLIES = [
   {
     reply: "Très bon choix ! Un café au lait et un croissant, ça marche. Vous voulez autre chose avec ça ?",
     translation: "Great choice! A café au lait and a croissant, coming up. Would you like anything else with that?",
-    corrections: "Presque parfait ! Petite nuance : on dit plutôt <s>je voudrais un café au lait</s> <mark>je vais prendre un café crème</mark> dans un bistro parisien — *café au lait* se dit surtout à la maison.",
+    corrections: "Almost perfect! One nuance: in a Parisian bistro you'd say <s>je voudrais un café au lait</s> <mark>je vais prendre un café crème</mark> — *café au lait* is mostly said at home.",
     native_alternative: "« Bonjour, je vous prends un petit crème et un croissant, s'il vous plaît ! »",
     scores: { grammar: 92, naturalness: 78, relevance: 95, fluency: 84, overall: 87 },
   },
   {
     reply: "Ah non, pas de chance ! Il y a souvent des retards sur cette ligne. Vous allez où, exactement ?",
     translation: "Oh no, bad luck! There are often delays on this line. Where exactly are you headed?",
-    corrections: "Très bien ! L'usage de <mark>du coup</mark> est parfaitement naturel ici. Attention seulement au rythme : faites une petite pause après « retard ».",
+    corrections: "Very good! Your use of <mark>du coup</mark> is perfectly natural here. Just watch the rhythm: take a small pause after «retard».",
     native_alternative: "« Le train a du retard, du coup je poireaute ici en attendant. »",
     scores: { grammar: 88, naturalness: 85, relevance: 90, fluency: 76, overall: 85 },
   },
@@ -35,10 +35,10 @@ export function mockTurn() {
 
 export function mockHint(level) {
   return [
-    "Vocabulaire utile : « l'addition » (the bill), « régler » (to pay), « une terrasse » (outdoor seating).",
-    "Commencez par : « Excusez-moi, est-ce que je pourrais… »",
-    "« Excusez-moi, est-ce que je pourrais avoir l'addition, s'il vous plaît ? » — Excuse me, could I have the bill, please?",
-  ][level - 1] || 'Essayez de répondre simplement, une idée à la fois.';
+    "Useful vocabulary: «l'addition» (the bill), «régler» (to pay), «une terrasse» (outdoor seating).",
+    "Start with: «Excusez-moi, est-ce que je pourrais…»",
+    "«Excusez-moi, est-ce que je pourrais avoir l'addition, s'il vous plaît ?» — Excuse me, could I have the bill, please?",
+  ][level - 1] || 'Try answering simply, one idea at a time.';
 }
 
 export function mockSentenceCheck() {

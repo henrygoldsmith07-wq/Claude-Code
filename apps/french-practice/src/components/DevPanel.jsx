@@ -36,7 +36,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">🛠 Panneau développeur</h2>
+          <h2 className="text-lg font-bold text-ink">🛠 Developer Panel</h2>
           <label className="flex items-center gap-2 text-xs text-ink2 cursor-pointer">
             <input
               type="checkbox"
@@ -44,15 +44,15 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
               onChange={(e) => onMockMode(e.target.checked)}
               className="accent-ink w-4 h-4"
             />
-            Mock Mode (hors-ligne)
+            Mock Mode (offline)
           </label>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Appels API" value={totals.calls} />
-          <Metric label="Tokens entrée" value={totals.prompt.toLocaleString()} />
-          <Metric label="Tokens sortie" value={totals.completion.toLocaleString()} />
-          <Metric label="Latence moy." value={`${totals.avgLatency} ms`} />
+          <Metric label="API calls" value={totals.calls} />
+          <Metric label="Input tokens" value={totals.prompt.toLocaleString()} />
+          <Metric label="Output tokens" value={totals.completion.toLocaleString()} />
+          <Metric label="Avg latency" value={`${totals.avgLatency} ms`} />
         </div>
 
         <div className="flex items-center gap-3 bg-surface border border-line rounded-2xl px-4 py-3">
@@ -61,23 +61,23 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
             disabled={pinging || !apiKey}
             className="min-h-10 px-4 rounded-xl bg-surface2 text-ink2 text-xs font-bold hover:bg-line disabled:opacity-40"
           >
-            {pinging ? 'Ping…' : '📡 Ping Groq'}
+            {pinging ? 'Pinging…' : '📡 Ping Groq'}
           </button>
           <span className="text-sm font-mono text-ink2">
-            {ping == null ? '—' : ping === -1 ? 'échec' : `${ping} ms`}
+            {ping == null ? '—' : ping === -1 ? 'failed' : `${ping} ms`}
           </span>
-          {!apiKey && <span className="text-[11px] text-ink3">clé API requise</span>}
+          {!apiKey && <span className="text-[11px] text-ink3">API key required</span>}
           <button onClick={onClear} className="ml-auto text-[11px] text-ink3 hover:text-ink min-h-10">
-            Vider le journal
+            Clear log
           </button>
         </div>
 
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">
-            Journal des requêtes ({telemetry.length})
+            Request log ({telemetry.length})
           </h3>
           {telemetry.length === 0 && (
-            <p className="text-xs text-ink3 italic">Aucune requête pour l'instant — parlez dans l'arène !</p>
+            <p className="text-xs text-ink3 italic">No requests yet — go speak in the Arena!</p>
           )}
           {[...telemetry].reverse().map((e, i) => {
             const key = telemetry.length - 1 - i;
@@ -91,7 +91,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
                     className={`w-2 h-2 rounded-full shrink-0 ${
                       e.error ? 'bg-transparent border-2 border-ink' : 'bg-ink3'
                     }`}
-                    title={e.error ? 'échec' : 'succès'}
+                    title={e.error ? 'failed' : 'success'}
                   />
                   <span className="text-xs font-mono text-ink flex-1 truncate">{e.label}</span>
                   {e.usage && (
@@ -107,7 +107,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
                     {e.error && <pre className="text-ink whitespace-pre-wrap">{e.error}</pre>}
                     {e.payload && (
                       <details open>
-                        <summary className="text-ink2 cursor-pointer">Payload envoyé</summary>
+                        <summary className="text-ink2 cursor-pointer">Sent payload</summary>
                         <pre className="text-ink2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto nice-scroll mt-1">
                           {typeof e.payload === 'string' ? e.payload : JSON.stringify(e.payload, null, 2)}
                         </pre>
@@ -115,7 +115,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
                     )}
                     {e.response && (
                       <details>
-                        <summary className="text-ink2 cursor-pointer">Réponse brute</summary>
+                        <summary className="text-ink2 cursor-pointer">Raw response</summary>
                         <pre className="text-ink2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto nice-scroll mt-1">
                           {JSON.stringify(e.response, null, 2)}
                         </pre>

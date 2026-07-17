@@ -22,7 +22,7 @@ export function ScoreBadge({ value, size = 'md' }) {
     <div
       className={`${cls} text-ink bg-surface rounded-full grid place-items-center font-extrabold border-2 shrink-0`}
       style={{ borderColor: c.ring }}
-      aria-label={`Score ${value} sur 100`}
+      aria-label={`Score ${value} out of 100`}
     >
       {value}
     </div>
@@ -120,14 +120,14 @@ export function SpeakButton({ text, rate = 1, slow = false, label }) {
     <button
       type="button"
       onClick={onClick}
-      aria-label={label || (slow ? 'Écouter au ralenti' : 'Écouter')}
+      aria-label={label || (slow ? 'Listen slowly' : 'Listen')}
       className={`inline-flex items-center gap-1 px-2 py-1 min-h-8 rounded-lg text-[11px] font-medium transition-colors ${
         speaking
           ? 'bg-accent text-onaccent'
           : 'bg-surface2 text-ink2 hover:bg-line active:bg-line'
       }`}
     >
-      {speaking ? '◼' : '▶'} {slow ? '0.75×' : label || 'Écouter'}
+      {speaking ? '◼' : '▶'} {slow ? '0.75×' : label || 'Listen'}
     </button>
   );
 }
@@ -144,7 +144,7 @@ export function RateSlider({ rate, onChange }) {
         value={rate}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-24 accent-ink"
-        aria-label="Vitesse de lecture"
+        aria-label="Playback speed"
       />
       <span aria-hidden="true">🐇</span>
       <span className="font-mono w-8">{rate.toFixed(1)}×</span>

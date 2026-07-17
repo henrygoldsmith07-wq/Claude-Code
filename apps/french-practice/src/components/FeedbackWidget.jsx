@@ -6,10 +6,10 @@ import { compositeScore } from '../lib/groq';
 // S = 0.30·Grammaire + 0.30·Naturel + 0.20·Pertinence + 0.20·Fluidité
 
 const ROWS = [
-  ['grammar', 'Grammaire', 0.3],
-  ['naturalness', 'Naturel', 0.3],
-  ['relevance', 'Pertinence', 0.2],
-  ['fluency', 'Fluidité', 0.2],
+  ['grammar', 'Grammar', 0.3],
+  ['naturalness', 'Naturalness', 0.3],
+  ['relevance', 'Relevance', 0.2],
+  ['fluency', 'Fluency', 0.2],
 ];
 
 function ScoreRows({ scores }) {
@@ -49,13 +49,13 @@ export default function FeedbackWidget({ scores, turnCount }) {
       {/* Desktop: persistent side pane */}
       <aside className="hidden lg:flex flex-col w-72 shrink-0 border-l border-line bg-surface p-5 gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-ink">Ce tour</h3>
-          <span className="text-[11px] text-ink3">Tour {turnCount}</span>
+          <h3 className="text-sm font-bold text-ink">This turn</h3>
+          <span className="text-[11px] text-ink3">Turn {turnCount}</span>
         </div>
         <div className="flex items-center gap-3">
           <ScoreBadge value={composite} size="lg" />
           <p className="text-[11px] text-ink3 leading-snug">
-            Score pondéré<br />0,30 G + 0,30 N + 0,20 P + 0,20 F
+            Weighted score<br />0.30 G + 0.30 N + 0.20 R + 0.20 F
           </p>
         </div>
         <ScoreRows scores={scores} />
@@ -64,7 +64,7 @@ export default function FeedbackWidget({ scores, turnCount }) {
       {/* Mobile: floating badge that opens a bottom sheet */}
       <button
         onClick={() => setSheetOpen(true)}
-        aria-label={`Score du tour : ${composite}. Voir le détail`}
+        aria-label={`Turn score: ${composite}. See details`}
         className="lg:hidden fixed bottom-40 right-4 z-30 drop-shadow-xl active:scale-90 transition"
       >
         <ScoreBadge value={composite} size="lg" />
@@ -78,7 +78,7 @@ export default function FeedbackWidget({ scores, turnCount }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Détail des scores"
+            aria-label="Score details"
             onClick={(e) => e.stopPropagation()}
             className="sheet-enter w-full bg-surface border-t border-line rounded-t-3xl p-5 pb-safe space-y-4"
           >
@@ -86,8 +86,8 @@ export default function FeedbackWidget({ scores, turnCount }) {
             <div className="flex items-center gap-3">
               <ScoreBadge value={composite} size="lg" />
               <div>
-                <h3 className="text-sm font-bold text-ink">Score du tour {turnCount}</h3>
-                <p className="text-[11px] text-ink3">0,30 G + 0,30 N + 0,20 P + 0,20 F</p>
+                <h3 className="text-sm font-bold text-ink">Turn {turnCount} score</h3>
+                <p className="text-[11px] text-ink3">0.30 G + 0.30 N + 0.20 R + 0.20 F</p>
               </div>
             </div>
             <ScoreRows scores={scores} />
@@ -95,7 +95,7 @@ export default function FeedbackWidget({ scores, turnCount }) {
               onClick={() => setSheetOpen(false)}
               className="w-full min-h-11 rounded-xl bg-surface2 text-ink2 text-sm font-medium"
             >
-              Fermer
+              Close
             </button>
           </div>
         </div>

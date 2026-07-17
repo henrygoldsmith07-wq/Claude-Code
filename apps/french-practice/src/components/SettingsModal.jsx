@@ -20,14 +20,14 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
       setApiKey(key);
       onKeyChange(key);
       setState('ok');
-      setMessage(`Clé validée en ${latency} ms ✓`);
+      setMessage(`Key validated in ${latency} ms ✓`);
       setDraft('');
     } catch (e) {
       setState('bad');
       setMessage(
         /401|403/.test(e.message)
-          ? "Cette clé a été refusée par Groq — vérifiez qu'elle est correcte."
-          : `Impossible de vérifier la clé : ${e.message}`
+          ? 'This key was rejected by Groq — double-check it.'
+          : `Could not verify the key: ${e.message}`
       );
     }
   };
@@ -44,12 +44,12 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
       <div className="p-6 space-y-5">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-ink">Réglages</h2>
-            <p className="text-xs text-ink2 mt-0.5">Tout reste dans votre navigateur — aucun serveur.</p>
+            <h2 className="text-lg font-bold text-ink">Settings</h2>
+            <p className="text-xs text-ink2 mt-0.5">Everything stays in your browser — no server.</p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label="Close"
             className="w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2"
           >
             ✕
@@ -58,18 +58,18 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
 
         <section className="space-y-2">
           <label htmlFor="groq-key" className="text-sm font-semibold text-ink">
-            Clé API Groq
+            Groq API Key
           </label>
           {apiKey ? (
             <div className="flex items-center justify-between gap-3 bg-surface2 rounded-xl px-4 py-3">
               <span className="text-sm text-ink font-mono">
-                ●●●●{apiKey.slice(-4)} <span className="text-ink3">connectée</span>
+                ●●●●{apiKey.slice(-4)} <span className="text-ink3">connected</span>
               </span>
               <button
                 onClick={forget}
                 className="text-xs text-ink hover:text-ink font-medium min-h-9 px-2"
               >
-                Oublier la clé
+                Forget key
               </button>
             </div>
           ) : (
@@ -90,16 +90,16 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
                   disabled={state === 'checking' || !draft.trim()}
                   className="btn-3d btn-3d-primary px-4 rounded-2xl text-sm font-extrabold min-h-12"
                 >
-                  {state === 'checking' ? '…' : 'Valider'}
+                  {state === 'checking' ? '…' : 'Validate'}
                 </button>
               </div>
               <p className="text-[11px] text-ink3">
-                Créez une clé gratuite sur console.groq.com — elle est vérifiée via l'endpoint
-                <code className="mx-1 text-ink2">/models</code> avant d'être enregistrée.
+                Create a free key at console.groq.com — it is checked against the
+                <code className="mx-1 text-ink2">/models</code> endpoint before being saved.
               </p>
             </>
           )}
-          {state === 'checking' && <Spinner label="Vérification de la clé…" />}
+          {state === 'checking' && <Spinner label="Checking the key…" />}
           {message && (
             <p className={`text-xs ${state === 'ok' ? 'text-ink' : 'text-ink'}`}>{message}</p>
           )}
@@ -107,14 +107,14 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
 
         <section className="space-y-3 pt-2 border-t border-line">
           <ToggleRow
-            label="Panneau développeur"
-            hint="Tokens, latence, payloads bruts, Mock Mode"
+            label="Developer panel"
+            hint="Tokens, latency, raw payloads, Mock Mode"
             checked={settings.devPanel}
             onChange={(v) => onSettingsChange({ ...settings, devPanel: v })}
           />
           <ToggleRow
-            label="Mock Mode (hors-ligne)"
-            hint="Réponses simulées — aucune requête API"
+            label="Mock Mode (offline)"
+            hint="Simulated responses — no API requests"
             checked={settings.mockMode}
             onChange={(v) => onSettingsChange({ ...settings, mockMode: v })}
           />

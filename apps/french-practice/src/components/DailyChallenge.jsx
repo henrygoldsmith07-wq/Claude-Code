@@ -72,22 +72,23 @@ export default function DailyChallenge({ apiKey, mockMode }) {
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-lg mx-auto space-y-6 text-center">
         <div>
-          <h2 className="text-lg font-bold text-ink">⚡ Tac au tac</h2>
-          <p className="text-xs text-ink2 mt-1">45 secondes pour improviser sur un sujet. Pas de préparation !</p>
+          <h2 className="text-lg font-bold text-ink">⚡ Quick Fire</h2>
+          <p className="text-xs text-ink2 mt-1">45 seconds to improvise on a French topic. No prep!</p>
         </div>
 
         <div className="bg-surface border border-line rounded-2xl p-5">
-          <p className="text-[11px] uppercase tracking-wider text-ink2 font-bold mb-2">Votre sujet</p>
-          <p className="text-lg text-ink font-medium leading-snug">{topic}</p>
+          <p className="text-[11px] uppercase tracking-wider text-ink2 font-bold mb-2">Your topic</p>
+          <p className="text-lg text-ink font-medium leading-snug" lang="fr">{topic.fr}</p>
+          <p className="text-xs text-ink3 italic mt-1.5">{topic.en}</p>
           <button onClick={newTopic} disabled={recorder.recording} className="mt-3 text-xs text-ink2 hover:text-ink min-h-9 disabled:opacity-40">
-            🎲 Autre sujet
+            🎲 New topic
           </button>
         </div>
 
         {/* countdown ring */}
         <div className="flex justify-center">
           <div className="relative">
-            <svg width="128" height="128" role="timer" aria-label={`${remaining} secondes restantes`}>
+            <svg width="128" height="128" role="timer" aria-label={`${remaining} seconds left`}>
               <circle cx="64" cy="64" r={r} fill="none" stroke="var(--line)" strokeWidth="8" />
               <circle
                 cx="64" cy="64" r={r} fill="none"
@@ -109,19 +110,19 @@ export default function DailyChallenge({ apiKey, mockMode }) {
             <button
               onClick={recorder.stop}
               className="rec-pulse w-16 h-16 mx-auto rounded-full bg-accent text-onaccent text-2xl grid place-items-center active:scale-90 transition"
-              aria-label="Terminer maintenant"
+              aria-label="Finish now"
             >
               ◼
             </button>
           </div>
         ) : transcribing ? (
-          <Spinner label="Analyse de votre improvisation…" />
+          <Spinner label="Analyzing your improv…" />
         ) : (
           <button
             onClick={() => { setResult(null); recorder.start(); }}
             className="btn-3d btn-3d-primary min-h-13 px-8 py-3.5 rounded-2xl font-extrabold shadow-lg shadow-black/15"
           >
-            🎙️ C'est parti !
+            🎙️ Go!
           </button>
         )}
 
@@ -132,18 +133,18 @@ export default function DailyChallenge({ apiKey, mockMode }) {
         {result && (
           <div className="fade-in bg-surface border border-line rounded-2xl p-5 space-y-4 text-left">
             <div className="grid grid-cols-3 gap-3 text-center">
-              <Stat label="Mots / minute" value={result.wpm} accent />
-              <Stat label="Mots" value={result.words} />
-              <Stat label="Secondes" value={result.seconds} />
+              <Stat label="Words / minute" value={result.wpm} accent />
+              <Stat label="Words" value={result.words} />
+              <Stat label="Seconds" value={result.seconds} />
             </div>
             <p className="text-[11px] text-ink3 text-center">
-              {result.wpm >= 100 ? 'Débit très fluide — niveau natif décontracté ! 🚀'
-                : result.wpm >= 70 ? 'Bon débit conversationnel, continuez ! 👏'
-                : result.wpm >= 40 ? 'Débit posé — visez 70+ mots/min pour plus de fluidité.'
-                : 'Prenez confiance : parlez sans vous arrêter, même avec des erreurs.'}
+              {result.wpm >= 100 ? 'Very fluid pace — relaxed native level! 🚀'
+                : result.wpm >= 70 ? 'Good conversational pace, keep going! 👏'
+                : result.wpm >= 40 ? 'Steady pace — aim for 70+ words/min for more flow.'
+                : 'Build confidence: keep talking without stopping, mistakes and all.'}
             </p>
             <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1">Votre improvisation</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1">Your improvisation</h4>
               <p className="text-sm text-ink leading-relaxed">{result.transcript}</p>
             </div>
           </div>

@@ -97,7 +97,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
     <div className="flex flex-col h-full">
       {/* scenario card rail */}
       <div className="border-b border-line bg-surface px-3 pt-2.5 pb-2 space-y-1.5">
-        <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choix du scénario">
+        <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choose a scenario">
           {SCENARIOS.map((s) => {
             const active = s.id === scenario.id;
             return (
@@ -134,14 +134,14 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
             <UserBubble turn={turn} />
             {turn.curveball && (
               <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
-                ⚡ Imprévu !
+                ⚡ Curveball!
               </p>
             )}
             <AiBubble text={turn.evaluation.reply} translation={turn.evaluation.translation} ttsRate={ttsRate} />
           </div>
         ))}
         {phase === 'thinking' && (
-          <div className="flex items-end gap-2 bubble-in" aria-label="Votre partenaire écrit…">
+          <div className="flex items-end gap-2 bubble-in" aria-label="Your partner is typing…">
             <Avatar />
             <div className="bg-surface2 rounded-2xl rounded-bl-md px-4 py-3.5 flex gap-1.5">
               <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
@@ -160,8 +160,8 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
       {(hint || hintLoading) && (
         <div className="mx-4 sm:max-w-2xl sm:mx-auto sm:w-full mb-2 fade-in rounded-xl bg-surface2 border border-line px-3 py-2">
           {hintLoading
-            ? <Spinner label={`Indice ${hintLevel}/3…`} />
-            : <p className="text-xs text-ink2"><span className="font-bold">💡 Indice {hintLevel}/3 :</span> {hint}</p>}
+            ? <Spinner label={`Hint ${hintLevel}/3…`} />
+            : <p className="text-xs text-ink2"><span className="font-bold">💡 Hint {hintLevel}/3:</span> {hint}</p>}
         </div>
       )}
 
@@ -176,39 +176,39 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
                 onClick={recorder.cancel}
                 className="min-h-11 px-4 rounded-xl text-sm text-ink2 hover:text-ink"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={recorder.stop}
-                aria-label="Arrêter et envoyer"
+                aria-label="Stop and send"
                 className="rec-pulse w-16 h-16 rounded-full bg-accent text-onaccent text-2xl grid place-items-center active:scale-90 transition"
               >
                 ◼
               </button>
-              <span className="text-[11px] text-ink3 w-20">3,5 s de silence = envoi auto</span>
+              <span className="text-[11px] text-ink3 w-20">3.5 s of silence auto-sends</span>
             </div>
           </div>
         ) : phase === 'editing' ? (
           <div className="space-y-2 fade-in">
-            <p className="text-[11px] text-ink2 font-medium">✏️ Vérifiez votre transcription avant l'envoi :</p>
+            <p className="text-[11px] text-ink2 font-medium">✏️ Check your transcription before sending:</p>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={2}
               autoFocus
               className="w-full bg-surface2 border border-line rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-ink resize-none"
-              aria-label="Transcription à vérifier"
+              aria-label="Transcription to review"
             />
             <div className="flex gap-2">
               <button onClick={() => { setDraft(''); setPhase('idle'); }} className="min-h-11 px-4 rounded-xl text-sm text-ink2 hover:text-ink">
-                Refaire
+                Redo
               </button>
               <button
                 onClick={() => send(draft)}
                 disabled={!draft.trim()}
                 className="btn-3d btn-3d-primary flex-1 min-h-11 rounded-2xl font-extrabold text-sm"
               >
-                Envoyer →
+                Send →
               </button>
             </div>
           </div>
@@ -219,26 +219,26 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
               disabled={busy || hintLevel >= 3}
               className="btn-3d btn-3d-secondary min-h-11 px-3 rounded-2xl border text-xs font-extrabold whitespace-nowrap"
             >
-              💡 {hintLevel === 0 ? 'Un indice' : `Indice ${Math.min(3, hintLevel + 1)}/3`}
+              💡 {hintLevel === 0 ? 'Hint' : `Hint ${Math.min(3, hintLevel + 1)}/3`}
             </button>
             <div className="flex-1 flex items-center gap-2 bg-surface2 rounded-xl border border-line focus-within:border-ink px-3">
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send(draft)}
-                placeholder={busy ? '…' : 'Ou écrivez en français…'}
+                placeholder={busy ? '…' : 'Or type in French…'}
                 disabled={busy}
                 className="flex-1 bg-transparent py-3 text-sm text-ink placeholder:text-ink3 focus:outline-none"
-                aria-label="Réponse écrite"
+                aria-label="Typed reply"
               />
               {draft.trim() && (
-                <button onClick={() => send(draft)} disabled={busy} aria-label="Envoyer" className="text-ink font-bold px-1 min-h-11">→</button>
+                <button onClick={() => send(draft)} disabled={busy} aria-label="Send" className="text-ink font-bold px-1 min-h-11">→</button>
               )}
             </div>
             <button
               onClick={recorder.start}
               disabled={busy}
-              aria-label="Enregistrer ma réponse"
+              aria-label="Record my reply"
               className="btn-3d btn-3d-primary w-14 h-14 rounded-full text-xl grid place-items-center shadow-lg shadow-black/15"
             >
               {phase === 'transcribing' ? <span className="w-5 h-5 rounded-full border-2 border-onaccent border-t-transparent animate-spin" /> : '🎙️'}
@@ -269,15 +269,15 @@ function AiBubble({ text, translation, ttsRate }) {
     <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%] bubble-in">
       <Avatar />
       <div className="bg-surface2 rounded-2xl rounded-bl-md px-4 py-3 space-y-2">
-        <p className="text-[15px] text-ink leading-relaxed">{text}</p>
+        <p className="text-[15px] text-ink leading-relaxed" lang="fr">{text}</p>
         {showTranslation && <p className="text-xs text-ink2 italic border-t border-line pt-2">{translation}</p>}
         <div className="flex items-center gap-2">
-          <SpeakButton text={text} rate={ttsRate} label="Rejouer" />
+          <SpeakButton text={text} rate={ttsRate} label="Replay" />
           <button
             onClick={() => setShowTranslation((v) => !v)}
             className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
           >
-            {showTranslation ? 'Cacher' : '🇬🇧 Traduire'}
+            {showTranslation ? 'Hide' : '🇬🇧 Translate'}
           </button>
         </div>
       </div>
@@ -292,7 +292,7 @@ function UserBubble({ turn }) {
     <div className="flex flex-col items-end gap-1.5 bubble-in">
       <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%]">
         <div className="bg-accent rounded-2xl rounded-br-md px-4 py-3 shadow-md shadow-black/15">
-          <p className="text-[15px] text-onaccent leading-relaxed">{turn.userText}</p>
+          <p className="text-[15px] text-onaccent leading-relaxed" lang="fr">{turn.userText}</p>
         </div>
         <ScoreBadge value={evaluation.scores.overall} />
       </div>
@@ -300,7 +300,7 @@ function UserBubble({ turn }) {
         onClick={() => setExpanded((v) => !v)}
         className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
       >
-        {expanded ? '▲ Masquer le feedback' : '▼ Corrections & version native'}
+        {expanded ? '▲ Hide feedback' : '▼ Corrections & native version'}
       </button>
       {expanded && (
         <div className="w-full sm:max-w-[85%] fade-in bg-surface2 border border-line rounded-2xl p-4 space-y-3 text-left">
@@ -309,9 +309,9 @@ function UserBubble({ turn }) {
             <Markdown className="text-[13px] text-ink leading-relaxed">{evaluation.corrections}</Markdown>
           </div>
           <div>
-            <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink mb-1">Comme un natif 🇫🇷</h4>
-            <p className="text-[13px] text-ink italic">{evaluation.native_alternative}</p>
-            <SpeakButton text={evaluation.native_alternative} slow label="Écouter" />
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink mb-1">Like a native 🇫🇷</h4>
+            <p className="text-[13px] text-ink italic" lang="fr">{evaluation.native_alternative}</p>
+            <SpeakButton text={evaluation.native_alternative} slow label="Listen" />
           </div>
         </div>
       )}
