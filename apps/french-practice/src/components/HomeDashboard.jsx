@@ -1,7 +1,7 @@
-import { getStreak, getTodayXp, getLastReport, getDueCardIds } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits } from '../lib/storage';
 import { FLASHCARDS, SCENARIOS } from '../lib/data';
 import { TrendChart } from './charts';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -21,6 +21,7 @@ export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScen
   const todayXp = getTodayXp();
   const last = getLastReport();
   const dueCount = getDueCardIds(FLASHCARDS.map((c) => c.id)).length;
+  const habits = getHabits().slice(0, 3);
   const sessions = getSessions();
   const suggested = suggestScenario(sessions);
   const SuggestedIcon = SCENARIO_ICONS[suggested.id];
@@ -70,14 +71,7 @@ export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScen
         <section className="bg-surface2 border border-line rounded-2xl p-5">
           <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1.5">Today’s focus</h3>
           {last ? (
-            <>
-              <p className="text-sm text-ink leading-relaxed">{last.report.tomorrow_focus}</p>
-              {last.report.stubborn_habits?.length > 0 && (
-                <p className="text-xs text-ink3 mt-2">
-                  Watch out for: {last.report.stubborn_habits[0]}
-                </p>
-              )}
-            </>
+            <p className="text-sm text-ink leading-relaxed">{last.report.tomorrow_focus}</p>
           ) : (
             <p className="text-sm text-ink2">
               Finish your first conversation and your coach will set a personalized focus for
@@ -85,6 +79,28 @@ export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScen
             </p>
           )}
         </section>
+
+        {/* recurring mistakes accumulated across sessions */}
+        {habits.length > 0 && (
+          <section className="bg-surface border border-line rounded-2xl p-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Recurring habits</h3>
+            <ul className="space-y-2">
+              {habits.map((h) => (
+                <li key={h.key} className="flex items-start gap-2.5 text-[13px] text-ink leading-snug">
+                  {h.count > 1 && (
+                    <span className="shrink-0 mt-px px-1.5 py-0.5 rounded-md bg-surface2 text-ink2 text-[10px] font-semibold tabular-nums">
+                      ×{h.count}
+                    </span>
+                  )}
+                  <span className={h.count > 1 ? '' : 'text-ink2'}>{h.text}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-ink3 mt-2.5">
+              Collected from your session reports — repeat offenders rise to the top.
+            </p>
+          </section>
+        )}
 
         {/* recommended actions */}
         <section className="space-y-2.5">
@@ -101,6 +117,12 @@ export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScen
             subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
             badge={dueCount > 0 ? String(dueCount) : null}
             onClick={() => onNavigate('cards')}
+          />
+          <ActionCard
+            icon={Volume}
+            title="Dictée"
+            subtitle="Train your ear — type what you hear"
+            onClick={() => onNavigate('dictation')}
           />
           <ActionCard
             icon={Clock}

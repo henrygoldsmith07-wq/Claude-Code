@@ -8,6 +8,8 @@ const KEYS = {
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel, theme, level, dailyGoal }
   xp: 'fp.xp', // lifetime experience points
   xpDay: 'fp.xpDay', // { day: 'YYYY-MM-DD', amount } — today's XP toward the goal
+  active: 'fp.activeSession', // { scenarioId, history } — in-flight conversation
+  habits: 'fp.habits', // [{ text, key, count, lastSeen }] — recurring mistakes
 };
 
 function read(key, fallback) {
@@ -48,6 +50,13 @@ export const setSettings = (s) => write(KEYS.settings, s);
 
 export const getSessions = () => read(KEYS.sessions, []);
 
+// ---- in-flight conversation (survives a page refresh) ----
+
+export const getActiveSession = () => read(KEYS.active, null);
+export const setActiveSession = (scenarioId, history) =>
+  write(KEYS.active, { scenarioId, history });
+export const clearActiveSession = () => localStorage.removeItem(KEYS.active);
+
 // The most recent report powers the Home dashboard's "Today's focus".
 export function getLastReport() {
   const sessions = getSessions();
@@ -58,7 +67,36 @@ export function saveSession(summary) {
   const sessions = getSessions();
   sessions.push({ ...summary, date: new Date().toISOString() });
   write(KEYS.sessions, sessions.slice(-10));
+  recordHabits(summary.report?.stubborn_habits || []);
   bumpStreak();
+}
+
+// ---- recurring mistake bank ----
+// Stubborn habits from each report accumulate across sessions so patterns
+// ("you've hit this 4 times") become visible instead of being overwritten.
+
+const habitKey = (text) =>
+  String(text).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+export const getHabits = () => read(KEYS.habits, []);
+
+function recordHabits(habitTexts) {
+  const habits = getHabits();
+  const now = new Date().toISOString();
+  for (const text of habitTexts) {
+    const key = habitKey(text);
+    if (!key) continue;
+    const existing = habits.find((h) => h.key === key);
+    if (existing) {
+      existing.count += 1;
+      existing.lastSeen = now;
+      existing.text = String(text); // keep the freshest wording
+    } else {
+      habits.push({ text: String(text), key, count: 1, lastSeen: now });
+    }
+  }
+  habits.sort((a, b) => b.count - a.count || (a.lastSeen < b.lastSeen ? 1 : -1));
+  write(KEYS.habits, habits.slice(0, 20));
 }
 
 // ---- experience points (10 XP per point of overall turn score / 10) ----

@@ -14,25 +14,57 @@ function report(entry) {
   if (telemetrySink) telemetrySink({ time: new Date().toISOString(), ...entry });
 }
 
+// Transient statuses worth retrying: rate limits and server hiccups.
+const RETRYABLE = new Set([429, 500, 502, 503]);
+const RETRY_DELAYS_MS = [600, 1800];
+const REQUEST_TIMEOUT_MS = 45000;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function timedFetch(label, url, options, { rawBody } = {}) {
-  const t0 = performance.now();
-  const res = await fetch(url, options);
-  const latency = Math.round(performance.now() - t0);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    report({ label, latency, status: res.status, error: text.slice(0, 400) });
-    throw new Error(`${label} failed (${res.status}): ${text.slice(0, 200)}`);
+  let lastError = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    const t0 = performance.now();
+    let res;
+    try {
+      res = await fetch(url, { ...options, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    } catch (e) {
+      const latency = Math.round(performance.now() - t0);
+      lastError = e.name === 'TimeoutError'
+        ? new Error(`${label} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`)
+        : e;
+      report({ label, latency, status: 0, error: String(lastError.message), attempt });
+      if (attempt < RETRY_DELAYS_MS.length) {
+        await sleep(RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw lastError;
+    }
+    const latency = Math.round(performance.now() - t0);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      report({ label, latency, status: res.status, error: text.slice(0, 400), attempt });
+      if (RETRYABLE.has(res.status) && attempt < RETRY_DELAYS_MS.length) {
+        // Honour Retry-After when Groq sends one, otherwise back off.
+        const retryAfter = Number(res.headers.get('retry-after'));
+        await sleep(retryAfter > 0 && retryAfter <= 15 ? retryAfter * 1000 : RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw new Error(`${label} failed (${res.status}): ${text.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    report({
+      label,
+      latency,
+      status: res.status,
+      usage: data.usage || null,
+      payload: rawBody || null,
+      response: data,
+      attempt,
+    });
+    return { data, latency };
   }
-  const data = await res.json();
-  report({
-    label,
-    latency,
-    status: res.status,
-    usage: data.usage || null,
-    payload: rawBody || null,
-    response: data,
-  });
-  return { data, latency };
+  throw lastError; // unreachable, but keeps the control flow explicit
 }
 
 // ---- key validation (lightweight models-list ping) ----
