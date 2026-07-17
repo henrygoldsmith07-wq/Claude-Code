@@ -69,8 +69,8 @@ export default function useRecorder({ onComplete }) {
     } catch (e) {
       setError(
         e.name === 'NotAllowedError'
-          ? "Accès au micro refusé — autorisez le microphone dans votre navigateur."
-          : `Micro indisponible : ${e.message}`
+          ? 'Microphone access denied — allow the microphone in your browser.'
+          : `Microphone unavailable: ${e.message}`
       );
       return;
     }

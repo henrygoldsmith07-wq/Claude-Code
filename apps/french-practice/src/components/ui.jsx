@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { speak, stopSpeaking, ttsSupported } from '../lib/tts';
 
-// ---- score color ramp (shared everywhere) ----
+// ---- monochrome score ramp (shared everywhere) ----
+// Score is expressed as ink *intensity* rather than hue: strong scores get
+// full-contrast marks, weak ones fade toward the background. color-mix keeps
+// it correct on both themes.
 
 export function scoreColor(v) {
-  if (v >= 85) return { text: 'text-emerald-400', bg: 'bg-emerald-500', ring: '#34d399' };
-  if (v >= 70) return { text: 'text-teal-300', bg: 'bg-teal-500', ring: '#2dd4bf' };
-  if (v >= 55) return { text: 'text-amber-300', bg: 'bg-amber-500', ring: '#fbbf24' };
-  return { text: 'text-rose-400', bg: 'bg-rose-500', ring: '#fb7185' };
+  const alpha = v >= 85 ? 100 : v >= 70 ? 75 : v >= 55 ? 52 : 32;
+  return {
+    alpha,
+    text: 'text-ink',
+    ring: `color-mix(in srgb, var(--ink) ${alpha}%, transparent)`,
+  };
 }
 
 export function ScoreBadge({ value, size = 'md' }) {
@@ -15,9 +20,9 @@ export function ScoreBadge({ value, size = 'md' }) {
   const cls = size === 'lg' ? 'w-14 h-14 text-lg' : 'w-9 h-9 text-xs';
   return (
     <div
-      className={`${cls} ${c.text} rounded-full grid place-items-center font-bold border-2 shrink-0`}
-      style={{ borderColor: c.ring, background: `${c.ring}18` }}
-      aria-label={`Score ${value} sur 100`}
+      className={`${cls} text-ink bg-surface rounded-full grid place-items-center font-extrabold border-2 shrink-0`}
+      style={{ borderColor: c.ring }}
+      aria-label={`Score ${value} out of 100`}
     >
       {value}
     </div>
@@ -37,7 +42,7 @@ export function Modal({ open, onClose, children, wide = false }) {
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
       onClick={onClose}
       role="presentation"
     >
@@ -45,7 +50,7 @@ export function Modal({ open, onClose, children, wide = false }) {
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className={`sheet-enter w-full ${wide ? 'sm:max-w-3xl' : 'sm:max-w-md'} max-h-[92dvh] overflow-y-auto nice-scroll bg-slate-900 border border-slate-700/60 rounded-t-3xl sm:rounded-3xl shadow-2xl shadow-black/50`}
+        className={`sheet-enter w-full ${wide ? 'sm:max-w-3xl' : 'sm:max-w-md'} max-h-[92dvh] overflow-y-auto nice-scroll bg-surface border border-line rounded-t-3xl sm:rounded-3xl shadow-2xl shadow-black/50`}
       >
         {children}
       </div>
@@ -115,21 +120,21 @@ export function SpeakButton({ text, rate = 1, slow = false, label }) {
     <button
       type="button"
       onClick={onClick}
-      aria-label={label || (slow ? 'Écouter au ralenti' : 'Écouter')}
+      aria-label={label || (slow ? 'Listen slowly' : 'Listen')}
       className={`inline-flex items-center gap-1 px-2 py-1 min-h-8 rounded-lg text-[11px] font-medium transition-colors ${
         speaking
-          ? 'bg-emerald-500/25 text-emerald-300'
-          : 'bg-slate-700/40 text-slate-300 hover:bg-slate-700/80 active:bg-slate-600'
+          ? 'bg-accent text-onaccent'
+          : 'bg-surface2 text-ink2 hover:bg-line active:bg-line'
       }`}
     >
-      {speaking ? '◼' : '▶'} {slow ? '0.75×' : label || 'Écouter'}
+      {speaking ? '◼' : '▶'} {slow ? '0.75×' : label || 'Listen'}
     </button>
   );
 }
 
 export function RateSlider({ rate, onChange }) {
   return (
-    <label className="flex items-center gap-2 text-[11px] text-slate-400">
+    <label className="flex items-center gap-2 text-[11px] text-ink2">
       <span aria-hidden="true">🐢</span>
       <input
         type="range"
@@ -138,8 +143,8 @@ export function RateSlider({ rate, onChange }) {
         step="0.1"
         value={rate}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-24 accent-emerald-400"
-        aria-label="Vitesse de lecture"
+        className="w-24 accent-ink"
+        aria-label="Playback speed"
       />
       <span aria-hidden="true">🐇</span>
       <span className="font-mono w-8">{rate.toFixed(1)}×</span>
@@ -149,8 +154,8 @@ export function RateSlider({ rate, onChange }) {
 
 export function Spinner({ label }) {
   return (
-    <span className="inline-flex items-center gap-2 text-slate-400 text-sm">
-      <span className="w-4 h-4 rounded-full border-2 border-slate-600 border-t-emerald-400 animate-spin" />
+    <span className="inline-flex items-center gap-2 text-ink2 text-sm">
+      <span className="w-4 h-4 rounded-full border-2 border-line border-t-ink animate-spin" />
       {label}
     </span>
   );

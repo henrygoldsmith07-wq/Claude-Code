@@ -36,82 +36,87 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-100">🛠 Panneau développeur</h2>
-          <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <h2 className="text-lg font-bold text-ink">🛠 Developer Panel</h2>
+          <label className="flex items-center gap-2 text-xs text-ink2 cursor-pointer">
             <input
               type="checkbox"
               checked={mockMode}
               onChange={(e) => onMockMode(e.target.checked)}
-              className="accent-emerald-400 w-4 h-4"
+              className="accent-ink w-4 h-4"
             />
-            Mock Mode (hors-ligne)
+            Mock Mode (offline)
           </label>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Metric label="Appels API" value={totals.calls} />
-          <Metric label="Tokens entrée" value={totals.prompt.toLocaleString()} />
-          <Metric label="Tokens sortie" value={totals.completion.toLocaleString()} />
-          <Metric label="Latence moy." value={`${totals.avgLatency} ms`} />
+          <Metric label="API calls" value={totals.calls} />
+          <Metric label="Input tokens" value={totals.prompt.toLocaleString()} />
+          <Metric label="Output tokens" value={totals.completion.toLocaleString()} />
+          <Metric label="Avg latency" value={`${totals.avgLatency} ms`} />
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-900 border border-slate-700/60 rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-3 bg-surface border border-line rounded-2xl px-4 py-3">
           <button
             onClick={doPing}
             disabled={pinging || !apiKey}
-            className="min-h-10 px-4 rounded-xl bg-slate-800 text-teal-300 text-xs font-bold hover:bg-slate-700 disabled:opacity-40"
+            className="min-h-10 px-4 rounded-xl bg-surface2 text-ink2 text-xs font-bold hover:bg-line disabled:opacity-40"
           >
-            {pinging ? 'Ping…' : '📡 Ping Groq'}
+            {pinging ? 'Pinging…' : '📡 Ping Groq'}
           </button>
-          <span className="text-sm font-mono text-slate-300">
-            {ping == null ? '—' : ping === -1 ? 'échec' : `${ping} ms`}
+          <span className="text-sm font-mono text-ink2">
+            {ping == null ? '—' : ping === -1 ? 'failed' : `${ping} ms`}
           </span>
-          {!apiKey && <span className="text-[11px] text-slate-500">clé API requise</span>}
-          <button onClick={onClear} className="ml-auto text-[11px] text-slate-500 hover:text-rose-400 min-h-10">
-            Vider le journal
+          {!apiKey && <span className="text-[11px] text-ink3">API key required</span>}
+          <button onClick={onClear} className="ml-auto text-[11px] text-ink3 hover:text-ink min-h-10">
+            Clear log
           </button>
         </div>
 
         <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Journal des requêtes ({telemetry.length})
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">
+            Request log ({telemetry.length})
           </h3>
           {telemetry.length === 0 && (
-            <p className="text-xs text-slate-500 italic">Aucune requête pour l'instant — parlez dans l'arène !</p>
+            <p className="text-xs text-ink3 italic">No requests yet — go speak in the Arena!</p>
           )}
           {[...telemetry].reverse().map((e, i) => {
             const key = telemetry.length - 1 - i;
             return (
-              <div key={key} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <div key={key} className="bg-surface border border-line rounded-xl overflow-hidden">
                 <button
                   onClick={() => setExpanded(expanded === key ? null : key)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-left min-h-11"
                 >
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${e.error ? 'bg-rose-500' : 'bg-emerald-400'}`} />
-                  <span className="text-xs font-mono text-slate-200 flex-1 truncate">{e.label}</span>
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      e.error ? 'bg-transparent border-2 border-ink' : 'bg-ink3'
+                    }`}
+                    title={e.error ? 'failed' : 'success'}
+                  />
+                  <span className="text-xs font-mono text-ink flex-1 truncate">{e.label}</span>
                   {e.usage && (
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-[10px] font-mono text-ink3">
                       {e.usage.prompt_tokens}→{e.usage.completion_tokens} tok
                     </span>
                   )}
-                  <span className="text-[10px] font-mono text-teal-400">{e.latency} ms</span>
-                  <span className="text-slate-600 text-xs">{expanded === key ? '▲' : '▼'}</span>
+                  <span className="text-[10px] font-mono text-ink2">{e.latency} ms</span>
+                  <span className="text-ink3 text-xs">{expanded === key ? '▲' : '▼'}</span>
                 </button>
                 {expanded === key && (
-                  <div className="border-t border-slate-800 p-3 space-y-2 text-[11px] font-mono">
-                    {e.error && <pre className="text-rose-400 whitespace-pre-wrap">{e.error}</pre>}
+                  <div className="border-t border-line p-3 space-y-2 text-[11px] font-mono">
+                    {e.error && <pre className="text-ink whitespace-pre-wrap">{e.error}</pre>}
                     {e.payload && (
                       <details open>
-                        <summary className="text-slate-400 cursor-pointer">Payload envoyé</summary>
-                        <pre className="text-slate-300 whitespace-pre-wrap break-all max-h-48 overflow-y-auto nice-scroll mt-1">
+                        <summary className="text-ink2 cursor-pointer">Sent payload</summary>
+                        <pre className="text-ink2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto nice-scroll mt-1">
                           {typeof e.payload === 'string' ? e.payload : JSON.stringify(e.payload, null, 2)}
                         </pre>
                       </details>
                     )}
                     {e.response && (
                       <details>
-                        <summary className="text-slate-400 cursor-pointer">Réponse brute</summary>
-                        <pre className="text-slate-300 whitespace-pre-wrap break-all max-h-48 overflow-y-auto nice-scroll mt-1">
+                        <summary className="text-ink2 cursor-pointer">Raw response</summary>
+                        <pre className="text-ink2 whitespace-pre-wrap break-all max-h-48 overflow-y-auto nice-scroll mt-1">
                           {JSON.stringify(e.response, null, 2)}
                         </pre>
                       </details>
@@ -129,9 +134,9 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
 
 function Metric({ label, value }) {
   return (
-    <div className="bg-slate-900 border border-slate-700/60 rounded-2xl px-3 py-3 text-center">
-      <div className="text-xl font-black text-slate-100 tabular-nums truncate">{value}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5">{label}</div>
+    <div className="bg-surface border border-line rounded-2xl px-3 py-3 text-center">
+      <div className="text-xl font-black text-ink tabular-nums truncate">{value}</div>
+      <div className="text-[10px] text-ink3 mt-0.5">{label}</div>
     </div>
   );
 }

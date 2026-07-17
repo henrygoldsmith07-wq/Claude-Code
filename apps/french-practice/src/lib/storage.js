@@ -6,6 +6,7 @@ const KEYS = {
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel }
+  xp: 'fp.xp', // lifetime experience points
 };
 
 function read(key, fallback) {
@@ -29,8 +30,9 @@ export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
 
+// theme: null = follow the OS preference; 'dark' | 'light' once toggled
 export const getSettings = () =>
-  read(KEYS.settings, { ttsRate: 1, mockMode: false, devPanel: false });
+  read(KEYS.settings, { ttsRate: 1, mockMode: false, devPanel: false, theme: null });
 export const setSettings = (s) => write(KEYS.settings, s);
 
 // ---- session history (last 10 kept for trend charts) ----
@@ -42,6 +44,16 @@ export function saveSession(summary) {
   sessions.push({ ...summary, date: new Date().toISOString() });
   write(KEYS.sessions, sessions.slice(-10));
   bumpStreak();
+}
+
+// ---- experience points (10 XP per point of overall turn score / 10) ----
+
+export const getXp = () => read(KEYS.xp, 0);
+
+export function addXp(amount) {
+  const total = getXp() + Math.max(0, Math.round(amount));
+  write(KEYS.xp, total);
+  return total;
 }
 
 // ---- daily streak ----

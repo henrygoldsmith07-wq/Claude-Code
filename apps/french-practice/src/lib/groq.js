@@ -109,7 +109,7 @@ You MUST reply with ONLY a JSON object in exactly this shape:
 {
   "reply": "Conversational reply in natural, intermediate French. Stay in character for the scenario. Keep it to 1-3 sentences and always end in a way that invites the learner to respond.",
   "translation": "English translation of the reply.",
-  "corrections": "Constructive markdown-formatted corrections of the learner's grammar, spelling, or vocabulary. Wrap removed/wrong words in <s></s> tags and corrected words in <mark></mark> tags. If the sentence was perfect, say so warmly.",
+  "corrections": "Constructive markdown-formatted corrections of the learner's grammar, spelling, or vocabulary, WRITTEN IN ENGLISH (quote the French words being discussed). Wrap removed/wrong French words in <s></s> tags and corrected French words in <mark></mark> tags. If the sentence was perfect, say so warmly in English.",
   "native_alternative": "How a native French speaker would express the learner's idea using common slang, modern structures, and phrases.",
   "scores": { "grammar": 0-100, "naturalness": 0-100, "relevance": 0-100, "fluency": 0-100, "overall": 0-100 }
 }

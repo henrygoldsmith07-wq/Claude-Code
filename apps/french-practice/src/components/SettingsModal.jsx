@@ -20,14 +20,14 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
       setApiKey(key);
       onKeyChange(key);
       setState('ok');
-      setMessage(`Clé validée en ${latency} ms ✓`);
+      setMessage(`Key validated in ${latency} ms ✓`);
       setDraft('');
     } catch (e) {
       setState('bad');
       setMessage(
         /401|403/.test(e.message)
-          ? "Cette clé a été refusée par Groq — vérifiez qu'elle est correcte."
-          : `Impossible de vérifier la clé : ${e.message}`
+          ? 'This key was rejected by Groq — double-check it.'
+          : `Could not verify the key: ${e.message}`
       );
     }
   };
@@ -44,32 +44,32 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
       <div className="p-6 space-y-5">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-100">Réglages</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Tout reste dans votre navigateur — aucun serveur.</p>
+            <h2 className="text-lg font-bold text-ink">Settings</h2>
+            <p className="text-xs text-ink2 mt-0.5">Everything stays in your browser — no server.</p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Fermer"
-            className="w-9 h-9 grid place-items-center rounded-full text-slate-400 hover:bg-slate-800"
+            aria-label="Close"
+            className="w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2"
           >
             ✕
           </button>
         </div>
 
         <section className="space-y-2">
-          <label htmlFor="groq-key" className="text-sm font-semibold text-slate-200">
-            Clé API Groq
+          <label htmlFor="groq-key" className="text-sm font-semibold text-ink">
+            Groq API Key
           </label>
           {apiKey ? (
-            <div className="flex items-center justify-between gap-3 bg-slate-800/70 rounded-xl px-4 py-3">
-              <span className="text-sm text-emerald-400 font-mono">
-                ●●●●{apiKey.slice(-4)} <span className="text-emerald-500/70">connectée</span>
+            <div className="flex items-center justify-between gap-3 bg-surface2 rounded-xl px-4 py-3">
+              <span className="text-sm text-ink font-mono">
+                ●●●●{apiKey.slice(-4)} <span className="text-ink3">connected</span>
               </span>
               <button
                 onClick={forget}
-                className="text-xs text-rose-400 hover:text-rose-300 font-medium min-h-9 px-2"
+                className="text-xs text-ink hover:text-ink font-medium min-h-9 px-2"
               >
-                Oublier la clé
+                Forget key
               </button>
             </div>
           ) : (
@@ -83,38 +83,38 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && save()}
                   placeholder="gsk_..."
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                  className="flex-1 bg-surface2 border border-line rounded-xl px-4 py-3 text-sm text-ink font-mono placeholder:text-ink3 focus:outline-none focus:border-ink"
                 />
                 <button
                   onClick={save}
                   disabled={state === 'checking' || !draft.trim()}
-                  className="px-4 rounded-xl bg-emerald-500 text-slate-950 text-sm font-bold disabled:opacity-40 hover:bg-emerald-400 active:scale-95 transition min-h-12"
+                  className="btn-3d btn-3d-primary px-4 rounded-2xl text-sm font-extrabold min-h-12"
                 >
-                  {state === 'checking' ? '…' : 'Valider'}
+                  {state === 'checking' ? '…' : 'Validate'}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Créez une clé gratuite sur console.groq.com — elle est vérifiée via l'endpoint
-                <code className="mx-1 text-slate-400">/models</code> avant d'être enregistrée.
+              <p className="text-[11px] text-ink3">
+                Create a free key at console.groq.com — it is checked against the
+                <code className="mx-1 text-ink2">/models</code> endpoint before being saved.
               </p>
             </>
           )}
-          {state === 'checking' && <Spinner label="Vérification de la clé…" />}
+          {state === 'checking' && <Spinner label="Checking the key…" />}
           {message && (
-            <p className={`text-xs ${state === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
+            <p className={`text-xs ${state === 'ok' ? 'text-ink' : 'text-ink'}`}>{message}</p>
           )}
         </section>
 
-        <section className="space-y-3 pt-2 border-t border-slate-800">
+        <section className="space-y-3 pt-2 border-t border-line">
           <ToggleRow
-            label="Panneau développeur"
-            hint="Tokens, latence, payloads bruts, Mock Mode"
+            label="Developer panel"
+            hint="Tokens, latency, raw payloads, Mock Mode"
             checked={settings.devPanel}
             onChange={(v) => onSettingsChange({ ...settings, devPanel: v })}
           />
           <ToggleRow
-            label="Mock Mode (hors-ligne)"
-            hint="Réponses simulées — aucune requête API"
+            label="Mock Mode (offline)"
+            hint="Simulated responses — no API requests"
             checked={settings.mockMode}
             onChange={(v) => onSettingsChange({ ...settings, mockMode: v })}
           />
@@ -128,8 +128,8 @@ function ToggleRow({ label, hint, checked, onChange }) {
   return (
     <label className="flex items-center justify-between gap-4 cursor-pointer min-h-11">
       <span>
-        <span className="block text-sm text-slate-200">{label}</span>
-        <span className="block text-[11px] text-slate-500">{hint}</span>
+        <span className="block text-sm text-ink">{label}</span>
+        <span className="block text-[11px] text-ink3">{hint}</span>
       </span>
       <button
         type="button"
@@ -138,11 +138,11 @@ function ToggleRow({ label, hint, checked, onChange }) {
         aria-label={label}
         onClick={() => onChange(!checked)}
         className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
-          checked ? 'bg-emerald-500' : 'bg-slate-700'
+          checked ? 'bg-accent' : 'bg-line'
         }`}
       >
         <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+          className={`absolute top-0.5 w-5 h-5 rounded-full bg-bg border border-line transition-transform ${
             checked ? 'translate-x-5.5 left-0' : 'left-0.5'
           }`}
         />
