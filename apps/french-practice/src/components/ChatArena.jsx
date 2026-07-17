@@ -9,7 +9,7 @@ import { ArrowRight, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
 
 const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
 
-export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn, history, setHistory, scenario, setScenario }) {
+export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, history, setHistory, scenario, setScenario }) {
   const [phase, setPhase] = useState('idle'); // idle | transcribing | editing | thinking
   const [draft, setDraft] = useState(''); // transcription editor / manual text
   const [hintLevel, setHintLevel] = useState(0);
@@ -63,6 +63,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
         history,
         userText,
         curveball: turnNumber === CURVEBALL_TURN ? scenario.curveball : null,
+        level,
         mock: mockMode,
       });
       const turn = { userText, evaluation, reply: evaluation.reply, curveball: turnNumber === CURVEBALL_TURN };
@@ -79,15 +80,15 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
   };
 
   const askHint = async () => {
-    const level = Math.min(3, hintLevel + 1);
+    const depth = Math.min(3, hintLevel + 1);
     setHintLoading(true);
-    setHintLevel(level);
+    setHintLevel(depth);
     try {
       const lastAiReply = history.length ? history[history.length - 1].reply : scenario.opener;
-      const h = await getHint(apiKey, { scenario, lastAiReply, level, mock: mockMode });
+      const h = await getHint(apiKey, { scenario, lastAiReply, level: depth, cefr: level, mock: mockMode });
       setHint(h);
     } catch {
-      setHint(scenario.staticHints[level - 1]); // offline fallback
+      setHint(scenario.staticHints[depth - 1]); // offline fallback
     }
     setHintLoading(false);
   };

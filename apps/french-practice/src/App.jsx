@@ -6,12 +6,14 @@ import DailyChallenge from './components/DailyChallenge';
 import Flashcards from './components/Flashcards';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
+import HomeDashboard from './components/HomeDashboard';
 import { SCENARIOS } from './lib/data';
 import { getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, MessageCircle, Clock, Layers, Terminal } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal } from './components/icons';
 
 const TABS = [
+  ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
   ['challenge', Clock, 'Quick Fire'],
   ['cards', Layers, 'Cards'],
@@ -20,7 +22,7 @@ const TABS = [
 export default function App() {
   const [apiKey, setApiKey] = useState(getApiKey);
   const [settings, setSettings] = useState(getSettings);
-  const [tab, setTab] = useState('arena');
+  const [tab, setTab] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [scenario, setScenario] = useState(SCENARIOS[0]);
@@ -145,11 +147,26 @@ export default function App() {
       {/* main area */}
       <div className="flex-1 flex min-h-0">
         <main className="flex-1 min-w-0 flex flex-col">
+          {tab === 'home' && (
+            <HomeDashboard
+              dailyGoal={settings.dailyGoal}
+              level={settings.level}
+              onNavigate={setTab}
+              onPickScenario={(s) => {
+                if (s.id !== scenario.id) {
+                  setScenario(s);
+                  setHistory([]);
+                  setLastScores(null);
+                }
+              }}
+            />
+          )}
           {tab === 'arena' && (
             <ChatArena
               apiKey={apiKey}
               mockMode={settings.mockMode}
               ttsRate={settings.ttsRate}
+              level={settings.level}
               onTtsRate={(r) => updateSettings({ ...settings, ttsRate: r })}
               onTurn={handleTurn}
               history={history}
@@ -196,6 +213,7 @@ export default function App() {
         mockMode={settings.mockMode}
         scenario={scenario}
         history={history}
+        level={settings.level}
         onSessionSaved={() => setStreakTick((t) => t + 1)}
       />
     </div>

@@ -5,8 +5,9 @@ const KEYS = {
   sessions: 'fp.sessions', // array of completed session summaries
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
-  settings: 'fp.settings', // { ttsRate, mockMode, devPanel }
+  settings: 'fp.settings', // { ttsRate, mockMode, devPanel, theme, level, dailyGoal }
   xp: 'fp.xp', // lifetime experience points
+  xpDay: 'fp.xpDay', // { day: 'YYYY-MM-DD', amount } — today's XP toward the goal
 };
 
 function read(key, fallback) {
@@ -31,13 +32,27 @@ export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
 
 // theme: null = follow the OS preference; 'dark' | 'light' once toggled
-export const getSettings = () =>
-  read(KEYS.settings, { ttsRate: 1, mockMode: false, devPanel: false, theme: null });
+// level: CEFR level used to calibrate the LLM; dailyGoal: XP target per day
+const DEFAULT_SETTINGS = {
+  ttsRate: 1,
+  mockMode: false,
+  devPanel: false,
+  theme: null,
+  level: 'B1',
+  dailyGoal: 30,
+};
+export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
 
 // ---- session history (last 10 kept for trend charts) ----
 
 export const getSessions = () => read(KEYS.sessions, []);
+
+// The most recent report powers the Home dashboard's "Today's focus".
+export function getLastReport() {
+  const sessions = getSessions();
+  return sessions.length ? sessions[sessions.length - 1] : null;
+}
 
 export function saveSession(summary) {
   const sessions = getSessions();
@@ -50,9 +65,16 @@ export function saveSession(summary) {
 
 export const getXp = () => read(KEYS.xp, 0);
 
+export function getTodayXp() {
+  const d = read(KEYS.xpDay, null);
+  return d && d.day === dayStamp() ? d.amount : 0;
+}
+
 export function addXp(amount) {
-  const total = getXp() + Math.max(0, Math.round(amount));
+  const gained = Math.max(0, Math.round(amount));
+  const total = getXp() + gained;
   write(KEYS.xp, total);
+  write(KEYS.xpDay, { day: dayStamp(), amount: getTodayXp() + gained });
   return total;
 }
 
@@ -83,6 +105,15 @@ function bumpStreak() {
 const SRS_STEPS = { again: 0, hard: 1, good: 3, easy: 7 };
 
 export const getSrs = () => read(KEYS.srs, {});
+
+// A card is due if it was never reviewed, or its due date has passed.
+export const isCardDue = (srsEntry) =>
+  !srsEntry || !srsEntry.due || new Date(srsEntry.due) <= new Date();
+
+export function getDueCardIds(allIds) {
+  const srs = getSrs();
+  return allIds.filter((id) => isCardDue(srs[id]));
+}
 
 export function rateCard(cardId, rating) {
   const srs = getSrs();

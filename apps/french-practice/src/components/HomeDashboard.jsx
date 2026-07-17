@@ -1,0 +1,148 @@
+import { getStreak, getTodayXp, getLastReport, getDueCardIds } from '../lib/storage';
+import { FLASHCARDS, SCENARIOS } from '../lib/data';
+import { TrendChart } from './charts';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, SCENARIO_ICONS } from './icons';
+import { getSessions } from '../lib/storage';
+
+// Home: the daily loop. Answers "what should I do today?" — goal progress,
+// streak state, yesterday's personalized focus, and recommended next steps.
+
+function suggestScenario(sessions) {
+  // Recommend the scenario practiced least recently (never-practiced first).
+  const lastSeen = {};
+  sessions.forEach((s, i) => { lastSeen[s.scenarioId] = i; });
+  const unseen = SCENARIOS.filter((s) => !(s.id in lastSeen));
+  if (unseen.length) return unseen[0];
+  return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
+}
+
+export default function HomeDashboard({ dailyGoal, level, onNavigate, onPickScenario }) {
+  const streak = getStreak();
+  const todayXp = getTodayXp();
+  const last = getLastReport();
+  const dueCount = getDueCardIds(FLASHCARDS.map((c) => c.id)).length;
+  const sessions = getSessions();
+  const suggested = suggestScenario(sessions);
+  const SuggestedIcon = SCENARIO_ICONS[suggested.id];
+
+  const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
+  const goalDone = todayXp >= dailyGoal;
+  const r = 30;
+  const circ = 2 * Math.PI * r;
+
+  return (
+    <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
+      <div className="max-w-lg mx-auto space-y-5">
+        {/* daily goal + streak */}
+        <section className="flex items-center gap-4 bg-surface border border-line rounded-2xl p-5">
+          <div className="relative shrink-0" role="img" aria-label={`Daily goal: ${todayXp} of ${dailyGoal} XP`}>
+            <svg width="72" height="72">
+              <circle cx="36" cy="36" r={r} fill="none" stroke="var(--line)" strokeWidth="6" />
+              <circle
+                cx="36" cy="36" r={r} fill="none"
+                stroke="var(--ink)" strokeWidth="6" strokeLinecap="round"
+                strokeDasharray={circ} strokeDashoffset={circ * (1 - goalPct / 100)}
+                transform="rotate(-90 36 36)"
+                style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.3, 0.8, 0.3, 1)' }}
+              />
+            </svg>
+            <div className="absolute inset-0 grid place-items-center">
+              <Target size={20} className={goalDone ? 'text-ink' : 'text-ink3'} />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-ink">
+              {goalDone ? 'Daily goal reached' : 'Today’s goal'}
+            </h2>
+            <p className="text-xs text-ink2 mt-0.5">
+              <span className="font-semibold text-ink">{todayXp}</span> / {dailyGoal} XP
+              {!goalDone && ' — one conversation turn earns ~8–10 XP'}
+            </p>
+            <p className="flex items-center gap-1 text-xs text-ink2 mt-1.5">
+              <Flame size={13} className={streak.count > 0 ? 'text-ink' : 'text-ink3'} />
+              <span className="font-semibold text-ink">{streak.count}</span>
+              day streak · level {level}
+            </p>
+          </div>
+        </section>
+
+        {/* today's focus — personalized from the last session report */}
+        <section className="bg-surface2 border border-line rounded-2xl p-5">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1.5">Today’s focus</h3>
+          {last ? (
+            <>
+              <p className="text-sm text-ink leading-relaxed">{last.report.tomorrow_focus}</p>
+              {last.report.stubborn_habits?.length > 0 && (
+                <p className="text-xs text-ink3 mt-2">
+                  Watch out for: {last.report.stubborn_habits[0]}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-ink2">
+              Finish your first conversation and your coach will set a personalized focus for
+              tomorrow — corrections, habits to break, and what to practice next.
+            </p>
+          )}
+        </section>
+
+        {/* recommended actions */}
+        <section className="space-y-2.5">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Continue learning</h3>
+          <ActionCard
+            icon={SuggestedIcon || MessageCircle}
+            title={`Practice: ${suggested.title}`}
+            subtitle={sessions.length ? 'Your least-practiced scenario' : 'Start your first conversation'}
+            onClick={() => { onPickScenario(suggested); onNavigate('arena'); }}
+          />
+          <ActionCard
+            icon={Layers}
+            title={dueCount > 0 ? `Review ${dueCount} card${dueCount > 1 ? 's' : ''}` : 'Browse flashcards'}
+            subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
+            badge={dueCount > 0 ? String(dueCount) : null}
+            onClick={() => onNavigate('cards')}
+          />
+          <ActionCard
+            icon={Clock}
+            title="Quick Fire"
+            subtitle="45 seconds of improv to build fluency"
+            onClick={() => onNavigate('challenge')}
+          />
+        </section>
+
+        {/* progress trend */}
+        {sessions.length >= 2 && (
+          <section className="bg-surface border border-line rounded-2xl p-5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">
+              Progress (last {sessions.length} sessions)
+            </h3>
+            <TrendChart sessions={sessions} />
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({ icon: CardIcon, title, subtitle, badge, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+    >
+      <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink">
+        <CardIcon size={18} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-semibold text-ink truncate">{title}</span>
+        <span className="block text-xs text-ink3 truncate">{subtitle}</span>
+      </span>
+      {badge && (
+        <span className="shrink-0 min-w-6 h-6 px-1.5 grid place-items-center rounded-full bg-accent text-onaccent text-xs font-semibold">
+          {badge}
+        </span>
+      )}
+      <ChevronRight size={16} className="text-ink3 shrink-0" />
+    </button>
+  );
+}
