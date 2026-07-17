@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { FLASHCARDS } from '../lib/data';
 import { checkSentence } from '../lib/groq';
-import { getSrs, rateCard } from '../lib/storage';
+import { getSrs, rateCard, isCardDue } from '../lib/storage';
 import { SpeakButton, Spinner } from './ui';
 import { ChevronLeft, ChevronRight, Check, X } from './icons';
 
 // "Du coup" filler-word deck: 3D flip cards, SRS ratings, TTS (normal + 0.75×
 // slow-mo) and an LLM-verified "use it in a sentence" challenge.
+// The deck is a real spaced-repetition queue: due cards come first (oldest
+// due first), scheduled cards follow, so opening the tab starts your review.
 
 // Monochrome SRS scale: difficulty reads through contrast, not hue —
 // "Encore" is a faint outline, "Facile" is the full-ink solid button.
@@ -24,13 +26,28 @@ export default function Flashcards({ apiKey, mockMode }) {
   const [challenge, setChallenge] = useState(null); // { sentence, checking, result }
   const srs = useMemo(() => getSrs(), [srsTick]);
 
-  const card = FLASHCARDS[index];
+  // Review order is frozen while the tab is open (rating a card doesn't
+  // reshuffle under you): due first, oldest due date leading, then the rest.
+  const deck = useMemo(() => {
+    const initial = getSrs();
+    const dueTime = (c) => (initial[c.id]?.due ? new Date(initial[c.id].due).getTime() : 0);
+    return [...FLASHCARDS].sort((a, b) => {
+      const aDue = isCardDue(initial[a.id]);
+      const bDue = isCardDue(initial[b.id]);
+      if (aDue !== bDue) return aDue ? -1 : 1;
+      return dueTime(a) - dueTime(b);
+    });
+  }, []);
+
+  const card = deck[index];
   const cardSrs = srs[card.id];
+  const cardDue = isCardDue(cardSrs);
+  const dueCount = deck.filter((c) => isCardDue(srs[c.id])).length;
 
   const go = (dir) => {
     setFlipped(false);
     setChallenge(null);
-    setIndex((i) => (i + dir + FLASHCARDS.length) % FLASHCARDS.length);
+    setIndex((i) => (i + dir + deck.length) % deck.length);
   };
 
   const rate = (rating) => {
@@ -57,14 +74,17 @@ export default function Flashcards({ apiKey, mockMode }) {
         <div className="text-center">
           <h2 className="text-lg font-semibold text-ink">“Du coup” — Filler Words</h2>
           <p className="text-xs text-ink2 mt-1">
-            {cardSrs && <span className="text-ink2">reviewed ×{cardSrs.reps} · interval {cardSrs.interval}d</span>}
+            {dueCount > 0
+              ? <span className="font-semibold text-ink">{dueCount} card{dueCount > 1 ? 's' : ''} due for review</span>
+              : <span>All caught up — nothing due</span>}
+            {cardSrs && <span className="text-ink3"> · this card: ×{cardSrs.reps}, every {cardSrs.interval}d</span>}
           </p>
-          <div className="flex justify-center gap-1.5 mt-2" aria-label={`Card ${index + 1} of ${FLASHCARDS.length}`}>
-            {FLASHCARDS.map((c, i) => (
+          <div className="flex justify-center gap-1.5 mt-2" aria-label={`Card ${index + 1} of ${deck.length}`}>
+            {deck.map((c, i) => (
               <span
                 key={c.id}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === index ? 'w-5 bg-ink' : srs[c.id] ? 'w-1.5 bg-ink2' : 'w-1.5 bg-line'
+                  i === index ? 'w-5 bg-ink' : isCardDue(srs[c.id]) ? 'w-1.5 bg-ink2' : 'w-1.5 bg-line'
                 }`}
               />
             ))}
@@ -79,6 +99,11 @@ export default function Flashcards({ apiKey, mockMode }) {
             aria-label={flipped ? 'Flip the card (front)' : 'Flip the card (back)'}
           >
             <div className="flip-face bg-gradient-to-br from-surface2 to-surface border border-line rounded-3xl grid place-items-center p-6 shadow-xl">
+              {cardDue && (
+                <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-accent text-onaccent text-[10px] font-semibold uppercase tracking-wider">
+                  Due
+                </span>
+              )}
               <div className="text-center">
                 <p className="text-4xl font-bold text-ink" lang="fr">{card.front}</p>
                 <p className="text-xs text-ink3 mt-4">Tap to reveal</p>

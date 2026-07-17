@@ -23,7 +23,7 @@ function radarValues(avg, history) {
   ];
 }
 
-export default function SessionDashboard({ open, onClose, apiKey, mockMode, scenario, history, onSessionSaved }) {
+export default function SessionDashboard({ open, onClose, apiKey, mockMode, scenario, history, level, onSessionSaved }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [shareUrl, setShareUrl] = useState(null);
@@ -35,7 +35,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
     let cancelled = false;
     (async () => {
       try {
-        const r = await sessionReport(apiKey, { scenario, history, mock: mockMode });
+        const r = await sessionReport(apiKey, { scenario, history, level, mock: mockMode });
         if (cancelled) return;
         setReport(r);
         saveSession({ scenarioId: scenario.id, turns: history.length, report: r });

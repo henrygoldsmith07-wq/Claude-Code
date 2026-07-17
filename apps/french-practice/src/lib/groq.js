@@ -103,7 +103,13 @@ async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } 
 
 // ---- conversational turn evaluation ----
 
-const TURN_SYSTEM = `Tu es un partenaire de conversation français chaleureux pour un apprenant de niveau intermédiaire (B1/B2). Tu joues un rôle dans un scénario donné.
+const LEVEL_NOTES = {
+  A2: 'The learner is CEFR A2 (elementary). Use short, simple sentences, present/passé composé, high-frequency vocabulary. Be forgiving in scoring.',
+  B1: 'The learner is CEFR B1 (intermediate). Use natural everyday French with some idioms; a full range of common tenses is fair game.',
+  B2: 'The learner is CEFR B2 (upper-intermediate). Speak at near-native pace and complexity, use idioms and subjonctif freely, and score with higher expectations.',
+};
+
+const TURN_SYSTEM = `Tu es un partenaire de conversation français chaleureux pour un apprenant. Tu joues un rôle dans un scénario donné.
 
 You MUST reply with ONLY a JSON object in exactly this shape:
 {
@@ -131,10 +137,10 @@ function normalizeTurn(json) {
   };
 }
 
-export async function evaluateTurn(apiKey, { scenario, history, userText, curveball, mock }) {
+export async function evaluateTurn(apiKey, { scenario, history, userText, curveball, level = 'B1', mock }) {
   if (mock) return mockTurn().evaluation;
   const messages = [
-    { role: 'system', content: `${TURN_SYSTEM}\n\nScénario actuel : ${scenario.title} — ${scenario.setup}\nTon rôle : ${scenario.aiRole}` },
+    { role: 'system', content: `${TURN_SYSTEM}\n\n${LEVEL_NOTES[level] || LEVEL_NOTES.B1}\n\nScénario actuel : ${scenario.title} — ${scenario.setup}\nTon rôle : ${scenario.aiRole}` },
     ...history.flatMap((t) => [
       { role: 'user', content: t.userText },
       { role: 'assistant', content: JSON.stringify({ reply: t.reply }) },
@@ -153,7 +159,7 @@ export async function evaluateTurn(apiKey, { scenario, history, userText, curveb
 
 // ---- progressive hints ----
 
-export async function getHint(apiKey, { scenario, lastAiReply, level, mock }) {
+export async function getHint(apiKey, { scenario, lastAiReply, level, cefr = 'B1', mock }) {
   if (mock) return mockHint(level);
   const depth = [
     'Level 1: give only 2-3 useful French vocabulary words with English glosses.',
@@ -163,7 +169,7 @@ export async function getHint(apiKey, { scenario, lastAiReply, level, mock }) {
   const json = await chatJson(apiKey, [
     {
       role: 'system',
-      content: `You help an intermediate French learner respond in a roleplay. Scenario: ${scenario.title}. The other speaker just said: "${lastAiReply}". ${depth} Reply ONLY as JSON: {"hint": "..."}`,
+      content: `You help a CEFR ${cefr} French learner respond in a roleplay. Scenario: ${scenario.title}. The other speaker just said: "${lastAiReply}". ${depth} Match the vocabulary to their level. Reply ONLY as JSON: {"hint": "..."}`,
     },
     { role: 'user', content: 'Donnez-moi un indice.' },
   ], { label: `hint-${level}` });
@@ -197,13 +203,13 @@ Reply with ONLY a JSON object in exactly this shape:
   "tomorrow_focus": "One concrete, personalized practice focus for tomorrow."
 }`;
 
-export async function sessionReport(apiKey, { scenario, history, mock }) {
+export async function sessionReport(apiKey, { scenario, history, level = 'B1', mock }) {
   if (mock) return mockReport();
   const transcriptLines = history.map((t, i) =>
     `Turn ${i + 1}\nLearner: ${t.userText}\nScores: ${JSON.stringify(t.evaluation.scores)}\nPartner: ${t.evaluation.reply}`
   ).join('\n\n');
   const json = await chatJson(apiKey, [
-    { role: 'system', content: REPORT_SYSTEM },
+    { role: 'system', content: `${REPORT_SYSTEM}\n\n${LEVEL_NOTES[level] || LEVEL_NOTES.B1}` },
     { role: 'user', content: `Scenario: ${scenario.title}\n\n${transcriptLines}` },
   ], { label: 'session-report', temperature: 0.5 });
   const avg = json.average_scores || {};

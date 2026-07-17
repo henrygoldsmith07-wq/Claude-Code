@@ -107,6 +107,48 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         </section>
 
         <section className="space-y-3 pt-2 border-t border-line">
+          <div className="flex items-center justify-between gap-4 min-h-11">
+            <span>
+              <span className="block text-sm text-ink">My French level</span>
+              <span className="block text-[11px] text-ink3">Calibrates the AI's complexity and scoring</span>
+            </span>
+            <div className="flex rounded-xl border border-line overflow-hidden" role="radiogroup" aria-label="CEFR level">
+              {['A2', 'B1', 'B2'].map((lvl) => (
+                <button
+                  key={lvl}
+                  role="radio"
+                  aria-checked={settings.level === lvl}
+                  onClick={() => onSettingsChange({ ...settings, level: lvl })}
+                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                    settings.level === lvl ? 'bg-accent text-onaccent' : 'bg-surface text-ink2 hover:text-ink'
+                  }`}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 min-h-11">
+            <span>
+              <span className="block text-sm text-ink">Daily goal</span>
+              <span className="block text-[11px] text-ink3">XP target that fills the ring on Home</span>
+            </span>
+            <div className="flex rounded-xl border border-line overflow-hidden" role="radiogroup" aria-label="Daily XP goal">
+              {[15, 30, 50].map((goal) => (
+                <button
+                  key={goal}
+                  role="radio"
+                  aria-checked={settings.dailyGoal === goal}
+                  onClick={() => onSettingsChange({ ...settings, dailyGoal: goal })}
+                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                    settings.dailyGoal === goal ? 'bg-accent text-onaccent' : 'bg-surface text-ink2 hover:text-ink'
+                  }`}
+                >
+                  {goal}
+                </button>
+              ))}
+            </div>
+          </div>
           <ToggleRow
             label="Developer panel"
             hint="Tokens, latency, raw payloads, Mock Mode"
