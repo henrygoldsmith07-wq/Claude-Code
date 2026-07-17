@@ -8,7 +8,10 @@ import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
 import { SCENARIOS } from './lib/data';
-import { getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp } from './lib/storage';
+import {
+  getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
+  getActiveSession, setActiveSession, clearActiveSession,
+} from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal } from './components/icons';
 
@@ -25,8 +28,15 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
-  const [scenario, setScenario] = useState(SCENARIOS[0]);
-  const [history, setHistory] = useState([]);
+  // Restore an in-flight conversation (page refresh must not lose a session).
+  const [scenario, setScenario] = useState(() => {
+    const saved = getActiveSession();
+    return (saved && SCENARIOS.find((s) => s.id === saved.scenarioId)) || SCENARIOS[0];
+  });
+  const [history, setHistory] = useState(() => {
+    const saved = getActiveSession();
+    return saved && Array.isArray(saved.history) ? saved.history : [];
+  });
   const [lastScores, setLastScores] = useState(null);
   const [telemetry, setTelemetry] = useState([]);
   const [streakTick, setStreakTick] = useState(0);
@@ -37,6 +47,12 @@ export default function App() {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
     return () => setTelemetrySink(null);
   }, []);
+
+  // Autosave the active conversation on every turn.
+  useEffect(() => {
+    if (history.length > 0) setActiveSession(scenario.id, history);
+    else clearActiveSession();
+  }, [scenario.id, history]);
 
   // theme: null follows the OS; the toggle pins an explicit choice
   const isDark = settings.theme

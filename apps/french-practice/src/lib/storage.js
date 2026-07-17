@@ -8,6 +8,7 @@ const KEYS = {
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel, theme, level, dailyGoal }
   xp: 'fp.xp', // lifetime experience points
   xpDay: 'fp.xpDay', // { day: 'YYYY-MM-DD', amount } — today's XP toward the goal
+  active: 'fp.activeSession', // { scenarioId, history } — in-flight conversation
 };
 
 function read(key, fallback) {
@@ -47,6 +48,13 @@ export const setSettings = (s) => write(KEYS.settings, s);
 // ---- session history (last 10 kept for trend charts) ----
 
 export const getSessions = () => read(KEYS.sessions, []);
+
+// ---- in-flight conversation (survives a page refresh) ----
+
+export const getActiveSession = () => read(KEYS.active, null);
+export const setActiveSession = (scenarioId, history) =>
+  write(KEYS.active, { scenarioId, history });
+export const clearActiveSession = () => localStorage.removeItem(KEYS.active);
 
 // The most recent report powers the Home dashboard's "Today's focus".
 export function getLastReport() {
