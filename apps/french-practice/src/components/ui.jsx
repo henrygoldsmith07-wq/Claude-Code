@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { speak, stopSpeaking, ttsSupported } from '../lib/tts';
+import { Play, Square } from './icons';
 
 // ---- monochrome score ramp (shared everywhere) ----
 // Score is expressed as ink *intensity* rather than hue: strong scores get
@@ -20,7 +21,7 @@ export function ScoreBadge({ value, size = 'md' }) {
   const cls = size === 'lg' ? 'w-14 h-14 text-lg' : 'w-9 h-9 text-xs';
   return (
     <div
-      className={`${cls} text-ink bg-surface rounded-full grid place-items-center font-extrabold border-2 shrink-0`}
+      className={`${cls} text-ink bg-surface rounded-full grid place-items-center font-semibold border-2 shrink-0`}
       style={{ borderColor: c.ring }}
       aria-label={`Score ${value} out of 100`}
     >
@@ -127,7 +128,7 @@ export function SpeakButton({ text, rate = 1, slow = false, label }) {
           : 'bg-surface2 text-ink2 hover:bg-line active:bg-line'
       }`}
     >
-      {speaking ? '◼' : '▶'} {slow ? '0.75×' : label || 'Listen'}
+      {speaking ? <Square size={10} /> : <Play size={10} />} {slow ? '0.75×' : label || 'Listen'}
     </button>
   );
 }
@@ -135,7 +136,7 @@ export function SpeakButton({ text, rate = 1, slow = false, label }) {
 export function RateSlider({ rate, onChange }) {
   return (
     <label className="flex items-center gap-2 text-[11px] text-ink2">
-      <span aria-hidden="true">🐢</span>
+      <span className="text-[10px] text-ink3" aria-hidden="true">0.5×</span>
       <input
         type="range"
         min="0.5"
@@ -146,7 +147,7 @@ export function RateSlider({ rate, onChange }) {
         className="w-24 accent-ink"
         aria-label="Playback speed"
       />
-      <span aria-hidden="true">🐇</span>
+      <span className="text-[10px] text-ink3" aria-hidden="true">1.5×</span>
       <span className="font-mono w-8">{rate.toFixed(1)}×</span>
     </label>
   );

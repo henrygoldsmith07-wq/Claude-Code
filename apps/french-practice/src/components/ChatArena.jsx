@@ -5,6 +5,7 @@ import { SCENARIOS } from '../lib/data';
 import { transcribe, evaluateTurn, getHint } from '../lib/groq';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
+import { ArrowRight, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
 
 const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
 
@@ -100,19 +101,20 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
         <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choose a scenario">
           {SCENARIOS.map((s) => {
             const active = s.id === scenario.id;
+            const ScenarioIcon = SCENARIO_ICONS[s.id];
             return (
               <button
                 key={s.id}
                 onClick={() => changeScenario(s.id)}
                 aria-pressed={active}
-                className={`shrink-0 flex items-center gap-2 pl-2.5 pr-3.5 py-2 rounded-2xl border-2 border-b-4 text-left transition-colors ${
+                className={`shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-left transition-colors ${
                   active
-                    ? 'border-ink bg-surface2'
-                    : 'border-line bg-surface2 hover:border-ink3'
+                    ? 'border-ink bg-surface shadow-sm'
+                    : 'border-line bg-surface hover:border-ink3'
                 }`}
               >
-                <span className="text-2xl" aria-hidden="true">{s.emoji}</span>
-                <span className={`text-xs font-extrabold whitespace-nowrap ${active ? 'text-ink' : 'text-ink2'}`}>
+                <ScenarioIcon size={16} className={active ? 'text-ink' : 'text-ink3'} />
+                <span className={`text-xs font-semibold whitespace-nowrap ${active ? 'text-ink' : 'text-ink2'}`}>
                   {s.title}
                 </span>
               </button>
@@ -134,7 +136,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
             <UserBubble turn={turn} />
             {turn.curveball && (
               <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
-                ⚡ Curveball!
+                Curveball
               </p>
             )}
             <AiBubble text={turn.evaluation.reply} translation={turn.evaluation.translation} ttsRate={ttsRate} />
@@ -161,7 +163,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
         <div className="mx-4 sm:max-w-2xl sm:mx-auto sm:w-full mb-2 fade-in rounded-xl bg-surface2 border border-line px-3 py-2">
           {hintLoading
             ? <Spinner label={`Hint ${hintLevel}/3…`} />
-            : <p className="text-xs text-ink2"><span className="font-bold">💡 Hint {hintLevel}/3:</span> {hint}</p>}
+            : <p className="text-xs text-ink2"><span className="font-bold">Hint {hintLevel}/3:</span> {hint}</p>}
         </div>
       )}
 
@@ -183,14 +185,14 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
                 aria-label="Stop and send"
                 className="rec-pulse w-16 h-16 rounded-full bg-accent text-onaccent text-2xl grid place-items-center active:scale-90 transition"
               >
-                ◼
+                <Square size={20} />
               </button>
               <span className="text-[11px] text-ink3 w-20">3.5 s of silence auto-sends</span>
             </div>
           </div>
         ) : phase === 'editing' ? (
           <div className="space-y-2 fade-in">
-            <p className="text-[11px] text-ink2 font-medium">✏️ Check your transcription before sending:</p>
+            <p className="text-[11px] text-ink2 font-medium">Check your transcription before sending:</p>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -206,9 +208,9 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
               <button
                 onClick={() => send(draft)}
                 disabled={!draft.trim()}
-                className="btn-3d btn-3d-primary flex-1 min-h-11 rounded-2xl font-extrabold text-sm"
+                className="btn btn-primary flex-1 min-h-11 rounded-xl text-sm"
               >
-                Send →
+                Send <ArrowRight size={14} />
               </button>
             </div>
           </div>
@@ -217,9 +219,9 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
             <button
               onClick={askHint}
               disabled={busy || hintLevel >= 3}
-              className="btn-3d btn-3d-secondary min-h-11 px-3 rounded-2xl border text-xs font-extrabold whitespace-nowrap"
+              className="btn btn-secondary min-h-11 px-3 rounded-xl text-xs whitespace-nowrap"
             >
-              💡 {hintLevel === 0 ? 'Hint' : `Hint ${Math.min(3, hintLevel + 1)}/3`}
+              <Lightbulb size={14} /> {hintLevel === 0 ? 'Hint' : `Hint ${Math.min(3, hintLevel + 1)}/3`}
             </button>
             <div className="flex-1 flex items-center gap-2 bg-surface2 rounded-xl border border-line focus-within:border-ink px-3">
               <input
@@ -232,16 +234,16 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
                 aria-label="Typed reply"
               />
               {draft.trim() && (
-                <button onClick={() => send(draft)} disabled={busy} aria-label="Send" className="text-ink font-bold px-1 min-h-11">→</button>
+                <button onClick={() => send(draft)} disabled={busy} aria-label="Send" className="text-ink px-1 min-h-11 grid place-items-center"><ArrowRight size={16} /></button>
               )}
             </div>
             <button
               onClick={recorder.start}
               disabled={busy}
               aria-label="Record my reply"
-              className="btn-3d btn-3d-primary w-14 h-14 rounded-full text-xl grid place-items-center shadow-lg shadow-black/15"
+              className="btn btn-primary w-14 h-14 rounded-full"
             >
-              {phase === 'transcribing' ? <span className="w-5 h-5 rounded-full border-2 border-onaccent border-t-transparent animate-spin" /> : '🎙️'}
+              {phase === 'transcribing' ? <span className="w-5 h-5 rounded-full border-2 border-onaccent border-t-transparent animate-spin" /> : <Mic size={22} />}
             </button>
           </div>
         )}
@@ -255,10 +257,10 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, onTtsRate, onTurn
 function Avatar() {
   return (
     <span
-      className="w-9 h-9 shrink-0 rounded-full bg-surface2 border border-line grid place-items-center text-lg mb-1"
+      className="w-9 h-9 shrink-0 rounded-full bg-surface2 border border-line grid place-items-center mb-1 text-[10px] font-semibold tracking-widest text-ink2"
       aria-hidden="true"
     >
-      🇫🇷
+      FR
     </span>
   );
 }
@@ -277,7 +279,7 @@ function AiBubble({ text, translation, ttsRate }) {
             onClick={() => setShowTranslation((v) => !v)}
             className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
           >
-            {showTranslation ? 'Hide' : '🇬🇧 Translate'}
+            {showTranslation ? 'Hide' : 'Translate'}
           </button>
         </div>
       </div>
@@ -300,7 +302,7 @@ function UserBubble({ turn }) {
         onClick={() => setExpanded((v) => !v)}
         className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
       >
-        {expanded ? '▲ Hide feedback' : '▼ Corrections & native version'}
+        {expanded ? 'Hide feedback' : 'Corrections & native version'}
       </button>
       {expanded && (
         <div className="w-full sm:max-w-[85%] fade-in bg-surface2 border border-line rounded-2xl p-4 space-y-3 text-left">
@@ -309,7 +311,7 @@ function UserBubble({ turn }) {
             <Markdown className="text-[13px] text-ink leading-relaxed">{evaluation.corrections}</Markdown>
           </div>
           <div>
-            <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink mb-1">Like a native 🇫🇷</h4>
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink mb-1">Like a native</h4>
             <p className="text-[13px] text-ink italic" lang="fr">{evaluation.native_alternative}</p>
             <SpeakButton text={evaluation.native_alternative} slow label="Listen" />
           </div>

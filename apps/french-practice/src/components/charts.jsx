@@ -145,7 +145,7 @@ export function TrendChart({ sessions }) {
   if (points.length < 2) {
     return (
       <p className="text-xs text-ink3 italic py-6 text-center">
-        Finish at least two sessions to see your progress 📈
+        Finish at least two sessions to see your progress
       </p>
     );
   }
@@ -196,14 +196,14 @@ export function renderShareCard({ grade, scores, streak, scenarioTitle }) {
 
   ctx.fillStyle = theme.ink;
   ctx.font = 'bold 15px system-ui';
-  ctx.fillText('LE STUDIO — FRENCH PRACTICE 🇫🇷', 36, 52);
+  ctx.fillText('LE STUDIO — FRENCH PRACTICE', 36, 52);
   ctx.fillStyle = theme.ink;
   ctx.font = 'bold 88px system-ui';
   ctx.fillText(grade, 36, 160);
   ctx.fillStyle = theme.ink2;
   ctx.font = '16px system-ui';
   ctx.fillText(`Scenario: ${scenarioTitle}`, 36, 196);
-  ctx.fillText(`Streak: ${streak} day${streak > 1 ? 's' : ''} 🔥`, 36, 222);
+  ctx.fillText(`Streak: ${streak} day${streak > 1 ? 's' : ''}`, 36, 222);
   ctx.fillText(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 36, 248);
 
   const rows = [

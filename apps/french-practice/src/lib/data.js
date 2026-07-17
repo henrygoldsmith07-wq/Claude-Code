@@ -7,7 +7,6 @@
 export const SCENARIOS = [
   {
     id: 'bistro',
-    emoji: '🥐',
     title: 'Ordering at the Bistro',
     setup: 'You walk into a busy Parisian bistro at lunchtime and want to order.',
     aiRole: "Serveur/serveuse parisien(ne) sympathique mais pressé(e).",
@@ -22,7 +21,6 @@ export const SCENARIOS = [
   },
   {
     id: 'poste',
-    emoji: '📦',
     title: 'At the Post Office',
     setup: 'You need to send an important package abroad and ask about delivery times.',
     aiRole: "Agent(e) de la Poste efficace qui pose beaucoup de questions de procédure.",
@@ -37,7 +35,6 @@ export const SCENARIOS = [
   },
   {
     id: 'vol',
-    emoji: '✈️',
     title: 'Rebooking a Flight',
     setup: "Tomorrow's flight is cancelled and you're calling the airline to rebook it.",
     aiRole: "Agent(e) du service client d'une compagnie aérienne, poli(e) mais qui suit un script strict.",
@@ -52,7 +49,6 @@ export const SCENARIOS = [
   },
   {
     id: 'marche',
-    emoji: '🍅',
     title: 'At the Market',
     setup: 'You are shopping at the open-air market, chatting with a fruit-and-veg seller.',
     aiRole: "Marchand(e) bavard(e) qui adore donner des conseils de cuisine.",
@@ -67,7 +63,6 @@ export const SCENARIOS = [
   },
   {
     id: 'colloc',
-    emoji: '🏠',
     title: 'Flat-share Viewing',
     setup: 'You are viewing a flat-share in Lyon and chatting with one of the current flatmates.',
     aiRole: "Colocataire décontracté(e) qui veut savoir si vous êtes compatible avec l'ambiance de l'appart.",

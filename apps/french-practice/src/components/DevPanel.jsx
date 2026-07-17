@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { pingLatency } from '../lib/groq';
+import { ChevronRight } from './icons';
 
 // Developer & utility panel: token usage totals, latency pings, raw API
 // payload log, and the Mock Mode toggle (settings-backed).
@@ -36,7 +37,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">🛠 Developer Panel</h2>
+          <h2 className="text-lg font-bold text-ink">Developer Panel</h2>
           <label className="flex items-center gap-2 text-xs text-ink2 cursor-pointer">
             <input
               type="checkbox"
@@ -61,7 +62,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
             disabled={pinging || !apiKey}
             className="min-h-10 px-4 rounded-xl bg-surface2 text-ink2 text-xs font-bold hover:bg-line disabled:opacity-40"
           >
-            {pinging ? 'Pinging…' : '📡 Ping Groq'}
+            {pinging ? 'Pinging…' : 'Ping Groq'}
           </button>
           <span className="text-sm font-mono text-ink2">
             {ping == null ? '—' : ping === -1 ? 'failed' : `${ping} ms`}
@@ -100,7 +101,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
                     </span>
                   )}
                   <span className="text-[10px] font-mono text-ink2">{e.latency} ms</span>
-                  <span className="text-ink3 text-xs">{expanded === key ? '▲' : '▼'}</span>
+                  <ChevronRight size={14} className={`text-ink3 transition-transform ${expanded === key ? "rotate-90" : ""}`} />
                 </button>
                 {expanded === key && (
                   <div className="border-t border-line p-3 space-y-2 text-[11px] font-mono">
@@ -135,7 +136,7 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
 function Metric({ label, value }) {
   return (
     <div className="bg-surface border border-line rounded-2xl px-3 py-3 text-center">
-      <div className="text-xl font-black text-ink tabular-nums truncate">{value}</div>
+      <div className="text-xl font-bold text-ink tabular-nums truncate">{value}</div>
       <div className="text-[10px] text-ink3 mt-0.5">{label}</div>
     </div>
   );
