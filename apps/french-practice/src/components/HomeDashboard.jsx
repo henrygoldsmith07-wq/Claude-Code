@@ -132,13 +132,13 @@ export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, o
             icon={Volume}
             title="Dictée"
             subtitle="Train your ear — type what you hear"
-            onClick={() => onNavigate('dictation')}
+            onClick={() => onStartLesson({ type: 'dictation' })}
           />
           <ActionCard
             icon={Clock}
             title="Quick Fire"
             subtitle="45 seconds of improv to build fluency"
-            onClick={() => onNavigate('challenge')}
+            onClick={() => onStartLesson({ type: 'quickfire' })}
           />
         </section>
 

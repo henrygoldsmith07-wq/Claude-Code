@@ -50,6 +50,10 @@ export function mockSentenceCheck() {
   };
 }
 
+export function mockAccentFeedback() {
+  return "Good rhythm overall. The recognizer stumbled on «voudrais» — make sure the French r comes from the back of the throat, and round your lips tightly for the u in «du». (Mock mode — add a real API key for genuine accent analysis.)";
+}
+
 export function mockReport() {
   return {
     session_grade: 'B+',

@@ -1,7 +1,7 @@
 // Groq API client — pure fetch, no SDK. Every call reports latency + token
 // usage to an optional telemetry sink so the Dev Panel can display metrics.
 
-import { mockTurn, mockReport, mockHint, mockSentenceCheck } from './mocks';
+import { mockTurn, mockReport, mockHint, mockSentenceCheck, mockAccentFeedback } from './mocks';
 
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';
@@ -211,6 +211,25 @@ export async function getHint(apiKey, { scenario, lastAiReply, level, cefr = 'B1
     { role: 'user', content: 'Donnez-moi un indice.' },
   ], { label: `hint-${level}` });
   return String(json.hint || '');
+}
+
+// ---- pronunciation / accent feedback ----
+// The learner read a target sentence aloud; Whisper heard `heard`. Words the
+// model mis-transcribed are the best available signal of what was mispronounced.
+
+export async function accentFeedback(apiKey, { target, heard, level = 'B1', mock }) {
+  if (mock) return mockAccentFeedback();
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: `You are a French pronunciation coach for a CEFR ${level} learner. They read a sentence aloud and a speech recognizer transcribed what it heard. Differences between the two reveal likely pronunciation problems (nasal vowels, French r, u vs ou, silent letters, liaison, word stress). Give 2-3 sentences of specific, encouraging feedback IN ENGLISH: name the exact sounds or words to work on (quote the French), and one concrete articulation tip. If the transcript matches well, say what they did right. Reply ONLY as JSON: {"feedback": "..."}`,
+    },
+    {
+      role: 'user',
+      content: `Target sentence: "${target}"\nWhat the recognizer heard: "${heard || '(nothing recognizable)'}"`,
+    },
+  ], { label: 'accent-feedback', temperature: 0.4 });
+  return String(json.feedback || '');
 }
 
 // ---- flashcard sentence verification ----

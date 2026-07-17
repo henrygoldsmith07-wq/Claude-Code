@@ -157,4 +157,5 @@ export const SCENARIO_ICONS = {
   entretien: Briefcase,
   reunion: MessageCircle,
   cours: GraduationCap,
+  libre: MessageCircle,
 };

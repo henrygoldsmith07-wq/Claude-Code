@@ -43,10 +43,17 @@ validated against the `/models` endpoint before being stored. Or flip on
   into a graded report: strengths, stubborn habits, tomorrow's focus, progress
   rings, canvas radar chart, 10-session trend line, streaks, and a shareable
   PNG progress card.
-- **Quick Fire** — 45-second improv challenges (French topics with English translations) and WPM flow tracking.
-- **Dictée** — pure listening drill: the app speaks a hidden French sentence
-  (normal or 0.75× speed), you type what you heard, and a word-level diff
-  scores your accuracy. Fully offline (local TTS + diff).
+- **Speaking hub** — four drills in one tab:
+  - **Pronunciation** — read a sentence aloud; Whisper transcribes it and a
+    word-level diff scores how much was recognized, with unrecognized words
+    underlined as trouble spots and an LLM "accent coach" naming the exact
+    sounds to work on (French r, nasals, u/ou, liaison…).
+  - **Shadowing** — listen to the native TTS rhythm first (recording is
+    gated until you have), then repeat and get the same scoring.
+  - **Quick Fire** — 45-second improv challenges with WPM flow tracking.
+  - **Dictée** — pure listening drill: type what you hear, word-diff scored.
+- **Free Talk** — an open-ended Arena scenario with no script: your partner
+  follows your lead, asks open questions, and still scores every turn.
 - **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
   feelings, a picture deck of everyday objects, idioms, slang & argot,
   regional French (Québec/Belgium/South) and filler words. Every card has a

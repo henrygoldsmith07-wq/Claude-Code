@@ -77,8 +77,22 @@ export const SCENARIOS = [
   },
 ];
 
-// Goal-specific scenarios (business & school learning paths).
+// Goal-specific scenarios (business & school learning paths) + free talk.
 SCENARIOS.push(
+  {
+    id: 'libre',
+    title: 'Free Talk',
+    setup: 'Open-ended conversation — no script, no scenario. Talk about whatever you like; your partner follows your lead.',
+    aiRole: "Ami(e) français(e) curieux/curieuse qui suit la conversation où l'apprenant veut l'emmener, pose des questions ouvertes et partage ses propres opinions.",
+    opener: "Salut ! Ça me fait plaisir de te voir. Alors, qu'est-ce que tu as envie de raconter aujourd'hui ?",
+    openerTranslation: "Hi! Great to see you. So, what do you feel like talking about today?",
+    curveball: "Change complètement de sujet avec une question personnelle inattendue mais amicale (par exemple : ton plus grand rêve, un souvenir marquant).",
+    staticHints: [
+      "Vocabulary: «en ce moment» (at the moment), «d'ailleurs» (by the way), «ça dépend» (it depends).",
+      "Start with: «En ce moment, je… » or «J'ai envie de parler de…»",
+      "«En ce moment, je pense beaucoup à mes prochaines vacances.» — At the moment I'm thinking a lot about my next holidays.",
+    ],
+  },
   {
     id: 'entretien',
     title: 'Job Interview',

@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import ChatArena from './components/ChatArena';
 import FeedbackWidget from './components/FeedbackWidget';
 import SessionDashboard from './components/SessionDashboard';
-import DailyChallenge from './components/DailyChallenge';
 import Vocabulary from './components/Vocabulary';
 import Grammar from './components/Grammar';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
-import Dictation from './components/Dictation';
+import Speaking from './components/Speaking';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
@@ -17,13 +16,12 @@ import {
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal, Volume, Book } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
-  ['challenge', Clock, 'Quick Fire'],
-  ['dictation', Volume, 'Dictée'],
+  ['speaking', Mic, 'Speaking'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
 ];
@@ -51,6 +49,7 @@ export default function App() {
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
+  const [speakingMode, setSpeakingMode] = useState(null); // null = hub; deep-linked by Home/path
 
   useEffect(() => {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
@@ -114,7 +113,9 @@ export default function App() {
         setLastScores(null);
       }
     }
-    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'dictation', cards: 'cards', quickfire: 'challenge' };
+    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'speaking', cards: 'cards', quickfire: 'speaking' };
+    if (lesson.type === 'dictation') setSpeakingMode('dictation');
+    if (lesson.type === 'quickfire') setSpeakingMode('quickfire');
     setTab(tabFor[lesson.type] || 'arena');
   };
 
@@ -234,8 +235,18 @@ export default function App() {
               setScenario={setScenario}
             />
           )}
-          {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
-          {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} onActivity={handleActivity} />}
+          {tab === 'speaking' && (
+            <Speaking
+              mode={speakingMode}
+              onModeChange={setSpeakingMode}
+              apiKey={apiKey}
+              mockMode={settings.mockMode}
+              ttsRate={settings.ttsRate}
+              level={settings.level}
+              onXp={awardXp}
+              onActivity={handleActivity}
+            />
+          )}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'grammar' && (
             <Grammar

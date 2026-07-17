@@ -1,57 +1,11 @@
 import { useMemo, useState } from 'react';
-import { FLASHCARDS, SCENARIOS } from '../lib/data';
-import { allEntries } from '../lib/vocab';
+import { randomPoolSentence as randomSentence, toWords, diffWords } from '../lib/sentences';
 import { speak, stopSpeaking } from '../lib/tts';
 import { Play, Volume, RefreshCw, Check } from './icons';
 
 // Dictée: pure listening drill. The app speaks a French sentence the learner
 // cannot see; they type what they heard and get a word-level diff + accuracy
 // score. Everything runs locally (TTS + diff) — no API calls.
-
-const POOL = [
-  ...FLASHCARDS.map((c) => ({ text: c.example, translation: c.exampleTranslation })),
-  ...SCENARIOS.map((s) => ({ text: s.opener, translation: s.openerTranslation })),
-  // Vocabulary pack examples widen the pool (skip filler — already included above).
-  ...allEntries()
-    .filter((e) => !e.id.startsWith('du-') && FLASHCARDS.every((c) => c.id !== e.id))
-    .map((e) => ({ text: e.example, translation: e.exampleEn })),
-];
-
-const randomSentence = (excludeText) => {
-  const candidates = POOL.filter((s) => s.text !== excludeText);
-  return candidates[Math.floor(Math.random() * candidates.length)];
-};
-
-// Normalize for comparison: lowercase, strip punctuation, keep accents —
-// hearing «déjà» as "deja" is still a miss worth flagging at B1+.
-const toWords = (text) =>
-  String(text)
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-
-// Word-level LCS alignment: marks each target word heard/missed.
-function diffWords(target, attempt) {
-  const m = target.length;
-  const n = attempt.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = m - 1; i >= 0; i--) {
-    for (let j = n - 1; j >= 0; j--) {
-      dp[i][j] = target[i] === attempt[j]
-        ? dp[i + 1][j + 1] + 1
-        : Math.max(dp[i + 1][j], dp[i][j + 1]);
-    }
-  }
-  const hit = new Array(m).fill(false);
-  let i = 0, j = 0;
-  while (i < m && j < n) {
-    if (target[i] === attempt[j]) { hit[i] = true; i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
-    else j++;
-  }
-  return hit;
-}
 
 export default function Dictation({ ttsRate, onXp, onActivity }) {
   const [sentence, setSentence] = useState(() => randomSentence());
