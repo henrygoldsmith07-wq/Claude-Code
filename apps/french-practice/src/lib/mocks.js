@@ -13,6 +13,7 @@ const MOCK_REPLIES = [
     translation: "Great choice! A café au lait and a croissant, coming up. Would you like anything else with that?",
     corrections: "Almost perfect! One nuance: in a Parisian bistro you'd say <s>je voudrais un café au lait</s> <mark>je vais prendre un café crème</mark> — *café au lait* is mostly said at home.",
     native_alternative: "« Bonjour, je vous prends un petit crème et un croissant, s'il vous plaît ! »",
+    grammar_topic: 'articles',
     scores: { grammar: 92, naturalness: 78, relevance: 95, fluency: 84, overall: 87 },
   },
   {
@@ -20,6 +21,7 @@ const MOCK_REPLIES = [
     translation: "Oh no, bad luck! There are often delays on this line. Where exactly are you headed?",
     corrections: "Very good! Your use of <mark>du coup</mark> is perfectly natural here. Just watch the rhythm: take a small pause after «retard».",
     native_alternative: "« Le train a du retard, du coup je poireaute ici en attendant. »",
+    grammar_topic: null,
     scores: { grammar: 88, naturalness: 85, relevance: 90, fluency: 76, overall: 85 },
   },
 ];

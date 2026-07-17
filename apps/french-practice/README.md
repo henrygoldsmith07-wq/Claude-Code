@@ -56,6 +56,12 @@ validated against the `/models` endpoint before being stored. Or flip on
   sentence" challenge. One-click save any word to a personal notebook (with
   your own custom entries), and review everything through a cross-pack
   spaced-repetition queue.
+- **Grammar** — a reference library of six CEFR-tagged topics (present tense
+  through subjunctive), each an interactive lesson: explanation with spoken
+  examples and a "watch out" note, drills with instant feedback, tap-to-order
+  sentence building, and a scored quiz (best kept; 80+ = mastered). After a
+  conversation mistake, the Arena shows a grammar tip that deep-links into
+  the matching lesson.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

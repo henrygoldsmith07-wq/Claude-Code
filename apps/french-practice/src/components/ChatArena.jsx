@@ -5,11 +5,12 @@ import { SCENARIOS } from '../lib/data';
 import { transcribe, evaluateTurn, getHint } from '../lib/groq';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
-import { ArrowRight, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
+import { ArrowRight, Book, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
+import { getGrammarTopic } from '../lib/grammar';
 
 const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
 
-export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, history, setHistory, scenario, setScenario }) {
+export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, onGrammarTip, history, setHistory, scenario, setScenario }) {
   const [phase, setPhase] = useState('idle'); // idle | transcribing | editing | thinking
   const [draft, setDraft] = useState(''); // transcription editor / manual text
   const [hintLevel, setHintLevel] = useState(0);
@@ -134,7 +135,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         <AiBubble text={scenario.opener} translation={scenario.openerTranslation} ttsRate={ttsRate} />
         {history.map((turn, i) => (
           <div key={i} className="space-y-4">
-            <UserBubble turn={turn} />
+            <UserBubble turn={turn} onGrammarTip={onGrammarTip} />
             {turn.curveball && (
               <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
                 Curveball
@@ -288,7 +289,7 @@ function AiBubble({ text, translation, ttsRate }) {
   );
 }
 
-function UserBubble({ turn }) {
+function UserBubble({ turn, onGrammarTip }) {
   const [expanded, setExpanded] = useState(false);
   const { evaluation } = turn;
   return (
@@ -316,6 +317,22 @@ function UserBubble({ turn }) {
             <p className="text-[13px] text-ink italic" lang="fr">{evaluation.native_alternative}</p>
             <SpeakButton text={evaluation.native_alternative} slow label="Listen" />
           </div>
+          {(() => {
+            const tipTopic = getGrammarTopic(evaluation.grammar_topic);
+            return tipTopic ? (
+              <button
+                onClick={() => onGrammarTip?.(tipTopic.id)}
+                className="w-full flex items-center gap-2.5 bg-surface border border-line rounded-xl px-3.5 py-2.5 text-left hover:border-ink3 transition-colors"
+              >
+                <Book size={14} className="text-ink2 shrink-0" />
+                <span className="flex-1 text-xs text-ink">
+                  <span className="font-semibold">Grammar tip:</span> this looks like{' '}
+                  <span lang="fr" className="font-semibold">{tipTopic.title}</span> — review the lesson
+                </span>
+                <ArrowRight size={13} className="text-ink3 shrink-0" />
+              </button>
+            ) : null;
+          })()}
         </div>
       )}
     </div>

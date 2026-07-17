@@ -11,6 +11,7 @@ const KEYS = {
   active: 'fp.activeSession', // { scenarioId, history } — in-flight conversation
   habits: 'fp.habits', // [{ text, key, count, lastSeen }] — recurring mistakes
   notebook: 'fp.notebook', // [{ id, fr, en, note, addedAt }] — saved words
+  grammar: 'fp.grammar', // { [topicId]: { best, attempts, lastAt } } — quiz results
 };
 
 function read(key, fallback) {
@@ -157,6 +158,22 @@ export function removeFromNotebook(id) {
   const nb = getNotebook().filter((e) => e.id !== id);
   write(KEYS.notebook, nb);
   return nb;
+}
+
+// ---- grammar quiz progress ----
+
+export const getGrammarProgress = () => read(KEYS.grammar, {});
+
+export function recordGrammarQuiz(topicId, score) {
+  const all = getGrammarProgress();
+  const prev = all[topicId] || { best: 0, attempts: 0 };
+  all[topicId] = {
+    best: Math.max(prev.best, score),
+    attempts: prev.attempts + 1,
+    lastAt: new Date().toISOString(),
+  };
+  write(KEYS.grammar, all);
+  return all[topicId];
 }
 
 // ---- spaced repetition (simple SM-2-ish intervals, in days) ----

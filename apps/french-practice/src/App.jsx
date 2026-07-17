@@ -4,6 +4,7 @@ import FeedbackWidget from './components/FeedbackWidget';
 import SessionDashboard from './components/SessionDashboard';
 import DailyChallenge from './components/DailyChallenge';
 import Vocabulary from './components/Vocabulary';
+import Grammar from './components/Grammar';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
@@ -16,7 +17,7 @@ import {
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal, Volume } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal, Volume, Book } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
@@ -24,6 +25,7 @@ const TABS = [
   ['challenge', Clock, 'Quick Fire'],
   ['dictation', Volume, 'Dictée'],
   ['cards', Layers, 'Vocab'],
+  ['grammar', Book, 'Grammar'],
 ];
 
 export default function App() {
@@ -48,6 +50,7 @@ export default function App() {
   const [xpGain, setXpGain] = useState(null); // { amount, id } for the pop animation
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
+  const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
 
   useEffect(() => {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
@@ -221,6 +224,10 @@ export default function App() {
               level={settings.level}
               onTtsRate={(r) => updateSettings({ ...settings, ttsRate: r })}
               onTurn={handleTurn}
+              onGrammarTip={(topicId) => {
+                setGrammarFocus(topicId);
+                setTab('grammar');
+              }}
               history={history}
               setHistory={setHistory}
               scenario={scenario}
@@ -230,6 +237,13 @@ export default function App() {
           {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} onActivity={handleActivity} />}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
+          {tab === 'grammar' && (
+            <Grammar
+              focusTopicId={grammarFocus}
+              onFocusConsumed={() => setGrammarFocus(null)}
+              onXp={awardXp}
+            />
+          )}
           {tab === 'dev' && (
             <DevPanel
               telemetry={telemetry}
