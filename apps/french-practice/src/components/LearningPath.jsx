@@ -22,16 +22,18 @@ export default function LearningPath({ path, dueCount, onStartLesson, onOpenSetu
     return (
       <button
         onClick={onOpenSetup}
-        className="w-full flex items-center gap-3.5 bg-accent text-onaccent rounded-2xl px-5 py-4 text-left hover:opacity-90 transition-opacity"
+        className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
       >
-        <Map size={22} className="shrink-0" />
+        <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink">
+          <Map size={18} />
+        </span>
         <span className="flex-1">
-          <span className="block text-sm font-semibold">Start your learning path</span>
-          <span className="block text-xs opacity-70 mt-0.5">
+          <span className="block text-sm font-semibold text-ink">Start your learning path</span>
+          <span className="block text-xs text-ink3 mt-0.5">
             Pick a goal, take a 2-minute placement test, and get a personal roadmap from A1 to C2.
           </span>
         </span>
-        <ChevronRight size={16} className="shrink-0 opacity-70" />
+        <ChevronRight size={16} className="shrink-0 text-ink3" />
       </button>
     );
   }
