@@ -15,6 +15,7 @@ const KEYS = {
   wordCache: 'fp.wordCache', // { [word]: translation } — tap-to-translate lookups
   reviewLog: 'fp.reviewLog', // { 'YYYY-MM-DD': count } — daily review activity (heatmap)
   reminderDay: 'fp.reminderDay', // last day a smart reminder fired
+  prefs: 'fp.prefs', // personalisation: learning style, lesson length, topics, adaptive
   coins: 'fp.coins', // spendable currency (earned with XP, achievements, challenges)
   achievements: 'fp.achievements', // { [id]: dateUnlocked }
   challenges: 'fp.challenges', // { day, counts: { metric: n }, claimed: [ids] }
@@ -24,6 +25,10 @@ const KEYS = {
   eventXp: 'fp.eventXp', // { [eventId]: xp earned during the event }
   xpLog: 'fp.xpLog', // { 'YYYY-MM-DD': xp } — daily XP history (calendar, weekly goal)
   freezes: 'fp.freezes', // streak freezes owned (auto-consumed on a 1-day gap)
+  timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
+  metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
+  habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
+  onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
 };
 
 function read(key, fallback) {
@@ -47,6 +52,50 @@ export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
 
+// ---- first-run onboarding gate ----
+// New visitors (no key, no XP, no sessions, no explicit flag) see the wizard.
+
+export const isOnboarded = () => read(KEYS.onboarded, null) === '1';
+export const setOnboarded = () => write(KEYS.onboarded, '1');
+
+export function shouldOnboard() {
+  if (isOnboarded()) return false;
+  const returning = Boolean(getApiKey()) || getXp() > 0 || getSessions().length > 0;
+  return !returning;
+}
+
+// ---- data portability (manual "sync across devices", no backend) ----
+// Export every fp.* key except the private API key into a portable backup,
+// and restore it on another device. There is no server; this is the honest
+// way to move progress between machines.
+
+export function exportProgress() {
+  const data = {};
+  for (const key of Object.values(KEYS)) {
+    if (key === KEYS.apiKey) continue; // never export the secret
+    const raw = localStorage.getItem(key);
+    if (raw != null) data[key] = raw;
+  }
+  return { app: 'le-studio', version: 1, exportedAt: new Date().toISOString(), data };
+}
+
+export function importProgress(payload) {
+  if (!payload || payload.app !== 'le-studio' || typeof payload.data !== 'object') {
+    throw new Error('That doesn’t look like a Le Studio backup file.');
+  }
+  const allowed = new Set(Object.values(KEYS));
+  let restored = 0;
+  for (const [key, raw] of Object.entries(payload.data)) {
+    if (key === KEYS.apiKey || !allowed.has(key)) continue; // ignore unknown/secret keys
+    try {
+      JSON.parse(raw); // validate it's the stored JSON shape
+      localStorage.setItem(key, raw);
+      restored += 1;
+    } catch { /* skip malformed entry */ }
+  }
+  return restored;
+}
+
 // theme: null = follow the OS preference; 'dark' | 'light' once toggled
 // level: CEFR level used to calibrate the LLM; dailyGoal: XP target per day
 const DEFAULT_SETTINGS = {
@@ -58,9 +107,21 @@ const DEFAULT_SETTINGS = {
   dailyGoal: 30,
   weeklyGoal: 150,
   smartReminders: false,
+  name: '',
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
+
+// ---- personalisation preferences ----
+
+const DEFAULT_PREFS = {
+  learningStyle: 'balanced', // balanced | conversation | grammar | vocabulary | immersion
+  lessonLength: 'medium', // short | medium | long
+  adaptiveDifficulty: true, // nudge effective difficulty from recent scores
+  favouriteTopics: [], // subset of TOPIC ids
+};
+export const getPrefs = () => ({ ...DEFAULT_PREFS, ...read(KEYS.prefs, {}) });
+export const setPrefs = (p) => write(KEYS.prefs, { ...getPrefs(), ...p });
 
 // ---- session history (last 10 kept for trend charts) ----
 
@@ -154,6 +215,79 @@ export function getWeekXp() {
   const monday = new Date(now.getTime() - ((now.getDay() + 6) % 7) * 86400000);
   const start = dayStamp(monday);
   return Object.entries(log).reduce((sum, [day, xp]) => (day >= start ? sum + xp : sum), 0);
+}
+
+// ---- time studied (seconds per day; drives Analytics) ----
+
+export const getTimeLog = () => read(KEYS.timeLog, {});
+
+export function addStudyTime(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  if (!s) return;
+  const log = getTimeLog();
+  const today = dayStamp();
+  log[today] = (log[today] || 0) + s;
+  const cutoff = dayStamp(new Date(Date.now() - 400 * 86400000));
+  for (const day of Object.keys(log)) if (day < cutoff) delete log[day];
+  write(KEYS.timeLog, log);
+}
+
+// ---- scored-activity metrics (per-skill scores for Analytics) ----
+
+export const getMetrics = () => read(KEYS.metrics, []);
+
+export function recordSkillScore(skill, score) {
+  const n = Math.max(0, Math.min(100, Math.round(score)));
+  const metrics = getMetrics();
+  metrics.push({ skill, score: n, at: new Date().toISOString() });
+  write(KEYS.metrics, metrics.slice(-300));
+  return metrics;
+}
+
+// ---- habit tracker (user-defined daily habits with per-habit streaks) ----
+
+const DEFAULT_HABITS = [
+  { id: 'h-speak', name: 'Speak French out loud' },
+  { id: 'h-review', name: 'Review my flashcards' },
+  { id: 'h-listen', name: 'Listen to something in French' },
+];
+
+export function getHabitTracker() {
+  const t = read(KEYS.habitTracker, null);
+  if (t && Array.isArray(t.list)) return t;
+  return { list: DEFAULT_HABITS, done: {} };
+}
+
+export function addHabit(name) {
+  const t = getHabitTracker();
+  const id = `h-${Date.now()}`;
+  t.list.push({ id, name: String(name).slice(0, 60) });
+  write(KEYS.habitTracker, t);
+  return t;
+}
+
+export function removeHabit(id) {
+  const t = getHabitTracker();
+  t.list = t.list.filter((h) => h.id !== id);
+  delete t.done[id];
+  write(KEYS.habitTracker, t);
+  return t;
+}
+
+export function setHabitList(names) {
+  const t = getHabitTracker();
+  t.list = names.map((name, i) => ({ id: `h-${Date.now()}-${i}`, name: String(name).slice(0, 60) }));
+  write(KEYS.habitTracker, t);
+  return t;
+}
+
+export function toggleHabit(id, day = dayStamp()) {
+  const t = getHabitTracker();
+  t.done[id] ||= {};
+  if (t.done[id][day]) delete t.done[id][day];
+  else t.done[id][day] = true;
+  write(KEYS.habitTracker, t);
+  return t;
 }
 
 // ---- daily streak ----

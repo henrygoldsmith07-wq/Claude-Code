@@ -135,6 +135,73 @@ validated against the `/models` endpoint before being stored. Or flip on
   south). Each note carries a spoken French phrase (TTS) and a "did you
   know" tip, and a shuffled **culture quiz** pays XP into the motivation
   loop.
+- **Real-world practice** — a survival hub (opened from Home) with a
+  phrasebook grouped by situation — travel phrases, restaurant, airport,
+  shopping, medical emergencies, business communication and interviews —
+  each phrase spoken via TTS. Situations that map to an Arena roleplay have
+  a "rehearse this live" jump straight into the matching conversation (a new
+  **pharmacie / medical-emergency** scenario was added for this), and a
+  10-question **mock exam** across grammar, vocabulary and usage returns an
+  estimated CEFR band and pays XP.
+- **Personalisation** — a "Personalise" panel (from Home) where you choose a
+  **learning style** (balanced / conversation-first / grammar-focused /
+  vocabulary-builder / immersion), a **lesson length** (short/medium/long,
+  which sets how many activities a plan holds), and **favourite topics**
+  (which bias the suggested conversation scenarios). A local **weakness
+  analysis** ranks your weak spots from your own data — recurring mistakes,
+  low grammar scores, weak words and due cards, and low session sub-scores —
+  each with a one-tap jump to drill it. **Daily recommendations** are then
+  ordered by your style with a boost toward those weaknesses and capped to
+  your lesson length. **Adaptive difficulty** (toggle) nudges the CEFR level
+  fed to the AI up or down from your recent session scores.
+- **Offline & devices** — Le Studio is an installable **PWA**: a service
+  worker (network-first, cache-fallback) caches the whole app so lessons,
+  stories, drills and grammar all work with no connection, and audio is
+  generated on-device by the browser's speech engine so listening and
+  pronunciation work offline too (only the live AI conversation/correction
+  features need the network). An **Offline & devices** panel shows online
+  status and offline readiness, lets you **download any story or podcast
+  transcript** as a text file, and — since there's no backend — moves
+  progress **across devices** by exporting a JSON backup and importing it on
+  another device (the API key is never included).
+- **Analytics** — a dashboard (from Home) built from locally-recorded data:
+  headline metrics for **time studied** (a visible-time tracker), **words
+  learned** (SRS), **grammar mastered**, **retention rate** (forgetting-curve
+  recall), **speaking accuracy**, **pronunciation** and **listening** scores;
+  a six-way **skill breakdown**; **weekly** and **monthly reports** (time,
+  XP, activities, average score, best day); and an **XP heatmap**. Scored
+  drills (pronunciation, dictée, listening & reading quizzes, writing
+  feedback) now log a per-skill score so these numbers reflect real practice.
+- **Reference & tools** — a hub (from Home) of advanced offline reference
+  tools: **verb conjugation tables** (ten key verbs across présent, passé
+  composé, imparfait, futur, conditionnel and subjonctif, hand-verified,
+  with IPA and TTS on every form); a **minimal pairs** ear-training drill
+  (play a word, pick which of a tricky sound-contrast pair you heard);
+  **cloze tests** (grammar-in-context gap-fill with explanations); and an
+  **offline dictionary / frequency list** that searches a curated
+  high-frequency word set (with IPA) merged with the vocabulary library and
+  your notebook — plus **import custom word lists** (paste «French, English»
+  lines straight into your notebook and SRS queue). Selected from a longer
+  "advanced features" wishlist; camera/PDF/web-page OCR, a browser
+  extension and multi-language support were left out as out-of-scope for a
+  single-file, French-only, no-backend app.
+- **Focus & habits** — a hub (from Home) for building the study habit: a
+  **Pomodoro timer** (25-minute focus blocks, short breaks, a long break
+  every four) and a count-up **study timer**, both with a distraction-free
+  full-screen **focus mode** and a chime/vibration/notification on phase
+  change; a **habit tracker** where you define daily habits, tick them off
+  and watch each one's streak; and a **goal-streak calendar** marking every
+  day you hit your daily XP goal. Daily notifications already exist as the
+  opt-in review reminders. (OS home-screen widgets and lock-screen reminders
+  aren't included — a web PWA can't create those.)
+- **Onboarding** — a 14-step first-run wizard for new visitors: welcome,
+  name, why-you're-learning, CEFR level, daily goal, learning style,
+  favourite topics, lesson length, avatar, reminders opt-in, habit picks, AI
+  key / demo mode, a feature tour and a personalised sign-off — writing all
+  of it (settings, preferences, avatar, habits, key) on the final step. It
+  shows only for genuinely new users (no key, XP or sessions), sets a flag so
+  it never nags again, has a Skip at every step, and can be replayed any time
+  from Settings.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

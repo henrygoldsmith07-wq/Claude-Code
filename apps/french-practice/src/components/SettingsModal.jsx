@@ -6,7 +6,7 @@ import { setApiKey, clearApiKey } from '../lib/storage';
 
 // Captures + validates the Groq API key before committing it to localStorage.
 
-export default function SettingsModal({ open, onClose, apiKey, onKeyChange, settings, onSettingsChange }) {
+export default function SettingsModal({ open, onClose, apiKey, onKeyChange, settings, onSettingsChange, onReplayOnboarding }) {
   const [draft, setDraft] = useState('');
   const [state, setState] = useState('idle'); // idle | checking | ok | bad
   const [message, setMessage] = useState('');
@@ -193,6 +193,18 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
             checked={settings.mockMode}
             onChange={(v) => onSettingsChange({ ...settings, mockMode: v })}
           />
+          {onReplayOnboarding && (
+            <button
+              onClick={onReplayOnboarding}
+              className="w-full text-left min-h-11 flex items-center justify-between gap-4 text-sm text-ink2 hover:text-ink"
+            >
+              <span>
+                <span className="block text-sm text-ink">Replay onboarding</span>
+                <span className="block text-[11px] text-ink3">Walk through the setup wizard again</span>
+              </span>
+              <span aria-hidden="true">→</span>
+            </button>
+          )}
         </section>
       </div>
     </Modal>

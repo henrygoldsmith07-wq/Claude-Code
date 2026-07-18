@@ -14,14 +14,25 @@ import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
 import Profile from './components/Profile';
 import Culture from './components/Culture';
+import RealWorld from './components/RealWorld';
+import Personalise from './components/Personalise';
+import Offline from './components/Offline';
+import Analytics from './components/Analytics';
+import Reference from './components/Reference';
+import Focus from './components/Focus';
+import Onboarding from './components/Onboarding';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
   getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
+  getPrefs, setPrefs, getSessions, addStudyTime,
+  setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
+  shouldOnboard, setOnboarded,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
+import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Landmark, Coins as CoinsIcon } from './components/icons';
@@ -59,6 +70,14 @@ export default function App() {
   const [coins, setCoins] = useState(getCoins);
   const [avatarId, setAvatarId] = useState(getAvatar);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [realWorldOpen, setRealWorldOpen] = useState(false);
+  const [personaliseOpen, setPersonaliseOpen] = useState(false);
+  const [offlineOpen, setOfflineOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [referenceOpen, setReferenceOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(shouldOnboard);
+  const [prefs, setPrefsState] = useState(getPrefs);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
@@ -89,6 +108,16 @@ export default function App() {
     } catch { /* notification constructor unsupported (e.g. some mobile browsers) */ }
   }, [settings.smartReminders]);
 
+  // Time studied: accumulate seconds while the tab is visible (the honest
+  // "app open and in use" proxy — paused when the tab is hidden).
+  useEffect(() => {
+    const STEP = 20;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') addStudyTime(STEP);
+    }, STEP * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // Autosave the active conversation on every turn.
   useEffect(() => {
     if (history.length > 0) setActiveSession(scenario.id, history);
@@ -108,6 +137,43 @@ export default function App() {
     setSettings(s);
     persistSettings(s);
   };
+
+  const updatePrefs = (patch) => {
+    setPrefs(patch);
+    setPrefsState(getPrefs());
+  };
+
+  // Apply everything the onboarding wizard collected, then dismiss it.
+  const finishOnboarding = (d) => {
+    updateSettings({
+      ...settings,
+      name: d.name.trim(),
+      level: d.level,
+      dailyGoal: d.dailyGoal,
+      weeklyGoal: d.weeklyGoal,
+      smartReminders: d.reminders,
+      mockMode: settings.mockMode || d.mock,
+    });
+    updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
+    persistAvatar(d.avatarId);
+    ownAvatar(d.avatarId);
+    setAvatarId(d.avatarId);
+    if (d.habits.length) setHabitList(d.habits);
+    if (d.apiKey.trim()) {
+      persistApiKey(d.apiKey.trim());
+      setApiKey(d.apiKey.trim());
+    }
+    setOnboarded();
+    setOnboardingOpen(false);
+  };
+
+  const skipOnboarding = () => {
+    setOnboarded();
+    setOnboardingOpen(false);
+  };
+
+  // Adaptive difficulty nudges the level fed to the LLM from recent scores.
+  const effectiveLevel = adaptiveLevel(settings.level, getSessions(), prefs.adaptiveDifficulty).level;
 
   const toggleTheme = () =>
     updateSettings({ ...settings, theme: isDark ? 'light' : 'dark' });
@@ -159,6 +225,29 @@ export default function App() {
     if (lesson.type === 'dictation') { setSkillArea('listening'); setListeningMode('dictation'); }
     if (lesson.type === 'quickfire') { setSkillArea('speaking'); setSpeakingMode('quickfire'); }
     setTab(tabFor[lesson.type] || 'arena');
+  };
+
+  // From the Real-World phrasebook: jump into the matching Arena roleplay.
+  const startRoleplay = (scenarioId) => {
+    const s = SCENARIOS.find((x) => x.id === scenarioId);
+    if (s && s.id !== scenario.id) {
+      setScenario(s);
+      setHistory([]);
+      setLastScores(null);
+    }
+    setRealWorldOpen(false);
+    setTab('arena');
+  };
+
+  // Route a personalised recommendation to the right activity.
+  const runRecommendation = (type) => {
+    setPersonaliseOpen(false);
+    if (type === 'arena') { setTab('arena'); return; }
+    if (type === 'cards') { setTab('cards'); return; }
+    if (type === 'grammar') { setTab('grammar'); return; }
+    if (type === 'reading') { setSkillArea('reading'); setTab('skills'); return; }
+    if (type === 'dictation') { startLesson({ type: 'dictation' }); return; }
+    if (type === 'quickfire') { startLesson({ type: 'quickfire' }); return; }
   };
 
   const endSession = () => {
@@ -262,6 +351,12 @@ export default function App() {
               onStartLesson={startLesson}
               onOpenSetup={() => setPathSetupOpen(true)}
               onNavigate={setTab}
+              onOpenRealWorld={() => setRealWorldOpen(true)}
+              onOpenPersonalise={() => setPersonaliseOpen(true)}
+              onOpenOffline={() => setOfflineOpen(true)}
+              onOpenAnalytics={() => setAnalyticsOpen(true)}
+              onOpenReference={() => setReferenceOpen(true)}
+              onOpenFocus={() => setFocusOpen(true)}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);
@@ -276,7 +371,7 @@ export default function App() {
               apiKey={apiKey}
               mockMode={settings.mockMode}
               ttsRate={settings.ttsRate}
-              level={settings.level}
+              level={effectiveLevel}
               onTtsRate={(r) => updateSettings({ ...settings, ttsRate: r })}
               onTurn={handleTurn}
               onGrammarTip={(topicId) => {
@@ -303,14 +398,14 @@ export default function App() {
                 apiKey,
                 mockMode: settings.mockMode,
                 ttsRate: settings.ttsRate,
-                level: settings.level,
+                level: effectiveLevel,
                 onXp: awardXp,
                 onActivity: handleActivity,
               }}
             />
           )}
           {tab === 'ai' && (
-            <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={settings.level} onXp={awardXp} />
+            <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={effectiveLevel} onXp={awardXp} />
           )}
           {tab === 'culture' && <Culture onXp={awardXp} />}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} onXp={awardXp} />}
@@ -349,6 +444,7 @@ export default function App() {
         onKeyChange={setApiKey}
         settings={settings}
         onSettingsChange={updateSettings}
+        onReplayOnboarding={() => { setSettingsOpen(false); setOnboardingOpen(true); }}
       />
       <SessionDashboard
         open={dashboardOpen}
@@ -357,11 +453,30 @@ export default function App() {
         mockMode={settings.mockMode}
         scenario={scenario}
         history={history}
-        level={settings.level}
+        level={effectiveLevel}
         onSessionSaved={(report) => {
           setStreakTick((t) => t + 1);
           handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
         }}
+      />
+      <Personalise
+        open={personaliseOpen}
+        onClose={() => setPersonaliseOpen(false)}
+        prefs={prefs}
+        onPrefsChange={updatePrefs}
+        baseLevel={settings.level}
+        onRun={runRecommendation}
+      />
+      <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} />
+      <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
+      <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
+      <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />
+      <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />
+      <RealWorld
+        open={realWorldOpen}
+        onClose={() => setRealWorldOpen(false)}
+        onRoleplay={startRoleplay}
+        onXp={awardXp}
       />
       <Profile
         open={profileOpen}

@@ -134,6 +134,20 @@ SCENARIOS.push(
       "Start with: «En fait, je n'ai pas bien compris…»",
       "«En fait, je n'ai pas bien compris la deuxième question — est-ce que vous pourriez me l'expliquer ?» — Actually, I didn't quite understand the second question — could you explain it to me?",
     ],
+  },
+  {
+    id: 'pharmacie',
+    title: 'At the Pharmacy',
+    setup: "You feel unwell while travelling and go to a pharmacy to describe your symptoms and get advice.",
+    aiRole: "Pharmacien(ne) attentif(ve) qui pose des questions sur les symptômes avant de conseiller.",
+    opener: "Bonjour, qu'est-ce qui vous amène ? Vous n'avez pas l'air en forme.",
+    openerTranslation: "Hello, what brings you in? You don't look well.",
+    curveball: "Demande si le client prend déjà d'autres médicaments ou a des allergies avant de recommander quoi que ce soit.",
+    staticHints: [
+      "Vocabulary: «j'ai mal à la tête / au ventre» (I have a headache / stomachache), «de la fièvre» (a fever), «une ordonnance» (a prescription).",
+      "Start with: «Je ne me sens pas très bien, j'ai…»",
+      "«Depuis hier, j'ai mal à la gorge et un peu de fièvre. Qu'est-ce que vous me conseillez ?» — Since yesterday I've had a sore throat and a slight fever. What do you recommend?",
+    ],
   }
 );
 

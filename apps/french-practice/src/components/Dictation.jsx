@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { randomPoolSentence as randomSentence, toWords, diffWords } from '../lib/sentences';
+import { recordSkillScore } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { Play, Volume, RefreshCw, Check } from './icons';
 
@@ -29,6 +30,7 @@ export default function Dictation({ ttsRate, onXp, onActivity }) {
     const gained = Math.max(1, Math.round(accuracy / 10));
     onXp(gained);
     onActivity?.({ type: 'dictation', accuracy });
+    recordSkillScore('listening', accuracy);
     setResult({ hits, accuracy, gained });
   };
 
