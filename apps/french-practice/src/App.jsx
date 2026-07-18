@@ -18,6 +18,7 @@ import RealWorld from './components/RealWorld';
 import Personalise from './components/Personalise';
 import Offline from './components/Offline';
 import Analytics from './components/Analytics';
+import Reference from './components/Reference';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
@@ -69,6 +70,7 @@ export default function App() {
   const [personaliseOpen, setPersonaliseOpen] = useState(false);
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [referenceOpen, setReferenceOpen] = useState(false);
   const [prefs, setPrefsState] = useState(getPrefs);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
@@ -318,6 +320,7 @@ export default function App() {
               onOpenPersonalise={() => setPersonaliseOpen(true)}
               onOpenOffline={() => setOfflineOpen(true)}
               onOpenAnalytics={() => setAnalyticsOpen(true)}
+              onOpenReference={() => setReferenceOpen(true)}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);
@@ -429,6 +432,7 @@ export default function App() {
       />
       <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} />
       <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
+      <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
       <RealWorld
         open={realWorldOpen}
         onClose={() => setRealWorldOpen(false)}

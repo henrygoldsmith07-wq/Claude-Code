@@ -172,6 +172,19 @@ validated against the `/models` endpoint before being stored. Or flip on
   XP, activities, average score, best day); and an **XP heatmap**. Scored
   drills (pronunciation, dictée, listening & reading quizzes, writing
   feedback) now log a per-skill score so these numbers reflect real practice.
+- **Reference & tools** — a hub (from Home) of advanced offline reference
+  tools: **verb conjugation tables** (ten key verbs across présent, passé
+  composé, imparfait, futur, conditionnel and subjonctif, hand-verified,
+  with IPA and TTS on every form); a **minimal pairs** ear-training drill
+  (play a word, pick which of a tricky sound-contrast pair you heard);
+  **cloze tests** (grammar-in-context gap-fill with explanations); and an
+  **offline dictionary / frequency list** that searches a curated
+  high-frequency word set (with IPA) merged with the vocabulary library and
+  your notebook — plus **import custom word lists** (paste «French, English»
+  lines straight into your notebook and SRS queue). Selected from a longer
+  "advanced features" wishlist; camera/PDF/web-page OCR, a browser
+  extension and multi-language support were left out as out-of-scope for a
+  single-file, French-only, no-backend app.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`
