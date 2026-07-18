@@ -104,6 +104,17 @@ validated against the `/models` endpoint before being stored. Or flip on
   weeks, per-day counts), a daily outlook ("N due now, M slip below 80% by
   tomorrow"), and opt-in **smart reminders** — one browser notification per
   day when cards are waiting.
+- **Gamification (single-player)** — a profile behind the header avatar:
+  XP feeds **levels** with French titles (Débutant → Légende) and a progress
+  bar; **coins** accrue with every XP gain and buy **avatars** (others are
+  achievement gifts); 12 **achievements** with coin rewards unlock
+  automatically from your stats; 3 deterministic **daily challenges** rotate
+  each day (clear all three for a postcard); a 12-piece **postcard
+  collection** is earned — never bought — via challenges, achievement
+  milestones and date-windowed **seasonal events** (one per season, XP goal
+  → exclusive postcard). Daily streaks were already in the header. No
+  leaderboards or leagues by design: the app is a solo studio with no
+  backend to rank against.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

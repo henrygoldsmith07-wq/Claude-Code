@@ -12,15 +12,18 @@ import AiHub from './components/AiHub';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
+import Profile from './components/Profile';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
   getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
+  getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
+import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Coins as CoinsIcon } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
@@ -51,6 +54,9 @@ export default function App() {
   const [streakTick, setStreakTick] = useState(0);
   const [xp, setXp] = useState(getXp);
   const [xpGain, setXpGain] = useState(null); // { amount, id } for the pop animation
+  const [coins, setCoins] = useState(getCoins);
+  const [avatarId, setAvatarId] = useState(getAvatar);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
@@ -108,9 +114,14 @@ export default function App() {
   const streak = getStreak();
   void streakTick;
 
+  // XP also feeds the gamification loop: coins alongside every gain, plus
+  // progress toward the active seasonal event.
   const awardXp = (gained) => {
     setXp(addXp(gained));
     setXpGain({ amount: gained, id: Date.now() });
+    setCoins(addCoins(Math.max(1, Math.round(gained / 3))));
+    const event = activeEvent();
+    if (event) addEventXp(event.id, gained);
   };
 
   const handleTurn = (scores) => {
@@ -121,6 +132,10 @@ export default function App() {
   // Learning-path progression: components report activity; the path engine
   // decides whether it satisfies the current lesson / checkpoint.
   const handleActivity = (evt) => {
+    // Daily-challenge metrics count the same activity stream the path uses.
+    if (['cards', 'session', 'dictation', 'quickfire'].includes(evt.type)) {
+      bumpChallengeMetric(evt.type);
+    }
     const result = applyActivity(getPath(), evt);
     if (!result.changed) return;
     setPath({ ...result.path });
@@ -178,7 +193,18 @@ export default function App() {
             </span>
           )}
         </span>
+        <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-semibold whitespace-nowrap" title="Coins">
+          <CoinsIcon size={13} /> {coins}
+        </span>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setProfileOpen(true)}
+            aria-label="Open your profile"
+            title="Profile"
+            className="w-10 h-10 grid place-items-center rounded-full bg-surface2 hover:bg-line text-lg"
+          >
+            <span role="img" aria-hidden="true">{(AVATARS.find((a) => a.id === avatarId) || AVATARS[0]).emoji}</span>
+          </button>
           {tab === 'arena' && history.length > 0 && (
             <button
               onClick={endSession}
@@ -331,6 +357,15 @@ export default function App() {
         onSessionSaved={(report) => {
           setStreakTick((t) => t + 1);
           handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
+        }}
+      />
+      <Profile
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onXp={awardXp}
+        onHeaderChange={({ coins: c, avatarId: a }) => {
+          setCoins(c);
+          setAvatarId(a);
         }}
       />
       <PathSetup

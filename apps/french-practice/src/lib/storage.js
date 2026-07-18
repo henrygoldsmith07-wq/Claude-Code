@@ -15,6 +15,13 @@ const KEYS = {
   wordCache: 'fp.wordCache', // { [word]: translation } — tap-to-translate lookups
   reviewLog: 'fp.reviewLog', // { 'YYYY-MM-DD': count } — daily review activity (heatmap)
   reminderDay: 'fp.reminderDay', // last day a smart reminder fired
+  coins: 'fp.coins', // spendable currency (earned with XP, achievements, challenges)
+  achievements: 'fp.achievements', // { [id]: dateUnlocked }
+  challenges: 'fp.challenges', // { day, counts: { metric: n }, claimed: [ids] }
+  avatar: 'fp.avatar', // selected avatar id
+  avatarsOwned: 'fp.avatarsOwned', // [ids] purchased/unlocked
+  collectibles: 'fp.collectibles', // { [id]: dateEarned }
+  eventXp: 'fp.eventXp', // { [eventId]: xp earned during the event }
 };
 
 function read(key, fallback) {
@@ -257,3 +264,89 @@ export function reviewHabit(key, gotIt) {
 
 export const shouldRemindToday = () => read(KEYS.reminderDay, null) !== dayStamp();
 export const markRemindedToday = () => write(KEYS.reminderDay, dayStamp());
+
+// ---- coins (earned alongside XP; spent on avatars) ----
+
+export const getCoins = () => read(KEYS.coins, 0);
+
+export function addCoins(amount) {
+  const total = getCoins() + Math.max(0, Math.round(amount));
+  write(KEYS.coins, total);
+  return total;
+}
+
+export function spendCoins(amount) {
+  const total = getCoins();
+  if (total < amount) return null;
+  write(KEYS.coins, total - amount);
+  return total - amount;
+}
+
+// ---- achievements ----
+
+export const getAchievements = () => read(KEYS.achievements, {});
+
+export function unlockAchievement(id) {
+  const all = getAchievements();
+  if (all[id]) return false;
+  all[id] = new Date().toISOString();
+  write(KEYS.achievements, all);
+  return true;
+}
+
+// ---- daily challenges (per-day metric counters + claimed rewards) ----
+
+export function getChallengeState() {
+  const s = read(KEYS.challenges, null);
+  if (s && s.day === dayStamp()) return s;
+  return { day: dayStamp(), counts: {}, claimed: [] };
+}
+
+export function bumpChallengeMetric(metric, amount = 1) {
+  const s = getChallengeState();
+  s.counts[metric] = (s.counts[metric] || 0) + amount;
+  write(KEYS.challenges, s);
+  return s;
+}
+
+export function claimChallenge(id) {
+  const s = getChallengeState();
+  if (s.claimed.includes(id)) return s;
+  s.claimed.push(id);
+  write(KEYS.challenges, s);
+  return s;
+}
+
+// ---- avatars ----
+
+export const getAvatar = () => read(KEYS.avatar, 'sourire');
+export const setAvatar = (id) => write(KEYS.avatar, id);
+export const getOwnedAvatars = () => read(KEYS.avatarsOwned, ['sourire', 'beret']);
+
+export function ownAvatar(id) {
+  const owned = getOwnedAvatars();
+  if (!owned.includes(id)) write(KEYS.avatarsOwned, [...owned, id]);
+}
+
+// ---- collectibles ----
+
+export const getCollectibles = () => read(KEYS.collectibles, {});
+
+export function awardCollectible(id) {
+  const all = getCollectibles();
+  if (all[id]) return false;
+  all[id] = new Date().toISOString();
+  write(KEYS.collectibles, all);
+  return true;
+}
+
+// ---- seasonal event progress ----
+
+export const getEventXp = (eventId) => read(KEYS.eventXp, {})[eventId] || 0;
+
+export function addEventXp(eventId, amount) {
+  const all = read(KEYS.eventXp, {});
+  all[eventId] = (all[eventId] || 0) + Math.max(0, Math.round(amount));
+  write(KEYS.eventXp, all);
+  return all[eventId];
+}
