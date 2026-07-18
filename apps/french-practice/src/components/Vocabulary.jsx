@@ -6,7 +6,7 @@ import {
 } from '../lib/storage';
 import VocabCard from './VocabCard';
 import Memory from './Memory';
-import { weakEntries, notebookAsEntries } from '../lib/memory';
+import { weakEntries, notebookAsEntries, reviewOrder } from '../lib/memory';
 import { SpeakButton } from './ui';
 import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock } from './icons';
 
@@ -77,7 +77,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
             <BarChart size={18} className="shrink-0" />
             <span className="flex-1">
               <span className="block text-sm font-semibold">Review due words</span>
-              <span className="block text-xs opacity-70">Smart queue across all packs, oldest first</span>
+              <span className="block text-xs opacity-70">Interleaved across packs — most-forgotten first</span>
             </span>
             <span className="shrink-0 min-w-6 h-6 px-1.5 grid place-items-center rounded-full bg-onaccent text-accent text-xs font-semibold">
               {dueTotal}
@@ -151,8 +151,9 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
     const initial = getSrs();
     const library = () => [...allEntries(), ...notebookAsEntries(getNotebook())];
     if (packId === 'review') {
-      const dueTime = (e) => (initial[e.id]?.due ? new Date(initial[e.id].due).getTime() : 0);
-      return library().filter((e) => isCardDue(initial[e.id])).sort((a, b) => dueTime(a) - dueTime(b));
+      // Science-based order: review what you're closest to forgetting first.
+      const due = library().filter((e) => isCardDue(initial[e.id]));
+      return reviewOrder(due, initial);
     }
     if (packId === 'weak') return weakEntries(library(), initial);
     if (packId === 'notebook') return notebookAsEntries(getNotebook());

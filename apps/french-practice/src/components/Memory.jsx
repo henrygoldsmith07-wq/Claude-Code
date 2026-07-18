@@ -128,8 +128,36 @@ export default function Memory({ onBack, onOpenDeck, onXp }) {
           </div>
           <Heatmap log={log} />
         </div>
+
+        {/* the learning science behind it all */}
+        <TheScience />
       </div>
     </div>
+  );
+}
+
+// Makes the evidence-based method transparent — the five findings the whole
+// review system is built on, so learners trust (and lean into) the approach.
+function TheScience() {
+  const points = [
+    ['Spaced repetition (SM-2)', 'Cards return on an expanding schedule tuned to your ease rating — the SuperMemo/Anki method, the most studied way to retain more in less time.'],
+    ['Retrieval practice', 'You recall before you check. Effortful retrieval — not re-reading — is what builds durable memory (the “testing effect”).'],
+    ['Desirable difficulty', 'The queue serves each card just as it nears the forgetting threshold, where one review does the most work.'],
+    ['Interleaving', 'Due words are mixed across packs rather than blocked by topic, which improves discrimination and transfer.'],
+    ['Frequency first', 'Ties favour the most common words — the ~1,000 that cover most of everyday French — so effort compounds fastest.'],
+  ];
+  return (
+    <details className="bg-surface2 border border-line rounded-2xl px-5 py-4">
+      <summary className="text-[11px] font-bold uppercase tracking-wider text-ink2 cursor-pointer">The science behind this</summary>
+      <ul className="mt-3 space-y-2.5">
+        {points.map(([t, d]) => (
+          <li key={t}>
+            <p className="text-[13px] font-semibold text-ink">{t}</p>
+            <p className="text-[11px] text-ink3 leading-snug">{d}</p>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

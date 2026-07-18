@@ -384,9 +384,16 @@ export function recordGrammarQuiz(topicId, score) {
   return all[topicId];
 }
 
-// ---- spaced repetition (simple SM-2-ish intervals, in days) ----
+// ---- spaced repetition: the SM-2 algorithm (SuperMemo / Anki) ----
+// The evidence-based scheduler: each card carries an ease factor (EF) that
+// grows when recall is easy and shrinks when it's hard, and the interval
+// compounds by EF once a card has graduated. This spaces reviews to land
+// just as a memory is about to fade — the most efficient way to retain.
 
-const SRS_STEPS = { again: 0, hard: 1, good: 3, easy: 7 };
+const DEFAULT_EASE = 2.5;
+const MIN_EASE = 1.3;
+// Map the four rating buttons to SM-2 quality grades (0–5).
+const QUALITY = { again: 2, hard: 3, good: 4, easy: 5 };
 
 export const getSrs = () => read(KEYS.srs, {});
 
@@ -401,12 +408,32 @@ export function getDueCardIds(allIds) {
 
 export function rateCard(cardId, rating) {
   const srs = getSrs();
-  const prev = srs[cardId] || { interval: 0, reps: 0, lapses: 0 };
-  const base = SRS_STEPS[rating] ?? 1;
-  const interval = rating === 'again' ? 0 : Math.max(base, Math.round(prev.interval * 2));
+  const prev = srs[cardId] || { interval: 0, reps: 0, lapses: 0, ease: DEFAULT_EASE };
+  let ease = prev.ease || DEFAULT_EASE;
+  let reps = prev.reps || 0;
+  let interval;
+
+  if (rating === 'again') {
+    // Lapse: relearn today, drop the ease, and restart the interval ladder.
+    reps = 0;
+    interval = 0;
+    ease = Math.max(MIN_EASE, ease - 0.2);
+  } else {
+    // SM-2 ease update: EF' = EF + (0.1 − (5−q)(0.08 + (5−q)·0.02)).
+    const q = QUALITY[rating];
+    ease = Math.max(MIN_EASE, ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
+    reps += 1;
+    if (reps === 1) interval = 1;
+    else if (reps === 2) interval = 6;
+    else interval = Math.round((prev.interval || 1) * ease);
+    // "Hard" still advances, but by less than a full ease step.
+    if (rating === 'hard') interval = Math.max(1, Math.round(interval * 0.6));
+  }
+
   srs[cardId] = {
     interval,
-    reps: prev.reps + 1,
+    reps,
+    ease: Math.round(ease * 100) / 100,
     lapses: (prev.lapses || 0) + (rating === 'again' ? 1 : 0),
     due: new Date(Date.now() + interval * 86400000).toISOString(),
     lastRating: rating,
