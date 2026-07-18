@@ -164,6 +164,14 @@ validated against the `/models` endpoint before being stored. Or flip on
   transcript** as a text file, and — since there's no backend — moves
   progress **across devices** by exporting a JSON backup and importing it on
   another device (the API key is never included).
+- **Analytics** — a dashboard (from Home) built from locally-recorded data:
+  headline metrics for **time studied** (a visible-time tracker), **words
+  learned** (SRS), **grammar mastered**, **retention rate** (forgetting-curve
+  recall), **speaking accuracy**, **pronunciation** and **listening** scores;
+  a six-way **skill breakdown**; **weekly** and **monthly reports** (time,
+  XP, activities, average score, best day); and an **XP heatmap**. Scored
+  drills (pronunciation, dictée, listening & reading quizzes, writing
+  feedback) now log a per-skill score so these numbers reflect real practice.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

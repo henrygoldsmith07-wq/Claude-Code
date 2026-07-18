@@ -3,6 +3,7 @@ import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { randomPoolSentence, toWords, diffWords, displayHits } from '../lib/sentences';
 import { transcribe, accentFeedback } from '../lib/groq';
+import { recordSkillScore } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { SpeakButton, Spinner } from './ui';
 import { Mic, Square, Play, RefreshCw } from './icons';
@@ -34,6 +35,7 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
         const accuracy = Math.round((matched / Math.max(1, target.length)) * 100);
         const gained = Math.max(1, Math.round(accuracy / 10));
         onXp(gained);
+        recordSkillScore(mode === 'shadowing' ? 'speaking' : 'pronunciation', accuracy);
         let feedback = '';
         try {
           feedback = await accentFeedback(apiKey, { target: sentence.text, heard, level, mock: mockMode });

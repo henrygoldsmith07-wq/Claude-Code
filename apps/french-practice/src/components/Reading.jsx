@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { READING_KINDS, READING_TEXTS, getText } from '../lib/reading';
 import { allEntries } from '../lib/vocab';
 import { translateWord } from '../lib/groq';
-import { getCachedWord, cacheWord, saveToNotebook, isInNotebook } from '../lib/storage';
+import { getCachedWord, cacheWord, saveToNotebook, isInNotebook, recordSkillScore } from '../lib/storage';
 import { SpeakButton, Spinner } from './ui';
 import { BookOpen, ChevronLeft, ChevronRight, Check, X, RefreshCw, Bookmark, BookmarkFilled } from './icons';
 
@@ -201,6 +201,7 @@ function TextReader({ text, apiKey, mockMode, onXp, onBack }) {
     else {
       const gained = Math.max(1, quiz.correct * 5);
       onXp(gained);
+      recordSkillScore('reading', Math.round((quiz.correct / text.questions.length) * 100));
       setQuiz({ ...quiz, done: true, gained });
     }
   };

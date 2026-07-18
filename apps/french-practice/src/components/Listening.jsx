@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LISTENING_KINDS, LISTENING_TRACKS, getTrack } from '../lib/listening';
+import { recordSkillScore } from '../lib/storage';
 import { speakLines, stopSpeaking } from '../lib/tts';
 import Dictation from './Dictation';
 import { Volume, Play, Square, ChevronLeft, ChevronRight, Check, X, RefreshCw } from './icons';
@@ -137,6 +138,7 @@ function TrackPlayer({ track, baseRate, onXp }) {
     } else {
       const gained = Math.max(1, quiz.correct * 5);
       onXp(gained);
+      recordSkillScore('listening', Math.round((quiz.correct / track.questions.length) * 100));
       setQuiz({ ...quiz, done: true, gained });
     }
   };

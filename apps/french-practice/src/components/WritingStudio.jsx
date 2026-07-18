@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { WRITING_PROMPTS, ESSAY_PROMPTS, randomFrom } from '../lib/writing';
 import { writingFeedback } from '../lib/groq';
+import { recordSkillScore } from '../lib/storage';
 import { Markdown, Spinner } from './ui';
 import { Check, RefreshCw } from './icons';
 
@@ -27,6 +28,7 @@ export default function WritingStudio({ depth, apiKey, mockMode, level, onXp }) 
     try {
       const r = await writingFeedback(apiKey, { text: text.trim(), prompt: prompt.fr, level, depth, mock: mockMode });
       onXp(Math.max(2, Math.round((r.scores.overall || 50) / 10)));
+      recordSkillScore('writing', r.scores.overall || 50);
       setReview(r);
     } catch (e) {
       setError(e.message);

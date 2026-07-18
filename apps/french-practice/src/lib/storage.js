@@ -25,6 +25,8 @@ const KEYS = {
   eventXp: 'fp.eventXp', // { [eventId]: xp earned during the event }
   xpLog: 'fp.xpLog', // { 'YYYY-MM-DD': xp } — daily XP history (calendar, weekly goal)
   freezes: 'fp.freezes', // streak freezes owned (auto-consumed on a 1-day gap)
+  timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
+  metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
 };
 
 function read(key, fallback) {
@@ -198,6 +200,33 @@ export function getWeekXp() {
   const monday = new Date(now.getTime() - ((now.getDay() + 6) % 7) * 86400000);
   const start = dayStamp(monday);
   return Object.entries(log).reduce((sum, [day, xp]) => (day >= start ? sum + xp : sum), 0);
+}
+
+// ---- time studied (seconds per day; drives Analytics) ----
+
+export const getTimeLog = () => read(KEYS.timeLog, {});
+
+export function addStudyTime(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  if (!s) return;
+  const log = getTimeLog();
+  const today = dayStamp();
+  log[today] = (log[today] || 0) + s;
+  const cutoff = dayStamp(new Date(Date.now() - 400 * 86400000));
+  for (const day of Object.keys(log)) if (day < cutoff) delete log[day];
+  write(KEYS.timeLog, log);
+}
+
+// ---- scored-activity metrics (per-skill scores for Analytics) ----
+
+export const getMetrics = () => read(KEYS.metrics, []);
+
+export function recordSkillScore(skill, score) {
+  const n = Math.max(0, Math.min(100, Math.round(score)));
+  const metrics = getMetrics();
+  metrics.push({ skill, score: n, at: new Date().toISOString() });
+  write(KEYS.metrics, metrics.slice(-300));
+  return metrics;
 }
 
 // ---- daily streak ----

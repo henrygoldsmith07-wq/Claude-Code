@@ -17,12 +17,13 @@ import Culture from './components/Culture';
 import RealWorld from './components/RealWorld';
 import Personalise from './components/Personalise';
 import Offline from './components/Offline';
+import Analytics from './components/Analytics';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
   getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
-  getPrefs, setPrefs, getSessions,
+  getPrefs, setPrefs, getSessions, addStudyTime,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
@@ -67,6 +68,7 @@ export default function App() {
   const [realWorldOpen, setRealWorldOpen] = useState(false);
   const [personaliseOpen, setPersonaliseOpen] = useState(false);
   const [offlineOpen, setOfflineOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [prefs, setPrefsState] = useState(getPrefs);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
@@ -97,6 +99,16 @@ export default function App() {
       });
     } catch { /* notification constructor unsupported (e.g. some mobile browsers) */ }
   }, [settings.smartReminders]);
+
+  // Time studied: accumulate seconds while the tab is visible (the honest
+  // "app open and in use" proxy — paused when the tab is hidden).
+  useEffect(() => {
+    const STEP = 20;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') addStudyTime(STEP);
+    }, STEP * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Autosave the active conversation on every turn.
   useEffect(() => {
@@ -305,6 +317,7 @@ export default function App() {
               onOpenRealWorld={() => setRealWorldOpen(true)}
               onOpenPersonalise={() => setPersonaliseOpen(true)}
               onOpenOffline={() => setOfflineOpen(true)}
+              onOpenAnalytics={() => setAnalyticsOpen(true)}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);
@@ -415,6 +428,7 @@ export default function App() {
         onRun={runRecommendation}
       />
       <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} />
+      <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
       <RealWorld
         open={realWorldOpen}
         onClose={() => setRealWorldOpen(false)}
