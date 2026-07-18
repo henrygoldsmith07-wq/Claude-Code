@@ -84,6 +84,16 @@ validated against the `/models` endpoint before being stored. Or flip on
   sentence building, and a scored quiz (best kept; 80+ = mastered). After a
   conversation mistake, the Arena shows a grammar tip that deep-links into
   the matching lesson.
+- **AI studio** — five tools built straight on the LLM: an **AI tutor** you
+  can ask anything (grammar, nuance, culture, study advice — answers pitched
+  to your CEFR level), **AI characters** with distinct personalities (a Lyon
+  grandmother, a Marseille fisherman, a Parisian actress, a space-mad
+  ten-year-old) who chat in French with inline translations, an **instant
+  translator** (both directions, with TTS on French output), an **exercise
+  generator** that writes a three-question drill on any topic you name, and
+  **personalized lessons** generated from your own recurring-mistake bank.
+  In the Arena, every corrected turn also gets a "Why? Explain the rule"
+  button for an on-demand grammar explanation of that specific mistake.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

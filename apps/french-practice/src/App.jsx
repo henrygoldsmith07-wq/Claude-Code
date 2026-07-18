@@ -8,6 +8,7 @@ import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
 import Skills from './components/Skills';
+import AiHub from './components/AiHub';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
@@ -16,12 +17,13 @@ import {
   getActiveSession, setActiveSession, clearActiveSession,
 } from './lib/storage';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
   ['skills', Mic, 'Skills'],
+  ['ai', Sparkles, 'AI'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
 ];
@@ -256,6 +258,9 @@ export default function App() {
                 onActivity: handleActivity,
               }}
             />
+          )}
+          {tab === 'ai' && (
+            <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={settings.level} onXp={awardXp} />
           )}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
           {tab === 'grammar' && (
