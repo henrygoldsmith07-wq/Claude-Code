@@ -15,14 +15,17 @@ import { SCENARIOS } from './lib/data';
 import Profile from './components/Profile';
 import Culture from './components/Culture';
 import RealWorld from './components/RealWorld';
+import Personalise from './components/Personalise';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
   getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
+  getPrefs, setPrefs, getSessions,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
+import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Landmark, Coins as CoinsIcon } from './components/icons';
@@ -61,6 +64,8 @@ export default function App() {
   const [avatarId, setAvatarId] = useState(getAvatar);
   const [profileOpen, setProfileOpen] = useState(false);
   const [realWorldOpen, setRealWorldOpen] = useState(false);
+  const [personaliseOpen, setPersonaliseOpen] = useState(false);
+  const [prefs, setPrefsState] = useState(getPrefs);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
@@ -110,6 +115,14 @@ export default function App() {
     setSettings(s);
     persistSettings(s);
   };
+
+  const updatePrefs = (patch) => {
+    setPrefs(patch);
+    setPrefsState(getPrefs());
+  };
+
+  // Adaptive difficulty nudges the level fed to the LLM from recent scores.
+  const effectiveLevel = adaptiveLevel(settings.level, getSessions(), prefs.adaptiveDifficulty).level;
 
   const toggleTheme = () =>
     updateSettings({ ...settings, theme: isDark ? 'light' : 'dark' });
@@ -173,6 +186,17 @@ export default function App() {
     }
     setRealWorldOpen(false);
     setTab('arena');
+  };
+
+  // Route a personalised recommendation to the right activity.
+  const runRecommendation = (type) => {
+    setPersonaliseOpen(false);
+    if (type === 'arena') { setTab('arena'); return; }
+    if (type === 'cards') { setTab('cards'); return; }
+    if (type === 'grammar') { setTab('grammar'); return; }
+    if (type === 'reading') { setSkillArea('reading'); setTab('skills'); return; }
+    if (type === 'dictation') { startLesson({ type: 'dictation' }); return; }
+    if (type === 'quickfire') { startLesson({ type: 'quickfire' }); return; }
   };
 
   const endSession = () => {
@@ -277,6 +301,7 @@ export default function App() {
               onOpenSetup={() => setPathSetupOpen(true)}
               onNavigate={setTab}
               onOpenRealWorld={() => setRealWorldOpen(true)}
+              onOpenPersonalise={() => setPersonaliseOpen(true)}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);
@@ -291,7 +316,7 @@ export default function App() {
               apiKey={apiKey}
               mockMode={settings.mockMode}
               ttsRate={settings.ttsRate}
-              level={settings.level}
+              level={effectiveLevel}
               onTtsRate={(r) => updateSettings({ ...settings, ttsRate: r })}
               onTurn={handleTurn}
               onGrammarTip={(topicId) => {
@@ -318,14 +343,14 @@ export default function App() {
                 apiKey,
                 mockMode: settings.mockMode,
                 ttsRate: settings.ttsRate,
-                level: settings.level,
+                level: effectiveLevel,
                 onXp: awardXp,
                 onActivity: handleActivity,
               }}
             />
           )}
           {tab === 'ai' && (
-            <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={settings.level} onXp={awardXp} />
+            <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={effectiveLevel} onXp={awardXp} />
           )}
           {tab === 'culture' && <Culture onXp={awardXp} />}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} onXp={awardXp} />}
@@ -372,11 +397,19 @@ export default function App() {
         mockMode={settings.mockMode}
         scenario={scenario}
         history={history}
-        level={settings.level}
+        level={effectiveLevel}
         onSessionSaved={(report) => {
           setStreakTick((t) => t + 1);
           handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
         }}
+      />
+      <Personalise
+        open={personaliseOpen}
+        onClose={() => setPersonaliseOpen(false)}
+        prefs={prefs}
+        onPrefsChange={updatePrefs}
+        baseLevel={settings.level}
+        onRun={runRecommendation}
       />
       <RealWorld
         open={realWorldOpen}

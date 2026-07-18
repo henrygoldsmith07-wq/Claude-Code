@@ -4,7 +4,7 @@ import LearningPath from './LearningPath';
 import { SCENARIOS } from '../lib/data';
 import { allEntryIds } from '../lib/vocab';
 import { TrendChart } from './charts';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -19,7 +19,7 @@ function suggestScenario(sessions) {
   return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onPickScenario }) {
+export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onPickScenario }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -160,6 +160,12 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             title="Real-world practice"
             subtitle="Survival phrases, roleplay and a mock exam"
             onClick={onOpenRealWorld}
+          />
+          <ActionCard
+            icon={Sliders}
+            title="Personalise"
+            subtitle="Learning style, topics and a plan tuned to your weak spots"
+            onClick={onOpenPersonalise}
           />
         </section>
 

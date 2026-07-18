@@ -143,6 +143,17 @@ validated against the `/models` endpoint before being stored. Or flip on
   **pharmacie / medical-emergency** scenario was added for this), and a
   10-question **mock exam** across grammar, vocabulary and usage returns an
   estimated CEFR band and pays XP.
+- **Personalisation** — a "Personalise" panel (from Home) where you choose a
+  **learning style** (balanced / conversation-first / grammar-focused /
+  vocabulary-builder / immersion), a **lesson length** (short/medium/long,
+  which sets how many activities a plan holds), and **favourite topics**
+  (which bias the suggested conversation scenarios). A local **weakness
+  analysis** ranks your weak spots from your own data — recurring mistakes,
+  low grammar scores, weak words and due cards, and low session sub-scores —
+  each with a one-tap jump to drill it. **Daily recommendations** are then
+  ordered by your style with a boost toward those weaknesses and capped to
+  your lesson length. **Adaptive difficulty** (toggle) nudges the CEFR level
+  fed to the AI up or down from your recent session scores.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

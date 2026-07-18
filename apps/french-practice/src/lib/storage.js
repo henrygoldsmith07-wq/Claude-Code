@@ -15,6 +15,7 @@ const KEYS = {
   wordCache: 'fp.wordCache', // { [word]: translation } — tap-to-translate lookups
   reviewLog: 'fp.reviewLog', // { 'YYYY-MM-DD': count } — daily review activity (heatmap)
   reminderDay: 'fp.reminderDay', // last day a smart reminder fired
+  prefs: 'fp.prefs', // personalisation: learning style, lesson length, topics, adaptive
   coins: 'fp.coins', // spendable currency (earned with XP, achievements, challenges)
   achievements: 'fp.achievements', // { [id]: dateUnlocked }
   challenges: 'fp.challenges', // { day, counts: { metric: n }, claimed: [ids] }
@@ -61,6 +62,17 @@ const DEFAULT_SETTINGS = {
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
+
+// ---- personalisation preferences ----
+
+const DEFAULT_PREFS = {
+  learningStyle: 'balanced', // balanced | conversation | grammar | vocabulary | immersion
+  lessonLength: 'medium', // short | medium | long
+  adaptiveDifficulty: true, // nudge effective difficulty from recent scores
+  favouriteTopics: [], // subset of TOPIC ids
+};
+export const getPrefs = () => ({ ...DEFAULT_PREFS, ...read(KEYS.prefs, {}) });
+export const setPrefs = (p) => write(KEYS.prefs, { ...getPrefs(), ...p });
 
 // ---- session history (last 10 kept for trend charts) ----
 
