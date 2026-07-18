@@ -13,6 +13,7 @@ import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
 import Profile from './components/Profile';
+import Culture from './components/Culture';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
@@ -23,7 +24,7 @@ import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
 import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Coins as CoinsIcon } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Landmark, Coins as CoinsIcon } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
@@ -32,6 +33,7 @@ const TABS = [
   ['ai', Sparkles, 'AI'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
+  ['culture', Landmark, 'Culture'],
 ];
 
 export default function App() {
@@ -310,6 +312,7 @@ export default function App() {
           {tab === 'ai' && (
             <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={settings.level} onXp={awardXp} />
           )}
+          {tab === 'culture' && <Culture onXp={awardXp} />}
           {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} onXp={awardXp} />}
           {tab === 'grammar' && (
             <Grammar
