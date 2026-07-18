@@ -94,16 +94,22 @@ validated against the `/models` endpoint before being stored. Or flip on
   **personalized lessons** generated from your own recurring-mistake bank.
   In the Arena, every corrected turn also gets a "Why? Explain the rule"
   button for an on-demand grammar explanation of that specific mistake.
-- **Memory & revision** — a dashboard inside Vocab built on an exponential
-  forgetting-curve model (recall R(t)=e^(−t/S), stability from the SRS
-  interval): retention buckets (strong/fading/at-risk/new), a plotted
-  forgetting curve, **weak-word review** (high-lapse cards drilled worst
-  first), **mistake review** (flip through the recurring-mistake bank and
-  burn entries down to zero), **custom flashcards** (notebook words join the
-  SRS queue and study as cards), a GitHub-style **review heatmap** (15
-  weeks, per-day counts), a daily outlook ("N due now, M slip below 80% by
-  tomorrow"), and opt-in **smart reminders** — one browser notification per
-  day when cards are waiting.
+- **Memory & revision (evidence-based)** — the review engine is built on the
+  learning-science findings that most reliably speed acquisition:
+  - **Spaced repetition — the SM-2 algorithm** (SuperMemo/Anki): each card
+    carries an ease factor that grows on easy recalls and shrinks on hard
+    ones, with the interval compounding by ease once a card graduates
+    (1 → 6 → interval×ease days); a lapse drops the ease and restarts the
+    ladder.
+  - **Most-forgotten-first, interleaved review**: the due queue is ordered by
+    ascending predicted recall from an exponential forgetting curve
+    (R(t)=e^(−t/S)) — you review each word right as it nears the forgetting
+    threshold, where one repetition does the most — mixed across packs, with
+    ties broken toward higher-frequency words.
+  - Plus retention buckets (strong/fading/at-risk/new), a plotted forgetting
+    curve, **weak-word review**, **mistake review**, **custom flashcards**, a
+    **review heatmap**, a daily outlook, opt-in **smart reminders**, and a
+    "the science behind this" panel that explains the method.
 - **Gamification (single-player)** — a profile behind the header avatar:
   XP feeds **levels** with French titles (Débutant → Légende) and a progress
   bar; **coins** accrue with every XP gain and buy **avatars** (others are

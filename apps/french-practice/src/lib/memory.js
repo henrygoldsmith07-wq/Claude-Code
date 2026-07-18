@@ -74,6 +74,21 @@ export const notebookAsEntries = (notebook) =>
 // Total reviews across the log — the heatmap headline.
 export const totalReviews = (log) => Object.values(log).reduce((a, b) => a + b, 0);
 
+// Science-based review order for the due queue. Reviewing an item just as
+// it's about to be forgotten is where a repetition does the most for
+// long-term retention, so we sort by ascending predicted recall (most
+// forgotten first). Never-reviewed-but-due cards come first (highest
+// learning value), and ties break toward higher-frequency words — the ones
+// that appear most in real French, so effort compounds fastest.
+export function reviewOrder(dueEntries, srs, now = Date.now()) {
+  const rank = (e) => {
+    const r = retentionNow(srs[e.id], now);
+    return r == null ? -1 : r; // never-reviewed sorts before any recall value
+  };
+  const freq = (e) => e.freq || 9; // lower freq number = more common
+  return [...dueEntries].sort((a, b) => rank(a) - rank(b) || freq(a) - freq(b));
+}
+
 // When is reviewing most worthwhile? Count cards already due plus cards
 // whose retention slips under 80% within 24h — the smart-reminder message.
 export function reviewOutlook(entries, srs, now = Date.now()) {
