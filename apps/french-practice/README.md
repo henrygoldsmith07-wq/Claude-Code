@@ -94,6 +94,16 @@ validated against the `/models` endpoint before being stored. Or flip on
   **personalized lessons** generated from your own recurring-mistake bank.
   In the Arena, every corrected turn also gets a "Why? Explain the rule"
   button for an on-demand grammar explanation of that specific mistake.
+- **Memory & revision** — a dashboard inside Vocab built on an exponential
+  forgetting-curve model (recall R(t)=e^(−t/S), stability from the SRS
+  interval): retention buckets (strong/fading/at-risk/new), a plotted
+  forgetting curve, **weak-word review** (high-lapse cards drilled worst
+  first), **mistake review** (flip through the recurring-mistake bank and
+  burn entries down to zero), **custom flashcards** (notebook words join the
+  SRS queue and study as cards), a GitHub-style **review heatmap** (15
+  weeks, per-day counts), a daily outlook ("N due now, M slip below 80% by
+  tomorrow"), and opt-in **smart reminders** — one browser notification per
+  day when cards are waiting.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

@@ -1,4 +1,4 @@
-import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNotebook } from '../lib/storage';
 import LearningPath from './LearningPath';
 import { SCENARIOS } from '../lib/data';
 import { allEntryIds } from '../lib/vocab';
@@ -22,7 +22,7 @@ export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, o
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
-  const dueCount = getDueCardIds(allEntryIds()).length;
+  const dueCount = getDueCardIds([...allEntryIds(), ...getNotebook().map((e) => e.id)]).length;
   const habits = getHabits().slice(0, 3);
   const sessions = getSessions();
   const suggested = suggestScenario(sessions);

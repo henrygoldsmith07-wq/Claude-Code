@@ -15,7 +15,10 @@ import { SCENARIOS } from './lib/data';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
+  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
 } from './lib/storage';
+import { allEntries } from './lib/vocab';
+import { notebookAsEntries } from './lib/memory';
 import { setTelemetrySink } from './lib/groq';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles } from './components/icons';
 
@@ -59,6 +62,24 @@ export default function App() {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
     return () => setTelemetrySink(null);
   }, []);
+
+  // Smart reminders: once per day, when reviews are waiting and the user
+  // opted in, surface a browser notification (works while the tab is open —
+  // there's no backend to push from).
+  useEffect(() => {
+    if (!settings.smartReminders || !shouldRemindToday()) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const srs = getSrs();
+    const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
+      .filter((e) => isCardDue(srs[e.id])).length;
+    if (due === 0) return;
+    markRemindedToday();
+    try {
+      new Notification('Le Studio', {
+        body: `${due} card${due > 1 ? 's are' : ' is'} due for review — a few minutes now beats relearning later.`,
+      });
+    } catch { /* notification constructor unsupported (e.g. some mobile browsers) */ }
+  }, [settings.smartReminders]);
 
   // Autosave the active conversation on every turn.
   useEffect(() => {
@@ -262,7 +283,7 @@ export default function App() {
           {tab === 'ai' && (
             <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={settings.level} onXp={awardXp} />
           )}
-          {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
+          {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} onXp={awardXp} />}
           {tab === 'grammar' && (
             <Grammar
               focusTopicId={grammarFocus}
