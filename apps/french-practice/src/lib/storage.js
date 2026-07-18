@@ -27,6 +27,7 @@ const KEYS = {
   freezes: 'fp.freezes', // streak freezes owned (auto-consumed on a 1-day gap)
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
+  habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
 };
 
 function read(key, fallback) {
@@ -227,6 +228,45 @@ export function recordSkillScore(skill, score) {
   metrics.push({ skill, score: n, at: new Date().toISOString() });
   write(KEYS.metrics, metrics.slice(-300));
   return metrics;
+}
+
+// ---- habit tracker (user-defined daily habits with per-habit streaks) ----
+
+const DEFAULT_HABITS = [
+  { id: 'h-speak', name: 'Speak French out loud' },
+  { id: 'h-review', name: 'Review my flashcards' },
+  { id: 'h-listen', name: 'Listen to something in French' },
+];
+
+export function getHabitTracker() {
+  const t = read(KEYS.habitTracker, null);
+  if (t && Array.isArray(t.list)) return t;
+  return { list: DEFAULT_HABITS, done: {} };
+}
+
+export function addHabit(name) {
+  const t = getHabitTracker();
+  const id = `h-${Date.now()}`;
+  t.list.push({ id, name: String(name).slice(0, 60) });
+  write(KEYS.habitTracker, t);
+  return t;
+}
+
+export function removeHabit(id) {
+  const t = getHabitTracker();
+  t.list = t.list.filter((h) => h.id !== id);
+  delete t.done[id];
+  write(KEYS.habitTracker, t);
+  return t;
+}
+
+export function toggleHabit(id, day = dayStamp()) {
+  const t = getHabitTracker();
+  t.done[id] ||= {};
+  if (t.done[id][day]) delete t.done[id][day];
+  else t.done[id][day] = true;
+  write(KEYS.habitTracker, t);
+  return t;
 }
 
 // ---- daily streak ----

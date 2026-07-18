@@ -185,6 +185,15 @@ validated against the `/models` endpoint before being stored. Or flip on
   "advanced features" wishlist; camera/PDF/web-page OCR, a browser
   extension and multi-language support were left out as out-of-scope for a
   single-file, French-only, no-backend app.
+- **Focus & habits** — a hub (from Home) for building the study habit: a
+  **Pomodoro timer** (25-minute focus blocks, short breaks, a long break
+  every four) and a count-up **study timer**, both with a distraction-free
+  full-screen **focus mode** and a chime/vibration/notification on phase
+  change; a **habit tracker** where you define daily habits, tick them off
+  and watch each one's streak; and a **goal-streak calendar** marking every
+  day you hit your daily XP goal. Daily notifications already exist as the
+  opt-in review reminders. (OS home-screen widgets and lock-screen reminders
+  aren't included — a web PWA can't create those.)
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

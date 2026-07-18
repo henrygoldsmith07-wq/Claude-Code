@@ -19,7 +19,7 @@ function suggestScenario(sessions) {
   return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onPickScenario }) {
+export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -166,6 +166,12 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             title="Personalise"
             subtitle="Learning style, topics and a plan tuned to your weak spots"
             onClick={onOpenPersonalise}
+          />
+          <ActionCard
+            icon={Clock}
+            title="Focus & habits"
+            subtitle="Pomodoro timer, focus mode, habit tracker, streak calendar"
+            onClick={onOpenFocus}
           />
           <ActionCard
             icon={Book}
