@@ -164,6 +164,15 @@ export const Trophy = (p) => (
 export const BarChart = (p) => (
   <Icon {...p}><line x1="12" x2="12" y1="20" y2="10" /><line x1="18" x2="18" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="16" /></Icon>
 );
+export const Cross = (p) => (
+  <Icon {...p}><path d="M11 2a2 2 0 0 0-2 2v5H4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h5v5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-5h5a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-5V4a2 2 0 0 0-2-2z" /></Icon>
+);
+export const Compass = (p) => (
+  <Icon {...p}><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></Icon>
+);
+export const FileText = (p) => (
+  <Icon {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></Icon>
+);
 
 // Per-scenario icon lookup for the arena card rail.
 export const SCENARIO_ICONS = {
@@ -176,4 +185,5 @@ export const SCENARIO_ICONS = {
   reunion: MessageCircle,
   cours: GraduationCap,
   libre: MessageCircle,
+  pharmacie: Cross,
 };

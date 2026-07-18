@@ -135,6 +135,14 @@ validated against the `/models` endpoint before being stored. Or flip on
   south). Each note carries a spoken French phrase (TTS) and a "did you
   know" tip, and a shuffled **culture quiz** pays XP into the motivation
   loop.
+- **Real-world practice** — a survival hub (opened from Home) with a
+  phrasebook grouped by situation — travel phrases, restaurant, airport,
+  shopping, medical emergencies, business communication and interviews —
+  each phrase spoken via TTS. Situations that map to an Arena roleplay have
+  a "rehearse this live" jump straight into the matching conversation (a new
+  **pharmacie / medical-emergency** scenario was added for this), and a
+  10-question **mock exam** across grammar, vocabulary and usage returns an
+  estimated CEFR band and pays XP.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

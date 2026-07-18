@@ -14,6 +14,7 @@ import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
 import Profile from './components/Profile';
 import Culture from './components/Culture';
+import RealWorld from './components/RealWorld';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
@@ -59,6 +60,7 @@ export default function App() {
   const [coins, setCoins] = useState(getCoins);
   const [avatarId, setAvatarId] = useState(getAvatar);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [realWorldOpen, setRealWorldOpen] = useState(false);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
@@ -159,6 +161,18 @@ export default function App() {
     if (lesson.type === 'dictation') { setSkillArea('listening'); setListeningMode('dictation'); }
     if (lesson.type === 'quickfire') { setSkillArea('speaking'); setSpeakingMode('quickfire'); }
     setTab(tabFor[lesson.type] || 'arena');
+  };
+
+  // From the Real-World phrasebook: jump into the matching Arena roleplay.
+  const startRoleplay = (scenarioId) => {
+    const s = SCENARIOS.find((x) => x.id === scenarioId);
+    if (s && s.id !== scenario.id) {
+      setScenario(s);
+      setHistory([]);
+      setLastScores(null);
+    }
+    setRealWorldOpen(false);
+    setTab('arena');
   };
 
   const endSession = () => {
@@ -262,6 +276,7 @@ export default function App() {
               onStartLesson={startLesson}
               onOpenSetup={() => setPathSetupOpen(true)}
               onNavigate={setTab}
+              onOpenRealWorld={() => setRealWorldOpen(true)}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);
@@ -362,6 +377,12 @@ export default function App() {
           setStreakTick((t) => t + 1);
           handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
         }}
+      />
+      <RealWorld
+        open={realWorldOpen}
+        onClose={() => setRealWorldOpen(false)}
+        onRoleplay={startRoleplay}
+        onXp={awardXp}
       />
       <Profile
         open={profileOpen}
