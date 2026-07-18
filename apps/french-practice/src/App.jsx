@@ -21,6 +21,7 @@ import Analytics from './components/Analytics';
 import Reference from './components/Reference';
 import Focus from './components/Focus';
 import Onboarding from './components/Onboarding';
+import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
@@ -35,7 +36,7 @@ import { notebookAsEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Landmark, Coins as CoinsIcon } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Landmark, Download, X, Coins as CoinsIcon } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
@@ -78,6 +79,8 @@ export default function App() {
   const [focusOpen, setFocusOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(shouldOnboard);
   const [prefs, setPrefsState] = useState(getPrefs);
+  const pwa = usePwaInstall();
+  const [installDismissed, setInstallDismissed] = useState(false);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
@@ -339,6 +342,19 @@ export default function App() {
         </button>
       )}
 
+      {/* install banner — appears once the browser offers installation */}
+      {pwa.canInstall && !installDismissed && (
+        <div className="fade-in mx-4 mt-3 flex items-center gap-3 bg-surface2 border border-line rounded-xl px-4 py-3">
+          <span className="w-10 h-10 grid place-items-center rounded-xl bg-surface border border-line text-ink" aria-hidden="true"><Download size={18} /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-ink">Install Le Studio</span>
+            <span className="block text-xs text-ink2 mt-0.5">Add it to your device for full-screen, offline practice.</span>
+          </span>
+          <button onClick={() => pwa.promptInstall()} className="btn btn-primary min-h-9 px-3.5 rounded-lg text-xs shrink-0">Install</button>
+          <button onClick={() => setInstallDismissed(true)} aria-label="Dismiss install banner" className="w-8 h-8 grid place-items-center rounded-full text-ink3 hover:text-ink shrink-0"><X size={15} /></button>
+        </div>
+      )}
+
       {/* main area */}
       <div className="flex-1 flex min-h-0">
         <main className="flex-1 min-w-0 flex flex-col">
@@ -467,7 +483,7 @@ export default function App() {
         baseLevel={settings.level}
         onRun={runRecommendation}
       />
-      <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} />
+      <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} pwa={pwa} />
       <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
       <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
       <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />
