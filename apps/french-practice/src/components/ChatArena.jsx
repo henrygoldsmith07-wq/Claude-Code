@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { SCENARIOS } from '../lib/data';
-import { transcribe, evaluateTurn, getHint } from '../lib/groq';
+import { transcribe, evaluateTurn, getHint, explainMistake } from '../lib/groq';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
 import { ArrowRight, Book, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
@@ -135,7 +135,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         <AiBubble text={scenario.opener} translation={scenario.openerTranslation} ttsRate={ttsRate} />
         {history.map((turn, i) => (
           <div key={i} className="space-y-4">
-            <UserBubble turn={turn} onGrammarTip={onGrammarTip} />
+            <UserBubble turn={turn} onGrammarTip={onGrammarTip} apiKey={apiKey} mockMode={mockMode} level={level} />
             {turn.curveball && (
               <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
                 Curveball
@@ -289,7 +289,7 @@ function AiBubble({ text, translation, ttsRate }) {
   );
 }
 
-function UserBubble({ turn, onGrammarTip }) {
+function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
   const [expanded, setExpanded] = useState(false);
   const { evaluation } = turn;
   return (
@@ -311,6 +311,7 @@ function UserBubble({ turn, onGrammarTip }) {
           <div>
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1">Corrections</h4>
             <Markdown className="text-[13px] text-ink leading-relaxed">{evaluation.corrections}</Markdown>
+            <ExplainRule turn={turn} apiKey={apiKey} mockMode={mockMode} level={level} />
           </div>
           <div>
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink mb-1">Like a native</h4>
@@ -335,6 +336,48 @@ function UserBubble({ turn, onGrammarTip }) {
           })()}
         </div>
       )}
+    </div>
+  );
+}
+
+// On-demand deep dive: asks the LLM to explain the underlying rule behind
+// this turn's corrections, in plain English with an extra example.
+function ExplainRule({ turn, apiKey, mockMode, level }) {
+  const [busy, setBusy] = useState(false);
+  const [explanation, setExplanation] = useState(null);
+  const [error, setError] = useState(null);
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      setExplanation(await explainMistake(apiKey, {
+        userText: turn.userText,
+        corrections: turn.evaluation.corrections,
+        level,
+        mock: mockMode,
+      }));
+    } catch (e) {
+      setError(e.message);
+    }
+    setBusy(false);
+  };
+
+  if (explanation) {
+    return (
+      <div className="fade-in mt-2 bg-surface border border-line rounded-xl px-3.5 py-2.5">
+        <h5 className="text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">The rule behind it</h5>
+        <Markdown className="text-xs text-ink leading-relaxed">{explanation}</Markdown>
+      </div>
+    );
+  }
+  if (busy) return <div className="mt-2"><Spinner label="Digging into the rule…" /></div>;
+  return (
+    <div className="mt-1.5">
+      <button onClick={run} className="flex items-center gap-1.5 text-[11px] font-semibold text-ink2 hover:text-ink min-h-8">
+        <Lightbulb size={13} /> Why? Explain the rule
+      </button>
+      {error && <p role="alert" className="text-xs text-ink">{error}</p>}
     </div>
   );
 }

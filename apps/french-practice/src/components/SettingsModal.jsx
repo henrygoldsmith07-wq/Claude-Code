@@ -150,6 +150,17 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
             </div>
           </div>
           <ToggleRow
+            label="Review reminders"
+            hint="One daily nudge when flashcards are due (browser notification)"
+            checked={settings.smartReminders}
+            onChange={(v) => {
+              if (v && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                Notification.requestPermission();
+              }
+              onSettingsChange({ ...settings, smartReminders: v });
+            }}
+          />
+          <ToggleRow
             label="Developer panel"
             hint="Tokens, latency, raw payloads, Mock Mode"
             checked={settings.devPanel}

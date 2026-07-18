@@ -12,6 +12,9 @@ const KEYS = {
   habits: 'fp.habits', // [{ text, key, count, lastSeen }] — recurring mistakes
   notebook: 'fp.notebook', // [{ id, fr, en, note, addedAt }] — saved words
   grammar: 'fp.grammar', // { [topicId]: { best, attempts, lastAt } } — quiz results
+  wordCache: 'fp.wordCache', // { [word]: translation } — tap-to-translate lookups
+  reviewLog: 'fp.reviewLog', // { 'YYYY-MM-DD': count } — daily review activity (heatmap)
+  reminderDay: 'fp.reminderDay', // last day a smart reminder fired
 };
 
 function read(key, fallback) {
@@ -44,6 +47,7 @@ const DEFAULT_SETTINGS = {
   theme: null,
   level: 'B1',
   dailyGoal: 30,
+  smartReminders: false,
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
@@ -160,6 +164,18 @@ export function removeFromNotebook(id) {
   return nb;
 }
 
+// ---- tap-to-translate word cache ----
+
+export const getCachedWord = (word) => read(KEYS.wordCache, {})[word] ?? null;
+
+export function cacheWord(word, translation) {
+  const cache = read(KEYS.wordCache, {});
+  cache[word] = translation;
+  const keys = Object.keys(cache);
+  if (keys.length > 500) delete cache[keys[0]]; // crude LRU-ish cap
+  write(KEYS.wordCache, cache);
+}
+
 // ---- grammar quiz progress ----
 
 export const getGrammarProgress = () => read(KEYS.grammar, {});
@@ -193,15 +209,51 @@ export function getDueCardIds(allIds) {
 
 export function rateCard(cardId, rating) {
   const srs = getSrs();
-  const prev = srs[cardId] || { interval: 0, reps: 0 };
+  const prev = srs[cardId] || { interval: 0, reps: 0, lapses: 0 };
   const base = SRS_STEPS[rating] ?? 1;
   const interval = rating === 'again' ? 0 : Math.max(base, Math.round(prev.interval * 2));
   srs[cardId] = {
     interval,
     reps: prev.reps + 1,
+    lapses: (prev.lapses || 0) + (rating === 'again' ? 1 : 0),
     due: new Date(Date.now() + interval * 86400000).toISOString(),
     lastRating: rating,
+    lastReviewed: new Date().toISOString(),
   };
   write(KEYS.srs, srs);
+  logReview();
   return srs[cardId];
 }
+
+// ---- review activity log (per-day counts; feeds the heatmap) ----
+
+export const getReviewLog = () => read(KEYS.reviewLog, {});
+
+function logReview() {
+  const log = getReviewLog();
+  const today = dayStamp();
+  log[today] = (log[today] || 0) + 1;
+  // keep ~6 months so the object stays small
+  const cutoff = dayStamp(new Date(Date.now() - 183 * 86400000));
+  for (const day of Object.keys(log)) if (day < cutoff) delete log[day];
+  write(KEYS.reviewLog, log);
+}
+
+// ---- mistake review (drill the recurring-mistake bank down to zero) ----
+
+export function reviewHabit(key, gotIt) {
+  const habits = getHabits();
+  const habit = habits.find((h) => h.key === key);
+  if (!habit) return habits;
+  if (gotIt) habit.count -= 1;
+  habit.lastSeen = new Date().toISOString();
+  const next = habits.filter((h) => h.count > 0);
+  next.sort((a, b) => b.count - a.count || (a.lastSeen < b.lastSeen ? 1 : -1));
+  write(KEYS.habits, next);
+  return next;
+}
+
+// ---- smart reminders (at most one nudge per day) ----
+
+export const shouldRemindToday = () => read(KEYS.reminderDay, null) !== dayStamp();
+export const markRemindedToday = () => write(KEYS.reminderDay, dayStamp());

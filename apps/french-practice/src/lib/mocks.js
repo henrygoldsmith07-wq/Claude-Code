@@ -50,6 +50,65 @@ export function mockSentenceCheck() {
   };
 }
 
+export function mockAccentFeedback() {
+  return "Good rhythm overall. The recognizer stumbled on «voudrais» — make sure the French r comes from the back of the throat, and round your lips tightly for the u in «du». (Mock mode — add a real API key for genuine accent analysis.)";
+}
+
+export function mockWritingFeedback(depth) {
+  const essay = depth === 'essay';
+  return {
+    corrections: "Nice work overall. One slip: <s>je suis allé au la plage</s> <mark>je suis allé à la plage</mark> — «à + la» never contracts. (Mock mode.)",
+    strengths: ['Good use of the passé composé («je suis allé»).', 'Clear, simple sentence rhythm.'],
+    suggestions: essay
+      ? ['Add connectors between paragraphs («d\'abord», «ensuite», «enfin»).', 'Vary sentence openings — three sentences start with «je».']
+      : ['Try one sentence with «qui» or «que» next time.'],
+    scores: essay
+      ? { grammar: 82, vocabulary: 76, structure: 70, overall: 76 }
+      : { grammar: 84, vocabulary: 78, overall: 81 },
+  };
+}
+
+export function mockCompletion() {
+  return {
+    natural: true,
+    feedback: 'Natural and correct — «Si j\'avais le temps, je voyagerais plus» is exactly right. (Mock mode.)',
+  };
+}
+
+export function mockTutorReply(question) {
+  return `Great question! Here's the short version.\n\nIn French, **le passé composé** is used for completed actions: «J'ai mangé une pomme.» (I ate an apple.) The **imparfait** paints the background: «Il pleuvait quand je suis sorti.» (It was raining when I went out.)\n\nA good rule of thumb: if you could answer "what happened?", use passé composé; if you're answering "what was it like?", use imparfait.\n\n*(Mock mode — add a real API key for a genuine tutor. You asked: «${question.slice(0, 60)}»)*`;
+}
+
+export function mockTranslation(direction) {
+  return direction === 'fr-en'
+    ? 'I would like to book a table for two people, please. (Mock mode.)'
+    : 'Je voudrais réserver une table pour deux personnes, s\'il vous plaît. (Mode démo.)';
+}
+
+export function mockExercises() {
+  return [
+    { q: 'Je ___ au cinéma hier soir.', options: ['suis allé', 'ai allé', 'vais'], answer: 0, why: '«Aller» takes être in the passé composé.' },
+    { q: 'Il faut que tu ___ tes devoirs.', options: ['fais', 'fasses', 'feras'], answer: 1, why: '«Il faut que» triggers the subjonctif.' },
+    { q: 'C\'est la femme ___ j\'ai rencontrée.', options: ['qui', 'que', 'dont'], answer: 1, why: '«Que» stands for the direct object of «rencontrer».' },
+  ];
+}
+
+export function mockLesson() {
+  return {
+    title: 'Taming the subjonctif after «il faut que»',
+    explanation: 'Your recent sessions show hesitation after «il faut que». The rule: expressions of necessity, doubt and emotion push the next verb into the subjonctif. For regular verbs, take the ils-form stem and add -e, -es, -e, -ions, -iez, -ent: «il faut que tu parles», «il faut que nous finissions». (Mock mode.)',
+    exercises: mockExercises(),
+  };
+}
+
+export function mockCharacterReply() {
+  return 'Ah, mon petit ! Quand j\'avais ton âge, on faisait le pain nous-mêmes tous les dimanches. Et toi, tu sais cuisiner ?\n*Ah, my dear! When I was your age, we made bread ourselves every Sunday. And you, can you cook? (Mock mode.)*';
+}
+
+export function mockExplanation() {
+  return 'The core rule here is agreement: in the passé composé with «être», the past participle agrees with the subject — «elle est allée», «ils sont partis». French keeps this marker because the participle behaves like an adjective after «être». Pattern to remember: DR & MRS VANDERTRAMP verbs take «être» and agree. Extra example: «Elles sont arrivées en retard.» — They (f.) arrived late. (Mock mode.)';
+}
+
 export function mockReport() {
   return {
     session_grade: 'B+',

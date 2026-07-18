@@ -5,20 +5,33 @@ import {
   getNotebook, isInNotebook, saveToNotebook, removeFromNotebook,
 } from '../lib/storage';
 import VocabCard from './VocabCard';
+import Memory from './Memory';
+import { weakEntries, notebookAsEntries } from '../lib/memory';
 import { SpeakButton } from './ui';
-import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart } from './icons';
+import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock } from './icons';
 
-// Vocabulary hub: themed packs, a cross-pack SRS review queue, and the
-// personal notebook of one-click-saved words.
+// Vocabulary hub: themed packs, a cross-pack SRS review queue, the personal
+// notebook of saved/custom words, and the memory & revision dashboard.
 
-export default function Vocabulary({ apiKey, mockMode, onActivity }) {
-  const [view, setView] = useState({ mode: 'packs' }); // packs | deck | notebook
+export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
+  const [view, setView] = useState({ mode: 'packs' }); // packs | deck | notebook | memory
   const [srsTick, setSrsTick] = useState(0);
   const [nbTick, setNbTick] = useState(0);
   const srs = useMemo(() => getSrs(), [srsTick]);
   const notebook = useMemo(() => getNotebook(), [nbTick]);
 
-  const dueTotal = allEntries().filter((e) => isCardDue(srs[e.id])).length;
+  const dueTotal = [...allEntries(), ...notebookAsEntries(notebook)]
+    .filter((e) => isCardDue(srs[e.id])).length;
+
+  if (view.mode === 'memory') {
+    return (
+      <Memory
+        onBack={() => setView({ mode: 'packs' })}
+        onOpenDeck={(packId) => setView({ mode: 'deck', packId })}
+        onXp={onXp}
+      />
+    );
+  }
 
   if (view.mode === 'deck') {
     return (
@@ -72,6 +85,19 @@ export default function Vocabulary({ apiKey, mockMode, onActivity }) {
           </button>
         )}
 
+        {/* memory & revision dashboard */}
+        <button
+          onClick={() => setView({ mode: 'memory' })}
+          className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+        >
+          <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink"><Clock size={18} /></span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-ink">Memory & revision</span>
+            <span className="block text-xs text-ink3">Forgetting curves, weak words, mistakes, heatmap</span>
+          </span>
+          <ChevronRight size={16} className="text-ink3 shrink-0" />
+        </button>
+
         {/* notebook */}
         <button
           onClick={() => setView({ mode: 'notebook' })}
@@ -119,15 +145,18 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
   const [index, setIndex] = useState(0);
   const [savedTick, setSavedTick] = useState(0);
 
-  // 'review' is a virtual pack: every due entry across the library.
+  // Virtual packs: 'review' = every due card (packs + notebook), 'weak' =
+  // high-lapse stumblers, 'notebook' = the learner's custom flashcards.
   const deck = useMemo(() => {
-    if (packId === 'review') {
-      const initial = getSrs();
-      const dueTime = (e) => (initial[e.id]?.due ? new Date(initial[e.id].due).getTime() : 0);
-      return allEntries().filter((e) => isCardDue(initial[e.id])).sort((a, b) => dueTime(a) - dueTime(b));
-    }
-    const pack = getPack(packId);
     const initial = getSrs();
+    const library = () => [...allEntries(), ...notebookAsEntries(getNotebook())];
+    if (packId === 'review') {
+      const dueTime = (e) => (initial[e.id]?.due ? new Date(initial[e.id].due).getTime() : 0);
+      return library().filter((e) => isCardDue(initial[e.id])).sort((a, b) => dueTime(a) - dueTime(b));
+    }
+    if (packId === 'weak') return weakEntries(library(), initial);
+    if (packId === 'notebook') return notebookAsEntries(getNotebook());
+    const pack = getPack(packId);
     return [...pack.entries].sort((a, b) => {
       const aDue = isCardDue(initial[a.id]);
       const bDue = isCardDue(initial[b.id]);
@@ -135,13 +164,23 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
     });
   }, [packId]);
 
-  const title = packId === 'review' ? 'Review queue' : getPack(packId).title;
+  const title =
+    packId === 'review' ? 'Review queue'
+    : packId === 'weak' ? 'Weak words'
+    : packId === 'notebook' ? 'My flashcards'
+    : getPack(packId).title;
 
   if (!deck.length) {
     return (
       <div className="h-full grid place-items-center px-4">
         <div className="text-center space-y-3">
-          <p className="text-sm text-ink2">Nothing due right now — nice work.</p>
+          <p className="text-sm text-ink2">
+            {packId === 'notebook'
+              ? 'No custom cards yet — add words in your notebook and they become flashcards.'
+              : packId === 'weak'
+                ? 'No weak words — nothing here is tripping you up.'
+                : 'Nothing due right now — nice work.'}
+          </p>
           <button onClick={onBack} className="btn btn-secondary min-h-11 px-5 rounded-xl text-sm">Back to packs</button>
         </div>
       </div>

@@ -2,28 +2,31 @@ import { useEffect, useState } from 'react';
 import ChatArena from './components/ChatArena';
 import FeedbackWidget from './components/FeedbackWidget';
 import SessionDashboard from './components/SessionDashboard';
-import DailyChallenge from './components/DailyChallenge';
 import Vocabulary from './components/Vocabulary';
 import Grammar from './components/Grammar';
 import DevPanel from './components/DevPanel';
 import SettingsModal from './components/SettingsModal';
 import HomeDashboard from './components/HomeDashboard';
-import Dictation from './components/Dictation';
+import Skills from './components/Skills';
+import AiHub from './components/AiHub';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
 import { SCENARIOS } from './lib/data';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
+  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
 } from './lib/storage';
+import { allEntries } from './lib/vocab';
+import { notebookAsEntries } from './lib/memory';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Clock, Layers, Terminal, Volume, Book } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles } from './components/icons';
 
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
-  ['challenge', Clock, 'Quick Fire'],
-  ['dictation', Volume, 'Dictée'],
+  ['skills', Mic, 'Skills'],
+  ['ai', Sparkles, 'AI'],
   ['cards', Layers, 'Vocab'],
   ['grammar', Book, 'Grammar'],
 ];
@@ -51,11 +54,32 @@ export default function App() {
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
+  const [skillArea, setSkillArea] = useState(null); // null = skills hub; speaking|listening|reading|writing
+  const [speakingMode, setSpeakingMode] = useState(null); // null = hub; deep-linked by Home/path
+  const [listeningMode, setListeningMode] = useState(null); // null = hub; 'dictation' | track id
 
   useEffect(() => {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
     return () => setTelemetrySink(null);
   }, []);
+
+  // Smart reminders: once per day, when reviews are waiting and the user
+  // opted in, surface a browser notification (works while the tab is open —
+  // there's no backend to push from).
+  useEffect(() => {
+    if (!settings.smartReminders || !shouldRemindToday()) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const srs = getSrs();
+    const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
+      .filter((e) => isCardDue(srs[e.id])).length;
+    if (due === 0) return;
+    markRemindedToday();
+    try {
+      new Notification('Le Studio', {
+        body: `${due} card${due > 1 ? 's are' : ' is'} due for review — a few minutes now beats relearning later.`,
+      });
+    } catch { /* notification constructor unsupported (e.g. some mobile browsers) */ }
+  }, [settings.smartReminders]);
 
   // Autosave the active conversation on every turn.
   useEffect(() => {
@@ -114,7 +138,9 @@ export default function App() {
         setLastScores(null);
       }
     }
-    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'dictation', cards: 'cards', quickfire: 'challenge' };
+    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'skills', cards: 'cards', quickfire: 'skills' };
+    if (lesson.type === 'dictation') { setSkillArea('listening'); setListeningMode('dictation'); }
+    if (lesson.type === 'quickfire') { setSkillArea('speaking'); setSpeakingMode('quickfire'); }
     setTab(tabFor[lesson.type] || 'arena');
   };
 
@@ -234,9 +260,30 @@ export default function App() {
               setScenario={setScenario}
             />
           )}
-          {tab === 'challenge' && <DailyChallenge apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
-          {tab === 'dictation' && <Dictation ttsRate={settings.ttsRate} onXp={awardXp} onActivity={handleActivity} />}
-          {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} />}
+          {tab === 'skills' && (
+            <Skills
+              area={skillArea}
+              onAreaChange={(a) => {
+                setSkillArea(a);
+                if (a !== 'speaking') setSpeakingMode(null);
+                if (a !== 'listening') setListeningMode(null);
+              }}
+              speaking={{ mode: speakingMode, onModeChange: setSpeakingMode }}
+              listening={{ mode: listeningMode, onModeChange: setListeningMode }}
+              common={{
+                apiKey,
+                mockMode: settings.mockMode,
+                ttsRate: settings.ttsRate,
+                level: settings.level,
+                onXp: awardXp,
+                onActivity: handleActivity,
+              }}
+            />
+          )}
+          {tab === 'ai' && (
+            <AiHub apiKey={apiKey} mockMode={settings.mockMode} level={settings.level} onXp={awardXp} />
+          )}
+          {tab === 'cards' && <Vocabulary apiKey={apiKey} mockMode={settings.mockMode} onActivity={handleActivity} onXp={awardXp} />}
           {tab === 'grammar' && (
             <Grammar
               focusTopicId={grammarFocus}

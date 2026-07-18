@@ -42,3 +42,31 @@ export function speak(text, { rate = 1, onEnd } = {}) {
 export function stopSpeaking() {
   if (ttsSupported()) window.speechSynthesis.cancel();
 }
+
+// All installed French voices (for two-voice dialogues). May be empty until
+// the browser's async voice list loads.
+export function getFrenchVoices() {
+  const voices = window.speechSynthesis?.getVoices?.() || [];
+  return voices.filter((v) => v.lang?.toLowerCase().startsWith('fr'));
+}
+
+// Speak a sequence of lines, alternating voice/pitch per speaker so dialogue
+// partners sound distinct even when only one French voice is installed.
+export function speakLines(lines, { rate = 1, onLine, onEnd } = {}) {
+  if (!ttsSupported() || !lines.length) return;
+  window.speechSynthesis.cancel();
+  const french = getFrenchVoices();
+  const voiceA = pickFrenchVoice() || french[0] || null;
+  const voiceB = french.find((v) => v !== voiceA) || voiceA;
+  lines.forEach((line, i) => {
+    const u = new SpeechSynthesisUtterance(line.fr);
+    u.lang = 'fr-FR';
+    u.rate = Math.min(1.5, Math.max(0.5, rate));
+    const second = line.speaker === 'B';
+    if (second ? voiceB : voiceA) u.voice = second ? voiceB : voiceA;
+    if (second && voiceB === voiceA) u.pitch = 0.8; // same voice — differentiate by pitch
+    u.onstart = () => onLine?.(i);
+    if (i === lines.length - 1 && onEnd) u.onend = onEnd;
+    window.speechSynthesis.speak(u); // queued, not cancelled — plays sequentially
+  });
+}

@@ -72,7 +72,7 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
               </span>
             )}
             <span className="absolute top-4 left-4 px-2 py-0.5 rounded-md bg-surface text-ink3 text-[10px] font-semibold border border-line">
-              {FREQ_LABELS[entry.freq]}
+              {FREQ_LABELS[entry.freq] || 'My card'}
             </span>
             <div className="text-center">
               {entry.emoji && (
@@ -84,8 +84,8 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
           </div>
           <div className="flip-face flip-face-back bg-gradient-to-br from-surface2 to-surface border border-line rounded-3xl p-5 flex flex-col justify-center gap-2.5 shadow-xl overflow-y-auto">
             <p className="text-lg font-bold text-ink">{entry.en}</p>
-            <p className="text-sm text-ink italic" lang="fr">« {entry.example} »</p>
-            <p className="text-xs text-ink2">{entry.exampleEn}</p>
+            {entry.example && <p className="text-sm text-ink italic" lang="fr">« {entry.example} »</p>}
+            {entry.exampleEn && <p className="text-xs text-ink2">{entry.exampleEn}</p>}
             <ChipRow label="Syn" items={entry.syn} />
             <ChipRow label="Ant" items={entry.ant} />
             <ChipRow label="With" items={entry.coll} />
@@ -97,8 +97,8 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
       {/* audio + save */}
       <div className="flex items-center justify-center gap-2">
         <SpeakButton text={entry.fr} label="Word" />
-        <SpeakButton text={entry.example} label="Sentence" />
-        <SpeakButton text={entry.example} slow />
+        {entry.example && <SpeakButton text={entry.example} label="Sentence" />}
+        {entry.example && <SpeakButton text={entry.example} slow />}
         <button
           onClick={onToggleSave}
           aria-label={saved ? 'Remove from notebook' : 'Save to notebook'}

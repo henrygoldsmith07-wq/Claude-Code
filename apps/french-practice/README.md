@@ -43,10 +43,32 @@ validated against the `/models` endpoint before being stored. Or flip on
   into a graded report: strengths, stubborn habits, tomorrow's focus, progress
   rings, canvas radar chart, 10-session trend line, streaks, and a shareable
   PNG progress card.
-- **Quick Fire** — 45-second improv challenges (French topics with English translations) and WPM flow tracking.
-- **Dictée** — pure listening drill: the app speaks a hidden French sentence
-  (normal or 0.75× speed), you type what you heard, and a word-level diff
-  scores your accuracy. Fully offline (local TTS + diff).
+- **Speaking hub** — drills for the mouth (under the Skills tab):
+  - **Pronunciation** — read a sentence aloud; Whisper transcribes it and a
+    word-level diff scores how much was recognized, with unrecognized words
+    underlined as trouble spots and an LLM "accent coach" naming the exact
+    sounds to work on (French r, nasals, u/ou, liaison…).
+  - **Shadowing** — listen to the native TTS rhythm first (recording is
+    gated until you have), then repeat and get the same scoring.
+  - **Quick Fire** — 45-second improv challenges with WPM flow tracking.
+  - **Dictée** — pure listening drill: type what you hear, word-diff scored.
+- **Free Talk** — an open-ended Arena scenario with no script: your partner
+  follows your lead, asks open questions, and still scores every turn.
+- **Listening hub** — TTS-narrated tracks with listen-first transcripts,
+  per-line highlighting, a 0.5–1.5× speed slider and comprehension quizzes:
+  mini-podcasts (monologues), two-voice dialogues (distinct French voices or
+  pitch-shifted speakers), radio-style news bulletins, and movie-style scenes.
+  Dictée lives here too. All audio is synthesized locally — no external media.
+- **Writing hub** — a typing drill (copy sentences exactly, accents and all),
+  sentence completion judged by the AI, free writing from prompts with full
+  correction, and an essay studio with structured feedback (corrections,
+  strengths, suggestions, grammar/vocabulary/structure scores). Handwriting
+  support is intentionally omitted — French uses the Latin script.
+- **Reading hub** — graded readers, a branching interactive story ("La porte
+  bleue" — you choose what happens), magazine articles, news items, and
+  public-domain classics (La Fontaine). Dual-language toggle, per-word
+  tap-to-translate (text gloss → vocabulary dictionary → cached LLM lookup)
+  with one-tap save to the notebook, and comprehension quizzes.
 - **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
   feelings, a picture deck of everyday objects, idioms, slang & argot,
   regional French (Québec/Belgium/South) and filler words. Every card has a
@@ -62,6 +84,26 @@ validated against the `/models` endpoint before being stored. Or flip on
   sentence building, and a scored quiz (best kept; 80+ = mastered). After a
   conversation mistake, the Arena shows a grammar tip that deep-links into
   the matching lesson.
+- **AI studio** — five tools built straight on the LLM: an **AI tutor** you
+  can ask anything (grammar, nuance, culture, study advice — answers pitched
+  to your CEFR level), **AI characters** with distinct personalities (a Lyon
+  grandmother, a Marseille fisherman, a Parisian actress, a space-mad
+  ten-year-old) who chat in French with inline translations, an **instant
+  translator** (both directions, with TTS on French output), an **exercise
+  generator** that writes a three-question drill on any topic you name, and
+  **personalized lessons** generated from your own recurring-mistake bank.
+  In the Arena, every corrected turn also gets a "Why? Explain the rule"
+  button for an on-demand grammar explanation of that specific mistake.
+- **Memory & revision** — a dashboard inside Vocab built on an exponential
+  forgetting-curve model (recall R(t)=e^(−t/S), stability from the SRS
+  interval): retention buckets (strong/fading/at-risk/new), a plotted
+  forgetting curve, **weak-word review** (high-lapse cards drilled worst
+  first), **mistake review** (flip through the recurring-mistake bank and
+  burn entries down to zero), **custom flashcards** (notebook words join the
+  SRS queue and study as cards), a GitHub-style **review heatmap** (15
+  weeks, per-day counts), a daily outlook ("N due now, M slip below 80% by
+  tomorrow"), and opt-in **smart reminders** — one browser notification per
+  day when cards are waiting.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`
