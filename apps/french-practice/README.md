@@ -123,6 +123,18 @@ validated against the `/models` endpoint before being stored. Or flip on
   XP, **streak freezes** (buy with coins, max 2, auto-consumed to cover one
   missed day), a **milestones** timeline, and downloadable **certificates**
   (Bronze/Argent/Or/Assiduité) rendered to PNG on demand.
+- **Culture** — a dedicated tab with eight themed sections of authored,
+  factual content: cultural notes (la bise, tu/vous, laïcité), customs (the
+  apéro, bread etiquette, host gifts, la galette des rois), etiquette
+  (always «bonjour», table manners, le quart d’heure), festivals (le 14
+  juillet, Fête de la Musique, Noël, la Chandeleur), food (meal order, the
+  cheese course, the boulangerie, café culture), history (the Gauls, 1789,
+  Napoléon, la Résistance), geography (l’Hexagone, rivers & regions,
+  outre-mer, Paris vs la province) and regional differences (regional
+  languages, chocolatine vs pain au chocolat, septante/nonante, north vs
+  south). Each note carries a spoken French phrase (TTS) and a "did you
+  know" tip, and a shuffled **culture quiz** pays XP into the motivation
+  loop.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`
