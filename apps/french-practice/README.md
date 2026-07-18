@@ -115,6 +115,14 @@ validated against the `/models` endpoint before being stored. Or flip on
   → exclusive postcard). Daily streaks were already in the header. No
   leaderboards or leagues by design: the app is a solo studio with no
   backend to rank against.
+- **Motivation** — daily and **weekly XP goals** (both configurable, shown as
+  rings/bars on Home and in the profile), **encouraging feedback** on Home
+  that adapts to your progress and streak, a full **learning-statistics**
+  grid (total XP, active days, sessions, reviews, saved words, mastered
+  grammar, badges, postcards), a month **learning calendar** shaded by daily
+  XP, **streak freezes** (buy with coins, max 2, auto-consumed to cover one
+  missed day), a **milestones** timeline, and downloadable **certificates**
+  (Bronze/Argent/Or/Assiduité) rendered to PNG on demand.
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

@@ -254,6 +254,7 @@ export default function App() {
           {tab === 'home' && (
             <HomeDashboard
               dailyGoal={settings.dailyGoal}
+              weeklyGoal={settings.weeklyGoal}
               level={settings.level}
               path={path}
               onStartLesson={startLesson}
@@ -363,6 +364,7 @@ export default function App() {
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
         onXp={awardXp}
+        weeklyGoal={settings.weeklyGoal}
         onHeaderChange={({ coins: c, avatarId: a }) => {
           setCoins(c);
           setAvatarId(a);
