@@ -135,6 +135,64 @@ export function earnedBadgeCollectibles(owned, unlockedCount) {
   return COLLECTIBLES.filter((c) => c.source === 'badges' && c.need <= unlockedCount && !owned[c.id]);
 }
 
+// ---- milestones (a journey timeline; next one is always visible) ----
+
+export const MILESTONES = [
+  { id: 'ms-xp-100', label: '100 XP', metric: 'xp', target: 100 },
+  { id: 'ms-xp-500', label: '500 XP', metric: 'xp', target: 500 },
+  { id: 'ms-xp-1000', label: '1,000 XP', metric: 'xp', target: 1000 },
+  { id: 'ms-xp-2500', label: '2,500 XP', metric: 'xp', target: 2500 },
+  { id: 'ms-xp-5000', label: '5,000 XP', metric: 'xp', target: 5000 },
+  { id: 'ms-streak-7', label: '7-day streak', metric: 'streak', target: 7 },
+  { id: 'ms-streak-30', label: '30-day streak', metric: 'streak', target: 30 },
+  { id: 'ms-reviews-100', label: '100 card reviews', metric: 'reviews', target: 100 },
+  { id: 'ms-sessions-5', label: '5 conversations', metric: 'sessions', target: 5 },
+];
+
+// ---- certificates (earned documents, rendered to PNG on demand) ----
+
+export const CERTIFICATES = [
+  { id: 'cert-bronze', title: 'Certificat de Bronze', requirement: 'Reach 500 XP', metric: 'xp', target: 500 },
+  { id: 'cert-argent', title: "Certificat d'Argent", requirement: 'Reach 1,500 XP', metric: 'xp', target: 1500 },
+  { id: 'cert-or', title: "Certificat d'Or", requirement: 'Reach 3,500 XP', metric: 'xp', target: 3500 },
+  { id: 'cert-assidu', title: "Certificat d'Assiduité", requirement: 'A 30-day streak', metric: 'streak', target: 30 },
+];
+
+// ---- encouraging feedback (state-aware, rotates daily) ----
+
+const CHEERS = {
+  goalDone: [
+    'Objectif atteint — well earned. Anything extra today is pure bonus.',
+    'Goal hit! Consistency like this is exactly how French sticks.',
+    'Done for today — and your future self says merci.',
+  ],
+  close: [
+    'Almost there — one more exercise tips you over today’s goal.',
+    'So close. A quick review round would seal the day.',
+    'The goal is within one conversation turn. Allez !',
+  ],
+  started: [
+    'Good start — small daily doses beat weekend marathons.',
+    'Underway. Ten focused minutes today is a win.',
+    'Every rep counts double when it’s daily. Keep rolling.',
+  ],
+  fresh: [
+    'New day, fresh curve — a two-minute review is the easiest first step.',
+    'Nothing yet today. Start tiny: one flashcard round.',
+    'The hardest part is opening the app. Ça y est — you’re here.',
+  ],
+};
+
+export function encouragement({ goalPct, streak, day }) {
+  const bucket =
+    goalPct >= 100 ? 'goalDone' : goalPct >= 70 ? 'close' : goalPct > 0 ? 'started' : 'fresh';
+  const lines = CHEERS[bucket];
+  const pick = lines[hashSeed(`${day}-${bucket}`) % lines.length];
+  return streak >= 3 && bucket !== 'goalDone'
+    ? `${pick} Your ${streak}-day streak is counting on you.`
+    : pick;
+}
+
 // ---- seasonal events (date-windowed, one per season) ----
 
 const SEASONS = [

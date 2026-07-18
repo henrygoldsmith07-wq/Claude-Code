@@ -22,6 +22,8 @@ const KEYS = {
   avatarsOwned: 'fp.avatarsOwned', // [ids] purchased/unlocked
   collectibles: 'fp.collectibles', // { [id]: dateEarned }
   eventXp: 'fp.eventXp', // { [eventId]: xp earned during the event }
+  xpLog: 'fp.xpLog', // { 'YYYY-MM-DD': xp } — daily XP history (calendar, weekly goal)
+  freezes: 'fp.freezes', // streak freezes owned (auto-consumed on a 1-day gap)
 };
 
 function read(key, fallback) {
@@ -54,6 +56,7 @@ const DEFAULT_SETTINGS = {
   theme: null,
   level: 'B1',
   dailyGoal: 30,
+  weeklyGoal: 150,
   smartReminders: false,
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
@@ -126,7 +129,31 @@ export function addXp(amount) {
   const total = getXp() + gained;
   write(KEYS.xp, total);
   write(KEYS.xpDay, { day: dayStamp(), amount: getTodayXp() + gained });
+  logDailyXp(gained);
   return total;
+}
+
+// ---- daily XP history (learning calendar + weekly goal) ----
+
+export const getXpLog = () => read(KEYS.xpLog, {});
+
+function logDailyXp(gained) {
+  if (gained <= 0) return;
+  const log = getXpLog();
+  const today = dayStamp();
+  log[today] = (log[today] || 0) + gained;
+  const cutoff = dayStamp(new Date(Date.now() - 400 * 86400000));
+  for (const day of Object.keys(log)) if (day < cutoff) delete log[day];
+  write(KEYS.xpLog, log);
+}
+
+// XP earned Monday→today of the current week.
+export function getWeekXp() {
+  const log = getXpLog();
+  const now = new Date();
+  const monday = new Date(now.getTime() - ((now.getDay() + 6) % 7) * 86400000);
+  const start = dayStamp(monday);
+  return Object.entries(log).reduce((sum, [day, xp]) => (day >= start ? sum + xp : sum), 0);
 }
 
 // ---- daily streak ----
@@ -137,12 +164,36 @@ export const getStreak = () => {
   const s = read(KEYS.streak, { count: 0, lastDay: null });
   if (!s.lastDay) return s;
   const yesterday = dayStamp(new Date(Date.now() - 86400000));
+  const twoDaysAgo = dayStamp(new Date(Date.now() - 2 * 86400000));
+  // A single missed day can be covered by a streak freeze (consumed once —
+  // afterwards lastDay reads as yesterday, so this branch won't re-fire).
+  if (s.lastDay === twoDaysAgo && getFreezes() > 0) {
+    write(KEYS.freezes, getFreezes() - 1);
+    const repaired = { ...s, lastDay: yesterday, frozeYesterday: true };
+    write(KEYS.streak, repaired);
+    return repaired;
+  }
   // A streak survives until a full day is missed.
   if (s.lastDay !== dayStamp() && s.lastDay !== yesterday) {
     return { count: 0, lastDay: s.lastDay };
   }
   return s;
 };
+
+// ---- streak freezes (bought with coins, max 2, auto-used) ----
+
+export const FREEZE_COST = 150;
+export const MAX_FREEZES = 2;
+
+export const getFreezes = () => read(KEYS.freezes, 0);
+
+export function buyFreeze() {
+  if (getFreezes() >= MAX_FREEZES) return null;
+  if (spendCoins(FREEZE_COST) == null) return null;
+  const total = getFreezes() + 1;
+  write(KEYS.freezes, total);
+  return total;
+}
 
 function bumpStreak() {
   const today = dayStamp();

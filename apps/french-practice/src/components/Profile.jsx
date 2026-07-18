@@ -12,13 +12,14 @@ import {
   nextCollectible, earnedBadgeCollectibles, activeEvent,
 } from '../lib/game';
 import { totalReviews } from '../lib/memory';
+import Stats from './Stats';
 import { X, Check, Flame, Bolt, Coins, Trophy, Lock } from './icons';
 
 // Player profile: level & title, coins, daily challenges, the avatar shop,
 // achievements, the postcard collection and the seasonal event. All
 // single-player — rewards are earned locally, never ranked against others.
 
-export default function Profile({ open, onClose, onXp, onHeaderChange }) {
+export default function Profile({ open, onClose, onXp, onHeaderChange, weeklyGoal }) {
   const [tick, setTick] = useState(0);
   const [newBadges, setNewBadges] = useState([]);
   const [newCards, setNewCards] = useState([]);
@@ -115,6 +116,7 @@ export default function Profile({ open, onClose, onXp, onHeaderChange }) {
 
           <DailyChallenges data={data} onXp={onXp} onChange={refresh} onNewCard={(id) => setNewCards((c) => [...c, id])} />
           <SeasonalEvent collectibles={data.collectibles} />
+          <Stats weeklyGoal={weeklyGoal} onCoinsChange={refresh} />
           <AvatarShop data={data} onChange={refresh} />
           <AchievementsGrid achievements={data.achievements} fresh={newBadges} />
           <CollectiblesGrid collectibles={data.collectibles} fresh={newCards} />

@@ -149,6 +149,27 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
               ))}
             </div>
           </div>
+          <div className="flex items-center justify-between gap-4 min-h-11">
+            <span>
+              <span className="block text-sm text-ink">Weekly goal</span>
+              <span className="block text-[11px] text-ink3">XP target for the Monday–Sunday bar</span>
+            </span>
+            <div className="flex rounded-xl border border-line overflow-hidden" role="radiogroup" aria-label="Weekly XP goal">
+              {[100, 150, 250].map((goal) => (
+                <button
+                  key={goal}
+                  role="radio"
+                  aria-checked={settings.weeklyGoal === goal}
+                  onClick={() => onSettingsChange({ ...settings, weeklyGoal: goal })}
+                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                    settings.weeklyGoal === goal ? 'bg-accent text-onaccent' : 'bg-surface text-ink2 hover:text-ink'
+                  }`}
+                >
+                  {goal}
+                </button>
+              ))}
+            </div>
+          </div>
           <ToggleRow
             label="Review reminders"
             hint="One daily nudge when flashcards are due (browser notification)"

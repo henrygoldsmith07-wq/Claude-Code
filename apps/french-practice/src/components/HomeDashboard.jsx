@@ -1,4 +1,5 @@
-import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNotebook } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNotebook, getWeekXp } from '../lib/storage';
+import { encouragement } from '../lib/game';
 import LearningPath from './LearningPath';
 import { SCENARIOS } from '../lib/data';
 import { allEntryIds } from '../lib/vocab';
@@ -18,7 +19,7 @@ function suggestScenario(sessions) {
   return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onPickScenario }) {
+export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onPickScenario }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -30,6 +31,8 @@ export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, o
 
   const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
   const goalDone = todayXp >= dailyGoal;
+  const weekXp = getWeekXp();
+  const cheer = encouragement({ goalPct, streak: streak.count, day: new Date().toISOString().slice(0, 10) });
   const r = 30;
   const circ = 2 * Math.PI * r;
 
@@ -75,6 +78,18 @@ export default function HomeDashboard({ dailyGoal, level, path, onStartLesson, o
               day streak · level {level}
             </p>
           </div>
+        </section>
+
+        {/* weekly goal + encouraging feedback */}
+        <section className="bg-surface border border-line rounded-2xl p-5 space-y-2.5">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">This week</h3>
+            <span className="text-[11px] text-ink3 tabular-nums">{weekXp}/{weeklyGoal} XP</span>
+          </div>
+          <div className="h-2 rounded-full bg-surface2 overflow-hidden" role="img" aria-label={`Weekly goal: ${weekXp} of ${weeklyGoal} XP`}>
+            <div className={`h-full rounded-full transition-all ${weekXp >= weeklyGoal ? 'bg-line' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round((weekXp / Math.max(1, weeklyGoal)) * 100))}%` }} />
+          </div>
+          <p className="text-xs text-ink2 leading-relaxed">{cheer}</p>
         </section>
 
         {/* today's focus — personalized from the last session report */}

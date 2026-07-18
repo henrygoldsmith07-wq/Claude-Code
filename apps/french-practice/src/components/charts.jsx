@@ -176,6 +176,57 @@ export function TrendChart({ sessions }) {
   );
 }
 
+// Renders an earned certificate to an offscreen canvas → PNG data URL.
+export function renderCertificate({ title, requirement, stat, date }) {
+  const w = 640;
+  const h = 452;
+  const canvas = document.createElement('canvas');
+  const scale = 2;
+  canvas.width = w * scale;
+  canvas.height = h * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  const theme = themeColors();
+
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, w, h);
+  // double rule border, certificate style
+  ctx.strokeStyle = theme.ink;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(14, 14, w - 28, h - 28);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(24, 24, w - 48, h - 48);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = theme.ink3;
+  ctx.font = 'bold 13px system-ui';
+  ctx.fillText('LE STUDIO — FRENCH PRACTICE', w / 2, 78);
+  ctx.fillStyle = theme.ink2;
+  ctx.font = '15px system-ui';
+  ctx.fillText('This certifies that the learner has earned the', w / 2, 150);
+  ctx.fillStyle = theme.ink;
+  ctx.font = 'bold 40px Georgia, serif';
+  ctx.fillText(title, w / 2, 210);
+  ctx.fillStyle = theme.ink2;
+  ctx.font = '16px system-ui';
+  ctx.fillText(requirement, w / 2, 250);
+  ctx.fillStyle = theme.ink;
+  ctx.font = 'bold 22px system-ui';
+  ctx.fillText(stat, w / 2, 296);
+  // rule + date
+  ctx.strokeStyle = theme.line;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - 120, 330);
+  ctx.lineTo(w / 2 + 120, 330);
+  ctx.stroke();
+  ctx.fillStyle = theme.ink3;
+  ctx.font = '14px system-ui';
+  ctx.fillText(date, w / 2, 360);
+  ctx.textAlign = 'start';
+
+  return canvas.toDataURL('image/png');
+}
+
 // Renders the shareable progress card to an offscreen canvas → PNG data URL.
 export function renderShareCard({ grade, scores, streak, scenarioTitle }) {
   const w = 640;
