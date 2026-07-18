@@ -28,6 +28,7 @@ const KEYS = {
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
+  onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
 };
 
 function read(key, fallback) {
@@ -50,6 +51,18 @@ function write(key, value) {
 export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
+
+// ---- first-run onboarding gate ----
+// New visitors (no key, no XP, no sessions, no explicit flag) see the wizard.
+
+export const isOnboarded = () => read(KEYS.onboarded, null) === '1';
+export const setOnboarded = () => write(KEYS.onboarded, '1');
+
+export function shouldOnboard() {
+  if (isOnboarded()) return false;
+  const returning = Boolean(getApiKey()) || getXp() > 0 || getSessions().length > 0;
+  return !returning;
+}
 
 // ---- data portability (manual "sync across devices", no backend) ----
 // Export every fp.* key except the private API key into a portable backup,
@@ -94,6 +107,7 @@ const DEFAULT_SETTINGS = {
   dailyGoal: 30,
   weeklyGoal: 150,
   smartReminders: false,
+  name: '',
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
@@ -256,6 +270,13 @@ export function removeHabit(id) {
   const t = getHabitTracker();
   t.list = t.list.filter((h) => h.id !== id);
   delete t.done[id];
+  write(KEYS.habitTracker, t);
+  return t;
+}
+
+export function setHabitList(names) {
+  const t = getHabitTracker();
+  t.list = names.map((name, i) => ({ id: `h-${Date.now()}-${i}`, name: String(name).slice(0, 60) }));
   write(KEYS.habitTracker, t);
   return t;
 }

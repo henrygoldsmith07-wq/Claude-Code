@@ -20,12 +20,15 @@ import Offline from './components/Offline';
 import Analytics from './components/Analytics';
 import Reference from './components/Reference';
 import Focus from './components/Focus';
+import Onboarding from './components/Onboarding';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
   getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
+  setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
+  shouldOnboard, setOnboarded,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
@@ -73,6 +76,7 @@ export default function App() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(shouldOnboard);
   const [prefs, setPrefsState] = useState(getPrefs);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
@@ -137,6 +141,35 @@ export default function App() {
   const updatePrefs = (patch) => {
     setPrefs(patch);
     setPrefsState(getPrefs());
+  };
+
+  // Apply everything the onboarding wizard collected, then dismiss it.
+  const finishOnboarding = (d) => {
+    updateSettings({
+      ...settings,
+      name: d.name.trim(),
+      level: d.level,
+      dailyGoal: d.dailyGoal,
+      weeklyGoal: d.weeklyGoal,
+      smartReminders: d.reminders,
+      mockMode: settings.mockMode || d.mock,
+    });
+    updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
+    persistAvatar(d.avatarId);
+    ownAvatar(d.avatarId);
+    setAvatarId(d.avatarId);
+    if (d.habits.length) setHabitList(d.habits);
+    if (d.apiKey.trim()) {
+      persistApiKey(d.apiKey.trim());
+      setApiKey(d.apiKey.trim());
+    }
+    setOnboarded();
+    setOnboardingOpen(false);
+  };
+
+  const skipOnboarding = () => {
+    setOnboarded();
+    setOnboardingOpen(false);
   };
 
   // Adaptive difficulty nudges the level fed to the LLM from recent scores.
@@ -411,6 +444,7 @@ export default function App() {
         onKeyChange={setApiKey}
         settings={settings}
         onSettingsChange={updateSettings}
+        onReplayOnboarding={() => { setSettingsOpen(false); setOnboardingOpen(true); }}
       />
       <SessionDashboard
         open={dashboardOpen}
@@ -437,6 +471,7 @@ export default function App() {
       <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
       <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
       <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />
+      <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />
       <RealWorld
         open={realWorldOpen}
         onClose={() => setRealWorldOpen(false)}
