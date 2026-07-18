@@ -154,6 +154,16 @@ validated against the `/models` endpoint before being stored. Or flip on
   ordered by your style with a boost toward those weaknesses and capped to
   your lesson length. **Adaptive difficulty** (toggle) nudges the CEFR level
   fed to the AI up or down from your recent session scores.
+- **Offline & devices** — Le Studio is an installable **PWA**: a service
+  worker (network-first, cache-fallback) caches the whole app so lessons,
+  stories, drills and grammar all work with no connection, and audio is
+  generated on-device by the browser's speech engine so listening and
+  pronunciation work offline too (only the live AI conversation/correction
+  features need the network). An **Offline & devices** panel shows online
+  status and offline readiness, lets you **download any story or podcast
+  transcript** as a text file, and — since there's no backend — moves
+  progress **across devices** by exporting a JSON backup and importing it on
+  another device (the API key is never included).
 - **Dev Panel** — token totals, latency pings, raw payload log, Mock Mode.
 
 TTS uses the browser's `speechSynthesis` with the best available `fr-FR`

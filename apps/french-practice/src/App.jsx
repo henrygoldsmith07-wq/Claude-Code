@@ -16,6 +16,7 @@ import Profile from './components/Profile';
 import Culture from './components/Culture';
 import RealWorld from './components/RealWorld';
 import Personalise from './components/Personalise';
+import Offline from './components/Offline';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
@@ -65,6 +66,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [realWorldOpen, setRealWorldOpen] = useState(false);
   const [personaliseOpen, setPersonaliseOpen] = useState(false);
+  const [offlineOpen, setOfflineOpen] = useState(false);
   const [prefs, setPrefsState] = useState(getPrefs);
   const [path, setPath] = useState(getPath);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
@@ -302,6 +304,7 @@ export default function App() {
               onNavigate={setTab}
               onOpenRealWorld={() => setRealWorldOpen(true)}
               onOpenPersonalise={() => setPersonaliseOpen(true)}
+              onOpenOffline={() => setOfflineOpen(true)}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);
@@ -411,6 +414,7 @@ export default function App() {
         baseLevel={settings.level}
         onRun={runRecommendation}
       />
+      <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} />
       <RealWorld
         open={realWorldOpen}
         onClose={() => setRealWorldOpen(false)}

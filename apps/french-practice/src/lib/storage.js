@@ -48,6 +48,38 @@ export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
 
+// ---- data portability (manual "sync across devices", no backend) ----
+// Export every fp.* key except the private API key into a portable backup,
+// and restore it on another device. There is no server; this is the honest
+// way to move progress between machines.
+
+export function exportProgress() {
+  const data = {};
+  for (const key of Object.values(KEYS)) {
+    if (key === KEYS.apiKey) continue; // never export the secret
+    const raw = localStorage.getItem(key);
+    if (raw != null) data[key] = raw;
+  }
+  return { app: 'le-studio', version: 1, exportedAt: new Date().toISOString(), data };
+}
+
+export function importProgress(payload) {
+  if (!payload || payload.app !== 'le-studio' || typeof payload.data !== 'object') {
+    throw new Error('That doesn’t look like a Le Studio backup file.');
+  }
+  const allowed = new Set(Object.values(KEYS));
+  let restored = 0;
+  for (const [key, raw] of Object.entries(payload.data)) {
+    if (key === KEYS.apiKey || !allowed.has(key)) continue; // ignore unknown/secret keys
+    try {
+      JSON.parse(raw); // validate it's the stored JSON shape
+      localStorage.setItem(key, raw);
+      restored += 1;
+    } catch { /* skip malformed entry */ }
+  }
+  return restored;
+}
+
 // theme: null = follow the OS preference; 'dark' | 'light' once toggled
 // level: CEFR level used to calibrate the LLM; dailyGoal: XP target per day
 const DEFAULT_SETTINGS = {

@@ -1,0 +1,14 @@
+{
+  "name": "Le Studio — French Speaking Practice",
+  "short_name": "Le Studio",
+  "description": "Practise French speaking, listening, reading and writing — 100% on your device.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fafafa",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

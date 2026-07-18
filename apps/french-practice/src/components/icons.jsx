@@ -84,6 +84,9 @@ export const Share = (p) => (
 export const Download = (p) => (
   <Icon {...p}><path d="M12 15V3" /><path d="m7 10 5 5 5-5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></Icon>
 );
+export const Upload = (p) => (
+  <Icon {...p}><path d="M12 3v12" /><path d="m17 8-5-5-5 5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></Icon>
+);
 export const ArrowRight = (p) => (
   <Icon {...p}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></Icon>
 );
