@@ -192,10 +192,11 @@ validated against the `/models` endpoint before being stored. Or flip on
   with IPA and TTS on every form); a **minimal pairs** ear-training drill
   (play a word, pick which of a tricky sound-contrast pair you heard);
   **cloze tests** (grammar-in-context gap-fill with explanations); and an
-  **offline dictionary / frequency list** — a ~570-word frequency-ranked core
-  lexicon (the most common French words, banded by frequency, many with IPA),
-  merged live with the vocabulary library and your notebook into one
-  searchable, TTS-enabled dictionary — plus **import custom word lists** (paste «French, English»
+  **offline dictionary / frequency list** — a ~2,000-word frequency-ranked
+  core lexicon (real-app scale: the most common French words, banded 1–10 by
+  frequency and grouped by theme, many with IPA), merged live with the
+  vocabulary library and your notebook into one searchable, TTS-enabled
+  dictionary — plus **import custom word lists** (paste «French, English»
   lines straight into your notebook and SRS queue). Selected from a longer
   "advanced features" wishlist; camera/PDF/web-page OCR, a browser
   extension and multi-language support were left out as out-of-scope for a
