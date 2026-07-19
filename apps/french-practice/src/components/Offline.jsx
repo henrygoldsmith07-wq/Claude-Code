@@ -28,7 +28,7 @@ const trackText = (t) =>
   `${t.title}\n${'='.repeat(t.title.length)}\n\n` +
   (t.lines || []).map((l) => `${l.fr}\n(${l.en})`).join('\n\n') + '\n';
 
-export default function Offline({ open, onClose }) {
+export default function Offline({ open, onClose, pwa }) {
   const [online, setOnline] = useState(navigator.onLine);
   const [cacheCount, setCacheCount] = useState(null); // null = unknown, number = files cached
   const [restored, setRestored] = useState(null);
@@ -95,6 +95,29 @@ export default function Offline({ open, onClose }) {
 
       <div className="flex-1 overflow-y-auto nice-scroll px-4 py-5">
         <div className="max-w-md mx-auto space-y-6">
+          {/* install */}
+          <section className="bg-surface border border-line rounded-2xl p-5 space-y-3">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 inline-flex items-center gap-1.5"><Download size={12} /> Install the app</h3>
+            {pwa?.installed ? (
+              <p className="text-xs text-ink2 inline-flex items-center gap-1.5"><Check size={13} /> Installed — you’re running the app from your home screen.</p>
+            ) : pwa?.canInstall ? (
+              <>
+                <p className="text-xs text-ink3 leading-relaxed">Add Le Studio to your device for a full-screen, app-like experience that opens straight from your home screen and works offline.</p>
+                <button onClick={() => pwa.promptInstall()} className="btn btn-primary w-full min-h-11 rounded-xl text-sm"><Download size={14} /> Install Le Studio</button>
+              </>
+            ) : pwa?.iosInstall ? (
+              <p className="text-xs text-ink3 leading-relaxed">
+                On iPhone/iPad: tap the <span className="font-semibold text-ink">Share</span> button in Safari, then
+                <span className="font-semibold text-ink"> “Add to Home Screen”</span> to install Le Studio.
+              </p>
+            ) : (
+              <p className="text-xs text-ink3 leading-relaxed">
+                Le Studio is an installable web app. Your browser will offer an <span className="font-semibold text-ink">Install</span> option
+                (often in the address bar or the ⋮ menu) — or check back here once it’s ready.
+              </p>
+            )}
+          </section>
+
           {/* status */}
           <section className="bg-surface border border-line rounded-2xl p-5 space-y-3">
             <div className="flex items-center gap-3">

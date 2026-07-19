@@ -169,7 +169,12 @@ validated against the `/models` endpoint before being stored. Or flip on
   status and offline readiness, lets you **download any story or podcast
   transcript** as a text file, and — since there's no backend — moves
   progress **across devices** by exporting a JSON backup and importing it on
-  another device (the API key is never included).
+  another device (the API key is never included). The app is **installable**:
+  a full manifest (maskable PNG icons at 192/512, apple-touch-icon) plus an
+  in-app **Install** affordance — a Home banner and an "Install the app"
+  section in this panel that fire the browser's native install prompt, with
+  Add-to-Home-Screen instructions on iOS and an "already installed" state
+  once it's running standalone.
 - **Analytics** — a dashboard (from Home) built from locally-recorded data:
   headline metrics for **time studied** (a visible-time tracker), **words
   learned** (SRS), **grammar mastered**, **retention rate** (forgetting-curve
