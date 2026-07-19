@@ -180,6 +180,10 @@ export const FileText = (p) => (
   <Icon {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></Icon>
 );
 
+export const Scissors = (p) => (
+  <Icon {...p}><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><line x1="20" x2="8.12" y1="4" y2="15.88" /><line x1="14.47" x2="20" y1="14.48" y2="20" /><line x1="8.12" x2="12" y1="8.12" y2="12" /></Icon>
+);
+
 // Per-scenario icon lookup for the arena card rail.
 export const SCENARIO_ICONS = {
   bistro: Utensils,
@@ -192,4 +196,8 @@ export const SCENARIO_ICONS = {
   cours: GraduationCap,
   libre: MessageCircle,
   pharmacie: Cross,
+  banque: Coins,
+  medecin: Cross,
+  coiffeur: Scissors,
+  logement: Key,
 };

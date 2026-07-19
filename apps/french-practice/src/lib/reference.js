@@ -156,35 +156,10 @@ export const CLOZE_TESTS = [
   { text: 'Nous ___ mangé au restaurant.', options: ['avons', 'sommes', 'ont'], answer: 0, why: '«Manger» takes «avoir»; «nous» → avons.' },
 ];
 
-// A compact high-frequency word list — doubles as an offline dictionary seed.
-// rank: frequency band (1 = most common). ipa where useful.
-export const FREQUENCY_WORDS = [
-  { fr: 'le / la', en: 'the', ipa: '/lə/, /la/', rank: 1, note: 'definite article' },
-  { fr: 'de', en: 'of / from', ipa: '/də/', rank: 1 },
-  { fr: 'un / une', en: 'a / an', ipa: '/œ̃/, /yn/', rank: 1 },
-  { fr: 'et', en: 'and', ipa: '/e/', rank: 1 },
-  { fr: 'à', en: 'to / at', ipa: '/a/', rank: 1 },
-  { fr: 'être', en: 'to be', ipa: '/ɛtʁ/', rank: 1 },
-  { fr: 'avoir', en: 'to have', ipa: '/avwaʁ/', rank: 1 },
-  { fr: 'ne… pas', en: 'not', ipa: '/nə pa/', rank: 1, note: 'negation wraps the verb' },
-  { fr: 'que', en: 'that / which', ipa: '/kə/', rank: 1 },
-  { fr: 'pour', en: 'for', ipa: '/puʁ/', rank: 2 },
-  { fr: 'dans', en: 'in', ipa: '/dɑ̃/', rank: 2 },
-  { fr: 'avec', en: 'with', ipa: '/avɛk/', rank: 2 },
-  { fr: 'sur', en: 'on', ipa: '/syʁ/', rank: 2 },
-  { fr: 'mais', en: 'but', ipa: '/mɛ/', rank: 2 },
-  { fr: 'tout', en: 'all / everything', ipa: '/tu/', rank: 2 },
-  { fr: 'faire', en: 'to do / make', ipa: '/fɛʁ/', rank: 2 },
-  { fr: 'plus', en: 'more', ipa: '/ply(s)/', rank: 2, note: 's silent when comparative' },
-  { fr: 'très', en: 'very', ipa: '/tʁɛ/', rank: 2 },
-  { fr: 'bien', en: 'well', ipa: '/bjɛ̃/', rank: 2 },
-  { fr: 'aussi', en: 'also / too', ipa: '/osi/', rank: 3 },
-  { fr: 'quand', en: 'when', ipa: '/kɑ̃/', rank: 3 },
-  { fr: 'parce que', en: 'because', ipa: '/paʁs kə/', rank: 3 },
-  { fr: 'toujours', en: 'always', ipa: '/tuʒuʁ/', rank: 3 },
-  { fr: 'maintenant', en: 'now', ipa: '/mɛ̃tnɑ̃/', rank: 3 },
-  { fr: 'beaucoup', en: 'a lot / much', ipa: '/boku/', rank: 3 },
-];
+// The high-frequency word list — the app's core searchable lexicon — lives in
+// its own data module so it can grow to real dictionary scale. Re-exported
+// here so the Reference hub (offline dictionary) keeps a single import.
+export { FREQUENCY_WORDS } from './frequency';
 
 // Parse a pasted custom word list — accepts "fr, en", "fr - en", "fr : en"
 // or tab-separated, one per line. Returns [{ fr, en }].

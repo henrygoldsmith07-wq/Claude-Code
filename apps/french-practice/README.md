@@ -69,17 +69,20 @@ validated against the `/models` endpoint before being stored. Or flip on
   public-domain classics (La Fontaine). Dual-language toggle, per-word
   tap-to-translate (text gloss → vocabulary dictionary → cached LLM lookup)
   with one-tap save to the notebook, and comprehension quizzes.
-- **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
-  feelings, a picture deck of everyday objects, idioms, slang & argot,
-  regional French (Québec/Belgium/South) and filler words. Every card has a
+- **Vocabulary** — eighteen themed packs: food, travel, work, feelings,
+  family & people, the body, animals, clothing & colours, city & transport,
+  health, home & household, nature & weather, time / numbers / money, a
+  picture deck of everyday objects, idioms, slang & argot, regional French
+  (Québec/Belgium/South) and filler words. Every card has a
   frequency rank (Top 100 → Niche), example sentence with translation, TTS
   pronunciation (word, sentence, 0.75× slow), synonyms/antonyms,
   collocations and register notes — plus an LLM-verified "use it in a
   sentence" challenge. One-click save any word to a personal notebook (with
   your own custom entries), and review everything through a cross-pack
   spaced-repetition queue.
-- **Grammar** — a reference library of six CEFR-tagged topics (present tense
-  through subjunctive), each an interactive lesson: explanation with spoken
+- **Grammar** — a reference library of eight CEFR-tagged topics (present
+  tense through subjunctive, plus object pronouns and comparatives), each an
+  interactive lesson: explanation with spoken
   examples and a "watch out" note, drills with instant feedback, tap-to-order
   sentence building, and a scored quiz (best kept; 80+ = mastered). After a
   conversation mistake, the Arena shows a grammar tip that deep-links into
@@ -189,9 +192,11 @@ validated against the `/models` endpoint before being stored. Or flip on
   with IPA and TTS on every form); a **minimal pairs** ear-training drill
   (play a word, pick which of a tricky sound-contrast pair you heard);
   **cloze tests** (grammar-in-context gap-fill with explanations); and an
-  **offline dictionary / frequency list** that searches a curated
-  high-frequency word set (with IPA) merged with the vocabulary library and
-  your notebook — plus **import custom word lists** (paste «French, English»
+  **offline dictionary / frequency list** — a ~2,000-word frequency-ranked
+  core lexicon (real-app scale: the most common French words, banded 1–10 by
+  frequency and grouped by theme, many with IPA), merged live with the
+  vocabulary library and your notebook into one searchable, TTS-enabled
+  dictionary — plus **import custom word lists** (paste «French, English»
   lines straight into your notebook and SRS queue). Selected from a longer
   "advanced features" wishlist; camera/PDF/web-page OCR, a browser
   extension and multi-language support were left out as out-of-scope for a

@@ -216,6 +216,74 @@ export const READING_TEXTS = [
       { q: 'What is the moral?', options: ['Flatterers live at their listener\'s expense', 'Never share food', 'Crows sing beautifully'], answer: 0 },
     ],
   },
+  {
+    id: 'read-boulangerie',
+    kind: 'reader',
+    cefr: 'A1',
+    title: 'À la boulangerie',
+    description: 'A tiny first-week story: bread, coins, and one small victory.',
+    paragraphs: [
+      {
+        fr: "Il est huit heures. Marc entre dans la boulangerie. Il y a une bonne odeur de pain chaud.",
+        en: 'It is eight o\'clock. Marc walks into the bakery. There is a lovely smell of warm bread.',
+      },
+      {
+        fr: "« Bonjour, monsieur. Une baguette, s'il vous plaît. » La boulangère sourit. « Voilà. Un euro dix, s'il vous plaît. »",
+        en: '"Hello, sir. One baguette, please." The baker smiles. "Here you go. One euro ten, please."',
+      },
+      {
+        fr: "Marc donne deux euros. Il prend la monnaie et la baguette. « Merci, bonne journée ! » Dehors, il mange déjà un petit morceau. C'est chaud, c'est bon.",
+        en: 'Marc hands over two euros. He takes the change and the baguette. "Thank you, have a good day!" Outside, he is already eating a little piece. It is warm, it is good.',
+      },
+    ],
+    gloss: {
+      boulangerie: 'bakery',
+      pain: 'bread',
+      baguette: 'baguette (long thin loaf)',
+      boulangère: 'baker (female)',
+      monnaie: 'change (coins)',
+      morceau: 'piece, bit',
+      chaud: 'warm, hot',
+    },
+    questions: [
+      { q: 'What does Marc buy?', options: ['A baguette', 'A croissant', 'A coffee'], answer: 0 },
+      { q: 'How much does it cost?', options: ['One euro ten', 'Two euros', 'Eighty cents'], answer: 0 },
+    ],
+  },
+  {
+    id: 'article-cafe',
+    kind: 'article',
+    cefr: 'B1',
+    title: 'Pourquoi les Français aiment le café en terrasse',
+    description: 'A short feature on the terrace ritual — and why it survives.',
+    paragraphs: [
+      {
+        fr: "Dans presque chaque ville française, la scène est la même : dès qu'un rayon de soleil apparaît, les terrasses de café se remplissent. Les gens s'installent, commandent un express, et regardent passer la vie.",
+        en: 'In almost every French town, the scene is the same: as soon as a ray of sunshine appears, the café terraces fill up. People settle in, order an espresso, and watch life go by.',
+      },
+      {
+        fr: "Ce n'est pas seulement une question de boisson. La terrasse est un lieu social. On y lit le journal, on y retrouve des amis, on y observe les passants. Certains y restent une heure avec une seule tasse — et personne ne les dérange.",
+        en: 'It is not just a matter of the drink. The terrace is a social place. People read the newspaper there, meet friends, and watch passers-by. Some stay for an hour with a single cup — and no one bothers them.',
+      },
+      {
+        fr: "À l'ère des cafés à emporter, ce rituel pourrait sembler dépassé. Pourtant, il résiste. Prendre le temps de s'asseoir, sans écran, reste pour beaucoup un petit luxe quotidien.",
+        en: 'In the age of takeaway coffee, this ritual might seem outdated. Yet it endures. Taking the time to sit down, without a screen, remains for many a small daily luxury.',
+      },
+    ],
+    gloss: {
+      terrasse: 'café terrace, outdoor seating',
+      express: 'espresso',
+      passants: 'passers-by',
+      'à emporter': 'to take away, takeaway',
+      dépassé: 'outdated, out of date',
+      résiste: 'holds out, endures',
+      quotidien: 'daily, everyday',
+    },
+    questions: [
+      { q: 'Why do people go to a terrace, according to the text?', options: ['For the social ritual, not just the drink', 'Because coffee is cheaper there', 'Because there is no indoor seating'], answer: 0 },
+      { q: 'What does the article say about the ritual today?', options: ['It endures despite takeaway culture', 'It has almost disappeared', 'It is only for tourists'], answer: 0 },
+    ],
+  },
 ];
 
 export const getText = (id) => READING_TEXTS.find((t) => t.id === id) || null;
