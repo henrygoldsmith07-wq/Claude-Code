@@ -69,17 +69,19 @@ validated against the `/models` endpoint before being stored. Or flip on
   public-domain classics (La Fontaine). Dual-language toggle, per-word
   tap-to-translate (text gloss → vocabulary dictionary → cached LLM lookup)
   with one-tap save to the notebook, and comprehension quizzes.
-- **Vocabulary** — nine themed packs (~70 entries): food, travel, work,
-  feelings, a picture deck of everyday objects, idioms, slang & argot,
-  regional French (Québec/Belgium/South) and filler words. Every card has a
+- **Vocabulary** — thirteen themed packs: food, travel, work, feelings,
+  health & the body, home & household, nature & weather, time & dates, a
+  picture deck of everyday objects, idioms, slang & argot, regional French
+  (Québec/Belgium/South) and filler words. Every card has a
   frequency rank (Top 100 → Niche), example sentence with translation, TTS
   pronunciation (word, sentence, 0.75× slow), synonyms/antonyms,
   collocations and register notes — plus an LLM-verified "use it in a
   sentence" challenge. One-click save any word to a personal notebook (with
   your own custom entries), and review everything through a cross-pack
   spaced-repetition queue.
-- **Grammar** — a reference library of six CEFR-tagged topics (present tense
-  through subjunctive), each an interactive lesson: explanation with spoken
+- **Grammar** — a reference library of eight CEFR-tagged topics (present
+  tense through subjunctive, plus object pronouns and comparatives), each an
+  interactive lesson: explanation with spoken
   examples and a "watch out" note, drills with instant feedback, tap-to-order
   sentence building, and a scored quiz (best kept; 80+ = mastered). After a
   conversation mistake, the Arena shows a grammar tip that deep-links into

@@ -193,6 +193,70 @@ export const GRAMMAR_TOPICS = [
       { q: 'Je pense que c\'___ une bonne idée.', options: ['est', 'soit', 'sera forcément'], answer: 0, why: 'Penser que (affirmative) + indicatif: c\'est. Negated «je ne pense pas que» would flip to subjunctive.' },
     ],
   },
+  {
+    id: 'pronoms',
+    cefr: 'B1',
+    title: 'Les pronoms objets',
+    summary: 'le/la/les, lui/leur, y and en — replacing whole phrases so you stop repeating them.',
+    explanation: {
+      rule: 'Object pronouns go **before the verb**. Direct (COD) **le / la / les** replace a thing/person already named («Tu vois le film ? — Oui, je le vois»). Indirect (COI) **lui / leur** replace «à + person» («Je téléphone à Marie → je lui téléphone»). **y** replaces «à + place/thing» («j\'y vais»); **en** replaces «de + …» or a quantity («j\'en veux deux»).',
+      examples: [
+        { fr: 'Tu connais Paul ? — Oui, je le connais.', en: 'Do you know Paul? — Yes, I know him.' },
+        { fr: "J'écris à mes parents → je leur écris.", en: 'I write to my parents → I write to them.' },
+        { fr: 'Tu vas à la gare ? — J\'y vais maintenant.', en: 'Are you going to the station? — I\'m going there now.' },
+        { fr: 'Des pommes ? J\'en ai acheté trois.', en: 'Apples? I bought three (of them).' },
+      ],
+      watchOut: 'In the passé composé the past participle agrees with a **preceding direct object**: «les fleurs ? je les ai achetées» (extra -es).',
+    },
+    drills: [
+      { q: 'Tu vois Marie ? — Oui, je ___ vois.', options: ['la', 'lui', 'y'], answer: 0, why: 'Direct object (voir quelqu\'un): je la vois.' },
+      { q: 'Je parle à mon frère → je ___ parle.', options: ['lui', 'le', 'y'], answer: 0, why: 'Parler à quelqu\'un = indirect: je lui parle.' },
+      { q: 'Tu penses à ton rendez-vous ? — J\'___ pense.', options: ['y', 'le', 'en'], answer: 0, why: 'Penser à quelque chose → y: j\'y pense.' },
+      { q: 'Tu as du pain ? — Oui, j\'___ ai.', options: ['en', 'le', 'y'], answer: 0, why: 'Partitive «du pain» → en: j\'en ai.' },
+    ],
+    build: [
+      { fr: 'Je lui ai donné mon numéro', en: 'I gave him my number' },
+      { fr: 'On y va tout de suite', en: 'We are going there right away' },
+    ],
+    quiz: [
+      { q: 'Tu invites les voisins ? — Oui, je ___ invite.', options: ['les', 'leur', 'y'], answer: 0, why: 'Inviter quelqu\'un = direct: je les invite.' },
+      { q: 'Elle répond à ses clients → elle ___ répond.', options: ['leur', 'les', 'y'], answer: 0, why: 'Répondre à quelqu\'un = indirect: elle leur répond.' },
+      { q: 'Combien de cafés ? — J\'___ prends deux.', options: ['en', 'les', 'y'], answer: 0, why: 'A quantity → en: j\'en prends deux.' },
+      { q: '« I saw them (the films) yesterday »', options: ['Je les ai vus hier', 'Je leur ai vu hier', 'J\'y ai vu hier'], answer: 0, why: 'Direct object les + agreement: je les ai vus.' },
+    ],
+  },
+  {
+    id: 'comparatif',
+    cefr: 'A2',
+    title: 'Comparatif & superlatif',
+    summary: 'plus/moins/aussi… que, and le plus/le moins — comparing anything.',
+    explanation: {
+      rule: 'Comparative: **plus / moins / aussi + adjective + que** («plus grand que», «moins cher que», «aussi rapide que»). Superlative: **le / la / les plus (or moins) + adjective** («le plus grand»). Irregulars: **bon → meilleur** (better) / **le meilleur** (best); the adverb **bien → mieux** (better) / **le mieux** (best).',
+      examples: [
+        { fr: 'Le train est plus rapide que le bus.', en: 'The train is faster than the bus.' },
+        { fr: 'C\'est le restaurant le moins cher du quartier.', en: 'It\'s the cheapest restaurant in the area.' },
+        { fr: 'Ce vin est meilleur que l\'autre.', en: 'This wine is better than the other.' },
+        { fr: 'Elle chante mieux que moi.', en: 'She sings better than me.' },
+      ],
+      watchOut: 'Don\'t say «plus bon» — the comparative of «bon» is **meilleur**. And «mieux» (adverb) is not «meilleur» (adjective): «il joue mieux», but «c\'est le meilleur joueur».',
+    },
+    drills: [
+      { q: 'Paris est ___ grand ___ Lyon.', options: ['plus / que', 'plus / de', 'le plus / que'], answer: 0, why: 'Comparative of superiority: plus … que.' },
+      { q: 'Ce gâteau est ___ que l\'autre (bon).', options: ['meilleur', 'plus bon', 'mieux'], answer: 0, why: 'Bon → meilleur (never «plus bon»).' },
+      { q: 'C\'est la montagne ___ haute d\'Europe.', options: ['la plus', 'plus', 'le plus'], answer: 0, why: 'Superlative agrees: la plus haute.' },
+      { q: 'Aujourd\'hui je vais ___ qu\'hier (bien).', options: ['mieux', 'meilleur', 'plus bien'], answer: 0, why: 'Bien → mieux (adverb).' },
+    ],
+    build: [
+      { fr: 'Il est moins timide que son frère', en: 'He is less shy than his brother' },
+      { fr: 'C\'est le plus beau jour de ma vie', en: 'It is the most beautiful day of my life' },
+    ],
+    quiz: [
+      { q: 'Elle est ___ intelligente ___ sa sœur (equal).', options: ['aussi / que', 'plus / que', 'autant / de'], answer: 0, why: 'Equality with an adjective: aussi … que.' },
+      { q: '« the best bakery in town »', options: ['la meilleure boulangerie de la ville', 'la plus bonne boulangerie', 'la mieux boulangerie'], answer: 0, why: 'Superlative of bon: la meilleure.' },
+      { q: 'Le métro va ___ vite que le tram.', options: ['plus', 'meilleur', 'le plus'], answer: 0, why: 'Comparative with an adverb: plus vite que.' },
+      { q: 'De tous, c\'est lui qui travaille ___.', options: ['le mieux', 'le meilleur', 'plus bien'], answer: 0, why: 'Superlative of the adverb bien: le mieux.' },
+    ],
+  },
 ];
 
 export const getGrammarTopic = (id) => GRAMMAR_TOPICS.find((t) => t.id === id) || null;

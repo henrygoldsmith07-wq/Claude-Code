@@ -148,6 +148,62 @@ SCENARIOS.push(
       "Start with: «Je ne me sens pas très bien, j'ai…»",
       "«Depuis hier, j'ai mal à la gorge et un peu de fièvre. Qu'est-ce que vous me conseillez ?» — Since yesterday I've had a sore throat and a slight fever. What do you recommend?",
     ],
+  },
+  {
+    id: 'banque',
+    title: 'At the Bank',
+    setup: 'You are opening a bank account as a newcomer in France and have questions about the paperwork.',
+    aiRole: "Conseiller(ère) bancaire poli(e) et méthodique qui demande des justificatifs.",
+    opener: "Bonjour, bienvenue. Vous souhaitez ouvrir un compte, c'est bien ça ? Vous avez un justificatif de domicile ?",
+    openerTranslation: "Hello, welcome. You'd like to open an account, is that right? Do you have proof of address?",
+    curveball: "Explique qu'il manque un document (justificatif de domicile récent) et propose une solution.",
+    staticHints: [
+      "Vocabulary: «un compte» (an account), «une carte bancaire» (a debit card), «un justificatif de domicile» (proof of address), «un RIB» (bank details).",
+      "Start with: «Bonjour, je voudrais ouvrir un compte…»",
+      "«Je viens d'arriver en France et je voudrais ouvrir un compte courant. Qu'est-ce qu'il vous faut ?» — I've just arrived in France and I'd like to open a current account. What do you need?",
+    ],
+  },
+  {
+    id: 'medecin',
+    title: "At the Doctor's",
+    setup: "You have a persistent symptom and are describing it to a GP during an appointment.",
+    aiRole: "Médecin généraliste calme qui pose des questions précises et rassure.",
+    opener: "Bonjour, installez-vous. Alors, qu'est-ce qui ne va pas aujourd'hui ?",
+    openerTranslation: "Hello, have a seat. So, what's wrong today?",
+    curveball: "Demande depuis combien de temps ça dure et si le symptôme empêche de dormir ou de travailler.",
+    staticHints: [
+      "Vocabulary: «depuis trois jours» (for three days), «ça me lance» (it throbs), «une analyse de sang» (a blood test), «se reposer» (to rest).",
+      "Start with: «Docteur, j'ai un problème depuis…»",
+      "«Depuis une semaine, j'ai très mal au dos et je dors mal.» — For a week I've had bad back pain and I'm sleeping badly.",
+    ],
+  },
+  {
+    id: 'coiffeur',
+    title: 'At the Hairdresser',
+    setup: 'You want a haircut and need to explain exactly what you would (and would not) like.',
+    aiRole: "Coiffeur/coiffeuse bavard(e) et enthousiaste qui propose toujours un peu plus.",
+    opener: "Bonjour ! Installez-vous. Alors, on fait quoi de beau aujourd'hui ?",
+    openerTranslation: "Hello! Have a seat. So, what are we doing today?",
+    curveball: "Propose une coupe plus courte ou une couleur que le client n'a pas demandée — vois comment il réagit.",
+    staticHints: [
+      "Vocabulary: «une coupe» (a cut), «les pointes» (the ends), «dégradé» (layered/faded), «pas trop court» (not too short).",
+      "Start with: «Je voudrais juste rafraîchir la coupe…»",
+      "«Juste les pointes, s'il vous plaît, mais gardez la longueur.» — Just the ends, please, but keep the length.",
+    ],
+  },
+  {
+    id: 'logement',
+    title: 'Renting a Flat',
+    setup: "You are viewing a flat to rent and asking the letting agent the questions that matter.",
+    aiRole: "Agent(e) immobilier(ère) enthousiaste qui vante le bien mais élude les défauts.",
+    opener: "Bonjour ! Alors voilà le salon — lumineux, n'est-ce pas ? Vous cherchez pour quand ?",
+    openerTranslation: "Hello! So here's the living room — bright, isn't it? When are you looking to move in?",
+    curveball: "Admet à contrecœur un défaut (voisins bruyants, ou charges élevées) quand le client insiste.",
+    staticHints: [
+      "Vocabulary: «le loyer» (rent), «les charges» (utilities/fees), «meublé» (furnished), «la caution» (deposit), «lumineux» (bright).",
+      "Start with: «C'est à combien le loyer, charges comprises ?»",
+      "«Le loyer, c'est combien charges comprises, et il y a un dépôt de garantie ?» — How much is the rent including fees, and is there a deposit?",
+    ],
   }
 );
 

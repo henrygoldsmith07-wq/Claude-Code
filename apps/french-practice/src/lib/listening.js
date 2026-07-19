@@ -125,6 +125,45 @@ export const LISTENING_TRACKS = [
       { q: 'How does the scene end?', options: ['B invites A to come along', 'A misses the train', 'They argue and part'], answer: 0 },
     ],
   },
+  {
+    id: 'pod-habitudes',
+    kind: 'podcast',
+    cefr: 'A2',
+    title: 'Ma routine du matin',
+    description: 'A slow, clear monologue about one person\'s morning — perfect for beginners.',
+    lines: [
+      { fr: "Bonjour ! Aujourd'hui, je vous parle de ma routine du matin.", en: 'Hello! Today I\'m telling you about my morning routine.' },
+      { fr: "Je me réveille à sept heures. D'abord, je bois un grand verre d'eau.", en: 'I wake up at seven o\'clock. First, I drink a big glass of water.' },
+      { fr: "Ensuite, je prends une douche et je m'habille.", en: 'Then I take a shower and get dressed.' },
+      { fr: "Pour le petit-déjeuner, je mange du pain avec de la confiture et je bois un café.", en: 'For breakfast, I eat bread with jam and drink a coffee.' },
+      { fr: "Après, je vérifie mon téléphone pendant cinq minutes, pas plus.", en: 'Afterwards, I check my phone for five minutes, no more.' },
+      { fr: "Enfin, je pars au travail à huit heures et demie. Et vous, quelle est votre routine ?", en: 'Finally, I leave for work at half past eight. And you, what is your routine?' },
+    ],
+    questions: [
+      { q: 'What does the speaker do first after waking up?', options: ['Drinks a glass of water', 'Checks their phone', 'Takes a shower'], answer: 0 },
+      { q: 'What time do they leave for work?', options: ['8:30', '7:00', '9:00'], answer: 0 },
+    ],
+  },
+  {
+    id: 'dial-pharmacie',
+    kind: 'dialogue',
+    cefr: 'A2',
+    title: 'À la pharmacie',
+    description: 'A customer with a headache, a pharmacist with advice.',
+    lines: [
+      { speaker: 'A', fr: "Bonjour, j'ai mal à la tête depuis ce matin. Vous avez quelque chose ?", en: 'Hello, I\'ve had a headache since this morning. Do you have something?' },
+      { speaker: 'B', fr: "Oui, bien sûr. Vous avez de la fièvre ?", en: 'Yes, of course. Do you have a fever?' },
+      { speaker: 'A', fr: "Non, je ne crois pas. Juste mal à la tête.", en: 'No, I don\'t think so. Just a headache.' },
+      { speaker: 'B', fr: "Alors, prenez ce paracétamol. Un comprimé, trois fois par jour.", en: 'Then take this paracetamol. One tablet, three times a day.' },
+      { speaker: 'A', fr: "Je le prends avant ou après les repas ?", en: 'Do I take it before or after meals?' },
+      { speaker: 'B', fr: "Après les repas, c'est mieux. Et buvez beaucoup d'eau.", en: 'After meals is better. And drink plenty of water.' },
+      { speaker: 'A', fr: "D'accord, merci beaucoup. Je vous dois combien ?", en: 'All right, thank you very much. How much do I owe you?' },
+    ],
+    questions: [
+      { q: 'What is wrong with the customer?', options: ['A headache', 'A fever', 'A stomach ache'], answer: 0 },
+      { q: 'When should they take the tablet?', options: ['After meals', 'Before meals', 'Only at night'], answer: 0 },
+    ],
+  },
 ];
 
 export const tracksByKind = (kind) => LISTENING_TRACKS.filter((t) => t.kind === kind);
