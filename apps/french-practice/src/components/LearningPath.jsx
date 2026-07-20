@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { getRoadmap, currentLesson, pathFinished, lessonProgress } from '../lib/path';
 import { GOALS } from '../lib/path';
+import KnowledgeStats from './KnowledgeStats';
 import {
   Map, ChevronRight, Check, Lock, CheckCircle, Target,
-  MessageCircle, Volume, Layers, Clock, SCENARIO_ICONS,
+  MessageCircle, Volume, Layers, Clock, Book, BookOpen, TrendingUp, SCENARIO_ICONS,
 } from './icons';
 
-const LESSON_ICONS = { scenario: MessageCircle, dictation: Volume, cards: Layers, quickfire: Clock, checkpoint: Target };
+const LESSON_ICONS = {
+  scenario: MessageCircle, dictation: Volume, cards: Layers, quickfire: Clock,
+  grammar: Book, reading: BookOpen, listening: Volume, checkpoint: Target,
+};
 
 const lessonIcon = (lesson) =>
   (lesson.scenarioId && SCENARIO_ICONS[lesson.scenarioId]) || LESSON_ICONS[lesson.type] || MessageCircle;
@@ -17,6 +21,7 @@ const lessonIcon = (lesson) =>
 
 export default function LearningPath({ path, dueCount, onStartLesson, onOpenSetup }) {
   const [roadmapOpen, setRoadmapOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   if (!path) {
     return (
@@ -127,6 +132,17 @@ export default function LearningPath({ path, dueCount, onStartLesson, onOpenSetu
           )}
         </>
       )}
+
+      {/* knowledge stats */}
+      <button
+        onClick={() => setStatsOpen((v) => !v)}
+        aria-expanded={statsOpen}
+        className="w-full border-t border-line px-5 py-3 text-left text-[11px] font-semibold text-ink2 hover:text-ink flex items-center justify-between"
+      >
+        <span className="inline-flex items-center gap-1.5"><TrendingUp size={13} /> {statsOpen ? 'Hide knowledge stats' : 'Your knowledge stats'}</span>
+        <ChevronRight size={14} className={`transition-transform ${statsOpen ? 'rotate-90' : ''}`} />
+      </button>
+      {statsOpen && <KnowledgeStats path={path} />}
 
       {/* roadmap */}
       <button

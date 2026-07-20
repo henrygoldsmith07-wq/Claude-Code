@@ -12,128 +12,11 @@ export const GOALS = [
   { id: 'fluency', title: 'Fluency', blurb: 'A bit of everything, pushed toward native-like ease.' },
 ];
 
-// Lesson types map onto the app's activity surfaces:
-//   scenario   → a conversation session in the given scenario (≥1 turn + End Session)
-//   dictation  → N dictée sentences checked
-//   cards      → N flashcards rated
-//   quickfire  → one 45s improv completed
-//   checkpoint → a scored conversation; pass requires report avg ≥ passScore
-const L = {
-  scenario: (id, title) => ({ type: 'scenario', scenarioId: id, title, need: 1 }),
-  dictation: (title, need = 3) => ({ type: 'dictation', title, need }),
-  cards: (title, need = 5) => ({ type: 'cards', title, need }),
-  quickfire: (title) => ({ type: 'quickfire', title, need: 1 }),
-  checkpoint: (id, title) => ({ type: 'checkpoint', scenarioId: id, title, need: 1, passScore: 70 }),
-};
+// Roadmap data (twelve units per goal) lives in roadmaps.js; re-exported
+// here so consumers keep a single import surface.
+import { getRoadmap } from './roadmaps';
 
-const ROADMAPS = {
-  travel: [
-    { id: 'tr1', title: 'Café & Restaurant', lessons: [
-      L.scenario('bistro', 'Order lunch at a bistro'),
-      L.cards('Filler words for small talk'),
-      L.dictation('Train your ear: menus & greetings'),
-      L.checkpoint('bistro', 'Checkpoint: handle a full bistro visit'),
-    ]},
-    { id: 'tr2', title: 'Getting Around', lessons: [
-      L.scenario('vol', 'Rebook a cancelled flight'),
-      L.quickfire('Improv: describe your journey'),
-      L.dictation('Train your ear: announcements'),
-      L.checkpoint('vol', 'Checkpoint: negotiate with the airline'),
-    ]},
-    { id: 'tr3', title: 'Markets & Services', lessons: [
-      L.scenario('marche', 'Shop at the open-air market'),
-      L.scenario('poste', 'Send a package abroad'),
-      L.cards('Review your weak vocabulary'),
-      L.checkpoint('marche', 'Checkpoint: haggle like a local'),
-    ]},
-    { id: 'tr4', title: 'Living Local', lessons: [
-      L.scenario('colloc', 'View a flat-share'),
-      L.quickfire('Improv: your ideal neighbourhood'),
-      L.dictation('Train your ear: everyday chat'),
-      L.checkpoint('colloc', 'Checkpoint: win over the flatmates'),
-    ]},
-  ],
-  school: [
-    { id: 'sc1', title: 'Campus Life', lessons: [
-      L.scenario('colloc', 'Find student housing'),
-      L.cards('Conversational glue words'),
-      L.dictation('Train your ear: campus chatter'),
-      L.checkpoint('colloc', 'Checkpoint: settle the flat-share'),
-    ]},
-    { id: 'sc2', title: 'Professors & Assignments', lessons: [
-      L.scenario('cours', 'Office hours with your professor'),
-      L.quickfire('Improv: explain what you study'),
-      L.dictation('Train your ear: instructions'),
-      L.checkpoint('cours', 'Checkpoint: negotiate an extension'),
-    ]},
-    { id: 'sc3', title: 'Everyday Errands', lessons: [
-      L.scenario('poste', 'Post office paperwork'),
-      L.scenario('bistro', 'Coffee between lectures'),
-      L.cards('Review your weak vocabulary'),
-      L.checkpoint('bistro', 'Checkpoint: a full café conversation'),
-    ]},
-    { id: 'sc4', title: 'Presentations', lessons: [
-      L.quickfire('Improv: defend an opinion'),
-      L.scenario('cours', 'Discuss your presentation plan'),
-      L.dictation('Train your ear: academic French'),
-      L.checkpoint('cours', 'Checkpoint: field the professor’s questions'),
-    ]},
-  ],
-  business: [
-    { id: 'bu1', title: 'The Interview', lessons: [
-      L.scenario('entretien', 'Introduce yourself and your background'),
-      L.cards('Professional connectors'),
-      L.dictation('Train your ear: formal French'),
-      L.checkpoint('entretien', 'Checkpoint: the tough questions'),
-    ]},
-    { id: 'bu2', title: 'Meetings', lessons: [
-      L.scenario('reunion', 'Give a project update'),
-      L.quickfire('Improv: pitch an idea in 45s'),
-      L.dictation('Train your ear: meeting speak'),
-      L.checkpoint('reunion', 'Checkpoint: handle a moved deadline'),
-    ]},
-    { id: 'bu3', title: 'Business Travel', lessons: [
-      L.scenario('vol', 'Rebook a work trip'),
-      L.scenario('bistro', 'A client lunch'),
-      L.cards('Review your weak vocabulary'),
-      L.checkpoint('vol', 'Checkpoint: fix the travel crisis'),
-    ]},
-    { id: 'bu4', title: 'Office Small Talk', lessons: [
-      L.quickfire('Improv: Monday-morning chat'),
-      L.scenario('reunion', 'Wrap up the quarter'),
-      L.dictation('Train your ear: colleagues talking'),
-      L.checkpoint('reunion', 'Checkpoint: run the meeting yourself'),
-    ]},
-  ],
-  fluency: [
-    { id: 'fl1', title: 'Everyday Ease', lessons: [
-      L.scenario('bistro', 'A natural café exchange'),
-      L.cards('Sound-native filler words'),
-      L.quickfire('Improv: whatever comes up'),
-      L.checkpoint('marche', 'Checkpoint: banter at the market'),
-    ]},
-    { id: 'fl2', title: 'Handling Friction', lessons: [
-      L.scenario('vol', 'Push back politely'),
-      L.scenario('poste', 'Bureaucracy without tears'),
-      L.dictation('Train your ear: fast French'),
-      L.checkpoint('vol', 'Checkpoint: keep cool under pressure'),
-    ]},
-    { id: 'fl3', title: 'People & Stories', lessons: [
-      L.scenario('colloc', 'Talk about yourself naturally'),
-      L.quickfire('Improv: tell a story'),
-      L.cards('Review your weak vocabulary'),
-      L.checkpoint('colloc', 'Checkpoint: be genuinely likeable'),
-    ]},
-    { id: 'fl4', title: 'The Professional You', lessons: [
-      L.scenario('entretien', 'Your story, professionally'),
-      L.scenario('reunion', 'Think aloud in a meeting'),
-      L.dictation('Train your ear: register shifts'),
-      L.checkpoint('entretien', 'Checkpoint: fully in character'),
-    ]},
-  ],
-};
-
-export const getRoadmap = (goal) => ROADMAPS[goal] || ROADMAPS.fluency;
+export { getRoadmap };
 
 // ---- placement test (local, 12 questions, 2 per CEFR level) ----
 
@@ -227,7 +110,10 @@ export function applyActivity(path, evt) {
     (lesson.type === 'checkpoint' && evt.type === 'session' && evt.scenarioId === lesson.scenarioId) ||
     (lesson.type === 'dictation' && evt.type === 'dictation') ||
     (lesson.type === 'cards' && evt.type === 'cards') ||
-    (lesson.type === 'quickfire' && evt.type === 'quickfire');
+    (lesson.type === 'quickfire' && evt.type === 'quickfire') ||
+    (lesson.type === 'grammar' && evt.type === 'grammar' && evt.topicId === lesson.topicId) ||
+    (lesson.type === 'reading' && evt.type === 'reading' && evt.textId === lesson.textId) ||
+    (lesson.type === 'listening' && evt.type === 'listening' && evt.trackId === lesson.trackId);
   if (!matches) return out;
 
   out.changed = true;
