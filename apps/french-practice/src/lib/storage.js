@@ -25,6 +25,7 @@ const KEYS = {
   eventXp: 'fp.eventXp', // { [eventId]: xp earned during the event }
   xpLog: 'fp.xpLog', // { 'YYYY-MM-DD': xp } — daily XP history (calendar, weekly goal)
   freezes: 'fp.freezes', // streak freezes owned (auto-consumed on a 1-day gap)
+  vacation: 'fp.vacation', // ISO day until which streak loss is paused
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
@@ -307,12 +308,54 @@ export const getStreak = () => {
     write(KEYS.streak, repaired);
     return repaired;
   }
-  // A streak survives until a full day is missed.
+  // Vacation mode: while active, missed days never break the streak —
+  // lastDay is quietly rolled forward to yesterday.
+  const vac = read(KEYS.vacation, null);
+  if (s.lastDay !== dayStamp() && s.lastDay !== yesterday && vac && vac >= yesterday) {
+    const kept = { ...s, lastDay: yesterday };
+    write(KEYS.streak, kept);
+    return kept;
+  }
+  // A streak survives until a full day is missed. When it breaks, remember
+  // what was lost so a paid repair remains possible for a few days.
   if (s.lastDay !== dayStamp() && s.lastDay !== yesterday) {
-    return { count: 0, lastDay: s.lastDay };
+    if (s.count > 0) write(KEYS.streak, { count: 0, lastDay: null, lostCount: s.count, lostAt: dayStamp() });
+    return { count: 0, lastDay: s.lastDay, lostCount: s.count, lostAt: dayStamp() };
   }
   return s;
 };
+
+// ---- vacation mode & streak repair ----
+
+export const REPAIR_COST = 300;
+export const REPAIR_WINDOW_DAYS = 3;
+
+export const getVacationUntil = () => read(KEYS.vacation, null);
+
+// Start (days > 0) or end (days = 0/null) vacation mode.
+export function setVacationDays(days) {
+  if (!days) { write(KEYS.vacation, null); return null; }
+  const until = dayStamp(new Date(Date.now() + days * 86400000));
+  write(KEYS.vacation, until);
+  return until;
+}
+
+// A broken streak can be bought back within REPAIR_WINDOW_DAYS.
+export function getRepairableStreak() {
+  const s = read(KEYS.streak, {});
+  if (!s.lostCount || !s.lostAt) return null;
+  const ageDays = Math.floor((Date.now() - new Date(s.lostAt).getTime()) / 86400000);
+  return ageDays <= REPAIR_WINDOW_DAYS ? s.lostCount : null;
+}
+
+export function repairStreak() {
+  const lost = getRepairableStreak();
+  if (!lost) return null;
+  if (spendCoins(REPAIR_COST) == null) return null;
+  const restored = { count: lost, lastDay: dayStamp(new Date(Date.now() - 86400000)) };
+  write(KEYS.streak, restored);
+  return restored;
+}
 
 // ---- streak freezes (bought with coins, max 2, auto-used) ----
 

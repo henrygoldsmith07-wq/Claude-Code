@@ -4,6 +4,7 @@ import { recordSkillScore } from '../lib/storage';
 import { speakLines, stopSpeaking } from '../lib/tts';
 import Dictation from './Dictation';
 import AudioCourse from './AudioCourse';
+import NumberDash from './NumberDash';
 import { Volume, Play, Square, ChevronLeft, ChevronRight, Check, X, RefreshCw } from './icons';
 
 // Listening hub: TTS-narrated tracks (mini-podcasts, dialogues, news,
@@ -22,6 +23,13 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
     return (
       <Shell title="Cours audio" onBack={() => onModeChange(null)}>
         <AudioCourse ttsRate={ttsRate} onXp={onXp} />
+      </Shell>
+    );
+  }
+  if (mode === 'numbers') {
+    return (
+      <Shell title="Les nombres" onBack={() => onModeChange(null)}>
+        <NumberDash ttsRate={ttsRate} onXp={onXp} />
       </Shell>
     );
   }
@@ -63,6 +71,18 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
           <span className="flex-1">
             <span className="block text-sm font-semibold text-ink">Cours audio — hands-free</span>
             <span className="block text-xs text-ink3">Listen, repeat aloud, learn — no taps needed</span>
+          </span>
+          <ChevronRight size={16} className="text-ink3 shrink-0" />
+        </button>
+
+        <button
+          onClick={() => onModeChange('numbers')}
+          className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+        >
+          <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink"><Volume size={18} /></span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-ink">Les nombres — rapid fire</span>
+            <span className="block text-xs text-ink3">Hear numbers, prices, times & years; type the digits</span>
           </span>
           <ChevronRight size={16} className="text-ink3 shrink-0" />
         </button>

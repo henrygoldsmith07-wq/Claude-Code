@@ -2,8 +2,9 @@ import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNote
 import { encouragement } from '../lib/game';
 import LearningPath from './LearningPath';
 import { SCENARIOS } from '../lib/data';
-import { allEntryIds } from '../lib/vocab';
+import { allEntryIds, allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
+import { SpeakButton } from './ui';
 import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
@@ -104,6 +105,9 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             </p>
           )}
         </section>
+
+        {/* phrase of the day — deterministic by date, always fresh */}
+        <PhraseOfTheDay />
 
         {/* recurring mistakes accumulated across sessions */}
         {habits.length > 0 && (
@@ -227,5 +231,27 @@ function ActionCard({ icon: CardIcon, title, subtitle, badge, onClick }) {
       )}
       <ChevronRight size={16} className="text-ink3 shrink-0" />
     </button>
+  );
+}
+
+// Word of the day: a stable daily pick from the full vocabulary library.
+function PhraseOfTheDay() {
+  const entries = allEntries();
+  const day = Math.floor(Date.now() / 86400000);
+  const e = entries[day % entries.length];
+  if (!e) return null;
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Word of the day</h3>
+      <div className="flex items-start gap-3">
+        <span className="text-2xl" role="img" aria-hidden="true">{e.emoji}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-ink" lang="fr">{e.fr} <span className="font-normal text-ink3">— {e.en}</span></p>
+          <p className="text-xs text-ink2 mt-1" lang="fr">{e.example}</p>
+          <p className="text-[11px] text-ink3 italic">{e.exampleEn}</p>
+        </div>
+        <SpeakButton text={e.fr} label="Listen" />
+      </div>
+    </section>
   );
 }
