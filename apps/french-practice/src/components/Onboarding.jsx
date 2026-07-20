@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { LEARNING_STYLES, TOPICS } from '../lib/personalise';
+import { LEARNING_STYLES, LESSON_LENGTHS, TOPICS } from '../lib/personalise';
 import { AVATARS } from '../lib/game';
 import { SpeakButton } from './ui';
 import { ChevronLeft, ArrowRight, Check, Sparkles, TOPIC_ICONS } from './icons';
 
-// First-run onboarding, redesigned around speed-to-first-success:
-// - 9 steps (was 14), grouped under a labelled progress indicator
-// - no account, no sign-in, and NO OS permission prompts (reminders moved
-//   to Settings, where the browser prompt happens in context)
-// - "Quick start" and Skip both land in a fully working demo (Mock Mode),
-//   never at an API-key wall
+// First-run onboarding: deliberately thorough — fifteen steps that set up
+// the whole studio — but never coercive:
+// - a one-tap "Quick start" and an always-visible Skip land in a fully
+//   working demo (Mock Mode), never at an API-key wall
+// - no account, no sign-in, and NO OS permission prompts (the reminders
+//   step records intent only; the browser prompt happens later, in
+//   context, from Settings)
+// - labelled section progress so the length feels navigable
 // - the final step delivers the first success: hear your first French
 //   sentence before you even enter the app.
 
@@ -36,16 +38,35 @@ const GOAL_XP = [
   { id: 50, label: 'Serious', desc: '50 XP · ~20 min a day' },
 ];
 
+const HABIT_CHOICES = [
+  'Speak French out loud', 'Review my flashcards', 'Listen to something in French',
+  'Read a short text', 'Learn 5 new words', 'Do one conversation',
+];
+
+const RHYTHMS = [
+  { id: 'daily', label: 'Most days', desc: 'A little every day — the gold standard', goalXp: 30 },
+  { id: 'often', label: 'A few times a week', desc: 'Solid sessions, some rest days', goalXp: 50 },
+  { id: 'weekends', label: 'Mostly weekends', desc: 'Longer, deeper sessions', goalXp: 50 },
+];
+
+const TOUR = [
+  { emoji: '🎙️', title: 'Arena', text: 'Voice roleplay with an AI partner — 40 scenarios from bistro to bank.' },
+  { emoji: '🎯', title: 'Skills', text: 'Speaking, listening, reading and writing drills, each scored.' },
+  { emoji: '🗺️', title: 'Learning Path', text: '12 units and 60 lessons per goal, with checkpoints and knowledge stats.' },
+  { emoji: '🗂️', title: 'Vocab & Memory', text: '42 packs and 520+ cards on SM-2 spaced repetition.' },
+  { emoji: '🏛️', title: 'Culture & Reference', text: 'Cultural notes, 25 grammar topics, conjugations and a 2,000-word dictionary.' },
+];
+
 const DEFAULTS = {
   name: '', goal: 'travel', level: 'B1', dailyGoal: 30, weeklyGoal: 150,
   learningStyle: 'balanced', favouriteTopics: ['travel', 'food'], lessonLength: 'medium',
   avatarId: 'sourire', reminders: false, habits: ['Speak French out loud', 'Review my flashcards'],
-  apiKey: '', mock: false,
+  apiKey: '', mock: false, rhythm: 'daily',
 };
 
-// step id → section for the labelled progress indicator
+// step index → section for the labelled progress indicator
 const SECTIONS = ['Welcome', 'About you', 'Your studio', 'Allons-y'];
-const SECTION_OF = [0, 1, 1, 1, 2, 2, 2, 3, 3];
+const SECTION_OF = [0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3];
 
 export default function Onboarding({ open, onComplete, onSkip }) {
   const [step, setStep] = useState(0);
@@ -57,15 +78,17 @@ export default function Onboarding({ open, onComplete, onSkip }) {
   const chooseGoal = (g) => set({ goal: g.id, favouriteTopics: [...new Set([...d.favouriteTopics, ...g.topics])] });
   const toggleTopic = (id) => set({ favouriteTopics: d.favouriteTopics.includes(id) ? d.favouriteTopics.filter((t) => t !== id) : [...d.favouriteTopics, id] });
 
+  const toggleHabit = (name) => set({ habits: d.habits.includes(name) ? d.habits.filter((h) => h !== name) : [...d.habits, name] });
+
   // Quick start: good defaults + working demo, straight to the finish step.
   const quickStart = () => {
     set({ mock: true });
-    setStep(8);
+    setStep(14);
   };
 
   const steps = [
     {
-      title: 'Bienvenue !', subtitle: 'Ready in about a minute',
+      title: 'Bienvenue !', subtitle: 'A guided setup for your whole studio',
       body: (
         <div className="text-center space-y-5 py-2">
           <div className="text-6xl">🇫🇷</div>
@@ -111,6 +134,19 @@ export default function Onboarding({ open, onComplete, onSkip }) {
       ),
     },
     {
+      title: 'How often will you practise?', subtitle: 'Honest answers make better plans',
+      body: (
+        <div className="space-y-3">
+          <Cards
+            items={RHYTHMS.map((r) => ({ id: r.id, label: r.label, desc: r.desc }))}
+            selected={d.rhythm}
+            onPick={(r) => { const rr = RHYTHMS.find((x) => x.id === r.id); set({ rhythm: rr.id, dailyGoal: rr.goalXp, weeklyGoal: rr.goalXp * 5 }); }}
+          />
+          <p className="text-[11px] text-ink3 text-center">Little and often beats cramming — spaced practice is how memory works.</p>
+        </div>
+      ),
+    },
+    {
       title: 'Set a daily goal', subtitle: 'Weekly goal is set automatically',
       body: <Cards items={GOAL_XP} selected={d.dailyGoal} onPick={(g) => set({ dailyGoal: g.id, weeklyGoal: g.id * 5 })} />,
     },
@@ -136,6 +172,10 @@ export default function Onboarding({ open, onComplete, onSkip }) {
       ),
     },
     {
+      title: 'How long are your sessions?', subtitle: 'Sets how many activities a plan holds',
+      body: <Cards items={LESSON_LENGTHS.map((l) => ({ id: l.id, label: l.title, desc: l.minutes }))} selected={d.lessonLength} onPick={(l) => set({ lessonLength: l.id })} />,
+    },
+    {
       title: 'Choose an avatar', subtitle: 'Your face around the studio',
       body: (
         <div className="grid grid-cols-3 gap-2.5">
@@ -146,6 +186,42 @@ export default function Onboarding({ open, onComplete, onSkip }) {
               <span className="block text-[11px] font-semibold text-ink mt-1 truncate" lang="fr">{a.name}</span>
             </button>
           ))}
+        </div>
+      ),
+    },
+    {
+      title: 'Build a habit', subtitle: 'Pick the daily habits you want to track',
+      body: (
+        <div className="space-y-2">
+          {HABIT_CHOICES.map((h) => {
+            const on = d.habits.includes(h);
+            return (
+              <button key={h} onClick={() => toggleHabit(h)} aria-pressed={on}
+                className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left border transition-colors ${on ? 'bg-surface2 border-ink' : 'bg-surface border-line hover:border-ink3'}`}>
+                <span className={`w-7 h-7 shrink-0 grid place-items-center rounded-full border ${on ? 'bg-accent text-onaccent border-accent' : 'border-line text-ink3'}`}><Check size={14} /></span>
+                <span className="text-sm text-ink">{h}</span>
+              </button>
+            );
+          })}
+        </div>
+      ),
+    },
+    {
+      title: 'Gentle reminders?', subtitle: 'One nudge a day when reviews pile up',
+      body: (
+        <div className="space-y-3">
+          <Cards
+            items={[
+              { id: true, label: 'Yes, remind me', desc: 'A single daily nudge, never more' },
+              { id: false, label: 'No thanks', desc: 'I\'ll keep my own rhythm' },
+            ]}
+            selected={d.reminders}
+            onPick={(o) => set({ reminders: o.id })}
+          />
+          <p className="text-[11px] text-ink3 text-center">
+            Nothing is asked of your browser now — if you opt in, you'll confirm the
+            notification permission later, in Settings, when it's actually needed.
+          </p>
         </div>
       ),
     },
@@ -168,6 +244,36 @@ export default function Onboarding({ open, onComplete, onSkip }) {
           <p className="text-[11px] text-ink3">
             No account either way — reminders, if you want them later, live in Settings.
           </p>
+        </div>
+      ),
+    },
+    {
+      title: 'A quick tour', subtitle: 'Where everything lives',
+      body: (
+        <div className="space-y-2.5">
+          {TOUR.map((t) => (
+            <div key={t.title} className="flex items-start gap-3 bg-surface border border-line rounded-2xl px-4 py-3">
+              <span className="text-2xl shrink-0" aria-hidden="true">{t.emoji}</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-ink">{t.title}</span>
+                <span className="block text-xs text-ink3">{t.text}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      title: 'Say your first phrase', subtitle: 'Out loud — that\'s the whole method',
+      body: (
+        <div className="text-center space-y-4 py-2">
+          <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+            <p className="text-lg font-semibold text-ink" lang="fr">« Bonjour ! »</p>
+            <p className="text-xs text-ink3 italic">"Hello!"</p>
+            <div className="flex justify-center"><SpeakButton text="Bonjour !" label="Listen" /></div>
+          </div>
+          <p className="text-xs text-ink2">Listen, then say it out loud. Yes, really out loud — speaking from minute
+            one is what makes this studio work.</p>
         </div>
       ),
     },
