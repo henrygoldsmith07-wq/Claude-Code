@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LISTENING_KINDS, LISTENING_TRACKS, getTrack } from '../lib/listening';
 import { recordSkillScore } from '../lib/storage';
 import { speakLines, stopSpeaking } from '../lib/tts';
 import Dictation from './Dictation';
+import AudioCourse from './AudioCourse';
 import { Volume, Play, Square, ChevronLeft, ChevronRight, Check, X, RefreshCw } from './icons';
 
 // Listening hub: TTS-narrated tracks (mini-podcasts, dialogues, news,
@@ -14,6 +15,13 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
     return (
       <Shell title="Dictée" onBack={() => onModeChange(null)}>
         <Dictation ttsRate={ttsRate} onXp={onXp} onActivity={onActivity} />
+      </Shell>
+    );
+  }
+  if (mode === 'course') {
+    return (
+      <Shell title="Cours audio" onBack={() => onModeChange(null)}>
+        <AudioCourse ttsRate={ttsRate} onXp={onXp} />
       </Shell>
     );
   }
@@ -43,6 +51,18 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
           <span className="flex-1">
             <span className="block text-sm font-semibold text-ink">Dictée</span>
             <span className="block text-xs text-ink3">Type what you hear, word by word</span>
+          </span>
+          <ChevronRight size={16} className="text-ink3 shrink-0" />
+        </button>
+
+        <button
+          onClick={() => onModeChange('course')}
+          className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+        >
+          <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink"><Play size={18} /></span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-ink">Cours audio — hands-free</span>
+            <span className="block text-xs text-ink3">Listen, repeat aloud, learn — no taps needed</span>
           </span>
           <ChevronRight size={16} className="text-ink3 shrink-0" />
         </button>
@@ -102,12 +122,24 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [showTranslations, setShowTranslations] = useState(false);
   const [quiz, setQuiz] = useState(null); // { index, correct, picked, done }
+  // Real recorded audio: tracks with audioSrc play the MP3 from /audio/;
+  // if the file is missing (it's a drop-in — see public/audio/README.md)
+  // we fall back to TTS so the track still works.
+  const [audioFailed, setAudioFailed] = useState(false);
+  const audioRef = useRef(null);
+  const hasRealAudio = Boolean(track.audioSrc) && !audioFailed;
 
-  useEffect(() => () => stopSpeaking(), []);
+  useEffect(() => () => { stopSpeaking(); audioRef.current?.pause(); }, []);
 
   const play = () => {
     setPlaying(true);
     setCurrentLine(-1);
+    if (hasRealAudio && audioRef.current) {
+      audioRef.current.playbackRate = rate;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => setAudioFailed(true));
+      return;
+    }
     speakLines(track.lines, {
       rate,
       onLine: setCurrentLine,
@@ -121,6 +153,7 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
 
   const stop = () => {
     stopSpeaking();
+    if (audioRef.current) audioRef.current.pause();
     setPlaying(false);
     setCurrentLine(-1);
     setListened(true);
@@ -146,8 +179,25 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
 
   return (
     <div className="space-y-4">
+      {/* hidden native audio element for real recordings */}
+      {track.audioSrc && (
+        <audio
+          ref={audioRef}
+          src={track.audioSrc}
+          preload="metadata"
+          onError={() => setAudioFailed(true)}
+          onEnded={() => { setPlaying(false); setListened(true); }}
+        />
+      )}
       {/* player */}
       <div className="bg-surface border border-line rounded-2xl p-5 space-y-4">
+        {track.audioSrc && (
+          <p className="text-[11px] text-ink3 text-center -mb-1">
+            {hasRealAudio
+              ? '🎙️ Real native recording'
+              : 'Recording not installed — playing with TTS (see public/audio/README.md).'}
+          </p>
+        )}
         <div className="flex items-center justify-center gap-3">
           {playing ? (
             <button onClick={stop} aria-label="Stop" className="btn btn-primary w-14 h-14 rounded-full">

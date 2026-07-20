@@ -4,6 +4,7 @@
 // All audio is synthesized locally; no external media, no link rot.
 
 export const LISTENING_KINDS = [
+  { id: 'authentique', title: 'Authentic audio', description: 'Real recorded voices — public-domain readings' },
   { id: 'podcast', title: 'Mini-podcasts', description: 'Short monologues on everyday topics' },
   { id: 'dialogue', title: 'Dialogues', description: 'Two voices, real back-and-forth' },
   { id: 'news', title: 'News bulletins', description: 'Radio-style headlines, read at pace' },
@@ -162,6 +163,49 @@ export const LISTENING_TRACKS = [
     questions: [
       { q: 'What is wrong with the customer?', options: ['A headache', 'A fever', 'A stomach ache'], answer: 0 },
       { q: 'When should they take the tablet?', options: ['After meals', 'Before meals', 'Only at night'], answer: 0 },
+    ],
+  },
+  // Authentic audio: tracks that play a real recorded MP3 from /audio/ when
+  // present (see public/audio/README.md for the public-domain sources); if
+  // the file is missing the player falls back to TTS so nothing breaks.
+  {
+    id: 'auth-corbeau',
+    kind: 'authentique',
+    cefr: 'B2',
+    title: 'Le Corbeau et le Renard — lu à voix haute',
+    description: 'La Fontaine (1668), read by a native speaker. Public domain.',
+    audioSrc: '/audio/corbeau.mp3',
+    lines: [
+      { fr: "Maître Corbeau, sur un arbre perché, tenait en son bec un fromage.", en: 'Master Crow, perched on a tree, held a cheese in his beak.' },
+      { fr: "Maître Renard, par l'odeur alléché, lui tint à peu près ce langage :", en: 'Master Fox, drawn by the smell, addressed him more or less like this:' },
+      { fr: "« Hé ! bonjour, Monsieur du Corbeau. Que vous êtes joli ! que vous me semblez beau !", en: '"Hey! Good day, Sir Crow. How pretty you are! How handsome you seem!' },
+      { fr: "Sans mentir, si votre ramage se rapporte à votre plumage, vous êtes le Phénix des hôtes de ces bois. »", en: 'Truly, if your song matches your plumage, you are the Phoenix of these woods."' },
+      { fr: "À ces mots le Corbeau ne se sent pas de joie ; et pour montrer sa belle voix, il ouvre un large bec, laisse tomber sa proie.", en: 'At these words the Crow is beside himself with joy; and to show off his fine voice, he opens a wide beak and drops his prize.' },
+      { fr: "Le Renard s'en saisit, et dit : « Mon bon Monsieur, apprenez que tout flatteur vit aux dépens de celui qui l'écoute. »", en: 'The Fox seizes it and says: "My good sir, learn that every flatterer lives at the expense of the one who listens."' },
+    ],
+    questions: [
+      { q: 'What does the Fox want?', options: ['The cheese', 'The tree', 'A song lesson'], answer: 0 },
+      { q: 'How does he get it?', options: ['By flattering the Crow into singing', 'By climbing up', 'By trading'], answer: 0 },
+    ],
+  },
+  {
+    id: 'auth-cigale',
+    kind: 'authentique',
+    cefr: 'B2',
+    title: 'La Cigale et la Fourmi — lue à voix haute',
+    description: 'La Fontaine (1668), read by a native speaker. Public domain.',
+    audioSrc: '/audio/cigale.mp3',
+    lines: [
+      { fr: "La Cigale, ayant chanté tout l'été, se trouva fort dépourvue quand la bise fut venue :", en: 'The Cicada, having sung all summer, found herself most destitute when the north wind came:' },
+      { fr: "pas un seul petit morceau de mouche ou de vermisseau.", en: 'not a single little morsel of fly or worm.' },
+      { fr: "Elle alla crier famine chez la Fourmi sa voisine,", en: 'She went to cry famine at the home of her neighbour the Ant,' },
+      { fr: "la priant de lui prêter quelque grain pour subsister jusqu'à la saison nouvelle.", en: 'begging her to lend some grain to survive until the new season.' },
+      { fr: "« Que faisiez-vous au temps chaud ? dit-elle à cette emprunteuse. — Nuit et jour à tout venant, je chantais, ne vous déplaise. »", en: '"What were you doing in the warm weather?" she said to the borrower. "Night and day, for all comers, I sang, if you please."' },
+      { fr: "« Vous chantiez ? j'en suis fort aise. Eh bien ! dansez maintenant. »", en: '"You sang? I am delighted. Well then — dance now."' },
+    ],
+    questions: [
+      { q: 'Why is the Cicada hungry?', options: ['She sang all summer instead of storing food', 'The Ant stole her food', 'The winter was unusually long'], answer: 0 },
+      { q: 'What is the Ant\'s answer?', options: ['"You sang? Then dance now."', 'She lends the grain', 'She invites her in'], answer: 0 },
     ],
   },
 ];
