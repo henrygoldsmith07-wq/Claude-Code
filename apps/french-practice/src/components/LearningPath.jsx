@@ -3,10 +3,13 @@ import { getRoadmap, currentLesson, pathFinished, lessonProgress } from '../lib/
 import { GOALS } from '../lib/path';
 import {
   Map, ChevronRight, Check, Lock, CheckCircle, Target,
-  MessageCircle, Volume, Layers, Clock, SCENARIO_ICONS,
+  MessageCircle, Volume, Layers, Clock, Book, BookOpen, SCENARIO_ICONS,
 } from './icons';
 
-const LESSON_ICONS = { scenario: MessageCircle, dictation: Volume, cards: Layers, quickfire: Clock, checkpoint: Target };
+const LESSON_ICONS = {
+  scenario: MessageCircle, dictation: Volume, cards: Layers, quickfire: Clock,
+  grammar: Book, reading: BookOpen, listening: Volume, checkpoint: Target,
+};
 
 const lessonIcon = (lesson) =>
   (lesson.scenarioId && SCENARIO_ICONS[lesson.scenarioId]) || LESSON_ICONS[lesson.type] || MessageCircle;

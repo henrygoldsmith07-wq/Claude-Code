@@ -228,9 +228,15 @@ export default function App() {
         setLastScores(null);
       }
     }
-    const tabFor = { scenario: 'arena', checkpoint: 'arena', dictation: 'skills', cards: 'cards', quickfire: 'skills' };
+    const tabFor = {
+      scenario: 'arena', checkpoint: 'arena', dictation: 'skills', cards: 'cards',
+      quickfire: 'skills', grammar: 'grammar', reading: 'skills', listening: 'skills',
+    };
     if (lesson.type === 'dictation') { setSkillArea('listening'); setListeningMode('dictation'); }
     if (lesson.type === 'quickfire') { setSkillArea('speaking'); setSpeakingMode('quickfire'); }
+    if (lesson.type === 'grammar') setGrammarFocus(lesson.topicId);
+    if (lesson.type === 'reading') setSkillArea('reading');
+    if (lesson.type === 'listening') { setSkillArea('listening'); setListeningMode(lesson.trackId); }
     setTab(tabFor[lesson.type] || 'arena');
   };
 
@@ -434,6 +440,7 @@ export default function App() {
               focusTopicId={grammarFocus}
               onFocusConsumed={() => setGrammarFocus(null)}
               onXp={awardXp}
+              onActivity={handleActivity}
             />
           )}
           {tab === 'dev' && (

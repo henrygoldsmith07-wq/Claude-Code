@@ -24,14 +24,14 @@ const VOCAB_DICT = (() => {
   return dict;
 })();
 
-export default function Reading({ apiKey, mockMode, onXp }) {
+export default function Reading({ apiKey, mockMode, onXp, onActivity }) {
   const [textId, setTextId] = useState(null);
   const text = textId ? getText(textId) : null;
 
   if (text) {
     return text.kind === 'story'
       ? <StoryReader key={text.id} text={text} apiKey={apiKey} mockMode={mockMode} onBack={() => setTextId(null)} />
-      : <TextReader key={text.id} text={text} apiKey={apiKey} mockMode={mockMode} onXp={onXp} onBack={() => setTextId(null)} />;
+      : <TextReader key={text.id} text={text} apiKey={apiKey} mockMode={mockMode} onXp={onXp} onActivity={onActivity} onBack={() => setTextId(null)} />;
   }
 
   return (
@@ -187,7 +187,7 @@ function useWordLookup(text, apiKey, mockMode) {
   return { lookup, onWord, close: () => setLookup(null) };
 }
 
-function TextReader({ text, apiKey, mockMode, onXp, onBack }) {
+function TextReader({ text, apiKey, mockMode, onXp, onActivity, onBack }) {
   const [showEnglish, setShowEnglish] = useState(false);
   const [quiz, setQuiz] = useState(null);
   const { lookup, onWord, close } = useWordLookup(text, apiKey, mockMode);
@@ -202,6 +202,7 @@ function TextReader({ text, apiKey, mockMode, onXp, onBack }) {
       const gained = Math.max(1, quiz.correct * 5);
       onXp(gained);
       recordSkillScore('reading', Math.round((quiz.correct / text.questions.length) * 100));
+      onActivity?.({ type: 'reading', textId: text.id });
       setQuiz({ ...quiz, done: true, gained });
     }
   };

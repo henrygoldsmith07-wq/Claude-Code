@@ -17,25 +17,35 @@ export const GOALS = [
 //   dictation  → N dictée sentences checked
 //   cards      → N flashcards rated
 //   quickfire  → one 45s improv completed
+//   grammar    → finish the given topic's scored quiz
+//   reading    → finish the given text's comprehension quiz
+//   listening  → finish the given track's comprehension quiz
 //   checkpoint → a scored conversation; pass requires report avg ≥ passScore
 const L = {
   scenario: (id, title) => ({ type: 'scenario', scenarioId: id, title, need: 1 }),
   dictation: (title, need = 3) => ({ type: 'dictation', title, need }),
   cards: (title, need = 5) => ({ type: 'cards', title, need }),
   quickfire: (title) => ({ type: 'quickfire', title, need: 1 }),
+  grammar: (topicId, title) => ({ type: 'grammar', topicId, title, need: 1 }),
+  reading: (textId, title) => ({ type: 'reading', textId, title, need: 1 }),
+  listening: (trackId, title) => ({ type: 'listening', trackId, title, need: 1 }),
   checkpoint: (id, title) => ({ type: 'checkpoint', scenarioId: id, title, need: 1, passScore: 70 }),
 };
 
+// Six units per goal, five lessons per unit — every unit mixes conversation
+// with grammar, reading or listening so a "lesson" works all four skills.
 const ROADMAPS = {
   travel: [
     { id: 'tr1', title: 'Café & Restaurant', lessons: [
       L.scenario('bistro', 'Order lunch at a bistro'),
+      L.grammar('present', 'Grammar: the present tense'),
       L.cards('Filler words for small talk'),
       L.dictation('Train your ear: menus & greetings'),
       L.checkpoint('bistro', 'Checkpoint: handle a full bistro visit'),
     ]},
     { id: 'tr2', title: 'Getting Around', lessons: [
       L.scenario('vol', 'Rebook a cancelled flight'),
+      L.reading('read-lyon', 'Read: a weekend in Lyon'),
       L.quickfire('Improv: describe your journey'),
       L.dictation('Train your ear: announcements'),
       L.checkpoint('vol', 'Checkpoint: negotiate with the airline'),
@@ -43,25 +53,43 @@ const ROADMAPS = {
     { id: 'tr3', title: 'Markets & Services', lessons: [
       L.scenario('marche', 'Shop at the open-air market'),
       L.scenario('poste', 'Send a package abroad'),
+      L.grammar('articles', 'Grammar: articles & quantities'),
       L.cards('Review your weak vocabulary'),
       L.checkpoint('marche', 'Checkpoint: haggle like a local'),
     ]},
-    { id: 'tr4', title: 'Living Local', lessons: [
+    { id: 'tr4', title: 'Money & Errands', lessons: [
+      L.scenario('banque', 'Open an account at the bank'),
+      L.grammar('comparatif', 'Grammar: comparing things'),
+      L.listening('news-matin', 'Listen: the morning news'),
+      L.dictation('Train your ear: numbers & prices'),
+      L.checkpoint('banque', 'Checkpoint: sort out the bank'),
+    ]},
+    { id: 'tr5', title: 'Health Abroad', lessons: [
+      L.scenario('pharmacie', 'Ask a pharmacist for help'),
+      L.scenario('medecin', 'Describe symptoms to a doctor'),
+      L.listening('dial-pharmacie', 'Listen: at the pharmacy'),
+      L.cards('Review your weak vocabulary'),
+      L.checkpoint('medecin', 'Checkpoint: get through the appointment'),
+    ]},
+    { id: 'tr6', title: 'Living Local', lessons: [
       L.scenario('colloc', 'View a flat-share'),
+      L.scenario('logement', 'Rent a flat from an agent'),
+      L.reading('article-cafe', 'Read: café-terrace culture'),
       L.quickfire('Improv: your ideal neighbourhood'),
-      L.dictation('Train your ear: everyday chat'),
-      L.checkpoint('colloc', 'Checkpoint: win over the flatmates'),
+      L.checkpoint('logement', 'Checkpoint: land the lease'),
     ]},
   ],
   school: [
     { id: 'sc1', title: 'Campus Life', lessons: [
       L.scenario('colloc', 'Find student housing'),
+      L.grammar('present', 'Grammar: the present tense'),
       L.cards('Conversational glue words'),
       L.dictation('Train your ear: campus chatter'),
       L.checkpoint('colloc', 'Checkpoint: settle the flat-share'),
     ]},
     { id: 'sc2', title: 'Professors & Assignments', lessons: [
       L.scenario('cours', 'Office hours with your professor'),
+      L.grammar('passe-compose', 'Grammar: talking about the past'),
       L.quickfire('Improv: explain what you study'),
       L.dictation('Train your ear: instructions'),
       L.checkpoint('cours', 'Checkpoint: negotiate an extension'),
@@ -69,25 +97,43 @@ const ROADMAPS = {
     { id: 'sc3', title: 'Everyday Errands', lessons: [
       L.scenario('poste', 'Post office paperwork'),
       L.scenario('bistro', 'Coffee between lectures'),
+      L.listening('pod-habitudes', 'Listen: a morning routine'),
       L.cards('Review your weak vocabulary'),
       L.checkpoint('bistro', 'Checkpoint: a full café conversation'),
     ]},
-    { id: 'sc4', title: 'Presentations', lessons: [
+    { id: 'sc4', title: 'Reading & Research', lessons: [
+      L.reading('art-boulangerie', 'Read: a magazine feature'),
+      L.grammar('pronoms', 'Grammar: object pronouns'),
+      L.reading('book-corbeau', 'Read: a La Fontaine fable'),
+      L.dictation('Train your ear: academic French'),
+      L.checkpoint('cours', 'Checkpoint: discuss what you read'),
+    ]},
+    { id: 'sc5', title: 'Student Budget', lessons: [
+      L.scenario('banque', 'Set up a student account'),
+      L.scenario('logement', 'Negotiate a student let'),
+      L.grammar('comparatif', 'Grammar: comparing options'),
+      L.cards('Review your weak vocabulary'),
+      L.checkpoint('banque', 'Checkpoint: money matters, in French'),
+    ]},
+    { id: 'sc6', title: 'Presentations', lessons: [
       L.quickfire('Improv: defend an opinion'),
       L.scenario('cours', 'Discuss your presentation plan'),
-      L.dictation('Train your ear: academic French'),
+      L.grammar('subjonctif', 'Grammar: the subjunctive'),
+      L.dictation('Train your ear: fast questions'),
       L.checkpoint('cours', 'Checkpoint: field the professor’s questions'),
     ]},
   ],
   business: [
     { id: 'bu1', title: 'The Interview', lessons: [
       L.scenario('entretien', 'Introduce yourself and your background'),
+      L.grammar('futur-conditionnel', 'Grammar: polite conditionals'),
       L.cards('Professional connectors'),
       L.dictation('Train your ear: formal French'),
       L.checkpoint('entretien', 'Checkpoint: the tough questions'),
     ]},
     { id: 'bu2', title: 'Meetings', lessons: [
       L.scenario('reunion', 'Give a project update'),
+      L.listening('pod-teletravail', 'Listen: remote work, debated'),
       L.quickfire('Improv: pitch an idea in 45s'),
       L.dictation('Train your ear: meeting speak'),
       L.checkpoint('reunion', 'Checkpoint: handle a moved deadline'),
@@ -95,12 +141,28 @@ const ROADMAPS = {
     { id: 'bu3', title: 'Business Travel', lessons: [
       L.scenario('vol', 'Rebook a work trip'),
       L.scenario('bistro', 'A client lunch'),
+      L.reading('article-cafe', 'Read: café culture for client chat'),
       L.cards('Review your weak vocabulary'),
       L.checkpoint('vol', 'Checkpoint: fix the travel crisis'),
     ]},
-    { id: 'bu4', title: 'Office Small Talk', lessons: [
+    { id: 'bu4', title: 'Banking & Admin', lessons: [
+      L.scenario('banque', 'Discuss accounts and fees'),
+      L.grammar('subjonctif', 'Grammar: il faut que…'),
+      L.listening('news-matin', 'Listen: the business headlines'),
+      L.dictation('Train your ear: figures & dates'),
+      L.checkpoint('banque', 'Checkpoint: hold your own at the bank'),
+    ]},
+    { id: 'bu5', title: 'Relocation', lessons: [
+      L.scenario('logement', 'Rent near the office'),
+      L.scenario('colloc', 'Meet the new neighbours'),
+      L.grammar('pronoms', 'Grammar: object pronouns'),
+      L.cards('Review your weak vocabulary'),
+      L.checkpoint('logement', 'Checkpoint: close the deal'),
+    ]},
+    { id: 'bu6', title: 'Office Small Talk', lessons: [
       L.quickfire('Improv: Monday-morning chat'),
       L.scenario('reunion', 'Wrap up the quarter'),
+      L.listening('dia-voisin', 'Listen: handling a complaint'),
       L.dictation('Train your ear: colleagues talking'),
       L.checkpoint('reunion', 'Checkpoint: run the meeting yourself'),
     ]},
@@ -108,6 +170,7 @@ const ROADMAPS = {
   fluency: [
     { id: 'fl1', title: 'Everyday Ease', lessons: [
       L.scenario('bistro', 'A natural café exchange'),
+      L.grammar('negation', 'Grammar: natural negation'),
       L.cards('Sound-native filler words'),
       L.quickfire('Improv: whatever comes up'),
       L.checkpoint('marche', 'Checkpoint: banter at the market'),
@@ -115,18 +178,35 @@ const ROADMAPS = {
     { id: 'fl2', title: 'Handling Friction', lessons: [
       L.scenario('vol', 'Push back politely'),
       L.scenario('poste', 'Bureaucracy without tears'),
+      L.listening('dia-voisin', 'Listen: a neighbourly dispute'),
       L.dictation('Train your ear: fast French'),
       L.checkpoint('vol', 'Checkpoint: keep cool under pressure'),
     ]},
     { id: 'fl3', title: 'People & Stories', lessons: [
       L.scenario('colloc', 'Talk about yourself naturally'),
+      L.reading('story-porte', 'Read: an interactive story'),
       L.quickfire('Improv: tell a story'),
       L.cards('Review your weak vocabulary'),
       L.checkpoint('colloc', 'Checkpoint: be genuinely likeable'),
     ]},
-    { id: 'fl4', title: 'The Professional You', lessons: [
+    { id: 'fl4', title: 'Around Town', lessons: [
+      L.scenario('coiffeur', 'Chat through a haircut'),
+      L.scenario('banque', 'An errand at the bank'),
+      L.listening('pod-paris', 'Listen: a year in Paris'),
+      L.grammar('pronoms', 'Grammar: object pronouns'),
+      L.checkpoint('coiffeur', 'Checkpoint: small talk in the chair'),
+    ]},
+    { id: 'fl5', title: 'Body & Health', lessons: [
+      L.scenario('medecin', 'Explain how you feel'),
+      L.scenario('pharmacie', 'Follow the pharmacist’s advice'),
+      L.listening('dial-pharmacie', 'Listen: at the pharmacy'),
+      L.grammar('subjonctif', 'Grammar: the subjunctive'),
+      L.checkpoint('medecin', 'Checkpoint: a full consultation'),
+    ]},
+    { id: 'fl6', title: 'The Professional You', lessons: [
       L.scenario('entretien', 'Your story, professionally'),
       L.scenario('reunion', 'Think aloud in a meeting'),
+      L.reading('news-greve', 'Read: news in journalistic register'),
       L.dictation('Train your ear: register shifts'),
       L.checkpoint('entretien', 'Checkpoint: fully in character'),
     ]},
@@ -227,7 +307,10 @@ export function applyActivity(path, evt) {
     (lesson.type === 'checkpoint' && evt.type === 'session' && evt.scenarioId === lesson.scenarioId) ||
     (lesson.type === 'dictation' && evt.type === 'dictation') ||
     (lesson.type === 'cards' && evt.type === 'cards') ||
-    (lesson.type === 'quickfire' && evt.type === 'quickfire');
+    (lesson.type === 'quickfire' && evt.type === 'quickfire') ||
+    (lesson.type === 'grammar' && evt.type === 'grammar' && evt.topicId === lesson.topicId) ||
+    (lesson.type === 'reading' && evt.type === 'reading' && evt.textId === lesson.textId) ||
+    (lesson.type === 'listening' && evt.type === 'listening' && evt.trackId === lesson.trackId);
   if (!matches) return out;
 
   out.changed = true;

@@ -20,7 +20,7 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
   if (mode && getTrack(mode)) {
     return (
       <Shell title={getTrack(mode).title} onBack={() => onModeChange(null)}>
-        <TrackPlayer track={getTrack(mode)} baseRate={ttsRate} onXp={onXp} />
+        <TrackPlayer track={getTrack(mode)} baseRate={ttsRate} onXp={onXp} onActivity={onActivity} />
       </Shell>
     );
   }
@@ -94,7 +94,7 @@ function Shell({ title, onBack, children }) {
   );
 }
 
-function TrackPlayer({ track, baseRate, onXp }) {
+function TrackPlayer({ track, baseRate, onXp, onActivity }) {
   const [rate, setRate] = useState(baseRate);
   const [playing, setPlaying] = useState(false);
   const [currentLine, setCurrentLine] = useState(-1);
@@ -139,6 +139,7 @@ function TrackPlayer({ track, baseRate, onXp }) {
       const gained = Math.max(1, quiz.correct * 5);
       onXp(gained);
       recordSkillScore('listening', Math.round((quiz.correct / track.questions.length) * 100));
+      onActivity?.({ type: 'listening', trackId: track.id });
       setQuiz({ ...quiz, done: true, gained });
     }
   };

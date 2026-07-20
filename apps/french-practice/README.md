@@ -21,11 +21,14 @@ validated against the `/models` endpoint before being stored. Or flip on
 ## Features
 
 - **Learning Path** — pick a goal (travel, school, business, fluency), take a
-  12-question placement test (A1–C2), and follow a personal roadmap of units
-  whose lessons reuse the app's activities (conversations, dictée, SRS cards,
-  quick fire). Each unit ends in a scored conversation checkpoint; two strong
-  checkpoints in a row move your CEFR level up, and every LLM prompt tracks it.
-  When flashcards pile up, a smart-review step is suggested before the lesson.
+  12-question placement test (A1–C2), and follow a personal roadmap of six
+  units (30 lessons) whose lessons span every activity in the app:
+  conversations, dictée, SRS cards, quick fire, grammar-topic quizzes,
+  reading comprehension and listening comprehension — each unit mixes
+  speaking with at least one grammar/reading/listening lesson. Each unit ends
+  in a scored conversation checkpoint; two strong checkpoints in a row move
+  your CEFR level up, and every LLM prompt tracks it. When flashcards pile
+  up, a smart-review step is suggested before the lesson.
 - **Home dashboard** — the daily loop: XP goal ring, streak, a personalized
   "Today's focus" carried over from your last session report, the count of
   flashcards due for review, and a suggested (least-practiced) scenario.

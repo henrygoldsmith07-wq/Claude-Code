@@ -16,7 +16,7 @@ const STEPS = [
   ['quiz', 'Quiz'],
 ];
 
-export default function Grammar({ focusTopicId, onFocusConsumed, onXp }) {
+export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivity }) {
   const [topicId, setTopicId] = useState(null);
   const [tick, setTick] = useState(0);
   const progress = getGrammarProgress();
@@ -39,6 +39,7 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp }) {
         onQuizFinish={(score) => {
           recordGrammarQuiz(topicId, score);
           onXp(Math.max(1, Math.round(score / 10)));
+          onActivity?.({ type: 'grammar', topicId, score });
           setTick((t) => t + 1);
         }}
       />
