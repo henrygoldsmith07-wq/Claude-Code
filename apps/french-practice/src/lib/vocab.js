@@ -4,6 +4,7 @@
 // pack (same ids, so existing SRS history carries over).
 
 import { FLASHCARDS } from './data';
+import { EXTRA_VOCAB_PACKS } from './vocab-extra';
 
 // freq: 1 = top 100 words, 2 = top 500, 3 = top 1000, 4 = top 5000, 5 = rare/niche
 export const FREQ_LABELS = { 1: 'Top 100', 2: 'Top 500', 3: 'Top 1000', 4: 'Top 5000', 5: 'Niche' };
@@ -285,6 +286,7 @@ export const VOCAB_PACKS = [
       note: c.register,
     })),
   },
+  ...EXTRA_VOCAB_PACKS,
 ];
 
 export const getPack = (id) => VOCAB_PACKS.find((p) => p.id === id);
