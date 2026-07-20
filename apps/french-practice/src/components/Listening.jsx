@@ -125,7 +125,10 @@ function Shell({ title, onBack, children }) {
           <button onClick={onBack} aria-label="Back to listening" className="w-10 h-10 grid place-items-center rounded-full bg-surface2 text-ink2 hover:bg-line">
             <ChevronLeft size={18} />
           </button>
-          <h2 className="flex-1 text-center text-sm font-semibold text-ink truncate" lang="fr">{title}</h2>
+          <div className="flex-1 min-w-0 text-center">
+            <p className="text-[10px] text-ink3 uppercase tracking-wider">Listening</p>
+            <h2 className="text-sm font-semibold text-ink truncate" lang="fr">{title}</h2>
+          </div>
           <span className="w-10" aria-hidden="true" />
         </div>
         {children}
