@@ -335,25 +335,27 @@ export default function App() {
           Le Studio
           <span className="sr-only"> — French speaking practice</span>
         </h1>
-        <span
+        <button
+          onClick={() => setProfileOpen(true)}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
             streak.count > 0 ? 'bg-surface2 text-ink' : 'bg-surface2 text-ink3'
           }`}
-          title="Day streak"
+          title="Day streak — tap for your stats"
+          aria-label={`${streak.count}-day streak — open your stats`}
         >
           <Flame size={13} /> {streak.count}
-        </span>
-        <span className="relative flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-semibold whitespace-nowrap" title="Experience points">
+        </button>
+        <button onClick={() => setProfileOpen(true)} aria-label={`${xp} XP — open your stats`} className="relative flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-semibold whitespace-nowrap" title="Experience points — tap for your stats">
           <Bolt size={13} /> {xp.toLocaleString('en-GB')} XP
           {xpGain && (
             <span key={xpGain.id} className="xp-pop absolute -top-1 right-0 text-ink font-bold text-xs pointer-events-none">
               +{xpGain.amount}
             </span>
           )}
-        </span>
-        <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-semibold whitespace-nowrap" title="Coins">
+        </button>
+        <button onClick={() => setProfileOpen(true)} aria-label={`${coins} coins — open your stats`} className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface2 text-ink text-xs font-semibold whitespace-nowrap" title="Coins — tap for your stats">
           <CoinsIcon size={13} /> {coins}
-        </span>
+        </button>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setSearchOpen(true)}

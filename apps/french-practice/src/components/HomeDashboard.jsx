@@ -107,6 +107,29 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           )}
         </section>
 
+        {/* surprise me: one tap into a random corner of the studio */}
+        <button
+          onClick={() => {
+            const rolls = [
+              () => { onPickScenario(SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)]); onNavigate('arena'); },
+              () => onNavigate('grammar'),
+              () => onStartLesson({ type: 'cards' }),
+              () => onNavigate('culture'),
+              () => onStartLesson({ type: 'dictation' }),
+              () => onStartLesson({ type: 'quickfire' }),
+            ];
+            rolls[Math.floor(Math.random() * rolls.length)]();
+          }}
+          className="w-full flex items-center gap-3 bg-surface border border-dashed border-line rounded-2xl px-4 py-3 text-left hover:border-ink3 transition-colors"
+        >
+          <span className="text-xl" aria-hidden="true">🎲</span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-ink">Surprise me</span>
+            <span className="block text-xs text-ink3">Jump into a random corner of the studio</span>
+          </span>
+          <ChevronRight size={16} className="text-ink3 shrink-0" />
+        </button>
+
         {/* getting-started checklist: live tutorial, replaces the old static tour */}
         <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
 
