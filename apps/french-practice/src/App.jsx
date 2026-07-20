@@ -11,6 +11,8 @@ import Skills from './components/Skills';
 import AiHub from './components/AiHub';
 import PathSetup from './components/PathSetup';
 import { getPath, applyActivity } from './lib/path';
+import { getGrammarTopic } from './lib/grammar';
+import { getTrack } from './lib/listening';
 import { SCENARIOS } from './lib/data';
 import Profile from './components/Profile';
 import Culture from './components/Culture';
@@ -30,7 +32,7 @@ import {
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
-  shouldOnboard, setOnboarded,
+  shouldOnboard, setOnboarded, setLastActivity, getLastActivity,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
@@ -238,11 +240,23 @@ export default function App() {
   const handleTurn = (scores) => {
     setLastScores(scores);
     awardXp(Math.max(1, Math.round(scores.overall / 10)));
+    setLastActivity('session', scenario.id, `Conversation: ${scenario.title}`);
   };
 
   // Learning-path progression: components report activity; the path engine
   // decides whether it satisfies the current lesson / checkpoint.
   const handleActivity = (evt) => {
+    // Remember what the learner was doing so Home can offer to resume it.
+    const labels = {
+      cards: 'Flashcard review',
+      dictation: 'Dictée practice',
+      quickfire: 'Quick Fire improv',
+      session: evt.scenarioId ? `Conversation: ${SCENARIOS.find((x) => x.id === evt.scenarioId)?.title || ''}` : null,
+      grammar: evt.topicId ? `Grammar: ${getGrammarTopic(evt.topicId)?.title || ''}` : null,
+      listening: evt.trackId ? `Listening: ${getTrack(evt.trackId)?.title || ''}` : null,
+      reading: 'Reading practice',
+    };
+    if (labels[evt.type]) setLastActivity(evt.type, evt.scenarioId || evt.topicId || evt.trackId || evt.textId, labels[evt.type]);
     // Daily-challenge metrics count the same activity stream the path uses.
     if (['cards', 'session', 'dictation', 'quickfire'].includes(evt.type)) {
       bumpChallengeMetric(evt.type);
@@ -310,6 +324,21 @@ export default function App() {
     if (hit.type === 'grammar') { setGrammarFocus(hit.id); setTab('grammar'); }
     if (hit.type === 'reading') { setSkillArea('reading'); setTab('skills'); }
     if (hit.type === 'listening') { setSkillArea('listening'); setListeningMode(hit.id); setTab('skills'); }
+  };
+
+  // Home's continue card → jump straight back into the recorded activity.
+  const resumeActivity = (la) => {
+    if (!la) return;
+    if (la.type === 'session') {
+      const sc = SCENARIOS.find((x) => x.id === la.id);
+      if (sc && sc.id !== scenario.id) { setScenario(sc); setHistory([]); setLastScores(null); }
+      setTab('arena');
+    } else if (la.type === 'grammar') { setGrammarFocus(la.id); setTab('grammar'); }
+    else if (la.type === 'listening') { setSkillArea('listening'); setListeningMode(la.id); setTab('skills'); }
+    else if (la.type === 'reading') { setSkillArea('reading'); setTab('skills'); }
+    else if (la.type === 'cards') setTab('cards');
+    else if (la.type === 'dictation') { setSkillArea('listening'); setListeningMode('dictation'); setTab('skills'); }
+    else if (la.type === 'quickfire') { setSkillArea('speaking'); setSpeakingMode('quickfire'); setTab('skills'); }
   };
 
   const endSession = () => {
@@ -447,6 +476,8 @@ export default function App() {
               onOpenAnalytics={() => setAnalyticsOpen(true)}
               onOpenReference={() => setReferenceOpen(true)}
               onOpenFocus={() => setFocusOpen(true)}
+              lastActivity={getLastActivity()}
+              onResume={resumeActivity}
               onPickScenario={(s) => {
                 if (s.id !== scenario.id) {
                   setScenario(s);

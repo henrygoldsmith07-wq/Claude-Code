@@ -21,7 +21,7 @@ function suggestScenario(sessions) {
   return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario }) {
+export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario, lastActivity, onResume }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -106,6 +106,21 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             </p>
           )}
         </section>
+
+        {/* continue where you left off — the shortest path back into flow */}
+        {lastActivity && (
+          <button
+            onClick={() => onResume(lastActivity)}
+            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity"
+          >
+            <span className="text-xl" aria-hidden="true">▶️</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Continue where you left off</span>
+              <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 opacity-70" />
+          </button>
+        )}
 
         {/* surprise me: one tap into a random corner of the studio */}
         <button
