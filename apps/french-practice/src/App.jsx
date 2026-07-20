@@ -274,7 +274,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-dvh flex flex-col bg-bg text-ink font-sans">
+    <div className="h-dvh flex flex-col bg-bg text-ink font-sans app-enter">
       {/* header */}
       <header className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-surface backdrop-blur">
         <h1 className="font-bold text-lg text-ink tracking-tight mr-1 whitespace-nowrap">

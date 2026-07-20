@@ -201,3 +201,6 @@ body {
 
 /* iOS safe areas */
 .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
+
+@keyframes app-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.app-enter { animation: app-enter 0.35s ease-out; }
