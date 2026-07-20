@@ -1,4 +1,5 @@
-import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNotebook, getWeekXp } from '../lib/storage';
+import { useState } from 'react';
+import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNotebook, getWeekXp, getReviewLog, isGettingStartedDismissed, dismissGettingStarted } from '../lib/storage';
 import { encouragement } from '../lib/game';
 import LearningPath from './LearningPath';
 import { SCENARIOS } from '../lib/data';
@@ -105,6 +106,9 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             </p>
           )}
         </section>
+
+        {/* getting-started checklist: live tutorial, replaces the old static tour */}
+        <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
 
         {/* phrase of the day — deterministic by date, always fresh */}
         <PhraseOfTheDay />
@@ -251,6 +255,47 @@ function PhraseOfTheDay() {
           <p className="text-[11px] text-ink3 italic">{e.exampleEn}</p>
         </div>
         <SpeakButton text={e.fr} label="Listen" />
+      </div>
+    </section>
+  );
+}
+
+// A live "first steps" checklist: each item checks off from real activity,
+// and the card disappears once everything's done (or when dismissed).
+function GettingStarted({ path, onStartLesson, onOpenSetup, onNavigate }) {
+  const [dismissed, setDismissed] = useState(isGettingStartedDismissed);
+  const reviews = Object.values(getReviewLog()).reduce((a, b) => a + b, 0);
+  const items = [
+    { done: getSessions().length > 0, label: 'Have your first conversation', go: () => onNavigate('arena') },
+    { done: Boolean(path), label: 'Start your learning path', go: onOpenSetup },
+    { done: reviews >= 5, label: 'Review 5 flashcards', go: () => onStartLesson({ type: 'cards' }) },
+  ];
+  const allDone = items.every((i) => i.done);
+  if (dismissed || allDone) return null;
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Getting started</h3>
+        <button
+          onClick={() => { dismissGettingStarted(); setDismissed(true); }}
+          className="text-[11px] text-ink3 hover:text-ink"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div className="space-y-1.5">
+        {items.map((it) => (
+          <button key={it.label} onClick={it.done ? undefined : it.go} disabled={it.done}
+            className={`w-full flex items-center gap-2.5 text-left rounded-xl px-3 py-2 border transition-colors ${
+              it.done ? 'border-line bg-surface2 opacity-60' : 'border-line bg-surface hover:border-ink3'
+            }`}>
+            <span className={`w-5 h-5 shrink-0 grid place-items-center rounded-full border ${it.done ? 'bg-accent text-onaccent border-accent' : 'border-line text-ink3'}`}>
+              {it.done && <span className="text-[10px]">✓</span>}
+            </span>
+            <span className={`text-xs ${it.done ? 'text-ink3 line-through' : 'text-ink'}`}>{it.label}</span>
+            {!it.done && <ChevronRight size={13} className="ml-auto text-ink3" />}
+          </button>
+        ))}
       </div>
     </section>
   );

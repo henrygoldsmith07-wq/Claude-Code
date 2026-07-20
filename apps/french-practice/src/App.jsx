@@ -175,6 +175,8 @@ export default function App() {
   };
 
   const skipOnboarding = () => {
+    // Guest mode: skipping must land in a working app, not an API-key wall.
+    if (!apiKey && !settings.mockMode) updateSettings({ ...settings, mockMode: true });
     setOnboarded();
     setOnboardingOpen(false);
   };

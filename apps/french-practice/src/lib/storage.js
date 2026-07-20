@@ -27,6 +27,7 @@ const KEYS = {
   freezes: 'fp.freezes', // streak freezes owned (auto-consumed on a 1-day gap)
   vacation: 'fp.vacation', // ISO day until which streak loss is paused
   grammarErrors: 'fp.grammarErrors', // { [topicId]: count } — Arena mistake classifications
+  gettingStarted: 'fp.gettingStarted', // '1' once the Home checklist is dismissed
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
@@ -149,6 +150,11 @@ export function saveSession(summary) {
   recordHabits(summary.report?.stubborn_habits || []);
   bumpStreak();
 }
+
+// ---- getting-started checklist (Home) ----
+
+export const isGettingStartedDismissed = () => read(KEYS.gettingStarted, null) === '1';
+export const dismissGettingStarted = () => write(KEYS.gettingStarted, '1');
 
 // ---- grammar-error categories (Arena classifications, for Analytics) ----
 
