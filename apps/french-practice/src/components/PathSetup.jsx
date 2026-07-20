@@ -1,25 +1,49 @@
 import { useState } from 'react';
 import { Modal } from './ui';
-import { GOALS, PLACEMENT_QUESTIONS, placementResult, createPath } from '../lib/path';
+import { GOALS, PLACEMENT_QUESTIONS, CEFR_LEVELS, createPath } from '../lib/path';
 import { Plane, GraduationCap, Briefcase, MessageCircle, Check, X } from './icons';
 
 const GOAL_ICONS = { travel: Plane, school: GraduationCap, business: Briefcase, fluency: MessageCircle };
 
-// Wizard: pick a goal → optional placement test → path created at your level.
+// Wizard: pick a goal → adaptive placement test → path created at your level.
+// The test is a CAT-style staircase: it starts at B1, moves up a level on a
+// correct answer and down on a wrong one, drawing each question from the
+// current level — 8 questions instead of a fixed 12, converging faster.
+
+const TOTAL = 8;
+const START_IDX = 2; // B1
+
+function pickQuestion(levelIdx, askedQs) {
+  // Nearest unasked question to the current level.
+  for (let d = 0; d < CEFR_LEVELS.length; d += 1) {
+    for (const idx of d === 0 ? [levelIdx] : [levelIdx - d, levelIdx + d]) {
+      if (idx < 0 || idx >= CEFR_LEVELS.length) continue;
+      const q = PLACEMENT_QUESTIONS.find((x) => x.level === CEFR_LEVELS[idx] && !askedQs.includes(x));
+      if (q) return q;
+    }
+  }
+  return null;
+}
 
 export default function PathSetup({ open, onClose, onCreated }) {
   const [step, setStep] = useState('goal'); // goal | test | result
   const [goal, setGoal] = useState(null);
-  const [qIndex, setQIndex] = useState(0);
-  const [answers, setAnswers] = useState([]); // per-question correct booleans
+  const [levelIdx, setLevelIdx] = useState(START_IDX);
+  const [asked, setAsked] = useState([]); // question objects, in order
+  const [count, setCount] = useState(0);
+  const [nCorrect, setNCorrect] = useState(0);
+  const [question, setQuestion] = useState(null);
   const [picked, setPicked] = useState(null); // currently selected option, pre-confirm
   const [level, setLevel] = useState(null);
 
   const reset = () => {
     setStep('goal');
     setGoal(null);
-    setQIndex(0);
-    setAnswers([]);
+    setLevelIdx(START_IDX);
+    setAsked([]);
+    setCount(0);
+    setNCorrect(0);
+    setQuestion(null);
     setPicked(null);
     setLevel(null);
   };
@@ -32,20 +56,29 @@ export default function PathSetup({ open, onClose, onCreated }) {
     reset();
   };
 
-  const answer = () => {
-    const correct = picked === PLACEMENT_QUESTIONS[qIndex].answer;
-    const next = [...answers, correct];
-    setAnswers(next);
-    setPicked(null);
-    if (qIndex + 1 < PLACEMENT_QUESTIONS.length) {
-      setQIndex(qIndex + 1);
-    } else {
-      setLevel(placementResult(next.filter(Boolean).length));
-      setStep('result');
-    }
+  const startTest = (g) => {
+    setGoal(g);
+    setQuestion(pickQuestion(START_IDX, []));
+    setStep('test');
   };
 
-  const question = PLACEMENT_QUESTIONS[qIndex];
+  const answer = () => {
+    const correct = picked === question.answer;
+    const nextIdx = Math.max(0, Math.min(CEFR_LEVELS.length - 1, levelIdx + (correct ? 1 : -1)));
+    const nextAsked = [...asked, question];
+    const done = count + 1 >= TOTAL;
+    setAsked(nextAsked);
+    setCount(count + 1);
+    setNCorrect(nCorrect + (correct ? 1 : 0));
+    setLevelIdx(nextIdx);
+    setPicked(null);
+    if (done) {
+      setLevel(CEFR_LEVELS[nextIdx]);
+      setStep('result');
+    } else {
+      setQuestion(pickQuestion(nextIdx, nextAsked));
+    }
+  };
 
   return (
     <Modal open={open} onClose={close}>
@@ -59,7 +92,7 @@ export default function PathSetup({ open, onClose, onCreated }) {
               {step === 'goal'
                 ? 'What are you learning French for?'
                 : step === 'test'
-                  ? `Question ${qIndex + 1} of ${PLACEMENT_QUESTIONS.length} — guessing is fine, skipping isn't`
+                  ? `Question ${count + 1} of ${TOTAL} — it adapts to your answers`
                   : 'Based on your answers'}
             </p>
           </div>
@@ -75,7 +108,7 @@ export default function PathSetup({ open, onClose, onCreated }) {
               return (
                 <button
                   key={g.id}
-                  onClick={() => { setGoal(g.id); setStep('test'); }}
+                  onClick={() => startTest(g.id)}
                   className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
                 >
                   <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink">
@@ -91,12 +124,12 @@ export default function PathSetup({ open, onClose, onCreated }) {
           </div>
         )}
 
-        {step === 'test' && (
+        {step === 'test' && question && (
           <div className="space-y-4">
             <div className="h-1 rounded-full bg-surface2 overflow-hidden" aria-hidden="true">
               <div
                 className="h-full bg-ink transition-all duration-300"
-                style={{ width: `${(qIndex / PLACEMENT_QUESTIONS.length) * 100}%` }}
+                style={{ width: `${(count / TOTAL) * 100}%` }}
               />
             </div>
             <p className="text-[15px] text-ink leading-relaxed" lang="fr">{question.q}</p>
@@ -130,7 +163,7 @@ export default function PathSetup({ open, onClose, onCreated }) {
                 disabled={picked == null}
                 className="btn btn-primary flex-1 min-h-11 rounded-xl text-sm"
               >
-                {qIndex + 1 < PLACEMENT_QUESTIONS.length ? 'Next' : 'See my level'}
+                {count + 1 < TOTAL ? 'Next' : 'See my level'}
               </button>
             </div>
           </div>
@@ -142,9 +175,10 @@ export default function PathSetup({ open, onClose, onCreated }) {
               {level}
             </div>
             <p className="text-sm text-ink2">
-              You answered {answers.filter(Boolean).length} of {PLACEMENT_QUESTIONS.length} correctly.
-              Your path starts calibrated to <span className="font-semibold text-ink">CEFR {level}</span> —
-              conversations, hints and scoring will all match. Checkpoints move you up as you improve.
+              You answered {nCorrect} of {TOTAL} correctly and the test converged on
+              <span className="font-semibold text-ink"> CEFR {level}</span>.
+              Your path starts calibrated to it — conversations, hints and scoring will all
+              match. Checkpoints move you up as you improve.
             </p>
             <button onClick={() => finish(level)} className="btn btn-primary w-full min-h-12 rounded-xl text-sm">
               <Check size={14} /> Start my path

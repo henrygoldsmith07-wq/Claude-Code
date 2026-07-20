@@ -3,6 +3,8 @@ import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { SCENARIOS } from '../lib/data';
 import { transcribe, evaluateTurn, getHint, explainMistake } from '../lib/groq';
+import { getSrs, recordGrammarError } from '../lib/storage';
+import { allEntries } from '../lib/vocab';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
 import { ArrowRight, Book, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
@@ -39,6 +41,19 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [history, phase]);
 
+  const [reversed, setReversed] = useState(false);
+
+  // Comprehensible input: feed the model the learner's strongest SRS words so
+  // replies lean on vocabulary they actually know.
+  const knownWords = () => {
+    const srs = getSrs();
+    return allEntries()
+      .filter((e) => (srs[e.id]?.reps || 0) > 0)
+      .sort((a, b) => (srs[b.id].reps || 0) - (srs[a.id].reps || 0))
+      .slice(0, 40)
+      .map((e) => e.fr);
+  };
+
   const changeScenario = (id) => {
     const s = SCENARIOS.find((x) => x.id === id);
     setScenario(s);
@@ -65,8 +80,11 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         userText,
         curveball: turnNumber === CURVEBALL_TURN ? scenario.curveball : null,
         level,
+        knownWords: knownWords(),
+        reversed,
         mock: mockMode,
       });
+      if (evaluation.grammar_topic) recordGrammarError(evaluation.grammar_topic);
       const turn = { userText, evaluation, reply: evaluation.reply, curveball: turnNumber === CURVEBALL_TURN };
       setHistory((h) => [...h, turn]);
       onTurn(evaluation.scores);
@@ -123,7 +141,17 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
             );
           })}
         </div>
-        <div className="flex justify-end pr-1">
+        <div className="flex items-center justify-between pr-1">
+          <button
+            onClick={() => { setReversed((v) => !v); setHistory([]); setHint(''); setHintLevel(0); setPhase('idle'); }}
+            aria-pressed={reversed}
+            title="Swap roles: you play the professional, the AI plays the customer"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
+              reversed ? 'border-ink bg-surface2 text-ink' : 'border-line text-ink3 hover:text-ink2'
+            }`}
+          >
+            🔄 {reversed ? 'Roles swapped — you serve' : 'Swap roles'}
+          </button>
           <RateSlider rate={ttsRate} onChange={onTtsRate} />
         </div>
       </div>

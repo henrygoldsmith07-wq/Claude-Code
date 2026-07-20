@@ -3,6 +3,7 @@ import {
   getXp, getStreak, getSessions, getReviewLog, getNotebook, getGrammarProgress,
   getXpLog, getWeekXp, getCollectibles, getAchievements,
   getFreezes, buyFreeze, FREEZE_COST, MAX_FREEZES, getCoins,
+  getVacationUntil, setVacationDays, getRepairableStreak, repairStreak, REPAIR_COST,
 } from '../lib/storage';
 import { MILESTONES, CERTIFICATES } from '../lib/game';
 import { totalReviews } from '../lib/memory';
@@ -80,6 +81,44 @@ export default function Stats({ weeklyGoal, onCoinsChange }) {
             </button>
           ) : (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink2"><Check size={13} /> Full</span>
+          )}
+        </div>
+
+        {/* streak repair: buy back a recently broken streak */}
+        {getRepairableStreak() != null && (
+          <div className="flex items-center gap-3 pt-1 border-t border-line">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-ink">Repair your streak</p>
+              <p className="text-xs text-ink3">Restore your {getRepairableStreak()}-day streak (window closes after 3 days)</p>
+            </div>
+            <button
+              onClick={() => { if (repairStreak() != null) { onCoinsChange?.(getCoins()); setTick((t) => t + 1); } }}
+              disabled={s.coins < REPAIR_COST}
+              className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs disabled:opacity-50"
+            >
+              <Coins size={12} /> {REPAIR_COST}
+            </button>
+          </div>
+        )}
+
+        {/* vacation mode */}
+        <div className="flex items-center gap-3 pt-1 border-t border-line">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-ink">Vacation mode</p>
+            <p className="text-xs text-ink3">
+              {getVacationUntil() && getVacationUntil() >= new Date().toISOString().slice(0, 10)
+                ? `On — streak protected until ${getVacationUntil()}`
+                : 'Pause streak loss while you are away (up to 14 days)'}
+            </p>
+          </div>
+          {getVacationUntil() && getVacationUntil() >= new Date().toISOString().slice(0, 10) ? (
+            <button onClick={() => { setVacationDays(0); setTick((t) => t + 1); }} className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs">
+              End now
+            </button>
+          ) : (
+            <button onClick={() => { setVacationDays(14); setTick((t) => t + 1); }} className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs">
+              Start 14 days
+            </button>
           )}
         </div>
       </section>

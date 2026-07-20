@@ -264,7 +264,7 @@ You MUST reply with ONLY a JSON object in exactly this shape:
   "translation": "English translation of the reply.",
   "corrections": "Constructive markdown-formatted corrections of the learner's grammar, spelling, or vocabulary, WRITTEN IN ENGLISH (quote the French words being discussed). Wrap removed/wrong French words in <s></s> tags and corrected French words in <mark></mark> tags. If the sentence was perfect, say so warmly in English.",
   "native_alternative": "How a native French speaker would express the learner's idea using common slang, modern structures, and phrases.",
-  "grammar_topic": "If the learner's main mistake maps to one of these topics, its id; otherwise null: present (present tense conjugation), articles (articles & partitives), negation, passe-compose (passé composé vs imparfait), futur-conditionnel (future & conditional), subjonctif (subjunctive).",
+  "grammar_topic": "If the learner's main mistake maps to one of these topics, its id; otherwise null: present (present tense conjugation), articles (articles & partitives), negation, passe-compose (passé composé vs imparfait), futur-conditionnel (future & conditional), subjonctif (subjunctive), pronoms (object pronouns), comparatif (comparatives), relatifs (relative pronouns), prepositions-lieu (place prepositions), accord-participe (past-participle agreement), pronominaux (reflexive verbs).",
   "scores": { "grammar": 0-100, "naturalness": 0-100, "relevance": 0-100, "fluency": 0-100, "overall": 0-100 }
 }
 Scores are integers. "overall" = 0.30*grammar + 0.30*naturalness + 0.20*relevance + 0.20*fluency (rounded).`;
@@ -286,10 +286,17 @@ function normalizeTurn(json) {
   };
 }
 
-export async function evaluateTurn(apiKey, { scenario, history, userText, curveball, level = 'B1', mock }) {
+export async function evaluateTurn(apiKey, { scenario, history, userText, curveball, level = 'B1', knownWords, reversed, mock }) {
   if (mock) return mockTurn().evaluation;
   const messages = [
-    { role: 'system', content: `${TURN_SYSTEM}\n\n${LEVEL_NOTES[level] || LEVEL_NOTES.B1}\n\nScénario actuel : ${scenario.title} — ${scenario.setup}\nTon rôle : ${scenario.aiRole}` },
+    {
+      role: 'system',
+      content: `${TURN_SYSTEM}\n\n${LEVEL_NOTES[level] || LEVEL_NOTES.B1}\n\nScénario actuel : ${scenario.title} — ${scenario.setup}\nTon rôle : ${reversed
+        ? `Les rôles sont inversés aujourd'hui : l'apprenant joue le rôle suivant — «${scenario.aiRole}» — et TOI tu joues le client / l'interlocuteur ordinaire de la scène. Pose des questions, aie des demandes réalistes, fais quelques petites complications comme un vrai client.`
+        : scenario.aiRole}${knownWords && knownWords.length
+        ? `\n\nVocabulaire connu de l'apprenant (préfère naturellement ces mots et leur niveau, sans te limiter artificiellement) : ${knownWords.join(', ')}.`
+        : ''}`,
+    },
     ...history.flatMap((t) => [
       { role: 'user', content: t.userText },
       { role: 'assistant', content: JSON.stringify({ reply: t.reply }) },

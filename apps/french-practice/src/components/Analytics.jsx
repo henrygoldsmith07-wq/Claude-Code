@@ -4,6 +4,8 @@ import {
   getTimeLog, getXpLog, getReviewLog,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
+import { getGrammarErrors } from '../lib/storage';
+import { getGrammarTopic } from '../lib/grammar';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
   skillBreakdown, skillScore, retentionRate, wordsLearned, periodReport, fmtDuration,
@@ -87,6 +89,8 @@ export default function Analytics({ open, onClose }) {
           </section>
 
           {/* period reports */}
+          <ErrorCategories />
+
           <section className="space-y-2.5">
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Reports</h3>
             <Report title="This week" r={d.week} />
@@ -160,5 +164,33 @@ function Heatmap({ log }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// Which grammar areas trip you up in real conversation — counted from the
+// Arena's per-turn mistake classification.
+function ErrorCategories() {
+  const errors = Object.entries(getGrammarErrors()).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (!errors.length) return null;
+  const max = errors[0][1];
+  return (
+    <section className="space-y-2.5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Errors by grammar area</h3>
+      <div className="bg-surface border border-line rounded-2xl p-4 space-y-2.5">
+        {errors.map(([topicId, count]) => {
+          const topic = getGrammarTopic(topicId);
+          return (
+            <div key={topicId} className="flex items-center gap-3">
+              <span className="w-32 shrink-0 text-xs text-ink truncate" lang="fr">{topic ? topic.title : topicId}</span>
+              <div className="flex-1 h-2 rounded-full bg-surface2 overflow-hidden">
+                <div className="h-full bg-ink rounded-full" style={{ width: `${(count / max) * 100}%` }} />
+              </div>
+              <span className="w-6 text-right text-[11px] text-ink3 tabular-nums">{count}</span>
+            </div>
+          );
+        })}
+        <p className="text-[11px] text-ink3">Counted every time the Arena classifies a conversation mistake.</p>
+      </div>
+    </section>
   );
 }
