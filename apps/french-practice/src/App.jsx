@@ -21,6 +21,7 @@ import Analytics from './components/Analytics';
 import Reference from './components/Reference';
 import Focus from './components/Focus';
 import Onboarding from './components/Onboarding';
+import GlobalSearch from './components/GlobalSearch';
 import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
@@ -36,7 +37,7 @@ import { notebookAsEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Coins as CoinsIcon } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Coins as CoinsIcon } from './components/icons';
 
 // The bottom bar holds only the core daily-practice destinations; everything
 // else lives in the "More" sheet (see MORE_GROUPS) so the bar stays uncluttered.
@@ -57,6 +58,7 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   // Restore an in-flight conversation (page refresh must not lose a session).
   const [scenario, setScenario] = useState(() => {
@@ -96,6 +98,37 @@ export default function App() {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
     return () => setTelemetrySink(null);
   }, []);
+
+  // Overlay stack: Escape closes the topmost overlay, and while any overlay
+  // is open the browser Back button closes it instead of leaving the app.
+  const overlayClosers = [
+    [searchOpen, () => setSearchOpen(false)],
+    [moreOpen, () => setMoreOpen(false)],
+    [settingsOpen, () => setSettingsOpen(false)],
+    [profileOpen, () => setProfileOpen(false)],
+    [realWorldOpen, () => setRealWorldOpen(false)],
+    [personaliseOpen, () => setPersonaliseOpen(false)],
+    [offlineOpen, () => setOfflineOpen(false)],
+    [analyticsOpen, () => setAnalyticsOpen(false)],
+    [referenceOpen, () => setReferenceOpen(false)],
+    [focusOpen, () => setFocusOpen(false)],
+    [pathSetupOpen, () => setPathSetupOpen(false)],
+  ];
+  const anyOverlayOpen = overlayClosers.some(([o]) => o);
+  const closeTopOverlay = () => overlayClosers.find(([o]) => o)?.[1]();
+  useEffect(() => {
+    if (!anyOverlayOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') closeTopOverlay(); };
+    const onPop = () => closeTopOverlay();
+    window.history.pushState({ overlay: true }, '');
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('popstate', onPop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anyOverlayOpen]);
 
   // Smart reminders: once per day, when reviews are waiting and the user
   // opted in, surface a browser notification (works while the tab is open —
@@ -175,6 +208,8 @@ export default function App() {
   };
 
   const skipOnboarding = () => {
+    // Guest mode: skipping must land in a working app, not an API-key wall.
+    if (!apiKey && !settings.mockMode) updateSettings({ ...settings, mockMode: true });
     setOnboarded();
     setOnboardingOpen(false);
   };
@@ -194,6 +229,7 @@ export default function App() {
   const awardXp = (gained) => {
     setXp(addXp(gained));
     setXpGain({ amount: gained, id: Date.now() });
+    try { navigator.vibrate?.(12); } catch { /* no haptics on this device */ }
     setCoins(addCoins(Math.max(1, Math.round(gained / 3))));
     const event = activeEvent();
     if (event) addEventXp(event.id, gained);
@@ -263,6 +299,19 @@ export default function App() {
     if (type === 'quickfire') { startLesson({ type: 'quickfire' }); return; }
   };
 
+  // Deep-link a global search result to the right surface.
+  const goFromSearch = (hit) => {
+    setSearchOpen(false);
+    if (hit.type === 'scenario') {
+      const sc = SCENARIOS.find((x) => x.id === hit.id);
+      if (sc && sc.id !== scenario.id) { setScenario(sc); setHistory([]); setLastScores(null); }
+      setTab('arena');
+    }
+    if (hit.type === 'grammar') { setGrammarFocus(hit.id); setTab('grammar'); }
+    if (hit.type === 'reading') { setSkillArea('reading'); setTab('skills'); }
+    if (hit.type === 'listening') { setSkillArea('listening'); setListeningMode(hit.id); setTab('skills'); }
+  };
+
   const endSession = () => {
     if (history.length > 0) setDashboardOpen(true);
   };
@@ -275,6 +324,11 @@ export default function App() {
 
   return (
     <div className="h-dvh flex flex-col bg-bg text-ink font-sans app-enter">
+      <a href="#main" className="skip-link">Skip to content</a>
+      {/* screen-reader announcements for XP gains */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {xpGain ? `${xpGain.amount} XP earned` : ''}
+      </span>
       {/* header */}
       <header className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-surface backdrop-blur">
         <h1 className="font-bold text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
@@ -301,6 +355,14 @@ export default function App() {
           <CoinsIcon size={13} /> {coins}
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search the studio"
+            title="Search"
+            className="w-10 h-10 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink"
+          >
+            <Search size={18} />
+          </button>
           <button
             onClick={() => setProfileOpen(true)}
             aria-label="Open your profile"
@@ -367,7 +429,7 @@ export default function App() {
 
       {/* main area */}
       <div className="flex-1 flex min-h-0">
-        <main className="flex-1 min-w-0 flex flex-col">
+        <main id="main" className="flex-1 min-w-0 flex flex-col">
           {tab === 'home' && (
             <HomeDashboard
               dailyGoal={settings.dailyGoal}
@@ -505,6 +567,7 @@ export default function App() {
       <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
       <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />
       <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} onGo={goFromSearch} />
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
@@ -554,6 +617,12 @@ export default function App() {
 // grouped by intent so the overflow stays navigable rather than a flat dump.
 function MoreSheet({ open, onClose, activeTab, devPanel, onTab, onOpen, overlays }) {
   if (!open) return null;
+  // Swipe-down anywhere on the sheet header closes it (mobile gesture).
+  let touchY = null;
+  const onTouchStart = (e) => { touchY = e.touches[0].clientY; };
+  const onTouchMove = (e) => {
+    if (touchY != null && e.touches[0].clientY - touchY > 70) { touchY = null; onClose(); }
+  };
   const groups = [
     {
       label: 'Learn',
@@ -590,7 +659,8 @@ function MoreSheet({ open, onClose, activeTab, devPanel, onTab, onOpen, overlays
     <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="More">
       <button className="absolute inset-0 bg-black/40 fade-in" aria-label="Close" onClick={onClose} />
       <div className="relative bg-surface border-t border-line rounded-t-2xl max-h-[85dvh] overflow-y-auto nice-scroll pb-safe sheet-enter">
-        <div className="sticky top-0 flex items-center gap-2 px-4 py-3 bg-surface border-b border-line">
+        <div className="sticky top-0 flex items-center gap-2 px-4 py-3 bg-surface border-b border-line" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
+          <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 top-1.5 w-9 h-1 rounded-full bg-line" />
           <span className="font-bold text-ink">More</span>
           <button onClick={onClose} aria-label="Close" className="ml-auto w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink">
             <X size={18} />
@@ -634,10 +704,12 @@ function TabButton({ id, icon: TabIcon, label, active, onClick }) {
     <button
       onClick={() => onClick(id)}
       aria-current={active ? 'page' : undefined}
-      className={`flex-1 flex flex-col items-center gap-1 py-2.5 min-h-14 text-[11px] font-medium transition-colors ${
+      className={`relative flex-1 flex flex-col items-center gap-1 py-2.5 min-h-14 text-[11px] font-medium transition-colors ${
         active ? 'text-ink' : 'text-ink3 hover:text-ink2'
       }`}
     >
+      {/* active indicator: a short bar at the top of the tab */}
+      <span aria-hidden="true" className={`absolute top-0 h-0.5 rounded-full bg-ink transition-all duration-200 ${active ? 'w-8 opacity-100' : 'w-0 opacity-0'}`} />
       <TabIcon size={18} />
       {label}
     </button>
