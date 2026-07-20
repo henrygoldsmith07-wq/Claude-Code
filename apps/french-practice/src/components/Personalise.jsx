@@ -10,7 +10,7 @@ import {
   weaknessAnalysis, dailyRecommendations, adaptiveLevel, learningStyle,
 } from '../lib/personalise';
 import { SCENARIOS } from '../lib/data';
-import { X, Check, ChevronRight, Target } from './icons';
+import { X, Check, ChevronRight, Target, TOPIC_ICONS } from './icons';
 
 // Personalisation (full-screen): choose a learning style, lesson length and
 // favourite topics, toggle adaptive difficulty, read a weakness analysis of
@@ -173,6 +173,9 @@ export default function Personalise({ open, onClose, prefs, onPrefsChange, baseL
             <div className="flex flex-wrap gap-2">
               {TOPICS.map((t) => {
                 const on = prefs.favouriteTopics.includes(t.id);
+                // Stroke icon, not emoji: it follows currentColor, so it
+                // inverts with the chip when selected (colour emojis don't).
+                const TopicIcon = TOPIC_ICONS[t.id];
                 return (
                   <button
                     key={t.id}
@@ -180,7 +183,7 @@ export default function Personalise({ open, onClose, prefs, onPrefsChange, baseL
                     aria-pressed={on}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium border transition-colors ${on ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'}`}
                   >
-                    <span role="img" aria-hidden="true">{t.emoji}</span> {t.title}
+                    {TopicIcon && <TopicIcon size={13} aria-hidden="true" />} {t.title}
                   </button>
                 );
               })}

@@ -204,3 +204,17 @@ export const SCENARIO_ICONS = {
   coiffeur: Scissors,
   logement: Key,
 };
+
+// Per-topic icon lookup for the favourite-topic chips (Onboarding,
+// Personalise). Stroke icons inherit currentColor, so they invert cleanly
+// when a selected chip flips to accent-on-ink — colour emojis don't.
+export const TOPIC_ICONS = {
+  travel: Plane,
+  food: Utensils,
+  work: Briefcase,
+  culture: Landmark,
+  daily: Home,
+  shopping: Basket,
+  health: Cross,
+  study: GraduationCap,
+};

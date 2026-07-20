@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LEARNING_STYLES, LESSON_LENGTHS, TOPICS } from '../lib/personalise';
 import { AVATARS } from '../lib/game';
-import { ChevronLeft, ChevronRight, Check, ArrowRight, Sparkles } from './icons';
+import { ChevronLeft, ChevronRight, Check, ArrowRight, Sparkles, TOPIC_ICONS } from './icons';
 
 // Extra-long first-run onboarding: a guided, multi-step wizard that greets the
 // learner, collects their goals and preferences, sets up an avatar, reminders
@@ -113,10 +113,13 @@ export default function Onboarding({ open, onComplete, onSkip }) {
         <div className="flex flex-wrap gap-2 justify-center">
           {TOPICS.map((t) => {
             const on = d.favouriteTopics.includes(t.id);
+            // Stroke icon, not emoji: it follows currentColor, so it inverts
+            // with the chip when selected (colour emojis don't).
+            const TopicIcon = TOPIC_ICONS[t.id];
             return (
               <button key={t.id} onClick={() => toggleTopic(t.id)} aria-pressed={on}
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium border transition-colors ${on ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'}`}>
-                <span aria-hidden="true">{t.emoji}</span> {t.title}
+                {TopicIcon && <TopicIcon size={13} aria-hidden="true" />} {t.title}
               </button>
             );
           })}
