@@ -14,6 +14,41 @@
       } catch (e) {}
     </script>
     <title>Le Studio — French Speaking Practice</title>
+    <meta name="description" content="A free, all-in-one studio for practising French: voice conversations with an AI partner, a 60-lesson learning path per goal, spaced-repetition vocabulary, grammar, listening, reading, culture and progress stats. 100% in your browser — no account needed." />
+    <link rel="canonical" href="https://claude-code-alpha-nine.vercel.app/" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph / Twitter -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Le Studio" />
+    <meta property="og:title" content="Le Studio — French Speaking Practice" />
+    <meta property="og:description" content="Practise speaking French with an AI conversation partner — plus a goal-based learning path, spaced-repetition vocabulary, grammar, listening, reading and culture. Free, no account, works offline." />
+    <meta property="og:url" content="https://claude-code-alpha-nine.vercel.app/" />
+    <meta property="og:image" content="https://claude-code-alpha-nine.vercel.app/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Le Studio — French Speaking Practice" />
+    <meta name="twitter:description" content="Practise speaking French with an AI conversation partner — free, client-side, no account." />
+    <meta name="twitter:image" content="https://claude-code-alpha-nine.vercel.app/icon-512.png" />
+
+    <!-- Structured data for search & AI crawlers -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Le Studio",
+      "alternateName": "Le Studio — French Speaking Practice",
+      "url": "https://claude-code-alpha-nine.vercel.app/",
+      "description": "A free, all-in-one studio for practising French: voice conversations with an AI partner across 14 roleplay scenarios, a goal-based learning path (12 units, 60 lessons per goal, CEFR A1–C2), spaced-repetition vocabulary with a 2,000-word offline dictionary, interactive grammar, listening, reading, culture notes and knowledge stats. Runs entirely in the browser as an installable PWA.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Any (web browser)",
+      "browserRequirements": "Requires JavaScript",
+      "inLanguage": ["en", "fr"],
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "about": { "@type": "Thing", "name": "French language learning" },
+      "featureList": "AI voice conversations, learning path with placement test, spaced-repetition flashcards, offline dictionary, grammar lessons, listening and reading comprehension, culture notes, progress analytics, installable PWA"
+    }
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,7 +58,32 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23111111%22/><text x=%2250%22 y=%2266%22 font-family=%22Inter,system-ui,sans-serif%22 font-size=%2246%22 font-weight=%22700%22 fill=%22%23fafafa%22 text-anchor=%22middle%22>LS</text></svg>" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static, crawlable summary: replaced by the app when JS runs, so
+           search engines and AI crawlers that don't execute JavaScript still
+           see what Le Studio is. Kept in sync with /llms.txt. -->
+      <main style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.6;">
+        <h1>Le Studio — French Speaking Practice</h1>
+        <p>
+          A free, all-in-one studio for practising French — speaking, listening,
+          reading and writing — with an AI conversation partner. Everything runs
+          in your browser: no backend, no account, and your progress stays on
+          your device.
+        </p>
+        <h2>What's inside</h2>
+        <ul>
+          <li><strong>Roleplay Arena</strong> — voice conversations across 14 scenarios (bistro, flight rebooking, market, bank, doctor, hairdresser, flat rental, job interview, free talk…) with per-turn corrections and scored feedback.</li>
+          <li><strong>Learning Path</strong> — goal-based roadmaps (travel, school, business, fluency): 12 units and 60 lessons per goal, a CEFR placement test (A1–C2), scored checkpoints and adaptive level tracking.</li>
+          <li><strong>Knowledge stats</strong> — a knowledge score, 8-week growth chart, and tiles for words known, grammar mastered, lessons done and CEFR level.</li>
+          <li><strong>Vocabulary</strong> — 18 themed flashcard packs with SM-2 spaced repetition and a ~2,000-word frequency-ranked offline dictionary with IPA and text-to-speech.</li>
+          <li><strong>Skills</strong> — pronunciation coaching, minimal pairs, dictée, mini-podcasts, dialogues, graded readers, articles, classics and writing drills.</li>
+          <li><strong>Grammar</strong> — 8 interactive CEFR-tagged topics with drills, sentence building and scored quizzes, plus conjugation tables.</li>
+          <li><strong>Culture</strong> — customs, etiquette, festivals, food, history, geography and regional differences.</li>
+          <li><strong>Motivation</strong> — XP, streaks, goals, achievements, habit tracker, focus timer, heatmaps and weekly reports. Installable PWA, works offline.</li>
+        </ul>
+        <p>This page needs JavaScript for the interactive app — the content above is a static summary.</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
