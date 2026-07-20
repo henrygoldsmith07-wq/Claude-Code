@@ -3,7 +3,9 @@
 // and a scored quiz. Pure local content; the Arena's LLM classifies mistakes
 // against these topic ids to surface "grammar tip" deep links.
 
-export const GRAMMAR_TOPICS = [
+import { EXTRA_GRAMMAR_TOPICS } from './grammar-extra';
+
+const BASE_TOPICS = [
   {
     id: 'present',
     cefr: 'A1',
@@ -258,6 +260,8 @@ export const GRAMMAR_TOPICS = [
     ],
   },
 ];
+
+export const GRAMMAR_TOPICS = [...BASE_TOPICS, ...EXTRA_GRAMMAR_TOPICS];
 
 export const getGrammarTopic = (id) => GRAMMAR_TOPICS.find((t) => t.id === id) || null;
 
