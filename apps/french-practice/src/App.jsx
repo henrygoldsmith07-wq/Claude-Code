@@ -36,23 +36,27 @@ import { notebookAsEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, Sparkles, Landmark, Download, X, Coins as CoinsIcon } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Coins as CoinsIcon } from './components/icons';
 
+// The bottom bar holds only the core daily-practice destinations; everything
+// else lives in the "More" sheet (see MORE_GROUPS) so the bar stays uncluttered.
 const TABS = [
   ['home', Home, 'Home'],
   ['arena', MessageCircle, 'Arena'],
   ['skills', Mic, 'Skills'],
-  ['ai', Sparkles, 'AI'],
   ['cards', Layers, 'Vocab'],
-  ['grammar', Book, 'Grammar'],
-  ['culture', Landmark, 'Culture'],
 ];
+
+// Tabs that render in <main> but are reached through the More sheet rather than
+// the bar — used to light up the More button as "active".
+const MORE_TAB_IDS = ['grammar', 'ai', 'culture', 'dev'];
 
 export default function App() {
   const [apiKey, setApiKey] = useState(getApiKey);
   const [settings, setSettings] = useState(getSettings);
   const [tab, setTab] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   // Restore an in-flight conversation (page refresh must not lose a session).
   const [scenario, setScenario] = useState(() => {
@@ -445,12 +449,18 @@ export default function App() {
         {tab === 'arena' && <FeedbackWidget scores={lastScores} turnCount={history.length} />}
       </div>
 
-      {/* bottom tab bar */}
+      {/* bottom tab bar — 4 core destinations plus a "More" sheet */}
       <nav className="flex border-t border-line bg-surface backdrop-blur pb-safe" aria-label="Main navigation">
         {TABS.map(([id, icon, label]) => (
           <TabButton key={id} id={id} icon={icon} label={label} active={tab === id} onClick={setTab} />
         ))}
-        {settings.devPanel && <TabButton id="dev" icon={Terminal} label="Dev" active={tab === 'dev'} onClick={setTab} />}
+        <TabButton
+          id="more"
+          icon={Grid}
+          label="More"
+          active={moreOpen || MORE_TAB_IDS.includes(tab)}
+          onClick={() => setMoreOpen(true)}
+        />
       </nav>
 
       <SettingsModal
@@ -488,6 +498,22 @@ export default function App() {
       <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
       <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />
       <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />
+      <MoreSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        activeTab={tab}
+        devPanel={settings.devPanel}
+        onTab={(id) => { setTab(id); setMoreOpen(false); }}
+        onOpen={(fn) => { fn(); setMoreOpen(false); }}
+        overlays={{
+          reference: () => setReferenceOpen(true),
+          realWorld: () => setRealWorldOpen(true),
+          focus: () => setFocusOpen(true),
+          analytics: () => setAnalyticsOpen(true),
+          personalise: () => setPersonaliseOpen(true),
+          offline: () => setOfflineOpen(true),
+        }}
+      />
       <RealWorld
         open={realWorldOpen}
         onClose={() => setRealWorldOpen(false)}
@@ -513,6 +539,85 @@ export default function App() {
           updateSettings({ ...settings, level: p.cefr });
         }}
       />
+    </div>
+  );
+}
+
+// The "More" bottom sheet: every destination that isn't a core bar tab,
+// grouped by intent so the overflow stays navigable rather than a flat dump.
+function MoreSheet({ open, onClose, activeTab, devPanel, onTab, onOpen, overlays }) {
+  if (!open) return null;
+  const groups = [
+    {
+      label: 'Learn',
+      items: [
+        { icon: Book, title: 'Grammar', subtitle: 'Interactive CEFR topics', onClick: () => onTab('grammar'), active: activeTab === 'grammar' },
+        { icon: Sparkles, title: 'AI tools', subtitle: 'Tutor, explanations, exercises', onClick: () => onTab('ai'), active: activeTab === 'ai' },
+        { icon: Landmark, title: 'Culture', subtitle: 'Customs, food, history & more', onClick: () => onTab('culture'), active: activeTab === 'culture' },
+      ],
+    },
+    {
+      label: 'Practice & tools',
+      items: [
+        { icon: Compass, title: 'Real-world', subtitle: 'Travel, restaurant, medical…', onClick: () => onOpen(overlays.realWorld) },
+        { icon: BookOpen, title: 'Reference', subtitle: 'Dictionary, conjugations, drills', onClick: () => onOpen(overlays.reference) },
+        { icon: Clock, title: 'Focus & habits', subtitle: 'Timer, Pomodoro, habit tracker', onClick: () => onOpen(overlays.focus) },
+      ],
+    },
+    {
+      label: 'Your progress',
+      items: [
+        { icon: BarChart, title: 'Analytics', subtitle: 'Time, retention, skill breakdown', onClick: () => onOpen(overlays.analytics) },
+        { icon: Sliders, title: 'Personalise', subtitle: 'Style, difficulty, recommendations', onClick: () => onOpen(overlays.personalise) },
+        { icon: Download, title: 'Offline & devices', subtitle: 'Downloads, install, sync', onClick: () => onOpen(overlays.offline) },
+      ],
+    },
+  ];
+  if (devPanel) {
+    groups.push({
+      label: 'Developer',
+      items: [{ icon: Terminal, title: 'Dev panel', subtitle: 'Telemetry & mock mode', onClick: () => onTab('dev'), active: activeTab === 'dev' }],
+    });
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="More">
+      <button className="absolute inset-0 bg-black/40 fade-in" aria-label="Close" onClick={onClose} />
+      <div className="relative bg-surface border-t border-line rounded-t-2xl max-h-[85dvh] overflow-y-auto nice-scroll pb-safe sheet-enter">
+        <div className="sticky top-0 flex items-center gap-2 px-4 py-3 bg-surface border-b border-line">
+          <span className="font-bold text-ink">More</span>
+          <button onClick={onClose} aria-label="Close" className="ml-auto w-9 h-9 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-4 space-y-5 max-w-md mx-auto">
+          {groups.map((g) => (
+            <div key={g.label}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink3 mb-2 px-1">{g.label}</p>
+              <div className="space-y-2">
+                {g.items.map((it) => (
+                  <button
+                    key={it.title}
+                    onClick={it.onClick}
+                    aria-current={it.active ? 'page' : undefined}
+                    className={`w-full flex items-center gap-3 text-left rounded-xl px-3.5 py-3 border transition ${
+                      it.active ? 'bg-surface2 border-ink3' : 'bg-surface2 border-line hover:border-ink3'
+                    }`}
+                  >
+                    <span className="w-10 h-10 grid place-items-center rounded-xl bg-surface border border-line text-ink shrink-0" aria-hidden="true">
+                      <it.icon size={18} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-semibold text-ink">{it.title}</span>
+                      <span className="block text-xs text-ink3 mt-0.5 truncate">{it.subtitle}</span>
+                    </span>
+                    <span className="text-ink3" aria-hidden="true"><ChevronRight size={16} /></span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
