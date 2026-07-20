@@ -4,6 +4,7 @@ import { COMPLETION_STARTERS, randomFrom } from '../lib/writing';
 import { judgeCompletion } from '../lib/groq';
 import WritingStudio from './WritingStudio';
 import AccentDrill from './AccentDrill';
+import TranslateDrill from './TranslateDrill';
 import { SpeakButton, Spinner } from './ui';
 import { Pencil, Check, X, RefreshCw, ChevronLeft, ChevronRight, MessageCircle, BookOpen, Clock } from './icons';
 
@@ -12,6 +13,7 @@ import { Pencil, Check, X, RefreshCw, ChevronLeft, ChevronRight, MessageCircle, 
 
 const MODES = [
   { id: 'accents', icon: Pencil, title: 'Accent trainer', subtitle: 'Retype words with every accent in place' },
+  { id: 'translate', icon: RefreshCw, title: 'Translation drill', subtitle: 'EN→FR and FR→EN, alternating' },
   { id: 'typing', icon: Clock, title: 'Typing drill', subtitle: 'Copy a sentence exactly — accents count' },
   { id: 'completion', icon: MessageCircle, title: 'Sentence completion', subtitle: 'Finish a starter naturally, get judged' },
   { id: 'free', icon: Pencil, title: 'Free writing', subtitle: 'A short text from a prompt, AI-corrected' },
@@ -62,6 +64,7 @@ export default function Writing({ apiKey, mockMode, level, onXp }) {
           <span className="w-10" aria-hidden="true" />
         </div>
         {mode === 'accents' && <AccentDrill onXp={onXp} />}
+        {mode === 'translate' && <TranslateDrill onXp={onXp} />}
         {mode === 'typing' && <TypingDrill onXp={onXp} />}
         {mode === 'completion' && <Completion apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
         {mode === 'free' && <WritingStudio depth="quick" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}

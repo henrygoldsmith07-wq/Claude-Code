@@ -78,7 +78,7 @@ validated against the `/models` endpoint before being stored. Or flip on
   public-domain classics (La Fontaine). Dual-language toggle, per-word
   tap-to-translate (text gloss → vocabulary dictionary → cached LLM lookup)
   with one-tap save to the notebook, and comprehension quizzes.
-- **Vocabulary** — eighteen themed packs: food, travel, work, feelings,
+- **Vocabulary** — forty-two themed packs (520+ rich cards): food, travel, work, feelings,
   family & people, the body, animals, clothing & colours, city & transport,
   health, home & household, nature & weather, time / numbers / money, a
   picture deck of everyday objects, idioms, slang & argot, regional French
@@ -89,8 +89,8 @@ validated against the `/models` endpoint before being stored. Or flip on
   sentence" challenge. One-click save any word to a personal notebook (with
   your own custom entries), and review everything through a cross-pack
   spaced-repetition queue.
-- **Grammar** — a reference library of eight CEFR-tagged topics (present
-  tense through subjunctive, plus object pronouns and comparatives), each an
+- **Grammar** — a reference library of twenty-five CEFR-tagged topics (A1
+  present tense through B2 reported speech and participle agreement), each an
   interactive lesson: explanation with spoken
   examples and a "watch out" note, drills with instant feedback, tap-to-order
   sentence building, and a scored quiz (best kept; 80+ = mastered). After a
