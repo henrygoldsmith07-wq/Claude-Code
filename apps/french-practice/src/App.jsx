@@ -585,7 +585,7 @@ export default function App() {
       </div>
 
       {/* bottom tab bar — 4 core destinations plus a "More" sheet */}
-      <nav className="flex border-t border-line bg-surface backdrop-blur pb-safe" aria-label="Main navigation">
+      <nav className="flex border-t border-line bg-surface backdrop-blur pb-safe elev-nav" aria-label="Main navigation">
         {TABS.map(([id, icon, label]) => (
           <TabButton key={id} id={id} icon={icon} label={label} active={tab === id} onClick={setTab} />
         ))}
@@ -750,7 +750,7 @@ function MoreSheet({ open, onClose, activeTab, devPanel, onTab, onOpen, overlays
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="More">
       <button className="absolute inset-0 bg-black/40 fade-in" aria-label="Close" onClick={onClose} />
-      <div className="relative bg-surface border-t border-line rounded-t-2xl max-h-[85dvh] overflow-y-auto nice-scroll pb-safe sheet-enter">
+      <div className="relative bg-surface border-t border-line rounded-t-3xl max-h-[85dvh] overflow-y-auto nice-scroll pb-safe sheet-enter elev-sheet">
         <div className="sticky top-0 flex items-center gap-2 px-4 py-3 bg-surface border-b border-line" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
           <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 top-1.5 w-9 h-1 rounded-full bg-line" />
           <span className="font-bold text-ink">More</span>

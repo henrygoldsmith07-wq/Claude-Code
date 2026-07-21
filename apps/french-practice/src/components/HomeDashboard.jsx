@@ -6,7 +6,7 @@ import { SCENARIOS } from '../lib/data';
 import { allEntryIds, allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -111,9 +111,9 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
         {lastActivity && (
           <button
             onClick={() => onResume(lastActivity)}
-            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity"
+            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity elev-card"
           >
-            <span className="text-xl" aria-hidden="true">▶️</span>
+            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><Play size={15} /></span>
             <span className="flex-1 min-w-0">
               <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Continue where you left off</span>
               <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
