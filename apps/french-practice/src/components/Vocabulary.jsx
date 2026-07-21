@@ -8,20 +8,53 @@ import VocabCard from './VocabCard';
 import Memory from './Memory';
 import { weakEntries, notebookAsEntries, reviewOrder } from '../lib/memory';
 import { SpeakButton } from './ui';
-import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock } from './icons';
+import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock, Search } from './icons';
 
 // Vocabulary hub: themed packs, a cross-pack SRS review queue, the personal
 // notebook of saved/custom words, and the memory & revision dashboard.
+
+// Accent-insensitive match so «cafe» finds the «Food & Café» pack.
+const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const SORTS = [['default', 'Default'], ['az', 'A–Z'], ['size', 'Most words'], ['due', 'Due first']];
 
 export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
   const [view, setView] = useState({ mode: 'packs' }); // packs | deck | notebook | memory
   const [srsTick, setSrsTick] = useState(0);
   const [nbTick, setNbTick] = useState(0);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('default');
   const srs = useMemo(() => getSrs(), [srsTick]);
   const notebook = useMemo(() => getNotebook(), [nbTick]);
 
   const dueTotal = [...allEntries(), ...notebookAsEntries(notebook)]
     .filter((e) => isCardDue(srs[e.id])).length;
+
+  // Per-pack due counts (drive the badge and the "Due first" sort).
+  const dueByPack = useMemo(() => {
+    const m = {};
+    for (const p of VOCAB_PACKS) m[p.id] = p.entries.filter((e) => isCardDue(srs[e.id])).length;
+    return m;
+  }, [srs]);
+
+  // Search matches a pack by name, description, or any word it contains, so a
+  // learner can find "the pack with fromage" without knowing its title.
+  const visiblePacks = useMemo(() => {
+    const q = norm(query.trim());
+    let list = VOCAB_PACKS;
+    if (q.length >= 2) {
+      list = list.filter((p) =>
+        norm(`${p.title} ${p.description}`).includes(q) ||
+        p.entries.some((e) => norm(`${e.fr} ${e.en}`).includes(q)),
+      );
+    }
+    const by = {
+      default: () => list,
+      az: () => [...list].sort((a, b) => a.title.localeCompare(b.title)),
+      size: () => [...list].sort((a, b) => b.entries.length - a.entries.length),
+      due: () => [...list].sort((a, b) => (dueByPack[b.id] || 0) - (dueByPack[a.id] || 0)),
+    };
+    return by[sort]();
+  }, [query, sort, dueByPack]);
 
   if (view.mode === 'memory') {
     return (
@@ -113,10 +146,48 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
           <ChevronRight size={16} className="text-ink3 shrink-0" />
         </button>
 
+        {/* find a pack: search across titles, blurbs and the words inside */}
+        <div className="space-y-2.5 pt-1">
+          <div className="flex items-center gap-2 bg-surface border border-line rounded-xl px-3">
+            <Search size={15} className="text-ink3 shrink-0" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search packs & words…"
+              aria-label="Search vocabulary packs"
+              className="flex-1 min-w-0 bg-transparent text-sm text-ink placeholder:text-ink3 focus:outline-none py-2.5"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex gap-1.5 overflow-x-auto snap-rail -mx-1 px-1" role="tablist" aria-label="Sort packs">
+              {SORTS.map(([id, label]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={sort === id}
+                  onClick={() => setSort(id)}
+                  className={`shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border transition-colors ${
+                    sort === id ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="shrink-0 text-[11px] text-ink3 tabular-nums">{visiblePacks.length}/{VOCAB_PACKS.length}</span>
+          </div>
+        </div>
+
         {/* themed packs */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {VOCAB_PACKS.map((p) => {
-            const due = p.entries.filter((e) => isCardDue(srs[e.id])).length;
+        {visiblePacks.length === 0 ? (
+          <div className="text-center py-10 space-y-1">
+            <p className="text-sm text-ink2">No packs match «{query.trim()}».</p>
+            <button onClick={() => setQuery('')} className="text-xs text-ink3 underline hover:text-ink">Clear search</button>
+          </div>
+        ) : (
+        <div className="grid grid-cols-2 gap-2.5 cv-list">
+          {visiblePacks.map((p) => {
+            const due = dueByPack[p.id] || 0;
             return (
               <button
                 key={p.id}
@@ -136,6 +207,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );

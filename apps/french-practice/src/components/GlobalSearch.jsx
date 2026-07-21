@@ -87,9 +87,31 @@ export default function GlobalSearch({ open, onClose, onGo }) {
       <div className="flex-1 overflow-y-auto nice-scroll px-4 py-4">
         <div className="max-w-md mx-auto space-y-4">
           {!results && (
-            <p className="text-xs text-ink3 text-center py-10">
-              Type at least two letters — accents optional, French or English.
-            </p>
+            <div className="space-y-4 py-2">
+              <p className="text-xs text-ink3 text-center">
+                Type at least two letters — accents optional, French or English.
+              </p>
+              <div>
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Jump straight to</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ['🎙️', 'A conversation', { type: 'scenario', id: SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)].id }],
+                    ['📚', 'A grammar topic', { type: 'grammar', id: GRAMMAR_TOPICS[Math.floor(Math.random() * GRAMMAR_TOPICS.length)].id }],
+                    ['📖', 'Something to read', { type: 'reading', id: READING_TEXTS[0].id }],
+                    ['🎧', 'Something to hear', { type: 'listening', id: LISTENING_TRACKS[Math.floor(Math.random() * LISTENING_TRACKS.length)].id }],
+                  ].map(([em, label, go]) => (
+                    <button key={label} onClick={() => onGo(go)}
+                      className="flex items-center gap-2.5 bg-surface border border-line rounded-xl px-3.5 py-3 text-left hover:border-ink3 transition-colors">
+                      <span className="text-xl" aria-hidden="true">{em}</span>
+                      <span className="text-xs font-semibold text-ink">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-ink3 text-center">
+                Try «bonjour», «subjonctif», «doctor», «fromage»…
+              </p>
+            </div>
           )}
           {results && total === 0 && (
             <div className="text-center py-10 space-y-2">

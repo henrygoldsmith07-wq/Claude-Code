@@ -28,6 +28,7 @@ const KEYS = {
   vacation: 'fp.vacation', // ISO day until which streak loss is paused
   grammarErrors: 'fp.grammarErrors', // { [topicId]: count } — Arena mistake classifications
   gettingStarted: 'fp.gettingStarted', // '1' once the Home checklist is dismissed
+  lastActivity: 'fp.lastActivity', // { type, id?, label, at } — powers Home's continue card
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
@@ -149,6 +150,14 @@ export function saveSession(summary) {
   write(KEYS.sessions, sessions.slice(-10));
   recordHabits(summary.report?.stubborn_habits || []);
   bumpStreak();
+}
+
+// ---- last activity (Home's "continue where you left off") ----
+
+export const getLastActivity = () => read(KEYS.lastActivity, null);
+
+export function setLastActivity(type, id, label) {
+  write(KEYS.lastActivity, { type, id: id || null, label, at: new Date().toISOString() });
 }
 
 // ---- getting-started checklist (Home) ----

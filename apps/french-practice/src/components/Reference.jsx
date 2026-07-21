@@ -342,7 +342,7 @@ function Dictionary({ onImported }) {
         {added != null && <p className="text-xs text-ink flex items-center gap-1.5" role="status"><Check size={13} /> Added {added} word{added !== 1 ? 's' : ''} to your notebook.</p>}
 
         <p className="text-[11px] text-ink3">{results.length} of {dict.length} entries</p>
-        <ul className="space-y-2">
+        <ul className="space-y-2 cv-list">
           {results.map((w, i) => (
             <li key={`${w.fr}-${i}`} className="flex items-center gap-3 bg-surface border border-line rounded-xl px-4 py-2.5">
               <div className="flex-1 min-w-0">

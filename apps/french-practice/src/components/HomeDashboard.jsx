@@ -6,7 +6,7 @@ import { SCENARIOS } from '../lib/data';
 import { allEntryIds, allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -21,7 +21,7 @@ function suggestScenario(sessions) {
   return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario }) {
+export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario, lastActivity, onResume }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -106,6 +106,44 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             </p>
           )}
         </section>
+
+        {/* continue where you left off — the shortest path back into flow */}
+        {lastActivity && (
+          <button
+            onClick={() => onResume(lastActivity)}
+            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity elev-card"
+          >
+            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><Play size={15} /></span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Continue where you left off</span>
+              <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 opacity-70" />
+          </button>
+        )}
+
+        {/* surprise me: one tap into a random corner of the studio */}
+        <button
+          onClick={() => {
+            const rolls = [
+              () => { onPickScenario(SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)]); onNavigate('arena'); },
+              () => onNavigate('grammar'),
+              () => onStartLesson({ type: 'cards' }),
+              () => onNavigate('culture'),
+              () => onStartLesson({ type: 'dictation' }),
+              () => onStartLesson({ type: 'quickfire' }),
+            ];
+            rolls[Math.floor(Math.random() * rolls.length)]();
+          }}
+          className="w-full flex items-center gap-3 bg-surface border border-dashed border-line rounded-2xl px-4 py-3 text-left hover:border-ink3 transition-colors"
+        >
+          <span className="text-xl" aria-hidden="true">🎲</span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-ink">Surprise me</span>
+            <span className="block text-xs text-ink3">Jump into a random corner of the studio</span>
+          </span>
+          <ChevronRight size={16} className="text-ink3 shrink-0" />
+        </button>
 
         {/* getting-started checklist: live tutorial, replaces the old static tour */}
         <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
@@ -240,7 +278,9 @@ function ActionCard({ icon: CardIcon, title, subtitle, badge, onClick }) {
 
 // Word of the day: a stable daily pick from the full vocabulary library.
 function PhraseOfTheDay() {
-  const entries = allEntries();
+  // Prefer cards that carry an example sentence, so the daily pick is rich
+  // rather than a bare frequency-list word pair.
+  const entries = allEntries().filter((x) => x.example && x.emoji);
   const day = Math.floor(Date.now() / 86400000);
   const e = entries[day % entries.length];
   if (!e) return null;
