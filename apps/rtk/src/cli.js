@@ -6,32 +6,46 @@ const { truncate } = require('./truncate');
 const { record, load, formatGain } = require('./stats');
 const { init } = require('./init');
 
+const VERSION = '0.2.0';
+
 function commandLabel(argv) {
   return argv.slice(0, 2).join(' ') || argv[0];
 }
 
 function printHelp() {
-  console.log(`rtk — cut tool-call output down to what an LLM agent actually needs
+  console.log(`rtk v${VERSION} — cut tool-call output down to what an LLM agent actually needs
 
 Usage:
-  rtk init          add rtk usage instructions to ./CLAUDE.md
-  rtk err <command> run <command>; print a one-line summary on success,
-                    only the failing details on failure
-  rtk gain          show cumulative token savings across all commands run
-  rtk <command>     run <command>; long output is truncated (head/tail)
+  rtk init            add rtk usage instructions to ./CLAUDE.md
+  rtk err <command>   run <command>; print a one-line summary on success,
+                      only the failing details on failure
+  rtk gain            show cumulative token savings across all commands run
+  rtk version         print version
+  rtk <command>       run <command>; long output is truncated (head/tail)
 
 Examples:
   rtk err npm test
+  rtk err npm run build
   rtk git status
   rtk find . -name "*.js"
+  rtk gain
+
+Tips:
+  • Prefer \`rtk err\` for test/build commands so pass noise disappears.
+  • Stats live in .rtk/stats.json (nearest ancestor or current dir).
 `);
 }
 
 function main(argv) {
   const [sub, ...rest] = argv;
 
-  if (!sub || sub === '--help' || sub === '-h') {
+  if (!sub || sub === '--help' || sub === '-h' || sub === 'help') {
     printHelp();
+    return;
+  }
+
+  if (sub === '--version' || sub === '-v' || sub === 'version') {
+    console.log(`rtk ${VERSION}`);
     return;
   }
 
@@ -47,7 +61,7 @@ function main(argv) {
 
   if (sub === 'err') {
     if (!rest.length) {
-      printHelp();
+      console.error('rtk err: missing command. Example: rtk err npm test');
       process.exitCode = 1;
       return;
     }
@@ -59,6 +73,7 @@ function main(argv) {
     return;
   }
 
+  // Treat anything else as a command to run + truncate.
   const { output, exitCode } = runCommand(argv);
   const { emitted } = truncate(output);
   process.stdout.write(emitted.endsWith('\n') ? emitted : `${emitted}\n`);
@@ -66,4 +81,4 @@ function main(argv) {
   process.exitCode = exitCode;
 }
 
-module.exports = { main, commandLabel };
+module.exports = { main, commandLabel, VERSION };
