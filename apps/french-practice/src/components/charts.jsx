@@ -176,6 +176,79 @@ export function TrendChart({ sessions }) {
   );
 }
 
+// Weekly XP as a bar chart (last N Monday-anchored weeks). The current week
+// is inked solid; earlier weeks sit in the mid-grey so the latest reads first.
+export function WeeklyXPChart({ weeks }) {
+  const max = Math.max(1, ...weeks.map((w) => w.total));
+  if (!weeks.some((w) => w.total > 0)) {
+    return (
+      <p className="text-xs text-ink3 italic py-6 text-center">
+        Earn XP and your weekly rhythm builds up here
+      </p>
+    );
+  }
+  return (
+    <div
+      className="flex items-stretch gap-1.5 h-28"
+      role="img"
+      aria-label={`Weekly XP: ${weeks.map((w) => `${w.label} ${w.total}`).join(', ')}`}
+    >
+      {weeks.map((w, i) => {
+        const last = i === weeks.length - 1;
+        return (
+          <div key={w.start} className="flex-1 flex flex-col items-center gap-1 min-w-0 h-full">
+            <span className="text-[9px] tabular-nums text-ink3 h-3">{w.total || ''}</span>
+            <div className="w-full flex-1 flex items-end">
+              <div
+                className={`w-full rounded-t-[3px] ${last ? 'bg-ink' : 'bg-ink3'}`}
+                style={{ height: `${Math.max(3, (w.total / max) * 100)}%`, transition: 'height 0.7s cubic-bezier(0.3, 0.8, 0.3, 1)' }}
+                title={`Week of ${w.label}: ${w.total} XP`}
+              />
+            </div>
+            <span className="text-[8px] text-ink3 truncate w-full text-center leading-tight">{w.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Cumulative vocabulary growth as a filled area line (weekly buckets).
+export function GrowthChart({ weeks }) {
+  const w = 560;
+  const h = 130;
+  const pad = { l: 30, r: 10, t: 12, b: 20 };
+  const vals = weeks.map((b) => b.total);
+  if (vals.length < 2 || vals[vals.length - 1] === 0) {
+    return (
+      <p className="text-xs text-ink3 italic py-6 text-center">
+        Learn a few words and your growing vocabulary charts here
+      </p>
+    );
+  }
+  const max = Math.max(4, ...vals);
+  const x = (i) => pad.l + (i / (vals.length - 1)) * (w - pad.l - pad.r);
+  const y = (v) => pad.t + (1 - v / max) * (h - pad.t - pad.b);
+  const path = vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const area = `${path} L${x(vals.length - 1)},${h - pad.b} L${x(0)},${h - pad.b} Z`;
+  const ticks = [0, Math.round(max / 2), max];
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" role="img" aria-label={`Vocabulary growth: ${vals.join(', ')} words`}>
+      {ticks.map((g) => (
+        <g key={g}>
+          <line x1={pad.l} x2={w - pad.r} y1={y(g)} y2={y(g)} stroke="var(--line)" strokeWidth="1" />
+          <text x={pad.l - 6} y={y(g) + 3} textAnchor="end" fontSize="9" fill="var(--ink-3)">{g}</text>
+        </g>
+      ))}
+      <path d={area} fill="var(--success)" opacity="0.13" />
+      <path d={path} fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {vals.map((v, i) => (
+        <circle key={i} cx={x(i)} cy={y(v)} r="3" fill="var(--surface)" stroke="var(--success)" strokeWidth="2" />
+      ))}
+    </svg>
+  );
+}
+
 // Renders an earned certificate to an offscreen canvas → PNG data URL.
 export function renderCertificate({ title, requirement, stat, date }) {
   const w = 640;

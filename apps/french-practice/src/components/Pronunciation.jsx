@@ -3,6 +3,8 @@ import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { randomPoolSentence, toWords, diffWords, displayHits } from '../lib/sentences';
 import { transcribe, accentFeedback, friendlyError } from '../lib/groq';
+import { speechMetrics } from '../lib/analytics';
+import { activeLanguage } from '../lib/i18n';
 import { recordSkillScore } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { SpeakButton, Spinner } from './ui';
@@ -24,7 +26,7 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
   const words = useMemo(() => sentence.text.split(/\s+/), [sentence]);
 
   const recorder = useRecorder({
-    onComplete: async (blob) => {
+    onComplete: async (blob, durationMs) => {
       setPhase('scoring');
       setError(null);
       try {
@@ -36,13 +38,14 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
         const gained = Math.max(1, Math.round(accuracy / 10));
         onXp(gained);
         recordSkillScore(mode === 'shadowing' ? 'speaking' : 'pronunciation', accuracy);
+        const metrics = speechMetrics(heard, durationMs, activeLanguage().id);
         let feedback = '';
         try {
           feedback = await accentFeedback(apiKey, { target: sentence.text, heard, level, mock: mockMode });
         } catch {
           feedback = ''; // scoring still stands without coach commentary
         }
-        setResult({ heard, accuracy, gained, hits: displayHits(sentence.text, hits), feedback });
+        setResult({ heard, accuracy, gained, hits: displayHits(sentence.text, hits), feedback, metrics });
       } catch (e) {
         setError(friendlyError(e));
       }
@@ -135,6 +138,28 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
             <p className="text-sm text-ink2" lang="fr">{result.heard || '—'}</p>
             <p className="text-[11px] text-ink3 mt-1">Underlined words above weren't recognized — they're your likely trouble spots.</p>
           </div>
+
+          {/* delivery: how fast, and how many audible hesitations */}
+          {result.metrics && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-surface2 rounded-xl px-3.5 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ink3">Pace</p>
+                <p className="text-lg font-bold text-ink tabular-nums leading-tight">
+                  {result.metrics.wpm} <span className="text-[11px] font-normal text-ink3">wpm</span>
+                </p>
+                <p className="text-[11px] text-ink3">
+                  {result.metrics.pace === 'measured' ? 'measured — build flow' : result.metrics.pace === 'fast' ? 'fast — mind clarity' : 'natural pace'}
+                </p>
+              </div>
+              <div className="bg-surface2 rounded-xl px-3.5 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ink3">Hesitations</p>
+                <p className="text-lg font-bold text-ink tabular-nums leading-tight">{result.metrics.fillers}</p>
+                <p className="text-[11px] text-ink3">
+                  {result.metrics.fillers === 0 ? 'none heard — fluent' : 'filler word' + (result.metrics.fillers > 1 ? 's' : '')}
+                </p>
+              </div>
+            </div>
+          )}
           {result.feedback && (
             <div className="bg-surface2 border border-line rounded-xl px-3.5 py-2.5">
               <h4 className="text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Accent coach</h4>

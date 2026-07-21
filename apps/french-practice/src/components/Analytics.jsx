@@ -10,8 +10,9 @@ import { levelFromXp } from '../lib/game';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
   skillBreakdown, skillScore, retentionRate, wordsLearned, periodReport, fmtDuration,
-  xpInRange, dailyPace,
+  xpInRange, dailyPace, weeklyXp, vocabGrowth, yearRecap,
 } from '../lib/analytics';
+import { WeeklyXPChart, GrowthChart, TrendChart } from './charts';
 import { X, Clock, Layers, Book, Mic, Volume, BarChart, TrendingUp } from './icons';
 
 // Analytics (full-screen): headline metrics, a skill breakdown, weekly and
@@ -27,9 +28,11 @@ export default function Analytics({ open, onClose }) {
     const entries = [...allEntries(), ...notebookAsEntries(getNotebook())];
     const timeLog = getTimeLog();
     const xpLog = getXpLog();
+    const reviewLog = getReviewLog();
     const breakdown = skillBreakdown(metrics, sessions, grammar);
     return {
       breakdown,
+      recap: yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs }),
       totalSeconds: Object.values(timeLog).reduce((a, b) => a + b, 0),
       weekSeconds: periodReport(7, { xpLog, timeLog, metrics, sessions }).seconds,
       wordsLearned: wordsLearned(srs),
@@ -42,6 +45,9 @@ export default function Analytics({ open, onClose }) {
       week: periodReport(7, { xpLog, timeLog, metrics, sessions }),
       month: periodReport(30, { xpLog, timeLog, metrics, sessions }),
       xpLog,
+      sessions,
+      weeklyXp: weeklyXp(xpLog, 8),
+      vocabGrowth: vocabGrowth(srs, 8),
       xp: getXp(),
       level: levelFromXp(getXp()),
       pace: dailyPace(xpLog, 14),
@@ -66,6 +72,8 @@ export default function Analytics({ open, onClose }) {
 
       <div className="flex-1 overflow-y-auto nice-scroll px-4 py-5">
         <div className="max-w-md mx-auto space-y-6">
+          {d.recap && <YearRecap r={d.recap} />}
+
           {/* headline metrics */}
           <section className="grid grid-cols-2 gap-2.5">
             <Metric icon={Clock} label="Time studied" value={fmtDuration(d.totalSeconds)} sub={`${fmtDuration(d.weekSeconds)} this week`} />
@@ -81,6 +89,32 @@ export default function Analytics({ open, onClose }) {
           {/* week-over-week trend + forward projections */}
           <Trend thisWeek={d.thisWeekXp} lastWeek={d.lastWeekXp} />
           <Projections xp={d.xp} level={d.level} pace={d.pace} weeklyGoal={d.weeklyGoal} thisWeekXp={d.thisWeekXp} />
+
+          {/* charts over time */}
+          <section className="space-y-2.5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Progress over time</h3>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-ink">Weekly XP</h4>
+                <span className="text-[11px] text-ink3">last 8 weeks</span>
+              </div>
+              <WeeklyXPChart weeks={d.weeklyXp} />
+            </div>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-ink">Vocabulary growth</h4>
+                <span className="text-[11px] text-ink3">words learned</span>
+              </div>
+              <GrowthChart weeks={d.vocabGrowth} />
+            </div>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-ink">Speaking scores</h4>
+                <span className="text-[11px] text-ink3">per conversation</span>
+              </div>
+              <TrendChart sessions={d.sessions} />
+            </div>
+          </section>
 
           {/* skill breakdown */}
           <section className="space-y-2.5">
@@ -120,6 +154,40 @@ export default function Analytics({ open, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Year in review: a celebratory recap of the calendar year's headline
+// numbers, inked as a dark card so it reads as a milestone, not a metric.
+function YearRecap({ r }) {
+  const stats = [
+    ['XP earned', r.totalXp.toLocaleString('en-GB')],
+    ['Active days', r.activeDays],
+    ['Words learned', r.wordsLearned],
+    ['Best streak', `${r.longestStreak}d`],
+    ['Conversations', r.sessions],
+    ['Reviews', r.reviews],
+  ];
+  return (
+    <section className="rounded-2xl bg-ink text-bg p-5 space-y-4">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider opacity-70">Your year in review</h3>
+        <span className="text-sm font-bold tabular-nums">{r.year}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-y-4 gap-x-2">
+        {stats.map(([label, v]) => (
+          <div key={label}>
+            <p className="text-xl font-bold tabular-nums leading-none">{v}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-60 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs opacity-80 leading-relaxed border-t border-bg/20 pt-3">
+        {r.busiestMonth ? <>Your strongest month was <span className="font-semibold">{r.busiestMonth}</span>. </> : null}
+        {r.topSkill ? <>Sharpest skill: <span className="font-semibold">{r.topSkill.label}</span> at {r.topSkill.score}%. </> : null}
+        {fmtDuration(r.seconds) !== '—' ? <>That's <span className="font-semibold">{fmtDuration(r.seconds)}</span> of practice — félicitations.</> : 'Keep the momentum going.'}
+      </p>
+    </section>
   );
 }
 

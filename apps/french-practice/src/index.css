@@ -29,10 +29,18 @@
   --surface-2: #ececef;
   --line: #dcdce1;
   --ink: #131316;
-  --ink-2: #55555c;
-  --ink-3: #77777f;
+  --ink-2: #4d4d55;
+  --ink-3: #6c6c76;
   --accent: #131316;
   --on-accent: #ffffff;
+  /* semantic accents — used sparingly on a monochrome base to signal state:
+     success (goal met / correct), speak (conversation), review (due). */
+  --success: #1f9d57;
+  --success-soft: #e4f5ec;
+  --speak: #2f6fed;
+  --speak-soft: #e6eefb;
+  --review: #e07a19;
+  --review-soft: #fbeedd;
   /* elevation: restrained, tinted toward ink so shadows never look muddy */
   --shadow-sm: 0 1px 2px rgba(19, 19, 22, 0.06), 0 1px 1px rgba(19, 19, 22, 0.04);
   --shadow-md: 0 6px 20px -6px rgba(19, 19, 22, 0.14), 0 2px 6px -2px rgba(19, 19, 22, 0.08);
@@ -46,10 +54,16 @@
   --surface-2: #242428;
   --line: #34343a;
   --ink: #f4f4f5;
-  --ink-2: #a6a6ad;
-  --ink-3: #86868f;
+  --ink-2: #b2b2ba;
+  --ink-3: #8f8f99;
   --accent: #f4f4f5;
   --on-accent: #0b0b0d;
+  --success: #37c47e;
+  --success-soft: #16311f;
+  --speak: #6fa0ff;
+  --speak-soft: #172236;
+  --review: #f2933a;
+  --review-soft: #33230f;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px -6px rgba(0, 0, 0, 0.6), 0 2px 8px -2px rgba(0, 0, 0, 0.4);
   --shadow-nav: 0 -1px 0 var(--line), 0 -8px 24px -12px rgba(0, 0, 0, 0.6);
@@ -68,6 +82,12 @@
   --color-ink3: var(--ink-3);
   --color-accent: var(--accent);
   --color-onaccent: var(--on-accent);
+  --color-success: var(--success);
+  --color-successsoft: var(--success-soft);
+  --color-speak: var(--speak);
+  --color-speaksoft: var(--speak-soft);
+  --color-review: var(--review);
+  --color-reviewsoft: var(--review-soft);
 }
 
 html, body, #root {
@@ -254,6 +274,9 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 .celebrate-pop { animation: celebrate-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards; }
+
+/* Progress bars animate smoothly when their width changes. */
+.bar-anim { transition: width 0.7s cubic-bezier(0.3, 0.8, 0.3, 1); }
 
 /* iOS safe areas */
 .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }

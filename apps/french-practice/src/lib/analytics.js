@@ -100,6 +100,142 @@ export function dailyPace(xpLog, days = 14, now = new Date()) {
   return xpInRange(xpLog, days - 1, 0, now) / days;
 }
 
+// XP totalled per Monday-anchored week for the last `weeks` weeks, oldest
+// first. Each bucket: { start (YYYY-MM-DD Monday), label ("5 Aug"), total }.
+// Feeds the weekly-XP bar chart in the analytics view.
+export function weeklyXp(xpLog, weeks = 8, now = new Date()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const monday = new Date(d.getTime() - ((d.getDay() + 6) % 7) * 86400000);
+  const buckets = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = new Date(monday.getTime() - i * 7 * 86400000);
+    const startStamp = dayStamp(start);
+    const endStamp = dayStamp(start.getTime() + 6 * 86400000);
+    let total = 0;
+    for (const [day, v] of Object.entries(xpLog)) if (day >= startStamp && day <= endStamp) total += v;
+    buckets.push({
+      start: startStamp,
+      label: start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      total,
+    });
+  }
+  return buckets;
+}
+
+// Cumulative words-learned growth per week over the last `weeks` weeks, from
+// the SRS map's per-card review history. A card counts from the week it
+// crossed its second review (our "learned" threshold). Oldest first:
+// { start, label, total } where total is the running vocabulary size.
+export function vocabGrowth(srs, weeks = 8, now = new Date()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const monday = new Date(d.getTime() - ((d.getDay() + 6) % 7) * 86400000);
+  // Learned-on timestamps (ms): cards past two reps, dated by last review.
+  const learnedOn = Object.values(srs)
+    .filter((s) => (s.reps || 0) >= 2 && s.lastReviewed)
+    .map((s) => new Date(s.lastReviewed).getTime());
+  const buckets = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const end = new Date(monday.getTime() - i * 7 * 86400000 + 7 * 86400000 - 1);
+    const total = learnedOn.filter((t) => t <= end.getTime()).length;
+    const start = new Date(monday.getTime() - i * 7 * 86400000);
+    buckets.push({
+      start: dayStamp(start),
+      label: start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      total,
+    });
+  }
+  return buckets;
+}
+
+// Longest run of consecutive active days in a day-keyed log (any value > 0).
+function longestRun(log) {
+  const days = Object.entries(log).filter(([, v]) => v > 0).map(([d]) => d).sort();
+  let best = 0;
+  let run = 0;
+  let prev = null;
+  for (const d of days) {
+    const cont = prev && (new Date(d) - new Date(prev)) === 86400000;
+    run = cont ? run + 1 : 1;
+    if (run > best) best = run;
+    prev = d;
+  }
+  return best;
+}
+
+// Year-in-review recap: the headline numbers for a calendar year, aggregated
+// from the logs the app already keeps. Pure. `metrics` dates the skill work;
+// `srs` supplies the learned-word count (all-time, since SRS has no per-year
+// history). Returns null when the year has no recorded activity.
+export function yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs }, year = new Date().getFullYear()) {
+  const inYear = (stamp) => String(stamp).slice(0, 4) === String(year);
+  const xpDays = Object.entries(xpLog).filter(([d]) => inYear(d));
+  const totalXp = xpDays.reduce((a, [, v]) => a + v, 0);
+  const activeDays = xpDays.filter(([, v]) => v > 0).length;
+  if (!activeDays && !sessions.length) return null;
+
+  const seconds = Object.entries(timeLog).filter(([d]) => inYear(d)).reduce((a, [, v]) => a + v, 0);
+  const yearReviews = Object.entries(reviewLog).filter(([d]) => inYear(d)).reduce((a, [, v]) => a + v, 0);
+  const yearSessions = sessions.filter((s) => s.date && inYear(dayStamp(s.date))).length;
+
+  // Busiest month by XP.
+  const byMonth = {};
+  for (const [d, v] of xpDays) {
+    const m = d.slice(0, 7);
+    byMonth[m] = (byMonth[m] || 0) + v;
+  }
+  const top = Object.entries(byMonth).sort((a, b) => b[1] - a[1])[0];
+  const busiestMonth = top
+    ? new Date(`${top[0]}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long' })
+    : null;
+
+  // Strongest skill this year, from dated metrics.
+  const bySkill = {};
+  for (const m of metrics) if (inYear(dayStamp(m.at))) (bySkill[m.skill] ||= []).push(m.score);
+  let topSkill = null;
+  for (const s of SKILLS) {
+    const a = avg(bySkill[s.id] || []);
+    if (a != null && (!topSkill || a > topSkill.score)) topSkill = { label: s.label, score: a };
+  }
+
+  return {
+    year,
+    totalXp,
+    activeDays,
+    seconds,
+    longestStreak: longestRun(Object.fromEntries(xpDays)),
+    wordsLearned: wordsLearned(srs),
+    sessions: yearSessions,
+    reviews: yearReviews,
+    busiestMonth,
+    topSkill,
+  };
+}
+
+// Hesitation markers a transcriber sometimes surfaces, per target language.
+const FILLERS = {
+  fr: ['euh', 'heu', 'ben', 'bah', 'hein', 'bon'],
+  de: ['äh', 'ähm', 'öhm', 'halt', 'also', 'ne'],
+  es: ['eh', 'este', 'pues', 'bueno', 'osea'],
+};
+
+// Delivery metrics from a spoken attempt: speaking pace (words/min) and the
+// number of audible hesitation markers. Pure — derived from the transcript
+// and the recording length, so it works offline once transcription is done.
+export function speechMetrics(heard, durationMs, langId = 'fr') {
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[.,!?;:¿¡"«»]/g, '');
+  const words = String(heard || '').trim().split(/\s+/).filter(Boolean);
+  const seconds = Math.max(0.4, (durationMs || 0) / 1000);
+  const wpm = Math.round((words.length / seconds) * 60);
+  const fillerSet = new Set((FILLERS[langId] || FILLERS.fr).map(norm));
+  const hit = words.filter((w) => fillerSet.has(norm(w)));
+  const fillerWords = [...new Set(hit.map((w) => norm(w)))];
+  // Learner-friendly bands: measured is fine, fast can blur clarity.
+  const pace = wpm < 55 ? 'measured' : wpm <= 145 ? 'natural' : 'fast';
+  return { words: words.length, seconds: Math.round(seconds), wpm, fillers: hit.length, fillerWords, pace };
+}
+
 // Human time from seconds: "2h 5m", "40m", "—".
 export function fmtDuration(seconds) {
   if (!seconds) return '—';
