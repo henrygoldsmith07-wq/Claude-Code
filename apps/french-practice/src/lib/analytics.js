@@ -149,6 +149,28 @@ export function vocabGrowth(srs, weeks = 8, now = new Date()) {
   return buckets;
 }
 
+// Hesitation markers a transcriber sometimes surfaces, per target language.
+const FILLERS = {
+  fr: ['euh', 'heu', 'ben', 'bah', 'hein', 'bon'],
+  de: ['äh', 'ähm', 'öhm', 'halt', 'also', 'ne'],
+  es: ['eh', 'este', 'pues', 'bueno', 'osea'],
+};
+
+// Delivery metrics from a spoken attempt: speaking pace (words/min) and the
+// number of audible hesitation markers. Pure — derived from the transcript
+// and the recording length, so it works offline once transcription is done.
+export function speechMetrics(heard, durationMs, langId = 'fr') {
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[.,!?;:¿¡"«»]/g, '');
+  const words = String(heard || '').trim().split(/\s+/).filter(Boolean);
+  const seconds = Math.max(0.4, (durationMs || 0) / 1000);
+  const wpm = Math.round((words.length / seconds) * 60);
+  const fillerSet = new Set((FILLERS[langId] || FILLERS.fr).map(norm));
+  const fillers = words.filter((w) => fillerSet.has(norm(w))).length;
+  // Learner-friendly bands: measured is fine, fast can blur clarity.
+  const pace = wpm < 55 ? 'measured' : wpm <= 145 ? 'natural' : 'fast';
+  return { words: words.length, seconds: Math.round(seconds), wpm, fillers, pace };
+}
+
 // Human time from seconds: "2h 5m", "40m", "—".
 export function fmtDuration(seconds) {
   if (!seconds) return '—';
