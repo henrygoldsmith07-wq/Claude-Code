@@ -278,7 +278,9 @@ function ActionCard({ icon: CardIcon, title, subtitle, badge, onClick }) {
 
 // Word of the day: a stable daily pick from the full vocabulary library.
 function PhraseOfTheDay() {
-  const entries = allEntries();
+  // Prefer cards that carry an example sentence, so the daily pick is rich
+  // rather than a bare frequency-list word pair.
+  const entries = allEntries().filter((x) => x.example && x.emoji);
   const day = Math.floor(Date.now() / 86400000);
   const e = entries[day % entries.length];
   if (!e) return null;
