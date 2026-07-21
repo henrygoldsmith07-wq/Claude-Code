@@ -1,13 +1,53 @@
+"use client";
+
+import { useState } from "react";
 import type { ReflectionSummary } from "@/lib/types";
 
 export default function SummaryView({ summary }: { summary: ReflectionSummary }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    const text = [
+      `Core emotion: ${summary.coreEmotion}`,
+      "",
+      "Triggers:",
+      ...summary.underlyingTriggers.map((t) => `• ${t}`),
+      "",
+      "Possible biases:",
+      ...summary.possibleBiases.map((b) => `• ${b.type}: ${b.description}`),
+      "",
+      `Other perspective: ${summary.otherPerspective}`,
+      "",
+      `Honest assessment: ${summary.balancedAssessment}`,
+      "",
+      "Caution flags:",
+      ...summary.cautionFlags.map((c) => `• ${c}`),
+      "",
+      "Next steps:",
+      ...summary.suggestedNextSteps.map((s) => `• ${s}`),
+    ].join("\n");
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          What&apos;s actually underneath it
-        </h3>
-        <p className="mt-1 text-lg font-medium">{summary.coreEmotion}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            What's actually underneath it
+          </h3>
+          <p className="mt-1 text-lg font-medium">{summary.coreEmotion}</p>
+        </div>
+        <button
+          onClick={handleCopy}
+          className="shrink-0 rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        >
+          {copied ? "Copied!" : "Copy summary"}
+        </button>
       </div>
 
       {summary.underlyingTriggers.length > 0 && (
