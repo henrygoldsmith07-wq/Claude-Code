@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GRAMMAR_TOPICS, getGrammarTopic } from '../lib/grammar';
 import { getGrammarProgress, recordGrammarQuiz } from '../lib/storage';
 import { Drill, SentenceBuilder, Quiz } from './GrammarExercises';
 import { Markdown, SpeakButton } from './ui';
-import { ChevronLeft, ChevronRight, Book, CheckCircle } from './icons';
+import { ChevronLeft, ChevronRight, Book, CheckCircle, Search } from './icons';
+
+// Accent- and case-insensitive haystack match, so «etre» finds «être».
+const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// The six CEFR bands, in learning order — the spine of the level filter.
+const CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 // Grammar reference library + interactive lessons. Each topic is a small
 // four-step lesson: Learn (explanation) → Drill → Build → Quiz (scored,
@@ -19,8 +24,24 @@ const STEPS = [
 export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivity }) {
   const [topicId, setTopicId] = useState(null);
   const [tick, setTick] = useState(0);
+  const [level, setLevel] = useState('all');
+  const [query, setQuery] = useState('');
   const progress = getGrammarProgress();
   void tick;
+
+  // Only offer level chips that actually exist in the library, in CEFR order.
+  const levels = useMemo(
+    () => CEFR_ORDER.filter((c) => GRAMMAR_TOPICS.some((t) => t.cefr === c)),
+    [],
+  );
+  const filtered = useMemo(() => {
+    const q = norm(query.trim());
+    return GRAMMAR_TOPICS.filter((t) => {
+      if (level !== 'all' && t.cefr !== level) return false;
+      if (q.length >= 2 && !norm(`${t.title} ${t.summary}`).includes(q)) return false;
+      return true;
+    });
+  }, [level, query]);
 
   // A "grammar tip" tap in the Arena deep-links straight into a topic.
   useEffect(() => {
@@ -55,8 +76,47 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
             Reference library and interactive lessons — mastered at a quiz score of 80+.
           </p>
         </div>
+
+        {/* find a topic: search by name, then narrow to your CEFR level */}
+        <div className="flex items-center gap-2 bg-surface border border-line rounded-xl px-3">
+          <Search size={15} className="text-ink3 shrink-0" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search topics…"
+            aria-label="Search grammar topics"
+            className="flex-1 min-w-0 bg-transparent text-sm text-ink placeholder:text-ink3 focus:outline-none py-2.5"
+          />
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto snap-rail -mx-1 px-1 pb-0.5" role="tablist" aria-label="Filter by CEFR level">
+          {['all', ...levels].map((lvl) => (
+            <button
+              key={lvl}
+              role="tab"
+              aria-selected={level === lvl}
+              onClick={() => setLevel(lvl)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                level === lvl ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'
+              }`}
+            >
+              {lvl === 'all' ? 'All levels' : lvl}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-ink3 px-1 tabular-nums">
+          {filtered.length} of {GRAMMAR_TOPICS.length} topic{GRAMMAR_TOPICS.length === 1 ? '' : 's'}
+        </p>
+
+        {filtered.length === 0 ? (
+          <div className="text-center py-10 space-y-1">
+            <p className="text-sm text-ink2">No topics match.</p>
+            <button onClick={() => { setQuery(''); setLevel('all'); }} className="text-xs text-ink3 underline hover:text-ink">
+              Clear filters
+            </button>
+          </div>
+        ) : (
         <ul className="space-y-2.5">
-          {GRAMMAR_TOPICS.map((t) => {
+          {filtered.map((t) => {
             const p = progress[t.id];
             const mastered = (p?.best ?? 0) >= 80;
             return (
@@ -86,6 +146,7 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
             );
           })}
         </ul>
+        )}
       </div>
     </div>
   );
