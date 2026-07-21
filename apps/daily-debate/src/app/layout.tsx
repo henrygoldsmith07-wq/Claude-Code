@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Debate",
-  description: "Sharpen your critical thinking with daily AI-judged debates, solo or head-to-head.",
+  title: {
+    default: "Daily Debate",
+    template: "%s · Daily Debate",
+  },
+  description:
+    "Sharpen your critical thinking with daily AI-judged debates — solo against Claude or head-to-head with other players. Points, levels, and streaks make it a game.",
+  keywords: ["debate", "critical thinking", "AI", "Claude", "PvP", "gamification"],
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f1115",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
