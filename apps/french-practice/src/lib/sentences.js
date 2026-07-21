@@ -9,9 +9,11 @@ export const SENTENCE_POOL = [
   ...FLASHCARDS.map((c) => ({ text: c.example, translation: c.exampleTranslation })),
   ...SCENARIOS.map((s) => ({ text: s.opener, translation: s.openerTranslation })),
   ...allEntries()
-    .filter((e) => FLASHCARDS.every((c) => c.id !== e.id))
+    .filter((e) => e.example && FLASHCARDS.every((c) => c.id !== e.id))
     .map((e) => ({ text: e.example, translation: e.exampleEn })),
-];
+  // The frequency-lexicon cards carry no example sentence — never let an
+  // empty string into the pool, or the drills show a blank prompt.
+].filter((s) => s.text && s.text.trim());
 
 export const randomPoolSentence = (excludeText) => {
   const candidates = SENTENCE_POOL.filter((s) => s.text !== excludeText);
