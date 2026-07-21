@@ -14,3 +14,10 @@ export interface GenerateRequest {
   title: string;
   transcript: string;
 }
+
+export interface HistoryItem {
+  id: string;
+  title: string;
+  createdAt: string;
+  outputs: EpisodeOutputs;
+}
