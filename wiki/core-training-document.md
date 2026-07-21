@@ -12,8 +12,9 @@ themselves. Each app in `apps/` is a cheap bet; the goal is for some of them
 to grow into larger, profitable products. Volume and speed beat polish —
 build, ship, observe, then double down or kill.
 
-Current portfolio (`apps/`): daily-debate, emotion-tracker, omni-life,
-podcast-repurposer, rtk, subscription-tracker, wjec-study-app, world-news.
+Current portfolio (`apps/`): daily-debate, emotion-tracker, french-practice,
+le-studio-site, omni-life, podcast-repurposer, rtk, subscription-tracker,
+wjec-study-app, world-news.
 
 ## Constraints
 
