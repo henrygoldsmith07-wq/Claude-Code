@@ -22,6 +22,18 @@ no account or backend required.
    it, an honest (not necessarily flattering) assessment, caution flags for
    any rash or retaliatory decision you mentioned, and concrete next steps.
 
+## Features
+
+- **AI-guided reflection** with Claude (probing questions + structured summary)
+- **Local-first** — all data stays in your browser (localStorage)
+- **Dark / Light mode** with system preference detection
+- **Search** across titles, emotions, and message content
+- **Export** all reflections as JSON
+- **Copy summary** to clipboard with one click
+- **Mobile responsive** slide-over sidebar
+- **Delete confirmation** to prevent accidents
+- **Character guidance** when starting a new entry
+
 ## Setup
 
 ```bash
@@ -41,3 +53,9 @@ npm run dev
 - `npm run dev` — start the dev server
 - `npm run build` — production build
 - `npm run lint` — lint the app
+
+## Privacy
+
+No accounts, no server-side storage of your reflections. Your API key and
+entries never leave the browser except when the reflection API is called
+(and then only the conversation for that session is sent to Anthropic).
