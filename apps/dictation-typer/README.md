@@ -32,6 +32,10 @@ python main.py
 Then hold **Ctrl+Alt**, speak, and release. The text appears at your cursor.
 Press **Ctrl+C** in the console to quit.
 
+On each successful dictation the console shows a session counter, the text,
+and how long the audio + transcription took. Errors print a short hint about
+checking `GROQ_API_KEY` and network connectivity.
+
 ## Configuration (`config.json`)
 
 | Key             | Default                   | Meaning                                                        |

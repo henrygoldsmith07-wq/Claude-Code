@@ -5,7 +5,8 @@ guide. Two parts:
 
 - **`web/`** — Next.js dashboard (deploy to Vercel). Lists meetings, plays the
   recording, shows a clickable transcript synced to the video, and lets you chat
-  with Claude about the meeting. Public share links included.
+  with Claude about the meeting. Public share links included. Dashboard supports
+  search by title and filter by status (Ready / Transcribing / Uploading / Error).
 - **`desktop/`** — Electron recorder (Windows-native audio). Captures your
   screen + system audio + microphone, uploads straight to Cloudflare R2, and
   kicks off transcription.
