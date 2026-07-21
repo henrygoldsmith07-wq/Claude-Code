@@ -24,15 +24,26 @@ body {
   }
 }
 
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: white;
+}
+
 /* Custom Scrollbar for Dark Mode */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-black;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-800 rounded-full hover:bg-gray-700 transition-colors;
+  @apply rounded-full bg-gray-800 hover:bg-gray-700 transition-colors;
 }
