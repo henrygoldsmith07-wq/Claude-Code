@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { langName } from '../lib/i18n';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
-import { SCENARIOS } from '../lib/data';
+import { getScenarios } from '../lib/data';
 import { transcribe, evaluateTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
 import { getSrs, recordGrammarError } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
@@ -55,7 +56,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   };
 
   const changeScenario = (id) => {
-    const s = SCENARIOS.find((x) => x.id === id);
+    const s = getScenarios().find((x) => x.id === id);
     setScenario(s);
     setHistory([]);
     setHint('');
@@ -119,7 +120,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
       {/* scenario card rail */}
       <div className="border-b border-line bg-surface px-3 pt-2.5 pb-2 space-y-1.5">
         <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choose a scenario">
-          {SCENARIOS.map((s) => {
+          {getScenarios().map((s) => {
             const active = s.id === scenario.id;
             const ScenarioIcon = SCENARIO_ICONS[s.id];
             return (
@@ -258,7 +259,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send(draft)}
-                placeholder={busy ? '…' : 'Or type in French…'}
+                placeholder={busy ? '…' : `Or type in ${langName()}…`}
                 disabled={busy}
                 className="flex-1 bg-transparent py-3 text-sm text-ink placeholder:text-ink3 focus:outline-none"
                 aria-label="Typed reply"

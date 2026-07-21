@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { VOCAB_PACKS } from '../lib/vocab';
+import { getVocabPacks } from '../lib/vocab';
 import { speak, stopSpeaking } from '../lib/tts';
 import { Play, Square, ChevronRight } from './icons';
 
@@ -17,7 +17,7 @@ export default function AudioCourse({ ttsRate, onXp }) {
   const timer = useRef(null);
   const cancelled = useRef(false);
 
-  const pack = VOCAB_PACKS.find((p) => p.id === packId) || null;
+  const pack = getVocabPacks().find((p) => p.id === packId) || null;
   const entries = pack ? pack.entries : [];
 
   useEffect(() => () => { cancelled.current = true; clearTimeout(timer.current); stopSpeaking(); }, []);
@@ -72,7 +72,7 @@ export default function AudioCourse({ ttsRate, onXp }) {
           Pick a pack, press play, and put the phone down — each word plays, waits for
           you to repeat aloud, replays slowly, then gives the example sentence. Fully hands-free.
         </p>
-        {VOCAB_PACKS.filter((p) => p.entries.length > 0).map((p) => (
+        {getVocabPacks().filter((p) => p.entries.length > 0).map((p) => (
           <button
             key={p.id}
             onClick={() => { setPackId(p.id); setIndex(0); setPhase('idle'); }}

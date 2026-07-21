@@ -6,6 +6,9 @@
 import { FLASHCARDS } from './data';
 import { EXTRA_VOCAB_PACKS } from './vocab-extra';
 import { FREQUENCY_PACKS } from './vocab-frequency';
+import { DE_VOCAB_PACKS } from './content/de';
+import { ES_VOCAB_PACKS } from './content/es';
+import { contentLang } from './content/active';
 
 // freq: 1 = top 100 words, 2 = top 500, 3 = top 1000, 4 = top 5000, 5 = rare/niche
 export const FREQ_LABELS = { 1: 'Top 100', 2: 'Top 500', 3: 'Top 1000', 4: 'Top 5000', 5: 'Niche' };
@@ -13,7 +16,7 @@ export const FREQ_LABELS = { 1: 'Top 100', 2: 'Top 500', 3: 'Top 1000', 4: 'Top 
 const w = (id, fr, en, emoji, freq, example, exampleEn, extra = {}) =>
   ({ id, fr, en, emoji, freq, example, exampleEn, syn: [], ant: [], coll: [], note: '', ...extra });
 
-export const VOCAB_PACKS = [
+const FR_VOCAB_PACKS = [
   {
     id: 'food',
     title: 'Food & Café',
@@ -292,9 +295,15 @@ export const VOCAB_PACKS = [
   ...FREQUENCY_PACKS,
 ];
 
-export const getPack = (id) => VOCAB_PACKS.find((p) => p.id === id);
+const PACKS_BY_LANG = { fr: FR_VOCAB_PACKS, de: DE_VOCAB_PACKS, es: ES_VOCAB_PACKS };
 
-export const allEntries = () => VOCAB_PACKS.flatMap((p) => p.entries);
+// The active language's packs. A function (not a const) so the whole app
+// re-reads it after the learner switches language.
+export const getVocabPacks = () => PACKS_BY_LANG[contentLang()] || FR_VOCAB_PACKS;
+
+export const getPack = (id) => getVocabPacks().find((p) => p.id === id);
+
+export const allEntries = () => getVocabPacks().flatMap((p) => p.entries);
 
 export const allEntryIds = () => allEntries().map((e) => e.id);
 

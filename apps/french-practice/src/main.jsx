@@ -2,6 +2,13 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { getSettings } from './lib/storage';
+import { syncLanguage } from './lib/i18n';
+
+// Point every language-aware layer (content, speech, AI prompts, level titles)
+// at the learner's chosen language before the first render, so nothing flashes
+// French on a German/Spanish profile.
+syncLanguage(getSettings().language);
 
 // Last-resort error boundary: a crash shows a friendly recovery screen
 // instead of a blank page (progress lives in localStorage, so reloading

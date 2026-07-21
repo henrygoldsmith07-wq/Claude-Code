@@ -3,7 +3,7 @@ import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, g
 import { encouragement } from '../lib/game';
 import { dueEntries, notebookAsEntries } from '../lib/memory';
 import LearningPath from './LearningPath';
-import { SCENARIOS } from '../lib/data';
+import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
@@ -17,9 +17,9 @@ function suggestScenario(sessions) {
   // Recommend the scenario practiced least recently (never-practiced first).
   const lastSeen = {};
   sessions.forEach((s, i) => { lastSeen[s.scenarioId] = i; });
-  const unseen = SCENARIOS.filter((s) => !(s.id in lastSeen));
+  const unseen = getScenarios().filter((s) => !(s.id in lastSeen));
   if (unseen.length) return unseen[0];
-  return [...SCENARIOS].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
+  return [...getScenarios()].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
 export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario, lastActivity, onResume }) {
@@ -127,7 +127,7 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
         <button
           onClick={() => {
             const rolls = [
-              () => { onPickScenario(SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)]); onNavigate('arena'); },
+              () => { onPickScenario(getScenarios()[Math.floor(Math.random() * getScenarios().length)]); onNavigate('arena'); },
               () => onNavigate('grammar'),
               () => onStartLesson({ type: 'cards' }),
               () => onNavigate('culture'),

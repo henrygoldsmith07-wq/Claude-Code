@@ -112,6 +112,7 @@ const DEFAULT_SETTINGS = {
   weeklyGoal: 150,
   smartReminders: false,
   name: '',
+  language: 'fr', // target language being learnt: fr | de | es
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);

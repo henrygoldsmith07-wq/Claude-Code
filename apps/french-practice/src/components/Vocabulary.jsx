@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { VOCAB_PACKS, getPack, allEntries } from '../lib/vocab';
+import { langName } from '../lib/i18n';
+import { getVocabPacks, getPack, allEntries } from '../lib/vocab';
 import {
   getSrs, rateCard, isCardDue,
   getNotebook, isInNotebook, saveToNotebook, removeFromNotebook,
@@ -35,7 +36,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
   // Per-pack due counts (drive the badge and the "Due first" sort).
   const dueByPack = useMemo(() => {
     const m = {};
-    for (const p of VOCAB_PACKS) m[p.id] = p.entries.filter((e) => isEntryDue(e, srs, frontier)).length;
+    for (const p of getVocabPacks()) m[p.id] = p.entries.filter((e) => isEntryDue(e, srs, frontier)).length;
     return m;
   }, [srs, frontier]);
 
@@ -43,7 +44,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
   // learner can find "the pack with fromage" without knowing its title.
   const visiblePacks = useMemo(() => {
     const q = norm(query.trim());
-    let list = VOCAB_PACKS;
+    let list = getVocabPacks();
     if (q.length >= 2) {
       list = list.filter((p) =>
         norm(`${p.title} ${p.description}`).includes(q) ||
@@ -177,7 +178,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
                 </button>
               ))}
             </div>
-            <span className="shrink-0 text-[11px] text-ink3 tabular-nums">{visiblePacks.length}/{VOCAB_PACKS.length}</span>
+            <span className="shrink-0 text-[11px] text-ink3 tabular-nums">{visiblePacks.length}/{getVocabPacks().length}</span>
           </div>
         </div>
 
@@ -350,7 +351,7 @@ function Notebook({ notebook, onBack, onChange }) {
           <input
             value={fr}
             onChange={(e) => setFr(e.target.value)}
-            placeholder="French word…"
+            placeholder={`${langName()} word…`}
             lang="fr"
             aria-label="French word"
             className="flex-1 min-w-0 bg-surface border border-line rounded-xl px-3 py-2.5 text-sm text-ink placeholder:text-ink3 focus:outline-none focus:border-ink"

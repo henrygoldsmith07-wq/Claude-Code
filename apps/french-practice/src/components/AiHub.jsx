@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { langName } from '../lib/i18n';
 import { tutorChat, characterChat, translateText, generateExercises, generateLesson, friendlyError } from '../lib/groq';
 import { getHabits, getLearnerBrief } from '../lib/storage';
 import { Markdown, Spinner, SpeakButton } from './ui';
@@ -12,8 +13,8 @@ import {
 // generator for any topic, and a lesson built from your own mistake bank.
 
 const MODES = [
-  { id: 'tutor', icon: GraduationCap, title: 'AI tutor', subtitle: 'Ask anything about French — grammar, usage, culture' },
-  { id: 'characters', icon: MessageCircle, title: 'Characters', subtitle: 'Chat in French with distinct personalities' },
+  { id: 'tutor', icon: GraduationCap, title: 'AI tutor', subtitle: 'Ask anything — grammar, usage, culture' },
+  { id: 'characters', icon: MessageCircle, title: 'Characters', subtitle: 'Chat with distinct personalities' },
   { id: 'translate', icon: Globe, title: 'Translator', subtitle: 'Instant translation, both directions' },
   { id: 'exercises', icon: Target, title: 'Exercise maker', subtitle: 'Generate practice drills on any topic' },
   { id: 'lesson', icon: Map, title: 'My lesson', subtitle: 'A lesson built from your recurring mistakes' },
@@ -231,7 +232,7 @@ function Characters({ apiKey, mockMode, level, onXp }) {
     return (
       <div className="h-full overflow-y-auto nice-scroll px-4 py-4">
         <div className="max-w-md mx-auto space-y-3">
-          <p className="text-xs text-ink2 text-center">Pick a partner — each has their own personality. They reply in French with a translation.</p>
+          <p className="text-xs text-ink2 text-center">Pick a partner — each has their own personality. They reply in ${langName()} with a translation.</p>
           <div className="space-y-2.5">
             {CHARACTERS.map((c) => (
               <button
@@ -334,7 +335,7 @@ function Translator({ apiKey, mockMode, onXp }) {
         {result && (
           <div className="fade-in bg-surface border border-line rounded-2xl p-5 space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-ink3">
-              {direction === 'en-fr' ? 'French' : 'English'}
+              {direction === 'en-fr' ? langName() : 'English'}
             </p>
             <p className="text-[15px] text-ink leading-relaxed" lang={direction === 'en-fr' ? 'fr' : 'en'}>{result}</p>
             {direction === 'en-fr' && <SpeakButton text={result} label="Listen" />}

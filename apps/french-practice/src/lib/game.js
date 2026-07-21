@@ -1,3 +1,6 @@
+import { getLanguage } from './languages';
+import { contentLang } from './content/active';
+
 // Gamification (single-player only): levels, achievements, coins, daily
 // challenges, avatars, collectibles and seasonal events. Everything is
 // local — no leaderboards or leagues, since there is no backend to rank
@@ -26,11 +29,6 @@ function mulberry(seed) {
 
 // ---- levels (XP → level; each level needs 50 more XP than the last) ----
 
-const LEVEL_TITLES = [
-  'Débutant', 'Apprenti', 'Étudiant', 'Causeur', 'Bavard',
-  'Orateur', 'Éloquent', 'Francophone', 'Maître', 'Légende',
-];
-
 export function levelFromXp(xp) {
   let level = 1;
   let remaining = xp;
@@ -40,12 +38,14 @@ export function levelFromXp(xp) {
     level += 1;
     need += 50;
   }
+  // Titles follow the target language (Débutant… / Anfänger… / Principiante…).
+  const titles = getLanguage(contentLang()).levelTitles;
   return {
     level,
     intoLevel: remaining,
     needed: need,
     progress: remaining / need,
-    title: LEVEL_TITLES[Math.min(LEVEL_TITLES.length - 1, Math.floor((level - 1) / 3))],
+    title: titles[Math.min(titles.length - 1, Math.floor((level - 1) / 3))],
   };
 }
 

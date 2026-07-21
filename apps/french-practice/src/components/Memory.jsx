@@ -144,7 +144,7 @@ function TheScience() {
     ['Retrieval practice', 'You recall before you check. Effortful retrieval — not re-reading — is what builds durable memory (the “testing effect”).'],
     ['Desirable difficulty', 'The queue serves each card just as it nears the forgetting threshold, where one review does the most work.'],
     ['Interleaving', 'Due words are mixed across packs rather than blocked by topic, which improves discrimination and transfer.'],
-    ['Frequency first', 'Ties favour the most common words — the ~1,000 that cover most of everyday French — so effort compounds fastest.'],
+    ['Frequency first', 'Ties favour the most common words — the ~1,000 that cover most of everyday speech — so effort compounds fastest.'],
   ];
   return (
     <details className="bg-surface2 border border-line rounded-2xl px-5 py-4">

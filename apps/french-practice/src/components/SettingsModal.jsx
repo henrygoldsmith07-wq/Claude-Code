@@ -3,6 +3,7 @@ import { Modal, Spinner } from './ui';
 import { X as XIcon } from './icons';
 import { validateKey } from '../lib/groq';
 import { setApiKey, clearApiKey } from '../lib/storage';
+import { LANGUAGE_LIST } from '../lib/languages';
 
 // Captures + validates the Groq API key before committing it to localStorage.
 
@@ -107,9 +108,32 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         </section>
 
         <section className="space-y-3 pt-2 border-t border-line">
+          <div>
+            <span className="block text-sm text-ink mb-2">Language to learn</span>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Target language">
+              {LANGUAGE_LIST.map((l) => {
+                const on = (settings.language || 'fr') === l.id;
+                return (
+                  <button
+                    key={l.id}
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => onSettingsChange({ ...settings, language: l.id })}
+                    className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition-colors ${
+                      on ? 'bg-surface2 border-ink' : 'bg-surface border-line hover:border-ink3'
+                    }`}
+                  >
+                    <span className="text-2xl" aria-hidden="true">{l.flag}</span>
+                    <span className={`text-xs font-semibold ${on ? 'text-ink' : 'text-ink2'}`}>{l.nativeName}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-ink3 mt-1.5">Switches the whole studio — conversations, flashcards, speech and the AI tutor.</p>
+          </div>
           <div className="flex items-center justify-between gap-4 min-h-11">
             <span>
-              <span className="block text-sm text-ink">My French level</span>
+              <span className="block text-sm text-ink">My level (CEFR)</span>
               <span className="block text-[11px] text-ink3">Calibrates the AI's complexity and scoring</span>
             </span>
             <div className="flex rounded-xl border border-line overflow-hidden" role="radiogroup" aria-label="CEFR level">
