@@ -4,6 +4,8 @@ Table of contents for everything in `/raw`. Claude maps project metadata from
 this file instead of parsing raw files, keeping token usage low. Every entry
 links to its raw source; open the raw file only when the summary isn't enough.
 
+> **Monorepo structure & apps inventory**: see the root [README.md](../README.md).
+
 ## Core Training Document
 
 [core-training-document.md](core-training-document.md) — goals, constraints,
