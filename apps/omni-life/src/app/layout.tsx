@@ -1,9 +1,20 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Omni-Life - Autonomous Personal Operating System',
-  description: 'Centralized orchestrator for your entire digital life',
+  title: {
+    default: 'Omni-Life',
+    template: '%s · Omni-Life',
+  },
+  description:
+    'Autonomous personal operating system — calendar, health, finance, tasks, media, and automation loops in one command center.',
+  keywords: ['personal OS', 'life dashboard', 'automation', 'productivity'],
+};
+
+export const viewport: Viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -13,9 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-black text-white antialiased">
-        {children}
-      </body>
+      <body className="bg-black text-white antialiased">{children}</body>
     </html>
   );
 }
