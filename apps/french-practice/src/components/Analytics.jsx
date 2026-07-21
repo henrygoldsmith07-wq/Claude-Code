@@ -10,8 +10,9 @@ import { levelFromXp } from '../lib/game';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
   skillBreakdown, skillScore, retentionRate, wordsLearned, periodReport, fmtDuration,
-  xpInRange, dailyPace,
+  xpInRange, dailyPace, weeklyXp, vocabGrowth,
 } from '../lib/analytics';
+import { WeeklyXPChart, GrowthChart, TrendChart } from './charts';
 import { X, Clock, Layers, Book, Mic, Volume, BarChart, TrendingUp } from './icons';
 
 // Analytics (full-screen): headline metrics, a skill breakdown, weekly and
@@ -42,6 +43,9 @@ export default function Analytics({ open, onClose }) {
       week: periodReport(7, { xpLog, timeLog, metrics, sessions }),
       month: periodReport(30, { xpLog, timeLog, metrics, sessions }),
       xpLog,
+      sessions,
+      weeklyXp: weeklyXp(xpLog, 8),
+      vocabGrowth: vocabGrowth(srs, 8),
       xp: getXp(),
       level: levelFromXp(getXp()),
       pace: dailyPace(xpLog, 14),
@@ -81,6 +85,32 @@ export default function Analytics({ open, onClose }) {
           {/* week-over-week trend + forward projections */}
           <Trend thisWeek={d.thisWeekXp} lastWeek={d.lastWeekXp} />
           <Projections xp={d.xp} level={d.level} pace={d.pace} weeklyGoal={d.weeklyGoal} thisWeekXp={d.thisWeekXp} />
+
+          {/* charts over time */}
+          <section className="space-y-2.5">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Progress over time</h3>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-ink">Weekly XP</h4>
+                <span className="text-[11px] text-ink3">last 8 weeks</span>
+              </div>
+              <WeeklyXPChart weeks={d.weeklyXp} />
+            </div>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-ink">Vocabulary growth</h4>
+                <span className="text-[11px] text-ink3">words learned</span>
+              </div>
+              <GrowthChart weeks={d.vocabGrowth} />
+            </div>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <h4 className="text-sm font-semibold text-ink">Speaking scores</h4>
+                <span className="text-[11px] text-ink3">per conversation</span>
+              </div>
+              <TrendChart sessions={d.sessions} />
+            </div>
+          </section>
 
           {/* skill breakdown */}
           <section className="space-y-2.5">

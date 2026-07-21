@@ -100,6 +100,55 @@ export function dailyPace(xpLog, days = 14, now = new Date()) {
   return xpInRange(xpLog, days - 1, 0, now) / days;
 }
 
+// XP totalled per Monday-anchored week for the last `weeks` weeks, oldest
+// first. Each bucket: { start (YYYY-MM-DD Monday), label ("5 Aug"), total }.
+// Feeds the weekly-XP bar chart in the analytics view.
+export function weeklyXp(xpLog, weeks = 8, now = new Date()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const monday = new Date(d.getTime() - ((d.getDay() + 6) % 7) * 86400000);
+  const buckets = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = new Date(monday.getTime() - i * 7 * 86400000);
+    const startStamp = dayStamp(start);
+    const endStamp = dayStamp(start.getTime() + 6 * 86400000);
+    let total = 0;
+    for (const [day, v] of Object.entries(xpLog)) if (day >= startStamp && day <= endStamp) total += v;
+    buckets.push({
+      start: startStamp,
+      label: start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      total,
+    });
+  }
+  return buckets;
+}
+
+// Cumulative words-learned growth per week over the last `weeks` weeks, from
+// the SRS map's per-card review history. A card counts from the week it
+// crossed its second review (our "learned" threshold). Oldest first:
+// { start, label, total } where total is the running vocabulary size.
+export function vocabGrowth(srs, weeks = 8, now = new Date()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const monday = new Date(d.getTime() - ((d.getDay() + 6) % 7) * 86400000);
+  // Learned-on timestamps (ms): cards past two reps, dated by last review.
+  const learnedOn = Object.values(srs)
+    .filter((s) => (s.reps || 0) >= 2 && s.lastReviewed)
+    .map((s) => new Date(s.lastReviewed).getTime());
+  const buckets = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const end = new Date(monday.getTime() - i * 7 * 86400000 + 7 * 86400000 - 1);
+    const total = learnedOn.filter((t) => t <= end.getTime()).length;
+    const start = new Date(monday.getTime() - i * 7 * 86400000);
+    buckets.push({
+      start: dayStamp(start),
+      label: start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      total,
+    });
+  }
+  return buckets;
+}
+
 // Human time from seconds: "2h 5m", "40m", "—".
 export function fmtDuration(seconds) {
   if (!seconds) return '—';

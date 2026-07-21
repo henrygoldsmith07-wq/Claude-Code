@@ -6,10 +6,11 @@ import {
   getNotebook, isInNotebook, saveToNotebook, removeFromNotebook,
 } from '../lib/storage';
 import VocabCard from './VocabCard';
+import VocabQuiz from './VocabQuiz';
 import Memory from './Memory';
 import { weakEntries, notebookAsEntries, reviewOrder, dueEntries, frontierTier, isEntryDue } from '../lib/memory';
 import { SpeakButton } from './ui';
-import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock, Search } from './icons';
+import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock, Search, Target } from './icons';
 
 // Vocabulary hub: themed packs, a cross-pack SRS review queue, the personal
 // notebook of saved/custom words, and the memory & revision dashboard.
@@ -81,6 +82,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
         apiKey={apiKey}
         mockMode={mockMode}
         onActivity={onActivity}
+        onXp={onXp}
       />
     );
   }
@@ -217,9 +219,10 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
   );
 }
 
-function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, onActivity }) {
+function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, onActivity, onXp }) {
   const [index, setIndex] = useState(0);
   const [savedTick, setSavedTick] = useState(0);
+  const [study, setStudy] = useState('cards'); // cards | quiz
 
   // Virtual packs: 'review' = every due card (packs + notebook), 'weak' =
   // high-lapse stumblers, 'notebook' = the learner's custom flashcards.
@@ -264,6 +267,20 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
     );
   }
 
+  if (study === 'quiz') {
+    return (
+      <VocabQuiz
+        deck={deck}
+        library={[...allEntries(), ...notebookAsEntries(getNotebook())]}
+        title={title}
+        onRate={onRated}
+        onXp={onXp}
+        onActivity={onActivity}
+        onBack={() => setStudy('cards')}
+      />
+    );
+  }
+
   const entry = deck[Math.min(index, deck.length - 1)];
   const cardSrs = srs[entry.id];
   void savedTick;
@@ -303,6 +320,25 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
             className="w-10 h-10 grid place-items-center rounded-full bg-surface2 text-ink2 hover:bg-line"
           >
             <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* study-mode toggle: passive flip cards vs. active-recall quiz */}
+        <div className="flex gap-1 p-1 bg-surface2 rounded-full" role="tablist" aria-label="Study mode">
+          <button
+            role="tab"
+            aria-selected="true"
+            className="flex-1 py-1.5 rounded-full text-xs font-semibold bg-surface text-ink shadow-sm"
+          >
+            Flashcards
+          </button>
+          <button
+            role="tab"
+            aria-selected="false"
+            onClick={() => setStudy('quiz')}
+            className="flex-1 py-1.5 rounded-full text-xs font-semibold text-ink2 hover:text-ink inline-flex items-center justify-center gap-1"
+          >
+            <Target size={12} /> Quiz
           </button>
         </div>
 
