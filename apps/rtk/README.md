@@ -30,7 +30,8 @@ head and tail, so a single runaway command can't blow up context.
 
 Every invocation logs raw vs. emitted output size to `.rtk/stats.json` in the
 current project (or the nearest ancestor directory that already has one);
-`rtk gain` reports the totals and a per-command breakdown.
+`rtk gain` reports the totals, approximate tokens saved, a progress bar, and a
+per-command breakdown with mini bars.
 
 ## Install
 
