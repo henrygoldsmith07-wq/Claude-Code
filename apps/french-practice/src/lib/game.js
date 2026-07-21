@@ -193,6 +193,55 @@ export function encouragement({ goalPct, streak, day }) {
     : pick;
 }
 
+// ---- weekly league (local leaderboard, no backend) ----
+// The app has no server, so there are no real opponents to rank against.
+// Instead each week spins up a deterministic cohort of "pace-setters" —
+// seeded challengers, not real people — and ranks the learner among them by
+// this week's XP. Tier tracks the learner's level, so climbing leagues means
+// levelling up. Honest, offline, and still a proper ladder to chase.
+
+export const LEAGUE_TIERS = [
+  { id: 'bronze', name: 'Bronze', emoji: '🥉', minLevel: 1 },
+  { id: 'argent', name: 'Argent', emoji: '🥈', minLevel: 3 },
+  { id: 'or', name: 'Or', emoji: '🥇', minLevel: 5 },
+  { id: 'emeraude', name: 'Émeraude', emoji: '💚', minLevel: 7 },
+  { id: 'diamant', name: 'Diamant', emoji: '💎', minLevel: 9 },
+];
+
+export function leagueTier(level) {
+  let idx = 0;
+  LEAGUE_TIERS.forEach((t, i) => { if (level >= t.minLevel) idx = i; });
+  return { ...LEAGUE_TIERS[idx], index: idx };
+}
+
+const RIVAL_NAMES = [
+  'Camille', 'Luc', 'Amélie', 'Théo', 'Chloé', 'Hugo', 'Léa',
+  'Naïma', 'Yann', 'Sofia', 'Mathis', 'Inès', 'Bruno', 'Manon',
+];
+const RIVAL_AVATARS = ['🦊', '🐻', '🦉', '🐸', '🦁', '🐼', '🦋', '🐙', '🦜', '🐨', '🦎', '🐢'];
+
+// weekProgress: 0..1 fraction of the Mon–Sun week elapsed, so rivals climb as
+// the week goes on instead of teleporting to a final total.
+export function weeklyLeague(weekKey, userWeekXp, weekProgress, tierIndex = 0, user = {}) {
+  const rand = mulberry(hashSeed(`league-${weekKey}-${tierIndex}`));
+  const base = 140 + tierIndex * 110; // tougher tiers set a faster pace
+  const p = Math.min(1, Math.max(0, weekProgress));
+  const names = [...RIVAL_NAMES];
+  const rivals = [];
+  for (let i = 0; i < 9; i++) {
+    const name = names.splice(Math.floor(rand() * names.length), 1)[0];
+    const weekTarget = Math.round(base * (0.5 + rand() * 1.5));
+    const xp = Math.max(0, Math.round(weekTarget * p * (0.82 + rand() * 0.36)));
+    rivals.push({ name, avatar: RIVAL_AVATARS[hashSeed(name) % RIVAL_AVATARS.length], xp });
+  }
+  const you = { name: user.name || 'You', avatar: user.avatar || '🙂', xp: Math.max(0, userWeekXp), isUser: true };
+  // Sort by XP; on a tie the learner sits just below an equal rival (fairer).
+  const standings = [...rivals, you].sort((a, b) => b.xp - a.xp || (a.isUser ? 1 : b.isUser ? -1 : 0));
+  const rank = standings.findIndex((s) => s.isUser) + 1;
+  const ahead = rank > 1 ? standings[rank - 2] : null;
+  return { standings, rank, ahead, count: standings.length, promoteZone: 3, relegateZone: 3 };
+}
+
 // ---- seasonal events (date-windowed, one per season) ----
 
 const SEASONS = [
