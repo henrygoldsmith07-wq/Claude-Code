@@ -2,21 +2,29 @@
 // (listening), Pronunciation (read-aloud) and Shadowing (listen & repeat)
 // drills. Drawn from flashcard examples, scenario openers and vocab packs.
 
-import { FLASHCARDS, SCENARIOS } from './data';
+import { FLASHCARDS, getScenarios } from './data';
 import { allEntries } from './vocab';
+import { contentLang } from './content/active';
 
-export const SENTENCE_POOL = [
-  ...FLASHCARDS.map((c) => ({ text: c.example, translation: c.exampleTranslation })),
-  ...SCENARIOS.map((s) => ({ text: s.opener, translation: s.openerTranslation })),
-  ...allEntries()
-    .filter((e) => e.example && FLASHCARDS.every((c) => c.id !== e.id))
-    .map((e) => ({ text: e.example, translation: e.exampleEn })),
-  // The frequency-lexicon cards carry no example sentence — never let an
-  // empty string into the pool, or the drills show a blank prompt.
-].filter((s) => s.text && s.text.trim());
+// Built per call so the pool follows the active target language. The French
+// filler deck only applies to French; other languages draw from their own
+// scenario openers and vocab examples.
+export function getSentencePool() {
+  const isFr = contentLang() === 'fr';
+  const flashIds = isFr ? new Set(FLASHCARDS.map((c) => c.id)) : new Set();
+  return [
+    ...(isFr ? FLASHCARDS.map((c) => ({ text: c.example, translation: c.exampleTranslation })) : []),
+    ...getScenarios().map((s) => ({ text: s.opener, translation: s.openerTranslation })),
+    ...allEntries()
+      .filter((e) => e.example && !flashIds.has(e.id))
+      .map((e) => ({ text: e.example, translation: e.exampleEn })),
+    // Frequency-lexicon cards carry no example sentence — never let an empty
+    // string into the pool, or the drills show a blank prompt.
+  ].filter((s) => s.text && s.text.trim());
+}
 
 export const randomPoolSentence = (excludeText) => {
-  const candidates = SENTENCE_POOL.filter((s) => s.text !== excludeText);
+  const candidates = getSentencePool().filter((s) => s.text !== excludeText);
   return candidates[Math.floor(Math.random() * candidates.length)];
 };
 

@@ -4,7 +4,11 @@
 // practice material itself (openers, hints' French phrases, topics,
 // examples) stays in French. aiRole/curveball are model-facing prompts.
 
-export const SCENARIOS = [
+import { DE_SCENARIOS } from './content/de';
+import { ES_SCENARIOS } from './content/es';
+import { contentLang } from './content/active';
+
+const FR_SCENARIOS = [
   {
     id: 'bistro',
     title: 'Ordering at the Bistro',
@@ -78,7 +82,7 @@ export const SCENARIOS = [
 ];
 
 // Goal-specific scenarios (business & school learning paths) + free talk.
-SCENARIOS.push(
+FR_SCENARIOS.push(
   {
     id: 'libre',
     title: 'Free Talk',
@@ -208,7 +212,7 @@ SCENARIOS.push(
 );
 
 // Third wave: everyday-life scenarios (hotel to Christmas market).
-SCENARIOS.push(
+FR_SCENARIOS.push(
   {
     id: 'hotel',
     title: 'Hotel Check-in',
@@ -589,6 +593,12 @@ export const DAILY_TOPICS = [
   { fr: "Décrivez le pire repas de votre vie.", en: 'Describe the worst meal of your life.' },
   { fr: "Quelle habitude aimeriez-vous changer ?", en: 'Which habit would you like to change?' },
 ];
+
+// Scenarios for the active target language. Functions (not consts) so the
+// Arena, Home and search re-read them after the learner switches language.
+const SCENARIOS_BY_LANG = { fr: FR_SCENARIOS, de: DE_SCENARIOS, es: ES_SCENARIOS };
+export const getScenarios = () => SCENARIOS_BY_LANG[contentLang()] || FR_SCENARIOS;
+export const getScenario = (id) => getScenarios().find((s) => s.id === id) || getScenarios()[0];
 
 export const FLASHCARDS = [
   { id: 'du-coup', front: 'du coup', meaning: 'so / as a result', example: "Il pleuvait, du coup on est restés à la maison.", exampleTranslation: 'It was raining, so we stayed home.', register: 'Very common, informal' },

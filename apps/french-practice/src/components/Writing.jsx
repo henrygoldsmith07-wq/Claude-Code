@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { langName } from '../lib/i18n';
 import { randomPoolSentence, toWords, diffWords, displayHits } from '../lib/sentences';
 import { COMPLETION_STARTERS, randomFrom } from '../lib/writing';
 import { judgeCompletion, friendlyError } from '../lib/groq';
@@ -189,7 +190,7 @@ function Completion({ apiKey, mockMode, level, onXp }) {
             onChange={(e) => setCompletion(e.target.value)}
             rows={2}
             lang="fr"
-            placeholder="…your ending, in French"
+            placeholder={`…your ending, in ${langName()}`}
             aria-label="Your completion"
             className="w-full bg-surface border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder:text-ink3 focus:outline-none focus:border-ink resize-none"
           />

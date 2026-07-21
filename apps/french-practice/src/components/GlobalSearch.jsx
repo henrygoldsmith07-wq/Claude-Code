@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { allEntries } from '../lib/vocab';
-import { SCENARIOS } from '../lib/data';
+import { getScenarios } from '../lib/data';
 import { GRAMMAR_TOPICS } from '../lib/grammar';
 import { READING_TEXTS } from '../lib/reading';
 import { LISTENING_TRACKS } from '../lib/listening';
@@ -32,7 +32,7 @@ export default function GlobalSearch({ open, onClose, onGo }) {
     const hit = (...fields) => fields.some((f) => f && norm(f).includes(query));
     return {
       words: allEntries().filter((e) => hit(e.fr, e.en)).slice(0, 6),
-      scenarios: SCENARIOS.filter((s) => hit(s.title, s.setup)).slice(0, 4),
+      scenarios: getScenarios().filter((s) => hit(s.title, s.setup)).slice(0, 4),
       grammar: GRAMMAR_TOPICS.filter((t) => hit(t.title, t.summary)).slice(0, 4),
       reading: READING_TEXTS.filter((t) => hit(t.title, t.description)).slice(0, 3),
       listening: LISTENING_TRACKS.filter((t) => hit(t.title, t.description)).slice(0, 3),
@@ -95,7 +95,7 @@ export default function GlobalSearch({ open, onClose, onGo }) {
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Jump straight to</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    ['🎙️', 'A conversation', { type: 'scenario', id: SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)].id }],
+                    ['🎙️', 'A conversation', { type: 'scenario', id: getScenarios()[Math.floor(Math.random() * getScenarios().length)].id }],
                     ['📚', 'A grammar topic', { type: 'grammar', id: GRAMMAR_TOPICS[Math.floor(Math.random() * GRAMMAR_TOPICS.length)].id }],
                     ['📖', 'Something to read', { type: 'reading', id: READING_TEXTS[0].id }],
                     ['🎧', 'Something to hear', { type: 'listening', id: LISTENING_TRACKS[Math.floor(Math.random() * LISTENING_TRACKS.length)].id }],

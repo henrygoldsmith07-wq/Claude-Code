@@ -8,7 +8,7 @@ import {
   LEARNING_STYLES, LESSON_LENGTHS, TOPICS,
   weaknessAnalysis, dailyRecommendations, adaptiveLevel, learningStyle,
 } from '../lib/personalise';
-import { SCENARIOS } from '../lib/data';
+import { getScenarios } from '../lib/data';
 import { X, Check, ChevronRight, Target, TOPIC_ICONS } from './icons';
 
 // Personalisation (full-screen): choose a learning style, lesson length and
@@ -20,8 +20,8 @@ function suggestScenario(sessions, favouriteTopics) {
   const favScenarioIds = TOPICS.filter((t) => favouriteTopics.includes(t.id) && t.scenarioId).map((t) => t.scenarioId);
   const lastSeen = {};
   sessions.forEach((s, i) => { lastSeen[s.scenarioId] = i; });
-  const fav = SCENARIOS.filter((s) => favScenarioIds.includes(s.id));
-  const pool = fav.length ? fav : SCENARIOS;
+  const fav = getScenarios().filter((s) => favScenarioIds.includes(s.id));
+  const pool = fav.length ? fav : getScenarios();
   const unseen = pool.filter((s) => !(s.id in lastSeen));
   if (unseen.length) return unseen[0];
   return [...pool].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];

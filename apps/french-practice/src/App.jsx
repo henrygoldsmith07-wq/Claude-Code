@@ -26,7 +26,7 @@ const GlobalSearch = lazy(() => import('./components/GlobalSearch'));
 import { getPath, applyActivity } from './lib/path';
 import { getGrammarTopic } from './lib/grammar';
 import { getTrack } from './lib/listening';
-import { SCENARIOS } from './lib/data';
+import { getScenarios } from './lib/data';
 import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
@@ -41,6 +41,8 @@ import { allEntries } from './lib/vocab';
 import { notebookAsEntries, dueEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent, levelFromXp } from './lib/game';
+import { syncLanguage } from './lib/i18n';
+import { getLanguage } from './lib/languages';
 import { setTelemetrySink } from './lib/groq';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Target, Coins as CoinsIcon } from './components/icons';
 
@@ -68,7 +70,7 @@ export default function App() {
   // Restore an in-flight conversation (page refresh must not lose a session).
   const [scenario, setScenario] = useState(() => {
     const saved = getActiveSession();
-    return (saved && SCENARIOS.find((s) => s.id === saved.scenarioId)) || SCENARIOS[0];
+    return (saved && getScenarios().find((s) => s.id === saved.scenarioId)) || getScenarios()[0];
   });
   const [history, setHistory] = useState(() => {
     const saved = getActiveSession();
@@ -223,6 +225,13 @@ export default function App() {
   }, [isDark]);
 
   const updateSettings = (s) => {
+    if (s.language !== settings.language) {
+      syncLanguage(s.language);
+      // The in-flight scenario belonged to the old language — start fresh.
+      clearActiveSession();
+      setScenario(getScenarios()[0]);
+      setHistory([]);
+    }
     setSettings(s);
     persistSettings(s);
   };
@@ -318,7 +327,7 @@ export default function App() {
       cards: 'Flashcard review',
       dictation: 'Dictée practice',
       quickfire: 'Quick Fire improv',
-      session: evt.scenarioId ? `Conversation: ${SCENARIOS.find((x) => x.id === evt.scenarioId)?.title || ''}` : null,
+      session: evt.scenarioId ? `Conversation: ${getScenarios().find((x) => x.id === evt.scenarioId)?.title || ''}` : null,
       grammar: evt.topicId ? `Grammar: ${getGrammarTopic(evt.topicId)?.title || ''}` : null,
       listening: evt.trackId ? `Listening: ${getTrack(evt.trackId)?.title || ''}` : null,
       reading: 'Reading practice',
@@ -338,7 +347,7 @@ export default function App() {
 
   const startLesson = (lesson) => {
     if (lesson.scenarioId) {
-      const s = SCENARIOS.find((x) => x.id === lesson.scenarioId);
+      const s = getScenarios().find((x) => x.id === lesson.scenarioId);
       if (s && s.id !== scenario.id) {
         setScenario(s);
         setHistory([]);
@@ -359,7 +368,7 @@ export default function App() {
 
   // From the Real-World phrasebook: jump into the matching Arena roleplay.
   const startRoleplay = (scenarioId) => {
-    const s = SCENARIOS.find((x) => x.id === scenarioId);
+    const s = getScenarios().find((x) => x.id === scenarioId);
     if (s && s.id !== scenario.id) {
       setScenario(s);
       setHistory([]);
@@ -384,7 +393,7 @@ export default function App() {
   const goFromSearch = (hit) => {
     setSearchOpen(false);
     if (hit.type === 'scenario') {
-      const sc = SCENARIOS.find((x) => x.id === hit.id);
+      const sc = getScenarios().find((x) => x.id === hit.id);
       if (sc && sc.id !== scenario.id) { setScenario(sc); setHistory([]); setLastScores(null); }
       setTab('arena');
     }
@@ -397,7 +406,7 @@ export default function App() {
   const resumeActivity = (la) => {
     if (!la) return;
     if (la.type === 'session') {
-      const sc = SCENARIOS.find((x) => x.id === la.id);
+      const sc = getScenarios().find((x) => x.id === la.id);
       if (sc && sc.id !== scenario.id) { setScenario(sc); setHistory([]); setLastScores(null); }
       setTab('arena');
     } else if (la.type === 'grammar') { setGrammarFocus(la.id); setTab('grammar'); }
@@ -428,8 +437,8 @@ export default function App() {
       {/* header */}
       <header className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-surface backdrop-blur">
         <h1 className="font-bold text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
-          Le Studio
-          <span className="sr-only"> — French speaking practice</span>
+          {getLanguage(settings.language).studio}
+          <span className="sr-only"> — {getLanguage(settings.language).name} speaking practice</span>
         </h1>
         <button
           onClick={() => setProfileOpen(true)}
@@ -505,7 +514,7 @@ export default function App() {
           <span className="flex-1">
             <span className="block text-sm font-semibold text-ink">Welcome to the Studio!</span>
             <span className="block text-xs text-ink2 mt-0.5">
-              Add your free Groq API key to start speaking French — tap here.
+              Add your free Groq API key to start speaking {getLanguage(settings.language).name} — tap here.
             </span>
           </span>
           <span className="text-ink2" aria-hidden="true"><ArrowRight size={16} /></span>
