@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { tutorChat, characterChat, translateText, generateExercises, generateLesson, friendlyError } from '../lib/groq';
-import { getHabits } from '../lib/storage';
+import { getHabits, getLearnerBrief } from '../lib/storage';
 import { Markdown, Spinner, SpeakButton } from './ui';
 import {
   GraduationCap, MessageCircle, Globe, Target, Map, Check, X, RefreshCw,
@@ -207,12 +207,18 @@ function MiniChat({ send, placeholder, empty, starters = [], opener, speakFirstL
 }
 
 function Tutor({ apiKey, mockMode, level, onXp }) {
+  const learner = useRef(getLearnerBrief()).current;
+  // Lead the suggestions with the learner's own weak grammar, so the tutor's
+  // first prompt targets exactly what they keep getting wrong.
+  const starters = learner.weakGrammar?.length
+    ? [`Help me with ${learner.weakGrammar[0]}`, ...TUTOR_STARTERS].slice(0, 3)
+    : TUTOR_STARTERS;
   return (
     <MiniChat
-      send={(messages) => tutorChat(apiKey, { messages, level, mock: mockMode })}
+      send={(messages) => tutorChat(apiKey, { messages, level, learner, mock: mockMode })}
       placeholder="Ask your tutor anything…"
       onExchange={() => onXp(2)}
-      starters={TUTOR_STARTERS}
+      starters={starters}
       empty={<p className="text-sm text-ink2">Grammar rules, word nuances, culture, study advice — ask away.</p>}
     />
   );
@@ -262,7 +268,7 @@ function Characters({ apiKey, mockMode, level, onXp }) {
       <div className="flex-1 min-h-0">
         <MiniChat
           key={character.id}
-          send={(messages) => characterChat(apiKey, { messages, persona: character.persona, level, mock: mockMode })}
+          send={(messages) => characterChat(apiKey, { messages, persona: character.persona, level, learner: getLearnerBrief(), mock: mockMode })}
           placeholder="Répondez en français…"
           opener={character.opener}
           speakFirstLine

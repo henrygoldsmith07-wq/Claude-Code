@@ -184,6 +184,23 @@ const habitKey = (text) =>
 
 export const getHabits = () => read(KEYS.habits, []);
 
+// A compact profile of the learner for the AI tutor & characters — their name
+// and preferences, plus the mistakes and weak grammar areas the app has
+// actually observed, so replies are personal and context-aware rather than
+// generic. Everything here is already stored locally.
+export function getLearnerBrief() {
+  const mistakes = getHabits().filter((h) => (h.count || 0) > 1).slice(0, 3).map((h) => h.text);
+  const weakGrammar = Object.entries(getGrammarErrors())
+    .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([topic]) => topic);
+  const prefs = getPrefs();
+  return {
+    name: String(getSettings().name || '').slice(0, 40),
+    topics: (prefs.favouriteTopics || []).slice(0, 4),
+    mistakes,
+    weakGrammar,
+  };
+}
+
 function recordHabits(habitTexts) {
   const habits = getHabits();
   const now = new Date().toISOString();
