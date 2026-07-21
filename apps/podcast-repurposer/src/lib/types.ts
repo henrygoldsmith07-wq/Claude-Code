@@ -13,4 +13,14 @@ export interface EpisodeOutputs {
 export interface GenerateRequest {
   title: string;
   transcript: string;
+  /** Optional client-supplied Anthropic key (overrides server env when present). */
+  apiKey?: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  title: string;
+  createdAt: string;
+  transcriptPreview: string;
+  outputs: EpisodeOutputs;
 }
