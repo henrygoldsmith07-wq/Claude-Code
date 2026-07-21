@@ -31,7 +31,7 @@ import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
-  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
+  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday, getTodayXp,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
@@ -163,23 +163,40 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyOverlayOpen]);
 
-  // Smart reminders: once per day, when reviews are waiting and the user
-  // opted in, surface a browser notification (works while the tab is open —
-  // there's no backend to push from).
+  // Smart reminders: once per day, when the user opted in, surface a browser
+  // notification. Two triggers, streak-at-risk first — protecting a streak is
+  // the strongest pull back. Works while the tab is open (no backend to push
+  // from); routed through the service worker when available so it's reliable
+  // on mobile, where the bare Notification constructor is blocked.
   useEffect(() => {
     if (!settings.smartReminders || !shouldRemindToday()) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const srs = getSrs();
     const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
       .filter((e) => isCardDue(srs[e.id])).length;
-    if (due === 0) return;
+    const streak = getStreak().count;
+    // Only nag about the streak in the evening, once nothing's been done today.
+    const streakAtRisk = streak >= 3 && getTodayXp() === 0 && new Date().getHours() >= 17;
+    if (due === 0 && !streakAtRisk) return;
     markRemindedToday();
-    try {
-      new Notification('Le Studio', {
-        body: `${due} card${due > 1 ? 's are' : ' is'} due for review — a few minutes now beats relearning later.`,
-      });
-    } catch { /* notification constructor unsupported (e.g. some mobile browsers) */ }
+    const body = streakAtRisk
+      ? `Your ${streak}-day streak is at risk — two minutes today keeps it alive.`
+      : `${due} card${due > 1 ? 's are' : ' is'} due for review — a few minutes now beats relearning later.`;
+    notify('Le Studio', body);
   }, [settings.smartReminders]);
+
+  // App badge: mirror the due-review count on the installed app icon — an
+  // ambient nudge that persists on the home screen even when the app is shut.
+  useEffect(() => {
+    if (!('setAppBadge' in navigator)) return;
+    const srs = getSrs();
+    const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
+      .filter((e) => isCardDue(srs[e.id])).length;
+    try {
+      if (due > 0) navigator.setAppBadge(due);
+      else navigator.clearAppBadge?.();
+    } catch { /* badging unsupported on this platform */ }
+  }, [tab, xp, streakTick]);
 
   // Time studied: accumulate seconds while the tab is visible (the honest
   // "app open and in use" proxy — paused when the tab is hidden).
@@ -694,6 +711,22 @@ export default function App() {
       </Suspense>
     </div>
   );
+}
+
+// Fire a notification, preferring the service-worker registration (required on
+// Android Chrome, where `new Notification()` throws) and falling back to the
+// page-level constructor on desktop.
+function notify(title, body) {
+  const options = { body, icon: `${import.meta.env.BASE_URL}icon-192.png`, badge: `${import.meta.env.BASE_URL}icon-192.png`, tag: 'le-studio-reminder' };
+  try {
+    if (navigator.serviceWorker?.ready) {
+      navigator.serviceWorker.ready
+        .then((reg) => reg.showNotification(title, options))
+        .catch(() => { try { new Notification(title, options); } catch { /* unsupported */ } });
+    } else {
+      new Notification(title, options);
+    }
+  } catch { /* notifications unsupported on this platform */ }
 }
 
 // Lightweight fallback shown while a code-split screen chunk loads.
