@@ -6,7 +6,7 @@ import {
 } from '../lib/storage';
 import VocabCard from './VocabCard';
 import Memory from './Memory';
-import { weakEntries, notebookAsEntries, reviewOrder } from '../lib/memory';
+import { weakEntries, notebookAsEntries, reviewOrder, dueEntries, frontierTier, isEntryDue } from '../lib/memory';
 import { SpeakButton } from './ui';
 import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock, Search } from './icons';
 
@@ -26,15 +26,18 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
   const srs = useMemo(() => getSrs(), [srsTick]);
   const notebook = useMemo(() => getNotebook(), [nbTick]);
 
+  // New cards are introduced by frequency, so the "due" set is gated to the
+  // current frontier tier (computed once, globally, over the whole library).
+  const frontier = useMemo(() => frontierTier(allEntries(), srs), [srs]);
   const dueTotal = [...allEntries(), ...notebookAsEntries(notebook)]
-    .filter((e) => isCardDue(srs[e.id])).length;
+    .filter((e) => isEntryDue(e, srs, frontier)).length;
 
   // Per-pack due counts (drive the badge and the "Due first" sort).
   const dueByPack = useMemo(() => {
     const m = {};
-    for (const p of VOCAB_PACKS) m[p.id] = p.entries.filter((e) => isCardDue(srs[e.id])).length;
+    for (const p of VOCAB_PACKS) m[p.id] = p.entries.filter((e) => isEntryDue(e, srs, frontier)).length;
     return m;
-  }, [srs]);
+  }, [srs, frontier]);
 
   // Search matches a pack by name, description, or any word it contains, so a
   // learner can find "the pack with fromage" without knowing its title.
@@ -223,9 +226,9 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
     const initial = getSrs();
     const library = () => [...allEntries(), ...notebookAsEntries(getNotebook())];
     if (packId === 'review') {
-      // Science-based order: review what you're closest to forgetting first.
-      const due = library().filter((e) => isCardDue(initial[e.id]));
-      return reviewOrder(due, initial);
+      // Due set is frequency-gated (most common first), then ordered so the
+      // words closest to being forgotten come up first within that.
+      return reviewOrder(dueEntries(library(), initial), initial);
     }
     if (packId === 'weak') return weakEntries(library(), initial);
     if (packId === 'notebook') return notebookAsEntries(getNotebook());
