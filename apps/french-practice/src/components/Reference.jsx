@@ -2,17 +2,19 @@ import { useMemo, useState } from 'react';
 import {
   CONJUGATIONS, PERSONS, TENSES, MINIMAL_PAIRS, CLOZE_TESTS, FREQUENCY_WORDS, parseWordList,
 } from '../lib/reference';
+import { getPhrasebook } from '../lib/phrasebook';
 import { allEntries } from '../lib/vocab';
 import { getNotebook, saveToNotebook } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { SpeakButton } from './ui';
-import { X, ChevronLeft, ChevronRight, Check, Play, Book, Volume, FileText, Plus, Layers } from './icons';
+import { X, ChevronLeft, ChevronRight, Check, Play, Book, Volume, FileText, Plus, Layers, MessageCircle } from './icons';
 
 // Reference & tools (full-screen): verb conjugation tables, a minimal-pairs
 // ear drill, cloze tests, and an offline dictionary / frequency list with
 // custom word-list import. All offline; TTS is on-device.
 
 const TOOLS = [
+  { id: 'phrasebook', icon: MessageCircle, title: 'Phrasebook', blurb: 'Essential phrases for real situations' },
   { id: 'conjugation', icon: Layers, title: 'Verb conjugations', blurb: 'Full tables for key verbs, with IPA' },
   { id: 'pairs', icon: Volume, title: 'Minimal pairs', blurb: 'Train your ear on tricky sound contrasts' },
   { id: 'cloze', icon: FileText, title: 'Cloze tests', blurb: 'Fill the gap — grammar in context' },
@@ -25,6 +27,7 @@ export default function Reference({ open, onClose, onImported }) {
   if (!open) return null;
 
   const body = () => {
+    if (tool === 'phrasebook') return <Phrasebook />;
     if (tool === 'conjugation') return <Conjugations />;
     if (tool === 'pairs') return <MinimalPairs />;
     if (tool === 'cloze') return <Cloze />;
@@ -70,6 +73,65 @@ export default function Reference({ open, onClose, onImported }) {
         </button>
       </div>
       <div className="flex-1 min-h-0">{body()}</div>
+    </div>
+  );
+}
+
+// Situational phrasebook: essential phrases grouped by scenario, each with
+// on-device audio and one-tap save to the notebook. Language-aware.
+function Phrasebook() {
+  const groups = useMemo(() => getPhrasebook(), []);
+  const [active, setActive] = useState(groups[0].id);
+  const [saved, setSaved] = useState({});
+  const group = groups.find((g) => g.id === active) || groups[0];
+
+  const save = (phrase) => {
+    saveToNotebook({ id: `phrase-${phrase.fr.slice(0, 24)}`, fr: phrase.fr, en: phrase.en });
+    setSaved((s) => ({ ...s, [phrase.fr]: true }));
+  };
+
+  return (
+    <div className="h-full overflow-y-auto nice-scroll px-4 py-5">
+      <div className="max-w-md mx-auto space-y-4">
+        <div className="flex gap-1.5 overflow-x-auto snap-rail -mx-1 px-1" role="tablist" aria-label="Phrasebook situations">
+          {groups.map((g) => (
+            <button
+              key={g.id}
+              role="tab"
+              aria-selected={active === g.id}
+              onClick={() => setActive(g.id)}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                active === g.id ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'
+              }`}
+            >
+              <span aria-hidden="true">{g.emoji}</span> {g.title}
+            </button>
+          ))}
+        </div>
+
+        <ul className="space-y-2">
+          {group.phrases.map((phrase) => (
+            <li key={phrase.fr} className="bg-surface border border-line rounded-2xl px-4 py-3">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-ink" lang="fr">{phrase.fr}</p>
+                  <p className="text-xs text-ink3 mt-0.5">{phrase.en}</p>
+                </div>
+                <SpeakButton text={phrase.fr} label="Listen" />
+                <button
+                  onClick={() => save(phrase)}
+                  disabled={saved[phrase.fr]}
+                  aria-label={saved[phrase.fr] ? 'Saved to notebook' : `Save "${phrase.fr}" to notebook`}
+                  className="w-9 h-9 shrink-0 grid place-items-center rounded-full text-ink3 hover:text-ink hover:bg-surface2 disabled:opacity-100 disabled:text-ink"
+                >
+                  {saved[phrase.fr] ? <Check size={15} /> : <Plus size={15} />}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="text-[11px] text-ink3 text-center">Tap ＋ to save any phrase to your notebook and revise it later.</p>
+      </div>
     </div>
   );
 }
