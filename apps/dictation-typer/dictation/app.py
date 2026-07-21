@@ -5,6 +5,7 @@ from __future__ import annotations
 import platform
 import sys
 import threading
+import time
 
 from pynput import keyboard
 
@@ -98,6 +99,7 @@ class DictationApp:
         self._active = False  # last computed hotkey state (for edge detection)
         self._toggle_on = False
         self._lock = threading.Lock()
+        self._session_count = 0
 
     # -- recording lifecycle -------------------------------------------------
 
@@ -118,9 +120,10 @@ class DictationApp:
             print(f"… too short ({duration:.1f}s), ignored.")
             return
         print(f"⏳ Transcribing {duration:.1f}s…")
-        threading.Thread(target=self._process, args=(wav,), daemon=True).start()
+        threading.Thread(target=self._process, args=(wav, duration), daemon=True).start()
 
-    def _process(self, wav: bytes) -> None:
+    def _process(self, wav: bytes, duration: float) -> None:
+        started = time.monotonic()
         try:
             text = transcribe(
                 wav,
@@ -129,14 +132,18 @@ class DictationApp:
                 language=self.config.language,
             )
         except Exception as exc:  # noqa: BLE001
-            print(f"❌ {exc}")
+            print(f"❌ Transcription failed: {exc}")
+            print("   Check GROQ_API_KEY in .env and your network connection.")
             return
         if not text:
             print("… nothing recognised.")
             return
         with self._lock:  # serialise inserts so keystrokes don't interleave
             self.inserter.insert(text)
-        print(f"✅ {text}")
+        self._session_count += 1
+        elapsed = time.monotonic() - started
+        print(f"✅ [{self._session_count}] {text}")
+        print(f"   ({duration:.1f}s audio → {elapsed:.1f}s transcription)")
 
     # -- hotkey handling -----------------------------------------------------
 
@@ -161,15 +168,21 @@ class DictationApp:
         self._reevaluate()
 
     def run(self) -> None:
-        print(f"Dictation Typer ready. Hotkey: {self.config.hotkey}  |  mode: {self.config.mode}")
-        print(f"Model: {self.config.model}  |  insert: {self.config.insert_method}")
-        print("Press Ctrl+C in this window to quit.\n")
+        print("=" * 48)
+        print("  Dictation Typer ready")
+        print("=" * 48)
+        print(f"  Hotkey : {self.config.hotkey}")
+        print(f"  Mode   : {self.config.mode}")
+        print(f"  Model  : {self.config.model}")
+        print(f"  Insert : {self.config.insert_method}")
+        print("  Press Ctrl+C in this window to quit.")
+        print()
         listener = keyboard.Listener(on_press=self._on_press, on_release=self._on_release)
         listener.start()
         try:
             listener.join()
         except KeyboardInterrupt:
-            print("\nBye.")
+            print(f"\nBye. ({self._session_count} dictation(s) this session)")
             if self.recorder.is_recording:
                 self.recorder.stop()
             listener.stop()
