@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Modal, Spinner } from './ui';
+import Quiz from './Quiz';
 import { ProgressRing, RadarChart, TrendChart, renderShareCard } from './charts';
-import { sessionReport, friendlyError } from '../lib/groq';
+import { sessionReport, quizFromConversation, friendlyError } from '../lib/groq';
 import { saveSession, getSessions, getStreak } from '../lib/storage';
-import { Flame, Share as ShareIcon, Download as DownloadIcon, X as XIcon } from './icons';
+import { Flame, Share as ShareIcon, Download as DownloadIcon, X as XIcon, Target } from './icons';
 
 // "Terminer la Session" overlay: report card + rings + radar + trends + share.
 
@@ -23,10 +24,11 @@ function radarValues(avg, history) {
   ];
 }
 
-export default function SessionDashboard({ open, onClose, apiKey, mockMode, scenario, history, level, onSessionSaved }) {
+export default function SessionDashboard({ open, onClose, apiKey, mockMode, scenario, history, level, onXp, onSessionSaved }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [shareUrl, setShareUrl] = useState(null);
+  const [quiz, setQuiz] = useState(null); // { loading, exercises, error }
   const streak = getStreak();
   const pastSessions = getSessions();
 
@@ -51,7 +53,18 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
     setReport(null);
     setError(null);
     setShareUrl(null);
+    setQuiz(null);
     onClose();
+  };
+
+  const startQuiz = async () => {
+    setQuiz({ loading: true });
+    try {
+      const exercises = await quizFromConversation(apiKey, { history, level, mock: mockMode });
+      setQuiz({ exercises });
+    } catch (e) {
+      setQuiz({ error: friendlyError(e) });
+    }
   };
 
   const share = async () => {
@@ -140,6 +153,29 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
                 Progress (last {pastSessions.length} session{pastSessions.length > 1 ? 's' : ''})
               </h3>
               <TrendChart sessions={pastSessions} />
+            </div>
+
+            {/* quiz built from what was just said */}
+            <div className="pt-2 border-t border-line">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink2 mb-2">Lock it in</h3>
+              {!quiz ? (
+                <button onClick={startQuiz} className="btn btn-secondary min-h-11 px-5 rounded-xl text-sm">
+                  <Target size={14} /> Quiz me on this chat
+                </button>
+              ) : quiz.loading ? (
+                <div className="py-6 text-center"><Spinner label="Building your quiz from the conversation…" /></div>
+              ) : quiz.error ? (
+                <div className="space-y-2">
+                  <p role="alert" className="text-sm text-ink bg-surface2 border border-line rounded-xl px-4 py-3">{quiz.error}</p>
+                  <button onClick={startQuiz} className="btn btn-secondary min-h-10 px-4 rounded-xl text-xs">Try again</button>
+                </div>
+              ) : (
+                <Quiz
+                  exercises={quiz.exercises}
+                  onXp={(n) => onXp?.(n)}
+                  footer={<button onClick={() => setQuiz(null)} className="btn btn-secondary min-h-10 px-4 rounded-xl text-xs">Done</button>}
+                />
+              )}
             </div>
 
             {/* share card */}

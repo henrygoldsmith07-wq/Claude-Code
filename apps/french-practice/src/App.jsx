@@ -667,6 +667,7 @@ export default function App() {
           scenario={scenario}
           history={history}
           level={effectiveLevel}
+          onXp={awardXp}
           onSessionSaved={(report) => {
             setStreakTick((t) => t + 1);
             handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });

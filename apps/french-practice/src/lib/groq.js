@@ -256,6 +256,28 @@ export async function generateExercises(apiKey, { topic, level = 'B1', mock }) {
   return exercises;
 }
 
+// ---- quiz drawn from a finished conversation ----
+
+// Turns a just-finished roleplay into a short comprehension + vocabulary quiz,
+// grounded in what was actually said, so the words and phrases from the chat
+// get one active-recall pass while they're fresh.
+export async function quizFromConversation(apiKey, { history, level = 'B1', mock }) {
+  if (mock) return mockExercises();
+  const transcript = (history || [])
+    .map((t) => `Learner: ${t.userText}\nPartner: ${t.reply}`)
+    .join('\n');
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: `You are a ${LANG.name} tutor. Below is a transcript of a roleplay a CEFR ${level} learner just completed. Write a short quiz that checks they understood and can reuse the ${LANG.name} vocabulary and phrases FROM THIS CONVERSATION. Reply ONLY as JSON: {"exercises": [{"q": "question, ${LANG.name} (use ___ for a gap where useful)", "options": ["3 short options"], "answer": index_of_correct, "why": "one-line explanation in English"}]} — exactly 3 exercises, grounded in the transcript, matched to ${level}.`,
+    },
+    { role: 'user', content: transcript || 'The conversation was very short.' },
+  ], { label: 'quiz-from-conversation', temperature: 0.5 });
+  const exercises = normalizeExercises(json);
+  if (!exercises.length) throw new Error('Could not build a quiz from this chat — try a longer conversation.');
+  return exercises;
+}
+
 // ---- personalized lesson from the learner's recurring mistakes ----
 
 export async function generateLesson(apiKey, { habits, level = 'B1', mock }) {
