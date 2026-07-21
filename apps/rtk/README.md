@@ -18,6 +18,10 @@ rtk init                 # appends usage instructions to ./CLAUDE.md
 
 # see cumulative savings across every command run through rtk
 rtk gain
+
+# version / help
+rtk version
+rtk --help
 ```
 
 `rtk err` inspects the command's exit code: on success it collapses the
