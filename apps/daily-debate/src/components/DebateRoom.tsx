@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import MessageComposer from "./MessageComposer";
 import ScoreBadges from "./ScoreBadges";
@@ -28,11 +28,19 @@ export default function DebateRoom({
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DebateSummaryPayload | null>(null);
+  const [copied, setCopied] = useState(false);
   const { speak, supported: ttsSupported } = useSpeechSynthesis();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const aiSide = debate.side === "for" ? "against" : "for";
   const pending = turns[turns.length - 1];
   const canFinish = turns.filter((t) => t.user_message).length >= MIN_ROUNDS;
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [turns, sending]);
 
   async function submitTurn(message: string, inputMode: InputMode) {
     setSending(true);
@@ -72,10 +80,39 @@ export default function DebateRoom({
     }
   }
 
+  function copyResult() {
+    if (!result) return;
+    const text = [
+      `Debate complete — ${result.totalScore} pts`,
+      topic.title,
+      "",
+      result.summary.overallFeedback,
+      "",
+      "Strengths:",
+      ...result.summary.strengths.map((s) => `• ${s}`),
+      "",
+      "To improve:",
+      ...result.summary.improvements.map((s) => `• ${s}`),
+    ].join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   if (result) {
     return (
       <div className="surface-card flex flex-col gap-4 p-6">
-        <h2 className="text-xl font-semibold">Debate complete — {result.totalScore} pts</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl font-semibold">Debate complete — {result.totalScore} pts</h2>
+          <button
+            type="button"
+            onClick={copyResult}
+            className="btn btn-ghost shrink-0 px-3 py-1 text-xs"
+          >
+            {copied ? "Copied!" : "Copy summary"}
+          </button>
+        </div>
         <p className="text-sm text-zinc-300">{result.summary.overallFeedback}</p>
         {result.summary.strengths.length > 0 && (
           <div>
@@ -97,7 +134,7 @@ export default function DebateRoom({
             </ul>
           </div>
         )}
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-wrap gap-3 pt-2">
           <Link href="/" className="btn btn-primary px-4 py-2 text-sm">
             Back to today
           </Link>
@@ -117,14 +154,20 @@ export default function DebateRoom({
       </div>
       <div className="flex items-center justify-between">
         <p className="text-sm text-zinc-400">
-          You&apos;re arguing <span className="text-[var(--foreground)]">{debate.side}</span> · AI argues {aiSide}
+          You're arguing <span className="text-[var(--foreground)]">{debate.side}</span> · AI argues {aiSide}
         </p>
         <p className="tabular text-sm text-zinc-500">
           Round {roundCount} {roundCount < MIN_ROUNDS && `· ${MIN_ROUNDS - roundCount + 1} to go`}
         </p>
       </div>
 
-      <div className="surface-card flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div
+        ref={scrollRef}
+        className="surface-card flex flex-1 flex-col gap-4 overflow-y-auto p-4"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         {turns.map((turn) => (
           <div key={turn.id} className="flex flex-col gap-2">
             <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[var(--accent-soft)] px-3 py-2 text-sm">
@@ -139,9 +182,12 @@ export default function DebateRoom({
             )}
           </div>
         ))}
+        {sending && (
+          <div className="text-sm text-zinc-500">AI is thinking…</div>
+        )}
       </div>
 
-      {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
+      {error && <p className="text-sm text-[var(--bad)]" role="alert">{error}</p>}
 
       {status === "active" && !pending?.user_message && (
         <MessageComposer onSubmit={submitTurn} disabled={sending} />

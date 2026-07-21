@@ -33,6 +33,9 @@ Next.js (App Router) + Supabase (auth, Postgres, Realtime) + the Anthropic API.
   only; the composer falls back to typing where unsupported.
 - **Gamification** — points per round, levels, and daily streaks, plus a
   global leaderboard.
+- **UX polish** — Ctrl/⌘+Enter to send, auto-scroll in the debate room,
+  color-coded score badges, copyable result summary, mobile-friendly header,
+  clearer empty states and loading indicators.
 
 ## Setup
 

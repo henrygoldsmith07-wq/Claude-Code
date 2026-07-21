@@ -43,7 +43,12 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
         <ul className="flex flex-col gap-2">
           {topic.sources.map((source) => (
             <li key={source.name} className="text-sm text-zinc-400">
-              <a href={source.homepage} target="_blank" rel="noreferrer" className="font-medium text-zinc-200 hover:underline">
+              <a
+                href={source.homepage}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-zinc-200 hover:underline"
+              >
                 {source.name}
               </a>{" "}
               — {source.angle}
@@ -59,7 +64,7 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-zinc-400">Pick your side, then debate the AI for at least 5 rounds.</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2" role="group" aria-label="Choose side">
             <button
               type="button"
               onClick={() => setSide("for")}
@@ -81,15 +86,31 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
               Argue Against
             </button>
           </div>
-          <button type="button" onClick={startDebate} disabled={starting} className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40">
-            {starting ? "Starting…" : "Start solo debate"}
+          <button
+            type="button"
+            onClick={startDebate}
+            disabled={starting}
+            className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40"
+          >
+            {starting ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Starting…
+              </span>
+            ) : (
+              "Start solo debate"
+            )}
           </button>
-          {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
+          {error && (
+            <p className="text-sm text-[var(--bad)]" role="alert">
+              {error}
+            </p>
+          )}
         </div>
       )}
 
       <Link href="/pvp" className="text-center text-sm text-zinc-400 hover:text-[var(--foreground)]">
-        Or challenge another player on today&apos;s topic →
+        Or challenge another player on today's topic →
       </Link>
     </div>
   );
