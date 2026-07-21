@@ -19,13 +19,13 @@ Personal monorepo and Claude Code workspace for Henry Goldsmith. Contains multip
 
 - **daily-debate** — Daily debate platform with solo & PvP modes, ratings, leaderboard (Next.js + Supabase + Anthropic)
 - **dictation-typer** — Hold-hotkey speech-to-text typer (Groq Whisper) that pastes transcript into the focused window
-- **emotion-tracker** — Emotion journaling with AI reflection sessions
+- **emotion-tracker** — Emotion journaling with AI reflection sessions + Insights dashboard (streak, activity chart, top emotions & biases)
 - **french-practice** — Full-featured French learning PWA (vocab, grammar, listening, speaking, AI chat arena)
 - **le-studio-site** — Static site companion for French practice
 - **meeting-recorder** — Fathom-style AI meeting recorder (Electron desktop + Next.js dashboard, R2 + Groq + Claude)
 - **omni-life** — Personal life OS dashboard (calendar, health, finance, Spotify, tasks, WhatsApp)
-- **podcast-repurposer** — Turn podcast episodes into multi-format content
-- **rtk** — Lightweight CLI toolkit
+- **podcast-repurposer** — Turn podcast episodes into multi-format content + local generation history
+- **rtk** — Lightweight CLI toolkit (filters noisy tool output for LLM agents; polished `rtk gain` with token savings bars)
 - **subscription-tracker** — Track recurring subscriptions, budgets, refunds, AI insights
 - **wjec-study-app** — WJEC study companion with flashcards, quizzes, mindmaps, FSRS, gamification
 - **world-news** — Interactive world news globe with country detail, topics, podcasts, favorites
