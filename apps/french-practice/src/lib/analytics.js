@@ -83,6 +83,23 @@ export function periodReport(days, { xpLog, timeLog, metrics, sessions }, now = 
   };
 }
 
+// XP totalled over an inclusive day window, counted back from today:
+// fromDaysAgo is the older bound, toDaysAgo the newer (0 = today). Powers the
+// week-over-week trend and the pace behind projections.
+export function xpInRange(xpLog, fromDaysAgo, toDaysAgo, now = new Date()) {
+  const from = dayStamp(now.getTime() - fromDaysAgo * 86400000);
+  const to = dayStamp(now.getTime() - toDaysAgo * 86400000);
+  let total = 0;
+  for (const [day, v] of Object.entries(xpLog)) if (day >= from && day <= to) total += v;
+  return total;
+}
+
+// Average daily XP over the last `days` days (zero days included) — a
+// realistic near-term rate to project forward from.
+export function dailyPace(xpLog, days = 14, now = new Date()) {
+  return xpInRange(xpLog, days - 1, 0, now) / days;
+}
+
 // Human time from seconds: "2h 5m", "40m", "—".
 export function fmtDuration(seconds) {
   if (!seconds) return '—';

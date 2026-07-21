@@ -110,7 +110,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
             <BarChart size={18} className="shrink-0" />
             <span className="flex-1">
               <span className="block text-sm font-semibold">Review due words</span>
-              <span className="block text-xs opacity-70">Interleaved across packs — most-forgotten first</span>
+              <span className="block text-xs opacity-70">Interleaved across packs — most-used words first</span>
             </span>
             <span className="shrink-0 min-w-6 h-6 px-1.5 grid place-items-center rounded-full bg-onaccent text-accent text-xs font-semibold">
               {dueTotal}

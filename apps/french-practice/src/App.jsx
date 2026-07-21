@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import HomeDashboard from './components/HomeDashboard';
 import FeedbackWidget from './components/FeedbackWidget';
 // Everything beyond Home is code-split: each screen and overlay is a
@@ -31,7 +31,7 @@ import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
-  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday,
+  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday, getTodayXp,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
@@ -40,9 +40,9 @@ import {
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
-import { AVATARS, activeEvent } from './lib/game';
+import { AVATARS, activeEvent, levelFromXp } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Coins as CoinsIcon } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Target, Coins as CoinsIcon } from './components/icons';
 
 // The bottom bar holds only the core daily-practice destinations; everything
 // else lives in the "More" sheet (see MORE_GROUPS) so the bar stays uncluttered.
@@ -79,6 +79,7 @@ export default function App() {
   const [streakTick, setStreakTick] = useState(0);
   const [xp, setXp] = useState(getXp);
   const [xpGain, setXpGain] = useState(null); // { amount, id } for the pop animation
+  const [celebration, setCelebration] = useState(null); // { kind, level, title } — level-up / goal party
   const [coins, setCoins] = useState(getCoins);
   const [avatarId, setAvatarId] = useState(getAvatar);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -163,23 +164,40 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyOverlayOpen]);
 
-  // Smart reminders: once per day, when reviews are waiting and the user
-  // opted in, surface a browser notification (works while the tab is open —
-  // there's no backend to push from).
+  // Smart reminders: once per day, when the user opted in, surface a browser
+  // notification. Two triggers, streak-at-risk first — protecting a streak is
+  // the strongest pull back. Works while the tab is open (no backend to push
+  // from); routed through the service worker when available so it's reliable
+  // on mobile, where the bare Notification constructor is blocked.
   useEffect(() => {
     if (!settings.smartReminders || !shouldRemindToday()) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const srs = getSrs();
     const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
       .filter((e) => isCardDue(srs[e.id])).length;
-    if (due === 0) return;
+    const streak = getStreak().count;
+    // Only nag about the streak in the evening, once nothing's been done today.
+    const streakAtRisk = streak >= 3 && getTodayXp() === 0 && new Date().getHours() >= 17;
+    if (due === 0 && !streakAtRisk) return;
     markRemindedToday();
-    try {
-      new Notification('Le Studio', {
-        body: `${due} card${due > 1 ? 's are' : ' is'} due for review — a few minutes now beats relearning later.`,
-      });
-    } catch { /* notification constructor unsupported (e.g. some mobile browsers) */ }
+    const body = streakAtRisk
+      ? `Your ${streak}-day streak is at risk — two minutes today keeps it alive.`
+      : `${due} card${due > 1 ? 's are' : ' is'} due for review — a few minutes now beats relearning later.`;
+    notify('Le Studio', body);
   }, [settings.smartReminders]);
+
+  // App badge: mirror the due-review count on the installed app icon — an
+  // ambient nudge that persists on the home screen even when the app is shut.
+  useEffect(() => {
+    if (!('setAppBadge' in navigator)) return;
+    const srs = getSrs();
+    const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
+      .filter((e) => isCardDue(srs[e.id])).length;
+    try {
+      if (due > 0) navigator.setAppBadge(due);
+      else navigator.clearAppBadge?.();
+    } catch { /* badging unsupported on this platform */ }
+  }, [tab, xp, streakTick]);
 
   // Time studied: accumulate seconds while the tab is visible (the honest
   // "app open and in use" proxy — paused when the tab is hidden).
@@ -260,12 +278,32 @@ export default function App() {
   // XP also feeds the gamification loop: coins alongside every gain, plus
   // progress toward the active seasonal event.
   const awardXp = (gained) => {
-    setXp(addXp(gained));
+    const beforeXp = getXp();
+    const beforeToday = getTodayXp();
+    const newXp = addXp(gained);
+    setXp(newXp);
     setXpGain({ amount: gained, id: Date.now() });
-    try { navigator.vibrate?.(12); } catch { /* no haptics on this device */ }
     setCoins(addCoins(Math.max(1, Math.round(gained / 3))));
     const event = activeEvent();
     if (event) addEventXp(event.id, gained);
+
+    // Celebrate the two moments that used to pass silently: crossing a level,
+    // and reaching the day's goal for the first time. Confetti + a firmer
+    // haptic for the party; a light tick otherwise.
+    const before = levelFromXp(beforeXp);
+    const after = levelFromXp(newXp);
+    const dailyGoal = settings.dailyGoal || 30;
+    try {
+      if (after.level > before.level) {
+        setCelebration({ kind: 'level', level: after.level, title: after.title, newTitle: after.title !== before.title });
+        navigator.vibrate?.([30, 50, 30, 50, 70]);
+      } else if (beforeToday < dailyGoal && getTodayXp() >= dailyGoal) {
+        setCelebration({ kind: 'goal' });
+        navigator.vibrate?.([25, 40, 45]);
+      } else {
+        navigator.vibrate?.(12);
+      }
+    } catch { /* no haptics on this device */ }
   };
 
   const handleTurn = (scores) => {
@@ -692,8 +730,89 @@ export default function App() {
         />
       )}
       </Suspense>
+      {celebration && <Celebration data={celebration} onDone={() => setCelebration(null)} />}
     </div>
   );
+}
+
+// A brief, monochrome confetti party for a genuine win — level-up or the
+// day's goal. Auto-dismisses; tap anywhere to close early. Purely additive,
+// so reduced-motion users simply get a near-instant card, no falling pieces.
+function Celebration({ data, onDone }) {
+  useEffect(() => {
+    const id = setTimeout(onDone, 2800);
+    return () => clearTimeout(id);
+  }, [onDone]);
+
+  const pieces = useMemo(() => {
+    const shades = ['var(--ink)', 'var(--ink-2)', 'var(--ink-3)', 'var(--line)'];
+    return Array.from({ length: 28 }, (_, i) => ({
+      key: i,
+      left: `${Math.round((i / 28) * 100 + (Math.random() * 6 - 3))}%`,
+      dx: `${Math.round(Math.random() * 120 - 60)}px`,
+      rot: `${Math.round(Math.random() * 540 + 180)}deg`,
+      sz: `${6 + Math.round(Math.random() * 6)}px`,
+      dur: `${1.9 + Math.random() * 1.1}s`,
+      delay: `${Math.random() * 0.4}s`,
+      pc: shades[i % shades.length],
+      round: i % 3 === 0,
+    }));
+  }, []);
+
+  const level = data.kind === 'level';
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center" role="dialog" aria-modal="true" aria-label={level ? 'Level up' : 'Goal reached'}>
+      <button className="absolute inset-0 bg-black/40 fade-in" aria-label="Dismiss" onClick={onDone} />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        {pieces.map((p) => (
+          <span
+            key={p.key}
+            className="confetti-piece"
+            style={{
+              left: p.left, '--dx': p.dx, '--rot': p.rot, '--sz': p.sz,
+              '--dur': p.dur, '--delay': p.delay, '--pc': p.pc,
+              borderRadius: p.round ? '9999px' : '2px',
+            }}
+          />
+        ))}
+      </div>
+      <div className="celebrate-pop relative mx-6 w-full max-w-xs bg-surface border border-line rounded-3xl elev-pop px-6 py-7 text-center">
+        <div className="w-16 h-16 mx-auto grid place-items-center rounded-2xl bg-surface2 border border-line">
+          {level
+            ? <span className="text-2xl font-black text-ink tabular-nums">{data.level}</span>
+            : <Target size={26} className="text-ink" />}
+        </div>
+        <p className="mt-4 text-lg font-bold text-ink" lang="fr">
+          {level ? `Niveau ${data.level} !` : 'Objectif atteint !'}
+        </p>
+        <p className="mt-1 text-sm text-ink2">
+          {level
+            ? (data.newTitle ? `You’re now ${data.title}. Keep the momentum.` : 'Another level down — keep the momentum.')
+            : 'Daily goal reached — anything more today is pure bonus.'}
+        </p>
+        <button onClick={onDone} className="btn btn-primary w-full min-h-11 rounded-xl text-sm mt-5">
+          {level ? 'Merci !' : 'Allez !'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Fire a notification, preferring the service-worker registration (required on
+// Android Chrome, where `new Notification()` throws) and falling back to the
+// page-level constructor on desktop.
+function notify(title, body) {
+  const options = { body, icon: `${import.meta.env.BASE_URL}icon-192.png`, badge: `${import.meta.env.BASE_URL}icon-192.png`, tag: 'le-studio-reminder' };
+  try {
+    if (navigator.serviceWorker?.ready) {
+      navigator.serviceWorker.ready
+        .then((reg) => reg.showNotification(title, options))
+        .catch(() => { try { new Notification(title, options); } catch { /* unsupported */ } });
+    } else {
+      new Notification(title, options);
+    }
+  } catch { /* notifications unsupported on this platform */ }
 }
 
 // Lightweight fallback shown while a code-split screen chunk loads.

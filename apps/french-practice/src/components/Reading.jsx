@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { READING_KINDS, READING_TEXTS, getText } from '../lib/reading';
 import { allEntries } from '../lib/vocab';
-import { translateWord } from '../lib/groq';
+import { translateWord, friendlyError } from '../lib/groq';
 import { getCachedWord, cacheWord, saveToNotebook, isInNotebook, recordSkillScore } from '../lib/storage';
 import { SpeakButton, Spinner } from './ui';
 import { BookOpen, ChevronLeft, ChevronRight, Check, X, RefreshCw, Bookmark, BookmarkFilled } from './icons';
@@ -180,7 +180,7 @@ function useWordLookup(text, apiKey, mockMode) {
       if (t) cacheWord(key, t);
       setLookup({ word, translation: t, loading: false });
     } catch (e) {
-      setLookup({ word, translation: `Lookup failed: ${e.message}`, loading: false });
+      setLookup({ word, translation: friendlyError(e), loading: false });
     }
   };
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Spinner } from './ui';
 import { ProgressRing, RadarChart, TrendChart, renderShareCard } from './charts';
-import { sessionReport } from '../lib/groq';
+import { sessionReport, friendlyError } from '../lib/groq';
 import { saveSession, getSessions, getStreak } from '../lib/storage';
 import { Flame, Share as ShareIcon, Download as DownloadIcon, X as XIcon } from './icons';
 
@@ -41,7 +41,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
         saveSession({ scenarioId: scenario.id, turns: history.length, report: r });
         onSessionSaved?.(r);
       } catch (e) {
-        if (!cancelled) setError(e.message);
+        if (!cancelled) setError(friendlyError(e));
       }
     })();
     return () => { cancelled = true; };

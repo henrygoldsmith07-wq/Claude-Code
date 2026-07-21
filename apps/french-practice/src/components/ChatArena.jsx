@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { SCENARIOS } from '../lib/data';
-import { transcribe, evaluateTurn, getHint, explainMistake } from '../lib/groq';
+import { transcribe, evaluateTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
 import { getSrs, recordGrammarError } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
@@ -31,7 +31,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         setDraft(text);
         setPhase('editing'); // review/edit before it goes to the LLM
       } catch (e) {
-        setError(e.message);
+        setError(friendlyError(e));
         setPhase('idle');
       }
     },
@@ -90,7 +90,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
       onTurn(evaluation.scores);
       speak(evaluation.reply, { rate: ttsRate });
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
       setDraft(userText); // don't lose their words
       setPhase('editing');
       return;
@@ -386,7 +386,7 @@ function ExplainRule({ turn, apiKey, mockMode, level }) {
         mock: mockMode,
       }));
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     }
     setBusy(false);
   };

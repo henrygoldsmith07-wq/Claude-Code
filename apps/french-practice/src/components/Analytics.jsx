@@ -1,16 +1,18 @@
 import { useMemo } from 'react';
 import {
   getMetrics, getSessions, getGrammarProgress, getSrs, getNotebook,
-  getTimeLog, getXpLog, getReviewLog,
+  getTimeLog, getXpLog, getReviewLog, getXp, getSettings,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { getGrammarErrors } from '../lib/storage';
 import { getGrammarTopic } from '../lib/grammar';
+import { levelFromXp } from '../lib/game';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
   skillBreakdown, skillScore, retentionRate, wordsLearned, periodReport, fmtDuration,
+  xpInRange, dailyPace,
 } from '../lib/analytics';
-import { X, Clock, Layers, Book, Mic, Volume, BarChart } from './icons';
+import { X, Clock, Layers, Book, Mic, Volume, BarChart, TrendingUp } from './icons';
 
 // Analytics (full-screen): headline metrics, a skill breakdown, weekly and
 // monthly reports, and activity heatmaps — all from locally-recorded data.
@@ -40,6 +42,12 @@ export default function Analytics({ open, onClose }) {
       week: periodReport(7, { xpLog, timeLog, metrics, sessions }),
       month: periodReport(30, { xpLog, timeLog, metrics, sessions }),
       xpLog,
+      xp: getXp(),
+      level: levelFromXp(getXp()),
+      pace: dailyPace(xpLog, 14),
+      thisWeekXp: xpInRange(xpLog, 6, 0),
+      lastWeekXp: xpInRange(xpLog, 13, 7),
+      weeklyGoal: getSettings().weeklyGoal,
     };
   }, [open]);
 
@@ -69,6 +77,10 @@ export default function Analytics({ open, onClose }) {
             <Metric icon={Volume} label="Listening score" value={d.listening == null ? '—' : `${d.listening}%`} sub="quizzes + dictée" />
             <Metric icon={Clock} label="Active days" value={d.month.activeDays} sub="last 30 days" />
           </section>
+
+          {/* week-over-week trend + forward projections */}
+          <Trend thisWeek={d.thisWeekXp} lastWeek={d.lastWeekXp} />
+          <Projections xp={d.xp} level={d.level} pace={d.pace} weeklyGoal={d.weeklyGoal} thisWeekXp={d.thisWeekXp} />
 
           {/* skill breakdown */}
           <section className="space-y-2.5">
@@ -107,6 +119,96 @@ export default function Analytics({ open, onClose }) {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Week-over-week XP trend: this Mon-anchored 7-day window vs the one before.
+function Trend({ thisWeek, lastWeek }) {
+  const delta = thisWeek - lastWeek;
+  const pct = lastWeek > 0 ? Math.round((delta / lastWeek) * 100) : thisWeek > 0 ? 100 : 0;
+  const up = delta >= 0;
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 inline-flex items-center gap-1.5"><TrendingUp size={12} /> Weekly trend</h3>
+        {(thisWeek > 0 || lastWeek > 0) && (
+          <span className={`text-xs font-semibold tabular-nums inline-flex items-center gap-0.5 ${up ? 'text-ink' : 'text-ink3'}`}>
+            {up ? '▲' : '▼'} {Math.abs(pct)}%
+          </span>
+        )}
+      </div>
+      <div className="mt-3 flex items-end gap-4">
+        <div>
+          <p className="text-2xl font-bold text-ink tabular-nums leading-none">{thisWeek}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-ink3 mt-1">XP this week</p>
+        </div>
+        <div className="pb-0.5">
+          <p className="text-sm text-ink3 tabular-nums leading-none">{lastWeek}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-ink3 mt-1">last week</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-ink3 mt-3">
+        {lastWeek === 0 && thisWeek === 0
+          ? 'Earn XP this week to start your trend.'
+          : up
+            ? `You're ${pct}% ahead of last week — momentum is building.`
+            : `Down ${Math.abs(pct)}% from last week — a short session gets you back on pace.`}
+      </p>
+    </section>
+  );
+}
+
+// Forward projections from recent pace: when the next level and the weekly
+// goal land if the learner keeps their current rate. Honest and clearly
+// framed as an estimate.
+function Projections({ xp, level, pace, weeklyGoal, thisWeekXp }) {
+  const fmtDate = (d) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  if (pace <= 0) {
+    return (
+      <section className="bg-surface2 border border-line rounded-2xl p-5">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Projections</h3>
+        <p className="text-sm text-ink2 mt-2">Practise a few days and a trajectory to your next level and weekly goal will appear here.</p>
+      </section>
+    );
+  }
+  const now = new Date();
+  const xpToNext = level.needed - level.intoLevel;
+  const daysToLevel = Math.max(1, Math.ceil(xpToNext / pace));
+  const levelDate = new Date(now.getTime() + daysToLevel * 86400000);
+  const daysLeftInWeek = 6 - ((now.getDay() + 6) % 7); // Mon=0 … Sun=6
+  const projectedWeek = Math.round(thisWeekXp + pace * daysLeftInWeek);
+  const goalHit = projectedWeek >= weeklyGoal;
+
+  return (
+    <section className="space-y-2.5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Projections</h3>
+      <div className="bg-surface border border-line rounded-2xl p-5 space-y-3">
+        <p className="text-[11px] text-ink3">At your recent pace of <span className="font-semibold text-ink2 tabular-nums">~{Math.round(pace)} XP/day</span>:</p>
+        <Projection
+          label={`Niveau ${level.level + 1}`}
+          value={daysToLevel <= 1 ? 'tomorrow' : `~${daysToLevel} days`}
+          sub={`around ${fmtDate(levelDate)} · ${xpToNext} XP to go`}
+        />
+        <Projection
+          label="This week's goal"
+          value={goalHit ? 'on track' : `${weeklyGoal - projectedWeek} XP short`}
+          sub={`projected ${projectedWeek} / ${weeklyGoal} XP`}
+        />
+      </div>
+      <p className="text-[11px] text-ink3 px-1">Estimates from your last 14 days — practise more and they pull in.</p>
+    </section>
+  );
+}
+
+function Projection({ label, value, sub }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-ink truncate">{label}</p>
+        <p className="text-[11px] text-ink3 truncate">{sub}</p>
+      </div>
+      <span className="shrink-0 text-sm font-bold text-ink tabular-nums">{value}</span>
     </div>
   );
 }

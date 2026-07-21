@@ -41,10 +41,14 @@ export default function AudioCourse({ ttsRate, onXp }) {
       setPhase('again');
       await say(e.fr, Math.min(ttsRate, 0.9));
       if (cancelled.current) return;
-      setPhase('example');
-      await say(e.example, ttsRate);
-      if (cancelled.current) return;
-      await wait(PAUSE_MS);
+      // Frequency-lexicon cards carry no example — skip the phase rather
+      // than narrate silence.
+      if (e.example) {
+        setPhase('example');
+        await say(e.example, ttsRate);
+        if (cancelled.current) return;
+        await wait(PAUSE_MS);
+      }
     }
     if (!cancelled.current) {
       setPhase('done');

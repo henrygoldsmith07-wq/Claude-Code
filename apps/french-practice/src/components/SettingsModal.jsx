@@ -171,8 +171,8 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
             </div>
           </div>
           <ToggleRow
-            label="Review reminders"
-            hint="One daily nudge when flashcards are due (browser notification)"
+            label="Daily reminders"
+            hint="One nudge a day when reviews pile up or your streak is at risk, plus a due-count badge on the app icon"
             checked={settings.smartReminders}
             onChange={(v) => {
               if (v && typeof Notification !== 'undefined' && Notification.permission === 'default') {

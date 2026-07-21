@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { randomTopic } from '../lib/data';
-import { transcribe } from '../lib/groq';
+import { transcribe, friendlyError } from '../lib/groq';
 import { Spinner } from './ui';
 import { RefreshCw, Mic, Square } from './icons';
 
@@ -30,7 +30,7 @@ export default function DailyChallenge({ apiKey, mockMode, onActivity }) {
         setResult({ transcript, seconds: Math.round(seconds), words, wpm: Math.round(words / (seconds / 60)) });
         onActivity?.({ type: 'quickfire', wpm: Math.round(words / (seconds / 60)) });
       } catch (e) {
-        setError(e.message);
+        setError(friendlyError(e));
       }
       setTranscribing(false);
     },

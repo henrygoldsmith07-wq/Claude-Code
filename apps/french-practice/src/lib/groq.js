@@ -23,6 +23,21 @@ const RETRYABLE = new Set([429, 500, 502, 503]);
 const RETRY_DELAYS_MS = [600, 1800];
 const REQUEST_TIMEOUT_MS = 45000;
 
+// Turn a raw thrown error into calm, human, actionable copy for the UI. The
+// raw message (with status codes, stack, etc.) still goes to telemetry via
+// report(); this is only what the learner reads.
+export function friendlyError(err) {
+  const msg = String(err?.message ?? err ?? '');
+  const status = (msg.match(/\((\d{3})\)/) || [])[1];
+  if (/timed out/i.test(msg)) return 'That took too long to come back. Check your connection and try again.';
+  if (/failed to fetch|networkerror|network error|load failed/i.test(msg)) return 'Couldn’t reach the tutor — you may be offline. Check your connection and try again.';
+  if (status === '401' || status === '403' || /api key|unauthor/i.test(msg)) return 'Your Groq API key was rejected. Open Settings to check or re-enter it.';
+  if (status === '429' || /rate limit/i.test(msg)) return 'Groq is busy right now. Wait a few seconds, then try again.';
+  if (status && status[0] === '5') return 'Groq had a hiccup on their end. Give it a moment and try again.';
+  if (/non-json|no usable|generation failed|tangled/i.test(msg)) return 'The tutor got its words tangled for a second. Try that again.';
+  return 'Something went wrong reaching the tutor. Try again in a moment.';
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function timedFetch(label, url, options, { rawBody } = {}) {
@@ -150,24 +165,44 @@ async function chatPlain(apiKey, messages, { temperature = 0.6, label = 'chat-pl
 
 /// ---- AI tutor: ask anything about French ----
 
-const TUTOR_SYSTEM = (level) => `You are a warm, expert French tutor. The learner is CEFR ${level}. Answer their questions about French — grammar, vocabulary, usage, culture, learning strategy — in clear English with French examples (each with a translation). Be concise: prefer 3-6 short paragraphs or a tight list. Use markdown sparingly (**bold** for French forms). If they write to you in French, gently correct any mistakes first, then answer.`;
+// Fold the locally-tracked learner profile into a single instruction line, so
+// the tutor's answers are personal and context-aware. Never echoed verbatim.
+function learnerLine(l) {
+  if (!l) return '';
+  const bits = [];
+  if (l.name) bits.push(`their name is ${l.name}`);
+  if (l.topics?.length) bits.push(`interests: ${l.topics.join(', ')}`);
+  if (l.mistakes?.length) bits.push(`recurring mistakes to gently catch and reinforce: ${l.mistakes.join('; ')}`);
+  if (l.weakGrammar?.length) bits.push(`weak grammar areas: ${l.weakGrammar.join(', ')}`);
+  return bits.length
+    ? ` Learner profile — ${bits.join('; ')}. Tailor your examples to their interests and weak spots, and address them by name when it feels natural; never recite this profile back to them.`
+    : '';
+}
 
-export async function tutorChat(apiKey, { messages, level = 'B1', mock }) {
+const TUTOR_SYSTEM = (level, learner) => `You are a warm, expert French tutor. The learner is CEFR ${level}. Answer their questions about French — grammar, vocabulary, usage, culture, learning strategy — in clear English with French examples (each with a translation). Be concise: prefer 3-6 short paragraphs or a tight list. Use markdown sparingly (**bold** for French forms). If they write to you in French, gently correct any mistakes first, then answer. End with one short follow-up question or a suggestion of what to explore next, when it fits.${learnerLine(learner)}`;
+
+export async function tutorChat(apiKey, { messages, level = 'B1', learner, mock }) {
   if (mock) return mockTutorReply(messages[messages.length - 1]?.content || '');
   return chatPlain(apiKey, [
-    { role: 'system', content: TUTOR_SYSTEM(level) },
+    { role: 'system', content: TUTOR_SYSTEM(level, learner) },
     ...messages.slice(-12),
   ], { label: 'tutor-chat' });
 }
 
 // ---- in-character chat: talk to AI personalities in French ----
 
-export async function characterChat(apiKey, { messages, persona, level = 'B1', mock }) {
+export async function characterChat(apiKey, { messages, persona, level = 'B1', learner, mock }) {
   if (mock) return mockCharacterReply();
+  // Characters stay in role, so only light personalisation — name + interests,
+  // never the grammar diagnostics that would break immersion.
+  const known = [];
+  if (learner?.name) known.push(`Their name is ${learner.name}`);
+  if (learner?.topics?.length) known.push(`they enjoy talking about ${learner.topics.join(', ')}`);
+  const knownLine = known.length ? ` You already know the learner: ${known.join('; ')} — weave that in naturally, in character.` : '';
   return chatPlain(apiKey, [
     {
       role: 'system',
-      content: `${persona} The learner practising with you is CEFR ${level} in French. Stay fully in character. Reply in French only, 1-3 short sentences pitched at ${level}, then on a new line give an English translation in *italics*. Keep the conversation moving with a question when natural.`,
+      content: `${persona} The learner practising with you is CEFR ${level} in French. Stay fully in character. Reply in French only, 1-3 short sentences pitched at ${level}, then on a new line give an English translation in *italics*. Keep the conversation moving with a question when natural.${knownLine}`,
     },
     ...messages.slice(-12),
   ], { label: 'character-chat', temperature: 0.8, maxTokens: 400 });
