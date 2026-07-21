@@ -22,6 +22,18 @@ no account or backend required.
    it, an honest (not necessarily flattering) assessment, caution flags for
    any rash or retaliatory decision you mentioned, and concrete next steps.
 
+## Insights
+
+After you have a few completed reflections, open the **Insights** panel from
+the sidebar. It shows:
+
+- Total completed reflections and your current streak
+- A 14-day activity chart
+- Your most common core emotions (with frequency bars)
+- The biases Claude has flagged most often
+
+All of this is computed client-side from the data already stored in localStorage.
+
 ## Setup
 
 ```bash

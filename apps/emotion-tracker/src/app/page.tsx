@@ -8,6 +8,7 @@ import EntryList from "@/components/EntryList";
 import ApiKeyBar from "@/components/ApiKeyBar";
 import NewEntryForm from "@/components/NewEntryForm";
 import ReflectionSession from "@/components/ReflectionSession";
+import InsightsView from "@/components/InsightsView";
 import Toast from "@/components/Toast";
 
 export default function Home() {
@@ -15,6 +16,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useLocalStorage<string>("anthropicApiKey", "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const { startEntry, appendMessage, completeEntry, deleteEntry } = useEntries(entries, setEntries);
@@ -24,22 +26,31 @@ export default function Home() {
   function handleNew() {
     setSelectedId(null);
     setCreatingNew(true);
+    setShowInsights(false);
   }
 
   function handleStart(situation: string) {
     const entry = startEntry(situation);
     setSelectedId(entry.id);
     setCreatingNew(false);
+    setShowInsights(false);
   }
 
   function handleSelect(id: string) {
     setSelectedId(id);
     setCreatingNew(false);
+    setShowInsights(false);
   }
 
   function handleDelete(id: string) {
     deleteEntry(id);
     if (selectedId === id) setSelectedId(null);
+  }
+
+  function handleInsights() {
+    setSelectedId(null);
+    setCreatingNew(false);
+    setShowInsights(true);
   }
 
   return (
@@ -52,9 +63,13 @@ export default function Home() {
           onSelect={handleSelect}
           onDelete={handleDelete}
           onNew={handleNew}
+          onInsights={handleInsights}
         />
         <div className="flex-1 overflow-hidden">
-          {selectedEntry && (
+          {showInsights && (
+            <InsightsView entries={entries} onBack={() => setShowInsights(false)} />
+          )}
+          {!showInsights && selectedEntry && (
             <ReflectionSession
               key={selectedEntry.id}
               entry={selectedEntry}
@@ -64,8 +79,10 @@ export default function Home() {
               onError={(message) => setToast({ message })}
             />
           )}
-          {!selectedEntry && creatingNew && <NewEntryForm onSubmit={handleStart} />}
-          {!selectedEntry && !creatingNew && (
+          {!showInsights && !selectedEntry && creatingNew && (
+            <NewEntryForm onSubmit={handleStart} />
+          )}
+          {!showInsights && !selectedEntry && !creatingNew && (
             <div className="flex h-full items-center justify-center text-sm text-zinc-500">
               Select a reflection, or start a new one.
             </div>
