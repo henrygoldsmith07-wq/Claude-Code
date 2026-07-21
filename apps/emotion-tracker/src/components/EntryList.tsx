@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Entry } from "@/lib/types";
 
 interface Props {
@@ -11,8 +12,25 @@ interface Props {
 }
 
 export default function EntryList({ entries, selectedId, onSelect, onDelete, onNew }: Props) {
+  const [query, setQuery] = useState("");
+
+  const filtered = query.trim()
+    ? entries.filter(
+        (e) =>
+          e.title.toLowerCase().includes(query.toLowerCase()) ||
+          e.summary?.coreEmotion?.toLowerCase().includes(query.toLowerCase()) ||
+          e.messages.some((m) => m.content.toLowerCase().includes(query.toLowerCase()))
+      )
+    : entries;
+
+  function handleDelete(id: string, title: string) {
+    if (window.confirm(`Delete reflection "${title}"? This cannot be undone.`)) {
+      onDelete(id);
+    }
+  }
+
   return (
-    <div className="flex h-full w-72 shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800">
+    <div className="flex h-full w-full flex-col border-r border-zinc-200 dark:border-zinc-800 sm:w-72 sm:shrink-0">
       <div className="border-b border-zinc-200 p-3 dark:border-zinc-800">
         <button
           onClick={onNew}
@@ -20,13 +38,24 @@ export default function EntryList({ entries, selectedId, onSelect, onDelete, onN
         >
           + New reflection
         </button>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search reflections…"
+          className="mt-2 w-full rounded-md border border-zinc-300 px-2.5 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        />
       </div>
       <div className="flex-1 overflow-y-auto">
-        {entries.length === 0 && (
-          <p className="p-4 text-sm text-zinc-500">No reflections yet. Start one above.</p>
+        {filtered.length === 0 && (
+          <p className="p-4 text-sm text-zinc-500">
+            {entries.length === 0
+              ? "No reflections yet. Start one above."
+              : "No matches for your search."}
+          </p>
         )}
         <ul>
-          {entries.map((entry) => (
+          {filtered.map((entry) => (
             <li key={entry.id}>
               <div
                 onClick={() => onSelect(entry.id)}
@@ -40,13 +69,15 @@ export default function EntryList({ entries, selectedId, onSelect, onDelete, onN
                   <p className="truncate font-medium">{entry.title}</p>
                   <p className="mt-0.5 text-xs text-zinc-500">
                     {new Date(entry.createdAt).toLocaleDateString()} ·{" "}
-                    {entry.status === "complete" ? entry.summary?.coreEmotion ?? "complete" : "in progress"}
+                    {entry.status === "complete"
+                      ? entry.summary?.coreEmotion ?? "complete"
+                      : `in progress · ${entry.messages.length} msgs`}
                   </p>
                 </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(entry.id);
+                    handleDelete(entry.id, entry.title);
                   }}
                   className="shrink-0 text-zinc-400 opacity-0 hover:text-red-500 group-hover:opacity-100"
                   aria-label="Delete reflection"
