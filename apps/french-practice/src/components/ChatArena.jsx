@@ -4,6 +4,8 @@ import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { getScenarios } from '../lib/data';
 import { transcribe, evaluateTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
+import { speechMetrics } from '../lib/analytics';
+import { activeLanguage } from '../lib/i18n';
 import { getSrs, recordGrammarError } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
@@ -16,6 +18,7 @@ const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
 export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, onGrammarTip, history, setHistory, scenario, setScenario }) {
   const [phase, setPhase] = useState('idle'); // idle | transcribing | editing | thinking
   const [draft, setDraft] = useState(''); // transcription editor / manual text
+  const [spoken, setSpoken] = useState(null); // delivery coaching for a voice turn
   const [hintLevel, setHintLevel] = useState(0);
   const [hint, setHint] = useState('');
   const [hintLoading, setHintLoading] = useState(false);
@@ -23,13 +26,16 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   const scrollRef = useRef(null);
 
   const recorder = useRecorder({
-    onComplete: async (blob) => {
+    onComplete: async (blob, durationMs) => {
       if (navigator.vibrate) navigator.vibrate([20, 40, 20]); // haptic: stopped
       setPhase('transcribing');
       setError(null);
       try {
         const text = await transcribe(apiKey, blob, { mock: mockMode });
         setDraft(text);
+        // Coach on delivery from the raw spoken transcript, before any edits.
+        const m = speechMetrics(text, durationMs, activeLanguage().id);
+        setSpoken(m.fillers > 0 || m.pace === 'fast' ? m : null);
         setPhase('editing'); // review/edit before it goes to the LLM
       } catch (e) {
         setError(friendlyError(e));
@@ -69,6 +75,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     const userText = text.trim();
     if (!userText || phase === 'thinking') return;
     setDraft('');
+    setSpoken(null);
     setHint('');
     setHintLevel(0);
     setPhase('thinking');
@@ -224,6 +231,13 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         ) : phase === 'editing' ? (
           <div className="space-y-2 fade-in">
             <p className="text-[11px] text-ink2 font-medium">Check your transcription before sending:</p>
+            {spoken && (
+              <p className="text-[11px] text-review bg-reviewsoft rounded-lg px-2.5 py-1.5" role="status">
+                {spoken.fillers > 0
+                  ? <>Coach: you hesitated on «{spoken.fillerWords.join('», «')}» — try to land the phrase in one breath.</>
+                  : <>Coach: that came out fast ({spoken.wpm} wpm) — a slightly slower pace reads clearer.</>}
+              </p>
+            )}
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -233,7 +247,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
               aria-label="Transcription to review"
             />
             <div className="flex gap-2">
-              <button onClick={() => { setDraft(''); setPhase('idle'); }} className="min-h-11 px-4 rounded-xl text-sm text-ink2 hover:text-ink">
+              <button onClick={() => { setDraft(''); setSpoken(null); setPhase('idle'); }} className="min-h-11 px-4 rounded-xl text-sm text-ink2 hover:text-ink">
                 Redo
               </button>
               <button

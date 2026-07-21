@@ -229,10 +229,11 @@ export function speechMetrics(heard, durationMs, langId = 'fr') {
   const seconds = Math.max(0.4, (durationMs || 0) / 1000);
   const wpm = Math.round((words.length / seconds) * 60);
   const fillerSet = new Set((FILLERS[langId] || FILLERS.fr).map(norm));
-  const fillers = words.filter((w) => fillerSet.has(norm(w))).length;
+  const hit = words.filter((w) => fillerSet.has(norm(w)));
+  const fillerWords = [...new Set(hit.map((w) => norm(w)))];
   // Learner-friendly bands: measured is fine, fast can blur clarity.
   const pace = wpm < 55 ? 'measured' : wpm <= 145 ? 'natural' : 'fast';
-  return { words: words.length, seconds: Math.round(seconds), wpm, fillers, pace };
+  return { words: words.length, seconds: Math.round(seconds), wpm, fillers: hit.length, fillerWords, pace };
 }
 
 // Human time from seconds: "2h 5m", "40m", "—".
