@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { WRITING_PROMPTS, ESSAY_PROMPTS, randomFrom } from '../lib/writing';
-import { writingFeedback } from '../lib/groq';
+import { writingFeedback, friendlyError } from '../lib/groq';
 import { recordSkillScore } from '../lib/storage';
 import { Markdown, Spinner } from './ui';
 import { Check, RefreshCw } from './icons';
@@ -31,7 +31,7 @@ export default function WritingStudio({ depth, apiKey, mockMode, level, onXp }) 
       recordSkillScore('writing', r.scores.overall || 50);
       setReview(r);
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     }
     setReviewing(false);
   };

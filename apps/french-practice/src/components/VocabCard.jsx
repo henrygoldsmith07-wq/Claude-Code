@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { checkSentence } from '../lib/groq';
+import { checkSentence, friendlyError } from '../lib/groq';
 import { FREQ_LABELS } from '../lib/vocab';
 import { SpeakButton, Spinner } from './ui';
 import { Check, X, Bookmark, BookmarkFilled } from './icons';
@@ -52,7 +52,7 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
       });
       setChallenge((c) => ({ ...c, checking: false, result }));
     } catch (e) {
-      setChallenge((c) => ({ ...c, checking: false, result: { correct: false, feedback: e.message } }));
+      setChallenge((c) => ({ ...c, checking: false, result: { correct: false, feedback: friendlyError(e) } }));
     }
   };
 

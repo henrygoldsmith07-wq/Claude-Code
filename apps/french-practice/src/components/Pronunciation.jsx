@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { randomPoolSentence, toWords, diffWords, displayHits } from '../lib/sentences';
-import { transcribe, accentFeedback } from '../lib/groq';
+import { transcribe, accentFeedback, friendlyError } from '../lib/groq';
 import { recordSkillScore } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { SpeakButton, Spinner } from './ui';
@@ -44,7 +44,7 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
         }
         setResult({ heard, accuracy, gained, hits: displayHits(sentence.text, hits), feedback });
       } catch (e) {
-        setError(e.message);
+        setError(friendlyError(e));
       }
       setPhase('idle');
     },

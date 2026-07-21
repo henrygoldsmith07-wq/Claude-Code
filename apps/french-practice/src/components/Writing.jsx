@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { randomPoolSentence, toWords, diffWords, displayHits } from '../lib/sentences';
 import { COMPLETION_STARTERS, randomFrom } from '../lib/writing';
-import { judgeCompletion } from '../lib/groq';
+import { judgeCompletion, friendlyError } from '../lib/groq';
 import WritingStudio from './WritingStudio';
 import AccentDrill from './AccentDrill';
 import TranslateDrill from './TranslateDrill';
@@ -162,7 +162,7 @@ function Completion({ apiKey, mockMode, level, onXp }) {
       onXp(r.natural ? 5 : 2);
       setResult(r);
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     }
     setChecking(false);
   };

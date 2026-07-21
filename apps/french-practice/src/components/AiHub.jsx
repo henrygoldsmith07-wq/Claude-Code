@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { tutorChat, characterChat, translateText, generateExercises, generateLesson } from '../lib/groq';
+import { tutorChat, characterChat, translateText, generateExercises, generateLesson, friendlyError } from '../lib/groq';
 import { getHabits } from '../lib/storage';
 import { Markdown, Spinner, SpeakButton } from './ui';
 import {
@@ -136,7 +136,7 @@ function MiniChat({ send, placeholder, empty, starters = [], opener, speakFirstL
       setMessages([...next, { role: 'assistant', content: reply }]);
       onExchange?.();
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
       setMessages(messages); // roll back the unanswered turn
       setInput(content);
     }
@@ -288,7 +288,7 @@ function Translator({ apiKey, mockMode, onXp }) {
       setResult(translation);
       onXp(1);
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     }
     setBusy(false);
   };
@@ -429,7 +429,7 @@ function ExerciseMaker({ apiKey, mockMode, level, onXp }) {
     try {
       setExercises(await generateExercises(apiKey, { topic: chosen, level, mock: mockMode }));
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     }
     setBusy(false);
   };
@@ -500,7 +500,7 @@ function PersonalLesson({ apiKey, mockMode, level, onXp }) {
     try {
       setLesson(await generateLesson(apiKey, { habits, level, mock: mockMode }));
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e));
     }
     setBusy(false);
   };
