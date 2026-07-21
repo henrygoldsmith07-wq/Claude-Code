@@ -6,7 +6,7 @@ Personal monorepo and Claude Code workspace for Henry Goldsmith. Contains multip
 
 | Path | Purpose |
 |------|---------|
-| `apps/` | Standalone Next.js / Vite applications |
+| `apps/` | Standalone Next.js / Vite / Python / Electron applications |
 | `.claude/` | Claude Code skills, agents, commands, helpers, settings |
 | `src/workspace_daemon/` | Background workspace daemon (Google/MSFT integration) |
 | `execution/` | One-off Python automation scripts (leads, email, invoices, etc.) |
@@ -18,9 +18,11 @@ Personal monorepo and Claude Code workspace for Henry Goldsmith. Contains multip
 ## Apps
 
 - **daily-debate** — Daily debate platform with solo & PvP modes, ratings, leaderboard (Next.js + Supabase + Anthropic)
+- **dictation-typer** — Hold-hotkey speech-to-text typer (Groq Whisper) that pastes transcript into the focused window
 - **emotion-tracker** — Emotion journaling with AI reflection sessions
 - **french-practice** — Full-featured French learning PWA (vocab, grammar, listening, speaking, AI chat arena)
 - **le-studio-site** — Static site companion for French practice
+- **meeting-recorder** — Fathom-style AI meeting recorder (Electron desktop + Next.js dashboard, R2 + Groq + Claude)
 - **omni-life** — Personal life OS dashboard (calendar, health, finance, Spotify, tasks, WhatsApp)
 - **podcast-repurposer** — Turn podcast episodes into multi-format content
 - **rtk** — Lightweight CLI toolkit
