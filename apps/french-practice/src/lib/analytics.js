@@ -149,6 +149,70 @@ export function vocabGrowth(srs, weeks = 8, now = new Date()) {
   return buckets;
 }
 
+// Longest run of consecutive active days in a day-keyed log (any value > 0).
+function longestRun(log) {
+  const days = Object.entries(log).filter(([, v]) => v > 0).map(([d]) => d).sort();
+  let best = 0;
+  let run = 0;
+  let prev = null;
+  for (const d of days) {
+    const cont = prev && (new Date(d) - new Date(prev)) === 86400000;
+    run = cont ? run + 1 : 1;
+    if (run > best) best = run;
+    prev = d;
+  }
+  return best;
+}
+
+// Year-in-review recap: the headline numbers for a calendar year, aggregated
+// from the logs the app already keeps. Pure. `metrics` dates the skill work;
+// `srs` supplies the learned-word count (all-time, since SRS has no per-year
+// history). Returns null when the year has no recorded activity.
+export function yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs }, year = new Date().getFullYear()) {
+  const inYear = (stamp) => String(stamp).slice(0, 4) === String(year);
+  const xpDays = Object.entries(xpLog).filter(([d]) => inYear(d));
+  const totalXp = xpDays.reduce((a, [, v]) => a + v, 0);
+  const activeDays = xpDays.filter(([, v]) => v > 0).length;
+  if (!activeDays && !sessions.length) return null;
+
+  const seconds = Object.entries(timeLog).filter(([d]) => inYear(d)).reduce((a, [, v]) => a + v, 0);
+  const yearReviews = Object.entries(reviewLog).filter(([d]) => inYear(d)).reduce((a, [, v]) => a + v, 0);
+  const yearSessions = sessions.filter((s) => s.date && inYear(dayStamp(s.date))).length;
+
+  // Busiest month by XP.
+  const byMonth = {};
+  for (const [d, v] of xpDays) {
+    const m = d.slice(0, 7);
+    byMonth[m] = (byMonth[m] || 0) + v;
+  }
+  const top = Object.entries(byMonth).sort((a, b) => b[1] - a[1])[0];
+  const busiestMonth = top
+    ? new Date(`${top[0]}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long' })
+    : null;
+
+  // Strongest skill this year, from dated metrics.
+  const bySkill = {};
+  for (const m of metrics) if (inYear(dayStamp(m.at))) (bySkill[m.skill] ||= []).push(m.score);
+  let topSkill = null;
+  for (const s of SKILLS) {
+    const a = avg(bySkill[s.id] || []);
+    if (a != null && (!topSkill || a > topSkill.score)) topSkill = { label: s.label, score: a };
+  }
+
+  return {
+    year,
+    totalXp,
+    activeDays,
+    seconds,
+    longestStreak: longestRun(Object.fromEntries(xpDays)),
+    wordsLearned: wordsLearned(srs),
+    sessions: yearSessions,
+    reviews: yearReviews,
+    busiestMonth,
+    topSkill,
+  };
+}
+
 // Hesitation markers a transcriber sometimes surfaces, per target language.
 const FILLERS = {
   fr: ['euh', 'heu', 'ben', 'bah', 'hein', 'bon'],
