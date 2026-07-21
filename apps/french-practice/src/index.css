@@ -233,6 +233,28 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
 .elev-card { box-shadow: var(--shadow-sm); }
 .elev-pop { box-shadow: var(--shadow-md); }
 
+/* ---- celebration: monochrome confetti burst on a genuine win ---- */
+@keyframes confetti-fall {
+  0% { opacity: 0; transform: translateY(-10vh) translateX(0) rotate(0deg); }
+  8% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(88vh) translateX(var(--dx, 0)) rotate(var(--rot, 360deg)); }
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: var(--sz, 8px);
+  height: var(--sz, 8px);
+  background: var(--pc, var(--ink));
+  animation: confetti-fall var(--dur, 2.2s) cubic-bezier(0.2, 0.6, 0.5, 1) var(--delay, 0s) forwards;
+  will-change: transform, opacity;
+}
+@keyframes celebrate-pop {
+  0% { opacity: 0; transform: scale(0.8) translateY(8px); }
+  55% { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.celebrate-pop { animation: celebrate-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards; }
+
 /* iOS safe areas */
 .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
 
