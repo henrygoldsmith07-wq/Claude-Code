@@ -1,18 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { EpisodeOutputs } from "./types";
 
-const MODEL = "claude-sonnet-5";
+const MODEL = "claude-sonnet-4-20250514";
 
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
+function getClient(apiKey?: string): Anthropic {
+  const key = apiKey?.trim() || process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new Error(
+      "No Anthropic API key. Set ANTHROPIC_API_KEY on the server or paste a key in the form.",
+    );
   }
-  if (!client) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
-  return client;
+  return new Anthropic({ apiKey: key });
 }
 
 const OUTPUT_TOOL = {
@@ -23,16 +21,18 @@ const OUTPUT_TOOL = {
     properties: {
       blogPost: {
         type: "string",
-        description: "A publish-ready blog post (600-900 words) adapted from the episode.",
+        description:
+          "A publish-ready blog post (600-900 words) adapted from the episode. Use clear structure with short paragraphs and subheadings where natural.",
       },
       showNotes: {
         type: "string",
-        description: "Concise show notes summarizing the episode for a podcast directory.",
+        description:
+          "Concise show notes summarizing the episode for a podcast directory. Bullet-friendly, scannable.",
       },
       socialSnippets: {
         type: "array",
         items: { type: "string" },
-        description: "5-8 standalone quotable snippets suitable for social posts.",
+        description: "5-8 standalone quotable snippets suitable for social posts (Twitter/X, LinkedIn).",
       },
       chapters: {
         type: "array",
@@ -54,8 +54,9 @@ const OUTPUT_TOOL = {
 export async function generateEpisodeOutputs(
   title: string,
   transcript: string,
+  apiKey?: string,
 ): Promise<EpisodeOutputs> {
-  const anthropic = getClient();
+  const anthropic = getClient(apiKey);
 
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -65,7 +66,7 @@ export async function generateEpisodeOutputs(
     messages: [
       {
         role: "user",
-        content: `Repurpose this podcast episode titled "${title}" into a blog post, show notes, social snippets, and chapters.\n\nTranscript:\n${transcript}`,
+        content: `You are an expert podcast producer and content marketer. Repurpose this podcast episode into high-quality, ready-to-publish assets.\n\nEpisode title: "${title}"\n\nTranscript:\n${transcript}\n\nGuidelines:\n- Blog post should stand alone for someone who never heard the episode.\n- Show notes should be tight and directory-friendly.\n- Social snippets must be quotable without needing context.\n- Chapter timestamps are best-effort estimates from conversational flow.`,
       },
     ],
   });
