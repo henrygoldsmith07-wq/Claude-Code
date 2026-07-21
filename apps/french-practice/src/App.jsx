@@ -31,14 +31,14 @@ import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
   getActiveSession, setActiveSession, clearActiveSession,
-  getSrs, getNotebook, isCardDue, shouldRemindToday, markRemindedToday, getTodayXp,
+  getSrs, getNotebook, shouldRemindToday, markRemindedToday, getTodayXp,
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
   shouldOnboard, setOnboarded, setLastActivity, getLastActivity,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
-import { notebookAsEntries } from './lib/memory';
+import { notebookAsEntries, dueEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent, levelFromXp } from './lib/game';
 import { setTelemetrySink } from './lib/groq';
@@ -173,8 +173,7 @@ export default function App() {
     if (!settings.smartReminders || !shouldRemindToday()) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const srs = getSrs();
-    const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
-      .filter((e) => isCardDue(srs[e.id])).length;
+    const due = dueEntries([...allEntries(), ...notebookAsEntries(getNotebook())], srs).length;
     const streak = getStreak().count;
     // Only nag about the streak in the evening, once nothing's been done today.
     const streakAtRisk = streak >= 3 && getTodayXp() === 0 && new Date().getHours() >= 17;
@@ -191,8 +190,7 @@ export default function App() {
   useEffect(() => {
     if (!('setAppBadge' in navigator)) return;
     const srs = getSrs();
-    const due = [...allEntries(), ...notebookAsEntries(getNotebook())]
-      .filter((e) => isCardDue(srs[e.id])).length;
+    const due = dueEntries([...allEntries(), ...notebookAsEntries(getNotebook())], srs).length;
     try {
       if (due > 0) navigator.setAppBadge(due);
       else navigator.clearAppBadge?.();

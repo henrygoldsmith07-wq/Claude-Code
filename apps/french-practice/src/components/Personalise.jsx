@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import {
   getHabits, getGrammarProgress, getSessions, getSrs, getNotebook,
-  getDueCardIds,
 } from '../lib/storage';
-import { allEntries, allEntryIds } from '../lib/vocab';
-import { weakEntries, notebookAsEntries } from '../lib/memory';
+import { allEntries } from '../lib/vocab';
+import { weakEntries, notebookAsEntries, dueEntries } from '../lib/memory';
 import {
   LEARNING_STYLES, LESSON_LENGTHS, TOPICS,
   weaknessAnalysis, dailyRecommendations, adaptiveLevel, learningStyle,
@@ -34,7 +33,7 @@ export default function Personalise({ open, onClose, prefs, onPrefsChange, baseL
     const srs = getSrs();
     const library = [...allEntries(), ...notebookAsEntries(getNotebook())];
     const sessions = getSessions();
-    const dueCount = getDueCardIds([...allEntryIds(), ...getNotebook().map((e) => e.id)]).length;
+    const dueCount = dueEntries(library, srs).length;
     const weaknesses = weaknessAnalysis({
       habits: getHabits(),
       grammarProgress: getGrammarProgress(),

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getDueCardIds, getHabits, getNotebook, getWeekXp, getReviewLog, isGettingStartedDismissed, dismissGettingStarted } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, isGettingStartedDismissed, dismissGettingStarted } from '../lib/storage';
 import { encouragement } from '../lib/game';
+import { dueEntries, notebookAsEntries } from '../lib/memory';
 import LearningPath from './LearningPath';
 import { SCENARIOS } from '../lib/data';
-import { allEntryIds, allEntries } from '../lib/vocab';
+import { allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
 import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, SCENARIO_ICONS } from './icons';
@@ -25,7 +26,7 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
-  const dueCount = getDueCardIds([...allEntryIds(), ...getNotebook().map((e) => e.id)]).length;
+  const dueCount = dueEntries([...allEntries(), ...notebookAsEntries(getNotebook())], getSrs()).length;
   const habits = getHabits().slice(0, 3);
   const sessions = getSessions();
   const suggested = suggestScenario(sessions);
