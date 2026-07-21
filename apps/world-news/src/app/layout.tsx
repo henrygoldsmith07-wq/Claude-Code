@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,9 +13,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "World News Globe",
+  title: {
+    default: "World News Globe",
+    template: "%s · World News Globe",
+  },
   description:
     "Impartial, AI-summarised world news. Spin the globe, pick a country, read what matters — split by topic and grounded in real sources.",
+  keywords: ["world news", "globe", "impartial", "AI", "Gemini", "geopolitics"],
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#0a0a0a" },
+  ],
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
