@@ -3,6 +3,12 @@
 Paste a podcast episode transcript and get a blog post, show notes, social
 snippets, and chapter markers generated in one pass, powered by Claude.
 
+## Features
+
+- One-shot generation of blog post, show notes, social snippets and chapters
+- **Local history** — every successful generation is saved in the browser so you
+  can revisit past outputs without re-running Claude (up to 20 recent items)
+
 ## Setup
 
 ```bash
