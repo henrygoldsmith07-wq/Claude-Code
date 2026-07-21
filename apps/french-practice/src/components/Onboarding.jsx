@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { LEARNING_STYLES, LESSON_LENGTHS, TOPICS } from '../lib/personalise';
 import { AVATARS } from '../lib/game';
+import { LANGUAGE_LIST, getLanguage } from '../lib/languages';
+import { syncLanguage } from '../lib/i18n';
 import { SpeakButton } from './ui';
-import { ChevronLeft, ArrowRight, Check, Sparkles, TOPIC_ICONS } from './icons';
+import { ChevronLeft, ArrowRight, Check, Flame, Sparkles, TOPIC_ICONS } from './icons';
 
 // First-run onboarding: deliberately thorough — fifteen steps that set up
 // the whole studio — but never coercive:
@@ -17,11 +19,20 @@ import { ChevronLeft, ArrowRight, Check, Sparkles, TOPIC_ICONS } from './icons';
 
 const GOALS = [
   { id: 'travel', emoji: '🧳', label: 'Travel', topics: ['travel', 'food', 'shopping'] },
-  { id: 'work', emoji: '💼', label: 'Work & career', topics: ['work', 'study'] },
-  { id: 'study', emoji: '🎓', label: 'Study & exams', topics: ['study', 'culture'] },
+  { id: 'work', emoji: '💼', label: 'Work & business', topics: ['work', 'study'] },
+  { id: 'study', emoji: '🎓', label: 'School & exams', topics: ['study', 'culture'] },
+  { id: 'fluency', emoji: '🗣️', label: 'Fluency & confidence', topics: ['daily', 'culture'] },
   { id: 'culture', emoji: '🎭', label: 'Culture & fun', topics: ['culture', 'food'] },
   { id: 'family', emoji: '👨‍👩‍👧', label: 'Family & friends', topics: ['daily', 'health'] },
 ];
+
+// First-phrase samples per target language — a friendly greeting the learner
+// hears (and repeats) before entering the app.
+const FIRST_PHRASE = {
+  fr: { hi: 'Bonjour !', hiEn: 'Hello!', go: 'Bonjour ! On y va ?', goEn: 'Hello! Shall we get going?' },
+  de: { hi: 'Hallo!', hiEn: 'Hello!', go: 'Hallo! Auf geht’s?', goEn: 'Hello! Shall we get going?' },
+  es: { hi: '¡Hola!', hiEn: 'Hello!', go: '¡Hola! ¿Vamos?', goEn: 'Hello! Shall we get going?' },
+};
 
 const LEVELS = [
   { id: 'A1', label: 'A1 · Beginner', desc: 'Just starting out' },
@@ -38,8 +49,8 @@ const GOAL_XP = [
   { id: 50, label: 'Serious', desc: '50 XP · ~20 min a day' },
 ];
 
-const HABIT_CHOICES = [
-  'Speak French out loud', 'Review my flashcards', 'Listen to something in French',
+const habitChoices = (lang) => [
+  `Speak ${lang} out loud`, 'Review my flashcards', `Listen to something in ${lang}`,
   'Read a short text', 'Learn 5 new words', 'Do one conversation',
 ];
 
@@ -58,15 +69,16 @@ const TOUR = [
 ];
 
 const DEFAULTS = {
-  name: '', goal: 'travel', level: 'B1', dailyGoal: 30, weeklyGoal: 150,
+  name: '', language: 'fr', goal: 'travel', level: 'B1', dailyGoal: 30, weeklyGoal: 150,
   learningStyle: 'balanced', favouriteTopics: ['travel', 'food'], lessonLength: 'medium',
   avatarId: 'sourire', reminders: false, habits: ['Speak French out loud', 'Review my flashcards'],
   apiKey: '', mock: false, rhythm: 'daily',
 };
 
 // step index → section for the labelled progress indicator
-const SECTIONS = ['Welcome', 'About you', 'Your studio', 'Allons-y'];
-const SECTION_OF = [0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3];
+const SECTIONS = ['Welcome', 'About you', 'Your studio', 'Ready'];
+const SECTION_OF = [0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3];
+const LAST_STEP = SECTION_OF.length - 1;
 
 export default function Onboarding({ open, onComplete, onSkip }) {
   const [step, setStep] = useState(0);
@@ -80,30 +92,57 @@ export default function Onboarding({ open, onComplete, onSkip }) {
 
   const toggleHabit = (name) => set({ habits: d.habits.includes(name) ? d.habits.filter((h) => h !== name) : [...d.habits, name] });
 
+  // Target-language config drives the language-aware copy below.
+  const lang = getLanguage(d.language);
+  const phrase = FIRST_PHRASE[d.language] || FIRST_PHRASE.fr;
+
+  // Switching the target language live points the whole studio (content,
+  // speech, AI) at it, so the rest of onboarding — and the sample phrases —
+  // are already in the chosen language.
+  const chooseLanguage = (id) => {
+    syncLanguage(id);
+    set({ language: id, habits: habitChoices(getLanguage(id).name).slice(0, 2) });
+  };
+
   // Quick start: good defaults + working demo, straight to the finish step.
   const quickStart = () => {
     set({ mock: true });
-    setStep(14);
+    setStep(LAST_STEP);
   };
 
   const steps = [
     {
-      title: 'Bienvenue !', subtitle: 'A guided setup for your whole studio',
+      title: 'Welcome!', subtitle: 'A guided setup for your whole studio',
       body: (
         <div className="text-center space-y-5 py-2">
-          <div className="text-6xl">🇫🇷</div>
+          <div className="text-6xl">🎙️</div>
           <p className="text-sm text-ink2 leading-relaxed">
-            Your all-in-one studio for speaking real French — conversations, lessons,
-            flashcards and more.
+            Your all-in-one studio for really speaking a new language — conversations,
+            lessons, flashcards and more.
           </p>
           <div className="bg-surface2 border border-line rounded-2xl px-4 py-3 text-left space-y-1.5">
-            {['No account, no sign-in — you\'re already in', 'Everything stays on this device', 'Free, no ads, works offline'].map((t) => (
+            {['No account, no sign-in — you\'re already in (guest mode)', 'Everything stays on this device', 'Free, no ads, works offline'].map((t) => (
               <p key={t} className="text-xs text-ink inline-flex items-center gap-2 w-full"><Check size={13} className="shrink-0 text-ink2" /> {t}</p>
             ))}
           </div>
           <button onClick={quickStart} className="text-[11px] font-semibold text-ink3 hover:text-ink underline underline-offset-2">
             In a hurry? Quick start with good defaults →
           </button>
+        </div>
+      ),
+    },
+    {
+      title: 'Which language?', subtitle: 'The one you want to learn',
+      body: (
+        <div className="space-y-3">
+          <Cards
+            items={LANGUAGE_LIST.map((l) => ({ id: l.id, emoji: l.flag, label: l.name, desc: `${l.nativeName} · ${l.hello}` }))}
+            selected={d.language}
+            onPick={(l) => chooseLanguage(l.id)}
+          />
+          <p className="text-[11px] text-ink3 text-center">
+            Explanations and translations are in English. You can switch languages any time in Settings.
+          </p>
         </div>
       ),
     },
@@ -193,7 +232,7 @@ export default function Onboarding({ open, onComplete, onSkip }) {
       title: 'Build a habit', subtitle: 'Pick the daily habits you want to track',
       body: (
         <div className="space-y-2">
-          {HABIT_CHOICES.map((h) => {
+          {habitChoices(lang.name).map((h) => {
             const on = d.habits.includes(h);
             return (
               <button key={h} onClick={() => toggleHabit(h)} aria-pressed={on}
@@ -222,6 +261,27 @@ export default function Onboarding({ open, onComplete, onSkip }) {
             Nothing is asked of your browser now — if you opt in, you'll confirm the
             notification permission later, in Settings, when it's actually needed.
           </p>
+        </div>
+      ),
+    },
+    {
+      title: 'Meet your streak', subtitle: 'The one number that keeps you coming back',
+      body: (
+        <div className="space-y-4 py-2">
+          <div className="flex items-center justify-center gap-3">
+            <span className="inline-flex items-center gap-2 bg-reviewsoft text-review rounded-full px-4 py-2 text-lg font-bold">
+              <Flame size={22} /> 1-day streak
+            </span>
+          </div>
+          <p className="text-sm text-ink2 leading-relaxed text-center">
+            Hit your daily goal and your streak grows by one. Miss a day and it resets —
+            so a few minutes daily beats a big weekend cram. Today already counts as day one.
+          </p>
+          <div className="bg-surface2 border border-line rounded-2xl px-4 py-3 text-left space-y-1.5">
+            {['Streak freezes cover the odd missed day', 'Vacation mode pauses it while you’re away', 'Longer streaks unlock badges and postcards'].map((t) => (
+              <p key={t} className="text-xs text-ink inline-flex items-center gap-2 w-full"><Check size={13} className="shrink-0 text-ink2" /> {t}</p>
+            ))}
+          </div>
         </div>
       ),
     },
@@ -268,9 +328,9 @@ export default function Onboarding({ open, onComplete, onSkip }) {
       body: (
         <div className="text-center space-y-4 py-2">
           <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
-            <p className="text-lg font-semibold text-ink" lang="fr">« Bonjour ! »</p>
-            <p className="text-xs text-ink3 italic">"Hello!"</p>
-            <div className="flex justify-center"><SpeakButton text="Bonjour !" label="Listen" /></div>
+            <p className="text-lg font-semibold text-ink" lang={d.language}>« {phrase.hi} »</p>
+            <p className="text-xs text-ink3 italic">"{phrase.hiEn}"</p>
+            <div className="flex justify-center"><SpeakButton text={phrase.hi} label="Listen" /></div>
           </div>
           <p className="text-xs text-ink2">Listen, then say it out loud. Yes, really out loud — speaking from minute
             one is what makes this studio work.</p>
@@ -278,15 +338,15 @@ export default function Onboarding({ open, onComplete, onSkip }) {
       ),
     },
     {
-      title: d.name ? `C'est parti, ${d.name.trim()} !` : 'C\'est parti !', subtitle: 'Your first French, right now',
+      title: d.name ? `${lang.hello}, ${d.name.trim()} !` : `${lang.hello} !`, subtitle: `Your first ${lang.name}, right now`,
       body: (
         <div className="text-center space-y-5 py-2">
           <div className="text-6xl">🎉</div>
           <div className="bg-surface border border-line rounded-2xl p-5 space-y-2">
             <p className="text-[11px] font-bold uppercase tracking-wider text-ink2">Hear your first sentence</p>
-            <p className="text-lg font-semibold text-ink" lang="fr">« Bonjour ! On y va ? »</p>
-            <p className="text-xs text-ink3 italic">"Hello! Shall we get going?"</p>
-            <div className="flex justify-center"><SpeakButton text="Bonjour ! On y va ?" label="Listen" /></div>
+            <p className="text-lg font-semibold text-ink" lang={d.language}>« {phrase.go} »</p>
+            <p className="text-xs text-ink3 italic">"{phrase.goEn}"</p>
+            <div className="flex justify-center"><SpeakButton text={phrase.go} label="Listen" /></div>
           </div>
           <p className="text-xs text-ink2">
             Your studio is tuned to you — change anything later in Settings or Personalise.

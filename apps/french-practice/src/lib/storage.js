@@ -113,6 +113,7 @@ const DEFAULT_SETTINGS = {
   smartReminders: false,
   name: '',
   language: 'fr', // target language being learnt: fr | de | es
+  timezone: null, // IANA tz, detected at onboarding — frames reminder copy
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);

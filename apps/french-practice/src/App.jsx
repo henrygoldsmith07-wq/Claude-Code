@@ -243,15 +243,20 @@ export default function App() {
 
   // Apply everything the onboarding wizard collected, then dismiss it.
   const finishOnboarding = (d) => {
+    let timezone = null;
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch { timezone = null; }
     updateSettings({
       ...settings,
       name: d.name.trim(),
+      language: d.language,
+      timezone,
       level: d.level,
       dailyGoal: d.dailyGoal,
       weeklyGoal: d.weeklyGoal,
       smartReminders: d.reminders,
       mockMode: settings.mockMode || d.mock,
     });
+    syncLanguage(d.language);
     updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
     persistAvatar(d.avatarId);
     ownAvatar(d.avatarId);
