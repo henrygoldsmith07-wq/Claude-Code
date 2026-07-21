@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, isGettingStartedDismissed, dismissGettingStarted } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted } from '../lib/storage';
 import { encouragement } from '../lib/game';
 import { dueEntries, notebookAsEntries } from '../lib/memory';
 import LearningPath from './LearningPath';
@@ -7,7 +7,7 @@ import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, Check, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -35,9 +35,30 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
   const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
   const goalDone = todayXp >= dailyGoal;
   const weekXp = getWeekXp();
-  const cheer = encouragement({ goalPct, streak: streak.count, day: new Date().toISOString().slice(0, 10) });
+  const today = new Date().toISOString().slice(0, 10);
+  const cheer = encouragement({ goalPct, streak: streak.count, day: today });
   const r = 30;
   const circ = 2 * Math.PI * r;
+
+  // Greeting + a concrete "today's plan": four tasks, each ticking off from
+  // real activity, so the most important things are visible the instant the
+  // app opens.
+  const name = (getSettings().name || '').trim();
+  const hour = new Date().getHours();
+  const greeting = `Good ${hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'}${name ? `, ${name}` : ''}`;
+  const isToday = (ts) => String(ts || '').slice(0, 10) === today;
+  const plan = [
+    { key: 'review', tone: 'review', label: dueCount > 0 ? `Review ${dueCount} word${dueCount > 1 ? 's' : ''}` : 'Review your words',
+      done: (getReviewLog()[today] || 0) > 0, onClick: () => onNavigate('cards') },
+    { key: 'grammar', tone: 'accent', label: 'Complete a grammar lesson',
+      done: Object.values(getGrammarProgress()).some((g) => isToday(g.lastAt)), onClick: () => onNavigate('grammar') },
+    { key: 'roleplay', tone: 'speak', label: `Finish the ${suggested.title} roleplay`,
+      done: sessions.some((s) => isToday(s.date)), onClick: () => { onPickScenario(suggested); onNavigate('arena'); } },
+    { key: 'story', tone: 'accent', label: 'Read or listen to a story',
+      done: getMetrics().some((m) => (m.skill === 'reading' || m.skill === 'listening') && isToday(m.at)), onClick: () => onNavigate('skills') },
+  ];
+  const planDone = plan.filter((t) => t.done).length;
+  const dotTone = { review: 'text-review', speak: 'text-speak', accent: 'text-ink3' };
 
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
@@ -50,36 +71,61 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           onOpenSetup={onOpenSetup}
         />
 
-        {/* daily goal + streak */}
-        <section className="flex items-center gap-4 bg-surface border border-line rounded-2xl p-5">
-          <div className="relative shrink-0" role="img" aria-label={`Daily goal: ${todayXp} of ${dailyGoal} XP`}>
-            <svg width="72" height="72">
-              <circle cx="36" cy="36" r={r} fill="none" stroke="var(--line)" strokeWidth="6" />
-              <circle
-                cx="36" cy="36" r={r} fill="none"
-                stroke="var(--ink)" strokeWidth="6" strokeLinecap="round"
-                strokeDasharray={circ} strokeDashoffset={circ * (1 - goalPct / 100)}
-                transform="rotate(-90 36 36)"
-                style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.3, 0.8, 0.3, 1)' }}
-              />
-            </svg>
-            <div className="absolute inset-0 grid place-items-center">
-              <Target size={20} className={goalDone ? 'text-ink' : 'text-ink3'} />
+        {/* greeting + today's plan — everything important, up front */}
+        <section className="bg-surface border border-line rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0" role="img" aria-label={`Daily goal: ${todayXp} of ${dailyGoal} XP`}>
+              <svg width="72" height="72">
+                <circle cx="36" cy="36" r={r} fill="none" stroke="var(--line)" strokeWidth="6" />
+                <circle
+                  cx="36" cy="36" r={r} fill="none"
+                  stroke={goalDone ? 'var(--success)' : 'var(--ink)'} strokeWidth="6" strokeLinecap="round"
+                  strokeDasharray={circ} strokeDashoffset={circ * (1 - goalPct / 100)}
+                  transform="rotate(-90 36 36)"
+                  style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.3, 0.8, 0.3, 1), stroke 0.4s ease' }}
+                />
+              </svg>
+              <div className="absolute inset-0 grid place-items-center">
+                {goalDone ? <Check size={22} className="text-success" /> : <Target size={20} className="text-ink3" />}
+              </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-ink truncate">{greeting}</h2>
+              <p className="text-xs text-ink2 mt-0.5">
+                <span className="font-semibold text-ink tabular-nums">{todayXp}</span>/{dailyGoal} XP today
+              </p>
+              <p className="flex items-center gap-1.5 text-xs text-ink2 mt-1">
+                <Flame size={13} className={streak.count > 0 ? 'text-review' : 'text-ink3'} />
+                <span className="font-semibold text-ink tabular-nums">{streak.count}</span> day streak
+                <span className="text-ink3">· level {level}</span>
+              </p>
             </div>
           </div>
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-ink">
-              {goalDone ? 'Daily goal reached' : 'Today’s goal'}
-            </h2>
-            <p className="text-xs text-ink2 mt-0.5">
-              <span className="font-semibold text-ink">{todayXp}</span> / {dailyGoal} XP
-              {!goalDone && ' — one conversation turn earns ~8–10 XP'}
-            </p>
-            <p className="flex items-center gap-1 text-xs text-ink2 mt-1.5">
-              <Flame size={13} className={streak.count > 0 ? 'text-ink' : 'text-ink3'} />
-              <span className="font-semibold text-ink">{streak.count}</span>
-              day streak · level {level}
-            </p>
+
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Today’s focus</h3>
+              <span className="text-[11px] text-ink3 tabular-nums">{planDone}/{plan.length} done</span>
+            </div>
+            <div className="space-y-1.5">
+              {plan.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={t.onClick}
+                  className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 border text-left transition-colors ${
+                    t.done ? 'bg-successsoft border-line' : 'bg-surface2 border-line hover:border-ink3'
+                  }`}
+                >
+                  <span className={`w-5 h-5 shrink-0 grid place-items-center rounded-full border ${
+                    t.done ? 'bg-success border-success text-white' : `border-line ${dotTone[t.tone]}`
+                  }`}>
+                    {t.done ? <Check size={12} /> : <span className={`w-1.5 h-1.5 rounded-full ${t.tone === 'review' ? 'bg-review' : t.tone === 'speak' ? 'bg-speak' : 'bg-ink3'}`} />}
+                  </span>
+                  <span className={`flex-1 text-sm ${t.done ? 'text-ink3 line-through' : 'text-ink'}`}>{t.label}</span>
+                  {!t.done && <ChevronRight size={14} className="text-ink3 shrink-0" />}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -90,14 +136,14 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             <span className="text-[11px] text-ink3 tabular-nums">{weekXp}/{weeklyGoal} XP</span>
           </div>
           <div className="h-2 rounded-full bg-surface2 overflow-hidden" role="img" aria-label={`Weekly goal: ${weekXp} of ${weeklyGoal} XP`}>
-            <div className={`h-full rounded-full transition-all ${weekXp >= weeklyGoal ? 'bg-line' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round((weekXp / Math.max(1, weeklyGoal)) * 100))}%` }} />
+            <div className={`h-full rounded-full bar-anim ${weekXp >= weeklyGoal ? 'bg-success' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round((weekXp / Math.max(1, weeklyGoal)) * 100))}%` }} />
           </div>
           <p className="text-xs text-ink2 leading-relaxed">{cheer}</p>
         </section>
 
-        {/* today's focus — personalized from the last session report */}
+        {/* coach's note — personalized from the last session report */}
         <section className="bg-surface2 border border-line rounded-2xl p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1.5">Today’s focus</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1.5">From your coach</h3>
           {last ? (
             <p className="text-sm text-ink leading-relaxed">{last.report.tomorrow_focus}</p>
           ) : (
