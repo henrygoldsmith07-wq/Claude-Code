@@ -238,3 +238,7 @@ html { -webkit-text-size-adjust: 100%; }
   transition: top 0.15s ease-out;
 }
 .skip-link:focus { top: 8px; }
+
+/* Long-list scroll & battery: skip layout/paint for off-screen rows.
+   contain-intrinsic-size reserves height so the scrollbar stays stable. */
+.cv-list > * { content-visibility: auto; contain-intrinsic-size: auto 64px; }

@@ -114,7 +114,7 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
         </button>
 
         {/* themed packs */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5 cv-list">
           {VOCAB_PACKS.map((p) => {
             const due = p.entries.filter((e) => isCardDue(srs[e.id])).length;
             return (

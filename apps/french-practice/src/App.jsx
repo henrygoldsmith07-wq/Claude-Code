@@ -1,29 +1,32 @@
-import { useEffect, useState } from 'react';
-import ChatArena from './components/ChatArena';
-import FeedbackWidget from './components/FeedbackWidget';
-import SessionDashboard from './components/SessionDashboard';
-import Vocabulary from './components/Vocabulary';
-import Grammar from './components/Grammar';
-import DevPanel from './components/DevPanel';
-import SettingsModal from './components/SettingsModal';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import HomeDashboard from './components/HomeDashboard';
-import Skills from './components/Skills';
-import AiHub from './components/AiHub';
-import PathSetup from './components/PathSetup';
+import FeedbackWidget from './components/FeedbackWidget';
+// Everything beyond Home is code-split: each screen and overlay is a
+// separate chunk that only downloads when first opened, so the initial
+// load ships the app shell + Home instead of every screen at once.
+const ChatArena = lazy(() => import('./components/ChatArena'));
+const SessionDashboard = lazy(() => import('./components/SessionDashboard'));
+const Vocabulary = lazy(() => import('./components/Vocabulary'));
+const Grammar = lazy(() => import('./components/Grammar'));
+const DevPanel = lazy(() => import('./components/DevPanel'));
+const SettingsModal = lazy(() => import('./components/SettingsModal'));
+const Skills = lazy(() => import('./components/Skills'));
+const AiHub = lazy(() => import('./components/AiHub'));
+const PathSetup = lazy(() => import('./components/PathSetup'));
+const Profile = lazy(() => import('./components/Profile'));
+const Culture = lazy(() => import('./components/Culture'));
+const RealWorld = lazy(() => import('./components/RealWorld'));
+const Personalise = lazy(() => import('./components/Personalise'));
+const Offline = lazy(() => import('./components/Offline'));
+const Analytics = lazy(() => import('./components/Analytics'));
+const Reference = lazy(() => import('./components/Reference'));
+const Focus = lazy(() => import('./components/Focus'));
+const Onboarding = lazy(() => import('./components/Onboarding'));
+const GlobalSearch = lazy(() => import('./components/GlobalSearch'));
 import { getPath, applyActivity } from './lib/path';
 import { getGrammarTopic } from './lib/grammar';
 import { getTrack } from './lib/listening';
 import { SCENARIOS } from './lib/data';
-import Profile from './components/Profile';
-import Culture from './components/Culture';
-import RealWorld from './components/RealWorld';
-import Personalise from './components/Personalise';
-import Offline from './components/Offline';
-import Analytics from './components/Analytics';
-import Reference from './components/Reference';
-import Focus from './components/Focus';
-import Onboarding from './components/Onboarding';
-import GlobalSearch from './components/GlobalSearch';
 import usePwaInstall from './hooks/usePwaInstall';
 import {
   getApiKey, getSettings, setSettings as persistSettings, getStreak, getXp, addXp,
@@ -99,6 +102,34 @@ export default function App() {
   useEffect(() => {
     setTelemetrySink((entry) => setTelemetry((t) => [...t.slice(-49), entry]));
     return () => setTelemetrySink(null);
+  }, []);
+
+  // Warm the code-split chunks during idle time after first paint: keeps
+  // startup light, makes later navigation instant, and re-populates the
+  // offline cache so every screen still works with no network.
+  useEffect(() => {
+    const warm = () => {
+      import('./components/ChatArena');
+      import('./components/Skills');
+      import('./components/Vocabulary');
+      import('./components/Grammar');
+      import('./components/AiHub');
+      import('./components/Culture');
+      import('./components/Reference');
+      import('./components/Analytics');
+      import('./components/Profile');
+      import('./components/GlobalSearch');
+      import('./components/Focus');
+      import('./components/RealWorld');
+      import('./components/Personalise');
+      import('./components/Offline');
+      import('./components/PathSetup');
+      import('./components/SettingsModal');
+      import('./components/SessionDashboard');
+    };
+    const ric = window.requestIdleCallback;
+    const id = ric ? ric(warm, { timeout: 4000 }) : setTimeout(warm, 2500);
+    return () => { (window.cancelIdleCallback || clearTimeout)(id); };
   }, []);
 
   // Overlay stack: Escape closes the topmost overlay, and while any overlay
@@ -461,6 +492,7 @@ export default function App() {
       {/* main area */}
       <div className="flex-1 flex min-h-0">
         <main id="main" className="flex-1 min-w-0 flex flex-col">
+          <Suspense fallback={<ScreenLoader />}>
           {tab === 'home' && (
             <HomeDashboard
               dailyGoal={settings.dailyGoal}
@@ -547,6 +579,7 @@ export default function App() {
               onClear={() => setTelemetry([])}
             />
           )}
+          </Suspense>
         </main>
         {tab === 'arena' && <FeedbackWidget scores={lastScores} turnCount={history.length} />}
       </div>
@@ -565,42 +598,52 @@ export default function App() {
         />
       </nav>
 
-      <SettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        apiKey={apiKey}
-        onKeyChange={setApiKey}
-        settings={settings}
-        onSettingsChange={updateSettings}
-        onReplayOnboarding={() => { setSettingsOpen(false); setOnboardingOpen(true); }}
-      />
-      <SessionDashboard
-        open={dashboardOpen}
-        onClose={closeDashboard}
-        apiKey={apiKey}
-        mockMode={settings.mockMode}
-        scenario={scenario}
-        history={history}
-        level={effectiveLevel}
-        onSessionSaved={(report) => {
-          setStreakTick((t) => t + 1);
-          handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
-        }}
-      />
-      <Personalise
-        open={personaliseOpen}
-        onClose={() => setPersonaliseOpen(false)}
-        prefs={prefs}
-        onPrefsChange={updatePrefs}
-        baseLevel={settings.level}
-        onRun={runRecommendation}
-      />
-      <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} pwa={pwa} />
-      <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
-      <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />
-      <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />
-      <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />
-      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} onGo={goFromSearch} />
+      {/* Overlays mount only when open, so their code-split chunks download
+          on demand rather than on first load. fallback={null} keeps the
+          brief chunk fetch invisible behind the tap. */}
+      <Suspense fallback={null}>
+      {settingsOpen && (
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          apiKey={apiKey}
+          onKeyChange={setApiKey}
+          settings={settings}
+          onSettingsChange={updateSettings}
+          onReplayOnboarding={() => { setSettingsOpen(false); setOnboardingOpen(true); }}
+        />
+      )}
+      {dashboardOpen && (
+        <SessionDashboard
+          open={dashboardOpen}
+          onClose={closeDashboard}
+          apiKey={apiKey}
+          mockMode={settings.mockMode}
+          scenario={scenario}
+          history={history}
+          level={effectiveLevel}
+          onSessionSaved={(report) => {
+            setStreakTick((t) => t + 1);
+            handleActivity({ type: 'session', scenarioId: scenario.id, score: report?.average_scores?.overall ?? 0 });
+          }}
+        />
+      )}
+      {personaliseOpen && (
+        <Personalise
+          open={personaliseOpen}
+          onClose={() => setPersonaliseOpen(false)}
+          prefs={prefs}
+          onPrefsChange={updatePrefs}
+          baseLevel={settings.level}
+          onRun={runRecommendation}
+        />
+      )}
+      {offlineOpen && <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} pwa={pwa} />}
+      {analyticsOpen && <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />}
+      {referenceOpen && <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />}
+      {focusOpen && <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />}
+      {onboardingOpen && <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />}
+      {searchOpen && <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} onGo={goFromSearch} />}
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
@@ -617,31 +660,47 @@ export default function App() {
           offline: () => setOfflineOpen(true),
         }}
       />
-      <RealWorld
-        open={realWorldOpen}
-        onClose={() => setRealWorldOpen(false)}
-        onRoleplay={startRoleplay}
-        onXp={awardXp}
-      />
-      <Profile
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
-        onXp={awardXp}
-        weeklyGoal={settings.weeklyGoal}
-        onHeaderChange={({ coins: c, avatarId: a }) => {
-          setCoins(c);
-          setAvatarId(a);
-        }}
-      />
-      <PathSetup
-        open={pathSetupOpen}
-        onClose={() => setPathSetupOpen(false)}
-        onCreated={(p) => {
-          setPath(p);
-          setPathSetupOpen(false);
-          updateSettings({ ...settings, level: p.cefr });
-        }}
-      />
+      {realWorldOpen && (
+        <RealWorld
+          open={realWorldOpen}
+          onClose={() => setRealWorldOpen(false)}
+          onRoleplay={startRoleplay}
+          onXp={awardXp}
+        />
+      )}
+      {profileOpen && (
+        <Profile
+          open={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          onXp={awardXp}
+          weeklyGoal={settings.weeklyGoal}
+          onHeaderChange={({ coins: c, avatarId: a }) => {
+            setCoins(c);
+            setAvatarId(a);
+          }}
+        />
+      )}
+      {pathSetupOpen && (
+        <PathSetup
+          open={pathSetupOpen}
+          onClose={() => setPathSetupOpen(false)}
+          onCreated={(p) => {
+            setPath(p);
+            setPathSetupOpen(false);
+            updateSettings({ ...settings, level: p.cefr });
+          }}
+        />
+      )}
+      </Suspense>
+    </div>
+  );
+}
+
+// Lightweight fallback shown while a code-split screen chunk loads.
+function ScreenLoader() {
+  return (
+    <div className="flex-1 grid place-items-center py-20" role="status" aria-label="Loading">
+      <span className="w-6 h-6 rounded-full border-2 border-line border-t-ink animate-spin" />
     </div>
   );
 }
