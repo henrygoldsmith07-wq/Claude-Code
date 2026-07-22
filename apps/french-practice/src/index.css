@@ -70,6 +70,36 @@
   --shadow-lg: 0 -16px 48px -12px rgba(0, 0, 0, 0.7), 0 -1px 0 var(--line);
 }
 
+/* ---- accessibility preferences (toggled from Settings, applied on <html>) ----
+   Each is opt-in and independent of the OS-level media queries below. */
+:root.large-text { font-size: 112.5%; } /* scales the rem-based type ramp */
+:root.dyslexia, :root.dyslexia body {
+  font-family: "Comic Sans MS", "Trebuchet MS", var(--font-sans);
+  letter-spacing: 0.015em;
+  word-spacing: 0.06em;
+  line-height: 1.75;
+}
+:root.high-contrast {
+  --ink: #000000;
+  --ink-2: #1a1a1a;
+  --ink-3: #333333;
+  --line: #000000;
+}
+.dark.high-contrast {
+  --ink: #ffffff;
+  --ink-2: #ededed;
+  --ink-3: #d0d0d0;
+  --line: #ffffff;
+}
+:root.reduce-motion *,
+:root.reduce-motion *::before,
+:root.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* expose the tokens as Tailwind color utilities (bg-surface, text-ink, …) */
 @theme inline {
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;

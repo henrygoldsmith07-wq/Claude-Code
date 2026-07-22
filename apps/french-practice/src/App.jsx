@@ -224,6 +224,17 @@ export default function App() {
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
 
+  // Accessibility preferences, applied as classes on <html> so the CSS in
+  // index.css can react (reduced motion, larger type, dyslexia-friendly font,
+  // high contrast). Each is independent and opt-in.
+  useEffect(() => {
+    const el = document.documentElement;
+    el.classList.toggle('reduce-motion', !!settings.reduceMotion);
+    el.classList.toggle('large-text', !!settings.largeText);
+    el.classList.toggle('dyslexia', !!settings.dyslexiaFont);
+    el.classList.toggle('high-contrast', !!settings.highContrast);
+  }, [settings.reduceMotion, settings.largeText, settings.dyslexiaFont, settings.highContrast]);
+
   const updateSettings = (s) => {
     if (s.language !== settings.language) {
       syncLanguage(s.language);
