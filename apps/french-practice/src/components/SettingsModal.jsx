@@ -230,6 +230,34 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
             </button>
           )}
         </section>
+
+        <section className="space-y-2 pt-2 border-t border-line">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Accessibility</h3>
+          <ToggleRow
+            label="Larger text"
+            hint="Increases the base text size across the app"
+            checked={settings.largeText}
+            onChange={(v) => onSettingsChange({ ...settings, largeText: v })}
+          />
+          <ToggleRow
+            label="Dyslexia-friendly font"
+            hint="A more legible typeface with looser letter and line spacing"
+            checked={settings.dyslexiaFont}
+            onChange={(v) => onSettingsChange({ ...settings, dyslexiaFont: v })}
+          />
+          <ToggleRow
+            label="High contrast"
+            hint="Pure black-on-white (or white-on-black) with stronger borders"
+            checked={settings.highContrast}
+            onChange={(v) => onSettingsChange({ ...settings, highContrast: v })}
+          />
+          <ToggleRow
+            label="Reduce motion"
+            hint="Turns off animations and transitions"
+            checked={settings.reduceMotion}
+            onChange={(v) => onSettingsChange({ ...settings, reduceMotion: v })}
+          />
+        </section>
       </div>
     </Modal>
   );

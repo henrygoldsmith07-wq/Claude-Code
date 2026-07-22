@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted } from '../lib/storage';
-import { encouragement } from '../lib/game';
+import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp } from '../lib/storage';
+import { encouragement, dailyChallenges, leagueTier, weeklyLeague, ACHIEVEMENTS, levelFromXp } from '../lib/game';
+import { wordsLearned, fmtDuration } from '../lib/analytics';
+import { getPhrasebook } from '../lib/phrasebook';
 import { dueEntries, notebookAsEntries } from '../lib/memory';
 import LearningPath from './LearningPath';
 import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, Check, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, Check, Coins, Trophy, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -22,7 +24,7 @@ function suggestScenario(sessions) {
   return [...getScenarios()].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onPickScenario, lastActivity, onResume }) {
+export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onOpenProfile, onPickScenario, lastActivity, onResume }) {
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -129,6 +131,9 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           </div>
         </section>
 
+        {/* today at a glance — daily stats strip */}
+        <GlanceStats srs={getSrs()} sessions={sessions} />
+
         {/* weekly goal + encouraging feedback */}
         <section className="bg-surface border border-line rounded-2xl p-5 space-y-2.5">
           <div className="flex items-baseline justify-between">
@@ -140,6 +145,12 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           </div>
           <p className="text-xs text-ink2 leading-relaxed">{cheer}</p>
         </section>
+
+        {/* daily challenge — surfaced from the profile's challenge set */}
+        <DailyChallengeCard onOpenProfile={onOpenProfile} />
+
+        {/* league standing + achievements, at a glance */}
+        <GamePreview onOpenProfile={onOpenProfile} />
 
         {/* coach's note — personalized from the last session report */}
         <section className="bg-surface2 border border-line rounded-2xl p-5">
@@ -195,7 +206,8 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
         {/* getting-started checklist: live tutorial, replaces the old static tour */}
         <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
 
-        {/* phrase of the day — deterministic by date, always fresh */}
+        {/* word + phrase of the day — deterministic by date, always fresh */}
+        <WordOfTheDay />
         <PhraseOfTheDay />
 
         {/* recurring mistakes accumulated across sessions */}
@@ -324,7 +336,7 @@ function ActionCard({ icon: CardIcon, title, subtitle, badge, onClick }) {
 }
 
 // Word of the day: a stable daily pick from the full vocabulary library.
-function PhraseOfTheDay() {
+function WordOfTheDay() {
   // Prefer cards that carry an example sentence, so the daily pick is rich
   // rather than a bare frequency-list word pair.
   const entries = allEntries().filter((x) => x.example && x.emoji);
@@ -343,6 +355,109 @@ function PhraseOfTheDay() {
         </div>
         <SpeakButton text={e.fr} label="Listen" />
       </div>
+    </section>
+  );
+}
+
+// Phrase of the day: a full, usable sentence from the situational phrasebook,
+// offset a few days from the word pick so the two never coincide.
+function PhraseOfTheDay() {
+  const all = getPhrasebook().flatMap((g) => g.phrases);
+  if (!all.length) return null;
+  const day = Math.floor(Date.now() / 86400000) + 3;
+  const p = all[day % all.length];
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Phrase of the day</h3>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-ink" lang="fr">{p.fr}</p>
+          <p className="text-xs text-ink3 mt-0.5">{p.en}</p>
+        </div>
+        <SpeakButton text={p.fr} label="Listen" />
+      </div>
+    </section>
+  );
+}
+
+// Today at a glance: the four numbers a learner checks daily.
+function GlanceStats({ srs, sessions }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const tiles = [
+    { icon: Clock, label: 'Time today', value: fmtDuration(getTimeLog()[today] || 0) },
+    { icon: Layers, label: 'Words learned', value: wordsLearned(srs) },
+    { icon: MessageCircle, label: 'Conversations', value: sessions.length },
+    { icon: Coins, label: 'Coins', value: getCoins() },
+  ];
+  return (
+    <section className="grid grid-cols-4 gap-2" aria-label="Today at a glance">
+      {tiles.map((t) => (
+        <div key={t.label} className="bg-surface border border-line rounded-2xl px-2 py-3 text-center">
+          <t.icon size={14} className="mx-auto text-ink3" />
+          <p className="text-base font-bold text-ink tabular-nums leading-none mt-1.5">{t.value}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-ink3 mt-1 leading-tight">{t.label}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// Daily challenge preview: today's top open challenge with its progress, and a
+// count of how many of the three are done. Tapping opens the profile to claim.
+function DailyChallengeCard({ onOpenProfile }) {
+  const state = getChallengeState();
+  const todays = dailyChallenges(state.day);
+  const progressOf = (c) => (c.metric === 'xp' ? getTodayXp() : (state.counts[c.metric] || 0));
+  const done = todays.filter((c) => progressOf(c) >= c.target).length;
+  const active = todays.find((c) => progressOf(c) < c.target) || todays[0];
+  const prog = Math.min(active.target, progressOf(active));
+  const complete = prog >= active.target;
+  return (
+    <button
+      onClick={onOpenProfile}
+      className="w-full bg-surface border border-line rounded-2xl p-5 text-left space-y-2.5 hover:border-ink3 transition-colors"
+    >
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 inline-flex items-center gap-1.5"><Target size={12} /> Daily challenge</h3>
+        <span className="text-[11px] text-ink3 tabular-nums">{done}/{todays.length} done</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-sm text-ink" lang="fr">{active.title}</p>
+        <span className="shrink-0 text-[11px] font-semibold text-ink2 tabular-nums inline-flex items-center gap-1">
+          +{active.coins} <Coins size={11} /> {complete ? '· claim' : `· ${prog}/${active.target}`}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-surface2 overflow-hidden">
+        <div className={`h-full rounded-full bar-anim ${complete ? 'bg-success' : 'bg-accent'}`} style={{ width: `${Math.round((prog / active.target) * 100)}%` }} />
+      </div>
+    </button>
+  );
+}
+
+// League + achievements at a glance, both tapping through to the profile.
+function GamePreview({ onOpenProfile }) {
+  const lvl = levelFromXp(getXp()).level;
+  const tier = leagueTier(lvl);
+  const now = new Date();
+  const dow = (now.getDay() + 6) % 7;
+  const weekProgress = (dow * 86400 + now.getHours() * 3600 + now.getMinutes() * 60) / (7 * 86400);
+  const weekKey = new Date(now.getTime() - dow * 86400000).toISOString().slice(0, 10);
+  const settings = getSettings();
+  const league = weeklyLeague(weekKey, getWeekXp(), weekProgress, tier.index, { name: settings.name || 'You', avatar: '🙂' });
+  const badges = Object.keys(getAchievements()).length;
+  const next = ACHIEVEMENTS.find((a) => !getAchievements()[a.id]);
+  return (
+    <section className="grid grid-cols-2 gap-2.5">
+      <button onClick={onOpenProfile} className="bg-surface border border-line rounded-2xl p-4 text-left hover:border-ink3 transition-colors">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink3 inline-flex items-center gap-1">{tier.emoji} {tier.name} league</h3>
+        <p className="text-lg font-bold text-ink tabular-nums leading-none mt-1.5">#{league.rank} <span className="text-xs font-normal text-ink3">of {league.count}</span></p>
+        <p className="text-[11px] text-ink3 mt-1">{league.rank === 1 ? 'Top of the league' : `${league.ahead ? `${league.ahead.xp - getWeekXp()} XP to climb` : 'Earn XP to climb'}`}</p>
+      </button>
+      <button onClick={onOpenProfile} className="bg-surface border border-line rounded-2xl p-4 text-left hover:border-ink3 transition-colors">
+        <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink3 inline-flex items-center gap-1"><Trophy size={11} /> Achievements</h3>
+        <p className="text-lg font-bold text-ink tabular-nums leading-none mt-1.5">{badges} <span className="text-xs font-normal text-ink3">/ {ACHIEVEMENTS.length}</span></p>
+        <p className="text-[11px] text-ink3 mt-1 truncate">{next ? `Next: ${next.title}` : 'All unlocked — bravo'}</p>
+      </button>
     </section>
   );
 }

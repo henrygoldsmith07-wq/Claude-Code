@@ -224,6 +224,17 @@ export default function App() {
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
 
+  // Accessibility preferences, applied as classes on <html> so the CSS in
+  // index.css can react (reduced motion, larger type, dyslexia-friendly font,
+  // high contrast). Each is independent and opt-in.
+  useEffect(() => {
+    const el = document.documentElement;
+    el.classList.toggle('reduce-motion', !!settings.reduceMotion);
+    el.classList.toggle('large-text', !!settings.largeText);
+    el.classList.toggle('dyslexia', !!settings.dyslexiaFont);
+    el.classList.toggle('high-contrast', !!settings.highContrast);
+  }, [settings.reduceMotion, settings.largeText, settings.dyslexiaFont, settings.highContrast]);
+
   const updateSettings = (s) => {
     if (s.language !== settings.language) {
       syncLanguage(s.language);
@@ -243,15 +254,20 @@ export default function App() {
 
   // Apply everything the onboarding wizard collected, then dismiss it.
   const finishOnboarding = (d) => {
+    let timezone = null;
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch { timezone = null; }
     updateSettings({
       ...settings,
       name: d.name.trim(),
+      language: d.language,
+      timezone,
       level: d.level,
       dailyGoal: d.dailyGoal,
       weeklyGoal: d.weeklyGoal,
       smartReminders: d.reminders,
       mockMode: settings.mockMode || d.mock,
     });
+    syncLanguage(d.language);
     updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
     persistAvatar(d.avatarId);
     ownAvatar(d.avatarId);
@@ -553,6 +569,7 @@ export default function App() {
               onOpenAnalytics={() => setAnalyticsOpen(true)}
               onOpenReference={() => setReferenceOpen(true)}
               onOpenFocus={() => setFocusOpen(true)}
+              onOpenProfile={() => setProfileOpen(true)}
               lastActivity={getLastActivity()}
               onResume={resumeActivity}
               onPickScenario={(s) => {
