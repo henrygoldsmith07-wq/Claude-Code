@@ -33,10 +33,11 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
   const [challenge, setChallenge] = useState(null);
 
   // Reset transient state when the entry changes.
+  // Show the back of the new card when advancing (flipping) to the next card.
   const [lastId, setLastId] = useState(entry.id);
   if (lastId !== entry.id) {
     setLastId(entry.id);
-    setFlipped(false);
+    setFlipped(true);
     setChallenge(null);
   }
 
