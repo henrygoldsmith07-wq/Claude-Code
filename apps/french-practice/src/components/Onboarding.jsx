@@ -82,8 +82,12 @@ const LAST_STEP = SECTION_OF.length - 1;
 
 export default function Onboarding({ open, onComplete, onSkip }) {
   const [step, setStep] = useState(0);
+  const [dir, setDir] = useState('fwd'); // slide direction for the step transition
   const [d, setD] = useState(DEFAULTS);
   const set = (patch) => setD((prev) => ({ ...prev, ...patch }));
+  // Move to a step, remembering whether it's forward or back so the content
+  // slides in from the matching side. reduce-motion (Settings) neutralises it.
+  const goTo = (n) => { setDir(n >= step ? 'fwd' : 'back'); setStep(n); };
 
   if (!open) return null;
 
@@ -107,7 +111,7 @@ export default function Onboarding({ open, onComplete, onSkip }) {
   // Quick start: good defaults + working demo, straight to the finish step.
   const quickStart = () => {
     set({ mock: true });
-    setStep(LAST_STEP);
+    goTo(LAST_STEP);
   };
 
   const steps = [
@@ -360,15 +364,15 @@ export default function Onboarding({ open, onComplete, onSkip }) {
   const cur = steps[step];
   const total = steps.length;
   // Only the goal step gates Next (a goal is preselected, so it never blocks).
-  const next = () => (step < total - 1 ? setStep(step + 1) : onComplete(d));
+  const next = () => (step < total - 1 ? goTo(step + 1) : onComplete(d));
 
   return (
-    <div className="fixed inset-0 z-[60] bg-bg flex flex-col" role="dialog" aria-modal="true" aria-label="Onboarding">
+    <div className="fixed inset-0 z-[60] bg-bg flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="Onboarding">
       {/* labelled progress */}
       <div className="px-4 pt-4 shrink-0">
         <div className="flex items-center gap-2">
           {step > 0 ? (
-            <button onClick={() => setStep(step - 1)} aria-label="Back" className="w-9 h-9 grid place-items-center rounded-full bg-surface2 text-ink2 hover:bg-line"><ChevronLeft size={16} /></button>
+            <button onClick={() => goTo(step - 1)} aria-label="Back" className="w-9 h-9 grid place-items-center rounded-full bg-surface2 text-ink2 hover:bg-line"><ChevronLeft size={16} /></button>
           ) : <span className="w-9" aria-hidden="true" />}
           <div className="flex-1 flex gap-1.5" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={total} aria-label={`Step ${step + 1} of ${total}`}>
             {SECTIONS.map((label, si) => {
@@ -389,9 +393,9 @@ export default function Onboarding({ open, onComplete, onSkip }) {
         <p className="text-[10px] text-ink3 mt-1 text-center tabular-nums">Step {step + 1} of {total}</p>
       </div>
 
-      {/* body */}
-      <div className="flex-1 overflow-y-auto nice-scroll px-4 py-5">
-        <div className="max-w-md mx-auto">
+      {/* body — re-keyed per step so the content slides in on each change */}
+      <div className="flex-1 overflow-x-hidden overflow-y-auto nice-scroll px-4 py-5">
+        <div key={step} className={`max-w-md mx-auto ${dir === 'fwd' ? 'step-fwd' : 'step-back'}`}>
           <h2 className="text-xl font-bold text-ink text-center">{cur.title}</h2>
           <p className="text-xs text-ink2 text-center mt-1 mb-5">{cur.subtitle}</p>
           {cur.body}
