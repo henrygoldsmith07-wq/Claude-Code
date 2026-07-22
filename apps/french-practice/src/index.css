@@ -235,6 +235,19 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
 }
 .fade-in { animation: fade-in 0.25s ease-out; }
 
+/* ---- onboarding step transition: content slides in from the side it came
+   from (forward = from the right, back = from the left), then settles ---- */
+@keyframes step-in-fwd {
+  from { opacity: 0; transform: translateX(22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes step-in-back {
+  from { opacity: 0; transform: translateX(-22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.step-fwd { animation: step-in-fwd 0.34s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.step-back { animation: step-in-back 0.34s cubic-bezier(0.2, 0.9, 0.3, 1); }
+
 @keyframes bubble-in {
   from { opacity: 0; transform: translateY(12px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
