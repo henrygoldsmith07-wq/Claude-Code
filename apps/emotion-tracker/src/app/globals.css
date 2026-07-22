@@ -2,24 +2,104 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf9f7;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-hover: #f5f4f1;
+  --border: #e7e5e4;
+  --muted: #78716c;
+  --accent: #6366f1;
+  --accent-soft: #eef2ff;
+  --accent-hover: #4f46e5;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --sidebar: #f5f4f1;
+}
+
+.dark {
+  --background: #0c0a09;
+  --foreground: #fafaf9;
+  --card: #1c1917;
+  --card-hover: #292524;
+  --border: #292524;
+  --muted: #a8a29e;
+  --accent: #818cf8;
+  --accent-soft: #1e1b4b;
+  --accent-hover: #a5b4fc;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --sidebar: #141211;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-sidebar: var(--sidebar);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Soft scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #44403c;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out forwards;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
 }
