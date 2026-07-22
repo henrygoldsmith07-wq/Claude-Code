@@ -558,6 +558,7 @@ export default function App() {
               onOpenAnalytics={() => setAnalyticsOpen(true)}
               onOpenReference={() => setReferenceOpen(true)}
               onOpenFocus={() => setFocusOpen(true)}
+              onOpenProfile={() => setProfileOpen(true)}
               lastActivity={getLastActivity()}
               onResume={resumeActivity}
               onPickScenario={(s) => {
