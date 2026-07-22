@@ -4,7 +4,7 @@
 import {
   mockTurn, mockReport, mockHint, mockSentenceCheck, mockAccentFeedback,
   mockWritingFeedback, mockCompletion, mockTutorReply, mockTranslation,
-  mockExercises, mockLesson, mockExplanation, mockCharacterReply,
+  mockExercises, mockLesson, mockExplanation, mockCharacterReply, mockStory,
 } from './mocks';
 
 import { getLanguage, DEFAULT_LANG } from './languages';
@@ -276,6 +276,30 @@ export async function quizFromConversation(apiKey, { history, level = 'B1', mock
   const exercises = normalizeExercises(json);
   if (!exercises.length) throw new Error('Could not build a quiz from this chat — try a longer conversation.');
   return exercises;
+}
+
+// ---- a short story woven from the learner's own known words ----
+
+// Writes a level-appropriate story that reuses as many of the learner's
+// learned words as it naturally can, so review turns into reading. Returns
+// { title, paragraphs: [{ fr, en }] } (fr = target language).
+export async function generateStory(apiKey, { words = [], level = 'B1', mock }) {
+  if (mock) return mockStory();
+  const wordList = words.slice(0, 24).join(', ') || '(pick common, useful words)';
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: `Write a short, natural, self-contained ${LANG.name} story for a CEFR ${level} learner. Weave in as many of THESE words as you naturally can, without forcing them: ${wordList}. Keep sentences at ${level} difficulty and the whole thing engaging and easy to follow. Reply ONLY as JSON: {"title": "a short ${LANG.name} title", "paragraphs": [{"fr": "one or two ${LANG.name} sentences", "en": "their English translation"}]} — 3 to 5 short paragraphs.`,
+    },
+    { role: 'user', content: 'Write my story.' },
+  ], { label: 'generate-story', temperature: 0.8 });
+  const paragraphs = Array.isArray(json.paragraphs)
+    ? json.paragraphs
+        .filter((p) => p && typeof p.fr === 'string')
+        .map((p) => ({ fr: String(p.fr), en: String(p.en || '') }))
+    : [];
+  if (!paragraphs.length) throw new Error('The story came back empty — try again.');
+  return { title: String(json.title || 'Une petite histoire'), paragraphs };
 }
 
 // ---- personalized lesson from the learner's recurring mistakes ----

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { langName } from '../lib/i18n';
-import { tutorChat, characterChat, translateText, generateExercises, generateLesson, friendlyError } from '../lib/groq';
-import { getHabits, getLearnerBrief } from '../lib/storage';
+import { tutorChat, characterChat, translateText, generateExercises, generateLesson, generateStory, friendlyError } from '../lib/groq';
+import { getHabits, getLearnerBrief, getSrs, getNotebook } from '../lib/storage';
+import { findEntry, allEntries } from '../lib/vocab';
+import { speak, stopSpeaking } from '../lib/tts';
 import { Markdown, Spinner, SpeakButton } from './ui';
 import Quiz from './Quiz';
 import {
-  GraduationCap, MessageCircle, Globe, Target, Map, RefreshCw,
+  GraduationCap, MessageCircle, Globe, Target, Map, RefreshCw, BookOpen, Play, Square,
   ChevronLeft, ChevronRight, ArrowRight, Sparkles,
 } from './icons';
 
@@ -19,6 +21,7 @@ const MODES = [
   { id: 'translate', icon: Globe, title: 'Translator', subtitle: 'Instant translation, both directions' },
   { id: 'exercises', icon: Target, title: 'Exercise maker', subtitle: 'Generate practice drills on any topic' },
   { id: 'lesson', icon: Map, title: 'My lesson', subtitle: 'A lesson built from your recurring mistakes' },
+  { id: 'story', icon: BookOpen, title: 'Story studio', subtitle: 'A story woven from words you’ve learned' },
 ];
 
 const CHARACTERS = [
@@ -106,6 +109,7 @@ export default function AiHub({ apiKey, mockMode, level, onXp }) {
         {mode === 'translate' && <Translator apiKey={apiKey} mockMode={mockMode} onXp={onXp} />}
         {mode === 'exercises' && <ExerciseMaker apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
         {mode === 'lesson' && <PersonalLesson apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
+        {mode === 'story' && <StoryStudio apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
       </div>
     </div>
   );
@@ -487,6 +491,110 @@ function PersonalLesson({ apiKey, mockMode, level, onXp }) {
                 </button>
               }
             />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The learner's known words (reviewed ≥ twice) plus their notebook, falling
+// back to common words so a first-time user still gets a story.
+function learnedWords() {
+  const srs = getSrs();
+  const known = Object.entries(srs)
+    .filter(([, s]) => (s?.reps || 0) >= 2)
+    .map(([id]) => findEntry(id))
+    .filter(Boolean)
+    .map((e) => e.fr);
+  const nb = getNotebook().map((n) => n.fr).filter(Boolean);
+  const words = [...new Set([...known, ...nb])];
+  if (words.length >= 8) return words;
+  const common = allEntries().filter((e) => (e.freq || 5) <= 2).map((e) => e.fr);
+  return [...new Set([...words, ...common])].slice(0, 24);
+}
+
+// Story studio: weaves the learner's own vocabulary into a short story they
+// can read and — the podcast angle — have narrated aloud, with tap-to-reveal
+// translations per paragraph.
+function StoryStudio({ apiKey, mockMode, level, onXp }) {
+  const [story, setStory] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [shown, setShown] = useState({}); // paragraph index → translation revealed
+  const [playing, setPlaying] = useState(false);
+  const words = learnedWords();
+
+  useEffect(() => () => stopSpeaking(), []);
+
+  const generate = async () => {
+    setBusy(true); setError(null); setShown({}); stopSpeaking(); setPlaying(false);
+    try {
+      const s = await generateStory(apiKey, { words, level, mock: mockMode });
+      setStory(s);
+      onXp?.(5); // reading reward
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+    setBusy(false);
+  };
+
+  const narrate = () => {
+    if (!story) return;
+    if (playing) { stopSpeaking(); setPlaying(false); return; }
+    setPlaying(true);
+    speak(story.paragraphs.map((p) => p.fr).join(' '), { onEnd: () => setPlaying(false) });
+  };
+
+  return (
+    <div className="h-full overflow-y-auto nice-scroll px-4 py-4">
+      <div className="max-w-md mx-auto space-y-4">
+        {!story && (
+          <>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2.5">
+              <p className="text-sm font-semibold text-ink">A story from your own words</p>
+              <p className="text-xs text-ink2 leading-relaxed">
+                We’ll weave a short {langName()} story around the {words.length >= 8 ? `${Math.min(words.length, 24)} words you’ve learned` : 'most useful words for your level'}, pitched at {level}. Read it, then have it read aloud.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {words.slice(0, 10).map((w) => (
+                  <span key={w} className="px-2 py-0.5 rounded-full bg-surface2 text-ink2 text-[11px]" lang="fr">{w}</span>
+                ))}
+              </div>
+            </div>
+            {busy ? (
+              <Spinner label="Writing your story…" />
+            ) : (
+              <button onClick={generate} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">
+                <Sparkles size={14} /> Write my story
+              </button>
+            )}
+            {error && <p role="alert" className="text-xs text-ink text-center">{error}</p>}
+          </>
+        )}
+        {story && (
+          <div className="fade-in space-y-3">
+            <div className="flex items-center gap-2">
+              <h3 className="flex-1 text-base font-bold text-ink" lang="fr">{story.title}</h3>
+              <button onClick={narrate} aria-label={playing ? 'Stop narration' : 'Listen to the story'} className="btn btn-secondary min-h-10 px-3 rounded-xl text-xs shrink-0">
+                {playing ? <><Square size={13} /> Stop</> : <><Play size={13} /> Listen</>}
+              </button>
+            </div>
+            {story.paragraphs.map((p, i) => (
+              <div key={i} className="bg-surface border border-line rounded-2xl p-4 space-y-1.5">
+                <p className="text-[15px] text-ink leading-relaxed" lang="fr">{p.fr}</p>
+                {shown[i] ? (
+                  <p className="text-[13px] text-ink3 italic">{p.en}</p>
+                ) : (
+                  <button onClick={() => setShown((s) => ({ ...s, [i]: true }))} className="text-[11px] font-semibold text-ink3 hover:text-ink">
+                    Show translation
+                  </button>
+                )}
+              </div>
+            ))}
+            <button onClick={generate} className="btn btn-secondary w-full min-h-11 rounded-xl text-sm">
+              <RefreshCw size={13} /> Another story
+            </button>
           </div>
         )}
       </div>
