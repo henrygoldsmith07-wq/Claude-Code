@@ -113,6 +113,21 @@ export function mockStory() {
   };
 }
 
+export function mockSnapVocab() {
+  return {
+    caption: 'Une table de petit-déjeuner près de la fenêtre.',
+    captionEn: 'A breakfast table by the window.',
+    items: [
+      { fr: 'la tasse', en: 'the cup', emoji: '☕' },
+      { fr: 'le pain', en: 'the bread', emoji: '🍞' },
+      { fr: 'le couteau', en: 'the knife', emoji: '🔪' },
+      { fr: 'la fenêtre', en: 'the window', emoji: '🪟' },
+      { fr: 'la fleur', en: 'the flower', emoji: '🌸' },
+      { fr: 'le journal', en: 'the newspaper', emoji: '📰' },
+    ],
+  };
+}
+
 export function mockCharacterReply() {
   return 'Ah, mon petit ! Quand j\'avais ton âge, on faisait le pain nous-mêmes tous les dimanches. Et toi, tu sais cuisiner ?\n*Ah, my dear! When I was your age, we made bread ourselves every Sunday. And you, can you cook? (Mock mode.)*';
 }

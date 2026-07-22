@@ -5,6 +5,7 @@ import {
   mockTurn, mockReport, mockHint, mockSentenceCheck, mockAccentFeedback,
   mockWritingFeedback, mockCompletion, mockTutorReply, mockTranslation,
   mockExercises, mockLesson, mockExplanation, mockCharacterReply, mockStory,
+  mockSnapVocab,
 } from './mocks';
 
 import { getLanguage, DEFAULT_LANG } from './languages';
@@ -12,6 +13,8 @@ import { getLanguage, DEFAULT_LANG } from './languages';
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';
 const WHISPER_MODEL = 'whisper-large-v3-turbo';
+// Multimodal model for Snap & learn — accepts an image alongside the prompt.
+const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 // Active target language — set once from settings so every prompt below teaches
 // the right language (French / German / Spanish) without threading it through
@@ -160,6 +163,32 @@ async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } 
   return extractJson(data.choices[0].message.content);
 }
 
+// JSON chat with an attached image (multimodal). Used by Snap & learn.
+async function chatVisionJson(apiKey, { system, prompt, imageDataUrl, temperature = 0.3, label = 'vision' }) {
+  const body = {
+    model: VISION_MODEL,
+    messages: [
+      { role: 'system', content: system },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: imageDataUrl } },
+        ],
+      },
+    ],
+    temperature,
+    response_format: { type: 'json_object' },
+    max_tokens: 1024,
+  };
+  const { data } = await timedFetch(label, `${BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }, { rawBody: body });
+  return extractJson(data.choices[0].message.content);
+}
+
 // Plain-text chat (no JSON mode) — for the tutor and free-form explanations.
 async function chatPlain(apiKey, messages, { temperature = 0.6, label = 'chat-plain', maxTokens = 700 } = {}) {
   const body = { model: CHAT_MODEL, messages, temperature, max_tokens: maxTokens };
@@ -300,6 +329,29 @@ export async function generateStory(apiKey, { words = [], level = 'B1', mock }) 
     : [];
   if (!paragraphs.length) throw new Error('The story came back empty — try again.');
   return { title: String(json.title || 'Une petite histoire'), paragraphs };
+}
+
+// ---- Snap & learn: turn a photo into target-language vocabulary ----
+
+export async function generateVocabFromImage(apiKey, { imageDataUrl, level = 'A2', mock }) {
+  if (mock) return mockSnapVocab();
+  if (!imageDataUrl || !/^data:image\//.test(imageDataUrl)) {
+    throw new Error('That image didn’t load — pick a photo and try again.');
+  }
+  const json = await chatVisionJson(apiKey, {
+    system: `You help a CEFR ${level} learner of ${LANG.name} build vocabulary from photos. Look at the image: name the most useful, concrete things you can see, AND read any printed ${LANG.name} text (signs, menus, labels) if present. Give each as a ${LANG.name} word with its correct article/gender where relevant. Reply ONLY as JSON: {"caption": "a short ${LANG.name} caption of the scene", "captionEn": "its English translation", "items": [{"fr": "${LANG.name} word (with article)", "en": "English translation", "emoji": "one relevant emoji"}]} — 5 to 10 items, most useful first, no duplicates.`,
+    prompt: 'What useful words can I learn from this photo?',
+    imageDataUrl,
+    label: 'snap-vocab',
+  });
+  const items = Array.isArray(json.items)
+    ? json.items
+        .filter((it) => it && typeof it.fr === 'string' && it.fr.trim())
+        .map((it) => ({ fr: String(it.fr).trim(), en: String(it.en || '').trim(), emoji: String(it.emoji || '📸').trim().slice(0, 4) }))
+        .slice(0, 12)
+    : [];
+  if (!items.length) throw new Error('No clear words came back — try a sharper or closer photo.');
+  return { caption: String(json.caption || ''), captionEn: String(json.captionEn || ''), items };
 }
 
 // ---- personalized lesson from the learner's recurring mistakes ----

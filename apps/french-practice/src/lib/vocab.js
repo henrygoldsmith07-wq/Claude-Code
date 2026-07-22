@@ -331,9 +331,20 @@ const PACK_CATEGORY = {
   work: 'work', jobsx: 'work', schoolx: 'work', school: 'work', tech: 'work', shoppingx: 'work', shopping2: 'work',
   idioms: 'culture', slang: 'culture', regional: 'culture', music: 'culture', mediax: 'culture', environment: 'culture', societyx: 'culture', sports: 'culture', celebrations: 'culture',
   verbs1: 'verbs', verbs2: 'verbs', verbs3: 'verbs',
-  // German / Spanish core packs
+  // German packs
   'de-basics': 'essentials', 'de-people': 'people', 'de-food': 'home', 'de-travel': 'travel', 'de-verbs': 'verbs', 'de-time': 'essentials',
+  'de-adjectives': 'essentials', 'de-questions': 'essentials', 'de-connectors': 'essentials',
+  'de-feelings': 'people', 'de-body': 'people',
+  'de-home': 'home', 'de-clothing': 'home',
+  'de-weather': 'travel', 'de-animals': 'travel', 'de-nature': 'travel',
+  'de-work': 'work', 'de-shopping': 'work',
+  // Spanish packs
   'es-basics': 'essentials', 'es-people': 'people', 'es-food': 'home', 'es-travel': 'travel', 'es-verbs': 'verbs', 'es-time': 'essentials',
+  'es-adjectives': 'essentials', 'es-questions': 'essentials', 'es-connectors': 'essentials',
+  'es-feelings': 'people', 'es-body': 'people',
+  'es-home': 'home', 'es-clothing': 'home',
+  'es-weather': 'travel', 'es-animals': 'travel', 'es-nature': 'travel',
+  'es-work': 'work', 'es-shopping': 'work',
 };
 
 export const categoryOf = (id) => PACK_CATEGORY[id] || (String(id).startsWith('freq-') ? 'frequency' : 'more');
