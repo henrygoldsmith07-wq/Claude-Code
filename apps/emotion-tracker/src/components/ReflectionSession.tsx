@@ -22,9 +22,15 @@ export default function ReflectionSession({
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const requestedForRef = useRef<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const lastMessage = entry.messages[entry.messages.length - 1];
-  const awaitingAi = entry.status === "in_progress" && lastMessage?.role === "user";
+  const awaitingAi =
+    entry.status === "in_progress" && lastMessage?.role === "user";
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [entry.messages.length, loading]);
 
   useEffect(() => {
     if (!awaitingAi) return;
@@ -36,13 +42,19 @@ export default function ReflectionSession({
     fetch("/api/reflect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: entry.messages, apiKey: apiKey || undefined }),
+      body: JSON.stringify({
+        messages: entry.messages,
+        apiKey: apiKey || undefined,
+      }),
     })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Something went wrong");
         if (data.step === "question") {
-          onAppendMessage(entry.id, { role: "assistant", content: data.question });
+          onAppendMessage(entry.id, {
+            role: "assistant",
+            content: data.question,
+          });
         } else {
           onCompleteEntry(entry.id, data.summary);
         }
@@ -64,35 +76,50 @@ export default function ReflectionSession({
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto flex max-w-2xl flex-col gap-4">
+        <div className="mx-auto flex max-w-2xl flex-col gap-3">
           {entry.messages.map((m, i) => (
             <div
               key={i}
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap animate-fade-in ${
                 m.role === "user"
-                  ? "self-end bg-blue-600 text-white"
-                  : "self-start bg-zinc-100 dark:bg-zinc-800"
+                  ? "self-end bg-accent text-white shadow-sm"
+                  : "self-start border border-border bg-card text-foreground"
               }`}
             >
               {m.content}
             </div>
           ))}
+
           {loading && (
-            <div className="self-start rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm text-zinc-500 dark:bg-zinc-800">
-              Thinking...
+            <div className="self-start flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-accent" />
+                <span
+                  className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-accent"
+                  style={{ animationDelay: "0.2s" }}
+                />
+                <span
+                  className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-accent"
+                  style={{ animationDelay: "0.4s" }}
+                />
+              </span>
+              Thinking…
             </div>
           )}
+
           {entry.status === "complete" && entry.summary && (
-            <div className="mt-4 rounded-lg border border-zinc-200 p-5 dark:border-zinc-800">
+            <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm animate-fade-in">
               <SummaryView summary={entry.summary} />
             </div>
           )}
+
+          <div ref={bottomRef} />
         </div>
       </div>
 
       {entry.status === "in_progress" && !awaitingAi && (
-        <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
-          <div className="mx-auto flex max-w-2xl gap-2">
+        <div className="border-t border-border bg-card/50 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-2xl gap-3">
             <textarea
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
@@ -104,12 +131,12 @@ export default function ReflectionSession({
               }}
               rows={2}
               placeholder="Answer honestly — this is just for you."
-              className="flex-1 resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
             <button
               onClick={submitAnswer}
               disabled={!answer.trim()}
-              className="self-end rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              className="self-end rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover disabled:opacity-40"
             >
               Send
             </button>
