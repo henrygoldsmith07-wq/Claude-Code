@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { topicsForSubject } from "@/lib/curriculum";
 import { dueCount, masteryPercent, recentAttemptsForTopic } from "@/lib/stats";
 import { buildStudySchedule } from "@/lib/studyPlan";
@@ -60,7 +60,19 @@ export default function TopicList({
 }: Props) {
   const topics = topicsForSubject(subjectId);
   const [loading, setLoading] = useState<Record<string, Busy>>({});
+  const [query, setQuery] = useState("");
   const missingLessons = topics.filter((t) => !lessonBank[t.id]).length;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return topics;
+    return topics.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.id.toLowerCase().includes(q) ||
+        (t.unit && t.unit.toLowerCase().includes(q)),
+    );
+  }, [topics, query]);
 
   async function handleGenerate(topicId: string, kind: "cards" | "quiz" | "lesson", run: () => Promise<void>) {
     setLoading((prev) => ({ ...prev, [topicId]: kind }));
@@ -79,6 +91,7 @@ export default function TopicList({
     <div className="flex w-full flex-col gap-3">
       {missingLessons > 0 && (
         <button
+          type="button"
           onClick={() => onGenerateAllLessons(topics)}
           disabled={bulkLessonProgress !== null}
           className="self-start rounded-full border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
@@ -102,7 +115,20 @@ export default function TopicList({
         }}
       />
 
-      {topics.map((topic) => {
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Filter topics…"
+        aria-label="Filter topics"
+        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#3b4a6b] dark:border-zinc-700 dark:bg-zinc-900"
+      />
+
+      {filtered.length === 0 && (
+        <p className="py-4 text-center text-sm text-zinc-500">No topics match “{query.trim()}”.</p>
+      )}
+
+      {filtered.map((topic) => {
         const cards = cardsForTopic(topic.id);
         const due = dueCount(cards);
         const mastery = masteryPercent(cards, recentAttemptsForTopic(quizAttempts, topic.id));
