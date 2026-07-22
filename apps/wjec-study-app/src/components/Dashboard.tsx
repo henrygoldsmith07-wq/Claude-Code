@@ -4,6 +4,7 @@ import { useState } from "react";
 import { TOPICS } from "@/lib/curriculum";
 import type { Badge } from "@/lib/gamification";
 import type { Flashcard, LessonSection, QuizAttempt, QuizQuestion, SubjectId, Topic } from "@/lib/types";
+import DailyGoalBar from "./DailyGoalBar";
 import GamificationPanel from "./GamificationPanel";
 import TopicList from "./TopicList";
 
@@ -24,6 +25,9 @@ interface Props {
   xpProgress: number;
   badges: Badge[];
   accent?: string;
+  dailyGoal: number;
+  reviewsToday: number;
+  onChangeDailyGoal: (n: number) => void;
   cardsForTopic: (topicId: string) => Flashcard[];
   quizBank: Record<string, QuizQuestion[]>;
   quizAttempts: QuizAttempt[];
@@ -52,6 +56,9 @@ export default function Dashboard({
   xpProgress,
   badges,
   accent,
+  dailyGoal,
+  reviewsToday,
+  onChangeDailyGoal,
   cardsForTopic,
   quizBank,
   quizAttempts,
@@ -72,22 +79,39 @@ export default function Dashboard({
   bulkLessonProgress,
 }: Props) {
   const [expanded, setExpanded] = useState<Partial<Record<SubjectId, boolean>>>({});
+  const [dueOnly, setDueOnly] = useState(false);
+
+  const visible = dueOnly ? subjects.filter((s) => s.due > 0) : subjects;
 
   return (
     <div className="flex w-full flex-col gap-4">
       <GamificationPanel level={level} xpProgress={xpProgress} badges={badges} accent={accent} />
 
+      <DailyGoalBar goal={dailyGoal} done={reviewsToday} onChangeGoal={onChangeDailyGoal} />
+
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <div>
-          <p className="text-2xl font-semibold">{streak}</p>
+          <p className="text-2xl font-semibold tabular">{streak}</p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">day streak</p>
         </div>
         <div>
-          <p className="text-2xl font-semibold">{totalDue}</p>
+          <p className="text-2xl font-semibold tabular">{totalDue}</p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">cards due across all subjects</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <button
+            type="button"
+            onClick={() => setDueOnly((v) => !v)}
+            className={`rounded-full border px-4 py-2 text-sm ${
+              dueOnly
+                ? "border-[#3b4a6b] bg-[#e7eaf1] text-[#3b4a6b]"
+                : "border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            }`}
+          >
+            {dueOnly ? "Showing due only" : "Show due only"}
+          </button>
+          <button
+            type="button"
             onClick={() => onGenerateAllLessons(TOPICS)}
             disabled={bulkLessonProgress !== null}
             className="rounded-full border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
@@ -95,6 +119,7 @@ export default function Dashboard({
             Generate all lessons
           </button>
           <button
+            type="button"
             onClick={onStudyAllDue}
             disabled={totalDue === 0}
             className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
@@ -118,14 +143,22 @@ export default function Dashboard({
         </div>
       )}
 
+      {dueOnly && visible.length === 0 && (
+        <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">
+          Nothing due right now — enjoy the break, or clear the filter to browse topics.
+        </p>
+      )}
+
       <div className="flex flex-col gap-3">
-        {subjects.map((s) => (
+        {visible.map((s) => (
           <div
             key={s.id}
             className="rounded-xl border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
           >
             <button
+              type="button"
               onClick={() => setExpanded((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
+              aria-expanded={!!expanded[s.id]}
               className="flex w-full flex-col gap-2 p-4 text-left"
             >
               <div className="flex items-center justify-between gap-2">
@@ -139,6 +172,7 @@ export default function Dashboard({
                   <span
                     className="text-zinc-400 transition-transform dark:text-zinc-500"
                     style={{ transform: expanded[s.id] ? "rotate(90deg)" : "none" }}
+                    aria-hidden
                   >
                     ▶
                   </span>

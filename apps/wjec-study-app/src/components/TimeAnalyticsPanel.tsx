@@ -11,6 +11,17 @@ interface Props {
   sessions: TimeSession[];
 }
 
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function TimeAnalyticsPanel({ studyDays, sessions }: Props) {
   const bySubject = totalMsBySubject(sessions);
   const focusMs = totalMsByKind(sessions, "focus");
@@ -18,8 +29,44 @@ export default function TimeAnalyticsPanel({ studyDays, sessions }: Props) {
   const { thisWeekMs, lastWeekMs } = weeklyTrend(sessions);
   const deltaMs = thisWeekMs - lastWeekMs;
 
+  function exportStudyDays() {
+    const rows = [["date"], ...[...new Set(studyDays)].sort().map((d) => [d])];
+    downloadCsv(`wjec-study-days-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  }
+
+  function exportSessions() {
+    const rows = [
+      ["id", "kind", "subjectId", "startedAt", "durationMs"],
+      ...sessions.map((s) => [
+        s.id,
+        s.kind,
+        s.subjectId ?? "",
+        s.startedAt,
+        String(s.durationMs),
+      ]),
+    ];
+    downloadCsv(`wjec-sessions-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+  }
+
   return (
     <div className="flex w-full flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={exportStudyDays}
+          className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          Export study days (CSV)
+        </button>
+        <button
+          type="button"
+          onClick={exportSessions}
+          className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          Export sessions (CSV)
+        </button>
+      </div>
+
       <div className="rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <p className="text-sm font-medium">This week vs last week</p>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -38,7 +85,7 @@ export default function TimeAnalyticsPanel({ studyDays, sessions }: Props) {
           </span>
         </div>
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-          Just a gentle trend — study time naturally ebbs and flows, so a quieter week isn&apos;t a
+          Just a gentle trend — study time naturally ebbs and flows, so a quieter week isn't a
           failure.
         </p>
       </div>
