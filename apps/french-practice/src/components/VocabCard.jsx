@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { checkSentence, friendlyError } from '../lib/groq';
 import { FREQ_LABELS } from '../lib/vocab';
 import { SpeakButton, Spinner } from './ui';
@@ -29,17 +29,17 @@ function ChipRow({ label, items }) {
 }
 
 export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave, apiKey, mockMode }) {
-  const [flipped, setFlipped] = useState(false);
+  // Start on the back for every new card (including after advancing).
+  // Combined with key={entry.id} on the parent, this ensures the front is never
+  // shown first and there is no accidental answer flash during the transition.
+  const [flipped, setFlipped] = useState(true);
   const [challenge, setChallenge] = useState(null);
 
-  // Reset transient state when the entry changes.
-  // Show the back of the new card when advancing (flipping) to the next card.
-  const [lastId, setLastId] = useState(entry.id);
-  if (lastId !== entry.id) {
-    setLastId(entry.id);
+  // Safety reset if the same component instance is reused without a key change.
+  useEffect(() => {
     setFlipped(true);
     setChallenge(null);
-  }
+  }, [entry.id]);
 
   const submitSentence = async () => {
     const sentence = challenge.sentence.trim();
