@@ -1,21 +1,10 @@
 /**
- * Recipe catalogue. Hero art is emoji-on-gradient so the app is fully
- * offline/self-contained; `grad` is a CSS gradient string.
+ * Recipe catalogue. Hero art is emoji on a neutral tile so the app is fully
+ * offline/self-contained.
  */
-const g = {
-  mango: 'linear-gradient(135deg,#ffb457,#ff7a45)',
-  berry: 'linear-gradient(135deg,#f65e8f,#a24bcf)',
-  leaf: 'linear-gradient(135deg,#3ecf8e,#0e9f6e)',
-  sea: 'linear-gradient(135deg,#4facfe,#2a6dd6)',
-  gold: 'linear-gradient(135deg,#f7c948,#e8871e)',
-  chili: 'linear-gradient(135deg,#ff6b6b,#c0392b)',
-  plum: 'linear-gradient(135deg,#8e7cf3,#5b4bc4)',
-  mint: 'linear-gradient(135deg,#5eead4,#0ea5a4)',
-};
-
 export const RECIPES = [
   {
-    id: 'chicken-traybake', name: 'Lemon Chicken Traybake', emoji: '🍗', grad: g.gold,
+    id: 'chicken-traybake', name: 'Lemon Chicken Traybake', emoji: '🍗',
     cuisine: 'British', tags: ['high-protein', 'one-pot', 'family', 'budget'],
     time: 45, prep: 10, difficulty: 'Easy', costPerServing: 1.85, servings: 4,
     kcal: 520, protein: 42, carbs: 38, fat: 21, fibre: 6, rating: 4.8,
@@ -38,7 +27,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'chickpea-curry', name: 'Coconut Chickpea Curry', emoji: '🍛', grad: g.mango,
+    id: 'chickpea-curry', name: 'Coconut Chickpea Curry', emoji: '🍛',
     cuisine: 'Indian', tags: ['vegan', 'budget', 'one-pot', 'quick', 'freezer'],
     time: 25, prep: 5, difficulty: 'Easy', costPerServing: 1.1, servings: 4,
     kcal: 430, protein: 14, carbs: 48, fat: 19, fibre: 11, rating: 4.7,
@@ -61,7 +50,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'salmon-teriyaki', name: 'Teriyaki Salmon Bowls', emoji: '🍣', grad: g.sea,
+    id: 'salmon-teriyaki', name: 'Teriyaki Salmon Bowls', emoji: '🍣',
     cuisine: 'Japanese', tags: ['high-protein', 'quick', 'healthy', 'date-night'],
     time: 20, prep: 8, difficulty: 'Medium', costPerServing: 3.4, servings: 2,
     kcal: 560, protein: 38, carbs: 52, fat: 22, fibre: 5, rating: 4.9,
@@ -84,7 +73,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'veg-chilli', name: 'Smoky Three-Bean Chilli', emoji: '🌶️', grad: g.chili,
+    id: 'veg-chilli', name: 'Smoky Three-Bean Chilli', emoji: '🌶️',
     cuisine: 'Mexican', tags: ['vegan', 'budget', 'batch', 'freezer', 'family'],
     time: 40, prep: 10, difficulty: 'Easy', costPerServing: 0.95, servings: 6,
     kcal: 380, protein: 17, carbs: 55, fat: 8, fibre: 15, rating: 4.6,
@@ -106,7 +95,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'overnight-oats', name: 'Berry Overnight Oats', emoji: '🫐', grad: g.berry,
+    id: 'overnight-oats', name: 'Berry Overnight Oats', emoji: '🫐',
     cuisine: 'British', tags: ['breakfast', 'meal-prep', 'healthy', 'quick', 'budget'],
     time: 5, prep: 5, difficulty: 'Easy', costPerServing: 0.7, servings: 1,
     kcal: 340, protein: 15, carbs: 48, fat: 9, fibre: 8, rating: 4.5,
@@ -126,7 +115,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'airfryer-fajitas', name: 'Air Fryer Chicken Fajitas', emoji: '🌮', grad: g.mango,
+    id: 'airfryer-fajitas', name: 'Air Fryer Chicken Fajitas', emoji: '🌮',
     cuisine: 'Mexican', tags: ['air-fryer', 'quick', 'family', 'high-protein'],
     time: 18, prep: 8, difficulty: 'Easy', costPerServing: 2.1, servings: 4,
     kcal: 480, protein: 36, carbs: 44, fat: 16, fibre: 7, rating: 4.7,
@@ -148,7 +137,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'mushroom-risotto', name: 'Garlic Mushroom Risotto', emoji: '🍄', grad: g.plum,
+    id: 'mushroom-risotto', name: 'Garlic Mushroom Risotto', emoji: '🍄',
     cuisine: 'Italian', tags: ['vegetarian', 'comfort', 'date-night', 'one-pot'],
     time: 35, prep: 10, difficulty: 'Medium', costPerServing: 1.6, servings: 3,
     kcal: 510, protein: 13, carbs: 68, fat: 18, fibre: 4, rating: 4.6,
@@ -170,7 +159,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'slowcooker-ragu', name: 'Slow Cooker Beef Ragù', emoji: '🍝', grad: g.chili,
+    id: 'slowcooker-ragu', name: 'Slow Cooker Beef Ragù', emoji: '🍝',
     cuisine: 'Italian', tags: ['slow-cooker', 'batch', 'family', 'comfort', 'freezer'],
     time: 480, prep: 15, difficulty: 'Easy', costPerServing: 2.3, servings: 6,
     kcal: 590, protein: 34, carbs: 62, fat: 22, fibre: 6, rating: 4.9,
@@ -192,7 +181,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'halloumi-grain', name: 'Halloumi Grain Bowl', emoji: '🥗', grad: g.leaf,
+    id: 'halloumi-grain', name: 'Halloumi Grain Bowl', emoji: '🥗',
     cuisine: 'Mediterranean', tags: ['vegetarian', 'healthy', 'quick', 'lunch'],
     time: 15, prep: 5, difficulty: 'Easy', costPerServing: 2.0, servings: 2,
     kcal: 470, protein: 21, carbs: 45, fat: 24, fibre: 9, rating: 4.4,
@@ -212,7 +201,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'tofu-stirfry', name: 'Crispy Tofu Stir-fry', emoji: '🥡', grad: g.mint,
+    id: 'tofu-stirfry', name: 'Crispy Tofu Stir-fry', emoji: '🥡',
     cuisine: 'Chinese', tags: ['vegan', 'quick', 'healthy', 'high-protein'],
     time: 20, prep: 10, difficulty: 'Medium', costPerServing: 1.5, servings: 2,
     kcal: 410, protein: 24, carbs: 42, fat: 15, fibre: 8, rating: 4.5,
@@ -232,7 +221,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'shakshuka', name: 'One-Pan Shakshuka', emoji: '🍳', grad: g.gold,
+    id: 'shakshuka', name: 'One-Pan Shakshuka', emoji: '🍳',
     cuisine: 'Mediterranean', tags: ['vegetarian', 'breakfast', 'budget', 'one-pot', 'quick'],
     time: 22, prep: 5, difficulty: 'Easy', costPerServing: 1.2, servings: 2,
     kcal: 360, protein: 18, carbs: 24, fat: 20, fibre: 6, rating: 4.6,
@@ -253,7 +242,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'katsu-curry', name: 'Crispy Katsu Curry', emoji: '🍱', grad: g.mango,
+    id: 'katsu-curry', name: 'Crispy Katsu Curry', emoji: '🍱',
     cuisine: 'Japanese', tags: ['family', 'comfort', 'trending'],
     time: 40, prep: 15, difficulty: 'Medium', costPerServing: 2.4, servings: 4,
     kcal: 640, protein: 33, carbs: 72, fat: 24, fibre: 5, rating: 4.8,
@@ -274,7 +263,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'protein-pancakes', name: 'Banana Protein Pancakes', emoji: '🥞', grad: g.berry,
+    id: 'protein-pancakes', name: 'Banana Protein Pancakes', emoji: '🥞',
     cuisine: 'American', tags: ['breakfast', 'high-protein', 'quick', 'healthy'],
     time: 15, prep: 5, difficulty: 'Easy', costPerServing: 1.0, servings: 2,
     kcal: 390, protein: 28, carbs: 46, fat: 10, fibre: 4, rating: 4.3,

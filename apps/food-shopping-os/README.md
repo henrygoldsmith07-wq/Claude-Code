@@ -2,8 +2,10 @@
 
 The "Spotify + Google Maps + Duolingo of food shopping": one app for planning,
 shopping, cooking, nutrition, budgeting and reducing waste. Mobile-first PWA-style
-web app built with Vite + React 18 + Tailwind CSS 4. All data is rich local mock
-data with localStorage persistence — no backend required.
+web app built with Vite + React 18 + Tailwind CSS 4, styled in the calm monochrome
+Le Studio design language (see `apps/le-studio-site`): ink-on-neutral surfaces,
+border-first cards, black-on-white CTAs, emoji as the only colour. All data is
+rich local mock data with localStorage persistence — no backend required.
 
 ## Features
 
@@ -51,5 +53,7 @@ src/
   components/          # one file per surface + shared ui.jsx primitives
 ```
 
-Chart colours follow a validated colourblind-safe palette (light and dark
-variants) defined as CSS custom properties in `index.css`.
+Charts use a monochrome ink ramp (every series is directly labeled, so identity
+never depends on colour); status colours (good/warn/danger) are muted and always
+paired with a label. All tokens live as CSS custom properties in `index.css`,
+with the accent defaulting to mono (ink) plus four restrained alternatives.

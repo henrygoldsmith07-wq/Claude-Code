@@ -65,8 +65,8 @@ export default function RecipesTab({ openRecipe }) {
                         <button
                           onClick={(e) => { e.stopPropagation(); app.toggleFavourite(r.id); }}
                           aria-label={fav ? 'Unfavourite' : 'Favourite'}
-                          className="press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full text-[15px]"
-                          style={{ background: 'rgba(255,255,255,0.85)', color: fav ? '#e0245e' : '#6b6f76' }}
+                          className="press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full text-[15px] border"
+                          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
                         >
                           {fav ? '♥' : '♡'}
                         </button>

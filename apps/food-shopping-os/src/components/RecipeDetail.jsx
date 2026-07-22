@@ -113,16 +113,16 @@ export default function RecipeDetail({ recipe, onClose }) {
         <button
           onClick={onClose}
           aria-label="Close"
-          className="press absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full font-bold"
-          style={{ background: 'rgba(255,255,255,0.9)', color: '#17181a' }}
+          className="press absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full font-bold border"
+          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         >
           ‹
         </button>
         <button
           onClick={() => app.toggleFavourite(recipe.id)}
           aria-label="Favourite"
-          className="press absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full text-[16px]"
-          style={{ background: 'rgba(255,255,255,0.9)', color: fav ? '#e0245e' : '#6b6f76' }}
+          className="press absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full text-[16px] border"
+          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
         >
           {fav ? '♥' : '♡'}
         </button>

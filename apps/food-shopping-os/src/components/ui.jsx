@@ -214,19 +214,19 @@ export const Toggle = ({ on, onChange }) => (
     style={{ background: on ? 'var(--accent)' : 'var(--line)' }}
   >
     <span
-      className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
-      style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)', left: 0 }}
+      className="absolute top-0.5 h-6 w-6 rounded-full shadow transition-transform"
+      style={{ background: on ? 'var(--on-accent)' : 'var(--card)', transform: on ? 'translateX(22px)' : 'translateX(2px)', left: 0 }}
     />
   </button>
 );
 
-/** Emoji hero tile used as "food photography". */
+/** Emoji hero tile used as "food photography" — calm neutral surface, emoji is the colour. */
 export const FoodArt = ({ recipe, className, size = 'text-5xl' }) => (
   <div
     className={cx('flex items-center justify-center overflow-hidden', className)}
-    style={{ background: recipe.grad }}
+    style={{ background: 'var(--card-2)' }}
     aria-hidden="true"
   >
-    <span className={cx(size, 'drop-shadow-lg')} style={{ filter: 'saturate(1.1)' }}>{recipe.emoji}</span>
+    <span className={size}>{recipe.emoji}</span>
   </div>
 );

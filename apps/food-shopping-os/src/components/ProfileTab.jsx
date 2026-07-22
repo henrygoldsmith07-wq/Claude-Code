@@ -4,11 +4,11 @@ import { WEEK_DAYS } from '../data/plan.js';
 import { Section, Card, Ring, Pill, Meter, Bars, Toggle } from './ui.jsx';
 
 const ACCENTS = [
-  ['emerald', '#10b981'],
-  ['coral', '#f16a50'],
-  ['violet', '#8b5cf6'],
-  ['ocean', '#2a78d6'],
-  ['honey', '#d98e04'],
+  ['mono', 'var(--ink)'],
+  ['forest', '#3d5c4b'],
+  ['ocean', '#3b5b73'],
+  ['wine', '#6e4550'],
+  ['honey', '#8a6a3b'],
 ];
 
 export default function ProfileTab() {

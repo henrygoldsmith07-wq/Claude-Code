@@ -2,9 +2,11 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 const KEY = 'forq-state-v1';
 
+const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey'];
+
 const DEFAULTS = {
   theme: 'light',
-  accent: 'emerald',
+  accent: 'mono',
   name: 'Henry',
   weeklyBudget: 65,
   water: 4, // glasses of 8
@@ -28,7 +30,9 @@ const DEFAULTS = {
 
 const load = () => {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+    const state = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+    if (!ACCENT_IDS.includes(state.accent)) state.accent = DEFAULTS.accent;
+    return state;
   } catch {
     return DEFAULTS;
   }
