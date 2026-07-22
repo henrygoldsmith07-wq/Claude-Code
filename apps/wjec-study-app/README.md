@@ -11,98 +11,27 @@ shared table so each topic is only generated once for everyone.
 ## Learning science behind it
 
 - **Spaced repetition (FSRS)** — every flashcard review schedules its own
-  next review date using [FSRS](https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler)
-  (Free Spaced Repetition Scheduler), the modern, empirically-fit successor
-  to the older SM-2 algorithm that current Anki uses by default. Rather
-  than one fixed "easiness" multiplier, FSRS tracks each card's memory
-  stability and difficulty separately and reschedules it for the point
-  where predicted recall probability decays to 90%. This targets the
-  "spacing effect": review effort concentrates on material about to be
-  forgotten instead of material you already know.
+  next review date using [FSRS](https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler).
 - **Interleaved practice** — study sessions mix topics and subjects instead
-  of blocking through one topic at a time, and weight weaker topics (lower
-  memory stability) earlier in the queue. Interleaving feels harder in the
-  moment but produces better long-term retention than blocked practice.
+  of blocking through one topic at a time.
 - **Active recall & the testing effect** — quizzes require producing an
-  answer before seeing it, with immediate corrective feedback and an
-  explanation, rather than just re-reading content.
-- **Retrieval within a session** — a flashcard graded "Again" is
-  re-inserted a few cards later in the same session for another attempt,
-  instead of waiting until tomorrow. A lesson section you answer incorrectly
-  does the same automatically.
-- **Interpolated testing during instruction** — lessons pause after each
-  short section for a 4-option check-your-understanding question with
-  instant right/wrong feedback, rather than reading a wall of text straight
-  through.
+  answer before seeing it, with immediate corrective feedback.
+- **Retrieval within a session** — a flashcard graded "Again" is re-inserted
+  a few cards later in the same session.
 
 ## Features
 
 - Curriculum-organised topics across Chemistry, Physics, Biology and Maths.
-- Claude-generated flashcards, multiple-choice quizzes, and interactive
-  lessons per topic, cached locally so they only need generating once. A
-  "Generate all lessons" action (globally or per subject) bulk-generates the
-  lesson for every topic that doesn't have one yet, a few requests at a time.
-- Per-topic and per-subject mastery, blending spaced-repetition progress
-  with recent quiz accuracy.
-- A day-streak counter and a "study all due" button that interleaves due
-  cards across every subject at once.
-- **Study plans** — set an exam date per subject and get a full day-by-day
-  plan through to the exam, not just a same-day checklist. Each topic's
-  urgency is FSRS's own forgetting curve extrapolated forward to the exam
-  date itself (how likely you are to still recall it *then*, not just
-  whether it's due today), blended with recent quiz accuracy; untouched
-  topics and anything already due for everyday review always come first.
-  The weakest topics are spread onto the earliest remaining days so they
-  get the most spaced-repetition exposure before the exam, without
-  overloading any single day.
-- **Gamification** — XP for reviews, quizzes and lessons, levels, a longest
-  day-streak, and badges for milestones.
-- **NotebookLM links** — save a NotebookLM notebook URL per topic (there's
-  no public API to auto-create one, so this just stores and opens a link
-  you made yourself), with a bulk JSON import for pasting in many at once.
-- **Ask AI** — an instant Q&A chat with a "guided learning" mode that breaks
-  answers down step by step, plus document anchoring (paste text or upload
-  a `.txt` file) so answers are drawn only from that source.
-- **Practice tests** — multi-format tests (multiple choice, matching,
-  fill-in-the-blank) generated per topic with instant feedback.
-- **Mind maps** — an auto-generated node/edge diagram of how concepts in a
-  topic or your own notes connect.
-- **Notes** — typed notes with tags, a freehand sketch pad, audio
-  recordings, and photo scanning (OCR via Claude vision) to digitize
-  handwritten or printed pages.
-- **Tasks** — a drag-and-drop Kanban board with subtasks and attached
-  links.
-- **Focus timer** — an adjustable Pomodoro timer with procedurally
-  synthesized ambient sound (white/brown noise, a rain-like texture — no
-  licensed music assets, so no real lo-fi tracks).
-- **Audio overviews** — Claude writes a two-host discussion script per
-  topic; your own ElevenLabs API key turns it into playable audio.
-- **Analytics** — a study-day heatmap, a time-by-subject breakdown, and a
-  this-week-vs-last-week trend (a gentle nudge, not a streak you get punished
-  for breaking).
-- **Study Room** — a live Supabase Realtime presence list of who else is
-  studying right now, plus an XP leaderboard read through a hardened
-  `SECURITY DEFINER` function so peers' standings are visible without exposing
-  the rest of anyone's profile.
-- **Shop** — spend coins earned from XP to unlock accent color themes.
-
-## Architecture
-
-- **Auth & data** — [`@supabase/ssr`](https://supabase.com/docs/guides/auth/server-side)
-  with `createServerClient` in Server Components / Server Actions and
-  `createBrowserClient` in Client Components. Next.js Middleware refreshes the
-  session cookie on every request (and gates every route behind a sign-in) so
-  a session never expires mid-study.
-- **Server-rendered initial data** — the page is a Server Component that reads
-  the user's whole study dataset from Supabase in one pass and hands it to the
-  client, so there's no client-side loading spinner on first paint (a
-  `loading.tsx` skeleton covers the navigation itself).
-- **Optimistic writes** — task status flips, card grades, note adds, etc.
-  update React state immediately and persist via Server Actions in the
-  background.
-- **Security** — RLS is enabled on every user-scoped table with
-  `auth.uid() = user_id` policies; the shared content cache is
-  read/insert-only for authenticated users.
+- Claude-generated flashcards, quizzes, and interactive lessons (cached).
+- Per-topic / per-subject mastery, day streaks, XP, badges, shop themes.
+- Study plans to an exam date, Ask AI, practice tests, mind maps, notes,
+  tasks, focus timer, audio overviews, Study Room, analytics.
+- **Daily review goal** — set a target (10–100) and track reviews completed today.
+- **Study session upgrades** — undo last grade (U), reverse cards (R),
+  keyboard grades (1–4), session end summary by grade.
+- **Shortcuts help** — press `?` or use the Shortcuts button.
+- **Show due only** — filter the dashboard to subjects with due cards.
+- **CSV export** — download study days and time sessions from Analytics.
 
 ## Setup
 
@@ -111,17 +40,10 @@ npm install
 cp .env.example .env.local
 ```
 
-Set `ANTHROPIC_API_KEY` in `.env.local` for a server-wide fallback key, or
-leave it unset and let each visitor paste their own key in the app instead.
-Audio overviews additionally need a visitor-supplied ElevenLabs API key,
-entered in the Audio Overviews tab (not read from an environment variable).
-
-The app now requires a Supabase project for accounts and persistence. Set:
+Set `ANTHROPIC_API_KEY` (optional server fallback) plus:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-in `.env.local` (Project Settings → API in your Supabase dashboard).
 
 ```bash
 npm run dev
