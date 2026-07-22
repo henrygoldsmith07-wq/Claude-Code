@@ -3,7 +3,7 @@ import { Check, Coins, CreditCard, Play, ShoppingCart, Star, Store, Tag, Ticket,
 import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { gbp, cx } from '../lib/utils.js';
-import { STORES, SHOPPING_LIST, AISLE_ORDER, PRICE_HISTORY, listTotal } from '../data/stores.js';
+import { STORES, AISLE_ORDER, PRICE_HISTORY, fullList, totalOf, checkedTotalOf } from '../data/stores.js';
 import { Section, Card, Pill, Sparkline, Meter, Chip } from './ui.jsx';
 
 const VERDICT = {
@@ -17,17 +17,19 @@ export default function ShopTab() {
   const [view, setView] = useState('list'); // list | stores | prices
   const [shoppingMode, setShoppingMode] = useState(false);
 
+  const list = useMemo(() => fullList(app.extraItems), [app.extraItems]);
   const grouped = useMemo(() => {
     const map = new Map();
     for (const aisle of AISLE_ORDER) map.set(aisle, []);
-    for (const item of SHOPPING_LIST) map.get(item.aisle)?.push(item);
+    for (const item of list) map.get(item.aisle)?.push(item);
     return [...map.entries()].filter(([, items]) => items.length);
-  }, []);
+  }, [list]);
 
-  const total = listTotal();
-  const checkedTotal = SHOPPING_LIST.filter((i) => app.checked.includes(i.id)).reduce((s, i) => s + i.price, 0);
-  const remaining = SHOPPING_LIST.length - app.checked.length;
-  const overBudget = total > app.weeklyBudget - 41.2;
+  const total = totalOf(list);
+  const checkedTotal = checkedTotalOf(list, app.checked);
+  const remaining = list.length - list.filter((i) => app.checked.includes(i.id)).length;
+  const allowance = app.weeklyBudget - app.spentBase; // budget left for this trip
+  const overBudget = total > allowance;
 
   return (
     <div className="pb-6 space-y-6">
@@ -70,12 +72,12 @@ export default function ShopTab() {
                 </button>
               </div>
               <div className="mt-3">
-                <Meter value={shoppingMode ? checkedTotal : total} max={app.weeklyBudget - 41.2 + (overBudget ? 10 : 0)} color={overBudget ? 'var(--warn)' : 'var(--accent)'} />
+                <Meter value={shoppingMode ? checkedTotal : total} max={allowance} color={overBudget ? 'var(--warn)' : 'var(--accent)'} />
                 <div className="mt-1.5 flex items-center justify-between text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
-                  <span>{app.checked.length} of {SHOPPING_LIST.length} items ticked</span>
+                  <span>{list.length - remaining} of {list.length} items ticked</span>
                   <span className="inline-flex items-center gap-1" style={overBudget ? { color: 'var(--warn)', fontWeight: 700 } : {}}>
                     {overBudget && <TriangleAlert size={12} />}
-                    {overBudget ? '£' + (total - (app.weeklyBudget - 41.2)).toFixed(2) + ' over budget' : gbp(app.weeklyBudget - 41.2 - total, { always: true }) + ' headroom'}
+                    {overBudget ? gbp(total - allowance, { always: true }) + ' over budget' : gbp(allowance - total, { always: true }) + ' headroom'}
                   </span>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
 import { Glyph } from './icons.jsx';
@@ -153,9 +153,11 @@ export const Meter = ({ value, max, color = 'var(--accent)', height = 6 }) => (
 
 /* ---------- Overlays ---------- */
 
-/** Bottom sheet / full-screen page overlay. */
+/** Bottom sheet / full-screen page overlay. Dismisses on backdrop tap, Escape, or swipe-down. */
 export const Sheet = ({ open, onClose, children, full = false, title }) => {
   const [render, setRender] = useState(open);
+  const [dragY, setDragY] = useState(0);
+  const touch = useRef({ startY: null, scroller: null }).current;
   useEffect(() => {
     if (open) setRender(true);
     else {
@@ -164,10 +166,33 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
     }
   }, [open]);
   useEffect(() => {
+    if (!open) return;
+    setDragY(0);
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+  useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
   if (!render) return null;
+  const onTouchStart = (e) => {
+    touch.scroller = e.currentTarget.querySelector('[data-sheet-scroll]');
+    touch.startY = e.touches[0].clientY;
+  };
+  const onTouchMove = (e) => {
+    if (touch.startY === null) return;
+    const dy = e.touches[0].clientY - touch.startY;
+    if (dy > 0 && (!touch.scroller || touch.scroller.scrollTop <= 0)) setDragY(dy);
+  };
+  const onTouchEnd = () => {
+    setDragY((dy) => {
+      if (dy > 110) onClose();
+      return 0;
+    });
+    touch.startY = null;
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
       <div
@@ -177,7 +202,14 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
       />
       <div
         className={cx('sheet-up relative w-full max-w-lg flex flex-col', full ? 'h-full' : 'max-h-[92%] rounded-t-3xl')}
-        style={{ background: 'var(--bg)', transition: 'transform 200ms', transform: open ? 'none' : 'translateY(30px)' }}
+        style={{
+          background: 'var(--bg)',
+          transition: dragY ? 'none' : 'transform 200ms',
+          transform: open ? `translateY(${dragY}px)` : 'translateY(30px)',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
         {!full && <div className="mx-auto mt-2.5 mb-1 h-1 w-10 rounded-full shrink-0" style={{ background: 'var(--line)' }} />}
         {title && (
@@ -193,7 +225,7 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
             </button>
           </div>
         )}
-        <div className="overflow-y-auto no-scrollbar flex-1 overscroll-contain">{children}</div>
+        <div data-sheet-scroll className="overflow-y-auto no-scrollbar flex-1 overscroll-contain">{children}</div>
       </div>
     </div>
   );

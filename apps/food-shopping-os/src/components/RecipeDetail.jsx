@@ -1,31 +1,32 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Check, ChefHat, ChevronLeft, Flame, Heart, Mic, PartyPopper, Package,
   Pause, Play, ShoppingCart, Slice, Star, Timer as TimerIcon, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, cx } from '../lib/utils.js';
+import { itemsFromRecipes } from '../data/stores.js';
 import { Card, Ring, Pill, FoodArt, Meter } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
 const fmtTime = (mins) => (mins >= 60 ? `${Math.round(mins / 60)} h` : `${mins} min`);
 
-/** Live countdown used inside cooking mode steps. */
-function Timer({ mins }) {
-  const [left, setLeft] = useState(mins * 60);
-  const [running, setRunning] = useState(false);
-  const ref = useRef();
-  useEffect(() => {
-    if (!running) return;
-    ref.current = setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000);
-    return () => clearInterval(ref.current);
-  }, [running]);
+/**
+ * Live countdown for a cooking step. State lives in the parent (keyed by step)
+ * so navigating between steps never resets a running timer.
+ */
+function Timer({ mins, state, onChange }) {
+  const left = state ? state.left : mins * 60;
+  const running = state?.running ?? false;
   const mm = String(Math.floor(left / 60)).padStart(2, '0');
   const ss = String(left % 60).padStart(2, '0');
   const done = left === 0;
   return (
     <button
-      onClick={() => (done ? setLeft(mins * 60) : setRunning(!running))}
+      onClick={() =>
+        done
+          ? onChange({ left: mins * 60, running: false })
+          : onChange({ left, running: !running })}
       className="press mt-4 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-[15px] font-extrabold tabular-nums"
       style={done
         ? { background: 'color-mix(in srgb, var(--good) 15%, transparent)', color: 'var(--good)' }
@@ -45,12 +46,42 @@ export default function RecipeDetail({ recipe, onClose }) {
   const [cooking, setCooking] = useState(false);
   const [step, setStep] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [timers, setTimers] = useState({}); // step index -> {left, running}
+  const [addedMissing, setAddedMissing] = useState(false);
   const fav = app.favourites.includes(recipe.id);
-  const havePantry = recipe.ingredients.filter((i) => i.pantry).length;
+  const missing = recipe.ingredients.filter((i) => !i.pantry);
+  const havePantry = recipe.ingredients.length - missing.length;
+
+  // One interval drives every step timer, so timers survive step navigation.
+  useEffect(() => {
+    if (!cooking) return;
+    const id = setInterval(() => {
+      setTimers((t) => {
+        let changed = false;
+        const next = { ...t };
+        for (const k of Object.keys(next)) {
+          const v = next[k];
+          if (v.running && v.left > 0) {
+            const left = v.left - 1;
+            next[k] = { left, running: left > 0 };
+            if (left === 0) navigator.vibrate?.(300);
+            changed = true;
+          }
+        }
+        return changed ? next : t;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [cooking]);
 
   const finish = () => {
     app.completeRecipe(recipe);
     setFinished(true);
+  };
+
+  const addMissing = () => {
+    app.addToList(itemsFromRecipes([recipe]));
+    setAddedMissing(true);
   };
 
   /* ---------- Cooking mode (fullscreen step-by-step) ---------- */
@@ -75,7 +106,7 @@ export default function RecipeDetail({ recipe, onClose }) {
             <PartyPopper size={56} strokeWidth={1.4} style={{ color: 'var(--accent)' }} />
             <h2 className="mt-4 text-[24px] font-extrabold">Chef’s kiss!</h2>
             <p className="mt-2 text-[14.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-              +60 XP · streak extended to {app.streak} days.<br />Nutrition logged to today’s totals.
+              +60 XP · cooking streak: {app.streak} days.<br />Nutrition logged to today’s totals.
             </p>
             <button onClick={onClose} className="press mt-8 rounded-2xl px-8 py-3.5 font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
               Back to my day
@@ -86,7 +117,15 @@ export default function RecipeDetail({ recipe, onClose }) {
             <div className="flex flex-1 flex-col justify-center px-7 rise" key={step}>
               <p className="text-[13px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>Step {step + 1}</p>
               <p className="mt-3 text-[24px] font-bold leading-snug">{s.text}</p>
-              {s.timerMins && s.timerMins <= 90 && <div><Timer mins={s.timerMins} /></div>}
+              {s.timerMins && s.timerMins <= 90 && (
+                <div>
+                  <Timer
+                    mins={s.timerMins}
+                    state={timers[step]}
+                    onChange={(v) => setTimers((t) => ({ ...t, [step]: v }))}
+                  />
+                </div>
+              )}
               <p className="mt-6 text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
                 <Mic size={13} /> Voice mode: say “next” or swipe — hands-free.
               </p>
@@ -203,9 +242,20 @@ export default function RecipeDetail({ recipe, onClose }) {
               </li>
             ))}
           </ul>
-          {havePantry < recipe.ingredients.length && (
-            <button className="press mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold border" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-              Add {recipe.ingredients.length - havePantry} missing to shopping list
+          {missing.length > 0 && (
+            <button
+              onClick={addMissing}
+              disabled={addedMissing}
+              className="press mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold border disabled:opacity-60"
+              style={addedMissing
+                ? { borderColor: 'var(--good)', color: 'var(--good)' }
+                : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {addedMissing
+                  ? <><Check size={14} strokeWidth={3} /> Added to your Shop list</>
+                  : <>Add {missing.length} missing to shopping list</>}
+              </span>
             </button>
           )}
         </Card>
@@ -233,7 +283,7 @@ export default function RecipeDetail({ recipe, onClose }) {
         </Card>
 
         <button
-          onClick={() => { setCooking(true); setStep(0); setFinished(false); }}
+          onClick={() => { setCooking(true); setStep(0); setFinished(false); setTimers({}); }}
           className="press w-full rounded-2xl py-4 text-[16px] font-extrabold rise rise-3"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'var(--shadow-lg)' }}
         >

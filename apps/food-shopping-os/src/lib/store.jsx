@@ -1,6 +1,29 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { INTEGRATIONS } from '../data/plan.js';
 
 const KEY = 'forq-state-v1';
+
+/* ---------- Pure helpers (exported for tests) ---------- */
+export const XP_PER_LEVEL = 160;
+export const levelFromXp = (xp) => Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+export const xpIntoLevel = (xp) => Math.max(0, xp) % XP_PER_LEVEL;
+
+export const todayStamp = () => new Date().toISOString().slice(0, 10);
+
+/** New calendar day → zero the daily trackers, keep everything long-lived. */
+export const rolloverDay = (state, today = todayStamp()) =>
+  state.day === today
+    ? state
+    : {
+        ...state,
+        day: today,
+        water: 0,
+        kcalToday: 0,
+        proteinToday: 0,
+        carbsToday: 0,
+        fatToday: 0,
+        cookedToday: false,
+      };
 
 const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey'];
 
@@ -8,16 +31,20 @@ const DEFAULTS = {
   theme: 'light',
   accent: 'mono',
   name: 'Henry',
+  day: todayStamp(),
   weeklyBudget: 65,
-  water: 4, // glasses of 8
+  spentBase: 41.2, // spent earlier this week, before the current trip
+  water: 4,
   checked: [], // shopping list item ids ticked off
+  extraItems: [], // items added from recipes/planner: {id,name,emoji,aisle,qty,price,cheapest}
   xp: 1240,
-  level: 8,
   streak: 12,
+  cookedToday: false,
   budgetStreak: 4,
   wasteStreak: 2,
   cooked: [], // recipe ids completed via cooking mode
   favourites: ['salmon-teriyaki', 'slowcooker-ragu', 'chickpea-curry'],
+  integrations: Object.fromEntries(INTEGRATIONS.map((i) => [i.name, i.on])),
   kcalToday: 1240,
   kcalGoal: 2200,
   proteinToday: 68,
@@ -30,9 +57,14 @@ const DEFAULTS = {
 
 const load = () => {
   try {
-    const state = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+    const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
+    const state = {
+      ...DEFAULTS,
+      ...stored,
+      integrations: { ...DEFAULTS.integrations, ...(stored.integrations || {}) },
+    };
     if (!ACCENT_IDS.includes(state.accent)) state.accent = DEFAULTS.accent;
-    return state;
+    return rolloverDay(state);
   } catch {
     return DEFAULTS;
   }
@@ -69,19 +101,26 @@ export function AppProvider({ children }) {
             ? s.favourites.filter((x) => x !== id)
             : [...s.favourites, id],
         })),
-      completeRecipe: (recipe) =>
+      toggleIntegration: (name) =>
+        set((s) => ({ integrations: { ...s.integrations, [name]: !s.integrations[name] } })),
+      /** Append shopping items, skipping names already on the list. */
+      addToList: (items) =>
         set((s) => {
-          const xp = s.xp + 60;
-          return {
-            cooked: s.cooked.includes(recipe.id) ? s.cooked : [...s.cooked, recipe.id],
-            xp,
-            level: 8 + Math.floor((xp - 1240) / 400),
-            kcalToday: s.kcalToday + recipe.kcal,
-            proteinToday: s.proteinToday + recipe.protein,
-            carbsToday: s.carbsToday + recipe.carbs,
-            fatToday: s.fatToday + recipe.fat,
-          };
+          const have = new Set(s.extraItems.map((i) => i.name.toLowerCase()));
+          const fresh = items.filter((i) => !have.has(i.name.toLowerCase()));
+          return fresh.length ? { extraItems: [...s.extraItems, ...fresh] } : {};
         }),
+      completeRecipe: (recipe) =>
+        set((s) => ({
+          cooked: s.cooked.includes(recipe.id) ? s.cooked : [...s.cooked, recipe.id],
+          xp: s.xp + 60,
+          streak: s.cookedToday ? s.streak : s.streak + 1,
+          cookedToday: true,
+          kcalToday: s.kcalToday + recipe.kcal,
+          proteinToday: s.proteinToday + recipe.protein,
+          carbsToday: s.carbsToday + recipe.carbs,
+          fatToday: s.fatToday + recipe.fat,
+        })),
     };
   }, []);
 

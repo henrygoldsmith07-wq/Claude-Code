@@ -3,7 +3,7 @@ import { Flame, Heart, Star, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { gbp } from '../lib/utils.js';
-import { DISCOVER_FILTERS, filterRecipes } from '../data/recipes.js';
+import { DISCOVER_FILTERS, filterRecipes, RECIPES } from '../data/recipes.js';
 import { Section, Card, Chip, Pill, FoodArt } from './ui.jsx';
 
 export default function RecipesTab({ openRecipe }) {
@@ -11,11 +11,17 @@ export default function RecipesTab({ openRecipe }) {
   const [filter, setFilter] = useState('Trending');
   const [query, setQuery] = useState('');
 
+  // Search spans the whole catalogue; the chip filter only applies when not searching.
   const recipes = useMemo(() => {
-    const base = filterRecipes(filter);
-    if (!query.trim()) return base;
-    const q = query.toLowerCase();
-    return base.filter((r) => r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q) || r.tags.some((t) => t.includes(q)));
+    const q = query.trim().toLowerCase();
+    if (!q) return filterRecipes(filter);
+    return RECIPES.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.cuisine.toLowerCase().includes(q) ||
+        r.tags.some((t) => t.includes(q)) ||
+        r.ingredients.some((i) => i.name.toLowerCase().includes(q))
+    );
   }, [filter, query]);
 
   // Pinterest-style: split into two masonry columns, alternating card heights

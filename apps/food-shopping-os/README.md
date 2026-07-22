@@ -39,7 +39,8 @@ with localStorage persistence — no backend required.
 ```bash
 npm install
 npm run dev      # local dev server
-npm run build    # production build to dist/
+npm run build    # production build to dist/ (installable PWA with service worker)
+npm test         # vitest suite (utils, store, planner, render smoke test)
 ```
 
 ## Structure
@@ -50,10 +51,19 @@ src/
   index.css            # theme tokens (light/dark + 5 accents), animations
   lib/store.jsx        # app state context + localStorage persistence
   lib/utils.js         # currency/date/expiry helpers
+  lib/planner.js       # pure plan generation (hard constraints + soft preferences)
   data/                # recipes, pantry, stores/prices, plan/gamification
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
+tests/                 # vitest suite
 ```
+
+State notes: daily trackers (calories, macros, water, cooked-today) reset on
+the first open of a new calendar day; the cooking streak increments once per
+day when a recipe is finished; the weekly-budget ring is `spentBase` (earlier
+shops) plus whatever is ticked off in shopping mode; recipe pages and the
+planner append missing ingredients to the shopping list under a
+"From recipes" aisle.
 
 Charts use a monochrome ink ramp (every series is directly labeled, so identity
 never depends on colour); status colours (good/warn/danger) are muted and always

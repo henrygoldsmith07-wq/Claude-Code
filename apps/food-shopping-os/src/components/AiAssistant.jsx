@@ -22,7 +22,7 @@ function answer(text) {
   const quick = RECIPES.filter((r) => r.time <= 20);
   const light = RECIPES.filter((r) => r.kcal <= 480);
 
-  if (t.includes('£') || t.includes('budget') || t.includes('friday')) {
+  if (/£\s*\d|\b\d+\s*(quid|pounds?)\b|budget|friday/.test(t)) {
     const picks = cheap.slice(0, 3);
     const cost = picks.reduce((s, r) => s + r.costPerServing * 2, 0);
     return `Tight week — let's stretch it. Three dinners for two comes to ${gbp(cost, { always: true })}, leaving room for basics:\n\n${picks.map(recipeLine).join('\n')}\n\nThe chilli makes 6 portions, so freeze half and Thursday is free. Want me to build the list?`;

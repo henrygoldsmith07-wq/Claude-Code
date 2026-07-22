@@ -1,10 +1,10 @@
 import { AlarmClock, ChevronRight, Droplet, Flame, Plus, Star } from 'lucide-react';
-import { useApp } from '../lib/store.jsx';
+import { useApp, levelFromXp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate, todayName } from '../lib/utils.js';
 import { byId, RECIPES } from '../data/recipes.js';
 import { DEFAULT_PLAN, AI_SUGGESTIONS, WEEKLY_CHALLENGE } from '../data/plan.js';
 import { pantryValue, expiringSoon, RUNNING_LOW, LEFTOVERS } from '../data/pantry.js';
-import { listTotal } from '../data/stores.js';
+import { fullList, totalOf, checkedTotalOf } from '../data/stores.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
@@ -18,7 +18,9 @@ export default function HomeTab({ openRecipe, openPantry, goTab }) {
   const app = useApp();
   const dayKey = todayName().slice(0, 3);
   const todayPlan = DEFAULT_PLAN[dayKey] || DEFAULT_PLAN.Mon;
-  const spent = 41.2;
+  const list = fullList(app.extraItems);
+  const spent = app.spentBase + checkedTotalOf(list, app.checked);
+  const left = app.weeklyBudget - spent;
   const expiring = expiringSoon();
   const recipeOfDay = RECIPES[new Date().getDate() % RECIPES.length];
 
@@ -46,7 +48,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab }) {
         {/* Streak + XP strip */}
         <div className="mt-4 flex gap-2 rise rise-1">
           <Pill tone="accent"><Flame size={12} /> {app.streak}-day cooking streak</Pill>
-          <Pill tone="muted"><Star size={12} /> Level {app.level} · {app.xp.toLocaleString()} XP</Pill>
+          <Pill tone="muted"><Star size={12} /> Level {levelFromXp(app.xp)} · {app.xp.toLocaleString()} XP</Pill>
         </div>
       </div>
 
@@ -59,7 +61,9 @@ export default function HomeTab({ openRecipe, openPantry, goTab }) {
             <div>
               <p className="text-[17px] font-extrabold leading-tight">{gbp(spent, { always: true })}</p>
               <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>of {gbp(app.weeklyBudget)}</p>
-              <p className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--good)' }}>▼ £6.10 saved</p>
+              <p className="text-[11px] font-bold mt-0.5" style={{ color: left >= 0 ? 'var(--good)' : 'var(--warn)' }}>
+                {left >= 0 ? `${gbp(left, { always: true })} left` : `${gbp(-left, { always: true })} over`}
+              </p>
             </div>
           </div>
         </Card>
@@ -170,7 +174,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab }) {
             </div>
             <div className="text-right">
               <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Next shop</p>
-              <p className="text-[14px] font-bold">Sat · est. {gbp(listTotal(), { always: true })}</p>
+              <p className="text-[14px] font-bold">Sat · est. {gbp(totalOf(list), { always: true })}</p>
             </div>
           </div>
 

@@ -52,7 +52,8 @@ export const STORES = [
 ];
 
 /** This week's shopping list, grouped by aisle in walking order. */
-export const AISLE_ORDER = ['Fruit & veg', 'Bakery', 'Meat & fish', 'Dairy & eggs', 'World foods', 'Tins & dry', 'Frozen', 'Household'];
+export const RECIPE_AISLE = 'From recipes';
+export const AISLE_ORDER = ['Fruit & veg', 'Bakery', 'Meat & fish', 'Dairy & eggs', 'World foods', 'Tins & dry', 'Frozen', 'Household', RECIPE_AISLE];
 
 export const SHOPPING_LIST = [
   { id: 's1', name: 'Lemons', emoji: '🍋', aisle: 'Fruit & veg', qty: '2', price: 0.6, cheapest: 'Aldi', alt: { store: 'Tesco', price: 0.75 } },
@@ -75,7 +76,33 @@ export const SHOPPING_LIST = [
   { id: 's18', name: 'Washing-up liquid', emoji: '🧴', aisle: 'Household', qty: '1', price: 1.1, cheapest: 'Aldi', alt: { store: 'Tesco', price: 1.4 } },
 ];
 
-export const listTotal = () => SHOPPING_LIST.reduce((s, i) => s + i.price, 0);
+export const fullList = (extras = []) => [...SHOPPING_LIST, ...extras];
+export const totalOf = (items) => items.reduce((s, i) => s + i.price, 0);
+export const checkedTotalOf = (items, checked) =>
+  items.filter((i) => checked.includes(i.id)).reduce((s, i) => s + i.price, 0);
+
+/** Turn recipes' missing (non-pantry) ingredients into shopping items with a rough price estimate. */
+export const itemsFromRecipes = (recipes) => {
+  const seen = new Set();
+  const out = [];
+  for (const r of recipes) {
+    const perItem = Math.max(0.4, (r.costPerServing * r.servings) / r.ingredients.length);
+    for (const ing of r.ingredients) {
+      if (ing.pantry || seen.has(ing.name.toLowerCase())) continue;
+      seen.add(ing.name.toLowerCase());
+      out.push({
+        id: `x-${ing.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        name: ing.name,
+        emoji: r.emoji,
+        aisle: RECIPE_AISLE,
+        qty: ing.qty,
+        price: Math.round(perItem * 100) / 100,
+        cheapest: 'Aldi',
+      });
+    }
+  }
+  return out;
+};
 
 /** 12 weeks of prices (pence) for tracked staples + AI buy/wait advice. */
 export const PRICE_HISTORY = [

@@ -1,5 +1,5 @@
 import { Banknote, Flame, Recycle } from 'lucide-react';
-import { useApp } from '../lib/store.jsx';
+import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { BADGES, SPEND_HISTORY, KCAL_WEEK, CUISINE_SPLIT, ANALYTICS_STATS, INTEGRATIONS } from '../data/plan.js';
 import { WEEK_DAYS } from '../data/plan.js';
@@ -15,7 +15,6 @@ const ACCENTS = [
 
 export default function ProfileTab() {
   const app = useApp();
-  const xpIntoLevel = (app.xp - 1240) % 400;
   const macros = [
     { label: 'Protein', now: app.proteinToday, goal: app.proteinGoal, color: 'var(--series-1)' },
     { label: 'Carbs', now: app.carbsToday, goal: app.carbsGoal, color: 'var(--series-3)' },
@@ -32,8 +31,8 @@ export default function ProfileTab() {
           </div>
           <div className="flex-1">
             <h1 className="text-[22px] font-extrabold tracking-tight">{app.name}</h1>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>Level {app.level} Home Chef · {app.xp.toLocaleString()} XP</p>
-            <div className="mt-1.5"><Meter value={Math.max(xpIntoLevel, 40)} max={400} height={5} /></div>
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>Level {levelFromXp(app.xp)} Home Chef · {app.xp.toLocaleString()} XP</p>
+            <div className="mt-1.5"><Meter value={xpIntoLevel(app.xp)} max={XP_PER_LEVEL} height={5} /></div>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2.5 rise rise-1">
@@ -188,16 +187,19 @@ export default function ProfileTab() {
       {/* Integrations */}
       <Section title="Integrations" className="rise rise-4">
         <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
-          {INTEGRATIONS.map((it) => (
-            <div key={it.name} className="flex items-center gap-3 p-3.5" style={{ borderColor: 'var(--line)' }}>
-              <Glyph e={it.emoji} size={19} style={{ color: 'var(--muted)' }} />
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-[13.5px]">{it.name}</p>
-                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{it.desc}</p>
+          {INTEGRATIONS.map((it) => {
+            const on = app.integrations[it.name];
+            return (
+              <div key={it.name} className="flex items-center gap-3 p-3.5" style={{ borderColor: 'var(--line)' }}>
+                <Glyph e={it.emoji} size={19} style={{ color: 'var(--muted)' }} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[13.5px]">{it.name}</p>
+                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{on ? 'Connected' : it.desc}</p>
+                </div>
+                <Toggle on={on} onChange={() => app.toggleIntegration(it.name)} />
               </div>
-              <Pill tone={it.on ? 'good' : 'faint'}>{it.on ? 'Connected' : 'Connect'}</Pill>
-            </div>
-          ))}
+            );
+          })}
         </Card>
       </Section>
     </div>

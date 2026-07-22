@@ -15,6 +15,16 @@ export const DEFAULT_PLAN = {
   Sun: { breakfast: null, lunch: 'mushroom-risotto', dinner: 'veg-chilli' },
 };
 
+/** Sunday batch-cook checklist; "done" derives from defaults ∪ recipes actually cooked. */
+export const PREP_BATCH = [
+  { id: 'slowcooker-ragu', name: 'Ragù' },
+  { id: 'veg-chilli', name: 'Chilli' },
+  { id: 'overnight-oats', name: 'Overnight oats' },
+  { id: 'chickpea-curry', name: 'Curry base' },
+  { id: 'airfryer-fajitas', name: 'Fajita mix' },
+];
+export const PREP_DEFAULT_DONE = ['slowcooker-ragu', 'veg-chilli', 'overnight-oats'];
+
 export const PLANNER_GOALS = ['Balanced', 'Weight loss', 'Muscle gain', 'Family friendly', 'Sustainable'];
 export const PLANNER_DIETS = ['None', 'Vegetarian', 'Vegan', 'Dairy-free', 'Gluten-free', 'Halal'];
 export const PLANNER_SCOPES = ['1 meal', 'A day', 'A week'];

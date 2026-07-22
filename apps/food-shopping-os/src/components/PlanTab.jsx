@@ -1,25 +1,19 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, ShoppingCart, Snowflake, Sparkles, Zap } from 'lucide-react';
-import { gbp, seededPick } from '../lib/utils.js';
+import { Check, ChevronRight, Info, ShoppingCart, Snowflake, Sparkles, Zap } from 'lucide-react';
+import { gbp } from '../lib/utils.js';
+import { buildPlan } from '../lib/planner.js';
+import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
-import { RECIPES, byId } from '../data/recipes.js';
+import { byId } from '../data/recipes.js';
 import {
   DEFAULT_PLAN, WEEK_DAYS, PLANNER_GOALS, PLANNER_DIETS, PLANNER_SCOPES, PLANNER_OCCASIONS,
+  PREP_BATCH, PREP_DEFAULT_DONE,
 } from '../data/plan.js';
+import { itemsFromRecipes } from '../data/stores.js';
 import { Section, Card, Chip, Pill, Stepper, FoodArt, Meter } from './ui.jsx';
 
-const filterByConstraints = ({ diet, goal, budget, maxTime }) =>
-  RECIPES.filter((r) => {
-    if (diet === 'Vegan' && !r.tags.includes('vegan')) return false;
-    if (diet === 'Vegetarian' && !r.tags.includes('vegan') && !r.tags.includes('vegetarian')) return false;
-    if (goal === 'Muscle gain' && r.protein < 20) return false;
-    if (goal === 'Weight loss' && r.kcal > 520) return false;
-    if (r.costPerServing > budget) return false;
-    if (maxTime && r.time > maxTime) return false;
-    return true;
-  });
-
 export default function PlanTab({ openRecipe }) {
+  const app = useApp();
   const [scope, setScope] = useState('A week');
   const [people, setPeople] = useState(2);
   const [budget, setBudget] = useState(2.5);
@@ -29,22 +23,30 @@ export default function PlanTab({ openRecipe }) {
   const [quick, setQuick] = useState(false);
   const [seed, setSeed] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [addedToList, setAddedToList] = useState(false);
 
-  const generated = useMemo(() => {
+  const plan = useMemo(() => {
     if (!seed) return null;
-    const pool = filterByConstraints({ diet, goal, budget, maxTime: quick ? 30 : null });
-    const usable = pool.length ? pool : RECIPES;
-    const count = scope === '1 meal' ? 1 : scope === 'A day' ? 3 : 7;
-    return seededPick(usable, Math.min(count, usable.length), seed);
-  }, [seed, scope, diet, goal, budget, quick]);
+    return buildPlan({ scope, diet, goal, budget, maxTime: quick ? 30 : null, occasion, people }, seed);
+  }, [seed, scope, diet, goal, budget, quick, occasion, people]);
+  const generated = plan?.meals ?? null;
 
   const generate = () => {
     setGenerating(true);
+    setAddedToList(false);
     setTimeout(() => {
       setSeed(Date.now() % 100000);
       setGenerating(false);
     }, 700);
   };
+
+  const addAllToList = () => {
+    app.addToList(itemsFromRecipes([...new Set(generated)]));
+    setAddedToList(true);
+  };
+
+  const prepDone = new Set([...PREP_DEFAULT_DONE, ...app.cooked]);
+  const prepCount = PREP_BATCH.filter((p) => prepDone.has(p.id)).length;
 
   const genCost = generated ? generated.reduce((s, r) => s + r.costPerServing * people, 0) : 0;
   const genKcal = generated ? Math.round(generated.reduce((s, r) => s + r.kcal, 0) / generated.length) : 0;
@@ -144,6 +146,12 @@ export default function PlanTab({ openRecipe }) {
       {/* Generated result */}
       {generated && !generating && (
         <Section title={`Your ${scope.toLowerCase()} · ${occasion.toLowerCase()}`} className="rise">
+          {plan.note && (
+            <Card className="!p-3 mb-3 flex items-start gap-2" style={{ background: 'var(--card-2)' }}>
+              <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
+              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{plan.note}</p>
+            </Card>
+          )}
           <Card className="!p-3 mb-3 flex items-center justify-between">
             <div>
               <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Estimated cost</p>
@@ -156,7 +164,7 @@ export default function PlanTab({ openRecipe }) {
           </Card>
           <div className="space-y-2.5">
             {generated.map((r, i) => (
-              <Card key={r.id} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
+              <Card key={`${r.id}-${i}`} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
                 <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
@@ -172,11 +180,18 @@ export default function PlanTab({ openRecipe }) {
             ))}
           </div>
           <button
-            className="press mt-3 w-full rounded-2xl py-3 text-[14px] font-extrabold border"
-            style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            onClick={() => {}}
+            className="press mt-3 w-full rounded-2xl py-3 text-[14px] font-extrabold border disabled:opacity-60"
+            style={addedToList
+              ? { borderColor: 'var(--good)', color: 'var(--good)' }
+              : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+            onClick={addAllToList}
+            disabled={addedToList}
           >
-            <span className="inline-flex items-center gap-2"><ShoppingCart size={15} /> Add all ingredients to shopping list</span>
+            <span className="inline-flex items-center gap-2">
+              {addedToList
+                ? <><Check size={15} strokeWidth={3} /> Missing ingredients added to Shop</>
+                : <><ShoppingCart size={15} /> Add all ingredients to shopping list</>}
+            </span>
           </button>
         </Section>
       )}
@@ -219,11 +234,11 @@ export default function PlanTab({ openRecipe }) {
         <Card>
           <div className="flex items-center justify-between mb-2">
             <p className="font-bold text-[14px] flex items-center gap-1.5"><Snowflake size={14} /> Sunday batch session</p>
-            <Pill tone="accent">3 of 5 done</Pill>
+            <Pill tone="accent">{prepCount} of {PREP_BATCH.length} done</Pill>
           </div>
-          <Meter value={3} max={5} />
+          <Meter value={prepCount} max={PREP_BATCH.length} />
           <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            Ragù ✓ · Chilli ✓ · Overnight oats ✓ · Curry base · Fajita mix
+            {PREP_BATCH.map((p) => `${p.name}${prepDone.has(p.id) ? ' ✓' : ''}`).join(' · ')}
           </p>
         </Card>
       </Section>
