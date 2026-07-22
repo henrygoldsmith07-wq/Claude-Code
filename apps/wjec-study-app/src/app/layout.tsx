@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,9 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WJEC A-Level Study Hub",
+  title: {
+    default: "WJEC A-Level Study Hub",
+    template: "%s · WJEC Study Hub",
+  },
   description:
     "Spaced repetition, active recall and interleaved practice for WJEC A-level Chemistry, Physics, Biology and Maths.",
+  keywords: ["WJEC", "Eduqas", "A-level", "spaced repetition", "FSRS", "flashcards", "study"],
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f3f0e9",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
