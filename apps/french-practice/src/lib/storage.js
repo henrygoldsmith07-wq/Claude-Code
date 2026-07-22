@@ -33,7 +33,26 @@ const KEYS = {
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
   onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
+  syncId: 'fp.syncId', // stable local account id — travels with a sync snapshot
+  lastBackup: 'fp.lastBackup', // ISO time of the last export/sync-code created
 };
+
+export { KEYS };
+
+// A stable per-account id, created on first use. Because it exports/imports
+// with the snapshot, two devices restored from the same code share one id —
+// the closest thing to an "account" without a backend.
+export function getSyncId() {
+  let id = read(KEYS.syncId, null);
+  if (!id) {
+    id = 'ls-' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
+    write(KEYS.syncId, id);
+  }
+  return id;
+}
+
+export const getLastBackup = () => read(KEYS.lastBackup, null);
+export const markBackup = () => write(KEYS.lastBackup, new Date().toISOString());
 
 function read(key, fallback) {
   try {
