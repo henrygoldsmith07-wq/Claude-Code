@@ -391,6 +391,7 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
         </div>
 
         <VocabCard
+          key={entry.id}
           entry={entry}
           cardDue={isCardDue(cardSrs)}
           saved={saved}
