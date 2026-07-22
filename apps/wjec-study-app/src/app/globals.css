@@ -35,6 +35,16 @@ h1, h2, h3, .font-display {
 /* Digits that line up in the tracker/calendar/analytics read as columns. */
 table, .tabular { font-variant-numeric: tabular-nums; }
 
+*:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-ink-soft);
+  color: var(--foreground);
+}
+
 /* Retheme the accent from the old violet to the planner ink-blue in one
    place, so every surface picks it up without touching each component. */
 .bg-violet-500 { background-color: var(--accent-ink) !important; }
