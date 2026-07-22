@@ -5,6 +5,7 @@
 
 import { FLASHCARDS } from './data';
 import { EXTRA_VOCAB_PACKS } from './vocab-extra';
+import { CORE_VOCAB_PACKS } from './vocab-core';
 import { FREQUENCY_PACKS } from './vocab-frequency';
 import { DE_VOCAB_PACKS } from './content/de';
 import { ES_VOCAB_PACKS } from './content/es';
@@ -291,6 +292,7 @@ const FR_VOCAB_PACKS = [
     })),
   },
   ...EXTRA_VOCAB_PACKS,
+  ...CORE_VOCAB_PACKS,
   // The full frequency dictionary, chunked into frequency-ranked decks.
   ...FREQUENCY_PACKS,
 ];
