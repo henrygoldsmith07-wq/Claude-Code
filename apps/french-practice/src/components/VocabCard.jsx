@@ -29,15 +29,16 @@ function ChipRow({ label, items }) {
 }
 
 export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave, apiKey, mockMode }) {
-  // Start on the back for every new card (including after advancing).
-  // Combined with key={entry.id} on the parent, this ensures the front is never
-  // shown first and there is no accidental answer flash during the transition.
-  const [flipped, setFlipped] = useState(true);
+  // Always start on the front for every new card (including after advancing).
+  // Combined with key={entry.id} on the parent, this remounts cleanly so the
+  // front is shown first and the 3D flip (with backface-visibility) never
+  // accidentally reveals the answer during the transition.
+  const [flipped, setFlipped] = useState(false);
   const [challenge, setChallenge] = useState(null);
 
   // Safety reset if the same component instance is reused without a key change.
   useEffect(() => {
-    setFlipped(true);
+    setFlipped(false);
     setChallenge(null);
   }, [entry.id]);
 
@@ -108,7 +109,8 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
             saved ? 'bg-accent text-onaccent' : 'bg-surface2 text-ink2 hover:bg-line'
           }`}
         >
-          {saved ? <BookmarkFilled size={12} /> : <Bookmark size={12} />} {saved ? 'Saved' : 'Save'}
+          {saved ? <BookmarkFilled size={12} /> : <Bookmark size={12} />}
+          {saved ? 'Saved' : 'Save'}
         </button>
       </div>
 
