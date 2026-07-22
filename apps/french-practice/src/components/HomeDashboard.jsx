@@ -9,7 +9,7 @@ import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Compass, Sliders, Download, BarChart, Book, Play, Check, Coins, Trophy, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Play, Check, Coins, Trophy, SCENARIO_ICONS } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -65,6 +65,21 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-lg mx-auto space-y-5">
+        {/* the single clearest next step, right at the top */}
+        {lastActivity && (
+          <button
+            onClick={() => onResume(lastActivity)}
+            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity elev-card"
+          >
+            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><Play size={15} /></span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Pick up where you left off</span>
+              <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 opacity-70" />
+          </button>
+        )}
+
         {/* learning path: today's lesson + roadmap */}
         <LearningPath
           path={path}
@@ -131,6 +146,10 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           </div>
         </section>
 
+        {/* getting-started checklist for new users (auto-hides once done) */}
+        <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
+
+        {/* ── your progress today ── */}
         {/* today at a glance — daily stats strip */}
         <GlanceStats srs={getSrs()} sessions={sessions} />
 
@@ -149,9 +168,6 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
         {/* daily challenge — surfaced from the profile's challenge set */}
         <DailyChallengeCard onOpenProfile={onOpenProfile} />
 
-        {/* league standing + achievements, at a glance */}
-        <GamePreview onOpenProfile={onOpenProfile} />
-
         {/* coach's note — personalized from the last session report */}
         <section className="bg-surface2 border border-line rounded-2xl p-5">
           <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1.5">From your coach</h3>
@@ -165,46 +181,64 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           )}
         </section>
 
-        {/* continue where you left off — the shortest path back into flow */}
-        {lastActivity && (
+        {/* more ways to practise — only the practice modes; everything else
+           (Reference, Analytics, Focus, Personalise, Offline, Real-world)
+           lives in the More sheet, so Home stays focused on doing. */}
+        <section className="space-y-2.5">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">More ways to practise</h3>
+          <ActionCard
+            icon={SuggestedIcon || MessageCircle}
+            title={`Practice: ${suggested.title}`}
+            subtitle={sessions.length ? 'Your least-practiced scenario' : 'Start your first conversation'}
+            onClick={() => { onPickScenario(suggested); onNavigate('arena'); }}
+          />
+          <ActionCard
+            icon={Layers}
+            title={dueCount > 0 ? `Review ${dueCount} word${dueCount > 1 ? 's' : ''}` : 'Browse vocabulary packs'}
+            subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
+            badge={dueCount > 0 ? String(dueCount) : null}
+            onClick={() => onNavigate('cards')}
+          />
+          <ActionCard
+            icon={Volume}
+            title="Dictée"
+            subtitle="Train your ear — type what you hear"
+            onClick={() => onStartLesson({ type: 'dictation' })}
+          />
+          <ActionCard
+            icon={Clock}
+            title="Quick Fire"
+            subtitle="45 seconds of improv to build fluency"
+            onClick={() => onStartLesson({ type: 'quickfire' })}
+          />
           <button
-            onClick={() => onResume(lastActivity)}
-            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity elev-card"
+            onClick={() => {
+              const rolls = [
+                () => { onPickScenario(getScenarios()[Math.floor(Math.random() * getScenarios().length)]); onNavigate('arena'); },
+                () => onNavigate('grammar'),
+                () => onStartLesson({ type: 'cards' }),
+                () => onNavigate('culture'),
+                () => onStartLesson({ type: 'dictation' }),
+                () => onStartLesson({ type: 'quickfire' }),
+              ];
+              rolls[Math.floor(Math.random() * rolls.length)]();
+            }}
+            className="w-full flex items-center gap-3 bg-surface border border-dashed border-line rounded-2xl px-4 py-3 text-left hover:border-ink3 transition-colors"
           >
-            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><Play size={15} /></span>
-            <span className="flex-1 min-w-0">
-              <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Continue where you left off</span>
-              <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
+            <span className="text-xl" aria-hidden="true">🎲</span>
+            <span className="flex-1">
+              <span className="block text-sm font-semibold text-ink">Surprise me</span>
+              <span className="block text-xs text-ink3">Jump into a random corner of the studio</span>
             </span>
-            <ChevronRight size={16} className="shrink-0 opacity-70" />
+            <ChevronRight size={16} className="text-ink3 shrink-0" />
           </button>
-        )}
+        </section>
 
-        {/* surprise me: one tap into a random corner of the studio */}
-        <button
-          onClick={() => {
-            const rolls = [
-              () => { onPickScenario(getScenarios()[Math.floor(Math.random() * getScenarios().length)]); onNavigate('arena'); },
-              () => onNavigate('grammar'),
-              () => onStartLesson({ type: 'cards' }),
-              () => onNavigate('culture'),
-              () => onStartLesson({ type: 'dictation' }),
-              () => onStartLesson({ type: 'quickfire' }),
-            ];
-            rolls[Math.floor(Math.random() * rolls.length)]();
-          }}
-          className="w-full flex items-center gap-3 bg-surface border border-dashed border-line rounded-2xl px-4 py-3 text-left hover:border-ink3 transition-colors"
-        >
-          <span className="text-xl" aria-hidden="true">🎲</span>
-          <span className="flex-1">
-            <span className="block text-sm font-semibold text-ink">Surprise me</span>
-            <span className="block text-xs text-ink3">Jump into a random corner of the studio</span>
-          </span>
-          <ChevronRight size={16} className="text-ink3 shrink-0" />
-        </button>
+        {/* ── discover: ambient, non-urgent ── */}
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink3 pt-1 -mb-1">Discover</h3>
 
-        {/* getting-started checklist: live tutorial, replaces the old static tour */}
-        <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
+        {/* league standing + achievements, at a glance */}
+        <GamePreview onOpenProfile={onOpenProfile} />
 
         {/* word + phrase of the day — deterministic by date, always fresh */}
         <WordOfTheDay />
@@ -231,72 +265,6 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             </p>
           </section>
         )}
-
-        {/* recommended actions */}
-        <section className="space-y-2.5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Continue learning</h3>
-          <ActionCard
-            icon={SuggestedIcon || MessageCircle}
-            title={`Practice: ${suggested.title}`}
-            subtitle={sessions.length ? 'Your least-practiced scenario' : 'Start your first conversation'}
-            onClick={() => { onPickScenario(suggested); onNavigate('arena'); }}
-          />
-          <ActionCard
-            icon={Layers}
-            title={dueCount > 0 ? `Review ${dueCount} word${dueCount > 1 ? 's' : ''}` : 'Browse vocabulary packs'}
-            subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
-            badge={dueCount > 0 ? String(dueCount) : null}
-            onClick={() => onNavigate('cards')}
-          />
-          <ActionCard
-            icon={Volume}
-            title="Dictée"
-            subtitle="Train your ear — type what you hear"
-            onClick={() => onStartLesson({ type: 'dictation' })}
-          />
-          <ActionCard
-            icon={Clock}
-            title="Quick Fire"
-            subtitle="45 seconds of improv to build fluency"
-            onClick={() => onStartLesson({ type: 'quickfire' })}
-          />
-          <ActionCard
-            icon={Compass}
-            title="Real-world practice"
-            subtitle="Survival phrases, roleplay and a mock exam"
-            onClick={onOpenRealWorld}
-          />
-          <ActionCard
-            icon={Sliders}
-            title="Personalise"
-            subtitle="Learning style, topics and a plan tuned to your weak spots"
-            onClick={onOpenPersonalise}
-          />
-          <ActionCard
-            icon={Clock}
-            title="Focus & habits"
-            subtitle="Pomodoro timer, focus mode, habit tracker, streak calendar"
-            onClick={onOpenFocus}
-          />
-          <ActionCard
-            icon={Book}
-            title="Reference & tools"
-            subtitle="Conjugations, minimal pairs, cloze tests, dictionary"
-            onClick={onOpenReference}
-          />
-          <ActionCard
-            icon={BarChart}
-            title="Analytics"
-            subtitle="Time studied, skill breakdown, weekly & monthly reports"
-            onClick={onOpenAnalytics}
-          />
-          <ActionCard
-            icon={Download}
-            title="Offline & devices"
-            subtitle="Use the app offline, save stories, back up your progress"
-            onClick={onOpenOffline}
-          />
-        </section>
 
         {/* progress trend */}
         {sessions.length >= 2 && (

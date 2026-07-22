@@ -5,6 +5,7 @@
 
 import { FLASHCARDS } from './data';
 import { EXTRA_VOCAB_PACKS } from './vocab-extra';
+import { CORE_VOCAB_PACKS } from './vocab-core';
 import { FREQUENCY_PACKS } from './vocab-frequency';
 import { DE_VOCAB_PACKS } from './content/de';
 import { ES_VOCAB_PACKS } from './content/es';
@@ -291,6 +292,7 @@ const FR_VOCAB_PACKS = [
     })),
   },
   ...EXTRA_VOCAB_PACKS,
+  ...CORE_VOCAB_PACKS,
   // The full frequency dictionary, chunked into frequency-ranked decks.
   ...FREQUENCY_PACKS,
 ];
@@ -304,6 +306,46 @@ export const getVocabPacks = () => PACKS_BY_LANG[contentLang()] || FR_VOCAB_PACK
 export const getPack = (id) => getVocabPacks().find((p) => p.id === id);
 
 export const allEntries = () => getVocabPacks().flatMap((p) => p.entries);
+
+// ---- deck organisation: themed categories for the vocabulary hub ----
+export const PACK_CATEGORIES = [
+  { id: 'essentials', label: 'Starter essentials' },
+  { id: 'people', label: 'People & feelings' },
+  { id: 'home', label: 'Food & home' },
+  { id: 'travel', label: 'Out & about' },
+  { id: 'work', label: 'Work & study' },
+  { id: 'culture', label: 'Culture & society' },
+  { id: 'verbs', label: 'Verbs' },
+  { id: 'frequency', label: 'Frequency lists' },
+  { id: 'more', label: 'More packs' },
+];
+
+const PACK_CATEGORY = {
+  // French
+  filler: 'essentials', politeness: 'essentials', connectors: 'essentials', connectors2: 'essentials',
+  quantities: 'essentials', numbersx: 'essentials', time: 'essentials', questions: 'essentials', timewords: 'essentials',
+  adjectives: 'essentials', adjectives1: 'essentials', adjectives2: 'essentials',
+  family: 'people', feelings: 'people', emotions2: 'people', personality: 'people', lovex: 'people', body: 'people', health: 'people',
+  food: 'home', kitchen: 'home', cooking: 'home', home: 'home', clothing: 'home', objects: 'home',
+  travel: 'travel', travelx: 'travel', city: 'travel', directions: 'travel', weather: 'travel', nature: 'travel', animals: 'travel', countryside: 'travel',
+  work: 'work', jobsx: 'work', schoolx: 'work', school: 'work', tech: 'work', shoppingx: 'work', shopping2: 'work',
+  idioms: 'culture', slang: 'culture', regional: 'culture', music: 'culture', mediax: 'culture', environment: 'culture', societyx: 'culture', sports: 'culture', celebrations: 'culture',
+  verbs1: 'verbs', verbs2: 'verbs', verbs3: 'verbs',
+  // German / Spanish core packs
+  'de-basics': 'essentials', 'de-people': 'people', 'de-food': 'home', 'de-travel': 'travel', 'de-verbs': 'verbs', 'de-time': 'essentials',
+  'es-basics': 'essentials', 'es-people': 'people', 'es-food': 'home', 'es-travel': 'travel', 'es-verbs': 'verbs', 'es-time': 'essentials',
+};
+
+export const categoryOf = (id) => PACK_CATEGORY[id] || (String(id).startsWith('freq-') ? 'frequency' : 'more');
+
+// The active language's packs grouped by category, in declared order, with
+// empty categories dropped. Powers the grouped view in the vocab hub.
+export function groupedPacks() {
+  const packs = getVocabPacks();
+  return PACK_CATEGORIES
+    .map((c) => ({ ...c, packs: packs.filter((p) => categoryOf(p.id) === c.id) }))
+    .filter((g) => g.packs.length);
+}
 
 export const allEntryIds = () => allEntries().map((e) => e.id);
 
