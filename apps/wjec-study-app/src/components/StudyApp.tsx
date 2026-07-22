@@ -14,6 +14,7 @@ import type { InitialStudyData } from "@/lib/supabase/loadInitialData";
 import type { Flashcard, RecallGrade, SessionKind, SubjectId, Topic } from "@/lib/types";
 import ApiKeyBar from "./ApiKeyBar";
 import NotebookLinksPanel from "./NotebookLinksPanel";
+import ShortcutsHelp from "./ShortcutsHelp";
 import TabBar from "./TabBar";
 import Dashboard, { type SubjectSummary } from "./Dashboard";
 import StudySession from "./StudySession";
@@ -54,6 +55,10 @@ const TABS = [
   { id: "shop", label: "Shop" },
 ];
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function StudyApp({ userId, initialData }: { userId: string; initialData: InitialStudyData }) {
   const {
     cardList,
@@ -82,9 +87,8 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
   } = useStudyData(initialData);
   const { sessions, logSession } = useTimeLog(initialData.timeSessions);
 
-  // The visitor's own Anthropic API key is a device-level secret, not synced
-  // account data, so it stays in localStorage.
   const [apiKey, setApiKey] = useLocalStorage<string>("wjec-study-api-key", "");
+  const [dailyGoal, setDailyGoal] = useLocalStorage<number>("wjec-study-daily-goal", 20);
 
   const [view, setView] = useState<View>({ mode: "dashboard" });
   const [activeTab, setActiveTab] = useState("study");
@@ -98,6 +102,11 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
 
   const streak = computeStreak(studyDays);
   const totalDue = dueCount(cardList);
+
+  const reviewsToday = useMemo(() => {
+    const key = todayKey();
+    return cardList.filter((c) => c.lastReviewedAt && c.lastReviewedAt.slice(0, 10) === key).length;
+  }, [cardList]);
 
   function applyTheme(nextAccent: string, nextUnlocked: string[]) {
     setAccent(nextAccent);
@@ -258,6 +267,7 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex flex-col items-end gap-2 sm:flex-row sm:justify-end">
+        <ShortcutsHelp />
         <NotebookLinksPanel
           linkedCount={Object.keys(notebookLinks).length}
           onImport={bulkImportNotebookLinks}
@@ -308,6 +318,9 @@ export default function StudyApp({ userId, initialData }: { userId: string; init
               xpProgress={xpProgress}
               badges={badges}
               accent={accent}
+              dailyGoal={dailyGoal}
+              reviewsToday={reviewsToday}
+              onChangeDailyGoal={setDailyGoal}
               cardsForTopic={cardsForTopic}
               quizBank={quizBank}
               quizAttempts={quizAttempts}
