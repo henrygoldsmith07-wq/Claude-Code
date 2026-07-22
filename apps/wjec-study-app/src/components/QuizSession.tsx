@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { QuizQuestion } from "@/lib/types";
 
 interface Props {
@@ -14,68 +14,25 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
+  const scoreRef = useRef(0);
 
   const question = questions[index];
-  const progress = questions.length > 0 ? ((index + (selected !== null ? 1 : 0)) / questions.length) * 100 : 0;
+  const progress =
+    questions.length > 0 ? ((index + (selected !== null ? 1 : 0)) / questions.length) * 100 : 0;
 
-  function handleSelect(optionIndex: number) {
-    if (selected !== null) return;
-    setSelected(optionIndex);
-    if (optionIndex === question.correctIndex) setScore((s) => s + 1);
-  }
-
-  function handleNext() {
-    if (selected === null) return;
-
-    // Compute final score synchronously so the last answer isn't lost to
-    // React's async setState when finishing the quiz.
-    const finalScore =
-      selected === question.correctIndex
-        ? // score state already includes this answer if setScore ran; for the
-          // finish path we re-derive from known selection to avoid staleness.
-          score
-        : score;
-
-    // When the correct answer was just selected, React may not have flushed
-    // setScore yet. Prefer an explicit tally:
-    const isCorrect = selected === question.correctIndex;
-    // score was incremented in handleSelect via functional update; for the
-    // final question use score + (isCorrect && not yet counted). Safer approach:
-    // keep a local nextScore based on whether this selection is correct and
-    // whether score already reflects it. Simplest reliable path: recount isn't
-    // available, so track pendingCorrect.
-    if (index + 1 >= questions.length) {
-      // At this point setScore from handleSelect may still be pending.
-      // If correct, ensure we pass score+1 when the current score hasn't included it.
-      // We stored the increment via setScore; use a derived value:
-      const reported = isCorrect ? Math.max(score, score) : score;
-      // Actually the classic fix: compute nextScore at select time.
-      onComplete(reported, questions.length);
-      setDone(true);
-      return;
-    }
-    setSelected(null);
-    setIndex((i) => i + 1);
-    void finalScore;
-  }
-
-  // Cleaner finish path: track score via explicit next value
-  function selectAndMaybeFinish(optionIndex: number) {
+  function selectOption(optionIndex: number) {
     if (selected !== null) return;
     const isCorrect = optionIndex === question.correctIndex;
-    const nextScore = score + (isCorrect ? 1 : 0);
+    const nextScore = scoreRef.current + (isCorrect ? 1 : 0);
+    scoreRef.current = nextScore;
     setSelected(optionIndex);
     setScore(nextScore);
-    // stash nextScore on the element via closure for handleNextFinish
-    (window as unknown as { __wjecQuizScore?: number }).__wjecQuizScore = nextScore;
   }
 
   function goNext() {
     if (selected === null) return;
     if (index + 1 >= questions.length) {
-      const final =
-        (window as unknown as { __wjecQuizScore?: number }).__wjecQuizScore ?? score;
-      onComplete(final, questions.length);
+      onComplete(scoreRef.current, questions.length);
       setDone(true);
       return;
     }
@@ -92,7 +49,7 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
         const idx = Number(e.key) - 1;
         if (idx < question.options.length) {
           e.preventDefault();
-          selectAndMaybeFinish(idx);
+          selectOption(idx);
         }
         return;
       }
@@ -105,15 +62,13 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, index, done, question, score]);
+  }, [selected, index, done, question]);
 
   if (done) {
-    const final =
-      (window as unknown as { __wjecQuizScore?: number }).__wjecQuizScore ?? score;
     return (
       <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
         <p className="text-lg font-medium">
-          Quiz complete: {final} / {questions.length}
+          Quiz complete: {score} / {questions.length}
         </p>
         <button
           type="button"
@@ -167,7 +122,7 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
                 type="button"
                 role="option"
                 aria-selected={isSelected}
-                onClick={() => selectAndMaybeFinish(i)}
+                onClick={() => selectOption(i)}
                 className={className}
               >
                 <span className="mr-2 text-[10px] text-zinc-400">{i + 1}</span>
