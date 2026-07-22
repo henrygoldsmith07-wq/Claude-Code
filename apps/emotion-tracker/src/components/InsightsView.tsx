@@ -10,7 +10,6 @@ interface Props {
 export default function InsightsView({ entries, onBack }: Props) {
   const completed = entries.filter((e) => e.status === "complete" && e.summary);
 
-  // Emotion frequency
   const emotionMap = new Map<string, number>();
   for (const e of completed) {
     const emo = e.summary!.coreEmotion.trim();
@@ -21,7 +20,6 @@ export default function InsightsView({ entries, onBack }: Props) {
     .slice(0, 8);
   const maxEmotion = emotions[0]?.[1] || 1;
 
-  // Bias frequency
   const biasMap = new Map<string, number>();
   for (const e of completed) {
     for (const b of e.summary!.possibleBiases) {
@@ -33,7 +31,6 @@ export default function InsightsView({ entries, onBack }: Props) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
 
-  // Activity last 14 days
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dayCounts: { date: Date; count: number; label: string }[] = [];
@@ -53,7 +50,6 @@ export default function InsightsView({ entries, onBack }: Props) {
   }
   const maxDay = Math.max(...dayCounts.map((d) => d.count), 1);
 
-  // Streak (consecutive days ending today or most recent)
   let streak = 0;
   const uniqueDays = new Set(
     completed.map((e) => {
@@ -67,7 +63,6 @@ export default function InsightsView({ entries, onBack }: Props) {
     streak++;
     check.setDate(check.getDate() - 1);
   }
-  // If nothing today, count backward from yesterday
   if (streak === 0) {
     check = new Date(today);
     check.setDate(check.getDate() - 1);
@@ -78,106 +73,123 @@ export default function InsightsView({ entries, onBack }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Insights</h2>
+    <div className="flex h-full flex-col overflow-y-auto p-6 animate-fade-in">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Insights</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            Patterns from your completed reflections
+          </p>
+        </div>
         <button
           onClick={onBack}
-          className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded-xl border border-border bg-card px-4 py-1.5 text-sm transition-colors hover:bg-card-hover"
         >
-          ← Back to reflections
+          ← Back
         </button>
       </div>
 
       {completed.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Complete a few reflections to see patterns in your emotions and thinking.
-        </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+          <p className="text-3xl opacity-70">📊</p>
+          <p className="text-sm text-muted">
+            Complete a few reflections to see patterns in your emotions and
+            thinking.
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-8">
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Completed
-              </p>
-              <p className="mt-1 text-3xl font-semibold">{completed.length}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Current streak
-              </p>
-              <p className="mt-1 text-3xl font-semibold">
-                {streak}{" "}
-                <span className="text-base font-normal text-zinc-500">days</span>
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Unique emotions
-              </p>
-              <p className="mt-1 text-3xl font-semibold">{emotionMap.size}</p>
-            </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Completed", value: completed.length },
+              {
+                label: "Current streak",
+                value: (
+                  <>
+                    {streak}{" "}
+                    <span className="text-base font-normal text-muted">
+                      days
+                    </span>
+                  </>
+                ),
+              },
+              { label: "Unique emotions", value: emotionMap.size },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-border bg-card p-4"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                  {stat.label}
+                </p>
+                <p className="mt-1.5 text-3xl font-semibold tabular-nums">
+                  {stat.value}
+                </p>
+              </div>
+            ))}
           </div>
 
-          {/* Activity */}
           <div>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">
               Last 14 days
             </h3>
             <div className="flex h-24 items-end gap-1.5">
               {dayCounts.map((d, i) => (
                 <div key={i} className="flex flex-1 flex-col items-center gap-1">
                   <div
-                    className="w-full rounded-t bg-indigo-500 transition-all dark:bg-indigo-400"
+                    className="w-full rounded-t-md bg-accent transition-all"
                     style={{
                       height: `${(d.count / maxDay) * 100}%`,
                       minHeight: d.count > 0 ? "4px" : "0",
                     }}
                     title={`${d.count} reflection${d.count !== 1 ? "s" : ""}`}
                   />
-                  <span className="text-[10px] text-zinc-400">{d.label}</span>
+                  <span className="text-[10px] text-muted">{d.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Top emotions */}
           <div>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">
               Most common core emotions
             </h3>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {emotions.map(([emo, count]) => (
                 <div key={emo} className="flex items-center gap-3">
-                  <div className="w-32 shrink-0 truncate text-sm font-medium" title={emo}>
+                  <div
+                    className="w-32 shrink-0 truncate text-sm font-medium"
+                    title={emo}
+                  >
                     {emo}
                   </div>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-border">
                     <div
-                      className="h-full rounded-full bg-violet-500 dark:bg-violet-400"
+                      className="h-full rounded-full bg-accent transition-all"
                       style={{ width: `${(count / maxEmotion) * 100}%` }}
                     />
                   </div>
-                  <span className="w-6 text-right text-xs text-zinc-500">{count}</span>
+                  <span className="w-6 text-right text-xs text-muted tabular-nums">
+                    {count}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Top biases */}
           {biases.length > 0 && (
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 Biases Claude noticed most often
               </h3>
               <div className="flex flex-wrap gap-2">
                 {biases.map(([type, count]) => (
                   <span
                     key={type}
-                    className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm dark:border-amber-900 dark:bg-amber-950"
+                    className="rounded-full border border-amber-200/80 bg-amber-50/80 px-3 py-1 text-sm dark:border-amber-900/60 dark:bg-amber-950/40"
                   >
-                    {type} <span className="text-zinc-500">×{count}</span>
+                    {type}{" "}
+                    <span className="text-muted">×{count}</span>
                   </span>
                 ))}
               </div>
