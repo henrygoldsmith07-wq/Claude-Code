@@ -101,6 +101,33 @@ export function mockLesson() {
   };
 }
 
+export function mockStory() {
+  return {
+    title: 'Le café du matin',
+    paragraphs: [
+      { fr: 'Ce matin, Léa se lève tôt. Il fait beau et le soleil entre par la fenêtre.', en: 'This morning, Léa gets up early. The weather is nice and the sun comes through the window.' },
+      { fr: 'Elle prend son petit-déjeuner : du pain, du fromage et un grand café.', en: 'She has her breakfast: some bread, some cheese and a big coffee.' },
+      { fr: '« Aujourd’hui, je vais au marché », dit-elle. Elle a besoin de légumes et de fruits.', en: '“Today, I’m going to the market,” she says. She needs vegetables and fruit.' },
+      { fr: 'Dans la rue, elle rencontre un ami. Ils parlent un peu, puis ils continuent leur chemin. (Mock mode.)', en: 'In the street, she meets a friend. They talk a little, then they carry on their way. (Mock mode.)' },
+    ],
+  };
+}
+
+export function mockSnapVocab() {
+  return {
+    caption: 'Une table de petit-déjeuner près de la fenêtre.',
+    captionEn: 'A breakfast table by the window.',
+    items: [
+      { fr: 'la tasse', en: 'the cup', emoji: '☕' },
+      { fr: 'le pain', en: 'the bread', emoji: '🍞' },
+      { fr: 'le couteau', en: 'the knife', emoji: '🔪' },
+      { fr: 'la fenêtre', en: 'the window', emoji: '🪟' },
+      { fr: 'la fleur', en: 'the flower', emoji: '🌸' },
+      { fr: 'le journal', en: 'the newspaper', emoji: '📰' },
+    ],
+  };
+}
+
 export function mockCharacterReply() {
   return 'Ah, mon petit ! Quand j\'avais ton âge, on faisait le pain nous-mêmes tous les dimanches. Et toi, tu sais cuisiner ?\n*Ah, my dear! When I was your age, we made bread ourselves every Sunday. And you, can you cook? (Mock mode.)*';
 }

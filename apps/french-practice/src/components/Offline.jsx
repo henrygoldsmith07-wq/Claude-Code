@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { READING_TEXTS } from '../lib/reading';
 import { LISTENING_TRACKS } from '../lib/listening';
-import { exportProgress, importProgress } from '../lib/storage';
-import { X, Check, Download, Upload, BookOpen, Volume, RefreshCw } from './icons';
+import { exportProgress, importProgress, getSyncId, getLastBackup, getSettings } from '../lib/storage';
+import { makeSyncCode, restoreSyncCode } from '../lib/account';
+import { X, Check, Download, Upload, BookOpen, Volume, RefreshCw, Copy, Key } from './icons';
 
 // Offline features: the app is a client-side PWA, so once the service worker
 // has cached it, every lesson works with no network and TTS audio is
@@ -34,6 +35,12 @@ export default function Offline({ open, onClose, pwa }) {
   const [restored, setRestored] = useState(null);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
+  // account & sync-code state
+  const [passphrase, setPassphrase] = useState('');
+  const [code, setCode] = useState('');
+  const [pasteCode, setPasteCode] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +89,33 @@ export default function Offline({ open, onClose, pwa }) {
     }
   };
 
+  // Generate a sync code from the current progress (encrypted if a passphrase
+  // is set) and copy it to the clipboard.
+  const genCode = async () => {
+    setError(null); setCopied(false); setBusy(true);
+    try {
+      const c = await makeSyncCode(passphrase);
+      setCode(c);
+      try { await navigator.clipboard.writeText(c); setCopied(true); } catch { /* manual copy */ }
+    } catch (err) {
+      setError(err.message);
+    }
+    setBusy(false);
+  };
+
+  const restoreFromCode = async () => {
+    setError(null); setRestored(null); setBusy(true);
+    try {
+      const n = await restoreSyncCode(pasteCode, passphrase);
+      setRestored(n);
+    } catch (err) {
+      setError(err.message);
+    }
+    setBusy(false);
+  };
+
+  const account = getSettings().name?.trim();
+  const lastBackup = getLastBackup();
   const stories = READING_TEXTS.filter((t) => Array.isArray(t.paragraphs) && t.paragraphs.length);
 
   return (
@@ -181,23 +215,88 @@ export default function Offline({ open, onClose, pwa }) {
             </div>
           </section>
 
-          {/* sync across devices */}
-          <section className="bg-surface border border-line rounded-2xl p-5 space-y-3">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 inline-flex items-center gap-1.5"><RefreshCw size={12} /> Sync across devices</h3>
+          {/* account & sync across devices */}
+          <section className="bg-surface border border-line rounded-2xl p-5 space-y-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 inline-flex items-center gap-1.5"><RefreshCw size={12} /> Account & sync</h3>
+
+            {/* local account identity */}
+            <div className="flex items-center gap-3 bg-surface2 rounded-xl px-3.5 py-2.5">
+              <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-surface text-ink border border-line"><Key size={15} /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink truncate">{account || 'Guest profile'}</p>
+                <p className="text-[11px] text-ink3 truncate">Sync ID {getSyncId()}{lastBackup ? ` · backed up ${new Date(lastBackup).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}</p>
+              </div>
+            </div>
+
             <p className="text-xs text-ink3 leading-relaxed">
-              There’s no account or server — your data lives only on this device. To move progress
-              to another device, export a backup here and import it there. Your API key is never
-              included.
+              There’s no server — your data stays on this device. To move it, create a <span className="font-semibold text-ink">sync code</span> here and paste it on another device. Add a passphrase to encrypt it so it’s safe to send to yourself. Your API key is never included.
             </p>
-            <div className="flex gap-2">
-              <button onClick={doExport} className="btn btn-primary flex-1 min-h-11 rounded-xl text-sm">
-                <Download size={14} /> Export backup
+
+            {/* optional passphrase */}
+            <label className="block">
+              <span className="text-[11px] font-semibold text-ink2">Passphrase (optional — encrypts the code)</span>
+              <input
+                type="password"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                placeholder="Leave blank for an unencrypted code"
+                aria-label="Sync passphrase"
+                className="mt-1 w-full bg-surface border border-line rounded-xl px-3 py-2.5 text-sm text-ink placeholder:text-ink3 focus:outline-none focus:border-ink"
+              />
+            </label>
+
+            {/* create / copy code */}
+            <div className="space-y-2">
+              <button onClick={genCode} disabled={busy} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">
+                <RefreshCw size={14} /> {busy ? 'Working…' : 'Create sync code'}
               </button>
-              <button onClick={() => fileRef.current?.click()} className="btn btn-secondary flex-1 min-h-11 rounded-xl text-sm">
-                <Upload size={14} /> Import backup
+              {code && (
+                <div className="space-y-1.5">
+                  <textarea
+                    readOnly
+                    value={code}
+                    onFocus={(e) => e.target.select()}
+                    rows={3}
+                    aria-label="Your sync code"
+                    className="w-full bg-surface2 border border-line rounded-xl px-3 py-2.5 text-[11px] font-mono text-ink2 resize-none break-all"
+                  />
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText(code).then(() => setCopied(true)).catch(() => {}); }}
+                    className="btn btn-secondary w-full min-h-10 rounded-xl text-xs"
+                  >
+                    {copied ? <><Check size={13} /> Copied to clipboard</> : <><Copy size={13} /> Copy code</>}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* paste & restore */}
+            <div className="space-y-2 pt-1 border-t border-line">
+              <span className="text-[11px] font-semibold text-ink2">Restore on this device</span>
+              <textarea
+                value={pasteCode}
+                onChange={(e) => setPasteCode(e.target.value)}
+                placeholder="Paste a sync code…"
+                rows={2}
+                aria-label="Paste a sync code to restore"
+                className="w-full bg-surface border border-line rounded-xl px-3 py-2.5 text-[11px] font-mono text-ink placeholder:text-ink3 focus:outline-none focus:border-ink resize-none break-all"
+              />
+              <button onClick={restoreFromCode} disabled={busy || !pasteCode.trim()} className="btn btn-secondary w-full min-h-11 rounded-xl text-sm disabled:opacity-50">
+                <Upload size={14} /> Restore from code
+              </button>
+            </div>
+
+            {/* file backup, kept as an alternative */}
+            <div className="flex gap-2 pt-1 border-t border-line">
+              <button onClick={doExport} className="btn btn-secondary flex-1 min-h-10 rounded-xl text-xs">
+                <Download size={13} /> Export file
+              </button>
+              <button onClick={() => fileRef.current?.click()} className="btn btn-secondary flex-1 min-h-10 rounded-xl text-xs">
+                <Upload size={13} /> Import file
               </button>
               <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFile} className="hidden" aria-label="Import backup file" />
             </div>
+
             {restored != null && (
               <p className="text-xs text-ink flex items-center gap-1.5" role="status">
                 <Check size={13} /> Restored {restored} item{restored !== 1 ? 's' : ''} — reload to see everything.

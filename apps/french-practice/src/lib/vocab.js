@@ -6,7 +6,7 @@
 import { FLASHCARDS } from './data';
 import { EXTRA_VOCAB_PACKS } from './vocab-extra';
 import { CORE_VOCAB_PACKS } from './vocab-core';
-import { FREQUENCY_PACKS } from './vocab-frequency';
+import { FREQUENCY_PACKS, FREQUENCY_PACKS_DE, FREQUENCY_PACKS_ES } from './vocab-frequency';
 import { DE_VOCAB_PACKS } from './content/de';
 import { ES_VOCAB_PACKS } from './content/es';
 import { contentLang } from './content/active';
@@ -297,7 +297,12 @@ const FR_VOCAB_PACKS = [
   ...FREQUENCY_PACKS,
 ];
 
-const PACKS_BY_LANG = { fr: FR_VOCAB_PACKS, de: DE_VOCAB_PACKS, es: ES_VOCAB_PACKS };
+// German and Spanish get the same treatment: their themed packs followed by
+// frequency-ranked decks built from their own high-frequency dictionaries.
+const DE_ALL_PACKS = [...DE_VOCAB_PACKS, ...FREQUENCY_PACKS_DE];
+const ES_ALL_PACKS = [...ES_VOCAB_PACKS, ...FREQUENCY_PACKS_ES];
+
+const PACKS_BY_LANG = { fr: FR_VOCAB_PACKS, de: DE_ALL_PACKS, es: ES_ALL_PACKS };
 
 // The active language's packs. A function (not a const) so the whole app
 // re-reads it after the learner switches language.
@@ -331,9 +336,20 @@ const PACK_CATEGORY = {
   work: 'work', jobsx: 'work', schoolx: 'work', school: 'work', tech: 'work', shoppingx: 'work', shopping2: 'work',
   idioms: 'culture', slang: 'culture', regional: 'culture', music: 'culture', mediax: 'culture', environment: 'culture', societyx: 'culture', sports: 'culture', celebrations: 'culture',
   verbs1: 'verbs', verbs2: 'verbs', verbs3: 'verbs',
-  // German / Spanish core packs
+  // German packs
   'de-basics': 'essentials', 'de-people': 'people', 'de-food': 'home', 'de-travel': 'travel', 'de-verbs': 'verbs', 'de-time': 'essentials',
+  'de-adjectives': 'essentials', 'de-questions': 'essentials', 'de-connectors': 'essentials',
+  'de-feelings': 'people', 'de-body': 'people',
+  'de-home': 'home', 'de-clothing': 'home',
+  'de-weather': 'travel', 'de-animals': 'travel', 'de-nature': 'travel',
+  'de-work': 'work', 'de-shopping': 'work',
+  // Spanish packs
   'es-basics': 'essentials', 'es-people': 'people', 'es-food': 'home', 'es-travel': 'travel', 'es-verbs': 'verbs', 'es-time': 'essentials',
+  'es-adjectives': 'essentials', 'es-questions': 'essentials', 'es-connectors': 'essentials',
+  'es-feelings': 'people', 'es-body': 'people',
+  'es-home': 'home', 'es-clothing': 'home',
+  'es-weather': 'travel', 'es-animals': 'travel', 'es-nature': 'travel',
+  'es-work': 'work', 'es-shopping': 'work',
 };
 
 export const categoryOf = (id) => PACK_CATEGORY[id] || (String(id).startsWith('freq-') ? 'frequency' : 'more');

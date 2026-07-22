@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { langName } from '../lib/i18n';
-import { tutorChat, characterChat, translateText, generateExercises, generateLesson, friendlyError } from '../lib/groq';
-import { getHabits, getLearnerBrief } from '../lib/storage';
+import { tutorChat, characterChat, translateText, generateExercises, generateLesson, generateStory, generateVocabFromImage, friendlyError } from '../lib/groq';
+import { getHabits, getLearnerBrief, getSrs, getNotebook, saveToNotebook, isInNotebook } from '../lib/storage';
+import { findEntry, allEntries } from '../lib/vocab';
+import { speak, stopSpeaking } from '../lib/tts';
 import { Markdown, Spinner, SpeakButton } from './ui';
 import Quiz from './Quiz';
 import {
-  GraduationCap, MessageCircle, Globe, Target, Map, RefreshCw,
-  ChevronLeft, ChevronRight, ArrowRight, Sparkles,
+  GraduationCap, MessageCircle, Globe, Target, Map, RefreshCw, BookOpen, Play, Square,
+  ChevronLeft, ChevronRight, ArrowRight, Sparkles, Camera, Check, Plus,
 } from './icons';
 
 // AI hub: five tools built directly on the LLM — a tutor you can ask
@@ -19,6 +21,8 @@ const MODES = [
   { id: 'translate', icon: Globe, title: 'Translator', subtitle: 'Instant translation, both directions' },
   { id: 'exercises', icon: Target, title: 'Exercise maker', subtitle: 'Generate practice drills on any topic' },
   { id: 'lesson', icon: Map, title: 'My lesson', subtitle: 'A lesson built from your recurring mistakes' },
+  { id: 'story', icon: BookOpen, title: 'Story studio', subtitle: 'A story woven from words you’ve learned' },
+  { id: 'snap', icon: Camera, title: 'Snap & learn', subtitle: 'Photograph anything — get words to learn' },
 ];
 
 const CHARACTERS = [
@@ -106,6 +110,8 @@ export default function AiHub({ apiKey, mockMode, level, onXp }) {
         {mode === 'translate' && <Translator apiKey={apiKey} mockMode={mockMode} onXp={onXp} />}
         {mode === 'exercises' && <ExerciseMaker apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
         {mode === 'lesson' && <PersonalLesson apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
+        {mode === 'story' && <StoryStudio apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
+        {mode === 'snap' && <SnapLearn apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
       </div>
     </div>
   );
@@ -487,6 +493,261 @@ function PersonalLesson({ apiKey, mockMode, level, onXp }) {
                 </button>
               }
             />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The learner's known words (reviewed ≥ twice) plus their notebook, falling
+// back to common words so a first-time user still gets a story.
+function learnedWords() {
+  const srs = getSrs();
+  const known = Object.entries(srs)
+    .filter(([, s]) => (s?.reps || 0) >= 2)
+    .map(([id]) => findEntry(id))
+    .filter(Boolean)
+    .map((e) => e.fr);
+  const nb = getNotebook().map((n) => n.fr).filter(Boolean);
+  const words = [...new Set([...known, ...nb])];
+  if (words.length >= 8) return words;
+  const common = allEntries().filter((e) => (e.freq || 5) <= 2).map((e) => e.fr);
+  return [...new Set([...words, ...common])].slice(0, 24);
+}
+
+// Story studio: weaves the learner's own vocabulary into a short story they
+// can read and — the podcast angle — have narrated aloud, with tap-to-reveal
+// translations per paragraph.
+function StoryStudio({ apiKey, mockMode, level, onXp }) {
+  const [story, setStory] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [shown, setShown] = useState({}); // paragraph index → translation revealed
+  const [playing, setPlaying] = useState(false);
+  const words = learnedWords();
+
+  useEffect(() => () => stopSpeaking(), []);
+
+  const generate = async () => {
+    setBusy(true); setError(null); setShown({}); stopSpeaking(); setPlaying(false);
+    try {
+      const s = await generateStory(apiKey, { words, level, mock: mockMode });
+      setStory(s);
+      onXp?.(5); // reading reward
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+    setBusy(false);
+  };
+
+  const narrate = () => {
+    if (!story) return;
+    if (playing) { stopSpeaking(); setPlaying(false); return; }
+    setPlaying(true);
+    speak(story.paragraphs.map((p) => p.fr).join(' '), { onEnd: () => setPlaying(false) });
+  };
+
+  return (
+    <div className="h-full overflow-y-auto nice-scroll px-4 py-4">
+      <div className="max-w-md mx-auto space-y-4">
+        {!story && (
+          <>
+            <div className="bg-surface border border-line rounded-2xl p-5 space-y-2.5">
+              <p className="text-sm font-semibold text-ink">A story from your own words</p>
+              <p className="text-xs text-ink2 leading-relaxed">
+                We’ll weave a short {langName()} story around the {words.length >= 8 ? `${Math.min(words.length, 24)} words you’ve learned` : 'most useful words for your level'}, pitched at {level}. Read it, then have it read aloud.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {words.slice(0, 10).map((w) => (
+                  <span key={w} className="px-2 py-0.5 rounded-full bg-surface2 text-ink2 text-[11px]" lang="fr">{w}</span>
+                ))}
+              </div>
+            </div>
+            {busy ? (
+              <Spinner label="Writing your story…" />
+            ) : (
+              <button onClick={generate} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">
+                <Sparkles size={14} /> Write my story
+              </button>
+            )}
+            {error && <p role="alert" className="text-xs text-ink text-center">{error}</p>}
+          </>
+        )}
+        {story && (
+          <div className="fade-in space-y-3">
+            <div className="flex items-center gap-2">
+              <h3 className="flex-1 text-base font-bold text-ink" lang="fr">{story.title}</h3>
+              <button onClick={narrate} aria-label={playing ? 'Stop narration' : 'Listen to the story'} className="btn btn-secondary min-h-10 px-3 rounded-xl text-xs shrink-0">
+                {playing ? <><Square size={13} /> Stop</> : <><Play size={13} /> Listen</>}
+              </button>
+            </div>
+            {story.paragraphs.map((p, i) => (
+              <div key={i} className="bg-surface border border-line rounded-2xl p-4 space-y-1.5">
+                <p className="text-[15px] text-ink leading-relaxed" lang="fr">{p.fr}</p>
+                {shown[i] ? (
+                  <p className="text-[13px] text-ink3 italic">{p.en}</p>
+                ) : (
+                  <button onClick={() => setShown((s) => ({ ...s, [i]: true }))} className="text-[11px] font-semibold text-ink3 hover:text-ink">
+                    Show translation
+                  </button>
+                )}
+              </div>
+            ))}
+            <button onClick={generate} className="btn btn-secondary w-full min-h-11 rounded-xl text-sm">
+              <RefreshCw size={13} /> Another story
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Downscale a picked image to a compact JPEG data URL, so the vision request
+// stays small and fast regardless of the phone camera's resolution.
+function fileToDataUrl(file, maxDim = 1024) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not open that image.'));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Snap & learn: photograph a scene, sign or object; a vision model names the
+// useful things in the target language and reads any printed text, and the
+// learner saves the words they want straight into their notebook.
+function SnapLearn({ apiKey, mockMode, level, onXp }) {
+  const [preview, setPreview] = useState(null);
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [saved, setSaved] = useState({}); // fr → true once added to notebook
+  const inputRef = useRef(null);
+
+  const reset = () => {
+    setPreview(null); setResult(null); setError(null); setSaved({});
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const onPick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true); setError(null); setResult(null); setSaved({});
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setPreview(dataUrl);
+      const res = await generateVocabFromImage(apiKey, { imageDataUrl: dataUrl, level, mock: mockMode });
+      setResult(res);
+      onXp?.(5); // learning-from-the-world reward
+    } catch (err) {
+      setError(friendlyError(err));
+    }
+    setBusy(false);
+  };
+
+  const save = (item) => {
+    const id = `snap-${item.fr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+    saveToNotebook({ id, fr: item.fr, en: item.en, note: 'Snapped from a photo' });
+    setSaved((s) => ({ ...s, [item.fr]: true }));
+  };
+
+  const saveAll = () => {
+    result?.items.forEach((it) => { if (!saved[it.fr] && !isInNotebook(`snap-${it.fr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`)) save(it); });
+  };
+
+  return (
+    <div className="h-full overflow-y-auto nice-scroll px-4 py-4">
+      <div className="max-w-md mx-auto space-y-4">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          aria-label="Photograph or upload an image to learn vocabulary"
+          onChange={onPick}
+          className="sr-only"
+        />
+
+        {!result && !busy && (
+          <div className="bg-surface border border-line rounded-2xl p-5 space-y-3">
+            <p className="text-sm font-semibold text-ink">Learn from the world around you</p>
+            <p className="text-xs text-ink2 leading-relaxed">
+              Point your camera at objects, a menu or a street sign. We’ll name the useful things in {langName()} — with translations — and read any printed text, so you can save exactly the words you want.
+            </p>
+            <button onClick={() => inputRef.current?.click()} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">
+              <Camera size={15} /> Take or upload a photo
+            </button>
+            {error && <p role="alert" className="text-xs text-ink text-center">{error}</p>}
+          </div>
+        )}
+
+        {preview && (
+          <div className="rounded-2xl overflow-hidden border border-line">
+            <img src={preview} alt="Your photo" className="w-full max-h-52 object-cover" />
+          </div>
+        )}
+
+        {busy && <Spinner label="Reading your photo…" />}
+
+        {error && result === null && preview && !busy && (
+          <button onClick={reset} className="btn btn-secondary w-full min-h-11 rounded-xl text-sm">
+            <Camera size={14} /> Try another photo
+          </button>
+        )}
+
+        {result && !busy && (
+          <div className="fade-in space-y-3">
+            {result.caption && (
+              <div className="bg-surface2 rounded-2xl p-3.5 space-y-1">
+                <p className="text-sm text-ink" lang="fr">{result.caption}</p>
+                {result.captionEn && <p className="text-xs text-ink3 italic">{result.captionEn}</p>}
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-ink2">{result.items.length} words spotted</p>
+              <button onClick={saveAll} className="text-xs font-semibold text-ink3 hover:text-ink">Save all</button>
+            </div>
+            <div className="space-y-2">
+              {result.items.map((it) => {
+                const done = saved[it.fr];
+                return (
+                  <div key={it.fr} className="flex items-center gap-3 bg-surface border border-line rounded-2xl px-3.5 py-2.5">
+                    <span className="text-xl shrink-0" aria-hidden="true">{it.emoji}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-semibold text-ink truncate" lang="fr">{it.fr}</span>
+                      <span className="block text-xs text-ink3 truncate">{it.en}</span>
+                    </span>
+                    <SpeakButton text={it.fr} label="" />
+                    <button
+                      onClick={() => save(it)}
+                      disabled={done}
+                      aria-label={done ? `${it.fr} saved to notebook` : `Save ${it.fr} to notebook`}
+                      className={`w-9 h-9 grid place-items-center rounded-full shrink-0 ${done ? 'bg-successsoft text-success' : 'bg-surface2 text-ink2 hover:bg-line'}`}
+                    >
+                      {done ? <Check size={16} /> : <Plus size={16} />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={reset} className="btn btn-secondary w-full min-h-11 rounded-xl text-sm">
+              <Camera size={14} /> Snap another
+            </button>
           </div>
         )}
       </div>
