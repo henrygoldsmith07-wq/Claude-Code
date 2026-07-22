@@ -67,10 +67,7 @@ export default function TopicList({
     const q = query.trim().toLowerCase();
     if (!q) return topics;
     return topics.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.id.toLowerCase().includes(q) ||
-        (t.unit && t.unit.toLowerCase().includes(q)),
+      (t) => t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q),
     );
   }, [topics, query]);
 
