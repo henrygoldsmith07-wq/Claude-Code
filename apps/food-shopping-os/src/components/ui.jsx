@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
+import { Glyph } from './icons.jsx';
 
 /* ---------- Layout ---------- */
 
@@ -184,10 +186,10 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
             <button
               onClick={onClose}
               aria-label="Close"
-              className="press h-8 w-8 rounded-full text-sm font-bold"
+              className="press flex h-8 w-8 items-center justify-center rounded-full"
               style={{ background: 'var(--card-2)', color: 'var(--muted)' }}
             >
-              ✕
+              <X size={16} strokeWidth={2.4} />
             </button>
           </div>
         )}
@@ -220,13 +222,13 @@ export const Toggle = ({ on, onChange }) => (
   </button>
 );
 
-/** Emoji hero tile used as "food photography" — calm neutral surface, emoji is the colour. */
-export const FoodArt = ({ recipe, className, size = 'text-5xl' }) => (
+/** Food hero tile — calm neutral surface with a monochrome stroke icon. */
+export const FoodArt = ({ recipe, className, px = 36 }) => (
   <div
     className={cx('flex items-center justify-center overflow-hidden', className)}
-    style={{ background: 'var(--card-2)' }}
+    style={{ background: 'var(--card-2)', color: 'var(--muted)' }}
     aria-hidden="true"
   >
-    <span className={size}>{recipe.emoji}</span>
+    <Glyph e={recipe.emoji} size={px} strokeWidth={1.4} />
   </div>
 );

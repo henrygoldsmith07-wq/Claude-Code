@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Camera, Mic, ReceiptText, ScanBarcode } from 'lucide-react';
 import { gbp, expiryStatus } from '../lib/utils.js';
+import { Glyph } from './icons.jsx';
 import { PANTRY, LOCATIONS, pantryValue, expiringSoon } from '../data/pantry.js';
 import { Card, Chip, Pill, Section } from './ui.jsx';
 
@@ -37,9 +39,9 @@ export default function PantryView() {
 
       {/* Capture methods */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
-        {[['📷', 'Scan barcode'], ['🧾', 'Scan receipt'], ['🎙️', 'Voice log'], ['📸', 'Photo shelf']].map(([icon, label]) => (
-          <button key={label} className="press shrink-0 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
-            {icon} {label}
+        {[[ScanBarcode, 'Scan barcode'], [ReceiptText, 'Scan receipt'], [Mic, 'Voice log'], [Camera, 'Photo shelf']].map(([Icon, label]) => (
+          <button key={label} className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
+            <Icon size={14} /> {label}
           </button>
         ))}
       </div>
@@ -60,13 +62,13 @@ export default function PantryView() {
 
       {/* Use soon */}
       {location === 'All' && !query && expiring.length > 0 && (
-        <Section title="⏰ Use soon" className="!px-0">
+        <Section title="Use soon" className="!px-0">
           <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5">
             {expiring.map((p) => {
               const st = expiryStatus(p.expiryDays);
               return (
                 <Card key={p.id} className="w-[150px] shrink-0 !p-3">
-                  <p className="text-2xl">{p.emoji}</p>
+                  <Glyph e={p.emoji} size={22} style={{ color: 'var(--muted)' }} />
                   <p className="mt-1 font-bold text-[13px] leading-tight">{p.name}</p>
                   <div className="mt-1.5"><Pill tone={st.tone}>{st.label}</Pill></div>
                 </Card>
@@ -85,7 +87,7 @@ export default function PantryView() {
           const st = expiryStatus(p.expiryDays);
           return (
             <div key={p.id} className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
-              <span className="text-2xl" aria-hidden="true">{p.emoji}</span>
+              <Glyph e={p.emoji} size={22} style={{ color: 'var(--muted)' }} />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-[14px] truncate">{p.name}</p>
                 <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>

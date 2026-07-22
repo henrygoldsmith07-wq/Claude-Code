@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { ChevronRight, ShoppingCart, Snowflake, Sparkles, Zap } from 'lucide-react';
 import { gbp, seededPick } from '../lib/utils.js';
+import { Glyph } from './icons.jsx';
 import { RECIPES, byId } from '../data/recipes.js';
 import {
   DEFAULT_PLAN, WEEK_DAYS, PLANNER_GOALS, PLANNER_DIETS, PLANNER_SCOPES, PLANNER_OCCASIONS,
@@ -112,7 +114,7 @@ export default function PlanTab({ openRecipe }) {
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-[13px] font-bold">⚡ 30 minutes or less</p>
+            <p className="text-[13px] font-bold flex items-center gap-1.5"><Zap size={14} /> 30 minutes or less</p>
             <Chip active={quick} onClick={() => setQuick(!quick)}>{quick ? 'On' : 'Off'}</Chip>
           </div>
 
@@ -122,7 +124,10 @@ export default function PlanTab({ openRecipe }) {
             className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: generating ? 0.7 : 1 }}
           >
-            {generating ? 'Thinking…' : seed ? '✨ Regenerate plan' : '✨ Generate plan'}
+            <span className="inline-flex items-center gap-2">
+              {!generating && <Sparkles size={16} />}
+              {generating ? 'Thinking…' : seed ? 'Regenerate plan' : 'Generate plan'}
+            </span>
           </button>
         </Card>
       </Section>
@@ -152,7 +157,7 @@ export default function PlanTab({ openRecipe }) {
           <div className="space-y-2.5">
             {generated.map((r, i) => (
               <Card key={r.id} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
-                <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" size="text-3xl" />
+                <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
                     {scope === 'A week' ? WEEK_DAYS[i] : scope === 'A day' ? ['Breakfast', 'Lunch', 'Dinner'][i] : 'Suggested'}
@@ -162,7 +167,7 @@ export default function PlanTab({ openRecipe }) {
                     {r.time} min · {gbp(r.costPerServing, { always: true })}/serving · {r.protein}g protein
                   </p>
                 </div>
-                <span style={{ color: 'var(--faint)' }}>›</span>
+                <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
               </Card>
             ))}
           </div>
@@ -171,7 +176,7 @@ export default function PlanTab({ openRecipe }) {
             style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
             onClick={() => {}}
           >
-            🛒 Add all ingredients to shopping list
+            <span className="inline-flex items-center gap-2"><ShoppingCart size={15} /> Add all ingredients to shopping list</span>
           </button>
         </Section>
       )}
@@ -193,7 +198,7 @@ export default function PlanTab({ openRecipe }) {
                   {meals.map((r, i) =>
                     r ? (
                       <button key={i} onClick={() => openRecipe(r)} className="press rounded-xl p-2 text-left" style={{ background: 'var(--card-2)' }}>
-                        <span className="text-xl">{r.emoji}</span>
+                        <Glyph e={r.emoji} size={18} style={{ color: 'var(--muted)' }} />
                         <p className="mt-1 text-[11px] font-bold leading-tight line-clamp-2">{r.name}</p>
                       </button>
                     ) : (
@@ -213,7 +218,7 @@ export default function PlanTab({ openRecipe }) {
       <Section title="Meal prep progress" className="rise rise-3">
         <Card>
           <div className="flex items-center justify-between mb-2">
-            <p className="font-bold text-[14px]">🧊 Sunday batch session</p>
+            <p className="font-bold text-[14px] flex items-center gap-1.5"><Snowflake size={14} /> Sunday batch session</p>
             <Pill tone="accent">3 of 5 done</Pill>
           </div>
           <Meter value={3} max={5} />

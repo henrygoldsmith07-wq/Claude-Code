@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  Check, ChefHat, ChevronLeft, Flame, Heart, Mic, PartyPopper, Package,
+  Pause, Play, ShoppingCart, Slice, Star, Timer as TimerIcon, X,
+} from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, cx } from '../lib/utils.js';
 import { Card, Ring, Pill, FoodArt, Meter } from './ui.jsx';
+import { Glyph } from './icons.jsx';
 
 const fmtTime = (mins) => (mins >= 60 ? `${Math.round(mins / 60)} h` : `${mins} min`);
 
@@ -28,7 +33,9 @@ function Timer({ mins }) {
           ? { background: 'var(--accent)', color: 'var(--on-accent)' }
           : { background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}
     >
-      {done ? '✓ Done — reset' : `${running ? '⏸' : '▶'} ${mm}:${ss}`}
+      {done
+        ? <><Check size={16} strokeWidth={3} /> Done — reset</>
+        : <>{running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />} {mm}:{ss}</>}
     </button>
   );
 }
@@ -54,8 +61,10 @@ export default function RecipeDetail({ recipe, onClose }) {
       <div className="flex h-full flex-col" style={{ background: 'var(--bg)' }}>
         <div className="px-5 pt-5 pb-3 shrink-0">
           <div className="flex items-center justify-between">
-            <button onClick={() => setCooking(false)} className="press text-[13px] font-extrabold" style={{ color: 'var(--muted)' }}>✕ Exit</button>
-            <p className="text-[13px] font-extrabold">{recipe.emoji} {recipe.name}</p>
+            <button onClick={() => setCooking(false)} className="press inline-flex items-center gap-1 text-[13px] font-extrabold" style={{ color: 'var(--muted)' }}>
+              <X size={14} strokeWidth={2.6} /> Exit
+            </button>
+            <p className="text-[13px] font-extrabold truncate px-2">{recipe.name}</p>
             <span className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--faint)' }}>{step + 1}/{recipe.steps.length}</span>
           </div>
           <div className="mt-3"><Meter value={step + 1} max={recipe.steps.length} /></div>
@@ -63,7 +72,7 @@ export default function RecipeDetail({ recipe, onClose }) {
 
         {finished ? (
           <div className="flex flex-1 flex-col items-center justify-center px-8 text-center rise">
-            <p className="text-6xl">🎉</p>
+            <PartyPopper size={56} strokeWidth={1.4} style={{ color: 'var(--accent)' }} />
             <h2 className="mt-4 text-[24px] font-extrabold">Chef’s kiss!</h2>
             <p className="mt-2 text-[14.5px] font-semibold" style={{ color: 'var(--muted)' }}>
               +60 XP · streak extended to {app.streak} days.<br />Nutrition logged to today’s totals.
@@ -78,8 +87,8 @@ export default function RecipeDetail({ recipe, onClose }) {
               <p className="text-[13px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>Step {step + 1}</p>
               <p className="mt-3 text-[24px] font-bold leading-snug">{s.text}</p>
               {s.timerMins && s.timerMins <= 90 && <div><Timer mins={s.timerMins} /></div>}
-              <p className="mt-6 text-[12.5px] font-semibold" style={{ color: 'var(--faint)' }}>
-                🎙️ Voice mode: say “next” or swipe — hands-free.
+              <p className="mt-6 text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+                <Mic size={13} /> Voice mode: say “next” or swipe — hands-free.
               </p>
             </div>
             <div className="flex gap-3 px-5 pb-8 shrink-0">
@@ -96,7 +105,10 @@ export default function RecipeDetail({ recipe, onClose }) {
                 className="press flex-[2] rounded-2xl py-4 font-extrabold"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
-                {last ? '✓ Finish & log meal' : 'Next ›'}
+                <span className="inline-flex items-center gap-1.5">
+                  {last && <Check size={16} strokeWidth={3} />}
+                  {last ? 'Finish & log meal' : 'Next ›'}
+                </span>
               </button>
             </div>
           </>
@@ -109,22 +121,22 @@ export default function RecipeDetail({ recipe, onClose }) {
   return (
     <div className="pb-8">
       <div className="relative">
-        <FoodArt recipe={recipe} className="h-56 w-full" size="text-8xl" />
+        <FoodArt recipe={recipe} className="h-56 w-full" px={64} />
         <button
           onClick={onClose}
           aria-label="Close"
-          className="press absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full font-bold border"
+          className="press absolute top-4 left-4 flex h-9 w-9 items-center justify-center rounded-full border"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         >
-          ‹
+          <ChevronLeft size={18} strokeWidth={2.4} />
         </button>
         <button
           onClick={() => app.toggleFavourite(recipe.id)}
           aria-label="Favourite"
-          className="press absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full text-[16px] border"
+          className="press absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
         >
-          {fav ? '♥' : '♡'}
+          <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
         </button>
       </div>
 
@@ -132,15 +144,15 @@ export default function RecipeDetail({ recipe, onClose }) {
         <Card className="rise">
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-[20px] font-extrabold leading-tight">{recipe.name}</h1>
-            <Pill tone="accent">★ {recipe.rating}</Pill>
+            <Pill tone="accent"><Star size={11} fill="currentColor" /> {recipe.rating}</Pill>
           </div>
           <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
             {recipe.cuisine} · serves {recipe.servings} · {gbp(recipe.costPerServing, { always: true })}/serving
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Pill tone="muted">👨‍🍳 {recipe.difficulty}</Pill>
-            <Pill tone="muted">🔪 Prep {fmtTime(recipe.prep)}</Pill>
-            <Pill tone="muted">🔥 Cook {fmtTime(recipe.time)}</Pill>
+            <Pill tone="muted"><ChefHat size={12} /> {recipe.difficulty}</Pill>
+            <Pill tone="muted"><Slice size={12} /> Prep {fmtTime(recipe.prep)}</Pill>
+            <Pill tone="muted"><Flame size={12} /> Cook {fmtTime(recipe.time)}</Pill>
             {recipe.tags.slice(0, 2).map((t) => <Pill key={t} tone="faint">{t}</Pill>)}
           </div>
         </Card>
@@ -159,9 +171,11 @@ export default function RecipeDetail({ recipe, onClose }) {
               ['Health', recipe.healthScore, '💚'],
               ['Protein', recipe.proteinScore, '💪'],
               ['Planet', recipe.envScore, '🌍'],
-            ].map(([label, score, icon]) => (
+            ].map(([label, score, glyph]) => (
               <div key={label} className="rounded-xl py-2" style={{ background: 'var(--card-2)' }}>
-                <p className="text-[15px] font-extrabold">{icon} {score}</p>
+                <p className="text-[15px] font-extrabold inline-flex items-center gap-1.5">
+                  <Glyph e={glyph} size={14} style={{ color: 'var(--muted)' }} /> {score}
+                </p>
                 <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label} score</p>
               </div>
             ))}
@@ -173,14 +187,17 @@ export default function RecipeDetail({ recipe, onClose }) {
           <div className="flex items-center justify-between mb-3">
             <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ingredients</p>
             <Pill tone={havePantry === recipe.ingredients.length ? 'good' : 'accent'}>
-              🥫 You have {havePantry} of {recipe.ingredients.length}
+              <Package size={12} /> You have {havePantry} of {recipe.ingredients.length}
             </Pill>
           </div>
           <ul className="space-y-2">
             {recipe.ingredients.map((ing) => (
               <li key={ing.name} className="flex items-center justify-between text-[14px]">
-                <span className={cx('font-semibold', ing.pantry && 'opacity-60')}>
-                  {ing.pantry ? '✅' : '🛒'} {ing.name}
+                <span className={cx('font-semibold inline-flex items-center gap-2', ing.pantry && 'opacity-60')}>
+                  {ing.pantry
+                    ? <Check size={14} strokeWidth={3} style={{ color: 'var(--good)' }} />
+                    : <ShoppingCart size={14} style={{ color: 'var(--muted)' }} />}
+                  {ing.name}
                 </span>
                 <span className="font-bold text-[13px]" style={{ color: 'var(--muted)' }}>{ing.qty}</span>
               </li>
@@ -203,7 +220,12 @@ export default function RecipeDetail({ recipe, onClose }) {
                   {i + 1}
                 </span>
                 <span className="font-medium leading-snug" style={{ color: 'var(--muted)' }}>
-                  {s.text} {s.timerMins ? <b style={{ color: 'var(--accent)' }}>⏱ {fmtTime(s.timerMins)}</b> : null}
+                  {s.text}{' '}
+                  {s.timerMins ? (
+                    <b className="inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+                      <TimerIcon size={12} /> {fmtTime(s.timerMins)}
+                    </b>
+                  ) : null}
                 </span>
               </li>
             ))}
@@ -215,7 +237,7 @@ export default function RecipeDetail({ recipe, onClose }) {
           className="press w-full rounded-2xl py-4 text-[16px] font-extrabold rise rise-3"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'var(--shadow-lg)' }}
         >
-          🍳 Start cooking mode
+          <span className="inline-flex items-center gap-2"><ChefHat size={18} /> Start cooking mode</span>
         </button>
       </div>
     </div>

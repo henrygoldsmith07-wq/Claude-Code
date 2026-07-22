@@ -1,4 +1,6 @@
+import { Banknote, Flame, Recycle } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { Glyph } from './icons.jsx';
 import { BADGES, SPEND_HISTORY, KCAL_WEEK, CUISINE_SPLIT, ANALYTICS_STATS, INTEGRATIONS } from '../data/plan.js';
 import { WEEK_DAYS } from '../data/plan.js';
 import { Section, Card, Ring, Pill, Meter, Bars, Toggle } from './ui.jsx';
@@ -36,12 +38,14 @@ export default function ProfileTab() {
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2.5 rise rise-1">
           {[
-            ['🔥', app.streak, 'cook streak'],
-            ['💷', app.budgetStreak, 'weeks on budget'],
-            ['♻️', app.wasteStreak, 'no-waste weeks'],
-          ].map(([icon, v, label]) => (
+            [Flame, app.streak, 'cook streak'],
+            [Banknote, app.budgetStreak, 'weeks on budget'],
+            [Recycle, app.wasteStreak, 'no-waste weeks'],
+          ].map(([Icon, v, label]) => (
             <Card key={label} className="!p-3 text-center">
-              <p className="text-[17px] font-extrabold">{icon} {v}</p>
+              <p className="text-[17px] font-extrabold inline-flex items-center gap-1.5">
+                <Icon size={15} style={{ color: 'var(--muted)' }} /> {v}
+              </p>
               <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
             </Card>
           ))}
@@ -138,7 +142,7 @@ export default function ProfileTab() {
           {BADGES.map((b) => (
             <Card key={b.id} className={b.earned ? '' : 'opacity-75'}>
               <div className="flex items-center gap-2">
-                <span className="text-2xl" style={{ filter: b.earned ? 'none' : 'grayscale(1)' }}>{b.emoji}</span>
+                <Glyph e={b.emoji} size={22} style={{ color: b.earned ? 'var(--ink)' : 'var(--faint)' }} />
                 {b.earned && <Pill tone="good">Earned</Pill>}
               </div>
               <p className="mt-1.5 font-bold text-[13.5px]">{b.name}</p>
@@ -186,7 +190,7 @@ export default function ProfileTab() {
         <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
           {INTEGRATIONS.map((it) => (
             <div key={it.name} className="flex items-center gap-3 p-3.5" style={{ borderColor: 'var(--line)' }}>
-              <span className="text-xl">{it.emoji}</span>
+              <Glyph e={it.emoji} size={19} style={{ color: 'var(--muted)' }} />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-[13.5px]">{it.name}</p>
                 <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{it.desc}</p>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { RECIPES } from '../data/recipes.js';
 import { expiringSoon } from '../data/pantry.js';
 import { gbp } from '../lib/utils.js';
@@ -12,7 +13,7 @@ const QUICK_PROMPTS = [
   'Make tomorrow’s lunch',
 ];
 
-const recipeLine = (r) => `${r.emoji} ${r.name} — ${r.time} min, ${gbp(r.costPerServing, { always: true })}/serving, ${r.kcal} kcal`;
+const recipeLine = (r) => `• ${r.name} — ${r.time} min, ${gbp(r.costPerServing, { always: true })}/serving, ${r.kcal} kcal`;
 
 /** Tiny scripted "coach": keyword-match the ask, answer from real app data. */
 function answer(text) {
@@ -27,7 +28,7 @@ function answer(text) {
     return `Tight week — let's stretch it. Three dinners for two comes to ${gbp(cost, { always: true })}, leaving room for basics:\n\n${picks.map(recipeLine).join('\n')}\n\nThe chilli makes 6 portions, so freeze half and Thursday is free. Want me to build the list?`;
   }
   if (t.includes('chicken') && t.includes('potato')) {
-    return `That's dinner already: 🍗 Lemon Chicken Traybake needs just chicken, potatoes and a few pantry staples you have (onion, garlic, oil). 45 minutes, one tin, ${gbp(1.85, { always: true })}/serving. Missing only a lemon — 60p at Aldi.`;
+    return `That's dinner already: Lemon Chicken Traybake needs just chicken, potatoes and a few pantry staples you have (onion, garlic, oil). 45 minutes, one tin, ${gbp(1.85, { always: true })}/serving. Missing only a lemon — 60p at Aldi.`;
   }
   if (t.includes('kid') || t.includes('veg')) {
     return `Classic. Three stealth-veg wins that test well with picky eaters:\n\n${['airfryer-fajitas', 'katsu-curry', 'slowcooker-ragu'].map((id) => recipeLine(RECIPES.find((r) => r.id === id))).join('\n')}\n\nGrate carrot and pepper into the ragù sauce — invisible after 8 hours. Build-your-own fajitas gives them control, which usually beats persuasion.`;
@@ -39,18 +40,18 @@ function answer(text) {
     return `Speed round — on the table in ~15:\n\n${quick.map(recipeLine).join('\n')}\n\nThe grain bowl needs zero cooking skill and you have most of it in the pantry.`;
   }
   if (t.includes('lunch') || t.includes('tomorrow')) {
-    return `Tomorrow's lunch, sorted: 🥗 Halloumi Grain Bowl — 15 min tonight, packs well, ${gbp(2, { always: true })}/serving. Or use up the leftover ragù portion in the fridge (free, and it beats waste). I'd do the ragù.`;
+    return `Tomorrow's lunch, sorted: Halloumi Grain Bowl — 15 min tonight, packs well, ${gbp(2, { always: true })}/serving. Or use up the leftover ragù portion in the fridge (free, and it beats waste). I'd do the ragù.`;
   }
   const exp = expiringSoon();
   if (t.includes('waste') || t.includes('expir') || t.includes('use up')) {
-    return `Right now ${exp.length} items need using: ${exp.slice(0, 3).map((p) => `${p.emoji} ${p.name} (${p.expiryDays}d)`).join(', ')}. The Coconut Chickpea Curry takes the spinach; the sourdough freezes fine sliced.`;
+    return `Right now ${exp.length} items need using: ${exp.slice(0, 3).map((p) => `${p.name} (${p.expiryDays}d)`).join(', ')}. The Coconut Chickpea Curry takes the spinach; the sourdough freezes fine sliced.`;
   }
   return `I can plan meals around your budget, pantry, time, or goals. Try one of the quick prompts below — or tell me what's in your fridge and how long you've got.`;
 }
 
 export default function AiAssistant() {
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Hey! I\'m your food coach. I know your pantry, budget and goals — ask me anything. 🍳' },
+    { role: 'ai', text: 'Hey! I\'m your food coach. I know your pantry, budget and goals — ask me anything.' },
   ]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -126,10 +127,10 @@ export default function AiAssistant() {
         <button
           onClick={() => send()}
           aria-label="Send"
-          className="press h-12 w-12 rounded-2xl text-lg font-bold"
+          className="press flex h-12 w-12 items-center justify-center rounded-2xl"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
-          ↑
+          <ArrowUp size={20} strokeWidth={2.4} />
         </button>
       </div>
     </div>

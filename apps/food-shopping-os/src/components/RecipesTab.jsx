@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Flame, Heart, Star, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { Glyph } from './icons.jsx';
 import { gbp } from '../lib/utils.js';
 import { DISCOVER_FILTERS, filterRecipes } from '../data/recipes.js';
 import { Section, Card, Chip, Pill, FoodArt } from './ui.jsx';
@@ -47,7 +49,7 @@ export default function RecipesTab({ openRecipe }) {
       <Section className="mt-5 rise rise-2">
         {recipes.length === 0 ? (
           <Card className="text-center py-10">
-            <p className="text-3xl mb-2">🍽️</p>
+            <UtensilsCrossed size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="font-bold">Nothing matches</p>
             <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>Try another filter or search term.</p>
           </Card>
@@ -61,23 +63,23 @@ export default function RecipesTab({ openRecipe }) {
                   return (
                     <Card key={r.id} onClick={() => openRecipe(r)} className="!p-0 overflow-hidden">
                       <div className="relative">
-                        <FoodArt recipe={r} className={tall ? 'h-40 w-full' : 'h-28 w-full'} size={tall ? 'text-6xl' : 'text-5xl'} />
+                        <FoodArt recipe={r} className={tall ? 'h-40 w-full' : 'h-28 w-full'} px={tall ? 44 : 36} />
                         <button
                           onClick={(e) => { e.stopPropagation(); app.toggleFavourite(r.id); }}
                           aria-label={fav ? 'Unfavourite' : 'Favourite'}
-                          className="press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full text-[15px] border"
+                          className="press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border"
                           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
                         >
-                          {fav ? '♥' : '♡'}
+                          <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
                         </button>
                         {r.tags.includes('trending') || r.rating >= 4.8 ? (
-                          <span className="absolute bottom-2 left-2"><Pill tone="accent">🔥 Trending</Pill></span>
+                          <span className="absolute bottom-2 left-2"><Pill tone="accent"><Flame size={11} /> Trending</Pill></span>
                         ) : null}
                       </div>
                       <div className="p-3">
                         <p className="font-bold text-[13.5px] leading-tight line-clamp-2">{r.name}</p>
-                        <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-                          {r.time <= 60 ? `${r.time} min` : `${Math.round(r.time / 60)} h`} · {r.kcal} kcal · ★ {r.rating}
+                        <p className="mt-1 text-[11.5px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--muted)' }}>
+                          {r.time <= 60 ? `${r.time} min` : `${Math.round(r.time / 60)} h`} · {r.kcal} kcal · <Star size={10} fill="currentColor" /> {r.rating}
                         </p>
                         <p className="mt-1 text-[12px] font-extrabold" style={{ color: 'var(--accent)' }}>
                           {gbp(r.costPerServing, { always: true })}/serving
@@ -102,7 +104,7 @@ export default function RecipesTab({ openRecipe }) {
             { emoji: '📸', name: 'Photo wall', sub: '318 cooks this week', cta: 'Browse' },
           ].map((c) => (
             <Card key={c.name} className="w-[190px] shrink-0 text-center !py-5">
-              <p className="text-3xl">{c.emoji}</p>
+              <Glyph e={c.emoji} size={26} className="mx-auto" style={{ color: 'var(--muted)' }} />
               <p className="mt-1.5 font-bold text-[14px]">{c.name}</p>
               <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{c.sub}</p>
               <button className="press mt-2.5 rounded-full px-4 py-1.5 text-[12px] font-extrabold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}>

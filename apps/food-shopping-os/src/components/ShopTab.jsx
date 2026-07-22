@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Check, Coins, CreditCard, Play, ShoppingCart, Star, Store, Tag, Ticket, TrendingUp, TriangleAlert, X } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { Glyph } from './icons.jsx';
 import { gbp, cx } from '../lib/utils.js';
 import { STORES, SHOPPING_LIST, AISLE_ORDER, PRICE_HISTORY, listTotal } from '../data/stores.js';
 import { Section, Card, Pill, Sparkline, Meter, Chip } from './ui.jsx';
@@ -32,8 +34,10 @@ export default function ShopTab() {
       <div className="hero-gradient px-5 pt-14 pb-3">
         <h1 className="text-[26px] font-extrabold tracking-tight rise">Shop</h1>
         <div className="mt-3 flex gap-2 rise rise-1">
-          {[['list', '🛒 List'], ['stores', '🏪 Stores'], ['prices', '📈 Prices']].map(([k, label]) => (
-            <Chip key={k} active={view === k} onClick={() => setView(k)}>{label}</Chip>
+          {[['list', 'List', ShoppingCart], ['stores', 'Stores', Store], ['prices', 'Prices', TrendingUp]].map(([k, label, Icon]) => (
+            <Chip key={k} active={view === k} onClick={() => setView(k)}>
+              <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
+            </Chip>
           ))}
         </div>
       </div>
@@ -60,15 +64,18 @@ export default function ShopTab() {
                     ? { background: 'var(--card-2)', color: 'var(--ink)' }
                     : { background: 'var(--accent)', color: 'var(--on-accent)' }}
                 >
-                  {shoppingMode ? 'Exit mode' : '▶ Shopping mode'}
+                  <span className="inline-flex items-center gap-1.5">
+                    {shoppingMode ? <><X size={14} /> Exit mode</> : <><Play size={14} fill="currentColor" /> Shopping mode</>}
+                  </span>
                 </button>
               </div>
               <div className="mt-3">
                 <Meter value={shoppingMode ? checkedTotal : total} max={app.weeklyBudget - 41.2 + (overBudget ? 10 : 0)} color={overBudget ? 'var(--warn)' : 'var(--accent)'} />
                 <div className="mt-1.5 flex items-center justify-between text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
                   <span>{app.checked.length} of {SHOPPING_LIST.length} items ticked</span>
-                  <span style={overBudget ? { color: 'var(--warn)', fontWeight: 700 } : {}}>
-                    {overBudget ? '⚠ £' + (total - (app.weeklyBudget - 41.2)).toFixed(2) + ' over budget' : gbp(app.weeklyBudget - 41.2 - total, { always: true }) + ' headroom'}
+                  <span className="inline-flex items-center gap-1" style={overBudget ? { color: 'var(--warn)', fontWeight: 700 } : {}}>
+                    {overBudget && <TriangleAlert size={12} />}
+                    {overBudget ? '£' + (total - (app.weeklyBudget - 41.2)).toFixed(2) + ' over budget' : gbp(app.weeklyBudget - 41.2 - total, { always: true }) + ' headroom'}
                   </span>
                 </div>
               </div>
@@ -85,10 +92,10 @@ export default function ShopTab() {
 
           {/* Perks strip */}
           <div className="px-5 -mt-2 flex gap-2 overflow-x-auto no-scrollbar rise rise-2">
-            <Pill tone="accent">💳 Clubcard linked</Pill>
-            <Pill tone="good">🏷️ 4 items on offer</Pill>
-            <Pill tone="muted">🎟️ 2 coupons ready</Pill>
-            <Pill tone="muted">💰 £1.20 cashback</Pill>
+            <Pill tone="accent"><CreditCard size={12} /> Clubcard linked</Pill>
+            <Pill tone="good"><Tag size={12} /> 4 items on offer</Pill>
+            <Pill tone="muted"><Ticket size={12} /> 2 coupons ready</Pill>
+            <Pill tone="muted"><Coins size={12} /> £1.20 cashback</Pill>
           </div>
 
           {/* Aisle-grouped checklist */}
@@ -112,14 +119,14 @@ export default function ShopTab() {
                             style={{ borderColor: 'var(--line)' }}
                           >
                             <span
-                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 text-[12px] font-bold shrink-0 transition-colors"
+                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 shrink-0 transition-colors"
                               style={done
                                 ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
                                 : { borderColor: 'var(--line)', color: 'transparent' }}
                             >
-                              ✓
+                              <Check size={13} strokeWidth={3} />
                             </span>
-                            <span className="text-xl" aria-hidden="true">{item.emoji}</span>
+                            <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
                             <span className="min-w-0 flex-1">
                               <span className={cx('block font-bold text-[14px] truncate', done && 'line-through opacity-45')}>
                                 {item.name} <span className="font-semibold text-[12px]" style={{ color: 'var(--muted)' }}>· {item.qty}</span>
@@ -160,7 +167,7 @@ export default function ShopTab() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-extrabold text-[15px]">{s.name}</p>
-                      <Pill tone="muted">★ {s.rating}</Pill>
+                      <Pill tone="muted"><Star size={11} fill="currentColor" /> {s.rating}</Pill>
                     </div>
                     <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
                       {s.hours} · {s.delivery}
@@ -174,8 +181,8 @@ export default function ShopTab() {
                   </div>
                 </div>
                 {s.loyalty && (
-                  <p className="mt-2 text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
-                    💳 {s.loyalty} · {s.points.toLocaleString()} points
+                  <p className="mt-2 text-[12px] font-bold flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+                    <CreditCard size={13} /> {s.loyalty} · {s.points.toLocaleString()} points
                   </p>
                 )}
                 <div className="mt-3 pt-3 border-t space-y-1.5" style={{ borderColor: 'var(--line)' }}>
@@ -213,7 +220,9 @@ export default function ShopTab() {
                 <Card key={p.id}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-extrabold text-[14.5px]">{p.emoji} {p.name}</p>
+                      <p className="font-extrabold text-[14.5px] flex items-center gap-1.5">
+                        <Glyph e={p.emoji} size={15} style={{ color: 'var(--muted)' }} /> {p.name}
+                      </p>
                       <p className="text-[13px] font-bold mt-0.5">
                         {(current / 100).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
                         <span className="ml-1.5 text-[11.5px] font-bold" style={{ color: delta > 0 ? 'var(--danger)' : delta < 0 ? 'var(--good)' : 'var(--faint)' }}>
