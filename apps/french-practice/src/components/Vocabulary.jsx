@@ -25,6 +25,12 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
   const [nbTick, setNbTick] = useState(0);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('default');
+  const [openCats, setOpenCats] = useState(() => new Set(['essentials'])); // expanded categories
+  const toggleCat = (id) => setOpenCats((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const srs = useMemo(() => getSrs(), [srsTick]);
   const notebook = useMemo(() => getNotebook(), [nbTick]);
 
@@ -196,20 +202,38 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
             <button onClick={() => setQuery('')} className="text-xs text-ink3 underline hover:text-ink">Clear search</button>
           </div>
         ) : grouped ? (
-          <div className="space-y-5">
-            {groupedPacks().map((g) => (
-              <section key={g.id} className="space-y-2.5">
-                <div className="flex items-baseline justify-between">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">{g.label}</h3>
-                  <span className="text-[11px] text-ink3 tabular-nums">{g.packs.length}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 cv-list">
-                  {g.packs.map((p) => (
-                    <PackCard key={p.id} pack={p} due={dueByPack[p.id] || 0} onOpen={() => setView({ mode: 'deck', packId: p.id })} />
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div className="space-y-2.5">
+            {groupedPacks().map((g) => {
+              const open = openCats.has(g.id);
+              const dueInCat = g.packs.reduce((n, p) => n + (dueByPack[p.id] || 0), 0);
+              const words = g.packs.reduce((n, p) => n + p.entries.length, 0);
+              return (
+                <section key={g.id} className="bg-surface border border-line rounded-2xl overflow-hidden">
+                  <button
+                    onClick={() => toggleCat(g.id)}
+                    aria-expanded={open}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-surface2 transition-colors"
+                  >
+                    <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink"><Layers size={16} /></span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-semibold text-ink">{g.label}</span>
+                      <span className="block text-[11px] text-ink3">{g.packs.length} pack{g.packs.length > 1 ? 's' : ''} · {words} words</span>
+                    </span>
+                    {dueInCat > 0 && (
+                      <span className="shrink-0 min-w-5 h-5 px-1.5 grid place-items-center rounded-full bg-surface2 text-ink2 text-[10px] font-semibold tabular-nums">{dueInCat}</span>
+                    )}
+                    <ChevronRight size={16} className={`text-ink3 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                  </button>
+                  {open && (
+                    <div className="px-3 pb-3 pt-0.5 grid grid-cols-2 gap-2.5 cv-list fade-in">
+                      {g.packs.map((p) => (
+                        <PackCard key={p.id} pack={p} due={dueByPack[p.id] || 0} onOpen={() => setView({ mode: 'deck', packId: p.id })} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5 cv-list">
