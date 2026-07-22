@@ -1,0 +1,201 @@
+import { useApp } from '../lib/store.jsx';
+import { BADGES, SPEND_HISTORY, KCAL_WEEK, CUISINE_SPLIT, ANALYTICS_STATS, INTEGRATIONS } from '../data/plan.js';
+import { WEEK_DAYS } from '../data/plan.js';
+import { Section, Card, Ring, Pill, Meter, Bars, Toggle } from './ui.jsx';
+
+const ACCENTS = [
+  ['emerald', '#10b981'],
+  ['coral', '#f16a50'],
+  ['violet', '#8b5cf6'],
+  ['ocean', '#2a78d6'],
+  ['honey', '#d98e04'],
+];
+
+export default function ProfileTab() {
+  const app = useApp();
+  const xpIntoLevel = (app.xp - 1240) % 400;
+  const macros = [
+    { label: 'Protein', now: app.proteinToday, goal: app.proteinGoal, color: 'var(--series-1)' },
+    { label: 'Carbs', now: app.carbsToday, goal: app.carbsGoal, color: 'var(--series-3)' },
+    { label: 'Fat', now: app.fatToday, goal: app.fatGoal, color: 'var(--series-2)' },
+  ];
+
+  return (
+    <div className="pb-6 space-y-6">
+      {/* Header */}
+      <div className="hero-gradient px-5 pt-14 pb-2">
+        <div className="flex items-center gap-4 rise">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+            {app.name[0]}
+          </div>
+          <div className="flex-1">
+            <h1 className="text-[22px] font-extrabold tracking-tight">{app.name}</h1>
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>Level {app.level} Home Chef · {app.xp.toLocaleString()} XP</p>
+            <div className="mt-1.5"><Meter value={Math.max(xpIntoLevel, 40)} max={400} height={5} /></div>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2.5 rise rise-1">
+          {[
+            ['🔥', app.streak, 'cook streak'],
+            ['💷', app.budgetStreak, 'weeks on budget'],
+            ['♻️', app.wasteStreak, 'no-waste weeks'],
+          ].map(([icon, v, label]) => (
+            <Card key={label} className="!p-3 text-center">
+              <p className="text-[17px] font-extrabold">{icon} {v}</p>
+              <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Nutrition dashboard */}
+      <Section title="Nutrition today" className="rise rise-1">
+        <Card>
+          <div className="flex items-center gap-5">
+            <Ring value={app.kcalToday} max={app.kcalGoal} size={92} stroke={9} color="var(--series-2)"
+              label={app.kcalToday.toLocaleString()} sub={`of ${app.kcalGoal.toLocaleString()} kcal`} />
+            <div className="flex-1 space-y-2.5">
+              {macros.map((m) => (
+                <div key={m.label}>
+                  <div className="flex justify-between text-[12px] font-bold mb-1">
+                    <span>{m.label}</span>
+                    <span style={{ color: 'var(--muted)' }}>{m.now}g / {m.goal}g</span>
+                  </div>
+                  <Meter value={m.now} max={m.goal} color={m.color} height={5} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--line)' }}>
+            <Pill tone="good">Fibre 18g ✓</Pill>
+            <Pill tone="warn">Salt 4.1g — watch</Pill>
+            <Pill tone="muted">Sugar 38g</Pill>
+            <Pill tone="muted">Omega-3 ✓</Pill>
+            <Pill tone="accent">Nutrition score 84</Pill>
+          </div>
+        </Card>
+      </Section>
+
+      {/* Weekly kcal chart */}
+      <Section title="This week" className="rise rise-2">
+        <Card>
+          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Calories per day</p>
+          <Bars
+            data={KCAL_WEEK.map((v, i) => ({ label: WEEK_DAYS[i], value: v }))}
+            color="var(--series-2)"
+            format={(v) => v.toLocaleString()}
+          />
+          <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            Today is in progress — trending 6% under your weekly goal.
+          </p>
+        </Card>
+      </Section>
+
+      {/* Spend analytics */}
+      <Section title="Spending" className="rise rise-2">
+        <Card>
+          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Monthly grocery spend (£)</p>
+          <Bars
+            data={SPEND_HISTORY.map((m) => ({ label: m.month, value: m.spend }))}
+            color="var(--series-1)"
+            format={(v) => `£${v}`}
+          />
+          <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            July is mid-month. Spend has fallen five months running — £68/month less than February.
+          </p>
+        </Card>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {ANALYTICS_STATS.map((s) => (
+            <Card key={s.label} className="!p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{s.label}</p>
+              <p className="mt-0.5 text-[17px] font-extrabold">{s.value}</p>
+              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{s.sub}</p>
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Cuisines */}
+      <Section title="Favourite cuisines" className="rise rise-3">
+        <Card>
+          <div className="space-y-2.5">
+            {CUISINE_SPLIT.map((c, i) => (
+              <div key={c.name}>
+                <div className="flex justify-between text-[12.5px] font-bold mb-1">
+                  <span>{c.name}</span>
+                  <span style={{ color: 'var(--muted)' }}>{c.pct}%</span>
+                </div>
+                <Meter value={c.pct} max={CUISINE_SPLIT[0].pct} color={i === 0 ? 'var(--series-1)' : 'color-mix(in srgb, var(--series-1) 45%, var(--card-2))'} height={5} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Section>
+
+      {/* Badges */}
+      <Section title="Achievements" className="rise rise-3">
+        <div className="grid grid-cols-2 gap-3">
+          {BADGES.map((b) => (
+            <Card key={b.id} className={b.earned ? '' : 'opacity-75'}>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl" style={{ filter: b.earned ? 'none' : 'grayscale(1)' }}>{b.emoji}</span>
+                {b.earned && <Pill tone="good">Earned</Pill>}
+              </div>
+              <p className="mt-1.5 font-bold text-[13.5px]">{b.name}</p>
+              <p className="text-[11.5px] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>{b.desc}</p>
+              {!b.earned && b.progress !== undefined && (
+                <div className="mt-2">
+                  <Meter value={b.progress} max={b.of} height={4} />
+                  <p className="mt-1 text-[10.5px] font-bold" style={{ color: 'var(--faint)' }}>{b.progress}/{b.of}</p>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Appearance */}
+      <Section title="Appearance" className="rise rise-4">
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-bold text-[14px]">Dark mode</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Follows your accent everywhere</p>
+            </div>
+            <Toggle on={app.theme === 'dark'} onChange={app.toggleTheme} />
+          </div>
+          <div>
+            <p className="font-bold text-[14px] mb-2">Accent colour</p>
+            <div className="flex gap-3">
+              {ACCENTS.map(([id, hex]) => (
+                <button
+                  key={id}
+                  onClick={() => app.setAccent(id)}
+                  aria-label={id}
+                  className="press h-9 w-9 rounded-full border-4"
+                  style={{ background: hex, borderColor: app.accent === id ? 'var(--ink)' : 'transparent' }}
+                />
+              ))}
+            </div>
+          </div>
+        </Card>
+      </Section>
+
+      {/* Integrations */}
+      <Section title="Integrations" className="rise rise-4">
+        <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+          {INTEGRATIONS.map((it) => (
+            <div key={it.name} className="flex items-center gap-3 p-3.5" style={{ borderColor: 'var(--line)' }}>
+              <span className="text-xl">{it.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[13.5px]">{it.name}</p>
+                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{it.desc}</p>
+              </div>
+              <Pill tone={it.on ? 'good' : 'faint'}>{it.on ? 'Connected' : 'Connect'}</Pill>
+            </div>
+          ))}
+        </Card>
+      </Section>
+    </div>
+  );
+}
