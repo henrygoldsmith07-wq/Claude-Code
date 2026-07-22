@@ -17,31 +17,40 @@ export default function NewEntryForm({ onSubmit }: Props) {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-4 p-6">
-      <div>
-        <h1 className="text-xl font-semibold">What happened?</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Describe the situation and how it made you feel, in as much detail as you can. The AI will
-          ask follow-up questions to help you understand what&apos;s actually going on before you decide
-          what to do next.
+    <div className="mx-auto flex h-full max-w-xl flex-col justify-center gap-6 p-6 animate-fade-in">
+      <div className="text-center sm:text-left">
+        <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-2xl">
+          🪞
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">What happened?</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Describe the situation and how it made you feel. Claude will ask a few
+          careful questions to help you see what's actually underneath —
+          before you decide what to do next.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <textarea
           value={situation}
           onChange={(e) => setSituation(e.target.value)}
-          rows={8}
+          rows={7}
           placeholder="What happened, and how did it make you feel?"
-          className="resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="resize-none rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted/60 focus:border-accent focus:ring-2 focus:ring-accent/20"
+          autoFocus
         />
         <button
           type="submit"
           disabled={!situation.trim()}
-          className="self-start rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="self-start rounded-xl bg-accent px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover disabled:opacity-40"
         >
-          Start reflecting
+          Start reflecting →
         </button>
       </form>
+
+      <p className="text-center text-xs text-muted/70 sm:text-left">
+        Private · stored only in this browser · no account needed
+      </p>
     </div>
   );
 }
