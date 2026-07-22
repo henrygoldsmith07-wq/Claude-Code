@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { QuizQuestion } from "@/lib/types";
 
 interface Props {
@@ -16,6 +16,7 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
   const [done, setDone] = useState(false);
 
   const question = questions[index];
+  const progress = questions.length > 0 ? ((index + (selected !== null ? 1 : 0)) / questions.length) * 100 : 0;
 
   function handleSelect(optionIndex: number) {
     if (selected !== null) return;
@@ -24,8 +25,57 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
   }
 
   function handleNext() {
+    if (selected === null) return;
+
+    // Compute final score synchronously so the last answer isn't lost to
+    // React's async setState when finishing the quiz.
+    const finalScore =
+      selected === question.correctIndex
+        ? // score state already includes this answer if setScore ran; for the
+          // finish path we re-derive from known selection to avoid staleness.
+          score
+        : score;
+
+    // When the correct answer was just selected, React may not have flushed
+    // setScore yet. Prefer an explicit tally:
+    const isCorrect = selected === question.correctIndex;
+    // score was incremented in handleSelect via functional update; for the
+    // final question use score + (isCorrect && not yet counted). Safer approach:
+    // keep a local nextScore based on whether this selection is correct and
+    // whether score already reflects it. Simplest reliable path: recount isn't
+    // available, so track pendingCorrect.
     if (index + 1 >= questions.length) {
-      onComplete(score, questions.length);
+      // At this point setScore from handleSelect may still be pending.
+      // If correct, ensure we pass score+1 when the current score hasn't included it.
+      // We stored the increment via setScore; use a derived value:
+      const reported = isCorrect ? Math.max(score, score) : score;
+      // Actually the classic fix: compute nextScore at select time.
+      onComplete(reported, questions.length);
+      setDone(true);
+      return;
+    }
+    setSelected(null);
+    setIndex((i) => i + 1);
+    void finalScore;
+  }
+
+  // Cleaner finish path: track score via explicit next value
+  function selectAndMaybeFinish(optionIndex: number) {
+    if (selected !== null) return;
+    const isCorrect = optionIndex === question.correctIndex;
+    const nextScore = score + (isCorrect ? 1 : 0);
+    setSelected(optionIndex);
+    setScore(nextScore);
+    // stash nextScore on the element via closure for handleNextFinish
+    (window as unknown as { __wjecQuizScore?: number }).__wjecQuizScore = nextScore;
+  }
+
+  function goNext() {
+    if (selected === null) return;
+    if (index + 1 >= questions.length) {
+      const final =
+        (window as unknown as { __wjecQuizScore?: number }).__wjecQuizScore ?? score;
+      onComplete(final, questions.length);
       setDone(true);
       return;
     }
@@ -33,13 +83,40 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
     setIndex((i) => i + 1);
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (done || !question) return;
+
+      if (selected === null && e.key >= "1" && e.key <= "4") {
+        const idx = Number(e.key) - 1;
+        if (idx < question.options.length) {
+          e.preventDefault();
+          selectAndMaybeFinish(idx);
+        }
+        return;
+      }
+
+      if (selected !== null && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        goNext();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, index, done, question, score]);
+
   if (done) {
+    const final =
+      (window as unknown as { __wjecQuizScore?: number }).__wjecQuizScore ?? score;
     return (
       <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
         <p className="text-lg font-medium">
-          Quiz complete: {score} / {questions.length}
+          Quiz complete: {final} / {questions.length}
         </p>
         <button
+          type="button"
           onClick={onFinish}
           className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
         >
@@ -55,14 +132,21 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
         <span>
           Question {index + 1} of {questions.length}
         </span>
-        <button onClick={onFinish} className="hover:underline">
+        <button type="button" onClick={onFinish} className="hover:underline">
           Stop quiz
         </button>
       </div>
 
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+        <div
+          className="h-full rounded-full bg-[#3b4a6b] transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
       <div className="rounded-2xl border border-zinc-300 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
         <p className="text-lg font-medium">{question.question}</p>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-2" role="listbox" aria-label="Answer options">
           {question.options.map((option, i) => {
             const isCorrect = i === question.correctIndex;
             const isSelected = i === selected;
@@ -78,7 +162,15 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
               }
             }
             return (
-              <button key={i} onClick={() => handleSelect(i)} className={className}>
+              <button
+                key={i}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => selectAndMaybeFinish(i)}
+                className={className}
+              >
+                <span className="mr-2 text-[10px] text-zinc-400">{i + 1}</span>
                 {option}
               </button>
             );
@@ -89,14 +181,18 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
           <div className="mt-4 flex flex-col gap-3 border-t border-dashed border-zinc-300 pt-4 dark:border-zinc-700">
             <p className="text-sm text-zinc-700 dark:text-zinc-300">{question.explanation}</p>
             <button
-              onClick={handleNext}
+              type="button"
+              onClick={goNext}
               className="self-start rounded-full bg-zinc-900 px-4 py-1.5 text-sm text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
-              {index + 1 >= questions.length ? "Finish" : "Next question"}
+              {index + 1 >= questions.length ? "Finish" : "Next question"}{" "}
+              <span className="text-xs opacity-60">(Enter)</span>
             </button>
           </div>
         )}
       </div>
+
+      <p className="text-center text-[10px] text-zinc-400">1–4 select an option · Enter advances</p>
     </div>
   );
 }
