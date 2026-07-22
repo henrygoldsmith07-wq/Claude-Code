@@ -6,7 +6,7 @@
 import { FLASHCARDS } from './data';
 import { EXTRA_VOCAB_PACKS } from './vocab-extra';
 import { CORE_VOCAB_PACKS } from './vocab-core';
-import { FREQUENCY_PACKS } from './vocab-frequency';
+import { FREQUENCY_PACKS, FREQUENCY_PACKS_DE, FREQUENCY_PACKS_ES } from './vocab-frequency';
 import { DE_VOCAB_PACKS } from './content/de';
 import { ES_VOCAB_PACKS } from './content/es';
 import { contentLang } from './content/active';
@@ -297,7 +297,12 @@ const FR_VOCAB_PACKS = [
   ...FREQUENCY_PACKS,
 ];
 
-const PACKS_BY_LANG = { fr: FR_VOCAB_PACKS, de: DE_VOCAB_PACKS, es: ES_VOCAB_PACKS };
+// German and Spanish get the same treatment: their themed packs followed by
+// frequency-ranked decks built from their own high-frequency dictionaries.
+const DE_ALL_PACKS = [...DE_VOCAB_PACKS, ...FREQUENCY_PACKS_DE];
+const ES_ALL_PACKS = [...ES_VOCAB_PACKS, ...FREQUENCY_PACKS_ES];
+
+const PACKS_BY_LANG = { fr: FR_VOCAB_PACKS, de: DE_ALL_PACKS, es: ES_ALL_PACKS };
 
 // The active language's packs. A function (not a const) so the whole app
 // re-reads it after the learner switches language.

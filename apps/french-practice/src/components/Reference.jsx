@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  CONJUGATIONS, PERSONS, TENSES, MINIMAL_PAIRS, CLOZE_TESTS, FREQUENCY_WORDS, parseWordList,
+  CONJUGATIONS, PERSONS, TENSES, MINIMAL_PAIRS, CLOZE_TESTS, getFrequencyWords, parseWordList,
 } from '../lib/reference';
 import { getPhrasebook } from '../lib/phrasebook';
 import { allEntries } from '../lib/vocab';
@@ -339,7 +339,7 @@ function Dictionary({ onImported }) {
   // into one searchable offline dictionary.
   const dict = useMemo(() => {
     const vocab = allEntries().map((e) => ({ fr: e.fr, en: e.en, ipa: e.ipa || null, source: 'vocab' }));
-    const freq = FREQUENCY_WORDS.map((w) => ({ ...w, source: 'freq' }));
+    const freq = getFrequencyWords().map((w) => ({ ...w, source: 'freq' }));
     const nb = getNotebook().map((e) => ({ fr: e.fr, en: e.en, ipa: null, source: 'notebook' }));
     const seen = new Set();
     return [...freq, ...vocab, ...nb].filter((w) => {
