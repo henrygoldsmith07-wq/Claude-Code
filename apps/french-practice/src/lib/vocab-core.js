@@ -9,7 +9,7 @@ const w = (id, fr, en, emoji, freq, example, exampleEn, extra = {}) =>
 export const CORE_VOCAB_PACKS = [
   {
     id: 'quantities',
-    title: 'Numbers & Quantities',
+    title: 'Quantities & Amounts',
     description: 'Say how much, how many and roughly how many.',
     entries: [
       w('qty-beaucoup', 'beaucoup', 'a lot / much', '📚', 1, "Il y a beaucoup de monde aujourd'hui.", 'There are a lot of people today.', { ant: ['peu'], coll: ['beaucoup de'] }),
@@ -60,7 +60,7 @@ export const CORE_VOCAB_PACKS = [
   },
   {
     id: 'school',
-    title: 'School & Study',
+    title: 'Classroom & Exams',
     description: 'Classrooms, exams and everything you learn.',
     entries: [
       w('edu-ecole', "l'école", 'school', '🏫', 1, "Les enfants vont à l'école à pied.", 'The children walk to school.', { coll: ["à l'école"] }),
@@ -77,7 +77,7 @@ export const CORE_VOCAB_PACKS = [
   },
   {
     id: 'cooking',
-    title: 'Cooking & the Kitchen',
+    title: 'Recipes & Cooking Verbs',
     description: 'Follow a recipe and talk about what you cook.',
     entries: [
       w('cook-recette', 'la recette', 'recipe', '📜', 2, "Tu me donnes la recette de ce gâteau ?", 'Will you give me the recipe for this cake?' ),
@@ -94,7 +94,7 @@ export const CORE_VOCAB_PACKS = [
   },
   {
     id: 'shopping2',
-    title: 'Money & Shopping',
+    title: 'Prices & Paying',
     description: 'Prices, deals and paying the bill.',
     entries: [
       w('shp-prix', 'le prix', 'price', '🏷️', 1, "Quel est le prix de ce manteau ?", "What's the price of this coat?", { coll: ['à moitié prix'] }),
@@ -141,6 +141,40 @@ export const CORE_VOCAB_PACKS = [
       w('con-enfin', 'enfin', 'finally / at last', '🏁', 2, "Enfin, on met au four.", 'Finally, put it in the oven.', { ant: ["d'abord"] }),
       w('con-parexemple', 'par exemple', 'for example', '💡', 2, "Prends un fruit, une pomme par exemple.", 'Have some fruit, an apple for example.' ),
       w('con-enfait', 'en fait', 'actually / in fact', '🔎', 2, "En fait, je ne suis pas d'accord.", "Actually, I don't agree." ),
+    ],
+  },
+  {
+    id: 'questions',
+    title: 'Question Words',
+    description: 'Ask who, what, where, when, why and how.',
+    entries: [
+      w('q-qui', 'qui', 'who', '🙋', 1, "Qui a pris mon stylo ?", 'Who took my pen?' ),
+      w('q-que', 'que / quoi', 'what', '❓', 1, "Qu'est-ce que tu fais ?", 'What are you doing?', { note: '“quoi” at the end: Tu fais quoi ?' }),
+      w('q-ou', 'où', 'where', '📍', 1, "Où est la sortie ?", 'Where is the exit?' ),
+      w('q-quand', 'quand', 'when', '🕐', 1, "Quand est-ce qu'on part ?", 'When are we leaving?' ),
+      w('q-comment', 'comment', 'how', '🔧', 1, "Comment ça marche ?", 'How does it work?', { coll: ['comment ça va'] }),
+      w('q-pourquoi', 'pourquoi', 'why', '🤔', 1, "Pourquoi tu ris ?", 'Why are you laughing?', { note: 'Answer with « parce que ».' }),
+      w('q-combien', 'combien', 'how much / many', '💰', 1, "Ça fait combien ?", 'How much is it?', { coll: ['combien de'] }),
+      w('q-quel', 'quel / quelle', 'which / what', '👉', 1, "Quel jour sommes-nous ?", 'What day is it?', { note: 'Agrees: quel, quelle, quels, quelles.' }),
+      w('q-lequel', 'lequel', 'which one', '🔀', 3, "Lequel préfères-tu ?", 'Which one do you prefer?' ),
+      w('q-estceque', 'est-ce que', '(question marker)', '❔', 1, "Est-ce que tu viens ?", 'Are you coming?', { note: 'Turns a statement into a yes/no question.' }),
+    ],
+  },
+  {
+    id: 'timewords',
+    title: 'Time Expressions',
+    description: 'When, how often and for how long.',
+    entries: [
+      w('te-maintenant', 'maintenant', 'now', '⏱️', 1, "On y va maintenant ?", 'Shall we go now?' ),
+      w('te-bientot', 'bientôt', 'soon', '⏳', 2, "Le train arrive bientôt.", 'The train is arriving soon.' ),
+      w('te-deja', 'déjà', 'already', '✅', 2, "Tu as déjà fini ?", 'Have you already finished?', { ant: ['pas encore'] }),
+      w('te-encore', 'encore', 'still / again / yet', '🔁', 1, "Il dort encore.", "He's still asleep.", { coll: ['pas encore'] }),
+      w('te-toujours', 'toujours', 'always / still', '♾️', 1, "Elle est toujours en retard.", "She's always late.", { ant: ['jamais'] }),
+      w('te-souvent', 'souvent', 'often', '🔂', 2, "On se voit souvent.", 'We see each other often.', { ant: ['rarement'] }),
+      w('te-parfois', 'parfois', 'sometimes', '🎲', 2, "Parfois, je travaille le samedi.", 'Sometimes I work on Saturdays.', { syn: ['quelquefois'] }),
+      w('te-tot', 'tôt', 'early', '🌅', 2, "Je me lève tôt le matin.", 'I get up early in the morning.', { ant: ['tard'] }),
+      w('te-tard', 'tard', 'late', '🌙', 2, "Il est rentré très tard.", 'He got home very late.', { ant: ['tôt'] }),
+      w('te-depuis', 'depuis', 'since / for', '📆', 2, "J'habite ici depuis deux ans.", "I've lived here for two years.", { note: 'Use with the present tense in French.' }),
     ],
   },
 ];

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { langName } from '../lib/i18n';
-import { getVocabPacks, getPack, allEntries } from '../lib/vocab';
+import { getVocabPacks, getPack, allEntries, groupedPacks } from '../lib/vocab';
 import {
   getSrs, rateCard, isCardDue,
   getNotebook, isInNotebook, saveToNotebook, removeFromNotebook,
@@ -60,6 +60,10 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
     };
     return by[sort]();
   }, [query, sort, dueByPack]);
+
+  // Group into categories only in the neutral view — searching or sorting
+  // flattens to a single ranked grid so results aren't split across sections.
+  const grouped = sort === 'default' && norm(query.trim()).length < 2;
 
   if (view.mode === 'memory') {
     return (
@@ -184,38 +188,58 @@ export default function Vocabulary({ apiKey, mockMode, onActivity, onXp }) {
           </div>
         </div>
 
-        {/* themed packs */}
+        {/* themed packs — grouped by category in the default view, a flat
+            filtered grid while searching or when a sort is applied */}
         {visiblePacks.length === 0 ? (
           <div className="text-center py-10 space-y-1">
             <p className="text-sm text-ink2">No packs match «{query.trim()}».</p>
             <button onClick={() => setQuery('')} className="text-xs text-ink3 underline hover:text-ink">Clear search</button>
           </div>
+        ) : grouped ? (
+          <div className="space-y-5">
+            {groupedPacks().map((g) => (
+              <section key={g.id} className="space-y-2.5">
+                <div className="flex items-baseline justify-between">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">{g.label}</h3>
+                  <span className="text-[11px] text-ink3 tabular-nums">{g.packs.length}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 cv-list">
+                  {g.packs.map((p) => (
+                    <PackCard key={p.id} pack={p} due={dueByPack[p.id] || 0} onOpen={() => setView({ mode: 'deck', packId: p.id })} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         ) : (
-        <div className="grid grid-cols-2 gap-2.5 cv-list">
-          {visiblePacks.map((p) => {
-            const due = dueByPack[p.id] || 0;
-            return (
-              <button
-                key={p.id}
-                onClick={() => setView({ mode: 'deck', packId: p.id })}
-                className="relative bg-surface border border-line rounded-2xl p-4 text-left hover:border-ink3 transition-colors"
-              >
-                {due > 0 && (
-                  <span className="absolute top-3 right-3 min-w-5 h-5 px-1 grid place-items-center rounded-full bg-surface2 text-ink2 text-[10px] font-semibold tabular-nums">
-                    {due}
-                  </span>
-                )}
-                <Layers size={16} className="text-ink2 mb-2" />
-                <span className="block text-sm font-semibold text-ink">{p.title}</span>
-                <span className="block text-[11px] text-ink3 mt-0.5 leading-snug">{p.description}</span>
-                <span className="block text-[10px] text-ink3 mt-1.5">{p.entries.length} words</span>
-              </button>
-            );
-          })}
-        </div>
+          <div className="grid grid-cols-2 gap-2.5 cv-list">
+            {visiblePacks.map((p) => (
+              <PackCard key={p.id} pack={p} due={dueByPack[p.id] || 0} onOpen={() => setView({ mode: 'deck', packId: p.id })} />
+            ))}
+          </div>
         )}
       </div>
     </div>
+  );
+}
+
+// One vocabulary pack tile, with its due-count badge and word count.
+function PackCard({ pack, due, onOpen }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="relative bg-surface border border-line rounded-2xl p-4 text-left hover:border-ink3 transition-colors"
+    >
+      {due > 0 && (
+        <span className="absolute top-3 right-3 min-w-5 h-5 px-1 grid place-items-center rounded-full bg-surface2 text-ink2 text-[10px] font-semibold tabular-nums">
+          {due}
+        </span>
+      )}
+      <Layers size={16} className="text-ink2 mb-2" />
+      <span className="block text-sm font-semibold text-ink">{pack.title}</span>
+      <span className="block text-[11px] text-ink3 mt-0.5 leading-snug">{pack.description}</span>
+      <span className="block text-[10px] text-ink3 mt-1.5">{pack.entries.length} words</span>
+    </button>
   );
 }
 
