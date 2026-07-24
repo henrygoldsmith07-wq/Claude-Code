@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { checkSentence, friendlyError } from '../lib/groq';
 import { FREQ_LABELS } from '../lib/vocab';
 import { SpeakButton, Spinner } from './ui';
@@ -29,18 +29,16 @@ function ChipRow({ label, items }) {
 }
 
 export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave, apiKey, mockMode }) {
-  // Always start on the front for every new card (including after advancing).
-  // Combined with key={entry.id} on the parent, this remounts cleanly so the
-  // front is shown first and the 3D flip (with backface-visibility) never
-  // accidentally reveals the answer during the transition.
   const [flipped, setFlipped] = useState(false);
   const [challenge, setChallenge] = useState(null);
 
-  // Safety reset if the same component instance is reused without a key change.
-  useEffect(() => {
+  // Reset transient state when the entry changes.
+  const [lastId, setLastId] = useState(entry.id);
+  if (lastId !== entry.id) {
+    setLastId(entry.id);
     setFlipped(false);
     setChallenge(null);
-  }, [entry.id]);
+  }
 
   const submitSentence = async () => {
     const sentence = challenge.sentence.trim();
@@ -109,8 +107,7 @@ export default function VocabCard({ entry, cardDue, saved, onRate, onToggleSave,
             saved ? 'bg-accent text-onaccent' : 'bg-surface2 text-ink2 hover:bg-line'
           }`}
         >
-          {saved ? <BookmarkFilled size={12} /> : <Bookmark size={12} />}
-          {saved ? 'Saved' : 'Save'}
+          {saved ? <BookmarkFilled size={12} /> : <Bookmark size={12} />} {saved ? 'Saved' : 'Save'}
         </button>
       </div>
 
