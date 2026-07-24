@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { GlobeMethods } from "react-globe.gl";
@@ -63,6 +63,14 @@ function centroidOf(feature: CountryFeature): { lat: number; lng: number } | nul
   return { lat: lat / n, lng: lng / n };
 }
 
+/** Rough angular distance in degrees between two lat/lng points (good enough for viewport culling). */
+function angularDist(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dlat = Math.abs(lat1 - lat2);
+  let dlng = Math.abs(lng1 - lng2);
+  if (dlng > 180) dlng = 360 - dlng;
+  return Math.sqrt(dlat * dlat + dlng * dlng);
+}
+
 interface NewsGlobeProps {
   /** Carried on country clicks so the destination is topic-scoped. */
   topicSlug?: string;
@@ -82,6 +90,8 @@ interface NewsGlobeProps {
   autoRotate?: boolean;
   /** Show a country search box that flies the camera to the picked country. */
   searchable?: boolean;
+  /** When true (default for world mode), filter points to those inside the current camera viewport. */
+  viewportFilter?: boolean;
 }
 
 export default function NewsGlobe({
@@ -94,6 +104,7 @@ export default function NewsGlobe({
   focusCode,
   autoRotate = true,
   searchable = false,
+  viewportFilter = true,
 }: NewsGlobeProps = {}) {
   const router = useRouter();
   const query = topicSlug ? `?topic=${topicSlug}` : "";
@@ -110,9 +121,12 @@ export default function NewsGlobe({
   const [openConflict, setOpenConflict] = useState<ConflictLine | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCode, setSearchCode] = useState<string | null>(null);
+  // Current camera view for viewport-scoped story filtering (Mappit-style).
+  const [view, setView] = useState<{ lat: number; lng: number; altitude: number } | null>(null);
 
   const prefetched = useRef<Set<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewThrottle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Prefetch only the country ROUTE (free JS/shell) on hover — never the metered
   // Gemini call, which would burn the free-tier quota.
@@ -222,6 +236,7 @@ export default function NewsGlobe({
   useEffect(() => {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      if (viewThrottle.current) clearTimeout(viewThrottle.current);
     };
   }, []);
 
@@ -232,12 +247,32 @@ export default function NewsGlobe({
       autoRotate: boolean;
       autoRotateSpeed: number;
       enableZoom: boolean;
+      addEventListener: (type: string, fn: () => void) => void;
+      removeEventListener: (type: string, fn: () => void) => void;
     };
     controls.autoRotate = autoRotate;
     controls.autoRotateSpeed = 0.45;
     controls.enableZoom = true;
     globe.pointOfView({ lat: 20, lng: 10, altitude: 2.4 }, 0);
     setReady(true);
+
+    // Track camera for viewport-scoped filtering (stories that scope to your view).
+    const updateView = () => {
+      if (viewThrottle.current) return;
+      viewThrottle.current = setTimeout(() => {
+        viewThrottle.current = null;
+        try {
+          const pov = globe.pointOfView();
+          if (pov && typeof pov.lat === "number") {
+            setView({ lat: pov.lat, lng: pov.lng, altitude: pov.altitude ?? 2.4 });
+          }
+        } catch {
+          /* ignore */
+        }
+      }, 80); // light throttle so we don't re-filter every frame
+    };
+    controls.addEventListener("change", updateView);
+    updateView();
 
     // Sharpen the satellite texture at grazing angles with anisotropic
     // filtering for higher perceived definition. Best-effort: the imperative
@@ -285,9 +320,21 @@ export default function NewsGlobe({
   // dots, falling back to the /api/world (Gemini) points if the stream is empty.
   const worldData = streamedPoints.length > 0 ? streamedPoints : fetchedPoints;
   const basePoints = points ?? worldData;
-  const shownPoints = topicName
+  let shownPoints = topicName
     ? basePoints.filter((p) => p.topic === topicName)
     : basePoints;
+
+  // Viewport-scoped filter (closest to Mappit’s “stories that scope to your view”).
+  // When the user zooms or pans, only keep points that fall near the current
+  // camera centre. Radius grows with altitude so a distant view still shows the world.
+  if (viewportFilter && view && worldPoints && shownPoints.length > 0) {
+    // At altitude ~2.5 (far) show ~110°, at ~1.0 (close) show ~35°.
+    const maxDist = Math.max(25, Math.min(130, 50 + view.altitude * 28));
+    shownPoints = shownPoints.filter((p) =>
+      angularDist(p.lat, p.lng, view.lat, view.lng) <= maxDist,
+    );
+  }
+
   // While dots are popping in, hand the globe a fresh array each frame so it
   // re-evaluates the (time-based) radius and animates the pop.
   const anyPopping = shownPoints.some(
