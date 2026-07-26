@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { NewsPoint } from "@/lib/gemini";
 import { dotColor } from "@/lib/topicColors";
 
@@ -22,9 +23,6 @@ export default function NewsFeed({
     setInternalOpen(v);
     onOpenChange?.(v);
   };
-
-  // Import useState locally to keep the component self-contained
-  const { useState } = require("react") as typeof import("react");
 
   if (!open) {
     return (
