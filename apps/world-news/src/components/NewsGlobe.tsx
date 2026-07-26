@@ -8,6 +8,9 @@ import type { ConflictLine, NewsPoint } from "@/lib/gemini";
 import { dotColor } from "@/lib/topicColors";
 import { densifyPath } from "@/lib/geo";
 import ConflictMap from "@/components/ConflictMap";
+import MapChat from "@/components/MapChat";
+import { useFavourites, type PinItem } from "@/lib/useFavorites";
+import { TODAY_IN_HISTORY, MARKET_MARKERS, type OverlayMarker } from "@/lib/overlays";
 
 // react-globe.gl touches `window` on import, so it must never load during SSR.
 const Globe = dynamic(() => import("react-globe.gl"), {
@@ -63,6 +66,14 @@ function centroidOf(feature: CountryFeature): { lat: number; lng: number } | nul
   return { lat: lat / n, lng: lng / n };
 }
 
+/** Rough angular distance in degrees between two lat/lng points (good enough for viewport culling). */
+function angularDist(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dlat = Math.abs(lat1 - lat2);
+  let dlng = Math.abs(lng1 - lng2);
+  if (dlng > 180) dlng = 360 - dlng;
+  return Math.sqrt(dlat * dlat + dlng * dlng);
+}
+
 interface NewsGlobeProps {
   /** Carried on country clicks so the destination is topic-scoped. */
   topicSlug?: string;
@@ -82,6 +93,8 @@ interface NewsGlobeProps {
   autoRotate?: boolean;
   /** Show a country search box that flies the camera to the picked country. */
   searchable?: boolean;
+  /** When true (default for world mode), filter points to those inside the current camera viewport. */
+  viewportFilter?: boolean;
 }
 
 export default function NewsGlobe({
@@ -94,6 +107,7 @@ export default function NewsGlobe({
   focusCode,
   autoRotate = true,
   searchable = false,
+  viewportFilter = true,
 }: NewsGlobeProps = {}) {
   const router = useRouter();
   const query = topicSlug ? `?topic=${topicSlug}` : "";
@@ -110,9 +124,18 @@ export default function NewsGlobe({
   const [openConflict, setOpenConflict] = useState<ConflictLine | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCode, setSearchCode] = useState<string | null>(null);
+  // Current camera view for viewport-scoped story filtering (Mappit-style).
+  const [view, setView] = useState<{ lat: number; lng: number; altitude: number } | null>(null);
+
+  // Overlay & pin UI state
+  const [showHistory, setShowHistory] = useState(false);
+  const [showMarkets, setShowMarkets] = useState(false);
+  const [pinMode, setPinMode] = useState(false);
+  const { pins, addPin, removePin } = useFavourites();
 
   const prefetched = useRef<Set<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewThrottle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Prefetch only the country ROUTE (free JS/shell) on hover — never the metered
   // Gemini call, which would burn the free-tier quota.
@@ -222,6 +245,7 @@ export default function NewsGlobe({
   useEffect(() => {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      if (viewThrottle.current) clearTimeout(viewThrottle.current);
     };
   }, []);
 
@@ -232,12 +256,32 @@ export default function NewsGlobe({
       autoRotate: boolean;
       autoRotateSpeed: number;
       enableZoom: boolean;
+      addEventListener: (type: string, fn: () => void) => void;
+      removeEventListener: (type: string, fn: () => void) => void;
     };
     controls.autoRotate = autoRotate;
     controls.autoRotateSpeed = 0.45;
     controls.enableZoom = true;
     globe.pointOfView({ lat: 20, lng: 10, altitude: 2.4 }, 0);
     setReady(true);
+
+    // Track camera for viewport-scoped filtering (stories that scope to your view).
+    const updateView = () => {
+      if (viewThrottle.current) return;
+      viewThrottle.current = setTimeout(() => {
+        viewThrottle.current = null;
+        try {
+          const pov = globe.pointOfView();
+          if (pov && typeof pov.lat === "number") {
+            setView({ lat: pov.lat, lng: pov.lng, altitude: pov.altitude ?? 2.4 });
+          }
+        } catch {
+          /* ignore */
+        }
+      }, 80); // light throttle so we don't re-filter every frame
+    };
+    controls.addEventListener("change", updateView);
+    updateView();
 
     // Sharpen the satellite texture at grazing angles with anisotropic
     // filtering for higher perceived definition. Best-effort: the imperative
@@ -277,6 +321,23 @@ export default function NewsGlobe({
 
   const navigate = (feat: object | null) => {
     const country = feat as CountryFeature | null;
+    if (pinMode && country) {
+      // Drop a pin at the country centroid instead of navigating.
+      const c = centroidOf(country);
+      if (c) {
+        const id = `pin-${country.properties.iso_a2}`;
+        const pin: PinItem = {
+          id,
+          label: country.properties.name,
+          lat: c.lat,
+          lng: c.lng,
+          countryCode: country.properties.iso_a2,
+        };
+        addPin(pin);
+        setPinMode(false);
+      }
+      return;
+    }
     const code = country?.properties?.iso_a2;
     if (code) router.push(`/country/${code.toLowerCase()}${query}`);
   };
@@ -285,9 +346,21 @@ export default function NewsGlobe({
   // dots, falling back to the /api/world (Gemini) points if the stream is empty.
   const worldData = streamedPoints.length > 0 ? streamedPoints : fetchedPoints;
   const basePoints = points ?? worldData;
-  const shownPoints = topicName
+  let shownPoints = topicName
     ? basePoints.filter((p) => p.topic === topicName)
     : basePoints;
+
+  // Viewport-scoped filter (closest to Mappit’s “stories that scope to your view”).
+  // When the user zooms or pans, only keep points that fall near the current
+  // camera centre. Radius grows with altitude so a distant view still shows the world.
+  if (viewportFilter && view && worldPoints && shownPoints.length > 0) {
+    // At altitude ~2.5 (far) show ~110°, at ~1.0 (close) show ~35°.
+    const maxDist = Math.max(25, Math.min(130, 50 + view.altitude * 28));
+    shownPoints = shownPoints.filter((p) =>
+      angularDist(p.lat, p.lng, view.lat, view.lng) <= maxDist,
+    );
+  }
+
   // While dots are popping in, hand the globe a fresh array each frame so it
   // re-evaluates the (time-based) radius and animates the pop.
   const anyPopping = shownPoints.some(
@@ -378,8 +451,81 @@ export default function NewsGlobe({
   const isMarked = (iso: string) =>
     iso === searchCode || iso === focusCode?.toUpperCase();
 
+  // Combine overlay markers that are currently enabled.
+  const overlayMarkers: OverlayMarker[] = [
+    ...(showHistory ? TODAY_IN_HISTORY : []),
+    ...(showMarkets ? MARKET_MARKERS : []),
+  ];
+
+  // Pin markers for the globe (rendered as extra points).
+  const pinPoints = pins.map((p) => ({
+    lat: p.lat,
+    lng: p.lng,
+    headline: p.label,
+    location: "Pinned",
+    topic: "Pin",
+    countryCode: p.countryCode ?? "",
+    tags: ["pin"],
+    _pin: true as const,
+  }));
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
+      {/* Top-left overlay toggles */}
+      <div className="absolute left-3 top-3 z-30 flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={() => setShowHistory((v) => !v)}
+          className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
+            showHistory
+              ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+              : "border-rule bg-panel/90 text-muted hover:border-accent"
+          }`}
+        >
+          Today in History
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowMarkets((v) => !v)}
+          className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
+            showMarkets
+              ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-200"
+              : "border-rule bg-panel/90 text-muted hover:border-accent"
+          }`}
+        >
+          Markets
+        </button>
+        <button
+          type="button"
+          onClick={() => setPinMode((v) => !v)}
+          className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
+            pinMode
+              ? "border-violet-400/60 bg-violet-400/15 text-violet-200"
+              : "border-rule bg-panel/90 text-muted hover:border-accent"
+          }`}
+          title="Click a country to drop a pin"
+        >
+          {pinMode ? "Click country to pin…" : "Drop pin"}
+        </button>
+        {pins.length > 0 && (
+          <div className="mt-1 max-h-28 overflow-y-auto rounded-lg border border-rule bg-panel/95 p-1.5 text-[11px]">
+            {pins.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-2 py-0.5">
+                <span className="truncate text-foreground">{p.label}</span>
+                <button
+                  type="button"
+                  onClick={() => removePin(p.id)}
+                  className="text-muted hover:text-red-300"
+                  title="Remove pin"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {searchable && (
         <div className="absolute left-1/2 top-3 z-30 w-72 max-w-[80vw] -translate-x-1/2">
           <input
@@ -419,6 +565,7 @@ export default function NewsGlobe({
           )}
         </div>
       )}
+
       {size.width > 0 && size.height > 0 && (
         <Globe
           ref={globeRef}
@@ -457,17 +604,25 @@ export default function NewsGlobe({
           onPolygonHover={handleHover}
           onPolygonClick={navigate}
           polygonsTransitionDuration={200}
-          pointsData={pointsForGlobe}
+          pointsData={[...pointsForGlobe, ...pinPoints]}
           pointLat={(d: object) => (d as NewsPoint).lat}
           pointLng={(d: object) => (d as NewsPoint).lng}
           pointColor={(d: object) => {
+            if ((d as { _pin?: boolean })._pin) return "#a78bfa";
             const rel = relationOf(d as NewsPoint);
             if (rel === "related") return "#ffffff";
             if (rel === "dim") return "rgba(147,197,253,0.22)";
             return dotColor((d as NewsPoint).topic);
           }}
-          pointAltitude={(d: object) => (relationOf(d as NewsPoint) === "related" ? 0.06 : 0.03)}
+          pointAltitude={(d: object) =>
+            (d as { _pin?: boolean })._pin
+              ? 0.08
+              : relationOf(d as NewsPoint) === "related"
+                ? 0.06
+                : 0.03
+          }
           pointRadius={(d: object) => {
+            if ((d as { _pin?: boolean })._pin) return 0.7;
             const p = d as TimedPoint;
             const rel = relationOf(p);
             const base = rel === "related" ? 0.62 : rel === "local" ? 0.55 : 0.45;
@@ -478,6 +633,9 @@ export default function NewsGlobe({
           }}
           pointsMerge={false}
           pointLabel={(d: object) => {
+            if ((d as { _pin?: boolean })._pin) {
+              return `<div style="font:600 12px sans-serif;color:#ddd6fe;background:#0e131fee;padding:5px 8px;border-radius:6px;border:1px solid #5b21b6">📌 ${(d as NewsPoint).headline}</div>`;
+            }
             const p = d as NewsPoint;
             const tags = p.tags?.length
               ? `<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">${p.tags
@@ -510,7 +668,15 @@ export default function NewsGlobe({
               (d as ConflictLine).label
             } · click to expand</div>`
           }
-          ringsData={rings}
+          ringsData={[
+            ...rings,
+            ...overlayMarkers.map((m) => ({
+              lat: m.lat,
+              lng: m.lng,
+              color: m.color,
+              count: 3,
+            })),
+          ]}
           ringLat={(d: object) => (d as { lat: number }).lat}
           ringLng={(d: object) => (d as { lng: number }).lng}
           ringColor={(d: object) => (t: number) =>
@@ -521,6 +687,7 @@ export default function NewsGlobe({
           ringRepeatPeriod={1400}
         />
       )}
+
       {hovered && (
         <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-rule bg-panel/90 px-5 py-2 text-sm font-medium backdrop-blur">
           {hovered.properties.name}{" "}
@@ -533,6 +700,7 @@ export default function NewsGlobe({
           )}
         </div>
       )}
+
       {openConflict && (
         <ConflictMap
           conflict={openConflict}
@@ -540,6 +708,15 @@ export default function NewsGlobe({
           onClose={() => setOpenConflict(null)}
         />
       )}
+
+      {/* Marco-style map-aware chat */}
+      <MapChat
+        regionLabel={view ? `${view.lat.toFixed(1)}°, ${view.lng.toFixed(1)}°` : undefined}
+        altitude={view?.altitude}
+        hoveredCountry={hovered?.properties.name}
+        visiblePoints={shownPoints}
+        openConflict={openConflict}
+      />
     </div>
   );
 }

@@ -15,7 +15,7 @@ type Entry =
 // localStorage (no login), so this fetches each followed country's summary
 // client-side and shows a condensed card for it.
 export default function MyFeed() {
-  const { favourites } = useFavourites();
+  const { favourites, pins, removePin } = useFavourites();
   const [entries, setEntries] = useState<Record<string, Entry>>({});
 
   const codes = favourites.countries.map((c) => c.id).join(",");
@@ -54,14 +54,15 @@ export default function MyFeed() {
 
   const hasCountries = favourites.countries.length > 0;
   const hasTopics = favourites.topics.length > 0;
+  const hasPins = pins.length > 0;
 
-  if (!hasCountries && !hasTopics) {
+  if (!hasCountries && !hasTopics && !hasPins) {
     return (
       <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
         <p className="font-medium text-foreground">Your feed is empty.</p>
         <p className="mt-2">
-          Star a country (from its news page) or a topic to follow it. Your favourites are
-          gathered here for a quick catch-up.{" "}
+          Star a country (from its news page), follow a topic, or drop a pin on the globe.
+          Your favourites and pins are gathered here for a quick catch-up.{" "}
           <Link href="/" className="text-accent hover:underline">
             Open the globe →
           </Link>
@@ -72,6 +73,33 @@ export default function MyFeed() {
 
   return (
     <div className="space-y-6">
+      {hasPins && (
+        <div>
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted">Your pins</p>
+          <div className="flex flex-wrap gap-2">
+            {pins.map((p) => (
+              <span
+                key={p.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-sm text-violet-200"
+              >
+                📌 {p.label}
+                <button
+                  type="button"
+                  onClick={() => removePin(p.id)}
+                  className="text-violet-300/70 hover:text-red-300"
+                  title="Remove pin"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Pins are stored locally and will power a daily digest of the places you care about.
+          </p>
+        </div>
+      )}
+
       {hasTopics && (
         <div>
           <p className="mb-2 text-xs uppercase tracking-wide text-muted">Followed topics</p>
