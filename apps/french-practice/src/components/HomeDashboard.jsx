@@ -9,7 +9,7 @@ import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
 import { TrendChart } from './charts';
 import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Play, Check, Coins, Trophy, SCENARIO_ICONS } from './icons';
+import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Play, Check, Coins, Trophy, scenarioIcon } from './icons';
 import { getSessions } from '../lib/storage';
 
 // Home: the daily loop. Answers "what should I do today?" — goal progress,
@@ -32,7 +32,7 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
   const habits = getHabits().slice(0, 3);
   const sessions = getSessions();
   const suggested = suggestScenario(sessions);
-  const SuggestedIcon = SCENARIO_ICONS[suggested.id];
+  const SuggestedIcon = scenarioIcon(suggested.id);
 
   const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
   const goalDone = todayXp >= dailyGoal;

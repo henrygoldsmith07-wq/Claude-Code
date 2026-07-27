@@ -135,8 +135,8 @@ export function SpeakButton({ text, rate = 1, slow = false, label }) {
 
 export function RateSlider({ rate, onChange }) {
   return (
-    <label className="flex items-center gap-2 text-[11px] text-ink2">
-      <span className="text-[10px] text-ink3" aria-hidden="true">0.5×</span>
+    <label className="flex items-center gap-2 text-[11px] text-ink2 min-w-0">
+      <span className="hidden sm:inline text-[10px] text-ink3" aria-hidden="true">0.5×</span>
       <input
         type="range"
         min="0.5"
@@ -144,11 +144,11 @@ export function RateSlider({ rate, onChange }) {
         step="0.1"
         value={rate}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-24 accent-ink"
+        className="w-20 sm:w-24 accent-ink"
         aria-label="Playback speed"
       />
-      <span className="text-[10px] text-ink3" aria-hidden="true">1.5×</span>
-      <span className="font-mono w-8">{rate.toFixed(1)}×</span>
+      <span className="hidden sm:inline text-[10px] text-ink3" aria-hidden="true">1.5×</span>
+      <span className="font-mono w-8 shrink-0">{rate.toFixed(1)}×</span>
     </label>
   );
 }

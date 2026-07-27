@@ -61,13 +61,16 @@ export default function FeedbackWidget({ scores, turnCount }) {
         <ScoreRows scores={scores} />
       </aside>
 
-      {/* Mobile: floating badge that opens a bottom sheet */}
+      {/* Mobile: floating pill that opens a bottom sheet. It sits over the
+          transcript, so it reads as an overlay control (own surface + border
+          + elevation) rather than as part of whichever bubble is behind it. */}
       <button
         onClick={() => setSheetOpen(true)}
         aria-label={`Turn score: ${composite}. See details`}
-        className="lg:hidden fixed bottom-40 right-4 z-30 drop-shadow-xl active:scale-90 transition"
+        className="lg:hidden fixed bottom-36 right-3 z-30 flex items-center gap-1.5 rounded-full bg-surface border border-line elev-pop pl-3 pr-1.5 py-1.5 active:scale-95 transition"
       >
-        <ScoreBadge value={composite} size="lg" />
+        <span className="text-[11px] font-semibold text-ink2">Turn {turnCount}</span>
+        <ScoreBadge value={composite} />
       </button>
       {sheetOpen && (
         <div

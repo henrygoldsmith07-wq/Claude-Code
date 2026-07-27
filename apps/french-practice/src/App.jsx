@@ -494,14 +494,6 @@ export default function App() {
           >
             <span role="img" aria-hidden="true">{(AVATARS.find((a) => a.id === avatarId) || AVATARS[0]).emoji}</span>
           </button>
-          {tab === 'arena' && history.length > 0 && (
-            <button
-              onClick={endSession}
-              className="btn btn-secondary min-h-10 px-3.5 rounded-xl text-xs"
-            >
-              End Session
-            </button>
-          )}
           <button
             onClick={toggleTheme}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -597,6 +589,7 @@ export default function App() {
               setHistory={setHistory}
               scenario={scenario}
               setScenario={setScenario}
+              onEndSession={endSession}
             />
           )}
           {tab === 'skills' && (
