@@ -7,9 +7,12 @@
  * with the first entry acting as the default serving.
  */
 
+import { microsFor, microsFromBlend, fibreFromBlend } from './micronutrients.js';
+
 const n = ([kcal, protein, carbs, fat, fibre = 0]) => ({ kcal, protein, carbs, fat, fibre });
 const s = (pairs) => pairs.map(([label, grams]) => ({ label, grams }));
 
+/** Energy + macros live here; the other 19 nutrients come from the micro table. */
 const food = (id, name, emoji, per100, servings, extra = {}) => ({
   id,
   name,
@@ -17,7 +20,7 @@ const food = (id, name, emoji, per100, servings, extra = {}) => ({
   unit: 'g',
   source: 'generic',
   tags: [],
-  per100: n(per100),
+  per100: { ...n(per100), ...microsFor(id) },
   servings: s(servings),
   ...extra,
 });
@@ -131,51 +134,54 @@ export const FOODS = [
 ];
 
 /* ---------- Restaurant menus ----------
-   Menu items are stored the way a menu quotes them (per portion), then
-   normalised to per-100 g so they portion-scale like everything else. */
+   Menu items are stored the way a menu quotes them — calories, macros, portion
+   weight and salt — then normalised to per-100 g so they portion-scale like
+   everything else. Micronutrients aren't on any menu, so each dish names the
+   blend of everyday foods it eats like and its profile is modelled from those.
+   [name, kcal, protein, carbs, fat, grams, salt g, blend] */
 
 const RESTAURANT_MENUS = [
   ['Pret A Manger', '🥪', [
-    ['Chicken Caesar & Bacon Baguette', 555, 33, 47, 25, 380],
-    ['Posh Cheddar & Pickle Sandwich', 486, 20, 43, 26, 250],
-    ['Chicken & Avocado Protein Pot', 300, 26, 5, 20, 210],
-    ['Coconut Porridge', 296, 8, 43, 10, 300],
-    ['Very Berry Granola Pot', 322, 9, 45, 12, 260],
+    ['Chicken Caesar & Bacon Baguette', 555, 33, 47, 25, 380, 2.4, 'sandwich'],
+    ['Posh Cheddar & Pickle Sandwich', 486, 20, 43, 26, 250, 1.9, 'sandwich'],
+    ['Chicken & Avocado Protein Pot', 300, 26, 5, 20, 210, 0.9, 'protein-pot'],
+    ['Coconut Porridge', 296, 8, 43, 10, 300, 0.3, 'porridge-pot'],
+    ['Very Berry Granola Pot', 322, 9, 45, 12, 260, 0.2, 'yogurt-pot'],
   ]],
   ['Nando’s', '🌶️', [
-    ['1/2 Peri-Peri Chicken', 610, 79, 1, 32, 400],
-    ['Butterfly Chicken Breast', 336, 61, 0.6, 10, 230],
-    ['Spicy Rice', 348, 8, 66, 5, 230],
-    ['Peri-Peri Chips (regular)', 393, 5, 51, 18, 200],
-    ['Macho Peas', 143, 9, 13, 5, 150],
+    ['1/2 Peri-Peri Chicken', 610, 79, 1, 32, 400, 3.2, 'chicken-meal'],
+    ['Butterfly Chicken Breast', 336, 61, 0.6, 10, 230, 2.1, 'chicken-meal'],
+    ['Spicy Rice', 348, 8, 66, 5, 230, 1.6, 'rice-side'],
+    ['Peri-Peri Chips (regular)', 393, 5, 51, 18, 200, 1.2, 'fried-side'],
+    ['Macho Peas', 143, 9, 13, 5, 150, 0.9, 'greens'],
   ]],
   ['Wagamama', '🍜', [
-    ['Chicken Katsu Curry', 1063, 46, 132, 38, 620],
-    ['Yasai Katsu Curry', 967, 21, 137, 37, 600],
-    ['Chicken Ramen', 553, 42, 63, 13, 700],
-    ['Grilled Chicken Donburi', 660, 46, 84, 16, 520],
-    ['Edamame (salted)', 190, 15, 9, 9, 120],
+    ['Chicken Katsu Curry', 1063, 46, 132, 38, 620, 4.1, 'chicken-meal'],
+    ['Yasai Katsu Curry', 967, 21, 137, 37, 600, 3.6, 'veg-curry'],
+    ['Chicken Ramen', 553, 42, 63, 13, 700, 4.5, 'noodle-soup'],
+    ['Grilled Chicken Donburi', 660, 46, 84, 16, 520, 3.2, 'chicken-meal'],
+    ['Edamame (salted)', 190, 15, 9, 9, 120, 1.4, 'greens'],
   ]],
   ['McDonald’s', '🍔', [
-    ['Big Mac', 493, 26, 41, 24, 219],
-    ['McChicken Sandwich', 388, 18, 41, 16, 173],
-    ['Medium Fries', 337, 3.7, 42, 16, 114],
-    ['6 Chicken McNuggets', 259, 16, 15, 15, 108],
-    ['Sausage & Egg McMuffin', 425, 24, 30, 23, 165],
+    ['Big Mac', 493, 26, 41, 24, 219, 2.3, 'burger'],
+    ['McChicken Sandwich', 388, 18, 41, 16, 173, 1.5, 'burger'],
+    ['Medium Fries', 337, 3.7, 42, 16, 114, 0.6, 'fried-side'],
+    ['6 Chicken McNuggets', 259, 16, 15, 15, 108, 1, 'breaded-chicken'],
+    ['Sausage & Egg McMuffin', 425, 24, 30, 23, 165, 2, 'burger'],
   ]],
   ['Greggs', '🥐', [
-    ['Sausage Roll', 329, 9.4, 25, 22, 101],
-    ['Steak Bake', 408, 12, 32, 26, 138],
-    ['Vegan Sausage Roll', 311, 12, 25, 19, 96],
-    ['Chicken Bacon Mayo Baguette', 460, 26, 46, 19, 200],
-    ['Yum Yum', 275, 3.5, 30, 16, 68],
+    ['Sausage Roll', 329, 9.4, 25, 22, 101, 1.3, 'pastry'],
+    ['Steak Bake', 408, 12, 32, 26, 138, 1.6, 'pastry'],
+    ['Vegan Sausage Roll', 311, 12, 25, 19, 96, 1.4, 'pastry'],
+    ['Chicken Bacon Mayo Baguette', 460, 26, 46, 19, 200, 2.2, 'sandwich'],
+    ['Yum Yum', 275, 3.5, 30, 16, 68, 0.4, 'dessert'],
   ]],
   ['itsu', '🍣', [
-    ['Chicken Teriyaki Rice’bowl', 462, 30, 66, 8, 380],
-    ['Salmon Sashimi Sushi Box', 320, 24, 38, 8, 250],
-    ['Chicken Gyoza (5)', 240, 12, 26, 9, 135],
-    ['Miso Soup', 45, 3, 5, 1.5, 250],
-    ['Veggie Rainbow Salad', 285, 9, 34, 12, 300],
+    ['Chicken Teriyaki Rice’bowl', 462, 30, 66, 8, 380, 2.4, 'chicken-meal'],
+    ['Salmon Sashimi Sushi Box', 320, 24, 38, 8, 250, 2, 'sushi'],
+    ['Chicken Gyoza (5)', 240, 12, 26, 9, 135, 1.3, 'breaded-chicken'],
+    ['Miso Soup', 45, 3, 5, 1.5, 250, 1.8, 'broth'],
+    ['Veggie Rainbow Salad', 285, 9, 34, 12, 300, 1.1, 'salad-bowl'],
   ]],
 ];
 
@@ -185,7 +191,7 @@ const slug = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-
 
 /** Restaurant items as ordinary catalogue foods (per-100 g + one serving). */
 export const RESTAURANT_FOODS = RESTAURANT_MENUS.flatMap(([chain, emoji, items]) =>
-  items.map(([name, kcal, protein, carbs, fat, grams]) => {
+  items.map(([name, kcal, protein, carbs, fat, grams, salt, blend]) => {
     const k = 100 / grams;
     return {
       id: `${slug(chain)}--${slug(name)}`,
@@ -196,10 +202,13 @@ export const RESTAURANT_FOODS = RESTAURANT_MENUS.flatMap(([chain, emoji, items])
       unit: 'g',
       source: 'restaurant',
       tags: ['eating out'],
-      per100: n([
-        +(kcal * k).toFixed(1), +(protein * k).toFixed(1),
-        +(carbs * k).toFixed(1), +(fat * k).toFixed(1), 0,
-      ]),
+      per100: {
+        ...n([
+          +(kcal * k).toFixed(1), +(protein * k).toFixed(1),
+          +(carbs * k).toFixed(1), +(fat * k).toFixed(1), fibreFromBlend(blend),
+        ]),
+        ...microsFromBlend(blend, salt * k),
+      },
       servings: s([['1 portion', grams], ['Half portion', Math.round(grams / 2)]]),
     };
   }),

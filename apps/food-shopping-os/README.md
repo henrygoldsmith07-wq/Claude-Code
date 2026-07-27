@@ -33,6 +33,13 @@ with localStorage persistence — no backend required.
   optional macros; portion control by serving, multiplier or **weighed
   grams/ml**; per-entry **meal timing** with an eating-window insight; and
   **snack tracking** as a share of the day
+- **Nutrition tracking** — 24 nutrients tracked from the same per-100 g
+  profiles the diary logs: calories, protein, carbs, fat, fibre and sugar;
+  saturated fat, trans fat and cholesterol; sodium, potassium, calcium, iron,
+  magnesium and zinc; vitamins A, B complex, C, D, E and K; water, caffeine
+  and alcohol. Goals read as progress, limits read as headroom, every daily
+  target is editable, and the panel says plainly what share of the day's
+  calories carries a full micronutrient profile
 - **Smart pantry** — inventory by location (fridge/freezer/cupboard/…) with
   quantity, cost, store and expiry status; "use soon" rail; search; capture
   affordances for barcode/receipt/voice/photo
@@ -68,15 +75,16 @@ src/
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
   data/                # recipes, pantry, stores/prices, plan/gamification,
-                       # foods (catalogue + barcodes + menus), log-seed
+                       # foods (catalogue + barcodes + menus), log-seed,
+                       # nutrients (units/targets), micronutrients (per-100 g table)
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
 ```
 
 State notes: the food diary is the single source of truth for nutrition —
-`log` is keyed by date and every calorie/macro figure in the app (home rings,
-profile dashboard, weekly chart) is derived from it, so a new calendar day
+`log` is keyed by date and every nutrient figure in the app (home rings,
+profile dashboard, weekly chart, the full 24-nutrient panel) is derived from it, so a new calendar day
 simply starts with an empty diary. Water and cooked-today reset on the first
 open of a new day; the cooking streak increments once per
 day when a recipe is finished, and finishing cooking mode logs that serving to

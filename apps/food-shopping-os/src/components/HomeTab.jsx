@@ -83,7 +83,9 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
             <div>
               <p className="text-[17px] font-extrabold leading-tight">{app.kcalToday.toLocaleString()}</p>
               <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>of {app.kcalGoal.toLocaleString()} kcal</p>
-              <p className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--muted)' }}>P {app.proteinToday}g · C {app.carbsToday}g · F {app.fatToday}g</p>
+              <p className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--muted)' }}>
+                P {Math.round(app.proteinToday)}g · C {Math.round(app.carbsToday)}g · F {Math.round(app.fatToday)}g
+              </p>
             </div>
           </div>
         </Card>

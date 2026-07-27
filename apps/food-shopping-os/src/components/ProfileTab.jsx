@@ -1,9 +1,12 @@
-import { Banknote, Flame, Recycle } from 'lucide-react';
+import { useState } from 'react';
+import { Activity, Banknote, Flame, Recycle } from 'lucide-react';
 import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { BADGES, SPEND_HISTORY, KCAL_WEEK, CUISINE_SPLIT, ANALYTICS_STATS, INTEGRATIONS } from '../data/plan.js';
-import { snackSummary, timingInsight } from '../lib/nutrition.js';
-import { Section, Card, Ring, Pill, Meter, Bars, Toggle } from './ui.jsx';
+import { formatAmount } from '../data/nutrients.js';
+import { nutrientRows, snackSummary, timingInsight } from '../lib/nutrition.js';
+import NutritionPanel from './NutritionPanel.jsx';
+import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 
 const ACCENTS = [
   ['mono', 'var(--ink)'],
@@ -15,8 +18,11 @@ const ACCENTS = [
 
 export default function ProfileTab() {
   const app = useApp();
+  const [nutritionOpen, setNutritionOpen] = useState(false);
   const snacks = snackSummary(app.entries);
   const timing = timingInsight(app.entries);
+  const highlights = nutrientRows(app.totals, app.targets)
+    .filter((r) => ['fibre', 'sugar', 'sodium', 'vitC', 'iron', 'calcium'].includes(r.key));
   /* The week chart reads the diary; days before the app was used fall back to
      the historic series so the chart is never half-empty. */
   const week = Array.from({ length: 7 }, (_, i) => {
@@ -30,9 +36,9 @@ export default function ProfileTab() {
     };
   });
   const macros = [
-    { label: 'Protein', now: app.proteinToday, goal: app.proteinGoal, color: 'var(--series-1)' },
-    { label: 'Carbs', now: app.carbsToday, goal: app.carbsGoal, color: 'var(--series-3)' },
-    { label: 'Fat', now: app.fatToday, goal: app.fatGoal, color: 'var(--series-2)' },
+    { key: 'protein', label: 'Protein', now: app.proteinToday, goal: app.proteinGoal, color: 'var(--series-1)' },
+    { key: 'carbs', label: 'Carbs', now: app.carbsToday, goal: app.carbsGoal, color: 'var(--series-3)' },
+    { key: 'fat', label: 'Fat', now: app.fatToday, goal: app.fatGoal, color: 'var(--series-2)' },
   ];
 
   return (
@@ -76,7 +82,9 @@ export default function ProfileTab() {
                 <div key={m.label}>
                   <div className="flex justify-between text-[12px] font-bold mb-1">
                     <span>{m.label}</span>
-                    <span style={{ color: 'var(--muted)' }}>{m.now}g / {m.goal}g</span>
+                    <span style={{ color: 'var(--muted)' }}>
+                      {formatAmount(m.key, m.now)} / {formatAmount(m.key, m.goal)}
+                    </span>
                   </div>
                   <Meter value={m.now} max={m.goal} color={m.color} height={5} />
                 </div>
@@ -84,12 +92,23 @@ export default function ProfileTab() {
             </div>
           </div>
           <div className="mt-4 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--line)' }}>
-            <Pill tone={app.fibreToday >= 30 ? 'good' : 'muted'}>Fibre {app.fibreToday}g</Pill>
-            <Pill tone="muted">{app.entries.length} items logged</Pill>
-            <Pill tone={snacks.count > 3 ? 'warn' : 'muted'}>{snacks.count} snacks · {snacks.kcal} kcal</Pill>
+            {highlights.map((row) => (
+              <Pill key={row.key} tone={row.tone === 'faint' ? 'muted' : row.tone}>
+                {row.label} {formatAmount(row.key, row.value)}
+              </Pill>
+            ))}
+            <Pill tone={snacks.count > 3 ? 'warn' : 'muted'}>{snacks.count} snacks</Pill>
             {timing && <Pill tone="muted">{timing.first}–{timing.last}</Pill>}
-            <Pill tone="accent">Nutrition score 84</Pill>
           </div>
+          <button
+            onClick={() => setNutritionOpen(true)}
+            className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+            style={{ borderColor: 'var(--line)' }}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Activity size={14} /> Vitamins, minerals & the rest
+            </span>
+          </button>
         </Card>
       </Section>
 
@@ -212,6 +231,10 @@ export default function ProfileTab() {
           })}
         </Card>
       </Section>
+
+      <Sheet open={nutritionOpen} onClose={() => setNutritionOpen(false)} title="Nutrition today">
+        <NutritionPanel />
+      </Sheet>
     </div>
   );
 }

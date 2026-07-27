@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import {
-  Camera, Clock, Cookie, Layers, Mic, Plus, ScanBarcode, Search, Utensils,
+  Activity, Camera, Clock, Cookie, Droplet, Layers, Mic, Plus, ScanBarcode, Search, Utensils,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { prettyDate } from '../lib/utils.js';
 import {
-  MEALS, byTime, entryMacros, mealForTime, mealLabel, remaining, snackSummary, sumMacros, timingInsight,
+  MEALS, alcoholUnits, byTime, entryMacros, mealForTime, mealLabel, nutrientAlerts,
+  nutrientRows, remaining, snackSummary, sumMacros, timingInsight,
 } from '../lib/nutrition.js';
+import { formatAmount } from '../data/nutrients.js';
 import { Card, Meter, Pill, Ring, Section, Sheet } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import AddFood from './AddFood.jsx';
 import FoodDetail from './FoodDetail.jsx';
 import CopyMeal from './CopyMeal.jsx';
 import RecipeImport from './RecipeImport.jsx';
+import NutritionPanel from './NutritionPanel.jsx';
 import { BarcodeScanner, PhotoRecognise, VoiceLog } from './LogCapture.jsx';
 
 const SHORTCUTS = [
@@ -24,6 +27,7 @@ const SHORTCUTS = [
 ];
 
 const SHEET_TITLES = {
+  nutrition: 'Nutrition today',
   add: 'Add food',
   barcode: 'Scan a barcode',
   photo: 'Photo recognition',
@@ -78,6 +82,9 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
   const left = remaining(totals, app);
   const snacks = snackSummary(entries);
   const timing = timingInsight(entries);
+  const alerts = nutrientAlerts(totals, app.targets);
+  const micro = nutrientRows(totals, app.targets)
+    .filter((r) => ['fibre', 'sugar', 'satFat', 'sodium'].includes(r.key));
 
   const open = (id, meal) => {
     setActiveMeal(meal || mealForTime());
@@ -87,9 +94,9 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
   const closeAll = () => { setSheet(null); setPicked(null); setEditing(null); };
 
   const macros = [
-    { label: 'Protein', now: totals.protein, goal: app.proteinGoal, color: 'var(--series-1)' },
-    { label: 'Carbs', now: totals.carbs, goal: app.carbsGoal, color: 'var(--series-3)' },
-    { label: 'Fat', now: totals.fat, goal: app.fatGoal, color: 'var(--series-2)' },
+    { key: 'protein', label: 'Protein', now: totals.protein, goal: app.proteinGoal, color: 'var(--series-1)' },
+    { key: 'carbs', label: 'Carbs', now: totals.carbs, goal: app.carbsGoal, color: 'var(--series-3)' },
+    { key: 'fat', label: 'Fat', now: totals.fat, goal: app.fatGoal, color: 'var(--series-2)' },
   ];
 
   return (
@@ -115,7 +122,9 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
                 <div key={m.label}>
                   <div className="flex justify-between text-[12px] font-bold mb-1">
                     <span>{m.label}</span>
-                    <span style={{ color: 'var(--muted)' }}>{m.now}g / {m.goal}g</span>
+                    <span style={{ color: 'var(--muted)' }}>
+                      {formatAmount(m.key, m.now)} / {formatAmount(m.key, m.goal)}
+                    </span>
                   </div>
                   <Meter value={m.now} max={m.goal} color={m.color} height={5} />
                 </div>
@@ -127,6 +136,24 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
               ? `${left.kcal.toLocaleString()} kcal left today · ${left.protein}g protein to go`
               : `${Math.abs(left.kcal).toLocaleString()} kcal over your goal`}
           </p>
+
+          {/* Beyond the macros — the rest of what today added up to */}
+          <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: 'var(--line)' }}>
+            {micro.map((row) => (
+              <Pill key={row.key} tone={row.tone === 'faint' ? 'muted' : row.tone}>
+                {row.label} {formatAmount(row.key, row.value)}
+              </Pill>
+            ))}
+          </div>
+          <button
+            onClick={() => setSheet('nutrition')}
+            className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+            style={{ borderColor: 'var(--line)' }}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Activity size={14} /> All 24 nutrients{alerts.over.length ? ` · ${alerts.over.length} over limit` : ''}
+            </span>
+          </button>
         </Card>
       </div>
 
@@ -242,6 +269,53 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
         </Card>
       </div>
 
+      {/* Water, caffeine, alcohol */}
+      <Section className="rise rise-4">
+        <Card>
+          <div className="flex items-baseline justify-between">
+            <p className="text-[12px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+              <Droplet size={12} /> Water
+            </p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.hydration.total.toLocaleString()} / {app.targets.water.toLocaleString()} ml
+            </p>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Water glasses">
+            {Array.from({ length: 8 }, (_, i) => {
+              const on = i < app.water;
+              return (
+                <button
+                  key={i}
+                  onClick={() => app.set({ water: i + 1 === app.water ? i : i + 1 })}
+                  className="press"
+                  style={{ color: on ? 'var(--accent)' : 'var(--line)' }}
+                  aria-label={`Glass ${i + 1}`}
+                >
+                  <Droplet size={18} fill={on ? 'currentColor' : 'none'} />
+                </button>
+              );
+            })}
+            <button
+              onClick={() => app.addWaterMl(500)}
+              className="press ml-1 rounded-full border px-2.5 text-[11.5px] font-extrabold"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              +500 ml
+            </button>
+          </div>
+          <div className="mt-2.5"><Meter value={app.hydration.total} max={app.targets.water} height={5} /></div>
+          <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: 'var(--line)' }}>
+            <Pill tone={totals.caffeine > app.targets.caffeine ? 'danger' : 'muted'}>
+              Caffeine {formatAmount('caffeine', totals.caffeine)}
+            </Pill>
+            <Pill tone={totals.alcohol > app.targets.alcohol ? 'warn' : 'muted'}>
+              Alcohol {alcoholUnits(totals.alcohol)} units
+            </Pill>
+            <Pill tone="muted">{app.hydration.fromDrinks.toLocaleString()} ml from food & drink</Pill>
+          </div>
+        </Card>
+      </Section>
+
       <Section className="rise rise-4">
         <button
           onClick={() => open('import')}
@@ -274,6 +348,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
         {sheet === 'voice' && <VoiceLog defaultMeal={activeMeal} onDone={closeAll} />}
         {sheet === 'import' && <RecipeImport defaultMeal={activeMeal} onDone={closeAll} />}
         {sheet === 'copy' && <CopyMeal defaultMeal={activeMeal} initialMode={copyMode} onDone={closeAll} />}
+        {sheet === 'nutrition' && <NutritionPanel />}
       </Sheet>
 
       {/* Portion + timing for a newly picked food */}

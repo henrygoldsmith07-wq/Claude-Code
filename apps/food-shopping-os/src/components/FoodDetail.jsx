@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Check, Heart, Scale, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Heart, Scale, Trash2 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { cx } from '../lib/utils.js';
+import { NUTRIENTS, formatAmount } from '../data/nutrients.js';
 import { MEALS, entryMacros, mealForTime, scale, servingOptions, timeStamp } from '../lib/nutrition.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
 import { Glyph } from './icons.jsx';
@@ -25,9 +26,9 @@ export const MacroSummary = ({ macros, size = 'lg' }) => (
       <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal</p>
     </div>
     <div className="flex gap-4 text-right">
-      {[['Protein', macros.protein], ['Carbs', macros.carbs], ['Fat', macros.fat]].map(([label, v]) => (
+      {[['Protein', 'protein'], ['Carbs', 'carbs'], ['Fat', 'fat']].map(([label, key]) => (
         <div key={label}>
-          <p className="text-[15px] font-extrabold leading-none">{v}g</p>
+          <p className="text-[15px] font-extrabold leading-none">{formatAmount(key, macros[key])}</p>
           <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
         </div>
       ))}
@@ -81,6 +82,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
   const [meal, setMeal] = useState(entry?.meal || defaultMeal || mealForTime());
   const [time, setTime] = useState(entry?.time || timeStamp());
   const [quick, setQuick] = useState(() => ({ ...(entry?.nutrients || { kcal: 0, protein: 0, carbs: 0, fat: 0 }) }));
+  const [showAll, setShowAll] = useState(false);
 
   const unit = source?.unit || 'g';
   const fav = app.favouriteFoods.includes(source?.id);
@@ -146,9 +148,30 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
       <Card>
         <MacroSummary macros={macros} />
         {!isQuick && (
-          <p className="mt-3 pt-3 border-t text-[12px] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
-            {grams} {unit} · fibre {macros.fibre}g
-          </p>
+          <>
+            <p className="mt-3 pt-3 border-t text-[12px] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
+              {grams} {unit} · fibre {formatAmount('fibre', macros.fibre)} · sugar {formatAmount('sugar', macros.sugar)}
+              {' '}· sodium {formatAmount('sodium', macros.sodium)}
+            </p>
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="press mt-2 inline-flex items-center gap-1.5 text-[12px] font-bold"
+              style={{ color: 'var(--accent)' }}
+            >
+              {showAll ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {showAll ? 'Hide' : 'All'} nutrients in this portion
+            </button>
+            {showAll && (
+              <div className="mt-2 pt-2 border-t grid grid-cols-2 gap-x-4 gap-y-1" style={{ borderColor: 'var(--line)' }}>
+                {NUTRIENTS.filter((n) => n.key !== 'kcal').map((n) => (
+                  <div key={n.key} className="flex justify-between text-[11.5px]">
+                    <span className="font-semibold truncate" style={{ color: 'var(--muted)' }}>{n.label}</span>
+                    <span className="font-bold tabular-nums shrink-0">{formatAmount(n.key, macros[n.key] || 0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </Card>
 

@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { INTEGRATIONS } from '../data/plan.js';
 import { CATALOGUE } from '../data/foods.js';
+import { DEFAULT_TARGETS, GLASS_ML } from '../data/nutrients.js';
 import { seedLog, SEED_TEMPLATES } from '../data/log-seed.js';
-import { buildEntry, copyEntries, dayTotals, recipeAsFood } from './nutrition.js';
+import { buildEntry, copyEntries, dayTotals, hydration, nutrientCoverage } from './nutrition.js';
+import { recipeFood } from './foodlog.js';
 
 const KEY = 'forq-state-v1';
 
@@ -19,7 +21,7 @@ export const todayStamp = () => new Date().toISOString().slice(0, 10);
  * simply starts with an empty diary.
  */
 export const rolloverDay = (state, today = todayStamp()) =>
-  state.day === today ? state : { ...state, day: today, water: 0, cookedToday: false };
+  state.day === today ? state : { ...state, day: today, water: 0, waterExtraMl: 0, cookedToday: false };
 
 /** A logged entry, re-read as a catalogue food (recents survive edits). */
 export const foodFromEntry = (e) => ({
@@ -58,7 +60,8 @@ const DEFAULTS = {
   day: todayStamp(),
   weeklyBudget: 65,
   spentBase: 41.2, // spent earlier this week, before the current trip
-  water: 4,
+  water: 4, // glasses tapped on the tracker
+  waterExtraMl: 0, // bottles/refills added by hand
   checked: [], // shopping list item ids ticked off
   extraItems: [], // items added from recipes/planner: {id,name,emoji,aisle,qty,price,cheapest}
   xp: 1240,
@@ -74,10 +77,8 @@ const DEFAULTS = {
   favouriteFoods: ['porridge-oats', 'chicken-breast', 'greek-yogurt'],
   customFoods: [],
   mealTemplates: SEED_TEMPLATES,
-  kcalGoal: 2200,
-  proteinGoal: 130,
-  carbsGoal: 250,
-  fatGoal: 75,
+  /** Daily targets for all 24 tracked nutrients; any of them is editable. */
+  targets: DEFAULT_TARGETS,
 };
 
 const load = () => {
@@ -88,6 +89,7 @@ const load = () => {
       ...stored,
       integrations: { ...DEFAULTS.integrations, ...(stored.integrations || {}) },
       log: stored.log || DEFAULTS.log,
+      targets: { ...DEFAULT_TARGETS, ...(stored.targets || {}) },
     };
     if (!ACCENT_IDS.includes(state.accent)) state.accent = DEFAULTS.accent;
     return rolloverDay(state);
@@ -129,6 +131,11 @@ export function AppProvider({ children }) {
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),
+      /** Anything drunk outside the eight glasses — bottles, refills, a jug. */
+      addWaterMl: (ml) => set((s) => ({ waterExtraMl: Math.max(0, s.waterExtraMl + ml) })),
+      setTarget: (key, value) =>
+        set((s) => ({ targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) } })),
+      resetTargets: () => set({ targets: DEFAULT_TARGETS }),
       toggleChecked: (id) =>
         set((s) => ({
           checked: s.checked.includes(id) ? s.checked.filter((x) => x !== id) : [...s.checked, id],
@@ -211,7 +218,7 @@ export function AppProvider({ children }) {
 
       completeRecipe: (recipe) =>
         set((s) => {
-          const entry = buildEntry(recipeAsFood(recipe), { source: 'recipe' });
+          const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           return {
             cooked: s.cooked.includes(recipe.id) ? s.cooked : [...s.cooked, recipe.id],
             xp: s.xp + 60,
@@ -228,6 +235,7 @@ export function AppProvider({ children }) {
     const catalogue = [...CATALOGUE, ...state.customFoods];
     const entries = state.log[state.day] || [];
     const totals = dayTotals(entries);
+    const glasses = state.water + state.waterExtraMl / GLASS_ML;
     return {
       catalogue,
       entries,
@@ -237,11 +245,18 @@ export function AppProvider({ children }) {
       carbsToday: totals.carbs,
       fatToday: totals.fat,
       fibreToday: totals.fibre,
+      // Legacy goal names, now views onto `targets`.
+      kcalGoal: state.targets.kcal,
+      proteinGoal: state.targets.protein,
+      carbsGoal: state.targets.carbs,
+      fatGoal: state.targets.fat,
+      coverage: nutrientCoverage(entries),
+      hydration: hydration(totals, glasses),
       recentFoods: recentFoodsFrom(state.log, catalogue),
       entriesFor: (date) => state.log[date] || [],
       kcalFor: (date) => dayTotals(state.log[date] || []).kcal,
     };
-  }, [state.log, state.day, state.customFoods]);
+  }, [state.log, state.day, state.customFoods, state.targets, state.water, state.waterExtraMl]);
 
   const value = useMemo(() => ({ ...state, ...derived, ...api }), [state, derived, api]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
