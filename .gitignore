@@ -44,3 +44,6 @@ coverage/
 # Claude / local
 .claude/settings.local.json
 *.tsbuildinfo
+
+# claude-flow hook telemetry inside apps
+apps/*/.claude-flow/
