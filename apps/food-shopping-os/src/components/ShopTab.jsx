@@ -1,42 +1,161 @@
 import { useMemo, useState } from 'react';
-import { Check, Coins, CreditCard, Play, ShoppingCart, Star, Store, Tag, Ticket, TrendingUp, TriangleAlert, X } from 'lucide-react';
+import {
+  Check, Play, Plus, Receipt, ShoppingCart, Trash2, TrendingUp, TriangleAlert, X,
+} from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
-import { gbp, cx } from '../lib/utils.js';
-import { STORES, AISLE_ORDER, PRICE_HISTORY, fullList, totalOf, checkedTotalOf } from '../data/stores.js';
-import { Section, Card, Pill, Sparkline, Meter, Chip } from './ui.jsx';
+import { gbp, cx, prettyDate } from '../lib/utils.js';
+import { COMMON_STORES, checkedTotalOf, groupByAisle, guessAisle, totalOf } from '../data/stores.js';
+import { priceHistory, spentInWeek } from '../lib/kitchen.js';
+import { Section, Card, Sparkline, Meter, Chip, Sheet } from './ui.jsx';
+import { NumberField } from './FoodDetail.jsx';
 
-const VERDICT = {
-  buy: { label: 'Buy now', tone: 'good' },
-  wait: { label: 'Wait', tone: 'warn' },
-  hold: { label: 'Stable', tone: 'muted' },
-};
+/* ---------- Add an item ---------- */
+
+function AddItem({ onAdd }) {
+  const [name, setName] = useState('');
+  const [qty, setQty] = useState('');
+  const [price, setPrice] = useState('');
+
+  const submit = () => {
+    if (name.trim().length < 2) return;
+    onAdd({ name: name.trim(), qty: qty.trim(), price: Number(price) || 0, aisle: guessAisle(name) });
+    setName(''); setQty(''); setPrice('');
+  };
+
+  return (
+    <Card className="space-y-2.5">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && submit()}
+        placeholder="Add to the list…"
+        aria-label="Item name"
+        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+        style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+      />
+      <div className="grid grid-cols-2 gap-2.5">
+        <label className="block">
+          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
+          <input
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            placeholder="2, 500 g…"
+            aria-label="Amount"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+          />
+        </label>
+        <NumberField label="Price each" value={price} onChange={setPrice} suffix="£" step={0.5} />
+      </div>
+      <button
+        onClick={submit}
+        disabled={name.trim().length < 2}
+        className="press w-full rounded-2xl py-2.5 text-[13.5px] font-extrabold disabled:opacity-40"
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+      >
+        <span className="inline-flex items-center gap-1.5"><Plus size={15} /> Add item</span>
+      </button>
+    </Card>
+  );
+}
+
+/* ---------- Record what a trip cost ---------- */
+
+function FinishShop({ items, onDone }) {
+  const app = useApp();
+  const suggested = checkedTotalOf(items);
+  const [store, setStore] = useState('');
+  const [total, setTotal] = useState(suggested ? suggested.toFixed(2) : '');
+  const [toPantry, setToPantry] = useState(true);
+
+  return (
+    <div className="px-5 pb-10 space-y-4">
+      <Card>
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ticked off</p>
+        <p className="text-[26px] font-extrabold">{items.filter((i) => i.checked).length} items</p>
+        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          Estimated {gbp(suggested, { always: true })} — put in what you actually paid.
+        </p>
+      </Card>
+
+      <label className="block">
+        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where</span>
+        <input
+          value={store}
+          onChange={(e) => setStore(e.target.value)}
+          placeholder="Shop name"
+          aria-label="Shop name"
+          className="mt-1 w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+        />
+      </label>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
+        {COMMON_STORES.map((s) => (
+          <Chip key={s} active={store === s} onClick={() => setStore(s)}>{s}</Chip>
+        ))}
+      </div>
+
+      <NumberField label="Total paid" value={total} onChange={setTotal} suffix="£" step={1} />
+
+      <button
+        onClick={() => setToPantry((v) => !v)}
+        className="press w-full flex items-center gap-3 rounded-2xl border p-3.5 text-left"
+        style={{ borderColor: toPantry ? 'var(--accent)' : 'var(--line)' }}
+      >
+        <span
+          className="flex h-6 w-6 items-center justify-center rounded-full border-2 shrink-0"
+          style={toPantry
+            ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
+            : { borderColor: 'var(--line)', color: 'transparent' }}
+        >
+          <Check size={13} strokeWidth={3} />
+        </span>
+        <span>
+          <span className="block font-bold text-[14px]">Put these in the pantry</span>
+          <span className="block text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            You can add use-by dates afterwards.
+          </span>
+        </span>
+      </button>
+
+      <button
+        onClick={() => { app.recordShop({ store, total, toPantry }); onDone(); }}
+        className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+      >
+        <span className="inline-flex items-center gap-2"><Receipt size={16} /> Record this shop</span>
+      </button>
+    </div>
+  );
+}
+
+/* ---------- Tab ---------- */
 
 export default function ShopTab() {
   const app = useApp();
-  const [view, setView] = useState('list'); // list | stores | prices
+  const [view, setView] = useState('list'); // list | history | prices
   const [shoppingMode, setShoppingMode] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
-  const list = useMemo(() => fullList(app.extraItems), [app.extraItems]);
-  const grouped = useMemo(() => {
-    const map = new Map();
-    for (const aisle of AISLE_ORDER) map.set(aisle, []);
-    for (const item of list) map.get(item.aisle)?.push(item);
-    return [...map.entries()].filter(([, items]) => items.length);
-  }, [list]);
+  const list = app.shoppingList;
+  const grouped = useMemo(() => groupByAisle(list), [list]);
+  const prices = useMemo(() => priceHistory(app.shops), [app.shops]);
 
   const total = totalOf(list);
-  const checkedTotal = checkedTotalOf(list, app.checked);
-  const remaining = list.length - list.filter((i) => app.checked.includes(i.id)).length;
-  const allowance = app.weeklyBudget - app.spentBase; // budget left for this trip
-  const overBudget = total > allowance;
+  const checkedTotal = checkedTotalOf(list);
+  const ticked = list.filter((i) => i.checked).length;
+  const spent = spentInWeek(app.shops, app.day);
+  const allowance = Math.max(0, app.weeklyBudget - spent);
+  const overBudget = app.weeklyBudget > 0 && total > allowance;
 
   return (
     <div className="pb-6 space-y-6">
       <div className="hero-gradient px-5 pt-14 pb-3">
         <h1 className="text-[26px] font-extrabold tracking-tight rise">Shop</h1>
         <div className="mt-3 flex gap-2 rise rise-1">
-          {[['list', 'List', ShoppingCart], ['stores', 'Stores', Store], ['prices', 'Prices', TrendingUp]].map(([k, label, Icon]) => (
+          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
             </Chip>
@@ -46,7 +165,6 @@ export default function ShopTab() {
 
       {view === 'list' && (
         <>
-          {/* Basket summary */}
           <Section className="rise rise-1">
             <Card>
               <div className="flex items-center justify-between">
@@ -56,12 +174,17 @@ export default function ShopTab() {
                   </p>
                   <p className="text-[24px] font-extrabold">
                     {gbp(shoppingMode ? checkedTotal : total, { always: true })}
-                    {shoppingMode && <span className="text-[13px] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>of {gbp(total, { always: true })}</span>}
+                    {shoppingMode && (
+                      <span className="text-[13px] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
+                        of {gbp(total, { always: true })}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
                   onClick={() => setShoppingMode(!shoppingMode)}
-                  className="press rounded-2xl px-4 py-2.5 text-[13px] font-extrabold"
+                  disabled={!list.length}
+                  className="press rounded-2xl px-4 py-2.5 text-[13px] font-extrabold disabled:opacity-40"
                   style={shoppingMode
                     ? { background: 'var(--card-2)', color: 'var(--ink)' }
                     : { background: 'var(--accent)', color: 'var(--on-accent)' }}
@@ -71,179 +194,208 @@ export default function ShopTab() {
                   </span>
                 </button>
               </div>
-              <div className="mt-3">
-                <Meter value={shoppingMode ? checkedTotal : total} max={allowance} color={overBudget ? 'var(--warn)' : 'var(--accent)'} />
-                <div className="mt-1.5 flex items-center justify-between text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
-                  <span>{list.length - remaining} of {list.length} items ticked</span>
-                  <span className="inline-flex items-center gap-1" style={overBudget ? { color: 'var(--warn)', fontWeight: 700 } : {}}>
-                    {overBudget && <TriangleAlert size={12} />}
-                    {overBudget ? gbp(total - allowance, { always: true }) + ' over budget' : gbp(allowance - total, { always: true }) + ' headroom'}
+
+              {app.weeklyBudget > 0 ? (
+                <div className="mt-3">
+                  <Meter value={spent + (shoppingMode ? checkedTotal : total)} max={app.weeklyBudget} color={overBudget ? 'var(--warn)' : 'var(--accent)'} />
+                  <div className="mt-1.5 flex items-center justify-between text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <span>{gbp(spent, { always: true })} spent this week</span>
+                    <span className="inline-flex items-center gap-1" style={overBudget ? { color: 'var(--warn)', fontWeight: 700 } : {}}>
+                      {overBudget && <TriangleAlert size={12} />}
+                      {overBudget
+                        ? `${gbp(total - allowance, { always: true })} over budget`
+                        : `${gbp(allowance - total, { always: true })} headroom`}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Set a weekly budget in your profile to see headroom here.
+                </p>
+              )}
+
+              {ticked > 0 && (
+                <button
+                  onClick={() => setFinishing(true)}
+                  className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+                  style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Receipt size={14} /> Finish shop · {ticked} item{ticked === 1 ? '' : 's'}
                   </span>
-                </div>
-              </div>
-              {shoppingMode && (
-                <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: 'var(--line)' }}>
-                  <span className="pulse-dot inline-block h-2 w-2 rounded-full" style={{ background: 'var(--accent)' }} />
-                  <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-                    Route: {AISLE_ORDER.slice(0, 4).join(' → ')} … · Aldi, Riverside Retail Park
-                  </p>
-                </div>
+                </button>
               )}
             </Card>
           </Section>
 
-          {/* Perks strip */}
-          <div className="px-5 -mt-2 flex gap-2 overflow-x-auto no-scrollbar rise rise-2">
-            <Pill tone="accent"><CreditCard size={12} /> Clubcard linked</Pill>
-            <Pill tone="good"><Tag size={12} /> 4 items on offer</Pill>
-            <Pill tone="muted"><Ticket size={12} /> 2 coupons ready</Pill>
-            <Pill tone="muted"><Coins size={12} /> £1.20 cashback</Pill>
-          </div>
+          <Section className="rise rise-2">
+            <button
+              onClick={() => setAdding((v) => !v)}
+              className="press w-full rounded-2xl border py-3 text-[13.5px] font-extrabold mb-3"
+              style={adding ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {adding ? <><X size={14} /> Close</> : <><Plus size={15} /> Add an item</>}
+              </span>
+            </button>
+            {adding && <AddItem onAdd={(item) => app.addToList(item)} />}
+          </Section>
 
-          {/* Aisle-grouped checklist */}
-          <Section className="rise rise-2" title={shoppingMode ? `${remaining} items to go` : 'This week’s list'}>
-            <div className="space-y-4">
-              {grouped.map(([aisle, items]) => {
-                const allDone = items.every((i) => app.checked.includes(i.id));
-                return (
-                  <div key={aisle}>
-                    <p className="mb-2 text-[12px] font-bold uppercase tracking-wide flex items-center gap-2" style={{ color: allDone ? 'var(--good)' : 'var(--faint)' }}>
-                      {aisle} {allDone && '✓'}
-                    </p>
-                    <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
-                      {items.map((item) => {
-                        const done = app.checked.includes(item.id);
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => app.toggleChecked(item.id)}
-                            className="press w-full flex items-center gap-3 p-3 text-left"
-                            style={{ borderColor: 'var(--line)' }}
-                          >
-                            <span
-                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 shrink-0 transition-colors"
-                              style={done
+          {list.length === 0 ? (
+            <Section className="rise rise-2">
+              <Card className="text-center py-10">
+                <ShoppingCart size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+                <p className="font-bold">Nothing on the list yet</p>
+                <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Add items here, send a recipe's missing ingredients over from a recipe page,
+                  or flag something as running low in your pantry.
+                </p>
+              </Card>
+            </Section>
+          ) : (
+            <Section className="rise rise-2" title={shoppingMode ? `${list.length - ticked} items to go` : 'Your list'}>
+              <div className="space-y-4">
+                {grouped.map(([aisle, items]) => {
+                  const allDone = items.every((i) => i.checked);
+                  return (
+                    <div key={aisle}>
+                      <p className="mb-2 text-[12px] font-bold uppercase tracking-wide flex items-center gap-2" style={{ color: allDone ? 'var(--good)' : 'var(--faint)' }}>
+                        {aisle} {allDone && '✓'}
+                      </p>
+                      <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+                        {items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
+                            <button
+                              onClick={() => app.toggleChecked(item.id)}
+                              aria-label={`Tick ${item.name}`}
+                              className="press flex h-6 w-6 items-center justify-center rounded-full border-2 shrink-0"
+                              style={item.checked
                                 ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
                                 : { borderColor: 'var(--line)', color: 'transparent' }}
                             >
                               <Check size={13} strokeWidth={3} />
-                            </span>
+                            </button>
                             <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
-                            <span className="min-w-0 flex-1">
-                              <span className={cx('block font-bold text-[14px] truncate', done && 'line-through opacity-45')}>
-                                {item.name} <span className="font-semibold text-[12px]" style={{ color: 'var(--muted)' }}>· {item.qty}</span>
-                              </span>
-                              <span className="block text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-                                Cheapest at {item.cheapest}
-                                {item.alt && ` · ${item.alt.store} ${gbp(item.alt.price, { always: true })}`}
-                              </span>
-                            </span>
-                            <span className="text-right shrink-0">
-                              <span className={cx('block font-extrabold text-[14px]', done && 'opacity-45')}>{gbp(item.price, { always: true })}</span>
-                              {item.sale && <Pill tone="good">offer</Pill>}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </Card>
-                  </div>
-                );
-              })}
-            </div>
-          </Section>
+                            <div className="min-w-0 flex-1">
+                              <p className={cx('font-bold text-[14px] truncate', item.checked && 'line-through opacity-45')}>
+                                {item.name}
+                                {item.qty && <span className="font-semibold text-[12px]" style={{ color: 'var(--muted)' }}> · {item.qty}</span>}
+                              </p>
+                              {item.fromRecipe && (
+                                <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>
+                                  for {item.fromRecipe}
+                                </p>
+                              )}
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.25"
+                              value={item.price || ''}
+                              onChange={(e) => app.updateListItem(item.id, { price: Number(e.target.value) || 0 })}
+                              placeholder="£"
+                              aria-label={`Price of ${item.name}`}
+                              className="w-16 shrink-0 rounded-xl border px-2 py-1.5 text-[13px] font-bold text-right outline-none"
+                              style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+                            />
+                            <button
+                              onClick={() => app.removeListItem(item.id)}
+                              aria-label={`Remove ${item.name}`}
+                              className="press p-1 shrink-0"
+                              style={{ color: 'var(--faint)' }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ))}
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
         </>
       )}
 
-      {view === 'stores' && (
-        <Section className="rise rise-1" title="Store profiles">
-          <div className="space-y-3">
-            {STORES.map((s) => (
-              <Card key={s.id}>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-extrabold text-white shrink-0"
-                    style={{ background: s.tone }}
-                  >
-                    {s.initial}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-extrabold text-[15px]">{s.name}</p>
-                      <Pill tone="muted"><Star size={11} fill="currentColor" /> {s.rating}</Pill>
-                    </div>
+      {view === 'history' && (
+        <Section className="rise rise-1" title="Shops you’ve recorded">
+          {app.shops.length === 0 ? (
+            <Card className="text-center py-10">
+              <Receipt size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+              <p className="font-bold">No shops recorded</p>
+              <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Tick items off as you shop, then hit “Finish shop”. Spending, budget streaks
+                and price trends all come from these.
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              {[...app.shops].reverse().map((s) => (
+                <Card key={s.id} className="flex items-center justify-between !p-3.5">
+                  <div className="min-w-0">
+                    <p className="font-bold text-[14.5px] truncate">{s.store}</p>
                     <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
-                      {s.hours} · {s.delivery}
+                      {prettyDate(s.date)} · {s.items.length} item{s.items.length === 1 ? '' : 's'}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[11px] font-bold uppercase" style={{ color: 'var(--faint)' }}>Basket index</p>
-                    <p className="font-extrabold text-[16px]" style={{ color: s.basketIndex < 90 ? 'var(--good)' : s.basketIndex > 100 ? 'var(--warn)' : 'var(--ink)' }}>
-                      {s.basketIndex}
-                    </p>
-                  </div>
-                </div>
-                {s.loyalty && (
-                  <p className="mt-2 text-[12px] font-bold flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
-                    <CreditCard size={13} /> {s.loyalty} · {s.points.toLocaleString()} points
-                  </p>
-                )}
-                <div className="mt-3 pt-3 border-t space-y-1.5" style={{ borderColor: 'var(--line)' }}>
-                  {s.offers.map((o) => (
-                    <div key={o.item} className="flex items-center justify-between text-[13px]">
-                      <span className="font-semibold truncate">{o.item}</span>
-                      <span className="shrink-0 ml-2">
-                        <span className="font-extrabold" style={{ color: 'var(--good)' }}>{o.deal}</span>
-                        {o.was && <span className="ml-1.5 line-through text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>{gbp(o.was, { always: true })}</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            ))}
-            <p className="text-[12px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
-              Basket index: your usual weekly basket priced per store (Tesco = 100).
-            </p>
-          </div>
+                  <p className="font-extrabold text-[16px] shrink-0">{gbp(s.total, { always: true })}</p>
+                </Card>
+              ))}
+            </div>
+          )}
         </Section>
       )}
 
       {view === 'prices' && (
-        <Section className="rise rise-1" title="Price intelligence">
-          <p className="-mt-1 mb-3 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
-            12-week trends for your staples, with AI buy/wait calls.
-          </p>
-          <div className="space-y-3">
-            {PRICE_HISTORY.map((p) => {
-              const current = p.points[p.points.length - 1];
-              const prev = p.points[p.points.length - 2];
-              const delta = current - prev;
-              const v = VERDICT[p.advice.verdict];
-              return (
-                <Card key={p.id}>
+        <Section className="rise rise-1" title="What you actually pay">
+          {prices.length === 0 ? (
+            <Card className="text-center py-10">
+              <TrendingUp size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+              <p className="font-bold">No price history yet</p>
+              <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Put prices against items as you shop and Forq tracks what each one costs you
+                over time — including where it was cheapest.
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {prices.map((p) => (
+                <Card key={p.name}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-extrabold text-[14.5px] flex items-center gap-1.5">
                         <Glyph e={p.emoji} size={15} style={{ color: 'var(--muted)' }} /> {p.name}
                       </p>
                       <p className="text-[13px] font-bold mt-0.5">
-                        {(current / 100).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })}
-                        <span className="ml-1.5 text-[11.5px] font-bold" style={{ color: delta > 0 ? 'var(--danger)' : delta < 0 ? 'var(--good)' : 'var(--faint)' }}>
-                          {delta > 0 ? `▲ ${delta}p` : delta < 0 ? `▼ ${-delta}p` : '· flat'}
-                        </span>
+                        {gbp(p.latest, { always: true })}
+                        {p.change !== null && (
+                          <span
+                            className="ml-1.5 text-[11.5px] font-bold"
+                            style={{ color: p.change > 0 ? 'var(--danger)' : p.change < 0 ? 'var(--good)' : 'var(--faint)' }}
+                          >
+                            {p.change > 0 ? `▲ ${gbp(p.change, { always: true })}` : p.change < 0 ? `▼ ${gbp(-p.change, { always: true })}` : '· flat'}
+                          </span>
+                        )}
                       </p>
                     </div>
-                    <Sparkline points={p.points} color={delta > 0 ? 'var(--series-2)' : 'var(--series-1)'} />
+                    {p.prices.length > 1 && <Sparkline points={p.prices} />}
                   </div>
-                  <div className="mt-2.5 flex items-start gap-2">
-                    <Pill tone={v.tone}>{v.label}</Pill>
-                    <p className="text-[12.5px] font-semibold leading-snug flex-1" style={{ color: 'var(--muted)' }}>{p.advice.text}</p>
-                  </div>
+                  <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {p.times === 1
+                      ? 'Bought once — buy it again to see a trend.'
+                      : `Bought ${p.times} times · cheapest ${gbp(p.best, { always: true })}${p.bestStore ? ` at ${p.bestStore}` : ''}`}
+                  </p>
                 </Card>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </Section>
       )}
+
+      <Sheet open={finishing} onClose={() => setFinishing(false)} title="Finish shop">
+        <FinishShop items={list} onDone={() => { setFinishing(false); setShoppingMode(false); }} />
+      </Sheet>
     </div>
   );
 }

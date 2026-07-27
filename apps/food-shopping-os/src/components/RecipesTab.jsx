@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Flame, Heart, Star, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { Glyph } from './icons.jsx';
 import { gbp } from '../lib/utils.js';
 import { DISCOVER_FILTERS, filterRecipes, RECIPES } from '../data/recipes.js';
 import { Section, Card, Chip, Pill, FoodArt } from './ui.jsx';
@@ -10,6 +9,7 @@ export default function RecipesTab({ openRecipe }) {
   const app = useApp();
   const [filter, setFilter] = useState('Trending');
   const [query, setQuery] = useState('');
+  const favourites = app.favourites.map((id) => RECIPES.find((r) => r.id === id)).filter(Boolean);
 
   // Search spans the whole catalogue; the chip filter only applies when not searching.
   const recipes = useMemo(() => {
@@ -100,26 +100,24 @@ export default function RecipesTab({ openRecipe }) {
         )}
       </Section>
 
-      {/* Community strip */}
-      <Section title="Community" className="mt-6 rise rise-3">
-        <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-5 px-5">
-          {[
-            { emoji: '🧑‍🍳', name: 'Chef Rosa', sub: '12.4k followers · Italian', cta: 'Follow' },
-            { emoji: '🥦', name: 'Dr. Green, RD', sub: 'Dietitian · meal plans', cta: 'Follow' },
-            { emoji: '🏆', name: 'July challenge', sub: '£1-per-portion dinners', cta: 'Join' },
-            { emoji: '📸', name: 'Photo wall', sub: '318 cooks this week', cta: 'Browse' },
-          ].map((c) => (
-            <Card key={c.name} className="w-[190px] shrink-0 text-center !py-5">
-              <Glyph e={c.emoji} size={26} className="mx-auto" style={{ color: 'var(--muted)' }} />
-              <p className="mt-1.5 font-bold text-[14px]">{c.name}</p>
-              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{c.sub}</p>
-              <button className="press mt-2.5 rounded-full px-4 py-1.5 text-[12px] font-extrabold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}>
-                {c.cta}
-              </button>
-            </Card>
-          ))}
-        </div>
-      </Section>
+      {/* Your favourites, once you've starred some */}
+      {favourites.length > 0 && !query && (
+        <Section title="Your favourites" className="mt-6 rise rise-3">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-5 px-5">
+            {favourites.map((r) => (
+              <Card key={r.id} onClick={() => openRecipe(r)} className="w-[190px] shrink-0 !p-0 overflow-hidden">
+                <FoodArt recipe={r} className="h-24 w-full" px={34} />
+                <div className="p-3">
+                  <p className="font-bold text-[13.5px] leading-tight line-clamp-2">{r.name}</p>
+                  <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
+                  </p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      )}
     </div>
   );
 }

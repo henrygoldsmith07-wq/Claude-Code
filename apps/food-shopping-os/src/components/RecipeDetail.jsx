@@ -49,7 +49,10 @@ export default function RecipeDetail({ recipe, onClose }) {
   const [timers, setTimers] = useState({}); // step index -> {left, running}
   const [addedMissing, setAddedMissing] = useState(false);
   const fav = app.favourites.includes(recipe.id);
-  const missing = recipe.ingredients.filter((i) => !i.pantry);
+  // What you have is read from your actual pantry, by name.
+  const pantryNames = app.pantry.map((p) => p.name.toLowerCase());
+  const has = (ing) => pantryNames.some((n) => n.includes(ing.name.toLowerCase()) || ing.name.toLowerCase().includes(n));
+  const missing = recipe.ingredients.filter((i) => !has(i));
   const havePantry = recipe.ingredients.length - missing.length;
 
   // One interval drives every step timer, so timers survive step navigation.
@@ -80,7 +83,7 @@ export default function RecipeDetail({ recipe, onClose }) {
   };
 
   const addMissing = () => {
-    app.addToList(itemsFromRecipes([recipe]));
+    app.addToList(itemsFromRecipes([recipe], app.pantry.map((p) => p.name)));
     setAddedMissing(true);
   };
 
@@ -232,8 +235,8 @@ export default function RecipeDetail({ recipe, onClose }) {
           <ul className="space-y-2">
             {recipe.ingredients.map((ing) => (
               <li key={ing.name} className="flex items-center justify-between text-[14px]">
-                <span className={cx('font-semibold inline-flex items-center gap-2', ing.pantry && 'opacity-60')}>
-                  {ing.pantry
+                <span className={cx('font-semibold inline-flex items-center gap-2', has(ing) && 'opacity-60')}>
+                  {has(ing)
                     ? <Check size={14} strokeWidth={3} style={{ color: 'var(--good)' }} />
                     : <ShoppingCart size={14} style={{ color: 'var(--muted)' }} />}
                   {ing.name}
