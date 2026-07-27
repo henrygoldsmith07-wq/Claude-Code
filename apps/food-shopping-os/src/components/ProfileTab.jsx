@@ -2,7 +2,7 @@ import { Banknote, Flame, Recycle } from 'lucide-react';
 import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { BADGES, SPEND_HISTORY, KCAL_WEEK, CUISINE_SPLIT, ANALYTICS_STATS, INTEGRATIONS } from '../data/plan.js';
-import { WEEK_DAYS } from '../data/plan.js';
+import { snackSummary, timingInsight } from '../lib/nutrition.js';
 import { Section, Card, Ring, Pill, Meter, Bars, Toggle } from './ui.jsx';
 
 const ACCENTS = [
@@ -15,6 +15,20 @@ const ACCENTS = [
 
 export default function ProfileTab() {
   const app = useApp();
+  const snacks = snackSummary(app.entries);
+  const timing = timingInsight(app.entries);
+  /* The week chart reads the diary; days before the app was used fall back to
+     the historic series so the chart is never half-empty. */
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const stamp = d.toISOString().slice(0, 10);
+    const logged = app.kcalFor(stamp);
+    return {
+      label: d.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 3),
+      value: logged || KCAL_WEEK[i],
+    };
+  });
   const macros = [
     { label: 'Protein', now: app.proteinToday, goal: app.proteinGoal, color: 'var(--series-1)' },
     { label: 'Carbs', now: app.carbsToday, goal: app.carbsGoal, color: 'var(--series-3)' },
@@ -70,10 +84,10 @@ export default function ProfileTab() {
             </div>
           </div>
           <div className="mt-4 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--line)' }}>
-            <Pill tone="good">Fibre 18g ✓</Pill>
-            <Pill tone="warn">Salt 4.1g — watch</Pill>
-            <Pill tone="muted">Sugar 38g</Pill>
-            <Pill tone="muted">Omega-3 ✓</Pill>
+            <Pill tone={app.fibreToday >= 30 ? 'good' : 'muted'}>Fibre {app.fibreToday}g</Pill>
+            <Pill tone="muted">{app.entries.length} items logged</Pill>
+            <Pill tone={snacks.count > 3 ? 'warn' : 'muted'}>{snacks.count} snacks · {snacks.kcal} kcal</Pill>
+            {timing && <Pill tone="muted">{timing.first}–{timing.last}</Pill>}
             <Pill tone="accent">Nutrition score 84</Pill>
           </div>
         </Card>
@@ -83,11 +97,7 @@ export default function ProfileTab() {
       <Section title="This week" className="rise rise-2">
         <Card>
           <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Calories per day</p>
-          <Bars
-            data={KCAL_WEEK.map((v, i) => ({ label: WEEK_DAYS[i], value: v }))}
-            color="var(--series-2)"
-            format={(v) => v.toLocaleString()}
-          />
+          <Bars data={week} color="var(--series-2)" format={(v) => v.toLocaleString()} />
           <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
             Today is in progress — trending 6% under your weekly goal.
           </p>
