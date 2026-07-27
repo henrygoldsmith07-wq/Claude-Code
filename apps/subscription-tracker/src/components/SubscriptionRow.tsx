@@ -46,7 +46,7 @@ export default function SubscriptionRow({
   const displayCents = showShare ? shareCents : sub.amountCents;
   const savingsCents = annualSwitchSavingsCents(sub.amountCents, sub.billingCycle, sub.yearlyPriceCents);
   const idle = sub.lastUsedDate !== null && daysSince(sub.lastUsedDate) >= 30;
-  const renewalColor = days <= 3 ? "text-red-600 dark:text-red-400" : days <= 7 ? "text-amber-600 dark:text-amber-400" : "";
+  const renewalColor = days <= 3 ? "text-danger" : days <= 7 ? "text-review" : "";
 
   function submitEdit() {
     const cents = Math.round(parseFloat(editValue) * 100);
@@ -57,7 +57,7 @@ export default function SubscriptionRow({
   return (
     <li
       className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm ${
-        sub.active ? "border-zinc-200 dark:border-zinc-800" : "border-zinc-200 opacity-50 dark:border-zinc-800"
+        sub.active ? "border-line" : "border-line opacity-50"
       }`}
     >
       <div className="flex items-start gap-2">
@@ -74,38 +74,38 @@ export default function SubscriptionRow({
             </button>
             {sub.name}{" "}
             {hadPriceHike && (
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-normal text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              <span className="rounded bg-reviewsoft px-1.5 py-0.5 text-xs font-normal text-review">
                 price hike
               </span>
             )}{" "}
             {sub.isTrial && (
-              <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-normal text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+              <span className="rounded bg-speaksoft px-1.5 py-0.5 text-xs font-normal text-speak">
                 trial{sub.trialEndsDate ? ` ends ${sub.trialEndsDate}` : ""}
               </span>
             )}{" "}
             {sub.splitCount > 1 && (
-              <span className="rounded bg-purple-100 px-1.5 py-0.5 text-xs font-normal text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+              <span className="rounded bg-speaksoft px-1.5 py-0.5 text-xs font-normal text-speak">
                 split {sub.splitCount} ways · your share {formatCents(shareCents, sub.currencyCode)}
               </span>
             )}{" "}
             {idle && (
-              <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-normal text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="rounded bg-surface2 px-1.5 py-0.5 text-xs font-normal text-ink2">
                 idle 30+ days
               </span>
             )}
           </span>
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-ink3">
             {sub.category} · {sub.billingCycle} ·{" "}
             <span className={renewalColor}>{days >= 0 ? `renews in ${days}d` : "renewal overdue"}</span>
             {sub.paymentMethod && ` · ${sub.paymentMethod}`}
             {sub.owner && ` · ${sub.owner}`}
           </span>
           {savingsCents > 0 && (
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs text-success">
               Save {formatCents(savingsCents, sub.currencyCode)}/yr switching to the annual plan
             </span>
           )}
-          {sub.notes && <span className="text-xs text-zinc-500">{sub.notes}</span>}
+          {sub.notes && <span className="text-xs text-ink3">{sub.notes}</span>}
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -117,9 +117,9 @@ export default function SubscriptionRow({
               onChange={(e) => setEditValue(e.target.value)}
               type="number"
               step="0.01"
-              className="w-20 rounded border border-zinc-300 px-1.5 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-20 rounded border border-line px-1.5 py-1 text-sm"
             />
-            <button onClick={submitEdit} className="text-xs font-medium text-blue-600 dark:text-blue-400">
+            <button onClick={submitEdit} className="text-xs font-medium text-speak">
               Save
             </button>
           </div>
@@ -129,23 +129,23 @@ export default function SubscriptionRow({
           </button>
         )}
         {sub.cancelUrl && (
-          <a href={sub.cancelUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-zinc-500 hover:underline">
+          <a href={sub.cancelUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-ink3 hover:underline">
             Cancel ↗
           </a>
         )}
-        <button onClick={() => onMarkUsedToday(sub.id)} className="text-xs text-zinc-500 hover:underline">
+        <button onClick={() => onMarkUsedToday(sub.id)} className="text-xs text-ink3 hover:underline">
           Used today
         </button>
-        <button onClick={() => onDuplicate(sub.id)} className="text-xs text-zinc-500 hover:underline">
+        <button onClick={() => onDuplicate(sub.id)} className="text-xs text-ink3 hover:underline">
           Duplicate
         </button>
-        <button onClick={() => onToggleActive(sub.id)} className="text-xs text-zinc-500 hover:underline">
+        <button onClick={() => onToggleActive(sub.id)} className="text-xs text-ink3 hover:underline">
           {sub.active ? "Pause" : "Resume"}
         </button>
-        <button onClick={() => onToggleArchive(sub.id)} className="text-xs text-zinc-500 hover:underline">
+        <button onClick={() => onToggleArchive(sub.id)} className="text-xs text-ink3 hover:underline">
           {sub.archived ? "Unarchive" : "Archive"}
         </button>
-        <button onClick={() => onDelete(sub)} className="text-xs text-red-600 hover:underline dark:text-red-400">
+        <button onClick={() => onDelete(sub)} className="text-xs text-danger hover:underline">
           Delete
         </button>
       </div>

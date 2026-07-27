@@ -15,16 +15,16 @@ export default function AuthForm() {
   const pending = mode === "sign-in" ? signInPending : signUpPending;
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6 rounded-xl border border-zinc-300 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="flex gap-4 border-b border-zinc-200 dark:border-zinc-800">
+    <div className="flex w-full max-w-sm flex-col gap-6 rounded-xl border border-line bg-surface p-6">
+      <div className="flex gap-4 border-b border-line">
         <button
           type="button"
           onClick={() => setMode("sign-in")}
           aria-pressed={mode === "sign-in"}
           className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
             mode === "sign-in"
-              ? "border-zinc-900 dark:border-zinc-100"
-              : "border-transparent text-zinc-500 dark:text-zinc-400"
+              ? "border-line"
+              : "border-transparent text-ink3"
           }`}
         >
           Sign in
@@ -35,8 +35,8 @@ export default function AuthForm() {
           aria-pressed={mode === "sign-up"}
           className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
             mode === "sign-up"
-              ? "border-zinc-900 dark:border-zinc-100"
-              : "border-transparent text-zinc-500 dark:text-zinc-400"
+              ? "border-line"
+              : "border-transparent text-ink3"
           }`}
         >
           Create account
@@ -51,7 +51,7 @@ export default function AuthForm() {
               name="displayName"
               type="text"
               autoComplete="name"
-              className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded border border-line px-3 py-2 text-sm"
             />
           </label>
         )}
@@ -62,7 +62,7 @@ export default function AuthForm() {
             type="email"
             required
             autoComplete="email"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-line px-3 py-2 text-sm"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -73,12 +73,12 @@ export default function AuthForm() {
             required
             minLength={6}
             autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded border border-line px-3 py-2 text-sm"
           />
         </label>
 
         {state.error && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {state.error}
           </p>
         )}
@@ -86,7 +86,7 @@ export default function AuthForm() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-onaccent disabled:opacity-40"
         >
           {pending ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
         </button>

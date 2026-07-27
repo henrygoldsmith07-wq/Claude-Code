@@ -61,13 +61,13 @@ export default function StudyRoomPanel({ userId, displayName }: Props) {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="rounded-xl border border-line bg-surface p-4">
         <p className="text-sm font-medium">
           Studying now
-          <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-emerald-500 align-middle" />
+          <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-success align-middle" />
         </p>
         {online.length === 0 ? (
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-xs text-ink3">
             You&apos;re the first one here — invite a friend to study alongside you.
           </p>
         ) : (
@@ -75,7 +75,7 @@ export default function StudyRoomPanel({ userId, displayName }: Props) {
             {online.map((name, i) => (
               <li
                 key={`${name}-${i}`}
-                className="rounded-full border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-700"
+                className="rounded-full border border-line px-3 py-1 text-xs"
               >
                 {name}
               </li>
@@ -84,19 +84,19 @@ export default function StudyRoomPanel({ userId, displayName }: Props) {
         )}
       </div>
 
-      <div className="rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="rounded-xl border border-line bg-surface p-4">
         <p className="text-sm font-medium">Leaderboard</p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-ink3">
           Friendly XP standings — a nudge to keep going, not a ranking to stress over.
         </p>
         <ol className="mt-3 flex flex-col gap-1.5">
           {leaderboard.map((entry, i) => (
             <li key={i} className="flex items-center justify-between gap-3 text-sm">
               <span className="flex items-center gap-2">
-                <span className="w-5 text-right text-xs text-zinc-400">{i + 1}</span>
+                <span className="w-5 text-right text-xs text-ink3">{i + 1}</span>
                 {entry.display_name}
               </span>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-xs text-ink3">
                 {entry.xp} XP · {entry.current_streak}🔥
               </span>
             </li>

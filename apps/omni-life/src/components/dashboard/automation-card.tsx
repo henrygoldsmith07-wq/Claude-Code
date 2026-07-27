@@ -18,7 +18,7 @@ export default function AutomationCard({ logs }: AutomationCardProps) {
   ];
 
   return (
-    <Card className="bg-gray-900 border-gray-800 text-white">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Automation Status</CardTitle>
       </CardHeader>
@@ -29,20 +29,20 @@ export default function AutomationCard({ logs }: AutomationCardProps) {
             const status = latest?.status || 'idle';
             
             return (
-              <div key={loop.id} className="bg-gray-800/30 p-3 rounded-lg border border-gray-800">
+              <div key={loop.id} className="bg-surface/30 p-3 rounded-lg border border-line">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <p className="text-sm font-medium">{loop.name}</p>
-                    <p className="text-[10px] text-gray-500">{loop.schedule}</p>
+                    <p className="text-[10px] text-ink3">{loop.schedule}</p>
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${
-                    status === 'success' || status === 'completed' ? 'bg-green-500/20 text-green-400' : 
-                    status === 'failed' ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-400'
+                    status === 'success' || status === 'completed' ? 'bg-success/20 text-success' : 
+                    status === 'failed' ? 'bg-danger/20 text-danger' : 'bg-surface2 text-ink3'
                   }`}>
                     {status}
                   </span>
                 </div>
-                <div className="flex justify-between text-xs text-gray-400">
+                <div className="flex justify-between text-xs text-ink3">
                   <span>Last run:</span>
                   <span>{latest?.completed_at ? new Date(latest.completed_at).toLocaleTimeString() : 'Never'}</span>
                 </div>

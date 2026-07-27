@@ -17,7 +17,7 @@ export default async function AppHeader() {
       <Link href="/" className="text-sm font-semibold tracking-tight">
         Daily Debate
       </Link>
-      <nav className="flex items-center gap-3 text-sm text-zinc-400 sm:gap-4" aria-label="Main">
+      <nav className="flex items-center gap-3 text-sm text-ink3 sm:gap-4" aria-label="Main">
         <Link href="/" className="hover:text-[var(--foreground)]">
           Today
         </Link>
@@ -31,7 +31,7 @@ export default async function AppHeader() {
       <div className="flex items-center gap-3 text-sm sm:gap-4">
         {profile && (
           <span
-            className="chip-elevated tabular hidden rounded-full px-3 py-1 text-zinc-300 sm:inline"
+            className="chip-elevated tabular hidden rounded-full px-3 py-1 text-ink3 sm:inline"
             title={`${pointsIntoLevel(profile.total_points)}/${POINTS_PER_LEVEL} pts into level ${profile.level}`}
           >
             Lvl {profile.level} · {profile.total_points} pts · 🔥 {profile.current_streak}
@@ -39,7 +39,7 @@ export default async function AppHeader() {
         )}
         {profile && (
           <span
-            className="chip-elevated tabular rounded-full px-2.5 py-1 text-xs text-zinc-300 sm:hidden"
+            className="chip-elevated tabular rounded-full px-2.5 py-1 text-xs text-ink3 sm:hidden"
             title={`${pointsIntoLevel(profile.total_points)}/${POINTS_PER_LEVEL} pts into level ${profile.level}`}
           >
             L{profile.level} · 🔥{profile.current_streak}

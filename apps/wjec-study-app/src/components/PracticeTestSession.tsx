@@ -31,11 +31,11 @@ function McqItem({ item, onAnswered }: { item: PracticeItem; onAnswered: (correc
       {(item.options ?? []).map((option, i) => {
         const isCorrect = i === item.correctIndex;
         const isSelected = i === selected;
-        let className = "rounded-lg border border-zinc-300 px-4 py-2 text-left text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
+        let className = "rounded-lg border border-line px-4 py-2 text-left text-sm hover:bg-surface2 dark:hover:bg-surface";
         if (selected !== null && isCorrect) {
-          className = "rounded-lg border border-emerald-500 bg-emerald-100 px-4 py-2 text-left text-sm dark:bg-emerald-950";
+          className = "rounded-lg border border-success bg-successsoft px-4 py-2 text-left text-sm";
         } else if (isSelected) {
-          className = "rounded-lg border border-red-500 bg-red-100 px-4 py-2 text-left text-sm dark:bg-red-950";
+          className = "rounded-lg border border-danger bg-dangersoft px-4 py-2 text-left text-sm";
         }
         return (
           <button key={i} onClick={() => select(i)} className={className}>
@@ -68,19 +68,19 @@ function FillBlankItem({ item, onAnswered }: { item: PracticeItem; onAnswered: (
           onKeyDown={(e) => e.key === "Enter" && submit()}
           disabled={submitted}
           placeholder="Your answer…"
-          className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
+          className="flex-1 rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-60"
         />
         {!submitted && (
           <button
             onClick={submit}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-white dark:text-zinc-900"
+            className="rounded-lg bg-accent px-4 py-2 text-sm text-onaccent"
           >
             Check
           </button>
         )}
       </div>
       {submitted && (
-        <p className={correct ? "text-sm text-emerald-600 dark:text-emerald-400" : "text-sm text-red-600 dark:text-red-400"}>
+        <p className={correct ? "text-sm text-success" : "text-sm text-danger"}>
           {correct ? "✓ Correct" : `✗ Correct answer: ${item.answer}`}
         </p>
       )}
@@ -130,10 +130,10 @@ function MatchingItem({ item, onAnswered }: { item: PracticeItem; onAnswered: (c
             disabled={matched.has(p.left)}
             className={
               matched.has(p.left)
-                ? "rounded-lg border border-emerald-500 bg-emerald-100 px-3 py-2 text-left text-sm dark:bg-emerald-950"
+                ? "rounded-lg border border-success bg-successsoft px-3 py-2 text-left text-sm"
                 : selectedLeft === p.left
-                  ? "rounded-lg border border-violet-500 bg-violet-100 px-3 py-2 text-left text-sm dark:bg-violet-950"
-                  : "rounded-lg border border-zinc-300 px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                  ? "rounded-lg border border-speak bg-speaksoft px-3 py-2 text-left text-sm"
+                  : "rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-surface2 dark:hover:bg-surface"
             }
           >
             {p.left}
@@ -150,10 +150,10 @@ function MatchingItem({ item, onAnswered }: { item: PracticeItem; onAnswered: (c
               disabled={isMatched}
               className={
                 isMatched
-                  ? "rounded-lg border border-emerald-500 bg-emerald-100 px-3 py-2 text-left text-sm dark:bg-emerald-950"
+                  ? "rounded-lg border border-success bg-successsoft px-3 py-2 text-left text-sm"
                   : wrong === right
-                    ? "rounded-lg border border-red-500 bg-red-100 px-3 py-2 text-left text-sm dark:bg-red-950"
-                    : "rounded-lg border border-zinc-300 px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                    ? "rounded-lg border border-danger bg-dangersoft px-3 py-2 text-left text-sm"
+                    : "rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-surface2 dark:hover:bg-surface"
               }
             >
               {right}
@@ -190,13 +190,13 @@ export default function PracticeTestSession({ items, onFinish }: Props) {
 
   if (done) {
     return (
-      <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-line bg-surface p-8 text-center">
         <p className="text-lg font-medium">
           Practice test complete: {score} / {items.length}
         </p>
         <button
           onClick={onFinish}
-          className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="rounded-full border border-line px-4 py-1.5 text-sm hover:bg-surface2 dark:hover:bg-surface"
         >
           Back
         </button>
@@ -206,7 +206,7 @@ export default function PracticeTestSession({ items, onFinish }: Props) {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+      <div className="flex items-center justify-between text-xs text-ink3">
         <span>
           Item {index + 1} of {items.length}
         </span>
@@ -215,7 +215,7 @@ export default function PracticeTestSession({ items, onFinish }: Props) {
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-300 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-6">
         <p className="text-lg font-medium">{item.prompt}</p>
 
         {item.format === "mcq" && <McqItem key={item.id} item={item} onAnswered={handleAnswered} />}
@@ -227,11 +227,11 @@ export default function PracticeTestSession({ items, onFinish }: Props) {
         )}
 
         {answered && (
-          <div className="flex flex-col gap-3 border-t border-dashed border-zinc-300 pt-4 dark:border-zinc-700">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">{item.explanation}</p>
+          <div className="flex flex-col gap-3 border-t border-dashed border-line pt-4">
+            <p className="text-sm text-ink2">{item.explanation}</p>
             <button
               onClick={handleNext}
-              className="self-start rounded-full bg-zinc-900 px-4 py-1.5 text-sm text-white dark:bg-white dark:text-zinc-900"
+              className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent"
             >
               {index + 1 >= items.length ? "Finish" : "Next item"}
             </button>

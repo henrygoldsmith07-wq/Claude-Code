@@ -113,11 +113,11 @@ export default function DebateRoom({
             {copied ? "Copied!" : "Copy summary"}
           </button>
         </div>
-        <p className="text-sm text-zinc-300">{result.summary.overallFeedback}</p>
+        <p className="text-sm text-ink3">{result.summary.overallFeedback}</p>
         {result.summary.strengths.length > 0 && (
           <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500">Strengths</p>
-            <ul className="list-inside list-disc text-sm text-zinc-300">
+            <p className="text-xs uppercase tracking-wide text-ink3">Strengths</p>
+            <ul className="list-inside list-disc text-sm text-ink3">
               {result.summary.strengths.map((s) => (
                 <li key={s}>{s}</li>
               ))}
@@ -126,8 +126,8 @@ export default function DebateRoom({
         )}
         {result.summary.improvements.length > 0 && (
           <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500">To improve</p>
-            <ul className="list-inside list-disc text-sm text-zinc-300">
+            <p className="text-xs uppercase tracking-wide text-ink3">To improve</p>
+            <ul className="list-inside list-disc text-sm text-ink3">
               {result.summary.improvements.map((s) => (
                 <li key={s}>{s}</li>
               ))}
@@ -149,14 +149,14 @@ export default function DebateRoom({
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div>
-        <p className="text-xs uppercase tracking-wide text-zinc-500">{topic.title}</p>
-        <p className="text-sm text-zinc-400">{topic.prompt}</p>
+        <p className="text-xs uppercase tracking-wide text-ink3">{topic.title}</p>
+        <p className="text-sm text-ink3">{topic.prompt}</p>
       </div>
       <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-ink3">
           You're arguing <span className="text-[var(--foreground)]">{debate.side}</span> · AI argues {aiSide}
         </p>
-        <p className="tabular text-sm text-zinc-500">
+        <p className="tabular text-sm text-ink3">
           Round {roundCount} {roundCount < MIN_ROUNDS && `· ${MIN_ROUNDS - roundCount + 1} to go`}
         </p>
       </div>
@@ -175,15 +175,15 @@ export default function DebateRoom({
             </div>
             {turn.user_message && (
               <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1">
-                <div className="rounded-2xl rounded-tr-sm bg-white/10 px-3 py-2 text-sm">{turn.user_message}</div>
+                <div className="rounded-2xl rounded-tr-sm bg-surface/10 px-3 py-2 text-sm">{turn.user_message}</div>
                 {turn.scores && <ScoreBadges scores={turn.scores} />}
-                {turn.feedback && <p className="text-xs text-zinc-500">{turn.feedback}</p>}
+                {turn.feedback && <p className="text-xs text-ink3">{turn.feedback}</p>}
               </div>
             )}
           </div>
         ))}
         {sending && (
-          <div className="text-sm text-zinc-500">AI is thinking…</div>
+          <div className="text-sm text-ink3">AI is thinking…</div>
         )}
       </div>
 

@@ -1,6 +1,15 @@
 @import "tailwindcss";
+@import "./le-studio.css";
 
-/* Inter variable font, self-hosted (no CDN dependency) */
+/* This app is Le Studio — the shared design system in packages/theme was
+   extracted from this file. The tokens, type scale, buttons, elevation,
+   accessibility preferences and motion vocabulary now live there and are
+   imported above; only what is genuinely specific to this app remains here.
+   Edit packages/theme/le-studio.css and run scripts/sync-theme.sh to change
+   the system for every app at once. */
+
+/* Inter variable font, self-hosted (no CDN dependency). The shared theme
+   declares the family in --font-sans; this supplies the actual files. */
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -18,184 +27,9 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* ---- monochrome design tokens: light is the default, .dark flips them ----
-   The neutral ramp carries a hair of cool tint (blue ~235°) so the greys read
-   as designed rather than as a broken white, and each step is a perceptible
-   luminance jump so white cards separate cleanly from the canvas. */
-:root {
-  color-scheme: light;
-  --bg: #f4f4f6;
-  --surface: #ffffff;
-  --surface-2: #ececef;
-  --line: #dcdce1;
-  --ink: #131316;
-  --ink-2: #4d4d55;
-  --ink-3: #6c6c76;
-  --accent: #131316;
-  --on-accent: #ffffff;
-  /* semantic accents — used sparingly on a monochrome base to signal state:
-     success (goal met / correct), speak (conversation), review (due). */
-  --success: #1f9d57;
-  --success-soft: #e4f5ec;
-  --speak: #2f6fed;
-  --speak-soft: #e6eefb;
-  --review: #e07a19;
-  --review-soft: #fbeedd;
-  /* elevation: restrained, tinted toward ink so shadows never look muddy */
-  --shadow-sm: 0 1px 2px rgba(19, 19, 22, 0.06), 0 1px 1px rgba(19, 19, 22, 0.04);
-  --shadow-md: 0 6px 20px -6px rgba(19, 19, 22, 0.14), 0 2px 6px -2px rgba(19, 19, 22, 0.08);
-  --shadow-nav: 0 -1px 0 var(--line), 0 -6px 20px -12px rgba(19, 19, 22, 0.16);
-  --shadow-lg: 0 -12px 40px -12px rgba(19, 19, 22, 0.28), 0 -1px 0 var(--line);
-}
-.dark {
-  color-scheme: dark;
-  --bg: #0b0b0d;
-  --surface: #17171a;
-  --surface-2: #242428;
-  --line: #34343a;
-  --ink: #f4f4f5;
-  --ink-2: #b2b2ba;
-  --ink-3: #8f8f99;
-  --accent: #f4f4f5;
-  --on-accent: #0b0b0d;
-  --success: #37c47e;
-  --success-soft: #16311f;
-  --speak: #6fa0ff;
-  --speak-soft: #172236;
-  --review: #f2933a;
-  --review-soft: #33230f;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 8px 24px -6px rgba(0, 0, 0, 0.6), 0 2px 8px -2px rgba(0, 0, 0, 0.4);
-  --shadow-nav: 0 -1px 0 var(--line), 0 -8px 24px -12px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 -16px 48px -12px rgba(0, 0, 0, 0.7), 0 -1px 0 var(--line);
-}
-
-/* ---- accessibility preferences (toggled from Settings, applied on <html>) ----
-   Each is opt-in and independent of the OS-level media queries below. */
-:root.large-text { font-size: 112.5%; } /* scales the rem-based type ramp */
-:root.dyslexia, :root.dyslexia body {
-  font-family: "Comic Sans MS", "Trebuchet MS", var(--font-sans);
-  letter-spacing: 0.015em;
-  word-spacing: 0.06em;
-  line-height: 1.75;
-}
-:root.high-contrast {
-  --ink: #000000;
-  --ink-2: #1a1a1a;
-  --ink-3: #333333;
-  --line: #000000;
-}
-.dark.high-contrast {
-  --ink: #ffffff;
-  --ink-2: #ededed;
-  --ink-3: #d0d0d0;
-  --line: #ffffff;
-}
-:root.reduce-motion *,
-:root.reduce-motion *::before,
-:root.reduce-motion *::after {
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-  scroll-behavior: auto !important;
-}
-
-/* expose the tokens as Tailwind color utilities (bg-surface, text-ink, …) */
-@theme inline {
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface2: var(--surface-2);
-  --color-line: var(--line);
-  --color-ink: var(--ink);
-  --color-ink2: var(--ink-2);
-  --color-ink3: var(--ink-3);
-  --color-accent: var(--accent);
-  --color-onaccent: var(--on-accent);
-  --color-success: var(--success);
-  --color-successsoft: var(--success-soft);
-  --color-speak: var(--speak);
-  --color-speaksoft: var(--speak-soft);
-  --color-review: var(--review);
-  --color-reviewsoft: var(--review-soft);
-}
-
 html, body, #root {
   height: 100%;
 }
-
-body {
-  background: var(--bg);
-  color: var(--ink);
-  overscroll-behavior-y: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.25s ease;
-  line-height: 1.5;
-  /* Inter: automatic optical sizing + smoothing for crisper text on retina */
-  font-optical-sizing: auto;
-  font-feature-settings: "cv11", "ss01";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-/* ---- type scale: tighter tracking and leading as text gets larger, the way
-   a real display face is set — Inter looks loose at headline sizes otherwise */
-h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
-.text-2xl, .text-3xl, .text-4xl { letter-spacing: -0.02em; }
-/* Align figures in any stat/score/progress readout so columns don't jitter */
-.tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
-
-/* ---- refined flat buttons ---- */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
-    transform 0.1s ease, box-shadow 0.15s ease;
-}
-.btn:active:not(:disabled) { transform: scale(0.98); }
-.btn:disabled { opacity: 0.4; }
-.btn-primary {
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: var(--shadow-sm);
-}
-.btn-primary:hover:not(:disabled) { filter: brightness(0.9); }
-.dark .btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
-.btn-secondary {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  color: var(--ink);
-}
-.btn-secondary:hover:not(:disabled) { border-color: var(--ink-3); }
-
-/* ---- typing indicator (three bouncing dots) ---- */
-@keyframes dot-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-5px); opacity: 1; }
-}
-.typing-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 9999px;
-  background: var(--ink-2);
-  animation: dot-bounce 1.2s infinite;
-}
-.typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.typing-dot:nth-child(3) { animation-delay: 0.3s; }
-
-/* ---- horizontal scenario card rail ---- */
-.snap-rail {
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.snap-rail::-webkit-scrollbar { display: none; }
-.snap-rail > * { scroll-snap-align: start; }
 
 /* ---- XP pop ---- */
 @keyframes xp-pop {
@@ -206,7 +40,7 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
 }
 .xp-pop { animation: xp-pop 1.4s ease-out forwards; }
 
-/* ---- 3D flip cards ---- */
+/* ---- 3D flip cards (vocabulary) ---- */
 .flip-scene { perspective: 1400px; }
 .flip-card {
   position: relative;
@@ -222,19 +56,6 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
 }
 .flip-face-back { transform: rotateY(180deg); }
 
-/* ---- bottom sheet slide ---- */
-@keyframes sheet-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-.sheet-enter { animation: sheet-up 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.fade-in { animation: fade-in 0.25s ease-out; }
-
 /* ---- onboarding step transition: content slides in from the side it came
    from (forward = from the right, back = from the left), then settles ---- */
 @keyframes step-in-fwd {
@@ -248,12 +69,6 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
 .step-fwd { animation: step-in-fwd 0.34s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .step-back { animation: step-in-back 0.34s cubic-bezier(0.2, 0.9, 0.3, 1); }
 
-@keyframes bubble-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.bubble-in { animation: bubble-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
-
 /* ---- recording pulse ring (neutral gray reads on both themes) ---- */
 @keyframes rec-ring {
   0% { box-shadow: 0 0 0 0 rgba(128, 128, 128, 0.55); }
@@ -261,11 +76,6 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
   100% { box-shadow: 0 0 0 0 rgba(128, 128, 128, 0); }
 }
 .rec-pulse { animation: rec-ring 1.4s ease-out infinite; }
-
-/* ---- thin scrollbars on desktop ---- */
-.nice-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-.nice-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9999px; }
-.nice-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* ---- corrections markup coming back from the LLM ---- */
 .corrections-body s, .corrections-body del {
@@ -289,13 +99,6 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
   font-size: 0.85em;
 }
 
-/* ---- elevation: only things that genuinely float get a shadow; cards stay
-   flat and rely on their 1px border, which keeps the interface calm ---- */
-.elev-nav { box-shadow: var(--shadow-nav); }
-.elev-sheet { box-shadow: var(--shadow-lg); }
-.elev-card { box-shadow: var(--shadow-sm); }
-.elev-pop { box-shadow: var(--shadow-md); }
-
 /* ---- celebration: monochrome confetti burst on a genuine win ---- */
 @keyframes confetti-fall {
   0% { opacity: 0; transform: translateY(-10vh) translateX(0) rotate(0deg); }
@@ -317,50 +120,3 @@ h1, h2, h3, h4 { line-height: 1.22; letter-spacing: -0.014em; }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 .celebrate-pop { animation: celebrate-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards; }
-
-/* Progress bars animate smoothly when their width changes. */
-.bar-anim { transition: width 0.7s cubic-bezier(0.3, 0.8, 0.3, 1); }
-
-/* iOS safe areas */
-.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
-
-@keyframes app-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.app-enter { animation: app-enter 0.35s ease-out; }
-
-/* ---- UX foundation: feedback, focus, motion, readability ---- */
-
-/* Press feedback on every button; kill the grey mobile tap flash */
-button { -webkit-tap-highlight-color: transparent; }
-.btn:active, button:active { transform: scale(0.985); }
-.btn, button { transition: transform 0.06s ease-out; }
-
-/* Visible keyboard focus everywhere, without mouse-click rings */
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
-:focus:not(:focus-visible) { outline: none; }
-
-/* Respect reduced-motion preferences globally */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Readability: balanced headings, stable text sizing */
-h1, h2, h3 { text-wrap: balance; }
-html { -webkit-text-size-adjust: 100%; }
-
-/* Skip link: first tab stop, visible only on focus */
-.skip-link {
-  position: absolute; left: 8px; top: -48px; z-index: 100;
-  background: var(--accent); color: var(--on-accent);
-  padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
-  transition: top 0.15s ease-out;
-}
-.skip-link:focus { top: 8px; }
-
-/* Long-list scroll & battery: skip layout/paint for off-screen rows.
-   contain-intrinsic-size reserves height so the scrollbar stays stable. */
-.cv-list > * { content-visibility: auto; contain-intrinsic-size: auto 64px; }

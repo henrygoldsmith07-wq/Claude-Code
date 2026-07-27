@@ -19,10 +19,10 @@ export default function Sidebar({ activeSection }: SidebarProps) {
   ];
 
   return (
-    <aside className="w-64 bg-gray-950 border-r border-gray-800 p-6 hidden md:block">
+    <aside className="w-64 bg-bg border-r border-line p-6 hidden md:block">
       <div className="mb-8 px-4">
-        <h2 className="text-xl font-bold text-blue-500">Omni-Life</h2>
-        <p className="text-[10px] text-gray-500 uppercase tracking-widest">OS Phase 4</p>
+        <h2 className="text-xl font-bold text-speak">Omni-Life</h2>
+        <p className="text-[10px] text-ink3 uppercase tracking-widest">OS Phase 4</p>
       </div>
       <nav className="space-y-1">
         {sections.map((section) => (
@@ -31,8 +31,8 @@ export default function Sidebar({ activeSection }: SidebarProps) {
             href={section.href}
             className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
               activeSection === section.id
-                ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
-                : 'text-gray-400 hover:bg-gray-900 hover:text-gray-200'
+                ? 'bg-speak/10 text-speak border border-speak/20'
+                : 'text-ink3 hover:bg-surface hover:text-ink'
             }`}
           >
             {section.label}
@@ -40,11 +40,11 @@ export default function Sidebar({ activeSection }: SidebarProps) {
         ))}
       </nav>
       <div className="mt-auto pt-8 px-4">
-        <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-800">
-          <p className="text-xs text-gray-500 mb-1">Status</p>
+        <div className="bg-surface/50 p-4 rounded-2xl border border-line">
+          <p className="text-xs text-ink3 mb-1">Status</p>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-300">System Online</span>
+            <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-ink3">System Online</span>
           </div>
         </div>
       </div>

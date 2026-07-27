@@ -17,7 +17,7 @@ export default function CategoryChips({ countByCategory, categoryFilter, onSelec
         className={`rounded-full border px-3 py-1 text-xs ${
           categoryFilter === "all"
             ? "border-foreground bg-foreground text-background"
-            : "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"
+            : "border-line text-ink2"
         }`}
       >
         All
@@ -29,7 +29,7 @@ export default function CategoryChips({ countByCategory, categoryFilter, onSelec
           className={`rounded-full border px-3 py-1 text-xs ${
             categoryFilter === cat
               ? "border-foreground bg-foreground text-background"
-              : "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"
+              : "border-line text-ink2"
           }`}
         >
           {cat} ({count})

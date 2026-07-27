@@ -11,10 +11,10 @@ interface Props {
 }
 
 const GRADE_BUTTONS: { grade: RecallGrade; label: string; className: string }[] = [
-  { grade: "again", label: "Again", className: "bg-red-100 hover:bg-red-200 dark:bg-red-950 dark:hover:bg-red-900" },
-  { grade: "hard", label: "Hard", className: "bg-amber-100 hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900" },
-  { grade: "good", label: "Good", className: "bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900" },
-  { grade: "easy", label: "Easy", className: "bg-sky-100 hover:bg-sky-200 dark:bg-sky-950 dark:hover:bg-sky-900" },
+  { grade: "again", label: "Again", className: "bg-dangersoft hover:bg-dangersoft dark:hover:bg-danger" },
+  { grade: "hard", label: "Hard", className: "bg-reviewsoft hover:bg-reviewsoft dark:hover:bg-review" },
+  { grade: "good", label: "Good", className: "bg-successsoft hover:bg-successsoft dark:hover:bg-success" },
+  { grade: "easy", label: "Easy", className: "bg-speaksoft hover:bg-speaksoft dark:hover:bg-speak" },
 ];
 
 export default function StudySession({ initialQueue, onGrade, onFinish }: Props) {
@@ -42,11 +42,11 @@ export default function StudySession({ initialQueue, onGrade, onFinish }: Props)
 
   if (!card) {
     return (
-      <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-line bg-surface p-8 text-center">
         <p className="text-lg font-medium">Session complete.</p>
         <button
           onClick={onFinish}
-          className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="rounded-full border border-line px-4 py-1.5 text-sm hover:bg-surface2 dark:hover:bg-surface"
         >
           Back
         </button>
@@ -56,7 +56,7 @@ export default function StudySession({ initialQueue, onGrade, onFinish }: Props)
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+      <div className="flex items-center justify-between text-xs text-ink3">
         <span>
           Card {index + 1} of {queue.length}
         </span>
@@ -78,7 +78,7 @@ export default function StudySession({ initialQueue, onGrade, onFinish }: Props)
             <button
               key={b.grade}
               onClick={() => handleGrade(b.grade)}
-              className={`rounded-lg px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100 ${b.className}`}
+              className={`rounded-lg px-3 py-2 text-sm font-medium text-ink ${b.className}`}
             >
               {b.label}
             </button>

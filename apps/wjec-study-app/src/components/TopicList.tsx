@@ -81,7 +81,7 @@ export default function TopicList({
         <button
           onClick={() => onGenerateAllLessons(topics)}
           disabled={bulkLessonProgress !== null}
-          className="self-start rounded-full border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="self-start rounded-full border border-line px-3 py-1.5 text-xs hover:bg-surface2 disabled:opacity-40 dark:hover:bg-surface"
         >
           Generate lessons for this subject ({missingLessons} missing)
         </button>

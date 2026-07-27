@@ -26,14 +26,14 @@ function TaskCard({ task, onDelete, onAddSubtask, onToggleSubtask, onAddLink }: 
     <div
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", task.id)}
-      className="flex flex-col gap-2 rounded-lg border border-zinc-300 bg-white p-3 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+      className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3 text-xs"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="font-medium">{task.title}</p>
         <button
           onClick={() => onDelete(task.id)}
           aria-label={`Delete task ${task.title}`}
-          className="text-zinc-400 hover:text-red-600"
+          className="text-ink3 hover:text-danger"
         >
           ×
         </button>
@@ -42,7 +42,7 @@ function TaskCard({ task, onDelete, onAddSubtask, onToggleSubtask, onAddLink }: 
       {task.subtasks.map((s) => (
         <label key={s.id} className="flex items-center gap-1.5">
           <input type="checkbox" checked={s.done} onChange={() => onToggleSubtask(task.id, s.id)} />
-          <span className={s.done ? "text-zinc-400 line-through" : ""}>{s.title}</span>
+          <span className={s.done ? "text-ink3 line-through" : ""}>{s.title}</span>
         </label>
       ))}
       <input
@@ -56,7 +56,7 @@ function TaskCard({ task, onDelete, onAddSubtask, onToggleSubtask, onAddLink }: 
         }}
         aria-label="Add a subtask"
         placeholder="+ subtask"
-        className="rounded border border-zinc-200 px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900"
+        className="rounded border border-line px-2 py-1"
       />
 
       {task.links.map((link, i) => (
@@ -65,7 +65,7 @@ function TaskCard({ task, onDelete, onAddSubtask, onToggleSubtask, onAddLink }: 
           href={link}
           target="_blank"
           rel="noopener noreferrer"
-          className="truncate text-violet-600 hover:underline dark:text-violet-400"
+          className="truncate text-speak hover:underline"
         >
           {link}
         </a>
@@ -81,7 +81,7 @@ function TaskCard({ task, onDelete, onAddSubtask, onToggleSubtask, onAddLink }: 
         }}
         aria-label="Attach a link"
         placeholder="+ attach a link"
-        className="rounded border border-zinc-200 px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900"
+        className="rounded border border-line px-2 py-1"
       />
     </div>
   );
@@ -106,7 +106,7 @@ export default function TaskBoard({ initialTasks }: { initialTasks: Task[] }) {
           }}
           aria-label="New task"
           placeholder="New task…"
-          className="flex-1 rounded-full border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="flex-1 rounded-full border border-line px-4 py-2 text-sm"
         />
         <button
           onClick={() => {
@@ -115,7 +115,7 @@ export default function TaskBoard({ initialTasks }: { initialTasks: Task[] }) {
               setDraft("");
             }
           }}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-white dark:text-zinc-900"
+          className="rounded-full bg-accent px-4 py-2 text-sm text-onaccent"
         >
           Add
         </button>
@@ -130,9 +130,9 @@ export default function TaskBoard({ initialTasks }: { initialTasks: Task[] }) {
               const taskId = e.dataTransfer.getData("text/plain");
               if (taskId) setTaskStatus(taskId, col.status);
             }}
-            className="flex flex-col gap-2 rounded-xl border border-zinc-300 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-950"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-3"
           >
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink3">
               {col.label}
             </p>
             {tasks

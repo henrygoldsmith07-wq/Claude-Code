@@ -36,11 +36,11 @@ export default function BudgetsSection({ categories, budgets, spendByCategory, o
     <div className="flex flex-col gap-4">
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 print:hidden">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Category</label>
+          <label className="text-xs font-medium text-ink3">Category</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-2 py-1.5 text-sm"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -50,7 +50,7 @@ export default function BudgetsSection({ categories, budgets, spendByCategory, o
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Monthly limit ($)</label>
+          <label className="text-xs font-medium text-ink3">Monthly limit ($)</label>
           <input
             value={limit}
             onChange={(e) => setLimit(e.target.value)}
@@ -59,12 +59,12 @@ export default function BudgetsSection({ categories, budgets, spendByCategory, o
             min="0"
             step="0.01"
             placeholder="50.00"
-            className="w-28 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-28 rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <button
           type="submit"
-          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
+          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[var(--ink)] dark:hover:bg-[var(--ink-3)]"
         >
           Set budget
         </button>
@@ -72,7 +72,7 @@ export default function BudgetsSection({ categories, budgets, spendByCategory, o
           <button
             type="button"
             onClick={handleExport}
-            className="text-xs text-zinc-500 hover:underline"
+            className="text-xs text-ink3 hover:underline"
           >
             Export budgets CSV
           </button>
@@ -80,7 +80,7 @@ export default function BudgetsSection({ categories, budgets, spendByCategory, o
       </form>
 
       {categoriesWithSpend.length === 0 ? (
-        <p className="text-sm text-zinc-500">No budgets set yet.</p>
+        <p className="text-sm text-ink3">No budgets set yet.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {categoriesWithSpend.map((cat) => {
@@ -93,15 +93,15 @@ export default function BudgetsSection({ categories, budgets, spendByCategory, o
               <li key={cat} className="flex flex-col gap-1">
                 <div className="flex justify-between text-sm">
                   <span>{cat}</span>
-                  <span className={over ? "text-red-600 dark:text-red-400" : "text-zinc-500"}>
+                  <span className={over ? "text-danger" : "text-ink3"}>
                     {formatCents(spend)}
                     {limitCents > 0 && ` / ${formatCents(limitCents)}`}
                   </span>
                 </div>
                 {limitCents > 0 && (
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface2">
                     <div
-                      className={`h-full ${over ? "bg-red-500" : "bg-emerald-500"}`}
+                      className={`h-full ${over ? "bg-danger" : "bg-success"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>

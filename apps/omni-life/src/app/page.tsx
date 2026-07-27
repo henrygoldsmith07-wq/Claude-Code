@@ -45,7 +45,7 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-bg text-ink">Loading...</div>;
   }
 
   if (!user) {
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen bg-black text-white">
+    <div className="flex h-screen bg-bg text-ink">
       <Sidebar activeSection="overview" />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} onLogout={handleLogout} />
@@ -62,11 +62,11 @@ export default function DashboardPage() {
             <div className="flex justify-between items-end">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
-                <p className="text-gray-500 mt-1">Real-time status of your autonomous life.</p>
+                <p className="text-ink3 mt-1">Real-time status of your autonomous life.</p>
               </div>
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-gray-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                <p className="text-xs text-gray-600 uppercase tracking-widest">System Version 4.0.0</p>
+                <p className="text-sm font-medium text-ink3">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                <p className="text-xs text-ink2 uppercase tracking-widest">System Version 4.0.0</p>
               </div>
             </div>
             

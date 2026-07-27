@@ -31,7 +31,7 @@ export default function FavoriteButton({
         size === "sm" ? "text-xs" : "text-sm"
       } ${
         active
-          ? "border-amber-400/60 bg-amber-400/10 text-amber-300"
+          ? "border-review/60 bg-review/10 text-review"
           : "border-rule bg-panel text-muted hover:border-accent hover:text-accent"
       }`}
     >

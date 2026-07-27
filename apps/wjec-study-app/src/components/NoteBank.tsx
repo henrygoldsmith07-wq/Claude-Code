@@ -108,46 +108,46 @@ export default function NoteBank({ apiKey, initialNotes }: Props) {
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <div className="flex flex-col gap-2 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title"
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-line px-3 py-2 text-sm"
         />
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={4}
           placeholder="Type your notes…"
-          className="rounded-lg border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-line p-2 text-sm"
         />
         <input
           value={tagsInput}
           onChange={(e) => setTagsInput(e.target.value)}
           placeholder="Tags (comma separated)"
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-line px-3 py-2 text-sm"
         />
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex flex-wrap gap-2 text-xs">
           <button
             onClick={() => setShowSketch((s) => !s)}
-            className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700"
+            className="rounded-full border border-line px-3 py-1"
           >
             {showSketch ? "Hide sketch" : sketchDataUrl ? "Edit sketch" : "+ Sketch"}
           </button>
           <button
             onClick={handleRecord}
-            className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700"
+            className="rounded-full border border-line px-3 py-1"
           >
             {recording ? "Stop recording" : audioDataUrl ? "Re-record audio" : "🎙 Record audio"}
           </button>
           <button
             onClick={() => photoInputRef.current?.click()}
             disabled={ocrBusy}
-            className="rounded-full border border-zinc-300 px-3 py-1 disabled:opacity-50 dark:border-zinc-700"
+            className="rounded-full border border-line px-3 py-1 disabled:opacity-50"
           >
             {ocrBusy ? "Scanning…" : "📷 Scan photo"}
           </button>
@@ -175,13 +175,13 @@ export default function NoteBank({ apiKey, initialNotes }: Props) {
         )}
         {!showSketch && sketchDataUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- local canvas data: URL, not an optimizable remote asset
-          <img src={sketchDataUrl} alt="Sketch preview" className="max-h-40 rounded-lg border border-zinc-200 dark:border-zinc-800" />
+          <img src={sketchDataUrl} alt="Sketch preview" className="max-h-40 rounded-lg border border-line" />
         )}
         {audioDataUrl && <audio controls src={audioDataUrl} className="w-full" />}
 
         <button
           onClick={handleSave}
-          className="self-start rounded-full bg-zinc-900 px-4 py-1.5 text-sm text-white dark:bg-white dark:text-zinc-900"
+          className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent"
         >
           Save note
         </button>
@@ -191,24 +191,24 @@ export default function NoteBank({ apiKey, initialNotes }: Props) {
         {notes.map((note) => (
           <div
             key={note.id}
-            className="flex flex-col gap-2 rounded-xl border border-zinc-300 bg-white p-4 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 text-sm"
           >
             <div className="flex items-start justify-between gap-2">
               <p className="font-medium">{note.title}</p>
-              <button onClick={() => deleteNote(note.id)} className="text-xs text-zinc-400 hover:text-red-600">
+              <button onClick={() => deleteNote(note.id)} className="text-xs text-ink3 hover:text-danger">
                 Delete
               </button>
             </div>
-            {note.body && <p className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{note.body}</p>}
+            {note.body && <p className="whitespace-pre-wrap text-ink2">{note.body}</p>}
             {note.sketchDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element -- local canvas data: URL, not an optimizable remote asset
-              <img src={note.sketchDataUrl} alt="Sketch" className="max-h-40 rounded-lg border border-zinc-200 dark:border-zinc-800" />
+              <img src={note.sketchDataUrl} alt="Sketch" className="max-h-40 rounded-lg border border-line" />
             )}
             {note.audioDataUrl && <audio controls src={note.audioDataUrl} className="w-full" />}
             {note.tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {note.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800">
+                  <span key={tag} className="rounded-full bg-surface2 px-2 py-0.5 text-xs">
                     #{tag}
                   </span>
                 ))}

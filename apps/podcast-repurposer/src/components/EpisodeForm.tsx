@@ -88,25 +88,25 @@ export default function EpisodeForm() {
         <button
           type="button"
           onClick={() => setShowHistory(!showHistory)}
-          className="rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded-full border border-line px-4 py-1.5 text-sm font-medium hover:bg-surface2 dark:hover:bg-surface"
         >
           {showHistory ? "Hide history" : `History (${history.length})`}
         </button>
       </div>
 
       {showHistory && (
-        <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <div className="rounded-xl border border-line p-4">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink3">
             Recent generations
           </h2>
           {history.length === 0 ? (
-            <p className="text-sm text-zinc-500">No saved generations yet.</p>
+            <p className="text-sm text-ink3">No saved generations yet.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {history.map((item) => (
                 <li
                   key={item.id}
-                  className="group flex items-center justify-between gap-3 rounded-lg border border-zinc-100 px-3 py-2 dark:border-zinc-900"
+                  className="group flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2"
                 >
                   <button
                     type="button"
@@ -114,14 +114,14 @@ export default function EpisodeForm() {
                     className="min-w-0 flex-1 text-left"
                   >
                     <p className="truncate text-sm font-medium">{item.title}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-ink3">
                       {new Date(item.createdAt).toLocaleString()}
                     </p>
                   </button>
                   <button
                     type="button"
                     onClick={() => deleteFromHistory(item.id)}
-                    className="shrink-0 text-zinc-400 opacity-0 hover:text-red-500 group-hover:opacity-100"
+                    className="shrink-0 text-ink3 opacity-0 hover:text-danger group-hover:opacity-100"
                     aria-label="Delete from history"
                   >
                     ✕
@@ -143,7 +143,7 @@ export default function EpisodeForm() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-3 py-2"
             placeholder="Episode 42: Scaling a bootstrapped SaaS"
           />
         </div>
@@ -157,21 +157,21 @@ export default function EpisodeForm() {
             onChange={(e) => setTranscript(e.target.value)}
             required
             rows={12}
-            className="rounded-md border border-zinc-300 px-3 py-2 font-mono text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-3 py-2 font-mono text-sm"
             placeholder="Paste the raw episode transcript here..."
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="self-start rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:opacity-50 dark:hover:bg-[#ccc]"
+          className="self-start rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-[var(--ink)] disabled:opacity-50 dark:hover:bg-[var(--ink-3)]"
         >
           {loading ? "Generating..." : "Generate content"}
         </button>
       </form>
 
       {error && (
-        <p className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <p className="rounded-md border border-danger bg-dangersoft px-4 py-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -195,7 +195,7 @@ function EpisodeResults({ outputs }: { outputs: EpisodeOutputs }) {
           {outputs.socialSnippets.map((snippet, i) => (
             <li
               key={i}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+              className="rounded-md border border-line px-3 py-2 text-sm"
             >
               {snippet}
             </li>
@@ -206,7 +206,7 @@ function EpisodeResults({ outputs }: { outputs: EpisodeOutputs }) {
         <ul className="flex flex-col gap-1">
           {outputs.chapters.map((chapter, i) => (
             <li key={i} className="text-sm">
-              <span className="font-mono text-zinc-500">{chapter.timestamp}</span>{" "}
+              <span className="font-mono text-ink3">{chapter.timestamp}</span>{" "}
               {chapter.title}
             </li>
           ))}

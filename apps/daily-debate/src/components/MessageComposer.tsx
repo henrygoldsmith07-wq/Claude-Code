@@ -83,10 +83,10 @@ export default function MessageComposer({
             {listening ? "● Listening… tap to stop" : "🎙️ Speak instead"}
           </button>
         ) : (
-          <span className="text-xs text-zinc-600">Voice input not supported in this browser.</span>
+          <span className="text-xs text-ink2">Voice input not supported in this browser.</span>
         )}
         <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-600 tabular">
+          <span className="text-xs text-ink2 tabular">
             {displayValue.trim().length > 0 ? `${displayValue.trim().length} chars` : ""}
           </span>
           <button

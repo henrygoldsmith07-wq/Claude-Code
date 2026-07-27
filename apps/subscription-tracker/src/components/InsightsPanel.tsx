@@ -38,7 +38,7 @@ export default function InsightsPanel({ subscriptions }: { subscriptions: Subscr
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-zinc-500">
+        <label className="text-xs font-medium text-ink3">
           Your Anthropic API key (optional — stored only in this browser)
         </label>
         <input
@@ -47,26 +47,26 @@ export default function InsightsPanel({ subscriptions }: { subscriptions: Subscr
           type="password"
           placeholder="sk-ant-..."
           autoComplete="off"
-          className="w-64 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-64 rounded-md border border-line px-2 py-1.5 text-sm"
         />
       </div>
 
       <button
         onClick={handleAnalyze}
         disabled={loading || subscriptions.filter((s) => s.active).length === 0}
-        className="self-start rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="self-start rounded-full border border-line px-4 py-1.5 text-sm font-medium hover:bg-surface2 disabled:opacity-50 dark:hover:bg-surface"
       >
         {loading ? "Analyzing..." : "Get AI cancellation suggestions"}
       </button>
 
       {error && (
-        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <p className="rounded-md border border-danger bg-dangersoft px-3 py-2 text-sm text-danger">
           {error}
         </p>
       )}
 
       {suggestions && suggestions.length === 0 && (
-        <p className="text-sm text-zinc-500">Nothing stood out — your subscriptions look reasonable.</p>
+        <p className="text-sm text-ink3">Nothing stood out — your subscriptions look reasonable.</p>
       )}
 
       {suggestions && suggestions.length > 0 && (
@@ -74,7 +74,7 @@ export default function InsightsPanel({ subscriptions }: { subscriptions: Subscr
           {suggestions.map((s, i) => (
             <li
               key={i}
-              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm dark:border-amber-900 dark:bg-amber-950"
+              className="rounded-md border border-review bg-reviewsoft px-3 py-2 text-sm"
             >
               <span className="font-medium">{s.subscriptionName}</span> — {s.reason}
             </li>

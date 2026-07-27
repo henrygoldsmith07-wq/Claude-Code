@@ -126,7 +126,7 @@ export default function SubscriptionsList({
   }
 
   if (subscriptions.length === 0) {
-    return <p className="text-sm text-zinc-500">No subscriptions yet. Add one above.</p>;
+    return <p className="text-sm text-ink3">No subscriptions yet. Add one above.</p>;
   }
 
   return (
@@ -143,12 +143,12 @@ export default function SubscriptionsList({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search name or notes (press /)"
-          className="w-48 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-48 rounded-md border border-line px-2 py-1.5 text-sm"
         />
         <select
           value={categoryFilter}
           onChange={(e) => onCategoryFilterChange(e.target.value)}
-          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-line px-2 py-1.5 text-sm"
         >
           <option value="all">All categories</option>
           {categories.map((c) => (
@@ -160,7 +160,7 @@ export default function SubscriptionsList({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-line px-2 py-1.5 text-sm"
         >
           <option value="all">All statuses</option>
           <option value="active">Active</option>
@@ -171,7 +171,7 @@ export default function SubscriptionsList({
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-line px-2 py-1.5 text-sm"
         >
           <option value="renewal">Sort: renewal date</option>
           <option value="name">Sort: name</option>
@@ -180,7 +180,7 @@ export default function SubscriptionsList({
         <button
           type="button"
           onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-          className="rounded-md border border-zinc-300 px-2 py-1.5 text-xs dark:border-zinc-700"
+          className="rounded-md border border-line px-2 py-1.5 text-xs"
           title="Toggle sort direction"
         >
           {sortDir === "asc" ? "↑" : "↓"}
@@ -190,14 +190,14 @@ export default function SubscriptionsList({
             <button
               type="button"
               onClick={() => onBulkSetActive(categoryFilter, false)}
-              className="text-xs text-zinc-500 hover:underline"
+              className="text-xs text-ink3 hover:underline"
             >
               Pause all {categoryFilter}
             </button>
             <button
               type="button"
               onClick={() => onBulkSetActive(categoryFilter, true)}
-              className="text-xs text-zinc-500 hover:underline"
+              className="text-xs text-ink3 hover:underline"
             >
               Resume all {categoryFilter}
             </button>
@@ -207,7 +207,7 @@ export default function SubscriptionsList({
           <button
             type="button"
             onClick={handleBulkDelete}
-            className="text-xs text-red-600 hover:underline dark:text-red-400"
+            className="text-xs text-danger hover:underline"
           >
             Delete {selected.size} selected
           </button>
@@ -215,7 +215,7 @@ export default function SubscriptionsList({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-zinc-500">No subscriptions match your filters.</p>
+        <p className="text-sm text-ink3">No subscriptions match your filters.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {filtered.map((sub) => (

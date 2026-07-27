@@ -115,7 +115,7 @@ export default function Dashboard() {
   return (
     <div className="flex w-full max-w-4xl flex-col gap-10">
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-ink3">
           {subscriptions.length} subscription{subscriptions.length === 1 ? "" : "s"} tracked
         </p>
         <SettingsBar
@@ -168,7 +168,7 @@ export default function Dashboard() {
 
       {stats.upcomingRenewals.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-zinc-500">Renewing in the next 7 days</h2>
+          <h2 className="text-sm font-semibold text-ink3">Renewing in the next 7 days</h2>
           <ul className="flex flex-col gap-1">
             {stats.upcomingRenewals.map((s) => (
               <li key={s.id} className="text-sm">

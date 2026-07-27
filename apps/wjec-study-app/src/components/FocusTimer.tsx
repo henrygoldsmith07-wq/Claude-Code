@@ -107,8 +107,8 @@ export default function FocusTimer({ onLogFocus }: Props) {
   const seconds = secondsLeft % 60;
 
   return (
-    <div className="flex w-full flex-col items-center gap-4 rounded-xl border border-zinc-300 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
-      <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+    <div className="flex w-full flex-col items-center gap-4 rounded-xl border border-line bg-surface p-6">
+      <p className="text-xs uppercase tracking-wide text-ink3">
         {phase === "study" ? "Focus" : "Break"}
       </p>
       <p className="text-6xl font-semibold tabular-nums">
@@ -118,13 +118,13 @@ export default function FocusTimer({ onLogFocus }: Props) {
       <div className="flex gap-2">
         <button
           onClick={() => setRunning((r) => !r)}
-          className="rounded-full bg-zinc-900 px-5 py-2 text-sm text-white dark:bg-white dark:text-zinc-900"
+          className="rounded-full bg-accent px-5 py-2 text-sm text-onaccent"
         >
           {running ? "Pause" : "Start"}
         </button>
         <button
           onClick={handleStop}
-          className="rounded-full border border-zinc-300 px-5 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="rounded-full border border-line px-5 py-2 text-sm hover:bg-surface2 dark:hover:bg-surface"
         >
           Reset
         </button>
@@ -139,7 +139,7 @@ export default function FocusTimer({ onLogFocus }: Props) {
             max={120}
             value={studyMinutes}
             onChange={(e) => applyDurations(Number(e.target.value) || 1, breakMinutes)}
-            className="w-14 rounded border border-zinc-300 px-1 py-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-14 rounded border border-line px-1 py-0.5"
           />
           min
         </label>
@@ -151,7 +151,7 @@ export default function FocusTimer({ onLogFocus }: Props) {
             max={60}
             value={breakMinutes}
             onChange={(e) => applyDurations(studyMinutes, Number(e.target.value) || 1)}
-            className="w-14 rounded border border-zinc-300 px-1 py-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-14 rounded border border-line px-1 py-0.5"
           />
           min
         </label>
@@ -164,8 +164,8 @@ export default function FocusTimer({ onLogFocus }: Props) {
             onClick={() => setAmbient(opt.id)}
             className={
               ambient === opt.id
-                ? "rounded-full bg-zinc-900 px-3 py-1 text-xs text-white dark:bg-white dark:text-zinc-900"
-                : "rounded-full border border-zinc-300 px-3 py-1 text-xs dark:border-zinc-700"
+                ? "rounded-full bg-surface px-3 py-1 text-xs text-onaccent dark:bg-surface"
+                : "rounded-full border border-line px-3 py-1 text-xs"
             }
           >
             {opt.label}

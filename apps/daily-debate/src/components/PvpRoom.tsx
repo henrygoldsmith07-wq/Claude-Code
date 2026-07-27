@@ -80,14 +80,14 @@ export default function PvpRoom({
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div>
-        <p className="text-xs uppercase tracking-wide text-zinc-500">{topic.title}</p>
-        <p className="text-sm text-zinc-400">{topic.prompt}</p>
+        <p className="text-xs uppercase tracking-wide text-ink3">{topic.title}</p>
+        <p className="text-sm text-ink3">{topic.prompt}</p>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <p className="text-zinc-400">
+        <p className="text-ink3">
           You&apos;re arguing <span className="text-[var(--foreground)]">{mySide}</span> as {isPlayerA ? "Player A" : "Player B"}
         </p>
-        <p className="tabular text-zinc-500">
+        <p className="tabular text-ink3">
           Round {match.current_round}/{match.round_limit}
         </p>
       </div>
@@ -97,10 +97,10 @@ export default function PvpRoom({
           const mine = turn.player_id === currentUserId;
           return (
             <div key={turn.id} className={`flex max-w-[85%] flex-col gap-1 ${mine ? "ml-auto items-end" : ""}`}>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ink3">
                 {nameFor(turn.player_id)} · round {turn.round_number}
               </p>
-              <div className={`rounded-2xl px-3 py-2 text-sm ${mine ? "rounded-tr-sm bg-white/10" : "rounded-tl-sm bg-[var(--accent-soft)]"}`}>
+              <div className={`rounded-2xl px-3 py-2 text-sm ${mine ? "rounded-tr-sm bg-surface/10" : "rounded-tl-sm bg-[var(--accent-soft)]"}`}>
                 {turn.message}
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function PvpRoom({
         myTurn ? (
           <MessageComposer onSubmit={submitTurn} disabled={sending} />
         ) : (
-          <p className="text-center text-sm text-zinc-500">Waiting for your opponent…</p>
+          <p className="text-center text-sm text-ink3">Waiting for your opponent…</p>
         )
       ) : (
         <div className="surface-card flex flex-col gap-3 p-6">
@@ -127,10 +127,10 @@ export default function PvpRoom({
           </h2>
           {verdict && (
             <>
-              <p className="tabular text-sm text-zinc-400">
+              <p className="tabular text-sm text-ink3">
                 {playerAName}: {verdict.playerAScore}/100 · {playerBName}: {verdict.playerBScore}/100
               </p>
-              <p className="text-sm text-zinc-300">{verdict.rationale}</p>
+              <p className="text-sm text-ink3">{verdict.rationale}</p>
             </>
           )}
           <div className="flex gap-3 pt-2">

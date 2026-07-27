@@ -40,20 +40,20 @@ function boxesFilled(cards: Flashcard[]): number {
 
 export default function RevisionTrackerPanel({ cardsForTopic, quizAttempts, onStudyTopic }: Props) {
   return (
-    <div className="flex w-full flex-col gap-4 rounded-xl border border-[#dad5cb] bg-[#fbfaf7] p-5 shadow-[0_1px_2px_rgba(40,34,26,0.06),0_10px_28px_rgba(40,34,26,0.08)]">
-      <div className="flex items-end justify-between gap-4 border-b-2 border-[#201e1a] pb-3">
+    <div className="flex w-full flex-col gap-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-[0_1px_2px_rgba(40,34,26,0.06),0_10px_28px_rgba(40,34,26,0.08)]">
+      <div className="flex items-end justify-between gap-4 border-b-2 border-[var(--ink)] pb-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#3b4a6b]">Pillar One</p>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-[#201e1a]">Revision Tracker</h2>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Pillar One</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight text-[var(--ink)]">Revision Tracker</h2>
         </div>
-        <p className="max-w-[34ch] text-right font-display text-[13px] italic leading-snug text-[#5a544b]">
+        <p className="max-w-[34ch] text-right font-display text-[13px] italic leading-snug text-[var(--ink-2)]">
           Keep revisiting the topics that aren&rsquo;t green yet; stop re-studying the ones that already are.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-[#5a544b]">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-[var(--ink-2)]">
         <span className="inline-flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm border border-[#c3bcaf]" /> Not started
+          <span className="h-3.5 w-3.5 rounded-sm border border-[var(--line)]" /> Not started
         </span>
         <span className="inline-flex items-center gap-2">
           <span className="h-3.5 w-3.5 rounded-sm" style={{ backgroundColor: FILL.amber }} /> Just met it
@@ -64,23 +64,23 @@ export default function RevisionTrackerPanel({ cardsForTopic, quizAttempts, onSt
         <span className="inline-flex items-center gap-2">
           <span className="h-3.5 w-3.5 rounded-sm" style={{ backgroundColor: FILL.green }} /> Confident
         </span>
-        <span className="ml-auto text-[#8b8378]">Boxes fill as your cards accumulate reviews.</span>
+        <span className="ml-auto text-[var(--ink-3)]">Boxes fill as your cards accumulate reviews.</span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[34rem] border-collapse tabular">
           <thead>
             <tr>
-              <th className="border border-[#dad5cb] bg-[#f1eee7] px-3 py-2 text-left text-[9.5px] font-bold uppercase tracking-wider text-[#5a544b]">
+              <th className="border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-left text-[9.5px] font-bold uppercase tracking-wider text-[var(--ink-2)]">
                 Topic
               </th>
-              <th className="w-16 border border-[#dad5cb] bg-[#f1eee7] px-2 py-2 text-center text-[9.5px] font-bold uppercase tracking-wider text-[#5a544b]">
+              <th className="w-16 border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2 text-center text-[9.5px] font-bold uppercase tracking-wider text-[var(--ink-2)]">
                 Mastery
               </th>
               {Array.from({ length: REVIEW_COLUMNS }).map((_, i) => (
                 <th
                   key={i}
-                  className="w-11 border border-[#dad5cb] bg-[#f1eee7] px-2 py-2 text-center text-[9.5px] font-bold uppercase tracking-wider text-[#5a544b]"
+                  className="w-11 border border-[var(--line)] bg-[var(--surface-2)] px-2 py-2 text-center text-[9.5px] font-bold uppercase tracking-wider text-[var(--ink-2)]"
                 >
                   R{i + 1}
                 </th>
@@ -95,7 +95,7 @@ export default function RevisionTrackerPanel({ cardsForTopic, quizAttempts, onSt
                   <tr>
                     <td
                       colSpan={2 + REVIEW_COLUMNS}
-                      className="border border-[#dad5cb] bg-[#e7eaf1] px-3 py-1.5 font-display text-sm font-bold text-[#3b4a6b]"
+                      className="border border-[var(--line)] bg-[var(--surface-2)] px-3 py-1.5 font-display text-sm font-bold text-[var(--accent)]"
                     >
                       {subject.name}
                     </td>
@@ -107,21 +107,21 @@ export default function RevisionTrackerPanel({ cardsForTopic, quizAttempts, onSt
                     const filled = boxesFilled(cards);
                     return (
                       <tr key={topic.id} className="group">
-                        <td className="border border-[#dad5cb] px-3 py-1.5 text-[13px] text-[#201e1a]">
+                        <td className="border border-[var(--line)] px-3 py-1.5 text-[13px] text-[var(--ink)]">
                           <button
                             onClick={() => onStudyTopic(topic.id)}
-                            className="text-left hover:text-[#3b4a6b] hover:underline"
+                            className="text-left hover:text-[var(--accent)] hover:underline"
                           >
                             {topic.title}
                           </button>
                         </td>
-                        <td className="border border-[#dad5cb] px-2 py-1.5 text-center text-[11px] text-[#5a544b]">
+                        <td className="border border-[var(--line)] px-2 py-1.5 text-center text-[11px] text-[var(--ink-2)]">
                           {cards.length === 0 ? "—" : `${mastery}%`}
                         </td>
                         {Array.from({ length: REVIEW_COLUMNS }).map((_, i) => {
                           const isFilled = i < filled && conf !== "empty";
                           return (
-                            <td key={i} className="border border-[#dad5cb] p-0">
+                            <td key={i} className="border border-[var(--line)] p-0">
                               <div
                                 className="mx-auto my-1 h-5 w-7 rounded-sm border"
                                 style={

@@ -24,18 +24,18 @@ export default function CategoryManager({ customCategories, onAdd, onRemove }: P
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="New category name"
-        className="w-40 rounded-md border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+        className="w-40 rounded-md border border-line px-2 py-1"
       />
       <button
         type="submit"
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Add category
       </button>
       {customCategories.map((c) => (
-        <span key={c} className="flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-1 dark:border-zinc-700">
+        <span key={c} className="flex items-center gap-1 rounded-full border border-line px-2 py-1">
           {c}
-          <button onClick={() => onRemove(c)} className="text-zinc-400 hover:text-zinc-600">
+          <button onClick={() => onRemove(c)} className="text-ink3 hover:text-ink2">
             ✕
           </button>
         </span>

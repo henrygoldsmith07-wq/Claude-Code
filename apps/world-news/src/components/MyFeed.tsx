@@ -80,13 +80,13 @@ export default function MyFeed() {
             {pins.map((p) => (
               <span
                 key={p.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-sm text-violet-200"
+                className="inline-flex items-center gap-1.5 rounded-full border border-speak/40 bg-speak/10 px-3 py-1 text-sm text-speak"
               >
                 📌 {p.label}
                 <button
                   type="button"
                   onClick={() => removePin(p.id)}
-                  className="text-violet-300/70 hover:text-red-300"
+                  className="text-speak/70 hover:text-danger"
                   title="Remove pin"
                 >
                   ×
@@ -139,7 +139,7 @@ export default function MyFeed() {
                   <p className="mt-3 text-sm text-muted">Loading latest…</p>
                 )}
                 {entry?.status === "error" && (
-                  <p className="mt-3 text-sm text-red-300">{entry.message}</p>
+                  <p className="mt-3 text-sm text-danger">{entry.message}</p>
                 )}
                 {entry?.status === "ready" && (
                   <div className="mt-3 space-y-3">

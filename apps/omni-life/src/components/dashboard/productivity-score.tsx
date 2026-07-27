@@ -22,7 +22,7 @@ export default function ProductivityScore({ reflections }: ProductivityScoreProp
   }
 
   return (
-    <Card className="bg-gray-900 border-gray-800 text-white">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Daily Score</CardTitle>
       </CardHeader>
@@ -31,13 +31,13 @@ export default function ProductivityScore({ reflections }: ProductivityScoreProp
           <div className="relative w-32 h-32">
             <svg className="w-full h-full" viewBox="0 0 36 36">
               <path
-                className="text-gray-800 stroke-current"
+                className="text-ink stroke-current"
                 strokeWidth="3"
                 fill="none"
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
               <path
-                className="text-blue-500 stroke-current"
+                className="text-speak stroke-current"
                 strokeWidth="3"
                 strokeDasharray={`${score}, 100`}
                 strokeLinecap="round"
@@ -47,7 +47,7 @@ export default function ProductivityScore({ reflections }: ProductivityScoreProp
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-3xl font-bold">{score}</span>
-              <span className="text-[10px] text-gray-500 uppercase">Productivity</span>
+              <span className="text-[10px] text-ink3 uppercase">Productivity</span>
             </div>
           </div>
         </div>
@@ -58,8 +58,8 @@ export default function ProductivityScore({ reflections }: ProductivityScoreProp
               <span>Focus & Output</span>
               <span>{productivity}%</span>
             </div>
-            <div className="w-full bg-gray-800 rounded-full h-1.5">
-              <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${productivity}%` }}></div>
+            <div className="w-full bg-surface rounded-full h-1.5">
+              <div className="bg-success h-1.5 rounded-full" style={{ width: `${productivity}%` }}></div>
             </div>
           </div>
           <div>
@@ -67,19 +67,19 @@ export default function ProductivityScore({ reflections }: ProductivityScoreProp
               <span>Rest & Recovery</span>
               <span>{rest}%</span>
             </div>
-            <div className="w-full bg-gray-800 rounded-full h-1.5">
-              <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${rest}%` }}></div>
+            <div className="w-full bg-surface rounded-full h-1.5">
+              <div className="bg-speak h-1.5 rounded-full" style={{ width: `${rest}%` }}></div>
             </div>
           </div>
         </div>
 
-        <div className="pt-2 border-t border-gray-800">
-          <p className="text-xs text-gray-400 mb-2 text-center">Trend (Last 7 Days)</p>
+        <div className="pt-2 border-t border-line">
+          <p className="text-xs text-ink3 mb-2 text-center">Trend (Last 7 Days)</p>
           <div className="flex justify-between items-end h-12 gap-1 px-2">
             {[65, 72, 85, 78, 92, 88, 85].map((s, i) => (
               <div 
                 key={i} 
-                className="bg-blue-500/30 w-full rounded-t-sm"
+                className="bg-speak/30 w-full rounded-t-sm"
                 style={{ height: `${s}%` }}
               ></div>
             ))}

@@ -132,7 +132,7 @@ export default function Sidebar({
                   <Link
                     key={`c-${c.id}`}
                     href={`/country/${c.id}`}
-                    className="rounded-md px-2.5 py-1.5 text-sm text-amber-200 transition-colors hover:bg-panel-soft"
+                    className="rounded-md px-2.5 py-1.5 text-sm text-review transition-colors hover:bg-panel-soft"
                   >
                     ★ {c.label}
                   </Link>

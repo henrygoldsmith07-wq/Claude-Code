@@ -58,32 +58,32 @@ export default function MindMapPanel({ apiKey }: Props) {
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <div className="rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="rounded-xl border border-line bg-surface p-4">
         <input
           value={subjectContext}
           onChange={(e) => setSubjectContext(e.target.value)}
           placeholder="Topic name (e.g. Cell membranes & transport)"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-full rounded-lg border border-line px-3 py-2 text-sm"
         />
         <textarea
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value)}
           rows={4}
           placeholder="Paste your notes here, or just describe the topic you want mapped…"
-          className="mt-2 w-full rounded-lg border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="mt-2 w-full rounded-lg border border-line p-2 text-sm"
         />
-        {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         <button
           onClick={handleGenerate}
           disabled={loading || !sourceText.trim()}
-          className="mt-2 rounded-full bg-zinc-900 px-4 py-1.5 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+          className="mt-2 rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent disabled:opacity-40"
         >
           {loading ? "Generating…" : "Generate mind map"}
         </button>
       </div>
 
       {mindMap && positions && (
-        <div className="overflow-x-auto rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface p-4">
           <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} className="mx-auto">
             {mindMap.edges.map((edge, i) => {
               const from = positions.get(edge.from);
@@ -114,7 +114,7 @@ export default function MindMapPanel({ apiKey }: Props) {
                 <g key={node.id}>
                   <circle cx={pos.x} cy={pos.y} r={34} className="fill-violet-100 stroke-violet-400 dark:fill-violet-950 dark:stroke-violet-700" />
                   <foreignObject x={pos.x - 34} y={pos.y - 34} width={68} height={68}>
-                    <div className="flex h-full w-full items-center justify-center p-1 text-center text-[9px] leading-tight text-zinc-900 dark:text-zinc-100">
+                    <div className="flex h-full w-full items-center justify-center p-1 text-center text-[9px] leading-tight text-ink">
                       {node.label}
                     </div>
                   </foreignObject>

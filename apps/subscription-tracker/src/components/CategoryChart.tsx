@@ -24,7 +24,7 @@ export default function CategoryChart({ spendByCategory, countByCategory, onSele
   const total = entries.reduce((sum, [, cents]) => sum + cents, 0);
 
   if (total === 0) {
-    return <p className="text-sm text-zinc-500">No active spend to chart yet.</p>;
+    return <p className="text-sm text-ink3">No active spend to chart yet.</p>;
   }
 
   const radius = 60;
@@ -76,7 +76,7 @@ export default function CategoryChart({ spendByCategory, countByCategory, onSele
             ) : (
               <span>{category}</span>
             )}
-            <span className="text-zinc-500">
+            <span className="text-ink3">
               {formatCents(cents)} ({((cents / total) * 100).toFixed(0)}%)
               {countByCategory && ` · ${countByCategory[category] ?? 0} sub(s)`}
             </span>
