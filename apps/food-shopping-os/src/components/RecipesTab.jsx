@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Flame, Heart, Star, UtensilsCrossed } from 'lucide-react';
+import { Heart, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
 import { DISCOVER_FILTERS, filterRecipes, RECIPES } from '../data/recipes.js';
@@ -8,7 +8,7 @@ import { Section, Card, Chip, Pill, FoodArt } from './ui.jsx';
 
 export default function RecipesTab({ openRecipe }) {
   const app = useApp();
-  const [filter, setFilter] = useState('Trending');
+  const [filter, setFilter] = useState('Dinner');
   const [query, setQuery] = useState('');
   const [onlyMine, setOnlyMine] = useState(true);
   const favourites = app.favourites.map((id) => RECIPES.find((r) => r.id === id)).filter(Boolean);
@@ -97,14 +97,16 @@ export default function RecipesTab({ openRecipe }) {
                         >
                           <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
                         </button>
-                        {r.tags.includes('trending') || r.rating >= 4.8 ? (
-                          <span className="absolute bottom-2 left-2"><Pill tone="accent"><Flame size={11} /> Trending</Pill></span>
+                        {r.tags.includes('high-protein') ? (
+                          <span className="absolute bottom-2 left-2"><Pill tone="accent">{r.protein}g protein</Pill></span>
+                        ) : r.time <= 20 ? (
+                          <span className="absolute bottom-2 left-2"><Pill tone="muted">{r.time} min</Pill></span>
                         ) : null}
                       </div>
                       <div className="p-3">
                         <p className="font-bold text-[13.5px] leading-tight line-clamp-2">{r.name}</p>
                         <p className="mt-1 text-[11.5px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--muted)' }}>
-                          {r.time <= 60 ? `${r.time} min` : `${Math.round(r.time / 60)} h`} · {r.kcal} kcal · <Star size={10} fill="currentColor" /> {r.rating}
+                          {r.time <= 60 ? `${r.time} min` : `${Math.round(r.time / 60)} h`} · {r.kcal} kcal · {r.protein}g protein
                         </p>
                         <p className="mt-1 text-[12px] font-extrabold" style={{ color: 'var(--accent)' }}>
                           {gbp(r.costPerServing, { always: true })}/serving

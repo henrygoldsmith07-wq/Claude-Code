@@ -39,16 +39,40 @@ const GOAL_PREFS = {
 
 export const scopeCount = (scope) => (scope === '1 meal' ? 1 : scope === 'A day' ? 3 : 7);
 
+/** Which meals a scope covers: a day is breakfast→dinner, a week is dinners. */
+export const scopeMeals = (scope) =>
+  (scope === 'A day' ? ['breakfast', 'lunch', 'dinner'] : ['dinner']);
+
 /**
- * Build a plan of exactly `count` meals. Returns { meals, note } where note
+ * Build a plan of exactly `count` dishes. Returns { meals, note } where note
  * explains any compromise (relaxed constraints or repeated recipes).
  */
 export function buildPlan({ scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2 }, seed) {
   const count = scopeCount(scope);
-  let pool = hardFilter(RECIPES, { diets, goal, budget, maxTime });
+  const slots = scopeMeals(scope);
+
+  // A day's plan takes one dish from each meal; everything else is dinners.
+  if (slots.length > 1) {
+    let relaxedDay = false;
+    const picks = slots.map((meal, i) => {
+      const forSlot = RECIPES.filter((r) => r.meal === meal);
+      const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime });
+      if (!mealPool.length) relaxedDay = true;
+      return seededPick(mealPool.length ? mealPool : forSlot, 1, seed + i * 17)[0];
+    }).filter(Boolean);
+    return {
+      meals: picks,
+      note: relaxedDay || picks.length < slots.length
+        ? 'Nothing matched every filter — showing the closest fits instead.'
+        : null,
+    };
+  }
+
+  const dinners = RECIPES.filter((r) => r.meal === 'dinner');
+  let pool = hardFilter(dinners, { diets, goal, budget, maxTime });
   let relaxed = false;
   if (pool.length === 0) {
-    pool = RECIPES;
+    pool = dinners;
     relaxed = true;
   }
 

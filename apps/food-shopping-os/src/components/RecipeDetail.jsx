@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Check, ChefHat, ChevronLeft, Flame, Heart, Mic, PartyPopper, Package,
-  Pause, Play, ShoppingCart, Slice, Star, Timer as TimerIcon, X,
+  Pause, Play, ShoppingCart, Slice, Timer as TimerIcon, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, cx } from '../lib/utils.js';
@@ -186,7 +186,7 @@ export default function RecipeDetail({ recipe, onClose }) {
         <Card className="rise">
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-[20px] font-extrabold leading-tight">{recipe.name}</h1>
-            <Pill tone="accent"><Star size={11} fill="currentColor" /> {recipe.rating}</Pill>
+            <Pill tone="accent">{recipe.kcal} kcal</Pill>
           </div>
           <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
             {recipe.cuisine} · serves {recipe.servings} · {gbp(recipe.costPerServing, { always: true })}/serving

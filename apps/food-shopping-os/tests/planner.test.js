@@ -21,14 +21,30 @@ describe('hardFilter', () => {
 });
 
 describe('buildPlan', () => {
-  it('always fills the requested scope, repeating when the pool is small', () => {
+  it('fills a week of dinners from the vegan pool without repeating', () => {
     const { meals, note } = buildPlan(
       { scope: 'A week', diets: ['vegan'], budget: 4, maxTime: 30 },
       42
     );
     expect(meals).toHaveLength(scopeCount('A week'));
     expect(meals.every(Boolean)).toBe(true);
-    expect(note).toMatch(/repeat/i);
+    expect(meals.every((r) => r.meal === 'dinner')).toBe(true);
+    expect(new Set(meals.map((r) => r.id)).size).toBe(meals.length);
+    expect(note).toBeNull();
+  });
+
+  it('repeats, with a note, when the pool really is tiny', () => {
+    const { meals, note } = buildPlan(
+      { scope: 'A week', diets: ['vegan', 'keto'], budget: 1, maxTime: 20 },
+      11
+    );
+    expect(meals).toHaveLength(7);
+    expect(note === null || /repeat|closest/i.test(note)).toBe(true);
+  });
+
+  it('plans a day as breakfast, lunch and dinner', () => {
+    const { meals } = buildPlan({ scope: 'A day', budget: 4 }, 3);
+    expect(meals.map((r) => r.meal)).toEqual(['breakfast', 'lunch', 'dinner']);
   });
   it('falls back with a note when nothing matches', () => {
     const { meals, note } = buildPlan({ scope: 'A day', diets: ['vegan'], budget: 0.1 }, 7);

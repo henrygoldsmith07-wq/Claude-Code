@@ -4,36 +4,55 @@ import { gbp } from '../lib/utils.js';
 import { buildPlan } from '../lib/planner.js';
 import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
-import { byId, RECIPES } from '../data/recipes.js';
+import { byId, forMeal, RECIPES } from '../data/recipes.js';
 import {
   MEAL_SLOTS, PLANNER_SCOPES, PLANNER_OCCASIONS, WEEK_DAYS,
 } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { planCost, plannedMeals, weekDates } from '../lib/kitchen.js';
+import { filterByDiet } from '../lib/goals.js';
 import { Section, Card, Chip, Pill, Stepper, FoodArt, Sheet } from './ui.jsx';
 
-/** Pick a recipe for one slot — favourites first, then everything, searchable. */
-function RecipePicker({ onPick, onClear, hasMeal }) {
+/**
+ * Pick a recipe for one slot. Defaults to dishes for that meal — breakfasts for
+ * a breakfast slot — filtered by your dietary patterns, favourites first.
+ */
+function RecipePicker({ slot, onPick, onClear, hasMeal }) {
   const app = useApp();
   const [query, setQuery] = useState('');
+  const [anyMeal, setAnyMeal] = useState(false);
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pool = q
-      ? RECIPES.filter((r) => r.name.toLowerCase().includes(q) || r.cuisine.toLowerCase().includes(q))
-      : [...RECIPES].sort((a, b) => Number(app.favourites.includes(b.id)) - Number(app.favourites.includes(a.id)));
-    return pool;
-  }, [query, app.favourites]);
+    const pool = anyMeal || q ? RECIPES : forMeal(slot);
+    const matched = q
+      ? pool.filter((r) => r.name.toLowerCase().includes(q)
+        || r.cuisine.toLowerCase().includes(q)
+        || r.ingredients.some((i) => i.name.toLowerCase().includes(q)))
+      : pool;
+    return filterByDiet(matched, app.diets)
+      .sort((a, b) => Number(app.favourites.includes(b.id)) - Number(app.favourites.includes(a.id)));
+  }, [query, anyMeal, slot, app.favourites, app.diets]);
 
   return (
     <div className="px-5 pb-10 space-y-3">
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search recipes…"
+        placeholder={`Search ${RECIPES.length} recipes…`}
         aria-label="Search recipes"
         className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          {list.length} {anyMeal || query ? 'recipes' : `${slot} recipes`}
+          {app.diets.length ? ' that fit your diet' : ''}
+        </p>
+        <Chip active={!anyMeal} onClick={() => setAnyMeal((v) => !v)}>
+          {`Just ${slot}`}
+        </Chip>
+      </div>
       {hasMeal && (
         <button
           onClick={onClear}
@@ -44,7 +63,7 @@ function RecipePicker({ onPick, onClear, hasMeal }) {
         </button>
       )}
       <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
-        {list.map((r) => (
+        {list.slice(0, 120).map((r) => (
           <button
             key={r.id}
             onClick={() => onPick(r.id)}
@@ -339,6 +358,7 @@ export default function PlanTab({ openRecipe }) {
       <Sheet open={!!picking} onClose={() => setPicking(null)} title="Plan a meal">
         {picking && (
           <RecipePicker
+            slot={picking.slot}
             hasMeal={!!(app.plan[picking.date] || {})[picking.slot]}
             onPick={(id) => { app.setPlanSlot(picking.date, picking.slot, id); setPicking(null); }}
             onClear={() => { app.setPlanSlot(picking.date, picking.slot, null); setPicking(null); }}

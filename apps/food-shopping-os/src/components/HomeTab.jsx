@@ -356,7 +356,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
           <div className="p-4">
             <div className="flex items-center justify-between">
               <p className="font-extrabold text-[16px]">{recipeOfDay.name}</p>
-              <Pill tone="accent"><Star size={11} fill="currentColor" /> {recipeOfDay.rating}</Pill>
+              <Pill tone="accent">{recipeOfDay.protein}g protein</Pill>
             </div>
             <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
               {recipeOfDay.cuisine} · {recipeOfDay.time} min · {gbp(recipeOfDay.costPerServing, { always: true })}/serving · {recipeOfDay.kcal} kcal
