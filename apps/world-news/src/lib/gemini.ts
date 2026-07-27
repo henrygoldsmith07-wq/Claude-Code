@@ -81,6 +81,32 @@ export class RateLimitError extends Error {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Gemini's 429 body often carries a RetryInfo hint ("retryDelay": "24s"). The
+// SDK doesn't surface it as a typed field, so read it off the message text
+// best-effort. Capped, because a per-minute limit shouldn't make us sit out a
+// hint measured in minutes — we'd rather back off our own way and move on.
+const MAX_RETRY_HINT_MS = 30_000;
+
+// How many times to sweep the whole key set before declaring the limit real,
+// and the base delay between sweeps. Three rounds costs at most ~6s of waiting
+// on top of the API's own hints — cheap next to losing a place's summary.
+const RATE_LIMIT_ROUNDS = 3;
+const RATE_LIMIT_BASE_MS = 2_000;
+
+function retryHintMs(error: unknown): number | null {
+  const message = (error as { message?: unknown })?.message;
+  if (typeof message !== "string") return null;
+  const match = /"?retryDelay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s/i.exec(message);
+  if (!match) return null;
+  const seconds = Number(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return Math.min(seconds * 1000, MAX_RETRY_HINT_MS);
+}
+
 // All configured Gemini API keys, in priority order. Extra free keys (each on
 // its own Google account) multiply the daily quota — the app rotates to the
 // next key when one hits its 429 daily cap. Provide keys either as a single
@@ -288,25 +314,47 @@ async function runSummary(
 ): Promise<CountryNews> {
   const keys = getApiKeys();
 
-  // Try each key in turn: on a 429 (daily quota exhausted) rotate to the next
-  // key; any other error propagates. If every key is exhausted, surface a typed
-  // RateLimitError so the UI can explain it.
+  // Try each key in turn: on a 429 rotate to the next key; any other error
+  // propagates. A 429 can mean either the key's daily quota is gone (rotating
+  // is the fix) or we're simply going too fast (waiting is the fix) — and the
+  // response doesn't reliably distinguish them. So do both: sweep the keys,
+  // then back off and sweep again. Without the pause a full rotation burns
+  // every key within milliseconds and reports exhaustion that isn't real.
   let response;
-  for (const apiKey of keys) {
-    const ai = new GoogleGenAI({ apiKey });
-    try {
-      response = await ai.models.generateContent({
-        model: MODEL,
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }],
-          temperature: 0.3,
-        },
-      });
-      break;
-    } catch (error) {
-      if ((error as { status?: number })?.status === 429) continue;
-      throw error;
+  let lastHintMs: number | null = null;
+
+  for (let round = 0; round < RATE_LIMIT_ROUNDS && !response; round++) {
+    if (round > 0) {
+      // Exponential backoff with jitter, or the API's own hint when it gave
+      // one. Jitter keeps concurrent regenerations from retrying in lockstep.
+      const backoff = RATE_LIMIT_BASE_MS * 2 ** (round - 1);
+      const wait = lastHintMs ?? backoff + Math.random() * RATE_LIMIT_BASE_MS;
+      console.warn(
+        `[gemini] ${label}: all ${keys.length} key(s) rate-limited — retrying in ${Math.round(wait)}ms (round ${round + 1}/${RATE_LIMIT_ROUNDS})`,
+      );
+      await sleep(wait);
+      lastHintMs = null;
+    }
+
+    for (const apiKey of keys) {
+      const ai = new GoogleGenAI({ apiKey });
+      try {
+        response = await ai.models.generateContent({
+          model: MODEL,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            temperature: 0.3,
+          },
+        });
+        break;
+      } catch (error) {
+        if ((error as { status?: number })?.status === 429) {
+          lastHintMs = retryHintMs(error) ?? lastHintMs;
+          continue;
+        }
+        throw error;
+      }
     }
   }
   if (!response) throw new RateLimitError();
