@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Modal, Spinner } from './ui';
-import { X as XIcon } from './icons';
+import { Check, X as XIcon } from './icons';
 import { validateKey } from '../lib/groq';
 import { setApiKey, clearApiKey } from '../lib/storage';
-import { LANGUAGE_LIST } from '../lib/languages';
+import { LANGUAGE_LIST, getLanguage, normaliseLanguages } from '../lib/languages';
 
 // Captures + validates the Groq API key before committing it to localStorage.
 
@@ -11,6 +11,17 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
   const [draft, setDraft] = useState('');
   const [state, setState] = useState('idle'); // idle | checking | ok | bad
   const [message, setMessage] = useState('');
+
+  // Settings saved before multi-language existed carry only `language`.
+  const { languages: learning, language: active } = normaliseLanguages(settings.languages, settings.language || 'fr');
+
+  // Dropping the language being studied hands that role to the next one, so
+  // the studio is never pointed at a language the learner has left.
+  const toggleLearning = (id) => {
+    const wanted = learning.includes(id) ? learning.filter((x) => x !== id) : [...learning, id];
+    if (!wanted.length) return; // one language is the floor — never zero
+    onSettingsChange({ ...settings, ...normaliseLanguages(wanted, active) });
+  };
 
   const save = async () => {
     const key = draft.trim();
@@ -109,28 +120,55 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
 
         <section className="space-y-3 pt-2 border-t border-line">
           <div>
-            <span className="block text-sm text-ink mb-2">Language to learn</span>
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Target language">
+            <span className="block text-sm text-ink mb-2">Languages I'm learning</span>
+            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Languages I'm learning">
               {LANGUAGE_LIST.map((l) => {
-                const on = (settings.language || 'fr') === l.id;
+                const on = learning.includes(l.id);
                 return (
                   <button
                     key={l.id}
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => onSettingsChange({ ...settings, language: l.id })}
-                    className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition-colors ${
+                    aria-pressed={on}
+                    onClick={() => toggleLearning(l.id)}
+                    className={`relative flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition-colors ${
                       on ? 'bg-surface2 border-ink' : 'bg-surface border-line hover:border-ink3'
                     }`}
                   >
+                    {on && <Check size={13} className="absolute top-1.5 right-1.5 text-ink" aria-hidden="true" />}
                     <span className="text-2xl" aria-hidden="true">{l.flag}</span>
                     <span className={`text-xs font-semibold ${on ? 'text-ink' : 'text-ink2'}`}>{l.nativeName}</span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[11px] text-ink3 mt-1.5">Switches the whole studio — conversations, flashcards, speech and the AI tutor.</p>
+            <p className="text-[11px] text-ink3 mt-1.5">
+              Sign up for as many as you like — you study one at a time, and dropping one keeps its progress.
+            </p>
           </div>
+          {learning.length > 1 && (
+            <div>
+              <span className="block text-sm text-ink mb-2">Studying right now</span>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Language being studied">
+                {learning.map((id) => {
+                  const l = getLanguage(id);
+                  const on = active === id;
+                  return (
+                    <button
+                      key={id}
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => onSettingsChange({ ...settings, language: id })}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold border transition-colors ${
+                        on ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'
+                      }`}
+                    >
+                      <span aria-hidden="true">{l.flag}</span> {l.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-ink3 mt-1.5">Switches the whole studio — conversations, flashcards, speech and the AI tutor.</p>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-4 min-h-11">
             <span>
               <span className="block text-sm text-ink">My level (CEFR)</span>
