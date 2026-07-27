@@ -31,7 +31,7 @@ describe('App', () => {
   it('logs a food through search and updates the day total', () => {
     render(<App />);
     fireEvent.click(screen.getByText('Log'));
-    const before = Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.replace(/\D/g, ''));
+    const before = Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
 
     fireEvent.click(screen.getAllByText('+ Add food')[0]);
     const addSheet = screen.getByText('Add food').closest('[role="dialog"]');
@@ -41,7 +41,7 @@ describe('App', () => {
     const portionSheet = screen.getByText('How much?').closest('[role="dialog"]');
     fireEvent.click(within(portionSheet).getByText(/Add \d+ kcal to/));
 
-    const after = Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.replace(/\D/g, ''));
+    const after = Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
     expect(after).toBeLessThan(before);
     expect(screen.getAllByText('Hummus').length).toBeGreaterThan(0);
   });

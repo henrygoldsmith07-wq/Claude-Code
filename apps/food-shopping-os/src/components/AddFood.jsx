@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import {
-  Camera, ChevronRight, Clock, Heart, Link2, Mic, Plus, ScanBarcode, Search, Trash2, Zap,
+  Camera, ChevronDown, ChevronRight, ChevronUp, Clock, Heart, Link2, Mic, Plus,
+  ScanBarcode, Search, Trash2, Zap,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { searchFoods, makeCustomFood } from '../lib/foodlog.js';
 import { buildQuickEntry, defaultServing, scale } from '../lib/nutrition.js';
 import { QUICK_ADD_PRESETS, RESTAURANTS } from '../data/foods.js';
+import { NUTRIENTS } from '../data/nutrients.js';
 import { Card, Chip, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { MealPicker, NumberField } from './FoodDetail.jsx';
@@ -109,18 +111,25 @@ function QuickAddPanel({ defaultMeal, onDone }) {
 
 /* ---------- Custom food ---------- */
 
+const BLANK_FOOD = { name: '', brand: '', servingGrams: 100, unit: 'g', kcal: '', protein: '', carbs: '', fat: '', fibre: '' };
+
 function CustomFoodForm({ onCreated }) {
   const app = useApp();
-  const [draft, setDraft] = useState({ name: '', brand: '', servingGrams: 100, unit: 'g', kcal: '', protein: '', carbs: '', fat: '', fibre: '' });
+  const [draft, setDraft] = useState(BLANK_FOOD);
   const [errors, setErrors] = useState([]);
+  const [showAll, setShowAll] = useState(false);
   const field = (k) => (val) => setDraft((d) => ({ ...d, [k]: val }));
+
+  // Everything past the headline macros — filled in from the packet if you have it.
+  const extraNutrients = NUTRIENTS.filter((n) => !['kcal', 'protein', 'carbs', 'fat'].includes(n.key));
 
   const submit = () => {
     const { errors: errs, food } = makeCustomFood(draft);
     setErrors(errs);
     if (food) {
       app.addCustomFood(food);
-      setDraft({ name: '', brand: '', servingGrams: 100, unit: 'g', kcal: '', protein: '', carbs: '', fat: '', fibre: '' });
+      setDraft(BLANK_FOOD);
+      setShowAll(false);
       onCreated(food);
     }
   };
@@ -159,6 +168,29 @@ function CustomFoodForm({ onCreated }) {
         <NumberField label="Carbs" value={draft.carbs} onChange={field('carbs')} suffix="g" />
         <NumberField label="Fat" value={draft.fat} onChange={field('fat')} suffix="g" />
       </div>
+
+      <button
+        onClick={() => setShowAll((v) => !v)}
+        className="press inline-flex items-center gap-1.5 text-[12.5px] font-bold"
+        style={{ color: 'var(--accent)' }}
+      >
+        {showAll ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        {showAll ? 'Hide' : 'Add'} fibre, vitamins, minerals & more
+      </button>
+      {showAll && (
+        <div className="grid grid-cols-2 gap-2.5">
+          {extraNutrients.map((n) => (
+            <NumberField
+              key={n.key}
+              label={n.label}
+              value={draft[n.key] ?? ''}
+              onChange={field(n.key)}
+              suffix={n.unit}
+              step={n.dp ? 0.1 : 1}
+            />
+          ))}
+        </div>
+      )}
       {errors.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {errors.map((e) => <Pill key={e} tone="danger">{e}</Pill>)}

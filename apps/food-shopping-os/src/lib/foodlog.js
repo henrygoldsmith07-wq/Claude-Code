@@ -9,8 +9,9 @@
  */
 
 import { CATALOGUE, FOODS } from '../data/foods.js';
+import { NUTRIENT_KEYS } from '../data/nutrients.js';
 import { RECIPES } from '../data/recipes.js';
-import { buildEntry, recipeAsFood, timeStamp, mealForTime } from './nutrition.js';
+import { EMPTY, buildEntry, recipeAsFood, timeStamp, mealForTime } from './nutrition.js';
 
 const norm = (str) => String(str || '').toLowerCase().trim();
 
@@ -261,13 +262,9 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
   const matched = ingredients.filter((i) => i.food);
   const total = matched.reduce((acc, i) => {
     const k = i.grams / 100;
-    acc.kcal += i.food.per100.kcal * k;
-    acc.protein += i.food.per100.protein * k;
-    acc.carbs += i.food.per100.carbs * k;
-    acc.fat += i.food.per100.fat * k;
-    acc.fibre += (i.food.per100.fibre || 0) * k;
+    for (const key of NUTRIENT_KEYS) acc[key] += (i.food.per100[key] || 0) * k;
     return acc;
-  }, { kcal: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 });
+  }, { ...EMPTY });
 
   const grams = Math.max(1, matched.reduce((g, i) => g + i.grams, 0)) / servings;
   const perServing = Object.fromEntries(
@@ -288,13 +285,12 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
       unit: 'g',
       source: 'custom',
       tags: ['imported'],
-      per100: {
-        kcal: Math.round((perServing.kcal / grams) * 100),
-        protein: Math.round((perServing.protein / grams) * 1000) / 10,
-        carbs: Math.round((perServing.carbs / grams) * 1000) / 10,
-        fat: Math.round((perServing.fat / grams) * 1000) / 10,
-        fibre: Math.round((perServing.fibre / grams) * 1000) / 10,
-      },
+      per100: Object.fromEntries(NUTRIENT_KEYS.map((key) => [
+        key,
+        key === 'kcal'
+          ? Math.round((perServing.kcal / grams) * 100)
+          : Math.round(((perServing[key] || 0) / grams) * 1000) / 10,
+      ])),
       servings: [
         { label: '1 serving', grams: Math.round(grams) },
         { label: 'Half serving', grams: Math.round(grams / 2) },
@@ -325,6 +321,33 @@ export const importRecipeUrl = (url) => {
   };
 };
 
+/* ---------- Recipes ---------- */
+
+/**
+ * Recipe cards print calories and macros, never micronutrients — so estimate
+ * the rest from the ingredient list, as a per-100 g concentration of the
+ * finished dish.
+ */
+export const estimateRecipeMicros = (recipe, catalogue = CATALOGUE) => {
+  const parsed = (recipe.ingredients || [])
+    .map((i) => parseIngredientLine(`${i.qty} ${i.name}`, catalogue))
+    .filter((i) => i && i.food);
+  const grams = parsed.reduce((g, i) => g + i.grams, 0);
+  if (!grams) return null;
+  const totals = parsed.reduce((acc, i) => {
+    const k = i.grams / 100;
+    for (const key of NUTRIENT_KEYS) acc[key] += (i.food.per100[key] || 0) * k;
+    return acc;
+  }, { ...EMPTY });
+  return Object.fromEntries(
+    NUTRIENT_KEYS.map((key) => [key, Math.round((totals[key] / grams) * 100 * 100) / 100]),
+  );
+};
+
+/** A recipe as a loggable food, micronutrients included. */
+export const recipeFood = (recipe, catalogue = CATALOGUE) =>
+  recipeAsFood(recipe, estimateRecipeMicros(recipe, catalogue));
+
 /* ---------- Custom foods ---------- */
 
 /** Validate + normalise the custom-food form at the boundary. */
@@ -341,6 +364,13 @@ export const makeCustomFood = (draft) => {
 
   const num = (v) => Math.max(0, Number(v) || 0);
   const k = 100 / servingGrams;
+  // Every tracked nutrient can be filled in from the packet; blanks stay 0.
+  const per100 = Object.fromEntries(NUTRIENT_KEYS.map((key) => [
+    key,
+    key === 'kcal'
+      ? Math.round(num(kcal) * k)
+      : Math.round(num(draft[key]) * k * 10) / 10,
+  ]));
   return {
     errors: [],
     food: {
@@ -351,13 +381,7 @@ export const makeCustomFood = (draft) => {
       unit: draft.unit === 'ml' ? 'ml' : 'g',
       source: 'custom',
       tags: ['mine'],
-      per100: {
-        kcal: Math.round(num(kcal) * k),
-        protein: Math.round(num(draft.protein) * k * 10) / 10,
-        carbs: Math.round(num(draft.carbs) * k * 10) / 10,
-        fat: Math.round(num(draft.fat) * k * 10) / 10,
-        fibre: Math.round(num(draft.fibre) * k * 10) / 10,
-      },
+      per100,
       servings: [
         { label: `1 serving (${servingGrams} ${draft.unit === 'ml' ? 'ml' : 'g'})`, grams: servingGrams },
         { label: `Half serving`, grams: servingGrams / 2 },
