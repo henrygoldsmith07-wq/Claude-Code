@@ -60,7 +60,7 @@ export default function NotebookLinksPanel({ linkedCount, onImport }: Props) {
       <div className="flex gap-2">
         <button
           onClick={handleImport}
-          className="rounded bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+          className="rounded bg-accent px-3 py-1 text-onaccent"
         >
           Import
         </button>

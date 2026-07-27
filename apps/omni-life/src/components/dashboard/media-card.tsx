@@ -15,7 +15,7 @@ export default function MediaCard({ history }: MediaCardProps) {
   const currentlyPlaying = spotifyTracks[0];
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Media & Listening</CardTitle>
       </CardHeader>
@@ -58,7 +58,7 @@ export default function MediaCard({ history }: MediaCardProps) {
 
         <div className="pt-2 border-t border-line flex justify-between text-xs text-ink3">
           <span>Listening Time Today</span>
-          <span className="font-bold text-onaccent">2h 15m</span>
+          <span className="font-bold text-ink">2h 15m</span>
         </div>
       </CardContent>
     </Card>

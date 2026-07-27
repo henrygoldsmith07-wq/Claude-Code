@@ -118,7 +118,7 @@ export default function FocusTimer({ onLogFocus }: Props) {
       <div className="flex gap-2">
         <button
           onClick={() => setRunning((r) => !r)}
-          className="rounded-full bg-surface px-5 py-2 text-sm text-onaccent dark:bg-surface"
+          className="rounded-full bg-accent px-5 py-2 text-sm text-onaccent"
         >
           {running ? "Pause" : "Start"}
         </button>

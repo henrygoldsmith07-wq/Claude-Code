@@ -79,7 +79,7 @@ export default function Overview() {
       {/* Recent Notifications Card (Integrated into layout or as separate) */}
       <div className="lg:col-span-full mt-4">
         <div className="bg-surface border border-line rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-onaccent mb-4">Recent Notifications</h3>
+          <h3 className="text-lg font-semibold text-ink mb-4">Recent Notifications</h3>
           <div className="space-y-3">
             {data.notifications.length > 0 ? (
               data.notifications.map((n: any) => (

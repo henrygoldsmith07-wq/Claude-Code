@@ -97,7 +97,7 @@ export default function Dashboard({
           <button
             onClick={onStudyAllDue}
             disabled={totalDue === 0}
-            className="rounded-full bg-surface px-4 py-2 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
+            className="rounded-full bg-accent px-4 py-2 text-sm text-onaccent disabled:opacity-40"
           >
             Study all due (interleaved)
           </button>

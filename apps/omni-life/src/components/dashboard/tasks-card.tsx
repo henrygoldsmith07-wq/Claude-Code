@@ -12,7 +12,7 @@ export default function TasksCard({ tasks }: TasksCardProps) {
   const sortedTasks = [...tasks].sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg font-semibold">Pending Tasks</CardTitle>
         <span className="text-xs bg-surface px-2 py-1 rounded text-ink3">{tasks.length}</span>

@@ -45,7 +45,7 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-ink text-onaccent">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-bg text-ink">Loading...</div>;
   }
 
   if (!user) {
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-screen bg-ink text-onaccent">
+    <div className="flex h-screen bg-bg text-ink">
       <Sidebar activeSection="overview" />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} onLogout={handleLogout} />

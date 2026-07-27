@@ -66,7 +66,7 @@ export default function SketchPad({ onSave, onCancel }: Props) {
         </button>
         <button
           onClick={() => canvasRef.current && onSave(canvasRef.current.toDataURL("image/png"))}
-          className="rounded-full bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+          className="rounded-full bg-accent px-3 py-1 text-onaccent"
         >
           Save sketch
         </button>

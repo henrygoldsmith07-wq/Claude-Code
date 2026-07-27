@@ -16,7 +16,7 @@ export default function HealthCard({ metrics }: HealthCardProps) {
   const stepProgress = Math.min((steps / stepGoal) * 100, 100);
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Health & Fitness</CardTitle>
       </CardHeader>

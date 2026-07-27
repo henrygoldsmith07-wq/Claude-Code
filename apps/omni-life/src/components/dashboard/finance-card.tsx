@@ -23,7 +23,7 @@ export default function FinanceCard({ transactions }: FinanceCardProps) {
   const recentTransactions = transactions.slice(0, 5);
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Financial Summary</CardTitle>
       </CardHeader>

@@ -90,7 +90,7 @@ export default function QuizSession({ questions, onComplete, onFinish }: Props) 
             <p className="text-sm text-ink2">{question.explanation}</p>
             <button
               onClick={handleNext}
-              className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent hover:bg-surface2 dark:bg-surface dark:hover:bg-surface2"
+              className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent hover:bg-surface2 dark:hover:bg-surface2"
             >
               {index + 1 >= questions.length ? "Finish" : "Next question"}
             </button>

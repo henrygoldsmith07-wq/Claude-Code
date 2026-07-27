@@ -190,7 +190,7 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
           <button
             onClick={handleAsk}
             disabled={sending || !question.trim()}
-            className="rounded-full bg-surface px-4 py-2 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
+            className="rounded-full bg-accent px-4 py-2 text-sm text-onaccent disabled:opacity-40"
           >
             {sending ? "Thinking…" : "Ask"}
           </button>

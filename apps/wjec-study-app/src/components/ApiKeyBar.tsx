@@ -42,7 +42,7 @@ export default function ApiKeyBar({ apiKey, onApiKeyChange }: Props) {
             onApiKeyChange(draft);
             setOpen(false);
           }}
-          className="rounded bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+          className="rounded bg-accent px-3 py-1 text-onaccent"
         >
           Save
         </button>

@@ -79,7 +79,7 @@ export default function TopicRow({
               <button
                 onClick={onStudy}
                 disabled={due === 0}
-                className="rounded-full bg-surface px-3 py-1.5 text-onaccent disabled:opacity-40 dark:bg-surface"
+                className="rounded-full bg-accent px-3 py-1.5 text-onaccent disabled:opacity-40"
               >
                 Study {due > 0 ? `(${due})` : ""}
               </button>
@@ -151,7 +151,7 @@ export default function TopicRow({
                     onSetNotebookLink(linkDraft.trim());
                     setEditingLink(false);
                   }}
-                  className="rounded bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+                  className="rounded bg-accent px-3 py-1 text-onaccent"
                 >
                   Save
                 </button>

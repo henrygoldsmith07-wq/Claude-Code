@@ -13,7 +13,7 @@ export default function CalendarCard({ events }: CalendarCardProps) {
   const nextEvent = upcomingEvents[0];
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Today's Schedule</CardTitle>
       </CardHeader>

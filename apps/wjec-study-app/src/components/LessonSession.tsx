@@ -105,7 +105,7 @@ export default function LessonSession({ sections, onComplete, onFinish }: Props)
               <p className="text-sm text-ink2">{section.checkExplanation}</p>
               <button
                 onClick={handleNext}
-                className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent dark:bg-surface"
+                className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent"
               >
                 {index + 1 >= queue.length ? "Finish" : "Next section"}
               </button>

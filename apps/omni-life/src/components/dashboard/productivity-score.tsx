@@ -22,7 +22,7 @@ export default function ProductivityScore({ reflections }: ProductivityScoreProp
   }
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Daily Score</CardTitle>
       </CardHeader>

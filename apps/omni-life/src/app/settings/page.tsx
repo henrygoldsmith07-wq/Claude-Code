@@ -96,11 +96,11 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-ink text-onaccent">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-bg text-ink">Loading...</div>;
   }
 
   return (
-    <div className="flex h-screen bg-ink text-onaccent">
+    <div className="flex h-screen bg-bg text-ink">
       <Sidebar activeSection="settings" />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} onLogout={handleLogout} />
@@ -111,7 +111,7 @@ export default function SettingsPage() {
             {/* Profile Settings */}
             <Card className="bg-surface border-line">
               <CardHeader>
-                <CardTitle className="text-onaccent">Profile & Communication</CardTitle>
+                <CardTitle className="text-ink">Profile & Communication</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -120,7 +120,7 @@ export default function SettingsPage() {
                     value={whatsappNumber} 
                     onChange={(e) => setWhatsappNumber(e.target.value)}
                     placeholder="+447000000000"
-                    className="bg-surface border-line text-onaccent"
+                    className="bg-surface border-line text-ink"
                   />
                 </div>
                 <div className="space-y-2">
@@ -129,7 +129,7 @@ export default function SettingsPage() {
                     value={location} 
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="City, Country"
-                    className="bg-surface border-line text-onaccent"
+                    className="bg-surface border-line text-ink"
                   />
                 </div>
                 <Button 
@@ -145,7 +145,7 @@ export default function SettingsPage() {
             {/* Service Connections */}
             <Card className="bg-surface border-line">
               <CardHeader>
-                <CardTitle className="text-onaccent">External Services</CardTitle>
+                <CardTitle className="text-ink">External Services</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                     </div>
                     <Button 
                       onClick={() => handleConnect(service.id)}
-                      className={connections[service.id as keyof typeof connections] ? 'bg-surface2 text-onaccent' : 'bg-speak text-onaccent'}
+                      className={connections[service.id as keyof typeof connections] ? 'bg-surface2 text-ink' : 'bg-speak text-ink'}
                     >
                       {connections[service.id as keyof typeof connections] ? 'Reconnect' : 'Connect'}
                     </Button>
@@ -180,7 +180,7 @@ export default function SettingsPage() {
             {/* Automation Toggles */}
             <Card className="bg-surface border-line">
               <CardHeader>
-                <CardTitle className="text-onaccent">Automation Loops</CardTitle>
+                <CardTitle className="text-ink">Automation Loops</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[

@@ -181,7 +181,7 @@ export default function NoteBank({ apiKey, initialNotes }: Props) {
 
         <button
           onClick={handleSave}
-          className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent dark:bg-surface"
+          className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent"
         >
           Save note
         </button>

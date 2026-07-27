@@ -73,7 +73,7 @@ function FillBlankItem({ item, onAnswered }: { item: PracticeItem; onAnswered: (
         {!submitted && (
           <button
             onClick={submit}
-            className="rounded-lg bg-surface px-4 py-2 text-sm text-onaccent dark:bg-surface"
+            className="rounded-lg bg-accent px-4 py-2 text-sm text-onaccent"
           >
             Check
           </button>
@@ -231,7 +231,7 @@ export default function PracticeTestSession({ items, onFinish }: Props) {
             <p className="text-sm text-ink2">{item.explanation}</p>
             <button
               onClick={handleNext}
-              className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent dark:bg-surface"
+              className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent"
             >
               {index + 1 >= items.length ? "Finish" : "Next item"}
             </button>

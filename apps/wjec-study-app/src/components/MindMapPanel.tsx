@@ -76,7 +76,7 @@ export default function MindMapPanel({ apiKey }: Props) {
         <button
           onClick={handleGenerate}
           disabled={loading || !sourceText.trim()}
-          className="mt-2 rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
+          className="mt-2 rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent disabled:opacity-40"
         >
           {loading ? "Generating…" : "Generate mind map"}
         </button>

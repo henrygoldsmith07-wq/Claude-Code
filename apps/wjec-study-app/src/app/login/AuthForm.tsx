@@ -86,7 +86,7 @@ export default function AuthForm() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full bg-surface px-4 py-2 text-sm font-medium text-onaccent disabled:opacity-40"
+          className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-onaccent disabled:opacity-40"
         >
           {pending ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
         </button>

@@ -79,7 +79,7 @@ export default function AudioOverviewPanel({ apiKey, initialOverviews }: Props) 
           />
           <button
             onClick={() => setElevenLabsKey(keyDraft)}
-            className="rounded bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+            className="rounded bg-accent px-3 py-1 text-onaccent"
           >
             Save
           </button>
@@ -145,7 +145,7 @@ export default function AudioOverviewPanel({ apiKey, initialOverviews }: Props) 
                 onClick={handleGenerateAudio}
                 disabled={audioLoading || !elevenLabsKey}
                 title={!elevenLabsKey ? "Save an ElevenLabs API key first" : undefined}
-                className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
+                className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent disabled:opacity-40"
               >
                 {audioLoading ? "Synthesizing…" : "Generate audio"}
               </button>

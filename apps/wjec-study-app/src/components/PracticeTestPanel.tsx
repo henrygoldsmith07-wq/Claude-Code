@@ -102,7 +102,7 @@ export default function PracticeTestPanel({ apiKey }: Props) {
       <button
         onClick={handleGenerate}
         disabled={loading || formats.length === 0}
-        className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
+        className="self-start rounded-full bg-accent px-4 py-1.5 text-sm text-onaccent disabled:opacity-40"
       >
         {loading ? "Generating…" : "Generate practice test"}
       </button>

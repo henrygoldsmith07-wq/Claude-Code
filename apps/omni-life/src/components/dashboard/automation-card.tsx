@@ -18,7 +18,7 @@ export default function AutomationCard({ logs }: AutomationCardProps) {
   ];
 
   return (
-    <Card className="bg-surface border-line text-onaccent">
+    <Card className="bg-surface border-line text-ink">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Automation Status</CardTitle>
       </CardHeader>
