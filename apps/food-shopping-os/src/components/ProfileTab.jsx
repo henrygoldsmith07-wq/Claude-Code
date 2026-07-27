@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Activity, Banknote, Flame, Recycle } from 'lucide-react';
-import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../lib/store.jsx';
+import { Activity, Banknote, Flame, NotebookPen, RotateCcw, Download } from 'lucide-react';
+import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
-import { BADGES, SPEND_HISTORY, KCAL_WEEK, CUISINE_SPLIT, ANALYTICS_STATS, INTEGRATIONS } from '../data/plan.js';
 import { formatAmount } from '../data/nutrients.js';
 import { nutrientRows, snackSummary, timingInsight } from '../lib/nutrition.js';
+import { badgeProgress, cuisineSplit, spendByMonth, weekDates } from '../lib/kitchen.js';
+import { gbp } from '../lib/utils.js';
 import NutritionPanel from './NutritionPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
+import { NumberField } from './FoodDetail.jsx';
 
 const ACCENTS = [
   ['mono', 'var(--ink)'],
@@ -19,27 +21,42 @@ const ACCENTS = [
 export default function ProfileTab() {
   const app = useApp();
   const [nutritionOpen, setNutritionOpen] = useState(false);
+  const [budget, setBudget] = useState(app.weeklyBudget || '');
+  const [confirmReset, setConfirmReset] = useState(false);
+
   const snacks = snackSummary(app.entries);
   const timing = timingInsight(app.entries);
   const highlights = nutrientRows(app.totals, app.targets)
     .filter((r) => ['fibre', 'sugar', 'sodium', 'vitC', 'iron', 'calcium'].includes(r.key));
-  /* The week chart reads the diary; days before the app was used fall back to
-     the historic series so the chart is never half-empty. */
-  const week = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const stamp = d.toISOString().slice(0, 10);
-    const logged = app.kcalFor(stamp);
-    return {
-      label: d.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 3),
-      value: logged || KCAL_WEEK[i],
-    };
-  });
+
+  const week = weekDates(app.day).map((date) => ({
+    label: new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 3),
+    value: app.kcalFor(date),
+  }));
+  const loggedThisWeek = week.some((d) => d.value > 0);
+
+  const spend = spendByMonth(app.shops, 6, app.day);
+  const hasSpend = spend.some((m) => m.spend > 0);
+  const cuisines = cuisineSplit(app.cooked);
+  const badges = badgeProgress(app.stats);
   const macros = [
     { key: 'protein', label: 'Protein', now: app.proteinToday, goal: app.proteinGoal, color: 'var(--series-1)' },
     { key: 'carbs', label: 'Carbs', now: app.carbsToday, goal: app.carbsGoal, color: 'var(--series-3)' },
     { key: 'fat', label: 'Fat', now: app.fatToday, goal: app.fatGoal, color: 'var(--series-2)' },
   ];
+
+  const saveBudget = () => app.set({ weeklyBudget: Math.max(0, Number(budget) || 0) });
+
+  /** Your data, as the JSON it is stored as — yours to keep or move. */
+  const exportData = () => {
+    const blob = new Blob([localStorage.getItem(STORAGE_KEY) || '{}'], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `forq-${app.day}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="pb-6 space-y-6">
@@ -47,19 +64,21 @@ export default function ProfileTab() {
       <div className="hero-gradient px-5 pt-14 pb-2">
         <div className="flex items-center gap-4 rise">
           <div className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
-            {app.name[0]}
+            {app.name[0]?.toUpperCase() || '?'}
           </div>
           <div className="flex-1">
             <h1 className="text-[22px] font-extrabold tracking-tight">{app.name}</h1>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>Level {levelFromXp(app.xp)} Home Chef · {app.xp.toLocaleString()} XP</p>
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Level {levelFromXp(app.xp)} · {app.xp.toLocaleString()} XP
+            </p>
             <div className="mt-1.5"><Meter value={xpIntoLevel(app.xp)} max={XP_PER_LEVEL} height={5} /></div>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2.5 rise rise-1">
           {[
-            [Flame, app.streak, 'cook streak'],
-            [Banknote, app.budgetStreak, 'weeks on budget'],
-            [Recycle, app.wasteStreak, 'no-waste weeks'],
+            [Flame, app.streak, 'day cook streak'],
+            [NotebookPen, app.stats.loggedDays, 'days logged'],
+            [Banknote, app.stats.budgetWeeks, 'weeks on budget'],
           ].map(([Icon, v, label]) => (
             <Card key={label} className="!p-3 text-center">
               <p className="text-[17px] font-extrabold inline-flex items-center gap-1.5">
@@ -71,7 +90,7 @@ export default function ProfileTab() {
         </div>
       </div>
 
-      {/* Nutrition dashboard */}
+      {/* Nutrition today */}
       <Section title="Nutrition today" className="rise rise-1">
         <Card>
           <div className="flex items-center gap-5">
@@ -91,15 +110,21 @@ export default function ProfileTab() {
               ))}
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--line)' }}>
-            {highlights.map((row) => (
-              <Pill key={row.key} tone={row.tone === 'faint' ? 'muted' : row.tone}>
-                {row.label} {formatAmount(row.key, row.value)}
-              </Pill>
-            ))}
-            <Pill tone={snacks.count > 3 ? 'warn' : 'muted'}>{snacks.count} snacks</Pill>
-            {timing && <Pill tone="muted">{timing.first}–{timing.last}</Pill>}
-          </div>
+          {app.entries.length > 0 ? (
+            <div className="mt-4 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--line)' }}>
+              {highlights.map((row) => (
+                <Pill key={row.key} tone={row.tone === 'faint' ? 'muted' : row.tone}>
+                  {row.label} {formatAmount(row.key, row.value)}
+                </Pill>
+              ))}
+              <Pill tone={snacks.count > 3 ? 'warn' : 'muted'}>{snacks.count} snacks</Pill>
+              {timing && <Pill tone="muted">{timing.first}–{timing.last}</Pill>}
+            </div>
+          ) : (
+            <p className="mt-3 pt-3 border-t text-[12.5px] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
+              Nothing logged today yet.
+            </p>
+          )}
           <button
             onClick={() => setNutritionOpen(true)}
             className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
@@ -112,62 +137,76 @@ export default function ProfileTab() {
         </Card>
       </Section>
 
-      {/* Weekly kcal chart */}
+      {/* Weekly kcal */}
       <Section title="This week" className="rise rise-2">
         <Card>
           <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Calories per day</p>
-          <Bars data={week} color="var(--series-2)" format={(v) => v.toLocaleString()} />
-          <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            Today is in progress — trending 6% under your weekly goal.
-          </p>
+          {loggedThisWeek ? (
+            <>
+              <Bars data={week} color="var(--series-2)" format={(v) => v.toLocaleString()} />
+              <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Averaging {Math.round(week.reduce((s, d) => s + d.value, 0) / week.filter((d) => d.value).length).toLocaleString()} kcal
+                on the {week.filter((d) => d.value).length} day{week.filter((d) => d.value).length === 1 ? '' : 's'} you logged.
+              </p>
+            </>
+          ) : (
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Log a day of food and it appears here.
+            </p>
+          )}
         </Card>
       </Section>
 
-      {/* Spend analytics */}
+      {/* Budget & spending */}
       <Section title="Spending" className="rise rise-2">
-        <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Monthly grocery spend (£)</p>
-          <Bars
-            data={SPEND_HISTORY.map((m) => ({ label: m.month, value: m.spend }))}
-            color="var(--series-1)"
-            format={(v) => `£${v}`}
-          />
-          <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            July is mid-month. Spend has fallen five months running — £68/month less than February.
+        <Card className="space-y-3">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <NumberField label="Weekly budget" value={budget} onChange={setBudget} suffix="£" step={5} />
+            </div>
+            <button
+              onClick={saveBudget}
+              className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold"
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+            >
+              Save
+            </button>
+          </div>
+          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            {gbp(app.spentThisWeek, { always: true })} recorded this week across {app.shops.length} shop{app.shops.length === 1 ? '' : 's'}.
           </p>
         </Card>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {ANALYTICS_STATS.map((s) => (
-            <Card key={s.label} className="!p-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{s.label}</p>
-              <p className="mt-0.5 text-[17px] font-extrabold">{s.value}</p>
-              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{s.sub}</p>
-            </Card>
-          ))}
-        </div>
+        {hasSpend && (
+          <Card className="mt-3">
+            <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Monthly grocery spend</p>
+            <Bars data={spend.map((m) => ({ label: m.label, value: m.spend }))} color="var(--series-1)" format={(v) => `£${Math.round(v)}`} />
+          </Card>
+        )}
       </Section>
 
-      {/* Cuisines */}
-      <Section title="Favourite cuisines" className="rise rise-3">
-        <Card>
-          <div className="space-y-2.5">
-            {CUISINE_SPLIT.map((c, i) => (
-              <div key={c.name}>
-                <div className="flex justify-between text-[12.5px] font-bold mb-1">
-                  <span>{c.name}</span>
-                  <span style={{ color: 'var(--muted)' }}>{c.pct}%</span>
+      {/* Cuisines actually cooked */}
+      {cuisines.length > 0 && (
+        <Section title="What you cook" className="rise rise-3">
+          <Card>
+            <div className="space-y-2.5">
+              {cuisines.map((c, i) => (
+                <div key={c.name}>
+                  <div className="flex justify-between text-[12.5px] font-bold mb-1">
+                    <span>{c.name}</span>
+                    <span style={{ color: 'var(--muted)' }}>{c.count} · {c.pct}%</span>
+                  </div>
+                  <Meter value={c.pct} max={cuisines[0].pct} color={i === 0 ? 'var(--series-1)' : 'color-mix(in srgb, var(--series-1) 45%, var(--card-2))'} height={5} />
                 </div>
-                <Meter value={c.pct} max={CUISINE_SPLIT[0].pct} color={i === 0 ? 'var(--series-1)' : 'color-mix(in srgb, var(--series-1) 45%, var(--card-2))'} height={5} />
-              </div>
-            ))}
-          </div>
-        </Card>
-      </Section>
+              ))}
+            </div>
+          </Card>
+        </Section>
+      )}
 
-      {/* Badges */}
+      {/* Achievements — all earned, never seeded */}
       <Section title="Achievements" className="rise rise-3">
         <div className="grid grid-cols-2 gap-3">
-          {BADGES.map((b) => (
+          {badges.map((b) => (
             <Card key={b.id} className={b.earned ? '' : 'opacity-75'}>
               <div className="flex items-center gap-2">
                 <Glyph e={b.emoji} size={22} style={{ color: b.earned ? 'var(--ink)' : 'var(--faint)' }} />
@@ -175,7 +214,7 @@ export default function ProfileTab() {
               </div>
               <p className="mt-1.5 font-bold text-[13.5px]">{b.name}</p>
               <p className="text-[11.5px] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>{b.desc}</p>
-              {!b.earned && b.progress !== undefined && (
+              {!b.earned && (
                 <div className="mt-2">
                   <Meter value={b.progress} max={b.of} height={4} />
                   <p className="mt-1 text-[10.5px] font-bold" style={{ color: 'var(--faint)' }}>{b.progress}/{b.of}</p>
@@ -213,22 +252,32 @@ export default function ProfileTab() {
         </Card>
       </Section>
 
-      {/* Integrations */}
-      <Section title="Integrations" className="rise rise-4">
-        <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
-          {INTEGRATIONS.map((it) => {
-            const on = app.integrations[it.name];
-            return (
-              <div key={it.name} className="flex items-center gap-3 p-3.5" style={{ borderColor: 'var(--line)' }}>
-                <Glyph e={it.emoji} size={19} style={{ color: 'var(--muted)' }} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-[13.5px]">{it.name}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{on ? 'Connected' : it.desc}</p>
-                </div>
-                <Toggle on={on} onChange={() => app.toggleIntegration(it.name)} />
-              </div>
-            );
-          })}
+      {/* Your data */}
+      <Section title="Your data" className="rise rise-4">
+        <Card className="space-y-3">
+          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            Everything lives on this device — {Object.keys(app.log).length} logged day{Object.keys(app.log).length === 1 ? '' : 's'},
+            {' '}{app.pantry.length} pantry item{app.pantry.length === 1 ? '' : 's'}, {app.shops.length} recorded shop{app.shops.length === 1 ? '' : 's'},
+            {' '}{app.cooked.length} meal{app.cooked.length === 1 ? '' : 's'} cooked.
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={exportData}
+              className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+              style={{ borderColor: 'var(--line)' }}
+            >
+              <span className="inline-flex items-center gap-1.5"><Download size={15} /> Export</span>
+            </button>
+            <button
+              onClick={() => (confirmReset ? app.reset() : setConfirmReset(true))}
+              className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+              style={{ borderColor: confirmReset ? 'var(--danger)' : 'var(--line)', color: confirmReset ? 'var(--danger)' : 'var(--ink)' }}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <RotateCcw size={15} /> {confirmReset ? 'Tap to confirm' : 'Reset app'}
+              </span>
+            </button>
+          </div>
         </Card>
       </Section>
 

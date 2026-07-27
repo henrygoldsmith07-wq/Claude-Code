@@ -13,8 +13,10 @@ export const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 export const todayName = () =>
   new Date().toLocaleDateString('en-GB', { weekday: 'long' });
 
-export const prettyDate = () =>
-  new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+/** "Monday 27 July" — today by default, or any 'YYYY-MM-DD' stamp. */
+export const prettyDate = (stamp) =>
+  (stamp ? new Date(`${stamp}T12:00:00`) : new Date())
+    .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
 export const greeting = () => {
   const h = new Date().getHours();

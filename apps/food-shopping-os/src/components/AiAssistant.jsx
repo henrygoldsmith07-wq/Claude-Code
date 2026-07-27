@@ -1,64 +1,110 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { RECIPES } from '../data/recipes.js';
-import { expiringSoon } from '../data/pantry.js';
+import { useApp } from '../lib/store.jsx';
+import { expiringSoon, recipesUsing } from '../lib/kitchen.js';
 import { gbp } from '../lib/utils.js';
 
 const QUICK_PROMPTS = [
-  'I have £18 until Friday',
-  'I only have chicken and potatoes',
-  'My kids hate vegetables',
-  'Meals under 600 calories',
-  'I have 15 minutes',
-  'Make tomorrow’s lunch',
+  'What should I cook tonight?',
+  'What needs using up?',
+  'How am I doing on protein?',
+  'What can I afford this week?',
+  'Something in 15 minutes',
+  'What have I been eating?',
 ];
 
 const recipeLine = (r) => `• ${r.name} — ${r.time} min, ${gbp(r.costPerServing, { always: true })}/serving, ${r.kcal} kcal`;
 
-/** Tiny scripted "coach": keyword-match the ask, answer from real app data. */
-function answer(text) {
+/**
+ * A coach that only says what your own data supports. Every branch reads the
+ * pantry, diary, budget or plan — when there's nothing recorded, it says so
+ * instead of inventing a week you didn't have.
+ */
+export function answer(text, app) {
   const t = text.toLowerCase();
-  const cheap = RECIPES.filter((r) => !r.tags.includes('breakfast')).sort((a, b) => a.costPerServing - b.costPerServing);
-  const quick = RECIPES.filter((r) => r.time <= 20);
-  const light = RECIPES.filter((r) => r.kcal <= 480);
+  const pantry = app.pantry;
+  const expiring = expiringSoon(pantry, 3, app.day);
 
-  if (/£\s*\d|\b\d+\s*(quid|pounds?)\b|budget|friday/.test(t)) {
-    const picks = cheap.slice(0, 3);
-    const cost = picks.reduce((s, r) => s + r.costPerServing * 2, 0);
-    return `Tight week — let's stretch it. Three dinners for two comes to ${gbp(cost, { always: true })}, leaving room for basics:\n\n${picks.map(recipeLine).join('\n')}\n\nThe chilli makes 6 portions, so freeze half and Thursday is free. Want me to build the list?`;
+  if (/waste|expir|use ?up|using up|going off|needs? using/.test(t)) {
+    if (!expiring.length) {
+      return pantry.length
+        ? 'Nothing in your pantry is close to its use-by date. Add dates as you shop and I’ll flag things here.'
+        : 'Your pantry is empty, so there’s nothing for me to watch. Add a few items and I’ll tell you what to cook before it turns.';
+    }
+    const uses = recipesUsing(pantry, 2, app.day);
+    return `${expiring.length} thing${expiring.length === 1 ? '' : 's'} need using: ${expiring.slice(0, 4).map((p) => p.name).join(', ')}.${
+      uses.length ? `\n\n${uses.map((u) => recipeLine(u.recipe)).join('\n')}` : ''
+    }`;
   }
-  if (t.includes('chicken') && t.includes('potato')) {
-    return `That's dinner already: Lemon Chicken Traybake needs just chicken, potatoes and a few pantry staples you have (onion, garlic, oil). 45 minutes, one tin, ${gbp(1.85, { always: true })}/serving. Missing only a lemon — 60p at Aldi.`;
+
+  if (/protein|macro|calorie|kcal|how am i doing/.test(t)) {
+    if (!app.entries.length) return 'Nothing logged today yet — add a meal in the diary and I can tell you where you stand.';
+    const left = Math.round(app.targets.protein - app.totals.protein);
+    const kcalLeft = app.targets.kcal - app.totals.kcal;
+    const pick = [...RECIPES].sort((a, b) => b.protein - a.protein)[0];
+    return `You're on ${app.totals.kcal.toLocaleString()} kcal of ${app.targets.kcal.toLocaleString()} and ${Math.round(app.totals.protein)}g of ${app.targets.protein}g protein.\n\n${
+      left > 0
+        ? `${left}g of protein and ${kcalLeft.toLocaleString()} kcal to go. ${pick.name} would bring ${pick.protein}g.`
+        : 'Protein target already met — nice.'
+    }`;
   }
-  if (t.includes('kid') || t.includes('veg')) {
-    return `Classic. Three stealth-veg wins that test well with picky eaters:\n\n${['airfryer-fajitas', 'katsu-curry', 'slowcooker-ragu'].map((id) => recipeLine(RECIPES.find((r) => r.id === id))).join('\n')}\n\nGrate carrot and pepper into the ragù sauce — invisible after 8 hours. Build-your-own fajitas gives them control, which usually beats persuasion.`;
+
+  if (/afford|budget|money|spend|£/.test(t)) {
+    if (!app.weeklyBudget) return 'No weekly budget set yet — add one in your profile and I’ll track headroom against the shops you record.';
+    const left = app.weeklyBudget - app.spentThisWeek;
+    const cheap = [...RECIPES].sort((a, b) => a.costPerServing - b.costPerServing).slice(0, 3);
+    return `You've recorded ${gbp(app.spentThisWeek, { always: true })} of your ${gbp(app.weeklyBudget)} budget this week — ${
+      left >= 0 ? `${gbp(left, { always: true })} left` : `${gbp(-left, { always: true })} over`
+    }.\n\nCheapest per serving in your recipe book:\n${cheap.map(recipeLine).join('\n')}`;
   }
-  if (t.includes('600') || t.includes('calorie') || t.includes('light')) {
-    return `Under 600 kcal and still dinner-shaped:\n\n${light.slice(0, 4).map(recipeLine).join('\n')}\n\nAll fit your protein goal too. Want one added to tonight?`;
+
+  if (/15 min|20 min|quick|fast|tonight|dinner/.test(t)) {
+    const planned = app.plan[app.day]?.dinner;
+    if (planned && /tonight|dinner/.test(t)) {
+      const r = RECIPES.find((x) => x.id === planned);
+      return `Dinner is already planned: ${r.name} — ${r.time} minutes, ${gbp(r.costPerServing, { always: true })} a serving.`;
+    }
+    const quick = RECIPES.filter((r) => r.time <= 25).sort((a, b) => a.time - b.time);
+    return `Quickest things in your recipe book:\n\n${quick.slice(0, 4).map(recipeLine).join('\n')}`;
   }
-  if (t.includes('15 min') || t.includes('minutes') || t.includes('quick')) {
-    return `Speed round — on the table in ~15:\n\n${quick.map(recipeLine).join('\n')}\n\nThe grain bowl needs zero cooking skill and you have most of it in the pantry.`;
+
+  if (/eaten|been eating|diary|history|week/.test(t)) {
+    const days = Object.keys(app.log).filter((d) => app.log[d].length);
+    if (!days.length) return 'Your diary is empty so far. Log a meal — search, barcode, photo or voice — and I can spot patterns.';
+    const cooked = app.cooked.length;
+    return `You've logged food on ${days.length} day${days.length === 1 ? '' : 's'} and cooked ${cooked} meal${cooked === 1 ? '' : 's'} from the app.${
+      app.streak ? ` Current cooking streak: ${app.streak} days.` : ''
+    }`;
   }
-  if (t.includes('lunch') || t.includes('tomorrow')) {
-    return `Tomorrow's lunch, sorted: Halloumi Grain Bowl — 15 min tonight, packs well, ${gbp(2, { always: true })}/serving. Or use up the leftover ragù portion in the fridge (free, and it beats waste). I'd do the ragù.`;
+
+  if (pantry.length && /cook|make|recipe|what should/.test(t)) {
+    const uses = recipesUsing(pantry, 3, app.day);
+    if (uses.length) return `Based on what's in your kitchen:\n\n${uses.map((u) => recipeLine(u.recipe)).join('\n')}`;
   }
-  const exp = expiringSoon();
-  if (t.includes('waste') || t.includes('expir') || t.includes('use up')) {
-    return `Right now ${exp.length} items need using: ${exp.slice(0, 3).map((p) => `${p.name} (${p.expiryDays}d)`).join(', ')}. The Coconut Chickpea Curry takes the spinach; the sourdough freezes fine sliced.`;
-  }
-  return `I can plan meals around your budget, pantry, time, or goals. Try one of the quick prompts below — or tell me what's in your fridge and how long you've got.`;
+
+  return 'I answer from your own data — pantry, diary, budget and plan. Ask what needs using up, how today’s macros look, what you can afford, or what to cook tonight.';
 }
 
 export default function AiAssistant() {
+  const app = useApp();
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Hey! I\'m your food coach. I know your pantry, budget and goals — ask me anything.' },
+    {
+      role: 'ai',
+      text: app.pantry.length || app.entries.length
+        ? 'Hey! Ask me about your pantry, your diary, your budget or tonight’s dinner.'
+        : 'Hey! I read your pantry, diary and budget — there’s not much there yet, so start by logging a meal or adding what’s in your kitchen.',
+    },
   ]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const endRef = useRef(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Guarded: not every environment (or older browser) implements it.
+    if (typeof endRef.current?.scrollIntoView === 'function') {
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, thinking]);
 
   const send = (text) => {
@@ -68,9 +114,9 @@ export default function AiAssistant() {
     setMessages((m) => [...m, { role: 'user', text: q }]);
     setThinking(true);
     setTimeout(() => {
-      setMessages((m) => [...m, { role: 'ai', text: answer(q) }]);
+      setMessages((m) => [...m, { role: 'ai', text: answer(q, app) }]);
       setThinking(false);
-    }, 900);
+    }, 500);
   };
 
   return (
@@ -120,7 +166,7 @@ export default function AiAssistant() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder="Ask your food coach…"
+          placeholder="Ask about your kitchen…"
           className="flex-1 rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />

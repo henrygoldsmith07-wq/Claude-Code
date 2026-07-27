@@ -2,14 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
-const openDiary = () => {
+const onboard = () => {
   render(<App />);
-  fireEvent.click(screen.getByText('Log'));
+  fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
+  fireEvent.click(screen.getByText('Continue'));
+  fireEvent.click(screen.getByText('Continue'));
+  fireEvent.click(screen.getByText('Start using Forq'));
 };
 
-/** The leading number in "979 kcal left today · 35g protein to go". */
-const dayKcal = () =>
-  Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+const openDiary = () => {
+  onboard();
+  fireEvent.click(screen.getByText('Log'));
+};
 
 /** The open sheet whose heading is `title` (labels repeat inside the sheets). */
 const dialogFor = (title) => {
@@ -17,6 +21,20 @@ const dialogFor = (title) => {
     .find((d) => d.querySelector('h2')?.textContent === title);
   if (!dialog) throw new Error(`No open sheet titled "${title}"`);
   return dialog;
+};
+
+/** The leading number in "979 kcal left today · 35g protein to go". */
+const dayKcal = () =>
+  Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+
+/** Log one food through search, so a test has something real to work with. */
+const logFood = (name) => {
+  fireEvent.click(screen.getAllByText('+ Add food')[0]);
+  const addSheet = dialogFor('Add food');
+  fireEvent.change(within(addSheet).getByLabelText('Search foods'), { target: { value: name } });
+  fireEvent.click(within(addSheet).getAllByText(new RegExp(name, 'i'))[0]);
+  const portion = dialogFor('How much?');
+  fireEvent.click(within(portion).getByText(/Add \d+ kcal to/));
 };
 
 describe('logging routes', () => {
@@ -72,9 +90,11 @@ describe('logging routes', () => {
     expect(dayKcal()).toBeLessThan(before);
   });
 
-  it('copies a previous meal onto today', () => {
+  it('copies a meal you logged earlier onto another slot', () => {
     openDiary();
+    logFood('hummus');
     const before = dayKcal();
+
     fireEvent.click(screen.getByText('Copy'));
     const sheet = dialogFor('Copy a meal');
     fireEvent.click(within(sheet).getAllByText('Copy')[0]);
@@ -83,15 +103,25 @@ describe('logging routes', () => {
     expect(dayKcal()).toBeLessThan(before);
   });
 
-  it('applies a saved meal template', () => {
+  it('saves a meal as a template and applies it', () => {
+    openDiary();
+    logFood('hummus');
+
+    fireEvent.click(screen.getAllByText('Save as template')[0]);
+    const sheet = dialogFor('Copy a meal');
+    fireEvent.click(within(sheet).getByText(/^Save \d+ item/));
+    expect(within(sheet).getByText('Template saved')).toBeDefined();
+
+    fireEvent.click(within(sheet).getAllByText('Use')[0]);
+    fireEvent.click(within(sheet).getByText('Back to the diary'));
+    expect(screen.getAllByText('Hummus').length).toBeGreaterThan(1);
+  });
+
+  it('has nothing to copy before anything is logged', () => {
     openDiary();
     fireEvent.click(screen.getByText('Copy'));
     const sheet = dialogFor('Copy a meal');
-    fireEvent.click(within(sheet).getByText('Templates'));
-    fireEvent.click(within(sheet).getAllByText('Use')[0]);
-    expect(within(sheet).getByText(/added to/)).toBeDefined();
-    fireEvent.click(within(sheet).getByText('Back to the diary'));
-    expect(screen.getAllByText('Porridge oats').length).toBeGreaterThan(1);
+    expect(within(sheet).getByText(/Nothing logged on that day|No templates yet/)).toBeDefined();
   });
 
   it('imports a pasted recipe and logs a serving', () => {
@@ -107,86 +137,31 @@ describe('logging routes', () => {
     expect(dayKcal()).toBeLessThan(before);
   });
 
-  it('adjusts the portion of something already logged', () => {
+  it('adjusts and deletes something already logged', () => {
     openDiary();
-    const breakfast = screen.getByText('Breakfast').closest('section');
-    const before = dayKcal();
-    fireEvent.click(within(breakfast).getByText('Porridge oats'));
+    logFood('almonds');
+    const afterLog = dayKcal();
 
+    const section = screen.getAllByText('Almonds')[0].closest('section');
+    fireEvent.click(within(section).getAllByText('Almonds')[0]);
     const sheet = dialogFor('Adjust portion');
-    fireEvent.change(within(sheet).getByLabelText('Portion weight'), { target: { value: '30' } });
+    fireEvent.change(within(sheet).getByLabelText('Portion weight'), { target: { value: '10' } });
     fireEvent.click(within(sheet).getByText('Save changes'));
+    expect(dayKcal()).toBeGreaterThan(afterLog); // smaller portion → more left
 
-    expect(dayKcal()).toBeGreaterThan(before); // smaller portion → more left in the day
-    expect(within(screen.getByText('Breakfast').closest('section')).getByText(/30 g/)).toBeDefined();
-  });
-
-  it('removes an entry from the diary', () => {
-    openDiary();
-    const breakfast = screen.getByText('Breakfast').closest('section');
-    fireEvent.click(within(breakfast).getByText('Banana'));
+    fireEvent.click(screen.getAllByText('Almonds')[0]);
     fireEvent.click(within(dialogFor('Adjust portion')).getByLabelText('Delete entry'));
-    expect(within(screen.getByText('Breakfast').closest('section')).queryByText('Banana')).toBeNull();
+    expect(screen.queryByText('Almonds')).toBeNull();
   });
 
-  it('opens the full nutrition panel with every tracked nutrient', () => {
-    openDiary();
-    fireEvent.click(screen.getByText(/All 24 nutrients/));
-    const sheet = dialogFor('Nutrition today');
-    for (const label of ['Calories', 'Fibre', 'Saturated fat', 'Cholesterol', 'Sodium',
-      'Potassium', 'Calcium', 'Iron', 'Magnesium', 'Zinc', 'Vitamin A', 'Vitamin B complex',
-      'Vitamin C', 'Vitamin D', 'Vitamin E', 'Vitamin K', 'Caffeine', 'Alcohol']) {
-      expect(within(sheet).getAllByText(label).length, label).toBeGreaterThan(0);
-    }
-    expect(within(sheet).getByText(/Micronutrients are carried by/)).toBeDefined();
-  });
-
-  it('edits a daily target and re-reads the percentage against it', () => {
-    openDiary();
-    fireEvent.click(screen.getByText(/All 24 nutrients/));
-    const sheet = dialogFor('Nutrition today');
-    fireEvent.click(within(sheet).getByText('Edit daily targets'));
-
-    const field = within(sheet).getByLabelText('Fibre target');
-    expect(field).toHaveProperty('value', '30');
-    fireEvent.change(field, { target: { value: '15' } });
-    expect(within(sheet).getByLabelText('Fibre target')).toHaveProperty('value', '15');
-
-    fireEvent.click(within(sheet).getByText('Done editing targets'));
-    expect(within(sheet).getByText('/ 15 g')).toBeDefined();
-    expect(within(sheet).getAllByText('108%').length).toBeGreaterThan(0); // 16.2 g of 15 g
-  });
-
-  it('counts tapped glasses and logged drinks towards water intake', () => {
-    openDiary();
-    const water = screen.getByText('Water').closest('.card');
-    const before = within(water).getByText(/\/ 2,000 ml/).textContent;
-    fireEvent.click(within(water).getByText('+500 ml'));
-    const after = within(water).getByText(/\/ 2,000 ml/).textContent;
-    expect(Number(after.match(/[\d,]+/)[0].replace(/,/g, '')))
-      .toBe(Number(before.match(/[\d,]+/)[0].replace(/,/g, '')) + 500);
-    // The cappuccino and milk in the seeded diary already carry water.
-    expect(within(water).getByText(/ml from food & drink/)).toBeDefined();
-  });
-
-  it('logs caffeine and alcohol from what you drink', () => {
-    openDiary();
-    const water = screen.getByText('Water').closest('.card');
-    expect(within(water).getByText(/Caffeine 72 mg/)).toBeDefined();
-    expect(within(water).getByText(/Alcohol 0 units/)).toBeDefined();
-  });
-
-  it('shows the whole nutrient profile for a chosen portion', () => {
+  it('quick-adds calories without a food', () => {
     openDiary();
     fireEvent.click(screen.getAllByText('+ Add food')[0]);
-    const addSheet = dialogFor('Add food');
-    fireEvent.change(within(addSheet).getByLabelText('Search foods'), { target: { value: 'spinach' } });
-    fireEvent.click(within(addSheet).getByText('Spinach'));
-
-    const portion = dialogFor('How much?');
-    fireEvent.click(within(portion).getByText(/All nutrients in this portion/));
-    expect(within(portion).getByText('Vitamin K')).toBeDefined();
-    expect(within(portion).getByText('145 µg')).toBeDefined(); // 30 g handful
+    const sheet = dialogFor('Add food');
+    fireEvent.click(within(sheet).getByText('Quick add'));
+    fireEvent.click(within(sheet).getByText(/Full meal · 650/));
+    fireEvent.click(within(sheet).getByText(/^Add 650 kcal$/));
+    expect(screen.getAllByText('Quick add').length).toBeGreaterThan(0);
   });
 
   it('creates a custom food and offers it in My foods', () => {
@@ -194,6 +169,7 @@ describe('logging routes', () => {
     fireEvent.click(screen.getAllByText('+ Add food')[0]);
     const sheet = dialogFor('Add food');
     fireEvent.click(within(sheet).getByText('My foods'));
+    expect(within(sheet).getByText('No custom foods yet.')).toBeDefined();
     fireEvent.click(within(sheet).getByText('New custom food'));
 
     fireEvent.change(within(sheet).getByPlaceholderText(/Mum’s lasagne/), { target: { value: 'Nan’s trifle' } });
@@ -202,5 +178,44 @@ describe('logging routes', () => {
     fireEvent.click(within(sheet).getByText('Save food'));
 
     expect(within(sheet).getByText('Nan’s trifle')).toBeDefined();
+  });
+});
+
+describe('nutrition panel', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it('lists every tracked nutrient, at zero on a fresh day', () => {
+    openDiary();
+    fireEvent.click(screen.getByText(/All 24 nutrients/));
+    const sheet = dialogFor('Nutrition today');
+    for (const label of ['Calories', 'Fibre', 'Saturated fat', 'Cholesterol', 'Sodium',
+      'Potassium', 'Calcium', 'Iron', 'Magnesium', 'Zinc', 'Vitamin A', 'Vitamin B complex',
+      'Vitamin C', 'Vitamin D', 'Vitamin E', 'Vitamin K', 'Caffeine', 'Alcohol']) {
+      expect(within(sheet).getAllByText(label).length, label).toBeGreaterThan(0);
+    }
+    expect(within(sheet).getByText('0 kcal')).toBeDefined();
+  });
+
+  it('edits a daily target and re-reads the percentage against it', () => {
+    openDiary();
+    logFood('almonds');
+    fireEvent.click(screen.getByText(/All 24 nutrients/));
+    const sheet = dialogFor('Nutrition today');
+    fireEvent.click(within(sheet).getByText('Edit daily targets'));
+
+    const field = within(sheet).getByLabelText('Fibre target');
+    expect(field).toHaveProperty('value', '30');
+    fireEvent.change(field, { target: { value: '3' } });
+    fireEvent.click(within(sheet).getByText('Done editing targets'));
+    expect(within(sheet).getByText('/ 3 g')).toBeDefined();
+  });
+
+  it('counts tapped glasses and logged drinks towards water intake', () => {
+    openDiary();
+    const water = screen.getByText('Water').closest('.card');
+    expect(within(water).getByText(/^0 \/ 2,000 ml$/)).toBeDefined();
+    fireEvent.click(within(water).getByText('+500 ml'));
+    expect(within(water).getByText(/^500 \/ 2,000 ml$/)).toBeDefined();
   });
 });

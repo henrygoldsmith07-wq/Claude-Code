@@ -2,38 +2,101 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
-describe('App', () => {
+/** Walk the first-run setup, the way a new user has to. */
+export const onboard = ({ name = 'Sam', budget = '60' } = {}) => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Your name'), { target: { value: name } });
+  fireEvent.click(screen.getByText('Continue'));
+  if (budget) fireEvent.change(screen.getByLabelText(/Weekly food budget/), { target: { value: budget } });
+  fireEvent.click(screen.getByText('Continue'));
+  fireEvent.click(screen.getByText('Start using Forq'));
+};
+
+describe('first run', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('renders the shell with all six tabs', () => {
+  it('asks for setup instead of inventing a user', () => {
     render(<App />);
+    expect(screen.getByText('Welcome to Forq')).toBeDefined();
+    expect(screen.getByText(/nothing is filled in for you/i)).toBeDefined();
+    expect(screen.queryByText('Home')).toBeNull(); // no app until it's set up
+  });
+
+  it('lets you through setup and remembers who you are', () => {
+    onboard({ name: 'Ada' });
+    expect(screen.getByText(/Good (morning|afternoon|evening), Ada/)).toBeDefined();
     for (const label of ['Home', 'Plan', 'Log', 'Shop', 'Recipes', 'Profile']) {
       expect(screen.getByText(label)).toBeDefined();
     }
   });
+});
 
-  it('shows the greeting and budget card', () => {
-    render(<App />);
-    expect(screen.getAllByText(/Good (morning|afternoon|evening)/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Weekly budget')).toBeDefined();
+describe('an empty app', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it('shows zeros and prompts, not fabricated history', () => {
+    onboard();
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0); // calories today
+    expect(screen.getByText('of 2,200 kcal')).toBeDefined();
+    expect(screen.getAllByText(/Nothing planned — tap to choose/).length).toBe(3);
+    expect(screen.getByText(/Nothing tracked yet/)).toBeDefined();
+    expect(screen.getByText(/Empty — add items/)).toBeDefined();
+    expect(screen.queryByText(/day cooking streak/)).toBeNull();
   });
 
-  it('opens the food diary with the seeded meals', () => {
-    render(<App />);
+  it('has an empty diary', () => {
+    onboard();
     fireEvent.click(screen.getByText('Log'));
     expect(screen.getByText('Food diary')).toBeDefined();
-    expect(screen.getByText('Breakfast')).toBeDefined();
-    expect(screen.getAllByText('Porridge oats').length).toBeGreaterThan(0);
-    expect(screen.getByText(/eating window|Log something/)).toBeDefined();
+    expect(screen.getAllByText(/Nothing logged — search, scan, snap or say it/).length).toBe(4);
+    expect(screen.getByText(/Log something and your eating window appears here/)).toBeDefined();
   });
 
-  it('logs a food through search and updates the day total', () => {
-    render(<App />);
-    fireEvent.click(screen.getByText('Log'));
-    const before = Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
+  it('has an empty shopping list, shop history and price history', () => {
+    onboard();
+    fireEvent.click(screen.getByText('Shop'));
+    expect(screen.getByText(/Nothing on the list yet/)).toBeDefined();
+    fireEvent.click(screen.getByText('Shops'));
+    expect(screen.getByText('No shops recorded')).toBeDefined();
+    fireEvent.click(screen.getByText('Prices'));
+    expect(screen.getByText('No price history yet')).toBeDefined();
+  });
 
+  it('has no earned achievements', () => {
+    onboard();
+    fireEvent.click(screen.getByText('Profile'));
+    expect(screen.queryByText('Earned')).toBeNull();
+    expect(screen.getByText(/Log a day of food and it appears here/)).toBeDefined();
+  });
+});
+
+describe('the budget you set', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it('is used for headroom, and says so when unset', () => {
+    onboard({ budget: '' });
+    expect(screen.getByText(/No budget set/)).toBeDefined();
+    cleanup();
+
+    localStorage.clear();
+    onboard({ budget: '60' });
+    expect(screen.getByText('of £60')).toBeDefined();
+    expect(screen.getByText('£60.00 left')).toBeDefined();
+  });
+});
+
+describe('logging food', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it('moves the day total from zero', () => {
+    onboard();
+    fireEvent.click(screen.getByText('Log'));
     fireEvent.click(screen.getAllByText('+ Add food')[0]);
+
     const addSheet = screen.getByText('Add food').closest('[role="dialog"]');
     fireEvent.change(within(addSheet).getByLabelText('Search foods'), { target: { value: 'hummus' } });
     fireEvent.click(within(addSheet).getByText('Hummus'));
@@ -41,18 +104,7 @@ describe('App', () => {
     const portionSheet = screen.getByText('How much?').closest('[role="dialog"]');
     fireEvent.click(within(portionSheet).getByText(/Add \d+ kcal to/));
 
-    const after = Number(screen.getByText(/kcal left today|kcal over your goal/).textContent.match(/[\d,]+/)[0].replace(/,/g, ''));
-    expect(after).toBeLessThan(before);
     expect(screen.getAllByText('Hummus').length).toBeGreaterThan(0);
-  });
-
-  it('quick-adds calories without a food', () => {
-    render(<App />);
-    fireEvent.click(screen.getByText('Log'));
-    fireEvent.click(screen.getAllByText('+ Add food')[0]);
-    fireEvent.click(screen.getByText('Quick add'));
-    fireEvent.click(screen.getByText(/Full meal · 650/));
-    fireEvent.click(screen.getByText(/^Add 650 kcal$/));
-    expect(screen.getAllByText('Quick add').length).toBeGreaterThan(0);
+    expect(screen.getByText(/kcal left today/).textContent).not.toMatch(/^2,200/);
   });
 });

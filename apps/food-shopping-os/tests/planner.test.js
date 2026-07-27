@@ -47,12 +47,15 @@ describe('buildPlan', () => {
 });
 
 describe('itemsFromRecipes', () => {
-  it('returns only missing ingredients, deduplicated, with prices', () => {
+  it('returns every ingredient once, minus what your pantry already has', () => {
     const recipe = RECIPES.find((r) => r.id === 'salmon-teriyaki');
     const items = itemsFromRecipes([recipe, recipe]);
-    const missing = recipe.ingredients.filter((i) => !i.pantry);
-    expect(items).toHaveLength(missing.length);
-    expect(items.every((i) => i.price > 0)).toBe(true);
+    expect(items).toHaveLength(recipe.ingredients.length);
+    // Prices start blank — they are whatever you end up paying.
+    expect(items.every((i) => i.price === 0)).toBe(true);
     expect(new Set(items.map((i) => i.id)).size).toBe(items.length);
+
+    const withPantry = itemsFromRecipes([recipe], ['Sushi rice', 'Soy sauce']);
+    expect(withPantry).toHaveLength(recipe.ingredients.length - 2);
   });
 });

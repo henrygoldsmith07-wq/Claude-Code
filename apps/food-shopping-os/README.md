@@ -1,25 +1,31 @@
 # Forq — Food Shopping OS
 
-The "Spotify + Google Maps + Duolingo of food shopping": one app for planning,
-shopping, cooking, nutrition, budgeting and reducing waste. Mobile-first PWA-style
-web app built with Vite + React 18 + Tailwind CSS 4, styled in the calm monochrome
-Le Studio design language (see `apps/le-studio-site`): ink-on-neutral surfaces,
-border-first cards, black-on-white CTAs, and monochrome stroke iconography
-(lucide-react) throughout — no emoji in the UI. All data is rich local mock data
-with localStorage persistence — no backend required.
+One app for planning, shopping, cooking, nutrition, budgeting and reducing
+waste. Mobile-first PWA-style web app built with Vite + React 18 + Tailwind
+CSS 4, styled in the calm monochrome Le Studio design language (see
+`apps/le-studio-site`): ink-on-neutral surfaces, border-first cards,
+black-on-white CTAs, and monochrome stroke iconography (lucide-react)
+throughout — no emoji in the UI.
+
+**The app starts empty.** There is no demo user, no pretend pantry, no invented
+spending history and no pre-earned achievements. A first run asks for your
+name, budget and targets, and from then on every number you see is computed
+from what you actually log, buy, cook and plan. Everything persists to
+localStorage on your device — no backend, no account.
+
+The only data that ships with the app is reference material, not user data: a
+recipe book, a food/barcode/restaurant nutrition catalogue, per-100 g nutrient
+tables and UK reference intakes.
 
 ## Features
 
-- **Home dashboard** — today's meals, budget & calorie rings, water tracker,
-  cooking streak & XP, AI suggestions (weather/seasonal/family), pantry snapshot
-  with expiring & low items, leftovers, weekly challenge, recipe of the day
-- **AI meal planner** — generate 1 meal / a day / a week from budget-per-serving,
-  people, goal (weight loss, muscle gain…), diet, occasion and time constraints;
-  weekly plan grid with per-day cost; meal-prep progress
-- **Shop** — three views: aisle-ordered checklist with shopping mode (running
-  total, budget warnings, store route), store profiles (offers, loyalty points,
-  basket price index, hours, delivery), and price intelligence (12-week sparkline
-  trends per staple with AI buy/wait/hold calls)
+- **First-run setup** — name, household size, weekly budget, diet, and a
+  calorie/macro starting point (eat well · lose weight · build muscle · your
+  own). Every one of them is editable afterwards
+- **Home dashboard** — today's planned meals, budget and calorie rings, water,
+  cooking streak and XP, pantry snapshot with what's about to go off, and
+  suggestions derived from your own kitchen (never generic marketing copy).
+  Empty states explain what each surface will do once you feed it
 - **Food diary (Log tab)** — every route into a log: fuzzy **search** across
   generic foods, branded products and restaurant menus; **barcode scanner**
   (viewfinder + manual code entry, unknown codes route to custom foods);
@@ -33,26 +39,36 @@ with localStorage persistence — no backend required.
   optional macros; portion control by serving, multiplier or **weighed
   grams/ml**; per-entry **meal timing** with an eating-window insight; and
   **snack tracking** as a share of the day
-- **Nutrition tracking** — 24 nutrients tracked from the same per-100 g
-  profiles the diary logs: calories, protein, carbs, fat, fibre and sugar;
-  saturated fat, trans fat and cholesterol; sodium, potassium, calcium, iron,
-  magnesium and zinc; vitamins A, B complex, C, D, E and K; water, caffeine
-  and alcohol. Goals read as progress, limits read as headroom, every daily
-  target is editable, and the panel says plainly what share of the day's
-  calories carries a full micronutrient profile
-- **Smart pantry** — inventory by location (fridge/freezer/cupboard/…) with
-  quantity, cost, store and expiry status; "use soon" rail; search; capture
-  affordances for barcode/receipt/voice/photo
-- **Recipes** — Pinterest-style discovery masonry with 18 filters, search,
-  favourites, community rail; recipe pages with nutrition rings,
-  health/protein/planet scores, pantry-aware ingredients ("you have 5 of 7"),
-  and a full-screen **cooking mode** with step-by-step navigation and live timers
-  that logs the meal and awards XP on finish
-- **Profile** — nutrition dashboard (macros, micronutrient pills, weekly kcal
-  chart), spending analytics, cuisine split, achievement badges with progress,
-  streaks, dark/light theme, five accent colours, integrations
-- **AI food coach** — floating assistant on every screen; answers budget,
-  pantry, picky-eater, calorie and time questions from the app's own data
+- **Nutrition tracking** — 24 nutrients from the same per-100 g profiles the
+  diary logs: calories, protein, carbs, fat, fibre and sugar; saturated fat,
+  trans fat and cholesterol; sodium, potassium, calcium, iron, magnesium and
+  zinc; vitamins A, B complex, C, D, E and K; water, caffeine and alcohol.
+  Goals read as progress, limits read as headroom, every daily target is
+  editable, and the panel says plainly what share of the day's calories
+  carries a full micronutrient profile
+- **Meal planner** — a real weekly plan: tap any breakfast/lunch/dinner slot to
+  choose a recipe, or let the generator build one from budget-per-serving,
+  people, goal, diet, occasion and time, then drop it into your week. Planned
+  meals cost out per day and can send their missing ingredients to the list
+- **Shop** — your list (add anything, prices you type in, aisle guessed from
+  the name), shopping mode with a running total against your budget, and
+  **finish shop** to record what you actually paid. Recorded shops drive your
+  spending history, budget streaks and a **price history** of what each item
+  costs you over time and where it was cheapest
+- **Pantry** — your inventory: add items with amount, cost, location, shop and
+  use-by date; flag things as running low and push them to the list in one tap.
+  Expiry status, pantry value and "use soon" are computed from your dates
+- **Recipes** — discovery masonry with 18 filters and search, favourites, and
+  recipe pages with nutrition rings and **your** pantry checked against the
+  ingredient list ("you have 5 of 7"), plus a full-screen **cooking mode** with
+  step timers that logs the meal and awards XP on finish
+- **Profile** — nutrition dashboard, weekly calories from your diary, spending
+  from your recorded shops, the cuisines you actually cook, achievements that
+  are all earned (never seeded), theme and accent, plus export and reset for
+  your data
+- **AI food coach** — answers only from your own data: what needs using up,
+  how today's macros look, what you can afford, what to cook tonight. With an
+  empty kitchen it says so rather than inventing a week you didn't have
 
 ## Run
 
@@ -60,38 +76,36 @@ with localStorage persistence — no backend required.
 npm install
 npm run dev      # local dev server
 npm run build    # production build to dist/ (installable PWA with service worker)
-npm test         # vitest suite (utils, store, planner, render smoke test)
+npm test         # vitest suite
 ```
 
 ## Structure
 
 ```
 src/
-  App.jsx              # shell: 6-tab bottom nav, overlays, floating AI button
+  App.jsx              # shell: 6-tab bottom nav, overlays, onboarding gate
   index.css            # theme tokens (light/dark + 5 accents), animations
-  lib/store.jsx        # app state context + localStorage persistence
+  lib/store.jsx        # app state (starts empty) + localStorage persistence
+  lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
   lib/utils.js         # currency/date/expiry helpers
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
-  data/                # recipes, pantry, stores/prices, plan/gamification,
-                       # foods (catalogue + barcodes + menus), log-seed,
-                       # nutrients (units/targets), micronutrients (per-100 g table)
+  data/                # reference only: recipes, foods (catalogue + barcodes +
+                       # menus), nutrients (units/targets), micronutrients
+                       # (per-100 g table), and taxonomy for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
 ```
 
-State notes: the food diary is the single source of truth for nutrition —
-`log` is keyed by date and every nutrient figure in the app (home rings,
-profile dashboard, weekly chart, the full 24-nutrient panel) is derived from it, so a new calendar day
-simply starts with an empty diary. Water and cooked-today reset on the first
-open of a new day; the cooking streak increments once per
-day when a recipe is finished, and finishing cooking mode logs that serving to
-the diary; the weekly-budget ring is `spentBase` (earlier
-shops) plus whatever is ticked off in shopping mode; recipe pages and the
-planner append missing ingredients to the shopping list under a
-"From recipes" aisle.
+State notes: nothing is stored twice. The diary (`log`, keyed by date) is the
+single source of truth for nutrition; the pantry, shopping list, recorded
+`shops`, `plan` and `cooked` history are the source for everything else. Budget
+headroom is your weekly budget minus the shops you recorded this week; streaks
+count consecutive days you actually cooked; badge progress reads real counters;
+price trends come from prices you typed as you shopped. A new calendar day
+resets only water — everything else is date-keyed and carries over.
 
 Charts use a monochrome ink ramp (every series is directly labeled, so identity
 never depends on colour); status colours (good/warn/danger) are muted and always

@@ -1,27 +1,30 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { INTEGRATIONS } from '../data/plan.js';
 import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS, GLASS_ML } from '../data/nutrients.js';
-import { seedLog, SEED_TEMPLATES } from '../data/log-seed.js';
+import { guessAisle } from '../data/stores.js';
 import { buildEntry, copyEntries, dayTotals, hydration, nutrientCoverage } from './nutrition.js';
-import { recipeFood } from './foodlog.js';
+import { recipeFood, searchFoods } from './foodlog.js';
+import {
+  dayStamp, kitchenStats, levelFrom, pantryValue, spentInWeek, streakFrom,
+} from './kitchen.js';
 
-const KEY = 'forq-state-v1';
+export const STORAGE_KEY = 'forq-state-v2';
+const KEY = STORAGE_KEY;
 
 /* ---------- Pure helpers (exported for tests) ---------- */
 export const XP_PER_LEVEL = 160;
-export const levelFromXp = (xp) => Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+export const levelFromXp = (xp) => levelFrom(xp, XP_PER_LEVEL);
 export const xpIntoLevel = (xp) => Math.max(0, xp) % XP_PER_LEVEL;
 
-export const todayStamp = () => new Date().toISOString().slice(0, 10);
+export const todayStamp = dayStamp;
 
 /**
- * New calendar day → zero the daily trackers, keep everything long-lived.
- * Nutrition needs no resetting: it is derived from `log[day]`, so a new day
- * simply starts with an empty diary.
+ * New calendar day → zero the trackers that only mean anything today. The
+ * diary, pantry, list and history are all keyed by date, so they carry over
+ * untouched and a new day simply starts empty.
  */
 export const rolloverDay = (state, today = todayStamp()) =>
-  state.day === today ? state : { ...state, day: today, water: 0, waterExtraMl: 0, cookedToday: false };
+  state.day === today ? state : { ...state, day: today, water: 0, waterExtraMl: 0 };
 
 /** A logged entry, re-read as a catalogue food (recents survive edits). */
 export const foodFromEntry = (e) => ({
@@ -53,48 +56,56 @@ export const recentFoodsFrom = (log = {}, catalogue = CATALOGUE, limit = 24) => 
 
 const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey'];
 
-const DEFAULTS = {
+const uid = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** An emoji for a typed-in item, borrowed from the food catalogue when it matches. */
+const emojiFor = (name) => searchFoods(name, CATALOGUE, 1)[0]?.emoji || '🍽️';
+
+/**
+ * A brand new kitchen: nothing pre-filled, nothing pretended. Every number in
+ * the app grows from what the user logs, buys, cooks and plans.
+ */
+export const EMPTY_STATE = {
+  onboarded: false,
   theme: 'light',
   accent: 'mono',
-  name: 'Henry',
+  name: '',
   day: todayStamp(),
-  weeklyBudget: 65,
-  spentBase: 41.2, // spent earlier this week, before the current trip
-  water: 4, // glasses tapped on the tracker
-  waterExtraMl: 0, // bottles/refills added by hand
-  checked: [], // shopping list item ids ticked off
-  extraItems: [], // items added from recipes/planner: {id,name,emoji,aisle,qty,price,cheapest}
-  xp: 1240,
-  streak: 12,
-  cookedToday: false,
-  budgetStreak: 4,
-  wasteStreak: 2,
-  cooked: [], // recipe ids completed via cooking mode
-  favourites: ['salmon-teriyaki', 'slowcooker-ragu', 'chickpea-curry'],
-  integrations: Object.fromEntries(INTEGRATIONS.map((i) => [i.name, i.on])),
-  /* ---- food diary ---- */
-  log: seedLog(), // { 'YYYY-MM-DD': entry[] }
-  favouriteFoods: ['porridge-oats', 'chicken-breast', 'greek-yogurt'],
+  /* budget & shopping */
+  weeklyBudget: 0,
+  household: 1,
+  diet: 'None',
+  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked}
+  shops: [], // recorded trips {id,date,store,total,items[]}
+  /* kitchen */
+  pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
+  plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
+  favourites: [], // recipe ids
+  cooked: [], // [{recipeId, date}]
+  /* food diary */
+  log: {}, // { 'YYYY-MM-DD': entry[] }
+  favouriteFoods: [],
   customFoods: [],
-  mealTemplates: SEED_TEMPLATES,
-  /** Daily targets for all 24 tracked nutrients; any of them is editable. */
+  mealTemplates: [],
   targets: DEFAULT_TARGETS,
+  water: 0,
+  waterExtraMl: 0,
+  /* progress */
+  xp: 0,
 };
 
 const load = () => {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
     const state = {
-      ...DEFAULTS,
+      ...EMPTY_STATE,
       ...stored,
-      integrations: { ...DEFAULTS.integrations, ...(stored.integrations || {}) },
-      log: stored.log || DEFAULTS.log,
       targets: { ...DEFAULT_TARGETS, ...(stored.targets || {}) },
     };
-    if (!ACCENT_IDS.includes(state.accent)) state.accent = DEFAULTS.accent;
+    if (!ACCENT_IDS.includes(state.accent)) state.accent = EMPTY_STATE.accent;
     return rolloverDay(state);
   } catch {
-    return DEFAULTS;
+    return { ...EMPTY_STATE };
   }
 };
 
@@ -115,7 +126,6 @@ export function AppProvider({ children }) {
   const api = useMemo(() => {
     const set = (patch) => setState((s) => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }));
 
-    /** Append entries to a day's diary; +4 XP each, because logging is the habit. */
     const addEntries = (entries, date) =>
       set((s) => {
         const day = date || s.day;
@@ -128,32 +138,119 @@ export function AppProvider({ children }) {
 
     return {
       set,
+      reset: () => setState({ ...EMPTY_STATE, day: todayStamp() }),
+      finishOnboarding: (profile) => set({ ...profile, onboarded: true }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),
-      /** Anything drunk outside the eight glasses — bottles, refills, a jug. */
       addWaterMl: (ml) => set((s) => ({ waterExtraMl: Math.max(0, s.waterExtraMl + ml) })),
       setTarget: (key, value) =>
         set((s) => ({ targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) } })),
       resetTargets: () => set({ targets: DEFAULT_TARGETS }),
-      toggleChecked: (id) =>
-        set((s) => ({
-          checked: s.checked.includes(id) ? s.checked.filter((x) => x !== id) : [...s.checked, id],
-        })),
       toggleFavourite: (id) =>
         set((s) => ({
           favourites: s.favourites.includes(id)
             ? s.favourites.filter((x) => x !== id)
             : [...s.favourites, id],
         })),
-      toggleIntegration: (name) =>
-        set((s) => ({ integrations: { ...s.integrations, [name]: !s.integrations[name] } })),
-      /** Append shopping items, skipping names already on the list. */
+
+      /* ---------- Pantry ---------- */
+      addPantryItem: (item) =>
+        set((s) => ({
+          pantry: [...s.pantry, {
+            id: uid('p'),
+            emoji: emojiFor(item.name),
+            low: false,
+            addedAt: s.day,
+            ...item,
+            cost: Number(item.cost) || 0,
+          }],
+        })),
+      updatePantryItem: (id, patch) =>
+        set((s) => ({ pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+      removePantryItem: (id) => set((s) => ({ pantry: s.pantry.filter((p) => p.id !== id) })),
+      togglePantryLow: (id) =>
+        set((s) => ({ pantry: s.pantry.map((p) => (p.id === id ? { ...p, low: !p.low } : p)) })),
+
+      /* ---------- Shopping ---------- */
       addToList: (items) =>
         set((s) => {
-          const have = new Set(s.extraItems.map((i) => i.name.toLowerCase()));
-          const fresh = items.filter((i) => !have.has(i.name.toLowerCase()));
-          return fresh.length ? { extraItems: [...s.extraItems, ...fresh] } : {};
+          const have = new Set(s.shoppingList.map((i) => i.name.toLowerCase()));
+          const fresh = (Array.isArray(items) ? items : [items])
+            .filter((i) => i.name && !have.has(i.name.toLowerCase()))
+            .map((i) => ({
+              id: i.id || uid('s'),
+              checked: false,
+              price: Number(i.price) || 0,
+              qty: i.qty || '',
+              aisle: i.aisle || guessAisle(i.name),
+              emoji: i.emoji || emojiFor(i.name),
+              ...i,
+            }));
+          return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
+        }),
+      updateListItem: (id, patch) =>
+        set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+      removeListItem: (id) => set((s) => ({ shoppingList: s.shoppingList.filter((i) => i.id !== id) })),
+      toggleChecked: (id) =>
+        set((s) => ({
+          shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)),
+        })),
+      clearChecked: () => set((s) => ({ shoppingList: s.shoppingList.filter((i) => !i.checked) })),
+
+      /**
+       * Record a shop: the ticked items leave the list, the trip joins your
+       * spending history, and anything you bought can land in the pantry.
+       */
+      recordShop: ({ store, total, toPantry = false, location = 'Cupboard' }) =>
+        set((s) => {
+          const bought = s.shoppingList.filter((i) => i.checked);
+          if (!bought.length) return {};
+          const shop = {
+            id: uid('h'),
+            date: s.day,
+            store: store || 'Unnamed shop',
+            total: Math.round((Number(total) || 0) * 100) / 100,
+            items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
+          };
+          return {
+            shops: [...s.shops, shop],
+            shoppingList: s.shoppingList.filter((i) => !i.checked),
+            xp: s.xp + 10,
+            pantry: toPantry
+              ? [...s.pantry, ...bought.map((i) => ({
+                  id: uid('p'),
+                  name: i.name,
+                  emoji: i.emoji,
+                  cat: 'Fresh',
+                  location,
+                  qty: i.qty || '',
+                  cost: Number(i.price) || 0,
+                  store: shop.store,
+                  expiry: null,
+                  low: false,
+                  addedAt: s.day,
+                }))]
+              : s.pantry,
+          };
+        }),
+
+      /* ---------- Plan ---------- */
+      setPlanSlot: (date, slot, recipeId) =>
+        set((s) => {
+          const day = { ...(s.plan[date] || {}) };
+          if (recipeId) day[slot] = recipeId;
+          else delete day[slot];
+          const plan = { ...s.plan };
+          if (Object.keys(day).length) plan[date] = day;
+          else delete plan[date];
+          return { plan };
+        }),
+      clearPlanWeek: (dates) =>
+        set((s) => {
+          const plan = { ...s.plan };
+          for (const d of dates) delete plan[d];
+          return { plan };
         }),
 
       /* ---------- Food diary ---------- */
@@ -163,10 +260,7 @@ export function AppProvider({ children }) {
         set((s) => {
           const day = date || s.day;
           return {
-            log: {
-              ...s.log,
-              [day]: (s.log[day] || []).map((e) => (e.id === id ? { ...e, ...patch } : e)),
-            },
+            log: { ...s.log, [day]: (s.log[day] || []).map((e) => (e.id === id ? { ...e, ...patch } : e)) },
           };
         }),
       removeEntry: (id, date) =>
@@ -174,7 +268,6 @@ export function AppProvider({ children }) {
           const day = date || s.day;
           return { log: { ...s.log, [day]: (s.log[day] || []).filter((e) => e.id !== id) } };
         }),
-      /** Copy a past meal onto today (or any other day/slot). */
       copyMeal: ({ fromDate, fromMeal, toMeal, toDate }) =>
         set((s) => {
           const source = (s.log[fromDate] || []).filter((e) => e.meal === fromMeal);
@@ -185,22 +278,19 @@ export function AppProvider({ children }) {
         }),
       saveTemplate: (name, meal, entries) =>
         set((s) => ({
-          mealTemplates: [
-            ...s.mealTemplates,
-            {
-              id: `tpl-${Date.now().toString(36)}`,
-              name: name || `${meal} template`,
-              meal,
-              entries: entries.map((e) => ({ ...e, time: '00:00' })),
-            },
-          ],
+          mealTemplates: [...s.mealTemplates, {
+            id: uid('tpl'),
+            name: name || `${meal} template`,
+            meal,
+            entries: entries.map((e) => ({ ...e, time: '00:00' })),
+          }],
         })),
       deleteTemplate: (id) => set((s) => ({ mealTemplates: s.mealTemplates.filter((t) => t.id !== id) })),
       applyTemplate: (id, meal) =>
         set((s) => {
           const tpl = s.mealTemplates.find((t) => t.id === id);
           if (!tpl) return {};
-          const copied = copyEntries(tpl.entries, { meal: meal || tpl.meal, time: undefined }).map((e) => ({
+          const copied = copyEntries(tpl.entries, { meal: meal || tpl.meal }).map((e) => ({
             ...e,
             time: new Date().toTimeString().slice(0, 5),
             source: 'template',
@@ -216,26 +306,26 @@ export function AppProvider({ children }) {
             : [...s.favouriteFoods, id],
         })),
 
+      /** Finishing cooking mode: history, XP, and the meal logged to the diary. */
       completeRecipe: (recipe) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           return {
-            cooked: s.cooked.includes(recipe.id) ? s.cooked : [...s.cooked, recipe.id],
+            cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             xp: s.xp + 60,
-            streak: s.cookedToday ? s.streak : s.streak + 1,
-            cookedToday: true,
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
           };
         }),
     };
   }, []);
 
-  /* Nutrition is always derived from the diary — never stored twice. */
+  /* Everything below is derived — the app never stores a number twice. */
   const derived = useMemo(() => {
     const catalogue = [...CATALOGUE, ...state.customFoods];
     const entries = state.log[state.day] || [];
     const totals = dayTotals(entries);
     const glasses = state.water + state.waterExtraMl / GLASS_ML;
+    const cookedDays = state.cooked.map((c) => c.date);
     return {
       catalogue,
       entries,
@@ -245,7 +335,6 @@ export function AppProvider({ children }) {
       carbsToday: totals.carbs,
       fatToday: totals.fat,
       fibreToday: totals.fibre,
-      // Legacy goal names, now views onto `targets`.
       kcalGoal: state.targets.kcal,
       proteinGoal: state.targets.protein,
       carbsGoal: state.targets.carbs,
@@ -255,8 +344,15 @@ export function AppProvider({ children }) {
       recentFoods: recentFoodsFrom(state.log, catalogue),
       entriesFor: (date) => state.log[date] || [],
       kcalFor: (date) => dayTotals(state.log[date] || []).kcal,
+      /* kitchen */
+      streak: streakFrom(cookedDays, state.day),
+      cookedToday: cookedDays.includes(state.day),
+      cookedIds: state.cooked.map((c) => c.recipeId),
+      pantryValue: pantryValue(state.pantry),
+      spentThisWeek: spentInWeek(state.shops, state.day),
+      stats: kitchenStats(state, state.day),
     };
-  }, [state.log, state.day, state.customFoods, state.targets, state.water, state.waterExtraMl]);
+  }, [state]);
 
   const value = useMemo(() => ({ ...state, ...derived, ...api }), [state, derived, api]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CalendarDays, ChefHat, ClipboardList, Home, ShoppingCart, Sparkles, User } from 'lucide-react';
-import { AppProvider } from './lib/store.jsx';
+import { AppProvider, useApp } from './lib/store.jsx';
+import Onboarding from './components/Onboarding.jsx';
 import HomeTab from './components/HomeTab.jsx';
 import PlanTab from './components/PlanTab.jsx';
 import LogTab from './components/LogTab.jsx';
@@ -22,6 +23,7 @@ const TABS = [
 ];
 
 function Shell() {
+  const app = useApp();
   const [tab, setTab] = useState('home');
   const [recipe, setRecipe] = useState(null);
   const [pantryOpen, setPantryOpen] = useState(false);
@@ -31,6 +33,9 @@ function Shell() {
 
   const openRecipe = (r) => setRecipe(r);
   const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
+
+  // Nothing is pre-filled, so the first run asks for the little it needs.
+  if (!app.onboarded) return <Onboarding />;
 
   return (
     <div className="mx-auto max-w-lg min-h-screen relative" style={{ background: 'var(--bg)' }}>
