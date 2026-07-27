@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { CalendarDays, ChefHat, Home, ShoppingCart, Sparkles, User } from 'lucide-react';
+import { CalendarDays, ChefHat, ClipboardList, Home, ShoppingCart, Sparkles, User } from 'lucide-react';
 import { AppProvider } from './lib/store.jsx';
 import HomeTab from './components/HomeTab.jsx';
 import PlanTab from './components/PlanTab.jsx';
+import LogTab from './components/LogTab.jsx';
 import ShopTab from './components/ShopTab.jsx';
 import RecipesTab from './components/RecipesTab.jsx';
 import ProfileTab from './components/ProfileTab.jsx';
@@ -14,6 +15,7 @@ import { Sheet } from './components/ui.jsx';
 const TABS = [
   { id: 'home', label: 'Home', Icon: Home },
   { id: 'plan', label: 'Plan', Icon: CalendarDays },
+  { id: 'log', label: 'Log', Icon: ClipboardList },
   { id: 'shop', label: 'Shop', Icon: ShoppingCart },
   { id: 'recipes', label: 'Recipes', Icon: ChefHat },
   { id: 'profile', label: 'Profile', Icon: User },
@@ -24,14 +26,18 @@ function Shell() {
   const [recipe, setRecipe] = useState(null);
   const [pantryOpen, setPantryOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  // Which logging sheet the diary should open with, when arriving from Home.
+  const [logIntent, setLogIntent] = useState(null);
 
   const openRecipe = (r) => setRecipe(r);
+  const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
 
   return (
     <div className="mx-auto max-w-lg min-h-screen relative" style={{ background: 'var(--bg)' }}>
       <main className="pb-24">
-        {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={setTab} />}
+        {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={setTab} goLog={goLog} />}
         {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
+        {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
         {tab === 'shop' && <ShopTab />}
         {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
         {tab === 'profile' && <ProfileTab />}

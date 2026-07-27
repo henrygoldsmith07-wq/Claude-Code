@@ -1,4 +1,4 @@
-import { AlarmClock, ChevronRight, Droplet, Flame, Plus, Star } from 'lucide-react';
+import { AlarmClock, Camera, ChevronRight, Droplet, Flame, Layers, Mic, Plus, ScanBarcode, Search, Star } from 'lucide-react';
 import { useApp, levelFromXp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate, todayName } from '../lib/utils.js';
 import { byId, RECIPES } from '../data/recipes.js';
@@ -8,13 +8,22 @@ import { fullList, totalOf, checkedTotalOf } from '../data/stores.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
+/** Capture routes that open straight into the diary's matching sheet. */
+const LOG_SHORTCUTS = [
+  { id: 'add', label: 'Search food', Icon: Search },
+  { id: 'barcode', label: 'Scan barcode', Icon: ScanBarcode },
+  { id: 'photo', label: 'Photo', Icon: Camera },
+  { id: 'voice', label: 'Voice', Icon: Mic },
+  { id: 'copy', label: 'Copy meal', Icon: Layers },
+];
+
 const MEAL_SLOTS = [
   { key: 'breakfast', label: 'Breakfast', time: '8:00' },
   { key: 'lunch', label: 'Lunch', time: '12:30' },
   { key: 'dinner', label: 'Dinner', time: '18:30' },
 ];
 
-export default function HomeTab({ openRecipe, openPantry, goTab }) {
+export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
   const app = useApp();
   const dayKey = todayName().slice(0, 3);
   const todayPlan = DEFAULT_PLAN[dayKey] || DEFAULT_PLAN.Mon;
@@ -67,7 +76,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab }) {
             </div>
           </div>
         </Card>
-        <Card onClick={() => goTab('profile')}>
+        <Card onClick={() => goLog()}>
           <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Calories today</p>
           <div className="mt-2 flex items-center gap-3">
             <Ring value={app.kcalToday} max={app.kcalGoal} size={64} color="var(--series-2)" label={Math.round((app.kcalToday / app.kcalGoal) * 100) + '%'} />
@@ -79,6 +88,22 @@ export default function HomeTab({ openRecipe, openPantry, goTab }) {
           </div>
         </Card>
       </div>
+
+      {/* One-tap food logging */}
+      <Section title="Log what you ate" action="Diary →" onAction={() => goLog()} className="rise rise-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
+          {LOG_SHORTCUTS.map(({ id, label, Icon }) => (
+            <button
+              key={label}
+              onClick={() => goLog(id)}
+              className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold"
+              style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
+            >
+              <Icon size={14} /> {label}
+            </button>
+          ))}
+        </div>
+      </Section>
 
       {/* Today's meals */}
       <Section title="Today’s meals" action="Full plan →" onAction={() => goTab('plan')} className="rise rise-2">
