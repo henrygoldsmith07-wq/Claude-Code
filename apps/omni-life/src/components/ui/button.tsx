@@ -8,12 +8,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
-    const baseStyles = 'font-semibold rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
-    
+    // Uses the shared Le Studio primitives so this button matches every other
+    // app's. `primary` is the ink accent, not the blue conversation accent:
+    // the old blue fill converted to bg-speak, which is meant for conversation
+    // UI rather than a primary action.
+    const baseStyles = 'btn';
+
     const variantStyles = {
-      primary: 'bg-speak text-onaccent hover:bg-speak focus:ring-speak',
-      secondary: 'bg-surface2 text-ink hover:bg-surface2 focus:ring-ink3',
-      danger: 'bg-danger text-onaccent hover:bg-danger focus:ring-danger',
+      primary: 'btn-primary',
+      secondary: 'btn-secondary',
+      danger: 'bg-danger text-onaccent hover:brightness-90',
     };
 
     const sizeStyles = {

@@ -66,8 +66,11 @@
       #root .spin { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid rgba(128,128,128,.25); border-top-color: currentColor; animation: bootspin 0.8s linear infinite; }
       @keyframes bootspin { to { transform: rotate(360deg); } }
       #root .seo { max-width: 40rem; margin: 0 auto; padding: 0 1.25rem 2rem; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.6; opacity: 0.75; }
-      html.dark body { background: #0a0a0a; color: #fafafa; }
-      html:not(.dark) body { background: #fafafa; color: #111; }
+      /* Boot-splash colours, matched to the Le Studio tokens so the first
+         paint is the same canvas the app settles on (these run before the
+         stylesheet loads, so they cannot use var(--bg)). */
+      html.dark body { background: #0b0b0d; color: #f4f4f5; }
+      html:not(.dark) body { background: #f4f4f6; color: #131316; }
     </style>
     </head>
   <body>
