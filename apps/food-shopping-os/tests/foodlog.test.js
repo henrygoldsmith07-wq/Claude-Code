@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   importRecipeText, importRecipeUrl, isBarcode, lookupBarcode, makeCustomFood,
-  parseIngredientLine, parsePhrase, parseVoiceLog, recognisePlate, searchFoods,
+  parseIngredientLine, parsePhrase, parseVoiceLog, recognisePlate, recogniseShelf, searchFoods,
 } from '../src/lib/foodlog.js';
 import { CATALOGUE, RESTAURANT_FOODS } from '../src/data/foods.js';
 
@@ -80,6 +80,33 @@ describe('photo recognition', () => {
     expect(a.map((i) => i.food.id)).toEqual(b.map((i) => i.food.id));
     expect(a.every((i) => i.confidence >= 68 && i.confidence <= 100)).toBe(true);
     expect(a.every((i) => i.grams > 0 && i.entry.source === 'photo')).toBe(true);
+  });
+});
+
+describe('shelf recognition', () => {
+  it('is deterministic for the same photo', () => {
+    const a = recogniseShelf('fridge.jpg-9912');
+    const b = recogniseShelf('fridge.jpg-9912');
+    expect(a.map((i) => i.name)).toEqual(b.map((i) => i.name));
+    expect(a.length).toBeGreaterThan(2);
+  });
+
+  it('returns editable pantry rows, not log entries', () => {
+    const items = recogniseShelf('cupboard.png-42');
+    for (const item of items) {
+      expect(item.name.length).toBeGreaterThan(1);
+      expect(item.qty).toBeTruthy();
+      expect(['Fridge', 'Cupboard']).toContain(item.location);
+      expect(item.confidence).toBeGreaterThanOrEqual(64);
+      expect(item.confidence).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it('reads different photos as different shelves', () => {
+    const seen = new Set(
+      ['a-1', 'b-2', 'c-3', 'd-4', 'e-5', 'f-6'].map((s) => recogniseShelf(s).map((i) => i.name).join('|')),
+    );
+    expect(seen.size).toBeGreaterThan(1);
   });
 });
 

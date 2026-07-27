@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
 const onboard = ({ budget = '60' } = {}) => {
@@ -72,6 +72,24 @@ describe('pantry', () => {
     closeSheet('Smart pantry');
     fireEvent.click(screen.getByText('Shop'));
     expect(screen.getAllByText('Olive oil').length).toBeGreaterThan(0);
+  });
+
+  it('fills the pantry from a photo of a shelf', async () => {
+    onboard();
+    const sheet = openPantry();
+    fireEvent.click(within(sheet).getByText('Add by photo'));
+    fireEvent.click(within(sheet).getByText('Try a sample shelf'));
+
+    const addButton = await waitFor(() => within(sheet).getByText(/^Add \d+ items? to/), { timeout: 3000 });
+    const spotted = within(sheet).getAllByLabelText(/^Name of item/);
+    expect(spotted.length).toBeGreaterThan(2);
+
+    // Everything it read is editable before anything is saved.
+    fireEvent.change(spotted[0], { target: { value: 'Oat milk' } });
+    fireEvent.click(addButton);
+
+    expect(within(sheet).getByText(/items? added to your pantry/)).toBeDefined();
+    expect(within(sheet).getAllByText('Oat milk').length).toBeGreaterThan(0);
   });
 
   it('removes an item again', () => {

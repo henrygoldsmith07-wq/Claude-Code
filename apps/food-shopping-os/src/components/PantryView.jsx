@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Package, Plus, ShoppingCart, Trash2, TriangleAlert, X } from 'lucide-react';
+import { Camera, Check, Package, Plus, ShoppingCart, Trash2, TriangleAlert, X } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, expiryStatus } from '../lib/utils.js';
 import { daysUntil, expiringSoon, pantryValue } from '../lib/kitchen.js';
@@ -7,6 +7,7 @@ import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../da
 import { Card, Chip, Pill, Section } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
+import PantryCapture from './PantryCapture.jsx';
 
 const BLANK = {
   name: '', qty: '', cost: '', location: DEFAULT_LOCATION,
@@ -104,6 +105,7 @@ export default function PantryView() {
   const [location, setLocation] = useState('All');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
+  const [capturing, setCapturing] = useState(false);
 
   const items = useMemo(() => {
     let list = app.pantry;
@@ -137,16 +139,28 @@ export default function PantryView() {
         ))}
       </div>
 
-      <button
-        onClick={() => setAdding((v) => !v)}
-        className="press w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
-        style={adding ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
-      >
-        <span className="inline-flex items-center gap-1.5">
-          {adding ? <><X size={14} /> Close</> : <><Plus size={15} /> Add an item</>}
-        </span>
-      </button>
+      <div className="grid grid-cols-2 gap-2.5">
+        <button
+          onClick={() => { setAdding((v) => !v); setCapturing(false); }}
+          className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+          style={adding ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            {adding ? <><X size={14} /> Close</> : <><Plus size={15} /> Add an item</>}
+          </span>
+        </button>
+        <button
+          onClick={() => { setCapturing((v) => !v); setAdding(false); }}
+          className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+          style={capturing ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            {capturing ? <><X size={14} /> Close</> : <><Camera size={15} /> Add by photo</>}
+          </span>
+        </button>
+      </div>
       {adding && <AddItemForm />}
+      {capturing && <PantryCapture onDone={() => setCapturing(false)} />}
 
       {empty ? (
         <Card className="text-center py-10">
