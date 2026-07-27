@@ -6,7 +6,7 @@ import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { byId, RECIPES } from '../data/recipes.js';
 import {
-  MEAL_SLOTS, PLANNER_GOALS, PLANNER_DIETS, PLANNER_SCOPES, PLANNER_OCCASIONS, WEEK_DAYS,
+  MEAL_SLOTS, PLANNER_SCOPES, PLANNER_OCCASIONS, WEEK_DAYS,
 } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { planCost, plannedMeals, weekDates } from '../lib/kitchen.js';
@@ -71,8 +71,6 @@ export default function PlanTab({ openRecipe }) {
   const [scope, setScope] = useState('A week');
   const [people, setPeople] = useState(app.household || 1);
   const [budget, setBudget] = useState(2.5);
-  const [goal, setGoal] = useState('Balanced');
-  const [diet, setDiet] = useState(app.diet || 'None');
   const [occasion, setOccasion] = useState('Everyday');
   const [quick, setQuick] = useState(false);
   const [seed, setSeed] = useState(0);
@@ -86,8 +84,11 @@ export default function PlanTab({ openRecipe }) {
 
   const plan = useMemo(() => {
     if (!seed) return null;
-    return buildPlan({ scope, diet, goal, budget, maxTime: quick ? 30 : null, occasion, people }, seed);
-  }, [seed, scope, diet, goal, budget, quick, occasion, people]);
+    return buildPlan(
+      { scope, diets: app.diets, goal: app.goal, budget, maxTime: quick ? 30 : null, occasion, people },
+      seed,
+    );
+  }, [seed, scope, app.diets, app.goal, budget, quick, occasion, people]);
   const generated = plan?.meals ?? null;
 
   const generate = () => {
@@ -237,16 +238,21 @@ export default function PlanTab({ openRecipe }) {
               />
             </div>
 
-            {[['Goal', PLANNER_GOALS, goal, setGoal], ['Diet & allergies', PLANNER_DIETS, diet, setDiet], ['Occasion', PLANNER_OCCASIONS, occasion, setOccasion]].map(
-              ([label, options, value, setter]) => (
-                <div key={label}>
-                  <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>{label}</p>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-                    {options.map((o) => <Chip key={o} active={value === o} onClick={() => setter(o)}>{o}</Chip>)}
-                  </div>
-                </div>
-              ),
-            )}
+            {/* Goal and diet come from your profile — one place, not two */}
+            <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--line)' }}>
+              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Planning for</p>
+              <p className="mt-0.5 text-[13.5px] font-bold">{app.goalSummary}</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Change it under Goals &amp; targets in your profile.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Occasion</p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+                {PLANNER_OCCASIONS.map((o) => <Chip key={o} active={occasion === o} onClick={() => setOccasion(o)}>{o}</Chip>)}
+              </div>
+            </div>
 
             <div className="flex items-center justify-between">
               <p className="text-[13px] font-bold flex items-center gap-1.5"><Zap size={14} /> 30 minutes or less</p>

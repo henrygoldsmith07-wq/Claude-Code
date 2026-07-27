@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Banknote, Flame, NotebookPen, RotateCcw, Download } from 'lucide-react';
+import { Activity, Banknote, Flame, NotebookPen, RotateCcw, Download, Target } from 'lucide-react';
 import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { formatAmount } from '../data/nutrients.js';
@@ -7,6 +7,7 @@ import { nutrientRows, snackSummary, timingInsight } from '../lib/nutrition.js';
 import { badgeProgress, cuisineSplit, spendByMonth, weekDates } from '../lib/kitchen.js';
 import { gbp } from '../lib/utils.js';
 import NutritionPanel from './NutritionPanel.jsx';
+import GoalsPanel from './GoalsPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -21,6 +22,7 @@ const ACCENTS = [
 export default function ProfileTab() {
   const app = useApp();
   const [nutritionOpen, setNutritionOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -89,6 +91,31 @@ export default function ProfileTab() {
           ))}
         </div>
       </div>
+
+      {/* Goals */}
+      <Section title="Goals & targets" className="rise rise-1">
+        <Card onClick={() => setGoalsOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[15px] truncate">{app.goalSummary}</p>
+              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.targets.kcal.toLocaleString()} kcal · {app.targets.protein}g P · {app.targets.carbs}g C · {app.targets.fat}g F
+                {app.targetMode === 'custom' && ' · custom'}
+              </p>
+            </div>
+            <Target size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
+            <div className="flex justify-between text-[12px] font-bold mb-1">
+              <span>This week</span>
+              <span style={{ color: 'var(--muted)' }}>
+                {app.week.eaten.toLocaleString()} / {app.weeklyKcalTarget.toLocaleString()} kcal
+              </span>
+            </div>
+            <Meter value={app.week.eaten} max={app.weeklyKcalTarget} color={app.week.onTrack ? 'var(--accent)' : 'var(--warn)'} height={5} />
+          </div>
+        </Card>
+      </Section>
 
       {/* Nutrition today */}
       <Section title="Nutrition today" className="rise rise-1">
@@ -283,6 +310,9 @@ export default function ProfileTab() {
 
       <Sheet open={nutritionOpen} onClose={() => setNutritionOpen(false)} title="Nutrition today">
         <NutritionPanel />
+      </Sheet>
+      <Sheet open={goalsOpen} onClose={() => setGoalsOpen(false)} title="Goals & targets">
+        <GoalsPanel />
       </Sheet>
     </div>
   );

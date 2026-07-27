@@ -2,20 +2,10 @@ import { useState } from 'react';
 import { ArrowRight, Check, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
-import { PLANNER_DIETS } from '../data/plan.js';
+import { BODY_GOALS, DIET_PATTERNS } from '../data/goals.js';
+import { computeTargets, targetsFor } from '../lib/goals.js';
 import { Card, Chip, Stepper } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
-
-/**
- * Energy targets by intent. Protein/carb/fat splits follow the goal rather
- * than a one-size default, and every one of them stays editable afterwards.
- */
-const GOALS = [
-  { id: 'maintain', label: 'Eat well', kcal: 2200, protein: 110, carbs: 260, fat: 75 },
-  { id: 'lose', label: 'Lose weight', kcal: 1800, protein: 130, carbs: 170, fat: 60 },
-  { id: 'gain', label: 'Build muscle', kcal: 2700, protein: 160, carbs: 300, fat: 85 },
-  { id: 'custom', label: 'Set my own', kcal: 2200, protein: 130, carbs: 250, fat: 75 },
-];
 
 export default function Onboarding() {
   const app = useApp();
@@ -23,28 +13,37 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [household, setHousehold] = useState(1);
   const [budget, setBudget] = useState('');
-  const [diet, setDiet] = useState('None');
-  const [goalId, setGoalId] = useState('maintain');
-  const [macros, setMacros] = useState(GOALS[0]);
+  const [diets, setDiets] = useState([]);
+  const [goal, setGoal] = useState('maintain');
+  const [weightKg, setWeightKg] = useState('');
+  const [maintenance, setMaintenance] = useState('');
 
-  const pickGoal = (goal) => {
-    setGoalId(goal.id);
-    setMacros(goal);
-  };
+  const toggleDiet = (id) =>
+    setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+
+  /** Whatever we know: body weight for g/kg protein, or a calorie figure. */
+  const preview = computeTargets({
+    goal,
+    diets,
+    maintenanceKcal: Math.max(0, Number(maintenance) || 0) || null,
+    weightKg: Math.max(0, Number(weightKg) || 0) || null,
+    fallbackKcal: DEFAULT_TARGETS.kcal,
+  });
 
   const finish = () => {
+    const state = {
+      goal,
+      diets,
+      body: { sex: 'unspecified', age: null, heightCm: null, weightKg: Number(weightKg) || null, activity: 'light' },
+      maintenanceKcal: Math.max(0, Number(maintenance) || 0),
+      targets: DEFAULT_TARGETS,
+    };
     app.finishOnboarding({
+      ...state,
       name: name.trim() || 'you',
       household,
-      diet,
       weeklyBudget: Math.max(0, Number(budget) || 0),
-      targets: {
-        ...DEFAULT_TARGETS,
-        kcal: Math.max(0, Number(macros.kcal) || DEFAULT_TARGETS.kcal),
-        protein: Math.max(0, Number(macros.protein) || DEFAULT_TARGETS.protein),
-        carbs: Math.max(0, Number(macros.carbs) || DEFAULT_TARGETS.carbs),
-        fat: Math.max(0, Number(macros.fat) || DEFAULT_TARGETS.fat),
-      },
+      targets: targetsFor(state),
     });
   };
 
@@ -106,32 +105,66 @@ export default function Onboarding() {
             </Card>
             <Card>
               <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
-                Diet
+                How you eat
               </p>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {PLANNER_DIETS.map((d) => (
-                  <Chip key={d} active={diet === d} onClick={() => setDiet(d)}>{d}</Chip>
+              <div className="flex flex-wrap gap-2">
+                {DIET_PATTERNS.map((d) => (
+                  <Chip key={d.id} active={diets.includes(d.id)} onClick={() => toggleDiet(d.id)}>{d.label}</Chip>
                 ))}
               </div>
+              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Pick any that apply, or none. They filter recipes and shape your macro split.
+              </p>
             </Card>
           </>
         )}
 
         {step === 2 && (
           <>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {GOALS.map((g) => (
-                <Chip key={g.id} active={goalId === g.id} onClick={() => pickGoal(g)}>{g.label}</Chip>
-              ))}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+                What are you aiming for?
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {BODY_GOALS.map((g) => (
+                  <Chip key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
+                ))}
+              </div>
+              <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {BODY_GOALS.find((g) => g.id === goal).blurb}
+              </p>
             </div>
+
             <Card className="grid grid-cols-2 gap-2.5">
-              <NumberField label="Calories" value={macros.kcal} onChange={(v) => setMacros((m) => ({ ...m, kcal: v }))} suffix="kcal" step={50} />
-              <NumberField label="Protein" value={macros.protein} onChange={(v) => setMacros((m) => ({ ...m, protein: v }))} suffix="g" step={5} />
-              <NumberField label="Carbs" value={macros.carbs} onChange={(v) => setMacros((m) => ({ ...m, carbs: v }))} suffix="g" step={5} />
-              <NumberField label="Fat" value={macros.fat} onChange={(v) => setMacros((m) => ({ ...m, fat: v }))} suffix="g" step={5} />
+              <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
+              <NumberField label="Maintenance" value={maintenance} onChange={setMaintenance} suffix="kcal" step={50} />
+            </Card>
+            <p className="text-[12px] font-semibold px-1 -mt-1" style={{ color: 'var(--muted)' }}>
+              Both optional — weight sharpens the protein target, maintenance anchors the calories.
+              You can add full stats later and Forq will estimate it for you.
+            </p>
+
+            <Card>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+                That works out as
+              </p>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-[30px] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
+                </div>
+                <div className="flex gap-4 text-right">
+                  {[['Protein', preview.protein], ['Carbs', preview.carbs], ['Fat', preview.fat]].map(([label, v]) => (
+                    <div key={label}>
+                      <p className="text-[15px] font-extrabold leading-none">{v}g</p>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </Card>
             <p className="text-[12px] font-semibold px-1" style={{ color: 'var(--muted)' }}>
-              Vitamins and minerals start at UK reference intakes — adjust them in the diary whenever you like.
+              Vitamins and minerals start at UK reference intakes. Everything here is editable later.
             </p>
           </>
         )}

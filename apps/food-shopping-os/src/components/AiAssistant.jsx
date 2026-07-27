@@ -3,6 +3,7 @@ import { ArrowUp } from 'lucide-react';
 import { RECIPES } from '../data/recipes.js';
 import { useApp } from '../lib/store.jsx';
 import { expiringSoon, recipesUsing } from '../lib/kitchen.js';
+import { filterByDiet, goalSummary, recipeAllowed } from '../lib/goals.js';
 import { gbp } from '../lib/utils.js';
 
 const QUICK_PROMPTS = [
@@ -12,6 +13,7 @@ const QUICK_PROMPTS = [
   'What can I afford this week?',
   'Something in 15 minutes',
   'What have I been eating?',
+  'What are my targets?',
 ];
 
 const recipeLine = (r) => `• ${r.name} — ${r.time} min, ${gbp(r.costPerServing, { always: true })}/serving, ${r.kcal} kcal`;
@@ -25,6 +27,8 @@ export function answer(text, app) {
   const t = text.toLowerCase();
   const pantry = app.pantry;
   const expiring = expiringSoon(pantry, 3, app.day);
+  // Every recipe the coach offers has to fit the patterns you set.
+  const book = filterByDiet(RECIPES, app.diets);
 
   if (/waste|expir|use ?up|using up|going off|needs? using/.test(t)) {
     if (!expiring.length) {
@@ -32,9 +36,15 @@ export function answer(text, app) {
         ? 'Nothing in your pantry is close to its use-by date. Add dates as you shop and I’ll flag things here.'
         : 'Your pantry is empty, so there’s nothing for me to watch. Add a few items and I’ll tell you what to cook before it turns.';
     }
-    const uses = recipesUsing(pantry, 2, app.day);
+    const uses = recipesUsing(pantry, 4, app.day).filter((u) => recipeAllowed(u.recipe, app.diets)).slice(0, 2);
     return `${expiring.length} thing${expiring.length === 1 ? '' : 's'} need using: ${expiring.slice(0, 4).map((p) => p.name).join(', ')}.${
       uses.length ? `\n\n${uses.map((u) => recipeLine(u.recipe)).join('\n')}` : ''
+    }`;
+  }
+
+  if (/goal|target|aiming/.test(t)) {
+    return `You're set to ${goalSummary(app)}: ${app.targets.kcal.toLocaleString()} kcal a day (${app.weeklyKcalTarget.toLocaleString()} across the week), ${app.targets.protein}g protein, ${app.targets.carbs}g carbs, ${app.targets.fat}g fat.${
+      app.week.eaten ? `\n\nThis week you're at ${app.week.eaten.toLocaleString()} kcal — ${app.week.left >= 0 ? `${app.week.left.toLocaleString()} left` : `${Math.abs(app.week.left).toLocaleString()} over`}.` : ''
     }`;
   }
 
@@ -42,7 +52,7 @@ export function answer(text, app) {
     if (!app.entries.length) return 'Nothing logged today yet — add a meal in the diary and I can tell you where you stand.';
     const left = Math.round(app.targets.protein - app.totals.protein);
     const kcalLeft = app.targets.kcal - app.totals.kcal;
-    const pick = [...RECIPES].sort((a, b) => b.protein - a.protein)[0];
+    const pick = [...book].sort((a, b) => b.protein - a.protein)[0];
     return `You're on ${app.totals.kcal.toLocaleString()} kcal of ${app.targets.kcal.toLocaleString()} and ${Math.round(app.totals.protein)}g of ${app.targets.protein}g protein.\n\n${
       left > 0
         ? `${left}g of protein and ${kcalLeft.toLocaleString()} kcal to go. ${pick.name} would bring ${pick.protein}g.`
@@ -53,7 +63,7 @@ export function answer(text, app) {
   if (/afford|budget|money|spend|£/.test(t)) {
     if (!app.weeklyBudget) return 'No weekly budget set yet — add one in your profile and I’ll track headroom against the shops you record.';
     const left = app.weeklyBudget - app.spentThisWeek;
-    const cheap = [...RECIPES].sort((a, b) => a.costPerServing - b.costPerServing).slice(0, 3);
+    const cheap = [...book].sort((a, b) => a.costPerServing - b.costPerServing).slice(0, 3);
     return `You've recorded ${gbp(app.spentThisWeek, { always: true })} of your ${gbp(app.weeklyBudget)} budget this week — ${
       left >= 0 ? `${gbp(left, { always: true })} left` : `${gbp(-left, { always: true })} over`
     }.\n\nCheapest per serving in your recipe book:\n${cheap.map(recipeLine).join('\n')}`;
@@ -65,7 +75,7 @@ export function answer(text, app) {
       const r = RECIPES.find((x) => x.id === planned);
       return `Dinner is already planned: ${r.name} — ${r.time} minutes, ${gbp(r.costPerServing, { always: true })} a serving.`;
     }
-    const quick = RECIPES.filter((r) => r.time <= 25).sort((a, b) => a.time - b.time);
+    const quick = book.filter((r) => r.time <= 25).sort((a, b) => a.time - b.time);
     return `Quickest things in your recipe book:\n\n${quick.slice(0, 4).map(recipeLine).join('\n')}`;
   }
 
@@ -79,7 +89,7 @@ export function answer(text, app) {
   }
 
   if (pantry.length && /cook|make|recipe|what should/.test(t)) {
-    const uses = recipesUsing(pantry, 3, app.day);
+    const uses = recipesUsing(pantry, 5, app.day).filter((u) => recipeAllowed(u.recipe, app.diets)).slice(0, 3);
     if (uses.length) return `Based on what's in your kitchen:\n\n${uses.map((u) => recipeLine(u.recipe)).join('\n')}`;
   }
 

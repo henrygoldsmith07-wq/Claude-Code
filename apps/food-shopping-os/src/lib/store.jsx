@@ -7,6 +7,9 @@ import { recipeFood, searchFoods } from './foodlog.js';
 import {
   dayStamp, kitchenStats, levelFrom, pantryValue, spentInWeek, streakFrom,
 } from './kitchen.js';
+import {
+  defaultWeeklyKcal, goalSummary, resolveMaintenance, targetsFor, weekProgress,
+} from './goals.js';
 
 export const STORAGE_KEY = 'forq-state-v2';
 const KEY = STORAGE_KEY;
@@ -71,10 +74,16 @@ export const EMPTY_STATE = {
   accent: 'mono',
   name: '',
   day: todayStamp(),
+  /* goals — what you're aiming at, and how you want to eat */
+  goal: 'maintain',
+  diets: [], // dietary pattern ids: keto, vegan, gluten-free…
+  body: { sex: 'unspecified', age: null, heightCm: null, weightKg: null, activity: 'light' },
+  maintenanceKcal: 0, // typed in when body stats aren't given
+  targetMode: 'auto', // 'auto' follows the goal; 'custom' is yours to set
+  weeklyKcal: 0, // 0 = seven times the daily target
   /* budget & shopping */
   weeklyBudget: 0,
   household: 1,
-  diet: 'None',
   shoppingList: [], // {id,name,emoji,aisle,qty,price,checked}
   shops: [], // recorded trips {id,date,store,total,items[]}
   /* kitchen */
@@ -144,9 +153,45 @@ export function AppProvider({ children }) {
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),
       addWaterMl: (ml) => set((s) => ({ waterExtraMl: Math.max(0, s.waterExtraMl + ml) })),
+      /** Editing a target by hand is a decision — it switches you to custom mode. */
       setTarget: (key, value) =>
-        set((s) => ({ targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) } })),
-      resetTargets: () => set({ targets: DEFAULT_TARGETS }),
+        set((s) => ({
+          targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) },
+          targetMode: ['kcal', 'protein', 'carbs', 'fat'].includes(key) ? 'custom' : s.targetMode,
+        })),
+      resetTargets: () => set((s) => ({ targets: targetsFor({ ...s, targets: DEFAULT_TARGETS }), targetMode: 'auto' })),
+
+      /* ---------- Goals ---------- */
+      /** Changing the goal re-derives the targets, unless you've taken them over. */
+      setGoal: (goal) =>
+        set((s) => {
+          const next = { ...s, goal };
+          return { goal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
+        }),
+      toggleDiet: (id) =>
+        set((s) => {
+          const diets = s.diets.includes(id) ? s.diets.filter((d) => d !== id) : [...s.diets, id];
+          const next = { ...s, diets };
+          return { diets, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
+        }),
+      setBody: (patch) =>
+        set((s) => {
+          const body = { ...s.body, ...patch };
+          const next = { ...s, body };
+          return { body, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
+        }),
+      setMaintenance: (kcal) =>
+        set((s) => {
+          const maintenanceKcal = Math.max(0, Number(kcal) || 0);
+          const next = { ...s, maintenanceKcal };
+          return { maintenanceKcal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
+        }),
+      setTargetMode: (targetMode) =>
+        set((s) => ({
+          targetMode,
+          targets: targetMode === 'auto' ? targetsFor(s) : s.targets,
+        })),
+      setWeeklyKcal: (kcal) => set({ weeklyKcal: Math.max(0, Number(kcal) || 0) }),
       toggleFavourite: (id) =>
         set((s) => ({
           favourites: s.favourites.includes(id)
@@ -341,6 +386,14 @@ export function AppProvider({ children }) {
       fatGoal: state.targets.fat,
       coverage: nutrientCoverage(entries),
       hydration: hydration(totals, glasses),
+      /* goals */
+      maintenanceKcalResolved: resolveMaintenance(state),
+      goalSummary: goalSummary(state),
+      weeklyKcalTarget: state.weeklyKcal || defaultWeeklyKcal(state.targets.kcal),
+      week: weekProgress(state.log, {
+        weeklyKcal: state.weeklyKcal || defaultWeeklyKcal(state.targets.kcal),
+        today: state.day,
+      }),
       recentFoods: recentFoodsFrom(state.log, catalogue),
       entriesFor: (date) => state.log[date] || [],
       kcalFor: (date) => dayTotals(state.log[date] || []).kcal,

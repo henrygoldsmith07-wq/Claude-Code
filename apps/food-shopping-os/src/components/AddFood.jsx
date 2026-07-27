@@ -8,6 +8,7 @@ import { searchFoods, makeCustomFood } from '../lib/foodlog.js';
 import { buildQuickEntry, defaultServing, scale } from '../lib/nutrition.js';
 import { QUICK_ADD_PRESETS, RESTAURANTS } from '../data/foods.js';
 import { NUTRIENTS } from '../data/nutrients.js';
+import { dietConflicts } from '../lib/goals.js';
 import { Card, Chip, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { MealPicker, NumberField } from './FoodDetail.jsx';
@@ -34,6 +35,7 @@ export const FoodRow = ({ food, onPick, right }) => {
   const serving = defaultServing(food);
   const macros = scale(food.per100, serving.grams);
   const fav = app.favouriteFoods.includes(food.id);
+  const clashes = dietConflicts(food, app.diets);
   return (
     <div className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
       <button onClick={() => onPick(food)} className="press flex flex-1 items-center gap-3 min-w-0 text-left">
@@ -43,6 +45,9 @@ export const FoodRow = ({ food, onPick, right }) => {
           <span className="block text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>
             {food.brand ? `${food.brand} · ` : ''}{serving.label} · {macros.protein}g protein
           </span>
+          {clashes.length > 0 && (
+            <span className="mt-1 inline-flex"><Pill tone="warn">not {clashes.join(' / ').toLowerCase()}</Pill></span>
+          )}
         </span>
         <span className="text-right shrink-0">
           <span className="block font-extrabold text-[14px]">{macros.kcal}</span>

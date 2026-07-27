@@ -10,6 +10,7 @@ import {
   daysUntil, expiringSoon, leftovers, pantryValue, planForDay, recipesUsing, runningLow,
 } from '../lib/kitchen.js';
 import { totalOf } from '../data/stores.js';
+import { recipeAllowed } from '../lib/goals.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
@@ -29,7 +30,9 @@ const LOG_SHORTCUTS = [
  */
 const buildSuggestions = (app) => {
   const out = [];
-  const uses = recipesUsing(app.pantry, 2, app.day);
+  // Never suggest something your dietary patterns rule out.
+  const fits = (r) => recipeAllowed(r, app.diets);
+  const uses = recipesUsing(app.pantry, 4, app.day).filter((u) => fits(u.recipe)).slice(0, 2);
   for (const { recipe, hits } of uses) {
     const soon = expiringSoon(app.pantry, 3, app.day)[0];
     out.push({
@@ -40,13 +43,13 @@ const buildSuggestions = (app) => {
     });
   }
   const proteinLeft = Math.round(app.targets.protein - app.totals.protein);
-  if (app.entries.length && proteinLeft > 25) {
-    const pick = [...RECIPES].sort((a, b) => b.protein - a.protein)[0];
+  const highProtein = RECIPES.filter(fits).sort((a, b) => b.protein - a.protein)[0];
+  if (app.entries.length && proteinLeft > 25 && highProtein) {
     out.push({
       emoji: '💪',
       title: `${proteinLeft}g of protein to go`,
-      text: `${pick.name} would cover ${Math.min(100, Math.round((pick.protein / proteinLeft) * 100))}% of what's left.`,
-      recipeId: pick.id,
+      text: `${highProtein.name} would cover ${Math.min(100, Math.round((highProtein.protein / proteinLeft) * 100))}% of what's left.`,
+      recipeId: highProtein.id,
     });
   }
   if (app.weeklyBudget > 0) {
