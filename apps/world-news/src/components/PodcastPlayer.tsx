@@ -220,7 +220,7 @@ export default function PodcastPlayer({ scope, code, title }: Props) {
         )}
       </div>
 
-      {status === "error" && <p className="mt-3 text-xs text-red-300">{error}</p>}
+      {status === "error" && <p className="mt-3 text-xs text-danger">{error}</p>}
 
       {showTranscript && lines && (
         <ol className="mt-4 space-y-2 border-t border-rule pt-4">
@@ -233,7 +233,7 @@ export default function PodcastPlayer({ scope, code, title }: Props) {
             >
               <span
                 className={`flex-none font-semibold ${
-                  line.speaker === "Host" ? "text-accent" : "text-amber-300"
+                  line.speaker === "Host" ? "text-accent" : "text-review"
                 }`}
               >
                 {line.speaker === "Host" ? "Alex" : "Sam"}:

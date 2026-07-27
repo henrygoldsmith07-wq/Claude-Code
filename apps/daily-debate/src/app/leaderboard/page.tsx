@@ -26,13 +26,13 @@ export default async function LeaderboardPage() {
         {ratings && <RatingBreakdown ratings={ratings} />}
         <div className="surface-card overflow-hidden">
           {list.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-zinc-500">
+            <p className="px-4 py-10 text-center text-sm text-ink3">
               No players yet. Finish a debate to appear here.
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--rule)] text-left text-xs uppercase tracking-wide text-zinc-500">
+                <tr className="border-b border-[var(--rule)] text-left text-xs uppercase tracking-wide text-ink3">
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Player</th>
                   <th className="px-4 py-3">Level</th>
@@ -50,7 +50,7 @@ export default async function LeaderboardPage() {
                         isYou ? "bg-[var(--accent-soft)]" : ""
                       }`}
                     >
-                      <td className="px-4 py-3 text-zinc-500">{index + 1}</td>
+                      <td className="px-4 py-3 text-ink3">{index + 1}</td>
                       <td className="px-4 py-3">
                         {profile.username ?? "Anonymous"}
                         {isYou && (

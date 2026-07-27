@@ -61,7 +61,7 @@ export default function StatsOverview({
 
       {topExpenseSubs.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-zinc-500">
+          <h2 className="text-sm font-semibold text-ink3">
             Most expensive to you (annualized, your share)
           </h2>
           <ul className="flex flex-col gap-1">
@@ -84,8 +84,8 @@ export default function StatsOverview({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800">
-      <div className="text-xs text-zinc-500">{label}</div>
+    <div className="rounded-lg border border-line px-4 py-3">
+      <div className="text-xs text-ink3">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
     </div>
   );

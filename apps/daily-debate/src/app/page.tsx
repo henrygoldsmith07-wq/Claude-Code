@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       <AppHeader />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Today's topic</p>
+          <p className="text-xs uppercase tracking-wide text-ink3">Today's topic</p>
           <h1 className="text-2xl font-semibold tracking-tight">{topic.title}</h1>
         </div>
         <TopicCard topic={topic} activeDebateId={activeDebate?.id ?? null} />

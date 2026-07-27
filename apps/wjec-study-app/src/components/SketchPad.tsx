@@ -58,19 +58,19 @@ export default function SketchPad({ onSave, onCancel }: Props) {
         onPointerMove={handlePointerMove}
         onPointerUp={() => setDrawing(false)}
         onPointerLeave={() => setDrawing(false)}
-        className="touch-none rounded-lg border border-zinc-300 bg-white dark:border-zinc-700"
+        className="touch-none rounded-lg border border-line bg-surface"
       />
       <div className="flex gap-2 text-xs">
-        <button onClick={handleClear} className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700">
+        <button onClick={handleClear} className="rounded-full border border-line px-3 py-1">
           Clear
         </button>
         <button
           onClick={() => canvasRef.current && onSave(canvasRef.current.toDataURL("image/png"))}
-          className="rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
+          className="rounded-full bg-surface px-3 py-1 text-onaccent dark:bg-surface"
         >
           Save sketch
         </button>
-        <button onClick={onCancel} className="text-zinc-500 hover:underline">
+        <button onClick={onCancel} className="text-ink3 hover:underline">
           Cancel
         </button>
       </div>

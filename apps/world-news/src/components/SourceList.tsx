@@ -23,7 +23,7 @@ export default function SourceList({ sources }: { sources: NewsSource[] }) {
         </h2>
         {isCorroborated && (
           <span
-            className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400"
+            className="rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success"
             title={`${uniqueCount} distinct domains`}
           >
             Widely reported · {uniqueCount} sources

@@ -478,7 +478,7 @@ export default function NewsGlobe({
           onClick={() => setShowHistory((v) => !v)}
           className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
             showHistory
-              ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+              ? "border-review/60 bg-review/15 text-review"
               : "border-rule bg-panel/90 text-muted hover:border-accent"
           }`}
         >
@@ -489,7 +489,7 @@ export default function NewsGlobe({
           onClick={() => setShowMarkets((v) => !v)}
           className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
             showMarkets
-              ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-200"
+              ? "border-success/60 bg-success/15 text-success"
               : "border-rule bg-panel/90 text-muted hover:border-accent"
           }`}
         >
@@ -500,7 +500,7 @@ export default function NewsGlobe({
           onClick={() => setPinMode((v) => !v)}
           className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
             pinMode
-              ? "border-violet-400/60 bg-violet-400/15 text-violet-200"
+              ? "border-speak/60 bg-speak/15 text-speak"
               : "border-rule bg-panel/90 text-muted hover:border-accent"
           }`}
           title="Click a country to drop a pin"
@@ -515,7 +515,7 @@ export default function NewsGlobe({
                 <button
                   type="button"
                   onClick={() => removePin(p.id)}
-                  className="text-muted hover:text-red-300"
+                  className="text-muted hover:text-danger"
                   title="Remove pin"
                 >
                   ×

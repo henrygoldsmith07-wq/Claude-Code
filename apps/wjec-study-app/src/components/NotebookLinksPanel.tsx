@@ -35,7 +35,7 @@ export default function NotebookLinksPanel({ linkedCount, onImport }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="self-end text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+        className="self-end text-xs text-ink3 hover:underline"
       >
         NotebookLM links: {linkedCount} topics linked — bulk import
       </button>
@@ -43,8 +43,8 @@ export default function NotebookLinksPanel({ linkedCount, onImport }: Props) {
   }
 
   return (
-    <div className="flex w-full flex-col gap-2 self-end rounded-lg border border-zinc-300 p-3 text-xs dark:border-zinc-700">
-      <p className="text-zinc-600 dark:text-zinc-400">
+    <div className="flex w-full flex-col gap-2 self-end rounded-lg border border-line p-3 text-xs">
+      <p className="text-ink2">
         Paste a JSON object mapping topic IDs to NotebookLM notebook URLs, e.g.{" "}
         <code>{`{"chemistry-1": "https://notebooklm.google.com/notebook/..."}`}</code>. Topic IDs
         are shown next to each topic below.
@@ -54,17 +54,17 @@ export default function NotebookLinksPanel({ linkedCount, onImport }: Props) {
         onChange={(e) => setDraft(e.target.value)}
         rows={4}
         placeholder='{"chemistry-1": "https://notebooklm.google.com/notebook/..."}'
-        className="w-full rounded border border-zinc-300 p-2 font-mono dark:border-zinc-700 dark:bg-zinc-900"
+        className="w-full rounded border border-line p-2 font-mono"
       />
-      {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-danger">{error}</p>}
       <div className="flex gap-2">
         <button
           onClick={handleImport}
-          className="rounded bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
+          className="rounded bg-surface px-3 py-1 text-onaccent dark:bg-surface"
         >
           Import
         </button>
-        <button onClick={() => setOpen(false)} className="rounded px-3 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        <button onClick={() => setOpen(false)} className="rounded px-3 py-1 hover:bg-surface2 dark:hover:bg-surface">
           Cancel
         </button>
       </div>

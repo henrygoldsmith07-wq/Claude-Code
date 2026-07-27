@@ -96,11 +96,11 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-ink text-onaccent">Loading...</div>;
   }
 
   return (
-    <div className="flex h-screen bg-black text-white">
+    <div className="flex h-screen bg-ink text-onaccent">
       <Sidebar activeSection="settings" />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={user} onLogout={handleLogout} />
@@ -109,33 +109,33 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Profile Settings */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-surface border-line">
               <CardHeader>
-                <CardTitle className="text-white">Profile & Communication</CardTitle>
+                <CardTitle className="text-onaccent">Profile & Communication</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm text-gray-400">WhatsApp Number</label>
+                  <label className="text-sm text-ink3">WhatsApp Number</label>
                   <Input 
                     value={whatsappNumber} 
                     onChange={(e) => setWhatsappNumber(e.target.value)}
                     placeholder="+447000000000"
-                    className="bg-gray-800 border-gray-700 text-white"
+                    className="bg-surface border-line text-onaccent"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Base Location (Weather/Timezone)</label>
+                  <label className="text-sm text-ink3">Base Location (Weather/Timezone)</label>
                   <Input 
                     value={location} 
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="City, Country"
-                    className="bg-gray-800 border-gray-700 text-white"
+                    className="bg-surface border-line text-onaccent"
                   />
                 </div>
                 <Button 
                   onClick={handleSaveProfile} 
                   disabled={saving}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  className="w-full bg-speak hover:bg-speak"
                 >
                   {saving ? 'Saving...' : 'Save Profile Settings'}
                 </Button>
@@ -143,9 +143,9 @@ export default function SettingsPage() {
             </Card>
 
             {/* Service Connections */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-surface border-line">
               <CardHeader>
-                <CardTitle className="text-white">External Services</CardTitle>
+                <CardTitle className="text-onaccent">External Services</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[
@@ -154,21 +154,21 @@ export default function SettingsPage() {
                   { id: 'stripe', name: 'Stripe', icon: 'T' },
                   { id: 'upwork', name: 'Upwork', icon: 'U' },
                 ].map((service) => (
-                  <div key={service.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div key={service.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-700 rounded flex items-center justify-center font-bold">
+                      <div className="w-8 h-8 bg-surface2 rounded flex items-center justify-center font-bold">
                         {service.icon}
                       </div>
                       <div>
                         <p className="text-sm font-medium">{service.name}</p>
-                        <p className={`text-[10px] ${connections[service.id as keyof typeof connections] ? 'text-green-400' : 'text-gray-500'}`}>
+                        <p className={`text-[10px] ${connections[service.id as keyof typeof connections] ? 'text-success' : 'text-ink3'}`}>
                           {connections[service.id as keyof typeof connections] ? 'Connected' : 'Disconnected'}
                         </p>
                       </div>
                     </div>
                     <Button 
                       onClick={() => handleConnect(service.id)}
-                      className={connections[service.id as keyof typeof connections] ? 'bg-gray-700 text-white' : 'bg-blue-600 text-white'}
+                      className={connections[service.id as keyof typeof connections] ? 'bg-surface2 text-onaccent' : 'bg-speak text-onaccent'}
                     >
                       {connections[service.id as keyof typeof connections] ? 'Reconnect' : 'Connect'}
                     </Button>
@@ -178,9 +178,9 @@ export default function SettingsPage() {
             </Card>
 
             {/* Automation Toggles */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-surface border-line">
               <CardHeader>
-                <CardTitle className="text-white">Automation Loops</CardTitle>
+                <CardTitle className="text-onaccent">Automation Loops</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[
@@ -188,13 +188,13 @@ export default function SettingsPage() {
                   { id: 'hourly', name: 'Continuous Optimization', desc: 'Conflict check every hour' },
                   { id: 'evening', name: 'Evening Reflection', desc: 'Daily summary at 10:00 PM' },
                 ].map((loop) => (
-                  <div key={loop.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div key={loop.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
                     <div>
                       <p className="text-sm font-medium">{loop.name}</p>
-                      <p className="text-[10px] text-gray-500">{loop.desc}</p>
+                      <p className="text-[10px] text-ink3">{loop.desc}</p>
                     </div>
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600">
-                      <span className="inline-block h-4 w-4 translate-x-6 transform rounded-full bg-white transition" />
+                    <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-speak">
+                      <span className="inline-block h-4 w-4 translate-x-6 transform rounded-full bg-surface transition" />
                     </div>
                   </div>
                 ))}

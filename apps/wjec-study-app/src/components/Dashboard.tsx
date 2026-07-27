@@ -77,27 +77,27 @@ export default function Dashboard({
     <div className="flex w-full flex-col gap-4">
       <GamificationPanel level={level} xpProgress={xpProgress} badges={badges} accent={accent} />
 
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-line bg-surface p-4">
         <div>
           <p className="text-2xl font-semibold">{streak}</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">day streak</p>
+          <p className="text-xs text-ink3">day streak</p>
         </div>
         <div>
           <p className="text-2xl font-semibold">{totalDue}</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">cards due across all subjects</p>
+          <p className="text-xs text-ink3">cards due across all subjects</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <button
             onClick={() => onGenerateAllLessons(TOPICS)}
             disabled={bulkLessonProgress !== null}
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            className="rounded-full border border-line px-4 py-2 text-sm hover:bg-surface2 disabled:opacity-40 dark:hover:bg-surface"
           >
             Generate all lessons
           </button>
           <button
             onClick={onStudyAllDue}
             disabled={totalDue === 0}
-            className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+            className="rounded-full bg-surface px-4 py-2 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
           >
             Study all due (interleaved)
           </button>
@@ -105,13 +105,13 @@ export default function Dashboard({
       </div>
 
       {bulkLessonProgress && (
-        <div className="flex items-center gap-3 rounded-xl border border-zinc-300 bg-white p-3 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3 text-xs">
           <span className="shrink-0">
             Generating lessons: {bulkLessonProgress.done} / {bulkLessonProgress.total}
           </span>
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
             <div
-              className="h-full rounded-full bg-violet-500"
+              className="h-full rounded-full bg-speak"
               style={{ width: `${(bulkLessonProgress.done / bulkLessonProgress.total) * 100}%` }}
             />
           </div>
@@ -122,7 +122,7 @@ export default function Dashboard({
         {subjects.map((s) => (
           <div
             key={s.id}
-            className="rounded-xl border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-xl border border-line bg-surface"
           >
             <button
               onClick={() => setExpanded((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
@@ -132,32 +132,32 @@ export default function Dashboard({
                 <p className="font-medium">📁 {s.name}</p>
                 <div className="flex items-center gap-2">
                   {s.due > 0 && (
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-950 dark:text-red-300">
+                    <span className="rounded-full bg-dangersoft px-2 py-0.5 text-xs text-danger">
                       {s.due} due
                     </span>
                   )}
                   <span
-                    className="text-zinc-400 transition-transform dark:text-zinc-500"
+                    className="text-ink3 transition-transform"
                     style={{ transform: expanded[s.id] ? "rotate(90deg)" : "none" }}
                   >
                     ▶
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-ink3">
                 {s.topicCount} topics · {s.cardCount} cards
               </p>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface2">
                 <div
-                  className="h-full rounded-full bg-emerald-500"
+                  className="h-full rounded-full bg-success"
                   style={{ width: `${s.mastery}%` }}
                 />
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{s.mastery}% mastered</p>
+              <p className="text-xs text-ink3">{s.mastery}% mastered</p>
             </button>
 
             {expanded[s.id] && (
-              <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+              <div className="border-t border-line p-4">
                 <TopicList
                   subjectId={s.id}
                   cardsForTopic={cardsForTopic}

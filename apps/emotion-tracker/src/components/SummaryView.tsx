@@ -45,9 +45,9 @@ export default function SummaryView({ summary }: { summary: ReflectionSummary })
             {summary.possibleBiases.map((b, i) => (
               <li
                 key={i}
-                className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-3.5 py-2.5 dark:border-amber-900/60 dark:bg-amber-950/40"
+                className="rounded-xl border border-review/30 bg-reviewsoft px-3.5 py-2.5"
               >
-                <span className="font-medium text-amber-800 dark:text-amber-200">
+                <span className="font-medium text-review">
                   {b.type}
                 </span>
                 <span className="text-muted"> — {b.description}</span>
@@ -71,7 +71,7 @@ export default function SummaryView({ summary }: { summary: ReflectionSummary })
             {summary.cautionFlags.map((c, i) => (
               <li
                 key={i}
-                className="rounded-xl border border-red-200/80 bg-red-50/80 px-3.5 py-2.5 dark:border-red-900/60 dark:bg-red-950/40"
+                className="rounded-xl border border-danger/30 bg-dangersoft px-3.5 py-2.5"
               >
                 {c}
               </li>

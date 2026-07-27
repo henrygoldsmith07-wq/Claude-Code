@@ -30,9 +30,9 @@ export default function ShopPanel({ xp, accent, unlockedThemes, onChange }: Prop
   }
 
   return (
-    <div className="flex w-full flex-col gap-3 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="flex w-full flex-col gap-3 rounded-xl border border-line bg-surface p-4">
       <p className="text-sm font-medium">🪙 {available} coins available</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="text-xs text-ink3">
         Coins are earned automatically as you study (1 coin per 10 XP). Spend them to unlock accent
         themes.
       </p>
@@ -52,7 +52,7 @@ export default function ShopPanel({ xp, accent, unlockedThemes, onChange }: Prop
               className={
                 isSelected
                   ? "flex flex-col items-center gap-1 rounded-lg border-2 p-3 text-xs"
-                  : "flex flex-col items-center gap-1 rounded-lg border border-zinc-300 p-3 text-xs hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                  : "flex flex-col items-center gap-1 rounded-lg border border-line p-3 text-xs hover:bg-surface2 disabled:opacity-40 dark:hover:bg-surface"
               }
               style={isSelected ? { borderColor: theme.accent } : undefined}
             >

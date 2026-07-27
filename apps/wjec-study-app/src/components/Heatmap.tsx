@@ -15,8 +15,8 @@ export default function Heatmap({ days }: Props) {
           title={day.date}
           className={
             day.studied
-              ? "h-3 w-3 rounded-sm bg-emerald-500"
-              : "h-3 w-3 rounded-sm bg-zinc-200 dark:bg-zinc-800"
+              ? "h-3 w-3 rounded-sm bg-success"
+              : "h-3 w-3 rounded-sm bg-surface2"
           }
         />
       ))}

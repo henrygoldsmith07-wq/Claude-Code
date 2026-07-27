@@ -73,16 +73,16 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <div className="rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="rounded-xl border border-line bg-surface p-4">
         <p className="text-sm font-medium">Document anchoring</p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-ink3">
           Paste notes or upload a .txt file; while a document is active, answers are drawn only
           from it.
         </p>
         <textarea
           rows={3}
           placeholder="Paste source text here…"
-          className="mt-2 w-full rounded-lg border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="mt-2 w-full rounded-lg border border-line p-2 text-sm"
           onBlur={(e) => {
             if (e.target.value.trim()) {
               addDocument(`Pasted note (${new Date().toLocaleDateString()})`, e.target.value.trim());
@@ -93,7 +93,7 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
           >
             Upload .txt
           </button>
@@ -113,33 +113,33 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
               key={doc.id}
               className={
                 doc.id === activeDocumentId
-                  ? "flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 dark:bg-violet-950"
-                  : "flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 dark:bg-zinc-800"
+                  ? "flex items-center gap-1 rounded-full bg-speaksoft px-3 py-1"
+                  : "flex items-center gap-1 rounded-full bg-surface2 px-3 py-1"
               }
             >
               <button onClick={() => setActiveDocumentId(doc.id)}>{doc.title}</button>
-              <button onClick={() => removeDocument(doc.id)} className="text-zinc-500">
+              <button onClick={() => removeDocument(doc.id)} className="text-ink3">
                 ×
               </button>
             </span>
           ))}
           {activeDocument && (
-            <button onClick={() => setActiveDocumentId(null)} className="text-zinc-500 hover:underline">
+            <button onClick={() => setActiveDocumentId(null)} className="text-ink3 hover:underline">
               Stop anchoring
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
         <div className="flex items-center justify-between">
           <div className="flex gap-1 text-xs">
             <button
               onClick={() => setMode("direct")}
               className={
                 mode === "direct"
-                  ? "rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
-                  : "rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700"
+                  ? "rounded-full bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+                  : "rounded-full border border-line px-3 py-1"
               }
             >
               Instant answer
@@ -148,15 +148,15 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
               onClick={() => setMode("guided")}
               className={
                 mode === "guided"
-                  ? "rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
-                  : "rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700"
+                  ? "rounded-full bg-surface px-3 py-1 text-onaccent dark:bg-surface"
+                  : "rounded-full border border-line px-3 py-1"
               }
             >
               Guided learning
             </button>
           </div>
           {history.length > 0 && (
-            <button onClick={clearHistory} className="text-xs text-zinc-500 hover:underline">
+            <button onClick={clearHistory} className="text-xs text-ink3 hover:underline">
               Clear chat
             </button>
           )}
@@ -168,8 +168,8 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
               key={m.id}
               className={
                 m.role === "user"
-                  ? "self-end rounded-2xl bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-white dark:text-zinc-900"
-                  : "self-start whitespace-pre-wrap rounded-2xl bg-zinc-100 px-4 py-2 text-sm dark:bg-zinc-800"
+                  ? "self-end rounded-2xl bg-surface px-4 py-2 text-sm text-onaccent dark:bg-surface"
+                  : "self-start whitespace-pre-wrap rounded-2xl bg-surface2 px-4 py-2 text-sm"
               }
             >
               {m.content}
@@ -177,7 +177,7 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
           ))}
         </div>
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex gap-2">
           <input
@@ -185,12 +185,12 @@ export default function QaPanel({ apiKey, initialDocuments, initialHistory }: Pr
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAsk()}
             placeholder="Ask anything about your A-level subjects…"
-            className="flex-1 rounded-full border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="flex-1 rounded-full border border-line px-4 py-2 text-sm"
           />
           <button
             onClick={handleAsk}
             disabled={sending || !question.trim()}
-            className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+            className="rounded-full bg-surface px-4 py-2 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
           >
             {sending ? "Thinking…" : "Ask"}
           </button>

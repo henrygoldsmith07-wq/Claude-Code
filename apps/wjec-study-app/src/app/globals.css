@@ -1,44 +1,38 @@
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
+@import "./le-studio.css";
 
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+/* This app previously had its own identity — warm paper sheets on a warm desk,
+   a scholarly ink-blue accent, and Georgia for headings. It now draws from the
+   shared Le Studio tokens instead, so it matches the rest of the family:
+   cool-neutral greys, Inter throughout, ink as the accent.
+
+   The names below are kept as aliases so existing markup keeps working.
+   Prefer the shared names (bg-surface, border-line, text-ink3) in new code. */
 :root {
-  /* Planner identity — warm paper sheets on a warm desk, ink text, one
-     restrained scholarly ink-blue accent. */
-  --background: #f3f0e9;   /* the "desk" behind the sheets */
-  --foreground: #201e1a;   /* warm near-black ink */
-  --paper: #fbfaf7;        /* a sheet */
-  --rule: #dad5cb;
-  --accent-ink: #3b4a6b;
-  --accent-ink-strong: #33415e;
-  --accent-ink-soft: #e7eaf1;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --paper: var(--surface);
+  --rule: var(--line);
+  --accent-ink: var(--accent);
+  --accent-ink-strong: var(--ink);
+  --accent-ink-soft: var(--surface-2);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-paper: var(--surface);
+  --color-rule: var(--line);
   --font-mono: var(--font-geist-mono);
-  --font-display: Georgia, "Times New Roman", serif;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Serif display face for headings gives the app the paper-planner voice. */
-h1, h2, h3, .font-display {
-  font-family: Georgia, "Times New Roman", serif;
+  /* Le Studio sets one face for everything; the display slot now resolves to
+     the same stack so `font-display` call sites stay valid. */
+  --font-display: var(--font-sans);
 }
 
 /* Digits that line up in the tracker/calendar/analytics read as columns. */
 table, .tabular { font-variant-numeric: tabular-nums; }
 
-/* Retheme the accent from the old violet to the planner ink-blue in one
-   place, so every surface picks it up without touching each component. */
-.bg-violet-500 { background-color: var(--accent-ink) !important; }
-.bg-violet-100 { background-color: var(--accent-ink-soft) !important; }
-.text-violet-600, .text-violet-700 { color: var(--accent-ink) !important; }
-.text-violet-400 { color: #8ea0c4 !important; }
-.border-violet-500 { border-color: var(--accent-ink) !important; }
+/* The violet !important overrides that used to retheme the old accent are gone
+   — those classes have been converted to shared tokens at their call sites. */

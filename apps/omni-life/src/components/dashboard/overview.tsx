@@ -32,7 +32,7 @@ export default function Overview() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-speak"></div>
       </div>
     );
   }
@@ -78,18 +78,18 @@ export default function Overview() {
 
       {/* Recent Notifications Card (Integrated into layout or as separate) */}
       <div className="lg:col-span-full mt-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Recent Notifications</h3>
+        <div className="bg-surface border border-line rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-onaccent mb-4">Recent Notifications</h3>
           <div className="space-y-3">
             {data.notifications.length > 0 ? (
               data.notifications.map((n: any) => (
-                <div key={n.id} className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
-                  <p className="text-sm text-gray-300">{n.message}</p>
-                  <span className="text-[10px] text-gray-500">{new Date(n.created_at).toLocaleTimeString()}</span>
+                <div key={n.id} className="flex items-center justify-between py-2 border-b border-line last:border-0">
+                  <p className="text-sm text-ink3">{n.message}</p>
+                  <span className="text-[10px] text-ink3">{new Date(n.created_at).toLocaleTimeString()}</span>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-gray-500 italic">No new notifications</p>
+              <p className="text-sm text-ink3 italic">No new notifications</p>
             )}
           </div>
         </div>

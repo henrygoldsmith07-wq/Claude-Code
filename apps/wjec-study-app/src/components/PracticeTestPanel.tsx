@@ -58,7 +58,7 @@ export default function PracticeTestPanel({ apiKey }: Props) {
   }
 
   return (
-    <div className="flex w-full flex-col gap-3 rounded-xl border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="flex w-full flex-col gap-3 rounded-xl border border-line bg-surface p-4">
       <div className="flex flex-wrap gap-2">
         <select
           value={subjectId}
@@ -67,7 +67,7 @@ export default function PracticeTestPanel({ apiKey }: Props) {
             setSubjectId(next);
             setTopicId(topicsForSubject(next)[0].id);
           }}
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-line px-3 py-2 text-sm"
         >
           {SUBJECTS.map((s) => (
             <option key={s.id} value={s.id}>
@@ -78,7 +78,7 @@ export default function PracticeTestPanel({ apiKey }: Props) {
         <select
           value={topicId}
           onChange={(e) => setTopicId(e.target.value)}
-          className="min-w-64 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="min-w-64 flex-1 rounded-lg border border-line px-3 py-2 text-sm"
         >
           {topics.map((t) => (
             <option key={t.id} value={t.id}>
@@ -90,19 +90,19 @@ export default function PracticeTestPanel({ apiKey }: Props) {
 
       <div className="flex flex-wrap gap-2 text-xs">
         {FORMAT_LABELS.map((f) => (
-          <label key={f.id} className="flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 dark:border-zinc-700">
+          <label key={f.id} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5">
             <input type="checkbox" checked={formats.includes(f.id)} onChange={() => toggleFormat(f.id)} />
             {f.label}
           </label>
         ))}
       </div>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <button
         onClick={handleGenerate}
         disabled={loading || formats.length === 0}
-        className="self-start rounded-full bg-zinc-900 px-4 py-1.5 text-sm text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+        className="self-start rounded-full bg-surface px-4 py-1.5 text-sm text-onaccent disabled:opacity-40 dark:bg-surface"
       >
         {loading ? "Generating…" : "Generate practice test"}
       </button>

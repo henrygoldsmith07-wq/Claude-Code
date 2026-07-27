@@ -48,7 +48,7 @@ export default function SettingsBar({
       <select
         value={theme}
         onChange={(e) => onThemeChange(e.target.value as Theme)}
-        className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1"
       >
         <option value="system">Theme: System</option>
         <option value="light">Theme: Light</option>
@@ -68,7 +68,7 @@ export default function SettingsBar({
       <select
         value={preferredCurrency}
         onChange={(e) => onPreferredCurrencyChange(e.target.value)}
-        className="rounded-full border border-zinc-300 px-3 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1"
         title="Default currency for new subscriptions"
       >
         {CURRENCIES.map((c) => (
@@ -80,42 +80,42 @@ export default function SettingsBar({
 
       <button
         onClick={handleCopy}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         {copied ? "Copied!" : "Copy summary"}
       </button>
 
       <button
         onClick={onExportCsv}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Export CSV
       </button>
 
       <button
         onClick={onExportBackup}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Backup (JSON)
       </button>
 
       <button
         onClick={onExportIcs}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Renewals calendar (.ics)
       </button>
 
       <button
         onClick={() => window.print()}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Print report
       </button>
 
       <button
         onClick={() => backupInputRef.current?.click()}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Restore backup
       </button>
@@ -133,7 +133,7 @@ export default function SettingsBar({
 
       <button
         onClick={() => csvInputRef.current?.click()}
-        className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
       >
         Import CSV
       </button>

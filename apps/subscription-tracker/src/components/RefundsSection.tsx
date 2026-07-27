@@ -63,17 +63,17 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
     <div className="flex flex-col gap-4">
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 print:hidden">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Merchant</label>
+          <label className="text-xs font-medium text-ink3">Merchant</label>
           <input
             value={merchant}
             onChange={(e) => setMerchant(e.target.value)}
             required
             placeholder="Amazon"
-            className="w-32 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-32 rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Amount ($)</label>
+          <label className="text-xs font-medium text-ink3">Amount ($)</label>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -81,21 +81,21 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
             type="number"
             min="0"
             step="0.01"
-            className="w-24 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-24 rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Expected by</label>
+          <label className="text-xs font-medium text-ink3">Expected by</label>
           <input
             value={expectedDate}
             onChange={(e) => setExpectedDate(e.target.value)}
             type="date"
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <button
           type="submit"
-          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
+          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[var(--ink)] dark:hover:bg-[var(--ink-3)]"
         >
           Track
         </button>
@@ -103,7 +103,7 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
           <button
             type="button"
             onClick={handleExport}
-            className="text-xs text-zinc-500 hover:underline"
+            className="text-xs text-ink3 hover:underline"
           >
             Export refunds CSV
           </button>
@@ -111,10 +111,10 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
       </form>
 
       {refunds.length === 0 ? (
-        <p className="text-sm text-zinc-500">No refunds tracked.</p>
+        <p className="text-sm text-ink3">No refunds tracked.</p>
       ) : (
         <>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-ink3">
             Received this year: {formatCents(receivedThisYearCents)}
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -125,7 +125,7 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
                 className={`rounded-full border px-3 py-1 text-xs capitalize ${
                   tab === t
                     ? "border-foreground bg-foreground text-background"
-                    : "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"
+                    : "border-line text-ink2"
                 }`}
               >
                 {t}
@@ -133,14 +133,14 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
             ))}
             <button
               onClick={() => setSortDesc((v) => !v)}
-              className="ml-auto text-xs text-zinc-500 hover:underline"
+              className="ml-auto text-xs text-ink3 hover:underline"
             >
               Sort by amount {sortDesc ? "↓" : "↑"}
             </button>
           </div>
 
           {filtered.length === 0 ? (
-            <p className="text-sm text-zinc-500">No refunds in this view.</p>
+            <p className="text-sm text-ink3">No refunds in this view.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {filtered.map((r) => {
@@ -148,7 +148,7 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
                 return (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+                    className="flex items-center justify-between gap-2 rounded-md border border-line px-3 py-2 text-sm"
                   >
                     <div className="flex flex-col">
                       <span className="font-medium">
@@ -157,10 +157,10 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
                       <span
                         className={`text-xs ${
                           overdue
-                            ? "text-red-600 dark:text-red-400"
+                            ? "text-danger"
                             : r.status === "received"
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-zinc-500"
+                              ? "text-success"
+                              : "text-ink3"
                         }`}
                       >
                         {overdue ? "overdue" : r.status}
@@ -171,14 +171,14 @@ export default function RefundsSection({ refunds, onAdd, onMarkReceived, onDelet
                       {r.status !== "received" && (
                         <button
                           onClick={() => onMarkReceived(r.id)}
-                          className="text-xs font-medium text-blue-600 dark:text-blue-400"
+                          className="text-xs font-medium text-speak"
                         >
                           Mark received
                         </button>
                       )}
                       <button
                         onClick={() => onDelete(r.id)}
-                        className="text-xs text-red-600 hover:underline dark:text-red-400"
+                        className="text-xs text-danger hover:underline"
                       >
                         Delete
                       </button>

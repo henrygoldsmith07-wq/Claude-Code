@@ -45,19 +45,19 @@ export default function TopicRow({
   const [linkDraft, setLinkDraft] = useState(notebookLink ?? "");
 
   return (
-    <div className="rounded-xl border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="rounded-xl border border-line bg-surface">
       <button
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center justify-between gap-3 p-4 text-left"
       >
         <div className="flex flex-col gap-1">
           <p className="font-medium">{topic.title}</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-ink3">
             {topic.id} · {cards.length} cards · {due} due · {mastery}% mastered
           </p>
         </div>
         <span
-          className="shrink-0 text-zinc-400 transition-transform dark:text-zinc-500"
+          className="shrink-0 text-ink3 transition-transform"
           style={{ transform: expanded ? "rotate(90deg)" : "none" }}
         >
           ▶
@@ -65,13 +65,13 @@ export default function TopicRow({
       </button>
 
       {expanded && (
-        <div className="flex flex-col gap-3 border-t border-zinc-200 p-4 dark:border-zinc-800">
+        <div className="flex flex-col gap-3 border-t border-line p-4">
           <div className="flex flex-wrap gap-2 text-xs">
             {cards.length === 0 ? (
               <button
                 onClick={onGenerateCards}
                 disabled={busy === "cards"}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="rounded-full border border-line px-3 py-1.5 hover:bg-surface2 disabled:opacity-50 dark:hover:bg-surface"
               >
                 {busy === "cards" ? "Generating…" : "Generate cards"}
               </button>
@@ -79,7 +79,7 @@ export default function TopicRow({
               <button
                 onClick={onStudy}
                 disabled={due === 0}
-                className="rounded-full bg-zinc-900 px-3 py-1.5 text-white disabled:opacity-40 dark:bg-white dark:text-zinc-900"
+                className="rounded-full bg-surface px-3 py-1.5 text-onaccent disabled:opacity-40 dark:bg-surface"
               >
                 Study {due > 0 ? `(${due})` : ""}
               </button>
@@ -88,7 +88,7 @@ export default function TopicRow({
             {quiz ? (
               <button
                 onClick={onStartQuiz}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="rounded-full border border-line px-3 py-1.5 hover:bg-surface2 dark:hover:bg-surface"
               >
                 Quiz ({quiz.length})
               </button>
@@ -96,7 +96,7 @@ export default function TopicRow({
               <button
                 onClick={onGenerateQuiz}
                 disabled={busy === "quiz"}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="rounded-full border border-line px-3 py-1.5 hover:bg-surface2 disabled:opacity-50 dark:hover:bg-surface"
               >
                 {busy === "quiz" ? "Generating…" : "Generate quiz"}
               </button>
@@ -105,7 +105,7 @@ export default function TopicRow({
             {lessonSections ? (
               <button
                 onClick={onStartLesson}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="rounded-full border border-line px-3 py-1.5 hover:bg-surface2 dark:hover:bg-surface"
               >
                 Lesson ({lessonSections.length})
               </button>
@@ -113,7 +113,7 @@ export default function TopicRow({
               <button
                 onClick={onGenerateLesson}
                 disabled={busy === "lesson" || lessonsLocked}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="rounded-full border border-line px-3 py-1.5 hover:bg-surface2 disabled:opacity-50 dark:hover:bg-surface"
               >
                 {busy === "lesson" ? "Generating…" : "Generate lesson"}
               </button>
@@ -127,13 +127,13 @@ export default function TopicRow({
                   href={notebookLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                  className="rounded-full border border-line px-3 py-1 hover:bg-surface2 dark:hover:bg-surface"
                 >
                   Open in NotebookLM
                 </a>
                 <button
                   onClick={() => setEditingLink(true)}
-                  className="text-zinc-500 hover:underline dark:text-zinc-400"
+                  className="text-ink3 hover:underline"
                 >
                   Edit link
                 </button>
@@ -144,14 +144,14 @@ export default function TopicRow({
                   value={linkDraft}
                   onChange={(e) => setLinkDraft(e.target.value)}
                   placeholder="https://notebooklm.google.com/notebook/…"
-                  className="min-w-64 flex-1 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                  className="min-w-64 flex-1 rounded border border-line px-2 py-1"
                 />
                 <button
                   onClick={() => {
                     onSetNotebookLink(linkDraft.trim());
                     setEditingLink(false);
                   }}
-                  className="rounded bg-zinc-900 px-3 py-1 text-white dark:bg-white dark:text-zinc-900"
+                  className="rounded bg-surface px-3 py-1 text-onaccent dark:bg-surface"
                 >
                   Save
                 </button>
@@ -160,7 +160,7 @@ export default function TopicRow({
                     setLinkDraft(notebookLink ?? "");
                     setEditingLink(false);
                   }}
-                  className="text-zinc-500 hover:underline dark:text-zinc-400"
+                  className="text-ink3 hover:underline"
                 >
                   Cancel
                 </button>
@@ -168,7 +168,7 @@ export default function TopicRow({
             ) : (
               <button
                 onClick={() => setEditingLink(true)}
-                className="text-zinc-500 hover:underline dark:text-zinc-400"
+                className="text-ink3 hover:underline"
               >
                 + NotebookLM link
               </button>

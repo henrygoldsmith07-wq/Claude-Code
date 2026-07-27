@@ -186,7 +186,7 @@ export default function InsightsView({ entries, onBack }: Props) {
                 {biases.map(([type, count]) => (
                   <span
                     key={type}
-                    className="rounded-full border border-amber-200/80 bg-amber-50/80 px-3 py-1 text-sm dark:border-amber-900/60 dark:bg-amber-950/40"
+                    className="rounded-full border border-review/30 bg-reviewsoft px-3 py-1 text-sm"
                   >
                     {type}{" "}
                     <span className="text-muted">×{count}</span>

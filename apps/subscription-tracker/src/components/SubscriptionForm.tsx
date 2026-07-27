@@ -81,21 +81,21 @@ export default function SubscriptionForm({ categories, defaultCurrencyCode, onAd
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 print:hidden">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Name</label>
+          <label className="text-xs font-medium text-ink3">Name</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
             placeholder="Netflix"
-            className="w-36 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-36 rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Category</label>
+          <label className="text-xs font-medium text-ink3">Category</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-2 py-1.5 text-sm"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -105,7 +105,7 @@ export default function SubscriptionForm({ categories, defaultCurrencyCode, onAd
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Amount ({currencySymbol})</label>
+          <label className="text-xs font-medium text-ink3">Amount ({currencySymbol})</label>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -114,15 +114,15 @@ export default function SubscriptionForm({ categories, defaultCurrencyCode, onAd
             min="0"
             step="0.01"
             placeholder="15.99"
-            className="w-24 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-24 rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Billing cycle</label>
+          <label className="text-xs font-medium text-ink3">Billing cycle</label>
           <select
             value={billingCycle}
             onChange={(e) => setBillingCycle(e.target.value as BillingCycle)}
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-2 py-1.5 text-sm"
           >
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
@@ -130,13 +130,13 @@ export default function SubscriptionForm({ categories, defaultCurrencyCode, onAd
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-500">Next renewal</label>
+          <label className="text-xs font-medium text-ink3">Next renewal</label>
           <input
             value={nextRenewalDate}
             onChange={(e) => setNextRenewalDate(e.target.value)}
             required
             type="date"
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-line px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex items-center gap-2 pb-1.5">
@@ -147,52 +147,52 @@ export default function SubscriptionForm({ categories, defaultCurrencyCode, onAd
             onChange={(e) => setIsTrial(e.target.checked)}
             className="h-4 w-4"
           />
-          <label htmlFor="isTrial" className="text-xs font-medium text-zinc-500">
+          <label htmlFor="isTrial" className="text-xs font-medium text-ink3">
             Free trial
           </label>
         </div>
         {isTrial && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Trial ends</label>
+            <label className="text-xs font-medium text-ink3">Trial ends</label>
             <input
               value={trialEndsDate}
               onChange={(e) => setTrialEndsDate(e.target.value)}
               required
               type="date"
-              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
         )}
         <button
           type="button"
           onClick={() => setShowMore((v) => !v)}
-          className="pb-1.5 text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+          className="pb-1.5 text-xs font-medium text-speak hover:underline"
         >
           {showMore ? "Fewer options" : "More options"}
         </button>
         <button
           type="submit"
-          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[#383838] dark:hover:bg-[#ccc]"
+          className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:bg-[var(--ink)] dark:hover:bg-[var(--ink-3)]"
         >
           Add
         </button>
       </div>
 
       {showMore && (
-        <div className="flex flex-wrap items-end gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <div className="flex flex-wrap items-end gap-3 border-t border-line pt-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Split between (people)</label>
+            <label className="text-xs font-medium text-ink3">Split between (people)</label>
             <input
               value={splitCount}
               onChange={(e) => setSplitCount(e.target.value)}
               type="number"
               min="1"
               step="1"
-              className="w-20 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-20 rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Annual plan price ({currencySymbol})</label>
+            <label className="text-xs font-medium text-ink3">Annual plan price ({currencySymbol})</label>
             <input
               value={yearlyPrice}
               onChange={(e) => setYearlyPrice(e.target.value)}
@@ -200,61 +200,61 @@ export default function SubscriptionForm({ categories, defaultCurrencyCode, onAd
               min="0"
               step="0.01"
               placeholder="optional"
-              className="w-28 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-28 rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Cancel URL</label>
+            <label className="text-xs font-medium text-ink3">Cancel URL</label>
             <input
               value={cancelUrl}
               onChange={(e) => setCancelUrl(e.target.value)}
               type="url"
               placeholder="https://..."
-              className="w-48 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-48 rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Notes</label>
+            <label className="text-xs font-medium text-ink3">Notes</label>
             <input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="optional"
-              className="w-48 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-48 rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Last used</label>
+            <label className="text-xs font-medium text-ink3">Last used</label>
             <input
               value={lastUsedDate}
               onChange={(e) => setLastUsedDate(e.target.value)}
               type="date"
-              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Payment method</label>
+            <label className="text-xs font-medium text-ink3">Payment method</label>
             <input
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               placeholder="Visa 4242"
-              className="w-32 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-32 rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Owner</label>
+            <label className="text-xs font-medium text-ink3">Owner</label>
             <input
               value={owner}
               onChange={(e) => setOwner(e.target.value)}
               placeholder="optional"
-              className="w-28 rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-28 rounded-md border border-line px-2 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-zinc-500">Billed in</label>
+            <label className="text-xs font-medium text-ink3">Billed in</label>
             <select
               value={currencyCode}
               onChange={(e) => setManualCurrencyCode(e.target.value)}
-              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-line px-2 py-1.5 text-sm"
             >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>
