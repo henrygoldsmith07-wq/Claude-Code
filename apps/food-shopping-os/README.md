@@ -165,9 +165,13 @@ tables and UK reference intakes.
   recommendations** answering the nutrients your week actually came up short
   on, **macro adjustments** when a target you never hit needs to move rather
   than you, and **restaurant picks** from the handful of chains the app ships
-  figures for. The **chat** answers the same things in sentences. There is no
-  model and no server here: every claim states how many days it was computed
-  from, and with nothing logged it says so instead of inventing a week
+  figures for. The **chat** also connects the rest of the app: it can generate
+  a pantry recipe, draft a pantry-first week, explain or guide tonight's
+  recipe, suggest verified substitutions, improve a logged meal, surface
+  expiring food, optimise a basket from recorded prices and build the aisle
+  route learned from previous shops. There is no model, supermarket feed or
+  server here: every answer is computed on-device from your records and the
+  bundled food tables, and missing evidence is stated rather than invented
 - **Healthy swaps** — on any food, alternatives from the catalogue that beat it
   on protein, fibre, saturated fat or sugar per calorie, with the reason
   attached; a swap is only offered when a real number supports it

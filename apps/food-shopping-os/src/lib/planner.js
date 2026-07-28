@@ -71,7 +71,7 @@ export const scopeMeals = (scope) =>
 export function buildPlan(
   {
     scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
-    pantry = [], month = null, batch = false, days = null,
+    pantry = [], month = null, batch = false, days = null, recipes = RECIPES,
   },
   seed,
 ) {
@@ -99,7 +99,7 @@ export function buildPlan(
   if (slots.length > 1) {
     let relaxedDay = false;
     const picks = slots.map((meal, i) => {
-      const forSlot = RECIPES.filter((r) => r.meal === meal);
+      const forSlot = recipes.filter((r) => r.meal === meal);
       const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime });
       if (!mealPool.length) relaxedDay = true;
       const pool = mealPool.length ? narrow(mealPool, 1) : forSlot;
@@ -113,7 +113,7 @@ export function buildPlan(
     };
   }
 
-  const dinners = RECIPES.filter((r) => r.meal === 'dinner');
+  const dinners = recipes.filter((r) => r.meal === 'dinner');
   let pool = hardFilter(dinners, { diets, goal, budget, maxTime });
   let relaxed = false;
   if (pool.length === 0) {
