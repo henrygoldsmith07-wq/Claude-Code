@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, ChefHat, ClipboardList, Home, ShoppingCart } from 'lucide-react';
 import { AppProvider, useApp } from './lib/store.jsx';
 import Onboarding from './components/Onboarding.jsx';
@@ -15,6 +15,8 @@ import CoachPanel from './components/CoachPanel.jsx';
 import { Chip, Sheet } from './components/ui.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import { cx } from './lib/utils.js';
+import { distanceMetres } from './lib/smart.js';
+import { showNotification } from './lib/notify.js';
 
 /**
  * Five tabs, not six.
@@ -42,6 +44,43 @@ export const SCREENS = {
   recipes: { title: 'Recipes' },
   profile: { title: 'You' },
 };
+
+function GeofenceWatcher() {
+  const app = useApp();
+  const inside = useRef(new Map());
+
+  useEffect(() => {
+    const places = app.placeReminders.filter((place) => place.on);
+    if (!places.length || !navigator.geolocation?.watchPosition) return undefined;
+    const activeIds = new Set(places.map((place) => place.id));
+    [...inside.current.keys()].forEach((id) => {
+      if (!activeIds.has(id)) inside.current.delete(id);
+    });
+    const watchId = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        places.forEach((place) => {
+          const nowInside = distanceMetres(coords, place) <= place.radius;
+          const wasInside = inside.current.get(place.id);
+          inside.current.set(place.id, nowInside);
+          if (nowInside && wasInside === false) {
+            showNotification(place.label, {
+              body: 'You entered the saved area. Open your shopping list.',
+              tag: `place-${place.id}`,
+            });
+          }
+        });
+      },
+      () => showNotification('Location reminder paused', {
+        body: 'Forq could not read your location. Check site permissions before relying on this reminder.',
+        tag: 'place-location-error',
+      }),
+      { enableHighAccuracy: false, maximumAge: 30000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch?.(watchId);
+  }, [app.placeReminders]);
+
+  return null;
+}
 
 function Shell() {
   const app = useApp();
@@ -120,7 +159,7 @@ function Shell() {
         <PantryView />
       </Sheet>
       <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="You">
-        <ProfileTab />
+        <ProfileTab openAssistant={() => { setCoachView('chat'); setAiOpen(true); }} />
       </Sheet>
       <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="AI food coach">
         <div className="px-5 pb-2 flex gap-2">
@@ -129,6 +168,7 @@ function Shell() {
         </div>
         {coachView === 'coach' ? <CoachPanel /> : <AiAssistant />}
       </Sheet>
+      <GeofenceWatcher />
     </div>
   );
 }

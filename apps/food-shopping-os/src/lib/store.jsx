@@ -16,6 +16,7 @@ import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
 import { advancedActions, preferenceActions } from './preference-actions.js';
 import { householdActions } from './household-actions.js';
+import { smartActions } from './smart-actions.js';
 import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 
@@ -198,6 +199,11 @@ export function AppProvider({ children }) {
         set((s) => (householdPermission(s, 'recipes') ? {
           myRecipes: s.myRecipes.filter((r) => r.id !== id),
           favourites: s.favourites.filter((f) => f !== id),
+          recipeCollections: s.recipeCollections.map((collection) => ({
+            ...collection,
+            recipeIds: collection.recipeIds.filter((recipeId) => recipeId !== id),
+          })),
+          recipeRatings: Object.fromEntries(Object.entries(s.recipeRatings).filter(([recipeId]) => recipeId !== id)),
         } : {})),
       toggleFavourite: (id) =>
         set((s) => (householdPermission(s, 'recipes') ? {
@@ -205,6 +211,57 @@ export function AppProvider({ children }) {
             ? s.favourites.filter((x) => x !== id)
             : [...s.favourites, id],
         } : {})),
+      createRecipeCollection: (name, recipeId = null) =>
+        set((s) => {
+          if (!householdPermission(s, 'recipes')) return {};
+          const clean = String(name || '').trim().slice(0, 40);
+          if (clean.length < 2) return {};
+          const existing = s.recipeCollections.find((collection) => collection.name.toLowerCase() === clean.toLowerCase());
+          if (existing) {
+            if (!recipeId || existing.recipeIds.includes(recipeId)) return {};
+            return {
+              recipeCollections: s.recipeCollections.map((collection) => (
+                collection.id === existing.id
+                  ? { ...collection, recipeIds: [...collection.recipeIds, recipeId] }
+                  : collection
+              )),
+            };
+          }
+          return {
+            recipeCollections: [...s.recipeCollections, {
+              id: uid('rc'),
+              name: clean,
+              recipeIds: recipeId ? [recipeId] : [],
+              createdAt: s.day,
+            }],
+          };
+        }),
+      removeRecipeCollection: (id) =>
+        set((s) => (householdPermission(s, 'recipes')
+          ? { recipeCollections: s.recipeCollections.filter((collection) => collection.id !== id) }
+          : {})),
+      toggleRecipeCollection: (collectionId, recipeId) =>
+        set((s) => {
+          if (!householdPermission(s, 'recipes') || !recipeId) return {};
+          return {
+            recipeCollections: s.recipeCollections.map((collection) => {
+              if (collection.id !== collectionId) return collection;
+              return {
+                ...collection,
+                recipeIds: collection.recipeIds.includes(recipeId)
+                  ? collection.recipeIds.filter((id) => id !== recipeId)
+                  : [...collection.recipeIds, recipeId],
+              };
+            }),
+          };
+        }),
+      rateRecipe: (id, rating) =>
+        set((s) => {
+          if (!householdPermission(s, 'recipes')) return {};
+          const score = Math.round(Number(rating));
+          if (!id || score < 1 || score > 5) return {};
+          return { recipeRatings: { ...s.recipeRatings, [id]: score } };
+        }),
 
       /* ---------- Pantry ---------- */
       addPantryItem: (item) =>
@@ -427,6 +484,7 @@ export function AppProvider({ children }) {
 
       /* ---------- Reminders (see reminder-actions.js) ---------- */
       ...reminderActions(set),
+      ...smartActions(set),
 
       /* ---------- Preferences and advanced (see preference-actions.js) ---------- */
       ...preferenceActions(set),

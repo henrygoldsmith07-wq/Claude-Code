@@ -44,12 +44,14 @@ tables and UK reference intakes.
   Empty states explain what each surface will do once you feed it
 - **Food diary (Log tab)** — every route into a log: fuzzy **search** across
   generic foods, branded products and restaurant menus; **barcode scanner**
-  (viewfinder + manual code entry, unknown codes route to custom foods);
-  **AI photo recognition** of a plate with per-item confidence and editable
-  portions; **voice logging** that parses “two slices of wholemeal bread and
-  200g greek yogurt for lunch” into portions; **recipe importer** (paste a
-  recipe or a link — quantities, units and ingredient matches drive a
-  per-serving estimate); **restaurant meals** from six UK chains; **recent**
+  (native image recognition where the browser exposes it, plus manual code
+  entry; unknown codes route to custom foods); an editable **food photo
+  recognition demo** that shows the workflow without claiming this build ships
+  a vision model; **voice logging** that parses “two slices of wholemeal bread and
+  200g greek yogurt for lunch” into portions; **recipe importer** (paste copied
+  recipe text, optionally with its original URL or video link — quantities,
+  units and ingredient matches drive a per-serving estimate); **restaurant
+  meals** from six UK chains; **recent**
   and **favourite** foods; **custom foods**; **meal templates**; **copy a
   previous meal** from any day in the diary; **quick-add calories** with
   optional macros; portion control by serving, multiplier or **weighed
@@ -99,14 +101,20 @@ tables and UK reference intakes.
 - **Budget tracking** — the basket against your week: what it comes to, what
   your offers take off, and what that leaves of the budget after what you've
   already spent — with unpriced items counted as unknown, never as free
-- **Offers** — no deals feed and no retailer connection, so nothing is ever
-  suggested to you. Enter the offers you have (money off, per cent off, or a
-  multibuy) and they're applied to the list you're holding
+- **Offers** — no deals feed, so nothing is invented or silently goes stale.
+  Enter the offers you have (money off, per cent off, or a multibuy), apply
+  them to your list, and open each retailer's official offers page for the
+  current range
 - **Meal-to-shopping** — a week or month of meals becomes one list, with a
   duplicate ingredient merged into a single line that remembers every meal that
   wanted it, minus your pantry and minus what leftovers already cover
-- **Store hand-off** — Forq connects to no supermarket, so the list exports as
-  plain text in your aisle order, to paste into whichever app you use
+- **UK retailer hub** — Tesco, Sainsbury's, Asda, Aldi, Lidl, Morrisons,
+  Waitrose, Ocado and Amazon Fresh. See recorded prices and saved offers, check
+  each item’s current price and availability on the official retailer page,
+  and open delivery or collection links. Aldi and Lidl are labelled as
+  browse/in-store rather than being given a delivery button they do not support
+- **Store hand-off** — the list also exports as plain text in your aisle order,
+  to paste into whichever app you use
 - **Pantry** — your inventory: add by hand, **from a photo of a shelf**, or by
   barcode, with amount, cost, location, shop and use-by date; flag things as
   running low and push them to the list in one tap. **Expiry tracking** buckets
@@ -117,12 +125,16 @@ tables and UK reference intakes.
   your own receipts, never a generic "people also buy"
 - **Recipes** — a library of 1,200+ dishes, 400 for each meal of the day,
   composed from real ingredients so every dish's calories, macros, cost and
-  health/protein/planet scores are computed from what is in it. No star
-  ratings: nothing here has been cooked by anyone but you. Browse the library,
-  **your own recipes** or **favourites**; filter by **diet**, by **cooking
-  time**, by **ingredients in and out** ("with rice, without mushrooms") and by
-  how much shopping you'd have to do — including *can make now*, read against
-  your actual pantry
+  health/protein/planet scores are computed from what is in it. Ratings are
+  your own 1–5 score, never a fabricated community average. Browse the library,
+  **your own recipes**, **favourites** or named **collections**; filter by
+  **diet**, by **cooking time**, by **ingredients in and out** ("with rice,
+  without mushrooms") and by how much shopping you'd have to do — including
+  *can make now*, read against your actual pantry
+- **Recipe import and saving** — copied recipe text is parsed into ingredients,
+  per-serving nutrition and method steps, then saved to My recipes. Add the
+  original URL or video link and it stays attached; the offline browser does
+  not claim it fetched a page that cross-origin privacy rules blocked
 - **Recipe generator** — invents a dish from what you have, composed from the
   same ingredient tables as the book, so its nutrition and cost are computed
   rather than written. It says which parts of the dish your kitchen covered and
@@ -243,7 +255,14 @@ tables and UK reference intakes.
   (`.ics`, one repeating `VALARM` per time) so the alarm clock you already
   trust does the part a web page can't
 
-- **Reports & analytics** — the diary added up over a **day** (split by meal,
+- **Analytics dashboards** — recorded spend, offer savings and favourite stores;
+  30-day nutrition averages with diary coverage; pantry value, locations,
+  categories and expiry coverage; waste cost, rate and repeat waste; shopping
+  frequency, frequently bought products and favourite brands; and estimated
+  food and shopping carbon. Calendar **monthly** and **yearly** reports bring
+  spend, savings, waste, nutrition and footprint together without treating
+  missing diary days or unrecorded receipts as zero
+- **Reports** — the diary added up over a **day** (split by meal,
   with each one's share and the hours you ate between), a **week**, a **month**,
   and **month-by-month** further back. Every report leads with **how many days
   it actually saw**, and averages only those — a blank day is a day you didn't
@@ -294,11 +313,20 @@ tables and UK reference intakes.
   A running fast is the one exception, because "hasn't logged since 8pm" and
   "is deliberately fasting" are different claims. 16:8 and the rest are labels
   for a window you chose, not protocols the app recommends
-- **Receipt reader** — no OCR, so no pretending to read the photo. Paste the
-  text and the parsing is the real part: items, prices, quantities (including
+- **Receipt reader** — native on-device OCR when the browser exposes a text
+  detector, with pasted text from the retailer app or email as the reliable
+  fallback. Both routes parse items, prices, quantities (including
   `0.482 kg @ £4.99/kg`), store and date, with loyalty and payment lines
   skipped — then it **checks its own total against the printed one** and says
   whether to trust the parse, and lists any line it couldn't read
+- **Smart Features** — predicts the next shopping trip from median trip gaps,
+  products likely due from repeat purchase cadence, and weekly budget overrun
+  from the current recorded pace. Every prediction carries its evidence and
+  declines to guess when history is too thin. One tap builds a deduplicated
+  shopping list from those due products and pantry rows you marked low.
+  Smart reminders learn routine times from your records. A saved 200m location
+  can remind you on re-entry **while Forq is open**; background geofencing
+  requires a native app and is not claimed by this PWA
 - **Blood results & CGM** — no lab has an API a browser can call and no CGM has
   one either (Dexcom and Libre are OAuth against a vendor server, which needs a
   server of our own). So: type your own panel in and it's banded against

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookmarkPlus, Check, ClipboardPaste, Link2, ShoppingCart, Sparkles } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { importRecipeText, importRecipeUrl } from '../lib/foodlog.js';
+import { importRecipeText } from '../lib/foodlog.js';
 import { isVideoLink, recipeFromImport } from '../lib/recipe-tools.js';
 import { buildEntry, mealForTime, timeStamp } from '../lib/nutrition.js';
 import { itemsFromRecipes } from '../data/stores.js';
@@ -18,9 +18,9 @@ Serves 2
 1 tsp honey`;
 
 /**
- * Recipe importer. A pasted recipe is parsed for real — quantities, units and
- * ingredient matches drive the per-serving estimate. A link resolves against
- * the bundled recipe set, since the app ships without a backend to fetch with.
+ * Recipe importer. Copied recipe text is parsed for real — quantities, units
+ * and ingredient matches drive the per-serving estimate. A source URL is kept
+ * with it, but the offline browser does not pretend it fetched another site.
  */
 export default function RecipeImport({ defaultMeal, onDone }) {
   const app = useApp();
@@ -41,11 +41,20 @@ export default function RecipeImport({ defaultMeal, onDone }) {
     setSaved(false);
     setListed(false);
     setKept(false);
-    const out = mode === 'url' ? importRecipeUrl(url) : importRecipeText(text, app.catalogue);
-    if (!out) {
-      setError(mode === 'url' ? 'That doesn’t look like a recipe link.' : 'Paste a title and a few ingredient lines.');
+    let out = importRecipeText(text, app.catalogue);
+    if (mode === 'url' && !/^https?:\/\/.+\..+/.test(url.trim())) {
+      setError('That doesn’t look like a recipe link.');
       setResult(null);
       return;
+    }
+    if (!out) {
+      setError('Paste a title and a few ingredient lines.');
+      setResult(null);
+      return;
+    }
+    if (mode === 'url') {
+      const domain = url.trim().replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+      out = { ...out, domain, url: url.trim() };
     }
     setResult(out);
     setServings(1);
@@ -75,8 +84,9 @@ export default function RecipeImport({ defaultMeal, onDone }) {
         <Chip active={mode === 'url'} onClick={() => { setMode('url'); setResult(null); }}>From a link</Chip>
       </div>
 
-      {mode === 'url' ? (
-        <label className="block">
+      {mode === 'url' && (
+        <>
+          <label className="block">
           <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Recipe URL</span>
           <div className="mt-1 flex items-center gap-2 rounded-2xl border px-4 py-3" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
             <Link2 size={15} style={{ color: 'var(--faint)' }} />
@@ -89,31 +99,33 @@ export default function RecipeImport({ defaultMeal, onDone }) {
               style={{ color: 'var(--ink)' }}
             />
           </div>
-        </label>
-      ) : (
-        <>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={7}
-            placeholder={'Recipe title\nServes 4\n400g chicken breast\n200g rice\n…'}
-            aria-label="Recipe text"
-            className="w-full rounded-2xl border px-4 py-3 text-[13.5px] font-semibold outline-none resize-none"
-            style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-          />
-          <button
-            onClick={() => setText(SAMPLE)}
-            className="press inline-flex items-center gap-1.5 text-[12.5px] font-bold"
-            style={{ color: 'var(--accent)' }}
-          >
-            <ClipboardPaste size={13} /> Use an example
-          </button>
+          </label>
+          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            Copy the recipe text from that page below. Browser privacy rules stop this offline app fetching most recipe sites directly.
+          </p>
         </>
       )}
 
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={7}
+        placeholder={'Recipe title\nServes 4\n400g chicken breast\n200g rice\nMethod steps…'}
+        aria-label="Recipe text"
+        className="w-full rounded-2xl border px-4 py-3 text-[13.5px] font-semibold outline-none resize-none"
+        style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+      />
+      <button
+        onClick={() => setText(SAMPLE)}
+        className="press inline-flex items-center gap-1.5 text-[12.5px] font-bold"
+        style={{ color: 'var(--accent)' }}
+      >
+        <ClipboardPaste size={13} /> Use an example
+      </button>
+
       <button
         onClick={run}
-        disabled={mode === 'url' ? !url.trim() : !text.trim()}
+        disabled={!text.trim() || (mode === 'url' && !url.trim())}
         className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
@@ -130,6 +142,11 @@ export default function RecipeImport({ defaultMeal, onDone }) {
               {result.domain ? `From ${result.domain} · ` : ''}makes {result.servings} servings
               {result.matchedCount !== undefined && ` · ${result.matchedCount}/${result.ingredients.length} ingredients matched`}
             </p>
+            {mode === 'url' && (
+              <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--good)' }}>
+                Parsed from copied text · source link kept
+              </p>
+            )}
             <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
               <MacroSummary macros={macros} size="sm" />
             </div>
@@ -196,9 +213,12 @@ export default function RecipeImport({ defaultMeal, onDone }) {
                 {saved ? <><Check size={14} strokeWidth={3} /> In My foods</> : 'Save to My foods'}
               </span>
             </button>
-            {result.recipe && (
               <button
-                onClick={() => { app.addToList(itemsFromRecipes([result.recipe])); setListed(true); }}
+                onClick={() => {
+                  const imported = recipeFromImport(result, { text, url: mode === 'url' ? url : link });
+                  app.addToList(itemsFromRecipes([imported]));
+                  setListed(true);
+                }}
                 disabled={listed}
                 className="press rounded-2xl border py-3 text-[13.5px] font-extrabold disabled:opacity-60"
                 style={{ borderColor: listed ? 'var(--good)' : 'var(--line)', color: listed ? 'var(--good)' : 'var(--ink)' }}
@@ -207,7 +227,6 @@ export default function RecipeImport({ defaultMeal, onDone }) {
                   <ShoppingCart size={14} /> {listed ? 'On your list' : 'Shop missing'}
                 </span>
               </button>
-            )}
           </div>
 
           <button

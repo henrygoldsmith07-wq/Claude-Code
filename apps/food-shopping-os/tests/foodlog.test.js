@@ -134,13 +134,13 @@ describe('recipe import', () => {
     expect(out.food.servings[0].grams).toBeGreaterThan(0);
   });
 
-  it('rejects a non-URL and resolves a real link deterministically', () => {
+  it('validates a source URL without pretending it fetched the recipe', () => {
     expect(importRecipeUrl('not a link')).toBeNull();
-    const a = importRecipeUrl('https://bbcgoodfood.com/recipes/katsu');
-    const b = importRecipeUrl('https://bbcgoodfood.com/recipes/katsu');
-    expect(a.domain).toBe('bbcgoodfood.com');
-    expect(a.title).toBe(b.title);
-    expect(a.perServing.kcal).toBeGreaterThan(0);
+    expect(importRecipeUrl('https://bbcgoodfood.com/recipes/katsu')).toEqual({
+      domain: 'bbcgoodfood.com',
+      needsText: true,
+      url: 'https://bbcgoodfood.com/recipes/katsu',
+    });
   });
 });
 

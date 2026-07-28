@@ -102,6 +102,8 @@ export const EMPTY_STATE = {
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids
+  recipeCollections: [], // {id,name,recipeIds[],createdAt}
+  recipeRatings: {}, // recipe id -> personal 1–5 score
   cooked: [], // [{recipeId, date}]
   /* health — every reading is one you took */
   measurements: [], // {id, key, value, date}
@@ -130,6 +132,7 @@ export const EMPTY_STATE = {
   widgets: null, // null = the default Home layout
   /* reminders — none until you make one */
   reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
+  placeReminders: [], // foreground-only geofences: {id,label,latitude,longitude,radius,on}
   reminderDone: {}, // 'YYYY-MM-DD|id|HH:MM' → true, so a firing is ticked once
   lastSeenAt: 0, // when the app was last open, for catching you up
   /* food diary */

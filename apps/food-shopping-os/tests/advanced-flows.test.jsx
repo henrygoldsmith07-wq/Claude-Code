@@ -184,11 +184,12 @@ describe('reading a receipt', () => {
     return dialogFor('Read a receipt');
   };
 
-  it('says plainly that it is not reading the photo', () => {
+  it('says plainly when native photo OCR is unavailable', () => {
     onboard();
     const sheet = openReceipt();
-    expect(within(sheet).getByText(/ships no OCR/)).toBeTruthy();
-    expect(within(sheet).getByText(/the parsing is the part that’s real/)).toBeTruthy();
+    expect(within(sheet).getByText(/no native receipt OCR/)).toBeTruthy();
+    expect(within(sheet).getByText(/parser and total check still work/)).toBeTruthy();
+    expect(within(sheet).getByText('Scan receipt photo').closest('button').disabled).toBe(true);
   });
 
   it('parses the example and checks itself against the printed total', () => {

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { answer } from '../lib/ai-assistant.js';
+import { captureSupport } from '../lib/smart-capture.js';
 
 const QUICK_PROMPTS = [
   'Generate a pantry recipe',
@@ -33,13 +34,17 @@ export default function AiAssistant() {
   ]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
+  const [listening, setListening] = useState(false);
   const endRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const speechSupported = captureSupport().speech;
 
   useEffect(() => {
     if (typeof endRef.current?.scrollIntoView === 'function') {
       endRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, thinking]);
+  useEffect(() => () => recognitionRef.current?.stop?.(), []);
 
   const send = (text) => {
     const question = (text ?? input).trim();
@@ -51,6 +56,24 @@ export default function AiAssistant() {
       setMessages((current) => [...current, { role: 'ai', text: answer(question, app) }]);
       setThinking(false);
     }, 500);
+  };
+
+  const askByVoice = () => {
+    if (!speechSupported) return;
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new Recognition();
+    recognition.lang = 'en-GB';
+    recognition.interimResults = false;
+    recognition.onresult = (event) => send(event.results[0][0].transcript);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
   };
 
   return (
@@ -100,6 +123,15 @@ export default function AiAssistant() {
       </div>
 
       <div className="px-5 pb-5 pt-2 flex gap-2 shrink-0">
+        <button
+          onClick={askByVoice}
+          disabled={!speechSupported}
+          aria-label={listening ? 'Stop voice assistant' : 'Ask by voice'}
+          className="press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border disabled:opacity-40"
+          style={{ borderColor: listening ? 'var(--accent)' : 'var(--line)', color: listening ? 'var(--accent)' : 'var(--muted)' }}
+        >
+          {listening ? <MicOff size={19} /> : <Mic size={19} />}
+        </button>
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}

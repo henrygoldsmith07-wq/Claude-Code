@@ -28,9 +28,10 @@ describe('a brand new app', () => {
     expect(EMPTY_STATE.weeklyBudget).toBe(0);
     expect(EMPTY_STATE.monthlyBudget).toBe(0);
     expect(EMPTY_STATE.priceAlerts).toEqual([]);
+    expect(EMPTY_STATE.recipeRatings).toEqual({});
     expect(EMPTY_STATE.water).toBe(0);
     for (const key of ['pantry', 'shoppingList', 'shops', 'cooked', 'favourites',
-      'favouriteFoods', 'customFoods', 'mealTemplates']) {
+      'favouriteFoods', 'customFoods', 'mealTemplates', 'recipeCollections']) {
       expect(EMPTY_STATE[key], key).toEqual([]);
     }
     for (const key of ['log', 'plan']) {

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Check, Image, Mic, MicOff, ScanBarcode, Sparkles, Trash2, X } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { isBarcode, lookupBarcode, parseVoiceLog, recognisePlate, scanAt, SCANNABLE } from '../lib/foodlog.js';
+import { isBarcode, lookupBarcode, parseVoiceLog, recognisePlate, SCANNABLE } from '../lib/foodlog.js';
+import { captureSupport, detectBarcodeImage } from '../lib/smart-capture.js';
 import { buildEntry, mealForTime, scale, timeStamp } from '../lib/nutrition.js';
 import { Card, Chip, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
@@ -21,35 +22,34 @@ const PrimaryButton = ({ children, onClick, disabled }) => (
 /* ---------- Barcode ---------- */
 
 /**
- * Barcode scanner. There is no camera stream in this offline build, so the
- * viewfinder resolves against the bundled branded catalogue — and the manual
- * field takes a real 8/12/13-digit code either way.
+ * Native browser barcode recognition where available, with manual entry on
+ * every browser.
  */
 export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
+  const app = useApp();
   const [phase, setPhase] = useState('idle'); // idle | scanning | found | unknown
   const [food, setFood] = useState(null);
   const [code, setCode] = useState('');
-  const scans = useRef(0);
-  const timer = useRef(null);
+  const [message, setMessage] = useState('');
+  const fileRef = useRef(null);
+  const support = captureSupport();
 
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const scan = () => {
+  const scan = async (file) => {
     setPhase('scanning');
-    timer.current = setTimeout(() => {
-      scans.current += 1;
-      const hit = scanAt(scans.current * 7 + new Date().getMinutes());
-      setFood(hit);
-      setCode(hit.barcode);
-      setPhase('found');
+    setMessage('');
+    try {
+      lookup(await detectBarcodeImage(file));
       navigator.vibrate?.(60);
-    }, 1100);
+    } catch (error) {
+      setPhase('idle');
+      setMessage(error.message);
+    }
   };
 
   const lookup = (value) => {
     setCode(value);
     if (!isBarcode(value)) return setPhase('idle');
-    const hit = lookupBarcode(value);
+    const hit = lookupBarcode(value, app.catalogue);
     setFood(hit);
     setPhase(hit ? 'found' : 'unknown');
   };
@@ -73,9 +73,28 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
         </div>
       </div>
 
-      <PrimaryButton onClick={scan} disabled={phase === 'scanning'}>
-        <span className="inline-flex items-center gap-2"><Camera size={16} /> {phase === 'scanning' ? 'Scanning…' : 'Scan a barcode'}</span>
+      <PrimaryButton onClick={() => fileRef.current?.click()} disabled={!support.barcode || phase === 'scanning'}>
+        <span className="inline-flex items-center gap-2"><Camera size={16} /> {phase === 'scanning' ? 'Scanning…' : support.barcode ? 'Scan a barcode' : 'Camera recognition unavailable'}</span>
       </PrimaryButton>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) scan(file);
+          event.target.value = '';
+        }}
+        className="hidden"
+        aria-label="Barcode image"
+      />
+      {!support.barcode && (
+        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          This browser has no native barcode detector. Type the number or choose a catalogue example below.
+        </p>
+      )}
+      {message && <p role="status" className="text-[12px] font-semibold">{message}</p>}
 
       <label className="block">
         <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Or type the number</span>
@@ -175,13 +194,14 @@ const ItemRow = ({ item, onGrams, onRemove }) => {
   );
 };
 
-/** AI photo recognition: point at the plate, correct the portions, log it. */
+/** Editable demonstration of the plate-recognition workflow. */
 export function PhotoRecognise({ defaultMeal, onDone }) {
   const app = useApp();
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState([]);
   const [meal, setMeal] = useState(defaultMeal || mealForTime());
+  const [message, setMessage] = useState('');
   const fileRef = useRef(null);
 
   useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
@@ -189,6 +209,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
   const analyse = (seed, url) => {
     setPreview(url);
     setBusy(true);
+    setMessage('');
     setTimeout(() => {
       setItems(recognisePlate(seed, app.catalogue));
       setBusy(false);
@@ -198,7 +219,9 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
   const onFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    analyse(`${file.name}-${file.size}`, URL.createObjectURL(file));
+    setPreview(URL.createObjectURL(file));
+    setItems([]);
+    setMessage('Photo added, but this offline build has no vision model to identify its pixels. Use the sample workflow or log the foods by search.');
   };
 
   const log = () => {
@@ -226,7 +249,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
         {busy && (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--bg) 70%, transparent)' }}>
             <p className="inline-flex items-center gap-2 text-[13px] font-extrabold">
-              <Sparkles size={15} className="pulse-dot" /> Recognising your meal…
+              <Sparkles size={15} className="pulse-dot" /> Preparing sample suggestions…
             </p>
           </div>
         )}
@@ -249,6 +272,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
           Try a sample plate
         </button>
       </div>
+      {message && <p role="status" className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
 
       {/* The shape of the answer, while the answer is being worked out — so
           the page doesn't jump the moment it lands. */}
@@ -289,7 +313,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
         </>
       )}
       <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
-        Recognition runs on-device against the bundled food catalogue.
+        Catalogue demo only: this build does not inspect the image pixels or ship a vision model.
       </p>
     </div>
   );

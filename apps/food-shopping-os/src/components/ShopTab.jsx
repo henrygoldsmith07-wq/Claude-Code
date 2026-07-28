@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Banknote, Check, Copy, MapPin, Mic, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Banknote, Building2, Check, Copy, MapPin, Mic, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -9,13 +9,14 @@ import { gbp, cx, prettyDate } from '../lib/utils.js';
 import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { groupForStore } from '../lib/shopping.js';
 import ReceiptScan from './ReceiptScan.jsx';
-import { Section, Card, Meter, Chip, Pill, Sheet } from './ui.jsx';
+import { Section, Card, Empty, Meter, Chip, Pill, Sheet } from './ui.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
 import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
 import BarcodeAdd from './BarcodeAdd.jsx';
 import BudgetPanel from './BudgetPanel.jsx';
+import StoreIntegrations from './StoreIntegrations.jsx';
 
 /* ---------- One line of the list ---------- */
 
@@ -102,7 +103,7 @@ function ListRow({ item, onAisle }) {
 
 export default function ShopTab() {
   const app = useApp();
-  const [view, setView] = useState('list'); // list · history · prices
+  const [view, setView] = useState('list'); // list · history · prices · stores · budget
   const [shoppingMode, setShoppingMode] = useState(false);
   const [adding, setAdding] = useState(false);
   const [sheet, setSheet] = useState(null); // finish · offers · scan · export
@@ -143,18 +144,14 @@ export default function ShopTab() {
 
   if (!app.householdAccess.shopping) {
     return (
-      <div className="pb-6">
-        <div className="hero-gradient px-5 pt-14 pb-3">
-          <h1 className="text-[26px] font-extrabold tracking-tight">Shop</h1>
-        </div>
+      /* The shared header already says "Shop" — a second <h1> here would be
+         two page titles on one screen. */
+      <div className="pb-6 pt-2">
         <Section>
-          <Card className="text-center py-10">
-            <ShoppingCart size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
-            <p className="font-bold">Shopping is off for {app.activeMember?.name}.</p>
-            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
-              An adult can change this profile’s household permissions under Profile.
-            </p>
-          </Card>
+          <Empty Icon={ShoppingCart} title={`Shopping is off for ${app.activeMember?.name}`}>
+            An adult can change this profile’s household permissions from the avatar in the
+            top corner, under Household.
+          </Empty>
         </Section>
       </div>
     );
@@ -162,11 +159,12 @@ export default function ShopTab() {
 
   return (
     <div className="pb-6 space-y-6">
+      {/* The shared header carries the title now. Five views don't fit a
+          320px phone on one line, so this scrolls rather than pushing the
+          whole page sideways. */}
       <div className="hero-gradient pt-1 pb-3">
-        {/* Four views don't fit a 320px phone on one line — this scrolls
-            rather than pushing the whole page sideways. */}
         <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar px-5 rise rise-1">
-          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
+          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['stores', 'Stores', Building2], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
             </Chip>
@@ -427,6 +425,7 @@ export default function ShopTab() {
       )}
 
       {view === 'prices' && <PriceCompare />}
+      {view === 'stores' && <StoreIntegrations />}
       {view === 'budget' && <BudgetPanel />}
 
       <Sheet open={sheet === 'finish'} onClose={() => setSheet(null)} title="Finish shop">
