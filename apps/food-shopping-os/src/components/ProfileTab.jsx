@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Banknote, Flame, NotebookPen, RotateCcw, Download, Target } from 'lucide-react';
+import { Activity, Banknote, Flame, NotebookPen, RotateCcw, Download, Target, Users } from 'lucide-react';
 import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { formatAmount } from '../data/nutrients.js';
@@ -8,6 +8,7 @@ import { badgeProgress, cuisineSplit, spendByMonth, weekDates } from '../lib/kit
 import { gbp } from '../lib/utils.js';
 import NutritionPanel from './NutritionPanel.jsx';
 import GoalsPanel from './GoalsPanel.jsx';
+import FamilyPanel from './FamilyPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -23,6 +24,7 @@ export default function ProfileTab() {
   const app = useApp();
   const [nutritionOpen, setNutritionOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
+  const [familyOpen, setFamilyOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -113,6 +115,27 @@ export default function ProfileTab() {
               </span>
             </div>
             <Meter value={app.week.eaten} max={app.weeklyKcalTarget} color={app.week.onTrack ? 'var(--accent)' : 'var(--warn)'} height={5} />
+          </div>
+        </Card>
+      </Section>
+
+      {/* Who you cook for */}
+      <Section title="Family" className="rise rise-1">
+        <Card onClick={() => setFamilyOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[15px] truncate">
+                {app.members.length
+                  ? `${app.members.length} ${app.members.length === 1 ? 'person' : 'people'} · ${app.portions} portions a meal`
+                  : 'Just you'}
+              </p>
+              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.planDiets.length
+                  ? `Plans avoid ${app.planDiets.join(', ')}`
+                  : 'Add everyone you cook for and plans will fit them all'}
+              </p>
+            </div>
+            <Users size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
           </div>
         </Card>
       </Section>
@@ -313,6 +336,9 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={goalsOpen} onClose={() => setGoalsOpen(false)} title="Goals & targets">
         <GoalsPanel />
+      </Sheet>
+      <Sheet open={familyOpen} onClose={() => setFamilyOpen(false)} title="Family">
+        <FamilyPanel />
       </Sheet>
     </div>
   );

@@ -54,12 +54,24 @@ tables and UK reference intakes.
   Goals read as progress, limits read as headroom, every daily target is
   editable, and the panel says plainly what share of the day's calories
   carries a full micronutrient profile
-- **Meal planner** — a real weekly plan: tap any breakfast/lunch/dinner slot
-  and pick from the 200 dishes for *that* meal, filtered to your dietary
-  patterns; or let the generator build a meal, a day or a week from
-  budget-per-serving, people, occasion and time, then drop it into your week.
-  Planned meals cost out per day and can send their missing ingredients to the
-  list
+- **Meal planner** — a **weekly** grid of breakfast/lunch/dinner slots and a
+  **monthly** calendar, both walking forwards and back; tap any slot and pick
+  from the 200 dishes for *that* meal, filtered to everyone's dietary patterns,
+  with what's in season flagged. Meals **move by dragging** them, or by pressing
+  their grip and tapping where they go — an occupied slot swaps rather than
+  losing anything. The **generator** builds a meal, a day, a week or a whole
+  month from your goal, budget-per-serving, people, occasion and time, and will
+  favour **what's already in your pantry** and **what's in season this month**.
+  **Batch mode** deliberately plans fewer dishes in blocks, and any dish planned
+  twice gets a cook-once schedule: which day, how many batches, how much time it
+  saves. **Leftovers** you save after cooking sit in the fridge with a use-by
+  date, cover planned meals, and drop out of the shopping list. The list itself
+  generates from whichever range you're looking at, minus your pantry
+- **Family planning** — add everyone you cook for with their own portion size
+  and their own dietary patterns. Portions add up (cost, servings, batch sizes)
+  and the patterns pool, so a plan for the table fits all of it
+- **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
+  day and meal, up to a fortnight out
 - **Shop** — your list (add anything, prices you type in, aisle guessed from
   the name), shopping mode with a running total against your budget, and
   **finish shop** to record what you actually paid. Recorded shops drive your
@@ -104,6 +116,8 @@ src/
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
   lib/utils.js         # currency/date/expiry helpers
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)
+  lib/mealplan.js      # calendar maths, moves/swaps, batch groups, leftovers,
+                       # and the shopping list for any range
   lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
@@ -111,8 +125,8 @@ src/
                        # and templates the rest are composed from), foods
                        # (catalogue + barcodes + menus), nutrients
                        # (units/targets), micronutrients (per-100 g table),
-                       # goals (body goals + dietary patterns), and taxonomy
-                       # for aisles/locations
+                       # goals (body goals + dietary patterns), seasons (the UK
+                       # growing calendar), and taxonomy for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite

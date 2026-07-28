@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildPlan, hardFilter, scopeCount } from '../src/lib/planner.js';
-import { RECIPES } from '../src/data/recipes.js';
+import { buildPlan, hardFilter, pantryHits, scopeCount } from '../src/lib/planner.js';
+import { RECIPES, byId } from '../src/data/recipes.js';
+import { seasonScore } from '../src/data/seasons.js';
 import { itemsFromRecipes } from '../src/data/stores.js';
 
 describe('hardFilter', () => {
@@ -59,6 +60,63 @@ describe('buildPlan', () => {
   it('honours date night as a soft preference', () => {
     const { meals } = buildPlan({ scope: '1 meal', occasion: 'Date night', budget: 4 }, 5);
     expect(meals[0].tags).toContain('date-night');
+  });
+});
+
+describe('planning around what you have and what month it is', () => {
+  it('counts the ingredients your pantry already covers', () => {
+    const salmon = byId('salmon-teriyaki');
+    expect(pantryHits(salmon, ['Sushi rice', 'Soy sauce', 'Ketchup'])).toBe(2);
+    expect(pantryHits(salmon, [])).toBe(0);
+  });
+
+  it('leans towards dishes that use the pantry, without ever emptying the pool', () => {
+    const pantry = ['Chickpeas', 'Coconut milk', 'Chopped tomatoes', 'Onion', 'Rice', 'Spinach'];
+    const { meals } = buildPlan({ scope: 'A week', budget: 4, pantry }, 21);
+    expect(meals).toHaveLength(7);
+    const usingPantry = meals.filter((r) => pantryHits(r, pantry) >= 2).length;
+    expect(usingPantry).toBeGreaterThan(3);
+
+    // A pantry nothing matches must not leave the week empty.
+    const odd = buildPlan({ scope: 'A week', budget: 4, pantry: ['Marmite'] }, 21);
+    expect(odd.meals).toHaveLength(7);
+    expect(odd.meals.every(Boolean)).toBe(true);
+  });
+
+  it('favours dishes with something in season', () => {
+    const { meals } = buildPlan({ scope: 'A week', budget: 4, month: 7 }, 33);
+    expect(meals).toHaveLength(7);
+    expect(meals.filter((r) => seasonScore(r, 7) > 0).length).toBeGreaterThan(4);
+  });
+
+  it('plans a whole month when asked for one', () => {
+    expect(scopeCount('A month')).toBe(28);
+    const { meals } = buildPlan({ scope: 'A month', budget: 4, days: 31 }, 8);
+    expect(meals).toHaveLength(31);
+    expect(meals.every((r) => r.meal === 'dinner')).toBe(true);
+  });
+});
+
+describe('batch cooking plans', () => {
+  it('repeats a few dishes on purpose, in blocks, and says so', () => {
+    const { meals, note } = buildPlan({ scope: 'A week', budget: 4, batch: true }, 12);
+    expect(meals).toHaveLength(7);
+    const distinct = new Set(meals.map((r) => r.id));
+    expect(distinct.size).toBeLessThan(4);
+    expect(note).toMatch(/batch plan/i);
+    // Each dish covers consecutive days, so you cook once and reheat.
+    const blocks = meals.filter((r, i) => i === 0 || r.id !== meals[i - 1].id).length;
+    expect(blocks).toBe(distinct.size);
+  });
+
+  it('picks dishes that are actually worth batching', () => {
+    const { meals } = buildPlan({ scope: 'A week', budget: 4, batch: true }, 5);
+    expect(meals.every((r) => r.servings >= 4 || r.tags.some((t) => ['batch', 'freezer', 'one-pot', 'meal-prep'].includes(t)))).toBe(true);
+  });
+
+  it('leaves a single meal alone', () => {
+    const { meals } = buildPlan({ scope: '1 meal', budget: 4, batch: true }, 5);
+    expect(meals).toHaveLength(1);
   });
 });
 

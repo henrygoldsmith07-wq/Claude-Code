@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-  Check, ChefHat, ChevronLeft, Flame, Heart, Mic, PartyPopper, Package,
-  Pause, Play, ShoppingCart, Slice, Timer as TimerIcon, X,
+  CalendarPlus, Check, ChefHat, ChevronLeft, Flame, Heart, Mic, PartyPopper, Package,
+  Pause, Play, ShoppingCart, Slice, Snowflake, Timer as TimerIcon, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, cx } from '../lib/utils.js';
 import { itemsFromRecipes } from '../data/stores.js';
-import { Card, Ring, Pill, FoodArt, Meter } from './ui.jsx';
+import { MEAL_SLOTS } from '../data/plan.js';
+import { addDays } from '../lib/kitchen.js';
+import { Card, Ring, Pill, FoodArt, Meter, Chip, Stepper } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
 const fmtTime = (mins) => (mins >= 60 ? `${Math.round(mins / 60)} h` : `${mins} min`);
@@ -41,6 +43,15 @@ function Timer({ mins, state, onChange }) {
   );
 }
 
+/** The next fortnight, so scheduling a dish never needs a date picker. */
+const scheduleDays = (today) =>
+  Array.from({ length: 14 }, (_, i) => {
+    const date = addDays(today, i);
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
+      : new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+    return { date, label };
+  });
+
 export default function RecipeDetail({ recipe, onClose }) {
   const app = useApp();
   const [cooking, setCooking] = useState(false);
@@ -48,6 +59,11 @@ export default function RecipeDetail({ recipe, onClose }) {
   const [finished, setFinished] = useState(false);
   const [timers, setTimers] = useState({}); // step index -> {left, running}
   const [addedMissing, setAddedMissing] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [when, setWhen] = useState({ date: app.day, slot: recipe.meal || 'dinner' });
+  const [scheduled, setScheduled] = useState(null);
+  const [spare, setSpare] = useState(Math.max(0, (recipe.servings || 1) - 1));
+  const [saved, setSaved] = useState(false);
   const fav = app.favourites.includes(recipe.id);
   // What you have is read from your actual pantry, by name.
   const pantryNames = app.pantry.map((p) => p.name.toLowerCase());
@@ -111,7 +127,30 @@ export default function RecipeDetail({ recipe, onClose }) {
             <p className="mt-2 text-[14.5px] font-semibold" style={{ color: 'var(--muted)' }}>
               +60 XP · cooking streak: {app.streak} days.<br />Nutrition logged to today’s totals.
             </p>
-            <button onClick={onClose} className="press mt-8 rounded-2xl px-8 py-3.5 font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+
+            {/* Portions you cooked but didn't eat are worth tracking */}
+            {recipe.servings > 1 && (
+              <Card className="mt-6 w-full !p-3 text-left">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[13px] font-bold inline-flex items-center gap-1.5">
+                    <Snowflake size={14} style={{ color: 'var(--muted)' }} /> Portions left over
+                  </p>
+                  <Stepper value={spare} onChange={setSpare} min={0} max={recipe.servings - 1} />
+                </div>
+                <button
+                  onClick={() => { app.saveLeftovers(recipe, spare); setSaved(true); }}
+                  disabled={saved || spare === 0}
+                  className="press mt-2.5 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-50"
+                  style={saved ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                >
+                  {saved
+                    ? `${spare} portion${spare === 1 ? '' : 's'} in the fridge`
+                    : `Save ${spare} portion${spare === 1 ? '' : 's'} for later`}
+                </button>
+              </Card>
+            )}
+
+            <button onClick={onClose} className="press mt-6 rounded-2xl px-8 py-3.5 font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
               Back to my day
             </button>
           </div>
@@ -260,6 +299,53 @@ export default function RecipeDetail({ recipe, onClose }) {
                   : <>Add {missing.length} missing to shopping list</>}
               </span>
             </button>
+          )}
+        </Card>
+
+        {/* Put it in the plan on a chosen day */}
+        <Card className="rise rise-2">
+          <button
+            onClick={() => setScheduling((v) => !v)}
+            className="press flex w-full items-center justify-between"
+          >
+            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Schedule</p>
+            <span className="text-[13px] font-extrabold inline-flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+              <CalendarPlus size={14} /> {scheduling ? 'Close' : 'Add to my plan'}
+            </span>
+          </button>
+          {scheduled && !scheduling && (
+            <p className="mt-2 text-[13px] font-semibold" style={{ color: 'var(--good)' }}>
+              Planned for {scheduled}.
+            </p>
+          )}
+          {scheduling && (
+            <div className="mt-3 space-y-3">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+                {scheduleDays(app.day).map(({ date, label }) => (
+                  <Chip key={date} active={when.date === date} onClick={() => setWhen((w) => ({ ...w, date }))}>
+                    {label}
+                  </Chip>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                {MEAL_SLOTS.map(({ key, label }) => (
+                  <Chip key={key} active={when.slot === key} onClick={() => setWhen((w) => ({ ...w, slot: key }))}>
+                    {label}
+                  </Chip>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  app.setPlanSlot(when.date, when.slot, recipe.id);
+                  setScheduled(`${when.slot} on ${new Date(`${when.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`);
+                  setScheduling(false);
+                }}
+                className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+              >
+                Put it in the plan
+              </button>
+            </div>
           )}
         </Card>
 

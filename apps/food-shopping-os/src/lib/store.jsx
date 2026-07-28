@@ -10,6 +10,9 @@ import {
 import {
   defaultWeeklyKcal, goalSummary, resolveMaintenance, targetsFor, weekProgress,
 } from './goals.js';
+import {
+  applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, leftoverItems, leftoverPortions, moveMeal,
+} from './mealplan.js';
 
 export const STORAGE_KEY = 'forq-state-v2';
 const KEY = STORAGE_KEY;
@@ -84,6 +87,7 @@ export const EMPTY_STATE = {
   /* budget & shopping */
   weeklyBudget: 0,
   household: 1,
+  members: [], // who you cook for: {id, name, portions, diets}
   shoppingList: [], // {id,name,emoji,aisle,qty,price,checked}
   shops: [], // recorded trips {id,date,store,total,items[]}
   /* kitchen */
@@ -291,12 +295,49 @@ export function AppProvider({ children }) {
           else delete plan[date];
           return { plan };
         }),
-      clearPlanWeek: (dates) =>
-        set((s) => {
-          const plan = { ...s.plan };
-          for (const d of dates) delete plan[d];
-          return { plan };
-        }),
+      clearPlanWeek: (dates) => set((s) => ({ plan: clearDates(s.plan, dates) })),
+      /** Drag a meal to another day or slot; an occupied target swaps back. */
+      moveMealSlot: (from, to) => set((s) => ({ plan: moveMeal(s.plan, from, to) })),
+      /** Drop a whole generated plan in at once: [{date, slot, recipeId}]. */
+      applyPlanEntries: (entries) => set((s) => ({ plan: applyEntries(s.plan, entries) })),
+
+      /* ---------- Family ---------- */
+      addMember: (member) =>
+        set((s) => ({
+          members: [...s.members, {
+            id: uid('m'),
+            name: member.name?.trim() || `Person ${s.members.length + 1}`,
+            portions: Math.max(0.5, Number(member.portions) || 1),
+            diets: member.diets || [],
+          }],
+        })),
+      updateMember: (id, patch) =>
+        set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
+      removeMember: (id) => set((s) => ({ members: s.members.filter((m) => m.id !== id) })),
+      toggleMemberDiet: (id, diet) =>
+        set((s) => ({
+          members: s.members.map((m) => (m.id === id
+            ? { ...m, diets: m.diets.includes(diet) ? m.diets.filter((d) => d !== diet) : [...m.diets, diet] }
+            : m)),
+        })),
+
+      /* ---------- Leftovers ---------- */
+      /** Portions cooked but not eaten go in the fridge, dated. */
+      saveLeftovers: (recipe, portions) =>
+        set((s) => (portions > 0
+          ? { pantry: [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, portions, s.day) }] }
+          : {})),
+      /** Eat one portion; the item leaves the pantry when the last one goes. */
+      useLeftover: (id) =>
+        set((s) => ({
+          pantry: s.pantry
+            .map((p) => {
+              if (p.id !== id) return p;
+              const portions = (Number(p.portions) || 1) - 1;
+              return { ...p, portions, qty: `${portions} portion${portions === 1 ? '' : 's'}` };
+            })
+            .filter((p) => p.cat !== LEFTOVER_CAT || (Number(p.portions) || 0) > 0),
+        })),
 
       /* ---------- Food diary ---------- */
       logEntries: addEntries,
@@ -351,14 +392,20 @@ export function AppProvider({ children }) {
             : [...s.favouriteFoods, id],
         })),
 
-      /** Finishing cooking mode: history, XP, and the meal logged to the diary. */
-      completeRecipe: (recipe) =>
+      /**
+       * Finishing cooking mode: history, XP, and the meal logged to the diary.
+       * Portions you cooked but didn't eat go to the fridge as leftovers.
+       */
+      completeRecipe: (recipe, { leftovers = 0 } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             xp: s.xp + 60,
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
+            pantry: leftovers > 0
+              ? [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
+              : s.pantry,
           };
         }),
     };
@@ -397,6 +444,14 @@ export function AppProvider({ children }) {
       recentFoods: recentFoodsFrom(state.log, catalogue),
       entriesFor: (date) => state.log[date] || [],
       kcalFor: (date) => dayTotals(state.log[date] || []).kcal,
+      /* family — how many portions a meal has to stretch to, and everyone's diets */
+      portions: state.members.length
+        ? Math.round(state.members.reduce((n, m) => n + (Number(m.portions) || 1), 0) * 10) / 10
+        : state.household || 1,
+      planDiets: [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])],
+      /* leftovers */
+      leftovers: leftoverItems(state.pantry),
+      leftoverPortions: leftoverPortions(state.pantry),
       /* kitchen */
       streak: streakFrom(cookedDays, state.day),
       cookedToday: cookedDays.includes(state.day),
