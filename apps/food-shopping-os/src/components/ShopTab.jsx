@@ -162,8 +162,10 @@ export default function ShopTab() {
 
   return (
     <div className="pb-6 space-y-6">
-      <div className="hero-gradient px-5 pt-1 pb-3">
-        <div className="mt-3 flex gap-2 rise rise-1">
+      <div className="hero-gradient pt-1 pb-3">
+        {/* Four views don't fit a 320px phone on one line — this scrolls
+            rather than pushing the whole page sideways. */}
+        <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar px-5 rise rise-1">
           {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>

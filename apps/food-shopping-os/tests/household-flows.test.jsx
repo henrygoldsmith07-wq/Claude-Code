@@ -18,7 +18,7 @@ const dialogFor = (title) => [...document.querySelectorAll('[role="dialog"]')]
 
 const openHousehold = () => {
   onboard();
-  fireEvent.click(screen.getByText('Profile'));
+  fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
   fireEvent.click(screen.getByText('Just you'));
   return dialogFor('Family');
 };
@@ -84,7 +84,7 @@ describe('household controls', () => {
       key: STORAGE_KEY,
       newValue: JSON.stringify({ ...current, householdName: 'Synced home' }),
     }));
-    fireEvent.click(screen.getByText('Profile'));
+    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
     fireEvent.click(screen.getByText('Just you'));
     const sheet = dialogFor('Family');
     await waitFor(() => expect(within(sheet).getByLabelText('Household name').value).toBe('Synced home'));

@@ -12,7 +12,7 @@ const onboard = () => {
 
 const openHealth = () => {
   onboard();
-  fireEvent.click(screen.getByText('Profile'));
+  fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
   const section = screen.getByText('Health & training').closest('section');
   fireEvent.click(within(section).getByText('Health'));
   return [...document.querySelectorAll('[role="dialog"]')]
