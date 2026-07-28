@@ -12,7 +12,7 @@
  */
 
 import { GRACE_MINUTES, kindBy, MAX_TIMES, repeatBy } from '../data/reminders.js';
-import { addDays, dayStamp } from './kitchen.js';
+import { addDays, dayStamp, daysUntil, weekDates } from './kitchen.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -193,6 +193,64 @@ export const reminderContext = (kind, state = {}) => {
     const nights = state.sleepSummary?.nights || 0;
     if (!nights) return 'No nights logged yet.';
     return `${state.sleepSummary.avgHours} h average over ${nights} night${nights === 1 ? '' : 's'}.`;
+  }
+  if (reads === 'expiry') {
+    const due = (state.pantry || [])
+      .filter((item) => item.expiry && daysUntil(item.expiry, state.day) <= 3)
+      .sort((a, b) => a.expiry.localeCompare(b.expiry));
+    if (!due.length) return 'Nothing with a saved date expires in the next three days.';
+    const first = due[0];
+    const gap = daysUntil(first.expiry, state.day);
+    const when = gap < 0 ? 'past its date' : gap === 0 ? 'today' : gap === 1 ? 'tomorrow' : `in ${gap} days`;
+    return `${first.name} is due ${when}${due.length > 1 ? ` · ${due.length - 1} more need attention` : ''}.`;
+  }
+  if (reads === 'budget') {
+    const budget = Number(state.weeklyBudget) || 0;
+    if (!budget) return 'No weekly grocery budget set yet.';
+    const spent = Number(state.spentThisWeek) || 0;
+    const pace = state.basket?.over ? ' · your current basket would take you over' : '';
+    return `£${spent.toFixed(2)} of £${budget.toFixed(2)} weekly budget spent${pace}.`;
+  }
+  if (reads === 'weeklyReport') {
+    const dates = weekDates(state.day || dayStamp());
+    const logged = dates.filter((date) => (state.log?.[date] || []).length).length;
+    const spent = Number(state.spentThisWeek) || 0;
+    return `${logged} of 7 diary days logged · £${spent.toFixed(2)} spent this week.`;
+  }
+  if (reads === 'dailySummary') {
+    const entries = state.entries || state.log?.[state.day] || [];
+    const planned = Object.keys(state.plan?.[state.day] || {}).length;
+    const list = state.shoppingList?.length || 0;
+    return [
+      `${entries.length} food entr${entries.length === 1 ? 'y' : 'ies'}`,
+      `${planned} meal${planned === 1 ? '' : 's'} planned`,
+      `${list} list item${list === 1 ? '' : 's'}`,
+    ].join(' · ') + '.';
+  }
+  if (reads === 'pantry') {
+    const low = (state.pantry || []).filter((item) => item.low).length;
+    const expiring = (state.pantry || []).filter(
+      (item) => item.expiry && daysUntil(item.expiry, state.day) <= 7,
+    ).length;
+    if (!low && !expiring) return 'Nothing is marked low or expiring this week.';
+    return [
+      low && `${low} running low`,
+      expiring && `${expiring} expiring this week`,
+    ].filter(Boolean).join(' · ') + '.';
+  }
+  if (reads === 'sale') {
+    const hits = (state.priceAlertStatus || []).filter((alert) => alert.hit);
+    if (!hits.length) {
+      const watched = state.priceAlertStatus?.length || 0;
+      return watched ? `${watched} saved price target${watched === 1 ? '' : 's'}; none hit in recorded shops.` : 'No price targets saved yet.';
+    }
+    const hit = hits[0];
+    return `${hit.name} is £${Number(hit.latest).toFixed(2)}${hit.store ? ` at ${hit.store}` : ''}, below your £${Number(hit.target).toFixed(2)} target in recorded shops.`;
+  }
+  if (reads === 'restock') {
+    const due = state.restock || [];
+    if (!due.length) return 'No repeat buys look due from your recorded shops.';
+    return `${due.length} repeat buy${due.length === 1 ? '' : 's'} look${due.length === 1 ? 's' : ''} due: ${due.slice(0, 3).map((item) => item.name).join(', ')}.`;
   }
   return null;
 };

@@ -8,7 +8,7 @@
  * blank Reminders page is the honest state of a blank diary.
  */
 
-import { DEFAULT_TEXT, kindBy } from '../data/reminders.js';
+import { DEFAULT_TEXT, kindBy, NOTIFICATION_PRESETS } from '../data/reminders.js';
 import { cleanTimes, dayIndex, minutesOf, timeOf } from './reminders.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 
@@ -120,6 +120,14 @@ export const suggestedReminders = (state = {}) => {
   }
 
   return out;
+};
+
+/** Ready-made schedules remain a choice: return only kinds not already set. */
+export const notificationPresets = (reminders = []) => {
+  const configured = new Set(reminders.map((reminder) => reminder.kind));
+  return NOTIFICATION_PRESETS
+    .filter((preset) => !configured.has(preset.kind))
+    .map((preset) => ({ ...preset, label: DEFAULT_TEXT[preset.kind] }));
 };
 
 /* ---------- Calendar export ---------- */

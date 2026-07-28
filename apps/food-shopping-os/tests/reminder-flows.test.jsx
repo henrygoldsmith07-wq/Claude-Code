@@ -63,6 +63,20 @@ describe('reminders start empty', () => {
     expect(within(sheet).getByText(/Your phone already does that job properly/)).toBeTruthy();
     expect(within(sheet).getByText('Nothing switched on to send')).toBeTruthy();
   });
+
+  it('offers all nine notification presets and installs them in one tap', () => {
+    onboard();
+    const sheet = openReminders();
+    expect(within(sheet).getByText('Notification presets')).toBeTruthy();
+    expect(within(sheet).getByText('Expiry')).toBeTruthy();
+    expect(within(sheet).getByText('Sale alerts')).toBeTruthy();
+    expect(within(sheet).getByText('Restock')).toBeTruthy();
+    fireEvent.click(within(sheet).getByText('Set up all 9'));
+    expect(within(sheet).getByText('Check what needs using soon')).toBeTruthy();
+    expect(within(sheet).getByText('Your weekly report')).toBeTruthy();
+    expect(within(sheet).getByText('Repeat buys due')).toBeTruthy();
+    expect(within(sheet).queryByText('Notification presets')).toBeNull();
+  });
 });
 
 describe('making one', () => {

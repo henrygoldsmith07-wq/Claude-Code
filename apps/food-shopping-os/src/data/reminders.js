@@ -21,6 +21,13 @@ export const REMINDER_KINDS = [
   kind('weighIn', 'Weigh-in', '⚖️', 'The same time on the same day, which is what makes it comparable', ['07:30'], 'weight'),
   kind('exercise', 'Exercise', '🏋️', 'On the days you train', ['18:00'], 'training'),
   kind('sleep', 'Sleep', '🌙', 'A wind-down, and a nudge to log the night', ['22:30'], 'sleep'),
+  kind('expiry', 'Expiry', '⏳', 'Food that is nearing its saved expiry date', ['18:00'], 'expiry'),
+  kind('budget', 'Budget', '£', 'Your recorded grocery spend against the limits you set', ['20:00'], 'budget'),
+  kind('weeklyReport', 'Weekly report', '📊', 'A weekly summary with its diary coverage stated', ['19:00'], 'weeklyReport'),
+  kind('dailySummary', 'Daily summary', '🗓️', 'Today’s food, meal plan and shopping list in one line', ['20:30'], 'dailySummary'),
+  kind('pantry', 'Pantry alerts', '🥫', 'Items running low or expiring this week', ['18:00'], 'pantry'),
+  kind('sale', 'Sale alerts', '🏷️', 'Saved price targets checked against recorded shops', ['17:00'], 'sale'),
+  kind('restock', 'Restock', '🔁', 'Repeat buys that your own shop history says are due', ['17:00'], 'restock'),
   kind('custom', 'Something else', '🔔', 'Your words, your times', ['12:00'], null),
 ];
 
@@ -41,6 +48,29 @@ export const MAX_REMINDERS = 24;
 /** How late a reminder still counts as "due now" rather than missed. */
 export const GRACE_MINUTES = 90;
 export const SNOOZE_MINUTES = [10, 30, 60];
+
+const preset = (kind, days, times = kindBy[kind].times) => ({
+  key: `notification-${kind}`,
+  kind,
+  label: null,
+  emoji: kindBy[kind].emoji,
+  times,
+  days,
+  why: kindBy[kind].blurb,
+});
+
+/** Opt-in schedules for the notification centre; none are installed silently. */
+export const NOTIFICATION_PRESETS = [
+  preset('expiry', [0, 1, 2, 3, 4, 5, 6]),
+  preset('grocery', [4]),
+  preset('meal', [0, 1, 2, 3, 4, 5, 6]),
+  preset('budget', [0, 1, 2, 3, 4, 5, 6]),
+  preset('weeklyReport', [6]),
+  preset('dailySummary', [0, 1, 2, 3, 4, 5, 6]),
+  preset('pantry', [2, 5]),
+  preset('sale', [4]),
+  preset('restock', [3]),
+];
 
 /**
  * The honest limits of notifications in a web app with no server.
@@ -68,5 +98,12 @@ export const DEFAULT_TEXT = {
   weighIn: 'Step on the scales',
   exercise: 'Training today',
   sleep: 'Wind down — and log last night',
+  expiry: 'Check what needs using soon',
+  budget: 'Grocery budget check',
+  weeklyReport: 'Your weekly report',
+  dailySummary: 'Today in Forq',
+  pantry: 'Pantry check',
+  sale: 'Price target check',
+  restock: 'Repeat buys due',
   custom: 'Reminder',
 };
