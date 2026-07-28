@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS, GLASS_ML } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
+import { setMyRecipes } from '../data/recipes.js';
 import { buildEntry, copyEntries, dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import { recipeFood, searchFoods } from './foodlog.js';
 import {
@@ -93,6 +94,7 @@ export const EMPTY_STATE = {
   /* kitchen */
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
+  myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids
   cooked: [], // [{recipeId, date}]
   /* food diary */
@@ -135,6 +137,10 @@ export function AppProvider({ children }) {
     document.documentElement.dataset.theme = state.theme;
     document.documentElement.dataset.accent = state.accent;
   }, [state.theme, state.accent]);
+
+  // Your recipes join the book's lookup, so a plan slot or a cook history entry
+  // pointing at one of yours resolves like any other dish.
+  setMyRecipes(state.myRecipes);
 
   const api = useMemo(() => {
     const set = (patch) => setState((s) => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }));
@@ -196,6 +202,18 @@ export function AppProvider({ children }) {
           targets: targetMode === 'auto' ? targetsFor(s) : s.targets,
         })),
       setWeeklyKcal: (kcal) => set({ weeklyKcal: Math.max(0, Number(kcal) || 0) }),
+      /* ---------- Your own recipes ---------- */
+      /** Keep a dish: generated, imported from a link, or sent by someone. */
+      saveRecipe: (recipe) =>
+        set((s) => {
+          const id = s.myRecipes.some((r) => r.id === recipe.id) ? `${recipe.id}-${s.myRecipes.length + 1}` : recipe.id;
+          return { myRecipes: [...s.myRecipes, { ...recipe, id, savedAt: s.day }], xp: s.xp + 8 };
+        }),
+      removeRecipe: (id) =>
+        set((s) => ({
+          myRecipes: s.myRecipes.filter((r) => r.id !== id),
+          favourites: s.favourites.filter((f) => f !== id),
+        })),
       toggleFavourite: (id) =>
         set((s) => ({
           favourites: s.favourites.includes(id)

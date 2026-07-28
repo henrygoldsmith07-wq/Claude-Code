@@ -19,15 +19,21 @@ const sentence = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const round1 = (n) => Math.round(n * 10) / 10;
 
-/** A readable amount: spoons for the small stuff, grams for everything else. */
-const qtyLabel = (p) => {
-  if (p.grams <= 5) return '1 tsp';
-  if (p.grams <= 20 && p.tags.some((t) => ['fat', 'sweet', 'spice', 'sauce', 'aromatic'].includes(t))) return '1 tbsp';
-  return `${p.grams} g`;
+/**
+ * A readable amount: spoons for the small stuff, grams for everything else.
+ * Amounts are for the whole dish, so they scale with how many it serves;
+ * nutrition and cost stay per serving.
+ */
+const qtyLabel = (p, servings = 1) => {
+  if (p.grams <= 5) return servings > 1 ? `${servings} tsp` : '1 tsp';
+  if (p.grams <= 20 && p.tags.some((t) => ['fat', 'sweet', 'spice', 'sauce', 'aromatic'].includes(t))) {
+    return servings > 1 ? `${servings} tbsp` : '1 tbsp';
+  }
+  return `${p.grams * servings} g`;
 };
 
-/** Nutrition, cost and ingredient list for a set of parts (one serving). */
-export const compose = (parts) => {
+/** Nutrition and cost per serving, with ingredients for `servings` of them. */
+export const compose = (parts, servings = 1) => {
   const totals = parts.reduce((acc, p) => {
     const k = p.grams / 100;
     acc.kcal += p.per100.kcal * k;
@@ -46,7 +52,7 @@ export const compose = (parts) => {
     fat: Math.round(totals.fat),
     fibre: round1(totals.fibre),
     costPerServing: Math.max(0.35, Math.round(totals.cost * 100) / 100),
-    ingredients: parts.map((p) => ({ name: p.name, qty: qtyLabel(p) })),
+    ingredients: parts.map((p) => ({ name: p.name, qty: qtyLabel(p, servings) })),
   };
 };
 
@@ -433,7 +439,8 @@ export const PER_MEAL = 200;
 const buildOne = (tpl, combo) => {
   const name = sentence(tpl.name(combo));
   const parts = tpl.parts(combo);
-  const n = compose(parts);
+  const servings = tpl.meal === 'dinner' ? 2 : 1;
+  const n = compose(parts, servings);
   const tags = [...new Set([
     ...tpl.tags,
     ...dietTags(parts),
@@ -453,7 +460,7 @@ const buildOne = (tpl, combo) => {
     time: tpl.time,
     prep: tpl.prep,
     difficulty: tpl.time <= 20 ? 'Easy' : tpl.time <= 40 ? 'Medium' : 'Easy',
-    servings: tpl.meal === 'dinner' ? 2 : 1,
+    servings,
     ...n,
     ...scores(parts, n),
     steps: tpl.steps(combo),

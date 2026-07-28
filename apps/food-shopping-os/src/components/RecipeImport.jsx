@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Check, ClipboardPaste, Link2, ShoppingCart, Sparkles } from 'lucide-react';
+import { BookmarkPlus, Check, ClipboardPaste, Link2, ShoppingCart, Sparkles } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { importRecipeText, importRecipeUrl } from '../lib/foodlog.js';
+import { isVideoLink, recipeFromImport } from '../lib/recipe-tools.js';
 import { buildEntry, mealForTime, timeStamp } from '../lib/nutrition.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
@@ -32,11 +33,14 @@ export default function RecipeImport({ defaultMeal, onDone }) {
   const [meal, setMeal] = useState(defaultMeal || mealForTime());
   const [saved, setSaved] = useState(false);
   const [listed, setListed] = useState(false);
+  const [kept, setKept] = useState(false);
+  const [link, setLink] = useState('');
 
   const run = () => {
     setError('');
     setSaved(false);
     setListed(false);
+    setKept(false);
     const out = mode === 'url' ? importRecipeUrl(url) : importRecipeText(text, app.catalogue);
     if (!out) {
       setError(mode === 'url' ? 'That doesn’t look like a recipe link.' : 'Paste a title and a few ingredient lines.');
@@ -144,6 +148,39 @@ export default function RecipeImport({ defaultMeal, onDone }) {
                   : <Pill tone="faint">not matched</Pill>}
               </div>
             ))}
+          </Card>
+
+          {/* Keep it as a recipe you can cook and plan, not just a food to log */}
+          <Card className="space-y-2.5">
+            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Keep it as a recipe</p>
+            <input
+              value={mode === 'url' ? url : link}
+              onChange={(e) => (mode === 'url' ? setUrl(e.target.value) : setLink(e.target.value))}
+              placeholder="Link to the original (optional)"
+              aria-label="Link to the original"
+              className="w-full rounded-xl border px-3 py-2.5 text-[13px] font-semibold outline-none"
+              style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+            />
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {isVideoLink(mode === 'url' ? url : link)
+                ? 'Recognised as a video — the recipe page will offer to open it.'
+                : 'Only the method you pasted is kept; nothing is written for you.'}
+            </p>
+            <button
+              onClick={() => {
+                app.saveRecipe(recipeFromImport(result, { text, url: mode === 'url' ? url : link }));
+                setKept(true);
+              }}
+              disabled={kept}
+              className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-60"
+              style={kept
+                ? { borderColor: 'var(--good)', color: 'var(--good)' }
+                : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {kept ? <><Check size={14} strokeWidth={3} /> In My recipes</> : <><BookmarkPlus size={14} /> Save to My recipes</>}
+              </span>
+            </button>
           </Card>
 
           <MealPicker value={meal} onChange={setMeal} />

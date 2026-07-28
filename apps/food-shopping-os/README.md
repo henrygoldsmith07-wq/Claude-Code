@@ -82,13 +82,37 @@ tables and UK reference intakes.
   with amount, cost, location, shop and use-by date; flag things as running low
   and push them to the list in one tap. Expiry status, pantry value and
   "use soon" are computed from your dates
-- **Recipes** — 600+ dishes, 200 for each meal of the day, composed from real
-  ingredients so every dish's calories, macros, cost and health/protein/planet
-  scores are computed from what is in it. No star ratings: nothing here has
-  been cooked by anyone but you. Discovery masonry with 20 filters and search,
-  favourites, recipe pages with **your** pantry checked against the ingredient
-  list ("you have 5 of 7"), plus a full-screen **cooking mode** with step
-  timers that logs the meal and awards XP on finish
+- **Recipes** — a library of 600+ dishes, 200 for each meal of the day,
+  composed from real ingredients so every dish's calories, macros, cost and
+  health/protein/planet scores are computed from what is in it. No star
+  ratings: nothing here has been cooked by anyone but you. Browse the library,
+  **your own recipes** or **favourites**; filter by **diet**, by **cooking
+  time**, by **ingredients in and out** ("with rice, without mushrooms") and by
+  how much shopping you'd have to do — including *can make now*, read against
+  your actual pantry
+- **Recipe generator** — invents a dish from what you have, composed from the
+  same ingredient tables as the book, so its nutrition and cost are computed
+  rather than written. It says which parts of the dish your kitchen covered and
+  what it assumed you'd buy; the same request always produces the same dish
+- **Portion scaling** — cook for any number: amounts scale (and keep the
+  recipe's own formatting), per-serving nutrition doesn't, and the total cost
+  follows. Unreadable amounts like "to serve" are left exactly as written
+- **Ingredient substitutions** — swaps that name a real replacement, so
+  applying one **recomputes** calories, macros, cost and diet tags from the new
+  ingredient, renames the dish so the filters can't be fooled, and says plainly
+  when a swap is outside the ingredient tables. One tap makes a dish vegan,
+  dairy-free, gluten-free or nut-free where the swaps exist
+- **Nutritional breakdown** — every nutrient in a serving: the dish's own
+  macros, where its calories come from, and micronutrients estimated from the
+  food catalogue, with how much of the ingredient list that estimate recognised
+- **Cooking mode** — full screen, one step at a time, with timers that survive
+  navigating back and forth, plus a **hands-free walkthrough** that plays the
+  method itself. There is no stock video in this app and none is invented; a
+  recipe you imported from a video keeps its link and offers it as what it is
+- **Community recipes** — sharing without a server: a recipe becomes a code you
+  send someone, and theirs reads it back, credited to whoever sent it. Imported
+  and shared dishes join your library and can be planned and cooked like any
+  other
 - **Profile** — nutrition dashboard, weekly calories from your diary, spending
   from your recorded shops, the cuisines you actually cook, achievements that
   are all earned (never seeded), theme and accent, plus export and reset for
@@ -118,6 +142,8 @@ src/
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)
   lib/mealplan.js      # calendar maths, moves/swaps, batch groups, leftovers,
                        # and the shopping list for any range
+  lib/recipe-tools.js  # scaling, substitutions, full nutrition, search, sharing
+  lib/recipe-ai.js     # invents a dish from your pantry, on-device
   lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import

@@ -304,10 +304,22 @@ export const RECIPES = [
   ...generateRecipes(),
 ];
 
-export const byId = (id) => RECIPES.find((r) => r.id === id);
+/**
+ * Recipes you added — generated, imported or shared with you — live in app
+ * state, not here. The store hands them over so that anything looking a recipe
+ * up by id (the plan, the shopping list, the cook history) finds yours too.
+ */
+let mine = [];
+export const setMyRecipes = (list = []) => { mine = list; };
+export const myRecipes = () => mine;
+
+/** Every dish available right now: the book plus whatever you added. */
+export const allRecipes = () => (mine.length ? [...RECIPES, ...mine] : RECIPES);
+
+export const byId = (id) => RECIPES.find((r) => r.id === id) || mine.find((r) => r.id === id);
 
 /** Recipes for one slot of the day. */
-export const forMeal = (meal) => (meal ? RECIPES.filter((r) => r.meal === meal) : RECIPES);
+export const forMeal = (meal) => (meal ? allRecipes().filter((r) => r.meal === meal) : allRecipes());
 
 export const DISCOVER_FILTERS = [
   'Breakfast', 'Lunch', 'Dinner', 'Quick', 'Budget', 'High protein', 'Healthy',
@@ -333,8 +345,8 @@ const FILTER_MAP = {
   'Comfort food': (r) => r.tags.includes('comfort'),
 };
 
-export const filterRecipes = (filter) => {
-  if (!filter) return RECIPES;
+export const filterRecipes = (filter, pool = allRecipes()) => {
+  if (!filter) return pool;
   const fn = FILTER_MAP[filter] || ((r) => r.cuisine === filter);
-  return RECIPES.filter(fn);
+  return pool.filter(fn);
 };
