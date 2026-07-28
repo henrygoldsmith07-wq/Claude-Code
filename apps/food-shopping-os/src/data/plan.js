@@ -32,4 +32,8 @@ export const BADGES = [
   { id: 'green-plate', emoji: '🌱', name: 'Green Plate', desc: 'Cook ten plant-based meals', metric: 'plantMeals', of: 10 },
   { id: 'budget-boss', emoji: '💷', name: 'Budget Boss', desc: 'Four weeks inside your budget', metric: 'budgetWeeks', of: 4 },
   { id: 'master-chef', emoji: '👨‍🍳', name: 'Master Chef', desc: 'Reach level 20', metric: 'level', of: 20 },
+  { id: 'planner', emoji: '📅', name: 'Planner', desc: 'Plan twenty-one meals', metric: 'plannedMeals', of: 21 },
+  { id: 'own-book', emoji: '📖', name: 'Own Book', desc: 'Five recipes of your own', metric: 'ownRecipes', of: 5 },
+  { id: 'century', emoji: '💯', name: 'Century', desc: 'Log a hundred foods', metric: 'entriesLogged', of: 100 },
+  { id: 'regular', emoji: '🧾', name: 'Regular', desc: 'Record ten shops', metric: 'shops', of: 10 },
 ];

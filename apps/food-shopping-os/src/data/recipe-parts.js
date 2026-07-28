@@ -162,3 +162,18 @@ export const EXTRAS = {
   milk: part('Semi-skimmed milk', 150, [50, 3.6, 4.8, 1.8, 0], 0.09, ['dairy']),
   oatmilk: part('Oat milk', 150, [46, 0.3, 6.7, 1.5, 0.8], 0.13, ['plant-milk']),
 };
+
+/**
+ * Every component in one place, so anything that needs the nutrition behind an
+ * ingredient name — substitutions, the recipe generator — can look it up.
+ */
+export const ALL_PARTS = [
+  ...Object.values(PROTEINS), ...Object.values(BASES), ...Object.values(VEG),
+  ...Object.values(SAUCES), ...Object.values(BREAKFAST_BASES), ...Object.values(FRUITS),
+  ...Object.values(TOPPINGS), ...Object.values(EXTRAS),
+].filter((p, i, all) => all.findIndex((q) => q.name === p.name) === i);
+
+export const partByName = (name) => {
+  const key = String(name || '').trim().toLowerCase();
+  return ALL_PARTS.find((p) => p.name.toLowerCase() === key) || null;
+};

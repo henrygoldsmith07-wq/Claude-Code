@@ -1,47 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  CalendarPlus, Check, ChefHat, ChevronLeft, Flame, Heart, Mic, PartyPopper, Package,
-  Pause, Play, ShoppingCart, Slice, Snowflake, Timer as TimerIcon, X,
+  CalendarPlus, ChartColumn, Check, ChefHat, ChevronLeft, ExternalLink, Flame, Heart,
+  Package, ShoppingCart, Slice, Timer as TimerIcon, Trash2,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, cx } from '../lib/utils.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { addDays } from '../lib/kitchen.js';
-import { Card, Ring, Pill, FoodArt, Meter, Chip, Stepper } from './ui.jsx';
+import { applySwap, makeItFit, scaleRecipe } from '../lib/recipe-tools.js';
+import { Card, Ring, Pill, FoodArt, Chip } from './ui.jsx';
 import { Glyph } from './icons.jsx';
+import CookMode from './CookMode.jsx';
+import {
+  ConflictPills, NutritionBreakdown, ServingsControl, SharePanel, SwapPanel, VariantBanner,
+} from './RecipeTools.jsx';
 
 const fmtTime = (mins) => (mins >= 60 ? `${Math.round(mins / 60)} h` : `${mins} min`);
-
-/**
- * Live countdown for a cooking step. State lives in the parent (keyed by step)
- * so navigating between steps never resets a running timer.
- */
-function Timer({ mins, state, onChange }) {
-  const left = state ? state.left : mins * 60;
-  const running = state?.running ?? false;
-  const mm = String(Math.floor(left / 60)).padStart(2, '0');
-  const ss = String(left % 60).padStart(2, '0');
-  const done = left === 0;
-  return (
-    <button
-      onClick={() =>
-        done
-          ? onChange({ left: mins * 60, running: false })
-          : onChange({ left, running: !running })}
-      className="press mt-4 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-[15px] font-extrabold tabular-nums"
-      style={done
-        ? { background: 'color-mix(in srgb, var(--good) 15%, transparent)', color: 'var(--good)' }
-        : running
-          ? { background: 'var(--accent)', color: 'var(--on-accent)' }
-          : { background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}
-    >
-      {done
-        ? <><Check size={16} strokeWidth={3} /> Done — reset</>
-        : <>{running ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />} {mm}:{ss}</>}
-    </button>
-  );
-}
 
 /** The next fortnight, so scheduling a dish never needs a date picker. */
 const scheduleDays = (today) =>
@@ -52,50 +27,37 @@ const scheduleDays = (today) =>
     return { date, label };
   });
 
-export default function RecipeDetail({ recipe, onClose }) {
+export default function RecipeDetail({ recipe: original, onClose }) {
   const app = useApp();
   const [cooking, setCooking] = useState(false);
-  const [step, setStep] = useState(0);
-  const [finished, setFinished] = useState(false);
-  const [timers, setTimers] = useState({}); // step index -> {left, running}
   const [addedMissing, setAddedMissing] = useState(false);
   const [scheduling, setScheduling] = useState(false);
-  const [when, setWhen] = useState({ date: app.day, slot: recipe.meal || 'dinner' });
+  const [when, setWhen] = useState({ date: app.day, slot: original.meal || 'dinner' });
   const [scheduled, setScheduled] = useState(null);
-  const [spare, setSpare] = useState(Math.max(0, (recipe.servings || 1) - 1));
+  const [variant, setVariant] = useState(null); // the dish after your swaps
+  const [servings, setServings] = useState(original.servings || 1);
+  const [showNutrition, setShowNutrition] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const base = variant || original;
+  const recipe = useMemo(() => scaleRecipe(base, servings), [base, servings]);
   const fav = app.favourites.includes(recipe.id);
+  const isMine = app.myRecipes.some((r) => r.id === original.id);
+
   // What you have is read from your actual pantry, by name.
   const pantryNames = app.pantry.map((p) => p.name.toLowerCase());
   const has = (ing) => pantryNames.some((n) => n.includes(ing.name.toLowerCase()) || ing.name.toLowerCase().includes(n));
   const missing = recipe.ingredients.filter((i) => !has(i));
   const havePantry = recipe.ingredients.length - missing.length;
 
-  // One interval drives every step timer, so timers survive step navigation.
-  useEffect(() => {
-    if (!cooking) return;
-    const id = setInterval(() => {
-      setTimers((t) => {
-        let changed = false;
-        const next = { ...t };
-        for (const k of Object.keys(next)) {
-          const v = next[k];
-          if (v.running && v.left > 0) {
-            const left = v.left - 1;
-            next[k] = { left, running: left > 0 };
-            if (left === 0) navigator.vibrate?.(300);
-            changed = true;
-          }
-        }
-        return changed ? next : t;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [cooking]);
+  const swap = ({ diet, ingredient, option }) => {
+    setVariant((v) => (diet ? makeItFit(v || original, diet) : applySwap(v || original, ingredient, option)));
+    setSaved(false);
+  };
 
-  const finish = () => {
-    app.completeRecipe(recipe);
-    setFinished(true);
+  const save = () => {
+    app.saveRecipe({ ...base, servings: original.servings || 1 });
+    setSaved(true);
   };
 
   const addMissing = () => {
@@ -103,102 +65,10 @@ export default function RecipeDetail({ recipe, onClose }) {
     setAddedMissing(true);
   };
 
-  /* ---------- Cooking mode (fullscreen step-by-step) ---------- */
   if (cooking) {
-    const s = recipe.steps[step];
-    const last = step === recipe.steps.length - 1;
-    return (
-      <div className="flex h-full flex-col" style={{ background: 'var(--bg)' }}>
-        <div className="px-5 pt-5 pb-3 shrink-0">
-          <div className="flex items-center justify-between">
-            <button onClick={() => setCooking(false)} className="press inline-flex items-center gap-1 text-[13px] font-extrabold" style={{ color: 'var(--muted)' }}>
-              <X size={14} strokeWidth={2.6} /> Exit
-            </button>
-            <p className="text-[13px] font-extrabold truncate px-2">{recipe.name}</p>
-            <span className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--faint)' }}>{step + 1}/{recipe.steps.length}</span>
-          </div>
-          <div className="mt-3"><Meter value={step + 1} max={recipe.steps.length} /></div>
-        </div>
-
-        {finished ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-8 text-center rise">
-            <PartyPopper size={56} strokeWidth={1.4} style={{ color: 'var(--accent)' }} />
-            <h2 className="mt-4 text-[24px] font-extrabold">Chef’s kiss!</h2>
-            <p className="mt-2 text-[14.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-              +60 XP · cooking streak: {app.streak} days.<br />Nutrition logged to today’s totals.
-            </p>
-
-            {/* Portions you cooked but didn't eat are worth tracking */}
-            {recipe.servings > 1 && (
-              <Card className="mt-6 w-full !p-3 text-left">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] font-bold inline-flex items-center gap-1.5">
-                    <Snowflake size={14} style={{ color: 'var(--muted)' }} /> Portions left over
-                  </p>
-                  <Stepper value={spare} onChange={setSpare} min={0} max={recipe.servings - 1} />
-                </div>
-                <button
-                  onClick={() => { app.saveLeftovers(recipe, spare); setSaved(true); }}
-                  disabled={saved || spare === 0}
-                  className="press mt-2.5 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-50"
-                  style={saved ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                >
-                  {saved
-                    ? `${spare} portion${spare === 1 ? '' : 's'} in the fridge`
-                    : `Save ${spare} portion${spare === 1 ? '' : 's'} for later`}
-                </button>
-              </Card>
-            )}
-
-            <button onClick={onClose} className="press mt-6 rounded-2xl px-8 py-3.5 font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
-              Back to my day
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-1 flex-col justify-center px-7 rise" key={step}>
-              <p className="text-[13px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>Step {step + 1}</p>
-              <p className="mt-3 text-[24px] font-bold leading-snug">{s.text}</p>
-              {s.timerMins && s.timerMins <= 90 && (
-                <div>
-                  <Timer
-                    mins={s.timerMins}
-                    state={timers[step]}
-                    onChange={(v) => setTimers((t) => ({ ...t, [step]: v }))}
-                  />
-                </div>
-              )}
-              <p className="mt-6 text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
-                <Mic size={13} /> Voice mode: say “next” or swipe — hands-free.
-              </p>
-            </div>
-            <div className="flex gap-3 px-5 pb-8 shrink-0">
-              <button
-                onClick={() => setStep(Math.max(0, step - 1))}
-                disabled={step === 0}
-                className="press flex-1 rounded-2xl py-4 font-extrabold disabled:opacity-35"
-                style={{ background: 'var(--card)', border: '1px solid var(--line)' }}
-              >
-                ‹ Back
-              </button>
-              <button
-                onClick={() => (last ? finish() : setStep(step + 1))}
-                className="press flex-[2] rounded-2xl py-4 font-extrabold"
-                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {last && <Check size={16} strokeWidth={3} />}
-                  {last ? 'Finish & log meal' : 'Next ›'}
-                </span>
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    );
+    return <CookMode recipe={recipe} onExit={() => setCooking(false)} onClose={onClose} />;
   }
 
-  /* ---------- Recipe page ---------- */
   return (
     <div className="pb-8">
       <div className="relative">
@@ -230,17 +100,61 @@ export default function RecipeDetail({ recipe, onClose }) {
           <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
             {recipe.cuisine} · serves {recipe.servings} · {gbp(recipe.costPerServing, { always: true })}/serving
           </p>
+          {recipe.sharedBy && (
+            <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Shared with you by {recipe.sharedBy}.
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <Pill tone="muted"><ChefHat size={12} /> {recipe.difficulty}</Pill>
             <Pill tone="muted"><Slice size={12} /> Prep {fmtTime(recipe.prep)}</Pill>
             <Pill tone="muted"><Flame size={12} /> Cook {fmtTime(recipe.time)}</Pill>
             {recipe.tags.slice(0, 2).map((t) => <Pill key={t} tone="faint">{t}</Pill>)}
           </div>
+          <div className="mt-2"><ConflictPills recipe={recipe} diets={app.planDiets} /></div>
+          {recipe.video && (
+            <a
+              href={recipe.video}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="press mt-3 inline-flex items-center gap-1.5 text-[13px] font-extrabold"
+              style={{ color: 'var(--accent)' }}
+            >
+              <ExternalLink size={14} /> Watch the original
+            </a>
+          )}
+          {isMine && (
+            <button
+              onClick={() => { app.removeRecipe(original.id); onClose(); }}
+              className="press mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-extrabold"
+              style={{ color: 'var(--muted)' }}
+            >
+              <Trash2 size={13} /> Remove from my recipes
+            </button>
+          )}
         </Card>
 
-        {/* Nutrition rings */}
+        {(variant || recipe.generated || recipe.shared) && (
+          <VariantBanner
+            recipe={variant || recipe}
+            onReset={variant ? () => { setVariant(null); setSaved(false); } : null}
+            onSave={save}
+            saved={saved || (!variant && isMine)}
+          />
+        )}
+
+        {/* Nutrition per serving, with the full breakdown a tap away */}
         <Card className="rise rise-1">
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Per serving</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Per serving</p>
+            <button
+              onClick={() => setShowNutrition((v) => !v)}
+              className="press text-[12.5px] font-extrabold inline-flex items-center gap-1.5"
+              style={{ color: 'var(--accent)' }}
+            >
+              <ChartColumn size={13} /> {showNutrition ? 'Hide breakdown' : 'Full breakdown'}
+            </button>
+          </div>
           <div className="flex justify-between">
             <Ring value={recipe.kcal} max={800} size={68} color="var(--series-2)" label={recipe.kcal} sub="kcal" />
             <Ring value={recipe.protein} max={50} size={68} color="var(--series-1)" label={`${recipe.protein}g`} sub="protein" />
@@ -261,11 +175,22 @@ export default function RecipeDetail({ recipe, onClose }) {
               </div>
             ))}
           </div>
+          {showNutrition && (
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--line)' }}>
+              <NutritionBreakdown recipe={recipe} />
+            </div>
+          )}
         </Card>
 
-        {/* Ingredients with pantry availability */}
+        {/* Ingredients: scaled to how many you're cooking for, checked against your pantry */}
         <Card className="rise rise-2">
-          <div className="flex items-center justify-between mb-3">
+          <ServingsControl
+            servings={servings}
+            base={original.servings || 1}
+            onChange={setServings}
+            costPerServing={recipe.costPerServing}
+          />
+          <div className="my-3 flex items-center justify-between">
             <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ingredients</p>
             <Pill tone={havePantry === recipe.ingredients.length ? 'good' : 'accent'}>
               <Package size={12} /> You have {havePantry} of {recipe.ingredients.length}
@@ -302,6 +227,8 @@ export default function RecipeDetail({ recipe, onClose }) {
           )}
         </Card>
 
+        <SwapPanel recipe={base} onSwap={swap} />
+
         {/* Put it in the plan on a chosen day */}
         <Card className="rise rise-2">
           <button
@@ -314,9 +241,7 @@ export default function RecipeDetail({ recipe, onClose }) {
             </span>
           </button>
           {scheduled && !scheduling && (
-            <p className="mt-2 text-[13px] font-semibold" style={{ color: 'var(--good)' }}>
-              Planned for {scheduled}.
-            </p>
+            <p className="mt-2 text-[13px] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
           )}
           {scheduling && (
             <div className="mt-3 space-y-3">
@@ -336,7 +261,9 @@ export default function RecipeDetail({ recipe, onClose }) {
               </div>
               <button
                 onClick={() => {
-                  app.setPlanSlot(when.date, when.slot, recipe.id);
+                  // A variant has to exist in your recipes before a plan can point at it.
+                  if (variant && !saved) { app.saveRecipe({ ...base, servings: original.servings || 1 }); setSaved(true); }
+                  app.setPlanSlot(when.date, when.slot, base.id);
                   setScheduled(`${when.slot} on ${new Date(`${when.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`);
                   setScheduling(false);
                 }}
@@ -351,7 +278,9 @@ export default function RecipeDetail({ recipe, onClose }) {
 
         {/* Steps preview */}
         <Card className="rise rise-3">
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Method · {recipe.steps.length} steps</p>
+          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>
+            Method · {recipe.steps.length} steps
+          </p>
           <ol className="space-y-2.5">
             {recipe.steps.map((s, i) => (
               <li key={i} className="flex gap-3 text-[13.5px]">
@@ -371,8 +300,10 @@ export default function RecipeDetail({ recipe, onClose }) {
           </ol>
         </Card>
 
+        <SharePanel recipe={recipe} />
+
         <button
-          onClick={() => { setCooking(true); setStep(0); setFinished(false); setTimers({}); }}
+          onClick={() => setCooking(true)}
           className="press w-full rounded-2xl py-4 text-[16px] font-extrabold rise rise-3"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'var(--shadow-lg)' }}
         >

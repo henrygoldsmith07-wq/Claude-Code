@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Activity, Banknote, Flame, NotebookPen, RotateCcw, Download, Target, Users } from 'lucide-react';
-import { useApp, levelFromXp, xpIntoLevel, XP_PER_LEVEL, STORAGE_KEY } from '../lib/store.jsx';
+import {
+  Activity, Banknote, Dumbbell, Flame, HeartPulse, Lock, NotebookPen, RotateCcw, Download,
+  Target, Trophy, Users,
+} from 'lucide-react';
+import { useApp, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { formatAmount } from '../data/nutrients.js';
 import { nutrientRows, snackSummary, timingInsight } from '../lib/nutrition.js';
@@ -9,8 +12,15 @@ import { gbp } from '../lib/utils.js';
 import NutritionPanel from './NutritionPanel.jsx';
 import GoalsPanel from './GoalsPanel.jsx';
 import FamilyPanel from './FamilyPanel.jsx';
+import QuestsPanel from './QuestsPanel.jsx';
+import HealthPanel from './HealthPanel.jsx';
+import ExercisePanel from './ExercisePanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
+
+import { ACCENT_UNLOCKS } from '../data/quests.js';
+
+const UNLOCK_COLOURS = { sage: '#6b7f6a', clay: '#8c5a44', ink: '#2f3640' };
 
 const ACCENTS = [
   ['mono', 'var(--ink)'],
@@ -25,6 +35,9 @@ export default function ProfileTab() {
   const [nutritionOpen, setNutritionOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [familyOpen, setFamilyOpen] = useState(false);
+  const [questsOpen, setQuestsOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [exerciseOpen, setExerciseOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -73,9 +86,9 @@ export default function ProfileTab() {
           <div className="flex-1">
             <h1 className="text-[22px] font-extrabold tracking-tight">{app.name}</h1>
             <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
-              Level {levelFromXp(app.xp)} · {app.xp.toLocaleString()} XP
+              Level {app.level.level} · {app.level.title} · {app.xp.toLocaleString()} XP
             </p>
-            <div className="mt-1.5"><Meter value={xpIntoLevel(app.xp)} max={XP_PER_LEVEL} height={5} /></div>
+            <div className="mt-1.5"><Meter value={app.level.into} max={app.level.into + app.level.need} height={5} /></div>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2.5 rise rise-1">
@@ -138,6 +151,30 @@ export default function ProfileTab() {
             <Users size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
           </div>
         </Card>
+      </Section>
+
+      {/* Health and training */}
+      <Section title="Health & training" className="rise rise-1">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Card onClick={() => setHealthOpen(true)}>
+            <HeartPulse size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Health</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.body_.readings.weight
+                ? `${app.body_.readings.weight.value} kg${app.body_.bmi ? ` · BMI ${app.body_.bmi.value}` : ''}`
+                : 'Weight, vitals, sleep, cycle'}
+            </p>
+          </Card>
+          <Card onClick={() => setExerciseOpen(true)}>
+            <Dumbbell size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Exercise</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.training.sessions
+                ? `${app.training.sessions} session${app.training.sessions === 1 ? '' : 's'} · ${app.training.minutes} min`
+                : 'Log a workout or import one'}
+            </p>
+          </Card>
+        </div>
       </Section>
 
       {/* Nutrition today */}
@@ -253,25 +290,35 @@ export default function ProfileTab() {
         </Section>
       )}
 
-      {/* Achievements — all earned, never seeded */}
+      {/* Progress: level, streaks, goals, challenges, badges */}
       <Section title="Achievements" className="rise rise-3">
-        <div className="grid grid-cols-2 gap-3">
-          {badges.map((b) => (
-            <Card key={b.id} className={b.earned ? '' : 'opacity-75'}>
-              <div className="flex items-center gap-2">
-                <Glyph e={b.emoji} size={22} style={{ color: b.earned ? 'var(--ink)' : 'var(--faint)' }} />
-                {b.earned && <Pill tone="good">Earned</Pill>}
-              </div>
-              <p className="mt-1.5 font-bold text-[13.5px]">{b.name}</p>
-              <p className="text-[11.5px] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>{b.desc}</p>
-              {!b.earned && (
-                <div className="mt-2">
-                  <Meter value={b.progress} max={b.of} height={4} />
-                  <p className="mt-1 text-[10.5px] font-bold" style={{ color: 'var(--faint)' }}>{b.progress}/{b.of}</p>
-                </div>
-              )}
+        <Card onClick={() => setQuestsOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[15px] truncate">
+                Level {app.level.level} · {app.level.title}
+              </p>
+              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.xp.toLocaleString()} XP · {badges.filter((b) => b.earned).length} of {badges.length} badges ·
+                {' '}{app.game.daily.filter((g) => g.done).length}/{app.game.daily.length} goals today
+              </p>
+            </div>
+            <Trophy size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+          <div className="mt-3"><Meter value={app.level.into} max={app.level.into + app.level.need} /></div>
+        </Card>
+        <div className="mt-3 grid grid-cols-4 gap-2.5">
+          {badges.filter((b) => b.earned).slice(0, 4).map((b) => (
+            <Card key={b.id} className="!p-3 text-center">
+              <Glyph e={b.emoji} size={20} style={{ color: 'var(--ink)' }} />
+              <p className="mt-1 text-[10.5px] font-bold leading-tight">{b.name}</p>
             </Card>
           ))}
+          {badges.filter((b) => b.earned).length === 0 && (
+            <p className="col-span-4 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              No badges yet — every one is earned from what you actually do.
+            </p>
+          )}
         </div>
       </Section>
 
@@ -287,7 +334,7 @@ export default function ProfileTab() {
           </div>
           <div>
             <p className="font-bold text-[14px] mb-2">Accent colour</p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {ACCENTS.map(([id, hex]) => (
                 <button
                   key={id}
@@ -297,7 +344,29 @@ export default function ProfileTab() {
                   style={{ background: hex, borderColor: app.accent === id ? 'var(--ink)' : 'transparent' }}
                 />
               ))}
+              {ACCENT_UNLOCKS.map(({ id, level }) => {
+                const open = app.game.accents.includes(id);
+                return (
+                  <button
+                    key={id}
+                    onClick={() => open && app.setAccent(id)}
+                    aria-label={open ? id : `${id} — unlocks at level ${level}`}
+                    disabled={!open}
+                    className="press relative h-9 w-9 rounded-full border-4 flex items-center justify-center"
+                    style={{
+                      background: UNLOCK_COLOURS[id],
+                      borderColor: app.accent === id ? 'var(--ink)' : 'transparent',
+                      opacity: open ? 1 : 0.35,
+                    }}
+                  >
+                    {!open && <Lock size={12} color="#fff" />}
+                  </button>
+                );
+              })}
             </div>
+            <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Three more arrive at levels 4, 8 and 12. The five you started with never go away.
+            </p>
           </div>
         </Card>
       </Section>
@@ -339,6 +408,15 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={familyOpen} onClose={() => setFamilyOpen(false)} title="Family">
         <FamilyPanel />
+      </Sheet>
+      <Sheet open={questsOpen} onClose={() => setQuestsOpen(false)} title="Progress">
+        <QuestsPanel />
+      </Sheet>
+      <Sheet open={healthOpen} onClose={() => setHealthOpen(false)} title="Health">
+        <HealthPanel />
+      </Sheet>
+      <Sheet open={exerciseOpen} onClose={() => setExerciseOpen(false)} title="Exercise">
+        <ExercisePanel />
       </Sheet>
     </div>
   );

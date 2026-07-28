@@ -2,6 +2,11 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS, GLASS_ML } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
+import { setMyRecipes } from '../data/recipes.js';
+import {
+  aisleFor, basketProjection, mergeItems, rememberAisle, restockSuggestions, routeFromTicks,
+  wasteSummary,
+} from './shopping.js';
 import { buildEntry, copyEntries, dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import { recipeFood, searchFoods } from './foodlog.js';
 import {
@@ -13,99 +18,23 @@ import {
 import {
   applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, leftoverItems, leftoverPortions, moveMeal,
 } from './mealplan.js';
+import { progressSummary } from './progress.js';
+import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
+import { activityAdjustment, weekSummary } from './exercise.js';
+import { healthActions } from './health-actions.js';
 
-export const STORAGE_KEY = 'forq-state-v2';
+export { PHOTO_LIMIT } from './health-actions.js';
+
+import {
+  ACCENT_IDS, emojiFor, EMPTY_STATE, recentFoodsFrom, rolloverDay, STORAGE_KEY, todayStamp, uid,
+} from './state.js';
+
+export {
+  EMPTY_STATE, foodFromEntry, levelFromXp, recentFoodsFrom, rolloverDay, STORAGE_KEY,
+  todayStamp, XP_PER_LEVEL, xpIntoLevel,
+} from './state.js';
+
 const KEY = STORAGE_KEY;
-
-/* ---------- Pure helpers (exported for tests) ---------- */
-export const XP_PER_LEVEL = 160;
-export const levelFromXp = (xp) => levelFrom(xp, XP_PER_LEVEL);
-export const xpIntoLevel = (xp) => Math.max(0, xp) % XP_PER_LEVEL;
-
-export const todayStamp = dayStamp;
-
-/**
- * New calendar day → zero the trackers that only mean anything today. The
- * diary, pantry, list and history are all keyed by date, so they carry over
- * untouched and a new day simply starts empty.
- */
-export const rolloverDay = (state, today = todayStamp()) =>
-  state.day === today ? state : { ...state, day: today, water: 0, waterExtraMl: 0 };
-
-/** A logged entry, re-read as a catalogue food (recents survive edits). */
-export const foodFromEntry = (e) => ({
-  id: e.foodId,
-  name: e.name,
-  brand: e.brand,
-  emoji: e.emoji,
-  unit: e.unit || 'g',
-  per100: e.per100,
-  source: 'recent',
-  tags: [],
-  servings: [{ label: e.servingLabel || `${e.grams} ${e.unit || 'g'}`, grams: e.grams }],
-});
-
-/** Most recently logged foods, newest first, one row per food. */
-export const recentFoodsFrom = (log = {}, catalogue = CATALOGUE, limit = 24) => {
-  const days = Object.keys(log).sort().reverse();
-  const seen = new Map();
-  for (const day of days) {
-    for (const e of [...(log[day] || [])].reverse()) {
-      if (!e.foodId || seen.has(e.foodId)) continue;
-      const food = catalogue.find((f) => f.id === e.foodId) || (e.per100 ? foodFromEntry(e) : null);
-      if (food) seen.set(e.foodId, food);
-      if (seen.size >= limit) return [...seen.values()];
-    }
-  }
-  return [...seen.values()];
-};
-
-const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey'];
-
-const uid = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-/** An emoji for a typed-in item, borrowed from the food catalogue when it matches. */
-const emojiFor = (name) => searchFoods(name, CATALOGUE, 1)[0]?.emoji || '🍽️';
-
-/**
- * A brand new kitchen: nothing pre-filled, nothing pretended. Every number in
- * the app grows from what the user logs, buys, cooks and plans.
- */
-export const EMPTY_STATE = {
-  onboarded: false,
-  theme: 'light',
-  accent: 'mono',
-  name: '',
-  day: todayStamp(),
-  /* goals — what you're aiming at, and how you want to eat */
-  goal: 'maintain',
-  diets: [], // dietary pattern ids: keto, vegan, gluten-free…
-  body: { sex: 'unspecified', age: null, heightCm: null, weightKg: null, activity: 'light' },
-  maintenanceKcal: 0, // typed in when body stats aren't given
-  targetMode: 'auto', // 'auto' follows the goal; 'custom' is yours to set
-  weeklyKcal: 0, // 0 = seven times the daily target
-  /* budget & shopping */
-  weeklyBudget: 0,
-  household: 1,
-  members: [], // who you cook for: {id, name, portions, diets}
-  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked}
-  shops: [], // recorded trips {id,date,store,total,items[]}
-  /* kitchen */
-  pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
-  plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
-  favourites: [], // recipe ids
-  cooked: [], // [{recipeId, date}]
-  /* food diary */
-  log: {}, // { 'YYYY-MM-DD': entry[] }
-  favouriteFoods: [],
-  customFoods: [],
-  mealTemplates: [],
-  targets: DEFAULT_TARGETS,
-  water: 0,
-  waterExtraMl: 0,
-  /* progress */
-  xp: 0,
-};
 
 const load = () => {
   try {
@@ -136,6 +65,10 @@ export function AppProvider({ children }) {
     document.documentElement.dataset.accent = state.accent;
   }, [state.theme, state.accent]);
 
+  // Your recipes join the book's lookup, so a plan slot or a cook history entry
+  // pointing at one of yours resolves like any other dish.
+  setMyRecipes(state.myRecipes);
+
   const api = useMemo(() => {
     const set = (patch) => setState((s) => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }));
 
@@ -145,7 +78,6 @@ export function AppProvider({ children }) {
         if (!entries.length) return {};
         return {
           log: { ...s.log, [day]: [...(s.log[day] || []), ...entries] },
-          xp: s.xp + 4 * entries.length,
         };
       });
 
@@ -196,6 +128,18 @@ export function AppProvider({ children }) {
           targets: targetMode === 'auto' ? targetsFor(s) : s.targets,
         })),
       setWeeklyKcal: (kcal) => set({ weeklyKcal: Math.max(0, Number(kcal) || 0) }),
+      /* ---------- Your own recipes ---------- */
+      /** Keep a dish: generated, imported from a link, or sent by someone. */
+      saveRecipe: (recipe) =>
+        set((s) => {
+          const id = s.myRecipes.some((r) => r.id === recipe.id) ? `${recipe.id}-${s.myRecipes.length + 1}` : recipe.id;
+          return { myRecipes: [...s.myRecipes, { ...recipe, id, savedAt: s.day }] };
+        }),
+      removeRecipe: (id) =>
+        set((s) => ({
+          myRecipes: s.myRecipes.filter((r) => r.id !== id),
+          favourites: s.favourites.filter((f) => f !== id),
+        })),
       toggleFavourite: (id) =>
         set((s) => ({
           favourites: s.favourites.includes(id)
@@ -225,25 +169,41 @@ export function AppProvider({ children }) {
       addToList: (items) =>
         set((s) => {
           const have = new Set(s.shoppingList.map((i) => i.name.toLowerCase()));
-          const fresh = (Array.isArray(items) ? items : [items])
+          const fresh = mergeItems(Array.isArray(items) ? items : [items])
             .filter((i) => i.name && !have.has(i.name.toLowerCase()))
             .map((i) => ({
               id: i.id || uid('s'),
               checked: false,
               price: Number(i.price) || 0,
               qty: i.qty || '',
-              aisle: i.aisle || guessAisle(i.name),
               emoji: i.emoji || emojiFor(i.name),
               ...i,
+              // What you filed it under last time wins over the name guess.
+              aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
+                ? (i.aisle || guessAisle(i.name))
+                : aisleFor(i.name, s.aisleMemory),
             }));
           return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
+        }),
+      /** Moving an item to another aisle teaches the list where it lives. */
+      setItemAisle: (id, aisle) =>
+        set((s) => {
+          const item = s.shoppingList.find((i) => i.id === id);
+          if (!item) return {};
+          return {
+            shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, aisle } : i)),
+            aisleMemory: rememberAisle(s.aisleMemory, item.name, aisle),
+          };
         }),
       updateListItem: (id, patch) =>
         set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
       removeListItem: (id) => set((s) => ({ shoppingList: s.shoppingList.filter((i) => i.id !== id) })),
+      /** When you tick it matters: the order becomes this shop's route. */
       toggleChecked: (id) =>
         set((s) => ({
-          shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)),
+          shoppingList: s.shoppingList.map((i) => (i.id === id
+            ? { ...i, checked: !i.checked, checkedAt: i.checked ? null : Date.now() }
+            : i)),
         })),
       clearChecked: () => set((s) => ({ shoppingList: s.shoppingList.filter((i) => !i.checked) })),
 
@@ -262,10 +222,12 @@ export function AppProvider({ children }) {
             total: Math.round((Number(total) || 0) * 100) / 100,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
+          // The order you ticked things off is this shop's layout, learned.
+          const route = routeFromTicks(bought);
           return {
             shops: [...s.shops, shop],
             shoppingList: s.shoppingList.filter((i) => !i.checked),
-            xp: s.xp + 10,
+            storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
             pantry: toPantry
               ? [...s.pantry, ...bought.map((i) => ({
                   id: uid('p'),
@@ -281,6 +243,39 @@ export function AppProvider({ children }) {
                   addedAt: s.day,
                 }))]
               : s.pantry,
+          };
+        }),
+
+      /* ---------- Offers you were given ---------- */
+      /** Offers are yours: typed in from a voucher, an email or a shelf edge. */
+      addOffer: (offer) =>
+        set((s) => {
+          const label = String(offer.label || '').trim();
+          const match = String(offer.match || '').trim();
+          if (label.length < 2 || !match) return {};
+          return {
+            offers: [...s.offers, {
+              id: uid('o'),
+              label,
+              match,
+              kind: ['money', 'percent', 'multibuy'].includes(offer.kind) ? offer.kind : 'money',
+              value: Math.max(0, Number(offer.value) || 0),
+              store: String(offer.store || '').trim(),
+              addedAt: s.day,
+            }],
+          };
+        }),
+      removeOffer: (id) => set((s) => ({ offers: s.offers.filter((o) => o.id !== id) })),
+
+      /* ---------- Waste ---------- */
+      /** Binning something records what it cost, so the waste figure is real. */
+      binPantryItem: (id) =>
+        set((s) => {
+          const item = s.pantry.find((p) => p.id === id);
+          if (!item) return {};
+          return {
+            pantry: s.pantry.filter((p) => p.id !== id),
+            waste: [...s.waste, { name: item.name, cost: Number(item.cost) || 0, date: s.day }],
           };
         }),
 
@@ -339,6 +334,9 @@ export function AppProvider({ children }) {
             .filter((p) => p.cat !== LEFTOVER_CAT || (Number(p.portions) || 0) > 0),
         })),
 
+      /* ---------- Health and exercise (see health-actions.js) ---------- */
+      ...healthActions(set),
+
       /* ---------- Food diary ---------- */
       logEntries: addEntries,
       logEntry: (entry, date) => addEntries([entry], date),
@@ -360,7 +358,7 @@ export function AppProvider({ children }) {
           if (!source.length) return {};
           const day = toDate || s.day;
           const copied = copyEntries(source, { meal: toMeal || fromMeal });
-          return { log: { ...s.log, [day]: [...(s.log[day] || []), ...copied] }, xp: s.xp + 6 };
+          return { log: { ...s.log, [day]: [...(s.log[day] || []), ...copied] } };
         }),
       saveTemplate: (name, meal, entries) =>
         set((s) => ({
@@ -381,7 +379,7 @@ export function AppProvider({ children }) {
             time: new Date().toTimeString().slice(0, 5),
             source: 'template',
           }));
-          return { log: { ...s.log, [s.day]: [...(s.log[s.day] || []), ...copied] }, xp: s.xp + 6 };
+          return { log: { ...s.log, [s.day]: [...(s.log[s.day] || []), ...copied] } };
         }),
       addCustomFood: (food) => set((s) => ({ customFoods: [...s.customFoods, food] })),
       removeCustomFood: (id) => set((s) => ({ customFoods: s.customFoods.filter((f) => f.id !== id) })),
@@ -401,7 +399,6 @@ export function AppProvider({ children }) {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
-            xp: s.xp + 60,
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
             pantry: leftovers > 0
               ? [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
@@ -418,6 +415,7 @@ export function AppProvider({ children }) {
     const totals = dayTotals(entries);
     const glasses = state.water + state.waterExtraMl / GLASS_ML;
     const cookedDays = state.cooked.map((c) => c.date);
+    const progress = progressSummary(state, state.day);
     return {
       catalogue,
       entries,
@@ -452,13 +450,33 @@ export function AppProvider({ children }) {
       /* leftovers */
       leftovers: leftoverItems(state.pantry),
       leftoverPortions: leftoverPortions(state.pantry),
+      /* health and training, read back the same way as everything else */
+      body_: bodySummary(state, state.day),
+      vitalsSummary: vitalSummary(state.vitals),
+      sleepSummary: sleepSummary(state.sleep, { today: state.day }),
+      stressSummary: stressSummary(state.stress, { today: state.day }),
+      cycle: cycleSummary(state.cycles, state.day),
+      training: weekSummary(state.workouts, state.day),
+      activity: activityAdjustment(state, state.day),
+      /* the game layer — all counted from the records above, never banked */
+      game: progress,
+      xp: progress.xp,
+      level: progress.level,
       /* kitchen */
       streak: streakFrom(cookedDays, state.day),
       cookedToday: cookedDays.includes(state.day),
       cookedIds: state.cooked.map((c) => c.recipeId),
       pantryValue: pantryValue(state.pantry),
       spentThisWeek: spentInWeek(state.shops, state.day),
-      stats: kitchenStats(state, state.day),
+      /* shopping */
+      basket: basketProjection(state.shoppingList, {
+        budget: state.weeklyBudget,
+        spent: spentInWeek(state.shops, state.day),
+        offers: state.offers,
+      }),
+      restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
+      wasted: wasteSummary(state.waste),
+      stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
     };
   }, [state]);
 

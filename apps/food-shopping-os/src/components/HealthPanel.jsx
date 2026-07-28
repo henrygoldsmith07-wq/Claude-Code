@@ -1,0 +1,329 @@
+import { useMemo, useState } from 'react';
+import {
+  Activity, Camera, Droplet, HeartPulse, Info, Moon, Ruler, Trash2, TrendingDown, TrendingUp,
+} from 'lucide-react';
+import { useApp, PHOTO_LIMIT } from '../lib/store.jsx';
+import { prettyDate } from '../lib/utils.js';
+import { MEASUREMENTS, MEDICAL_DISCLAIMER, VITALS } from '../data/health.js';
+import { series } from '../lib/health.js';
+import { shrinkImage, storageEstimate } from '../lib/photos.js';
+import { Card, Chip, Pill, Sparkline } from './ui.jsx';
+import { NumberField } from './FoodDetail.jsx';
+import { CycleView, RestView } from './WellbeingPanel.jsx';
+
+const VIEWS = [
+  ['body', 'Body', Ruler],
+  ['vitals', 'Vitals', HeartPulse],
+  ['rest', 'Rest', Moon],
+  ['cycle', 'Cycle', Droplet],
+];
+
+const Disclaimer = () => (
+  <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+    <Info size={13} className="mt-0.5 shrink-0" /> {MEDICAL_DISCLAIMER}
+  </p>
+);
+
+/* ---------- Body ---------- */
+
+function BodyView() {
+  const app = useApp();
+  const summary = app.body_;
+  const [key, setKey] = useState('weight');
+  const [value, setValue] = useState('');
+  const points = useMemo(() => series(app.measurements, key).map((m) => m.value), [app.measurements, key]);
+  const field = MEASUREMENTS.find((m) => m.key === key);
+
+  const save = () => {
+    if (!Number(value)) return;
+    app.addMeasurement({ key, value: Number(value) });
+    setValue('');
+  };
+
+  return (
+    <>
+      <Card>
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Take a reading</p>
+        <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+          {MEASUREMENTS.map((m) => (
+            <Chip key={m.key} active={key === m.key} onClick={() => { setKey(m.key); setValue(''); }}>{m.label}</Chip>
+          ))}
+        </div>
+        <div className="mt-3 flex items-end gap-2.5">
+          <div className="flex-1">
+            <NumberField label={`${field.label} (${field.unit})`} value={value} onChange={setValue} suffix={field.unit} step={field.step} />
+          </div>
+          <button
+            onClick={save}
+            disabled={!Number(value)}
+            className="press rounded-2xl px-5 py-3 text-[14px] font-extrabold disabled:opacity-40"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          >
+            Log
+          </button>
+        </div>
+        {points.length > 1 && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <Sparkline points={points} />
+            <p className="text-[12px] font-semibold text-right" style={{ color: 'var(--muted)' }}>
+              {points.length} readings
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {summary.count === 0 ? (
+        <Card className="text-center py-8">
+          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            Nothing measured yet. Everything on this page is a reading you took — there are no
+            estimates and no imports standing in for one.
+          </p>
+        </Card>
+      ) : (
+        <>
+          {summary.bmi && (
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>BMI</p>
+                  <p className="text-[22px] font-extrabold">{summary.bmi.value}</p>
+                </div>
+                <Pill tone={summary.bmi.tone}>{summary.bmi.label}</Pill>
+              </div>
+              <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Computed from your latest weight and your height — never stored, so it can’t go stale.
+              </p>
+            </Card>
+          )}
+          {summary.needsHeight && (
+            <Card className="!p-3">
+              <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Add your height under Goals and this page can work out your BMI.
+              </p>
+            </Card>
+          )}
+
+          {MEASUREMENTS.map((m) => {
+            const reading = summary.readings[m.key];
+            const trend = summary.trends[m.key];
+            if (!reading) return null;
+            return (
+              <Card key={m.key} className="!p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{m.label}</p>
+                    <p className="text-[18px] font-extrabold">{reading.value} {m.unit}</p>
+                    <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate(reading.date)}</p>
+                  </div>
+                  {trend ? (
+                    <div className="text-right">
+                      <p className="text-[13px] font-bold inline-flex items-center gap-1">
+                        {trend.direction === 'up' ? <TrendingUp size={14} /> : trend.direction === 'down' ? <TrendingDown size={14} /> : null}
+                        {trend.change > 0 ? '+' : ''}{trend.change} {m.unit}
+                      </p>
+                      <p className="text-[11px] font-semibold" style={{ color: 'var(--faint)' }}>
+                        over {trend.spanDays} days · {trend.readings} readings
+                      </p>
+                    </div>
+                  ) : (
+                    <Pill tone="faint">one reading</Pill>
+                  )}
+                </div>
+                {m.key === 'waist' && summary.waist && (
+                  <p className="mt-1.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {summary.waist.label ? `${summary.waist.label} — ${summary.waist.note}` : summary.waist.note}
+                  </p>
+                )}
+              </Card>
+            );
+          })}
+        </>
+      )}
+
+      <PhotosCard />
+      <Disclaimer />
+    </>
+  );
+}
+
+/* ---------- Progress photos ---------- */
+
+function PhotosCard() {
+  const app = useApp();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const storage = storageEstimate(app.photos);
+
+  const pick = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setFailed(false);
+    const thumb = await shrinkImage(file);
+    setBusy(false);
+    if (!thumb) {
+      setFailed(true);
+      return;
+    }
+    app.addPhoto({ thumb });
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Progress photos</p>
+        <Pill tone="muted">{app.photos.length}/{PHOTO_LIMIT}</Pill>
+      </div>
+      <label className="press mt-2 flex items-center justify-center gap-2 rounded-2xl border py-3 text-[13.5px] font-extrabold cursor-pointer"
+        style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+        <Camera size={15} /> {busy ? 'Shrinking…' : 'Add a photo'}
+        <input type="file" accept="image/*" onChange={pick} className="hidden" aria-label="Add a progress photo" />
+      </label>
+      {failed && (
+        <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--danger)' }}>
+          That image couldn’t be read here. Nothing was saved.
+        </p>
+      )}
+      {app.photos.length > 0 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar">
+          {[...app.photos].reverse().map((p) => (
+            <div key={p.id} className="relative shrink-0">
+              <img src={p.thumb} alt={`Progress photo from ${p.date}`} className="h-28 w-20 rounded-xl object-cover" />
+              <button
+                onClick={() => app.removePhoto(p.id)}
+                aria-label={`Delete photo from ${p.date}`}
+                className="press absolute top-1 right-1 rounded-full p-1"
+                style={{ background: 'var(--card)', color: 'var(--muted)' }}
+              >
+                <Trash2 size={11} />
+              </button>
+              <p className="mt-1 text-[10.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+                {prettyDate(p.date)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        Photos stay on this device — there is nowhere else for them to go. They’re shrunk to
+        thumbnails and capped at {PHOTO_LIMIT}, because browser storage is small
+        {storage.kb > 0 && ` (yours are using about ${storage.kb} KB)`}.
+      </p>
+    </Card>
+  );
+}
+
+/* ---------- Vitals ---------- */
+
+function VitalsView() {
+  const app = useApp();
+  const [key, setKey] = useState('bp');
+  const [values, setValues] = useState({});
+  const vital = VITALS.find((v) => v.key === key);
+  const summary = app.vitalsSummary[key];
+
+  const save = () => {
+    if (!vital.fields.every((f) => Number(values[f.key]) > 0)) return;
+    app.addVital({ key, values: Object.fromEntries(vital.fields.map((f) => [f.key, Number(values[f.key])])) });
+    setValues({});
+  };
+
+  return (
+    <>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {VITALS.map((v) => (
+          <Chip key={v.key} active={key === v.key} onClick={() => { setKey(v.key); setValues({}); }}>{v.label}</Chip>
+        ))}
+      </div>
+
+      <Card className="space-y-3">
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          New {vital.label.toLowerCase()} reading ({vital.unit})
+        </p>
+        <div className="grid grid-cols-2 gap-2.5">
+          {vital.fields.map((f) => (
+            <NumberField
+              key={f.key}
+              label={f.label}
+              value={values[f.key] ?? ''}
+              onChange={(v) => setValues((prev) => ({ ...prev, [f.key]: v }))}
+              step={f.step}
+            />
+          ))}
+        </div>
+        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{vital.note}</p>
+        <button
+          onClick={save}
+          disabled={!vital.fields.every((f) => Number(values[f.key]) > 0)}
+          className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+        >
+          Save reading
+        </button>
+      </Card>
+
+      {summary.count === 0 ? (
+        <Card className="text-center py-8">
+          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            No {vital.label.toLowerCase()} readings yet.
+          </p>
+        </Card>
+      ) : (
+        <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+          {app.vitals.filter((v) => v.key === key).slice().reverse().slice(0, 8).map((reading) => {
+            const category = vital.categorise(reading.values || {});
+            return (
+              <div key={reading.id} className="flex items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <p className="font-bold text-[14px]">
+                    {vital.fields.map((f) => reading.values[f.key]).filter((n) => n !== undefined).join(' / ')} {vital.unit}
+                  </p>
+                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate(reading.date)}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {category && <Pill tone={category.tone}>{category.label}</Pill>}
+                  <button onClick={() => app.removeVital(reading.id)} aria-label="Delete reading" className="press p-1" style={{ color: 'var(--faint)' }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
+      {summary.latest?.category?.advice && (
+        <Card className="!p-3" style={{ borderColor: 'var(--warn)' }}>
+          <p className="text-[13px] font-semibold">{summary.latest.category.advice}</p>
+        </Card>
+      )}
+      <Disclaimer />
+    </>
+  );
+}
+
+/**
+ * Health tracking: measurements, vitals, rest and cycle.
+ *
+ * Every figure on this page is a reading you took or arithmetic over readings
+ * you took. Where a published reference range exists it is used to label a
+ * number, always with the reminder that a label is not a diagnosis.
+ */
+export default function HealthPanel() {
+  const [view, setView] = useState('body');
+  return (
+    <div className="px-5 pb-10 space-y-4">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {VIEWS.map(([key, label, Icon]) => (
+          <Chip key={key} active={view === key} onClick={() => setView(key)}>
+            <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
+          </Chip>
+        ))}
+      </div>
+      {view === 'body' && <BodyView />}
+      {view === 'vitals' && <VitalsView />}
+      {view === 'rest' && <RestView />}
+      {view === 'cycle' && <CycleView />}
+    </div>
+  );
+}

@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Camera, Check, Package, Plus, ShoppingCart, Trash2, TriangleAlert, X } from 'lucide-react';
+import {
+  Camera, Check, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
+} from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, expiryStatus } from '../lib/utils.js';
 import { daysUntil, expiringSoon, pantryValue } from '../lib/kitchen.js';
+import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
 import { Card, Chip, Pill, Section } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import PantryCapture from './PantryCapture.jsx';
+import BarcodeAdd from './BarcodeAdd.jsx';
 
 const BLANK = {
   name: '', qty: '', cost: '', location: DEFAULT_LOCATION,
@@ -106,6 +110,7 @@ export default function PantryView() {
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const items = useMemo(() => {
     let list = app.pantry;
@@ -122,6 +127,11 @@ export default function PantryView() {
   }, [app.pantry, app.day, location, query]);
 
   const expiring = expiringSoon(app.pantry, 3, app.day);
+  const buckets = useMemo(
+    () => expiryBuckets(app.pantry, (stamp) => daysUntil(stamp, app.day)),
+    [app.pantry, app.day],
+  );
+  const undated = app.pantry.filter((p) => !p.expiry).length;
   const empty = app.pantry.length === 0;
 
   return (
@@ -141,7 +151,7 @@ export default function PantryView() {
 
       <div className="grid grid-cols-2 gap-2.5">
         <button
-          onClick={() => { setAdding((v) => !v); setCapturing(false); }}
+          onClick={() => { setAdding((v) => !v); setCapturing(false); setScanning(false); }}
           className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
           style={adding ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
@@ -150,7 +160,7 @@ export default function PantryView() {
           </span>
         </button>
         <button
-          onClick={() => { setCapturing((v) => !v); setAdding(false); }}
+          onClick={() => { setCapturing((v) => !v); setAdding(false); setScanning(false); }}
           className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
           style={capturing ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
@@ -159,8 +169,73 @@ export default function PantryView() {
           </span>
         </button>
       </div>
+      <button
+        onClick={() => { setScanning((v) => !v); setAdding(false); setCapturing(false); }}
+        className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+        style={scanning ? { borderColor: 'var(--line)' } : { borderColor: 'var(--line)', color: 'var(--muted)' }}
+      >
+        <span className="inline-flex items-center gap-1.5">
+          {scanning ? <><X size={14} /> Close</> : <><ScanLine size={14} /> Scan a barcode in</>}
+        </span>
+      </button>
       {adding && <AddItemForm />}
       {capturing && <PantryCapture onDone={() => setCapturing(false)} />}
+      {scanning && (
+        <Card>
+          <BarcodeAdd
+            action="Put away"
+            onPick={(item) => app.addPantryItem({ ...item, cat: DEFAULT_CATEGORY, location: DEFAULT_LOCATION, qty: '', cost: 0, expiry: null })}
+          />
+        </Card>
+      )}
+
+      {/* What's going off, and what waste has cost you */}
+      {(buckets.length > 0 || app.wasted.count > 0) && (
+        <Section title="Use-by dates" className="!px-0">
+          {buckets.map((bucket) => (
+            <div key={bucket.id} className="mb-2.5">
+              <p className="mb-1.5 text-[12px] font-bold uppercase tracking-wide" style={{ color: bucket.id === 'gone' ? 'var(--danger)' : 'var(--faint)' }}>
+                {bucket.label} · {bucket.items.length}
+              </p>
+              <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+                {bucket.items.map(({ item, days }) => (
+                  <div key={item.id} className="flex items-center gap-3 p-3">
+                    <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[14px] truncate">{item.name}</p>
+                      <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                        {expiryStatus(days).label}{item.cost > 0 ? ` · ${gbp(item.cost, { always: true })}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => app.binPantryItem(item.id)}
+                      className="press rounded-full border px-3 py-1.5 text-[12px] font-extrabold shrink-0"
+                      style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+                    >
+                      Threw it away
+                    </button>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          ))}
+          {undated > 0 && (
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {undated} item{undated === 1 ? ' has' : 's have'} no use-by date, so {undated === 1 ? 'it isn’t' : 'they aren’t'} tracked here.
+            </p>
+          )}
+          {app.wasted.count > 0 && (
+            <Card className="mt-2 flex items-center gap-3 !p-3">
+              <TrendingDown size={16} style={{ color: 'var(--muted)' }} />
+              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                You’ve binned {app.wasted.count} item{app.wasted.count === 1 ? '' : 's'}, worth{' '}
+                {gbp(app.wasted.cost, { always: true })} at what you paid
+                {app.wasted.worst?.cost > 0 && ` — the priciest was ${app.wasted.worst.name}`}.
+              </p>
+            </Card>
+          )}
+        </Section>
+      )}
 
       {empty ? (
         <Card className="text-center py-10">

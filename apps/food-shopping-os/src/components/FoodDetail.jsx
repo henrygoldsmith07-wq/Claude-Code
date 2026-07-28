@@ -4,6 +4,7 @@ import { useApp } from '../lib/store.jsx';
 import { cx } from '../lib/utils.js';
 import { NUTRIENTS, formatAmount } from '../data/nutrients.js';
 import { MEALS, entryMacros, mealForTime, scale, servingOptions, timeStamp } from '../lib/nutrition.js';
+import { healthierSwaps } from '../lib/advice.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
@@ -56,6 +57,40 @@ export const NumberField = ({ label, value, onChange, suffix, step = 1, min = 0 
 );
 
 /* ---------- Portion editor ---------- */
+
+/**
+ * Foods that do the same job with a better profile — drawn from the catalogue
+ * by comparing per-calorie protein, fibre, saturated fat and sugar. Nothing is
+ * offered unless a real number beats the one you're looking at.
+ */
+function HealthierSwaps({ food }) {
+  const app = useApp();
+  const swaps = useMemo(
+    () => healthierSwaps(food, { catalogue: app.catalogue, diets: app.planDiets }),
+    [food, app.catalogue, app.planDiets],
+  );
+  if (!swaps.length) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+        Similar, but better on paper
+      </p>
+      <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+        {swaps.map(({ food: alt, why, kcalDiff }) => (
+          <div key={alt.id} className="flex items-center gap-3 p-2.5">
+            <Glyph e={alt.emoji} size={18} style={{ color: 'var(--muted)' }} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-bold truncate">{alt.name}</p>
+              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {why}{kcalDiff ? ` · ${kcalDiff > 0 ? '+' : ''}${kcalDiff} kcal per 100 g` : ''}
+              </p>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
 
 /**
  * One screen for "how much of this, and when". Handles both a new log and an
@@ -226,6 +261,8 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
           </div>
         </>
       )}
+
+      <HealthierSwaps food={food} />
 
       {/* Meal + timing */}
       <div className="space-y-2.5">

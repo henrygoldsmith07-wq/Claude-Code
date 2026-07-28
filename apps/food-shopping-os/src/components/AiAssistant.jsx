@@ -4,15 +4,20 @@ import { RECIPES } from '../data/recipes.js';
 import { useApp } from '../lib/store.jsx';
 import { expiringSoon, recipesUsing } from '../lib/kitchen.js';
 import { filterByDiet, goalSummary, recipeAllowed } from '../lib/goals.js';
+import { habitAnalysis, predictProgress } from '../lib/coach.js';
+import { healthierSwaps, personalTips, restaurantPicks } from '../lib/advice.js';
 import { gbp } from '../lib/utils.js';
 
 const QUICK_PROMPTS = [
   'What should I cook tonight?',
   'What needs using up?',
   'How am I doing on protein?',
+  'Am I on track?',
+  'What are my habits?',
+  'Give me a tip',
+  'Eating out — what fits?',
   'What can I afford this week?',
   'Something in 15 minutes',
-  'What have I been eating?',
   'What are my targets?',
 ];
 
@@ -40,6 +45,49 @@ export function answer(text, app) {
     return `${expiring.length} thing${expiring.length === 1 ? '' : 's'} need using: ${expiring.slice(0, 4).map((p) => p.name).join(', ')}.${
       uses.length ? `\n\n${uses.map((u) => recipeLine(u.recipe)).join('\n')}` : ''
     }`;
+  }
+
+  if (/on track|progress|predict|losing|gaining|weight|pace/.test(t)) {
+    const p = predictProgress(app, { today: app.day });
+    if (!p.ready) return `${p.reason}\n\nI'd rather say nothing than guess at your progress.`;
+    const line = `At ${p.avgKcal.toLocaleString()} kcal a day against ${p.maintenance.toLocaleString()} maintenance, you're ${p.direction} at about ${Math.abs(p.perWeekKg)} kg a week (${p.days} logged days).`;
+    const target = p.toTarget?.weeks
+      ? `\n\n${Math.abs(p.toTarget.gapKg)} kg to your target — roughly ${p.toTarget.weeks} weeks at this rate.`
+      : '';
+    return `${line}${target}\n\n${p.onCourse ? 'That matches what your goal asks for.' : 'That isn’t the direction your goal asks for.'}\n\n${p.caveat}`;
+  }
+
+  if (/habit|pattern|when do i|snack|weekend|window/.test(t)) {
+    const h = habitAnalysis(app.log, { today: app.day });
+    if (!h.days) return 'Your diary is empty, so I can’t see any patterns yet. Log a few days and ask again.';
+    const bits = [`Across ${h.days} logged day${h.days === 1 ? '' : 's'}: ${h.perDay} entries a day, ${h.snackShare}% of calories from snacks.`];
+    if (h.window) bits.push(`You eat between ${h.window.first} and ${h.window.last} — a ${h.window.hours} hour window.`);
+    if (h.weekendGap !== null && Math.abs(h.weekendGap) >= 200) {
+      bits.push(`Weekends run ${h.weekendGap > 0 ? 'heavier' : 'lighter'} by about ${Math.abs(h.weekendGap)} kcal a day.`);
+    }
+    if (h.skipped.length) bits.push(`${h.skipped[0].label} is logged on only ${h.skipped[0].days} of those days.`);
+    return bits.join('\n\n');
+  }
+
+  if (/tip|advice|suggest|what should i change|improve/.test(t)) {
+    const tips = personalTips(app, { today: app.day });
+    return tips.map((tip) => `• ${tip.title}\n  ${tip.detail}\n  (${tip.evidence})`).join('\n\n');
+  }
+
+  if (/eat(ing)? out|restaurant|takeaway|takeout|nando|greggs|pret/.test(t)) {
+    const out = restaurantPicks(app, { today: app.day });
+    if (!out.picks.length) return 'Nothing on the menus this app ships fits what’s left of today. It only knows a handful of chains — it has no idea what’s near you.';
+    return `${out.kcalLeft ? `${out.kcalLeft.toLocaleString()} kcal left today. ` : ''}Best protein per calorie from the menus I have:\n\n${
+      out.picks.map((p) => `• ${p.food.name} (${p.food.chain}) — ${p.kcal} kcal, ${p.protein}g protein`).join('\n')
+    }\n\nThese are the only chains I ship figures for.`;
+  }
+
+  if (/swap|instead of|healthier|alternative/.test(t)) {
+    const recent = app.recentFoods?.[0];
+    if (!recent) return 'Log something first and I’ll suggest swaps for it — I only compare foods I can see in your diary.';
+    const swaps = healthierSwaps(recent, { catalogue: app.catalogue, diets: app.planDiets });
+    if (!swaps.length) return `Nothing in the catalogue clearly beats ${recent.name} on protein, fibre, saturated fat or sugar.`;
+    return `Instead of ${recent.name}:\n\n${swaps.map((s) => `• ${s.food.name} — ${s.why}`).join('\n')}`;
   }
 
   if (/goal|target|aiming/.test(t)) {
@@ -93,7 +141,7 @@ export function answer(text, app) {
     if (uses.length) return `Based on what's in your kitchen:\n\n${uses.map((u) => recipeLine(u.recipe)).join('\n')}`;
   }
 
-  return 'I answer from your own data — pantry, diary, budget and plan. Ask what needs using up, how today’s macros look, what you can afford, or what to cook tonight.';
+  return 'I answer from your own data — pantry, diary, budget and plan. Ask what needs using up, how today’s macros look, whether you’re on track, what your habits are, what fits if you’re eating out, or what to cook tonight.';
 }
 
 export default function AiAssistant() {

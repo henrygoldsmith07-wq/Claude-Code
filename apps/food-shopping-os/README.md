@@ -72,30 +72,131 @@ tables and UK reference intakes.
   and the patterns pool, so a plan for the table fits all of it
 - **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
   day and meal, up to a fortnight out
-- **Shop** — your list (add anything, prices you type in, aisle guessed from
-  the name), shopping mode with a running total against your budget, and
-  **finish shop** to record what you actually paid. Recorded shops drive your
-  spending history, budget streaks and a **price history** of what each item
-  costs you over time and where it was cheapest
-- **Pantry** — your inventory: add items by hand or **from a photo of a shelf**
-  (correct what it read, pick where it goes, and it lands as ordinary items),
-  with amount, cost, location, shop and use-by date; flag things as running low
-  and push them to the list in one tap. Expiry status, pantry value and
-  "use soon" are computed from your dates
-- **Recipes** — 600+ dishes, 200 for each meal of the day, composed from real
-  ingredients so every dish's calories, macros, cost and health/protein/planet
-  scores are computed from what is in it. No star ratings: nothing here has
-  been cooked by anyone but you. Discovery masonry with 20 filters and search,
-  favourites, recipe pages with **your** pantry checked against the ingredient
-  list ("you have 5 of 7"), plus a full-screen **cooking mode** with step
-  timers that logs the meal and awards XP on finish
+- **Shop** — a list that learns. Items **group by aisle**, guessed from the
+  name until you move one, after which that's where it lives. Pick the shop
+  you're walking round and the aisles come in **the order you actually walked
+  it last time**, learned from the order you ticked things off. Add by hand or
+  by **barcode**; an unknown code is reported as unknown rather than filled in
+- **Price comparison** — what this same list would cost at every shop you've
+  recorded, from the prices you typed in, always saying how many items each
+  shop can actually price. Plus what you're about to overpay for, and a price
+  history per item with where it was cheapest
+- **Budget tracking** — the basket against your week: what it comes to, what
+  your offers take off, and what that leaves of the budget after what you've
+  already spent — with unpriced items counted as unknown, never as free
+- **Offers** — no deals feed and no retailer connection, so nothing is ever
+  suggested to you. Enter the offers you have (money off, per cent off, or a
+  multibuy) and they're applied to the list you're holding
+- **Meal-to-shopping** — a week or month of meals becomes one list, with a
+  duplicate ingredient merged into a single line that remembers every meal that
+  wanted it, minus your pantry and minus what leftovers already cover
+- **Store hand-off** — Forq connects to no supermarket, so the list exports as
+  plain text in your aisle order, to paste into whichever app you use
+- **Pantry** — your inventory: add by hand, **from a photo of a shelf**, or by
+  barcode, with amount, cost, location, shop and use-by date; flag things as
+  running low and push them to the list in one tap. **Expiry tracking** buckets
+  everything dated by urgency (past its date · today or tomorrow · three days ·
+  this week), says how many items have no date at all, and binning something
+  records **what the waste cost you** at what you paid. Things you buy again
+  and again but have run out of come back as restock suggestions — read off
+  your own receipts, never a generic "people also buy"
+- **Recipes** — a library of 600+ dishes, 200 for each meal of the day,
+  composed from real ingredients so every dish's calories, macros, cost and
+  health/protein/planet scores are computed from what is in it. No star
+  ratings: nothing here has been cooked by anyone but you. Browse the library,
+  **your own recipes** or **favourites**; filter by **diet**, by **cooking
+  time**, by **ingredients in and out** ("with rice, without mushrooms") and by
+  how much shopping you'd have to do — including *can make now*, read against
+  your actual pantry
+- **Recipe generator** — invents a dish from what you have, composed from the
+  same ingredient tables as the book, so its nutrition and cost are computed
+  rather than written. It says which parts of the dish your kitchen covered and
+  what it assumed you'd buy; the same request always produces the same dish
+- **Portion scaling** — cook for any number: amounts scale (and keep the
+  recipe's own formatting), per-serving nutrition doesn't, and the total cost
+  follows. Unreadable amounts like "to serve" are left exactly as written
+- **Ingredient substitutions** — swaps that name a real replacement, so
+  applying one **recomputes** calories, macros, cost and diet tags from the new
+  ingredient, renames the dish so the filters can't be fooled, and says plainly
+  when a swap is outside the ingredient tables. One tap makes a dish vegan,
+  dairy-free, gluten-free or nut-free where the swaps exist
+- **Nutritional breakdown** — every nutrient in a serving: the dish's own
+  macros, where its calories come from, and micronutrients estimated from the
+  food catalogue, with how much of the ingredient list that estimate recognised
+- **Cooking mode** — full screen, one step at a time, with timers that survive
+  navigating back and forth, plus a **hands-free walkthrough** that plays the
+  method itself. There is no stock video in this app and none is invented; a
+  recipe you imported from a video keeps its link and offers it as what it is
+- **Community recipes** — sharing without a server: a recipe becomes a code you
+  send someone, and theirs reads it back, credited to whoever sent it. Imported
+  and shared dishes join your library and can be planned and cooked like any
+  other
 - **Profile** — nutrition dashboard, weekly calories from your diary, spending
-  from your recorded shops, the cuisines you actually cook, achievements that
-  are all earned (never seeded), theme and accent, plus export and reset for
-  your data
-- **AI food coach** — answers only from your own data: what needs using up,
-  how today's macros look, what you can afford, what to cook tonight. With an
-  empty kitchen it says so rather than inventing a week you didn't have
+  from your recorded shops, the cuisines you actually cook, theme and accent,
+  plus export and reset for your data
+- **Progress** — the game layer, counted rather than banked. **XP** is a
+  reading of what you've done (a cook is worth 60 for as long as it's in your
+  history, and no longer — undo it and the XP goes too), which drives
+  **levels** and their titles. Three **streaks** — diary, cooking and days on
+  target — each with the best you've managed. Five **daily goals**, three
+  **weekly challenges** picked by the week itself so they don't reshuffle, a
+  **seasonal event** for every month of the real calendar, and longer
+  **missions**. Twelve **badges** and dated **achievements** — the things that
+  actually happened, with the day they happened on. **Rewards** are three extra
+  accent colours at levels 4, 8 and 12; the five the app always had stay
+  available from level one, so nothing you use is ever taken away
+- **AI food coach** — a page and a chat, both reading only your own data.
+  **Today** gives the day back to you with **feedback on each meal** (its share
+  of your calories and protein, and at most one suggestion). **Habits** counts
+  what your diary shows: eating window, snack share, which meals reach the
+  diary, weekdays against weekends, what you eat most. **Progress** turns your
+  average intake against your maintenance figure into a **weekly pace** and, if
+  you've set a target weight, how many weeks that is — refusing to run on
+  fewer than five logged days and printing its assumptions. **Ideas** carries
+  **personalised tips** (each with the number behind it), **grocery
+  recommendations** answering the nutrients your week actually came up short
+  on, **macro adjustments** when a target you never hit needs to move rather
+  than you, and **restaurant picks** from the handful of chains the app ships
+  figures for. The **chat** answers the same things in sentences. There is no
+  model and no server here: every claim states how many days it was computed
+  from, and with nothing logged it says so instead of inventing a week
+- **Healthy swaps** — on any food, alternatives from the catalogue that beat it
+  on protein, fibre, saturated fat or sugar per calorie, with the reason
+  attached; a swap is only offered when a real number supports it
+- **Nutrition labels** — this build ships no OCR, so it doesn't pretend to read
+  the picture: you copy the panel in and the *parsing* is real — "of which"
+  lines, kJ/kcal pairs, salt converted to sodium, a per-serving column scaled
+  back to 100 g — with anything it couldn't find listed as missing rather than
+  guessed, and the result saved as one of your foods
+- **Health tracking** — readings you took, read back. **Weight**, **body fat
+  %**, **waist** and **resting heart rate** each keep a dated series with a
+  sparkline and the movement between the first and last reading — reported with
+  the days it spanned, because two readings a day apart are not a trend.
+  **BMI** is computed from your latest weight and your height rather than
+  stored, and asks for a height instead of guessing one. **Waist** is banded
+  against the published thresholds, which are sex-specific, so without a stated
+  sex it shows the number and says why it can't band it. **Blood pressure**,
+  **blood glucose** and **cholesterol** are labelled with the ordinary NHS /
+  Diabetes UK reference ranges, always alongside the reminder that a label is
+  not a diagnosis. **Sleep** and **stress** average only the nights and days you
+  logged, and say how many that is. **Cycle tracking** predicts the next period
+  from the average of *your* logged cycles and nothing else — one logged period
+  gives no prediction, and it says so. **Progress photos** stay on the device
+  (there is nowhere else for them to go), shrunk to thumbnails and capped,
+  because browser storage is a few megabytes for the whole app
+- **Exercise** — **workout logging** across ten kinds of training with an
+  intensity and the extras that belong to each (distance for a run, sets and
+  reps for a gym session). **Calories burned** are the standard MET equation —
+  `kcal ≈ MET × 3.5 × kg ÷ 200 × minutes` — labelled an estimate everywhere it
+  appears, and it returns *nothing* without a weight rather than assuming a
+  body. **Activity adjustment** is off by default: eating an estimate back is a
+  choice, so you make it. **Strength, running, cycling and walking** are types,
+  not integrations. **Apple Health, Google Health Connect and smartwatches**
+  have no browser API a web app can call, and this build ships no fake Connect
+  button; what all of them can do is export a file, so the importer reads that
+  CSV — mapping the column names and activity names those apps actually write,
+  preferring an exported energy figure over its own estimate, deduplicating
+  against what you already have, and counting the rows it couldn't read
 
 ## Run
 
@@ -112,12 +213,28 @@ npm test         # vitest suite
 src/
   App.jsx              # shell: 6-tab bottom nav, overlays, onboarding gate
   index.css            # theme tokens (light/dark + 5 accents), animations
-  lib/store.jsx        # app state (starts empty) + localStorage persistence
+  lib/state.js         # what an install is: empty state + pure state helpers
+  lib/store.jsx        # the provider: actions, derived values, persistence
+  lib/health-actions.js # the store's body/training actions, bounded on the way in
+  lib/shopping.js      # aisles that learn, store routes, price comparison,
+                       # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
   lib/utils.js         # currency/date/expiry helpers
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)
   lib/mealplan.js      # calendar maths, moves/swaps, batch groups, leftovers,
                        # and the shopping list for any range
+  lib/recipe-tools.js  # scaling, substitutions, full nutrition, search, sharing
+  lib/recipe-ai.js     # invents a dish from your pantry, on-device
+  lib/coach.js         # adherence, trends, habits, progress, the day summarised
+  lib/advice.js        # meal feedback, swaps, groceries, targets, tips, eating out
+  lib/label.js         # a real parser for UK/EU nutrition panels
+  lib/health.js        # measurement series and trends, BMI, waist banding,
+                       # vitals, sleep, stress, cycles from your own starts
+  lib/exercise.js      # METs, the burn estimate, the training week, and the
+                       # importer for a health app's CSV export
+  lib/photos.js        # thumbnail sizing and the storage a photo set costs
+  lib/progress.js      # XP, levels, streaks, goals, challenges, missions,
+                       # seasonal events and achievements — all counted
   lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
@@ -126,7 +243,10 @@ src/
                        # (catalogue + barcodes + menus), nutrients
                        # (units/targets), micronutrients (per-100 g table),
                        # goals (body goals + dietary patterns), seasons (the UK
-                       # growing calendar), and taxonomy for aisles/locations
+                       # growing calendar), quests (what earns XP and what the
+                       # goals are), health (published reference ranges),
+                       # workouts (METs per activity and how each health app
+                       # exports), and taxonomy for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
@@ -137,8 +257,14 @@ single source of truth for nutrition; the pantry, shopping list, recorded
 `shops`, `plan` and `cooked` history are the source for everything else. Budget
 headroom is your weekly budget minus the shops you recorded this week; streaks
 count consecutive days you actually cooked; badge progress reads real counters;
-price trends come from prices you typed as you shopped. A new calendar day
-resets only water — everything else is date-keyed and carries over.
+price trends come from prices you typed as you shopped; XP, levels and every
+quest bar are counted from those same records rather than stored, so nothing
+can be earned twice or kept after the thing that earned it is deleted. Body
+readings, vitals, sleep, stress, cycles and workouts are stored as dated
+records and every figure drawn from them — BMI, a trend, a cycle average, the
+training week, the day's burn — is computed on read. A new
+calendar day resets only water — everything else is date-keyed and carries
+over.
 
 Charts use a monochrome ink ramp (every series is directly labeled, so identity
 never depends on colour); status colours (good/warn/danger) are muted and always

@@ -11,7 +11,8 @@ import ProfileTab from './components/ProfileTab.jsx';
 import RecipeDetail from './components/RecipeDetail.jsx';
 import PantryView from './components/PantryView.jsx';
 import AiAssistant from './components/AiAssistant.jsx';
-import { Sheet } from './components/ui.jsx';
+import CoachPanel from './components/CoachPanel.jsx';
+import { Chip, Sheet } from './components/ui.jsx';
 
 const TABS = [
   { id: 'home', label: 'Home', Icon: Home },
@@ -28,6 +29,7 @@ function Shell() {
   const [recipe, setRecipe] = useState(null);
   const [pantryOpen, setPantryOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [coachView, setCoachView] = useState('coach'); // coach · chat
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
@@ -90,7 +92,11 @@ function Shell() {
         <PantryView />
       </Sheet>
       <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="AI food coach">
-        <AiAssistant />
+        <div className="px-5 pb-2 flex gap-2">
+          <Chip active={coachView === 'coach'} onClick={() => setCoachView('coach')}>Coach</Chip>
+          <Chip active={coachView === 'chat'} onClick={() => setCoachView('chat')}>Ask</Chip>
+        </div>
+        {coachView === 'coach' ? <CoachPanel /> : <AiAssistant />}
       </Sheet>
     </div>
   );
