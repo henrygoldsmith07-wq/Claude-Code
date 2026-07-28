@@ -72,16 +72,34 @@ tables and UK reference intakes.
   and the patterns pool, so a plan for the table fits all of it
 - **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
   day and meal, up to a fortnight out
-- **Shop** — your list (add anything, prices you type in, aisle guessed from
-  the name), shopping mode with a running total against your budget, and
-  **finish shop** to record what you actually paid. Recorded shops drive your
-  spending history, budget streaks and a **price history** of what each item
-  costs you over time and where it was cheapest
-- **Pantry** — your inventory: add items by hand or **from a photo of a shelf**
-  (correct what it read, pick where it goes, and it lands as ordinary items),
-  with amount, cost, location, shop and use-by date; flag things as running low
-  and push them to the list in one tap. Expiry status, pantry value and
-  "use soon" are computed from your dates
+- **Shop** — a list that learns. Items **group by aisle**, guessed from the
+  name until you move one, after which that's where it lives. Pick the shop
+  you're walking round and the aisles come in **the order you actually walked
+  it last time**, learned from the order you ticked things off. Add by hand or
+  by **barcode**; an unknown code is reported as unknown rather than filled in
+- **Price comparison** — what this same list would cost at every shop you've
+  recorded, from the prices you typed in, always saying how many items each
+  shop can actually price. Plus what you're about to overpay for, and a price
+  history per item with where it was cheapest
+- **Budget tracking** — the basket against your week: what it comes to, what
+  your offers take off, and what that leaves of the budget after what you've
+  already spent — with unpriced items counted as unknown, never as free
+- **Offers** — no deals feed and no retailer connection, so nothing is ever
+  suggested to you. Enter the offers you have (money off, per cent off, or a
+  multibuy) and they're applied to the list you're holding
+- **Meal-to-shopping** — a week or month of meals becomes one list, with a
+  duplicate ingredient merged into a single line that remembers every meal that
+  wanted it, minus your pantry and minus what leftovers already cover
+- **Store hand-off** — Forq connects to no supermarket, so the list exports as
+  plain text in your aisle order, to paste into whichever app you use
+- **Pantry** — your inventory: add by hand, **from a photo of a shelf**, or by
+  barcode, with amount, cost, location, shop and use-by date; flag things as
+  running low and push them to the list in one tap. **Expiry tracking** buckets
+  everything dated by urgency (past its date · today or tomorrow · three days ·
+  this week), says how many items have no date at all, and binning something
+  records **what the waste cost you** at what you paid. Things you buy again
+  and again but have run out of come back as restock suggestions — read off
+  your own receipts, never a generic "people also buy"
 - **Recipes** — a library of 600+ dishes, 200 for each meal of the day,
   composed from real ingredients so every dish's calories, macros, cost and
   health/protein/planet scores are computed from what is in it. No star
@@ -136,7 +154,10 @@ npm test         # vitest suite
 src/
   App.jsx              # shell: 6-tab bottom nav, overlays, onboarding gate
   index.css            # theme tokens (light/dark + 5 accents), animations
-  lib/store.jsx        # app state (starts empty) + localStorage persistence
+  lib/state.js         # what an install is: empty state + pure state helpers
+  lib/store.jsx        # the provider: actions, derived values, persistence
+  lib/shopping.js      # aisles that learn, store routes, price comparison,
+                       # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
   lib/utils.js         # currency/date/expiry helpers
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)

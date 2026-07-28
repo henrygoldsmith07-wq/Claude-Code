@@ -3,6 +3,10 @@ import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS, GLASS_ML } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
 import { setMyRecipes } from '../data/recipes.js';
+import {
+  aisleFor, basketProjection, mergeItems, rememberAisle, restockSuggestions, routeFromTicks,
+  wasteSummary,
+} from './shopping.js';
 import { buildEntry, copyEntries, dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import { recipeFood, searchFoods } from './foodlog.js';
 import {
@@ -15,99 +19,16 @@ import {
   applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, leftoverItems, leftoverPortions, moveMeal,
 } from './mealplan.js';
 
-export const STORAGE_KEY = 'forq-state-v2';
+import {
+  ACCENT_IDS, emojiFor, EMPTY_STATE, recentFoodsFrom, rolloverDay, STORAGE_KEY, todayStamp, uid,
+} from './state.js';
+
+export {
+  EMPTY_STATE, foodFromEntry, levelFromXp, recentFoodsFrom, rolloverDay, STORAGE_KEY,
+  todayStamp, XP_PER_LEVEL, xpIntoLevel,
+} from './state.js';
+
 const KEY = STORAGE_KEY;
-
-/* ---------- Pure helpers (exported for tests) ---------- */
-export const XP_PER_LEVEL = 160;
-export const levelFromXp = (xp) => levelFrom(xp, XP_PER_LEVEL);
-export const xpIntoLevel = (xp) => Math.max(0, xp) % XP_PER_LEVEL;
-
-export const todayStamp = dayStamp;
-
-/**
- * New calendar day → zero the trackers that only mean anything today. The
- * diary, pantry, list and history are all keyed by date, so they carry over
- * untouched and a new day simply starts empty.
- */
-export const rolloverDay = (state, today = todayStamp()) =>
-  state.day === today ? state : { ...state, day: today, water: 0, waterExtraMl: 0 };
-
-/** A logged entry, re-read as a catalogue food (recents survive edits). */
-export const foodFromEntry = (e) => ({
-  id: e.foodId,
-  name: e.name,
-  brand: e.brand,
-  emoji: e.emoji,
-  unit: e.unit || 'g',
-  per100: e.per100,
-  source: 'recent',
-  tags: [],
-  servings: [{ label: e.servingLabel || `${e.grams} ${e.unit || 'g'}`, grams: e.grams }],
-});
-
-/** Most recently logged foods, newest first, one row per food. */
-export const recentFoodsFrom = (log = {}, catalogue = CATALOGUE, limit = 24) => {
-  const days = Object.keys(log).sort().reverse();
-  const seen = new Map();
-  for (const day of days) {
-    for (const e of [...(log[day] || [])].reverse()) {
-      if (!e.foodId || seen.has(e.foodId)) continue;
-      const food = catalogue.find((f) => f.id === e.foodId) || (e.per100 ? foodFromEntry(e) : null);
-      if (food) seen.set(e.foodId, food);
-      if (seen.size >= limit) return [...seen.values()];
-    }
-  }
-  return [...seen.values()];
-};
-
-const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey'];
-
-const uid = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-/** An emoji for a typed-in item, borrowed from the food catalogue when it matches. */
-const emojiFor = (name) => searchFoods(name, CATALOGUE, 1)[0]?.emoji || '🍽️';
-
-/**
- * A brand new kitchen: nothing pre-filled, nothing pretended. Every number in
- * the app grows from what the user logs, buys, cooks and plans.
- */
-export const EMPTY_STATE = {
-  onboarded: false,
-  theme: 'light',
-  accent: 'mono',
-  name: '',
-  day: todayStamp(),
-  /* goals — what you're aiming at, and how you want to eat */
-  goal: 'maintain',
-  diets: [], // dietary pattern ids: keto, vegan, gluten-free…
-  body: { sex: 'unspecified', age: null, heightCm: null, weightKg: null, activity: 'light' },
-  maintenanceKcal: 0, // typed in when body stats aren't given
-  targetMode: 'auto', // 'auto' follows the goal; 'custom' is yours to set
-  weeklyKcal: 0, // 0 = seven times the daily target
-  /* budget & shopping */
-  weeklyBudget: 0,
-  household: 1,
-  members: [], // who you cook for: {id, name, portions, diets}
-  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked}
-  shops: [], // recorded trips {id,date,store,total,items[]}
-  /* kitchen */
-  pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
-  plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
-  myRecipes: [], // dishes you generated, imported or were sent
-  favourites: [], // recipe ids
-  cooked: [], // [{recipeId, date}]
-  /* food diary */
-  log: {}, // { 'YYYY-MM-DD': entry[] }
-  favouriteFoods: [],
-  customFoods: [],
-  mealTemplates: [],
-  targets: DEFAULT_TARGETS,
-  water: 0,
-  waterExtraMl: 0,
-  /* progress */
-  xp: 0,
-};
 
 const load = () => {
   try {
@@ -243,25 +164,41 @@ export function AppProvider({ children }) {
       addToList: (items) =>
         set((s) => {
           const have = new Set(s.shoppingList.map((i) => i.name.toLowerCase()));
-          const fresh = (Array.isArray(items) ? items : [items])
+          const fresh = mergeItems(Array.isArray(items) ? items : [items])
             .filter((i) => i.name && !have.has(i.name.toLowerCase()))
             .map((i) => ({
               id: i.id || uid('s'),
               checked: false,
               price: Number(i.price) || 0,
               qty: i.qty || '',
-              aisle: i.aisle || guessAisle(i.name),
               emoji: i.emoji || emojiFor(i.name),
               ...i,
+              // What you filed it under last time wins over the name guess.
+              aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
+                ? (i.aisle || guessAisle(i.name))
+                : aisleFor(i.name, s.aisleMemory),
             }));
           return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
+        }),
+      /** Moving an item to another aisle teaches the list where it lives. */
+      setItemAisle: (id, aisle) =>
+        set((s) => {
+          const item = s.shoppingList.find((i) => i.id === id);
+          if (!item) return {};
+          return {
+            shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, aisle } : i)),
+            aisleMemory: rememberAisle(s.aisleMemory, item.name, aisle),
+          };
         }),
       updateListItem: (id, patch) =>
         set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
       removeListItem: (id) => set((s) => ({ shoppingList: s.shoppingList.filter((i) => i.id !== id) })),
+      /** When you tick it matters: the order becomes this shop's route. */
       toggleChecked: (id) =>
         set((s) => ({
-          shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)),
+          shoppingList: s.shoppingList.map((i) => (i.id === id
+            ? { ...i, checked: !i.checked, checkedAt: i.checked ? null : Date.now() }
+            : i)),
         })),
       clearChecked: () => set((s) => ({ shoppingList: s.shoppingList.filter((i) => !i.checked) })),
 
@@ -280,10 +217,13 @@ export function AppProvider({ children }) {
             total: Math.round((Number(total) || 0) * 100) / 100,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
+          // The order you ticked things off is this shop's layout, learned.
+          const route = routeFromTicks(bought);
           return {
             shops: [...s.shops, shop],
             shoppingList: s.shoppingList.filter((i) => !i.checked),
             xp: s.xp + 10,
+            storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
             pantry: toPantry
               ? [...s.pantry, ...bought.map((i) => ({
                   id: uid('p'),
@@ -299,6 +239,39 @@ export function AppProvider({ children }) {
                   addedAt: s.day,
                 }))]
               : s.pantry,
+          };
+        }),
+
+      /* ---------- Offers you were given ---------- */
+      /** Offers are yours: typed in from a voucher, an email or a shelf edge. */
+      addOffer: (offer) =>
+        set((s) => {
+          const label = String(offer.label || '').trim();
+          const match = String(offer.match || '').trim();
+          if (label.length < 2 || !match) return {};
+          return {
+            offers: [...s.offers, {
+              id: uid('o'),
+              label,
+              match,
+              kind: ['money', 'percent', 'multibuy'].includes(offer.kind) ? offer.kind : 'money',
+              value: Math.max(0, Number(offer.value) || 0),
+              store: String(offer.store || '').trim(),
+              addedAt: s.day,
+            }],
+          };
+        }),
+      removeOffer: (id) => set((s) => ({ offers: s.offers.filter((o) => o.id !== id) })),
+
+      /* ---------- Waste ---------- */
+      /** Binning something records what it cost, so the waste figure is real. */
+      binPantryItem: (id) =>
+        set((s) => {
+          const item = s.pantry.find((p) => p.id === id);
+          if (!item) return {};
+          return {
+            pantry: s.pantry.filter((p) => p.id !== id),
+            waste: [...s.waste, { name: item.name, cost: Number(item.cost) || 0, date: s.day }],
           };
         }),
 
@@ -476,6 +449,14 @@ export function AppProvider({ children }) {
       cookedIds: state.cooked.map((c) => c.recipeId),
       pantryValue: pantryValue(state.pantry),
       spentThisWeek: spentInWeek(state.shops, state.day),
+      /* shopping */
+      basket: basketProjection(state.shoppingList, {
+        budget: state.weeklyBudget,
+        spent: spentInWeek(state.shops, state.day),
+        offers: state.offers,
+      }),
+      restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
+      wasted: wasteSummary(state.waste),
       stats: kitchenStats(state, state.day),
     };
   }, [state]);
