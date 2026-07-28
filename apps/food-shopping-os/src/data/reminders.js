@@ -1,0 +1,72 @@
+/**
+ * What a reminder can be about, and what a web app can honestly promise.
+ *
+ * Nothing here is user data — your reminders start empty. These are the kinds
+ * one can be, the times a sensible default would pick, and the plain truth
+ * about when a notification will and won't reach you.
+ */
+
+const kind = (key, label, emoji, blurb, times, reads = null) =>
+  ({ key, label, emoji, blurb, times, reads });
+
+/**
+ * `reads` names the part of your data the reminder can quote back at you, so
+ * a nudge arrives with the number attached rather than as a bare "drink water".
+ */
+export const REMINDER_KINDS = [
+  kind('meal', 'Meals', '🍽️', 'A nudge at the times you usually eat', ['08:00', '13:00', '19:00'], 'diary'),
+  kind('water', 'Water', '💧', 'Spread across the day, with where you are', ['10:00', '13:00', '16:00', '19:00'], 'water'),
+  kind('supplement', 'Supplements', '💊', 'Whatever you take, when you take it', ['08:00'], null),
+  kind('grocery', 'Groceries', '🛒', 'Before the shop, with what is low', ['18:00'], 'shopping'),
+  kind('weighIn', 'Weigh-in', '⚖️', 'The same time on the same day, which is what makes it comparable', ['07:30'], 'weight'),
+  kind('exercise', 'Exercise', '🏋️', 'On the days you train', ['18:00'], 'training'),
+  kind('sleep', 'Sleep', '🌙', 'A wind-down, and a nudge to log the night', ['22:30'], 'sleep'),
+  kind('custom', 'Something else', '🔔', 'Your words, your times', ['12:00'], null),
+];
+
+export const kindBy = Object.fromEntries(REMINDER_KINDS.map((k) => [k.key, k]));
+
+/** Mon-first, matching the rest of the app's week. */
+export const REPEATS = [
+  { key: 'daily', label: 'Every day', days: [0, 1, 2, 3, 4, 5, 6] },
+  { key: 'weekdays', label: 'Weekdays', days: [0, 1, 2, 3, 4] },
+  { key: 'weekends', label: 'Weekends', days: [5, 6] },
+  { key: 'custom', label: 'Pick days', days: [] },
+];
+
+export const repeatBy = Object.fromEntries(REPEATS.map((r) => [r.key, r]));
+
+export const MAX_TIMES = 8;
+export const MAX_REMINDERS = 24;
+/** How late a reminder still counts as "due now" rather than missed. */
+export const GRACE_MINUTES = 90;
+export const SNOOZE_MINUTES = [10, 30, 60];
+
+/**
+ * The honest limits of notifications in a web app with no server.
+ *
+ * A browser can show a notification while the page is running. Firing one
+ * when the app is closed needs either Web Push — which needs a server, and
+ * there isn't one — or the Notification Triggers API, which no browser ships.
+ * So the app does the two things it actually can: it notifies while it's open,
+ * it tells you what came due while it was shut, and it hands the job to the
+ * alarm clock you already trust by exporting to your calendar.
+ */
+export const NOTIFY_TRUTH = {
+  open: 'While Forq is open, a due reminder shows as a notification.',
+  closed: 'While it is closed, it can’t. A web app can only be woken by a push server, and Forq doesn’t have one — everything lives on your device.',
+  caughtUp: 'What came due while it was shut is waiting for you when you open it.',
+  calendar: 'For alarms that fire with the app closed, send these to your calendar. Your phone already does that job properly.',
+};
+
+/** A reminder's text when you haven't written your own. */
+export const DEFAULT_TEXT = {
+  meal: 'Time to eat — and to log it',
+  water: 'Have a glass',
+  supplement: 'Supplements',
+  grocery: 'Shopping list',
+  weighIn: 'Step on the scales',
+  exercise: 'Training today',
+  sleep: 'Wind down — and log last night',
+  custom: 'Reminder',
+};

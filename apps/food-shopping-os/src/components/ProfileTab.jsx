@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Activity, Banknote, Dumbbell, Flame, HeartPulse, Lock, NotebookPen, RotateCcw, Download,
+  Activity, Banknote, Bell, Dumbbell, Flame, HeartPulse, Lock, NotebookPen, RotateCcw, Download,
   Target, Trophy, Users,
 } from 'lucide-react';
 import { useApp, STORAGE_KEY } from '../lib/store.jsx';
@@ -15,6 +15,7 @@ import FamilyPanel from './FamilyPanel.jsx';
 import QuestsPanel from './QuestsPanel.jsx';
 import HealthPanel from './HealthPanel.jsx';
 import ExercisePanel from './ExercisePanel.jsx';
+import RemindersPanel from './RemindersPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -38,6 +39,7 @@ export default function ProfileTab() {
   const [questsOpen, setQuestsOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [exerciseOpen, setExerciseOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -175,6 +177,20 @@ export default function ProfileTab() {
             </p>
           </Card>
         </div>
+        <Card className="mt-2.5" onClick={() => setRemindersOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14.5px]">Reminders</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.reminders.length
+                  ? `${app.reminders.filter((r) => r.on).length} on, of ${app.reminders.length}`
+                  : 'Meals, water, supplements, shopping, weigh-ins'}
+              </p>
+            </div>
+            {app.remindersDue.length > 0 && <Pill tone="accent">{app.remindersDue.length} due</Pill>}
+            <Bell size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+        </Card>
       </Section>
 
       {/* Nutrition today */}
@@ -414,6 +430,9 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={healthOpen} onClose={() => setHealthOpen(false)} title="Health">
         <HealthPanel />
+      </Sheet>
+      <Sheet open={remindersOpen} onClose={() => setRemindersOpen(false)} title="Reminders">
+        <RemindersPanel />
       </Sheet>
       <Sheet open={exerciseOpen} onClose={() => setExerciseOpen(false)} title="Exercise">
         <ExercisePanel />

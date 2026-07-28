@@ -1,32 +1,22 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOGUE } from '../data/foods.js';
-import { DEFAULT_TARGETS, GLASS_ML } from '../data/nutrients.js';
+import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
 import { setMyRecipes } from '../data/recipes.js';
-import {
-  aisleFor, basketProjection, mergeItems, rememberAisle, restockSuggestions, routeFromTicks,
-  wasteSummary,
-} from './shopping.js';
-import { buildEntry, copyEntries, dayTotals, hydration, nutrientCoverage } from './nutrition.js';
-import { recipeFood, searchFoods } from './foodlog.js';
-import {
-  dayStamp, kitchenStats, levelFrom, pantryValue, spentInWeek, streakFrom,
-} from './kitchen.js';
-import {
-  defaultWeeklyKcal, goalSummary, resolveMaintenance, targetsFor, weekProgress,
-} from './goals.js';
-import {
-  applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, leftoverItems, leftoverPortions, moveMeal,
-} from './mealplan.js';
-import { progressSummary } from './progress.js';
-import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
-import { activityAdjustment, weekSummary } from './exercise.js';
+import { aisleFor, mergeItems, rememberAisle, routeFromTicks } from './shopping.js';
+import { buildEntry, copyEntries } from './nutrition.js';
+import { recipeFood } from './foodlog.js';
+import { targetsFor } from './goals.js';
+import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
+import { deriveApp } from './derive.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
+import { reminderActions } from './reminder-actions.js';
+import { dueBetween, dueNow, reminderContext } from './reminders.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
 import {
-  ACCENT_IDS, emojiFor, EMPTY_STATE, recentFoodsFrom, rolloverDay, STORAGE_KEY, todayStamp, uid,
+  ACCENT_IDS, emojiFor, EMPTY_STATE, rolloverDay, STORAGE_KEY, todayStamp, uid,
 } from './state.js';
 
 export {
@@ -55,10 +45,39 @@ const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [state, setState] = useState(load);
+  // Reminders are due at a time, not at a state change, so the clock has to
+  // move on its own. A minute is finer than any reminder needs.
+  const [tick, setTick] = useState(() => Date.now());
+  // Where the catch-up starts: read once, so it doesn't slide as you look at it.
+  const [seenFrom] = useState(() => state.lastSeenAt);
 
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  }, [state]);
+    const timer = setInterval(() => setTick(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  /* Every write stamps the moment the app was last in front of you, which is
+     what the next visit measures "while you were away" from. It's written on
+     the way out rather than held in state, so the heartbeat can't re-render
+     every screen once a minute. */
+  useEffect(() => {
+    localStorage.setItem(KEY, JSON.stringify({ ...state, lastSeenAt: Date.now() }));
+  }, [state, tick]);
+
+  // Leaving is the most accurate moment to stamp, and there may be no render
+  // left after it — so this one writes directly.
+  const latest = useRef(state);
+  latest.current = state;
+  useEffect(() => {
+    const mark = () => localStorage.setItem(KEY, JSON.stringify({ ...latest.current, lastSeenAt: Date.now() }));
+    const onHide = () => { if (document.visibilityState === 'hidden') mark(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', mark);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', mark);
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
@@ -342,6 +361,9 @@ export function AppProvider({ children }) {
       /* ---------- Health and exercise (see health-actions.js) ---------- */
       ...healthActions(set),
 
+      /* ---------- Reminders (see reminder-actions.js) ---------- */
+      ...reminderActions(set),
+
       /* ---------- Food diary ---------- */
       logEntries: addEntries,
       logEntry: (entry, date) => addEntries([entry], date),
@@ -414,78 +436,30 @@ export function AppProvider({ children }) {
   }, []);
 
   /* Everything below is derived — the app never stores a number twice. */
-  const derived = useMemo(() => {
-    const catalogue = [...CATALOGUE, ...state.customFoods];
-    const entries = state.log[state.day] || [];
-    const totals = dayTotals(entries);
-    const glasses = state.water + state.waterExtraMl / GLASS_ML;
-    const cookedDays = state.cooked.map((c) => c.date);
-    const progress = progressSummary(state, state.day);
-    return {
-      catalogue,
-      entries,
-      totals,
-      kcalToday: totals.kcal,
-      proteinToday: totals.protein,
-      carbsToday: totals.carbs,
-      fatToday: totals.fat,
-      fibreToday: totals.fibre,
-      kcalGoal: state.targets.kcal,
-      proteinGoal: state.targets.protein,
-      carbsGoal: state.targets.carbs,
-      fatGoal: state.targets.fat,
-      coverage: nutrientCoverage(entries),
-      hydration: hydration(totals, glasses),
-      /* goals */
-      maintenanceKcalResolved: resolveMaintenance(state),
-      goalSummary: goalSummary(state),
-      weeklyKcalTarget: state.weeklyKcal || defaultWeeklyKcal(state.targets.kcal),
-      week: weekProgress(state.log, {
-        weeklyKcal: state.weeklyKcal || defaultWeeklyKcal(state.targets.kcal),
-        today: state.day,
-      }),
-      recentFoods: recentFoodsFrom(state.log, catalogue),
-      entriesFor: (date) => state.log[date] || [],
-      kcalFor: (date) => dayTotals(state.log[date] || []).kcal,
-      /* family — how many portions a meal has to stretch to, and everyone's diets */
-      portions: state.members.length
-        ? Math.round(state.members.reduce((n, m) => n + (Number(m.portions) || 1), 0) * 10) / 10
-        : state.household || 1,
-      planDiets: [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])],
-      /* leftovers */
-      leftovers: leftoverItems(state.pantry),
-      leftoverPortions: leftoverPortions(state.pantry),
-      /* health and training, read back the same way as everything else */
-      body_: bodySummary(state, state.day),
-      vitalsSummary: vitalSummary(state.vitals),
-      sleepSummary: sleepSummary(state.sleep, { today: state.day }),
-      stressSummary: stressSummary(state.stress, { today: state.day }),
-      cycle: cycleSummary(state.cycles, state.day),
-      training: weekSummary(state.workouts, state.day),
-      activity: activityAdjustment(state, state.day),
-      /* the game layer — all counted from the records above, never banked */
-      game: progress,
-      xp: progress.xp,
-      level: progress.level,
-      /* kitchen */
-      streak: streakFrom(cookedDays, state.day),
-      cookedToday: cookedDays.includes(state.day),
-      cookedIds: state.cooked.map((c) => c.recipeId),
-      pantryValue: pantryValue(state.pantry),
-      spentThisWeek: spentInWeek(state.shops, state.day),
-      /* shopping */
-      basket: basketProjection(state.shoppingList, {
-        budget: state.weeklyBudget,
-        spent: spentInWeek(state.shops, state.day),
-        offers: state.offers,
-      }),
-      restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
-      wasted: wasteSummary(state.waste),
-      stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
-    };
-  }, [state]);
+  const derived = useMemo(() => deriveApp(state), [state]);
 
-  const value = useMemo(() => ({ ...state, ...derived, ...api }), [state, derived, api]);
+  /* Reminders answer to the clock as well as to your data, so they're derived
+     against the tick rather than only against state changes. */
+  const alerts = useMemo(() => {
+    const now = new Date(tick);
+    const due = dueNow(state.reminders, { now, done: state.reminderDone });
+    return {
+      remindersDue: due,
+      // What came due while the app was shut. It can't notify you then — no
+      // server to wake it — so the least it can do is not pretend otherwise.
+      remindersMissed: dueBetween(state.reminders, seenFrom, tick, state.reminderDone)
+        .filter((m) => !due.some((d) => d.reminder.id === m.reminder.id && d.stamp === m.stamp && d.time === m.time)),
+      now,
+    };
+  }, [state.reminders, state.reminderDone, seenFrom, tick]);
+
+  const value = useMemo(() => ({
+    ...state,
+    ...derived,
+    ...alerts,
+    reminderLine: (kind) => reminderContext(kind, { ...state, ...derived }),
+    ...api,
+  }), [state, derived, alerts, api]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 

@@ -12,6 +12,7 @@ import {
 import { totalOf } from '../data/stores.js';
 import { recipeAllowed } from '../lib/goals.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
+import { DueList } from './RemindersPanel.jsx';
 import { Glyph } from './icons.jsx';
 
 /** Capture routes that open straight into the diary's matching sheet. */
@@ -159,6 +160,13 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
           </div>
         </Card>
       </div>
+
+      {/* Anything due right now, where you'll actually see it */}
+      {app.remindersDue.length > 0 && (
+        <Section title="Reminders" action="All →" onAction={() => goTab('profile')} className="rise rise-2">
+          <DueList compact />
+        </Section>
+      )}
 
       {/* Today's goals — small, and every bar is a count of something real */}
       <Section title="Today’s goals" action="Progress →" onAction={() => goTab('profile')} className="rise rise-2">

@@ -107,6 +107,10 @@ export const EMPTY_STATE = {
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
   countExerciseKcal: false, // eating back an estimate is a choice
+  /* reminders — none until you make one */
+  reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
+  reminderDone: {}, // 'YYYY-MM-DD|id|HH:MM' → true, so a firing is ticked once
+  lastSeenAt: 0, // when the app was last open, for catching you up
   /* food diary */
   log: {}, // { 'YYYY-MM-DD': entry[] }
   favouriteFoods: [],

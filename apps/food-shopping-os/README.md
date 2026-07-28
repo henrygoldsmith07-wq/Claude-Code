@@ -208,6 +208,28 @@ tables and UK reference intakes.
   preferring an exported energy figure over its own estimate, deduplicating
   against what you already have, and counting the rows it couldn't read
 
+- **Reminders** — **meals, water, supplements, groceries, weigh-ins, exercise,
+  sleep** and **anything else you name**, each with your own wording, as many
+  times a day as you like, on the days you choose. A reminder arrives carrying
+  **your own figure** — "you're at 750 of 2,000 ml", "last weighed 7 days ago,
+  at 82 kg", "2 items on the list · 1 running low" — rather than a bare nudge;
+  where there's no data behind it, it says so instead of padding it out. Late
+  still counts as due for ninety minutes, ticking one off clears that firing
+  and not tomorrow's, and snoozing is 10 / 30 / 60 minutes.
+  **Suggestions** come from your records with the evidence attached — meal
+  times from the median time you actually start each meal (three logged days
+  minimum, rounded to five minutes), water spaced across the day for the
+  target you set, the weekday most of your weigh-ins already land on, the days
+  your workouts cluster on — and nothing is offered that your data can't
+  support.
+  On **notifications**, the app is blunt about the platform: while Forq is open
+  a due reminder becomes a real notification; while it's closed **it cannot**,
+  because that needs a push server and there isn't one. So there's no
+  background-notifications toggle that could never work — instead it catches
+  you up on what came due while it was shut, and offers a **calendar export**
+  (`.ics`, one repeating `VALARM` per time) so the alarm clock you already
+  trust does the part a web page can't
+
 ## Run
 
 ```bash
@@ -224,8 +246,14 @@ src/
   App.jsx              # shell: 6-tab bottom nav, overlays, onboarding gate
   index.css            # theme tokens (light/dark + 5 accents), animations
   lib/state.js         # what an install is: empty state + pure state helpers
-  lib/store.jsx        # the provider: actions, derived values, persistence
+  lib/store.jsx        # the provider: actions, the clock, persistence
+  lib/derive.js        # every number the screens read, computed from state
   lib/health-actions.js # the store's body/training actions, bounded on the way in
+  lib/reminder-actions.js # the store's reminder actions, validated on the way in
+  lib/reminders.js     # when one is due, what came due while you were away,
+                       # and the line it arrives carrying from your own data
+  lib/reminder-suggest.js # reminders your records support, and the .ics export
+  lib/notify.js        # the browser's notification API, and its real limits
   lib/shopping.js      # aisles that learn, store routes, price comparison,
                        # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
@@ -256,7 +284,9 @@ src/
                        # growing calendar), quests (what earns XP and what the
                        # goals are), health (published reference ranges),
                        # workouts (METs per activity and how each health app
-                       # exports), and taxonomy for aisles/locations
+                       # exports), reminders (the kinds one can be, and the
+                       # plain truth about notifications), and taxonomy for
+                       # aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
