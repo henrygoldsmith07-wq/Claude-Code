@@ -1,17 +1,47 @@
 import { describe, it, expect } from 'vitest';
 import { RECIPES, byId, forMeal, filterRecipes, DISCOVER_FILTERS } from '../src/data/recipes.js';
-import { compose, generateRecipes, PER_MEAL } from '../src/data/recipe-gen.js';
+import { compose, generateRecipes, PER_MEAL, TEMPLATES } from '../src/data/recipe-gen.js';
+import { CUISINES } from '../src/data/preferences.js';
 import { PROTEINS, BASES, VEG } from '../src/data/recipe-parts.js';
 import { recipeAllowed } from '../src/lib/goals.js';
 import { estimateRecipeMicros } from '../src/lib/foodlog.js';
 
 describe('the recipe book', () => {
-  it('carries 200 dishes for each meal of the day', () => {
+  it('carries a full quota of dishes for each meal of the day', () => {
     const generated = generateRecipes();
+    expect(PER_MEAL).toBe(400);
     expect(generated.filter((r) => r.meal === 'breakfast')).toHaveLength(PER_MEAL);
     expect(generated.filter((r) => r.meal === 'lunch')).toHaveLength(PER_MEAL);
     expect(generated.filter((r) => r.meal === 'dinner')).toHaveLength(PER_MEAL);
-    expect(RECIPES.length).toBeGreaterThanOrEqual(600);
+    expect(RECIPES.length).toBeGreaterThanOrEqual(1200);
+  });
+
+  it('has the combinations to fill that quota, rather than repeating to reach it', () => {
+    // The quota is only honest if the templates can actually supply it: asking
+    // for one more than exists would just walk further down the same diagonals.
+    const capacity = {};
+    for (const t of TEMPLATES) {
+      capacity[t.meal] = (capacity[t.meal] || 0) + t.axes.reduce((n, axis) => n * axis.length, 1);
+    }
+    for (const meal of ['breakfast', 'lunch', 'dinner']) {
+      expect(capacity[meal]).toBeGreaterThan(PER_MEAL);
+    }
+  });
+
+  it('every template points at components that exist', () => {
+    for (const template of TEMPLATES) {
+      for (const axis of template.axes) {
+        expect(axis.length).toBeGreaterThan(0);
+        for (const part of axis) expect(part?.name).toBeTruthy();
+      }
+    }
+  });
+
+  it('can cook something from every cuisine the preferences offer', () => {
+    const inBook = new Set(RECIPES.map((r) => r.cuisine));
+    // Offering "Thai" as a favourite when the book has no Thai dish would make
+    // the preference a decoration.
+    for (const cuisine of CUISINES) expect(inBook.has(cuisine)).toBe(true);
   });
 
   it('gives every dish a unique id and a meal', () => {

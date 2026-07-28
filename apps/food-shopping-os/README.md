@@ -108,7 +108,7 @@ tables and UK reference intakes.
   records **what the waste cost you** at what you paid. Things you buy again
   and again but have run out of come back as restock suggestions — read off
   your own receipts, never a generic "people also buy"
-- **Recipes** — a library of 600+ dishes, 200 for each meal of the day,
+- **Recipes** — a library of 1,200+ dishes, 400 for each meal of the day,
   composed from real ingredients so every dish's calories, macros, cost and
   health/protein/planet scores are computed from what is in it. No star
   ratings: nothing here has been cooked by anyone but you. Browse the library,
@@ -360,7 +360,7 @@ src/
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
   data/                # reference only: recipes (signature dishes + the parts
-                       # and templates the rest are composed from), foods
+                       # and per-meal templates the rest are composed from), foods
                        # (catalogue + barcodes + menus), nutrients
                        # (units/targets), micronutrients (per-100 g table),
                        # goals (body goals + dietary patterns), seasons (the UK

@@ -113,8 +113,15 @@ const combos = (axes) => {
     .map((tuple) => tuple.map((i, axis) => axes[axis][i]));
 };
 
-/** How many dishes each meal gets. */
-export const PER_MEAL = 200;
+/**
+ * How many dishes each meal gets.
+ *
+ * Raised from 200 alongside the second round of templates. The two go
+ * together: the quota can only be met by combinations that exist, and pushing
+ * it past what the templates can supply would just walk further down the same
+ * diagonals — a longer list of the same dish rather than a bigger book.
+ */
+export const PER_MEAL = 400;
 
 const buildOne = (tpl, combo) => {
   const name = sentence(tpl.name(combo));
