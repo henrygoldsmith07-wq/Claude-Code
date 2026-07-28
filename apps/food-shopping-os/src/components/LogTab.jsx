@@ -68,7 +68,9 @@ const EntryRow = ({ entry, onEdit }) => {
 
 export default function LogTab({ initialSheet = null, onIntentUsed }) {
   const app = useApp();
-  const [sheet, setSheet] = useState(initialSheet);
+  const initialSheetId = typeof initialSheet === 'string' ? initialSheet : initialSheet?.sheet;
+  const [sheet, setSheet] = useState(initialSheetId);
+  const [initialQuery, setInitialQuery] = useState(typeof initialSheet === 'object' ? initialSheet?.query || '' : '');
   const [activeMeal, setActiveMeal] = useState(mealForTime());
   const [picked, setPicked] = useState(null); // catalogue food awaiting a portion
   const [editing, setEditing] = useState(null); // entry being adjusted
@@ -77,7 +79,8 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
   // Arriving from a Home shortcut opens that capture flow straight away.
   useEffect(() => {
     if (!initialSheet) return;
-    setSheet(initialSheet);
+    setSheet(typeof initialSheet === 'string' ? initialSheet : initialSheet.sheet);
+    setInitialQuery(typeof initialSheet === 'object' ? initialSheet.query || '' : '');
     setActiveMeal(mealForTime());
     onIntentUsed?.();
   }, [initialSheet, onIntentUsed]);
@@ -96,7 +99,12 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
     setSheet(id);
   };
 
-  const closeAll = () => { setSheet(null); setPicked(null); setEditing(null); };
+  const closeAll = () => {
+    setSheet(null);
+    setPicked(null);
+    setEditing(null);
+    setInitialQuery('');
+  };
 
   const macros = [
     { key: 'protein', label: 'Protein', now: totals.protein, goal: app.proteinGoal, color: 'var(--series-1)' },
@@ -340,7 +348,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
       {/* ---------- Sheets ---------- */}
       <Sheet open={!!sheet && !picked} onClose={closeAll} title={SHEET_TITLES[sheet] || 'Add food'}>
         {sheet === 'add' && (
-          <AddFood defaultMeal={activeMeal} onPick={setPicked} onCapture={(id) => setSheet(id)} />
+          <AddFood initialQuery={initialQuery} defaultMeal={activeMeal} onPick={setPicked} onCapture={(id) => setSheet(id)} />
         )}
         {sheet === 'barcode' && (
           <BarcodeScanner

@@ -42,6 +42,14 @@ tables and UK reference intakes.
   cooking streak and XP, pantry snapshot with what's about to go off, and
   suggestions derived from your own kitchen (never generic marketing copy).
   Empty states explain what each surface will do once you feed it
+- **Global interaction layer** — Ctrl/Cmd+K searches commands, foods, recipes,
+  pantry and the shopping list together, with type filters and relevance or
+  A–Z sorting. Q opens Quick add, Ctrl/Cmd+Z undoes the latest saved action,
+  and 1–6 switch tabs. Search and Quick add also have permanent touch buttons.
+  Shopping and pantry rows share swipe actions, long-press menus and native
+  context menus. Shopping items, meal slots and dashboard widgets drag where
+  ordering has a real meaning; the same actions remain available as buttons
+  for touch and keyboard users
 - **Food diary (Log tab)** — every route into a log: fuzzy **search** across
   generic foods, branded products and restaurant menus; **barcode scanner**
   (native image recognition where the browser exposes it, plus manual code
@@ -297,7 +305,8 @@ tables and UK reference intakes.
   cm / feet, kcal / kJ, ml / fl oz, 24- or 12-hour — change the *display* only;
   everything is stored and calculated in metric, because a unit preference
   reaching the maths compounds into a real error over months. **Widgets** let
-  you reorder or hide any card on Home, which hides a panel and never a number
+  you reorder or hide any card on Home, including direct drag ordering from
+  dashboard edit mode, which hides a panel and never a number
 
 - **Carbon & water footprint** — kg CO₂e and litres per day, computed from the
   grams in your diary against published per-kilogram category means (Poore &

@@ -37,6 +37,8 @@ export const CAPABILITIES = [
     'Recipes scale ingredient quantities, calculate per-serving nutrition, send missing ingredients to shopping, and run step-by-step cooking mode with independent timers and original video links.'),
   cap('notifications', 'Notification centre', 'built',
     'Opt-in presets cover expiry, shopping, meals, budgets, weekly reports, daily summaries, pantry alerts, saved price targets and repeat-buy restocks. Context comes from local records; foreground browser alerts, catch-up and calendar export share the existing reminder scheduler.'),
+  cap('uxLayer', 'Global UX controls', 'built',
+    'Cross-app search and commands, quick add, keyboard shortcuts, a 30-action local undo history, type filters and sorting, touch/context menus, and drag ordering for meals, shopping and dashboard widgets. Gestures supplement visible controls rather than hiding the only route to an action.'),
   cap('recipeImport', 'Recipe URL import', 'partial',
     'Parses recipe text copied from a page and keeps its source or video URL. The offline browser cannot reliably fetch cross-origin recipe sites, so the app asks for the copied text instead of generating a pretend result from a URL.'),
   cap('retailers', 'UK retailer integration', 'partial',

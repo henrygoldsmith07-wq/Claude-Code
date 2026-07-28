@@ -1,0 +1,66 @@
+const normalise = (value) => String(value || '').trim().toLowerCase();
+
+export const GLOBAL_COMMANDS = [
+  ['home', 'Open Home', 'Go to your dashboard'],
+  ['plan', 'Open meal plan', 'Weekly and monthly planning'],
+  ['log', 'Open food diary', 'Log and review food'],
+  ['shop', 'Open shopping list', 'Lists, shops and prices'],
+  ['recipes', 'Open recipes', 'Browse and filter recipes'],
+  ['profile', 'Open Profile', 'Goals, reports and settings'],
+  ['pantry', 'Open pantry', 'Fridge, freezer and cupboards'],
+  ['add-food', 'Add food', 'Search, scan, photograph or speak'],
+  ['barcode', 'Scan a barcode', 'Open barcode capture'],
+  ['assistant', 'Ask the AI food coach', 'Open the local assistant'],
+  ['undo', 'Undo last action', 'Revert the most recent saved change'],
+];
+
+const command = ([id, title, subtitle]) => ({
+  id: `command-${id}`, type: 'command', title, subtitle, target: id,
+});
+
+const resource = (type, item, subtitle) => ({
+  id: `${type}-${item.id}`, type, title: item.name, subtitle, item,
+});
+
+const score = (result, query) => {
+  const title = normalise(result.title);
+  const detail = normalise(result.subtitle);
+  if (!query) return 0;
+  if (title === query) return 100;
+  if (title.startsWith(query)) return 80;
+  if (title.includes(query)) return 60;
+  if (detail.includes(query)) return 30;
+  return 0;
+};
+
+export const buildGlobalResults = (app = {}, text = '', { type = 'all', sort = 'relevance' } = {}) => {
+  const query = normalise(text);
+  const commands = GLOBAL_COMMANDS.map(command);
+  if (query) {
+    commands.push({
+      id: `command-add-query-${query}`,
+      type: 'command',
+      title: `Add “${text.trim()}” to food diary`,
+      subtitle: 'Open food search with this query',
+      target: 'add-food',
+      query: text.trim(),
+    });
+  }
+
+  const recipeIds = new Set((app.safeRecipes || []).map((item) => item.id));
+  const recipes = [...(app.safeRecipes || []), ...(app.myRecipes || []).filter((item) => !recipeIds.has(item.id))];
+  const resources = [
+    ...(app.catalogue || []).map((item) => resource('food', item, [item.brand, 'Food'].filter(Boolean).join(' · '))),
+    ...recipes.map((item) => resource('recipe', item, 'Recipe')),
+    ...(app.pantry || []).map((item) => resource('pantry', item, [item.location, item.cat].filter(Boolean).join(' · '))),
+    ...(app.shoppingList || []).map((item) => resource('shopping', item, item.aisle || 'Shopping list')),
+  ];
+
+  let results = query
+    ? [...commands, ...resources].map((result) => ({ ...result, score: score(result, query) })).filter((result) => result.score)
+    : (type === 'all' ? commands : [...commands, ...resources]).map((result) => ({ ...result, score: 0 }));
+  if (type !== 'all') results = results.filter((result) => result.type === type);
+  return results.sort(sort === 'name'
+    ? (a, b) => a.title.localeCompare(b.title)
+    : (a, b) => b.score - a.score || a.title.localeCompare(b.title));
+};

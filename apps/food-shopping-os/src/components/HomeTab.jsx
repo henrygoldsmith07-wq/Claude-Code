@@ -1,7 +1,7 @@
-import { Fragment } from 'react';
+import { useState } from 'react';
 import {
   AlarmClock, Camera, ChevronRight, Layers, Mic, Package, Plus,
-  ScanBarcode, Search,
+  ScanBarcode, Search, SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate } from '../lib/utils.js';
@@ -80,6 +80,8 @@ const buildSuggestions = (app) => {
 
 export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
   const app = useApp();
+  const [customising, setCustomising] = useState(false);
+  const [dragging, setDragging] = useState(null);
   const todayPlan = planForDay(app.plan, app.day);
   const expiring = expiringSoon(app.pantry, 3, app.day);
   const low = runningLow(app.pantry);
@@ -399,9 +401,41 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
         </Card>
       </div>
 
+      {/* Rearranging the dashboard is a thing you do *to* these cards, so the
+          control sits with them rather than up in the header. */}
+      <div className="px-5 flex justify-end">
+        <button
+          onClick={() => setCustomising((value) => !value)}
+          aria-pressed={customising}
+          className="tap press inline-flex items-center gap-1.5 text-[12.5px] font-extrabold"
+          style={{ color: customising ? 'var(--accent)' : 'var(--muted)' }}
+        >
+          <SlidersHorizontal size={14} /> {customising ? 'Done rearranging' : 'Rearrange'}
+        </button>
+      </div>
+
+      {customising && (
+        <div className="mx-5 rounded-2xl border px-4 py-3 text-[12.5px] font-bold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+          Drag these cards into the order you want them. Hidden ones are under the avatar, in Preferences → Home.
+        </div>
+      )}
       {app.homeWidgets
         .filter((id) => blocks[id])
-        .map((id) => <Fragment key={id}>{blocks[id]()}</Fragment>)}
+        .map((id) => (
+          <div
+            key={id}
+            draggable={customising}
+            onDragStart={() => setDragging(id)}
+            onDragOver={(event) => customising && event.preventDefault()}
+            onDrop={() => {
+              if (customising && dragging) app.moveWidgetTo(dragging, id);
+              setDragging(null);
+            }}
+            className={customising ? 'cursor-grab rounded-2xl outline outline-1 outline-dashed outline-[var(--line)] py-1' : ''}
+          >
+            {blocks[id]()}
+          </div>
+        ))}
 
       {/* While there's setup left, the next step *is* the main thing to do
           here; after that it's the diary, which is what Home is really for. */}
