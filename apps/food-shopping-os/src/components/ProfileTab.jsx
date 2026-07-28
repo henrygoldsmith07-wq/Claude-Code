@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  Activity, Banknote, Bell, Dumbbell, Flame, HeartPulse, Lock, NotebookPen, RotateCcw, Download,
-  Target, Trophy, Users,
+  Activity, Banknote, Bell, ChartNoAxesColumn, Dumbbell, Flame, HeartPulse, Lock, NotebookPen,
+  RotateCcw, Download, SlidersHorizontal, Target, Trophy, Users,
 } from 'lucide-react';
 import { useApp, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
@@ -16,6 +16,8 @@ import QuestsPanel from './QuestsPanel.jsx';
 import HealthPanel from './HealthPanel.jsx';
 import ExercisePanel from './ExercisePanel.jsx';
 import RemindersPanel from './RemindersPanel.jsx';
+import ReportsPanel from './ReportsPanel.jsx';
+import PreferencesPanel from './PreferencesPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -40,6 +42,8 @@ export default function ProfileTab() {
   const [healthOpen, setHealthOpen] = useState(false);
   const [exerciseOpen, setExerciseOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -153,6 +157,26 @@ export default function ProfileTab() {
             <Users size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
           </div>
         </Card>
+      </Section>
+
+      {/* Reports and personalisation */}
+      <Section title="Reports & you" className="rise rise-1">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Card onClick={() => setReportsOpen(true)}>
+            <ChartNoAxesColumn size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Reports</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Day, week, month, and out as CSV
+            </p>
+          </Card>
+          <Card onClick={() => setPrefsOpen(true)}>
+            <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Preferences</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.prefsSummary}
+            </p>
+          </Card>
+        </div>
       </Section>
 
       {/* Health and training */}
@@ -430,6 +454,12 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={healthOpen} onClose={() => setHealthOpen(false)} title="Health">
         <HealthPanel />
+      </Sheet>
+      <Sheet open={reportsOpen} onClose={() => setReportsOpen(false)} title="Reports">
+        <ReportsPanel />
+      </Sheet>
+      <Sheet open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Preferences">
+        <PreferencesPanel />
       </Sheet>
       <Sheet open={remindersOpen} onClose={() => setRemindersOpen(false)} title="Reminders">
         <RemindersPanel />

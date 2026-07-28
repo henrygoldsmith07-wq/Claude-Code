@@ -18,8 +18,22 @@ import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } 
 import { activityAdjustment, weekSummary } from './exercise.js';
 import { basketProjection, restockSuggestions, wasteSummary } from './shopping.js';
 import { recentFoodsFrom } from './state.js';
+import { allowedByPrefs, prefsSummary, reach, recipeFit } from './preferences.js';
+import { formatters } from './units.js';
+import { DEFAULT_WIDGETS } from '../data/preferences.js';
+import { RECIPES } from '../data/recipes.js';
 
 export const deriveApp = (state) => {
+  // The hard lines, gathered once so every surface filters the same way.
+  const prefs = {
+    allergies: state.allergies,
+    intolerances: state.intolerances,
+    religious: state.religious,
+    cuisines: state.cuisines,
+    skill: state.skill,
+    timeBudget: state.timeBudget,
+    units: state.units,
+  };
   const catalogue = [...CATALOGUE, ...state.customFoods];
   const entries = state.log[state.day] || [];
   const totals = dayTotals(entries);
@@ -87,5 +101,15 @@ export const deriveApp = (state) => {
     restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
     wasted: wasteSummary(state.waste),
     stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
+    /* preferences: the filter every recipe surface shares, and the formatters
+       that decide how a number is written */
+    prefs,
+    prefsSummary: prefsSummary(prefs),
+    /** Blocked recipes are removed here once, not remembered to be hidden later. */
+    safeRecipes: allowedByPrefs(RECIPES, prefs),
+    recipeReach: reach(RECIPES, prefs),
+    fitFor: (recipe) => recipeFit(recipe, prefs),
+    fmt: formatters(prefs),
+    homeWidgets: state.widgets || DEFAULT_WIDGETS,
   };
 };

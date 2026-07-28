@@ -7,6 +7,7 @@ import { gbp } from '../lib/utils.js';
 import { allRecipes, DISCOVER_FILTERS, filterRecipes } from '../data/recipes.js';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { missingFrom, parseShareCode, searchRecipes } from '../lib/recipe-tools.js';
+import { rankByPrefs } from '../lib/preferences.js';
 import { Section, Card, Chip, Pill, FoodArt, Sheet } from './ui.jsx';
 import RecipeGenerator from './RecipeGenerator.jsx';
 
@@ -231,9 +232,14 @@ export default function RecipesTab({ openRecipe }) {
     return query.trim() ? allRecipes() : filterRecipes(filter);
   }, [view, filter, query, app.myRecipes, app.favourites]);
 
+  // Allergens and observed rules cut the pool before anything else runs. A
+  // blocked recipe is never a search result, however you got here.
+  const safePool = useMemo(() => rankByPrefs(pool, app.prefs), [pool, app.prefs]);
+  const blocked = pool.length - safePool.length;
+
   const recipes = useMemo(
-    () => searchRecipes(pool, { query, have: pantryNames, ...filters }),
-    [pool, query, filters, app.pantry],
+    () => searchRecipes(safePool, { query, have: pantryNames, ...filters }),
+    [safePool, query, filters, app.pantry],
   );
 
   const cols = useMemo(() => {
@@ -241,6 +247,12 @@ export default function RecipesTab({ openRecipe }) {
     recipes.forEach((r, i) => (i % 2 === 0 ? a : b).push(r));
     return [a, b];
   }, [recipes]);
+
+  // Saying how many were removed is the difference between a filter and a
+  // disappearance you can't account for.
+  const blockedLine = blocked > 0
+    ? `${blocked} recipe${blocked === 1 ? '' : 's'} hidden by your allergies and rules.`
+    : null;
 
   const emptyLine = view === 'mine'
     ? 'Nothing here yet — generate a dish from your pantry, import one from a link, or paste in a code someone sent you.'
@@ -323,6 +335,7 @@ export default function RecipesTab({ openRecipe }) {
           {filters.maxMissing === 0 && ' you can cook right now'}
           {filters.maxTime && ` in ${filters.maxTime} minutes or less`}
           {filters.diets.length > 0 && ` · ${filters.diets.join(', ')}`}
+          {blockedLine && <span style={{ color: 'var(--faint)' }}> · {blockedLine}</span>}
         </p>
         {recipes.length === 0 ? (
           <Card className="text-center py-10">

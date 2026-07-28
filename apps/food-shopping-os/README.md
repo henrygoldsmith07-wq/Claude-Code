@@ -230,6 +230,38 @@ tables and UK reference intakes.
   (`.ics`, one repeating `VALARM` per time) so the alarm clock you already
   trust does the part a web page can't
 
+- **Reports & analytics** — the diary added up over a **day** (split by meal,
+  with each one's share and the hours you ate between), a **week**, a **month**,
+  and **month-by-month** further back. Every report leads with **how many days
+  it actually saw**, and averages only those — a blank day is a day you didn't
+  record, not a day you didn't eat, and a month with nothing logged is left out
+  of the trend rather than averaged towards zero. **Weight** charts from your
+  readings and says plainly that one reading is a number, not a line.
+  **Adherence** counts how often each target landed within 10%, and how often
+  it went under or over. **Meal timing** reads the usual hour of each meal off
+  your own entries and reports the spread as a finding rather than a failure.
+  **Shortfall alerts** name nutrients averaging under 70% of their reference —
+  refusing to say anything under seven logged days, never treating "under a
+  limit" like sodium as a shortfall, and carrying the caveat that a low figure
+  is a prompt to look, not a diagnosis. **CSV** comes out three ways (per day,
+  per food, measurements), properly quoted. **PDF** is your browser's own:
+  Forq builds a clean printable page and hands it to the print dialogue, where
+  "Save as PDF" does a better job than any library worth making you download
+- **Personalisation** — split down the middle on purpose. **Allergies** (the
+  fourteen UK/EU declarable ones) and **religious or cultural rules** (halal,
+  kosher, Hindu vegetarian, Jain, Buddhist vegetarian) are *hard lines*: a
+  recipe naming one is **removed**, not ranked down or shown behind a warning
+  you could tap through, and the page tells you how much of the book that
+  leaves and where each allergen usually hides. **Intolerances** *flag* instead,
+  because the amount is the point and only you know your threshold. Everything
+  here matches ingredient text and says so — a filter, never a guarantee.
+  **Favourite cuisines**, **cooking skill** and **time available** reorder what
+  you're offered without removing anything. **Units** — kg / lb / stone,
+  cm / feet, kcal / kJ, ml / fl oz, 24- or 12-hour — change the *display* only;
+  everything is stored and calculated in metric, because a unit preference
+  reaching the maths compounds into a real error over months. **Widgets** let
+  you reorder or hide any card on Home, which hides a panel and never a number
+
 ## Run
 
 ```bash
@@ -254,6 +286,12 @@ src/
                        # and the line it arrives carrying from your own data
   lib/reminder-suggest.js # reminders your records support, and the .ics export
   lib/notify.js        # the browser's notification API, and its real limits
+  lib/reports.js       # day/week/month reports, trends, timing, adherence,
+                       # shortfalls — each carrying its own sample size
+  lib/report-export.js # quoted CSV, and the printable page the browser PDFs
+  lib/preferences.js   # hard lines (allergens, observance) vs soft ones
+  lib/preference-actions.js # the store's preference actions, validated in
+  lib/units.js         # display-only conversions; the maths stays metric
   lib/shopping.js      # aisles that learn, store routes, price comparison,
                        # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
@@ -285,8 +323,9 @@ src/
                        # goals are), health (published reference ranges),
                        # workouts (METs per activity and how each health app
                        # exports), reminders (the kinds one can be, and the
-                       # plain truth about notifications), and taxonomy for
-                       # aisles/locations
+                       # plain truth about notifications), preferences
+                       # (allergens, observance, cuisines, units, widgets),
+                       # and taxonomy for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite

@@ -107,6 +107,15 @@ export const EMPTY_STATE = {
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
   countExerciseKcal: false, // eating back an estimate is a choice
+  /* how you want to be treated: hard lines, soft preferences, and units */
+  allergies: [], // hard: a recipe naming one is never offered
+  intolerances: [], // soft: flagged, because the amount is the point
+  religious: [], // hard: rules you keep
+  cuisines: [], // the ones you'd rather cook
+  skill: 'confident',
+  timeBudget: 'normal',
+  units: {}, // only what you changed; the rest follow DEFAULT_UNITS
+  widgets: null, // null = the default Home layout
   /* reminders — none until you make one */
   reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
   reminderDone: {}, // 'YYYY-MM-DD|id|HH:MM' → true, so a firing is ticked once
