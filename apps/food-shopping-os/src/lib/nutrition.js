@@ -123,6 +123,10 @@ export const hydration = (totals, glasses = 0) => {
 
 export const alcoholUnits = (grams = 0) => Math.round((grams / ALCOHOL_UNIT_G) * 10) / 10;
 
+/** UK labels often show salt while the nutrient data stores sodium. */
+export const saltEquivalent = (sodiumMg = 0) =>
+  Math.round(((Number(sodiumMg) || 0) * 2.5 / 1000) * 10) / 10;
+
 /** Which meal a log lands in when the clock decides. */
 export const mealForTime = (date = new Date()) => {
   const h = date.getHours() + date.getMinutes() / 60;

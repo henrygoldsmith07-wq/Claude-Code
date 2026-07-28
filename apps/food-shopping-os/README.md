@@ -57,8 +57,9 @@ tables and UK reference intakes.
   **snack tracking** as a share of the day
 - **Nutrition tracking** — 24 nutrients from the same per-100 g profiles the
   diary logs: calories, protein, carbs, fat, fibre and sugar; saturated fat,
-  trans fat and cholesterol; sodium, potassium, calcium, iron, magnesium and
-  zinc; vitamins A, B complex, C, D, E and K; water, caffeine and alcohol.
+  trans fat and cholesterol; sodium, its UK-label **salt equivalent**, potassium,
+  calcium, iron, magnesium and zinc; vitamins A, B complex, C, D, E and K;
+  water, caffeine and alcohol.
   Goals read as progress, limits read as headroom, every daily target is
   editable, and the panel says plainly what share of the day's calories
   carries a full micronutrient profile
@@ -180,7 +181,9 @@ tables and UK reference intakes.
   lines, kJ/kcal pairs, salt converted to sodium, a per-serving column scaled
   back to 100 g — with anything it couldn't find listed as missing rather than
   guessed, and the result saved as one of your foods
-- **Health tracking** — readings you took, read back. **Weight**, **body fat
+- **Health tracking** — one Health area brings the nutrition breakdown,
+  hydration, editable macro and weight targets, evidence-backed healthy swaps
+  and body readings together. **Weight**, **body fat
   %**, **waist** and **resting heart rate** each keep a dated series with a
   sparkline and the movement between the first and last reading — reported with
   the days it spanned, because two readings a day apart are not a trend.

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Check, Droplet, Info, RotateCcw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { alcoholUnits, nutrientAlerts, nutrientRows } from '../lib/nutrition.js';
+import {
+  alcoholUnits, nutrientAlerts, nutrientRows, saltEquivalent,
+} from '../lib/nutrition.js';
 import { NUTRIENT_GROUPS, formatAmount } from '../data/nutrients.js';
 import { Card, Meter, Pill, Ring, Section } from './ui.jsx';
 
@@ -114,6 +116,8 @@ export default function NutritionPanel() {
   const alerts = nutrientAlerts(totals, targets);
   const kcal = rows.find((r) => r.key === 'kcal');
   const units = alcoholUnits(totals.alcohol);
+  const salt = saltEquivalent(totals.sodium);
+  const saltTarget = saltEquivalent(targets.sodium);
 
   return (
     <div className="px-5 pb-10 space-y-5">
@@ -148,6 +152,24 @@ export default function NutritionPanel() {
             {alerts.low.length > 0 && <>Short on: {alerts.low.slice(0, 4).map((r) => r.label).join(', ')}.</>}
           </p>
         )}
+      </Card>
+
+      <Card>
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Salt equivalent</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Converted from tracked sodium</p>
+          </div>
+          <p className="text-[13px] font-bold tabular-nums">{salt} g / {saltTarget} g</p>
+        </div>
+        <div className="mt-2">
+          <Meter
+            value={Math.min(salt, saltTarget)}
+            max={saltTarget}
+            color={salt > saltTarget ? 'var(--danger)' : 'var(--series-1)'}
+            height={5}
+          />
+        </div>
       </Card>
 
       {/* Honesty about where the numbers come from */}

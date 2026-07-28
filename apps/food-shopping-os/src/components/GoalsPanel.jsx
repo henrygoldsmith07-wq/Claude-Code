@@ -34,6 +34,7 @@ function MaintenanceCard() {
 
       <div className="grid grid-cols-2 gap-2.5">
         <NumberField label="Weight" value={body.weightKg ?? ''} onChange={(v) => app.setBody({ weightKg: Number(v) || null })} suffix="kg" step={0.5} />
+        <NumberField label="Target weight" value={body.targetWeightKg ?? ''} onChange={(v) => app.setBody({ targetWeightKg: Number(v) || null })} suffix="kg" step={0.5} />
         <NumberField label="Height" value={body.heightCm ?? ''} onChange={(v) => app.setBody({ heightCm: Number(v) || null })} suffix="cm" step={1} />
         <NumberField label="Age" value={body.age ?? ''} onChange={(v) => app.setBody({ age: Number(v) || null })} suffix="yrs" step={1} />
         <div>
