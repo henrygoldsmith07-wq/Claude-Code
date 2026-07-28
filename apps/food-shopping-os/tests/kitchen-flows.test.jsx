@@ -211,6 +211,9 @@ describe('the coach', () => {
   it('answers from your data, and admits when there is none', () => {
     onboard();
     fireEvent.click(screen.getByLabelText('AI food coach'));
+    // The coach opens on its summary; the chat is the other half of the sheet.
+    expect(screen.getByText(/blank\s*page until you put something in it/)).toBeDefined();
+    fireEvent.click(screen.getByText('Ask'));
     expect(screen.getByText(/there’s not much there yet/)).toBeDefined();
 
     fireEvent.click(screen.getByText('What needs using up?'));

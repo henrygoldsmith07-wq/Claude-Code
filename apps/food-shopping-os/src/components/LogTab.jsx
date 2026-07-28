@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Activity, Camera, Clock, Cookie, Droplet, Layers, Mic, Plus, ScanBarcode, Search, Utensils,
+  Activity, Camera, Clock, Cookie, Droplet, Layers, Mic, Plus, ScanBarcode, ScanText, Search, Utensils,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { prettyDate } from '../lib/utils.js';
@@ -17,12 +17,14 @@ import CopyMeal from './CopyMeal.jsx';
 import RecipeImport from './RecipeImport.jsx';
 import NutritionPanel from './NutritionPanel.jsx';
 import { BarcodeScanner, PhotoRecognise, VoiceLog } from './LogCapture.jsx';
+import LabelScan from './LabelScan.jsx';
 
 const SHORTCUTS = [
   { id: 'add', label: 'Search', Icon: Search },
   { id: 'barcode', label: 'Barcode', Icon: ScanBarcode },
   { id: 'photo', label: 'Photo', Icon: Camera },
   { id: 'voice', label: 'Voice', Icon: Mic },
+  { id: 'label', label: 'Label', Icon: ScanText },
   { id: 'copy', label: 'Copy', Icon: Layers },
 ];
 
@@ -32,6 +34,7 @@ const SHEET_TITLES = {
   barcode: 'Scan a barcode',
   photo: 'Photo recognition',
   voice: 'Voice logging',
+  label: 'Read a nutrition label',
   import: 'Import a recipe',
   copy: 'Copy a meal',
 };
@@ -362,6 +365,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
         )}
         {sheet === 'photo' && <PhotoRecognise defaultMeal={activeMeal} onDone={closeAll} />}
         {sheet === 'voice' && <VoiceLog defaultMeal={activeMeal} onDone={closeAll} />}
+        {sheet === 'label' && <LabelScan onDone={() => setSheet('add')} />}
         {sheet === 'import' && <RecipeImport defaultMeal={activeMeal} onDone={closeAll} />}
         {sheet === 'copy' && <CopyMeal defaultMeal={activeMeal} initialMode={copyMode} onDone={closeAll} />}
         {sheet === 'nutrition' && <NutritionPanel />}

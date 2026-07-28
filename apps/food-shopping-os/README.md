@@ -135,9 +135,29 @@ tables and UK reference intakes.
   from your recorded shops, the cuisines you actually cook, achievements that
   are all earned (never seeded), theme and accent, plus export and reset for
   your data
-- **AI food coach** — answers only from your own data: what needs using up,
-  how today's macros look, what you can afford, what to cook tonight. With an
-  empty kitchen it says so rather than inventing a week you didn't have
+- **AI food coach** — a page and a chat, both reading only your own data.
+  **Today** gives the day back to you with **feedback on each meal** (its share
+  of your calories and protein, and at most one suggestion). **Habits** counts
+  what your diary shows: eating window, snack share, which meals reach the
+  diary, weekdays against weekends, what you eat most. **Progress** turns your
+  average intake against your maintenance figure into a **weekly pace** and, if
+  you've set a target weight, how many weeks that is — refusing to run on
+  fewer than five logged days and printing its assumptions. **Ideas** carries
+  **personalised tips** (each with the number behind it), **grocery
+  recommendations** answering the nutrients your week actually came up short
+  on, **macro adjustments** when a target you never hit needs to move rather
+  than you, and **restaurant picks** from the handful of chains the app ships
+  figures for. The **chat** answers the same things in sentences. There is no
+  model and no server here: every claim states how many days it was computed
+  from, and with nothing logged it says so instead of inventing a week
+- **Healthy swaps** — on any food, alternatives from the catalogue that beat it
+  on protein, fibre, saturated fat or sugar per calorie, with the reason
+  attached; a swap is only offered when a real number supports it
+- **Nutrition labels** — this build ships no OCR, so it doesn't pretend to read
+  the picture: you copy the panel in and the *parsing* is real — "of which"
+  lines, kJ/kcal pairs, salt converted to sodium, a per-serving column scaled
+  back to 100 g — with anything it couldn't find listed as missing rather than
+  guessed, and the result saved as one of your foods
 
 ## Run
 
@@ -165,6 +185,9 @@ src/
                        # and the shopping list for any range
   lib/recipe-tools.js  # scaling, substitutions, full nutrition, search, sharing
   lib/recipe-ai.js     # invents a dish from your pantry, on-device
+  lib/coach.js         # adherence, trends, habits, progress, the day summarised
+  lib/advice.js        # meal feedback, swaps, groceries, targets, tips, eating out
+  lib/label.js         # a real parser for UK/EU nutrition panels
   lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
