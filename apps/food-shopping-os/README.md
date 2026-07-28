@@ -233,7 +233,9 @@ tables and UK reference intakes.
   preferring an exported energy figure over its own estimate, deduplicating
   against what you already have, and counting the rows it couldn't read
 
-- **Reminders** — **meals, water, supplements, groceries, weigh-ins, exercise,
+- **Reminders and notifications** — one-tap presets for **expiry, shopping,
+  meals, budget alerts, weekly reports, daily summaries, pantry alerts, saved
+  price targets and restocks**, plus **water, supplements, weigh-ins, exercise,
   sleep** and **anything else you name**, each with your own wording, as many
   times a day as you like, on the days you choose. A reminder arrives carrying
   **your own figure** — "you're at 750 of 2,000 ml", "last weighed 7 days ago,
@@ -247,6 +249,9 @@ tables and UK reference intakes.
   target you set, the weekday most of your weigh-ins already land on, the days
   your workouts cluster on — and nothing is offered that your data can't
   support.
+  Sale alerts are checked against prices in shops you recorded; there is no
+  live retailer price feed. Restocks come from your repeat-buy history, expiry
+  alerts from dates you saved, and every preset can be edited or switched off.
   On **notifications**, the app is blunt about the platform: while Forq is open
   a due reminder becomes a real notification; while it's closed **it cannot**,
   because that needs a push server and there isn't one. So there's no

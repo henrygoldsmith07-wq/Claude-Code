@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  Bell, BellOff, CalendarArrowDown, Check, ChevronLeft, Info, Pencil, Plus, Sparkles, Trash2,
+  Bell, BellOff, BellRing, CalendarArrowDown, Check, ChevronLeft, Info, Pencil, Plus, Sparkles, Trash2,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { kindBy, NOTIFY_TRUTH, SNOOZE_MINUTES } from '../data/reminders.js';
 import { nextLabel, scheduleLabel } from '../lib/reminders.js';
-import { icsFor, suggestedReminders } from '../lib/reminder-suggest.js';
+import { icsFor, notificationPresets, suggestedReminders } from '../lib/reminder-suggest.js';
 import { askPermission, downloadFile, notifySupport, showNotification } from '../lib/notify.js';
 import { Card, Chip, Pill, Toggle } from './ui.jsx';
 import { Glyph } from './icons.jsx';
@@ -108,6 +108,49 @@ function SuggestionsCard() {
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         {suggestions.length === 1 ? 'Set it up' : `Set up all ${suggestions.length}`}
+      </button>
+    </Card>
+  );
+}
+
+function NotificationPresetsCard() {
+  const app = useApp();
+  const presets = notificationPresets(app.reminders);
+  if (!presets.length) return null;
+
+  return (
+    <Card className="space-y-2.5">
+      <div>
+        <p className="font-bold text-[14px] inline-flex items-center gap-1.5">
+          <BellRing size={15} /> Notification presets
+        </p>
+        <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          Suggested schedules only. Add them, then change any time or day.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {presets.map((preset) => (
+          <button
+            key={preset.key}
+            onClick={() => app.addSuggestedReminders([preset])}
+            className="press rounded-2xl p-3 text-left"
+            style={{ background: 'var(--card-2)' }}
+          >
+            <span className="text-[13px] font-extrabold inline-flex items-center gap-1.5">
+              <Glyph e={preset.emoji} size={13} /> {kindBy[preset.kind].label}
+            </span>
+            <span className="mt-0.5 block text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {scheduleLabel(preset)}
+            </span>
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => app.addSuggestedReminders(presets)}
+        className="press w-full rounded-2xl py-2.5 text-[13px] font-extrabold"
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+      >
+        {presets.length === 1 ? 'Set it up' : `Set up all ${presets.length}`}
       </button>
     </Card>
   );
@@ -279,6 +322,7 @@ export default function RemindersPanel() {
         <span className="inline-flex items-center gap-1.5"><Plus size={15} /> New reminder</span>
       </button>
 
+      <NotificationPresetsCard />
       <SuggestionsCard />
       <PermissionCard />
       <CalendarCard />
