@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Check, Copy, MapPin, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -41,6 +41,8 @@ function ListRow({ item, onAisle }) {
             {item.name}
             {item.qty && <span className="font-semibold text-[12px]" style={{ color: 'var(--muted)' }}> · {item.qty}</span>}
           </p>
+          {item.priority === 'high' && <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--warn)' }}>Need it</p>}
+          {item.note && <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>{item.note}</p>}
           {item.fromRecipe && (
             <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>for {item.fromRecipe}</p>
           )}
@@ -91,6 +93,7 @@ export default function ShopTab() {
   const [adding, setAdding] = useState(false);
   const [sheet, setSheet] = useState(null); // finish · offers · scan · export
   const [store, setStore] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState('');
 
   const list = app.shoppingList;
   const stores = useMemo(() => [...new Set(app.shops.map((s) => s.store))], [app.shops]);
@@ -108,6 +111,20 @@ export default function ShopTab() {
     const lines = grouped.map(([aisle, items]) =>
       `${aisle}\n${items.map((i) => `- ${i.name}${i.qty ? ` (${i.qty})` : ''}`).join('\n')}`);
     return `Shopping list${store ? ` · ${store}` : ''}\n\n${lines.join('\n\n')}`;
+  };
+
+  const voiceAdd = () => {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) { setVoiceStatus('Voice input is not supported by this browser.'); return; }
+    const recognition = new Recognition();
+    recognition.lang = 'en-GB';
+    recognition.onresult = (event) => {
+      const words = event.results[0][0].transcript.trim().replace(/^(add|buy)\s+/i, '');
+      if (words) { app.addToList({ name: words }); setVoiceStatus(`Added “${words}”.`); }
+    };
+    recognition.onerror = () => setVoiceStatus('Could not hear that — try again.');
+    recognition.start();
+    setVoiceStatus('Listening…');
   };
 
   return (
@@ -252,6 +269,13 @@ export default function ShopTab() {
               >
                 <span className="inline-flex items-center gap-1.5"><Tag size={14} /> Offers{app.offers.length ? ` (${app.offers.length})` : ''}</span>
               </button>
+              <button
+                onClick={voiceAdd}
+                className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                style={{ borderColor: 'var(--line)' }}
+              >
+                <span className="inline-flex items-center gap-1.5"><Mic size={14} /> Voice</span>
+              </button>
               {/* A receipt is about a shop you already did, so it doesn't belong
                   behind a list that has to be full first. */}
               <button
@@ -263,7 +287,20 @@ export default function ShopTab() {
               </button>
             </div>
             {adding && <AddItem onAdd={(item) => app.addToList(item)} />}
+            {voiceStatus && <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{voiceStatus}</p>}
           </Section>
+
+          {app.shops.length > 0 && (
+            <Section className="rise rise-2">
+              <button
+                onClick={() => app.repeatLastShop()}
+                className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+                style={{ borderColor: 'var(--line)' }}
+              >
+                <span className="inline-flex items-center gap-1.5"><RotateCcw size={14} /> Repeat your last shop</span>
+              </button>
+            </Section>
+          )}
 
           {/* Things you buy again and again, going by your receipts */}
           {app.restock.length > 0 && (

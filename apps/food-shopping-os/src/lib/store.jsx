@@ -193,14 +193,22 @@ export function AppProvider({ children }) {
       /* ---------- Shopping ---------- */
       addToList: (items) =>
         set((s) => {
-          const have = new Set(s.shoppingList.map((i) => i.name.toLowerCase()));
+          const keyFor = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          const have = new Set(s.shoppingList.map((i) => keyFor(i.name)));
+          const quantities = new Map();
+          [...s.shops].reverse().forEach((shop) => shop.items.forEach((item) => {
+            const key = keyFor(item.name);
+            if (!quantities.has(key) && item.qty) quantities.set(key, item.qty);
+          }));
           const fresh = mergeItems(Array.isArray(items) ? items : [items])
-            .filter((i) => i.name && !have.has(i.name.toLowerCase()))
+            .filter((i) => i.name && !have.has(keyFor(i.name)))
             .map((i) => ({
               id: i.id || uid('s'),
               checked: false,
               price: Number(i.price) || 0,
-              qty: i.qty || '',
+              qty: i.qty || quantities.get(keyFor(i.name)) || '',
+              note: String(i.note || '').trim(),
+              priority: i.priority === 'high' ? 'high' : 'normal',
               emoji: i.emoji || emojiFor(i.name),
               ...i,
               // What you filed it under last time wins over the name guess.
@@ -209,6 +217,17 @@ export function AppProvider({ children }) {
                 : aisleFor(i.name, s.aisleMemory),
             }));
           return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
+        }),
+      repeatLastShop: () =>
+        set((s) => {
+          const last = s.shops.at(-1);
+          if (!last?.items?.length) return {};
+          const have = new Set(s.shoppingList.map((i) => String(i.name).trim().toLowerCase()));
+          const items = last.items.filter((i) => i.name && !have.has(String(i.name).trim().toLowerCase()))
+            .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0,
+              emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
+              note: '', priority: 'normal' }));
+          return items.length ? { shoppingList: [...s.shoppingList, ...items] } : {};
         }),
       /** Moving an item to another aisle teaches the list where it lives. */
       setItemAisle: (id, aisle) =>
