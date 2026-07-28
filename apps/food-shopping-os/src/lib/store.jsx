@@ -19,6 +19,11 @@ import {
   applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, leftoverItems, leftoverPortions, moveMeal,
 } from './mealplan.js';
 import { progressSummary } from './progress.js';
+import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
+import { activityAdjustment, weekSummary } from './exercise.js';
+import { healthActions } from './health-actions.js';
+
+export { PHOTO_LIMIT } from './health-actions.js';
 
 import {
   ACCENT_IDS, emojiFor, EMPTY_STATE, recentFoodsFrom, rolloverDay, STORAGE_KEY, todayStamp, uid,
@@ -329,6 +334,9 @@ export function AppProvider({ children }) {
             .filter((p) => p.cat !== LEFTOVER_CAT || (Number(p.portions) || 0) > 0),
         })),
 
+      /* ---------- Health and exercise (see health-actions.js) ---------- */
+      ...healthActions(set),
+
       /* ---------- Food diary ---------- */
       logEntries: addEntries,
       logEntry: (entry, date) => addEntries([entry], date),
@@ -442,6 +450,14 @@ export function AppProvider({ children }) {
       /* leftovers */
       leftovers: leftoverItems(state.pantry),
       leftoverPortions: leftoverPortions(state.pantry),
+      /* health and training, read back the same way as everything else */
+      body_: bodySummary(state, state.day),
+      vitalsSummary: vitalSummary(state.vitals),
+      sleepSummary: sleepSummary(state.sleep, { today: state.day }),
+      stressSummary: stressSummary(state.stress, { today: state.day }),
+      cycle: cycleSummary(state.cycles, state.day),
+      training: weekSummary(state.workouts, state.day),
+      activity: activityAdjustment(state, state.day),
       /* the game layer — all counted from the records above, never banked */
       game: progress,
       xp: progress.xp,

@@ -96,6 +96,16 @@ export const EMPTY_STATE = {
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids
   cooked: [], // [{recipeId, date}]
+  /* health — every reading is one you took */
+  measurements: [], // {id, key, value, date}
+  vitals: [], // {id, key, values:{}, date, note}
+  sleep: [], // {id, date, hours, quality, note}
+  stress: [], // {id, date, level, note}
+  cycles: [], // {id, start, end, flow, symptoms[]}
+  photos: [], // {id, date, thumb, note} — small, capped, on your device
+  /* exercise */
+  workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
+  countExerciseKcal: false, // eating back an estimate is a choice
   /* food diary */
   log: {}, // { 'YYYY-MM-DD': entry[] }
   favouriteFoods: [],

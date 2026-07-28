@@ -168,6 +168,35 @@ tables and UK reference intakes.
   lines, kJ/kcal pairs, salt converted to sodium, a per-serving column scaled
   back to 100 g — with anything it couldn't find listed as missing rather than
   guessed, and the result saved as one of your foods
+- **Health tracking** — readings you took, read back. **Weight**, **body fat
+  %**, **waist** and **resting heart rate** each keep a dated series with a
+  sparkline and the movement between the first and last reading — reported with
+  the days it spanned, because two readings a day apart are not a trend.
+  **BMI** is computed from your latest weight and your height rather than
+  stored, and asks for a height instead of guessing one. **Waist** is banded
+  against the published thresholds, which are sex-specific, so without a stated
+  sex it shows the number and says why it can't band it. **Blood pressure**,
+  **blood glucose** and **cholesterol** are labelled with the ordinary NHS /
+  Diabetes UK reference ranges, always alongside the reminder that a label is
+  not a diagnosis. **Sleep** and **stress** average only the nights and days you
+  logged, and say how many that is. **Cycle tracking** predicts the next period
+  from the average of *your* logged cycles and nothing else — one logged period
+  gives no prediction, and it says so. **Progress photos** stay on the device
+  (there is nowhere else for them to go), shrunk to thumbnails and capped,
+  because browser storage is a few megabytes for the whole app
+- **Exercise** — **workout logging** across ten kinds of training with an
+  intensity and the extras that belong to each (distance for a run, sets and
+  reps for a gym session). **Calories burned** are the standard MET equation —
+  `kcal ≈ MET × 3.5 × kg ÷ 200 × minutes` — labelled an estimate everywhere it
+  appears, and it returns *nothing* without a weight rather than assuming a
+  body. **Activity adjustment** is off by default: eating an estimate back is a
+  choice, so you make it. **Strength, running, cycling and walking** are types,
+  not integrations. **Apple Health, Google Health Connect and smartwatches**
+  have no browser API a web app can call, and this build ships no fake Connect
+  button; what all of them can do is export a file, so the importer reads that
+  CSV — mapping the column names and activity names those apps actually write,
+  preferring an exported energy figure over its own estimate, deduplicating
+  against what you already have, and counting the rows it couldn't read
 
 ## Run
 
@@ -186,6 +215,7 @@ src/
   index.css            # theme tokens (light/dark + 5 accents), animations
   lib/state.js         # what an install is: empty state + pure state helpers
   lib/store.jsx        # the provider: actions, derived values, persistence
+  lib/health-actions.js # the store's body/training actions, bounded on the way in
   lib/shopping.js      # aisles that learn, store routes, price comparison,
                        # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
@@ -198,6 +228,11 @@ src/
   lib/coach.js         # adherence, trends, habits, progress, the day summarised
   lib/advice.js        # meal feedback, swaps, groceries, targets, tips, eating out
   lib/label.js         # a real parser for UK/EU nutrition panels
+  lib/health.js        # measurement series and trends, BMI, waist banding,
+                       # vitals, sleep, stress, cycles from your own starts
+  lib/exercise.js      # METs, the burn estimate, the training week, and the
+                       # importer for a health app's CSV export
+  lib/photos.js        # thumbnail sizing and the storage a photo set costs
   lib/progress.js      # XP, levels, streaks, goals, challenges, missions,
                        # seasonal events and achievements — all counted
   lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
@@ -209,7 +244,9 @@ src/
                        # (units/targets), micronutrients (per-100 g table),
                        # goals (body goals + dietary patterns), seasons (the UK
                        # growing calendar), quests (what earns XP and what the
-                       # goals are), and taxonomy for aisles/locations
+                       # goals are), health (published reference ranges),
+                       # workouts (METs per activity and how each health app
+                       # exports), and taxonomy for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
@@ -222,7 +259,10 @@ headroom is your weekly budget minus the shops you recorded this week; streaks
 count consecutive days you actually cooked; badge progress reads real counters;
 price trends come from prices you typed as you shopped; XP, levels and every
 quest bar are counted from those same records rather than stored, so nothing
-can be earned twice or kept after the thing that earned it is deleted. A new
+can be earned twice or kept after the thing that earned it is deleted. Body
+readings, vitals, sleep, stress, cycles and workouts are stored as dated
+records and every figure drawn from them — BMI, a trend, a cycle average, the
+training week, the day's burn — is computed on read. A new
 calendar day resets only water — everything else is date-keyed and carries
 over.
 

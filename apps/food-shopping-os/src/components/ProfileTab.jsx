@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
-  Activity, Banknote, Flame, Lock, NotebookPen, RotateCcw, Download, Target, Trophy, Users,
+  Activity, Banknote, Dumbbell, Flame, HeartPulse, Lock, NotebookPen, RotateCcw, Download,
+  Target, Trophy, Users,
 } from 'lucide-react';
 import { useApp, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
@@ -12,6 +13,8 @@ import NutritionPanel from './NutritionPanel.jsx';
 import GoalsPanel from './GoalsPanel.jsx';
 import FamilyPanel from './FamilyPanel.jsx';
 import QuestsPanel from './QuestsPanel.jsx';
+import HealthPanel from './HealthPanel.jsx';
+import ExercisePanel from './ExercisePanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -33,6 +36,8 @@ export default function ProfileTab() {
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [familyOpen, setFamilyOpen] = useState(false);
   const [questsOpen, setQuestsOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [exerciseOpen, setExerciseOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -146,6 +151,30 @@ export default function ProfileTab() {
             <Users size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
           </div>
         </Card>
+      </Section>
+
+      {/* Health and training */}
+      <Section title="Health & training" className="rise rise-1">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Card onClick={() => setHealthOpen(true)}>
+            <HeartPulse size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Health</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.body_.readings.weight
+                ? `${app.body_.readings.weight.value} kg${app.body_.bmi ? ` · BMI ${app.body_.bmi.value}` : ''}`
+                : 'Weight, vitals, sleep, cycle'}
+            </p>
+          </Card>
+          <Card onClick={() => setExerciseOpen(true)}>
+            <Dumbbell size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Exercise</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.training.sessions
+                ? `${app.training.sessions} session${app.training.sessions === 1 ? '' : 's'} · ${app.training.minutes} min`
+                : 'Log a workout or import one'}
+            </p>
+          </Card>
+        </div>
       </Section>
 
       {/* Nutrition today */}
@@ -382,6 +411,12 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={questsOpen} onClose={() => setQuestsOpen(false)} title="Progress">
         <QuestsPanel />
+      </Sheet>
+      <Sheet open={healthOpen} onClose={() => setHealthOpen(false)} title="Health">
+        <HealthPanel />
+      </Sheet>
+      <Sheet open={exerciseOpen} onClose={() => setExerciseOpen(false)} title="Exercise">
+        <ExercisePanel />
       </Sheet>
     </div>
   );
