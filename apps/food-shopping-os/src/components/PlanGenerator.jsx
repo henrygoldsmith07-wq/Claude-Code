@@ -53,12 +53,13 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         pantry: usePantry ? pantryNames : [],
         month: seasonal ? month : null,
         days: scope === 'A month' ? monthDates.length : null,
+        recipes: app.safeRecipes,
       },
       seed,
     );
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, scope, app.planDiets, app.goal, budget, quick, occasion, people, batch, usePantry, seasonal, month, monthDates.length]);
+  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, budget, quick, occasion, people, batch, usePantry, seasonal, month, monthDates.length]);
 
   const generated = plan?.meals ?? null;
 

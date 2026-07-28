@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  CalendarDays, ChevronLeft, ChevronRight, Info, Move, ShoppingCart, Snowflake,
+  CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, Move, ShoppingCart, Snowflake,
   Sparkles, Utensils, X,
 } from 'lucide-react';
 import { gbp } from '../lib/utils.js';
@@ -11,8 +11,9 @@ import { MEAL_SLOTS } from '../data/plan.js';
 import { weekDates } from '../lib/kitchen.js';
 import {
   batchGroups, coveredByLeftovers, monthDates, monthGrid, monthLabel, planStats,
-  shiftMonth, shiftWeek, shoppingForPlan,
+  mealPlanIcs, shiftMonth, shiftWeek, shoppingForPlan,
 } from '../lib/mealplan.js';
+import { downloadFile } from '../lib/notify.js';
 import { filterByDiet } from '../lib/goals.js';
 import { monthOf, seasonalHits } from '../data/seasons.js';
 import { Section, Card, Chip, Pill, Sheet } from './ui.jsx';
@@ -117,6 +118,7 @@ export default function PlanTab({ openRecipe }) {
   const [dragging, setDragging] = useState(null); // meal picked up by drag
   const [showGenerator, setShowGenerator] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState('');
 
   const anchorWeek = shiftWeek(app.day, offset);
   const anchorMonth = shiftMonth(app.day, offset);
@@ -145,6 +147,19 @@ export default function PlanTab({ openRecipe }) {
     setAddedToList(true);
   };
 
+  const exportCalendar = () => {
+    const { text, events } = mealPlanIcs(app.plan, dates, {
+      calendarName: `Forq · ${rangeLabel}`,
+    });
+    const downloaded = downloadFile(
+      `forq-meals-${dates[0]}-${dates.at(-1)}.ics`,
+      text,
+    );
+    setCalendarStatus(downloaded
+      ? `${events} meal${events === 1 ? '' : 's'} exported.`
+      : 'Calendar export is unavailable in this browser.');
+  };
+
   return (
     <div className="pb-6 space-y-6">
       <div className="hero-gradient px-5 pt-1 pb-3">
@@ -159,12 +174,12 @@ export default function PlanTab({ openRecipe }) {
       <Section className="rise rise-1">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex gap-2">
-            <Chip active={view === 'week'} onClick={() => { setView('week'); setOffset(0); }}>Week</Chip>
-            <Chip active={view === 'month'} onClick={() => { setView('month'); setOffset(0); }}>Month</Chip>
+            <Chip active={view === 'week'} onClick={() => { setView('week'); setOffset(0); setCalendarStatus(''); }}>Week</Chip>
+            <Chip active={view === 'month'} onClick={() => { setView('month'); setOffset(0); setCalendarStatus(''); }}>Month</Chip>
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setOffset((o) => o - 1)}
+              onClick={() => { setOffset((o) => o - 1); setCalendarStatus(''); }}
               aria-label={view === 'week' ? 'Previous week' : 'Previous month'}
               className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
@@ -172,14 +187,14 @@ export default function PlanTab({ openRecipe }) {
               <ChevronLeft size={15} />
             </button>
             <button
-              onClick={() => setOffset(0)}
+              onClick={() => { setOffset(0); setCalendarStatus(''); }}
               className="tap press shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-extrabold"
               style={{ background: offset ? 'var(--card-2)' : 'transparent', color: offset ? 'var(--ink)' : 'var(--faint)' }}
             >
               {offset ? 'Today' : rangeLabel}
             </button>
             <button
-              onClick={() => setOffset((o) => o + 1)}
+              onClick={() => { setOffset((o) => o + 1); setCalendarStatus(''); }}
               aria-label={view === 'week' ? 'Next week' : 'Next month'}
               className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
@@ -264,6 +279,20 @@ export default function PlanTab({ openRecipe }) {
                     : "Send this month's ingredients to the list"}
               </span>
             </button>
+            <button
+              onClick={exportCalendar}
+              className="press w-full rounded-2xl border py-3 text-[14px] font-extrabold"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <CalendarPlus size={15} /> Add {view === 'week' ? 'week' : 'month'} to calendar
+              </span>
+            </button>
+            {calendarStatus && (
+              <p role="status" className="text-center text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {calendarStatus}
+              </p>
+            )}
             <button
               onClick={() => { app.clearPlanWeek(dates); setAddedToList(false); }}
               className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"

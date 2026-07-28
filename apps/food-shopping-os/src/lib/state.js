@@ -82,16 +82,23 @@ export const EMPTY_STATE = {
   weeklyKcal: 0, // 0 = seven times the daily target
   /* budget & shopping */
   weeklyBudget: 0,
+  monthlyBudget: 0,
   household: 1,
-  members: [], // who you cook for: {id, name, portions, diets}
-  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked}
+  householdName: '',
+  activeMemberId: null,
+  members: [], // {id,name,portions,diets,role,permissions,notifications}
+  chores: [],
+  householdEvents: [],
+  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked,note,priority,assigneeId}
   shops: [], // recorded trips {id,date,store,total,items[]}
   aisleMemory: {}, // name → the aisle you filed it under
   storeRoutes: {}, // store → the aisle order you actually walked
   offers: [], // vouchers and deals you told it about
+  priceAlerts: [], // item price targets checked against recorded shops
   waste: [], // what you threw away, and what it cost
   /* kitchen */
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
+  autoUsePantry: false,
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids

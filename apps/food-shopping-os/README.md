@@ -57,8 +57,9 @@ tables and UK reference intakes.
   **snack tracking** as a share of the day
 - **Nutrition tracking** — 24 nutrients from the same per-100 g profiles the
   diary logs: calories, protein, carbs, fat, fibre and sugar; saturated fat,
-  trans fat and cholesterol; sodium, potassium, calcium, iron, magnesium and
-  zinc; vitamins A, B complex, C, D, E and K; water, caffeine and alcohol.
+  trans fat and cholesterol; sodium, its UK-label **salt equivalent**, potassium,
+  calcium, iron, magnesium and zinc; vitamins A, B complex, C, D, E and K;
+  water, caffeine and alcohol.
   Goals read as progress, limits read as headroom, every daily target is
   editable, and the panel says plainly what share of the day's calories
   carries a full micronutrient profile
@@ -75,9 +76,15 @@ tables and UK reference intakes.
   saves. **Leftovers** you save after cooking sit in the fridge with a use-by
   date, cover planned meals, and drop out of the shopping list. The list itself
   generates from whichever range you're looking at, minus your pantry
-- **Family planning** — add everyone you cook for with their own portion size
-  and their own dietary patterns. Portions add up (cost, servings, batch sizes)
-  and the patterns pool, so a plan for the table fits all of it
+- **Household** — name a household and add adult or child profiles, each with
+  their own portions, dietary patterns, shopping/pantry/recipe permissions and
+  notification preference. Shopping lines and chores can be assigned to a
+  person, with household activity kept in one feed
+- **Shared household data** — shopping, pantry, saved recipes, profiles and
+  chores export together in one validated snapshot for another device. Open
+  tabs in the same browser update live through local storage events; true
+  cross-device live sync still requires an account and backend and is labelled
+  that way in the app
 - **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
   day and meal, up to a fortnight out
 - **Shop** — a list that learns. Items **group by aisle**, guessed from the
@@ -165,9 +172,13 @@ tables and UK reference intakes.
   recommendations** answering the nutrients your week actually came up short
   on, **macro adjustments** when a target you never hit needs to move rather
   than you, and **restaurant picks** from the handful of chains the app ships
-  figures for. The **chat** answers the same things in sentences. There is no
-  model and no server here: every claim states how many days it was computed
-  from, and with nothing logged it says so instead of inventing a week
+  figures for. The **chat** also connects the rest of the app: it can generate
+  a pantry recipe, draft a pantry-first week, explain or guide tonight's
+  recipe, suggest verified substitutions, improve a logged meal, surface
+  expiring food, optimise a basket from recorded prices and build the aisle
+  route learned from previous shops. There is no model, supermarket feed or
+  server here: every answer is computed on-device from your records and the
+  bundled food tables, and missing evidence is stated rather than invented
 - **Healthy swaps** — on any food, alternatives from the catalogue that beat it
   on protein, fibre, saturated fat or sugar per calorie, with the reason
   attached; a swap is only offered when a real number supports it
@@ -176,7 +187,9 @@ tables and UK reference intakes.
   lines, kJ/kcal pairs, salt converted to sodium, a per-serving column scaled
   back to 100 g — with anything it couldn't find listed as missing rather than
   guessed, and the result saved as one of your foods
-- **Health tracking** — readings you took, read back. **Weight**, **body fat
+- **Health tracking** — one Health area brings the nutrition breakdown,
+  hydration, editable macro and weight targets, evidence-backed healthy swaps
+  and body readings together. **Weight**, **body fat
   %**, **waist** and **resting heart rate** each keep a dated series with a
   sparkline and the movement between the first and last reading — reported with
   the days it spanned, because two readings a day apart are not a trend.

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   addDays, badgeProgress, budgetWeeks, cuisineSplit, dayStamp, daysUntil, expiringSoon,
-  kitchenStats, leftovers, pantryValue, planCost, plannedMeals, priceHistory, recipesUsing,
-  runningLow, spendByMonth, spentInWeek, streakFrom, weekDates, weekStart,
+  consumePantryIngredients, groceryInflation, kitchenStats, leftovers, pantryAnalytics,
+  pantryFromShareCode, pantryShareCode, pantryValue, planCost, plannedMeals, priceHistory,
+  recipesUsing, runningLow, savingsSummary, spendByMonth, spentInMonth, spentInWeek,
+  streakFrom, weekDates, weekStart,
 } from '../src/lib/kitchen.js';
 import { groupByAisle, guessAisle, itemsFromRecipes, totalOf, checkedTotalOf } from '../src/data/stores.js';
 import { RECIPES } from '../src/data/recipes.js';
@@ -57,6 +59,37 @@ describe('pantry', () => {
     expect(uses[0].hits).toBeGreaterThan(0);
     expect(uses[0].recipe.ingredients.some((i) => /spinach|milk/i.test(i.name))).toBe(true);
   });
+
+  it('summarises locations, categories and date coverage without storing totals', () => {
+    const analytics = pantryAnalytics(pantry, TODAY);
+    expect(analytics.byLocation).toEqual([
+      { label: 'Unassigned', count: 4, value: 5.95 },
+    ]);
+    expect(analytics.byCategory).toEqual(expect.arrayContaining([
+      { label: 'Leftovers', count: 1, value: 0 },
+      { label: 'Other', count: 3, value: 5.95 },
+    ]));
+    expect(analytics.dated).toBe(2);
+    expect(analytics.useSoon).toBe(2);
+  });
+
+  it('removes pantry items that a completed recipe used', () => {
+    const stocked = [
+      { id: 'p1', name: 'Chicken thighs', qty: '8' },
+      { id: 'p2', name: 'New potatoes', qty: '600 g' },
+      { id: 'p3', name: 'Milk', qty: '1 litre' },
+    ];
+    const ingredients = [{ name: 'Chicken thighs' }, { name: 'New potatoes' }, { name: 'Garlic' }];
+    const result = consumePantryIngredients(stocked, ingredients);
+    expect(result.pantry.map((p) => p.name)).toEqual(['Milk']);
+    expect(result.used.map((p) => p.name)).toEqual(['Chicken thighs', 'New potatoes']);
+  });
+
+  it('round-trips a household pantry share code and rejects invalid input', () => {
+    const code = pantryShareCode(pantry);
+    expect(pantryFromShareCode(code).map((p) => p.name)).toEqual(pantry.map((p) => p.name));
+    expect(() => pantryFromShareCode('not-a-pantry')).toThrow(/pantry code/i);
+  });
 });
 
 describe('shopping list', () => {
@@ -105,6 +138,25 @@ describe('shops and spending', () => {
     expect(months[months.length - 1].spend).toBe(50.6); // both July trips
     expect(months.find((m) => m.key === '2026-06').spend).toBe(44);
     expect(spendByMonth([], 3, TODAY).every((m) => m.spend === 0)).toBe(true);
+    expect(spentInMonth(shops, TODAY)).toBe(50.6);
+  });
+
+  it('tracks like-for-like grocery inflation from repeated purchases', () => {
+    const index = groceryInflation([
+      { date: '2026-01-01', store: 'A', items: [{ name: 'Milk', price: 1 }, { name: 'Bread', price: 2 }] },
+      { date: '2026-07-01', store: 'B', items: [{ name: 'Milk', price: 1.2 }, { name: 'Bread', price: 1.8 }] },
+    ]);
+    expect(index.items).toBe(2);
+    expect(index.baseline).toBe(3);
+    expect(index.current).toBe(3);
+    expect(index.percent).toBe(0);
+    expect(groceryInflation([]).items).toBe(0);
+  });
+
+  it('adds up savings actually recorded at checkout', () => {
+    expect(savingsSummary([
+      { saved: 2.5 }, { saved: 0 }, { saved: 1.25 },
+    ])).toEqual({ saved: 3.75, trips: 2 });
   });
 
   it('counts only complete weeks that stayed inside the budget', () => {

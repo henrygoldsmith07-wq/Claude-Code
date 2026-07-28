@@ -26,6 +26,8 @@ describe('a brand new app', () => {
     // XP isn't stored at all any more — it is counted from what you've done.
     expect(EMPTY_STATE.xp).toBeUndefined();
     expect(EMPTY_STATE.weeklyBudget).toBe(0);
+    expect(EMPTY_STATE.monthlyBudget).toBe(0);
+    expect(EMPTY_STATE.priceAlerts).toEqual([]);
     expect(EMPTY_STATE.water).toBe(0);
     for (const key of ['pantry', 'shoppingList', 'shops', 'cooked', 'favourites',
       'favouriteFoods', 'customFoods', 'mealTemplates']) {

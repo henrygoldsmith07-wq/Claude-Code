@@ -10,13 +10,17 @@
 import { CATALOGUE } from '../data/foods.js';
 import { GLASS_ML } from '../data/nutrients.js';
 import { dayTotals, hydration, nutrientCoverage } from './nutrition.js';
-import { kitchenStats, pantryValue, spentInWeek, streakFrom } from './kitchen.js';
+import {
+  groceryInflation, kitchenStats, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom,
+} from './kitchen.js';
 import { defaultWeeklyKcal, goalSummary, resolveMaintenance, weekProgress } from './goals.js';
 import { leftoverItems, leftoverPortions } from './mealplan.js';
 import { progressSummary } from './progress.js';
 import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
 import { activityAdjustment, weekSummary } from './exercise.js';
-import { basketProjection, restockSuggestions, wasteSummary } from './shopping.js';
+import {
+  basketProjection, priceAlertMatches, restockSuggestions, wasteSummary,
+} from './shopping.js';
 import { recentFoodsFrom } from './state.js';
 import { allowedByPrefs, prefsSummary, reach, recipeFit } from './preferences.js';
 import { formatters } from './units.js';
@@ -24,8 +28,13 @@ import { DEFAULT_WIDGETS } from '../data/preferences.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
+import { DEFAULT_PERMISSIONS } from './household.js';
 
 export const deriveApp = (state) => {
+  const activeMember = state.members.find((member) => member.id === state.activeMemberId) || null;
+  const householdAccess = activeMember
+    ? { ...DEFAULT_PERMISSIONS, ...(activeMember.permissions || {}) }
+    : { ...DEFAULT_PERMISSIONS };
   // The hard lines, gathered once so every surface filters the same way.
   const prefs = {
     allergies: state.allergies,
@@ -74,6 +83,9 @@ export const deriveApp = (state) => {
       ? Math.round(state.members.reduce((n, m) => n + (Number(m.portions) || 1), 0) * 10) / 10
       : state.household || 1,
     planDiets: [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])],
+    activeMember,
+    childMode: activeMember?.role === 'child',
+    householdAccess,
     /* leftovers */
     leftovers: leftoverItems(state.pantry),
     leftoverPortions: leftoverPortions(state.pantry),
@@ -95,11 +107,16 @@ export const deriveApp = (state) => {
     cookedIds: state.cooked.map((c) => c.recipeId),
     pantryValue: pantryValue(state.pantry),
     spentThisWeek: spentInWeek(state.shops, state.day),
+    spentThisMonth: spentInMonth(state.shops, state.day),
+    inflation: groceryInflation(state.shops),
+    savings: savingsSummary(state.shops),
+    priceAlertStatus: priceAlertMatches(state.priceAlerts, state.shops),
     /* shopping */
     basket: basketProjection(state.shoppingList, {
       budget: state.weeklyBudget,
       spent: spentInWeek(state.shops, state.day),
       offers: state.offers,
+      today: state.day,
     }),
     restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
     wasted: wasteSummary(state.waste),

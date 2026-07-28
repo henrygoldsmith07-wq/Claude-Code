@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Check, Copy, MapPin, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Banknote, Check, Copy, MapPin, Mic, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -15,6 +15,7 @@ import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
 import BarcodeAdd from './BarcodeAdd.jsx';
+import BudgetPanel from './BudgetPanel.jsx';
 
 /* ---------- One line of the list ---------- */
 
@@ -42,8 +43,22 @@ function ListRow({ item, onAisle }) {
             {item.name}
             {item.qty && <span className="font-semibold text-[12px]" style={{ color: 'var(--muted)' }}> · {item.qty}</span>}
           </p>
+          {item.priority === 'high' && <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--warn)' }}>Need it</p>}
+          {item.note && <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>{item.note}</p>}
           {item.fromRecipe && (
             <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>for {item.fromRecipe}</p>
+          )}
+          {app.members.length > 0 && (
+            <select
+              value={item.assigneeId || ''}
+              onChange={(event) => app.assignListItem(item.id, event.target.value)}
+              aria-label={`Assign ${item.name}`}
+              className="mt-1 rounded-lg border px-2 py-1 text-[11px] font-bold"
+              style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              <option value="">Anyone</option>
+              {app.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+            </select>
           )}
         </div>
         <input
@@ -92,6 +107,7 @@ export default function ShopTab() {
   const [adding, setAdding] = useState(false);
   const [sheet, setSheet] = useState(null); // finish · offers · scan · export
   const [store, setStore] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState('');
 
   const list = app.shoppingList;
   const stores = useMemo(() => [...new Set(app.shops.map((s) => s.store))], [app.shops]);
@@ -111,11 +127,44 @@ export default function ShopTab() {
     return `Shopping list${store ? ` · ${store}` : ''}\n\n${lines.join('\n\n')}`;
   };
 
+  const voiceAdd = () => {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) { setVoiceStatus('Voice input is not supported by this browser.'); return; }
+    const recognition = new Recognition();
+    recognition.lang = 'en-GB';
+    recognition.onresult = (event) => {
+      const words = event.results[0][0].transcript.trim().replace(/^(add|buy)\s+/i, '');
+      if (words) { app.addToList({ name: words }); setVoiceStatus(`Added “${words}”.`); }
+    };
+    recognition.onerror = () => setVoiceStatus('Could not hear that — try again.');
+    recognition.start();
+    setVoiceStatus('Listening…');
+  };
+
+  if (!app.householdAccess.shopping) {
+    return (
+      <div className="pb-6">
+        <div className="hero-gradient px-5 pt-14 pb-3">
+          <h1 className="text-[26px] font-extrabold tracking-tight">Shop</h1>
+        </div>
+        <Section>
+          <Card className="text-center py-10">
+            <ShoppingCart size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+            <p className="font-bold">Shopping is off for {app.activeMember?.name}.</p>
+            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              An adult can change this profile’s household permissions under Profile.
+            </p>
+          </Card>
+        </Section>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-6 space-y-6">
       <div className="hero-gradient px-5 pt-1 pb-3">
         <div className="mt-3 flex gap-2 rise rise-1">
-          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp]].map(([k, label, Icon]) => (
+          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
             </Chip>
@@ -255,6 +304,13 @@ export default function ShopTab() {
               >
                 <span className="inline-flex items-center gap-1.5"><Tag size={14} /> Offers{app.offers.length ? ` (${app.offers.length})` : ''}</span>
               </button>
+              <button
+                onClick={voiceAdd}
+                className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                style={{ borderColor: 'var(--line)' }}
+              >
+                <span className="inline-flex items-center gap-1.5"><Mic size={14} /> Voice</span>
+              </button>
               {/* A receipt is about a shop you already did, so it doesn't belong
                   behind a list that has to be full first. */}
               <button
@@ -266,7 +322,20 @@ export default function ShopTab() {
               </button>
             </div>
             {adding && <AddItem onAdd={(item) => app.addToList(item)} />}
+            {voiceStatus && <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{voiceStatus}</p>}
           </Section>
+
+          {app.shops.length > 0 && (
+            <Section className="rise rise-2">
+              <button
+                onClick={() => app.repeatLastShop()}
+                className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+                style={{ borderColor: 'var(--line)' }}
+              >
+                <span className="inline-flex items-center gap-1.5"><RotateCcw size={14} /> Repeat your last shop</span>
+              </button>
+            </Section>
+          )}
 
           {/* Things you buy again and again, going by your receipts */}
           {app.restock.length > 0 && (
@@ -356,6 +425,7 @@ export default function ShopTab() {
       )}
 
       {view === 'prices' && <PriceCompare />}
+      {view === 'budget' && <BudgetPanel />}
 
       <Sheet open={sheet === 'finish'} onClose={() => setSheet(null)} title="Finish shop">
         <FinishShop items={list} store={store} onDone={() => { setSheet(null); setShoppingMode(false); }} />

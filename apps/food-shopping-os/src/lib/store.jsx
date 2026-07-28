@@ -3,15 +3,20 @@ import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
 import { setMyRecipes } from '../data/recipes.js';
-import { aisleFor, mergeItems, rememberAisle, routeFromTicks } from './shopping.js';
+import {
+  aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks,
+} from './shopping.js';
 import { buildEntry, copyEntries } from './nutrition.js';
 import { recipeFood } from './foodlog.js';
 import { targetsFor } from './goals.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { deriveApp } from './derive.js';
+import { consumePantryIngredients } from './kitchen.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
 import { advancedActions, preferenceActions } from './preference-actions.js';
+import { householdActions } from './household-actions.js';
+import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
@@ -27,16 +32,25 @@ export {
 
 const KEY = STORAGE_KEY;
 
+const hydrate = (stored = {}) => {
+  const state = {
+    ...EMPTY_STATE,
+    ...stored,
+    members: (stored.members || []).map((member) => ({
+      ...member,
+      role: member.role === 'child' ? 'child' : 'adult',
+      permissions: { ...DEFAULT_PERMISSIONS, ...(member.permissions || {}) },
+      notifications: member.notifications !== false,
+    })),
+    targets: { ...DEFAULT_TARGETS, ...(stored.targets || {}) },
+  };
+  if (!ACCENT_IDS.includes(state.accent)) state.accent = EMPTY_STATE.accent;
+  return rolloverDay(state);
+};
+
 const load = () => {
   try {
-    const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
-    const state = {
-      ...EMPTY_STATE,
-      ...stored,
-      targets: { ...DEFAULT_TARGETS, ...(stored.targets || {}) },
-    };
-    if (!ACCENT_IDS.includes(state.accent)) state.accent = EMPTY_STATE.accent;
-    return rolloverDay(state);
+    return hydrate(JSON.parse(localStorage.getItem(KEY) || '{}'));
   } catch {
     return { ...EMPTY_STATE };
   }
@@ -46,6 +60,7 @@ const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [state, setState] = useState(load);
+  const applyingRemote = useRef(false);
   // Reminders are due at a time, not at a state change, so the clock has to
   // move on its own. A minute is finer than any reminder needs.
   const [tick, setTick] = useState(() => Date.now());
@@ -62,8 +77,26 @@ export function AppProvider({ children }) {
      the way out rather than held in state, so the heartbeat can't re-render
      every screen once a minute. */
   useEffect(() => {
+    if (applyingRemote.current) {
+      applyingRemote.current = false;
+      return;
+    }
     localStorage.setItem(KEY, JSON.stringify({ ...state, lastSeenAt: Date.now() }));
   }, [state, tick]);
+
+  useEffect(() => {
+    const sync = (event) => {
+      if (event.key !== KEY || !event.newValue) return;
+      try {
+        applyingRemote.current = true;
+        setState(hydrate(JSON.parse(event.newValue)));
+      } catch {
+        // Ignore incomplete writes from another tab.
+      }
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
 
   // Leaving is the most accurate moment to stamp, and there may be no render
   // left after it — so this one writes directly.
@@ -157,24 +190,25 @@ export function AppProvider({ children }) {
       /** Keep a dish: generated, imported from a link, or sent by someone. */
       saveRecipe: (recipe) =>
         set((s) => {
+          if (!householdPermission(s, 'recipes')) return {};
           const id = s.myRecipes.some((r) => r.id === recipe.id) ? `${recipe.id}-${s.myRecipes.length + 1}` : recipe.id;
           return { myRecipes: [...s.myRecipes, { ...recipe, id, savedAt: s.day }] };
         }),
       removeRecipe: (id) =>
-        set((s) => ({
+        set((s) => (householdPermission(s, 'recipes') ? {
           myRecipes: s.myRecipes.filter((r) => r.id !== id),
           favourites: s.favourites.filter((f) => f !== id),
-        })),
+        } : {})),
       toggleFavourite: (id) =>
-        set((s) => ({
+        set((s) => (householdPermission(s, 'recipes') ? {
           favourites: s.favourites.includes(id)
             ? s.favourites.filter((x) => x !== id)
             : [...s.favourites, id],
-        })),
+        } : {})),
 
       /* ---------- Pantry ---------- */
       addPantryItem: (item) =>
-        set((s) => ({
+        set((s) => (householdPermission(s, 'pantry') ? {
           pantry: [...s.pantry, {
             id: uid('p'),
             emoji: emojiFor(item.name),
@@ -183,24 +217,46 @@ export function AppProvider({ children }) {
             ...item,
             cost: Number(item.cost) || 0,
           }],
-        })),
+        } : {})),
       updatePantryItem: (id, patch) =>
-        set((s) => ({ pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
-      removePantryItem: (id) => set((s) => ({ pantry: s.pantry.filter((p) => p.id !== id) })),
+        set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)) } : {})),
+      removePantryItem: (id) => set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.filter((p) => p.id !== id) } : {})),
+      importPantry: (items) =>
+        set((s) => {
+          if (!householdPermission(s, 'pantry')) return {};
+          const keyFor = (item) => `${String(item.name).trim().toLowerCase()}|${String(item.location || '').toLowerCase()}`;
+          const have = new Set(s.pantry.map(keyFor));
+          const fresh = items.filter((item) => !have.has(keyFor(item))).map((item) => ({
+            ...item,
+            id: uid('p'),
+            emoji: item.emoji || emojiFor(item.name),
+            addedAt: s.day,
+          }));
+          return fresh.length ? { pantry: [...s.pantry, ...fresh] } : {};
+        }),
       togglePantryLow: (id) =>
-        set((s) => ({ pantry: s.pantry.map((p) => (p.id === id ? { ...p, low: !p.low } : p)) })),
+        set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.map((p) => (p.id === id ? { ...p, low: !p.low } : p)) } : {})),
 
       /* ---------- Shopping ---------- */
       addToList: (items) =>
         set((s) => {
-          const have = new Set(s.shoppingList.map((i) => i.name.toLowerCase()));
+          if (!householdPermission(s, 'shopping')) return {};
+          const keyFor = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          const have = new Set(s.shoppingList.map((i) => keyFor(i.name)));
+          const quantities = new Map();
+          [...s.shops].reverse().forEach((shop) => shop.items.forEach((item) => {
+            const key = keyFor(item.name);
+            if (!quantities.has(key) && item.qty) quantities.set(key, item.qty);
+          }));
           const fresh = mergeItems(Array.isArray(items) ? items : [items])
-            .filter((i) => i.name && !have.has(i.name.toLowerCase()))
+            .filter((i) => i.name && !have.has(keyFor(i.name)))
             .map((i) => ({
               id: i.id || uid('s'),
               checked: false,
               price: Number(i.price) || 0,
-              qty: i.qty || '',
+              qty: i.qty || quantities.get(keyFor(i.name)) || '',
+              note: String(i.note || '').trim(),
+              priority: i.priority === 'high' ? 'high' : 'normal',
               emoji: i.emoji || emojiFor(i.name),
               ...i,
               // What you filed it under last time wins over the name guess.
@@ -209,6 +265,17 @@ export function AppProvider({ children }) {
                 : aisleFor(i.name, s.aisleMemory),
             }));
           return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
+        }),
+      repeatLastShop: () =>
+        set((s) => {
+          const last = s.shops.at(-1);
+          if (!last?.items?.length) return {};
+          const have = new Set(s.shoppingList.map((i) => String(i.name).trim().toLowerCase()));
+          const items = last.items.filter((i) => i.name && !have.has(String(i.name).trim().toLowerCase()))
+            .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0,
+              emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
+              note: '', priority: 'normal' }));
+          return items.length ? { shoppingList: [...s.shoppingList, ...items] } : {};
         }),
       /** Moving an item to another aisle teaches the list where it lives. */
       setItemAisle: (id, aisle) =>
@@ -240,11 +307,14 @@ export function AppProvider({ children }) {
         set((s) => {
           const bought = s.shoppingList.filter((i) => i.checked);
           if (!bought.length) return {};
+          const shopStore = store || 'Unnamed shop';
+          const { saved } = applyOffers(bought, s.offers, { store: shopStore, today: s.day });
           const shop = {
             id: uid('h'),
             date: s.day,
-            store: store || 'Unnamed shop',
+            store: shopStore,
             total: Math.round((Number(total) || 0) * 100) / 100,
+            saved,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
           // The order you ticked things off is this shop's layout, learned.
@@ -286,11 +356,21 @@ export function AppProvider({ children }) {
               kind: ['money', 'percent', 'multibuy'].includes(offer.kind) ? offer.kind : 'money',
               value: Math.max(0, Number(offer.value) || 0),
               store: String(offer.store || '').trim(),
+              expiry: /^\d{4}-\d{2}-\d{2}$/.test(offer.expiry || '') ? offer.expiry : null,
               addedAt: s.day,
             }],
           };
         }),
       removeOffer: (id) => set((s) => ({ offers: s.offers.filter((o) => o.id !== id) })),
+      addPriceAlert: ({ name, target }) =>
+        set((s) => {
+          const label = String(name || '').trim();
+          const price = Math.max(0, Number(target) || 0);
+          if (label.length < 2 || !price) return {};
+          return { priceAlerts: [...s.priceAlerts, { id: uid('pa'), name: label, target: price }] };
+        }),
+      removePriceAlert: (id) =>
+        set((s) => ({ priceAlerts: s.priceAlerts.filter((alert) => alert.id !== id) })),
 
       /* ---------- Waste ---------- */
       /** Binning something records what it cost, so the waste figure is real. */
@@ -321,25 +401,8 @@ export function AppProvider({ children }) {
       /** Drop a whole generated plan in at once: [{date, slot, recipeId}]. */
       applyPlanEntries: (entries) => set((s) => ({ plan: applyEntries(s.plan, entries) })),
 
-      /* ---------- Family ---------- */
-      addMember: (member) =>
-        set((s) => ({
-          members: [...s.members, {
-            id: uid('m'),
-            name: member.name?.trim() || `Person ${s.members.length + 1}`,
-            portions: Math.max(0.5, Number(member.portions) || 1),
-            diets: member.diets || [],
-          }],
-        })),
-      updateMember: (id, patch) =>
-        set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
-      removeMember: (id) => set((s) => ({ members: s.members.filter((m) => m.id !== id) })),
-      toggleMemberDiet: (id, diet) =>
-        set((s) => ({
-          members: s.members.map((m) => (m.id === id
-            ? { ...m, diets: m.diets.includes(diet) ? m.diets.filter((d) => d !== diet) : [...m.diets, diet] }
-            : m)),
-        })),
+      /* ---------- Household ---------- */
+      ...householdActions(set, uid),
 
       /* ---------- Leftovers ---------- */
       /** Portions cooked but not eaten go in the fridge, dated. */
@@ -429,12 +492,15 @@ export function AppProvider({ children }) {
       completeRecipe: (recipe, { leftovers = 0 } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
+          const consumed = s.autoUsePantry
+            ? consumePantryIngredients(s.pantry, recipe.ingredients)
+            : { pantry: s.pantry };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
             pantry: leftovers > 0
-              ? [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
-              : s.pantry,
+              ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
+              : consumed.pantry,
           };
         }),
     };

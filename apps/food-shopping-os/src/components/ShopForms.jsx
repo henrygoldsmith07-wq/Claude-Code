@@ -17,11 +17,13 @@ export function AddItem({ onAdd }) {
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [price, setPrice] = useState('');
+  const [note, setNote] = useState('');
+  const [priority, setPriority] = useState('normal');
 
   const submit = () => {
     if (name.trim().length < 2) return;
-    onAdd({ name: name.trim(), qty: qty.trim(), price: Number(price) || 0, aisle: guessAisle(name) });
-    setName(''); setQty(''); setPrice('');
+    onAdd({ name: name.trim(), qty: qty.trim(), price: Number(price) || 0, note: note.trim(), priority, aisle: guessAisle(name) });
+    setName(''); setQty(''); setPrice(''); setNote(''); setPriority('normal');
   };
 
   return (
@@ -48,6 +50,18 @@ export function AddItem({ onAdd }) {
           />
         </label>
         <NumberField label="Price each" value={price} onChange={setPrice} suffix="£" step={0.5} />
+      </div>
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Note, e.g. semi-skimmed"
+        aria-label="Item note"
+        className="w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+        style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+      />
+      <div className="flex gap-2">
+        <Chip active={priority === 'normal'} onClick={() => setPriority('normal')}>Normal priority</Chip>
+        <Chip active={priority === 'high'} onClick={() => setPriority('high')}>Need it</Chip>
       </div>
       <button
         onClick={submit}

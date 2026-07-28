@@ -1,18 +1,25 @@
 import { useMemo, useState } from 'react';
 import {
-  Activity, Camera, Droplet, HeartPulse, Info, Moon, Ruler, Trash2, TrendingDown, TrendingUp,
+  Activity, Camera, Droplet, HeartPulse, Info, Moon, RefreshCw, Ruler, Target, Trash2,
+  TrendingDown, TrendingUp,
 } from 'lucide-react';
 import { useApp, PHOTO_LIMIT } from '../lib/store.jsx';
 import { prettyDate } from '../lib/utils.js';
 import { MEASUREMENTS, MEDICAL_DISCLAIMER, VITALS } from '../data/health.js';
 import { series } from '../lib/health.js';
+import { healthierSwaps } from '../lib/advice.js';
 import { shrinkImage, storageEstimate } from '../lib/photos.js';
 import { Card, Chip, Empty, Pill, Sparkline } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import { CycleView, RestView } from './WellbeingPanel.jsx';
+import NutritionPanel from './NutritionPanel.jsx';
+import GoalsPanel from './GoalsPanel.jsx';
 
 const VIEWS = [
   ['body', 'Body', Ruler],
+  ['nutrition', 'Nutrition', Activity],
+  ['targets', 'Targets', Target],
+  ['swaps', 'Swaps', RefreshCw],
   ['vitals', 'Vitals', HeartPulse],
   ['rest', 'Rest', Moon],
   ['cycle', 'Cycle', Droplet],
@@ -23,6 +30,60 @@ const Disclaimer = () => (
     <Info size={13} className="mt-0.5 shrink-0" /> {MEDICAL_DISCLAIMER}
   </p>
 );
+
+function HealthySwapsView() {
+  const app = useApp();
+  const recent = app.recentFoods?.[0];
+  const swaps = (recent
+    ? healthierSwaps(recent, { catalogue: app.catalogue, diets: app.planDiets, limit: 5 })
+    : []).filter((swap) => !(app.fitFor?.({
+    name: swap.food.name,
+    ingredients: [{ name: swap.food.name }],
+    steps: [],
+    time: 0,
+  }).blocked.length));
+
+  if (!recent) {
+    return (
+      <Card className="text-center py-8">
+        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          Log a food first and healthy swaps will compare it with foods that do the same job.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card>
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Instead of</p>
+        <p className="mt-1 text-[18px] font-extrabold">{recent.name}</p>
+        <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          Every suggestion below improves a measured nutrient per calorie and respects your dietary filters.
+        </p>
+      </Card>
+      {swaps.length ? swaps.map((swap) => (
+        <Card key={swap.food.id}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-extrabold text-[14px]">{swap.food.name}</p>
+              <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{swap.why}</p>
+            </div>
+            <Pill tone={swap.kcalDiff <= 0 ? 'good' : 'muted'}>
+              {swap.kcalDiff > 0 ? '+' : ''}{swap.kcalDiff} kcal
+            </Pill>
+          </div>
+        </Card>
+      )) : (
+        <Card className="text-center py-8">
+          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            Nothing in the catalogue clearly improves protein, fibre, saturated fat or sugar for this food.
+          </p>
+        </Card>
+      )}
+    </>
+  );
+}
 
 /* ---------- Body ---------- */
 
@@ -324,6 +385,9 @@ export default function HealthPanel() {
         ))}
       </div>
       {view === 'body' && <BodyView />}
+      {view === 'nutrition' && <div className="-mx-5"><NutritionPanel /></div>}
+      {view === 'targets' && <div className="-mx-5"><GoalsPanel /></div>}
+      {view === 'swaps' && <HealthySwapsView />}
       {view === 'vitals' && <VitalsView />}
       {view === 'rest' && <RestView />}
       {view === 'cycle' && app.trackCycle && <CycleView />}

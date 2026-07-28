@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   alcoholUnits, buildEntry, buildQuickEntry, dayTotals, hydration, nutrientAlerts,
-  nutrientCoverage, nutrientRows, scale, sumMacros,
+  nutrientCoverage, nutrientRows, saltEquivalent, scale, sumMacros,
 } from '../src/lib/nutrition.js';
 import { estimateRecipeMicros, makeCustomFood, searchFoods } from '../src/lib/foodlog.js';
 import { CATALOGUE, FOODS, RESTAURANT_FOODS } from '../src/data/foods.js';
@@ -11,6 +11,12 @@ import { RECIPES } from '../src/data/recipes.js';
 const byId = (id) => FOODS.find((f) => f.id === id);
 
 describe('nutrient catalogue', () => {
+  it('converts tracked sodium into the salt equivalent shown to UK users', () => {
+    expect(saltEquivalent(400)).toBe(1);
+    expect(saltEquivalent(2300)).toBe(5.8);
+    expect(saltEquivalent()).toBe(0);
+  });
+
   it('tracks all 24 asked-for nutrients', () => {
     expect(NUTRIENTS).toHaveLength(24);
     for (const key of ['kcal', 'protein', 'carbs', 'fat', 'fibre', 'sugar', 'satFat', 'transFat',
