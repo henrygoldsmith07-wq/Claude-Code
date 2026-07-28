@@ -56,7 +56,7 @@ export const recentFoodsFrom = (log = {}, catalogue = CATALOGUE, limit = 24) => 
   return [...seen.values()];
 };
 
-export const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey'];
+export const ACCENT_IDS = ['mono', 'forest', 'ocean', 'wine', 'honey', 'sage', 'clay', 'ink'];
 
 export const uid = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -104,6 +104,4 @@ export const EMPTY_STATE = {
   targets: DEFAULT_TARGETS,
   water: 0,
   waterExtraMl: 0,
-  /* progress */
-  xp: 0,
 };

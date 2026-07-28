@@ -18,6 +18,7 @@ import {
 import {
   applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, leftoverItems, leftoverPortions, moveMeal,
 } from './mealplan.js';
+import { progressSummary } from './progress.js';
 
 import {
   ACCENT_IDS, emojiFor, EMPTY_STATE, recentFoodsFrom, rolloverDay, STORAGE_KEY, todayStamp, uid,
@@ -72,7 +73,6 @@ export function AppProvider({ children }) {
         if (!entries.length) return {};
         return {
           log: { ...s.log, [day]: [...(s.log[day] || []), ...entries] },
-          xp: s.xp + 4 * entries.length,
         };
       });
 
@@ -128,7 +128,7 @@ export function AppProvider({ children }) {
       saveRecipe: (recipe) =>
         set((s) => {
           const id = s.myRecipes.some((r) => r.id === recipe.id) ? `${recipe.id}-${s.myRecipes.length + 1}` : recipe.id;
-          return { myRecipes: [...s.myRecipes, { ...recipe, id, savedAt: s.day }], xp: s.xp + 8 };
+          return { myRecipes: [...s.myRecipes, { ...recipe, id, savedAt: s.day }] };
         }),
       removeRecipe: (id) =>
         set((s) => ({
@@ -222,7 +222,6 @@ export function AppProvider({ children }) {
           return {
             shops: [...s.shops, shop],
             shoppingList: s.shoppingList.filter((i) => !i.checked),
-            xp: s.xp + 10,
             storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
             pantry: toPantry
               ? [...s.pantry, ...bought.map((i) => ({
@@ -351,7 +350,7 @@ export function AppProvider({ children }) {
           if (!source.length) return {};
           const day = toDate || s.day;
           const copied = copyEntries(source, { meal: toMeal || fromMeal });
-          return { log: { ...s.log, [day]: [...(s.log[day] || []), ...copied] }, xp: s.xp + 6 };
+          return { log: { ...s.log, [day]: [...(s.log[day] || []), ...copied] } };
         }),
       saveTemplate: (name, meal, entries) =>
         set((s) => ({
@@ -372,7 +371,7 @@ export function AppProvider({ children }) {
             time: new Date().toTimeString().slice(0, 5),
             source: 'template',
           }));
-          return { log: { ...s.log, [s.day]: [...(s.log[s.day] || []), ...copied] }, xp: s.xp + 6 };
+          return { log: { ...s.log, [s.day]: [...(s.log[s.day] || []), ...copied] } };
         }),
       addCustomFood: (food) => set((s) => ({ customFoods: [...s.customFoods, food] })),
       removeCustomFood: (id) => set((s) => ({ customFoods: s.customFoods.filter((f) => f.id !== id) })),
@@ -392,7 +391,6 @@ export function AppProvider({ children }) {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
-            xp: s.xp + 60,
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
             pantry: leftovers > 0
               ? [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
@@ -409,6 +407,7 @@ export function AppProvider({ children }) {
     const totals = dayTotals(entries);
     const glasses = state.water + state.waterExtraMl / GLASS_ML;
     const cookedDays = state.cooked.map((c) => c.date);
+    const progress = progressSummary(state, state.day);
     return {
       catalogue,
       entries,
@@ -443,6 +442,10 @@ export function AppProvider({ children }) {
       /* leftovers */
       leftovers: leftoverItems(state.pantry),
       leftoverPortions: leftoverPortions(state.pantry),
+      /* the game layer — all counted from the records above, never banked */
+      game: progress,
+      xp: progress.xp,
+      level: progress.level,
       /* kitchen */
       streak: streakFrom(cookedDays, state.day),
       cookedToday: cookedDays.includes(state.day),
@@ -457,7 +460,7 @@ export function AppProvider({ children }) {
       }),
       restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
       wasted: wasteSummary(state.waste),
-      stats: kitchenStats(state, state.day),
+      stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
     };
   }, [state]);
 

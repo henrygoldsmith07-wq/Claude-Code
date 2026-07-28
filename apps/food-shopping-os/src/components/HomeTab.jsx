@@ -2,7 +2,7 @@ import {
   AlarmClock, Camera, ChevronRight, Droplet, Flame, Layers, Mic, Package, Plus,
   ScanBarcode, Search, Star,
 } from 'lucide-react';
-import { useApp, levelFromXp } from '../lib/store.jsx';
+import { useApp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate } from '../lib/utils.js';
 import { byId, RECIPES } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
@@ -107,7 +107,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
         {(app.streak > 0 || app.xp > 0) && (
           <div className="mt-4 flex gap-2 rise rise-1">
             {app.streak > 0 && <Pill tone="accent"><Flame size={12} /> {app.streak}-day cooking streak</Pill>}
-            <Pill tone="muted"><Star size={12} /> Level {levelFromXp(app.xp)} · {app.xp.toLocaleString()} XP</Pill>
+            <Pill tone="muted"><Star size={12} /> Level {app.level.level} · {app.xp.toLocaleString()} XP</Pill>
           </div>
         )}
       </div>
@@ -159,6 +159,31 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
           </div>
         </Card>
       </div>
+
+      {/* Today's goals — small, and every bar is a count of something real */}
+      <Section title="Today’s goals" action="Progress →" onAction={() => goTab('profile')} className="rise rise-2">
+        <Card>
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-bold">
+              {app.game.daily.filter((g) => g.done).length} of {app.game.daily.length} done
+            </p>
+<Pill tone="muted">{app.game.streaks.logging.days} day diary streak</Pill>
+          </div>
+          <div className="mt-2.5 space-y-2">
+            {app.game.daily.map((goal) => (
+              <div key={goal.id}>
+                <div className="flex justify-between text-[12px] font-bold mb-1">
+                  <span style={goal.done ? { color: 'var(--good)' } : undefined}>
+                    {goal.done ? '✓ ' : ''}{goal.label}
+                  </span>
+                  <span style={{ color: 'var(--muted)' }}>{goal.progress}/{goal.of}</span>
+                </div>
+                <Meter value={goal.progress} max={goal.of} height={4} color={goal.done ? 'var(--good)' : 'var(--accent)'} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Section>
 
       {/* One-tap food logging */}
       <Section title="Log what you ate" action="Diary →" onAction={() => goLog()} className="rise rise-2">

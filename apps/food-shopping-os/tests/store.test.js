@@ -23,7 +23,8 @@ describe('a brand new app', () => {
   it('starts with nothing pre-filled', () => {
     expect(EMPTY_STATE.onboarded).toBe(false);
     expect(EMPTY_STATE.name).toBe('');
-    expect(EMPTY_STATE.xp).toBe(0);
+    // XP isn't stored at all any more — it is counted from what you've done.
+    expect(EMPTY_STATE.xp).toBeUndefined();
     expect(EMPTY_STATE.weeklyBudget).toBe(0);
     expect(EMPTY_STATE.water).toBe(0);
     for (const key of ['pantry', 'shoppingList', 'shops', 'cooked', 'favourites',
@@ -62,7 +63,7 @@ describe('rolloverDay', () => {
     expect(next.day).toBe('2026-07-22');
     expect(next.water).toBe(0);
     expect(next.waterExtraMl).toBe(0);
-    expect(next.xp).toBe(240);
+    expect(next.xp).toBe(240); // an unknown field is carried over untouched
   });
 
   it('keeps the diary, pantry and shop history', () => {

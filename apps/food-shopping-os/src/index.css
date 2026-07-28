@@ -29,6 +29,9 @@
 :root[data-accent="ocean"]  { --accent: #3b5b73; --on-accent: #ffffff; }
 :root[data-accent="wine"]   { --accent: #6e4550; --on-accent: #ffffff; }
 :root[data-accent="honey"]  { --accent: #8a6a3b; --on-accent: #ffffff; }
+:root[data-accent="sage"]   { --accent: #6b7f6a; --on-accent: #ffffff; }
+:root[data-accent="clay"]   { --accent: #8c5a44; --on-accent: #ffffff; }
+:root[data-accent="ink"]    { --accent: #2f3640; --on-accent: #ffffff; }
 :root {
   --accent-soft: color-mix(in srgb, var(--accent) 9%, transparent);
   --accent-deep: color-mix(in srgb, var(--accent) 78%, var(--ink));

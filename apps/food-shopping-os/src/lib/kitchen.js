@@ -178,7 +178,10 @@ export const streakFrom = (days = [], today = dayStamp()) => {
 const PLANT_TAGS = ['vegan', 'vegetarian'];
 
 /** Real counters behind the badges. */
-export const kitchenStats = ({ cooked = [], log = {}, shops = [], weeklyBudget = 0, xp = 0 }, today = dayStamp()) => {
+export const kitchenStats = (
+  { cooked = [], log = {}, shops = [], weeklyBudget = 0, xp = 0, plan = {}, myRecipes = [] },
+  today = dayStamp(),
+) => {
   const recipes = cooked.map((c) => RECIPES.find((r) => r.id === c.recipeId)).filter(Boolean);
   return {
     recipesCooked: cooked.length,
@@ -189,6 +192,9 @@ export const kitchenStats = ({ cooked = [], log = {}, shops = [], weeklyBudget =
     budgetWeeks: budgetWeeks(shops, weeklyBudget, today),
     level: levelFrom(xp),
     shops: shops.length,
+    plannedMeals: Object.values(plan).reduce((n, day) => n + Object.keys(day).length, 0),
+    ownRecipes: myRecipes.length,
+    entriesLogged: Object.values(log).reduce((n, day) => n + day.length, 0),
   };
 };
 

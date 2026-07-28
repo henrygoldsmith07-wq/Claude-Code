@@ -132,9 +132,19 @@ tables and UK reference intakes.
   and shared dishes join your library and can be planned and cooked like any
   other
 - **Profile** — nutrition dashboard, weekly calories from your diary, spending
-  from your recorded shops, the cuisines you actually cook, achievements that
-  are all earned (never seeded), theme and accent, plus export and reset for
-  your data
+  from your recorded shops, the cuisines you actually cook, theme and accent,
+  plus export and reset for your data
+- **Progress** — the game layer, counted rather than banked. **XP** is a
+  reading of what you've done (a cook is worth 60 for as long as it's in your
+  history, and no longer — undo it and the XP goes too), which drives
+  **levels** and their titles. Three **streaks** — diary, cooking and days on
+  target — each with the best you've managed. Five **daily goals**, three
+  **weekly challenges** picked by the week itself so they don't reshuffle, a
+  **seasonal event** for every month of the real calendar, and longer
+  **missions**. Twelve **badges** and dated **achievements** — the things that
+  actually happened, with the day they happened on. **Rewards** are three extra
+  accent colours at levels 4, 8 and 12; the five the app always had stay
+  available from level one, so nothing you use is ever taken away
 - **AI food coach** — a page and a chat, both reading only your own data.
   **Today** gives the day back to you with **feedback on each meal** (its share
   of your calories and protein, and at most one suggestion). **Habits** counts
@@ -188,6 +198,8 @@ src/
   lib/coach.js         # adherence, trends, habits, progress, the day summarised
   lib/advice.js        # meal feedback, swaps, groceries, targets, tips, eating out
   lib/label.js         # a real parser for UK/EU nutrition panels
+  lib/progress.js      # XP, levels, streaks, goals, challenges, missions,
+                       # seasonal events and achievements — all counted
   lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
@@ -196,7 +208,8 @@ src/
                        # (catalogue + barcodes + menus), nutrients
                        # (units/targets), micronutrients (per-100 g table),
                        # goals (body goals + dietary patterns), seasons (the UK
-                       # growing calendar), and taxonomy for aisles/locations
+                       # growing calendar), quests (what earns XP and what the
+                       # goals are), and taxonomy for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
@@ -207,8 +220,11 @@ single source of truth for nutrition; the pantry, shopping list, recorded
 `shops`, `plan` and `cooked` history are the source for everything else. Budget
 headroom is your weekly budget minus the shops you recorded this week; streaks
 count consecutive days you actually cooked; badge progress reads real counters;
-price trends come from prices you typed as you shopped. A new calendar day
-resets only water — everything else is date-keyed and carries over.
+price trends come from prices you typed as you shopped; XP, levels and every
+quest bar are counted from those same records rather than stored, so nothing
+can be earned twice or kept after the thing that earned it is deleted. A new
+calendar day resets only water — everything else is date-keyed and carries
+over.
 
 Charts use a monochrome ink ramp (every series is directly labeled, so identity
 never depends on colour); status colours (good/warn/danger) are muted and always
