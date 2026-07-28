@@ -8,6 +8,7 @@ import { Glyph } from './icons.jsx';
 import { gbp, cx, prettyDate } from '../lib/utils.js';
 import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { groupForStore } from '../lib/shopping.js';
+import ReceiptScan from './ReceiptScan.jsx';
 import { Section, Card, Meter, Chip, Pill, Sheet } from './ui.jsx';
 import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
@@ -251,6 +252,15 @@ export default function ShopTab() {
               >
                 <span className="inline-flex items-center gap-1.5"><Tag size={14} /> Offers{app.offers.length ? ` (${app.offers.length})` : ''}</span>
               </button>
+              {/* A receipt is about a shop you already did, so it doesn't belong
+                  behind a list that has to be full first. */}
+              <button
+                onClick={() => setSheet('receipt')}
+                className="press col-span-2 rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                style={{ borderColor: 'var(--line)' }}
+              >
+                <span className="inline-flex items-center gap-1.5"><Receipt size={14} /> Read a receipt</span>
+              </button>
             </div>
             {adding && <AddItem onAdd={(item) => app.addToList(item)} />}
           </Section>
@@ -307,6 +317,7 @@ export default function ShopTab() {
               >
                 <span className="inline-flex items-center gap-1.5"><Copy size={14} /> Copy the list as text</span>
               </button>
+
             </Section>
           )}
         </>
@@ -353,6 +364,9 @@ export default function ShopTab() {
         <div className="px-5 pb-10">
           <BarcodeAdd action="Add" onPick={(item) => app.addToList(item)} />
         </div>
+      </Sheet>
+      <Sheet open={sheet === 'receipt'} onClose={() => setSheet(null)} title="Read a receipt">
+        <ReceiptScan onDone={() => setSheet(null)} />
       </Sheet>
       <Sheet open={sheet === 'export'} onClose={() => setSheet(null)} title="Your list as text">
         <div className="px-5 pb-10 space-y-3">

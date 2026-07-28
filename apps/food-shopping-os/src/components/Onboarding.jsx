@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { ArrowRight, Check, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
-import { BODY_GOALS, DIET_PATTERNS } from '../data/goals.js';
-import { computeTargets, targetsFor } from '../lib/goals.js';
-import { Card, Chip, Stepper } from './ui.jsx';
+import { BODY_GOALS, DIET_PATTERNS, SEXES } from '../data/goals.js';
+import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
+import { Card, Chip, Stepper, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
+
+const num = (value) => Math.max(0, Number(value) || 0) || null;
 
 export default function Onboarding() {
   const app = useApp();
@@ -16,17 +18,32 @@ export default function Onboarding() {
   const [diets, setDiets] = useState([]);
   const [goal, setGoal] = useState('maintain');
   const [weightKg, setWeightKg] = useState('');
+  const [heightCm, setHeightCm] = useState('');
+  const [age, setAge] = useState('');
+  const [sex, setSex] = useState('unspecified');
   const [maintenance, setMaintenance] = useState('');
+  const [trackCycle, setTrackCycle] = useState(false);
 
   const toggleDiet = (id) =>
     setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
 
-  /** Whatever we know: body weight for g/kg protein, or a calorie figure. */
+  const body = {
+    sex,
+    age: num(age),
+    heightCm: num(heightCm),
+    weightKg: num(weightKg),
+    activity: 'light',
+  };
+  // With weight, height and age, the equation runs; without, we fall back to
+  // whatever figure you typed, and with neither to the default.
+  const estimated = maintenanceFrom(body);
+
+  /** Whatever we know: the estimate, a typed figure, or the default. */
   const preview = computeTargets({
     goal,
     diets,
-    maintenanceKcal: Math.max(0, Number(maintenance) || 0) || null,
-    weightKg: Math.max(0, Number(weightKg) || 0) || null,
+    maintenanceKcal: estimated || num(maintenance),
+    weightKg: body.weightKg,
     fallbackKcal: DEFAULT_TARGETS.kcal,
   });
 
@@ -34,7 +51,7 @@ export default function Onboarding() {
     const state = {
       goal,
       diets,
-      body: { sex: 'unspecified', age: null, heightCm: null, weightKg: Number(weightKg) || null, activity: 'light' },
+      body,
       maintenanceKcal: Math.max(0, Number(maintenance) || 0),
       targets: DEFAULT_TARGETS,
     };
@@ -42,6 +59,7 @@ export default function Onboarding() {
       ...state,
       name: name.trim() || 'you',
       household,
+      trackCycle,
       weeklyBudget: Math.max(0, Number(budget) || 0),
       targets: targetsFor(state),
     });
@@ -135,14 +153,51 @@ export default function Onboarding() {
               </p>
             </div>
 
-            <Card className="grid grid-cols-2 gap-2.5">
-              <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
-              <NumberField label="Maintenance" value={maintenance} onChange={setMaintenance} suffix="kcal" step={50} />
+            <Card className="space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
+                <NumberField label="Your height" value={heightCm} onChange={setHeightCm} suffix="cm" step={1} />
+                <NumberField label="Age" value={age} onChange={setAge} suffix="yrs" step={1} />
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
+                  <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
+                    {SEXES.map((s) => (
+                      <Chip key={s.id} active={sex === s.id} onClick={() => setSex(s.id)}>{s.label}</Chip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {estimated ? (
+                <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  That estimates your maintenance at <strong>{estimated.toLocaleString()} kcal</strong>
+                  {' '}(Mifflin-St Jeor, lightly active). Change the activity level under Goals any time.
+                </p>
+              ) : (
+                <NumberField label="Maintenance" value={maintenance} onChange={setMaintenance} suffix="kcal" step={50} />
+              )}
             </Card>
             <p className="text-[12px] font-semibold px-1 -mt-1" style={{ color: 'var(--muted)' }}>
-              Both optional — weight sharpens the protein target, maintenance anchors the calories.
-              You can add full stats later and Forq will estimate it for you.
+              All optional. Weight, height, age and sex together let Forq estimate your maintenance
+              instead of you knowing it — sex matters because the equation&rsquo;s constants differ by
+              166 kcal, which is a meal. &ldquo;Rather not say&rdquo; takes the midpoint rather than
+              picking one for you, and every field is editable later.
             </p>
+
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-bold text-[14px]">Track your cycle</p>
+                  <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    Adds a page under Health for periods and symptoms
+                  </p>
+                </div>
+                <Toggle on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
+              </div>
+              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Off by default, and nothing else changes either way. Turn it on or off whenever you
+                like under Goals.
+              </p>
+            </Card>
 
             <Card>
               <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>

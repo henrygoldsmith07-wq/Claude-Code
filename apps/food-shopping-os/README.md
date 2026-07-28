@@ -20,7 +20,15 @@ tables and UK reference intakes.
 ## Features
 
 - **First-run setup** — name, household size, weekly budget, how you eat, and
-  what you're aiming at. Every one of them is editable afterwards
+  what you're aiming at. It also asks for weight, height, age and sex, because
+  together they let Forq *estimate* your maintenance calories instead of asking
+  you to already know the number — sex is in there because Mifflin-St Jeor's
+  constants differ by 166 kcal, which after the activity multiplier is a couple
+  of hundred a day, and "rather not say" takes the midpoint rather than picking
+  one for you. The
+  weight you give starts your body series rather than sitting apart from it.
+  Cycle tracking is a yes/no at setup, off by default, offered to everyone
+  rather than inferred from an answer. Every one of them is editable afterwards
 - **Goals & targets** — a body goal (weight loss · weight gain · maintenance ·
   muscle gain · body recomposition) sets the energy delta and protein
   priority; dietary patterns (keto · low-carb · high-protein · Mediterranean ·
@@ -179,7 +187,9 @@ tables and UK reference intakes.
   **blood glucose** and **cholesterol** are labelled with the ordinary NHS /
   Diabetes UK reference ranges, always alongside the reminder that a label is
   not a diagnosis. **Sleep** and **stress** average only the nights and days you
-  logged, and say how many that is. **Cycle tracking** predicts the next period
+  logged, and say how many that is. **Cycle tracking** is opt-in — the page
+  isn't there unless you asked for it, at setup or later under Goals — and it
+  predicts the next period
   from the average of *your* logged cycles and nothing else — one logged period
   gives no prediction, and it says so. **Progress photos** stay on the device
   (there is nowhere else for them to go), shrunk to thumbnails and capped,
@@ -198,6 +208,100 @@ tables and UK reference intakes.
   preferring an exported energy figure over its own estimate, deduplicating
   against what you already have, and counting the rows it couldn't read
 
+- **Reminders** — **meals, water, supplements, groceries, weigh-ins, exercise,
+  sleep** and **anything else you name**, each with your own wording, as many
+  times a day as you like, on the days you choose. A reminder arrives carrying
+  **your own figure** — "you're at 750 of 2,000 ml", "last weighed 7 days ago,
+  at 82 kg", "2 items on the list · 1 running low" — rather than a bare nudge;
+  where there's no data behind it, it says so instead of padding it out. Late
+  still counts as due for ninety minutes, ticking one off clears that firing
+  and not tomorrow's, and snoozing is 10 / 30 / 60 minutes.
+  **Suggestions** come from your records with the evidence attached — meal
+  times from the median time you actually start each meal (three logged days
+  minimum, rounded to five minutes), water spaced across the day for the
+  target you set, the weekday most of your weigh-ins already land on, the days
+  your workouts cluster on — and nothing is offered that your data can't
+  support.
+  On **notifications**, the app is blunt about the platform: while Forq is open
+  a due reminder becomes a real notification; while it's closed **it cannot**,
+  because that needs a push server and there isn't one. So there's no
+  background-notifications toggle that could never work — instead it catches
+  you up on what came due while it was shut, and offers a **calendar export**
+  (`.ics`, one repeating `VALARM` per time) so the alarm clock you already
+  trust does the part a web page can't
+
+- **Reports & analytics** — the diary added up over a **day** (split by meal,
+  with each one's share and the hours you ate between), a **week**, a **month**,
+  and **month-by-month** further back. Every report leads with **how many days
+  it actually saw**, and averages only those — a blank day is a day you didn't
+  record, not a day you didn't eat, and a month with nothing logged is left out
+  of the trend rather than averaged towards zero. **Weight** charts from your
+  readings and says plainly that one reading is a number, not a line.
+  **Adherence** counts how often each target landed within 10%, and how often
+  it went under or over. **Meal timing** reads the usual hour of each meal off
+  your own entries and reports the spread as a finding rather than a failure.
+  **Shortfall alerts** name nutrients averaging under 70% of their reference —
+  refusing to say anything under seven logged days, never treating "under a
+  limit" like sodium as a shortfall, and carrying the caveat that a low figure
+  is a prompt to look, not a diagnosis. **CSV** comes out three ways (per day,
+  per food, measurements), properly quoted. **PDF** is your browser's own:
+  Forq builds a clean printable page and hands it to the print dialogue, where
+  "Save as PDF" does a better job than any library worth making you download
+- **Personalisation** — split down the middle on purpose. **Allergies** (the
+  fourteen UK/EU declarable ones) and **religious or cultural rules** (halal,
+  kosher, Hindu vegetarian, Jain, Buddhist vegetarian) are *hard lines*: a
+  recipe naming one is **removed**, not ranked down or shown behind a warning
+  you could tap through, and the page tells you how much of the book that
+  leaves and where each allergen usually hides. **Intolerances** *flag* instead,
+  because the amount is the point and only you know your threshold. Everything
+  here matches ingredient text and says so — a filter, never a guarantee.
+  **Favourite cuisines**, **cooking skill** and **time available** reorder what
+  you're offered without removing anything. **Units** — kg / lb / stone,
+  cm / feet, kcal / kJ, ml / fl oz, 24- or 12-hour — change the *display* only;
+  everything is stored and calculated in metric, because a unit preference
+  reaching the maths compounds into a real error over months. **Widgets** let
+  you reorder or hide any card on Home, which hides a panel and never a number
+
+- **Carbon & water footprint** — kg CO₂e and litres per day, computed from the
+  grams in your diary against published per-kilogram category means (Poore &
+  Nemecek 2018, the largest food-LCA meta-analysis there is). Always states
+  **what share of your food it could place** — anything the table can't
+  categorise is reported as unmatched, never counted as zero — plus the
+  categories driving the number, the swaps that would actually move it, and the
+  standing caveat that a category average is an order of magnitude, not a
+  measurement of what you bought
+- **Micronutrient optimisation** — a greedy set-cover over the food catalogue:
+  which foods, in portions a person would actually eat, close the most of what
+  your logged days are short on. Weighted towards the worst gaps, capped so one
+  freakishly high food can't dominate, silent under five logged days, blind to
+  anything your allergies rule out, and explicit about what is *still* short
+  after everything it could suggest
+- **Fasting** — the overnight gap between last night's last entry and this
+  morning's first is read straight off the diary, so nothing needs pressing.
+  A running fast is the one exception, because "hasn't logged since 8pm" and
+  "is deliberately fasting" are different claims. 16:8 and the rest are labels
+  for a window you chose, not protocols the app recommends
+- **Receipt reader** — no OCR, so no pretending to read the photo. Paste the
+  text and the parsing is the real part: items, prices, quantities (including
+  `0.482 kg @ £4.99/kg`), store and date, with loyalty and payment lines
+  skipped — then it **checks its own total against the printed one** and says
+  whether to trust the parse, and lists any line it couldn't read
+- **Blood results & CGM** — no lab has an API a browser can call and no CGM has
+  one either (Dexcom and Libre are OAuth against a vendor server, which needs a
+  server of our own). So: type your own panel in and it's banded against
+  ordinary adult reference ranges, and paste your CGM's CSV export and the
+  trace gets lined up against what you logged eating — reported, never graded,
+  because a rise after eating is what eating does
+- **The capability register** — the page most apps leave out. Every feature
+  people ask for, and where Forq actually stands: **built**, **partly and
+  honestly** (label scanning, receipts, pantry photos, bloods, CGM),
+  **a browser can't** (smart kitchen, API integrations, coach dashboards,
+  healthcare provider access, corporate wellness — each with the nearest real
+  thing, usually an export you control), and **deliberately not**:
+  DNA-based nutrition advice, which could be built and isn't, because consumer
+  genotyping does not support confident personal diet instructions and dressing
+  it up as if it did would be the least honest thing in the app
+
 ## Run
 
 ```bash
@@ -214,8 +318,25 @@ src/
   App.jsx              # shell: 6-tab bottom nav, overlays, onboarding gate
   index.css            # theme tokens (light/dark + 5 accents), animations
   lib/state.js         # what an install is: empty state + pure state helpers
-  lib/store.jsx        # the provider: actions, derived values, persistence
+  lib/store.jsx        # the provider: actions, the clock, persistence
+  lib/derive.js        # every number the screens read, computed from state
   lib/health-actions.js # the store's body/training actions, bounded on the way in
+  lib/reminder-actions.js # the store's reminder actions, validated on the way in
+  lib/reminders.js     # when one is due, what came due while you were away,
+                       # and the line it arrives carrying from your own data
+  lib/reminder-suggest.js # reminders your records support, and the .ics export
+  lib/notify.js        # the browser's notification API, and its real limits
+  lib/reports.js       # day/week/month reports, trends, timing, adherence,
+                       # shortfalls — each carrying its own sample size
+  lib/report-export.js # quoted CSV, and the printable page the browser PDFs
+  lib/preferences.js   # hard lines (allergens, observance) vs soft ones
+  lib/preference-actions.js # the store's preference actions, validated in
+  lib/units.js         # display-only conversions; the maths stays metric
+  lib/footprint.js     # CO₂e and water from published per-kg category means
+  lib/micro-optimise.js # greedy set-cover closing your nutrient gaps
+  lib/fasting.js       # eating windows and overnight fasts, off the diary
+  lib/receipt.js       # a real parser for pasted supermarket receipts
+  lib/cgm.js           # CGM export parsing, and meals lined up with the trace
   lib/shopping.js      # aisles that learn, store routes, price comparison,
                        # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
@@ -246,7 +367,13 @@ src/
                        # growing calendar), quests (what earns XP and what the
                        # goals are), health (published reference ranges),
                        # workouts (METs per activity and how each health app
-                       # exports), and taxonomy for aisles/locations
+                       # exports), reminders (the kinds one can be, and the
+                       # plain truth about notifications), preferences
+                       # (allergens, observance, cuisines, units, widgets),
+                       # sustainability (published CO₂e/water factors),
+                       # capabilities (what's built, what a browser can't do,
+                       # and what's deliberately refused), and taxonomy for
+                       # aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite

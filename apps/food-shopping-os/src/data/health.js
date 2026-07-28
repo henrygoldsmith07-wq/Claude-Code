@@ -67,6 +67,39 @@ export const cholesterolCategory = ({ total, hdl }) => {
   return { label: 'In range', tone: 'good', advice: null };
 };
 
+/**
+ * A blood panel, banded against ordinary adult reference ranges. Labs differ
+ * slightly and your own report's ranges are the ones that count — which is why
+ * each row carries its range rather than just a verdict.
+ */
+const blood = (key, label, unit, low, high, note) => ({ key, label, unit, low, high, note });
+
+export const BLOOD_MARKERS = [
+  blood('hb', 'Haemoglobin', 'g/L', 120, 180, 'Ranges differ by sex; 120–150 female, 130–180 male is typical.'),
+  blood('ferritin', 'Ferritin', 'µg/L', 30, 300, 'Iron stores. Rises with inflammation, so a single value can mislead.'),
+  blood('b12', 'Vitamin B12', 'pmol/L', 150, 700, 'Low-normal can still be symptomatic.'),
+  blood('folate', 'Folate', 'nmol/L', 7, 45, ''),
+  blood('vitD', 'Vitamin D', 'nmol/L', 50, 125, 'Below 25 is deficiency in UK guidance.'),
+  blood('hba1c', 'HbA1c', 'mmol/mol', 20, 42, '42–47 is the pre-diabetes range; 48 and above is diagnostic.'),
+  blood('tsh', 'TSH', 'mIU/L', 0.4, 4.0, ''),
+  blood('crp', 'CRP', 'mg/L', 0, 5, 'A general inflammation marker, not specific to anything.'),
+];
+
+export const bloodBy = Object.fromEntries(BLOOD_MARKERS.map((b) => [b.key, b]));
+
+/** Where one result sits in its range. Never a diagnosis, always a position. */
+export const bloodCategory = (key, value) => {
+  const marker = bloodBy[key];
+  const n = Number(value);
+  if (!marker || !Number.isFinite(n)) return null;
+  if (n < marker.low) return { label: 'Below range', tone: 'warn', range: `${marker.low}–${marker.high} ${marker.unit}` };
+  if (n > marker.high) return { label: 'Above range', tone: 'warn', range: `${marker.low}–${marker.high} ${marker.unit}` };
+  return { label: 'In range', tone: 'good', range: `${marker.low}–${marker.high} ${marker.unit}` };
+};
+
+export const BLOOD_CAVEAT =
+  'Your own report’s reference ranges are the ones that count — labs differ, and ranges vary by age and sex. Forq stores what you type and bands it against ordinary adult ranges so you can see a trend. It cannot interpret a result, and the person who ordered the test can.';
+
 export const VITALS = [
   vital('bp', 'Blood pressure', [
     { key: 'systolic', label: 'Systolic', min: 60, max: 260, step: 1 },

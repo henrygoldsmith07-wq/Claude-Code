@@ -6,7 +6,7 @@ import {
 } from '../data/goals.js';
 import { defaultWeeklyKcal, macroBreakdown, macroMismatch, resolveMaintenance } from '../lib/goals.js';
 import { formatAmount } from '../data/nutrients.js';
-import { Card, Chip, Meter, Pill, Section } from './ui.jsx';
+import { Card, Chip, Meter, Pill, Section, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
 const MACRO_COLOR = {
@@ -69,6 +69,23 @@ function MaintenanceCard() {
           step={50}
         />
       )}
+
+      <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        Sex is here because Mifflin-St Jeor&rsquo;s constants differ by 166 kcal; &ldquo;Rather not
+        say&rdquo; takes the midpoint rather than picking one for you.
+      </p>
+
+      <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+        <div className="min-w-0">
+          <p className="font-bold text-[14px]">Track your cycle</p>
+          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            {app.trackCycle
+              ? 'A page under Health for periods and symptoms'
+              : 'Off — turning it on adds a page under Health'}
+          </p>
+        </div>
+        <Toggle on={app.trackCycle} onChange={() => app.setTrackCycle(!app.trackCycle)} />
+      </div>
     </Card>
   );
 }

@@ -310,11 +310,15 @@ function VitalsView() {
  * number, always with the reminder that a label is not a diagnosis.
  */
 export default function HealthPanel() {
+  const app = useApp();
   const [view, setView] = useState('body');
+  // The cycle page is there because you asked for it, not because of anything
+  // the app decided about you.
+  const views = VIEWS.filter(([key]) => key !== 'cycle' || app.trackCycle);
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {VIEWS.map(([key, label, Icon]) => (
+        {views.map(([key, label, Icon]) => (
           <Chip key={key} active={view === key} onClick={() => setView(key)}>
             <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
           </Chip>
@@ -323,7 +327,7 @@ export default function HealthPanel() {
       {view === 'body' && <BodyView />}
       {view === 'vitals' && <VitalsView />}
       {view === 'rest' && <RestView />}
-      {view === 'cycle' && <CycleView />}
+      {view === 'cycle' && app.trackCycle && <CycleView />}
     </div>
   );
 }

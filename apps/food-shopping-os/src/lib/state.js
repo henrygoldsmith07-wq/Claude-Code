@@ -102,10 +102,29 @@ export const EMPTY_STATE = {
   sleep: [], // {id, date, hours, quality, note}
   stress: [], // {id, date, level, note}
   cycles: [], // {id, start, end, flow, symptoms[]}
+  trackCycle: false, // asked at setup, and yours to change whenever
   photos: [], // {id, date, thumb, note} — small, capped, on your device
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
   countExerciseKcal: false, // eating back an estimate is a choice
+  /* advanced: things you imported or measured elsewhere */
+  bloods: [], // {id, date, values:{}, lab, note} — typed from your own report
+  glucose: [], // {date, time, value} — imported from a CGM export
+  fast: null, // a running fast you started: {startedAt, plan, hours}
+  fastPlan: '16-8', // the window you named, if you named one
+  /* how you want to be treated: hard lines, soft preferences, and units */
+  allergies: [], // hard: a recipe naming one is never offered
+  intolerances: [], // soft: flagged, because the amount is the point
+  religious: [], // hard: rules you keep
+  cuisines: [], // the ones you'd rather cook
+  skill: 'confident',
+  timeBudget: 'normal',
+  units: {}, // only what you changed; the rest follow DEFAULT_UNITS
+  widgets: null, // null = the default Home layout
+  /* reminders — none until you make one */
+  reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
+  reminderDone: {}, // 'YYYY-MM-DD|id|HH:MM' → true, so a firing is ticked once
+  lastSeenAt: 0, // when the app was last open, for catching you up
   /* food diary */
   log: {}, // { 'YYYY-MM-DD': entry[] }
   favouriteFoods: [],

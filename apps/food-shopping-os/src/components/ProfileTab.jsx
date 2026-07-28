@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  Activity, Banknote, Dumbbell, Flame, HeartPulse, Lock, NotebookPen, RotateCcw, Download,
-  Target, Trophy, Users,
+  Activity, Banknote, Bell, ChartNoAxesColumn, Dumbbell, Flame, FlaskConical, HeartPulse, Lock,
+  NotebookPen, RotateCcw, Download, SlidersHorizontal, Target, Trophy, Users,
 } from 'lucide-react';
 import { useApp, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
@@ -15,6 +15,10 @@ import FamilyPanel from './FamilyPanel.jsx';
 import QuestsPanel from './QuestsPanel.jsx';
 import HealthPanel from './HealthPanel.jsx';
 import ExercisePanel from './ExercisePanel.jsx';
+import RemindersPanel from './RemindersPanel.jsx';
+import ReportsPanel from './ReportsPanel.jsx';
+import PreferencesPanel from './PreferencesPanel.jsx';
+import AdvancedPanel from './AdvancedPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -38,6 +42,10 @@ export default function ProfileTab() {
   const [questsOpen, setQuestsOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [exerciseOpen, setExerciseOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -153,6 +161,39 @@ export default function ProfileTab() {
         </Card>
       </Section>
 
+      {/* Reports and personalisation */}
+      <Section title="Reports & you" className="rise rise-1">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Card onClick={() => setReportsOpen(true)}>
+            <ChartNoAxesColumn size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Reports</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Day, week, month, and out as CSV
+            </p>
+          </Card>
+          <Card onClick={() => setPrefsOpen(true)}>
+            <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Preferences</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.prefsSummary}
+            </p>
+          </Card>
+        </div>
+        <Card className="mt-2.5" onClick={() => setAdvancedOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14.5px]">Advanced</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.footprint.loggedDays
+                  ? `${app.footprint.perDay} kg CO₂e a day · gaps, fasting, results`
+                  : 'Footprint, nutrient gaps, fasting, results — and what Forq won’t pretend to do'}
+              </p>
+            </div>
+            <FlaskConical size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+        </Card>
+      </Section>
+
       {/* Health and training */}
       <Section title="Health & training" className="rise rise-1">
         <div className="grid grid-cols-2 gap-2.5">
@@ -162,7 +203,7 @@ export default function ProfileTab() {
             <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
               {app.body_.readings.weight
                 ? `${app.body_.readings.weight.value} kg${app.body_.bmi ? ` · BMI ${app.body_.bmi.value}` : ''}`
-                : 'Weight, vitals, sleep, cycle'}
+                : `Weight, vitals, sleep${app.trackCycle ? ', cycle' : ''}`}
             </p>
           </Card>
           <Card onClick={() => setExerciseOpen(true)}>
@@ -175,6 +216,20 @@ export default function ProfileTab() {
             </p>
           </Card>
         </div>
+        <Card className="mt-2.5" onClick={() => setRemindersOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14.5px]">Reminders</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.reminders.length
+                  ? `${app.reminders.filter((r) => r.on).length} on, of ${app.reminders.length}`
+                  : 'Meals, water, supplements, shopping, weigh-ins'}
+              </p>
+            </div>
+            {app.remindersDue.length > 0 && <Pill tone="accent">{app.remindersDue.length} due</Pill>}
+            <Bell size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+        </Card>
       </Section>
 
       {/* Nutrition today */}
@@ -414,6 +469,18 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={healthOpen} onClose={() => setHealthOpen(false)} title="Health">
         <HealthPanel />
+      </Sheet>
+      <Sheet open={advancedOpen} onClose={() => setAdvancedOpen(false)} title="Advanced">
+        <AdvancedPanel />
+      </Sheet>
+      <Sheet open={reportsOpen} onClose={() => setReportsOpen(false)} title="Reports">
+        <ReportsPanel />
+      </Sheet>
+      <Sheet open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Preferences">
+        <PreferencesPanel />
+      </Sheet>
+      <Sheet open={remindersOpen} onClose={() => setRemindersOpen(false)} title="Reminders">
+        <RemindersPanel />
       </Sheet>
       <Sheet open={exerciseOpen} onClose={() => setExerciseOpen(false)} title="Exercise">
         <ExercisePanel />
