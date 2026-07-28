@@ -26,10 +26,10 @@ describe('Smart Features centre', () => {
 
   it('shows evidence-backed predictions and adds its generated list', () => {
     render(<App />);
-    fireEvent.click(screen.getByText('Profile'));
+    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
     fireEvent.click(screen.getByText('Smart Features'));
 
-    const dialog = screen.getByRole('dialog');
+    const dialog = screen.getByRole('dialog', { name: 'Smart Features' });
     expect(within(dialog).getByText('Next shopping trip')).toBeDefined();
     expect(within(dialog).getByText(/4 recorded shopping days/)).toBeDefined();
     expect(within(dialog).getByText('Budget overrun')).toBeDefined();
@@ -45,9 +45,9 @@ describe('Smart Features centre', () => {
 
   it('opens the voice-enabled food coach with a typed fallback', () => {
     render(<App />);
-    fireEvent.click(screen.getByText('Profile'));
+    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
     fireEvent.click(screen.getByText('Smart Features'));
-    fireEvent.click(within(screen.getByRole('dialog')).getByText('Open'));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Smart Features' })).getByText('Open'));
 
     const coach = screen.getByText('AI food coach').closest('[role="dialog"]');
     expect(within(coach).getByLabelText('Ask by voice').disabled).toBe(true);

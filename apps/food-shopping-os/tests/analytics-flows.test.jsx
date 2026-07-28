@@ -37,10 +37,10 @@ describe('analytics dashboards', () => {
 
   it('opens every dashboard and calendar report from Profile', () => {
     render(<App />);
-    fireEvent.click(screen.getByText('Profile'));
+    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
     fireEvent.click(screen.getByText('Analytics'));
 
-    const analytics = screen.getByRole('dialog');
+    const analytics = screen.getByRole('dialog', { name: 'Analytics' });
     expect(within(analytics).getByText('Spending dashboard')).toBeDefined();
     expect(within(analytics).getAllByText('£50.00').length).toBeGreaterThan(0);
 
