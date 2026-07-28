@@ -76,9 +76,15 @@ tables and UK reference intakes.
   saves. **Leftovers** you save after cooking sit in the fridge with a use-by
   date, cover planned meals, and drop out of the shopping list. The list itself
   generates from whichever range you're looking at, minus your pantry
-- **Family planning** — add everyone you cook for with their own portion size
-  and their own dietary patterns. Portions add up (cost, servings, batch sizes)
-  and the patterns pool, so a plan for the table fits all of it
+- **Household** — name a household and add adult or child profiles, each with
+  their own portions, dietary patterns, shopping/pantry/recipe permissions and
+  notification preference. Shopping lines and chores can be assigned to a
+  person, with household activity kept in one feed
+- **Shared household data** — shopping, pantry, saved recipes, profiles and
+  chores export together in one validated snapshot for another device. Open
+  tabs in the same browser update live through local storage events; true
+  cross-device live sync still requires an account and backend and is labelled
+  that way in the app
 - **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
   day and meal, up to a fortnight out
 - **Shop** — a list that learns. Items **group by aisle**, guessed from the

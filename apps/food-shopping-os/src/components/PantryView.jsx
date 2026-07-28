@@ -138,6 +138,18 @@ export default function PantryView() {
   const empty = app.pantry.length === 0;
   const analytics = useMemo(() => pantryAnalytics(app.pantry, app.day), [app.pantry, app.day]);
 
+  if (!app.householdAccess.pantry) {
+    return (
+      <div className="px-5 pb-8">
+        <Card className="text-center py-8">
+          <Package size={28} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+          <p className="font-bold">Pantry editing is off for {app.activeMember?.name}.</p>
+          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>An adult can change this under household permissions.</p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="px-5 pb-8 space-y-5">
       <div className="grid grid-cols-3 gap-2.5">

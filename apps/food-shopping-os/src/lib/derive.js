@@ -28,8 +28,13 @@ import { DEFAULT_WIDGETS } from '../data/preferences.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
+import { DEFAULT_PERMISSIONS } from './household.js';
 
 export const deriveApp = (state) => {
+  const activeMember = state.members.find((member) => member.id === state.activeMemberId) || null;
+  const householdAccess = activeMember
+    ? { ...DEFAULT_PERMISSIONS, ...(activeMember.permissions || {}) }
+    : { ...DEFAULT_PERMISSIONS };
   // The hard lines, gathered once so every surface filters the same way.
   const prefs = {
     allergies: state.allergies,
@@ -78,6 +83,9 @@ export const deriveApp = (state) => {
       ? Math.round(state.members.reduce((n, m) => n + (Number(m.portions) || 1), 0) * 10) / 10
       : state.household || 1,
     planDiets: [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])],
+    activeMember,
+    childMode: activeMember?.role === 'child',
+    householdAccess,
     /* leftovers */
     leftovers: leftoverItems(state.pantry),
     leftoverPortions: leftoverPortions(state.pantry),

@@ -47,6 +47,18 @@ function ListRow({ item, onAisle }) {
           {item.fromRecipe && (
             <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>for {item.fromRecipe}</p>
           )}
+          {app.members.length > 0 && (
+            <select
+              value={item.assigneeId || ''}
+              onChange={(event) => app.assignListItem(item.id, event.target.value)}
+              aria-label={`Assign ${item.name}`}
+              className="mt-1 rounded-lg border px-2 py-1 text-[11px] font-bold"
+              style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              <option value="">Anyone</option>
+              {app.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+            </select>
+          )}
         </div>
         <input
           type="number"
@@ -127,6 +139,25 @@ export default function ShopTab() {
     recognition.start();
     setVoiceStatus('Listening…');
   };
+
+  if (!app.householdAccess.shopping) {
+    return (
+      <div className="pb-6">
+        <div className="hero-gradient px-5 pt-14 pb-3">
+          <h1 className="text-[26px] font-extrabold tracking-tight">Shop</h1>
+        </div>
+        <Section>
+          <Card className="text-center py-10">
+            <ShoppingCart size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+            <p className="font-bold">Shopping is off for {app.activeMember?.name}.</p>
+            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              An adult can change this profile’s household permissions under Profile.
+            </p>
+          </Card>
+        </Section>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-6 space-y-6">

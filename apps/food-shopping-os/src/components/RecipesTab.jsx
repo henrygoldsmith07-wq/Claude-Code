@@ -304,6 +304,7 @@ export default function RecipesTab({ openRecipe }) {
       </div>
 
       {/* Make one, or take one in */}
+      {app.householdAccess.recipes ? (
       <div className="mt-3 px-5 grid grid-cols-2 gap-2.5 rise rise-1">
         <button
           onClick={() => setSheet('generate')}
@@ -320,6 +321,15 @@ export default function RecipesTab({ openRecipe }) {
           <span className="inline-flex items-center gap-1.5"><Inbox size={14} /> Add a shared one</span>
         </button>
       </div>
+      ) : (
+        <div className="mt-3 px-5">
+          <Card className="!p-3">
+            <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Recipe saving is off for {app.activeMember?.name}. Browsing and cooking still work.
+            </p>
+          </Card>
+        </div>
+      )}
 
       {view === 'library' && !query && (
         <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar px-5 rise rise-1">
@@ -355,14 +365,14 @@ export default function RecipesTab({ openRecipe }) {
                     <Card key={r.id} onClick={() => openRecipe(r)} className="!p-0 overflow-hidden">
                       <div className="relative">
                         <FoodArt recipe={r} className={tall ? 'h-40 w-full' : 'h-28 w-full'} px={tall ? 44 : 36} />
-                        <button
+                        {app.householdAccess.recipes && <button
                           onClick={(e) => { e.stopPropagation(); app.toggleFavourite(r.id); }}
                           aria-label={fav ? 'Unfavourite' : 'Favourite'}
                           className="press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border"
                           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
                         >
                           <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
-                        </button>
+                        </button>}
                         <span className="absolute bottom-2 left-2">
                           {r.generated ? <Pill tone="accent"><Sparkles size={11} /> yours</Pill>
                             : r.shared ? <Pill tone="accent">shared</Pill>

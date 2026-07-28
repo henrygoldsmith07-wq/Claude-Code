@@ -141,7 +141,7 @@ export default function ProfileTab() {
       </Section>
 
       {/* Who you cook for */}
-      <Section title="Family" className="rise rise-1">
+      <Section title="Household" className="rise rise-1">
         <Card onClick={() => setFamilyOpen(true)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -153,7 +153,7 @@ export default function ProfileTab() {
               <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
                 {app.planDiets.length
                   ? `Plans avoid ${app.planDiets.join(', ')}`
-                  : 'Add everyone you cook for and plans will fit them all'}
+                  : 'Profiles, permissions, shared lists and chores'}
               </p>
             </div>
             <Users size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />

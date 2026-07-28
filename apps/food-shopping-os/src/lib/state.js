@@ -84,8 +84,12 @@ export const EMPTY_STATE = {
   weeklyBudget: 0,
   monthlyBudget: 0,
   household: 1,
-  members: [], // who you cook for: {id, name, portions, diets}
-  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked,note,priority}
+  householdName: '',
+  activeMemberId: null,
+  members: [], // {id,name,portions,diets,role,permissions,notifications}
+  chores: [],
+  householdEvents: [],
+  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked,note,priority,assigneeId}
   shops: [], // recorded trips {id,date,store,total,items[]}
   aisleMemory: {}, // name → the aisle you filed it under
   storeRoutes: {}, // store → the aisle order you actually walked
