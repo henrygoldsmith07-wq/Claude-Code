@@ -163,6 +163,14 @@ export const shopsInWeek = (shops = [], stamp = dayStamp()) => {
 export const spentInWeek = (shops = [], stamp = dayStamp()) =>
   Math.round(shopsInWeek(shops, stamp).reduce((sum, s) => sum + (Number(s.total) || 0), 0) * 100) / 100;
 
+export const spentInMonth = (shops = [], stamp = dayStamp()) => {
+  const month = String(stamp).slice(0, 7);
+  return Math.round(
+    shops.filter((shop) => String(shop.date).slice(0, 7) === month)
+      .reduce((sum, shop) => sum + (Number(shop.total) || 0), 0) * 100,
+  ) / 100;
+};
+
 /** Monthly totals, oldest first — the profile's spending chart. */
 export const spendByMonth = (shops = [], months = 6, today = dayStamp()) => {
   const out = [];
@@ -226,6 +234,25 @@ export const priceHistory = (shops = []) => {
     })
     .sort((a, b) => b.times - a.times || a.name.localeCompare(b.name));
 };
+
+/** Like-for-like movement across products bought at least twice. */
+export const groceryInflation = (shops = []) => {
+  const comparable = priceHistory(shops).filter((item) => item.points.length > 1);
+  const baseline = Math.round(comparable.reduce((sum, item) => sum + item.points[0].price, 0) * 100) / 100;
+  const current = Math.round(comparable.reduce((sum, item) => sum + item.latest, 0) * 100) / 100;
+  return {
+    items: comparable.length,
+    baseline,
+    current,
+    change: Math.round((current - baseline) * 100) / 100,
+    percent: baseline ? Math.round(((current - baseline) / baseline) * 1000) / 10 : null,
+  };
+};
+
+export const savingsSummary = (shops = []) => ({
+  saved: Math.round(shops.reduce((sum, shop) => sum + (Number(shop.saved) || 0), 0) * 100) / 100,
+  trips: shops.filter((shop) => Number(shop.saved) > 0).length,
+});
 
 /* ---------- Plan ---------- */
 

@@ -6,7 +6,7 @@ import { applyOffers, OFFER_KINDS } from '../lib/shopping.js';
 import { Card, Chip, Pill } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
-const BLANK = { label: '', match: '', kind: 'money', value: '', store: '' };
+const BLANK = { label: '', match: '', kind: 'money', value: '', store: '', expiry: '' };
 
 /**
  * Offers and coupons.
@@ -21,7 +21,7 @@ export default function OffersPanel() {
   const [draft, setDraft] = useState(BLANK);
   const field = (k) => (v) => setDraft((d) => ({ ...d, [k]: v }));
   const kind = OFFER_KINDS.find((k) => k.id === draft.kind);
-  const { lines, saved } = applyOffers(app.shoppingList, app.offers);
+  const { lines, saved } = applyOffers(app.shoppingList, app.offers, { today: app.day });
 
   const add = () => {
     if (draft.label.trim().length < 2 || !draft.match.trim()) return;
@@ -55,6 +55,11 @@ export default function OffersPanel() {
                   <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
                     matches “{offer.match}”{offer.store ? ` · ${offer.store}` : ''}
                   </p>
+                  {offer.expiry && (
+                    <p className="text-[11.5px] font-semibold" style={{ color: offer.expiry < app.day ? 'var(--danger)' : 'var(--muted)' }}>
+                      {offer.expiry < app.day ? 'Expired' : 'Expires'} {offer.expiry}
+                    </p>
+                  )}
                   {line
                     ? <p className="mt-1"><Pill tone="good">saves {gbp(line.saved, { always: true })} on {line.items.length} item{line.items.length === 1 ? '' : 's'}</Pill></p>
                     : <p className="mt-1"><Pill tone="faint">nothing on the list matches</Pill></p>}
@@ -116,6 +121,17 @@ export default function OffersPanel() {
           className="w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
+        <label className="block">
+          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Expiry date (optional)</span>
+          <input
+            type="date"
+            value={draft.expiry}
+            onChange={(e) => field('expiry')(e.target.value)}
+            aria-label="Offer expiry date"
+            className="mt-1 w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+            style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+          />
+        </label>
         <button
           onClick={add}
           disabled={draft.label.trim().length < 2 || !draft.match.trim()}

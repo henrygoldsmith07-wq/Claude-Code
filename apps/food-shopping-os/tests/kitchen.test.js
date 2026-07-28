@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   addDays, badgeProgress, budgetWeeks, cuisineSplit, dayStamp, daysUntil, expiringSoon,
-  consumePantryIngredients, kitchenStats, leftovers, pantryAnalytics, pantryFromShareCode,
-  pantryShareCode, pantryValue, planCost, plannedMeals, priceHistory, recipesUsing,
-  runningLow, spendByMonth, spentInWeek, streakFrom, weekDates, weekStart,
+  consumePantryIngredients, groceryInflation, kitchenStats, leftovers, pantryAnalytics,
+  pantryFromShareCode, pantryShareCode, pantryValue, planCost, plannedMeals, priceHistory,
+  recipesUsing, runningLow, savingsSummary, spendByMonth, spentInMonth, spentInWeek,
+  streakFrom, weekDates, weekStart,
 } from '../src/lib/kitchen.js';
 import { groupByAisle, guessAisle, itemsFromRecipes, totalOf, checkedTotalOf } from '../src/data/stores.js';
 import { RECIPES } from '../src/data/recipes.js';
@@ -137,6 +138,25 @@ describe('shops and spending', () => {
     expect(months[months.length - 1].spend).toBe(50.6); // both July trips
     expect(months.find((m) => m.key === '2026-06').spend).toBe(44);
     expect(spendByMonth([], 3, TODAY).every((m) => m.spend === 0)).toBe(true);
+    expect(spentInMonth(shops, TODAY)).toBe(50.6);
+  });
+
+  it('tracks like-for-like grocery inflation from repeated purchases', () => {
+    const index = groceryInflation([
+      { date: '2026-01-01', store: 'A', items: [{ name: 'Milk', price: 1 }, { name: 'Bread', price: 2 }] },
+      { date: '2026-07-01', store: 'B', items: [{ name: 'Milk', price: 1.2 }, { name: 'Bread', price: 1.8 }] },
+    ]);
+    expect(index.items).toBe(2);
+    expect(index.baseline).toBe(3);
+    expect(index.current).toBe(3);
+    expect(index.percent).toBe(0);
+    expect(groceryInflation([]).items).toBe(0);
+  });
+
+  it('adds up savings actually recorded at checkout', () => {
+    expect(savingsSummary([
+      { saved: 2.5 }, { saved: 0 }, { saved: 1.25 },
+    ])).toEqual({ saved: 3.75, trips: 2 });
   });
 
   it('counts only complete weeks that stayed inside the budget', () => {

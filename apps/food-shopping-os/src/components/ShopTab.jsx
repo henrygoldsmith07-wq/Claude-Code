@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Banknote, Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -14,6 +14,7 @@ import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
 import BarcodeAdd from './BarcodeAdd.jsx';
+import BudgetPanel from './BudgetPanel.jsx';
 
 /* ---------- One line of the list ---------- */
 
@@ -132,7 +133,7 @@ export default function ShopTab() {
       <div className="hero-gradient px-5 pt-14 pb-3">
         <h1 className="text-[26px] font-extrabold tracking-tight rise">Shop</h1>
         <div className="mt-3 flex gap-2 rise rise-1">
-          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp]].map(([k, label, Icon]) => (
+          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
             </Chip>
@@ -390,6 +391,7 @@ export default function ShopTab() {
       )}
 
       {view === 'prices' && <PriceCompare />}
+      {view === 'budget' && <BudgetPanel />}
 
       <Sheet open={sheet === 'finish'} onClose={() => setSheet(null)} title="Finish shop">
         <FinishShop items={list} store={store} onDone={() => { setSheet(null); setShoppingMode(false); }} />

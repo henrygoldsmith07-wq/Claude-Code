@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   aisleFor, applyOffers, basketProjection, cheapestFor, compareStores, expiryBuckets,
   groupForStore, mergeItems, refile, rememberAisle, restockSuggestions, routeFor,
-  routeFromTicks, savingsAvailable, wasteSummary,
+  priceAlertMatches, routeFromTicks, savingsAvailable, wasteSummary,
 } from '../src/lib/shopping.js';
 import { priceHistory } from '../src/lib/kitchen.js';
 
@@ -96,6 +96,17 @@ describe('price comparison from your own receipts', () => {
     expect(savings[0]).toMatchObject({ name: 'Pasta', best: 0.79, store: 'Aldi' });
     expect(savings[0].saving).toBeCloseTo(0.51, 2);
   });
+
+  it('fires price alerts only when a recorded price reaches the target', () => {
+    const alerts = [
+      { id: 'a1', name: 'Pasta', target: 0.8 },
+      { id: 'a2', name: 'Milk', target: 1 },
+    ];
+    expect(priceAlertMatches(alerts, SHOPS)).toEqual([
+      expect.objectContaining({ id: 'a1', latest: 0.79, hit: true }),
+      expect.objectContaining({ id: 'a2', latest: 1.1, hit: false }),
+    ]);
+  });
 });
 
 describe('offers you entered', () => {
@@ -123,6 +134,13 @@ describe('offers you entered', () => {
   it('ignores an offer nothing on the list matches', () => {
     expect(applyOffers(list, [{ id: 'o4', label: '£2 off wine', match: 'wine', kind: 'money', value: 2 }])).toEqual({ lines: [], saved: 0 });
     expect(applyOffers([], [{ id: 'o5', label: 'x', match: 'pasta', kind: 'money', value: 1 }]).saved).toBe(0);
+  });
+
+  it('does not apply expired coupons or coupons for another store', () => {
+    const offer = { id: 'o6', label: '£1 off pasta', match: 'pasta', kind: 'money', value: 1, store: 'Tesco' };
+    expect(applyOffers(list, [offer], { store: 'Aldi', today: '2026-07-28' }).saved).toBe(0);
+    expect(applyOffers(list, [{ ...offer, expiry: '2026-07-27' }], { store: 'Tesco', today: '2026-07-28' }).saved).toBe(0);
+    expect(applyOffers(list, [{ ...offer, expiry: '2026-07-29' }], { store: 'Tesco', today: '2026-07-28' }).saved).toBe(1);
   });
 });
 

@@ -135,6 +135,43 @@ describe('budget and offers', () => {
     addItem('Weekly shop', '25');
     expect(screen.getByText(/over budget/)).toBeDefined();
   });
+
+  it('sets monthly and weekly budgets and creates a price alert', () => {
+    onboard();
+    openShop();
+    fireEvent.click(screen.getByText('Budget'));
+
+    fireEvent.change(screen.getByLabelText('Weekly grocery budget'), { target: { value: '75' } });
+    fireEvent.change(screen.getByLabelText('Monthly grocery budget'), { target: { value: '280' } });
+    fireEvent.click(screen.getByText('Save budgets'));
+    expect(screen.getByText(/£0.*of £75/)).toBeDefined();
+    expect(screen.getByText(/£0.*of £280/)).toBeDefined();
+
+    fireEvent.change(screen.getByLabelText('Price alert product'), { target: { value: 'Olive oil' } });
+    fireEvent.change(screen.getByLabelText('Target price'), { target: { value: '4.50' } });
+    fireEvent.click(screen.getByText('Add price alert'));
+    expect(screen.getByText('Olive oil')).toBeDefined();
+    expect(screen.getByText(/Target £4.50/)).toBeDefined();
+  });
+
+  it('tracks coupon savings when a discounted shop is recorded', () => {
+    onboard();
+    openShop();
+    addItem('Pasta', '1.20');
+    fireEvent.click(screen.getByText(/^Offers/));
+    const sheet = dialogFor('Offers you have');
+    fireEvent.change(within(sheet).getByLabelText('Offer description'), { target: { value: '£1 off pasta' } });
+    fireEvent.change(within(sheet).getByLabelText('Applies to'), { target: { value: 'pasta' } });
+    fireEvent.change(within(sheet).getByLabelText(/Amount off/), { target: { value: '1' } });
+    fireEvent.click(within(sheet).getByText('Add offer'));
+    fireEvent.click(within(sheet).getByLabelText('Close'));
+
+    fireEvent.click(screen.getByLabelText('Tick Pasta'));
+    recordShop('Tesco', '0.20', { toPantry: false });
+    fireEvent.click(screen.getByText('Budget'));
+    expect(screen.getByText(/Recorded coupon savings across 1 shop/)).toBeDefined();
+    expect(screen.getAllByText('£1.00').length).toBeGreaterThan(0);
+  });
 });
 
 describe('price comparison', () => {

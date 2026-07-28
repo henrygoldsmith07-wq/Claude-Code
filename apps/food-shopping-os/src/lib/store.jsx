@@ -3,7 +3,9 @@ import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
 import { setMyRecipes } from '../data/recipes.js';
-import { aisleFor, mergeItems, rememberAisle, routeFromTicks } from './shopping.js';
+import {
+  aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks,
+} from './shopping.js';
 import { buildEntry, copyEntries } from './nutrition.js';
 import { recipeFood } from './foodlog.js';
 import { targetsFor } from './goals.js';
@@ -272,11 +274,14 @@ export function AppProvider({ children }) {
         set((s) => {
           const bought = s.shoppingList.filter((i) => i.checked);
           if (!bought.length) return {};
+          const shopStore = store || 'Unnamed shop';
+          const { saved } = applyOffers(bought, s.offers, { store: shopStore, today: s.day });
           const shop = {
             id: uid('h'),
             date: s.day,
-            store: store || 'Unnamed shop',
+            store: shopStore,
             total: Math.round((Number(total) || 0) * 100) / 100,
+            saved,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
           // The order you ticked things off is this shop's layout, learned.
@@ -318,11 +323,21 @@ export function AppProvider({ children }) {
               kind: ['money', 'percent', 'multibuy'].includes(offer.kind) ? offer.kind : 'money',
               value: Math.max(0, Number(offer.value) || 0),
               store: String(offer.store || '').trim(),
+              expiry: /^\d{4}-\d{2}-\d{2}$/.test(offer.expiry || '') ? offer.expiry : null,
               addedAt: s.day,
             }],
           };
         }),
       removeOffer: (id) => set((s) => ({ offers: s.offers.filter((o) => o.id !== id) })),
+      addPriceAlert: ({ name, target }) =>
+        set((s) => {
+          const label = String(name || '').trim();
+          const price = Math.max(0, Number(target) || 0);
+          if (label.length < 2 || !price) return {};
+          return { priceAlerts: [...s.priceAlerts, { id: uid('pa'), name: label, target: price }] };
+        }),
+      removePriceAlert: (id) =>
+        set((s) => ({ priceAlerts: s.priceAlerts.filter((alert) => alert.id !== id) })),
 
       /* ---------- Waste ---------- */
       /** Binning something records what it cost, so the waste figure is real. */

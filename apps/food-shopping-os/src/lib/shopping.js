@@ -115,6 +115,23 @@ export const savingsAvailable = (items = [], shops = []) => {
     .sort((a, b) => b.saving - a.saving);
 };
 
+export const priceAlertMatches = (alerts = [], shops = []) => {
+  const history = priceHistory(shops);
+  return alerts.map((alert) => {
+    const item = history.find((entry) => key(entry.name) === key(alert.name));
+    const latestByStore = new Map();
+    item?.points.forEach((point) => latestByStore.set(point.store, point));
+    const bestCurrent = [...latestByStore.values()].sort((a, b) => a.price - b.price)[0] || null;
+    const latest = bestCurrent?.price ?? null;
+    return {
+      ...alert,
+      latest,
+      hit: latest !== null && latest <= Number(alert.target),
+      store: bestCurrent?.store || null,
+    };
+  });
+};
+
 /* ---------- Offers you told it about ---------- */
 
 export const OFFER_KINDS = [
@@ -132,10 +149,12 @@ const matches = (item, offer) => {
  * Apply the offers you've entered to a list. Only your own offers exist here —
  * the app has no deals feed and never invents one.
  */
-export const applyOffers = (items = [], offers = []) => {
+export const applyOffers = (items = [], offers = [], { store = '', today = '' } = {}) => {
   const lines = [];
   let saved = 0;
   for (const offer of offers) {
+    if (offer.store && store && key(offer.store) !== key(store)) continue;
+    if (offer.expiry && today && offer.expiry < today) continue;
     const hits = items.filter((i) => matches(i, offer));
     if (!hits.length) continue;
     const spend = hits.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
@@ -163,10 +182,12 @@ export const applyOffers = (items = [], offers = []) => {
  * The list against your week: what it comes to, what your own offers take off,
  * and what that leaves of the budget after what you've already spent.
  */
-export const basketProjection = (items = [], { budget = 0, spent = 0, offers = [] } = {}) => {
+export const basketProjection = (items = [], {
+  budget = 0, spent = 0, offers = [], store = '', today = '',
+} = {}) => {
   const priced = items.filter((i) => Number(i.price) > 0);
   const total = round2(items.reduce((sum, i) => sum + (Number(i.price) || 0), 0));
-  const { lines, saved } = applyOffers(items, offers);
+  const { lines, saved } = applyOffers(items, offers, { store, today });
   const projected = round2(Math.max(0, total - saved));
   return {
     total,
