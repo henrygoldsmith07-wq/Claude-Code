@@ -246,7 +246,7 @@ export default function AddFood({ defaultMeal = 'snack', onPick, onCapture }) {
           <button
             key={id}
             onClick={() => onCapture(id)}
-            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold"
+            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <Icon size={14} /> {label}
@@ -254,7 +254,7 @@ export default function AddFood({ defaultMeal = 'snack', onPick, onCapture }) {
         ))}
         <button
           onClick={() => setPanel(panel === 'quick' ? null : 'quick')}
-          className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold"
+          className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
           style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
         >
           <Zap size={14} /> Quick add
@@ -305,9 +305,9 @@ export default function AddFood({ defaultMeal = 'snack', onPick, onCapture }) {
         {list.length === 0 && (
           <EmptyRow>
             {tab === 'search' ? 'Nothing matched — try fewer words, scan a barcode, or create a custom food.'
-              : tab === 'mine' ? 'No custom foods yet.'
-                : tab === 'favourites' ? 'Star a food and it lands here.'
-                  : 'Nothing logged yet.'}
+              : tab === 'mine' ? 'No custom foods yet. Make one and it stays in your catalogue, weights and all.'
+                : tab === 'favourites' ? 'Star a food and it lands here, ready to log in a tap.'
+                  : 'Nothing logged yet. Once you have, your usual foods appear here first.'}
           </EmptyRow>
         )}
         {list.map((food) => (

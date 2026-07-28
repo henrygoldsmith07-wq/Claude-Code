@@ -7,7 +7,7 @@ import { prettyDate } from '../lib/utils.js';
 import { MEASUREMENTS, MEDICAL_DISCLAIMER, VITALS } from '../data/health.js';
 import { series } from '../lib/health.js';
 import { shrinkImage, storageEstimate } from '../lib/photos.js';
-import { Card, Chip, Pill, Sparkline } from './ui.jsx';
+import { Card, Chip, Empty, Pill, Sparkline } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import { CycleView, RestView } from './WellbeingPanel.jsx';
 
@@ -263,11 +263,10 @@ function VitalsView() {
       </Card>
 
       {summary.count === 0 ? (
-        <Card className="text-center py-8">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
-            No {vital.label.toLowerCase()} readings yet.
-          </p>
-        </Card>
+        <Empty title={`No ${vital.label.toLowerCase()} readings yet`}>
+          Nothing here is estimated. Type a reading in above and this page starts keeping the
+          run of them — one reading is a number, several are a direction.
+        </Empty>
       ) : (
         <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
           {app.vitals.filter((v) => v.key === key).slice().reverse().slice(0, 8).map((reading) => {

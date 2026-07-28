@@ -115,6 +115,7 @@ export const DEFAULT_UNITS = { weight: 'kg', height: 'cm', energy: 'kcal', volum
  */
 export const WIDGETS = [
   { id: 'rings', label: 'Calories & macros', fixed: true },
+  { id: 'setup', label: 'Getting started', fixed: true },
   { id: 'reminders', label: 'Reminders due' },
   { id: 'goals', label: 'Today’s goals' },
   { id: 'log', label: 'Log what you ate' },

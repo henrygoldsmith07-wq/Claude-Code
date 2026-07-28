@@ -227,7 +227,7 @@ export default function ExercisePanel() {
               Add today’s estimated burn to your target
             </p>
           </div>
-          <Toggle on={app.countExerciseKcal} onChange={() => app.setCountExerciseKcal(!app.countExerciseKcal)} />
+          <Toggle label="Count exercise calories" on={app.countExerciseKcal} onChange={() => app.setCountExerciseKcal(!app.countExerciseKcal)} />
         </div>
         <div className="mt-3 rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
           <p className="text-[13.5px] font-bold">

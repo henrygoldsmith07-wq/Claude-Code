@@ -29,12 +29,19 @@
 :root[data-accent="ocean"]  { --accent: #3b5b73; --on-accent: #ffffff; }
 :root[data-accent="wine"]   { --accent: #6e4550; --on-accent: #ffffff; }
 :root[data-accent="honey"]  { --accent: #8a6a3b; --on-accent: #ffffff; }
-:root[data-accent="sage"]   { --accent: #6b7f6a; --on-accent: #ffffff; }
+:root[data-accent="sage"]   { --accent: #5f7360; --on-accent: #ffffff; }
 :root[data-accent="clay"]   { --accent: #8c5a44; --on-accent: #ffffff; }
 :root[data-accent="ink"]    { --accent: #2f3640; --on-accent: #ffffff; }
 :root {
   --accent-soft: color-mix(in srgb, var(--accent) 9%, transparent);
   --accent-deep: color-mix(in srgb, var(--accent) 78%, var(--ink));
+  /* Status colours are readable on white but not on their own tint: the green
+     lands at 4.22:1 on a 14% green wash, just under AA for the 11px text that
+     uses it. These are the same hues pulled toward ink so a tinted badge
+     clears 4.5:1 — the tint stays, the words get readable. */
+  --good-deep: color-mix(in srgb, var(--good) 82%, var(--ink));
+  --warn-deep: color-mix(in srgb, var(--warn) 82%, var(--ink));
+  --danger-deep: color-mix(in srgb, var(--danger) 82%, var(--ink));
 }
 
 @theme inline {
@@ -47,6 +54,42 @@
 }
 
 * { -webkit-tap-highlight-color: transparent; }
+
+/* ---------- Reaching things with a thumb ----------
+   WCAG 2.2 asks for a 44×44 target. Making every control physically that big
+   would wreck a dense mobile layout, so `.tap` grows the *hit area* with a
+   centred pseudo-element and leaves the visual size alone. The element needs a
+   position for it to anchor to, which `.tap` sets. */
+.tap { position: relative; }
+.tap::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+  /* Purely a target: it must never paint or catch the pointer for a parent. */
+  pointer-events: auto;
+}
+
+/* Skip past the chrome to the day's content — the first thing a keyboard or
+   switch user meets, and invisible until it has focus. */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -110%);
+  z-index: 60;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 1rem 1rem;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+  font-size: 14px;
+  transition: transform 160ms ease;
+}
+.skip-link:focus { transform: translate(-50%, 0); }
 
 ::selection { background: var(--accent-soft); }
 
@@ -92,6 +135,29 @@
 }
 .sheet-up { animation: sheet-up-local 260ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+/* ---------- Micro-interactions ----------
+   Each one confirms something the app just did. None of them decorate: if
+   nothing happened, nothing moves. */
+
+@keyframes pop {
+  0% { transform: scale(0.82); opacity: 0; }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pop { animation: pop 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes check-in {
+  0% { stroke-dashoffset: 22; }
+  100% { stroke-dashoffset: 0; }
+}
+.check-in path { stroke-dasharray: 22; animation: check-in 260ms ease-out both; }
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-up { animation: count-up 220ms ease-out both; }
+
 @keyframes shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -116,6 +182,9 @@
 .pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise, .sheet-up, .skeleton, .pulse-dot, .scanline { animation: none; }
-  .press, .card { transition: none; }
+  .rise, .sheet-up, .skeleton, .pulse-dot, .scanline,
+  .pop, .check-in, .count-up { animation: none; }
+  .press, .card, .skip-link, .tap { transition: none; }
+  /* A press still needs to acknowledge itself; it just doesn't travel. */
+  .press:active { transform: none; opacity: 0.7; }
 }

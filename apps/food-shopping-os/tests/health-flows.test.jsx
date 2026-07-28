@@ -26,7 +26,7 @@ const dialogFor = (title) => {
 };
 
 const openCard = (name, title) => {
-  fireEvent.click(screen.getByText('Profile'));
+  openProfile();
   const section = screen.getByText('Health & training').closest('section');
   fireEvent.click(within(section).getByText(name));
   return dialogFor(title);
@@ -44,6 +44,9 @@ const logWeight = (kg) => {
   fireEvent.click(within(sheet).getByText('Log'));
   return sheet;
 };
+
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
 
 describe('health tracking starts with nothing in it', () => {
   beforeEach(() => localStorage.clear());
@@ -132,7 +135,7 @@ describe('what setup asks for, and why', () => {
 
   it('can be turned on later from Goals without redoing setup', () => {
     onboard();
-    fireEvent.click(screen.getByText('Profile'));
+    openProfile();
     const section = screen.getByText('Goals & targets').closest('section');
     fireEvent.click(within(section).getByText(/kcal · /));
     const goals = dialogFor('Goals & targets');

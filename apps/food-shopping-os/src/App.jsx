@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, ChefHat, ClipboardList, Home, ShoppingCart, Sparkles, User } from 'lucide-react';
+import { CalendarDays, ChefHat, ClipboardList, Home, ShoppingCart } from 'lucide-react';
 import { AppProvider, useApp } from './lib/store.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import HomeTab from './components/HomeTab.jsx';
@@ -13,15 +13,35 @@ import PantryView from './components/PantryView.jsx';
 import AiAssistant from './components/AiAssistant.jsx';
 import CoachPanel from './components/CoachPanel.jsx';
 import { Chip, Sheet } from './components/ui.jsx';
+import AppHeader from './components/AppHeader.jsx';
+import { cx } from './lib/utils.js';
 
+/**
+ * Five tabs, not six.
+ *
+ * Profile came out: it is a place you *visit*, not a place you work, and it
+ * was taking a sixth of the bar from the five screens you use every day. It
+ * now lives behind the avatar in the header, which is on every screen rather
+ * than only on Home — so it went from one tap anywhere to one tap anywhere,
+ * and the five that remain each got 20% wider to press.
+ */
 const TABS = [
   { id: 'home', label: 'Home', Icon: Home },
   { id: 'plan', label: 'Plan', Icon: CalendarDays },
   { id: 'log', label: 'Log', Icon: ClipboardList },
   { id: 'shop', label: 'Shop', Icon: ShoppingCart },
   { id: 'recipes', label: 'Recipes', Icon: ChefHat },
-  { id: 'profile', label: 'Profile', Icon: User },
 ];
+
+/** What each screen is called, and the one thing it is mainly for. */
+export const SCREENS = {
+  home: { title: 'Today' },
+  plan: { title: 'Meal planner' },
+  log: { title: 'Food diary' },
+  shop: { title: 'Shop' },
+  recipes: { title: 'Recipes' },
+  profile: { title: 'You' },
+};
 
 function Shell() {
   const app = useApp();
@@ -29,6 +49,7 @@ function Shell() {
   const [recipe, setRecipe] = useState(null);
   const [pantryOpen, setPantryOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [coachView, setCoachView] = useState('coach'); // coach · chat
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
@@ -36,29 +57,34 @@ function Shell() {
   const openRecipe = (r) => setRecipe(r);
   const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
 
+  /* Screens still ask to go to "profile" — it just isn't a tab any more, it's
+     the sheet behind the avatar. Routing it here means nothing that pointed at
+     it had to learn where it went. */
+  const goTab = (id) => {
+    if (id === 'profile') return setProfileOpen(true);
+    setTab(id);
+    window.scrollTo({ top: 0 });
+  };
+
   // Nothing is pre-filled, so the first run asks for the little it needs.
   if (!app.onboarded) return <Onboarding />;
 
   return (
     <div className="mx-auto max-w-lg min-h-screen relative" style={{ background: 'var(--bg)' }}>
-      <main className="pb-24">
-        {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={setTab} goLog={goLog} />}
+      {/* The first stop for a keyboard or switch user: past the chrome, into
+          the day. Invisible until it has focus. */}
+      <a href="#main" className="skip-link">Skip to content</a>
+
+      <AppHeader tab={tab} onProfile={() => setProfileOpen(true)} onAi={() => setAiOpen(true)} />
+
+      {/* Room at the foot for the tab bar and the screen's primary action. */}
+      <main id="main" tabIndex={-1} className="pb-44">
+        {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={goTab} goLog={goLog} />}
         {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
         {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
         {tab === 'shop' && <ShopTab />}
         {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
-        {tab === 'profile' && <ProfileTab />}
       </main>
-
-      {/* Floating AI assistant button */}
-      <button
-        onClick={() => setAiOpen(true)}
-        aria-label="AI food coach"
-        className="press fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl"
-        style={{ background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'var(--shadow-lg)', right: 'max(1.25rem, calc(50vw - 16rem + 1.25rem))' }}
-      >
-        <Sparkles size={24} strokeWidth={1.8} />
-      </button>
 
       {/* Bottom nav */}
       <nav
@@ -71,13 +97,15 @@ function Shell() {
             return (
               <button
                 key={id}
-                onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}
-                className="press flex flex-1 flex-col items-center gap-1 py-2.5"
+                onClick={() => goTab(id)}
+                className="press flex flex-1 flex-col items-center justify-center gap-1 py-3 min-h-[56px]"
                 aria-current={active ? 'page' : undefined}
-                style={{ color: active ? 'var(--accent)' : 'var(--faint)' }}
+                // The colour says which tab you're on; the weight says it again,
+                // for anyone who can't see the difference.
+                style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
               >
-                <Icon size={21} strokeWidth={active ? 2.2 : 1.8} />
-                <span className="text-[10.5px] font-bold">{label}</span>
+                <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
+                <span className={cx('text-[11px]', active ? 'font-extrabold' : 'font-semibold')}>{label}</span>
               </button>
             );
           })}
@@ -90,6 +118,9 @@ function Shell() {
       </Sheet>
       <Sheet open={pantryOpen} onClose={() => setPantryOpen(false)} title="Smart pantry">
         <PantryView />
+      </Sheet>
+      <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="You">
+        <ProfileTab />
       </Sheet>
       <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="AI food coach">
         <div className="px-5 pb-2 flex gap-2">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Check, Copy, MapPin, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Check, Copy, MapPin, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -10,6 +10,7 @@ import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { groupForStore } from '../lib/shopping.js';
 import ReceiptScan from './ReceiptScan.jsx';
 import { Section, Card, Meter, Chip, Pill, Sheet } from './ui.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
 import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
@@ -31,7 +32,7 @@ function ListRow({ item, onAisle }) {
             ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
             : { borderColor: 'var(--line)', color: 'transparent' }}
         >
-          <Check size={13} strokeWidth={3} />
+          {item.checked && <Check className="check-in" size={13} strokeWidth={3} />}
         </button>
         <button onClick={() => setMoving((v) => !v)} aria-label={`Move ${item.name} to another aisle`} className="press shrink-0">
           <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
@@ -112,8 +113,7 @@ export default function ShopTab() {
 
   return (
     <div className="pb-6 space-y-6">
-      <div className="hero-gradient px-5 pt-14 pb-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight rise">Shop</h1>
+      <div className="hero-gradient px-5 pt-1 pb-3">
         <div className="mt-3 flex gap-2 rise rise-1">
           {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
@@ -133,7 +133,11 @@ export default function ShopTab() {
                     {shoppingMode ? 'Running total' : 'Estimated basket'}
                   </p>
                   <p className="text-[24px] font-extrabold">
-                    {gbp(shoppingMode ? checkedTotal : basket.projected, { always: true })}
+                    {/* Keyed on the value, so a changed total animates in
+                        instead of silently swapping under your eyes. */}
+                    <span key={shoppingMode ? checkedTotal : basket.projected} className="count-up inline-block">
+                      {gbp(shoppingMode ? checkedTotal : basket.projected, { always: true })}
+                    </span>
                     {shoppingMode && (
                       <span className="text-[13px] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
                         of {gbp(basket.projected, { always: true })}
@@ -151,18 +155,17 @@ export default function ShopTab() {
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => setShoppingMode(!shoppingMode)}
-                  disabled={!list.length}
-                  className="press rounded-2xl px-4 py-2.5 text-[13px] font-extrabold disabled:opacity-40 shrink-0"
-                  style={shoppingMode
-                    ? { background: 'var(--card-2)', color: 'var(--ink)' }
-                    : { background: 'var(--accent)', color: 'var(--on-accent)' }}
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    {shoppingMode ? <><X size={14} /> Exit mode</> : <><Play size={14} fill="currentColor" /> Shopping mode</>}
-                  </span>
-                </button>
+                {/* Starting a shop is the primary action at the bottom of the
+                    screen now; only the way out of it belongs up here. */}
+                {shoppingMode && (
+                  <button
+                    onClick={() => setShoppingMode(false)}
+                    className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold shrink-0"
+                    style={{ background: 'var(--card-2)', color: 'var(--ink)' }}
+                  >
+                    <span className="inline-flex items-center gap-1.5"><X size={14} /> Exit mode</span>
+                  </button>
+                )}
               </div>
 
               {app.weeklyBudget > 0 ? (
@@ -391,6 +394,15 @@ export default function ShopTab() {
           </button>
         </div>
       </Sheet>
+
+      {/* Whichever step of a shop you're actually at. */}
+      {view === 'list' && (
+        list.length === 0
+          ? <PrimaryAction label="Add something to the list" onClick={() => setAdding(true)} />
+          : !shoppingMode
+            ? <PrimaryAction label="Start shopping" hint={`${list.length} item${list.length === 1 ? '' : 's'}`} onClick={() => setShoppingMode(true)} />
+            : <PrimaryAction label="Finish and record this shop" hint={`${ticked}/${list.length} ticked`} onClick={() => setSheet('finish')} />
+      )}
     </div>
   );
 }

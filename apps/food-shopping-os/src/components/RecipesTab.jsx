@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ChefHat, Clock, Heart, Inbox, Plus, Search, SlidersHorizontal, Sparkles, UtensilsCrossed, X,
 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { DIET_PATTERNS } from '../data/goals.js';
 import { missingFrom, parseShareCode, searchRecipes } from '../lib/recipe-tools.js';
 import { rankByPrefs } from '../lib/preferences.js';
 import { Section, Card, Chip, Pill, FoodArt, Sheet } from './ui.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
 import RecipeGenerator from './RecipeGenerator.jsx';
 
 const TIME_STEPS = [
@@ -25,6 +26,9 @@ const SHOPPING = [
 ];
 
 const DIET_IDS = DIET_PATTERNS.filter((d) => d.kind !== 'macro').map((d) => d.id);
+
+/** How many recipe cards go into the page at a time. */
+const PAGE = 24;
 
 /** Filters that read as sentences: what's in it, what isn't, how long, whose diet. */
 function FilterSheet({ filters, setFilters, onClose, results }) {
@@ -242,11 +246,20 @@ export default function RecipesTab({ openRecipe }) {
     [safePool, query, filters, app.pantry],
   );
 
+  /* The library is over a thousand dishes. Putting all of them in the page at
+     once made a screen you had to scroll for a minute to reach the end of, and
+     a first paint that had to build every card before showing you the first
+     one. A page at a time, growing when you ask: the count above still tells
+     you the real total, so nothing is hidden — just not all laid out at once. */
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => setShown(PAGE), [query, filters, view, filter]);
+  const visible = recipes.slice(0, shown);
+
   const cols = useMemo(() => {
     const a = [], b = [];
-    recipes.forEach((r, i) => (i % 2 === 0 ? a : b).push(r));
+    visible.forEach((r, i) => (i % 2 === 0 ? a : b).push(r));
     return [a, b];
-  }, [recipes]);
+  }, [visible]);
 
   // Saying how many were removed is the difference between a filter and a
   // disappearance you can't account for.
@@ -262,8 +275,7 @@ export default function RecipesTab({ openRecipe }) {
 
   return (
     <div className="pb-6">
-      <div className="hero-gradient px-5 pt-14 pb-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight rise">Recipes</h1>
+      <div className="hero-gradient px-5 pt-1 pb-3">
         <div className="mt-3 flex gap-2 rise rise-1">
           <div className="relative min-w-0 flex-1">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--faint)' }} />
@@ -296,7 +308,7 @@ export default function RecipesTab({ openRecipe }) {
       </div>
 
       {/* Library · my recipes · favourites */}
-      <div className="mt-4 px-5 flex gap-2 rise rise-1">
+      <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar px-5 rise rise-1">
         {[['library', `Library (${allRecipes().length})`], ['mine', `Mine (${app.myRecipes.length})`], ['favourites', `Favourites (${app.favourites.length})`]]
           .map(([key, label]) => (
             <Chip key={key} active={view === key} onClick={() => setView(key)}>{label}</Chip>
@@ -358,7 +370,7 @@ export default function RecipesTab({ openRecipe }) {
                         <button
                           onClick={(e) => { e.stopPropagation(); app.toggleFavourite(r.id); }}
                           aria-label={fav ? 'Unfavourite' : 'Favourite'}
-                          className="press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border"
+                          className="tap press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border"
                           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
                         >
                           <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
@@ -388,6 +400,19 @@ export default function RecipesTab({ openRecipe }) {
             ))}
           </div>
         )}
+
+        {shown < recipes.length && (
+          <button
+            onClick={() => setShown((n) => n + PAGE)}
+            className="press mt-3 w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+            style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+          >
+            Show {Math.min(PAGE, recipes.length - shown)} more
+            <span className="ml-1.5 font-bold" style={{ color: 'var(--faint)' }}>
+              {shown} of {recipes.length}
+            </span>
+          </button>
+        )}
       </Section>
 
       <Sheet open={sheet === 'filters'} onClose={() => setSheet(null)} title="Filters">
@@ -399,6 +424,24 @@ export default function RecipesTab({ openRecipe }) {
       <Sheet open={sheet === 'shared'} onClose={() => setSheet(null)} title="A recipe someone sent you">
         <SharedImport onDone={() => { setSheet(null); setView('mine'); }} />
       </Sheet>
+
+      {/* With a thousand-odd dishes on the shelf, the useful move depends on
+          where you are: cut them to what your kitchen can already make, undo a
+          filter that left you with nothing, or just be handed one. */}
+      {recipes.length === 0 ? (
+        <PrimaryAction
+          label="Clear the filters"
+          onClick={() => { setFilters({ diets: [], maxTime: null, include: [], exclude: [], maxMissing: null }); setQuery(''); }}
+        />
+      ) : app.pantry.length > 0 && filters.maxMissing !== 0 ? (
+        <PrimaryAction label="Show what I can cook now" onClick={() => setFilters((f) => ({ ...f, maxMissing: 0 }))} />
+      ) : (
+        <PrimaryAction
+          label="Surprise me"
+          hint={`1 of ${recipes.length}`}
+          onClick={() => openRecipe(recipes[Math.floor(Math.random() * recipes.length)])}
+        />
+      )}
     </div>
   );
 }

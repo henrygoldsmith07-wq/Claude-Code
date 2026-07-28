@@ -220,7 +220,7 @@ function HomeView() {
               <button onClick={() => app.moveWidget(id, 1)} disabled={i === order.length - 1} aria-label={`Move ${widget.label} down`} className="press p-1 disabled:opacity-25" style={{ color: 'var(--muted)' }}>
                 <ChevronDown size={16} />
               </button>
-              <Toggle on onChange={() => app.toggleWidget(id)} />
+              <Toggle label={`Show ${widget.label} on Home`} on onChange={() => app.toggleWidget(id)} />
             </div>
           );
         })}
@@ -231,7 +231,7 @@ function HomeView() {
           {off.map((widget) => (
             <div key={widget.id} className="flex items-center gap-3 p-3">
               <p className="min-w-0 flex-1 font-bold text-[13.5px]" style={{ color: 'var(--muted)' }}>{widget.label}</p>
-              <Toggle on={false} onChange={() => app.toggleWidget(widget.id)} />
+              <Toggle label={`Show ${widget.label} on Home`} on={false} onChange={() => app.toggleWidget(widget.id)} />
             </div>
           ))}
         </Card>

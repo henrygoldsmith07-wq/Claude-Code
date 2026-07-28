@@ -191,7 +191,7 @@ export default function Onboarding() {
                     Adds a page under Health for periods and symptoms
                   </p>
                 </div>
-                <Toggle on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
+                <Toggle label="Track your cycle" on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
               </div>
               <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
                 Off by default, and nothing else changes either way. Turn it on or off whenever you

@@ -18,7 +18,7 @@ const dialogFor = (title) => {
 };
 
 const openReminders = () => {
-  fireEvent.click(screen.getByText('Profile'));
+  openProfile();
   const section = screen.getByText('Health & training').closest('section');
   fireEvent.click(within(section).getByText('Reminders'));
   return dialogFor('Reminders');
@@ -36,6 +36,9 @@ const addReminder = (sheet, { kind = 'Water', text = '', time = '09:00', repeat 
   if (repeat) fireEvent.click(within(sheet).getByText(repeat));
   fireEvent.click(within(sheet).getByText(/Add reminder/));
 };
+
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
 
 describe('reminders start empty', () => {
   beforeEach(() => localStorage.clear());
@@ -168,7 +171,7 @@ describe('when one comes due', () => {
     addReminder(sheet, { kind: 'Water', text: 'Glass of water', time: '09:00' });
     fireEvent.click(within(sheet).getByLabelText('Close'));
     fireEvent.click(screen.getByText('Home'));
-    const section = screen.getByText('Reminders').closest('section');
+    const section = within(document.querySelector('main')).getAllByText('Reminders')[0].closest('section');
     expect(within(section).getByText('Glass of water')).toBeTruthy();
   });
 });

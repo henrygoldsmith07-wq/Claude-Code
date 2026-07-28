@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Check, Droplet, Info, RotateCcw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { Check, Info, RotateCcw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { alcoholUnits, nutrientAlerts, nutrientRows } from '../lib/nutrition.js';
 import { NUTRIENT_GROUPS, formatAmount } from '../data/nutrients.js';
 import { Card, Meter, Pill, Ring, Section } from './ui.jsx';
+import WaterGlasses from './WaterGlasses.jsx';
 
 const TONE_COLOR = {
   good: 'var(--good)',
@@ -62,22 +63,7 @@ const WaterCard = () => {
           {total.toLocaleString()} / {target.toLocaleString()} ml
         </p>
       </div>
-      <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Water glasses">
-        {Array.from({ length: 8 }, (_, i) => {
-          const on = i < app.water;
-          return (
-            <button
-              key={i}
-              onClick={() => app.set({ water: i + 1 === app.water ? i : i + 1 })}
-              className="press"
-              style={{ color: on ? 'var(--accent)' : 'var(--line)' }}
-              aria-label={`Glass ${i + 1}`}
-            >
-              <Droplet size={20} fill={on ? 'currentColor' : 'none'} />
-            </button>
-          );
-        })}
-      </div>
+      <div className="mt-2.5"><WaterGlasses size={20} /></div>
       <div className="mt-3"><Meter value={total} max={target} height={6} /></div>
       <div className="mt-3 flex gap-2">
         {[250, 500, 750].map((ml) => (

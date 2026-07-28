@@ -29,13 +29,16 @@ const logFood = (name) => {
 };
 
 const openAdvanced = (tab) => {
-  goTab('Profile');
+  openProfile();
   const section = screen.getByText('Reports & you').closest('section');
   fireEvent.click(within(section).getByText('Advanced'));
   const sheet = dialogFor('Advanced');
   if (tab) fireEvent.click(within(sheet).getByText(tab));
   return sheet;
 };
+
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
 
 describe('the footprint', () => {
   beforeEach(() => localStorage.clear());

@@ -10,6 +10,8 @@ import {
 } from '../lib/nutrition.js';
 import { formatAmount } from '../data/nutrients.js';
 import { Card, Meter, Pill, Ring, Section, Sheet } from './ui.jsx';
+import WaterGlasses from './WaterGlasses.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
 import { Glyph } from './icons.jsx';
 import AddFood from './AddFood.jsx';
 import FoodDetail from './FoodDetail.jsx';
@@ -105,9 +107,8 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
   return (
     <div className="pb-6 space-y-6">
       {/* Header + day totals */}
-      <div className="hero-gradient px-5 pt-14 pb-2">
+      <div className="hero-gradient px-5 pt-1 pb-2">
         <p className="text-[13px] font-semibold rise" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>
-        <h1 className="text-[26px] font-extrabold tracking-tight leading-tight rise">Food diary</h1>
 
         <Card className="mt-4 rise rise-1">
           <div className="flex items-center gap-5">
@@ -182,7 +183,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
           <button
             key={id}
             onClick={() => open(id)}
-            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold"
+            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <Icon size={14} /> {label}
@@ -203,7 +204,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
                   {sub.kcal} kcal
                 </span>
               </h2>
-              <button onClick={() => open('add', m.key)} className="press text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+              <button onClick={() => open('add', m.key)} className="tap press text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
                 + Add food
               </button>
             </div>
@@ -299,29 +300,14 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
               {app.hydration.total.toLocaleString()} / {app.targets.water.toLocaleString()} ml
             </p>
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Water glasses">
-            {Array.from({ length: 8 }, (_, i) => {
-              const on = i < app.water;
-              return (
-                <button
-                  key={i}
-                  onClick={() => app.set({ water: i + 1 === app.water ? i : i + 1 })}
-                  className="press"
-                  style={{ color: on ? 'var(--accent)' : 'var(--line)' }}
-                  aria-label={`Glass ${i + 1}`}
-                >
-                  <Droplet size={18} fill={on ? 'currentColor' : 'none'} />
-                </button>
-              );
-            })}
-            <button
-              onClick={() => app.addWaterMl(500)}
-              className="press ml-1 rounded-full border px-2.5 text-[11.5px] font-extrabold"
-              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
-            >
-              +500 ml
-            </button>
-          </div>
+          <div className="mt-2.5"><WaterGlasses /></div>
+          <button
+            onClick={() => app.addWaterMl(500)}
+            className="tap press mt-2 rounded-full border px-3 py-3 text-[11.5px] font-extrabold"
+            style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+          >
+            +500 ml
+          </button>
           <div className="mt-2.5"><Meter value={app.hydration.total} max={app.targets.water} height={5} /></div>
           <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: 'var(--line)' }}>
             <Pill tone={totals.caffeine > app.targets.caffeine ? 'danger' : 'muted'}>
@@ -410,6 +396,9 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
           />
         )}
       </Sheet>
+
+      {/* The diary exists to have food put in it. */}
+      <PrimaryAction label="Add food" onClick={() => open('add')} />
     </div>
   );
 }

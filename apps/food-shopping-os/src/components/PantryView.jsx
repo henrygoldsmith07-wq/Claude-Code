@@ -3,11 +3,11 @@ import {
   Camera, Check, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { gbp, expiryStatus } from '../lib/utils.js';
+import { cx, gbp, expiryStatus } from '../lib/utils.js';
 import { daysUntil, expiringSoon, pantryValue } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
-import { Card, Chip, Pill, Section } from './ui.jsx';
+import { Card, Chip, Empty, Pill, Section } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import PantryCapture from './PantryCapture.jsx';
@@ -280,12 +280,28 @@ export default function PantryView() {
             </Section>
           )}
 
-          <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
-            {items.length === 0 && (
-              <p className="p-6 text-center text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
-                Nothing here.
-              </p>
-            )}
+          {items.length === 0 && (
+            app.pantry.length === 0 ? (
+              <Empty
+                Icon={Package}
+                title="Your pantry is empty"
+                action="Add an item"
+                onAction={() => { setAdding(true); setCapturing(false); setScanning(false); }}
+                note="Or photograph a shelf, or scan a barcode."
+              >
+                Until it knows what you have, recipes can’t say what you’re missing and nothing can
+                warn you about a use-by date.
+              </Empty>
+            ) : (
+              <Empty title="Nothing matches">
+                {query.trim()
+                  ? `No pantry item matches “${query.trim()}”.`
+                  : `Nothing is stored in ${location.toLowerCase()} right now.`}
+              </Empty>
+            )
+          )}
+
+          <Card className={cx('!p-0 divide-y', items.length === 0 && 'hidden')} style={{ borderColor: 'var(--line)' }}>
             {items.map((p) => {
               const days = p.expiry ? daysUntil(p.expiry, app.day) : null;
               const st = days === null ? null : expiryStatus(days);
