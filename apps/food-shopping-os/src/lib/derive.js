@@ -22,6 +22,8 @@ import { allowedByPrefs, prefsSummary, reach, recipeFit } from './preferences.js
 import { formatters } from './units.js';
 import { DEFAULT_WIDGETS } from '../data/preferences.js';
 import { RECIPES } from '../data/recipes.js';
+import { periodFootprint, swapIdeas } from './footprint.js';
+import { fastingSummary } from './fasting.js';
 
 export const deriveApp = (state) => {
   // The hard lines, gathered once so every surface filters the same way.
@@ -40,6 +42,7 @@ export const deriveApp = (state) => {
   const glasses = state.water + state.waterExtraMl / GLASS_ML;
   const cookedDays = state.cooked.map((c) => c.date);
   const progress = progressSummary(state, state.day);
+  const footprint = periodFootprint(state.log, { today: state.day });
   return {
     catalogue,
     entries,
@@ -111,5 +114,9 @@ export const deriveApp = (state) => {
     fitFor: (recipe) => recipeFit(recipe, prefs),
     fmt: formatters(prefs),
     homeWidgets: state.widgets || DEFAULT_WIDGETS,
+    /* advanced surfaces, each derived from what you logged like everything else */
+    footprint,
+    footprintSwaps: swapIdeas(footprint),
+    fasting: fastingSummary(state.log, { today: state.day, plan: state.fastPlan }),
   };
 };

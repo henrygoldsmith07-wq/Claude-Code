@@ -107,6 +107,11 @@ export const EMPTY_STATE = {
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
   countExerciseKcal: false, // eating back an estimate is a choice
+  /* advanced: things you imported or measured elsewhere */
+  bloods: [], // {id, date, values:{}, lab, note} — typed from your own report
+  glucose: [], // {date, time, value} — imported from a CGM export
+  fast: null, // a running fast you started: {startedAt, plan, hours}
+  fastPlan: '16-8', // the window you named, if you named one
   /* how you want to be treated: hard lines, soft preferences, and units */
   allergies: [], // hard: a recipe naming one is never offered
   intolerances: [], // soft: flagged, because the amount is the point

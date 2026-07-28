@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  Activity, Banknote, Bell, ChartNoAxesColumn, Dumbbell, Flame, HeartPulse, Lock, NotebookPen,
-  RotateCcw, Download, SlidersHorizontal, Target, Trophy, Users,
+  Activity, Banknote, Bell, ChartNoAxesColumn, Dumbbell, Flame, FlaskConical, HeartPulse, Lock,
+  NotebookPen, RotateCcw, Download, SlidersHorizontal, Target, Trophy, Users,
 } from 'lucide-react';
 import { useApp, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
@@ -18,6 +18,7 @@ import ExercisePanel from './ExercisePanel.jsx';
 import RemindersPanel from './RemindersPanel.jsx';
 import ReportsPanel from './ReportsPanel.jsx';
 import PreferencesPanel from './PreferencesPanel.jsx';
+import AdvancedPanel from './AdvancedPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -44,6 +45,7 @@ export default function ProfileTab() {
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -177,6 +179,19 @@ export default function ProfileTab() {
             </p>
           </Card>
         </div>
+        <Card className="mt-2.5" onClick={() => setAdvancedOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14.5px]">Advanced</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.footprint.loggedDays
+                  ? `${app.footprint.perDay} kg CO₂e a day · gaps, fasting, results`
+                  : 'Footprint, nutrient gaps, fasting, results — and what Forq won’t pretend to do'}
+              </p>
+            </div>
+            <FlaskConical size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+        </Card>
       </Section>
 
       {/* Health and training */}
@@ -454,6 +469,9 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={healthOpen} onClose={() => setHealthOpen(false)} title="Health">
         <HealthPanel />
+      </Sheet>
+      <Sheet open={advancedOpen} onClose={() => setAdvancedOpen(false)} title="Advanced">
+        <AdvancedPanel />
       </Sheet>
       <Sheet open={reportsOpen} onClose={() => setReportsOpen(false)} title="Reports">
         <ReportsPanel />

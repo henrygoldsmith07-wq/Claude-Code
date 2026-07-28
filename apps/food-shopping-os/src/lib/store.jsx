@@ -11,7 +11,7 @@ import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from 
 import { deriveApp } from './derive.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
-import { preferenceActions } from './preference-actions.js';
+import { advancedActions, preferenceActions } from './preference-actions.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
@@ -365,8 +365,9 @@ export function AppProvider({ children }) {
       /* ---------- Reminders (see reminder-actions.js) ---------- */
       ...reminderActions(set),
 
-      /* ---------- Preferences (see preference-actions.js) ---------- */
+      /* ---------- Preferences and advanced (see preference-actions.js) ---------- */
       ...preferenceActions(set),
+      ...advancedActions(set, uid),
 
       /* ---------- Food diary ---------- */
       logEntries: addEntries,

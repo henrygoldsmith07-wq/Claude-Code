@@ -262,6 +262,46 @@ tables and UK reference intakes.
   reaching the maths compounds into a real error over months. **Widgets** let
   you reorder or hide any card on Home, which hides a panel and never a number
 
+- **Carbon & water footprint** — kg CO₂e and litres per day, computed from the
+  grams in your diary against published per-kilogram category means (Poore &
+  Nemecek 2018, the largest food-LCA meta-analysis there is). Always states
+  **what share of your food it could place** — anything the table can't
+  categorise is reported as unmatched, never counted as zero — plus the
+  categories driving the number, the swaps that would actually move it, and the
+  standing caveat that a category average is an order of magnitude, not a
+  measurement of what you bought
+- **Micronutrient optimisation** — a greedy set-cover over the food catalogue:
+  which foods, in portions a person would actually eat, close the most of what
+  your logged days are short on. Weighted towards the worst gaps, capped so one
+  freakishly high food can't dominate, silent under five logged days, blind to
+  anything your allergies rule out, and explicit about what is *still* short
+  after everything it could suggest
+- **Fasting** — the overnight gap between last night's last entry and this
+  morning's first is read straight off the diary, so nothing needs pressing.
+  A running fast is the one exception, because "hasn't logged since 8pm" and
+  "is deliberately fasting" are different claims. 16:8 and the rest are labels
+  for a window you chose, not protocols the app recommends
+- **Receipt reader** — no OCR, so no pretending to read the photo. Paste the
+  text and the parsing is the real part: items, prices, quantities (including
+  `0.482 kg @ £4.99/kg`), store and date, with loyalty and payment lines
+  skipped — then it **checks its own total against the printed one** and says
+  whether to trust the parse, and lists any line it couldn't read
+- **Blood results & CGM** — no lab has an API a browser can call and no CGM has
+  one either (Dexcom and Libre are OAuth against a vendor server, which needs a
+  server of our own). So: type your own panel in and it's banded against
+  ordinary adult reference ranges, and paste your CGM's CSV export and the
+  trace gets lined up against what you logged eating — reported, never graded,
+  because a rise after eating is what eating does
+- **The capability register** — the page most apps leave out. Every feature
+  people ask for, and where Forq actually stands: **built**, **partly and
+  honestly** (label scanning, receipts, pantry photos, bloods, CGM),
+  **a browser can't** (smart kitchen, API integrations, coach dashboards,
+  healthcare provider access, corporate wellness — each with the nearest real
+  thing, usually an export you control), and **deliberately not**:
+  DNA-based nutrition advice, which could be built and isn't, because consumer
+  genotyping does not support confident personal diet instructions and dressing
+  it up as if it did would be the least honest thing in the app
+
 ## Run
 
 ```bash
@@ -292,6 +332,11 @@ src/
   lib/preferences.js   # hard lines (allergens, observance) vs soft ones
   lib/preference-actions.js # the store's preference actions, validated in
   lib/units.js         # display-only conversions; the maths stays metric
+  lib/footprint.js     # CO₂e and water from published per-kg category means
+  lib/micro-optimise.js # greedy set-cover closing your nutrient gaps
+  lib/fasting.js       # eating windows and overnight fasts, off the diary
+  lib/receipt.js       # a real parser for pasted supermarket receipts
+  lib/cgm.js           # CGM export parsing, and meals lined up with the trace
   lib/shopping.js      # aisles that learn, store routes, price comparison,
                        # offers, budget projection, expiry buckets, restock
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
@@ -325,7 +370,10 @@ src/
                        # exports), reminders (the kinds one can be, and the
                        # plain truth about notifications), preferences
                        # (allergens, observance, cuisines, units, widgets),
-                       # and taxonomy for aisles/locations
+                       # sustainability (published CO₂e/water factors),
+                       # capabilities (what's built, what a browser can't do,
+                       # and what's deliberately refused), and taxonomy for
+                       # aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite
