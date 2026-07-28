@@ -15,6 +15,9 @@ import CoachPanel from './components/CoachPanel.jsx';
 import { Chip, Sheet } from './components/ui.jsx';
 import { distanceMetres } from './lib/smart.js';
 import { showNotification } from './lib/notify.js';
+import {
+  CommandPalette, LauncherButtons, QuickAdd,
+} from './components/GlobalLauncher.jsx';
 
 const TABS = [
   { id: 'home', label: 'Home', Icon: Home },
@@ -69,11 +72,77 @@ function Shell() {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [coachView, setCoachView] = useState('coach'); // coach · chat
+  const [launcher, setLauncher] = useState(null); // search · quick
+  const [notice, setNotice] = useState('');
+  const [shopAdd, setShopAdd] = useState(0);
+  const [pantryAdd, setPantryAdd] = useState(0);
+  const [pantryQuery, setPantryQuery] = useState('');
+  const noticeTimer = useRef(null);
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
   const openRecipe = (r) => setRecipe(r);
   const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
+  const flash = (message) => {
+    clearTimeout(noticeTimer.current);
+    setNotice(message);
+    noticeTimer.current = setTimeout(() => setNotice(''), 2200);
+  };
+  const undo = () => {
+    const undone = app.undoLast();
+    flash(undone ? 'Undid last action' : 'Nothing to undo');
+    return undone;
+  };
+  const runCommand = (target) => {
+    const tabs = new Set(TABS.map((item) => item.id));
+    if (tabs.has(target)) setTab(target);
+    else if (target === 'pantry') setPantryOpen(true);
+    else if (target === 'add-food') goLog('add');
+    else if (target === 'barcode') goLog('barcode');
+    else if (target === 'assistant') { setCoachView('chat'); setAiOpen(true); }
+    else if (target === 'undo') undo();
+  };
+  const runResult = (result) => {
+    setLauncher(null);
+    if (result.type === 'recipe') openRecipe(result.item);
+    else if (result.type === 'pantry') { setPantryQuery(result.title); setPantryOpen(true); }
+    else if (result.type === 'shopping') setTab('shop');
+    else if (result.type === 'food') goLog({ sheet: 'add', query: result.title });
+    else if (result.target === 'add-food' && result.query) goLog({ sheet: 'add', query: result.query });
+    else runCommand(result.target);
+  };
+  const runQuick = (id) => {
+    setLauncher(null);
+    if (id === 'food') goLog('add');
+    else if (id === 'shopping') { setShopAdd((value) => value + 1); setTab('shop'); }
+    else if (id === 'pantry') { setPantryAdd((value) => value + 1); setPantryOpen(true); }
+    else if (id === 'plan') setTab('plan');
+    else if (id === 'water') app.addWaterMl(250);
+    else if (id === 'assistant') { setCoachView('chat'); setAiOpen(true); }
+    else if (id === 'undo') undo();
+  };
+
+  useEffect(() => {
+    if (!app.onboarded) return undefined;
+    const onKey = (event) => {
+      const tag = event.target?.tagName?.toLowerCase();
+      const typing = ['input', 'textarea', 'select'].includes(tag) || event.target?.isContentEditable;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setLauncher('search');
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !typing) {
+        event.preventDefault();
+        undo();
+      } else if (!typing && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'q') {
+        setLauncher('quick');
+      } else if (!typing && !launcher && /^[1-6]$/.test(event.key)) {
+        setTab(TABS[Number(event.key) - 1].id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
   // Nothing is pre-filled, so the first run asks for the little it needs.
   if (!app.onboarded) return <Onboarding />;
@@ -84,7 +153,7 @@ function Shell() {
         {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={setTab} goLog={goLog} />}
         {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
         {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
-        {tab === 'shop' && <ShopTab />}
+        {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
         {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
         {tab === 'profile' && <ProfileTab openAssistant={() => {
           setCoachView('chat');
@@ -101,6 +170,7 @@ function Shell() {
       >
         <Sparkles size={24} strokeWidth={1.8} />
       </button>
+      <LauncherButtons onSearch={() => setLauncher('search')} onQuickAdd={() => setLauncher('quick')} />
 
       {/* Bottom nav */}
       <nav
@@ -130,8 +200,8 @@ function Shell() {
       <Sheet open={!!recipe} onClose={() => setRecipe(null)} full>
         {recipe && <RecipeDetail recipe={recipe} onClose={() => setRecipe(null)} />}
       </Sheet>
-      <Sheet open={pantryOpen} onClose={() => setPantryOpen(false)} title="Smart pantry">
-        <PantryView />
+      <Sheet open={pantryOpen} onClose={() => { setPantryOpen(false); setPantryQuery(''); }} title="Smart pantry">
+        <PantryView quickAddKey={pantryAdd} initialQuery={pantryQuery} />
       </Sheet>
       <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="AI food coach">
         <div className="px-5 pb-2 flex gap-2">
@@ -140,6 +210,17 @@ function Shell() {
         </div>
         {coachView === 'coach' ? <CoachPanel /> : <AiAssistant />}
       </Sheet>
+      <CommandPalette open={launcher === 'search'} onClose={() => setLauncher(null)} onRun={runResult} />
+      <QuickAdd open={launcher === 'quick'} onClose={() => setLauncher(null)} onRun={runQuick} />
+      {notice && (
+        <div
+          role="status"
+          className="fixed left-1/2 bottom-40 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-[12.5px] font-extrabold"
+          style={{ background: 'var(--ink)', color: 'var(--bg)', boxShadow: 'var(--shadow-lg)' }}
+        >
+          {notice}
+        </div>
+      )}
       <GeofenceWatcher />
     </div>
   );

@@ -1,7 +1,7 @@
-import { Fragment } from 'react';
+import { useState } from 'react';
 import {
   AlarmClock, Camera, ChevronRight, Droplet, Flame, Layers, Mic, Package, Plus,
-  ScanBarcode, Search, Star,
+  ScanBarcode, Search, SlidersHorizontal, Star,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate } from '../lib/utils.js';
@@ -76,6 +76,8 @@ const buildSuggestions = (app) => {
 
 export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
   const app = useApp();
+  const [customising, setCustomising] = useState(false);
+  const [dragging, setDragging] = useState(null);
   const todayPlan = planForDay(app.plan, app.day);
   const expiring = expiringSoon(app.pantry, 3, app.day);
   const low = runningLow(app.pantry);
@@ -365,14 +367,24 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
               {greeting()}, {app.name}
             </h1>
           </div>
-          <button
-            onClick={() => goTab('profile')}
-            className="press flex h-11 w-11 items-center justify-center rounded-full text-lg font-extrabold"
-            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-            aria-label="Profile"
-          >
-            {app.name[0]?.toUpperCase() || '?'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCustomising((value) => !value)}
+              className="press flex h-11 w-11 items-center justify-center rounded-full border"
+              style={{ background: 'var(--card)', borderColor: customising ? 'var(--accent)' : 'var(--line)', color: customising ? 'var(--accent)' : 'var(--muted)' }}
+              aria-label={customising ? 'Finish customising dashboard' : 'Customise dashboard'}
+            >
+              <SlidersHorizontal size={17} />
+            </button>
+            <button
+              onClick={() => goTab('profile')}
+              className="press flex h-11 w-11 items-center justify-center rounded-full text-lg font-extrabold"
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+              aria-label="Profile"
+            >
+              {app.name[0]?.toUpperCase() || '?'}
+            </button>
+          </div>
         </div>
 
         {(app.streak > 0 || app.xp > 0) && (
@@ -431,9 +443,28 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
         </Card>
       </div>
 
+      {customising && (
+        <div className="mx-5 rounded-2xl border px-4 py-3 text-[12.5px] font-bold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+          Drag dashboard widgets into your preferred order. Hidden widgets remain available under Profile → Preferences → Home.
+        </div>
+      )}
       {app.homeWidgets
         .filter((id) => blocks[id])
-        .map((id) => <Fragment key={id}>{blocks[id]()}</Fragment>)}
+        .map((id) => (
+          <div
+            key={id}
+            draggable={customising}
+            onDragStart={() => setDragging(id)}
+            onDragOver={(event) => customising && event.preventDefault()}
+            onDrop={() => {
+              if (customising && dragging) app.moveWidgetTo(dragging, id);
+              setDragging(null);
+            }}
+            className={customising ? 'cursor-grab rounded-2xl outline outline-1 outline-dashed outline-[var(--line)] py-1' : ''}
+          >
+            {blocks[id]()}
+          </div>
+        ))}
     </div>
   );
 }

@@ -199,6 +199,7 @@ function UnitsView() {
 
 function HomeView() {
   const app = useApp();
+  const [dragging, setDragging] = useState(null);
   const order = app.homeWidgets;
   const off = WIDGETS.filter((w) => !order.includes(w.id));
 
@@ -209,7 +210,17 @@ function HomeView() {
           const widget = WIDGETS.find((w) => w.id === id);
           if (!widget) return null;
           return (
-            <div key={id} className="flex items-center gap-2 p-3">
+            <div
+              key={id}
+              draggable
+              onDragStart={() => setDragging(id)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => {
+                if (dragging) app.moveWidgetTo(dragging, id);
+                setDragging(null);
+              }}
+              className="flex items-center gap-2 p-3 cursor-grab"
+            >
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-[13.5px]">{widget.label}</p>
                 {widget.fixed && <p className="text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>Always shown</p>}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, Camera, Check, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
 } from 'lucide-react';
@@ -7,7 +7,9 @@ import { gbp, expiryStatus } from '../lib/utils.js';
 import { daysUntil, expiringSoon, pantryAnalytics, pantryValue } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
-import { Card, Chip, Pill, Section } from './ui.jsx';
+import {
+  Card, Chip, GestureMenu, Pill, Section,
+} from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import PantryCapture from './PantryCapture.jsx';
@@ -105,29 +107,49 @@ function AddItemForm() {
   );
 }
 
-export default function PantryView() {
+export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
   const app = useApp();
   const [location, setLocation] = useState('All');
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState('expiry');
   const [adding, setAdding] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [scanning, setScanning] = useState(false);
+
+  useEffect(() => {
+    if (quickAddKey) {
+      setAdding(true);
+      setCapturing(false);
+      setScanning(false);
+    }
+  }, [quickAddKey]);
+
+  useEffect(() => {
+    if (initialQuery) setQuery(initialQuery);
+  }, [initialQuery]);
 
   const items = useMemo(() => {
     let list = app.pantry;
     if (location !== 'All') list = list.filter((p) => p.location === location);
     if (category !== 'All') list = list.filter((p) => p.cat === category);
+    if (status === 'low') list = list.filter((p) => p.low);
+    if (status === 'expiring') list = list.filter((p) => p.expiry && daysUntil(p.expiry, app.day) <= 7);
+    if (status === 'dated') list = list.filter((p) => p.expiry);
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.cat || '').toLowerCase().includes(q));
     }
     return [...list].sort((a, b) => {
+      if (sort === 'name') return a.name.localeCompare(b.name);
+      if (sort === 'value') return (Number(b.cost) || 0) - (Number(a.cost) || 0) || a.name.localeCompare(b.name);
+      if (sort === 'recent') return String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || a.name.localeCompare(b.name);
       const da = a.expiry ? daysUntil(a.expiry, app.day) : 9999;
       const db = b.expiry ? daysUntil(b.expiry, app.day) : 9999;
       return da - db;
     });
-  }, [app.pantry, app.day, location, category, query]);
+  }, [app.pantry, app.day, location, category, query, status, sort]);
 
   const expiring = expiringSoon(app.pantry, 3, app.day);
   const buckets = useMemo(
@@ -273,6 +295,33 @@ export default function PantryView() {
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
 
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              aria-label="Pantry status filter"
+              className="rounded-xl border px-3 py-2.5 text-[12px] font-bold"
+              style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
+            >
+              <option value="all">All stock</option>
+              <option value="low">Running low</option>
+              <option value="expiring">Expiring this week</option>
+              <option value="dated">Has expiry date</option>
+            </select>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+              aria-label="Sort pantry"
+              className="rounded-xl border px-3 py-2.5 text-[12px] font-bold"
+              style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
+            >
+              <option value="expiry">Expiry first</option>
+              <option value="name">Name A–Z</option>
+              <option value="value">Highest value</option>
+              <option value="recent">Recently added</option>
+            </select>
+          </div>
+
           <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
             {['All', ...LOCATIONS].map((loc) => (
               <Chip key={loc} active={location === loc} onClick={() => setLocation(loc)}>{loc}</Chip>
@@ -311,7 +360,18 @@ export default function PantryView() {
               const days = p.expiry ? daysUntil(p.expiry, app.day) : null;
               const st = days === null ? null : expiryStatus(days);
               return (
-                <div key={p.id} className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
+                <GestureMenu
+                  key={p.id}
+                  label={p.name}
+                  actions={[
+                    { label: p.low ? 'Mark stocked' : 'Mark running low', onClick: () => app.togglePantryLow(p.id) },
+                    { label: 'Add to shopping list', onClick: () => app.addToList({ name: p.name, emoji: p.emoji, qty: p.qty }) },
+                    { label: 'Remove', tone: 'danger', onClick: () => app.removePantryItem(p.id) },
+                  ]}
+                  onSwipeLeft={() => app.removePantryItem(p.id)}
+                  onSwipeRight={() => app.togglePantryLow(p.id)}
+                >
+                  <div className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
                   <Glyph e={p.emoji} size={22} style={{ color: 'var(--muted)' }} />
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-[14px] truncate">{p.name}</p>
@@ -342,6 +402,7 @@ export default function PantryView() {
                     </button>
                   </div>
                 </div>
+                </GestureMenu>
               );
             })}
           </Card>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Banknote, Building2, Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
@@ -9,7 +9,9 @@ import { gbp, cx, prettyDate } from '../lib/utils.js';
 import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { groupForStore } from '../lib/shopping.js';
 import ReceiptScan from './ReceiptScan.jsx';
-import { Section, Card, Meter, Chip, Pill, Sheet } from './ui.jsx';
+import {
+  Section, Card, Meter, Chip, GestureMenu, Pill, Sheet,
+} from './ui.jsx';
 import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
@@ -19,11 +21,29 @@ import StoreIntegrations from './StoreIntegrations.jsx';
 
 /* ---------- One line of the list ---------- */
 
-function ListRow({ item, onAisle }) {
+function ListRow({ item, onAisle, dragging, setDragging }) {
   const app = useApp();
   const [moving, setMoving] = useState(false);
   return (
-    <div className="p-3" style={{ borderColor: 'var(--line)' }}>
+    <GestureMenu
+      label={item.name}
+      actions={[
+        { label: item.checked ? 'Mark not bought' : 'Mark bought', onClick: () => app.toggleChecked(item.id) },
+        { label: item.priority === 'high' ? 'Normal priority' : 'High priority', onClick: () => app.updateListItem(item.id, { priority: item.priority === 'high' ? 'normal' : 'high' }) },
+        { label: 'Move to another aisle', onClick: () => setMoving(true) },
+        { label: 'Remove', tone: 'danger', onClick: () => app.removeListItem(item.id) },
+      ]}
+      onSwipeLeft={() => app.removeListItem(item.id)}
+      onSwipeRight={() => app.toggleChecked(item.id)}
+      draggable
+      onDragStart={() => setDragging(item.id)}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={() => {
+        if (dragging) app.moveListItem(dragging, item.id);
+        setDragging(null);
+      }}
+    >
+      <div className="p-3" style={{ borderColor: 'var(--line)' }}>
       <div className="flex items-center gap-3">
         <button
           onClick={() => app.toggleChecked(item.id)}
@@ -94,13 +114,14 @@ function ListRow({ item, onAisle }) {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </GestureMenu>
   );
 }
 
 /* ---------- Tab ---------- */
 
-export default function ShopTab() {
+export default function ShopTab({ quickAddKey = 0 }) {
   const app = useApp();
   const [view, setView] = useState('list'); // list · history · prices · stores · budget
   const [shoppingMode, setShoppingMode] = useState(false);
@@ -108,6 +129,14 @@ export default function ShopTab() {
   const [sheet, setSheet] = useState(null); // finish · offers · scan · export
   const [store, setStore] = useState('');
   const [voiceStatus, setVoiceStatus] = useState('');
+  const [dragging, setDragging] = useState(null);
+
+  useEffect(() => {
+    if (quickAddKey) {
+      setView('list');
+      setAdding(true);
+    }
+  }, [quickAddKey]);
 
   const list = app.shoppingList;
   const stores = useMemo(() => [...new Set(app.shops.map((s) => s.store))], [app.shops]);
@@ -373,7 +402,13 @@ export default function ShopTab() {
                       </p>
                       <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
                         {items.map((item) => (
-                          <ListRow key={item.id} item={item} onAisle={app.setItemAisle} />
+                          <ListRow
+                            key={item.id}
+                            item={item}
+                            onAisle={app.setItemAisle}
+                            dragging={dragging}
+                            setDragging={setDragging}
+                          />
                         ))}
                       </Card>
                     </div>

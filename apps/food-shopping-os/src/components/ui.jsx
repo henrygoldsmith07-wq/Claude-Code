@@ -45,6 +45,96 @@ export const Chip = ({ active, children, onClick, tone }) => (
   </button>
 );
 
+/**
+ * One action menu for mouse, keyboard-adjacent context click and touch.
+ * Horizontal swipes are deliberately ignored below 72px to keep normal
+ * scrolling from becoming an action.
+ */
+export const GestureMenu = ({
+  children, label, actions = [], onSwipeLeft, onSwipeRight, draggable = false,
+  onDragStart, onDragOver, onDrop,
+}) => {
+  const [open, setOpen] = useState(false);
+  const touch = useRef({ x: 0, y: 0, timer: null });
+  const cancelLongPress = () => {
+    clearTimeout(touch.current.timer);
+    touch.current.timer = null;
+  };
+  useEffect(() => cancelLongPress, []);
+
+  const start = (event) => {
+    const point = event.touches[0];
+    touch.current.x = point.clientX;
+    touch.current.y = point.clientY;
+    cancelLongPress();
+    touch.current.timer = setTimeout(() => setOpen(true), 550);
+  };
+  const move = (event) => {
+    const point = event.touches[0];
+    if (Math.abs(point.clientX - touch.current.x) > 10 || Math.abs(point.clientY - touch.current.y) > 10) {
+      cancelLongPress();
+    }
+  };
+  const end = (event) => {
+    cancelLongPress();
+    const point = event.changedTouches[0];
+    const dx = point.clientX - touch.current.x;
+    const dy = point.clientY - touch.current.y;
+    if (Math.abs(dx) < 72 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    if (dx < 0) onSwipeLeft?.();
+    else onSwipeRight?.();
+  };
+
+  return (
+    <div className="relative">
+      <div
+        role="group"
+        aria-label={`Actions for ${label}`}
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setOpen(true);
+        }}
+        onTouchStart={start}
+        onTouchMove={move}
+        onTouchEnd={end}
+      >
+        {children}
+      </div>
+      {open && (
+        <div
+          className="absolute right-2 top-2 z-30 min-w-36 overflow-hidden rounded-xl border p-1"
+          style={{ background: 'var(--card)', borderColor: 'var(--line)', boxShadow: 'var(--shadow-lg)' }}
+        >
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              onClick={() => {
+                action.onClick();
+                setOpen(false);
+              }}
+              className="press block w-full rounded-lg px-3 py-2 text-left text-[12.5px] font-bold"
+              style={{ color: action.tone === 'danger' ? 'var(--danger)' : 'var(--ink)' }}
+            >
+              {action.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setOpen(false)}
+            className="press block w-full rounded-lg px-3 py-2 text-left text-[12px] font-semibold"
+            style={{ color: 'var(--muted)' }}
+          >
+            Close
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Pill = ({ children, tone = 'muted' }) => {
   const tones = {
     muted: { background: 'var(--card-2)', color: 'var(--muted)' },

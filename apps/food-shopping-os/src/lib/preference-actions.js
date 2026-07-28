@@ -10,6 +10,7 @@ import {
   allergenBy, CUISINES, DEFAULT_UNITS, DEFAULT_WIDGETS, intoleranceBy, religiousBy, skillBy,
   timeBudgetBy, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
+import { moveBefore } from './utils.js';
 
 const toggleIn = (list = [], id, valid) => {
   if (!valid(id)) return list;
@@ -51,6 +52,12 @@ export const preferenceActions = (set) => ({
       if (from < 0 || to < 0 || to >= current.length) return {};
       current.splice(to, 0, current.splice(from, 1)[0]);
       return { widgets: current };
+    }),
+  moveWidgetTo: (id, beforeId) =>
+    set((s) => {
+      const current = [...(s.widgets || DEFAULT_WIDGETS)];
+      const widgets = moveBefore(current, id, beforeId, (widgetId) => widgetId);
+      return widgets === current ? {} : { widgets };
     }),
   resetWidgets: () => set({ widgets: null }),
 });

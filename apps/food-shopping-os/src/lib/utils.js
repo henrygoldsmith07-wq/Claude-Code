@@ -10,6 +10,17 @@ export const cx = (...parts) => parts.filter(Boolean).join(' ');
 
 export const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
+/** Move one identified row directly before another without losing either. */
+export const moveBefore = (list = [], id, beforeId, key = (item) => item.id) => {
+  const from = list.findIndex((item) => key(item) === id);
+  const to = list.findIndex((item) => key(item) === beforeId);
+  if (from < 0 || to < 0 || from === to) return list;
+  const moved = [...list];
+  const [item] = moved.splice(from, 1);
+  moved.splice(from < to ? to - 1 : to, 0, item);
+  return moved;
+};
+
 export const todayName = () =>
   new Date().toLocaleDateString('en-GB', { weekday: 'long' });
 

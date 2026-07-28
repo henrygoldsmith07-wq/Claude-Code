@@ -219,10 +219,12 @@ function CustomFoodForm({ onCreated }) {
  * repeat-logging fast (recent, favourites, my foods, eating out), the capture
  * shortcuts, quick-add and custom foods.
  */
-export default function AddFood({ defaultMeal = 'snack', onPick, onCapture }) {
+export default function AddFood({
+  defaultMeal = 'snack', initialQuery = '', onPick, onCapture,
+}) {
   const app = useApp();
   const [tab, setTab] = useState('search');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [chain, setChain] = useState(RESTAURANTS[0].chain);
   const [panel, setPanel] = useState(null); // 'quick' | 'custom'
 

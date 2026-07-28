@@ -19,6 +19,7 @@ import { householdActions } from './household-actions.js';
 import { smartActions } from './smart-actions.js';
 import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
+import { moveBefore } from './utils.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
@@ -61,6 +62,7 @@ const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [state, setState] = useState(load);
+  const undoHistory = useRef([]);
   const applyingRemote = useRef(false);
   // Reminders are due at a time, not at a state change, so the clock has to
   // move on its own. A minute is finer than any reminder needs.
@@ -90,6 +92,7 @@ export function AppProvider({ children }) {
       if (event.key !== KEY || !event.newValue) return;
       try {
         applyingRemote.current = true;
+        undoHistory.current = [];
         setState(hydrate(JSON.parse(event.newValue)));
       } catch {
         // Ignore incomplete writes from another tab.
@@ -124,7 +127,12 @@ export function AppProvider({ children }) {
   setMyRecipes(state.myRecipes);
 
   const api = useMemo(() => {
-    const set = (patch) => setState((s) => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }));
+    const set = (patch) => setState((s) => {
+      const changes = typeof patch === 'function' ? patch(s) : patch;
+      if (!changes || !Object.keys(changes).length) return s;
+      undoHistory.current = [...undoHistory.current.slice(-29), s];
+      return { ...s, ...changes };
+    });
 
     const addEntries = (entries, date) =>
       set((s) => {
@@ -137,7 +145,16 @@ export function AppProvider({ children }) {
 
     return {
       set,
-      reset: () => setState({ ...EMPTY_STATE, day: todayStamp() }),
+      undoLast: () => {
+        const previous = undoHistory.current.pop();
+        if (!previous) return false;
+        setState(previous);
+        return true;
+      },
+      reset: () => {
+        undoHistory.current = [];
+        setState({ ...EMPTY_STATE, day: todayStamp() });
+      },
       finishOnboarding: (profile) =>
         set((s) => ({
           ...profile,
@@ -346,6 +363,11 @@ export function AppProvider({ children }) {
         }),
       updateListItem: (id, patch) =>
         set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+      moveListItem: (id, beforeId) =>
+        set((s) => {
+          const shoppingList = moveBefore(s.shoppingList, id, beforeId);
+          return shoppingList === s.shoppingList ? {} : { shoppingList };
+        }),
       removeListItem: (id) => set((s) => ({ shoppingList: s.shoppingList.filter((i) => i.id !== id) })),
       /** When you tick it matters: the order becomes this shop's route. */
       toggleChecked: (id) =>
