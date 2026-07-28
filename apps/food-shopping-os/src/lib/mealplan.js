@@ -66,6 +66,55 @@ export const planEntries = (plan = {}, dates = []) =>
       .map((slot) => ({ date, slot, recipeId: plan[date][slot], recipe: byId(plan[date][slot]) }))
       .filter((e) => e.recipe));
 
+const CALENDAR_TIMES = {
+  breakfast: ['080000', '090000'],
+  lunch: ['123000', '133000'],
+  dinner: ['183000', '193000'],
+};
+
+const icsEscape = (value) => String(value || '')
+  .replace(/\\/g, '\\\\')
+  .replace(/\n/g, '\\n')
+  .replace(/,/g, '\\,')
+  .replace(/;/g, '\\;');
+
+const compactDate = (stamp) => String(stamp).replace(/-/g, '');
+
+/** Export a selected week or month as portable calendar events. */
+export const mealPlanIcs = (
+  plan = {},
+  dates = [],
+  { now = new Date(), calendarName = 'Forq meal plan', timezone = 'Europe/London' } = {},
+) => {
+  const entries = planEntries(plan, dates);
+  const stamp = new Date(now).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Forq//Meal Planner//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${icsEscape(calendarName)}`,
+    `X-WR-TIMEZONE:${timezone}`,
+  ];
+  entries.forEach(({ date, slot, recipe }) => {
+    const [start, end] = CALENDAR_TIMES[slot] || CALENDAR_TIMES.dinner;
+    const label = MEAL_SLOTS.find((meal) => meal.key === slot)?.label || slot;
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:forq-${date}-${slot}@forq.app`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;TZID=${timezone}:${compactDate(date)}T${start}`,
+      `DTEND;TZID=${timezone}:${compactDate(date)}T${end}`,
+      `SUMMARY:${icsEscape(`${label} · ${recipe.name}`)}`,
+      `DESCRIPTION:${icsEscape(`${recipe.time} min · ${recipe.kcal} kcal · ${recipe.protein}g protein`)}`,
+      'END:VEVENT',
+    );
+  });
+  lines.push('END:VCALENDAR');
+  return { text: `${lines.join('\r\n')}\r\n`, events: entries.length };
+};
+
 /** The distinct dishes in a range, each with how many slots it fills. */
 export const planDishes = (plan = {}, dates = []) => {
   const counts = new Map();

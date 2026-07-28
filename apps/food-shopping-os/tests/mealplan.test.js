@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyEntries, batchGroups, clearDates, copyMealTo, coveredByLeftovers, daysInMonth,
-  leftoverEntry, leftoverPortions, monthDates, monthGrid, monthLabel, moveMeal,
+  leftoverEntry, leftoverPortions, mealPlanIcs, monthDates, monthGrid, monthLabel, moveMeal,
   planDishes, planEntries, planStats, shiftMonth, shiftWeek, shoppingForPlan,
 } from '../src/lib/mealplan.js';
 import { inMonth, monthOf, peakNow, seasonalHits, seasonScore } from '../src/data/seasons.js';
@@ -75,6 +75,26 @@ describe('reading a plan', () => {
     expect(stats.emptyDays).toBe(4);
     expect(stats.kcalPerDay).toBe(Math.round(stats.kcal / 3));
     expect(planStats({}, week).meals).toBe(0);
+  });
+
+  it('exports the selected plan range as calendar events', () => {
+    const { text, events } = mealPlanIcs(plan, week, { now: new Date('2026-07-01T09:00:00Z') });
+    expect(events).toBe(4);
+    expect(text).toContain('BEGIN:VCALENDAR');
+    expect(text).toContain('DTSTART;TZID=Europe/London:20260706T080000');
+    expect(text).toContain('SUMMARY:Breakfast · Banana Protein Pancakes');
+    expect(text).toContain('DTSTART;TZID=Europe/London:20260706T183000');
+    expect(text).toContain('SUMMARY:Dinner · Coconut Chickpea Curry');
+    expect(text).not.toContain('20260713');
+  });
+
+  it('escapes calendar punctuation and exports an empty calendar safely', () => {
+    const custom = {
+      '2026-07-06': { dinner: CURRY },
+    };
+    const { text } = mealPlanIcs(custom, week, { calendarName: 'Meals, week; one' });
+    expect(text).toContain('X-WR-CALNAME:Meals\\, week\\; one');
+    expect(mealPlanIcs({}, week).events).toBe(0);
   });
 });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
@@ -50,6 +50,26 @@ describe('the weekly planner', () => {
     // Next week is a different range, so it reads as empty.
     fireEvent.click(screen.getByLabelText('Next week'));
     expect(screen.getByText(/Tap any slot to plan a meal/)).toBeDefined();
+  });
+
+  it('downloads the planned week for a calendar', () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:calendar');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      onboard();
+      openPlan();
+      planFirstDinner();
+      fireEvent.click(screen.getByRole('button', { name: 'Add week to calendar' }));
+
+      expect(createObjectURL).toHaveBeenCalled();
+      expect(click).toHaveBeenCalled();
+      expect(screen.getByRole('status').textContent).toMatch(/1 meal exported/);
+    } finally {
+      createObjectURL.mockRestore();
+      revokeObjectURL.mockRestore();
+      click.mockRestore();
+    }
   });
 });
 
