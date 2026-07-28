@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Banknote, Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Banknote, Building2, Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -15,6 +15,7 @@ import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
 import BarcodeAdd from './BarcodeAdd.jsx';
 import BudgetPanel from './BudgetPanel.jsx';
+import StoreIntegrations from './StoreIntegrations.jsx';
 
 /* ---------- One line of the list ---------- */
 
@@ -101,7 +102,7 @@ function ListRow({ item, onAisle }) {
 
 export default function ShopTab() {
   const app = useApp();
-  const [view, setView] = useState('list'); // list · history · prices
+  const [view, setView] = useState('list'); // list · history · prices · stores · budget
   const [shoppingMode, setShoppingMode] = useState(false);
   const [adding, setAdding] = useState(false);
   const [sheet, setSheet] = useState(null); // finish · offers · scan · export
@@ -163,8 +164,8 @@ export default function ShopTab() {
     <div className="pb-6 space-y-6">
       <div className="hero-gradient px-5 pt-14 pb-3">
         <h1 className="text-[26px] font-extrabold tracking-tight rise">Shop</h1>
-        <div className="mt-3 flex gap-2 rise rise-1">
-          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
+        <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar rise rise-1">
+          {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['stores', 'Stores', Building2], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
             </Chip>
@@ -422,6 +423,7 @@ export default function ShopTab() {
       )}
 
       {view === 'prices' && <PriceCompare />}
+      {view === 'stores' && <StoreIntegrations />}
       {view === 'budget' && <BudgetPanel />}
 
       <Sheet open={sheet === 'finish'} onClose={() => setSheet(null)} title="Finish shop">

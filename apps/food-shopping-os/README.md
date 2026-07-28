@@ -100,14 +100,20 @@ tables and UK reference intakes.
 - **Budget tracking** — the basket against your week: what it comes to, what
   your offers take off, and what that leaves of the budget after what you've
   already spent — with unpriced items counted as unknown, never as free
-- **Offers** — no deals feed and no retailer connection, so nothing is ever
-  suggested to you. Enter the offers you have (money off, per cent off, or a
-  multibuy) and they're applied to the list you're holding
+- **Offers** — no deals feed, so nothing is invented or silently goes stale.
+  Enter the offers you have (money off, per cent off, or a multibuy), apply
+  them to your list, and open each retailer's official offers page for the
+  current range
 - **Meal-to-shopping** — a week or month of meals becomes one list, with a
   duplicate ingredient merged into a single line that remembers every meal that
   wanted it, minus your pantry and minus what leftovers already cover
-- **Store hand-off** — Forq connects to no supermarket, so the list exports as
-  plain text in your aisle order, to paste into whichever app you use
+- **UK retailer hub** — Tesco, Sainsbury's, Asda, Aldi, Lidl, Morrisons,
+  Waitrose, Ocado and Amazon Fresh. See recorded prices and saved offers, check
+  each item’s current price and availability on the official retailer page,
+  and open delivery or collection links. Aldi and Lidl are labelled as
+  browse/in-store rather than being given a delivery button they do not support
+- **Store hand-off** — the list also exports as plain text in your aisle order,
+  to paste into whichever app you use
 - **Pantry** — your inventory: add by hand, **from a photo of a shelf**, or by
   barcode, with amount, cost, location, shop and use-by date; flag things as
   running low and push them to the list in one tap. **Expiry tracking** buckets

@@ -12,7 +12,10 @@ export const AISLE_ORDER = [
 ];
 
 /** Names offered as suggestions when recording where you shopped. */
-export const COMMON_STORES = ['Tesco', 'Sainsbury’s', 'Asda', 'Aldi', 'Lidl', 'Morrisons', 'Co-op', 'Waitrose', 'M&S', 'Local shop', 'Market', 'Online'];
+export const COMMON_STORES = [
+  'Tesco', "Sainsbury's", 'Asda', 'Aldi', 'Lidl', 'Morrisons', 'Waitrose',
+  'Ocado', 'Amazon Fresh', 'Co-op', 'M&S', 'Local shop', 'Market', 'Online',
+];
 
 /** Rough aisle for a name, so adding an item doesn't demand a category. */
 const AISLE_HINTS = [
