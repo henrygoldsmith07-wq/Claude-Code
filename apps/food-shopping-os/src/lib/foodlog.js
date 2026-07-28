@@ -222,6 +222,50 @@ export const recognisePlate = (seed, catalogue = CATALOGUE, now = new Date()) =>
   });
 };
 
+/* ---------- Shelf recognition (pantry capture) ---------- */
+
+/** Groups of things that plausibly sit on a shelf together. */
+const SHELVES = [
+  ['semi-skimmed-milk', 'greek-yogurt', 'cheddar', 'egg'],
+  ['chickpeas', 'baked-beans', 'pasta', 'white-rice'],
+  ['spinach', 'broccoli', 'avocado', 'apple'],
+  ['porridge-oats', 'granola', 'peanut-butter', 'banana'],
+  ['chicken-breast', 'salmon-fillet', 'tuna-tinned'],
+  ['olive-oil', 'butter', 'mayonnaise', 'hummus'],
+  ['tofu', 'lentils', 'brown-rice', 'almonds'],
+  ['blueberries', 'orange', 'sweet-potato', 'potato'],
+];
+
+/** A rough amount to pre-fill, so a scanned shelf lands with sensible quantities. */
+const shelfQty = (food, n) => {
+  if (food.unit === 'ml') return `${[500, 1000, 2000][n % 3]} ml`;
+  const serving = food.servings[0]?.grams || 100;
+  return serving >= 100 ? `${Math.round(serving * [2, 3, 4][n % 3])} g` : `${[2, 4, 6][n % 3]} × ${food.name.toLowerCase()}`;
+};
+
+/**
+ * Read a shelf photo into pantry items. As with plate recognition, there is no
+ * model in this offline build — the reading is derived from the image itself
+ * (name and size) so the same photo always gives the same shelf, and every row
+ * is editable before anything is saved.
+ */
+export const recogniseShelf = (seed, catalogue = CATALOGUE) => {
+  const h = hash(seed);
+  const shelf = SHELVES[h % SHELVES.length];
+  return shelf.map((id, i) => {
+    const food = foodById(id, catalogue) || foodById(id, CATALOGUE);
+    return {
+      food,
+      name: food.name,
+      emoji: food.emoji,
+      confidence: 64 + ((h >> (i * 4)) % 34),
+      qty: shelfQty(food, h + i),
+      cat: (food.tags || []).includes('tinned') || (food.tags || []).includes('grain') ? 'Tins & jars' : 'Fresh',
+      location: (food.tags || []).some((t) => ['dairy', 'veg', 'fruit', 'meat', 'fish'].includes(t)) ? 'Fridge' : 'Cupboard',
+    };
+  });
+};
+
 /* ---------- Recipe import ---------- */
 
 const QTY_LINE = /^\s*(?:[-*•]\s*)?(\d+(?:[.,]\d+)?|½|¼|¾)?\s*(kg|g|ml|l|tbsp|tsp|cups?|cloves?|tins?|cans?|handfuls?|slices?)?\s*(?:of\s+)?(.+?)\s*$/i;

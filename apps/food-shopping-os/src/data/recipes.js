@@ -1,13 +1,23 @@
 /**
- * Recipe catalogue. Hero art is emoji on a neutral tile so the app is fully
- * offline/self-contained.
+ * The recipe book.
+ *
+ * A handful of signature dishes are written out in full below; the rest of the
+ * library is composed from real ingredients by `recipe-gen.js`, so every
+ * dish's calories, macros, cost and scores are computed from what is actually
+ * in it. There are no ratings: nothing here has been cooked by anyone but you,
+ * so dishes are judged on time, cost, protein and their health/planet scores.
+ *
+ * Hero art is an emoji key rendered as a monochrome icon, so the app stays
+ * fully offline and self-contained.
  */
-export const RECIPES = [
+import { generateRecipes } from './recipe-gen.js';
+
+const SIGNATURE = [
   {
     id: 'chicken-traybake', name: 'Lemon Chicken Traybake', emoji: '🍗',
     cuisine: 'British', tags: ['high-protein', 'one-pot', 'family', 'budget'],
     time: 45, prep: 10, difficulty: 'Easy', costPerServing: 1.85, servings: 4,
-    kcal: 520, protein: 42, carbs: 38, fat: 21, fibre: 6, rating: 4.8,
+    kcal: 520, protein: 42, carbs: 38, fat: 21, fibre: 6,
     healthScore: 82, envScore: 68, proteinScore: 92,
     ingredients: [
       { name: 'Chicken thighs', qty: '8' },
@@ -30,7 +40,7 @@ export const RECIPES = [
     id: 'chickpea-curry', name: 'Coconut Chickpea Curry', emoji: '🍛',
     cuisine: 'Indian', tags: ['vegan', 'budget', 'one-pot', 'quick', 'freezer'],
     time: 25, prep: 5, difficulty: 'Easy', costPerServing: 1.1, servings: 4,
-    kcal: 430, protein: 14, carbs: 48, fat: 19, fibre: 11, rating: 4.7,
+    kcal: 430, protein: 14, carbs: 48, fat: 19, fibre: 11,
     healthScore: 88, envScore: 94, proteinScore: 55,
     ingredients: [
       { name: 'Chickpeas (tins)', qty: '2' },
@@ -53,7 +63,7 @@ export const RECIPES = [
     id: 'salmon-teriyaki', name: 'Teriyaki Salmon Bowls', emoji: '🍣',
     cuisine: 'Japanese', tags: ['high-protein', 'quick', 'healthy', 'date-night'],
     time: 20, prep: 8, difficulty: 'Medium', costPerServing: 3.4, servings: 2,
-    kcal: 560, protein: 38, carbs: 52, fat: 22, fibre: 5, rating: 4.9,
+    kcal: 560, protein: 38, carbs: 52, fat: 22, fibre: 5,
     healthScore: 90, envScore: 61, proteinScore: 88,
     ingredients: [
       { name: 'Salmon fillets', qty: '2' },
@@ -76,7 +86,7 @@ export const RECIPES = [
     id: 'veg-chilli', name: 'Smoky Three-Bean Chilli', emoji: '🌶️',
     cuisine: 'Mexican', tags: ['vegan', 'budget', 'batch', 'freezer', 'family'],
     time: 40, prep: 10, difficulty: 'Easy', costPerServing: 0.95, servings: 6,
-    kcal: 380, protein: 17, carbs: 55, fat: 8, fibre: 15, rating: 4.6,
+    kcal: 380, protein: 17, carbs: 55, fat: 8, fibre: 15,
     healthScore: 91, envScore: 96, proteinScore: 60,
     ingredients: [
       { name: 'Mixed beans (tins)', qty: '3' },
@@ -98,7 +108,7 @@ export const RECIPES = [
     id: 'overnight-oats', name: 'Berry Overnight Oats', emoji: '🫐',
     cuisine: 'British', tags: ['breakfast', 'meal-prep', 'healthy', 'quick', 'budget'],
     time: 5, prep: 5, difficulty: 'Easy', costPerServing: 0.7, servings: 1,
-    kcal: 340, protein: 15, carbs: 48, fat: 9, fibre: 8, rating: 4.5,
+    kcal: 340, protein: 15, carbs: 48, fat: 9, fibre: 8,
     healthScore: 89, envScore: 90, proteinScore: 58,
     ingredients: [
       { name: 'Oats', qty: '50g' },
@@ -118,7 +128,7 @@ export const RECIPES = [
     id: 'airfryer-fajitas', name: 'Air Fryer Chicken Fajitas', emoji: '🌮',
     cuisine: 'Mexican', tags: ['air-fryer', 'quick', 'family', 'high-protein'],
     time: 18, prep: 8, difficulty: 'Easy', costPerServing: 2.1, servings: 4,
-    kcal: 480, protein: 36, carbs: 44, fat: 16, fibre: 7, rating: 4.7,
+    kcal: 480, protein: 36, carbs: 44, fat: 16, fibre: 7,
     healthScore: 78, envScore: 70, proteinScore: 84,
     ingredients: [
       { name: 'Chicken breast', qty: '500g' },
@@ -140,7 +150,7 @@ export const RECIPES = [
     id: 'mushroom-risotto', name: 'Garlic Mushroom Risotto', emoji: '🍄',
     cuisine: 'Italian', tags: ['vegetarian', 'comfort', 'date-night', 'one-pot'],
     time: 35, prep: 10, difficulty: 'Medium', costPerServing: 1.6, servings: 3,
-    kcal: 510, protein: 13, carbs: 68, fat: 18, fibre: 4, rating: 4.6,
+    kcal: 510, protein: 13, carbs: 68, fat: 18, fibre: 4,
     healthScore: 72, envScore: 85, proteinScore: 40,
     ingredients: [
       { name: 'Arborio rice', qty: '250g' },
@@ -162,7 +172,7 @@ export const RECIPES = [
     id: 'slowcooker-ragu', name: 'Slow Cooker Beef Ragù', emoji: '🍝',
     cuisine: 'Italian', tags: ['slow-cooker', 'batch', 'family', 'comfort', 'freezer'],
     time: 480, prep: 15, difficulty: 'Easy', costPerServing: 2.3, servings: 6,
-    kcal: 590, protein: 34, carbs: 62, fat: 22, fibre: 6, rating: 4.9,
+    kcal: 590, protein: 34, carbs: 62, fat: 22, fibre: 6,
     healthScore: 70, envScore: 48, proteinScore: 80,
     ingredients: [
       { name: 'Beef shin', qty: '800g' },
@@ -184,7 +194,7 @@ export const RECIPES = [
     id: 'halloumi-grain', name: 'Halloumi Grain Bowl', emoji: '🥗',
     cuisine: 'Mediterranean', tags: ['vegetarian', 'healthy', 'quick', 'lunch'],
     time: 15, prep: 5, difficulty: 'Easy', costPerServing: 2.0, servings: 2,
-    kcal: 470, protein: 21, carbs: 45, fat: 24, fibre: 9, rating: 4.4,
+    kcal: 470, protein: 21, carbs: 45, fat: 24, fibre: 9,
     healthScore: 84, envScore: 76, proteinScore: 62,
     ingredients: [
       { name: 'Halloumi', qty: '200g' },
@@ -204,7 +214,7 @@ export const RECIPES = [
     id: 'tofu-stirfry', name: 'Crispy Tofu Stir-fry', emoji: '🥡',
     cuisine: 'Chinese', tags: ['vegan', 'quick', 'healthy', 'high-protein'],
     time: 20, prep: 10, difficulty: 'Medium', costPerServing: 1.5, servings: 2,
-    kcal: 410, protein: 24, carbs: 42, fat: 15, fibre: 8, rating: 4.5,
+    kcal: 410, protein: 24, carbs: 42, fat: 15, fibre: 8,
     healthScore: 87, envScore: 92, proteinScore: 70,
     ingredients: [
       { name: 'Firm tofu', qty: '280g' },
@@ -224,7 +234,7 @@ export const RECIPES = [
     id: 'shakshuka', name: 'One-Pan Shakshuka', emoji: '🍳',
     cuisine: 'Mediterranean', tags: ['vegetarian', 'breakfast', 'budget', 'one-pot', 'quick'],
     time: 22, prep: 5, difficulty: 'Easy', costPerServing: 1.2, servings: 2,
-    kcal: 360, protein: 18, carbs: 24, fat: 20, fibre: 6, rating: 4.6,
+    kcal: 360, protein: 18, carbs: 24, fat: 20, fibre: 6,
     healthScore: 85, envScore: 88, proteinScore: 64,
     ingredients: [
       { name: 'Eggs', qty: '4' },
@@ -245,7 +255,7 @@ export const RECIPES = [
     id: 'katsu-curry', name: 'Crispy Katsu Curry', emoji: '🍱',
     cuisine: 'Japanese', tags: ['family', 'comfort', 'trending'],
     time: 40, prep: 15, difficulty: 'Medium', costPerServing: 2.4, servings: 4,
-    kcal: 640, protein: 33, carbs: 72, fat: 24, fibre: 5, rating: 4.8,
+    kcal: 640, protein: 33, carbs: 72, fat: 24, fibre: 5,
     healthScore: 65, envScore: 66, proteinScore: 74,
     ingredients: [
       { name: 'Chicken breast', qty: '4' },
@@ -266,7 +276,7 @@ export const RECIPES = [
     id: 'protein-pancakes', name: 'Banana Protein Pancakes', emoji: '🥞',
     cuisine: 'American', tags: ['breakfast', 'high-protein', 'quick', 'healthy'],
     time: 15, prep: 5, difficulty: 'Easy', costPerServing: 1.0, servings: 2,
-    kcal: 390, protein: 28, carbs: 46, fat: 10, fibre: 4, rating: 4.3,
+    kcal: 390, protein: 28, carbs: 46, fat: 10, fibre: 4,
     healthScore: 80, envScore: 86, proteinScore: 78,
     ingredients: [
       { name: 'Banana', qty: '2' },
@@ -283,16 +293,34 @@ export const RECIPES = [
   },
 ];
 
+/** Which meal a signature dish belongs to, read off its tags. */
+const mealOf = (r) =>
+  (r.tags.includes('breakfast') && 'breakfast')
+  || (r.tags.includes('lunch') && 'lunch')
+  || 'dinner';
+
+export const RECIPES = [
+  ...SIGNATURE.map((r) => ({ ...r, meal: mealOf(r), signature: true })),
+  ...generateRecipes(),
+];
+
 export const byId = (id) => RECIPES.find((r) => r.id === id);
 
+/** Recipes for one slot of the day. */
+export const forMeal = (meal) => (meal ? RECIPES.filter((r) => r.meal === meal) : RECIPES);
+
 export const DISCOVER_FILTERS = [
-  'Trending', 'Healthy', 'Budget', 'Quick', 'Air fryer', 'Slow cooker', 'One pot',
-  'High protein', 'Vegan', 'Vegetarian', 'Comfort food', 'Italian', 'Indian',
-  'Mexican', 'Japanese', 'Mediterranean', 'British', 'Breakfast',
+  'Breakfast', 'Lunch', 'Dinner', 'Quick', 'Budget', 'High protein', 'Healthy',
+  'Light', 'One pot', 'Batch cook', 'Vegan', 'Vegetarian', 'Comfort food',
+  'Italian', 'Indian', 'Mexican', 'Japanese', 'Mediterranean', 'British', 'Chinese',
 ];
 
 const FILTER_MAP = {
-  Trending: (r) => r.rating >= 4.7 || r.tags.includes('trending'),
+  Breakfast: (r) => r.meal === 'breakfast',
+  Lunch: (r) => r.meal === 'lunch',
+  Dinner: (r) => r.meal === 'dinner',
+  Light: (r) => r.kcal <= 450,
+  'Batch cook': (r) => r.tags.includes('batch') || r.tags.includes('freezer'),
   Healthy: (r) => r.healthScore >= 84,
   Budget: (r) => r.costPerServing <= 1.5,
   Quick: (r) => r.time <= 25,
@@ -303,7 +331,6 @@ const FILTER_MAP = {
   Vegan: (r) => r.tags.includes('vegan'),
   Vegetarian: (r) => r.tags.includes('vegetarian') || r.tags.includes('vegan'),
   'Comfort food': (r) => r.tags.includes('comfort'),
-  Breakfast: (r) => r.tags.includes('breakfast'),
 };
 
 export const filterRecipes = (filter) => {

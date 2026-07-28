@@ -19,9 +19,17 @@ tables and UK reference intakes.
 
 ## Features
 
-- **First-run setup** — name, household size, weekly budget, diet, and a
-  calorie/macro starting point (eat well · lose weight · build muscle · your
-  own). Every one of them is editable afterwards
+- **First-run setup** — name, household size, weekly budget, how you eat, and
+  what you're aiming at. Every one of them is editable afterwards
+- **Goals & targets** — a body goal (weight loss · weight gain · maintenance ·
+  muscle gain · body recomposition) sets the energy delta and protein
+  priority; dietary patterns (keto · low-carb · high-protein · Mediterranean ·
+  vegan · vegetarian · pescatarian · gluten-free · dairy-free) cap or floor
+  macros and rule ingredients in or out. Maintenance comes from Mifflin-St
+  Jeor when you give body stats, or a figure you type. **Custom macro goals**
+  hand the numbers over entirely, **daily calorie targets** drive the diary,
+  and a **weekly target** reads the week as one budget — what you've eaten,
+  what's left, and what that leaves per day
 - **Home dashboard** — today's planned meals, budget and calorie rings, water,
   cooking streak and XP, pantry snapshot with what's about to go off, and
   suggestions derived from your own kitchen (never generic marketing copy).
@@ -46,22 +54,29 @@ tables and UK reference intakes.
   Goals read as progress, limits read as headroom, every daily target is
   editable, and the panel says plainly what share of the day's calories
   carries a full micronutrient profile
-- **Meal planner** — a real weekly plan: tap any breakfast/lunch/dinner slot to
-  choose a recipe, or let the generator build one from budget-per-serving,
-  people, goal, diet, occasion and time, then drop it into your week. Planned
-  meals cost out per day and can send their missing ingredients to the list
+- **Meal planner** — a real weekly plan: tap any breakfast/lunch/dinner slot
+  and pick from the 200 dishes for *that* meal, filtered to your dietary
+  patterns; or let the generator build a meal, a day or a week from
+  budget-per-serving, people, occasion and time, then drop it into your week.
+  Planned meals cost out per day and can send their missing ingredients to the
+  list
 - **Shop** — your list (add anything, prices you type in, aisle guessed from
   the name), shopping mode with a running total against your budget, and
   **finish shop** to record what you actually paid. Recorded shops drive your
   spending history, budget streaks and a **price history** of what each item
   costs you over time and where it was cheapest
-- **Pantry** — your inventory: add items with amount, cost, location, shop and
-  use-by date; flag things as running low and push them to the list in one tap.
-  Expiry status, pantry value and "use soon" are computed from your dates
-- **Recipes** — discovery masonry with 18 filters and search, favourites, and
-  recipe pages with nutrition rings and **your** pantry checked against the
-  ingredient list ("you have 5 of 7"), plus a full-screen **cooking mode** with
-  step timers that logs the meal and awards XP on finish
+- **Pantry** — your inventory: add items by hand or **from a photo of a shelf**
+  (correct what it read, pick where it goes, and it lands as ordinary items),
+  with amount, cost, location, shop and use-by date; flag things as running low
+  and push them to the list in one tap. Expiry status, pantry value and
+  "use soon" are computed from your dates
+- **Recipes** — 600+ dishes, 200 for each meal of the day, composed from real
+  ingredients so every dish's calories, macros, cost and health/protein/planet
+  scores are computed from what is in it. No star ratings: nothing here has
+  been cooked by anyone but you. Discovery masonry with 20 filters and search,
+  favourites, recipe pages with **your** pantry checked against the ingredient
+  list ("you have 5 of 7"), plus a full-screen **cooking mode** with step
+  timers that logs the meal and awards XP on finish
 - **Profile** — nutrition dashboard, weekly calories from your diary, spending
   from your recorded shops, the cuisines you actually cook, achievements that
   are all earned (never seeded), theme and accent, plus export and reset for
@@ -89,11 +104,15 @@ src/
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
   lib/utils.js         # currency/date/expiry helpers
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)
+  lib/goals.js         # maintenance energy, macro splits, weekly budget, diet fit
   lib/nutrition.js     # portion scaling, day/meal totals, timing & snack insights
   lib/foodlog.js       # search, barcode, voice parsing, photo demo, recipe import
-  data/                # reference only: recipes, foods (catalogue + barcodes +
-                       # menus), nutrients (units/targets), micronutrients
-                       # (per-100 g table), and taxonomy for aisles/locations
+  data/                # reference only: recipes (signature dishes + the parts
+                       # and templates the rest are composed from), foods
+                       # (catalogue + barcodes + menus), nutrients
+                       # (units/targets), micronutrients (per-100 g table),
+                       # goals (body goals + dietary patterns), and taxonomy
+                       # for aisles/locations
   components/          # one file per surface + shared ui.jsx primitives
   components/icons.jsx # data-glyph → lucide icon map (data keeps emoji keys)
 tests/                 # vitest suite

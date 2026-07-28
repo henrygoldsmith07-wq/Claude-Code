@@ -145,6 +145,22 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
               </Pill>
             ))}
           </div>
+          {/* The week as a budget, not seven separate days */}
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
+            <div className="flex justify-between text-[12px] font-bold mb-1">
+              <span>This week · {app.goalSummary}</span>
+              <span style={{ color: 'var(--muted)' }}>
+                {app.week.eaten.toLocaleString()} / {app.weeklyKcalTarget.toLocaleString()} kcal
+              </span>
+            </div>
+            <Meter value={app.week.eaten} max={app.weeklyKcalTarget} color={app.week.onTrack ? 'var(--accent)' : 'var(--warn)'} height={5} />
+            <p className="mt-1.5 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.week.left >= 0
+                ? `${app.week.left.toLocaleString()} kcal left this week · about ${app.week.perDayLeft.toLocaleString()} a day`
+                : `${Math.abs(app.week.left).toLocaleString()} kcal over for the week so far`}
+            </p>
+          </div>
+
           <button
             onClick={() => setSheet('nutrition')}
             className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"

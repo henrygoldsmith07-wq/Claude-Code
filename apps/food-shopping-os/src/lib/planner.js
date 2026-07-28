@@ -1,26 +1,20 @@
 import { RECIPES } from '../data/recipes.js';
+import { recipeAllowed } from './goals.js';
 import { seededPick } from './utils.js';
 
 /**
- * Plan generation. Hard constraints (diet, budget, time, weight/muscle goals)
- * must hold; soft preferences (occasion, family/sustainable goals, group size)
- * narrow the pool only while enough recipes remain.
+ * Plan generation. Hard constraints (your dietary patterns, budget, time and
+ * body goal) must hold; soft preferences (occasion, family/sustainable goals,
+ * group size) narrow the pool only while enough recipes remain.
+ *
+ * Dietary exclusions are the same rules the rest of the app uses — one
+ * definition of what "vegan" or "gluten-free" means, in `data/goals.js`.
  */
-const DAIRY = /(?<!coconut\s)milk|yogurt|cheese|parmesan|halloumi|butter|cream/i;
-const GLUTEN = /pasta|pappardelle|bread|tortilla|panko|noodle|oat|croissant/i;
-const ALCOHOL = /wine/i;
-
-const usesIngredient = (r, re) => r.ingredients.some((i) => re.test(i.name));
-
-export const hardFilter = (recipes, { diet = 'None', goal = 'Balanced', budget = 4, maxTime = null } = {}) =>
+export const hardFilter = (recipes, { diets = [], goal = 'maintain', budget = 4, maxTime = null } = {}) =>
   recipes.filter((r) => {
-    if (diet === 'Vegan' && !r.tags.includes('vegan')) return false;
-    if (diet === 'Vegetarian' && !r.tags.includes('vegan') && !r.tags.includes('vegetarian')) return false;
-    if (diet === 'Dairy-free' && usesIngredient(r, DAIRY)) return false;
-    if (diet === 'Gluten-free' && usesIngredient(r, GLUTEN)) return false;
-    if (diet === 'Halal' && usesIngredient(r, ALCOHOL)) return false;
-    if (goal === 'Muscle gain' && r.protein < 20) return false;
-    if (goal === 'Weight loss' && r.kcal > 520) return false;
+    if (!recipeAllowed(r, diets)) return false;
+    if ((goal === 'muscle' || goal === 'recomp') && r.protein < 20) return false;
+    if (goal === 'lose' && r.kcal > 520) return false;
     if (r.costPerServing > budget) return false;
     if (maxTime && r.time > maxTime) return false;
     return true;
@@ -35,23 +29,50 @@ const OCCASION_PREFS = {
   Student: (r) => r.costPerServing <= 1.5,
 };
 
+/** Body goals express a preference beyond their hard cut-off. */
 const GOAL_PREFS = {
-  'Family friendly': (r) => r.tags.includes('family'),
-  Sustainable: (r) => r.envScore >= 80,
+  muscle: (r) => r.protein >= 30,
+  recomp: (r) => r.protein >= 28,
+  lose: (r) => r.kcal <= 450,
+  gain: (r) => r.kcal >= 550,
 };
 
 export const scopeCount = (scope) => (scope === '1 meal' ? 1 : scope === 'A day' ? 3 : 7);
 
+/** Which meals a scope covers: a day is breakfast→dinner, a week is dinners. */
+export const scopeMeals = (scope) =>
+  (scope === 'A day' ? ['breakfast', 'lunch', 'dinner'] : ['dinner']);
+
 /**
- * Build a plan of exactly `count` meals. Returns { meals, note } where note
+ * Build a plan of exactly `count` dishes. Returns { meals, note } where note
  * explains any compromise (relaxed constraints or repeated recipes).
  */
-export function buildPlan({ scope = 'A week', diet, goal, budget, maxTime, occasion = 'Everyday', people = 2 }, seed) {
+export function buildPlan({ scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2 }, seed) {
   const count = scopeCount(scope);
-  let pool = hardFilter(RECIPES, { diet, goal, budget, maxTime });
+  const slots = scopeMeals(scope);
+
+  // A day's plan takes one dish from each meal; everything else is dinners.
+  if (slots.length > 1) {
+    let relaxedDay = false;
+    const picks = slots.map((meal, i) => {
+      const forSlot = RECIPES.filter((r) => r.meal === meal);
+      const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime });
+      if (!mealPool.length) relaxedDay = true;
+      return seededPick(mealPool.length ? mealPool : forSlot, 1, seed + i * 17)[0];
+    }).filter(Boolean);
+    return {
+      meals: picks,
+      note: relaxedDay || picks.length < slots.length
+        ? 'Nothing matched every filter — showing the closest fits instead.'
+        : null,
+    };
+  }
+
+  const dinners = RECIPES.filter((r) => r.meal === 'dinner');
+  let pool = hardFilter(dinners, { diets, goal, budget, maxTime });
   let relaxed = false;
   if (pool.length === 0) {
-    pool = RECIPES;
+    pool = dinners;
     relaxed = true;
   }
 
