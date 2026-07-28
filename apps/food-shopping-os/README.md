@@ -20,7 +20,15 @@ tables and UK reference intakes.
 ## Features
 
 - **First-run setup** — name, household size, weekly budget, how you eat, and
-  what you're aiming at. Every one of them is editable afterwards
+  what you're aiming at. It also asks for weight, height, age and sex, because
+  together they let Forq *estimate* your maintenance calories instead of asking
+  you to already know the number — sex is in there because Mifflin-St Jeor's
+  constants differ by 166 kcal, which after the activity multiplier is a couple
+  of hundred a day, and "rather not say" takes the midpoint rather than picking
+  one for you. The
+  weight you give starts your body series rather than sitting apart from it.
+  Cycle tracking is a yes/no at setup, off by default, offered to everyone
+  rather than inferred from an answer. Every one of them is editable afterwards
 - **Goals & targets** — a body goal (weight loss · weight gain · maintenance ·
   muscle gain · body recomposition) sets the energy delta and protein
   priority; dietary patterns (keto · low-carb · high-protein · Mediterranean ·
@@ -179,7 +187,9 @@ tables and UK reference intakes.
   **blood glucose** and **cholesterol** are labelled with the ordinary NHS /
   Diabetes UK reference ranges, always alongside the reminder that a label is
   not a diagnosis. **Sleep** and **stress** average only the nights and days you
-  logged, and say how many that is. **Cycle tracking** predicts the next period
+  logged, and say how many that is. **Cycle tracking** is opt-in — the page
+  isn't there unless you asked for it, at setup or later under Goals — and it
+  predicts the next period
   from the average of *your* logged cycles and nothing else — one logged period
   gives no prediction, and it says so. **Progress photos** stay on the device
   (there is nowhere else for them to go), shrunk to thumbnails and capped,

@@ -21,6 +21,16 @@ export const PHOTO_LIMIT = 12;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const note = (text, max = 120) => String(text || '').slice(0, max);
 
+/**
+ * A weight given at setup is a reading you took, so it starts the series rather
+ * than sitting apart from it — otherwise the body page claims to know nothing
+ * about a number you just typed.
+ */
+export const seedMeasurements = (body, day, existing = []) =>
+  (body?.weightKg
+    ? [{ id: uid('m'), key: 'weight', value: body.weightKg, date: day }]
+    : existing);
+
 export const healthActions = (set) => ({
   /* ---------- Body ---------- */
 
@@ -91,6 +101,8 @@ export const healthActions = (set) => ({
       };
     }),
   removeCycle: (id) => set((s) => ({ cycles: s.cycles.filter((c) => c.id !== id) })),
+  /** Turning it off hides the page; what you logged stays where it is. */
+  setTrackCycle: (on) => set({ trackCycle: Boolean(on) }),
 
   /* ---------- Photos ---------- */
 

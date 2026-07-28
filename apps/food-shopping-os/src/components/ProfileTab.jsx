@@ -162,7 +162,7 @@ export default function ProfileTab() {
             <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
               {app.body_.readings.weight
                 ? `${app.body_.readings.weight.value} kg${app.body_.bmi ? ` · BMI ${app.body_.bmi.value}` : ''}`
-                : 'Weight, vitals, sleep, cycle'}
+                : `Weight, vitals, sleep${app.trackCycle ? ', cycle' : ''}`}
             </p>
           </Card>
           <Card onClick={() => setExerciseOpen(true)}>

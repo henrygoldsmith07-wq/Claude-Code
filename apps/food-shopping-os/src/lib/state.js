@@ -102,6 +102,7 @@ export const EMPTY_STATE = {
   sleep: [], // {id, date, hours, quality, note}
   stress: [], // {id, date, level, note}
   cycles: [], // {id, start, end, flow, symptoms[]}
+  trackCycle: false, // asked at setup, and yours to change whenever
   photos: [], // {id, date, thumb, note} — small, capped, on your device
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}

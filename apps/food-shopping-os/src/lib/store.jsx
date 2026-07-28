@@ -21,7 +21,7 @@ import {
 import { progressSummary } from './progress.js';
 import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
 import { activityAdjustment, weekSummary } from './exercise.js';
-import { healthActions } from './health-actions.js';
+import { healthActions, seedMeasurements } from './health-actions.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
@@ -84,7 +84,12 @@ export function AppProvider({ children }) {
     return {
       set,
       reset: () => setState({ ...EMPTY_STATE, day: todayStamp() }),
-      finishOnboarding: (profile) => set({ ...profile, onboarded: true }),
+      finishOnboarding: (profile) =>
+        set((s) => ({
+          ...profile,
+          onboarded: true,
+          measurements: seedMeasurements(profile.body, s.day, s.measurements),
+        })),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),

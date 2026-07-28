@@ -2,11 +2,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
-const onboard = () => {
+const onboard = ({ cycle = false, stats = null } = {}) => {
   render(<App />);
   fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
   fireEvent.click(screen.getByText('Continue'));
   fireEvent.click(screen.getByText('Continue'));
+  if (stats) {
+    fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: String(stats.weightKg) } });
+    fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: String(stats.heightCm) } });
+    fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: String(stats.age) } });
+    fireEvent.click(screen.getByText(stats.sex));
+  }
+  // The cycle page is opt-in, so tests that need it ask for it the way a user would.
+  if (cycle) fireEvent.click(screen.getByRole('switch'));
   fireEvent.click(screen.getByText('Start using Forq'));
 };
 
@@ -48,7 +56,7 @@ describe('health tracking starts with nothing in it', () => {
     expect(within(sheet).queryByText('BMI')).toBeNull();
     // And the card that opened it doesn't pretend to know a weight.
     fireEvent.click(within(sheet).getByLabelText('Close'));
-    expect(screen.getByText('Weight, vitals, sleep, cycle')).toBeTruthy();
+    expect(screen.getByText('Weight, vitals, sleep')).toBeTruthy();
   });
 
   it('carries the medical disclaimer on every page that bands a number', () => {
@@ -57,6 +65,81 @@ describe('health tracking starts with nothing in it', () => {
     expect(within(sheet).getByText(/not a diagnosis/)).toBeTruthy();
     fireEvent.click(within(sheet).getByText('Vitals'));
     expect(within(sheet).getByText(/not a diagnosis/)).toBeTruthy();
+  });
+});
+
+describe('what setup asks for, and why', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it('estimates maintenance from the stats rather than asking you to know it', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Continue'));
+    // Nothing given yet, so it asks for the figure instead of inventing one.
+    expect(screen.getByLabelText(/^Maintenance/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: '80' } });
+    fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: '180' } });
+    fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: '30' } });
+    // 10×80 + 6.25×180 − 5×30 = 1,775, − 78 for the unstated midpoint, ×1.375 lightly active
+    expect(screen.getByText(/2,333 kcal/)).toBeTruthy();
+    expect(screen.queryByLabelText(/^Maintenance/)).toBeNull();
+  });
+
+  it('says why it asks for sex, and moves the number when you answer', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: '80' } });
+    fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: '180' } });
+    fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: '30' } });
+    expect(screen.getByText(/constants differ by\s+166 kcal/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Male'));
+    expect(screen.getByText(/2,448 kcal/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Female'));
+    expect(screen.getByText(/2,219 kcal/)).toBeTruthy(); // 229 kcal apart — not a rounding error
+    fireEvent.click(screen.getByText('Rather not say'));
+    expect(screen.getByText(/2,333 kcal/)).toBeTruthy();
+  });
+
+  it('carries the stated sex into the waist banding, which needs one', () => {
+    onboard({ stats: { weightKg: 80, heightCm: 180, age: 30, sex: 'Male' } });
+    const sheet = openHealth();
+    fireEvent.click(within(sheet).getByText('Waist'));
+    fireEvent.change(within(sheet).getByLabelText(/^Waist \(cm\)/), { target: { value: '96' } });
+    fireEvent.click(within(sheet).getByText('Log'));
+    expect(within(sheet).getByText(/Raised — At or above 94 cm/)).toBeTruthy();
+    // And the height it now knows means BMI works without a second ask.
+    expect(within(sheet).getByText('24.7')).toBeTruthy();
+  });
+
+  it('leaves the cycle page out until you ask for it, and adds it when you do', () => {
+    onboard();
+    const off = openHealth();
+    expect(within(off).queryByText('Cycle')).toBeNull();
+    fireEvent.click(within(off).getByLabelText('Close'));
+    cleanup();
+    localStorage.clear();
+
+    onboard({ cycle: true });
+    const on = openHealth();
+    expect(within(on).getByText('Cycle')).toBeTruthy();
+    fireEvent.click(within(on).getByLabelText('Close'));
+    expect(screen.getByText('Weight, vitals, sleep, cycle')).toBeTruthy();
+  });
+
+  it('can be turned on later from Goals without redoing setup', () => {
+    onboard();
+    fireEvent.click(screen.getByText('Profile'));
+    const section = screen.getByText('Goals & targets').closest('section');
+    fireEvent.click(within(section).getByText(/kcal · /));
+    const goals = dialogFor('Goals & targets');
+    expect(within(goals).getByText(/turning it on adds a page under Health/i)).toBeTruthy();
+    fireEvent.click(within(goals).getAllByRole('switch')[0]);
+    fireEvent.click(within(goals).getByLabelText('Close'));
+    expect(within(openHealth()).getByText('Cycle')).toBeTruthy();
   });
 });
 
@@ -157,7 +240,7 @@ describe('rest and cycle', () => {
   });
 
   it('refuses to predict a cycle from one period, and says what it needs', () => {
-    onboard();
+    onboard({ cycle: true });
     const sheet = openHealth('Cycle');
     expect(within(sheet).getByText(/Log a period start/)).toBeTruthy();
     fireEvent.click(within(sheet).getByText('Medium'));
@@ -169,7 +252,7 @@ describe('rest and cycle', () => {
   });
 
   it('predicts only from your own cycles once there are two of them', () => {
-    onboard();
+    onboard({ cycle: true });
     const sheet = openHealth('Cycle');
     for (const start of ['2026-06-02', '2026-06-30']) {
       fireEvent.change(within(sheet).getByLabelText('Period start'), { target: { value: start } });
