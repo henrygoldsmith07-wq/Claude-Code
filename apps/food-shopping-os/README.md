@@ -243,7 +243,14 @@ tables and UK reference intakes.
   (`.ics`, one repeating `VALARM` per time) so the alarm clock you already
   trust does the part a web page can't
 
-- **Reports & analytics** — the diary added up over a **day** (split by meal,
+- **Analytics dashboards** — recorded spend, offer savings and favourite stores;
+  30-day nutrition averages with diary coverage; pantry value, locations,
+  categories and expiry coverage; waste cost, rate and repeat waste; shopping
+  frequency, frequently bought products and favourite brands; and estimated
+  food and shopping carbon. Calendar **monthly** and **yearly** reports bring
+  spend, savings, waste, nutrition and footprint together without treating
+  missing diary days or unrecorded receipts as zero
+- **Reports** — the diary added up over a **day** (split by meal,
   with each one's share and the hours you ate between), a **week**, a **month**,
   and **month-by-month** further back. Every report leads with **how many days
   it actually saw**, and averages only those — a blank day is a day you didn't

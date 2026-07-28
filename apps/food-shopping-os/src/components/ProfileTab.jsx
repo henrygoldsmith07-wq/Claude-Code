@@ -17,6 +17,7 @@ import HealthPanel from './HealthPanel.jsx';
 import ExercisePanel from './ExercisePanel.jsx';
 import RemindersPanel from './RemindersPanel.jsx';
 import ReportsPanel from './ReportsPanel.jsx';
+import AnalyticsPanel from './AnalyticsPanel.jsx';
 import PreferencesPanel from './PreferencesPanel.jsx';
 import AdvancedPanel from './AdvancedPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
@@ -44,6 +45,7 @@ export default function ProfileTab() {
   const [exerciseOpen, setExerciseOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
@@ -164,14 +166,21 @@ export default function ProfileTab() {
       {/* Reports and personalisation */}
       <Section title="Reports & you" className="rise rise-1">
         <div className="grid grid-cols-2 gap-2.5">
-          <Card onClick={() => setReportsOpen(true)}>
+          <Card onClick={() => setAnalyticsOpen(true)}>
             <ChartNoAxesColumn size={17} style={{ color: 'var(--muted)' }} />
+            <p className="mt-1.5 font-extrabold text-[14.5px]">Analytics</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              Spend, nutrition, pantry, waste and footprint
+            </p>
+          </Card>
+          <Card onClick={() => setReportsOpen(true)}>
+            <NotebookPen size={17} style={{ color: 'var(--muted)' }} />
             <p className="mt-1.5 font-extrabold text-[14.5px]">Reports</p>
             <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
               Day, week, month, and out as CSV
             </p>
           </Card>
-          <Card onClick={() => setPrefsOpen(true)}>
+          <Card className="col-span-2" onClick={() => setPrefsOpen(true)}>
             <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
             <p className="mt-1.5 font-extrabold text-[14.5px]">Preferences</p>
             <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
@@ -475,6 +484,9 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={reportsOpen} onClose={() => setReportsOpen(false)} title="Reports">
         <ReportsPanel />
+      </Sheet>
+      <Sheet open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} title="Analytics">
+        <AnalyticsPanel />
       </Sheet>
       <Sheet open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Preferences">
         <PreferencesPanel />
