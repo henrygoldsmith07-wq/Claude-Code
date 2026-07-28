@@ -9,6 +9,7 @@ import { recipeFood } from './foodlog.js';
 import { targetsFor } from './goals.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { deriveApp } from './derive.js';
+import { consumePantryIngredients } from './kitchen.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
 import { advancedActions, preferenceActions } from './preference-actions.js';
@@ -187,6 +188,18 @@ export function AppProvider({ children }) {
       updatePantryItem: (id, patch) =>
         set((s) => ({ pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
       removePantryItem: (id) => set((s) => ({ pantry: s.pantry.filter((p) => p.id !== id) })),
+      importPantry: (items) =>
+        set((s) => {
+          const keyFor = (item) => `${String(item.name).trim().toLowerCase()}|${String(item.location || '').toLowerCase()}`;
+          const have = new Set(s.pantry.map(keyFor));
+          const fresh = items.filter((item) => !have.has(keyFor(item))).map((item) => ({
+            ...item,
+            id: uid('p'),
+            emoji: item.emoji || emojiFor(item.name),
+            addedAt: s.day,
+          }));
+          return fresh.length ? { pantry: [...s.pantry, ...fresh] } : {};
+        }),
       togglePantryLow: (id) =>
         set((s) => ({ pantry: s.pantry.map((p) => (p.id === id ? { ...p, low: !p.low } : p)) })),
 
@@ -448,12 +461,15 @@ export function AppProvider({ children }) {
       completeRecipe: (recipe, { leftovers = 0 } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
+          const consumed = s.autoUsePantry
+            ? consumePantryIngredients(s.pantry, recipe.ingredients)
+            : { pantry: s.pantry };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
             pantry: leftovers > 0
-              ? [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
-              : s.pantry,
+              ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
+              : consumed.pantry,
           };
         }),
     };

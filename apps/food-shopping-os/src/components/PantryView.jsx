@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
-  Camera, Check, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
+  BarChart3, Camera, Check, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, expiryStatus } from '../lib/utils.js';
-import { daysUntil, expiringSoon, pantryValue } from '../lib/kitchen.js';
+import { daysUntil, expiringSoon, pantryAnalytics, pantryValue } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
 import { Card, Chip, Pill, Section } from './ui.jsx';
@@ -12,6 +12,7 @@ import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import PantryCapture from './PantryCapture.jsx';
 import BarcodeAdd from './BarcodeAdd.jsx';
+import PantryShare from './PantryShare.jsx';
 
 const BLANK = {
   name: '', qty: '', cost: '', location: DEFAULT_LOCATION,
@@ -107,6 +108,7 @@ function AddItemForm() {
 export default function PantryView() {
   const app = useApp();
   const [location, setLocation] = useState('All');
+  const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -115,6 +117,7 @@ export default function PantryView() {
   const items = useMemo(() => {
     let list = app.pantry;
     if (location !== 'All') list = list.filter((p) => p.location === location);
+    if (category !== 'All') list = list.filter((p) => p.cat === category);
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.cat || '').toLowerCase().includes(q));
@@ -124,7 +127,7 @@ export default function PantryView() {
       const db = b.expiry ? daysUntil(b.expiry, app.day) : 9999;
       return da - db;
     });
-  }, [app.pantry, app.day, location, query]);
+  }, [app.pantry, app.day, location, category, query]);
 
   const expiring = expiringSoon(app.pantry, 3, app.day);
   const buckets = useMemo(
@@ -133,6 +136,7 @@ export default function PantryView() {
   );
   const undated = app.pantry.filter((p) => !p.expiry).length;
   const empty = app.pantry.length === 0;
+  const analytics = useMemo(() => pantryAnalytics(app.pantry, app.day), [app.pantry, app.day]);
 
   return (
     <div className="px-5 pb-8 space-y-5">
@@ -262,6 +266,11 @@ export default function PantryView() {
               <Chip key={loc} active={location === loc} onClick={() => setLocation(loc)}>{loc}</Chip>
             ))}
           </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5" aria-label="Pantry categories">
+            {['All', ...CATEGORIES].map((cat) => (
+              <Chip key={cat} active={category === cat} onClick={() => setCategory(cat)}>{cat}</Chip>
+            ))}
+          </div>
 
           {location === 'All' && !query && expiring.length > 0 && (
             <Section title="Use soon" className="!px-0">
@@ -336,8 +345,60 @@ export default function PantryView() {
               </span>
             </button>
           )}
+
+          <Section title="Pantry analytics" className="!px-0">
+            <Card>
+              <div className="flex items-center gap-2">
+                <BarChart3 size={16} style={{ color: 'var(--muted)' }} />
+                <p className="text-[13px] font-bold">
+                  {analytics.dated} of {analytics.total} items have expiry dates
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>By location</p>
+                  {analytics.byLocation.slice(0, 4).map((row) => (
+                    <p key={row.label} className="mt-1 flex justify-between text-[12px] font-semibold">
+                      <span>{row.label}</span><span>{row.count}</span>
+                    </p>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>By category</p>
+                  {analytics.byCategory.slice(0, 4).map((row) => (
+                    <p key={row.label} className="mt-1 flex justify-between text-[12px] font-semibold">
+                      <span>{row.label}</span><span>{row.count}</span>
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </Section>
+
+          <button
+            onClick={() => app.set({ autoUsePantry: !app.autoUsePantry })}
+            className="press w-full flex items-center gap-3 rounded-2xl border p-3.5 text-left"
+            style={{ borderColor: app.autoUsePantry ? 'var(--accent)' : 'var(--line)' }}
+          >
+            <span
+              className="flex h-6 w-6 items-center justify-center rounded-full border-2 shrink-0"
+              style={app.autoUsePantry
+                ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
+                : { borderColor: 'var(--line)', color: 'transparent' }}
+            >
+              <Check size={13} strokeWidth={3} />
+            </span>
+            <span>
+              <span className="block font-bold text-[14px]">Auto-remove cooked ingredients</span>
+              <span className="block text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Completing a recipe removes matching inventory rows.
+              </span>
+            </span>
+          </button>
+
         </>
       )}
+      <PantryShare />
     </div>
   );
 }

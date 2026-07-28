@@ -92,6 +92,7 @@ export const EMPTY_STATE = {
   waste: [], // what you threw away, and what it cost
   /* kitchen */
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
+  autoUsePantry: false,
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids

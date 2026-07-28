@@ -51,6 +51,93 @@ export const runningLow = (pantry = []) => pantry.filter((p) => p.low);
 
 export const leftovers = (pantry = []) => pantry.filter((p) => p.cat === 'Leftovers');
 
+const money = (value) => Math.round(value * 100) / 100;
+
+const groupedInventory = (pantry, field, fallback) => {
+  const groups = new Map();
+  pantry.forEach((item) => {
+    const label = String(item[field] || fallback);
+    const row = groups.get(label) || { label, count: 0, value: 0 };
+    row.count += 1;
+    row.value += Number(item.cost) || 0;
+    groups.set(label, row);
+  });
+  return [...groups.values()]
+    .map((row) => ({ ...row, value: money(row.value) }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+};
+
+/** A live pantry summary; all figures are derived from inventory rows. */
+export const pantryAnalytics = (pantry = [], today = dayStamp()) => ({
+  total: pantry.length,
+  value: pantryValue(pantry),
+  dated: pantry.filter((item) => item.expiry).length,
+  useSoon: expiringSoon(pantry, 3, today).length,
+  low: runningLow(pantry).length,
+  byLocation: groupedInventory(pantry, 'location', 'Unassigned'),
+  byCategory: groupedInventory(pantry, 'cat', 'Other'),
+});
+
+const inventoryName = (value) => String(value || '')
+  .trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ');
+
+/**
+ * Remove stocked rows used by a completed recipe. A row is an inventory unit,
+ * so matching consumes that row; quantities are deliberately not guessed from
+ * free-text amounts such as "half a bag".
+ */
+export const consumePantryIngredients = (pantry = [], ingredients = []) => {
+  const remaining = [...pantry];
+  const used = [];
+  ingredients.forEach((ingredient) => {
+    const wanted = inventoryName(ingredient.name);
+    if (!wanted) return;
+    const index = remaining.findIndex((item) => {
+      const stocked = inventoryName(item.name);
+      return stocked === wanted
+        || (Math.min(stocked.length, wanted.length) >= 4 && (stocked.includes(wanted) || wanted.includes(stocked)));
+    });
+    if (index >= 0) used.push(...remaining.splice(index, 1));
+  });
+  return { pantry: remaining, used };
+};
+
+const encodeUtf8 = (value) => btoa(unescape(encodeURIComponent(value)));
+const decodeUtf8 = (value) => decodeURIComponent(escape(atob(value)));
+
+/** Portable snapshot for another household member; no account or server needed. */
+export const pantryShareCode = (pantry = []) =>
+  `FORQ-PANTRY-1.${encodeUtf8(JSON.stringify(pantry.map((item) => ({
+    name: String(item.name || '').trim(),
+    emoji: item.emoji || '',
+    qty: String(item.qty || ''),
+    cost: Number(item.cost) || 0,
+    location: String(item.location || 'Pantry'),
+    cat: String(item.cat || 'Other'),
+    store: String(item.store || ''),
+    expiry: item.expiry || null,
+    low: Boolean(item.low),
+  }))))}`;
+
+export const pantryFromShareCode = (code) => {
+  try {
+    const text = String(code || '').trim();
+    if (!text.startsWith('FORQ-PANTRY-1.')) throw new Error();
+    const rows = JSON.parse(decodeUtf8(text.slice('FORQ-PANTRY-1.'.length)));
+    if (!Array.isArray(rows) || rows.length > 500 || rows.some((item) => !item || typeof item.name !== 'string')) throw new Error();
+    return rows.filter((item) => item.name.trim()).map((item) => ({
+      ...item,
+      name: item.name.trim().slice(0, 120),
+      qty: String(item.qty || '').slice(0, 60),
+      cost: Math.max(0, Number(item.cost) || 0),
+      expiry: /^\d{4}-\d{2}-\d{2}$/.test(item.expiry || '') ? item.expiry : null,
+      low: Boolean(item.low),
+    }));
+  } catch {
+    throw new Error('That pantry code is invalid or damaged.');
+  }
+};
+
 /** Recipes that use something about to go off, best match first. */
 export const recipesUsing = (pantry = [], limit = 3, today = dayStamp()) => {
   const names = expiringSoon(pantry, 3, today).map((p) => p.name.toLowerCase());
