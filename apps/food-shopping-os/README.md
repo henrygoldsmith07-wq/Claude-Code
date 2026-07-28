@@ -48,9 +48,10 @@ tables and UK reference intakes.
   entry; unknown codes route to custom foods); an editable **food photo
   recognition demo** that shows the workflow without claiming this build ships
   a vision model; **voice logging** that parses “two slices of wholemeal bread and
-  200g greek yogurt for lunch” into portions; **recipe importer** (paste a
-  recipe or a link — quantities, units and ingredient matches drive a
-  per-serving estimate); **restaurant meals** from six UK chains; **recent**
+  200g greek yogurt for lunch” into portions; **recipe importer** (paste copied
+  recipe text, optionally with its original URL or video link — quantities,
+  units and ingredient matches drive a per-serving estimate); **restaurant
+  meals** from six UK chains; **recent**
   and **favourite** foods; **custom foods**; **meal templates**; **copy a
   previous meal** from any day in the diary; **quick-add calories** with
   optional macros; portion control by serving, multiplier or **weighed
@@ -124,12 +125,16 @@ tables and UK reference intakes.
   your own receipts, never a generic "people also buy"
 - **Recipes** — a library of 1,200+ dishes, 400 for each meal of the day,
   composed from real ingredients so every dish's calories, macros, cost and
-  health/protein/planet scores are computed from what is in it. No star
-  ratings: nothing here has been cooked by anyone but you. Browse the library,
-  **your own recipes** or **favourites**; filter by **diet**, by **cooking
-  time**, by **ingredients in and out** ("with rice, without mushrooms") and by
-  how much shopping you'd have to do — including *can make now*, read against
-  your actual pantry
+  health/protein/planet scores are computed from what is in it. Ratings are
+  your own 1–5 score, never a fabricated community average. Browse the library,
+  **your own recipes**, **favourites** or named **collections**; filter by
+  **diet**, by **cooking time**, by **ingredients in and out** ("with rice,
+  without mushrooms") and by how much shopping you'd have to do — including
+  *can make now*, read against your actual pantry
+- **Recipe import and saving** — copied recipe text is parsed into ingredients,
+  per-serving nutrition and method steps, then saved to My recipes. Add the
+  original URL or video link and it stays attached; the offline browser does
+  not claim it fetched a page that cross-origin privacy rules blocked
 - **Recipe generator** — invents a dish from what you have, composed from the
   same ingredient tables as the book, so its nutrition and cost are computed
   rather than written. It says which parts of the dish your kitchen covered and

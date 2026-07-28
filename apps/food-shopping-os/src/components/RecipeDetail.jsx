@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   CalendarPlus, ChartColumn, Check, ChefHat, ChevronLeft, ExternalLink, Flame, Heart,
-  Package, ShoppingCart, Slice, Timer as TimerIcon, Trash2,
+  FolderPlus, Package, ShoppingCart, Slice, Star, Timer as TimerIcon, Trash2,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, cx } from '../lib/utils.js';
@@ -38,11 +38,13 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   const [servings, setServings] = useState(original.servings || 1);
   const [showNutrition, setShowNutrition] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [collectionName, setCollectionName] = useState('');
 
   const base = variant || original;
   const recipe = useMemo(() => scaleRecipe(base, servings), [base, servings]);
   const fav = app.favourites.includes(recipe.id);
   const isMine = app.myRecipes.some((r) => r.id === original.id);
+  const rating = app.recipeRatings[original.id] || 0;
 
   // What you have is read from your actual pantry, by name.
   const pantryNames = app.pantry.map((p) => p.name.toLowerCase());
@@ -111,6 +113,24 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             <Pill tone="muted"><Flame size={12} /> Cook {fmtTime(recipe.time)}</Pill>
             {recipe.tags.slice(0, 2).map((t) => <Pill key={t} tone="faint">{t}</Pill>)}
           </div>
+          {app.householdAccess.recipes && (
+            <div className="mt-3 pt-3 border-t flex items-center justify-between gap-3" style={{ borderColor: 'var(--line)' }}>
+              <p className="text-[12.5px] font-bold">{rating ? `Your rating: ${rating}/5` : 'Not rated yet'}</p>
+              <div className="flex gap-1" aria-label="Your recipe rating">
+                {[1, 2, 3, 4, 5].map((score) => (
+                  <button
+                    key={score}
+                    onClick={() => app.rateRecipe(original.id, score)}
+                    aria-label={`Rate ${score} star${score === 1 ? '' : 's'}`}
+                    className="press p-0.5"
+                    style={{ color: score <= rating ? 'var(--warn)' : 'var(--faint)' }}
+                  >
+                    <Star size={17} fill={score <= rating ? 'currentColor' : 'none'} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mt-2"><ConflictPills recipe={recipe} diets={app.planDiets} /></div>
           {recipe.video && (
             <a
@@ -123,6 +143,17 @@ export default function RecipeDetail({ recipe: original, onClose }) {
               <ExternalLink size={14} /> Watch the original
             </a>
           )}
+          {recipe.source && !recipe.video && (
+            <a
+              href={recipe.source}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="press mt-3 inline-flex items-center gap-1.5 text-[13px] font-extrabold"
+              style={{ color: 'var(--accent)' }}
+            >
+              <ExternalLink size={14} /> Open original recipe
+            </a>
+          )}
           {isMine && (
             <button
               onClick={() => { app.removeRecipe(original.id); onClose(); }}
@@ -133,6 +164,53 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             </button>
           )}
         </Card>
+
+        {app.householdAccess.recipes && (
+          <Card className="rise rise-1">
+            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Collections</p>
+            {app.recipeCollections.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {app.recipeCollections.map((collection) => {
+                  const included = collection.recipeIds.includes(original.id);
+                  return (
+                    <button
+                      key={collection.id}
+                      onClick={() => app.toggleRecipeCollection(collection.id, original.id)}
+                      aria-label={`${included ? 'Remove from' : 'Add to'} ${collection.name}`}
+                      className="press"
+                    >
+                      <Pill tone={included ? 'good' : 'muted'}>
+                        {included && <Check size={11} strokeWidth={3} />} {collection.name}
+                      </Pill>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="mt-3 flex gap-2">
+              <input
+                value={collectionName}
+                onChange={(event) => setCollectionName(event.target.value)}
+                aria-label="New collection name"
+                placeholder="Weeknight favourites"
+                maxLength={40}
+                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[13px] font-semibold outline-none"
+                style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+              />
+              <button
+                onClick={() => {
+                  app.createRecipeCollection(collectionName, original.id);
+                  setCollectionName('');
+                }}
+                disabled={collectionName.trim().length < 2}
+                className="press shrink-0 rounded-xl px-3 py-2 text-[12.5px] font-extrabold disabled:opacity-40"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+              >
+                <span className="inline-flex items-center gap-1.5"><FolderPlus size={14} /> Create collection</span>
+              </button>
+            </div>
+          </Card>
+        )}
 
         {(variant || recipe.generated || recipe.shared) && (
           <VariantBanner

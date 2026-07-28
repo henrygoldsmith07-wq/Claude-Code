@@ -10,7 +10,6 @@
 
 import { CATALOGUE, FOODS } from '../data/foods.js';
 import { NUTRIENT_KEYS } from '../data/nutrients.js';
-import { RECIPES } from '../data/recipes.js';
 import { EMPTY, buildEntry, recipeAsFood, timeStamp, mealForTime } from './nutrition.js';
 
 const norm = (str) => String(str || '').toLowerCase().trim();
@@ -344,25 +343,14 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
 };
 
 /**
- * Import from a URL. There is no network in this offline app, so a link
- * resolves deterministically to one of the bundled recipes — labelled as a
- * demo in the UI rather than pretending to have fetched the page.
+ * Validate a source URL. The offline app cannot reliably fetch cross-origin
+ * recipe pages, so the caller must pair this metadata with copied recipe text.
  */
 export const importRecipeUrl = (url) => {
   const clean = String(url).trim();
   if (!/^https?:\/\/.+\..+/.test(clean)) return null;
   const domain = clean.replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
-  const recipe = RECIPES[hash(clean) % RECIPES.length];
-  return {
-    domain,
-    url: clean,
-    recipe,
-    title: recipe.name,
-    servings: recipe.servings,
-    perServing: { kcal: recipe.kcal, protein: recipe.protein, carbs: recipe.carbs, fat: recipe.fat, fibre: recipe.fibre || 0 },
-    ingredients: recipe.ingredients.map((i) => ({ line: `${i.qty} ${i.name}`, name: i.name, food: null })),
-    food: recipeAsFood(recipe),
-  };
+  return { domain, url: clean, needsText: true };
 };
 
 /* ---------- Recipes ---------- */

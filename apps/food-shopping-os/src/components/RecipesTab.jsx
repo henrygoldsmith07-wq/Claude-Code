@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
-  ChefHat, Clock, Heart, Inbox, Plus, Search, SlidersHorizontal, Sparkles, UtensilsCrossed, X,
+  ChefHat, Clock, FolderOpen, Heart, Inbox, Link2, Plus, Search, SlidersHorizontal, Sparkles,
+  Trash2, UtensilsCrossed, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
@@ -10,6 +11,7 @@ import { missingFrom, parseShareCode, searchRecipes } from '../lib/recipe-tools.
 import { rankByPrefs } from '../lib/preferences.js';
 import { Section, Card, Chip, Pill, FoodArt, Sheet } from './ui.jsx';
 import RecipeGenerator from './RecipeGenerator.jsx';
+import RecipeImport from './RecipeImport.jsx';
 
 const TIME_STEPS = [
   { label: 'Any time', value: null },
@@ -221,16 +223,27 @@ export default function RecipesTab({ openRecipe }) {
   const [view, setView] = useState('library'); // library · mine · favourites
   const [sheet, setSheet] = useState(null); // filters · generate · shared
   const [filters, setFilters] = useState({ diets: [], maxTime: null, include: [], exclude: [], maxMissing: null });
+  const [collectionId, setCollectionId] = useState('');
+  const [collectionName, setCollectionName] = useState('');
 
   const pantryNames = app.pantry.map((p) => p.name);
   const active = filters.diets.length + filters.include.length + filters.exclude.length
     + (filters.maxTime ? 1 : 0) + (filters.maxMissing !== null ? 1 : 0);
 
+  const selectedCollection = app.recipeCollections.find((collection) => collection.id === collectionId)
+    || app.recipeCollections[0]
+    || null;
+
   const pool = useMemo(() => {
     if (view === 'mine') return app.myRecipes;
     if (view === 'favourites') return allRecipes().filter((r) => app.favourites.includes(r.id));
+    if (view === 'collections') {
+      if (!selectedCollection) return [];
+      const ids = new Set(selectedCollection.recipeIds);
+      return allRecipes().filter((recipe) => ids.has(recipe.id));
+    }
     return query.trim() ? allRecipes() : filterRecipes(filter);
-  }, [view, filter, query, app.myRecipes, app.favourites]);
+  }, [view, filter, query, app.myRecipes, app.favourites, selectedCollection]);
 
   // Allergens and observed rules cut the pool before anything else runs. A
   // blocked recipe is never a search result, however you got here.
@@ -258,6 +271,10 @@ export default function RecipesTab({ openRecipe }) {
     ? 'Nothing here yet — generate a dish from your pantry, import one from a link, or paste in a code someone sent you.'
     : view === 'favourites'
       ? 'No favourites yet. Tap the heart on any recipe and it lands here.'
+      : view === 'collections'
+        ? selectedCollection
+          ? 'This collection is empty. Add recipes from any recipe page.'
+          : 'Create a collection for recipes you want to keep together.'
       : 'Try another filter or search term.';
 
   return (
@@ -295,9 +312,9 @@ export default function RecipesTab({ openRecipe }) {
         </div>
       </div>
 
-      {/* Library · my recipes · favourites */}
-      <div className="mt-4 px-5 flex gap-2 rise rise-1">
-        {[['library', `Library (${allRecipes().length})`], ['mine', `Mine (${app.myRecipes.length})`], ['favourites', `Favourites (${app.favourites.length})`]]
+      {/* Library · my recipes · favourites · collections */}
+      <div className="mt-4 px-5 flex gap-2 overflow-x-auto no-scrollbar rise rise-1">
+        {[['library', `Library (${allRecipes().length})`], ['mine', `Mine (${app.myRecipes.length})`], ['favourites', `Favourites (${app.favourites.length})`], ['collections', `Collections (${app.recipeCollections.length})`]]
           .map(([key, label]) => (
             <Chip key={key} active={view === key} onClick={() => setView(key)}>{label}</Chip>
           ))}
@@ -305,20 +322,27 @@ export default function RecipesTab({ openRecipe }) {
 
       {/* Make one, or take one in */}
       {app.householdAccess.recipes ? (
-      <div className="mt-3 px-5 grid grid-cols-2 gap-2.5 rise rise-1">
+      <div className="mt-3 px-5 grid grid-cols-3 gap-2 rise rise-1">
         <button
-          onClick={() => setSheet('generate')}
-          className="press rounded-2xl border py-2.5 text-[13px] font-extrabold"
+          onClick={() => setSheet('import')}
+          className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
-          <span className="inline-flex items-center gap-1.5"><Sparkles size={14} /> Invent a recipe</span>
+          <span className="inline-flex items-center gap-1"><Link2 size={13} /> Import from URL</span>
+        </button>
+        <button
+          onClick={() => setSheet('generate')}
+          className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
+          style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+        >
+          <span className="inline-flex items-center gap-1"><Sparkles size={13} /> Invent a recipe</span>
         </button>
         <button
           onClick={() => setSheet('shared')}
-          className="press rounded-2xl border py-2.5 text-[13px] font-extrabold"
+          className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
           style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
         >
-          <span className="inline-flex items-center gap-1.5"><Inbox size={14} /> Add a shared one</span>
+          <span className="inline-flex items-center gap-1"><Inbox size={13} /> Add a shared one</span>
         </button>
       </div>
       ) : (
@@ -329,6 +353,64 @@ export default function RecipesTab({ openRecipe }) {
             </p>
           </Card>
         </div>
+      )}
+
+      {view === 'collections' && app.householdAccess.recipes && (
+        <Section className="mt-3 rise rise-1">
+          <Card>
+            <p className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+              <FolderOpen size={14} /> Recipe collections
+            </p>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={collectionName}
+                onChange={(event) => setCollectionName(event.target.value)}
+                aria-label="Collection name"
+                placeholder="e.g. Batch cooking"
+                maxLength={40}
+                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[13px] font-semibold outline-none"
+                style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+              />
+              <button
+                onClick={() => {
+                  app.createRecipeCollection(collectionName);
+                  setCollectionName('');
+                }}
+                disabled={collectionName.trim().length < 2}
+                className="press rounded-xl px-3 py-2 text-[12.5px] font-extrabold disabled:opacity-40"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+              >
+                Create
+              </button>
+            </div>
+            {app.recipeCollections.length > 0 && (
+              <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                {app.recipeCollections.map((collection) => (
+                  <Chip
+                    key={collection.id}
+                    active={selectedCollection?.id === collection.id}
+                    onClick={() => setCollectionId(collection.id)}
+                  >
+                    {collection.name} ({collection.recipeIds.length})
+                  </Chip>
+                ))}
+                {selectedCollection && (
+                  <button
+                    onClick={() => {
+                      app.removeRecipeCollection(selectedCollection.id);
+                      setCollectionId('');
+                    }}
+                    aria-label={`Delete ${selectedCollection.name} collection`}
+                    className="press shrink-0 p-1"
+                    style={{ color: 'var(--faint)' }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            )}
+          </Card>
+        </Section>
       )}
 
       {view === 'library' && !query && (
@@ -390,6 +472,11 @@ export default function RecipesTab({ openRecipe }) {
                         <p className="mt-1 text-[12px] font-extrabold" style={{ color: 'var(--accent)' }}>
                           {gbp(r.costPerServing, { always: true })}/serving
                         </p>
+                        {app.recipeRatings[r.id] && (
+                          <p className="mt-1 text-[11.5px] font-bold" style={{ color: 'var(--warn)' }}>
+                            ★ {app.recipeRatings[r.id]}/5
+                          </p>
+                        )}
                       </div>
                     </Card>
                   );
@@ -405,6 +492,9 @@ export default function RecipesTab({ openRecipe }) {
       </Sheet>
       <Sheet open={sheet === 'generate'} onClose={() => setSheet(null)} title="Invent a recipe">
         <RecipeGenerator openRecipe={(r) => { setSheet(null); openRecipe(r); }} />
+      </Sheet>
+      <Sheet open={sheet === 'import'} onClose={() => setSheet(null)} title="Import a recipe">
+        <RecipeImport onDone={() => { setSheet(null); setView('mine'); }} />
       </Sheet>
       <Sheet open={sheet === 'shared'} onClose={() => setSheet(null)} title="A recipe someone sent you">
         <SharedImport onDone={() => { setSheet(null); setView('mine'); }} />
