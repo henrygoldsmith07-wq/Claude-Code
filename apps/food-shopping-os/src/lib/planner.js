@@ -1,11 +1,13 @@
 import { RECIPES } from '../data/recipes.js';
 import { recipeAllowed } from './goals.js';
+import { seasonScore } from '../data/seasons.js';
 import { seededPick } from './utils.js';
 
 /**
  * Plan generation. Hard constraints (your dietary patterns, budget, time and
- * body goal) must hold; soft preferences (occasion, family/sustainable goals,
- * group size) narrow the pool only while enough recipes remain.
+ * body goal) must hold; soft preferences (occasion, what's in your pantry,
+ * what's in season, family size) narrow the pool only while enough recipes
+ * remain, so a preference never leaves you with nothing.
  *
  * Dietary exclusions are the same rules the rest of the app uses — one
  * definition of what "vegan" or "gluten-free" means, in `data/goals.js`.
@@ -19,6 +21,16 @@ export const hardFilter = (recipes, { diets = [], goal = 'maintain', budget = 4,
     if (maxTime && r.time > maxTime) return false;
     return true;
   });
+
+/** How many of a dish's ingredients you already have. */
+export const pantryHits = (recipe, pantryNames = []) => {
+  if (!pantryNames.length) return 0;
+  const have = pantryNames.map((n) => n.toLowerCase()).filter(Boolean);
+  return recipe.ingredients.filter((i) => {
+    const name = i.name.toLowerCase();
+    return have.some((h) => h.includes(name) || name.includes(h));
+  }).length;
+};
 
 const OCCASION_PREFS = {
   'Meal prep': (r) => r.tags.some((t) => ['batch', 'meal-prep', 'freezer'].includes(t)),
@@ -37,19 +49,51 @@ const GOAL_PREFS = {
   gain: (r) => r.kcal >= 550,
 };
 
-export const scopeCount = (scope) => (scope === '1 meal' ? 1 : scope === 'A day' ? 3 : 7);
+/** Dishes worth cooking in bulk: they scale, keep, or reheat well. */
+export const BATCH_TAGS = ['batch', 'freezer', 'one-pot', 'meal-prep'];
+const batchable = (r) => r.servings >= 4 || r.tags.some((t) => BATCH_TAGS.includes(t));
 
-/** Which meals a scope covers: a day is breakfast→dinner, a week is dinners. */
+export const scopeCount = (scope) =>
+  (scope === '1 meal' ? 1 : scope === 'A day' ? 3 : scope === 'A month' ? 28 : 7);
+
+/** Which meals a scope covers: a day is breakfast→dinner, longer runs are dinners. */
 export const scopeMeals = (scope) =>
   (scope === 'A day' ? ['breakfast', 'lunch', 'dinner'] : ['dinner']);
 
 /**
  * Build a plan of exactly `count` dishes. Returns { meals, note } where note
- * explains any compromise (relaxed constraints or repeated recipes).
+ * explains any compromise (relaxed constraints, repeated recipes, or a
+ * deliberate batch-cooking repeat).
+ *
+ * `days` overrides the scope's count, so the month view can ask for however
+ * many days that month actually has.
  */
-export function buildPlan({ scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2 }, seed) {
-  const count = scopeCount(scope);
+export function buildPlan(
+  {
+    scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
+    pantry = [], month = null, batch = false, days = null,
+  },
+  seed,
+) {
+  const count = Math.max(1, days || scopeCount(scope));
   const slots = scopeMeals(scope);
+
+  /** Preferences applied in order, each kept only while the pool stays usable. */
+  const narrow = (pool, wanted) => {
+    const prefs = [
+      GOAL_PREFS[goal],
+      OCCASION_PREFS[occasion],
+      people >= 4 ? (r) => r.servings >= 4 : null,
+      pantry.length ? (r) => pantryHits(r, pantry) >= 2 : null,
+      month ? (r) => seasonScore(r, month) >= 1 : null,
+    ].filter(Boolean);
+    let out = pool;
+    for (const pref of prefs) {
+      const narrowed = out.filter(pref);
+      if (narrowed.length >= Math.min(wanted, 3)) out = narrowed;
+    }
+    return out;
+  };
 
   // A day's plan takes one dish from each meal; everything else is dinners.
   if (slots.length > 1) {
@@ -58,7 +102,8 @@ export function buildPlan({ scope = 'A week', diets = [], goal, budget, maxTime,
       const forSlot = RECIPES.filter((r) => r.meal === meal);
       const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime });
       if (!mealPool.length) relaxedDay = true;
-      return seededPick(mealPool.length ? mealPool : forSlot, 1, seed + i * 17)[0];
+      const pool = mealPool.length ? narrow(mealPool, 1) : forSlot;
+      return seededPick(pool, 1, seed + i * 17)[0];
     }).filter(Boolean);
     return {
       meals: picks,
@@ -76,15 +121,25 @@ export function buildPlan({ scope = 'A week', diets = [], goal, budget, maxTime,
     relaxed = true;
   }
 
-  const prefs = [
-    GOAL_PREFS[goal],
-    OCCASION_PREFS[occasion],
-    people >= 4 ? (r) => r.servings >= 4 : null,
-  ].filter(Boolean);
-  for (const pref of prefs) {
-    const narrowed = pool.filter(pref);
-    if (narrowed.length >= Math.min(count, 3)) pool = narrowed;
+  // Batch mode asks for fewer dishes on purpose: cook once, eat three times.
+  if (batch && count > 2) {
+    const keepers = pool.filter(batchable);
+    const batchPool = narrow(keepers.length >= 3 ? keepers : pool, 3);
+    const cooks = Math.max(2, Math.round(count / 3));
+    const unique = seededPick(batchPool, Math.min(cooks, batchPool.length), seed);
+    if (unique.length) {
+      const meals = Array.from({ length: count }, (_, i) => unique[Math.floor((i * unique.length) / count)]);
+      const each = Math.round(count / unique.length);
+      return {
+        meals,
+        note: relaxed
+          ? 'Nothing matched every filter — showing the closest fits instead.'
+          : `Batch plan: cook ${unique.length} dish${unique.length === 1 ? '' : 'es'}, each covering about ${each} meal${each === 1 ? '' : 's'}.`,
+      };
+    }
   }
+
+  pool = narrow(pool, count);
 
   const unique = seededPick(pool, Math.min(count, pool.length), seed);
   const meals = Array.from({ length: count }, (_, i) => unique[i % unique.length]);
