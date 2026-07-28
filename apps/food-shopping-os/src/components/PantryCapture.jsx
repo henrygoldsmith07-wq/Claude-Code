@@ -7,9 +7,8 @@ import { Card, Chip, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
 /**
- * Fill the pantry from a photo: snap the fridge shelf or the cupboard, correct
- * what it read, and everything lands as ordinary pantry items you can edit
- * afterwards. Recognition is on-device against the bundled food catalogue.
+ * Editable demonstration of a shelf-recognition workflow. This offline build
+ * does not ship a vision model, so every suggestion must be checked.
  */
 export default function PantryCapture({ onDone }) {
   const app = useApp();
@@ -18,6 +17,7 @@ export default function PantryCapture({ onDone }) {
   const [items, setItems] = useState([]);
   const [location, setLocation] = useState('Fridge');
   const [saved, setSaved] = useState(0);
+  const [message, setMessage] = useState('');
   const fileRef = useRef(null);
 
   useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
@@ -26,6 +26,7 @@ export default function PantryCapture({ onDone }) {
     setPreview(url);
     setBusy(true);
     setSaved(0);
+    setMessage('');
     setTimeout(() => {
       const read = recogniseShelf(seed, app.catalogue);
       setItems(read);
@@ -37,7 +38,9 @@ export default function PantryCapture({ onDone }) {
   const onFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    analyse(`${file.name}-${file.size}`, URL.createObjectURL(file));
+    setPreview(URL.createObjectURL(file));
+    setItems([]);
+    setMessage('Photo added, but this offline build has no vision model to identify its pixels. Use the sample workflow or add pantry items by search.');
   };
 
   const update = (i, patch) => setItems((list) => list.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -79,11 +82,12 @@ export default function PantryCapture({ onDone }) {
         {busy && (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--bg) 70%, transparent)' }}>
             <p className="inline-flex items-center gap-2 text-[13px] font-extrabold">
-              <Sparkles size={15} className="pulse-dot" /> Reading the shelf…
+              <Sparkles size={15} className="pulse-dot" /> Preparing sample suggestions…
             </p>
           </div>
         )}
       </div>
+      {message && <p role="status" className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" />
       <div className="grid grid-cols-2 gap-2.5">
@@ -179,6 +183,9 @@ export default function PantryCapture({ onDone }) {
           </button>
           <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
             Use-by dates and costs stay blank — add them on the item when you know them.
+          </p>
+          <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+            Catalogue demo only: this build does not inspect the image pixels or identify the actual shelf.
           </p>
         </>
       )}

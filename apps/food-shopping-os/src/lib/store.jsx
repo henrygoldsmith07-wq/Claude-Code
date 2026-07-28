@@ -16,6 +16,7 @@ import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
 import { advancedActions, preferenceActions } from './preference-actions.js';
 import { householdActions } from './household-actions.js';
+import { smartActions } from './smart-actions.js';
 import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 
@@ -427,6 +428,7 @@ export function AppProvider({ children }) {
 
       /* ---------- Reminders (see reminder-actions.js) ---------- */
       ...reminderActions(set),
+      ...smartActions(set),
 
       /* ---------- Preferences and advanced (see preference-actions.js) ---------- */
       ...preferenceActions(set),

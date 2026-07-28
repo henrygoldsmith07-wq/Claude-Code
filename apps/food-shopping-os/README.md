@@ -44,9 +44,10 @@ tables and UK reference intakes.
   Empty states explain what each surface will do once you feed it
 - **Food diary (Log tab)** — every route into a log: fuzzy **search** across
   generic foods, branded products and restaurant menus; **barcode scanner**
-  (viewfinder + manual code entry, unknown codes route to custom foods);
-  **AI photo recognition** of a plate with per-item confidence and editable
-  portions; **voice logging** that parses “two slices of wholemeal bread and
+  (native image recognition where the browser exposes it, plus manual code
+  entry; unknown codes route to custom foods); an editable **food photo
+  recognition demo** that shows the workflow without claiming this build ships
+  a vision model; **voice logging** that parses “two slices of wholemeal bread and
   200g greek yogurt for lunch” into portions; **recipe importer** (paste a
   recipe or a link — quantities, units and ingredient matches drive a
   per-serving estimate); **restaurant meals** from six UK chains; **recent**
@@ -301,11 +302,20 @@ tables and UK reference intakes.
   A running fast is the one exception, because "hasn't logged since 8pm" and
   "is deliberately fasting" are different claims. 16:8 and the rest are labels
   for a window you chose, not protocols the app recommends
-- **Receipt reader** — no OCR, so no pretending to read the photo. Paste the
-  text and the parsing is the real part: items, prices, quantities (including
+- **Receipt reader** — native on-device OCR when the browser exposes a text
+  detector, with pasted text from the retailer app or email as the reliable
+  fallback. Both routes parse items, prices, quantities (including
   `0.482 kg @ £4.99/kg`), store and date, with loyalty and payment lines
   skipped — then it **checks its own total against the printed one** and says
   whether to trust the parse, and lists any line it couldn't read
+- **Smart Features** — predicts the next shopping trip from median trip gaps,
+  products likely due from repeat purchase cadence, and weekly budget overrun
+  from the current recorded pace. Every prediction carries its evidence and
+  declines to guess when history is too thin. One tap builds a deduplicated
+  shopping list from those due products and pantry rows you marked low.
+  Smart reminders learn routine times from your records. A saved 200m location
+  can remind you on re-entry **while Forq is open**; background geofencing
+  requires a native app and is not claimed by this PWA
 - **Blood results & CGM** — no lab has an API a browser can call and no CGM has
   one either (Dexcom and Libre are OAuth against a vendor server, which needs a
   server of our own). So: type your own panel in and it's banded against

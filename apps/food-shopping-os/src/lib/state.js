@@ -130,6 +130,7 @@ export const EMPTY_STATE = {
   widgets: null, // null = the default Home layout
   /* reminders — none until you make one */
   reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
+  placeReminders: [], // foreground-only geofences: {id,label,latitude,longitude,radius,on}
   reminderDone: {}, // 'YYYY-MM-DD|id|HH:MM' → true, so a firing is ticked once
   lastSeenAt: 0, // when the app was last open, for catching you up
   /* food diary */

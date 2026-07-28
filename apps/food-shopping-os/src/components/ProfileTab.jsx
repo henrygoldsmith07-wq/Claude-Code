@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Activity, Banknote, Bell, ChartNoAxesColumn, Dumbbell, Flame, FlaskConical, HeartPulse, Lock,
-  NotebookPen, RotateCcw, Download, SlidersHorizontal, Target, Trophy, Users,
+  NotebookPen, RotateCcw, Download, SlidersHorizontal, Sparkles, Target, Trophy, Users,
 } from 'lucide-react';
 import { useApp, STORAGE_KEY } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
@@ -18,6 +18,7 @@ import ExercisePanel from './ExercisePanel.jsx';
 import RemindersPanel from './RemindersPanel.jsx';
 import ReportsPanel from './ReportsPanel.jsx';
 import AnalyticsPanel from './AnalyticsPanel.jsx';
+import SmartFeaturesPanel from './SmartFeaturesPanel.jsx';
 import PreferencesPanel from './PreferencesPanel.jsx';
 import AdvancedPanel from './AdvancedPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
@@ -35,7 +36,7 @@ const ACCENTS = [
   ['honey', '#8a6a3b'],
 ];
 
-export default function ProfileTab() {
+export default function ProfileTab({ openAssistant }) {
   const app = useApp();
   const [nutritionOpen, setNutritionOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function ProfileTab() {
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [smartOpen, setSmartOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [budget, setBudget] = useState(app.weeklyBudget || '');
@@ -199,6 +201,17 @@ export default function ProfileTab() {
               </p>
             </div>
             <FlaskConical size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
+          </div>
+        </Card>
+        <Card className="mt-2.5" onClick={() => setSmartOpen(true)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-extrabold text-[14.5px]">Smart Features</p>
+              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Recognition, voice, reminders, predictions and generated lists
+              </p>
+            </div>
+            <Sparkles size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
           </div>
         </Card>
       </Section>
@@ -487,6 +500,12 @@ export default function ProfileTab() {
       </Sheet>
       <Sheet open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} title="Analytics">
         <AnalyticsPanel />
+      </Sheet>
+      <Sheet open={smartOpen} onClose={() => setSmartOpen(false)} title="Smart Features">
+        <SmartFeaturesPanel onOpenAssistant={() => {
+          setSmartOpen(false);
+          openAssistant?.();
+        }} />
       </Sheet>
       <Sheet open={prefsOpen} onClose={() => setPrefsOpen(false)} title="Preferences">
         <PreferencesPanel />

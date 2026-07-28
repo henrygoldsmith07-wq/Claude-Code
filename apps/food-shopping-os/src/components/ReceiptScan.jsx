@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Check, Info, ReceiptText, TriangleAlert } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Camera, Check, Info, ReceiptText, TriangleAlert } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { parseReceipt } from '../lib/receipt.js';
 import { gbp } from '../lib/utils.js';
 import { Card, Pill } from './ui.jsx';
+import { captureSupport, detectReceiptText } from '../lib/smart-capture.js';
 
 const SAMPLE = `TESCO EXTRA
 28/07/2026  14:02
@@ -21,19 +22,30 @@ TOTAL                 £12.38
 VISA CONTACTLESS      £12.38`;
 
 /**
- * Reading a receipt you paste in.
- *
- * There's no OCR here, so the photo isn't the input — the text is, from your
- * retailer's app or an emailed receipt. What the app does do is the actual
- * work: parse the lines, and then check its own total against the printed one,
- * which is the only way you'd know whether to trust the parse.
+ * Native browser OCR where available, with pasted receipt text as the reliable
+ * fallback. Both routes use the same parser and total check.
  */
 export default function ReceiptScan({ onDone }) {
   const app = useApp();
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
+  const [ocrStatus, setOcrStatus] = useState('');
+  const fileRef = useRef(null);
+  const support = captureSupport();
 
   const read = () => setResult(parseReceipt(text));
+  const scanPhoto = async (file) => {
+    setOcrStatus('Reading receipt image…');
+    setResult(null);
+    try {
+      const recognised = await detectReceiptText(file);
+      setText(recognised);
+      setResult(parseReceipt(recognised));
+      setOcrStatus('Receipt text recognised. Check the total before keeping it.');
+    } catch (error) {
+      setOcrStatus(error.message);
+    }
+  };
 
   const addToPantry = () => {
     for (const item of result.items) {
@@ -46,10 +58,32 @@ export default function ReceiptScan({ onDone }) {
     <div className="px-5 pb-10 space-y-4">
       <Card className="space-y-3">
         <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-          Forq ships no OCR, so it doesn’t pretend to read the photograph — that would be a
-          demonstration, not a feature. Paste the text instead, from your shop’s app or an emailed
-          receipt, and the parsing is the part that’s real.
+          {support.receiptText
+            ? 'This browser can read text from a receipt photo on-device. The result is still checked against the printed total before you keep it.'
+            : 'This browser has no native receipt OCR. Paste text from your shop’s app or an emailed receipt; the parser and total check still work.'}
         </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) scanPhoto(file);
+            event.target.value = '';
+          }}
+          className="hidden"
+          aria-label="Receipt image"
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={!support.receiptText}
+          className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+          style={{ borderColor: 'var(--line)' }}
+        >
+          <span className="inline-flex items-center gap-1.5"><Camera size={14} /> Scan receipt photo</span>
+        </button>
+        {ocrStatus && <p role="status" className="text-[12px] font-semibold">{ocrStatus}</p>}
         <textarea
           value={text}
           onChange={(e) => { setText(e.target.value); setResult(null); }}

@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react';
 import { Camera, Check, ScanLine } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { isBarcode, lookupBarcode, scanAt, SCANNABLE } from '../lib/foodlog.js';
+import { isBarcode, lookupBarcode, SCANNABLE } from '../lib/foodlog.js';
+import { captureSupport, detectBarcodeImage } from '../lib/smart-capture.js';
 import { Card, Chip, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
 /**
  * Scanning a barcode onto the shopping list or into the pantry.
  *
- * There is no camera stream in this offline build and no product API behind
- * it: the viewfinder resolves against the bundled catalogue, and a code it
- * doesn't know is reported as unknown rather than filled in with a guess. You
- * can always type the number in.
+ * Uses the browser's native barcode detector where it exists. Product lookup
+ * remains offline against the bundled catalogue, and manual entry is always
+ * available.
  */
 export default function BarcodeAdd({ onPick, action = 'Add' }) {
   const app = useApp();
@@ -19,7 +19,9 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
   const [code, setCode] = useState('');
   const [food, setFood] = useState(null);
   const [added, setAdded] = useState(null);
-  const scans = useRef(0);
+  const [message, setMessage] = useState('');
+  const fileRef = useRef(null);
+  const support = captureSupport();
 
   const resolve = (value) => {
     const hit = lookupBarcode(value, app.catalogue);
@@ -28,13 +30,16 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
     setPhase(hit ? 'found' : 'unknown');
   };
 
-  const scan = () => {
+  const scan = async (file) => {
     setPhase('scanning');
     setAdded(null);
-    setTimeout(() => {
-      scans.current += 1;
-      resolve(scanAt(scans.current * 7 + new Date().getMinutes()).barcode);
-    }, 700);
+    setMessage('');
+    try {
+      resolve(await detectBarcodeImage(file));
+    } catch (error) {
+      setPhase('idle');
+      setMessage(error.message);
+    }
   };
 
   const take = (item) => {
@@ -59,15 +64,34 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
       </div>
 
       <button
-        onClick={scan}
-        disabled={phase === 'scanning'}
+        onClick={() => fileRef.current?.click()}
+        disabled={!support.barcode || phase === 'scanning'}
         className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-60"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-2">
-          <Camera size={15} /> {phase === 'scanning' ? 'Scanning…' : 'Scan a barcode'}
+          <Camera size={15} /> {phase === 'scanning' ? 'Scanning…' : support.barcode ? 'Scan a barcode' : 'Camera recognition unavailable'}
         </span>
       </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) scan(file);
+          event.target.value = '';
+        }}
+        className="hidden"
+        aria-label="Barcode image"
+      />
+      {!support.barcode && (
+        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          This browser has no native barcode detector. Type the number or choose a catalogue example below.
+        </p>
+      )}
+      {message && <p role="status" className="text-[12px] font-semibold">{message}</p>}
 
       <div className="flex gap-2">
         <input
