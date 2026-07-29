@@ -47,8 +47,9 @@ export const showNotification = (title, { body, tag, silent = false } = {}) => {
   const { supported, permission } = notifySupport();
   if (!supported || permission !== 'granted') return false;
   try {
+    const icon = new URL('icon-192.png', document.baseURI).href;
     // eslint-disable-next-line no-new -- the handle is the notification itself
-    new Notification(title, { body, tag, silent, badge: '/icon-192.png', icon: '/icon-192.png' });
+    new Notification(title, { body, tag, silent, badge: icon, icon });
     return true;
   } catch {
     return false;

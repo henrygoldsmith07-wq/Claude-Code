@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
 import { Glyph } from './icons.jsx';
@@ -30,8 +30,10 @@ export const Card = ({ children, className, onClick, style, label }) => (
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
     aria-label={onClick ? label : undefined}
-    onKeyDown={onClick ? (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); }
+    onKeyDown={onClick ? (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      onClick(event);
     } : undefined}
     className={cx('card p-4', onClick && 'press cursor-pointer', className)}
   >
@@ -64,11 +66,16 @@ export const GestureMenu = ({
 }) => {
   const [open, setOpen] = useState(false);
   const touch = useRef({ x: 0, y: 0, timer: null });
+  const menu = useRef(null);
+  const menuId = useId();
   const cancelLongPress = () => {
     clearTimeout(touch.current.timer);
     touch.current.timer = null;
   };
   useEffect(() => cancelLongPress, []);
+  useEffect(() => {
+    if (open) menu.current?.querySelector('button')?.focus();
+  }, [open]);
 
   const start = (event) => {
     const point = event.touches[0];
@@ -98,6 +105,10 @@ export const GestureMenu = ({
       <div
         role="group"
         aria-label={`Actions for ${label}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        tabIndex={0}
         draggable={draggable}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
@@ -105,6 +116,14 @@ export const GestureMenu = ({
         onContextMenu={(event) => {
           event.preventDefault();
           setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+            event.preventDefault();
+            setOpen(true);
+          } else if (event.key === 'Escape') {
+            setOpen(false);
+          }
         }}
         onTouchStart={start}
         onTouchMove={move}
@@ -114,11 +133,16 @@ export const GestureMenu = ({
       </div>
       {open && (
         <div
+          ref={menu}
+          id={menuId}
+          role="menu"
+          aria-label={`Actions for ${label}`}
           className="absolute right-2 top-2 z-30 min-w-36 overflow-hidden rounded-xl border p-1"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', boxShadow: 'var(--shadow-lg)' }}
         >
           {actions.map((action) => (
             <button
+              role="menuitem"
               key={action.label}
               onClick={() => {
                 action.onClick();
@@ -131,6 +155,7 @@ export const GestureMenu = ({
             </button>
           ))}
           <button
+            role="menuitem"
             onClick={() => setOpen(false)}
             className="press block w-full rounded-lg px-3 py-2 text-left text-[12px] font-semibold"
             style={{ color: 'var(--muted)' }}
@@ -284,6 +309,9 @@ export const Meter = ({ value, max, color = 'var(--accent)', height = 6 }) => (
 export const Sheet = ({ open, onClose, children, full = false, title }) => {
   const [render, setRender] = useState(open);
   const [dragY, setDragY] = useState(0);
+  const panel = useRef(null);
+  const previousFocus = useRef(null);
+  const titleId = useId();
   const touch = useRef({ startY: null, scroller: null }).current;
   useEffect(() => {
     if (open) setRender(true);
@@ -295,10 +323,18 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
   useEffect(() => {
     if (!open) return;
     setDragY(0);
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    previousFocus.current = document.activeElement;
+    const timer = setTimeout(() => {
+      const focusable = panel.current?.querySelector(
+        '[autofocus], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      );
+      (focusable || panel.current)?.focus();
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      previousFocus.current?.focus?.();
+    };
+  }, [open]);
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -321,18 +357,20 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
     touch.startY = null;
   };
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title || undefined}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         className="absolute inset-0 transition-opacity duration-200"
         style={{ background: 'rgba(10,10,12,0.45)', opacity: open ? 1 : 0 }}
         onClick={onClose}
       />
       <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={open ? undefined : true}
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : 'Dialog'}
+        tabIndex={-1}
         className={cx('sheet-up relative w-full max-w-lg flex flex-col', full ? 'h-full' : 'max-h-[92%] rounded-t-3xl')}
         style={{
           background: 'var(--bg)',
@@ -342,11 +380,36 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            onClose();
+            return;
+          }
+          if (event.key !== 'Tab') return;
+          const focusable = [...panel.current.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+          )].filter((element) => element.offsetParent !== null || element === document.activeElement);
+          if (!focusable.length) {
+            event.preventDefault();
+            panel.current.focus();
+            return;
+          }
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
       >
         {!full && <div className="mx-auto mt-2.5 mb-1 h-1 w-10 rounded-full shrink-0" style={{ background: 'var(--line)' }} />}
         {title && (
           <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0">
-            <h2 className="text-lg font-extrabold tracking-tight">{title}</h2>
+            <h2 id={titleId} className="text-lg font-extrabold tracking-tight">{title}</h2>
             <button
               onClick={onClose}
               aria-label="Close"

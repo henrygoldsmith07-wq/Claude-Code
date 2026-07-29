@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { GestureMenu } from '../src/components/ui.jsx';
+import { Card, GestureMenu, Sheet } from '../src/components/ui.jsx';
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   cleanup();
 });
 
@@ -33,6 +34,13 @@ describe('gesture menus', () => {
     expect(remove).toHaveBeenCalledOnce();
   });
 
+  it('opens the action menu from the standard keyboard context shortcut', () => {
+    renderRow();
+    fireEvent.keyDown(screen.getByLabelText('Actions for Milk'), { key: 'F10', shiftKey: true });
+    expect(screen.getByRole('menu', { name: 'Actions for Milk' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeTruthy();
+  });
+
   it('opens on long press', () => {
     vi.useFakeTimers();
     renderRow();
@@ -51,4 +59,37 @@ describe('gesture menus', () => {
     fireEvent.touchEnd(row, { changedTouches: [{ clientX: 100, clientY: 20 }] });
     expect(right).toHaveBeenCalledOnce();
   });
+});
+
+describe('accessible shared surfaces', () => {
+  it('activates clickable cards with Enter and Space', () => {
+    const onClick = vi.fn();
+    render(<Card onClick={onClick}>Open pantry</Card>);
+    const card = screen.getByRole('button', { name: 'Open pantry' });
+
+    fireEvent.keyDown(card, { key: 'Enter' });
+    fireEvent.keyDown(card, { key: ' ' });
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('labels sheets, focuses them and restores the trigger on close', async () => {
+    vi.useFakeTimers();
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const { rerender } = render(
+      <Sheet open onClose={() => {}} title="Pantry details">
+        <button>First action</button>
+      </Sheet>,
+    );
+
+    act(() => vi.runOnlyPendingTimers());
+    expect(screen.getByRole('dialog', { name: 'Pantry details' })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+
+    rerender(<Sheet open={false} onClose={() => {}} title="Pantry details" />);
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
 });

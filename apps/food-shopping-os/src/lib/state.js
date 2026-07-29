@@ -12,6 +12,7 @@ import { dayStamp, levelFrom } from './kitchen.js';
 import { searchFoods } from './foodlog.js';
 
 export const STORAGE_KEY = 'forq-state-v2';
+export const STATE_VERSION = 3;
 
 /* ---------- Pure helpers (exported for tests) ---------- */
 export const XP_PER_LEVEL = 160;
@@ -68,6 +69,7 @@ export const emojiFor = (name) => searchFoods(name, CATALOGUE, 1)[0]?.emoji || '
  * the app grows from what the user logs, buys, cooks and plans.
  */
 export const EMPTY_STATE = {
+  schemaVersion: STATE_VERSION,
   onboarded: false,
   theme: 'light',
   accent: 'mono',

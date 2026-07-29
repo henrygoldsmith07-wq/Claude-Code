@@ -195,7 +195,7 @@ function PlaceRemindersCard() {
                 <p className="text-[13px] font-bold truncate">{place.label}</p>
                 <p className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>{place.radius}m · while open</p>
               </div>
-              <Toggle on={place.on} onChange={() => app.togglePlaceReminder(place.id)} />
+              <Toggle label={`${place.on ? 'Disable' : 'Enable'} ${place.label}`} on={place.on} onChange={() => app.togglePlaceReminder(place.id)} />
               <button onClick={() => app.removePlaceReminder(place.id)} aria-label={`Delete ${place.label}`} className="press p-1" style={{ color: 'var(--faint)' }}>
                 <Trash2 size={14} />
               </button>

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  levelFromXp, xpIntoLevel, XP_PER_LEVEL, rolloverDay, recentFoodsFrom, EMPTY_STATE,
+  hydrate, levelFromXp, parseBackup, recentFoodsFrom, rolloverDay, serialiseBackup,
+  STATE_VERSION, xpIntoLevel, XP_PER_LEVEL, EMPTY_STATE,
 } from '../src/lib/store.jsx';
 import { dayTotals } from '../src/lib/nutrition.js';
 
@@ -47,6 +48,41 @@ describe('a brand new app', () => {
   it('still ships reference targets, which are editable defaults not user data', () => {
     expect(EMPTY_STATE.targets.kcal).toBeGreaterThan(0);
     expect(EMPTY_STATE.targets.iron).toBeGreaterThan(0);
+  });
+});
+
+describe('durable backups', () => {
+  it('round-trips a versioned backup without losing user data', () => {
+    const state = { ...EMPTY_STATE, onboarded: true, name: 'Ada', pantry: [{ id: 'p1', name: 'Milk' }] };
+    const restored = parseBackup(serialiseBackup(state));
+
+    expect(restored.schemaVersion).toBe(STATE_VERSION);
+    expect(restored.name).toBe('Ada');
+    expect(restored.pantry).toEqual([{ id: 'p1', name: 'Milk' }]);
+  });
+
+  it('migrates old plain-state exports and repairs known collection types', () => {
+    const restored = parseBackup(JSON.stringify({
+      onboarded: true,
+      name: 'Sam',
+      pantry: 'not-an-array',
+      log: [],
+      body: null,
+    }));
+
+    expect(restored.pantry).toEqual([]);
+    expect(restored.log).toEqual({});
+    expect(restored.body.activity).toBe('light');
+    expect(restored.schemaVersion).toBe(STATE_VERSION);
+  });
+
+  it('rejects partial or unrelated JSON instead of treating it as an empty app', () => {
+    expect(() => parseBackup('{}')).toThrow(/complete Forq backup/);
+    expect(() => parseBackup('[]')).toThrow(/complete Forq backup/);
+  });
+
+  it('hydrates non-object input safely for internal migrations', () => {
+    expect(hydrate(null).pantry).toEqual([]);
   });
 });
 

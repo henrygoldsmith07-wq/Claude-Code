@@ -25,6 +25,18 @@ const controls = (root = document.body) => [...root.querySelectorAll(
   'button, a[href], input, select, textarea, [role="switch"], [role="button"]',
 )];
 
+/** The accessible name, from whichever attribute supplies it. */
+const nameOf = (el) => {
+  const label = el.getAttribute('aria-label');
+  if (label) return label;
+  const id = el.getAttribute('aria-labelledby');
+  return id ? (document.getElementById(id)?.textContent || '').trim() : '';
+};
+
+/** The open sheet with this name, whichever way it is labelled. */
+const dialogNamed = (name) => [...document.querySelectorAll('[role="dialog"]')]
+  .find((d) => nameOf(d) === name);
+
 const named = (el) => Boolean(
   el.getAttribute('aria-label')
   || el.getAttribute('aria-labelledby')
@@ -74,7 +86,7 @@ describe('every screen is navigable without sight or a mouse', () => {
   it('names every control behind the avatar, switches included', () => {
     onboard();
     openProfile();
-    const sheet = document.querySelector('[role="dialog"][aria-label="You"]');
+    const sheet = dialogNamed('You');
     const unnamed = controls(sheet).filter((el) => !named(el));
     expect(unnamed.map((el) => el.outerHTML.slice(0, 120))).toEqual([]);
     // A switch with no name announces "switch, off" and nothing else.
@@ -99,7 +111,9 @@ describe('every screen is navigable without sight or a mouse', () => {
     expect(dialogs.length).toBeGreaterThan(0);
     for (const d of dialogs) {
       expect(d.getAttribute('aria-modal')).toBe('true');
-      expect(d.getAttribute('aria-label')).toBeTruthy();
+      // Named by a label of its own or by the heading it already shows —
+      // either is a real accessible name.
+      expect(nameOf(d)).toBeTruthy();
     }
   });
 
@@ -117,12 +131,11 @@ describe('every screen is navigable without sight or a mouse', () => {
   it('opens a card with the keyboard, not just a tap', () => {
     onboard();
     openProfile();
-    const sheet = document.querySelector('[role="dialog"][aria-label="You"]');
+    const sheet = dialogNamed('You');
     const goals = within(sheet).getByText('Goals & targets')
       .closest('section').querySelector('[role="button"]');
     fireEvent.keyDown(goals, { key: 'Enter' });
-    const opened = [...document.querySelectorAll('[role="dialog"]')]
-      .map((d) => d.getAttribute('aria-label'));
+    const opened = [...document.querySelectorAll('[role="dialog"]')].map(nameOf);
     expect(opened).toContain('Goals & targets');
   });
 });

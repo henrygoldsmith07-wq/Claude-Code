@@ -116,7 +116,7 @@
 .press { transition: transform 120ms ease, opacity 120ms ease; }
 .press:active { transform: scale(0.97); }
 @media (hover: hover) {
-  .press:hover { opacity: 0.88; }
+  .press:hover { transform: translateY(-1px); }
 }
 
 @keyframes rise {

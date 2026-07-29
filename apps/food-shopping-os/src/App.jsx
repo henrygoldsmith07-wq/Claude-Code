@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChefHat, ClipboardList, Home, ShoppingCart } from 'lucide-react';
+import {
+  AlertTriangle, CalendarDays, ChefHat, ClipboardList, Download, Home, ShoppingCart, Upload,
+} from 'lucide-react';
 import { AppProvider, useApp } from './lib/store.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import HomeTab from './components/HomeTab.jsx';
@@ -16,7 +18,7 @@ import { Chip, Sheet } from './components/ui.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import { cx } from './lib/utils.js';
 import { distanceMetres } from './lib/smart.js';
-import { showNotification } from './lib/notify.js';
+import { downloadFile, showNotification } from './lib/notify.js';
 import {
   CommandPalette, LauncherButtons, QuickAdd,
 } from './components/GlobalLauncher.jsx';
@@ -83,6 +85,63 @@ function GeofenceWatcher() {
   }, [app.placeReminders]);
 
   return null;
+}
+
+function StorageRecovery() {
+  const app = useApp();
+  const fileRef = useRef(null);
+  const [status, setStatus] = useState('');
+  const restore = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const result = app.restoreData(await file.text());
+    setStatus(result.ok ? 'Backup restored.' : result.error);
+  };
+
+  return (
+    <main className="mx-auto flex min-h-screen max-w-lg items-center px-5 py-10">
+      <section className="card w-full space-y-4 p-5" aria-labelledby="recovery-title">
+        <AlertTriangle size={24} style={{ color: 'var(--warn)' }} />
+        <div>
+          <h1 id="recovery-title" className="text-xl font-extrabold">Saved data needs attention</h1>
+          <p className="mt-1 text-[13px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            {app.storageIssue.message} Download the original data first, then restore a valid Forq backup or start again.
+          </p>
+        </div>
+        <div className="grid gap-2">
+          {app.storageIssue.raw && (
+            <button
+              className="press rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+              style={{ borderColor: 'var(--line)' }}
+              onClick={() => downloadFile('forq-unreadable-data.json', app.storageIssue.raw, 'application/json')}
+            >
+              <span className="inline-flex items-center gap-2"><Download size={15} /> Download original data</span>
+            </button>
+          )}
+          <button
+            className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold"
+            style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+            onClick={() => fileRef.current?.click()}
+          >
+            <span className="inline-flex items-center gap-2"><Upload size={15} /> Restore a backup</span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            aria-label="Restore Forq backup"
+            onChange={restore}
+          />
+          <button className="press px-4 py-2 text-[12px] font-bold" style={{ color: 'var(--danger)' }} onClick={app.reset}>
+            Start with an empty app
+          </button>
+        </div>
+        {status && <p role="status" className="text-[12px] font-semibold">{status}</p>}
+      </section>
+    </main>
+  );
 }
 
 function Shell() {
@@ -174,6 +233,8 @@ function Shell() {
     window.scrollTo({ top: 0 });
   };
 
+  if (app.storageIssue?.kind === 'corrupt') return <StorageRecovery />;
+
   // Nothing is pre-filled, so the first run asks for the little it needs.
   if (!app.onboarded) return <Onboarding />;
 
@@ -187,6 +248,12 @@ function Shell() {
 
       {/* Room at the foot for the tab bar and the screen's primary action. */}
       <main id="main" tabIndex={-1} className="pb-44">
+        {app.storageIssue && (
+          <div role="alert" className="mx-5 mt-4 flex items-start gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--warn)' }}>
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--warn)' }} />
+            <p className="text-[12px] font-semibold leading-relaxed">{app.storageIssue.message}</p>
+          </div>
+        )}
         {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={goTab} goLog={goLog} />}
         {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
         {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
