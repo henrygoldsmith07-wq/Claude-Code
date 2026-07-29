@@ -21,6 +21,7 @@ import AnalyticsPanel from './AnalyticsPanel.jsx';
 import SmartFeaturesPanel from './SmartFeaturesPanel.jsx';
 import PreferencesPanel from './PreferencesPanel.jsx';
 import AdvancedPanel from './AdvancedPanel.jsx';
+import BackendPanel from './BackendPanel.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -460,6 +461,8 @@ export default function ProfileTab({ openAssistant }) {
           </div>
         </Card>
       </Section>
+
+      <BackendPanel />
 
       {/* Your data */}
       <Section title="Your data" className="rise rise-4">

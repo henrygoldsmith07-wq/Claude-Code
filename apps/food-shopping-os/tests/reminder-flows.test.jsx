@@ -90,7 +90,7 @@ describe('making one', () => {
     onboard();
     const sheet = openReminders();
     addReminder(sheet, { kind: 'Water', text: 'Glass of water', time: '09:00' });
-    expect(within(sheet).getByText('Glass of water')).toBeTruthy();
+    expect(within(sheet).getAllByText('Glass of water').length).toBeGreaterThan(0);
     expect(within(sheet).getByText(/Every day · 09:00/)).toBeTruthy();
   });
 

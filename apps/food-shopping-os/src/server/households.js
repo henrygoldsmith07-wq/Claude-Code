@@ -1,0 +1,60 @@
+import { ObjectId } from 'mongodb';
+import { ApiError, objectId } from './api.js';
+import { getDatabase } from './mongodb.js';
+
+export async function ensurePersonalHousehold(user) {
+  const db = await getDatabase();
+  const now = new Date();
+  const household = await db.collection('households').findOneAndUpdate(
+    { personalOwnerId: user.id },
+    {
+      $setOnInsert: {
+        name: `${user.name || 'My'} household`,
+        personalOwnerId: user.id,
+        ownerId: user.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+    { upsert: true, returnDocument: 'after', includeResultMetadata: false },
+  );
+  await db.collection('memberships').updateOne(
+    { householdId: household._id, userId: user.id },
+    {
+      $setOnInsert: {
+        email: user.email || null,
+        role: 'owner',
+        permissions: ['shopping', 'pantry', 'recipes', 'health', 'admin'],
+        createdAt: now,
+      },
+    },
+    { upsert: true },
+  );
+  return household;
+}
+
+export async function requireHousehold(user, requestedId) {
+  const db = await getDatabase();
+  const household = requestedId
+    ? await db.collection('households').findOne({ _id: objectId(requestedId, 'household') })
+    : await ensurePersonalHousehold(user);
+  if (!household) throw new ApiError(404, 'Household not found.');
+  const membership = await db.collection('memberships').findOne({
+    householdId: household._id,
+    userId: user.id,
+  });
+  if (!membership) throw new ApiError(403, 'You do not have access to this household.');
+  return { household, membership };
+}
+
+export function publicHousehold(household, membership) {
+  return {
+    id: household._id.toString(),
+    name: household.name,
+    role: membership.role,
+    permissions: membership.permissions,
+    updatedAt: household.updatedAt,
+  };
+}
+
+export const newHouseholdId = () => new ObjectId();

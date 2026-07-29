@@ -19,6 +19,39 @@ The only data that ships with the app is reference material, not user data: a
 recipe book, a food/barcode/restaurant nutrition catalogue, per-100 g nutrient
 tables and UK reference intakes.
 
+## Backend setup
+
+Forq now runs on Next.js and keeps its offline-first local store. The backend is
+optional: without environment variables it stays in local-only mode; with them
+it adds Auth.js accounts, MongoDB household sync, Ably change signals, private
+receipt uploads, calendar writes, licensed retailer data and server-side AI.
+
+1. Copy `.env.example` to `.env.local`.
+2. Create a MongoDB Atlas database and set `MONGODB_URI`.
+3. Generate `AUTH_SECRET` with at least 32 random bytes.
+4. Add Google, Apple and/or Microsoft OAuth credentials.
+5. Run `npm run db:migrate` to create the required unique, lookup and TTL indexes.
+6. Run `npm run dev`.
+
+`npm run db:check` verifies the connection and applied migrations. Production
+deployments should run `npm run db:migrate` as a controlled release step before
+the new application version receives traffic.
+
+The first sign-in copies existing on-device data to the user's personal
+household. Later writes use optimistic versions: a concurrent change returns a
+conflict and does not overwrite either copy. Open browser tabs update
+immediately, the web client checks for cross-device changes every 15 seconds,
+and optional Ably signals support other subscribed clients. MongoDB remains the
+source of truth. Receipt images require
+Vercel Blob. AI calls require an OpenAI key and run only on the server.
+
+Retailer results require a licensed provider implementing
+`GET /v1/products/search?retailer=&query=` at `RETAILER_API_BASE_URL`. Forq does
+not scrape or fabricate prices, offers or availability. Scheduled reminders use
+the authenticated `/api/jobs/reminders` endpoint and Vercel Cron. Trigger.dev
+can invoke the same endpoint once its current vulnerable SDK dependency chain
+is patched.
+
 ## Features
 
 - **First-run setup** — name, household size, weekly budget, how you eat, and

@@ -20,6 +20,7 @@ import { smartActions } from './smart-actions.js';
 import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 import { moveBefore } from './utils.js';
+import { initialiseCloud, pushCloud } from './cloud.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
@@ -105,7 +106,12 @@ export function AppProvider({ children }) {
   if (!initial.current) initial.current = load();
   const [state, setState] = useState(initial.current.state);
   const [storageIssue, setStorageIssue] = useState(initial.current.issue);
+  const [cloudStatus, setCloudStatus] = useState({ kind: 'checking', message: 'Checking cloud sync…' });
   const blockPersistence = useRef(initial.current.issue?.kind === 'corrupt');
+  const cloudMeta = useRef(null);
+  const cloudReady = useRef(false);
+  const skipCloudPush = useRef(false);
+  const cloudTimer = useRef(null);
   const undoHistory = useRef([]);
   const applyingRemote = useRef(false);
   // Reminders are due at a time, not at a state change, so the clock has to
@@ -171,6 +177,56 @@ export function AppProvider({ children }) {
   const latest = useRef(state);
   latest.current = state;
   useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return undefined;
+    let cancelled = false;
+    let poll;
+    const pullNewerState = async () => {
+      const update = await initialiseCloud(latest.current);
+      if (update.state && update.meta.version > (cloudMeta.current?.version || 0)) {
+        cloudMeta.current = update.meta;
+        skipCloudPush.current = true;
+        setState(hydrate(update.state));
+        setCloudStatus(update.status);
+      }
+    };
+    const loadCloud = async () => {
+      const result = await initialiseCloud(latest.current);
+      if (cancelled) return;
+      cloudMeta.current = result.meta || null;
+      cloudReady.current = result.status.kind === 'ready';
+      setCloudStatus(result.status);
+      if (result.state) {
+        skipCloudPush.current = true;
+        setState(hydrate(result.state));
+      }
+      if (result.meta && result.status.kind === 'ready') {
+        poll = setInterval(pullNewerState, 15000);
+      }
+    };
+    loadCloud();
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cloudReady.current || !cloudMeta.current) return;
+    if (skipCloudPush.current) {
+      skipCloudPush.current = false;
+      return;
+    }
+    clearTimeout(cloudTimer.current);
+    cloudTimer.current = setTimeout(async () => {
+      const result = await pushCloud(latest.current, cloudMeta.current);
+      cloudMeta.current = result.meta;
+      if (result.status.kind !== 'ready') cloudReady.current = false;
+      setCloudStatus(result.status);
+    }, 750);
+    return () => clearTimeout(cloudTimer.current);
+  }, [state]);
+
+  useEffect(() => {
     const mark = () => {
       if (!blockPersistence.current) persist(latest.current);
     };
@@ -212,6 +268,7 @@ export function AppProvider({ children }) {
     return {
       set,
       storageIssue,
+      cloudStatus,
       exportData: () => serialiseBackup(latest.current),
       restoreData: (text) => {
         try {
@@ -669,7 +726,7 @@ export function AppProvider({ children }) {
           };
         }),
     };
-  }, [storageIssue]);
+  }, [storageIssue, cloudStatus]);
 
   /* Everything below is derived — the app never stores a number twice. */
   const derived = useMemo(() => deriveApp(state), [state]);
