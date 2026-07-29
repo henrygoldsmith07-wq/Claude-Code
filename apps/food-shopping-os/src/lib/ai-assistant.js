@@ -16,7 +16,8 @@ const recipeLine = (recipe) =>
 
 const recipeForTonight = (app) => {
   const id = app.plan?.[app.day]?.dinner || app.cooked?.at(-1)?.recipeId;
-  return RECIPES.find((recipe) => recipe.id === id) || null;
+  const book = [...(app.safeRecipes || RECIPES), ...(app.myRecipes || [])];
+  return book.find((recipe) => recipe.id === id) || null;
 };
 
 const shoppingOptimisation = (app) => {
@@ -86,6 +87,7 @@ const plannedMeals = (app) => {
     people: app.portions || app.household || 1,
     month: Number(app.day?.slice(5, 7)) || null,
     recipes: app.safeRecipes || RECIPES,
+    taste: app.tasteProfile,
   }, (app.cooked?.length || 0) + (app.pantry?.length || 0) + 17);
   return `A pantry-first week that fits your current diet and budget settings:\n\n${plan.meals.slice(0, 7).map(recipeLine).join('\n')}${plan.note ? `\n\n${plan.note}` : ''}\n\nOpen Plan → Generate to put these into the calendar.`;
 };

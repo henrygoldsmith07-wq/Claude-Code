@@ -363,6 +363,7 @@ export function AppProvider({ children }) {
             recipeIds: collection.recipeIds.filter((recipeId) => recipeId !== id),
           })),
           recipeRatings: Object.fromEntries(Object.entries(s.recipeRatings).filter(([recipeId]) => recipeId !== id)),
+          tasteRatings: Object.fromEntries(Object.entries(s.tasteRatings).filter(([recipeId]) => recipeId !== id)),
         } : {})),
       toggleFavourite: (id) =>
         set((s) => (householdPermission(s, 'recipes') ? {
@@ -370,6 +371,18 @@ export function AppProvider({ children }) {
             ? s.favourites.filter((x) => x !== id)
             : [...s.favourites, id],
         } : {})),
+      rateRecipeTaste: (id, verdict) =>
+        set((s) => {
+          if (!householdPermission(s, 'recipes') || !id || !['nope', 'like', 'love'].includes(verdict)) return {};
+          const liked = verdict === 'like' || verdict === 'love';
+          return {
+            tasteRatings: { ...s.tasteRatings, [id]: verdict },
+            favourites: liked
+              ? [...new Set([...s.favourites, id])]
+              : s.favourites.filter((recipeId) => recipeId !== id),
+          };
+        }),
+      resetRecipeTaste: () => set({ tasteRatings: {} }),
       createRecipeCollection: (name, recipeId = null) =>
         set((s) => {
           if (!householdPermission(s, 'recipes')) return {};

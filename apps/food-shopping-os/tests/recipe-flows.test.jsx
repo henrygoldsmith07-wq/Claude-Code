@@ -94,6 +94,26 @@ describe('the recipe library', () => {
     fireEvent.click(screen.getByText('Favourites (1)'));
     expect(countLine()).toMatch(/^1 recipe/);
   });
+
+  it('learns taste through an accessible swipe game', () => {
+    onboard();
+    openRecipes();
+    fireEvent.click(screen.getByText('Taste match'));
+
+    const game = dialogFor('Taste match');
+    expect(within(game).getByText(/Swipe through recipes/i)).toBeDefined();
+    expect(within(game).getByRole('img', { name: /Taste card:/ })).toBeDefined();
+
+    const card = within(game).getByLabelText(/Taste card:/);
+    fireEvent.pointerDown(card, { clientX: 200, clientY: 200, pointerId: 1 });
+    fireEvent.pointerMove(card, { clientX: 100, clientY: 200, pointerId: 1 });
+    fireEvent.pointerUp(card, { clientX: 100, clientY: 200, pointerId: 1 });
+    expect(within(game).getByText(/1 taste recorded/i)).toBeDefined();
+
+    fireEvent.click(within(game).getByRole('button', { name: 'Love it' }));
+    expect(within(game).getByText(/2 tastes recorded/i)).toBeDefined();
+    expect(screen.getByText('Favourites (1)')).toBeDefined();
+  });
 });
 
 describe('inventing a recipe', () => {

@@ -3,6 +3,29 @@ import { buildPlan, hardFilter, pantryHits, scopeCount } from '../src/lib/planne
 import { RECIPES, byId } from '../src/data/recipes.js';
 import { seasonScore } from '../src/data/seasons.js';
 import { itemsFromRecipes } from '../src/data/stores.js';
+import { deriveApp } from '../src/lib/derive.js';
+import { EMPTY_STATE } from '../src/lib/state.js';
+
+const OWN_RECIPE = {
+  id: 'mine-tomato-pasta',
+  name: 'Tomato Pasta',
+  emoji: '🍝',
+  meal: 'dinner',
+  cuisine: 'Yours',
+  tags: ['vegetarian'],
+  time: 20,
+  prep: 5,
+  difficulty: 'Easy',
+  servings: 2,
+  kcal: 480,
+  protein: 18,
+  carbs: 72,
+  fat: 12,
+  fibre: 8,
+  costPerServing: 1.2,
+  ingredients: [{ name: 'Pasta', qty: '200 g' }, { name: 'Tomatoes', qty: '200 g' }],
+  steps: [{ text: 'Cook the pasta and stir through the tomatoes.' }],
+};
 
 describe('hardFilter', () => {
   it('vegan keeps only vegan recipes', () => {
@@ -22,6 +45,18 @@ describe('hardFilter', () => {
 });
 
 describe('buildPlan', () => {
+  it('includes saved recipes in the AI planning pool', () => {
+    const app = deriveApp({ ...EMPTY_STATE, myRecipes: [OWN_RECIPE] });
+    expect(app.safeRecipes).toContainEqual(OWN_RECIPE);
+
+    const { meals } = buildPlan(
+      { scope: 'A week', budget: 4, recipes: app.safeRecipes.filter((recipe) => recipe.id === OWN_RECIPE.id) },
+      42,
+    );
+    expect(meals).toHaveLength(7);
+    expect(meals.every((recipe) => recipe.id === OWN_RECIPE.id)).toBe(true);
+  });
+
   it('fills a week of dinners from the vegan pool without repeating', () => {
     const { meals, note } = buildPlan(
       { scope: 'A week', diets: ['vegan'], budget: 4, maxTime: 30 },

@@ -29,6 +29,7 @@ import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
 import { DEFAULT_PERMISSIONS } from './household.js';
+import { buildTasteProfile } from './taste.js';
 
 export const deriveApp = (state) => {
   const activeMember = state.members.find((member) => member.id === state.activeMemberId) || null;
@@ -46,6 +47,8 @@ export const deriveApp = (state) => {
     units: state.units,
   };
   const catalogue = [...CATALOGUE, ...state.customFoods];
+  const recipeBook = [...RECIPES, ...state.myRecipes];
+  const tasteProfile = buildTasteProfile(recipeBook, state.tasteRatings, state.favourites);
   const entries = state.log[state.day] || [];
   const totals = dayTotals(entries);
   const glasses = state.water + state.waterExtraMl / GLASS_ML;
@@ -126,8 +129,9 @@ export const deriveApp = (state) => {
     prefs,
     prefsSummary: prefsSummary(prefs),
     /** Blocked recipes are removed here once, not remembered to be hidden later. */
-    safeRecipes: allowedByPrefs(RECIPES, prefs),
-    recipeReach: reach(RECIPES, prefs),
+    safeRecipes: allowedByPrefs(recipeBook, prefs),
+    recipeReach: reach(recipeBook, prefs),
+    tasteProfile,
     fitFor: (recipe) => recipeFit(recipe, prefs),
     fmt: formatters(prefs),
     homeWidgets: state.widgets || DEFAULT_WIDGETS,

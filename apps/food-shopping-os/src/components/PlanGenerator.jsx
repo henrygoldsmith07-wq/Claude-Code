@@ -37,6 +37,8 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const month = monthOf(app.day);
   const dates = scope === 'A month' ? monthDates : weekDates;
   const pantryNames = app.pantry.map((p) => p.name);
+  const ownRecipeIds = new Set(app.myRecipes.map((recipe) => recipe.id));
+  const ownCandidates = app.safeRecipes.filter((recipe) => ownRecipeIds.has(recipe.id)).length;
 
   const plan = useMemo(() => {
     if (!seed) return null;
@@ -54,12 +56,13 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         month: seasonal ? month : null,
         days: scope === 'A month' ? monthDates.length : null,
         recipes: app.safeRecipes,
+        taste: app.tasteProfile,
       },
       seed,
     );
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, budget, quick, occasion, people, batch, usePantry, seasonal, month, monthDates.length]);
+  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, occasion, people, batch, usePantry, seasonal, month, monthDates.length]);
 
   const generated = plan?.meals ?? null;
 
@@ -147,6 +150,15 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
               ? 'Includes everyone you cook for — change it under Family in your profile.'
               : 'Change it under Goals & targets in your profile.'}
           </p>
+          <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            Choosing from {app.safeRecipes.length} recipes
+            {ownCandidates ? `, including ${ownCandidates} of yours` : ''}.
+          </p>
+          {app.tasteProfile.rated > 0 && (
+            <p className="mt-1 text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
+              Taste Match favours {app.tasteProfile.topCuisines.slice(0, 2).join(' and ') || 'the flavours you liked'}.
+            </p>
+          )}
         </div>
 
         <div>

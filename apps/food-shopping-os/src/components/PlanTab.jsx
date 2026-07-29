@@ -5,8 +5,7 @@ import {
 } from 'lucide-react';
 import { gbp } from '../lib/utils.js';
 import { useApp } from '../lib/store.jsx';
-import { Glyph } from './icons.jsx';
-import { byId, forMeal, RECIPES } from '../data/recipes.js';
+import { byId } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { weekDates } from '../lib/kitchen.js';
 import {
@@ -16,7 +15,8 @@ import {
 import { downloadFile } from '../lib/notify.js';
 import { filterByDiet } from '../lib/goals.js';
 import { monthOf, seasonalHits } from '../data/seasons.js';
-import { Section, Card, Chip, Pill, Sheet } from './ui.jsx';
+import { tasteScore } from '../lib/taste.js';
+import { Section, Card, Chip, Pill, Sheet, FoodArt } from './ui.jsx';
 import { MonthGrid, WeekGrid } from './PlanCalendar.jsx';
 import PlanGenerator from './PlanGenerator.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
@@ -38,24 +38,27 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pool = anyMeal || q ? RECIPES : forMeal(slot);
+    const pool = anyMeal || q ? app.safeRecipes : app.safeRecipes.filter((recipe) => recipe.meal === slot);
     const matched = q
       ? pool.filter((r) => r.name.toLowerCase().includes(q)
-        || r.cuisine.toLowerCase().includes(q)
-        || r.ingredients.some((i) => i.name.toLowerCase().includes(q)))
+        || String(r.cuisine || '').toLowerCase().includes(q)
+        || (r.ingredients || []).some((i) => String(i.name || i).toLowerCase().includes(q)))
       : pool;
     const allowed = filterByDiet(matched, app.planDiets);
     const seasonal = inSeason ? allowed.filter((r) => seasonalHits(r, month).length > 0) : allowed;
     return seasonal
-      .sort((a, b) => Number(app.favourites.includes(b.id)) - Number(app.favourites.includes(a.id)));
-  }, [query, anyMeal, inSeason, slot, month, app.favourites, app.planDiets]);
+      .sort((a, b) => (
+        Number(app.favourites.includes(b.id)) - Number(app.favourites.includes(a.id))
+        || tasteScore(b, app.tasteProfile) - tasteScore(a, app.tasteProfile)
+      ));
+  }, [query, anyMeal, inSeason, slot, month, app.safeRecipes, app.favourites, app.planDiets, app.tasteProfile]);
 
   return (
     <div className="px-5 pb-10 space-y-3">
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={`Search ${RECIPES.length} recipes…`}
+        placeholder={`Search ${app.safeRecipes.length} recipes…`}
         aria-label="Search recipes"
         className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
@@ -90,7 +93,7 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
               className="press flex w-full items-center gap-3 p-3 text-left"
               style={{ borderColor: 'var(--line)' }}
             >
-              <Glyph e={r.emoji} size={20} style={{ color: 'var(--muted)' }} />
+              <FoodArt recipe={r} className="h-11 w-11 shrink-0 rounded-xl" />
               <span className="min-w-0 flex-1">
                 <span className="block font-bold text-[14px] truncate">{r.name}</span>
                 <span className="block text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
@@ -341,7 +344,7 @@ export default function PlanTab({ openRecipe }) {
           <Card className="space-y-3">
             {batches.map(({ recipe, cookOn, covers, portions, batches: n, saves }) => (
               <div key={recipe.id} className="flex items-start gap-3">
-                <Glyph e={recipe.emoji} size={18} style={{ color: 'var(--muted)' }} />
+                <FoodArt recipe={recipe} className="h-11 w-11 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-[14px]">{recipe.name}</p>
                   <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
@@ -402,7 +405,7 @@ export default function PlanTab({ openRecipe }) {
                   className="flex items-center gap-3 !p-3"
                 >
                   {recipe
-                    ? <Glyph e={recipe.emoji} size={20} style={{ color: 'var(--muted)' }} />
+                    ? <FoodArt recipe={recipe} className="h-11 w-11 shrink-0 rounded-xl" />
                     : <Utensils size={18} style={{ color: 'var(--faint)' }} />}
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>

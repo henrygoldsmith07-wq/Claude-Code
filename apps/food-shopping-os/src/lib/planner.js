@@ -2,6 +2,7 @@ import { RECIPES } from '../data/recipes.js';
 import { recipeAllowed } from './goals.js';
 import { seasonScore } from '../data/seasons.js';
 import { seededPick } from './utils.js';
+import { tasteScore } from './taste.js';
 
 /**
  * Plan generation. Hard constraints (your dietary patterns, budget, time and
@@ -71,7 +72,7 @@ export const scopeMeals = (scope) =>
 export function buildPlan(
   {
     scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
-    pantry = [], month = null, batch = false, days = null, recipes = RECIPES,
+    pantry = [], month = null, batch = false, days = null, recipes = RECIPES, taste = null,
   },
   seed,
 ) {
@@ -83,6 +84,7 @@ export function buildPlan(
     const prefs = [
       GOAL_PREFS[goal],
       OCCASION_PREFS[occasion],
+      taste?.rated ? (r) => tasteScore(r, taste) > 0 : null,
       people >= 4 ? (r) => r.servings >= 4 : null,
       pantry.length ? (r) => pantryHits(r, pantry) >= 2 : null,
       month ? (r) => seasonScore(r, month) >= 1 : null,

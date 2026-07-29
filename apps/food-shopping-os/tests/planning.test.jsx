@@ -1,6 +1,28 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import App from '../src/App.jsx';
+import { STORAGE_KEY } from '../src/lib/state.js';
+
+const OWN_RECIPE = {
+  id: 'mine-tomato-pasta',
+  name: 'Tomato Pasta',
+  emoji: '🍝',
+  meal: 'dinner',
+  cuisine: 'Yours',
+  tags: ['vegetarian'],
+  time: 20,
+  prep: 5,
+  difficulty: 'Easy',
+  servings: 2,
+  kcal: 480,
+  protein: 18,
+  carbs: 72,
+  fat: 12,
+  fibre: 8,
+  costPerServing: 1.2,
+  ingredients: [{ name: 'Pasta', qty: '200 g' }, { name: 'Tomatoes', qty: '200 g' }],
+  steps: [{ text: 'Cook the pasta and stir through the tomatoes.' }],
+};
 
 const onboard = () => {
   render(<App />);
@@ -73,6 +95,25 @@ describe('the weekly planner', () => {
       revokeObjectURL.mockRestore();
       click.mockRestore();
     }
+  });
+
+  it('can search and plan any saved recipe', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      onboarded: true,
+      name: 'Sam',
+      day: '2026-07-28',
+      myRecipes: [OWN_RECIPE],
+    }));
+    render(<App />);
+    openPlan();
+
+    fireEvent.click(screen.getAllByText('+ Dinner')[0]);
+    const picker = dialogFor('Plan a meal');
+    fireEvent.change(within(picker).getByLabelText('Search recipes'), { target: { value: 'Tomato Pasta' } });
+    fireEvent.click(within(picker).getByText('Tomato Pasta'));
+
+    expect(screen.getByText(/1 meal planned/)).toBeDefined();
+    expect(screen.getByText('Tomato Pasta')).toBeDefined();
   });
 });
 

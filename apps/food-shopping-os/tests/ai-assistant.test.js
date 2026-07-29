@@ -108,6 +108,30 @@ describe('AI food assistant', () => {
     expect(result).toMatch(/protein/i);
   });
 
+  it('explains a saved recipe after the AI planner puts it in the plan', () => {
+    const recipe = {
+      id: 'mine-tomato-pasta',
+      name: 'Tomato Pasta',
+      tags: ['vegetarian'],
+      time: 20,
+      prep: 5,
+      protein: 18,
+      fibre: 8,
+      kcal: 480,
+      healthScore: 80,
+      costPerServing: 1.2,
+      ingredients: [{ name: 'Pasta' }, { name: 'Tomatoes' }],
+      steps: [{ text: 'Cook the pasta.' }],
+    };
+    const result = answer('Explain tonight’s recipe', app({
+      day: '2026-07-28',
+      plan: { '2026-07-28': { dinner: recipe.id } },
+      myRecipes: [recipe],
+      safeRecipes: [recipe],
+    }));
+    expect(result).toMatch(/Tomato Pasta/);
+  });
+
   it('gives meal improvement feedback from the logged meal', () => {
     const snack = {
       id: 'crisps',

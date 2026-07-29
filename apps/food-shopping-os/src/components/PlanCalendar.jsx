@@ -3,8 +3,7 @@ import { gbp } from '../lib/utils.js';
 import { byId } from '../data/recipes.js';
 import { MEAL_SLOTS, WEEK_DAYS } from '../data/plan.js';
 import { planCost } from '../lib/kitchen.js';
-import { Card, Pill } from './ui.jsx';
-import { Glyph } from './icons.jsx';
+import { Card, FoodArt, Pill } from './ui.jsx';
 
 /**
  * The calendar itself, as a week of meal slots or a month of days.
@@ -73,7 +72,7 @@ export function WeekGrid({
                       onClick={() => (moving ? onMove(moving, target) : onPick(target))}
                       className="press block w-full text-left"
                     >
-                      <Glyph e={recipe.emoji} size={18} style={{ color: 'var(--muted)' }} />
+                      <FoodArt recipe={recipe} className="h-8 w-full rounded-lg" />
                       <p className="mt-1 text-[11px] font-bold leading-tight line-clamp-2">{recipe.name}</p>
                       {fromFridge && (
                         <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold" style={{ color: 'var(--good)' }}>
@@ -154,7 +153,7 @@ export function MonthGrid({ cells, plan, today, onOpenDay, moving, onMove, dragg
               </span>
               <span className="flex flex-wrap justify-center gap-0.5">
                 {meals.map((r, i) => (r ? (
-                  <Glyph key={i} e={r.emoji} size={11} style={{ color: 'var(--muted)' }} />
+                  <FoodArt key={i} recipe={r} className="h-3 w-3 rounded-full" />
                 ) : null))}
               </span>
               {filled === 3 && (

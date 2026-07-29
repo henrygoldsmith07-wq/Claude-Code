@@ -104,6 +104,7 @@ export const EMPTY_STATE = {
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids
+  tasteRatings: {}, // recipe id -> nope | like | love
   recipeCollections: [], // {id,name,recipeIds[],createdAt}
   recipeRatings: {}, // recipe id -> personal 1–5 score
   cooked: [], // [{recipeId, date}]

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { Glyph } from './icons.jsx';
+import { recipeImage } from '../data/recipe-images.js';
 
 /* ---------- Layout ---------- */
 
@@ -455,13 +455,18 @@ export const Toggle = ({ on, onChange, label }) => (
   </button>
 );
 
-/** Food hero tile — calm neutral surface with a monochrome stroke icon. */
-export const FoodArt = ({ recipe, className, px = 36 }) => (
+/** Local, licensed recipe photography with a stable category match. */
+export const FoodArt = ({ recipe, className, alt = '' }) => (
   <div
-    className={cx('flex items-center justify-center overflow-hidden', className)}
-    style={{ background: 'var(--card-2)', color: 'var(--muted)' }}
-    aria-hidden="true"
+    className={cx('relative flex items-center justify-center overflow-hidden', className)}
+    style={{ background: 'var(--card-2)' }}
   >
-    <Glyph e={recipe.emoji} size={px} strokeWidth={1.4} />
+    <img
+      src={recipeImage(recipe)}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className="h-full w-full object-cover"
+    />
   </div>
 );

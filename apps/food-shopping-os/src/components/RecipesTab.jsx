@@ -13,6 +13,7 @@ import { Section, Card, Chip, Pill, FoodArt, Sheet } from './ui.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
 import RecipeGenerator from './RecipeGenerator.jsx';
 import RecipeImport from './RecipeImport.jsx';
+import TasteGame from './TasteGame.jsx';
 
 const TIME_STEPS = [
   { label: 'Any time', value: null },
@@ -225,7 +226,7 @@ export default function RecipesTab({ openRecipe }) {
   const [filter, setFilter] = useState('Dinner');
   const [query, setQuery] = useState('');
   const [view, setView] = useState('library'); // library · mine · favourites
-  const [sheet, setSheet] = useState(null); // filters · generate · shared
+  const [sheet, setSheet] = useState(null); // filters · generate · shared · taste
   const [filters, setFilters] = useState({ diets: [], maxTime: null, include: [], exclude: [], maxMissing: null });
   const [collectionId, setCollectionId] = useState('');
   const [collectionName, setCollectionName] = useState('');
@@ -330,6 +331,28 @@ export default function RecipesTab({ openRecipe }) {
           .map(([key, label]) => (
             <Chip key={key} active={view === key} onClick={() => setView(key)}>{label}</Chip>
           ))}
+      </div>
+
+      <div className="mt-3 px-5 rise rise-1">
+        <button
+          onClick={() => setSheet('taste')}
+          className="press relative w-full overflow-hidden rounded-2xl px-4 py-3 text-left"
+          style={{ background: 'linear-gradient(120deg, var(--accent), var(--accent-deep))', color: 'var(--on-accent)' }}
+        >
+          <span className="relative z-10 flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
+              <Heart size={19} fill="currentColor" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-black">Taste match</span>
+              <span className="block text-[11.5px] font-bold opacity-80">
+                Swipe recipes to tune your AI plans
+                {Object.keys(app.tasteRatings).length ? ` · ${Object.keys(app.tasteRatings).length} rated` : ''}
+              </span>
+            </span>
+            <Sparkles size={18} />
+          </span>
+        </button>
       </div>
 
       {/* Make one, or take one in */}
@@ -523,6 +546,9 @@ export default function RecipesTab({ openRecipe }) {
       </Sheet>
       <Sheet open={sheet === 'shared'} onClose={() => setSheet(null)} title="A recipe someone sent you">
         <SharedImport onDone={() => { setSheet(null); setView('mine'); }} />
+      </Sheet>
+      <Sheet open={sheet === 'taste'} onClose={() => setSheet(null)} title="Taste match" full>
+        <TasteGame />
       </Sheet>
 
       {/* With a thousand-odd dishes on the shelf, the useful move depends on
