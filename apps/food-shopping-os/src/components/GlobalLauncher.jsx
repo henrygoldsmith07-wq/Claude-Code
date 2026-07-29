@@ -152,7 +152,7 @@ export function QuickAdd({ open, onClose, onRun }) {
 export function LauncherButtons({ onSearch, onQuickAdd }) {
   return (
     <div
-      className="fixed z-40 flex gap-2"
+        className="launcher-buttons fixed z-40 flex gap-2"
       // Clear of the screen's primary action, which sits in the thumb zone
       // just above the tab bar.
       style={{

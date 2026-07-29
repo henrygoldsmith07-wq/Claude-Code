@@ -160,7 +160,8 @@ describe('the Home layout', () => {
     // its own list of widget names shouldn't count as Home still showing one.
     expect(within(document.querySelector('main')).queryByText('Recipe of the day')).toBeNull();
     // The diary is untouched — hiding a panel is not hiding data.
-    expect(screen.getByText('Calories today')).toBeTruthy();
+    goTab('Log');
+    expect(screen.getAllByText(/Nothing logged/).length).toBeGreaterThan(0);
   });
 
   it('puts the default layout back', () => {

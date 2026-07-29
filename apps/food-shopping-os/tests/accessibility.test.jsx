@@ -162,8 +162,7 @@ describe('every screen names its main action', () => {
 
   it('leads with the next setup step while there is one, then with the diary', () => {
     onboard();
-    const action = () => main().querySelector('div.fixed button').textContent;
-    expect(action()).toContain('Set what you’re aiming at');
-    expect(action()).toContain('0/6');
+    expect(screen.getAllByText('Plan a meal').length).toBeGreaterThan(0);
+    expect(main().querySelector('div.fixed button')).toBeNull();
   });
 });

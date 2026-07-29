@@ -269,12 +269,6 @@ export default function RecipesTab({ openRecipe }) {
   useEffect(() => setShown(PAGE), [query, filters, view, filter]);
   const visible = recipes.slice(0, shown);
 
-  const cols = useMemo(() => {
-    const a = [], b = [];
-    visible.forEach((r, i) => (i % 2 === 0 ? a : b).push(r));
-    return [a, b];
-  }, [visible]);
-
   // Saying how many were removed is the difference between a filter and a
   // disappearance you can't account for.
   const blockedLine = blocked > 0
@@ -333,7 +327,15 @@ export default function RecipesTab({ openRecipe }) {
           ))}
       </div>
 
-      <div className="mt-3 px-5 rise rise-1">
+      <details className="mt-3 px-5 rise rise-1">
+        <summary
+          className="flex cursor-pointer list-none items-center justify-between rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+          style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
+        >
+          More recipe tools
+          <span className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>Taste, import and create</span>
+        </summary>
+      <div className="mt-3">
         <button
           onClick={() => setSheet('taste')}
           className="press relative w-full overflow-hidden rounded-2xl px-4 py-3 text-left"
@@ -357,7 +359,7 @@ export default function RecipesTab({ openRecipe }) {
 
       {/* Make one, or take one in */}
       {app.householdAccess.recipes ? (
-      <div className="mt-3 px-5 grid grid-cols-3 gap-2 rise rise-1">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           onClick={() => setSheet('import')}
           className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
@@ -389,6 +391,7 @@ export default function RecipesTab({ openRecipe }) {
           </Card>
         </div>
       )}
+      </details>
 
       {view === 'collections' && app.householdAccess.recipes && (
         <Section className="mt-3 rise rise-1">
@@ -471,15 +474,13 @@ export default function RecipesTab({ openRecipe }) {
             <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{emptyLine}</p>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 gap-3 items-start">
-            {cols.map((col, ci) => (
-              <div key={ci} className="space-y-3">
-                {col.map((r, i) => {
-                  const tall = (i + ci) % 3 === 0;
-                  const fav = app.favourites.includes(r.id);
-                  const short = missingFrom(r, pantryNames).length;
-                  return (
-                    <Card key={r.id} onClick={() => openRecipe(r)} className="!p-0 overflow-hidden">
+          <div className="recipe-grid grid grid-cols-2 gap-3 items-start">
+            {visible.map((r, i) => {
+              const tall = i % 5 === 0;
+              const fav = app.favourites.includes(r.id);
+              const short = missingFrom(r, pantryNames).length;
+              return (
+                <Card key={r.id} onClick={() => openRecipe(r)} className="!p-0 overflow-hidden">
                       <div className="relative">
                         <FoodArt recipe={r} className={tall ? 'h-40 w-full' : 'h-28 w-full'} px={tall ? 44 : 36} />
                         {app.householdAccess.recipes && <button
@@ -513,11 +514,9 @@ export default function RecipesTab({ openRecipe }) {
                           </p>
                         )}
                       </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 

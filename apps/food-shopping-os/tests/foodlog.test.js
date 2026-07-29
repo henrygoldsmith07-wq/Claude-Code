@@ -3,7 +3,8 @@ import {
   importRecipeText, importRecipeUrl, isBarcode, lookupBarcode, makeCustomFood,
   parseIngredientLine, parsePhrase, parseVoiceLog, recognisePlate, recogniseShelf, searchFoods,
 } from '../src/lib/foodlog.js';
-import { CATALOGUE, RESTAURANT_FOODS } from '../src/data/foods.js';
+import { CATALOGUE, FOODS, RESTAURANT_FOODS } from '../src/data/foods.js';
+import { EXPANDED_FOODS } from '../src/data/expanded-foods.js';
 
 describe('search', () => {
   it('ranks exact and prefix matches first', () => {
@@ -19,6 +20,35 @@ describe('search', () => {
 
   it('finds restaurant menu items', () => {
     expect(searchFoods('katsu').some((f) => f.source === 'restaurant')).toBe(true);
+  });
+
+  it('covers a broader everyday food catalogue', () => {
+    expect(EXPANDED_FOODS.length).toBeGreaterThanOrEqual(200);
+    expect(FOODS.length).toBeGreaterThanOrEqual(284);
+    expect(new Set(FOODS.map((food) => food.id)).size).toBe(FOODS.length);
+
+    for (const [query, id] of [
+      ['beef mince', 'beef-mince'],
+      ['kidney beans', 'kidney-beans'],
+      ['oat milk', 'oat-drink'],
+      ['raspberries', 'raspberries'],
+      ['sirloin steak', 'sirloin-steak'],
+      ['butternut squash', 'butternut-squash'],
+      ['chia seeds', 'chia-seeds'],
+      ['beef lasagne', 'beef-lasagne'],
+      ['flat white', 'flat-white'],
+    ]) {
+      expect(searchFoods(query)[0]?.id, query).toBe(id);
+    }
+  });
+
+  it('gives new foods usable portions and micronutrients', () => {
+    for (const id of ['weetabix', 'cod-fillet', 'quinoa', 'red-pepper', 'pear']) {
+      const food = FOODS.find((item) => item.id === id);
+      expect(food.servings[0].grams, id).toBeGreaterThan(0);
+      expect(food.per100.kcal, id).toBeGreaterThan(0);
+      expect(food.per100.potassium, id).toBeGreaterThan(0);
+    }
   });
 
   it('returns nothing for gibberish', () => {

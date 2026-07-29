@@ -7,6 +7,7 @@ const onboard = ({ cycle = false, stats = null } = {}) => {
   fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
   fireEvent.click(screen.getByText('Continue'));
   fireEvent.click(screen.getByText('Continue'));
+  if (stats || cycle) fireEvent.click(screen.getByText('Personalise nutrition'));
   if (stats) {
     fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: String(stats.weightKg) } });
     fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: String(stats.heightCm) } });
@@ -80,6 +81,7 @@ describe('what setup asks for, and why', () => {
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
     fireEvent.click(screen.getByText('Continue'));
     fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Personalise nutrition'));
     // Nothing given yet, so it asks for the figure instead of inventing one.
     expect(screen.getByLabelText(/^Maintenance/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: '80' } });
@@ -95,6 +97,7 @@ describe('what setup asks for, and why', () => {
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
     fireEvent.click(screen.getByText('Continue'));
     fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Personalise nutrition'));
     fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: '80' } });
     fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: '180' } });
     fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: '30' } });

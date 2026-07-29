@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  AlarmClock, Camera, ChevronRight, Layers, Mic, Package, Plus,
+  AlarmClock, Camera, CheckCircle2, ChevronRight, Layers, Mic, Package, Plus,
   ScanBarcode, Search, SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -97,7 +97,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
   const blocks = {
     setup: () => (
       <Section className="rise rise-1">
-        <GettingStarted goTab={goTab} />
+        <GettingStarted goTab={goTab} openPantry={openPantry} />
       </Section>
     ),
     reminders: () => (
@@ -351,9 +351,31 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
     ),
   };
 
+  const orderedWidgets = app.homeWidgets.filter((id) => blocks[id]);
+  const focusWidget = app.entryGoal === 'pantry' ? 'pantry' : app.entryGoal === 'shop' ? 'water' : 'recipe';
+  const coreIds = new Set(['setup', 'meals', focusWidget]);
+  const coreWidgets = orderedWidgets.filter((id) => coreIds.has(id));
+  const moreWidgets = orderedWidgets.filter((id) => !coreIds.has(id));
+  const renderWidget = (id) => (
+    <div
+      key={id}
+      draggable={customising}
+      onDragStart={() => setDragging(id)}
+      onDragOver={(event) => customising && event.preventDefault()}
+      onDrop={() => {
+        if (customising && dragging) app.moveWidgetTo(dragging, id);
+        setDragging(null);
+      }}
+      className={customising ? 'cursor-grab rounded-2xl outline outline-1 outline-dashed outline-[var(--line)] py-1' : ''}
+    >
+      {blocks[id]()}
+    </div>
+  );
+
   return (
     <div className="pb-6 space-y-6">
       {/* Budget + nutrition */}
+      {(app.weeklyBudget > 0 || app.entries.length > 0) && (
       <div className="px-5 grid grid-cols-2 gap-3 rise rise-1">
         <Card onClick={() => goTab('shop')}>
           <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Weekly budget</p>
@@ -400,6 +422,32 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
           </div>
         </Card>
       </div>
+      )}
+
+      {app.starterRecipeIds.length > 0 && !app.welcomeDismissed && (
+        <div className="px-5 rise rise-1">
+          <Card className="flex items-start gap-3 !p-4">
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              <CheckCircle2 size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-extrabold">Your first meals are ready</p>
+              <p className="mt-0.5 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                {app.starterRecipeIds.length} dinner{app.starterRecipeIds.length === 1 ? '' : 's'} planned and one shopping list created.
+              </p>
+              <button onClick={() => goTab('plan')} className="tap press mt-2 text-[12.5px] font-extrabold" style={{ color: 'var(--accent)' }}>
+                View your plan →
+              </button>
+            </div>
+            <button onClick={app.dismissWelcome} className="tap press text-[11.5px] font-bold" style={{ color: 'var(--muted)' }}>
+              Dismiss
+            </button>
+          </Card>
+        </div>
+      )}
 
       {/* Rearranging the dashboard is a thing you do *to* these cards, so the
           control sits with them rather than up in the header. */}
@@ -419,29 +467,23 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
           Drag these cards into the order you want them. Hidden ones are under the avatar, in Preferences → Home.
         </div>
       )}
-      {app.homeWidgets
-        .filter((id) => blocks[id])
-        .map((id) => (
-          <div
-            key={id}
-            draggable={customising}
-            onDragStart={() => setDragging(id)}
-            onDragOver={(event) => customising && event.preventDefault()}
-            onDrop={() => {
-              if (customising && dragging) app.moveWidgetTo(dragging, id);
-              setDragging(null);
-            }}
-            className={customising ? 'cursor-grab rounded-2xl outline outline-1 outline-dashed outline-[var(--line)] py-1' : ''}
-          >
-            {blocks[id]()}
+      {customising ? orderedWidgets.map(renderWidget) : coreWidgets.map(renderWidget)}
+
+      {!customising && moreWidgets.length > 0 && (
+        <details className="home-more group">
+          <summary className="mx-5 flex cursor-pointer list-none items-center justify-between rounded-2xl border px-4 py-3 text-[13px] font-extrabold" style={{ borderColor: 'var(--line)', background: 'var(--card)' }}>
+            Explore more
+            <span className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{moreWidgets.length} sections</span>
+          </summary>
+          <div className="mt-6 space-y-6">
+            {moreWidgets.map(renderWidget)}
           </div>
-        ))}
+        </details>
+      )}
 
       {/* While there's setup left, the next step *is* the main thing to do
           here; after that it's the diary, which is what Home is really for. */}
-      {setup.complete
-        ? <PrimaryAction label="Log what you ate" onClick={() => goLog()} />
-        : <PrimaryAction label={setup.next.label} hint={`${setup.done}/${setup.total}`} onClick={() => goTab(setup.next.go)} />}
+      {setup.complete && <PrimaryAction label="Log what you ate" onClick={() => goLog()} />}
     </div>
   );
 }

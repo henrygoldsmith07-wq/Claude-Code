@@ -303,6 +303,13 @@ export function AppProvider({ children }) {
           onboarded: true,
           measurements: seedMeasurements(profile.body, s.day, s.measurements),
         })),
+      dismissSetupStep: (id) =>
+        set((s) => ({
+          dismissedSetupSteps: s.dismissedSetupSteps.includes(id)
+            ? s.dismissedSetupSteps
+            : [...s.dismissedSetupSteps, id],
+        })),
+      dismissWelcome: () => set({ welcomeDismissed: true }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),

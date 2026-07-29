@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   Camera, ChevronDown, ChevronRight, ChevronUp, Clock, Heart, Link2, Mic, Plus,
-  ScanBarcode, Search, Trash2, Zap,
+  ScanBarcode, Search, SlidersHorizontal, Trash2, Zap,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { searchFoods, makeCustomFood } from '../lib/foodlog.js';
@@ -28,6 +28,32 @@ const CAPTURE = [
   { id: 'import', label: 'Import recipe', Icon: Link2 },
   { id: 'copy', label: 'Copy meal', Icon: Clock },
 ];
+
+const EMPTY_FILTERS = {
+  fitsDiet: false,
+  highProtein: false,
+  highFibre: false,
+  under300: false,
+  category: 'all',
+};
+
+const CATEGORY_FILTERS = [
+  { id: 'all', label: 'Any type' },
+  { id: 'breakfast', label: 'Breakfast' },
+  { id: 'snack', label: 'Snacks' },
+  { id: 'drink', label: 'Drinks' },
+];
+
+export const filterFoodList = (foods, filters = EMPTY_FILTERS, diets = []) =>
+  foods.filter((food) => {
+    const macros = scale(food.per100, defaultServing(food).grams);
+    if (filters.fitsDiet && dietConflicts(food, diets).length > 0) return false;
+    if (filters.highProtein && macros.protein < 15) return false;
+    if (filters.highFibre && (macros.fibre || 0) < 5) return false;
+    if (filters.under300 && macros.kcal > 300) return false;
+    if (filters.category !== 'all' && !(food.tags || []).includes(filters.category)) return false;
+    return true;
+  });
 
 /** One tappable catalogue row: what it is, and what a serving of it costs you. */
 export const FoodRow = ({ food, onPick, right }) => {
@@ -227,18 +253,29 @@ export default function AddFood({
   const [query, setQuery] = useState(initialQuery);
   const [chain, setChain] = useState(RESTAURANTS[0].chain);
   const [panel, setPanel] = useState(null); // 'quick' | 'custom'
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-  const results = useMemo(() => searchFoods(query, app.catalogue, 40), [query, app.catalogue]);
+  const results = useMemo(
+    () => searchFoods(query, app.catalogue, app.catalogue.length),
+    [query, app.catalogue],
+  );
   const favourites = app.favouriteFoods.map((id) => app.catalogue.find((f) => f.id === id)).filter(Boolean);
   const restaurantFoods = app.catalogue.filter((f) => f.source === 'restaurant' && f.chain === chain);
 
-  const list = {
+  const unfilteredList = {
     search: results,
     recent: app.recentFoods,
     favourites,
     restaurant: restaurantFoods,
     mine: app.customFoods,
   }[tab];
+  const list = filterFoodList(unfilteredList, filters, app.diets).slice(0, 40);
+  const activeFilterCount = [
+    filters.fitsDiet, filters.highProtein, filters.highFibre, filters.under300,
+    filters.category !== 'all',
+  ].filter(Boolean).length;
+  const toggleFilter = (key) => setFilters((current) => ({ ...current, [key]: !current[key] }));
 
   return (
     <div className="px-5 pb-10 space-y-4">
@@ -266,18 +303,117 @@ export default function AddFood({
       {panel === 'quick' && <QuickAddPanel defaultMeal={defaultMeal} onDone={() => setPanel(null)} />}
       {panel === 'custom' && <CustomFoodForm onCreated={() => { setPanel(null); setTab('mine'); }} />}
 
-      {/* Search */}
-      <div className="flex items-center gap-2 rounded-2xl border px-4 py-3" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
-        <Search size={16} style={{ color: 'var(--faint)' }} />
-        <input
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setTab('search'); }}
-          placeholder="Search 100+ foods, brands and menus…"
-          aria-label="Search foods"
-          className="w-full bg-transparent text-[14px] font-semibold outline-none"
-          style={{ color: 'var(--ink)' }}
-        />
+      <div className="flex gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border px-4 py-3" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
+          <Search size={16} style={{ color: 'var(--faint)' }} />
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setTab('search'); }}
+            placeholder="Search foods, brands and menus…"
+            aria-label="Search foods"
+            className="w-full bg-transparent text-[14px] font-semibold outline-none"
+            style={{ color: 'var(--ink)' }}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-label={`Food filters${activeFilterCount ? `, ${activeFilterCount} active` : ''}`}
+          aria-expanded={filtersOpen}
+          className="press relative grid w-[46px] shrink-0 place-items-center rounded-2xl border"
+          style={{
+            background: activeFilterCount ? 'var(--accent-soft)' : 'var(--card)',
+            borderColor: activeFilterCount ? 'var(--accent)' : 'var(--line)',
+            color: activeFilterCount ? 'var(--accent)' : 'var(--muted)',
+          }}
+        >
+          <SlidersHorizontal size={17} />
+          {activeFilterCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-black text-white"
+              style={{ background: 'var(--accent)' }}
+              aria-hidden="true"
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
+
+      {filtersOpen && (
+        <div
+          role="group"
+          aria-labelledby="food-filter-heading"
+          className="rounded-2xl border p-3.5"
+          style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="food-filter-heading" className="text-[13px] font-extrabold" style={{ color: 'var(--ink)' }}>Filter foods</h3>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilters(EMPTY_FILTERS)}
+                className="press text-[12px] font-extrabold"
+                style={{ color: 'var(--accent)' }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          <p className="mt-3 text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--faint)' }}>Nutrition</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[
+              ['highProtein', '15g+ protein'],
+              ['highFibre', '5g+ fibre'],
+              ['under300', 'Under 300 kcal'],
+              ['fitsDiet', 'Fits my diet'],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => toggleFilter(id)}
+                aria-pressed={filters[id]}
+                className="press rounded-full border px-3 py-2 text-[12px] font-extrabold"
+                style={{
+                  background: filters[id] ? 'var(--accent-soft)' : 'transparent',
+                  borderColor: filters[id] ? 'var(--accent)' : 'var(--line)',
+                  color: filters[id] ? 'var(--accent)' : 'var(--muted)',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-4 text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--faint)' }}>Food type</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {CATEGORY_FILTERS.map((option) => {
+              const active = filters.category === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setFilters((current) => ({ ...current, category: option.id }))}
+                  aria-pressed={active}
+                  className="press rounded-full border px-3 py-2 text-[12px] font-extrabold"
+                  style={{
+                    background: active ? 'var(--accent-soft)' : 'transparent',
+                    borderColor: active ? 'var(--accent)' : 'var(--line)',
+                    color: active ? 'var(--accent)' : 'var(--muted)',
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 text-[11px] font-bold" style={{ color: 'var(--faint)' }} aria-live="polite">
+            {list.length} {list.length === 1 ? 'food' : 'foods'} shown
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
         {TABS.map((t) => (
@@ -306,7 +442,8 @@ export default function AddFood({
       <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
         {list.length === 0 && (
           <EmptyRow>
-            {tab === 'search' ? 'Nothing matched — try fewer words, scan a barcode, or create a custom food.'
+            {activeFilterCount > 0 ? 'No foods match these filters. Clear filters or try another search.'
+              : tab === 'search' ? 'Nothing matched — try fewer words, scan a barcode, or create a custom food.'
               : tab === 'mine' ? 'No custom foods yet. Make one and it stays in your catalogue, weights and all.'
                 : tab === 'favourites' ? 'Star a food and it lands here, ready to log in a tap.'
                   : 'Nothing logged yet. Once you have, your usual foods appear here first.'}

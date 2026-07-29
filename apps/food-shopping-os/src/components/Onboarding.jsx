@@ -1,13 +1,27 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, Check, Upload, UtensilsCrossed } from 'lucide-react';
+import {
+  ArrowRight, CalendarDays, Check, Package, ShoppingCart, SlidersHorizontal,
+  Upload, UtensilsCrossed,
+} from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { BODY_GOALS, DIET_PATTERNS, SEXES } from '../data/goals.js';
 import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
-import { Card, Chip, Stepper, Toggle } from './ui.jsx';
+import { byId } from '../data/recipes.js';
+import { itemsFromRecipes } from '../data/stores.js';
+import { addDays } from '../lib/kitchen.js';
+import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
 const num = (value) => Math.max(0, Number(value) || 0) || null;
+
+const ENTRY_GOALS = [
+  { id: 'plan', title: 'Plan my meals', text: 'Choose a few dishes and build your week.', Icon: CalendarDays },
+  { id: 'shop', title: 'Build a shopping list', text: 'Get one clear list, organised by aisle.', Icon: ShoppingCart },
+  { id: 'pantry', title: 'Use food I already have', text: 'Start with your kitchen and waste less.', Icon: Package },
+];
+
+const STARTER_RECIPE_IDS = ['chicken-traybake', 'chickpea-curry', 'salmon-teriyaki'];
 
 export default function Onboarding() {
   const app = useApp();
@@ -15,6 +29,9 @@ export default function Onboarding() {
   const [restoreStatus, setRestoreStatus] = useState('');
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  const [entryGoal, setEntryGoal] = useState('plan');
+  const [starterRecipeIds, setStarterRecipeIds] = useState([]);
+  const [showPersonalisation, setShowPersonalisation] = useState(false);
   const [household, setHousehold] = useState(1);
   const [budget, setBudget] = useState('');
   const [diets, setDiets] = useState([]);
@@ -50,6 +67,11 @@ export default function Onboarding() {
   });
 
   const finish = () => {
+    const starterRecipes = starterRecipeIds.map(byId).filter(Boolean);
+    const starterPlan = Object.fromEntries(starterRecipes.map((recipe, index) => [
+      addDays(app.day, index),
+      { dinner: recipe.id },
+    ]));
     const state = {
       goal,
       diets,
@@ -62,6 +84,10 @@ export default function Onboarding() {
       name: name.trim() || 'you',
       household,
       trackCycle,
+      entryGoal,
+      starterRecipeIds,
+      plan: starterPlan,
+      shoppingList: itemsFromRecipes(starterRecipes),
       weeklyBudget: Math.max(0, Number(budget) || 0),
       targets: targetsFor(state),
     });
@@ -80,21 +106,53 @@ export default function Onboarding() {
       <div className="rise">
         <UtensilsCrossed size={30} strokeWidth={1.5} style={{ color: 'var(--muted)' }} />
         <h1 className="mt-3 text-[28px] font-extrabold tracking-tight leading-tight">
-          {step === 0 ? 'Welcome to Forq' : step === 1 ? 'Your kitchen' : 'Your targets'}
+          {step === 0 ? 'Welcome to Forq' : step === 1 ? 'A little context' : 'Your first win'}
         </h1>
         <p className="mt-1.5 text-[14px] font-semibold" style={{ color: 'var(--muted)' }}>
-          {step === 0 && 'Plan meals, shop smarter, cook better. Everything you see will be built from what you actually log — nothing is filled in for you.'}
-          {step === 1 && 'Used for budget headroom and recipe portions. Both are editable later.'}
-          {step === 2 && 'A starting point for the diary. Every nutrient target can be changed any time.'}
+          {step === 0 && 'Choose what you want help with first. Nothing is filled in for you, and you can change direction at any time.'}
+          {step === 1 && 'Two useful details make portions and spending more accurate. Both are optional.'}
+          {step === 2 && 'Pick up to three recipes and Forq will turn them into meals and one shopping list.'}
         </p>
       </div>
 
       <div className="mt-6 space-y-4 rise rise-1">
         {step === 0 && (
-          <Card className="space-y-3">
+          <>
+            <fieldset>
+              <legend className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                What would you like help with first?
+              </legend>
+              <div className="mt-2 grid gap-2.5">
+                {ENTRY_GOALS.map(({ id, title, text, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={entryGoal === id}
+                    onClick={() => setEntryGoal(id)}
+                    className="press flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left"
+                    style={{
+                      background: entryGoal === id ? 'var(--accent-soft)' : 'var(--card)',
+                      borderColor: entryGoal === id ? 'var(--accent)' : 'var(--line)',
+                    }}
+                  >
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                      style={{ background: entryGoal === id ? 'var(--accent)' : 'var(--card-2)', color: entryGoal === id ? 'var(--on-accent)' : 'var(--muted)' }}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-extrabold">{title}</span>
+                      <span className="block text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{text}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <Card className="space-y-3">
             <label className="block">
               <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-                What should we call you?
+                What should we call you? <span className="normal-case tracking-normal">(optional)</span>
               </span>
               <input
                 value={name}
@@ -107,7 +165,8 @@ export default function Onboarding() {
                 style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
             </label>
-          </Card>
+            </Card>
+          </>
         )}
 
         {step === 1 && (
@@ -149,6 +208,66 @@ export default function Onboarding() {
 
         {step === 2 && (
           <>
+            <fieldset>
+              <legend className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                Choose up to three dinners
+              </legend>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {STARTER_RECIPE_IDS.map((id) => {
+                  const recipe = byId(id);
+                  const selected = starterRecipeIds.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setStarterRecipeIds((current) =>
+                        current.includes(id)
+                          ? current.filter((recipeId) => recipeId !== id)
+                          : current.length < 3 ? [...current, id] : current)}
+                      className="press overflow-hidden rounded-2xl border text-left"
+                      style={{
+                        background: 'var(--card)',
+                        borderColor: selected ? 'var(--accent)' : 'var(--line)',
+                        boxShadow: selected ? '0 0 0 1px var(--accent)' : 'none',
+                      }}
+                    >
+                      <FoodArt recipe={recipe} className="h-24 w-full" px={28} />
+                      <span className="block p-2.5">
+                        <span className="block text-[12px] font-extrabold leading-tight">{recipe.name}</span>
+                        <span className="mt-1 block text-[10.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                          {recipe.time} min · £{recipe.costPerServing.toFixed(2)}/serving
+                        </span>
+                        <span className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
+                          {selected && <Check size={11} strokeWidth={3} />}
+                          {selected ? 'Selected' : 'Choose'}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                Optional. Choose nothing to start with an empty app.
+              </p>
+            </fieldset>
+
+            <button
+              type="button"
+              onClick={() => setShowPersonalisation((value) => !value)}
+              aria-expanded={showPersonalisation}
+              className="press flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left"
+              style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
+            >
+              <span>
+                <span className="block text-[13.5px] font-extrabold">Personalise nutrition</span>
+                <span className="block text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>Optional goals, body metrics and cycle tracking</span>
+              </span>
+              <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
+            </button>
+
+            {showPersonalisation && (
+              <>
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
                 What are you aiming for?
@@ -231,6 +350,8 @@ export default function Onboarding() {
             <p className="text-[12px] font-semibold px-1" style={{ color: 'var(--muted)' }}>
               Vitamins and minerals start at UK reference intakes. Everything here is editable later.
             </p>
+              </>
+            )}
           </>
         )}
       </div>

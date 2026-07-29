@@ -39,7 +39,10 @@ export const searchFoods = (query, catalogue = CATALOGUE, limit = 40) => {
   return catalogue
     .map((food) => {
       const scores = words.map((w) => score(food, w));
-      return scores.some((sc) => sc === 0) ? null : { food, total: scores.reduce((a, b) => a + b, 0) };
+      const ownFoodBoost = food.source === 'custom' ? 15 : 0;
+      return scores.some((sc) => sc === 0)
+        ? null
+        : { food, total: scores.reduce((a, b) => a + b, ownFoodBoost) };
     })
     .filter(Boolean)
     .sort((a, b) => b.total - a.total || a.food.name.localeCompare(b.food.name))

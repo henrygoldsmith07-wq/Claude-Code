@@ -14,7 +14,7 @@
 export default function PrimaryAction({ label, onClick, hint }) {
   return (
     <div
-      className="fixed left-1/2 z-30 w-full max-w-lg -translate-x-1/2 px-5"
+      className="primary-action fixed left-1/2 z-30 w-full max-w-lg -translate-x-1/2 px-5"
       style={{ bottom: 'calc(4.75rem + env(safe-area-inset-bottom))' }}
     >
       <button

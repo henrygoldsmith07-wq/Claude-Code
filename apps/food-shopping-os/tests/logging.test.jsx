@@ -179,6 +179,32 @@ describe('logging routes', () => {
 
     expect(within(sheet).getByText('Nan’s trifle')).toBeDefined();
   });
+
+  it('filters foods by nutrition and food type, then clears the filters', () => {
+    openDiary();
+    fireEvent.click(screen.getAllByText('+ Add food')[0]);
+    const sheet = dialogFor('Add food');
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Food filters' }));
+    expect(within(sheet).getByText('Banana')).toBeDefined();
+
+    const proteinFilter = within(sheet).getByRole('button', { name: '15g+ protein' });
+    fireEvent.click(proteinFilter);
+    expect(proteinFilter.getAttribute('aria-pressed')).toBe('true');
+    expect(within(sheet).queryByText('Banana')).toBeNull();
+    expect(within(sheet).getByText('Chicken breast, cooked')).toBeDefined();
+    expect(within(sheet).getByRole('button', { name: 'Food filters, 1 active' })).toBeDefined();
+
+    fireEvent.click(within(sheet).getByText('Clear all'));
+    expect(within(sheet).getByText('Banana')).toBeDefined();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Breakfast' }));
+    expect(within(sheet).getByText('Porridge oats')).toBeDefined();
+    expect(within(sheet).queryByText('Chicken breast, cooked')).toBeNull();
+
+    fireEvent.click(within(sheet).getByText('Clear all'));
+    expect(within(sheet).getByText('Chicken breast, cooked')).toBeDefined();
+  });
 });
 
 describe('nutrition panel', () => {

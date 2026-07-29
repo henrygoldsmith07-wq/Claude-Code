@@ -8,26 +8,30 @@
  */
 
 import { microsFor, microsFromBlend, fibreFromBlend } from './micronutrients.js';
+import { EXPANDED_FOODS } from './expanded-foods.js';
 
 const n = ([kcal, protein, carbs, fat, fibre = 0]) => ({ kcal, protein, carbs, fat, fibre });
 const s = (pairs) => pairs.map(([label, grams]) => ({ label, grams }));
 
 /** Energy + macros live here; the other 19 nutrients come from the micro table. */
-const food = (id, name, emoji, per100, servings, extra = {}) => ({
-  id,
-  name,
-  emoji,
-  unit: 'g',
-  source: 'generic',
-  tags: [],
-  per100: { ...n(per100), ...microsFor(id) },
-  servings: s(servings),
-  ...extra,
-});
+const food = (id, name, emoji, per100, servings, extra = {}) => {
+  const { micronutrientId = id, ...details } = extra;
+  return {
+    id,
+    name,
+    emoji,
+    unit: 'g',
+    source: 'generic',
+    tags: [],
+    per100: { ...n(per100), ...microsFor(micronutrientId) },
+    servings: s(servings),
+    ...details,
+  };
+};
 
 /* ---------- Everyday foods ---------- */
 
-export const FOODS = [
+const CORE_FOODS = [
   food('porridge-oats', 'Porridge oats', '🌾', [379, 11, 60, 8, 9],
     [['1 serving (40 g)', 40], ['Small bowl (30 g)', 30], ['Big bowl (60 g)', 60]],
     { brand: 'Quaker', barcode: '5000108000015', source: 'branded', tags: ['breakfast', 'grain'] }),
@@ -131,7 +135,124 @@ export const FOODS = [
     [['Serving (45 g)', 45], ['Big serving (70 g)', 70]], { tags: ['breakfast'] }),
   food('ice-cream', 'Vanilla ice cream', '🍦', [207, 3.5, 24, 11],
     [['2 scoops (100 g)', 100], ['Tub (450 g)', 450]], { tags: ['treat'] }),
+
+  /* ---------- More everyday foods ---------- */
+
+  food('weetabix', 'Weetabix', '🌾', [362, 12, 69, 2, 10],
+    [['2 biscuits (37.5 g)', 37.5], ['1 biscuit (18.75 g)', 18.75], ['3 biscuits (56.25 g)', 56.25]],
+    { brand: 'Weetabix', tags: ['breakfast', 'cereal', 'high-fibre'], micronutrientId: 'porridge-oats' }),
+  food('corn-flakes', 'Corn flakes', '🌽', [378, 7, 84, 0.9, 3],
+    [['Bowl (30 g)', 30], ['Large bowl (45 g)', 45]],
+    { tags: ['breakfast', 'cereal'], micronutrientId: 'porridge-oats' }),
+  food('muesli', 'Muesli', '🥣', [360, 10, 64, 7, 8],
+    [['Bowl (45 g)', 45], ['Large bowl (70 g)', 70]],
+    { tags: ['breakfast', 'cereal', 'high-fibre'], micronutrientId: 'porridge-oats' }),
+  food('full-fat-milk', 'Whole milk', '🥛', [64, 3.4, 4.7, 3.6],
+    [['Splash (50 ml)', 50], ['Glass (200 ml)', 200], ['Mug (250 ml)', 250]],
+    { unit: 'ml', tags: ['dairy', 'drink'], micronutrientId: 'semi-skimmed-milk' }),
+  food('skimmed-milk', 'Skimmed milk', '🥛', [35, 3.6, 5, 0.1],
+    [['Splash (50 ml)', 50], ['Glass (200 ml)', 200], ['Mug (250 ml)', 250]],
+    { unit: 'ml', tags: ['dairy', 'drink'], micronutrientId: 'semi-skimmed-milk' }),
+  food('oat-drink', 'Oat drink', '🥛', [46, 1, 6.7, 1.5, 0.8],
+    [['Splash (50 ml)', 50], ['Glass (200 ml)', 200], ['Mug (250 ml)', 250]],
+    { unit: 'ml', tags: ['vegan', 'drink', 'milk alternative'], micronutrientId: 'semi-skimmed-milk' }),
+  food('plain-yogurt', 'Plain yogurt', '🥣', [61, 3.5, 4.7, 3.3],
+    [['Small pot (125 g)', 125], ['Bowl (170 g)', 170]],
+    { tags: ['dairy', 'breakfast'], micronutrientId: 'greek-yogurt' }),
+  food('cottage-cheese', 'Cottage cheese', '🧀', [98, 12.4, 3.4, 4.3],
+    [['Half tub (150 g)', 150], ['2 tbsp (60 g)', 60]],
+    { tags: ['dairy', 'high-protein'], micronutrientId: 'greek-yogurt' }),
+
+  food('chicken-thigh', 'Chicken thigh, cooked', '🍗', [209, 26, 0, 10.9],
+    [['1 thigh (100 g)', 100], ['2 thighs (200 g)', 200]],
+    { tags: ['high-protein', 'meat'], micronutrientId: 'chicken-breast' }),
+  food('beef-mince', 'Lean beef mince 5%, cooked', '🥩', [172, 26, 0, 7],
+    [['Serving (125 g)', 125], ['Large serving (200 g)', 200]],
+    { tags: ['high-protein', 'meat'], micronutrientId: 'chicken-breast' }),
+  food('turkey-breast', 'Turkey breast, cooked', '🍗', [135, 30, 0, 1],
+    [['Serving (120 g)', 120], ['2 slices (50 g)', 50]],
+    { tags: ['high-protein', 'meat'], micronutrientId: 'chicken-breast' }),
+  food('pork-loin', 'Pork loin, cooked', '🥩', [196, 29, 0, 8],
+    [['1 chop (140 g)', 140], ['Serving (100 g)', 100]],
+    { tags: ['high-protein', 'meat'], micronutrientId: 'chicken-breast' }),
+  food('cod-fillet', 'Cod fillet, cooked', '🐟', [89, 19.9, 0, 0.7],
+    [['1 fillet (140 g)', 140], ['Small fillet (100 g)', 100]],
+    { tags: ['high-protein', 'fish'], micronutrientId: 'tuna-tinned' }),
+  food('prawns', 'Prawns, cooked', '🍤', [99, 24, 0.2, 0.3],
+    [['Half pack (100 g)', 100], ['Handful (60 g)', 60]],
+    { tags: ['high-protein', 'fish'], micronutrientId: 'tuna-tinned' }),
+  food('kidney-beans', 'Kidney beans, tinned', '🫘', [94, 6.9, 13.5, 0.5, 6.4],
+    [['Half tin (120 g)', 120], ['Full tin (240 g)', 240]],
+    { tags: ['plant-protein', 'tinned', 'high-fibre'], micronutrientId: 'chickpeas' }),
+  food('black-beans', 'Black beans, tinned', '🫘', [116, 7.8, 16, 0.5, 6.9],
+    [['Half tin (120 g)', 120], ['Full tin (240 g)', 240]],
+    { tags: ['plant-protein', 'tinned', 'high-fibre'], micronutrientId: 'chickpeas' }),
+  food('tempeh', 'Tempeh', '🫘', [193, 20.3, 7.6, 10.8, 6],
+    [['Half pack (100 g)', 100], ['Full pack (200 g)', 200]],
+    { tags: ['vegan', 'plant-protein', 'high-protein'], micronutrientId: 'tofu' }),
+
+  food('couscous', 'Couscous, cooked', '🍚', [112, 3.8, 23.2, 0.2, 1.4],
+    [['Serving (150 g)', 150], ['Small serving (100 g)', 100]],
+    { tags: ['grain'], micronutrientId: 'white-rice' }),
+  food('quinoa', 'Quinoa, cooked', '🌾', [120, 4.4, 21.3, 1.9, 2.8],
+    [['Serving (150 g)', 150], ['Small serving (100 g)', 100]],
+    { tags: ['grain', 'plant-protein'], micronutrientId: 'brown-rice' }),
+  food('egg-noodles', 'Egg noodles, cooked', '🍜', [138, 4.5, 25, 2.1, 1.2],
+    [['Serving (180 g)', 180], ['Small serving (120 g)', 120]],
+    { tags: ['grain', 'egg'], micronutrientId: 'pasta' }),
+  food('white-bread', 'White bread', '🍞', [265, 9, 49, 3.2, 2.7],
+    [['1 slice (36 g)', 36], ['2 slices (72 g)', 72], ['Thick slice (44 g)', 44]],
+    { tags: ['bread', 'breakfast'], micronutrientId: 'wholemeal-bread' }),
+  food('plain-bagel', 'Plain bagel', '🥯', [257, 10, 50, 1.7, 2.3],
+    [['1 bagel (90 g)', 90], ['Half bagel (45 g)', 45]],
+    { tags: ['bread', 'breakfast'], micronutrientId: 'wholemeal-bread' }),
+
+  food('carrots', 'Carrots', '🥕', [35, 0.8, 8.2, 0.2, 3],
+    [['1 medium (60 g)', 60], ['Serving (80 g)', 80]],
+    { tags: ['veg', 'snack'], micronutrientId: 'sweet-potato' }),
+  food('peas', 'Garden peas', '🫛', [79, 5.4, 10, 1.1, 5.5],
+    [['Serving (80 g)', 80], ['Large serving (120 g)', 120]],
+    { tags: ['veg', 'plant-protein'], micronutrientId: 'broccoli' }),
+  food('red-pepper', 'Red pepper', '🫑', [31, 1, 6, 0.3, 2.1],
+    [['Half pepper (80 g)', 80], ['1 pepper (160 g)', 160]],
+    { tags: ['veg'], micronutrientId: 'broccoli' }),
+  food('tomatoes', 'Tomatoes', '🍅', [18, 0.9, 3.9, 0.2, 1.2],
+    [['1 medium (80 g)', 80], ['Handful (120 g)', 120]],
+    { tags: ['veg'], micronutrientId: 'broccoli' }),
+  food('cucumber', 'Cucumber', '🥒', [15, 0.7, 3.6, 0.1, 0.5],
+    [['Quarter cucumber (75 g)', 75], ['Half cucumber (150 g)', 150]],
+    { tags: ['veg', 'snack'], micronutrientId: 'broccoli' }),
+  food('mushrooms', 'Mushrooms', '🍄', [22, 3.1, 3.3, 0.3, 1],
+    [['Handful (80 g)', 80], ['Half pack (125 g)', 125]],
+    { tags: ['veg'], micronutrientId: 'spinach' }),
+  food('cauliflower', 'Cauliflower', '🥦', [25, 1.9, 5, 0.3, 2],
+    [['Serving (80 g)', 80], ['Large serving (150 g)', 150]],
+    { tags: ['veg'], micronutrientId: 'broccoli' }),
+  food('green-beans', 'Green beans', '🫛', [35, 1.9, 7.9, 0.3, 3.2],
+    [['Serving (80 g)', 80], ['Large serving (150 g)', 150]],
+    { tags: ['veg'], micronutrientId: 'broccoli' }),
+  food('sweetcorn', 'Sweetcorn', '🌽', [86, 3.2, 19, 1.2, 2.7],
+    [['Serving (80 g)', 80], ['Half tin (130 g)', 130]],
+    { tags: ['veg', 'tinned'], micronutrientId: 'broccoli' }),
+
+  food('strawberries', 'Strawberries', '🍓', [32, 0.7, 7.7, 0.3, 2],
+    [['Handful (80 g)', 80], ['Half punnet (125 g)', 125]],
+    { tags: ['fruit', 'snack'], micronutrientId: 'blueberries' }),
+  food('grapes', 'Grapes', '🍇', [69, 0.7, 18, 0.2, 0.9],
+    [['Handful (80 g)', 80], ['Bowl (150 g)', 150]],
+    { tags: ['fruit', 'snack'], micronutrientId: 'blueberries' }),
+  food('pear', 'Pear', '🍐', [57, 0.4, 15, 0.1, 3.1],
+    [['1 medium (170 g)', 170], ['1 small (120 g)', 120]],
+    { tags: ['fruit', 'snack'], micronutrientId: 'apple' }),
+  food('mango', 'Mango', '🥭', [60, 0.8, 15, 0.4, 1.6],
+    [['Half mango (100 g)', 100], ['1 mango (200 g)', 200]],
+    { tags: ['fruit', 'snack'], micronutrientId: 'orange' }),
+  food('raspberries', 'Raspberries', '🫐', [52, 1.2, 12, 0.7, 6.5],
+    [['Handful (80 g)', 80], ['Punnet (150 g)', 150]],
+    { tags: ['fruit', 'snack', 'high-fibre'], micronutrientId: 'blueberries' }),
 ];
+
+export const FOODS = [...CORE_FOODS, ...EXPANDED_FOODS];
 
 /* ---------- Restaurant menus ----------
    Menu items are stored the way a menu quotes them — calories, macros, portion

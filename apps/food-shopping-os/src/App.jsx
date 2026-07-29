@@ -239,57 +239,68 @@ function Shell() {
   if (!app.onboarded) return <Onboarding />;
 
   return (
-    <div className="mx-auto max-w-lg min-h-screen relative" style={{ background: 'var(--bg)' }}>
+    <div className="app-shell min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* The first stop for a keyboard or switch user: past the chrome, into
           the day. Invisible until it has focus. */}
       <a href="#main" className="skip-link">Skip to content</a>
 
-      <AppHeader tab={tab} onProfile={() => setProfileOpen(true)} onAi={() => setAiOpen(true)} />
+      <div className="app-workspace">
+        <AppHeader tab={tab} onProfile={() => setProfileOpen(true)} onAi={() => setAiOpen(true)} />
 
-      {/* Room at the foot for the tab bar and the screen's primary action. */}
-      <main id="main" tabIndex={-1} className="pb-44">
-        {app.storageIssue && (
-          <div role="alert" className="mx-5 mt-4 flex items-start gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--warn)' }}>
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--warn)' }} />
-            <p className="text-[12px] font-semibold leading-relaxed">{app.storageIssue.message}</p>
-          </div>
-        )}
-        {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={goTab} goLog={goLog} />}
-        {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
-        {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
-        {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
-        {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
-      </main>
+        {/* Room at the foot for the tab bar and the screen's primary action. */}
+        <main id="main" tabIndex={-1} className="app-main pb-44">
+          {app.storageIssue && (
+            <div role="alert" className="mx-5 mt-4 flex items-start gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--warn)' }}>
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--warn)' }} />
+              <p className="text-[12px] font-semibold leading-relaxed">{app.storageIssue.message}</p>
+            </div>
+          )}
+          {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={goTab} goLog={goLog} />}
+          {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
+          {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
+          {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
+          {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
+        </main>
+      </div>
 
       {/* The coach is in the header now — a floating button here would sit on
           top of the screen's primary action. The launcher keeps its corner,
           raised clear of that bar. */}
       <LauncherButtons onSearch={() => setLauncher('search')} onQuickAdd={() => setLauncher('quick')} />
 
-      {/* Bottom nav */}
+      {/* Bottom navigation on phones, sidebar on larger screens. */}
       <nav
-        className="glass fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-lg border-t"
+        className="app-nav glass"
         style={{ borderColor: 'var(--line)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        aria-label="Main navigation"
       >
-        <div className="flex">
+        <div className="app-brand">
+          <div className="app-brand-mark">F</div>
+          <div>
+            <p className="text-[17px] font-black tracking-tight">Forq</p>
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>Food, sorted.</p>
+          </div>
+        </div>
+        <div className="app-nav-items">
           {TABS.map(({ id, label, Icon }) => {
             const active = tab === id;
             return (
               <button
                 key={id}
                 onClick={() => goTab(id)}
-                className="press flex flex-1 flex-col items-center justify-center gap-1 py-3 min-h-[56px]"
+                className={cx('app-nav-item press', active && 'is-active')}
                 aria-current={active ? 'page' : undefined}
                 // The colour says which tab you're on; the weight says it again,
                 // for anyone who can't see the difference.
                 style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
               >
-                <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
-                <span className={cx('text-[11px]', active ? 'font-extrabold' : 'font-semibold')}>{label}</span>
+                <Icon size={21} strokeWidth={active ? 2.4 : 1.8} />
+                <span className={cx('app-nav-label', active ? 'font-extrabold' : 'font-semibold')}>{label}</span>
               </button>
             );
           })}
         </div>
+        <p className="app-nav-hint"><kbd>⌘ K</kbd> Search anything</p>
       </nav>
 
       {/* Overlays */}
@@ -314,7 +325,7 @@ function Shell() {
       {notice && (
         <div
           role="status"
-          className="fixed left-1/2 bottom-40 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-[12.5px] font-extrabold"
+          className="app-toast fixed left-1/2 bottom-40 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-[12.5px] font-extrabold"
           style={{ background: 'var(--ink)', color: 'var(--bg)', boxShadow: 'var(--shadow-lg)' }}
         >
           {notice}

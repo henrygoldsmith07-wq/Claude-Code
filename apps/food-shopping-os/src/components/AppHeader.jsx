@@ -6,10 +6,10 @@ import { Pill } from './ui.jsx';
 
 const TITLES = {
   home: null, // Home says hello instead — it's the one screen that greets you
-  plan: 'Meal planner',
-  log: 'Food diary',
-  shop: 'Shop',
-  recipes: 'Recipes',
+  plan: { title: 'Meal planner', eyebrow: 'Build your week' },
+  log: { title: 'Food diary', eyebrow: 'Track meals and nutrition' },
+  shop: { title: 'Shop', eyebrow: 'Your list, prices and stores' },
+  recipes: { title: 'Recipes', eyebrow: 'Find something worth cooking' },
 };
 
 /**
@@ -23,15 +23,18 @@ const TITLES = {
  */
 export default function AppHeader({ tab, onProfile, onAi }) {
   const app = useApp();
-  const title = TITLES[tab];
+  const screen = TITLES[tab];
   const setup = setupProgress(app);
 
   return (
-    <header className="px-5 pt-12 pb-3">
+    <header className="app-header px-5 pt-12 pb-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {title ? (
-            <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{title}</h1>
+          {screen ? (
+            <>
+              <p className="text-[12px] font-bold" style={{ color: 'var(--muted)' }}>{screen.eyebrow}</p>
+              <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">{screen.title}</h1>
+            </>
           ) : (
             <>
               <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>

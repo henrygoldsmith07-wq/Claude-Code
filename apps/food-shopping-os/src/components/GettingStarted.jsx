@@ -1,68 +1,67 @@
-import { Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { setupProgress } from '../lib/setup.js';
-import { Card, Meter } from './ui.jsx';
+import { Card } from './ui.jsx';
 
-/**
- * The getting-started card, on Home until it's finished.
- *
- * Every row is something a feature is genuinely waiting on, so ticking one
- * turns a page on somewhere else rather than earning a tick. It disappears
- * entirely when it's done — a checklist that lingers at 6/6 is furniture.
- */
-export default function GettingStarted({ goTab }) {
+const GOAL_ORDER = {
+  plan: ['plan', 'cook', 'pantry', 'shop', 'log', 'targets'],
+  shop: ['shop', 'pantry', 'plan', 'cook', 'log', 'targets'],
+  pantry: ['pantry', 'plan', 'cook', 'shop', 'log', 'targets'],
+};
+
+export const contextualSetupStep = (app, steps) => {
+  const order = GOAL_ORDER[app.entryGoal] || GOAL_ORDER.plan;
+  const available = steps.filter((step) => !step.done && !app.dismissedSetupSteps.includes(step.id));
+  return [...available].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))[0] || null;
+};
+
+export default function GettingStarted({ goTab, openPantry }) {
   const app = useApp();
-  const { steps, done, total, pct, complete, next } = setupProgress(app);
-  if (complete) return null;
+  const { steps, done, total, complete } = setupProgress(app);
+  const next = contextualSetupStep(app, steps);
+  if (complete || !next) return null;
+
+  const act = () => {
+    if (next.id === 'pantry') openPantry();
+    else goTab(next.go);
+  };
 
   return (
-    <Card className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <div>
-          <p className="font-extrabold text-[15px]">Getting started</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            {done} of {total} — each one switches something on
+    <Card className="!p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+            Suggested next · {done} of {total} complete
+          </p>
+          <p className="mt-1 text-[16px] font-extrabold tracking-tight">{next.label}</p>
+          <p className="mt-1 text-[12.5px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            {next.why}
           </p>
         </div>
-        <p className="text-[13px] font-extrabold shrink-0" style={{ color: 'var(--accent)' }}>{pct}%</p>
+        <span
+          aria-hidden="true"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+        >
+          <ArrowRight size={16} />
+        </span>
       </div>
-      <Meter value={done} max={total} />
-
-      <ul className="space-y-1.5">
-        {steps.map((s) => (
-          <li key={s.id}>
-            <button
-              onClick={() => !s.done && goTab(s.go)}
-              disabled={s.done}
-              className="press flex w-full items-start gap-2.5 rounded-2xl p-2 text-left disabled:opacity-100"
-              style={{ background: s.id === next?.id ? 'var(--card-2)' : 'transparent' }}
-            >
-              <span
-                aria-hidden="true"
-                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
-                style={s.done
-                  ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
-                  : { borderColor: 'var(--line)' }}
-              >
-                {s.done && <Check className="check-in" size={12} strokeWidth={3.5} />}
-              </span>
-              <span className="min-w-0">
-                <span
-                  className="block text-[13.5px] font-bold"
-                  style={{ color: s.done ? 'var(--faint)' : 'var(--ink)', textDecoration: s.done ? 'line-through' : 'none' }}
-                >
-                  {s.label}
-                </span>
-                {!s.done && (
-                  <span className="block text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{s.why}</span>
-                )}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {/* No button down here: the next step is the screen's primary action,
-          sitting at the bottom of the phone where your thumb already is. */}
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          onClick={act}
+          className="press rounded-xl px-3.5 py-2.5 text-[12.5px] font-extrabold"
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+        >
+          {next.label}
+        </button>
+        <button
+          onClick={() => app.dismissSetupStep(next.id)}
+          className="tap press text-[12px] font-bold"
+          style={{ color: 'var(--muted)' }}
+        >
+          Not now
+        </button>
+      </div>
     </Card>
   );
 }

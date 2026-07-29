@@ -92,13 +92,45 @@ describe('the budget you set', () => {
 
   it('is used for headroom, and says so when unset', () => {
     onboard({ budget: '' });
-    expect(screen.getByText(/No budget set/)).toBeDefined();
+    expect(screen.queryByText(/No budget set/)).toBeNull();
+    expect(screen.getAllByText('Plan a meal').length).toBeGreaterThan(0);
     cleanup();
 
     localStorage.clear();
     onboard({ budget: '60' });
     expect(screen.getByText('of £60')).toBeDefined();
     expect(screen.getByText('£60.00 left')).toBeDefined();
+  });
+});
+
+describe('goal-led first entry', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it('turns selected starter recipes into a plan and shopping list', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Coconut Chickpea Curry').closest('button'));
+    fireEvent.click(screen.getByText('Teriyaki Salmon Bowls').closest('button'));
+    fireEvent.click(screen.getByText('Start using Forq'));
+
+    expect(screen.getByText('Your first meals are ready')).toBeDefined();
+    expect(screen.getByText(/2 dinners planned/)).toBeDefined();
+    fireEvent.click(screen.getByText('Shop'));
+    expect(screen.getByText('Chickpeas (tins)')).toBeDefined();
+    expect(screen.getByText('Salmon fillets')).toBeDefined();
+  });
+
+  it('uses the chosen goal for the first primary action', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Use food I already have'));
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Start using Forq'));
+
+    expect(screen.getAllByText('Add what’s in your cupboards').length).toBeGreaterThan(0);
   });
 });
 
