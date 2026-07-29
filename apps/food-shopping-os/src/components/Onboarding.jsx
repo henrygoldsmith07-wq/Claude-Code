@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowRight, Check, UtensilsCrossed } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ArrowRight, Check, Upload, UtensilsCrossed } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { BODY_GOALS, DIET_PATTERNS, SEXES } from '../data/goals.js';
@@ -11,6 +11,8 @@ const num = (value) => Math.max(0, Number(value) || 0) || null;
 
 export default function Onboarding() {
   const app = useApp();
+  const restoreRef = useRef(null);
+  const [restoreStatus, setRestoreStatus] = useState('');
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [household, setHousehold] = useState(1);
@@ -63,6 +65,14 @@ export default function Onboarding() {
       weeklyBudget: Math.max(0, Number(budget) || 0),
       targets: targetsFor(state),
     });
+  };
+
+  const restore = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const result = app.restoreData(await file.text());
+    setRestoreStatus(result.ok ? 'Backup restored.' : result.error);
   };
 
   return (
@@ -191,7 +201,7 @@ export default function Onboarding() {
                     Adds a page under Health for periods and symptoms
                   </p>
                 </div>
-                <Toggle on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
+                <Toggle label="Track your cycle" on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
               </div>
               <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
                 Off by default, and nothing else changes either way. Turn it on or off whenever you
@@ -245,6 +255,27 @@ export default function Onboarding() {
           </span>
         </button>
       </div>
+
+      {step === 0 && (
+        <div className="mt-4 text-center">
+          <button
+            className="press px-4 py-2 text-[12.5px] font-bold"
+            style={{ color: 'var(--muted)' }}
+            onClick={() => restoreRef.current?.click()}
+          >
+            <span className="inline-flex items-center gap-1.5"><Upload size={14} /> Restore an existing backup</span>
+          </button>
+          <input
+            ref={restoreRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            aria-label="Restore Forq backup"
+            onChange={restore}
+          />
+          {restoreStatus && <p role="status" className="mt-1 text-[12px] font-semibold">{restoreStatus}</p>}
+        </div>
+      )}
 
       <div className="mt-5 flex justify-center gap-1.5">
         {[0, 1, 2].map((i) => (

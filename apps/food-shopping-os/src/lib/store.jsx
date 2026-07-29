@@ -24,44 +24,88 @@ import { moveBefore } from './utils.js';
 export { PHOTO_LIMIT } from './health-actions.js';
 
 import {
-  ACCENT_IDS, emojiFor, EMPTY_STATE, rolloverDay, STORAGE_KEY, todayStamp, uid,
+  ACCENT_IDS, emojiFor, EMPTY_STATE, rolloverDay, STATE_VERSION, STORAGE_KEY, todayStamp, uid,
 } from './state.js';
 
 export {
-  EMPTY_STATE, foodFromEntry, levelFromXp, recentFoodsFrom, rolloverDay, STORAGE_KEY,
-  todayStamp, XP_PER_LEVEL, xpIntoLevel,
+  EMPTY_STATE, foodFromEntry, levelFromXp, recentFoodsFrom, rolloverDay, STATE_VERSION,
+  STORAGE_KEY, todayStamp, XP_PER_LEVEL, xpIntoLevel,
 } from './state.js';
 
 const KEY = STORAGE_KEY;
 
-const hydrate = (stored = {}) => {
+const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+export const hydrate = (stored = {}) => {
+  const candidate = isObject(stored) ? stored : {};
   const state = {
     ...EMPTY_STATE,
-    ...stored,
-    members: (stored.members || []).map((member) => ({
+    ...candidate,
+    schemaVersion: STATE_VERSION,
+    members: (Array.isArray(candidate.members) ? candidate.members : []).map((member) => ({
       ...member,
       role: member.role === 'child' ? 'child' : 'adult',
       permissions: { ...DEFAULT_PERMISSIONS, ...(member.permissions || {}) },
       notifications: member.notifications !== false,
     })),
-    targets: { ...DEFAULT_TARGETS, ...(stored.targets || {}) },
+    body: { ...EMPTY_STATE.body, ...(isObject(candidate.body) ? candidate.body : {}) },
+    targets: { ...DEFAULT_TARGETS, ...(isObject(candidate.targets) ? candidate.targets : {}) },
   };
+  Object.entries(EMPTY_STATE).forEach(([key, fallback]) => {
+    if (Array.isArray(fallback) && !Array.isArray(state[key])) state[key] = [];
+    else if (isObject(fallback) && !isObject(state[key])) state[key] = { ...fallback };
+  });
   if (!ACCENT_IDS.includes(state.accent)) state.accent = EMPTY_STATE.accent;
   return rolloverDay(state);
 };
 
+export const parseBackup = (text) => {
+  const parsed = typeof text === 'string' ? JSON.parse(text) : text;
+  const candidate = isObject(parsed?.state) ? parsed.state : parsed;
+  if (!isObject(candidate) || typeof candidate.onboarded !== 'boolean') {
+    throw new Error('This is not a complete Forq backup.');
+  }
+  return hydrate(candidate);
+};
+
+export const serialiseBackup = (state) => JSON.stringify({
+  format: 'forq-backup',
+  version: STATE_VERSION,
+  exportedAt: new Date().toISOString(),
+  state: hydrate(state),
+}, null, 2);
+
 const load = () => {
   try {
-    return hydrate(JSON.parse(localStorage.getItem(KEY) || '{}'));
-  } catch {
-    return { ...EMPTY_STATE };
+    const raw = localStorage.getItem(KEY);
+    return raw
+      ? { state: parseBackup(raw), issue: null }
+      : { state: { ...EMPTY_STATE }, issue: null };
+  } catch (error) {
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch { /* storage itself is unavailable */ }
+    return {
+      state: { ...EMPTY_STATE },
+      issue: {
+        kind: raw ? 'corrupt' : 'unavailable',
+        message: raw
+          ? 'Forq could not read your saved data. It has not been overwritten.'
+          : 'This browser is blocking local storage, so changes cannot be saved.',
+        raw,
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    };
   }
 };
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [state, setState] = useState(load);
+  const initial = useRef(null);
+  if (!initial.current) initial.current = load();
+  const [state, setState] = useState(initial.current.state);
+  const [storageIssue, setStorageIssue] = useState(initial.current.issue);
+  const blockPersistence = useRef(initial.current.issue?.kind === 'corrupt');
   const undoHistory = useRef([]);
   const applyingRemote = useRef(false);
   // Reminders are due at a time, not at a state change, so the clock has to
@@ -79,13 +123,33 @@ export function AppProvider({ children }) {
      what the next visit measures "while you were away" from. It's written on
      the way out rather than held in state, so the heartbeat can't re-render
      every screen once a minute. */
+  const persist = (next) => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        ...next,
+        schemaVersion: STATE_VERSION,
+        lastSeenAt: Date.now(),
+      }));
+      setStorageIssue((current) => (current?.kind === 'write' ? null : current));
+      return true;
+    } catch (error) {
+      setStorageIssue({
+        kind: 'write',
+        message: 'Your latest changes could not be saved. Export a backup before closing Forq.',
+        detail: error instanceof Error ? error.message : String(error),
+        raw: null,
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (applyingRemote.current) {
       applyingRemote.current = false;
       return;
     }
-    localStorage.setItem(KEY, JSON.stringify({ ...state, lastSeenAt: Date.now() }));
-  }, [state, tick]);
+    if (!blockPersistence.current) persist(state);
+  }, [state]);
 
   useEffect(() => {
     const sync = (event) => {
@@ -93,7 +157,7 @@ export function AppProvider({ children }) {
       try {
         applyingRemote.current = true;
         undoHistory.current = [];
-        setState(hydrate(JSON.parse(event.newValue)));
+        setState(parseBackup(event.newValue));
       } catch {
         // Ignore incomplete writes from another tab.
       }
@@ -107,7 +171,9 @@ export function AppProvider({ children }) {
   const latest = useRef(state);
   latest.current = state;
   useEffect(() => {
-    const mark = () => localStorage.setItem(KEY, JSON.stringify({ ...latest.current, lastSeenAt: Date.now() }));
+    const mark = () => {
+      if (!blockPersistence.current) persist(latest.current);
+    };
     const onHide = () => { if (document.visibilityState === 'hidden') mark(); };
     document.addEventListener('visibilitychange', onHide);
     window.addEventListener('pagehide', mark);
@@ -145,6 +211,23 @@ export function AppProvider({ children }) {
 
     return {
       set,
+      storageIssue,
+      exportData: () => serialiseBackup(latest.current),
+      restoreData: (text) => {
+        try {
+          const restored = parseBackup(text);
+          blockPersistence.current = false;
+          undoHistory.current = [];
+          setStorageIssue(null);
+          setState(restored);
+          return { ok: true };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : 'That backup could not be read.',
+          };
+        }
+      },
       undoLast: () => {
         const previous = undoHistory.current.pop();
         if (!previous) return false;
@@ -152,7 +235,9 @@ export function AppProvider({ children }) {
         return true;
       },
       reset: () => {
+        blockPersistence.current = false;
         undoHistory.current = [];
+        setStorageIssue(null);
         setState({ ...EMPTY_STATE, day: todayStamp() });
       },
       finishOnboarding: (profile) =>
@@ -584,7 +669,7 @@ export function AppProvider({ children }) {
           };
         }),
     };
-  }, []);
+  }, [storageIssue]);
 
   /* Everything below is derived — the app never stores a number twice. */
   const derived = useMemo(() => deriveApp(state), [state]);

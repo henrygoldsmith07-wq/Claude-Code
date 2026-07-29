@@ -10,7 +10,9 @@ throughout — no emoji in the UI.
 **The app starts empty.** There is no demo user, no pretend pantry, no invented
 spending history and no pre-earned achievements. A first run asks for your
 name, budget and targets, and from then on every number you see is computed
-from what you actually log, buy, cook and plan. Everything persists to
+from what you actually log, buy, cook and plan. Backups can be exported and
+restored, including from first-run setup. Invalid saved data opens a recovery
+screen instead of being silently replaced. Everything persists to
 localStorage on your device — no backend, no account.
 
 The only data that ships with the app is reference material, not user data: a

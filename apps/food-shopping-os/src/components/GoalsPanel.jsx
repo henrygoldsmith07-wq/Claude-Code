@@ -85,7 +85,7 @@ function MaintenanceCard() {
               : 'Off — turning it on adds a page under Health'}
           </p>
         </div>
-        <Toggle on={app.trackCycle} onChange={() => app.setTrackCycle(!app.trackCycle)} />
+        <Toggle label="Track your cycle" on={app.trackCycle} onChange={() => app.setTrackCycle(!app.trackCycle)} />
       </div>
     </Card>
   );

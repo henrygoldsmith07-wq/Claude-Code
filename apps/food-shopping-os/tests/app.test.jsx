@@ -30,6 +30,15 @@ describe('first run', () => {
       expect(screen.getByText(label)).toBeDefined();
     }
   });
+
+  it('preserves unreadable saved data and offers recovery instead of overwriting it', () => {
+    localStorage.setItem('forq-state-v2', '{broken');
+    render(<App />);
+
+    expect(screen.getByText('Saved data needs attention')).toBeDefined();
+    expect(screen.getByText('Download original data')).toBeDefined();
+    expect(localStorage.getItem('forq-state-v2')).toBe('{broken');
+  });
 });
 
 describe('an empty app', () => {

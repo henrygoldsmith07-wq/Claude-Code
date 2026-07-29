@@ -7,21 +7,27 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --maxWorkers=1",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "lucide-react": "^1.25.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
+  "overrides": {
+    "brace-expansion": "5.0.8"
+  },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.0",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.0.0",
     "vite": "^6.0.0",
-    "vite-plugin-pwa": "^1.3.0",
+    "vite-plugin-pwa": "1.2.0",
     "vitest": "^4.1.10"
   }
 }

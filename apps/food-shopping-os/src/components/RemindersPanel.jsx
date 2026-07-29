@@ -308,7 +308,7 @@ export default function RemindersPanel() {
               <button onClick={() => app.removeReminder(reminder.id)} aria-label={`Delete ${reminder.label}`} className="press p-1" style={{ color: 'var(--faint)' }}>
                 <Trash2 size={14} />
               </button>
-              <Toggle on={reminder.on} onChange={() => app.toggleReminder(reminder.id)} />
+              <Toggle label={`${reminder.on ? 'Disable' : 'Enable'} ${reminder.label}`} on={reminder.on} onChange={() => app.toggleReminder(reminder.id)} />
             </div>
           ))}
         </Card>

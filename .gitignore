@@ -40,6 +40,8 @@ yarn-error.log*
 # Testing / coverage
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
 
 # Claude / local
 .claude/settings.local.json

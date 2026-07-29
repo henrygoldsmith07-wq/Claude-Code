@@ -1,0 +1,36 @@
+name: Food Shopping OS
+
+on:
+  push:
+    paths:
+      - "apps/food-shopping-os/**"
+      - ".github/workflows/food-shopping-os.yml"
+  pull_request:
+    paths:
+      - "apps/food-shopping-os/**"
+      - ".github/workflows/food-shopping-os.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/food-shopping-os
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/food-shopping-os/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: food-shopping-os-playwright-report
+          path: apps/food-shopping-os/playwright-report/
+          retention-days: 14

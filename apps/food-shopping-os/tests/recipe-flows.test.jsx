@@ -56,7 +56,7 @@ describe('the recipe library', () => {
     expect(within(sheet).getByText(/with chicken/)).toBeDefined();
 
     fireEvent.click(within(sheet).getByText(/^Show \d+ recipes?$/));
-    expect(screen.getByLabelText('Filters').textContent).toBe('1');
+    expect(screen.getByRole('button', { name: 'Filters' }).textContent).toBe('1');
   });
 
   it('filters by cooking time', () => {

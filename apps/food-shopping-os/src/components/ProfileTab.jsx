@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Activity, Banknote, Bell, ChartNoAxesColumn, Dumbbell, Flame, FlaskConical, HeartPulse, Lock,
-  NotebookPen, RotateCcw, Download, SlidersHorizontal, Sparkles, Target, Trophy, Users,
+  NotebookPen, RotateCcw, Download, SlidersHorizontal, Sparkles, Target, Trophy, Upload, Users,
 } from 'lucide-react';
-import { useApp, STORAGE_KEY } from '../lib/store.jsx';
+import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { formatAmount } from '../data/nutrients.js';
 import { nutrientRows, snackSummary, timingInsight } from '../lib/nutrition.js';
@@ -38,6 +38,8 @@ const ACCENTS = [
 
 export default function ProfileTab({ openAssistant }) {
   const app = useApp();
+  const importRef = useRef(null);
+  const [dataStatus, setDataStatus] = useState('');
   const [nutritionOpen, setNutritionOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [familyOpen, setFamilyOpen] = useState(false);
@@ -78,13 +80,21 @@ export default function ProfileTab({ openAssistant }) {
 
   /** Your data, as the JSON it is stored as — yours to keep or move. */
   const exportData = () => {
-    const blob = new Blob([localStorage.getItem(STORAGE_KEY) || '{}'], { type: 'application/json' });
+    const blob = new Blob([app.exportData()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `forq-${app.day}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const importData = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const result = app.restoreData(await file.text());
+    setDataStatus(result.ok ? 'Backup restored.' : result.error);
   };
 
   return (
@@ -407,7 +417,7 @@ export default function ProfileTab({ openAssistant }) {
               <p className="font-bold text-[14px]">Dark mode</p>
               <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Follows your accent everywhere</p>
             </div>
-            <Toggle on={app.theme === 'dark'} onChange={app.toggleTheme} />
+            <Toggle label="Dark mode" on={app.theme === 'dark'} onChange={app.toggleTheme} />
           </div>
           <div>
             <p className="font-bold text-[14px] mb-2">Accent colour</p>
@@ -451,12 +461,16 @@ export default function ProfileTab({ openAssistant }) {
       {/* Your data */}
       <Section title="Your data" className="rise rise-4">
         <Card className="space-y-3">
+          <p className="text-[12px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            Browser storage is not encrypted. Anyone with access to this browser profile can
+            access it. Export a backup before clearing site data or changing devices.
+          </p>
           <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
             Everything lives on this device — {Object.keys(app.log).length} logged day{Object.keys(app.log).length === 1 ? '' : 's'},
             {' '}{app.pantry.length} pantry item{app.pantry.length === 1 ? '' : 's'}, {app.shops.length} recorded shop{app.shops.length === 1 ? '' : 's'},
             {' '}{app.cooked.length} meal{app.cooked.length === 1 ? '' : 's'} cooked.
           </p>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-3 gap-2.5">
             <button
               onClick={exportData}
               className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
@@ -464,6 +478,21 @@ export default function ProfileTab({ openAssistant }) {
             >
               <span className="inline-flex items-center gap-1.5"><Download size={15} /> Export</span>
             </button>
+            <button
+              onClick={() => importRef.current?.click()}
+              className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+              style={{ borderColor: 'var(--line)' }}
+            >
+              <span className="inline-flex items-center gap-1.5"><Upload size={15} /> Restore</span>
+            </button>
+            <input
+              ref={importRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={importData}
+              className="hidden"
+              aria-label="Restore Forq backup"
+            />
             <button
               onClick={() => (confirmReset ? app.reset() : setConfirmReset(true))}
               className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
@@ -474,6 +503,11 @@ export default function ProfileTab({ openAssistant }) {
               </span>
             </button>
           </div>
+          {dataStatus && (
+            <p role="status" className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              {dataStatus}
+            </p>
+          )}
         </Card>
       </Section>
 
