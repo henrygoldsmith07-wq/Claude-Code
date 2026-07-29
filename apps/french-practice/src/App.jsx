@@ -42,7 +42,7 @@ import { notebookAsEntries, dueEntries } from './lib/memory';
 import { adaptiveLevel } from './lib/personalise';
 import { AVATARS, activeEvent, levelFromXp } from './lib/game';
 import { syncLanguage } from './lib/i18n';
-import { getLanguage } from './lib/languages';
+import { getLanguage, normaliseLanguages } from './lib/languages';
 import { setTelemetrySink } from './lib/groq';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Target, Coins as CoinsIcon } from './components/icons';
 
@@ -259,7 +259,7 @@ export default function App() {
     updateSettings({
       ...settings,
       name: d.name.trim(),
-      language: d.language,
+      ...normaliseLanguages(d.languages, d.language),
       timezone,
       level: d.level,
       dailyGoal: d.dailyGoal,
@@ -267,7 +267,7 @@ export default function App() {
       smartReminders: d.reminders,
       mockMode: settings.mockMode || d.mock,
     });
-    syncLanguage(d.language);
+    syncLanguage(normaliseLanguages(d.languages, d.language).language);
     updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
     persistAvatar(d.avatarId);
     ownAvatar(d.avatarId);
@@ -494,14 +494,6 @@ export default function App() {
           >
             <span role="img" aria-hidden="true">{(AVATARS.find((a) => a.id === avatarId) || AVATARS[0]).emoji}</span>
           </button>
-          {tab === 'arena' && history.length > 0 && (
-            <button
-              onClick={endSession}
-              className="btn btn-secondary min-h-10 px-3.5 rounded-xl text-xs"
-            >
-              End Session
-            </button>
-          )}
           <button
             onClick={toggleTheme}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -597,6 +589,7 @@ export default function App() {
               setHistory={setHistory}
               scenario={scenario}
               setScenario={setScenario}
+              onEndSession={endSession}
             />
           )}
           {tab === 'skills' && (

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LEARNING_STYLES, LESSON_LENGTHS, TOPICS } from '../lib/personalise';
 import { AVATARS } from '../lib/game';
-import { LANGUAGE_LIST, getLanguage } from '../lib/languages';
+import { LANGUAGE_LIST, getLanguage, normaliseLanguages } from '../lib/languages';
 import { syncLanguage } from '../lib/i18n';
 import { SpeakButton } from './ui';
 import { ChevronLeft, ArrowRight, Check, Flame, Sparkles, TOPIC_ICONS } from './icons';
@@ -69,7 +69,7 @@ const TOUR = [
 ];
 
 const DEFAULTS = {
-  name: '', language: 'fr', goal: 'travel', level: 'B1', dailyGoal: 30, weeklyGoal: 150,
+  name: '', language: 'fr', languages: ['fr'], goal: 'travel', level: 'B1', dailyGoal: 30, weeklyGoal: 150,
   learningStyle: 'balanced', favouriteTopics: ['travel', 'food'], lessonLength: 'medium',
   avatarId: 'sourire', reminders: false, habits: ['Speak French out loud', 'Review my flashcards'],
   apiKey: '', mock: false, rhythm: 'daily',
@@ -100,12 +100,23 @@ export default function Onboarding({ open, onComplete, onSkip }) {
   const lang = getLanguage(d.language);
   const phrase = FIRST_PHRASE[d.language] || FIRST_PHRASE.fr;
 
-  // Switching the target language live points the whole studio (content,
-  // speech, AI) at it, so the rest of onboarding — and the sample phrases —
-  // are already in the chosen language.
-  const chooseLanguage = (id) => {
+  // Pointing the studio (content, speech, AI) at the language being started
+  // means the rest of onboarding — and the sample phrases — are already in it.
+  const startWith = (id) => {
+    if (id === d.language) return;
     syncLanguage(id);
     set({ language: id, habits: habitChoices(getLanguage(id).name).slice(0, 2) });
+  };
+
+  // Sign up for a language, or drop one. The learner studies one at a time,
+  // so the list also decides what Settings can switch between; removing the
+  // one currently being started hands that role to the next in the list.
+  const toggleLanguage = (id) => {
+    const wanted = d.languages.includes(id) ? d.languages.filter((x) => x !== id) : [...d.languages, id];
+    if (!wanted.length) return; // one language is the floor — never zero
+    const { languages, language } = normaliseLanguages(wanted, d.language);
+    set({ languages });
+    startWith(language);
   };
 
   // Quick start: good defaults + working demo, straight to the finish step.
@@ -136,16 +147,68 @@ export default function Onboarding({ open, onComplete, onSkip }) {
       ),
     },
     {
-      title: 'Which language?', subtitle: 'The one you want to learn',
+      title: 'Which languages?', subtitle: 'Pick as many as you want to learn',
       body: (
         <div className="space-y-3">
-          <Cards
-            items={LANGUAGE_LIST.map((l) => ({ id: l.id, emoji: l.flag, label: l.name, desc: `${l.nativeName} · ${l.hello}` }))}
-            selected={d.language}
-            onPick={(l) => chooseLanguage(l.id)}
-          />
+          <div className="space-y-2" role="group" aria-label="Languages to learn">
+            {LANGUAGE_LIST.map((l) => {
+              const on = d.languages.includes(l.id);
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => toggleLanguage(l.id)}
+                  aria-pressed={on}
+                  className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left border transition-colors ${
+                    on ? 'bg-surface2 border-ink' : 'bg-surface border-line hover:border-ink3'
+                  }`}
+                >
+                  <span className="text-xl shrink-0" aria-hidden="true">{l.flag}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-ink">{l.name}</span>
+                    <span className="block text-xs text-ink3">{l.nativeName} · {l.hello}</span>
+                  </span>
+                  <span
+                    className={`w-6 h-6 shrink-0 grid place-items-center rounded-full border ${
+                      on ? 'bg-accent text-onaccent border-accent' : 'border-line text-transparent'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <Check size={13} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {d.languages.length > 1 && (
+            <div className="fade-in bg-surface2 border border-line rounded-2xl px-4 py-3 space-y-2">
+              <p className="text-[11px] font-semibold text-ink">Which one first?</p>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Language to start with">
+                {d.languages.map((id) => {
+                  const l = getLanguage(id);
+                  const on = id === d.language;
+                  return (
+                    <button
+                      key={id}
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => startWith(id)}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                        on ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'
+                      }`}
+                    >
+                      <span aria-hidden="true">{l.flag}</span> {l.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-ink3">
+                You study one at a time. Your streak, XP and level are shared across them;
+                vocabulary is tracked per language.
+              </p>
+            </div>
+          )}
           <p className="text-[11px] text-ink3 text-center">
-            Explanations and translations are in English. You can switch languages any time in Settings.
+            Explanations and translations are in English. Add, drop or switch languages any time in Settings.
           </p>
         </div>
       ),

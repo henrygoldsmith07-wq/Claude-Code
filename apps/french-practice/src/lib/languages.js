@@ -49,3 +49,13 @@ export const LANGUAGES = {
 export const LANGUAGE_LIST = Object.values(LANGUAGES);
 export const DEFAULT_LANG = 'fr';
 export const getLanguage = (id) => LANGUAGES[id] || LANGUAGES[DEFAULT_LANG];
+
+// A learner signs up for one or more languages and studies one at a time.
+// This keeps that pair honest wherever it is edited (onboarding, Settings):
+// the list is deduped and free of unknown ids, never empty, and the active
+// language is always a member of it.
+export function normaliseLanguages(list, active) {
+  const languages = [...new Set((Array.isArray(list) ? list : []).filter((id) => id in LANGUAGES))];
+  if (!languages.length) languages.push(active in LANGUAGES ? active : DEFAULT_LANG);
+  return { languages, language: languages.includes(active) ? active : languages[0] };
+}
