@@ -12,6 +12,9 @@ export const onboard = ({ name = 'Sam', budget = '60' } = {}) => {
   fireEvent.click(screen.getByText('Start using Forq'));
 };
 
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
+
 describe('first run', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
@@ -26,7 +29,9 @@ describe('first run', () => {
   it('lets you through setup and remembers who you are', () => {
     onboard({ name: 'Ada' });
     expect(screen.getByText(/Good (morning|afternoon|evening), Ada/)).toBeDefined();
-    for (const label of ['Home', 'Plan', 'Log', 'Shop', 'Recipes', 'Profile']) {
+    // Profile left the tab bar for the header avatar, so five tabs remain.
+    expect(screen.getByRole('button', { name: /^You — profile/ })).toBeTruthy();
+    for (const label of ['Home', 'Plan', 'Log', 'Shop', 'Recipes']) {
       expect(screen.getByText(label)).toBeDefined();
     }
   });
@@ -75,7 +80,7 @@ describe('an empty app', () => {
 
   it('has no earned achievements', () => {
     onboard();
-    fireEvent.click(screen.getByText('Profile'));
+    openProfile();
     expect(screen.queryByText('Earned')).toBeNull();
     expect(screen.getByText(/Log a day of food and it appears here/)).toBeDefined();
   });
@@ -106,7 +111,8 @@ describe('logging food', () => {
     fireEvent.click(screen.getByText('Log'));
     fireEvent.click(screen.getAllByText('+ Add food')[0]);
 
-    const addSheet = screen.getByText('Add food').closest('[role="dialog"]');
+    const addSheet = [...document.querySelectorAll('[role="dialog"]')]
+      .find((d) => d.querySelector('h2')?.textContent === 'Add food');
     fireEvent.change(within(addSheet).getByLabelText('Search foods'), { target: { value: 'hummus' } });
     fireEvent.click(within(addSheet).getByText('Hummus'));
 

@@ -359,6 +359,25 @@ tables and UK reference intakes.
   genotyping does not support confident personal diet instructions and dressing
   it up as if it did would be the least honest thing in the app
 
+- **The shape of it** — five tabs, not six: your profile moved out of the bar
+  and behind an avatar that is now on *every* screen rather than only Home,
+  which gave the five screens you actually work in a fifth more width each.
+  Every screen names its single most likely next move and puts it in the bottom
+  third of the phone, where a thumb already is — and the label follows the
+  state, because an empty week wants filling and a full one wants shopping for
+- **Getting started** — six steps, each one a gate on a real feature rather
+  than a chore with a tick next to it: set a target and the diary has something
+  to measure against, record a shop and the price comparison has prices. Each
+  reads the same records as everything else, so it ticks itself the moment you
+  do the thing, unticks if you undo it, and the card disappears at six of six
+- **Reachable and readable** — every control clears the 44×44 WCAG target,
+  most of them through a hit area larger than the thing you can see rather than
+  by making a dense layout bigger; every control has a name in the
+  accessibility tree; text clears 4.5:1 against what is actually behind it,
+  tinted badges included; there's a skip link, one `<h1>` per screen, real
+  buttons behind tappable cards, and a `prefers-reduced-motion` mode that keeps
+  the press acknowledgement and drops the travel
+
 ## Run
 
 ```bash
@@ -372,7 +391,11 @@ npm test         # vitest suite
 
 ```
 src/
-  App.jsx              # shell: 6-tab bottom nav, overlays, onboarding gate
+  App.jsx              # shell: 5-tab bottom nav, overlays, onboarding gate
+  components/AppHeader.jsx     # the one header: title, coach, profile avatar
+  components/PrimaryAction.jsx # each screen's main action, in the thumb zone
+  components/GettingStarted.jsx # the six gates, ticked off your own records
+  lib/setup.js         # what's still switched off, read from the same state
   index.css            # theme tokens (light/dark + 5 accents), animations
   lib/state.js         # what an install is: empty state + pure state helpers
   lib/store.jsx        # the provider: actions, the clock, persistence

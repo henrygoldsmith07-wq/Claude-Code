@@ -48,7 +48,7 @@ describe('the recipe library', () => {
   it('filters by ingredient, in and out', () => {
     onboard();
     openRecipes();
-    fireEvent.click(screen.getByLabelText('Filters'));
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     const sheet = dialogFor('Filters');
 
     fireEvent.change(within(sheet).getByLabelText('Ingredient to include'), { target: { value: 'chicken' } });
@@ -62,7 +62,7 @@ describe('the recipe library', () => {
   it('filters by cooking time', () => {
     onboard();
     openRecipes();
-    fireEvent.click(screen.getByLabelText('Filters'));
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.click(within(dialogFor('Filters')).getByText('≤ 15 min'));
     fireEvent.click(within(dialogFor('Filters')).getByText(/^Show /));
     expect(screen.getByText(/in 15 minutes or less/)).toBeDefined();
@@ -71,7 +71,7 @@ describe('the recipe library', () => {
   it('filters by diet, saying which one', () => {
     onboard();
     openRecipes();
-    fireEvent.click(screen.getByLabelText('Filters'));
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.click(within(dialogFor('Filters')).getByText('Vegan'));
     fireEvent.click(within(dialogFor('Filters')).getByText(/^Show /));
     expect(screen.getByText(/· vegan/)).toBeDefined();
@@ -80,7 +80,7 @@ describe('the recipe library', () => {
   it('shows only what you could cook right now, and admits an empty pantry', () => {
     onboard();
     openRecipes();
-    fireEvent.click(screen.getByLabelText('Filters'));
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.click(within(dialogFor('Filters')).getByText('Can make now'));
     expect(within(dialogFor('Filters')).getByText(/pantry is empty/)).toBeDefined();
     fireEvent.click(within(dialogFor('Filters')).getByText(/^Show /));

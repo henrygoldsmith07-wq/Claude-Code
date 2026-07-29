@@ -24,6 +24,9 @@ const planFirstDinner = (name = 'Coconut Chickpea Curry') => {
 
 const openPlan = () => fireEvent.click(screen.getByText('Plan'));
 
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
+
 describe('the weekly planner', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
@@ -241,7 +244,7 @@ describe('cooking for a family', () => {
 
   it('adds people, sums their portions and pools their diets', () => {
     onboard();
-    fireEvent.click(screen.getByText('Profile'));
+    openProfile();
     fireEvent.click(screen.getByText('Just you'));
 
     const sheet = dialogFor('Family');

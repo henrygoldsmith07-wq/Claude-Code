@@ -100,13 +100,15 @@ export default function ProfileTab({ openAssistant }) {
   return (
     <div className="pb-6 space-y-6">
       {/* Header */}
-      <div className="hero-gradient px-5 pt-14 pb-2">
+      {/* This opens in a sheet that already says "You", so the name is a
+          heading under it, not a second page title. */}
+      <div className="hero-gradient px-5 pt-2 pb-2">
         <div className="flex items-center gap-4 rise">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-extrabold" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }} aria-hidden="true">
             {app.name[0]?.toUpperCase() || '?'}
           </div>
           <div className="flex-1">
-            <h1 className="text-[22px] font-extrabold tracking-tight">{app.name}</h1>
+            <h3 className="text-[22px] font-extrabold tracking-tight">{app.name}</h3>
             <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
               Level {app.level.level} · {app.level.title} · {app.xp.toLocaleString()} XP
             </p>
@@ -426,8 +428,9 @@ export default function ProfileTab({ openAssistant }) {
                 <button
                   key={id}
                   onClick={() => app.setAccent(id)}
-                  aria-label={id}
-                  className="press h-9 w-9 rounded-full border-4"
+                  aria-label={`${id} accent`}
+                  aria-pressed={app.accent === id}
+                  className="tap press h-9 w-9 rounded-full border-4"
                   style={{ background: hex, borderColor: app.accent === id ? 'var(--ink)' : 'transparent' }}
                 />
               ))}
@@ -439,7 +442,7 @@ export default function ProfileTab({ openAssistant }) {
                     onClick={() => open && app.setAccent(id)}
                     aria-label={open ? id : `${id} — unlocks at level ${level}`}
                     disabled={!open}
-                    className="press relative h-9 w-9 rounded-full border-4 flex items-center justify-center"
+                    className="tap press relative h-9 w-9 rounded-full border-4 flex items-center justify-center"
                     style={{
                       background: UNLOCK_COLOURS[id],
                       borderColor: app.accent === id ? 'var(--ink)' : 'transparent',

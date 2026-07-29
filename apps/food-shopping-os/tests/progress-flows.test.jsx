@@ -18,7 +18,7 @@ const dialogFor = (title) => {
 };
 
 const openProgress = () => {
-  fireEvent.click(screen.getByText('Profile'));
+  openProfile();
   const section = screen.getByText('Achievements').closest('section');
   fireEvent.click(within(section).getByText(/Level \d+ · /));
   return dialogFor('Progress');
@@ -33,6 +33,9 @@ const cookARecipe = (name = 'Coconut Chickpea Curry') => {
   fireEvent.click(screen.getByText(/Finish & log meal/));
   fireEvent.click(screen.getByText('Back to my day'));
 };
+
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
 
 describe('a fresh app has nothing to show off', () => {
   beforeEach(() => localStorage.clear());
@@ -136,10 +139,10 @@ describe('rewards', () => {
 
   it('keeps the original accents and locks the new ones behind levels', () => {
     onboard();
-    fireEvent.click(screen.getByText('Profile'));
+    openProfile();
     // The five that always existed are still there and still usable.
     for (const id of ['mono', 'forest', 'ocean', 'wine', 'honey']) {
-      expect(screen.getByLabelText(id)).toBeDefined();
+      expect(screen.getByLabelText(`${id} accent`)).toBeDefined();
     }
     const locked = screen.getByLabelText(/sage — unlocks at level 4/);
     expect(locked.disabled).toBe(true);

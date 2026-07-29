@@ -11,7 +11,7 @@ export const Section = ({ title, action, onAction, children, className }) => (
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
         {action && (
-          <button onClick={onAction} className="text-[13px] font-semibold press" style={{ color: 'var(--accent)' }}>
+          <button onClick={onAction} className="tap press text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
             {action}
           </button>
         )}
@@ -24,15 +24,17 @@ export const Section = ({ title, action, onAction, children, className }) => (
 export const Card = ({ children, className, onClick, style, label }) => (
   <div
     onClick={onClick}
+    style={style}
+    // A card you can tap is a button in everything but the tag, so it gets the
+    // role, the tab stop and the keyboard activation that go with one.
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    aria-label={onClick ? label : undefined}
     onKeyDown={onClick ? (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
       onClick(event);
     } : undefined}
-    role={onClick ? 'button' : undefined}
-    tabIndex={onClick ? 0 : undefined}
-    aria-label={label}
-    style={style}
     className={cx('card p-4', onClick && 'press cursor-pointer', className)}
   >
     {children}
@@ -42,7 +44,7 @@ export const Card = ({ children, className, onClick, style, label }) => (
 export const Chip = ({ active, children, onClick, tone }) => (
   <button
     onClick={onClick}
-    className="press shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold border transition-colors"
+    className="tap press shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold border transition-colors"
     style={
       active
         ? { background: 'var(--accent)', color: 'var(--on-accent)', borderColor: 'var(--accent)' }
@@ -170,9 +172,9 @@ export const Pill = ({ children, tone = 'muted' }) => {
   const tones = {
     muted: { background: 'var(--card-2)', color: 'var(--muted)' },
     accent: { background: 'var(--accent-soft)', color: 'var(--accent-deep)' },
-    good: { background: 'color-mix(in srgb, var(--good) 14%, transparent)', color: 'var(--good)' },
-    warn: { background: 'color-mix(in srgb, var(--warn) 14%, transparent)', color: 'var(--warn)' },
-    danger: { background: 'color-mix(in srgb, var(--danger) 14%, transparent)', color: 'var(--danger)' },
+    good: { background: 'color-mix(in srgb, var(--good) 14%, transparent)', color: 'var(--good-deep)' },
+    warn: { background: 'color-mix(in srgb, var(--warn) 14%, transparent)', color: 'var(--warn-deep)' },
+    danger: { background: 'color-mix(in srgb, var(--danger) 14%, transparent)', color: 'var(--danger-deep)' },
     faint: { background: 'var(--card-2)', color: 'var(--faint)' },
   };
   return (
@@ -181,6 +183,35 @@ export const Pill = ({ children, tone = 'muted' }) => {
     </span>
   );
 };
+
+/**
+ * An empty state that carries its weight.
+ *
+ * "Nothing here" is a dead end. This says three things instead: what would be
+ * here, why the app can't tell you anything without it, and — where there is
+ * one — the button that fixes it. An empty state with no way out of it is just
+ * a smaller error message.
+ *
+ * `note` is for the cases where there is genuinely nothing to do yet: it says
+ * so rather than offering a button that wouldn't help.
+ */
+export const Empty = ({ Icon, title, children, action, onAction, note }) => (
+  <Card className="text-center py-8">
+    {Icon && <Icon size={28} strokeWidth={1.4} className="mx-auto mb-2.5" style={{ color: 'var(--faint)' }} />}
+    {title && <p className="font-bold text-[14.5px]">{title}</p>}
+    <p className="mx-auto max-w-[34ch] text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
+    {action && onAction && (
+      <button
+        onClick={onAction}
+        className="press mt-3.5 rounded-2xl px-5 py-3 text-[13.5px] font-extrabold"
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+      >
+        {action}
+      </button>
+    )}
+    {note && <p className="mt-2.5 text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>{note}</p>}
+  </Card>
+);
 
 /* ---------- Data viz ---------- */
 
@@ -382,10 +413,10 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
             <button
               onClick={onClose}
               aria-label="Close"
-              className="press flex h-8 w-8 items-center justify-center rounded-full"
+              className="tap press flex h-10 w-10 items-center justify-center rounded-full"
               style={{ background: 'var(--card-2)', color: 'var(--muted)' }}
             >
-              <X size={16} strokeWidth={2.4} />
+              <X size={18} strokeWidth={2.4} />
             </button>
           </div>
         )}
@@ -403,13 +434,18 @@ export const Stepper = ({ value, onChange, min = 1, max = 12 }) => (
   </div>
 );
 
+/**
+ * A switch has no text of its own, so the thing it switches has to be passed
+ * in — a screen reader announcing "switch, off" tells you nothing about what
+ * is off.
+ */
 export const Toggle = ({ on, onChange, label }) => (
   <button
     onClick={onChange}
     role="switch"
     aria-checked={on}
     aria-label={label}
-    className="press relative h-7 w-12 rounded-full transition-colors"
+    className="tap press relative h-7 w-12 rounded-full transition-colors"
     style={{ background: on ? 'var(--accent)' : 'var(--line)' }}
   >
     <span

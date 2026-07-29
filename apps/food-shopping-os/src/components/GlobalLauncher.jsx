@@ -152,8 +152,13 @@ export function QuickAdd({ open, onClose, onRun }) {
 export function LauncherButtons({ onSearch, onQuickAdd }) {
   return (
     <div
-      className="fixed bottom-24 z-40 flex gap-2"
-      style={{ left: 'max(1.25rem, calc(50vw - 16rem + 1.25rem))' }}
+      className="fixed z-40 flex gap-2"
+      // Clear of the screen's primary action, which sits in the thumb zone
+      // just above the tab bar.
+      style={{
+        left: 'max(1.25rem, calc(50vw - 16rem + 1.25rem))',
+        bottom: 'calc(9rem + env(safe-area-inset-bottom))',
+      }}
     >
       <button
         onClick={onSearch}

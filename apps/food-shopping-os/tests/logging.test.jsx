@@ -169,7 +169,7 @@ describe('logging routes', () => {
     fireEvent.click(screen.getAllByText('+ Add food')[0]);
     const sheet = dialogFor('Add food');
     fireEvent.click(within(sheet).getByText('My foods'));
-    expect(within(sheet).getByText('No custom foods yet.')).toBeDefined();
+    expect(within(sheet).getByText(/^No custom foods yet/)).toBeDefined();
     fireEvent.click(within(sheet).getByText('New custom food'));
 
     fireEvent.change(within(sheet).getByPlaceholderText(/Mum’s lasagne/), { target: { value: 'Nan’s trifle' } });

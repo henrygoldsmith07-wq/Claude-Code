@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  AlarmClock, Camera, ChevronRight, Droplet, Flame, Layers, Mic, Package, Plus,
-  ScanBarcode, Search, SlidersHorizontal, Star,
+  AlarmClock, Camera, ChevronRight, Layers, Mic, Package, Plus,
+  ScanBarcode, Search, SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate } from '../lib/utils.js';
@@ -13,6 +13,10 @@ import {
 import { totalOf } from '../data/stores.js';
 import { recipeAllowed } from '../lib/goals.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
+import GettingStarted from './GettingStarted.jsx';
+import { setupProgress } from '../lib/setup.js';
+import WaterGlasses from './WaterGlasses.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
 import { DueList } from './RemindersPanel.jsx';
 import { Glyph } from './icons.jsx';
 
@@ -86,10 +90,16 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
   const recipeOfDay = RECIPES[new Date().getDate() % RECIPES.length];
   const listTotal = totalOf(app.shoppingList);
   const leftoverItems = leftovers(app.pantry);
+  const setup = setupProgress(app);
 
   /* Every card Home can show. Which appear, and in what order, is yours to
      set under Preferences — hiding one hides a panel, never a number. */
   const blocks = {
+    setup: () => (
+      <Section className="rise rise-1">
+        <GettingStarted goTab={goTab} />
+      </Section>
+    ),
     reminders: () => (
       <>
           {/* Anything due right now, where you'll actually see it */}
@@ -137,7 +147,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
                 <button
                   key={label}
                   onClick={() => goLog(id)}
-                  className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-2.5 text-[12.5px] font-bold"
+                  className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
                   style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
                 >
                   <Icon size={14} /> {label}
@@ -188,22 +198,7 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
           <div className="px-5 grid grid-cols-2 gap-3 rise rise-2">
             <Card>
               <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Water</p>
-              <div className="mt-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Water glasses">
-                {Array.from({ length: 8 }, (_, i) => {
-                  const on = i < app.water;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => app.set({ water: i + 1 === app.water ? i : i + 1 })}
-                      className="press"
-                      style={{ color: on ? 'var(--accent)' : 'var(--line)' }}
-                      aria-label={`Glass ${i + 1}`}
-                    >
-                      <Droplet size={18} fill={on ? 'currentColor' : 'none'} />
-                    </button>
-                  );
-                })}
-              </div>
+              <div className="mt-2.5"><WaterGlasses size={16} /></div>
               <p className="mt-2 text-[13px] font-bold">
                 {app.hydration.total.toLocaleString()} <span className="font-semibold" style={{ color: 'var(--muted)' }}>/ {app.targets.water.toLocaleString()} ml</span>
               </p>
@@ -358,43 +353,6 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
 
   return (
     <div className="pb-6 space-y-6">
-      {/* Header */}
-      <div className="hero-gradient px-5 pt-14 pb-2">
-        <div className="flex items-start justify-between rise">
-          <div>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>
-            <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">
-              {greeting()}, {app.name}
-            </h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCustomising((value) => !value)}
-              className="press flex h-11 w-11 items-center justify-center rounded-full border"
-              style={{ background: 'var(--card)', borderColor: customising ? 'var(--accent)' : 'var(--line)', color: customising ? 'var(--accent)' : 'var(--muted)' }}
-              aria-label={customising ? 'Finish customising dashboard' : 'Customise dashboard'}
-            >
-              <SlidersHorizontal size={17} />
-            </button>
-            <button
-              onClick={() => goTab('profile')}
-              className="press flex h-11 w-11 items-center justify-center rounded-full text-lg font-extrabold"
-              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-              aria-label="Profile"
-            >
-              {app.name[0]?.toUpperCase() || '?'}
-            </button>
-          </div>
-        </div>
-
-        {(app.streak > 0 || app.xp > 0) && (
-          <div className="mt-4 flex gap-2 rise rise-1">
-            {app.streak > 0 && <Pill tone="accent"><Flame size={12} /> {app.streak}-day cooking streak</Pill>}
-            <Pill tone="muted"><Star size={12} /> Level {app.level.level} · {app.xp.toLocaleString()} XP</Pill>
-          </div>
-        )}
-      </div>
-
       {/* Budget + nutrition */}
       <div className="px-5 grid grid-cols-2 gap-3 rise rise-1">
         <Card onClick={() => goTab('shop')}>
@@ -443,9 +401,22 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
         </Card>
       </div>
 
+      {/* Rearranging the dashboard is a thing you do *to* these cards, so the
+          control sits with them rather than up in the header. */}
+      <div className="px-5 flex justify-end">
+        <button
+          onClick={() => setCustomising((value) => !value)}
+          aria-pressed={customising}
+          className="tap press inline-flex items-center gap-1.5 text-[12.5px] font-extrabold"
+          style={{ color: customising ? 'var(--accent)' : 'var(--muted)' }}
+        >
+          <SlidersHorizontal size={14} /> {customising ? 'Done rearranging' : 'Rearrange'}
+        </button>
+      </div>
+
       {customising && (
         <div className="mx-5 rounded-2xl border px-4 py-3 text-[12.5px] font-bold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-          Drag dashboard widgets into your preferred order. Hidden widgets remain available under Profile → Preferences → Home.
+          Drag these cards into the order you want them. Hidden ones are under the avatar, in Preferences → Home.
         </div>
       )}
       {app.homeWidgets
@@ -465,6 +436,12 @@ export default function HomeTab({ openRecipe, openPantry, goTab, goLog }) {
             {blocks[id]()}
           </div>
         ))}
+
+      {/* While there's setup left, the next step *is* the main thing to do
+          here; after that it's the diary, which is what Home is really for. */}
+      {setup.complete
+        ? <PrimaryAction label="Log what you ate" onClick={() => goLog()} />
+        : <PrimaryAction label={setup.next.label} hint={`${setup.done}/${setup.total}`} onClick={() => goTab(setup.next.go)} />}
     </div>
   );
 }

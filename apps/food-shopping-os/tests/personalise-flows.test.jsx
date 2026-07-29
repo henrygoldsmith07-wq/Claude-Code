@@ -30,7 +30,7 @@ const logFood = (name) => {
 };
 
 const openCard = (name) => {
-  goTab('Profile');
+  openProfile();
   const section = screen.getByText('Reports & you').closest('section');
   fireEvent.click(within(section).getByText(name));
   return dialogFor(name);
@@ -41,6 +41,9 @@ const openPrefs = (tab) => {
   if (tab) fireEvent.click(within(sheet).getByText(tab));
   return sheet;
 };
+
+/** Profile moved out of the tab bar; the avatar in the header opens it. */
+const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
 
 describe('preferences start empty and open', () => {
   beforeEach(() => localStorage.clear());
@@ -153,7 +156,9 @@ describe('the Home layout', () => {
     fireEvent.click(within(sheet).getByLabelText('Close'));
 
     goTab('Home');
-    expect(screen.queryByText('Recipe of the day')).toBeNull();
+    // Scoped to the page: a closing sheet lingers for its exit animation, and
+    // its own list of widget names shouldn't count as Home still showing one.
+    expect(within(document.querySelector('main')).queryByText('Recipe of the day')).toBeNull();
     // The diary is untouched — hiding a panel is not hiding data.
     expect(screen.getByText('Calories today')).toBeTruthy();
   });
@@ -166,7 +171,7 @@ describe('the Home layout', () => {
     fireEvent.click(within(sheet).getByText(/Back to the default layout/));
     fireEvent.click(within(sheet).getByLabelText('Close'));
     goTab('Home');
-    expect(screen.getByText('Pantry')).toBeTruthy();
+    expect(within(document.querySelector('main')).getAllByText('Pantry').length).toBeGreaterThan(0);
   });
 });
 

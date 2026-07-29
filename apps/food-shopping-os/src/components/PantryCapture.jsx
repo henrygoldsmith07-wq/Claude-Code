@@ -113,6 +113,18 @@ export default function PantryCapture({ onDone }) {
         </p>
       )}
 
+      {/* What the list is about to look like, so it doesn't arrive as a jolt. */}
+      {busy && items.length === 0 && (
+        <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 p-3">
+              <div className="skeleton h-8 w-8 rounded-xl shrink-0" />
+              <div className="skeleton h-3 rounded" style={{ width: `${64 - i * 9}%` }} />
+            </div>
+          ))}
+        </Card>
+      )}
+
       {items.length > 0 && (
         <>
           <div className="flex items-center justify-between">

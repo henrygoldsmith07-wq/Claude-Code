@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Banknote, Building2, Check, Copy, MapPin, Mic, Play, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
+  Banknote, Building2, Check, Copy, MapPin, Mic, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -10,8 +10,9 @@ import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { groupForStore } from '../lib/shopping.js';
 import ReceiptScan from './ReceiptScan.jsx';
 import {
-  Section, Card, Meter, Chip, GestureMenu, Pill, Sheet,
+  Section, Card, Empty, Meter, Chip, GestureMenu, Pill, Sheet,
 } from './ui.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
 import PriceCompare from './PriceCompare.jsx';
 import { AddItem, FinishShop } from './ShopForms.jsx';
 import OffersPanel from './OffersPanel.jsx';
@@ -53,7 +54,7 @@ function ListRow({ item, onAisle, dragging, setDragging }) {
             ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
             : { borderColor: 'var(--line)', color: 'transparent' }}
         >
-          <Check size={13} strokeWidth={3} />
+          {item.checked && <Check className="check-in" size={13} strokeWidth={3} />}
         </button>
         <button onClick={() => setMoving((v) => !v)} aria-label={`Move ${item.name} to another aisle`} className="press shrink-0">
           <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
@@ -172,18 +173,14 @@ export default function ShopTab({ quickAddKey = 0 }) {
 
   if (!app.householdAccess.shopping) {
     return (
-      <div className="pb-6">
-        <div className="hero-gradient px-5 pt-14 pb-3">
-          <h1 className="text-[26px] font-extrabold tracking-tight">Shop</h1>
-        </div>
+      /* The shared header already says "Shop" — a second <h1> here would be
+         two page titles on one screen. */
+      <div className="pb-6 pt-2">
         <Section>
-          <Card className="text-center py-10">
-            <ShoppingCart size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
-            <p className="font-bold">Shopping is off for {app.activeMember?.name}.</p>
-            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
-              An adult can change this profile’s household permissions under Profile.
-            </p>
-          </Card>
+          <Empty Icon={ShoppingCart} title={`Shopping is off for ${app.activeMember?.name}`}>
+            An adult can change this profile’s household permissions from the avatar in the
+            top corner, under Household.
+          </Empty>
         </Section>
       </div>
     );
@@ -191,9 +188,11 @@ export default function ShopTab({ quickAddKey = 0 }) {
 
   return (
     <div className="pb-6 space-y-6">
-      <div className="hero-gradient px-5 pt-14 pb-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight rise">Shop</h1>
-        <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar rise rise-1">
+      {/* The shared header carries the title now. Five views don't fit a
+          320px phone on one line, so this scrolls rather than pushing the
+          whole page sideways. */}
+      <div className="hero-gradient pt-1 pb-3">
+        <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar px-5 rise rise-1">
           {[['list', 'List', ShoppingCart], ['history', 'Shops', Receipt], ['prices', 'Prices', TrendingUp], ['stores', 'Stores', Building2], ['budget', 'Budget', Banknote]].map(([k, label, Icon]) => (
             <Chip key={k} active={view === k} onClick={() => setView(k)}>
               <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
@@ -212,7 +211,11 @@ export default function ShopTab({ quickAddKey = 0 }) {
                     {shoppingMode ? 'Running total' : 'Estimated basket'}
                   </p>
                   <p className="text-[24px] font-extrabold">
-                    {gbp(shoppingMode ? checkedTotal : basket.projected, { always: true })}
+                    {/* Keyed on the value, so a changed total animates in
+                        instead of silently swapping under your eyes. */}
+                    <span key={shoppingMode ? checkedTotal : basket.projected} className="count-up inline-block">
+                      {gbp(shoppingMode ? checkedTotal : basket.projected, { always: true })}
+                    </span>
                     {shoppingMode && (
                       <span className="text-[13px] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
                         of {gbp(basket.projected, { always: true })}
@@ -230,18 +233,17 @@ export default function ShopTab({ quickAddKey = 0 }) {
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => setShoppingMode(!shoppingMode)}
-                  disabled={!list.length}
-                  className="press rounded-2xl px-4 py-2.5 text-[13px] font-extrabold disabled:opacity-40 shrink-0"
-                  style={shoppingMode
-                    ? { background: 'var(--card-2)', color: 'var(--ink)' }
-                    : { background: 'var(--accent)', color: 'var(--on-accent)' }}
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    {shoppingMode ? <><X size={14} /> Exit mode</> : <><Play size={14} fill="currentColor" /> Shopping mode</>}
-                  </span>
-                </button>
+                {/* Starting a shop is the primary action at the bottom of the
+                    screen now; only the way out of it belongs up here. */}
+                {shoppingMode && (
+                  <button
+                    onClick={() => setShoppingMode(false)}
+                    className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold shrink-0"
+                    style={{ background: 'var(--card-2)', color: 'var(--ink)' }}
+                  >
+                    <span className="inline-flex items-center gap-1.5"><X size={14} /> Exit mode</span>
+                  </button>
+                )}
               </div>
 
               {app.weeklyBudget > 0 ? (
@@ -498,6 +500,15 @@ export default function ShopTab({ quickAddKey = 0 }) {
           </button>
         </div>
       </Sheet>
+
+      {/* Whichever step of a shop you're actually at. */}
+      {view === 'list' && (
+        list.length === 0
+          ? <PrimaryAction label="Add something to the list" onClick={() => setAdding(true)} />
+          : !shoppingMode
+            ? <PrimaryAction label="Start shopping" hint={`${list.length} item${list.length === 1 ? '' : 's'}`} onClick={() => setShoppingMode(true)} />
+            : <PrimaryAction label="Finish and record this shop" hint={`${ticked}/${list.length} ticked`} onClick={() => setSheet('finish')} />
+      )}
     </div>
   );
 }

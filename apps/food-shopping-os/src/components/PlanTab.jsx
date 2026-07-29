@@ -19,6 +19,7 @@ import { monthOf, seasonalHits } from '../data/seasons.js';
 import { Section, Card, Chip, Pill, Sheet } from './ui.jsx';
 import { MonthGrid, WeekGrid } from './PlanCalendar.jsx';
 import PlanGenerator from './PlanGenerator.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
 
 const dayLabel = (date) =>
   new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -161,8 +162,7 @@ export default function PlanTab({ openRecipe }) {
 
   return (
     <div className="pb-6 space-y-6">
-      <div className="hero-gradient px-5 pt-14 pb-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight rise">Meal planner</h1>
+      <div className="hero-gradient px-5 pt-1 pb-3">
         <p className="text-[13.5px] font-semibold rise rise-1" style={{ color: 'var(--muted)' }}>
           {stats.meals
             ? `${stats.meals} meal${stats.meals === 1 ? '' : 's'} planned · about ${gbp(stats.cost, { always: true })} for ${app.portions} ${view === 'week' ? 'this week' : 'this month'}`
@@ -172,7 +172,7 @@ export default function PlanTab({ openRecipe }) {
 
       {/* Week / month, and where in the calendar you are */}
       <Section className="rise rise-1">
-        <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex gap-2">
             <Chip active={view === 'week'} onClick={() => { setView('week'); setOffset(0); setCalendarStatus(''); }}>Week</Chip>
             <Chip active={view === 'month'} onClick={() => { setView('month'); setOffset(0); setCalendarStatus(''); }}>Month</Chip>
@@ -181,14 +181,14 @@ export default function PlanTab({ openRecipe }) {
             <button
               onClick={() => { setOffset((o) => o - 1); setCalendarStatus(''); }}
               aria-label={view === 'week' ? 'Previous week' : 'Previous month'}
-              className="press flex h-8 w-8 items-center justify-center rounded-full border"
+              className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
             >
               <ChevronLeft size={15} />
             </button>
             <button
               onClick={() => { setOffset(0); setCalendarStatus(''); }}
-              className="press rounded-full px-3 py-1.5 text-[12.5px] font-extrabold"
+              className="tap press shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-extrabold"
               style={{ background: offset ? 'var(--card-2)' : 'transparent', color: offset ? 'var(--ink)' : 'var(--faint)' }}
             >
               {offset ? 'Today' : rangeLabel}
@@ -196,7 +196,7 @@ export default function PlanTab({ openRecipe }) {
             <button
               onClick={() => { setOffset((o) => o + 1); setCalendarStatus(''); }}
               aria-label={view === 'week' ? 'Next week' : 'Next month'}
-              className="press flex h-8 w-8 items-center justify-center rounded-full border"
+              className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
             >
               <ChevronRight size={15} />
@@ -429,6 +429,15 @@ export default function PlanTab({ openRecipe }) {
           </Card>
         </Section>
       )}
+
+      {/* An empty calendar wants filling; a full one wants shopping for. */}
+      {stats.meals === 0
+        ? <PrimaryAction label={`Fill this ${view} for me`} onClick={() => setShowGenerator(true)} />
+        : <PrimaryAction
+            label={addedToList ? 'Added to your shopping list' : `Shop for this ${view}`}
+            hint={addedToList ? undefined : `${stats.meals} meal${stats.meals === 1 ? '' : 's'}`}
+            onClick={sendToList}
+          />}
     </div>
   );
 }
