@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 
 test('onboards, navigates by keyboard and opens an accessible sheet', async ({ page }) => {
   await onboard(page);
-  await page.getByRole('navigation').getByRole('button', { name: 'Profile' }).click();
+  await page.getByRole('button', { name: /^You — profile/ }).click();
   const goals = page.getByRole('button', { name: /^Maintenance 2,200/ });
   await goals.focus();
   await page.keyboard.press('Enter');
@@ -31,7 +31,7 @@ test('onboards, navigates by keyboard and opens an accessible sheet', async ({ p
 
 test('exports and restores a complete backup from first run', async ({ page }) => {
   await onboard(page);
-  await page.getByRole('navigation').getByRole('button', { name: 'Profile' }).click();
+  await page.getByRole('button', { name: /^You — profile/ }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export' }).click();
   const download = await downloadPromise;
