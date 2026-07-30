@@ -1,20 +1,64 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SITUATIONS, getSituation, EXAM, examBand } from '../lib/realworld';
+import {
+  SITUATIONS,
+  getSituation,
+  EXAM,
+  examBand,
+  situationPhraseCount,
+  situationTipOfDay,
+  searchSituations,
+} from '../lib/realworld';
 import { SpeakButton } from './ui';
-import { X, ChevronLeft, ChevronRight, Check, MessageCircle, FileText, Trophy } from './icons';
+import {
+  X, ChevronLeft, ChevronRight, Check, MessageCircle, FileText, Trophy, Search, Lightbulb,
+} from './icons';
 
-// Real-world practice hub (full-screen): a survival phrasebook by situation,
-// a jump into the matching Arena roleplay, and a timed-feel mock exam.
+const SEEN_KEY = 'fp.realworldSeen';
+
+function loadSeen() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeen(set) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...set]));
+  } catch { /* ignore */ }
+}
+
+// Real-world practice hub (full-screen): survival phrasebook by situation,
+// jump into matching Arena roleplay, search, tip of day, progress, mock exam.
 
 export default function RealWorld({ open, onClose, onRoleplay, onXp }) {
   const [view, setView] = useState({ mode: 'hub' }); // hub | situation | exam
+  const [seen, setSeen] = useState(loadSeen);
+  const [query, setQuery] = useState('');
 
-  // Always reopen on the hub — the component stays mounted while hidden.
+  const tip = useMemo(() => situationTipOfDay(), []);
+  const totalPhrases = situationPhraseCount();
+  const opened = SITUATIONS.filter((s) => seen.has(s.id)).length;
+
   useEffect(() => {
-    if (open) setView({ mode: 'hub' });
+    if (open) {
+      setView({ mode: 'hub' });
+      setQuery('');
+    }
   }, [open]);
 
+  useEffect(() => {
+    saveSeen(seen);
+  }, [seen]);
+
   if (!open) return null;
+
+  const openSituation = (id) => {
+    setView({ mode: 'situation', id });
+    setSeen((prev) => new Set(prev).add(id));
+  };
 
   const body = () => {
     if (view.mode === 'exam') return <Exam onXp={onXp} onBack={() => setView({ mode: 'hub' })} />;
@@ -27,7 +71,18 @@ export default function RealWorld({ open, onClose, onRoleplay, onXp }) {
         />
       );
     }
-    return <Hub onOpen={(id) => setView({ mode: 'situation', id })} onExam={() => setView({ mode: 'exam' })} />;
+    return (
+      <Hub
+        onOpen={openSituation}
+        onExam={() => setView({ mode: 'exam' })}
+        query={query}
+        setQuery={setQuery}
+        tip={tip}
+        totalPhrases={totalPhrases}
+        opened={opened}
+        seen={seen}
+      />
+    );
   };
 
   return (
@@ -43,49 +98,141 @@ export default function RealWorld({ open, onClose, onRoleplay, onXp }) {
   );
 }
 
-function Hub({ onOpen, onExam }) {
+function Hub({ onOpen, onExam, query, setQuery, tip, totalPhrases, opened, seen }) {
+  const searchHits = useMemo(() => (query.trim() ? searchSituations(query) : []), [query]);
+
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-5">
       <div className="max-w-lg mx-auto space-y-4">
-        <p className="text-xs text-ink2 text-center">
-          Survival phrases for the situations that count — then rehearse them live or test yourself.
-        </p>
-
-        <button
-          onClick={onExam}
-          className="w-full flex items-center gap-3.5 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity"
-        >
-          <FileText size={18} className="shrink-0" />
-          <span className="flex-1">
-            <span className="block text-sm font-semibold">Mock exam</span>
-            <span className="block text-xs opacity-70">{EXAM.questions.length} questions → a CEFR band</span>
-          </span>
-          <ChevronRight size={16} className="shrink-0" />
-        </button>
-
-        <div className="space-y-2.5">
-          {SITUATIONS.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => onOpen(s.id)}
-              className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
-            >
-              <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-xl" role="img" aria-hidden="true">{s.emoji}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-ink">{s.title}</span>
-                <span className="block text-xs text-ink3">{s.blurb}</span>
-              </span>
-              {s.scenarioId && <MessageCircle size={14} className="text-ink3 shrink-0" aria-label="Has a live roleplay" />}
-              <ChevronRight size={16} className="text-ink3 shrink-0" />
-            </button>
-          ))}
+        <div className="text-center">
+          <p className="text-xs text-ink2">
+            Survival phrases for the situations that count — {totalPhrases} lines across {SITUATIONS.length} scenes.
+          </p>
+          <p className="text-[11px] text-ink3 mt-1 tabular-nums">
+            {opened}/{SITUATIONS.length} situations opened
+          </p>
+          <div className="mt-2 h-1.5 rounded-full bg-surface2 overflow-hidden max-w-xs mx-auto">
+            <div
+              className="h-full bg-ink rounded-full transition-all"
+              style={{ width: `${Math.round((opened / SITUATIONS.length) * 100)}%` }}
+            />
+          </div>
         </div>
+
+        {tip && (
+          <button
+            type="button"
+            onClick={() => onOpen(tip.situationId)}
+            className="w-full text-left bg-surface border border-line rounded-2xl px-4 py-3.5 hover:border-ink3 transition-colors space-y-1"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink3 flex items-center gap-1.5">
+              <Lightbulb size={12} aria-hidden="true" /> Phrase of the day
+            </p>
+            <p className="text-sm font-semibold text-ink flex items-center gap-2">
+              <span aria-hidden="true">{tip.emoji}</span>
+              <span lang="fr">{tip.fr}</span>
+            </p>
+            <p className="text-xs text-ink2 italic">{tip.en}</p>
+            <p className="text-[11px] text-ink3">{tip.title}</p>
+          </button>
+        )}
+
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink3 pointer-events-none" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search situations or phrases…"
+            aria-label="Search situations or phrases"
+            className="w-full rounded-2xl border border-line bg-surface pl-9 pr-3 py-2.5 text-sm text-ink placeholder:text-ink3 focus:outline-none focus:border-ink3"
+          />
+        </div>
+
+        {query.trim() ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">
+              {searchHits.length} result{searchHits.length === 1 ? '' : 's'}
+            </p>
+            {searchHits.length === 0 && (
+              <p className="text-sm text-ink3">No situations match that search.</p>
+            )}
+            {searchHits.map((hit) => (
+              <button
+                key={hit.situationId}
+                type="button"
+                onClick={() => onOpen(hit.situationId)}
+                className="w-full text-left bg-surface border border-line rounded-2xl px-4 py-3 hover:border-ink3 transition-colors"
+              >
+                <p className="text-sm font-semibold text-ink flex items-center gap-2">
+                  <span aria-hidden="true">{hit.emoji}</span> {hit.title}
+                </p>
+                {hit.sample && (
+                  <>
+                    <p className="text-xs text-ink mt-1" lang="fr">{hit.sample.fr}</p>
+                    <p className="text-[11px] text-ink3 italic">{hit.sample.en}</p>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={onExam}
+              className="w-full flex items-center gap-3.5 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity"
+            >
+              <FileText size={18} className="shrink-0" />
+              <span className="flex-1">
+                <span className="block text-sm font-semibold">Mock exam</span>
+                <span className="block text-xs opacity-70">{EXAM.questions.length} questions → a CEFR band</span>
+              </span>
+              <ChevronRight size={16} className="shrink-0" />
+            </button>
+
+            <div className="space-y-2.5">
+              {SITUATIONS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => onOpen(s.id)}
+                  className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+                >
+                  <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-xl" role="img" aria-hidden="true">{s.emoji}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-ink flex items-center gap-2">
+                      {s.title}
+                      {seen.has(s.id) && (
+                        <Check size={12} className="text-ink3 shrink-0" aria-label="Opened" />
+                      )}
+                    </span>
+                    <span className="block text-xs text-ink3">
+                      {s.blurb}
+                      {s.level ? ` · ${s.level}` : ''}
+                      {' · '}
+                      {s.phrases.length} phrases
+                    </span>
+                  </span>
+                  {s.scenarioId && <MessageCircle size={14} className="text-ink3 shrink-0" aria-label="Has a live roleplay" />}
+                  <ChevronRight size={16} className="text-ink3 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 function Situation({ situation, onBack, onRoleplay }) {
+  if (!situation) {
+    return (
+      <div className="h-full grid place-items-center px-4">
+        <button onClick={onBack} className="btn btn-primary min-h-11 px-5 rounded-xl text-sm">Back</button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-5">
       <div className="max-w-md mx-auto space-y-4">
@@ -98,6 +245,11 @@ function Situation({ situation, onBack, onRoleplay }) {
           </h2>
           <span className="w-10" aria-hidden="true" />
         </div>
+
+        <p className="text-xs text-ink3 text-center">
+          {situation.blurb}
+          {situation.level ? ` · ${situation.level}` : ''}
+        </p>
 
         <ul className="space-y-2">
           {situation.phrases.map((p, i) => (
