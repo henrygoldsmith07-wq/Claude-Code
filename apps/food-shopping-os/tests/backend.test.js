@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { assertSameOrigin } from '../src/server/api.js';
-import { aiRequestSchema, invitationSchema, syncSchema } from '../src/server/schemas.js';
+import {
+  aiRequestSchema, calendarRangeSchema, coachShareSchema, invitationSchema, syncSchema,
+} from '../src/server/schemas.js';
 import { down, up } from '../scripts/migrations/001-initial-backend.mjs';
-import { initialiseCloud, pushCloud } from '../src/lib/cloud.js';
+import { initialiseCloud, pushCloud, subscribeCloud } from '../src/lib/cloud.js';
+import { deleteHouseholdData } from '../src/server/households.js';
 
 describe('backend contracts', () => {
   it('accepts a complete versioned sync payload', () => {
@@ -47,9 +50,57 @@ describe('MongoDB migrations', () => {
     };
     await up(db);
     await down(db);
-    expect(created).toHaveLength(11);
-    expect(dropped).toHaveLength(11);
+    expect(created).toHaveLength(14);
+    expect(dropped).toHaveLength(14);
     expect(created[0][2]).toBe('personal_owner_unique');
+  });
+});
+
+describe('household erasure', () => {
+  it('removes every record keyed to the household', async () => {
+    const calls = [];
+    const db = {
+      collection: (name) => ({
+        deleteMany: async (query) => {
+          calls.push([name, query]);
+          return { deletedCount: 1 };
+        },
+      }),
+    };
+    const householdId = { toString: () => 'household-id' };
+    const deleted = await deleteHouseholdData(db, householdId);
+
+    expect(calls.map(([name]) => name)).toEqual([
+      'householdStates',
+      'memberships',
+      'invitations',
+      'coachShares',
+      'uploads',
+      'notificationOutbox',
+      'auditEvents',
+      'aiUsage',
+    ]);
+    for (const [, query] of calls) expect(query).toEqual({ householdId });
+    expect(deleted.uploads).toBe(1);
+  });
+
+  it('bounds coach shares and calendar reads', () => {
+    expect(coachShareSchema.parse({
+      label: 'Trainer',
+      scopes: ['diary', 'nutrition'],
+      expiresInDays: 30,
+    }).scopes).toEqual(['diary', 'nutrition']);
+    expect(() => coachShareSchema.parse({ label: 'Trainer', scopes: [], expiresInDays: 30 })).toThrow();
+    expect(calendarRangeSchema.parse({
+      provider: 'google',
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-08-08T00:00:00.000Z',
+    }).provider).toBe('google');
+    expect(() => calendarRangeSchema.parse({
+      provider: 'google',
+      from: '2026-01-01T00:00:00.000Z',
+      to: '2026-08-08T00:00:00.000Z',
+    })).toThrow();
   });
 });
 
@@ -84,5 +135,41 @@ describe('offline-first cloud migration', () => {
     );
     expect(result.status.kind).toBe('conflict');
     expect(result.meta.version).toBe(2);
+  });
+
+  it('subscribes to the private household stream and closes it cleanly', async () => {
+    const listeners = {};
+    const close = vi.fn();
+    class EventSourceMock {
+      constructor(url) {
+        this.url = String(url);
+        EventSourceMock.instance = this;
+      }
+
+      addEventListener(name, handler) {
+        listeners[name] = handler;
+      }
+
+      close() {
+        close();
+      }
+    }
+    vi.stubGlobal('EventSource', EventSourceMock);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      token: 'short-lived-ably-token',
+      expires: Date.now() + 3600000,
+    }), { status: 200 })));
+    const changed = vi.fn();
+    const unsubscribe = await subscribeCloud({
+      householdId: 'household-1',
+      deviceId: 'device-1',
+    }, changed);
+    const url = new URL(EventSourceMock.instance.url);
+    expect(url.hostname).toBe('main.realtime.ably.net');
+    expect(url.searchParams.get('channels')).toBe('household:household-1');
+    listeners.message({ data: JSON.stringify({ name: 'changed', data: JSON.stringify({ version: 3 }) }) });
+    expect(changed).toHaveBeenCalledWith({ version: 3 });
+    unsubscribe();
+    expect(close).toHaveBeenCalled();
   });
 });

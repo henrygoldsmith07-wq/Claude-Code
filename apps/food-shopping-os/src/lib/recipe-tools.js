@@ -357,8 +357,8 @@ const fromBase64 = (text) => (typeof atob === 'function'
   : Buffer.from(text, 'base64').toString('utf8'));
 
 /**
- * A recipe as a paste-able code. There is no server here and no feed of
- * strangers' dinners — sharing is you sending someone a string.
+ * A recipe as a paste-able code. This action is local and has no public feed:
+ * sharing is the user choosing to send someone a string.
  */
 export const shareCode = (recipe, by = '') => {
   const payload = { v: 1, by, r: Object.fromEntries(FIELDS.filter((f) => recipe[f] !== undefined).map((f) => [f, recipe[f]])) };

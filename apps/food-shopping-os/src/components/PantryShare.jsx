@@ -50,8 +50,8 @@ export default function PantryShare() {
       <div className="flex items-start gap-3">
         <Share2 size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--muted)' }} />
         <div>
-          <p className="font-bold text-[14px]">Household inventory sharing</p>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-bold text-[0.875rem]">Household inventory sharing</p>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Send a private snapshot code. It contains pantry items only and works without an account.
           </p>
         </div>
@@ -60,7 +60,7 @@ export default function PantryShare() {
         <button
           onClick={copy}
           disabled={!app.pantry.length}
-          className="press rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+          className="press rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
           style={{ borderColor: 'var(--line)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Copy size={14} /> Copy code</span>
@@ -68,34 +68,34 @@ export default function PantryShare() {
         <button
           onClick={share}
           disabled={!app.pantry.length}
-          className="press rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+          className="press rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
           style={{ borderColor: 'var(--line)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Share2 size={14} /> Share</span>
         </button>
       </div>
       <label className="block">
-        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Import a pantry code</span>
+        <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Import a pantry code</span>
         <textarea
           value={code}
           onChange={(event) => setCode(event.target.value)}
           rows={3}
           placeholder="FORQ-PANTRY-1…"
           aria-label="Pantry share code"
-          className="mt-1 w-full rounded-2xl border p-3 text-[12px] font-semibold outline-none"
+          className="mt-1 w-full rounded-2xl border p-3 text-[0.75rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
       </label>
       <button
         onClick={importCode}
         disabled={!code.trim()}
-        className="press w-full rounded-2xl py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-1.5"><Download size={14} /> Import snapshot</span>
       </button>
       {message && (
-        <p role="status" className="text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+        <p role="status" className="text-[0.75rem] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
           <Check size={13} /> {message}
         </p>
       )}

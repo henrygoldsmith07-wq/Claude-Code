@@ -24,13 +24,13 @@ describe('Smart Features centre', () => {
     localStorage.clear();
   });
 
-  it('shows evidence-backed predictions and adds its generated list', () => {
+  it('shows evidence-backed predictions and adds its generated list', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
-    fireEvent.click(screen.getByText('Smart Features'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guidance — what matters now' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'Smart Features' });
-    expect(within(dialog).getByText('Next shopping trip')).toBeDefined();
+    const dialog = screen.getByRole('dialog', { name: 'Guidance' });
+    fireEvent.click(within(dialog).getByText('Tools'));
+    expect(await within(dialog).findByText('Next shopping trip')).toBeDefined();
     expect(within(dialog).getByText(/4 recorded shopping days/)).toBeDefined();
     expect(within(dialog).getByText('Budget overrun')).toBeDefined();
     expect(within(dialog).getByText(/Milk/)).toBeDefined();
@@ -43,14 +43,14 @@ describe('Smart Features centre', () => {
     expect(screen.getByLabelText('Tick Milk')).toBeDefined();
   });
 
-  it('opens the voice-enabled food coach with a typed fallback', () => {
+  it('opens the voice-enabled assistant inside Guidance with a typed fallback', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
-    fireEvent.click(screen.getByText('Smart Features'));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Smart Features' })).getByText('Open'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guidance — what matters now' }));
+    const guidance = screen.getByRole('dialog', { name: 'Guidance' });
+    fireEvent.click(within(guidance).getByText('Tools'));
+    fireEvent.click(await within(guidance).findByText('Open'));
 
-    const coach = screen.getByText('AI food coach').closest('[role="dialog"]');
-    expect(within(coach).getByLabelText('Ask by voice').disabled).toBe(true);
-    expect(within(coach).getByLabelText('Ask the AI food coach')).toBeDefined();
+    expect((await within(guidance).findByLabelText('Ask by voice')).disabled).toBe(true);
+    expect(within(guidance).getByLabelText('Ask Guidance')).toBeDefined();
   });
 });

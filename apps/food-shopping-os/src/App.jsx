@@ -1,27 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, CalendarDays, ChefHat, ClipboardList, Download, Home, ShoppingCart, Upload,
 } from 'lucide-react';
 import { AppProvider, useApp } from './lib/store.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import HomeTab from './components/HomeTab.jsx';
-import PlanTab from './components/PlanTab.jsx';
-import LogTab from './components/LogTab.jsx';
-import ShopTab from './components/ShopTab.jsx';
-import RecipesTab from './components/RecipesTab.jsx';
 import ProfileTab from './components/ProfileTab.jsx';
-import RecipeDetail from './components/RecipeDetail.jsx';
-import PantryView from './components/PantryView.jsx';
-import AiAssistant from './components/AiAssistant.jsx';
-import CoachPanel from './components/CoachPanel.jsx';
-import { Chip, Sheet } from './components/ui.jsx';
+import { Sheet } from './components/ui.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import { cx } from './lib/utils.js';
 import { distanceMetres } from './lib/smart.js';
 import { downloadFile, showNotification } from './lib/notify.js';
-import {
-  CommandPalette, LauncherButtons, QuickAdd,
-} from './components/GlobalLauncher.jsx';
+import { haptic } from './lib/haptics.js';
+
+const testScreens = globalThis.__FORQ_TEST_SCREENS__ || {};
+const deferred = (testComponent, loader) => testComponent || lazy(loader);
+const PlanTab = deferred(testScreens.PlanTab, () => import('./components/PlanTab.jsx'));
+const LogTab = deferred(testScreens.LogTab, () => import('./components/LogTab.jsx'));
+const ShopTab = deferred(testScreens.ShopTab, () => import('./components/ShopTab.jsx'));
+const RecipesTab = deferred(testScreens.RecipesTab, () => import('./components/RecipesTab.jsx'));
+const RecipeDetail = deferred(testScreens.RecipeDetail, () => import('./components/RecipeDetail.jsx'));
+const PantryView = deferred(testScreens.PantryView, () => import('./components/PantryView.jsx'));
+const GuidancePanel = deferred(testScreens.GuidancePanel, () => import('./components/GuidancePanel.jsx'));
+const launcherPart = (name) => deferred(testScreens[name], () => import('./components/GlobalLauncher.jsx')
+  .then((module) => ({ default: module[name] })));
+const CommandPalette = launcherPart('CommandPalette');
+const LauncherButtons = launcherPart('LauncherButtons');
+const QuickAdd = launcherPart('QuickAdd');
+
+const ScreenFallback = () => (
+  <div className="px-5 py-5" aria-hidden="true">
+    <div className="skeleton h-5 w-32 rounded-full" />
+    <div className="skeleton mt-4 h-36 rounded-3xl" />
+    <div className="skeleton mt-3 h-24 rounded-3xl" />
+  </div>
+);
 
 /**
  * Five tabs, not six.
@@ -105,14 +118,14 @@ function StorageRecovery() {
         <AlertTriangle size={24} style={{ color: 'var(--warn)' }} />
         <div>
           <h1 id="recovery-title" className="text-xl font-extrabold">Saved data needs attention</h1>
-          <p className="mt-1 text-[13px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.8125rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
             {app.storageIssue.message} Download the original data first, then restore a valid Forq backup or start again.
           </p>
         </div>
         <div className="grid gap-2">
           {app.storageIssue.raw && (
             <button
-              className="press rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+              className="press rounded-2xl border px-4 py-3 text-[0.8125rem] font-extrabold"
               style={{ borderColor: 'var(--line)' }}
               onClick={() => downloadFile('forq-unreadable-data.json', app.storageIssue.raw, 'application/json')}
             >
@@ -120,7 +133,7 @@ function StorageRecovery() {
             </button>
           )}
           <button
-            className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold"
+            className="press rounded-2xl px-4 py-3 text-[0.8125rem] font-extrabold"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
             onClick={() => fileRef.current?.click()}
           >
@@ -134,11 +147,11 @@ function StorageRecovery() {
             aria-label="Restore Forq backup"
             onChange={restore}
           />
-          <button className="press px-4 py-2 text-[12px] font-bold" style={{ color: 'var(--danger)' }} onClick={app.reset}>
+          <button className="press px-4 py-2 text-[0.75rem] font-bold" style={{ color: 'var(--danger)' }} onClick={app.reset}>
             Start with an empty app
           </button>
         </div>
-        {status && <p role="status" className="text-[12px] font-semibold">{status}</p>}
+        {status && <p role="status" className="text-[0.75rem] font-semibold">{status}</p>}
       </section>
     </main>
   );
@@ -149,15 +162,16 @@ function Shell() {
   const [tab, setTab] = useState('home');
   const [recipe, setRecipe] = useState(null);
   const [pantryOpen, setPantryOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [coachView, setCoachView] = useState('coach'); // coach · chat
+  const [guidanceView, setGuidanceView] = useState('next');
   const [launcher, setLauncher] = useState(null); // search · quick
   const [notice, setNotice] = useState('');
   const [shopAdd, setShopAdd] = useState(0);
   const [pantryAdd, setPantryAdd] = useState(0);
   const [pantryQuery, setPantryQuery] = useState('');
   const noticeTimer = useRef(null);
+  const completedGoals = useRef(null);
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
@@ -179,7 +193,7 @@ function Shell() {
     else if (target === 'pantry') setPantryOpen(true);
     else if (target === 'add-food') goLog('add');
     else if (target === 'barcode') goLog('barcode');
-    else if (target === 'assistant') { setCoachView('chat'); setAiOpen(true); }
+    else if (target === 'assistant') { setGuidanceView('ask'); setGuidanceOpen(true); }
     else if (target === 'undo') undo();
   };
   const runResult = (result) => {
@@ -198,7 +212,7 @@ function Shell() {
     else if (id === 'pantry') { setPantryAdd((value) => value + 1); setPantryOpen(true); }
     else if (id === 'plan') setTab('plan');
     else if (id === 'water') app.addWaterMl(250);
-    else if (id === 'assistant') { setCoachView('chat'); setAiOpen(true); }
+    else if (id === 'assistant') { setGuidanceView('ask'); setGuidanceOpen(true); }
     else if (id === 'undo') undo();
   };
 
@@ -223,6 +237,11 @@ function Shell() {
     return () => window.removeEventListener('keydown', onKey);
   });
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
+  useEffect(() => {
+    const count = app.game.daily.filter((goal) => goal.done).length;
+    if (completedGoals.current !== null && count > completedGoals.current) haptic();
+    completedGoals.current = count;
+  }, [app.game.daily]);
 
   /* Screens still ask to go to "profile" — it just isn't a tab any more, it's
      the sheet behind the avatar. Routing it here means nothing that pointed at
@@ -236,7 +255,9 @@ function Shell() {
   if (app.storageIssue?.kind === 'corrupt') return <StorageRecovery />;
 
   // Nothing is pre-filled, so the first run asks for the little it needs.
-  if (!app.onboarded) return <Onboarding />;
+  if (!app.onboarded) {
+    return <Onboarding />;
+  }
 
   return (
     <div className="app-shell min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -245,28 +266,44 @@ function Shell() {
       <a href="#main" className="skip-link">Skip to content</a>
 
       <div className="app-workspace">
-        <AppHeader tab={tab} onProfile={() => setProfileOpen(true)} onAi={() => setAiOpen(true)} />
+        <AppHeader
+          tab={tab}
+          onProfile={() => setProfileOpen(true)}
+          onGuidance={() => { setGuidanceView('next'); setGuidanceOpen(true); }}
+        />
 
         {/* Room at the foot for the tab bar and the screen's primary action. */}
         <main id="main" tabIndex={-1} className="app-main pb-44">
           {app.storageIssue && (
             <div role="alert" className="mx-5 mt-4 flex items-start gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--warn)' }}>
               <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--warn)' }} />
-              <p className="text-[12px] font-semibold leading-relaxed">{app.storageIssue.message}</p>
+              <p className="text-[0.75rem] font-semibold leading-relaxed">{app.storageIssue.message}</p>
             </div>
           )}
-          {tab === 'home' && <HomeTab openRecipe={openRecipe} openPantry={() => setPantryOpen(true)} goTab={goTab} goLog={goLog} />}
-          {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
-          {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
-          {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
-          {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
+          {tab === 'home' && (
+            <HomeTab
+              openRecipe={openRecipe}
+              openPantry={() => setPantryOpen(true)}
+              openGuidance={(view = 'next') => { setGuidanceView(view); setGuidanceOpen(true); }}
+              goTab={goTab}
+              goLog={goLog}
+            />
+          )}
+          <Suspense fallback={<ScreenFallback />}>
+            {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
+            {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
+            {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
+            {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
+          </Suspense>
         </main>
       </div>
 
       {/* The coach is in the header now — a floating button here would sit on
           top of the screen's primary action. The launcher keeps its corner,
           raised clear of that bar. */}
-      <LauncherButtons onSearch={() => setLauncher('search')} onQuickAdd={() => setLauncher('quick')} />
+      <Suspense fallback={null}>
+        <LauncherButtons onSearch={() => setLauncher('search')} onQuickAdd={() => setLauncher('quick')} />
+      </Suspense>
 
       {/* Bottom navigation on phones, sidebar on larger screens. */}
       <nav
@@ -277,8 +314,8 @@ function Shell() {
         <div className="app-brand">
           <div className="app-brand-mark">F</div>
           <div>
-            <p className="text-[17px] font-black tracking-tight">Forq</p>
-            <p className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>Food, sorted.</p>
+            <p className="text-[1.0625rem] font-black tracking-tight">Forq</p>
+            <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>Food, sorted.</p>
           </div>
         </div>
         <div className="app-nav-items">
@@ -305,27 +342,51 @@ function Shell() {
 
       {/* Overlays */}
       <Sheet open={!!recipe} onClose={() => setRecipe(null)} full>
-        {recipe && <RecipeDetail recipe={recipe} onClose={() => setRecipe(null)} />}
+        <Suspense fallback={<ScreenFallback />}>
+          {recipe && <RecipeDetail recipe={recipe} onClose={() => setRecipe(null)} />}
+        </Suspense>
       </Sheet>
       <Sheet open={pantryOpen} onClose={() => { setPantryOpen(false); setPantryQuery(''); }} title="Smart pantry">
-        <PantryView quickAddKey={pantryAdd} initialQuery={pantryQuery} />
+        <Suspense fallback={<ScreenFallback />}>
+          <PantryView quickAddKey={pantryAdd} initialQuery={pantryQuery} />
+        </Suspense>
       </Sheet>
       <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="You">
-        <ProfileTab openAssistant={() => { setCoachView('chat'); setAiOpen(true); }} />
+        <ProfileTab openGuidance={() => {
+          setProfileOpen(false);
+          setGuidanceView('next');
+          setGuidanceOpen(true);
+        }} />
       </Sheet>
-      <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="AI food coach">
-        <div className="px-5 pb-2 flex gap-2">
-          <Chip active={coachView === 'coach'} onClick={() => setCoachView('coach')}>Coach</Chip>
-          <Chip active={coachView === 'chat'} onClick={() => setCoachView('chat')}>Ask</Chip>
-        </div>
-        {coachView === 'coach' ? <CoachPanel /> : <AiAssistant />}
+      <Sheet open={guidanceOpen} onClose={() => setGuidanceOpen(false)} title="Guidance">
+        <Suspense fallback={<ScreenFallback />}>
+          <GuidancePanel
+            key={`${guidanceOpen}-${guidanceView}`}
+            initialView={guidanceView}
+            onNavigate={(target, intent) => {
+              setGuidanceOpen(false);
+              if (target === 'log') goLog(intent || null);
+              else goTab(target);
+            }}
+            onOpenPantry={() => {
+              setGuidanceOpen(false);
+              setPantryOpen(true);
+            }}
+            onOpenProfile={() => {
+              setGuidanceOpen(false);
+              setProfileOpen(true);
+            }}
+          />
+        </Suspense>
       </Sheet>
-      <CommandPalette open={launcher === 'search'} onClose={() => setLauncher(null)} onRun={runResult} />
-      <QuickAdd open={launcher === 'quick'} onClose={() => setLauncher(null)} onRun={runQuick} />
+      <Suspense fallback={null}>
+        {launcher === 'search' && <CommandPalette open onClose={() => setLauncher(null)} onRun={runResult} />}
+        {launcher === 'quick' && <QuickAdd open onClose={() => setLauncher(null)} onRun={runQuick} />}
+      </Suspense>
       {notice && (
         <div
           role="status"
-          className="app-toast fixed left-1/2 bottom-40 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-[12.5px] font-extrabold"
+          className="app-toast fixed left-1/2 bottom-40 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-[0.78125rem] font-extrabold"
           style={{ background: 'var(--ink)', color: 'var(--bg)', boxShadow: 'var(--shadow-lg)' }}
         >
           {notice}

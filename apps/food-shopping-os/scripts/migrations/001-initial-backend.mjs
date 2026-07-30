@@ -10,6 +10,9 @@ const indexes = [
   ['notificationOutbox', { status: 1, scheduledAt: 1 }, { name: 'outbox_pending' }],
   ['notificationOutbox', { dedupeKey: 1 }, { unique: true, name: 'outbox_dedupe' }],
   ['auditEvents', { householdId: 1, createdAt: -1 }, { name: 'audit_by_household' }],
+  ['coachShares', { tokenHash: 1 }, { unique: true, name: 'coach_share_token_unique' }],
+  ['coachShares', { householdId: 1, createdAt: -1 }, { name: 'coach_shares_by_household' }],
+  ['coachShares', { expiresAt: 1 }, { expireAfterSeconds: 0, name: 'coach_share_expiry' }],
 ];
 
 export const id = '001-initial-backend';

@@ -99,14 +99,14 @@ export const printableReport = (report, { name = '', generated = new Date() } = 
 <title>Forq — ${esc(report.label)}</title>
 <style>
   body { font: 13px/1.5 system-ui, sans-serif; color: #111; margin: 32px; }
-  h1 { font-size: 20px; margin: 0 0 2px; }
-  h2 { font-size: 14px; margin: 24px 0 6px; }
+  h1 { font-size: 1.25rem; margin: 0 0 2px; }
+  h2 { font-size: 0.875rem; margin: 24px 0 6px; }
   p.meta { color: #666; margin: 0 0 4px; }
   table { border-collapse: collapse; width: 100%; margin-top: 6px; }
   th, td { border-bottom: 1px solid #ddd; padding: 5px 8px; text-align: left; }
   th { font-weight: 700; }
   td + td, th + th { text-align: right; }
-  .note { color: #666; margin-top: 20px; font-size: 12px; }
+  .note { color: #666; margin-top: 20px; font-size: 0.75rem; }
   @media print { body { margin: 0; } }
 </style></head><body>
 <h1>${esc(report.label)}${name ? ` — ${esc(name)}` : ''}</h1>

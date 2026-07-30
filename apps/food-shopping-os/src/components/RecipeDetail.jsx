@@ -96,14 +96,14 @@ export default function RecipeDetail({ recipe: original, onClose }) {
       <div className="px-5 -mt-6 relative space-y-4">
         <Card className="rise">
           <div className="flex items-start justify-between gap-2">
-            <h1 className="text-[20px] font-extrabold leading-tight">{recipe.name}</h1>
+            <h1 className="text-[1.25rem] font-extrabold leading-tight">{recipe.name}</h1>
             <Pill tone="accent">{recipe.kcal} kcal</Pill>
           </div>
-          <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {recipe.cuisine} · serves {recipe.servings} · {gbp(recipe.costPerServing, { always: true })}/serving
           </p>
           {recipe.sharedBy && (
-            <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Shared with you by {recipe.sharedBy}.
             </p>
           )}
@@ -115,7 +115,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
           </div>
           {app.householdAccess.recipes && (
             <div className="mt-3 pt-3 border-t flex items-center justify-between gap-3" style={{ borderColor: 'var(--line)' }}>
-              <p className="text-[12.5px] font-bold">{rating ? `Your rating: ${rating}/5` : 'Not rated yet'}</p>
+              <p className="text-[0.78125rem] font-bold">{rating ? `Your rating: ${rating}/5` : 'Not rated yet'}</p>
               <div className="flex gap-1" aria-label="Your recipe rating">
                 {[1, 2, 3, 4, 5].map((score) => (
                   <button
@@ -137,7 +137,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
               href={recipe.video}
               target="_blank"
               rel="noreferrer noopener"
-              className="press mt-3 inline-flex items-center gap-1.5 text-[13px] font-extrabold"
+              className="press mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-extrabold"
               style={{ color: 'var(--accent)' }}
             >
               <ExternalLink size={14} /> Watch the original
@@ -148,7 +148,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
               href={recipe.source}
               target="_blank"
               rel="noreferrer noopener"
-              className="press mt-3 inline-flex items-center gap-1.5 text-[13px] font-extrabold"
+              className="press mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-extrabold"
               style={{ color: 'var(--accent)' }}
             >
               <ExternalLink size={14} /> Open original recipe
@@ -157,7 +157,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
           {isMine && (
             <button
               onClick={() => { app.removeRecipe(original.id); onClose(); }}
-              className="press mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-extrabold"
+              className="press mt-3 inline-flex items-center gap-1.5 text-[0.78125rem] font-extrabold"
               style={{ color: 'var(--muted)' }}
             >
               <Trash2 size={13} /> Remove from my recipes
@@ -167,7 +167,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
 
         {app.householdAccess.recipes && (
           <Card className="rise rise-1">
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Collections</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Collections</p>
             {app.recipeCollections.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {app.recipeCollections.map((collection) => {
@@ -194,7 +194,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
                 aria-label="New collection name"
                 placeholder="Weeknight favourites"
                 maxLength={40}
-                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[13px] font-semibold outline-none"
+                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[0.8125rem] font-semibold outline-none"
                 style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
               <button
@@ -203,7 +203,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
                   setCollectionName('');
                 }}
                 disabled={collectionName.trim().length < 2}
-                className="press shrink-0 rounded-xl px-3 py-2 text-[12.5px] font-extrabold disabled:opacity-40"
+                className="press shrink-0 rounded-xl px-3 py-2 text-[0.78125rem] font-extrabold disabled:opacity-40"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><FolderPlus size={14} /> Create collection</span>
@@ -224,10 +224,10 @@ export default function RecipeDetail({ recipe: original, onClose }) {
         {/* Nutrition per serving, with the full breakdown a tap away */}
         <Card className="rise rise-1">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Per serving</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Per serving</p>
             <button
               onClick={() => setShowNutrition((v) => !v)}
-              className="press text-[12.5px] font-extrabold inline-flex items-center gap-1.5"
+              className="press text-[0.78125rem] font-extrabold inline-flex items-center gap-1.5"
               style={{ color: 'var(--accent)' }}
             >
               <ChartColumn size={13} /> {showNutrition ? 'Hide breakdown' : 'Full breakdown'}
@@ -246,10 +246,10 @@ export default function RecipeDetail({ recipe: original, onClose }) {
               ['Planet', recipe.envScore, '🌍'],
             ].map(([label, score, glyph]) => (
               <div key={label} className="rounded-xl py-2" style={{ background: 'var(--card-2)' }}>
-                <p className="text-[15px] font-extrabold inline-flex items-center gap-1.5">
+                <p className="text-[0.9375rem] font-extrabold inline-flex items-center gap-1.5">
                   <Glyph e={glyph} size={14} style={{ color: 'var(--muted)' }} /> {score}
                 </p>
-                <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label} score</p>
+                <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label} score</p>
               </div>
             ))}
           </div>
@@ -269,21 +269,21 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             costPerServing={recipe.costPerServing}
           />
           <div className="my-3 flex items-center justify-between">
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ingredients</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ingredients</p>
             <Pill tone={havePantry === recipe.ingredients.length ? 'good' : 'accent'}>
               <Package size={12} /> You have {havePantry} of {recipe.ingredients.length}
             </Pill>
           </div>
           <ul className="space-y-2">
             {recipe.ingredients.map((ing) => (
-              <li key={ing.name} className="flex items-center justify-between text-[14px]">
+              <li key={ing.name} className="flex items-center justify-between text-[0.875rem]">
                 <span className={cx('font-semibold inline-flex items-center gap-2', has(ing) && 'opacity-60')}>
                   {has(ing)
                     ? <Check size={14} strokeWidth={3} style={{ color: 'var(--good)' }} />
                     : <ShoppingCart size={14} style={{ color: 'var(--muted)' }} />}
                   {ing.name}
                 </span>
-                <span className="font-bold text-[13px]" style={{ color: 'var(--muted)' }}>{ing.qty}</span>
+                <span className="font-bold text-[0.8125rem]" style={{ color: 'var(--muted)' }}>{ing.qty}</span>
               </li>
             ))}
           </ul>
@@ -291,7 +291,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             <button
               onClick={addMissing}
               disabled={addedMissing}
-              className="press mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold border disabled:opacity-60"
+              className="press mt-3 w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold border disabled:opacity-60"
               style={addedMissing
                 ? { borderColor: 'var(--good)', color: 'var(--good)' }
                 : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
@@ -313,13 +313,13 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             onClick={() => setScheduling((v) => !v)}
             className="press flex w-full items-center justify-between"
           >
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Schedule</p>
-            <span className="text-[13px] font-extrabold inline-flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Schedule</p>
+            <span className="text-[0.8125rem] font-extrabold inline-flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
               <CalendarPlus size={14} /> {scheduling ? 'Close' : 'Add to my plan'}
             </span>
           </button>
           {scheduled && !scheduling && (
-            <p className="mt-2 text-[13px] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
+            <p className="mt-2 text-[0.8125rem] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
           )}
           {scheduling && (
             <div className="mt-3 space-y-3">
@@ -345,7 +345,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
                   setScheduled(`${when.slot} on ${new Date(`${when.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`);
                   setScheduling(false);
                 }}
-                className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+                className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 Put it in the plan
@@ -356,13 +356,13 @@ export default function RecipeDetail({ recipe: original, onClose }) {
 
         {/* Steps preview */}
         <Card className="rise rise-3">
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>
             Method · {recipe.steps.length} steps
           </p>
           <ol className="space-y-2.5">
             {recipe.steps.map((s, i) => (
-              <li key={i} className="flex gap-3 text-[13.5px]">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}>
+              <li key={i} className="flex gap-3 text-[0.84375rem]">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-extrabold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}>
                   {i + 1}
                 </span>
                 <span className="font-medium leading-snug" style={{ color: 'var(--muted)' }}>
@@ -382,7 +382,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
 
         <button
           onClick={() => setCooking(true)}
-          className="press w-full rounded-2xl py-4 text-[16px] font-extrabold rise rise-3"
+          className="press w-full rounded-2xl py-4 text-[1rem] font-extrabold rise rise-3"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'var(--shadow-lg)' }}
         >
           <span className="inline-flex items-center gap-2"><ChefHat size={18} /> Start cooking mode</span>

@@ -64,6 +64,95 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.client-root { visibility: hidden; }
+html[data-forq-ready="true"] .client-root { visibility: visible; }
+html[data-forq-ready="true"] .launch-shell { display: none; }
+
+.launch-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+}
+.launch-header {
+  display: flex;
+  height: 4.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  padding-inline: 1.25rem;
+}
+.launch-brand,
+.launch-avatar {
+  flex: 0 0 auto;
+  border-radius: 0.75rem;
+  background: var(--ink);
+}
+.launch-brand {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  color: var(--bg);
+  font-weight: 900;
+}
+.launch-avatar {
+  width: 2rem;
+  height: 2rem;
+  margin-left: auto;
+  background: var(--surface-2);
+}
+.launch-content {
+  width: min(100%, 48rem);
+  margin-inline: auto;
+  padding: 1.5rem 1.25rem 7rem;
+}
+.launch-line {
+  display: block;
+  width: 100%;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.launch-line-title { width: 5rem; }
+.launch-line-kicker { width: 7rem; height: 0.625rem; }
+.launch-line-heading { width: 12rem; height: 1.75rem; margin-top: 0.625rem; }
+.launch-line-card-title { width: 45%; height: 1rem; }
+.launch-line-short { width: 68%; }
+.launch-card {
+  display: grid;
+  gap: 0.875rem;
+  min-height: 10rem;
+  margin-top: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: var(--surface);
+  padding: 1.25rem;
+}
+.launch-card-small { min-height: 6rem; margin-top: 0.75rem; }
+.launch-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.launch-nav-item {
+  flex: 1;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+/* iOS Safari zooms the viewport when a focused form control is under 16px.
+   Important keeps small utility classes from dropping controls below 1rem. */
+input,
+textarea,
+select { font-size: 1rem !important; }
+
 .app-shell { position: relative; }
 .app-workspace { min-width: 0; }
 .app-main,
@@ -94,14 +183,38 @@ body {
 .app-brand,
 .app-nav-hint { display: none; }
 
-.recipe-grid { align-items: stretch; }
+.recipe-grid {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, clamp(10rem, 22vw, 15rem)), 1fr)
+  );
+  align-items: stretch;
+}
 .recipe-grid > * { height: 100%; }
-
-@media (min-width: 768px) {
-  .recipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.type-responsive-pair {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
 }
 
 @media (min-width: 1024px) {
+  .launch-shell { padding-left: 15rem; }
+  .launch-nav {
+    inset: 0 auto 0 0;
+    width: 15rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.375rem;
+    border-top: 0;
+    border-right: 1px solid var(--line);
+    padding: 5.5rem 1rem 1rem;
+  }
+  .launch-nav-item {
+    flex: 0 0 auto;
+    border-radius: 0.875rem;
+    padding: 0.875rem;
+    text-align: left;
+    font-size: 0.8125rem;
+  }
+
   .app-shell {
     display: grid;
     grid-template-columns: 15rem minmax(0, 1fr);
@@ -179,7 +292,6 @@ body {
     box-shadow: 0 1px 0 var(--line);
   }
 
-  .recipe-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .primary-action {
     right: 1.5rem;
     left: auto;
@@ -234,7 +346,7 @@ body {
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 800;
-  font-size: 14px;
+  font-size: 0.875rem;
   transition: transform 160ms ease;
 }
 .skip-link:focus { transform: translate(-50%, 0); }
@@ -328,6 +440,119 @@ body {
   50% { transform: scale(1.35); opacity: 0.6; }
 }
 .pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* Increase Contrast keeps the chosen palette but removes the subtle ramps
+   that otherwise make secondary text, borders and glass hard to distinguish. */
+@media (prefers-contrast: more) {
+  :root:root {
+    --ink-2: var(--ink);
+    --ink-3: var(--ink);
+    --line: var(--ink);
+    --glass: var(--surface);
+    --accent-soft: color-mix(in srgb, var(--accent) 24%, var(--surface));
+    --success-soft: color-mix(in srgb, var(--success) 24%, var(--surface));
+    --speak-soft: color-mix(in srgb, var(--speak) 24%, var(--surface));
+    --review-soft: color-mix(in srgb, var(--review) 24%, var(--surface));
+    --danger-soft: color-mix(in srgb, var(--danger) 24%, var(--surface));
+  }
+
+  :focus-visible { outline-width: 3px; }
+
+  .card,
+  input,
+  textarea,
+  select { border-width: 2px; }
+
+  .glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Forced-colour users own the palette. System colours preserve native
+   boundaries while the small opt-out below keeps selected states explicit. */
+@media (forced-colors: active) {
+  :root:root {
+    --bg: Canvas;
+    --surface: Canvas;
+    --surface-2: Canvas;
+    --card: Canvas;
+    --card-2: Canvas;
+    --glass: Canvas;
+    --line: CanvasText;
+    --ink: CanvasText;
+    --ink-2: CanvasText;
+    --ink-3: CanvasText;
+    --muted: CanvasText;
+    --faint: CanvasText;
+    --accent: Highlight;
+    --on-accent: HighlightText;
+    --accent-soft: Canvas;
+    --accent-deep: CanvasText;
+    --success: CanvasText;
+    --success-soft: Canvas;
+    --speak: CanvasText;
+    --speak-soft: Canvas;
+    --review: CanvasText;
+    --review-soft: Canvas;
+    --danger: CanvasText;
+    --danger-soft: Canvas;
+    --good: CanvasText;
+    --good-deep: CanvasText;
+    --warn: CanvasText;
+    --warn-deep: CanvasText;
+    --danger-deep: CanvasText;
+    --series-1: CanvasText;
+    --series-2: CanvasText;
+    --series-3: CanvasText;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-nav: none;
+    --shadow-lg: none;
+  }
+
+  .glass {
+    background: Canvas;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .card,
+  input,
+  textarea,
+  select,
+  button { border-color: ButtonBorder; }
+
+  .card,
+  .glass,
+  .elev-nav,
+  .elev-sheet,
+  .elev-card,
+  .elev-pop { box-shadow: none !important; }
+
+  :focus-visible { outline: 3px solid Highlight; }
+
+  [aria-current="page"],
+  [aria-pressed="true"],
+  [role="switch"][aria-checked="true"],
+  .is-active {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  [role="switch"] > span {
+    forced-color-adjust: none;
+    background: ButtonText !important;
+  }
+
+  [role="switch"][aria-checked="true"] > span {
+    background: HighlightText !important;
+  }
+
+  .skeleton { background: CanvasText; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .rise, .sheet-up, .skeleton, .pulse-dot, .scanline,

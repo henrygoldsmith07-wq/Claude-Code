@@ -78,11 +78,17 @@ export default function AiAssistant() {
 
   return (
     <div className="flex flex-col h-[70vh]">
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-3 space-y-3" aria-live="polite">
+      <div
+        className="flex-1 overflow-y-auto no-scrollbar px-5 py-3 space-y-3"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-atomic="false"
+      >
         {messages.map((message, index) => (
           <div key={`${message.role}-${index}`} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
             <div
-              className="max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] font-medium leading-relaxed whitespace-pre-line"
+              className="max-w-[85%] rounded-2xl px-4 py-2.5 text-[0.875rem] font-medium leading-relaxed whitespace-pre-line"
               style={message.role === 'user'
                 ? { background: 'var(--accent)', color: 'var(--on-accent)', borderBottomRightRadius: 6 }
                 : { background: 'var(--card)', border: '1px solid var(--line)', borderBottomLeftRadius: 6 }}
@@ -114,7 +120,7 @@ export default function AiAssistant() {
           <button
             key={prompt}
             onClick={() => send(prompt)}
-            className="press shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-bold"
+            className="press shrink-0 rounded-full border px-3 py-1.5 text-[0.75rem] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--muted)' }}
           >
             {prompt}
@@ -137,8 +143,8 @@ export default function AiAssistant() {
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && send()}
           placeholder="Ask about your food…"
-          aria-label="Ask the AI food coach"
-          className="flex-1 rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+          aria-label="Ask Guidance"
+          className="flex-1 rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <button

@@ -10,7 +10,7 @@ export const GLOBAL_COMMANDS = [
   ['pantry', 'Open pantry', 'Fridge, freezer and cupboards'],
   ['add-food', 'Add food', 'Search, scan, photograph or speak'],
   ['barcode', 'Scan a barcode', 'Open barcode capture'],
-  ['assistant', 'Ask the AI food coach', 'Open the local assistant'],
+  ['assistant', 'Ask Forq', 'Open Guidance and ask a question'],
   ['undo', 'Undo last action', 'Revert the most recent saved change'],
 ];
 

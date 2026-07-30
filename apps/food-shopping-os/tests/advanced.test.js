@@ -370,6 +370,10 @@ describe('the capability register', () => {
 
   it('names the things a browser genuinely cannot do', () => {
     const impossible = CAPABILITIES.filter((c) => c.status === 'impossible').map((c) => c.id);
-    expect(impossible).toEqual(expect.arrayContaining(['smartKitchen', 'api', 'coach', 'provider', 'corporate']));
+    expect(impossible).toEqual(['smartKitchen']);
+    expect(capabilityBy.api.status).toBe('built');
+    expect(capabilityBy.coach.status).toBe('built');
+    expect(capabilityBy.provider.status).toBe('refused');
+    expect(capabilityBy.corporate.status).toBe('refused');
   });
 });

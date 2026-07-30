@@ -23,7 +23,7 @@ const VIEWS = [
 
 /** Every report leads with how many days it actually saw. */
 const Coverage = ({ report }) => (
-  <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+  <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
     {report.loggedDays} of {report.days} days logged ({report.coverage}%). Averages below are over
     those {report.loggedDays} day{report.loggedDays === 1 ? '' : 's'} only — a blank day is a day
     you didn’t record, not a day you didn’t eat.
@@ -39,7 +39,7 @@ function DayView() {
   if (!report.logged) {
     return (
       <Card className="text-center py-8">
-        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Nothing logged today, so there is nothing to report. This page fills itself in from your
           diary and from nowhere else.
         </p>
@@ -50,16 +50,16 @@ function DayView() {
   return (
     <>
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{prettyDate(report.date)}</p>
-        <p className="mt-0.5 text-[24px] font-extrabold">{app.fmt.energy(report.totals.kcal)}</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{prettyDate(report.date)}</p>
+        <p className="mt-0.5 text-[1.5rem] font-extrabold">{app.fmt.energy(report.totals.kcal)}</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {report.entries} item{report.entries === 1 ? '' : 's'}
           {report.first && ` · ${app.fmt.time(report.first)} to ${app.fmt.time(report.last)}`}
         </p>
         <div className="mt-3 space-y-2">
           {report.macros.map((m) => (
             <div key={m.key}>
-              <div className="flex justify-between text-[12px] font-bold mb-1">
+              <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                 <span>{m.label}</span>
                 <span style={{ color: 'var(--muted)' }}>
                   {m.key === 'kcal' ? app.fmt.energyValue(m.value).toLocaleString() : m.value}
@@ -73,10 +73,10 @@ function DayView() {
       </Card>
 
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Where it came from</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Where it came from</p>
         {report.byMeal.map((meal) => (
           <div key={meal.key} className="mb-2">
-            <div className="flex justify-between text-[12.5px] font-bold mb-1">
+            <div className="flex justify-between text-[0.78125rem] font-bold mb-1">
               <span>{meal.label}</span>
               <span style={{ color: 'var(--muted)' }}>{app.fmt.energy(meal.kcal)} · {meal.share}%</span>
             </div>
@@ -98,7 +98,7 @@ function PeriodView({ report }) {
   if (!report.loggedDays) {
     return (
       <Card className="text-center py-8">
-        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           No days logged in this window. There is nothing here to average, so nothing is shown.
         </p>
       </Card>
@@ -108,9 +108,9 @@ function PeriodView({ report }) {
   return (
     <>
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{report.label}</p>
-        <p className="mt-0.5 text-[24px] font-extrabold">
-          {app.fmt.energy(report.avgKcal)} <span className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>a day</span>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{report.label}</p>
+        <p className="mt-0.5 text-[1.5rem] font-extrabold">
+          {app.fmt.energy(report.avgKcal)} <span className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>a day</span>
         </p>
         <Coverage report={report} />
         {bars.length > 1 && (
@@ -125,10 +125,10 @@ function PeriodView({ report }) {
       </Card>
 
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Average against target</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Average against target</p>
         {report.macros.map((m) => (
           <div key={m.key} className="mb-2">
-            <div className="flex justify-between text-[12px] font-bold mb-1">
+            <div className="flex justify-between text-[0.75rem] font-bold mb-1">
               <span>{m.label}</span>
               <span style={{ color: 'var(--muted)' }}>{m.avg}{m.target ? ` / ${m.target}` : ''}</span>
             </div>
@@ -139,10 +139,10 @@ function PeriodView({ report }) {
 
       <Card>
         <div className="flex items-center justify-between">
-          <p className="font-bold text-[14px]">On target</p>
+          <p className="font-bold text-[0.875rem]">On target</p>
           <Pill tone={report.adherence >= 60 ? 'good' : 'muted'}>{report.adherence}%</Pill>
         </div>
-        <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {report.onTargetDays} of {report.loggedDays} logged day{report.loggedDays === 1 ? '' : 's'} landed
           within 10% of {app.fmt.energy(target)}.
           {report.highest && ` Highest ${app.fmt.energy(report.highest.kcal)} on ${report.highest.date}; lowest ${app.fmt.energy(report.lowest.kcal)} on ${report.lowest.date}.`}
@@ -166,17 +166,17 @@ function MonthView() {
 
       {trend.length > 1 && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Month by month</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Month by month</p>
           {trend.map((m) => (
             <div key={m.label} className="flex items-center justify-between py-1.5 border-b last:border-0" style={{ borderColor: 'var(--line)' }}>
               <div>
-                <p className="text-[13px] font-bold">{m.label}</p>
-                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{m.loggedDays} days logged</p>
+                <p className="text-[0.8125rem] font-bold">{m.label}</p>
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{m.loggedDays} days logged</p>
               </div>
-              <p className="text-[13.5px] font-extrabold">{app.fmt.energy(m.avgKcal)}</p>
+              <p className="text-[0.84375rem] font-extrabold">{app.fmt.energy(m.avgKcal)}</p>
             </div>
           ))}
-          <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Months with nothing logged aren’t listed — an empty month averaged in would drag every
             line towards zero and call it progress.
           </p>
@@ -185,25 +185,25 @@ function MonthView() {
 
       <Card>
         <div className="flex items-center justify-between">
-          <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Scale size={15} /> Weight</p>
+          <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Scale size={15} /> Weight</p>
           {weight.readings > 0 && <Pill tone="muted">{weight.readings} reading{weight.readings === 1 ? '' : 's'}</Pill>}
         </div>
         {!weight.enough ? (
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {weight.readings === 0
               ? 'No weight readings in the last 90 days. Log one under Health and a line appears here.'
               : 'One reading is a number, not a line. A second one gives this a direction.'}
           </p>
         ) : (
           <>
-            <p className="mt-0.5 text-[22px] font-extrabold">
+            <p className="mt-0.5 text-[1.375rem] font-extrabold">
               {app.fmt.weight(weight.to)}
-              <span className="text-[13px] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
+              <span className="text-[0.8125rem] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
                 {weight.change > 0 ? '+' : ''}{weight.change} kg over {weight.readings} readings
               </span>
             </p>
             <div className="mt-2"><Sparkline points={weight.points.map((p) => p.value)} width={280} height={56} /></div>
-            <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {app.fmt.weight(weight.min)} to {app.fmt.weight(weight.max)} across the window.
             </p>
           </>
@@ -224,9 +224,9 @@ function PatternsView() {
   return (
     <>
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Clock size={15} /> When you eat</p>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Clock size={15} /> When you eat</p>
         {!timing.meals.length ? (
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Nothing with a time on it yet. Meal times come from the clock on your own entries.
           </p>
         ) : (
@@ -234,8 +234,8 @@ function PatternsView() {
             {timing.meals.map((m) => (
               <div key={m.key} className="flex items-center justify-between">
                 <div>
-                  <p className="text-[13px] font-bold">{m.label}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="text-[0.8125rem] font-bold">{m.label}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     usually {app.fmt.time(m.usualAt)} · {m.days} day{m.days === 1 ? '' : 's'}
                   </p>
                 </div>
@@ -249,22 +249,22 @@ function PatternsView() {
       </Card>
 
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Target size={15} /> Goal adherence</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Target size={15} /> Goal adherence</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Over {adherence.loggedDays} logged day{adherence.loggedDays === 1 ? '' : 's'} in the last {adherence.days}.
         </p>
         {!adherence.loggedDays ? (
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>Nothing logged in the window.</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>Nothing logged in the window.</p>
         ) : (
           <div className="mt-2 space-y-2">
             {adherence.rows.map((row) => (
               <div key={row.key}>
-                <div className="flex justify-between text-[12px] font-bold mb-1">
+                <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                   <span>{row.label}</span>
                   <span style={{ color: 'var(--muted)' }}>{row.pct}% within 10%</span>
                 </div>
                 <Meter value={row.pct} max={100} />
-                <p className="mt-0.5 text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>
+                <p className="mt-0.5 text-[0.71875rem] font-semibold" style={{ color: 'var(--faint)' }}>
                   {row.under} day{row.under === 1 ? '' : 's'} under · {row.over} over · average {row.avg}
                 </p>
               </div>
@@ -274,11 +274,11 @@ function PatternsView() {
       </Card>
 
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><TriangleAlert size={15} /> Coming up short</p>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><TriangleAlert size={15} /> Coming up short</p>
         {!deficiency.ready ? (
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{deficiency.reason}</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{deficiency.reason}</p>
         ) : deficiency.alerts.length === 0 ? (
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Nothing below 70% of its reference across your last {deficiency.loggedDays} logged days.
           </p>
         ) : (
@@ -286,7 +286,7 @@ function PatternsView() {
             <div className="mt-2 space-y-2">
               {deficiency.alerts.map((row) => (
                 <div key={row.key}>
-                  <div className="flex justify-between text-[12px] font-bold mb-1">
+                  <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                     <span>{row.label}</span>
                     <span style={{ color: 'var(--warn)' }}>{row.pct}% of {row.target}{row.unit}</span>
                   </div>
@@ -294,7 +294,7 @@ function PatternsView() {
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+            <p className="mt-2 text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
               <Info size={13} className="mt-0.5 shrink-0" /> {deficiency.caveat}
             </p>
           </>
@@ -328,23 +328,23 @@ function ExportCard({ report }) {
 
   return (
     <Card className="space-y-2.5">
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><FileDown size={15} /> Take it with you</p>
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><FileDown size={15} /> Take it with you</p>
       <div className="grid grid-cols-2 gap-2">
-        <button onClick={() => save('forq-days.csv', dailyCsv(app, { today: app.day }))} className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold" style={{ borderColor: 'var(--line)' }}>
+        <button onClick={() => save('forq-days.csv', dailyCsv(app, { today: app.day }))} className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold" style={{ borderColor: 'var(--line)' }}>
           Days CSV
         </button>
-        <button onClick={() => save('forq-foods.csv', entriesCsv(app, { today: app.day }))} className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold" style={{ borderColor: 'var(--line)' }}>
+        <button onClick={() => save('forq-foods.csv', entriesCsv(app, { today: app.day }))} className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold" style={{ borderColor: 'var(--line)' }}>
           Every food CSV
         </button>
-        <button onClick={() => save('forq-measurements.csv', measurementsCsv(app))} className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold" style={{ borderColor: 'var(--line)' }}>
+        <button onClick={() => save('forq-measurements.csv', measurementsCsv(app))} className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold" style={{ borderColor: 'var(--line)' }}>
           Measurements CSV
         </button>
-        <button onClick={print} className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+        <button onClick={print} className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
           <span className="inline-flex items-center gap-1.5"><Printer size={13} /> PDF</span>
         </button>
       </div>
-      {said && <p className="text-[12.5px] font-semibold">{said}</p>}
-      <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+      {said && <p className="text-[0.78125rem] font-semibold">{said}</p>}
+      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
         The PDF is your browser’s own — Forq builds a clean printable page and hands it to the print
         dialogue, where “Save as PDF” does the rest. Shipping a PDF library to do that worse isn’t
         a download worth asking you for.

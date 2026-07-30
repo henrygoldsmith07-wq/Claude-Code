@@ -1,10 +1,9 @@
 /**
- * Progress photos, kept small enough to live on your device.
+ * Progress photos, kept small enough for the local-first store.
  *
- * There is no server here, so a photo has nowhere to go but localStorage —
- * which is a few megabytes for the whole app. Storing full-size pictures there
- * would break the diary, the plan and everything else, so a photo is shrunk to
- * a thumbnail before it is kept, and the number of them is capped.
+ * They start in localStorage and are included in household state only after
+ * the user opts into sync. Full-size pictures would exhaust browser storage,
+ * so every image is downsampled to a thumbnail and the number is capped.
  *
  * The sizing maths is pure and tested; the drawing needs a canvas, so it is
  * kept separate and simply reports that it can't run where there isn't one.

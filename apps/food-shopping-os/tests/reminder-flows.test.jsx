@@ -55,7 +55,7 @@ describe('reminders start empty', () => {
     onboard();
     const sheet = openReminders();
     expect(within(sheet).getByText(/While Forq is open, a due reminder shows as a notification/)).toBeTruthy();
-    expect(within(sheet).getByText(/can only be woken by a push server, and Forq doesn’t have one/)).toBeTruthy();
+    expect(within(sheet).getByText(/server can queue reminder jobs, but Forq has no Web Push subscription/)).toBeTruthy();
     // And no switch that pretends otherwise.
     expect(within(sheet).queryByText(/[Bb]ackground notifications/)).toBeNull();
   });

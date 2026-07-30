@@ -6,12 +6,15 @@ import { useApp } from '../lib/store.jsx';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { householdFromShareCode, householdShareCode } from '../lib/household.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
+import CoachAccess from './CoachAccess.jsx';
+import HouseholdAudit from './HouseholdAudit.jsx';
 
 const VIEWS = ['People', 'Tasks', 'Sharing', 'Activity'];
 const PERMISSIONS = [
   ['shopping', 'shop'],
   ['pantry', 'edit pantry'],
   ['recipes', 'save recipes'],
+  ['health', 'view health records'],
 ];
 
 const Toggle = ({ on, onClick, label }) => (
@@ -44,8 +47,8 @@ function PeopleView() {
       <Card>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Cooking for</p>
-            <p className="mt-0.5 text-[15px] font-extrabold">
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Cooking for</p>
+            <p className="mt-0.5 text-[0.9375rem] font-extrabold">
               {app.members.length
                 ? `${app.members.length} ${app.members.length === 1 ? 'person' : 'people'} · ${app.portions} portion${app.portions === 1 ? '' : 's'} a meal`
                 : `Just you · ${app.portions} portion${app.portions === 1 ? '' : 's'} a meal`}
@@ -53,13 +56,13 @@ function PeopleView() {
           </div>
           {app.activeMember && <Pill tone="accent">{app.childMode ? 'child mode' : 'profile'}: {app.activeMember.name}</Pill>}
         </div>
-        <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {app.planDiets.length ? `Plans avoid: ${app.planDiets.join(' · ')}.` : 'No shared dietary patterns set.'}
         </p>
         {app.activeMember && (
           <button
             onClick={() => app.setActiveMember(null)}
-            className="press mt-3 rounded-xl border px-3 py-2 text-[12px] font-extrabold"
+            className="press mt-3 rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
             style={{ borderColor: 'var(--line)' }}
           >
             Return to my profile
@@ -69,7 +72,7 @@ function PeopleView() {
 
       {app.members.map((member) => {
         const permissions = {
-          shopping: true, pantry: true, recipes: true, ...(member.permissions || {}),
+          shopping: true, pantry: true, recipes: true, health: false, ...(member.permissions || {}),
         };
         return (
           <Card key={member.id} className="space-y-3">
@@ -78,7 +81,7 @@ function PeopleView() {
                 value={member.name}
                 onChange={(event) => app.updateMember(member.id, { name: event.target.value })}
                 aria-label={`Name for ${member.name}`}
-                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[14px] font-bold outline-none"
+                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[0.875rem] font-bold outline-none"
                 style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
               <button
@@ -98,7 +101,7 @@ function PeopleView() {
                     key={role}
                     aria-label={`${role === 'child' ? 'Child' : 'Adult'} profile for ${member.name}`}
                     onClick={() => app.updateMember(member.id, { role })}
-                    className="press rounded-full border px-3 py-1.5 text-[12px] font-bold capitalize"
+                    className="press rounded-full border px-3 py-1.5 text-[0.75rem] font-bold capitalize"
                     style={{
                       borderColor: member.role === role ? 'var(--accent)' : 'var(--line)',
                       color: member.role === role ? 'var(--accent)' : 'var(--muted)',
@@ -111,7 +114,7 @@ function PeopleView() {
               <button
                 onClick={() => app.setActiveMember(member.id)}
                 aria-label={`Use ${member.name} profile`}
-                className="press rounded-xl border px-3 py-2 text-[12px] font-extrabold"
+                className="press rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
               >
                 Use profile
@@ -119,16 +122,16 @@ function PeopleView() {
             </div>
 
             <div className="flex items-center justify-between">
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Portions</p>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Portions</p>
               <Stepper value={member.portions} onChange={(value) => app.updateMember(member.id, { portions: value })} min={0.5} max={4} />
             </div>
 
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Permissions</p>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Permissions</p>
               <div className="space-y-2">
                 {PERMISSIONS.map(([key, label]) => (
                   <div key={key} className="flex items-center justify-between">
-                    <span className="text-[12.5px] font-semibold capitalize">Can {label}</span>
+                    <span className="text-[0.78125rem] font-semibold capitalize">Can {label}</span>
                     <Toggle
                       on={permissions[key]}
                       onClick={() => app.toggleMemberPermission(member.id, key)}
@@ -137,7 +140,7 @@ function PeopleView() {
                   </div>
                 ))}
                 <div className="flex items-center justify-between">
-                  <span className="text-[12.5px] font-semibold">Household notifications</span>
+                  <span className="text-[0.78125rem] font-semibold">Household notifications</span>
                   <Toggle
                     on={member.notifications !== false}
                     onClick={() => app.updateMember(member.id, { notifications: member.notifications === false })}
@@ -148,7 +151,7 @@ function PeopleView() {
             </div>
 
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Eats</p>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Eats</p>
               <div className="flex flex-wrap gap-2">
                 {DIET_PATTERNS.filter((diet) => diet.kind !== 'macro').map((diet) => (
                   <Chip
@@ -166,7 +169,7 @@ function PeopleView() {
       })}
 
       <Card className="space-y-2.5">
-        <p className="text-[12px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
           <Users size={13} /> Add someone
         </p>
         <div className="flex gap-2">
@@ -176,12 +179,12 @@ function PeopleView() {
             onKeyDown={(event) => event.key === 'Enter' && add()}
             placeholder="Name"
             aria-label="New household member"
-            className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
           <button
             onClick={add}
-            className="press rounded-xl px-4 text-[13px] font-extrabold"
+            className="press rounded-xl px-4 text-[0.8125rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             <span className="inline-flex items-center gap-1.5"><UserPlus size={14} /> Add</span>
@@ -207,37 +210,37 @@ function TasksView() {
   return (
     <>
       <Card className="space-y-3">
-        <p className="font-extrabold text-[15px] inline-flex items-center gap-2"><ClipboardList size={16} /> Household tasks</p>
+        <p className="font-extrabold text-[0.9375rem] inline-flex items-center gap-2"><ClipboardList size={16} /> Household tasks</p>
         <input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           aria-label="New household task"
           placeholder="Add a chore"
-          className="w-full rounded-xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+          className="w-full rounded-xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <div className="grid grid-cols-2 gap-2">
-          <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          <label className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
             Assign to
             <select
               value={assigneeId}
               onChange={(event) => setAssigneeId(event.target.value)}
               aria-label="Assign task to"
-              className="mt-1 w-full rounded-xl border px-2 py-2 text-[12px] font-bold"
+              className="mt-1 w-full rounded-xl border px-2 py-2 text-[0.75rem] font-bold"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             >
               <option value="">Anyone</option>
               {app.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
             </select>
           </label>
-          <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          <label className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
             Due
             <input
               type="date"
               value={due}
               onChange={(event) => setDue(event.target.value)}
               aria-label="Task due date"
-              className="mt-1 w-full rounded-xl border px-2 py-2 text-[12px] font-bold"
+              className="mt-1 w-full rounded-xl border px-2 py-2 text-[0.75rem] font-bold"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             />
           </label>
@@ -245,7 +248,7 @@ function TasksView() {
         <button
           onClick={add}
           disabled={!title.trim()}
-          className="press w-full rounded-xl py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+          className="press w-full rounded-xl py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           Add task
@@ -267,8 +270,8 @@ function TasksView() {
               <Check size={13} />
             </button>
             <div className="min-w-0 flex-1">
-              <p className={`font-bold text-[14px] ${chore.done ? 'line-through opacity-50' : ''}`}>{chore.title}</p>
-              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className={`font-bold text-[0.875rem] ${chore.done ? 'line-through opacity-50' : ''}`}>{chore.title}</p>
+              <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {member?.name || 'Anyone'}{chore.due ? ` · due ${chore.due}` : ''}
               </p>
             </div>
@@ -279,7 +282,7 @@ function TasksView() {
         );
       }) : (
         <Card className="text-center py-8">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>No household tasks yet.</p>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>No household tasks yet.</p>
         </Card>
       )}
     </>
@@ -314,19 +317,21 @@ function SharingView() {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px] inline-flex items-center gap-2"><Share2 size={16} /> Live syncing</p>
-        <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem] inline-flex items-center gap-2"><Share2 size={16} /> Live syncing</p>
+        <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Open tabs in this browser update live through browser storage events.
         </p>
-        <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-          Cross-device live sync needs an account and backend; this offline build does not pretend otherwise.
+        <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          Signed-in households receive cross-device changes through a private realtime channel, with a one-minute fallback check.
         </p>
       </Card>
 
+      <CoachAccess />
+
       <Card className="space-y-3">
         <div>
-          <p className="font-extrabold text-[14px]">Whole-household snapshot</p>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-extrabold text-[0.875rem]">Whole-household snapshot</p>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Includes profiles, pantry, shopping list and assignments, saved recipes and chores. Importing replaces those shared sections.
           </p>
         </div>
@@ -335,10 +340,10 @@ function SharingView() {
           value={ownCode}
           aria-label="Household share code"
           rows={3}
-          className="w-full rounded-xl border p-2 text-[11px] font-semibold outline-none"
+          className="w-full rounded-xl border p-2 text-[0.6875rem] font-semibold outline-none"
           style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--muted)' }}
         />
-        <button onClick={copy} className="press w-full rounded-xl border py-2.5 text-[13px] font-extrabold" style={{ borderColor: 'var(--line)' }}>
+        <button onClick={copy} className="press w-full rounded-xl border py-2.5 text-[0.8125rem] font-extrabold" style={{ borderColor: 'var(--line)' }}>
           <span className="inline-flex items-center gap-2"><Copy size={14} /> Copy snapshot</span>
         </button>
         <textarea
@@ -347,18 +352,18 @@ function SharingView() {
           aria-label="Import household share code"
           placeholder="FORQ-HOUSEHOLD-1…"
           rows={3}
-          className="w-full rounded-xl border p-2 text-[11px] font-semibold outline-none"
+          className="w-full rounded-xl border p-2 text-[0.6875rem] font-semibold outline-none"
           style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <button
           onClick={importCode}
           disabled={!code.trim()}
-          className="press w-full rounded-xl py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+          className="press w-full rounded-xl py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-2"><Download size={14} /> Import snapshot</span>
         </button>
-        {message && <p role="status" className="text-[12px] font-semibold">{message}</p>}
+        {message && <p role="status" className="text-[0.75rem] font-semibold">{message}</p>}
       </Card>
     </>
   );
@@ -371,24 +376,25 @@ function ActivityView() {
       <Card>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-extrabold text-[15px] inline-flex items-center gap-2"><Bell size={16} /> Household notifications</p>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Assignments, chores and shared imports appear here.</p>
+            <p className="font-extrabold text-[0.9375rem] inline-flex items-center gap-2"><Bell size={16} /> Household notifications</p>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Assignments, chores and shared imports appear here.</p>
           </div>
           {!!app.householdEvents.length && (
-            <button onClick={app.clearHouseholdEvents} className="press text-[12px] font-bold" style={{ color: 'var(--muted)' }}>Clear</button>
+            <button onClick={app.clearHouseholdEvents} className="press text-[0.75rem] font-bold" style={{ color: 'var(--muted)' }}>Clear</button>
           )}
         </div>
       </Card>
       {app.householdEvents.length ? [...app.householdEvents].reverse().map((item) => (
         <Card key={item.id} className="!p-3">
-          <p className="text-[13px] font-bold">{item.message}</p>
-          <p className="text-[11px] font-semibold" style={{ color: 'var(--faint)' }}>{item.date}</p>
+          <p className="text-[0.8125rem] font-bold">{item.message}</p>
+          <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>{item.date}</p>
         </Card>
       )) : (
         <Card className="text-center py-8">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>No household activity yet.</p>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>No household activity yet.</p>
         </Card>
       )}
+      <HouseholdAudit />
     </>
   );
 }
@@ -401,13 +407,13 @@ export default function FamilyPanel() {
     <div className="px-5 pb-10 space-y-4">
       <Card>
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Household name</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Household name</span>
           <input
             value={app.householdName}
             onChange={(event) => app.setHouseholdName(event.target.value)}
             placeholder={`${app.name || 'My'}’s household`}
             aria-label="Household name"
-            className="mt-1 w-full bg-transparent text-[19px] font-extrabold outline-none"
+            className="mt-1 w-full bg-transparent text-[1.1875rem] font-extrabold outline-none"
             style={{ color: 'var(--ink)' }}
           />
         </label>

@@ -74,33 +74,33 @@ export default function PantryCapture({ onDone }) {
           : (
             <div className="text-center px-8">
               <Camera size={34} strokeWidth={1.4} style={{ color: 'var(--muted)' }} />
-              <p className="mt-2 text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>
                 Open the fridge and take one photo
               </p>
             </div>
           )}
         {busy && (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--bg) 70%, transparent)' }}>
-            <p className="inline-flex items-center gap-2 text-[13px] font-extrabold">
+            <p className="inline-flex items-center gap-2 text-[0.8125rem] font-extrabold">
               <Sparkles size={15} className="pulse-dot" /> Preparing sample suggestions…
             </p>
           </div>
         )}
       </div>
-      {message && <p role="status" className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
+      {message && <p role="status" className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" />
       <div className="grid grid-cols-2 gap-2.5">
         <button
           onClick={() => fileRef.current?.click()}
-          className="press rounded-2xl py-3 text-[14px] font-extrabold"
+          className="press rounded-2xl py-3 text-[0.875rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Image size={15} /> Choose photo</span>
         </button>
         <button
           onClick={() => analyse(`shelf-${Date.now() % 8}`, null)}
-          className="press rounded-2xl border py-3 text-[14px] font-extrabold"
+          className="press rounded-2xl border py-3 text-[0.875rem] font-extrabold"
           style={{ borderColor: 'var(--line)' }}
         >
           Try a sample shelf
@@ -128,7 +128,7 @@ export default function PantryCapture({ onDone }) {
       {items.length > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
               Spotted · correct anything
             </p>
             <Pill tone="accent">{items.length} items</Pill>
@@ -143,10 +143,10 @@ export default function PantryCapture({ onDone }) {
                     value={item.name}
                     onChange={(e) => update(i, { name: e.target.value })}
                     aria-label={`Name of item ${i + 1}`}
-                    className="min-w-0 flex-1 rounded-xl border px-2.5 py-1.5 text-[14px] font-bold outline-none"
+                    className="min-w-0 flex-1 rounded-xl border px-2.5 py-1.5 text-[0.875rem] font-bold outline-none"
                     style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
                   />
-                  <span className="text-[11px] font-bold shrink-0" style={{ color: 'var(--faint)' }}>{item.confidence}%</span>
+                  <span className="text-[0.6875rem] font-bold shrink-0" style={{ color: 'var(--faint)' }}>{item.confidence}%</span>
                   <button
                     onClick={() => setItems((list) => list.filter((_, j) => j !== i))}
                     aria-label={`Remove ${item.name}`}
@@ -162,7 +162,7 @@ export default function PantryCapture({ onDone }) {
                     onChange={(e) => update(i, { qty: e.target.value })}
                     aria-label={`Amount of ${item.name}`}
                     placeholder="Amount"
-                    className="w-28 rounded-xl border px-2.5 py-1.5 text-[13px] font-semibold outline-none"
+                    className="w-28 rounded-xl border px-2.5 py-1.5 text-[0.8125rem] font-semibold outline-none"
                     style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
                   />
                   <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -176,7 +176,7 @@ export default function PantryCapture({ onDone }) {
           </Card>
 
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
               Put it all in
             </p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
@@ -188,15 +188,15 @@ export default function PantryCapture({ onDone }) {
 
           <button
             onClick={save}
-            className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
+            className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Add {items.length} item{items.length === 1 ? '' : 's'} to {location.toLowerCase()}
           </button>
-          <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.71875rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
             Use-by dates and costs stay blank — add them on the item when you know them.
           </p>
-          <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.71875rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
             Catalogue demo only: this build does not inspect the image pixels or identify the actual shelf.
           </p>
         </>
@@ -205,7 +205,7 @@ export default function PantryCapture({ onDone }) {
       {onDone && items.length === 0 && saved > 0 && (
         <button
           onClick={onDone}
-          className="press w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+          className="press w-full rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
           style={{ borderColor: 'var(--line)' }}
         >
           Back to the pantry

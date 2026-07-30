@@ -20,7 +20,17 @@ import { smartActions } from './smart-actions.js';
 import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 import { moveBefore } from './utils.js';
-import { initialiseCloud, pushCloud } from './cloud.js';
+import {
+  initialiseCloud, pullCloud, pushCloud, subscribeCloud,
+} from './cloud.js';
+import {
+  createHealthVault, decryptHealth, encryptHealth, HEALTH_CREDENTIAL_KEY, HEALTH_FIELDS, HEALTH_VAULT_KEY,
+  healthSnapshot, platformUnlockAvailable, registerPlatformUnlock, verifyPlatformUnlock, withoutHealth,
+} from './health-vault.js';
+import {
+  hydrate, loadStoredState, parseBackup, serialiseBackup,
+} from './store-persistence.js';
+import { useStoreApi } from './store-api.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
@@ -35,75 +45,13 @@ export {
 
 const KEY = STORAGE_KEY;
 
-const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-
-export const hydrate = (stored = {}) => {
-  const candidate = isObject(stored) ? stored : {};
-  const state = {
-    ...EMPTY_STATE,
-    ...candidate,
-    schemaVersion: STATE_VERSION,
-    members: (Array.isArray(candidate.members) ? candidate.members : []).map((member) => ({
-      ...member,
-      role: member.role === 'child' ? 'child' : 'adult',
-      permissions: { ...DEFAULT_PERMISSIONS, ...(member.permissions || {}) },
-      notifications: member.notifications !== false,
-    })),
-    body: { ...EMPTY_STATE.body, ...(isObject(candidate.body) ? candidate.body : {}) },
-    targets: { ...DEFAULT_TARGETS, ...(isObject(candidate.targets) ? candidate.targets : {}) },
-  };
-  Object.entries(EMPTY_STATE).forEach(([key, fallback]) => {
-    if (Array.isArray(fallback) && !Array.isArray(state[key])) state[key] = [];
-    else if (isObject(fallback) && !isObject(state[key])) state[key] = { ...fallback };
-  });
-  if (!ACCENT_IDS.includes(state.accent)) state.accent = EMPTY_STATE.accent;
-  return rolloverDay(state);
-};
-
-export const parseBackup = (text) => {
-  const parsed = typeof text === 'string' ? JSON.parse(text) : text;
-  const candidate = isObject(parsed?.state) ? parsed.state : parsed;
-  if (!isObject(candidate) || typeof candidate.onboarded !== 'boolean') {
-    throw new Error('This is not a complete Forq backup.');
-  }
-  return hydrate(candidate);
-};
-
-export const serialiseBackup = (state) => JSON.stringify({
-  format: 'forq-backup',
-  version: STATE_VERSION,
-  exportedAt: new Date().toISOString(),
-  state: hydrate(state),
-}, null, 2);
-
-const load = () => {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw
-      ? { state: parseBackup(raw), issue: null }
-      : { state: { ...EMPTY_STATE }, issue: null };
-  } catch (error) {
-    let raw = null;
-    try { raw = localStorage.getItem(KEY); } catch { /* storage itself is unavailable */ }
-    return {
-      state: { ...EMPTY_STATE },
-      issue: {
-        kind: raw ? 'corrupt' : 'unavailable',
-        message: raw
-          ? 'Forq could not read your saved data. It has not been overwritten.'
-          : 'This browser is blocking local storage, so changes cannot be saved.',
-        raw,
-        detail: error instanceof Error ? error.message : String(error),
-      },
-    };
-  }
-};
+export { hydrate, parseBackup, serialiseBackup };
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const initial = useRef(null);
-  if (!initial.current) initial.current = load();
+  if (!initial.current) initial.current = loadStoredState();
   const [state, setState] = useState(initial.current.state);
   const [storageIssue, setStorageIssue] = useState(initial.current.issue);
   const [cloudStatus, setCloudStatus] = useState({ kind: 'checking', message: 'Checking cloud sync…' });
@@ -114,6 +62,10 @@ export function AppProvider({ children }) {
   const cloudTimer = useRef(null);
   const undoHistory = useRef([]);
   const applyingRemote = useRef(false);
+  const vaultKey = useRef(null);
+  const vaultSalt = useRef(null);
+  const vaultWrites = useRef(Promise.resolve());
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
   // Reminders are due at a time, not at a state change, so the clock has to
   // move on its own. A minute is finer than any reminder needs.
   const [tick, setTick] = useState(() => Date.now());
@@ -131,11 +83,24 @@ export function AppProvider({ children }) {
      every screen once a minute. */
   const persist = (next) => {
     try {
+      const stored = next.healthVaultEnabled ? withoutHealth(next, EMPTY_STATE) : next;
       localStorage.setItem(KEY, JSON.stringify({
-        ...next,
+        ...stored,
         schemaVersion: STATE_VERSION,
         lastSeenAt: Date.now(),
       }));
+      if (next.healthVaultEnabled && vaultKey.current && vaultSalt.current) {
+        const snapshot = healthSnapshot(next);
+        vaultWrites.current = vaultWrites.current
+          .then(() => encryptHealth(snapshot, vaultKey.current, vaultSalt.current))
+          .then((record) => localStorage.setItem(HEALTH_VAULT_KEY, JSON.stringify(record)))
+          .catch((error) => setStorageIssue({
+            kind: 'write',
+            message: 'Your latest health changes could not be encrypted. Keep this tab open and export a backup.',
+            detail: error instanceof Error ? error.message : String(error),
+            raw: null,
+          }));
+      }
       setStorageIssue((current) => (current?.kind === 'write' ? null : current));
       return true;
     } catch (error) {
@@ -180,9 +145,11 @@ export function AppProvider({ children }) {
     if (process.env.NODE_ENV === 'test') return undefined;
     let cancelled = false;
     let poll;
+    let unsubscribeRealtime;
     const pullNewerState = async () => {
-      const update = await initialiseCloud(latest.current);
-      if (update.state && update.meta.version > (cloudMeta.current?.version || 0)) {
+      if (!cloudMeta.current) return;
+      const update = await pullCloud(cloudMeta.current);
+      if (update.state) {
         cloudMeta.current = update.meta;
         skipCloudPush.current = true;
         setState(hydrate(update.state));
@@ -200,13 +167,27 @@ export function AppProvider({ children }) {
         setState(hydrate(result.state));
       }
       if (result.meta && result.status.kind === 'ready') {
-        poll = setInterval(pullNewerState, 15000);
+        poll = setInterval(pullNewerState, 60000);
+        subscribeCloud(result.meta, (event) => {
+          if (event.deviceId === result.meta.deviceId) return;
+          if (Number(event.version) <= Number(cloudMeta.current?.version || 0)) return;
+          pullNewerState();
+        }).then((unsubscribe) => {
+          if (cancelled) unsubscribe();
+          else {
+            unsubscribeRealtime = unsubscribe;
+            setCloudStatus({ kind: 'ready', message: 'Live household sync connected.' });
+          }
+        }).catch(() => {
+          setCloudStatus({ kind: 'ready', message: 'Cloud sync ready. Checking for changes every minute.' });
+        });
       }
     };
     loadCloud();
     return () => {
       cancelled = true;
       clearInterval(poll);
+      unsubscribeRealtime?.();
     };
   }, []);
 
@@ -218,7 +199,10 @@ export function AppProvider({ children }) {
     }
     clearTimeout(cloudTimer.current);
     cloudTimer.current = setTimeout(async () => {
-      const result = await pushCloud(latest.current, cloudMeta.current);
+      const result = await pushCloud({
+        ...latest.current,
+        ...(latest.current.healthVaultEnabled && !vaultKey.current ? { __preserveHealth: true } : {}),
+      }, cloudMeta.current);
       cloudMeta.current = result.meta;
       if (result.status.kind !== 'ready') cloudReady.current = false;
       setCloudStatus(result.status);
@@ -248,505 +232,10 @@ export function AppProvider({ children }) {
   // pointing at one of yours resolves like any other dish.
   setMyRecipes(state.myRecipes);
 
-  const api = useMemo(() => {
-    const set = (patch) => setState((s) => {
-      const changes = typeof patch === 'function' ? patch(s) : patch;
-      if (!changes || !Object.keys(changes).length) return s;
-      undoHistory.current = [...undoHistory.current.slice(-29), s];
-      return { ...s, ...changes };
-    });
-
-    const addEntries = (entries, date) =>
-      set((s) => {
-        const day = date || s.day;
-        if (!entries.length) return {};
-        return {
-          log: { ...s.log, [day]: [...(s.log[day] || []), ...entries] },
-        };
-      });
-
-    return {
-      set,
-      storageIssue,
-      cloudStatus,
-      exportData: () => serialiseBackup(latest.current),
-      restoreData: (text) => {
-        try {
-          const restored = parseBackup(text);
-          blockPersistence.current = false;
-          undoHistory.current = [];
-          setStorageIssue(null);
-          setState(restored);
-          return { ok: true };
-        } catch (error) {
-          return {
-            ok: false,
-            error: error instanceof Error ? error.message : 'That backup could not be read.',
-          };
-        }
-      },
-      undoLast: () => {
-        const previous = undoHistory.current.pop();
-        if (!previous) return false;
-        setState(previous);
-        return true;
-      },
-      reset: () => {
-        blockPersistence.current = false;
-        undoHistory.current = [];
-        setStorageIssue(null);
-        setState({ ...EMPTY_STATE, day: todayStamp() });
-      },
-      finishOnboarding: (profile) =>
-        set((s) => ({
-          ...profile,
-          onboarded: true,
-          measurements: seedMeasurements(profile.body, s.day, s.measurements),
-        })),
-      dismissSetupStep: (id) =>
-        set((s) => ({
-          dismissedSetupSteps: s.dismissedSetupSteps.includes(id)
-            ? s.dismissedSetupSteps
-            : [...s.dismissedSetupSteps, id],
-        })),
-      dismissWelcome: () => set({ welcomeDismissed: true }),
-      toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
-      setAccent: (accent) => set({ accent }),
-      addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),
-      addWaterMl: (ml) => set((s) => ({ waterExtraMl: Math.max(0, s.waterExtraMl + ml) })),
-      /** Editing a target by hand is a decision — it switches you to custom mode. */
-      setTarget: (key, value) =>
-        set((s) => ({
-          targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) },
-          targetMode: ['kcal', 'protein', 'carbs', 'fat'].includes(key) ? 'custom' : s.targetMode,
-        })),
-      resetTargets: () => set((s) => ({ targets: targetsFor({ ...s, targets: DEFAULT_TARGETS }), targetMode: 'auto' })),
-
-      /* ---------- Goals ---------- */
-      /** Changing the goal re-derives the targets, unless you've taken them over. */
-      setGoal: (goal) =>
-        set((s) => {
-          const next = { ...s, goal };
-          return { goal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      toggleDiet: (id) =>
-        set((s) => {
-          const diets = s.diets.includes(id) ? s.diets.filter((d) => d !== id) : [...s.diets, id];
-          const next = { ...s, diets };
-          return { diets, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setBody: (patch) =>
-        set((s) => {
-          const body = { ...s.body, ...patch };
-          const next = { ...s, body };
-          return { body, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setMaintenance: (kcal) =>
-        set((s) => {
-          const maintenanceKcal = Math.max(0, Number(kcal) || 0);
-          const next = { ...s, maintenanceKcal };
-          return { maintenanceKcal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setTargetMode: (targetMode) =>
-        set((s) => ({
-          targetMode,
-          targets: targetMode === 'auto' ? targetsFor(s) : s.targets,
-        })),
-      setWeeklyKcal: (kcal) => set({ weeklyKcal: Math.max(0, Number(kcal) || 0) }),
-      /* ---------- Your own recipes ---------- */
-      /** Keep a dish: generated, imported from a link, or sent by someone. */
-      saveRecipe: (recipe) =>
-        set((s) => {
-          if (!householdPermission(s, 'recipes')) return {};
-          const id = s.myRecipes.some((r) => r.id === recipe.id) ? `${recipe.id}-${s.myRecipes.length + 1}` : recipe.id;
-          return { myRecipes: [...s.myRecipes, { ...recipe, id, savedAt: s.day }] };
-        }),
-      removeRecipe: (id) =>
-        set((s) => (householdPermission(s, 'recipes') ? {
-          myRecipes: s.myRecipes.filter((r) => r.id !== id),
-          favourites: s.favourites.filter((f) => f !== id),
-          recipeCollections: s.recipeCollections.map((collection) => ({
-            ...collection,
-            recipeIds: collection.recipeIds.filter((recipeId) => recipeId !== id),
-          })),
-          recipeRatings: Object.fromEntries(Object.entries(s.recipeRatings).filter(([recipeId]) => recipeId !== id)),
-          tasteRatings: Object.fromEntries(Object.entries(s.tasteRatings).filter(([recipeId]) => recipeId !== id)),
-        } : {})),
-      toggleFavourite: (id) =>
-        set((s) => (householdPermission(s, 'recipes') ? {
-          favourites: s.favourites.includes(id)
-            ? s.favourites.filter((x) => x !== id)
-            : [...s.favourites, id],
-        } : {})),
-      rateRecipeTaste: (id, verdict) =>
-        set((s) => {
-          if (!householdPermission(s, 'recipes') || !id || !['nope', 'like', 'love'].includes(verdict)) return {};
-          const liked = verdict === 'like' || verdict === 'love';
-          return {
-            tasteRatings: { ...s.tasteRatings, [id]: verdict },
-            favourites: liked
-              ? [...new Set([...s.favourites, id])]
-              : s.favourites.filter((recipeId) => recipeId !== id),
-          };
-        }),
-      resetRecipeTaste: () => set({ tasteRatings: {} }),
-      createRecipeCollection: (name, recipeId = null) =>
-        set((s) => {
-          if (!householdPermission(s, 'recipes')) return {};
-          const clean = String(name || '').trim().slice(0, 40);
-          if (clean.length < 2) return {};
-          const existing = s.recipeCollections.find((collection) => collection.name.toLowerCase() === clean.toLowerCase());
-          if (existing) {
-            if (!recipeId || existing.recipeIds.includes(recipeId)) return {};
-            return {
-              recipeCollections: s.recipeCollections.map((collection) => (
-                collection.id === existing.id
-                  ? { ...collection, recipeIds: [...collection.recipeIds, recipeId] }
-                  : collection
-              )),
-            };
-          }
-          return {
-            recipeCollections: [...s.recipeCollections, {
-              id: uid('rc'),
-              name: clean,
-              recipeIds: recipeId ? [recipeId] : [],
-              createdAt: s.day,
-            }],
-          };
-        }),
-      removeRecipeCollection: (id) =>
-        set((s) => (householdPermission(s, 'recipes')
-          ? { recipeCollections: s.recipeCollections.filter((collection) => collection.id !== id) }
-          : {})),
-      toggleRecipeCollection: (collectionId, recipeId) =>
-        set((s) => {
-          if (!householdPermission(s, 'recipes') || !recipeId) return {};
-          return {
-            recipeCollections: s.recipeCollections.map((collection) => {
-              if (collection.id !== collectionId) return collection;
-              return {
-                ...collection,
-                recipeIds: collection.recipeIds.includes(recipeId)
-                  ? collection.recipeIds.filter((id) => id !== recipeId)
-                  : [...collection.recipeIds, recipeId],
-              };
-            }),
-          };
-        }),
-      rateRecipe: (id, rating) =>
-        set((s) => {
-          if (!householdPermission(s, 'recipes')) return {};
-          const score = Math.round(Number(rating));
-          if (!id || score < 1 || score > 5) return {};
-          return { recipeRatings: { ...s.recipeRatings, [id]: score } };
-        }),
-
-      /* ---------- Pantry ---------- */
-      addPantryItem: (item) =>
-        set((s) => (householdPermission(s, 'pantry') ? {
-          pantry: [...s.pantry, {
-            id: uid('p'),
-            emoji: emojiFor(item.name),
-            low: false,
-            addedAt: s.day,
-            ...item,
-            cost: Number(item.cost) || 0,
-          }],
-        } : {})),
-      updatePantryItem: (id, patch) =>
-        set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)) } : {})),
-      removePantryItem: (id) => set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.filter((p) => p.id !== id) } : {})),
-      importPantry: (items) =>
-        set((s) => {
-          if (!householdPermission(s, 'pantry')) return {};
-          const keyFor = (item) => `${String(item.name).trim().toLowerCase()}|${String(item.location || '').toLowerCase()}`;
-          const have = new Set(s.pantry.map(keyFor));
-          const fresh = items.filter((item) => !have.has(keyFor(item))).map((item) => ({
-            ...item,
-            id: uid('p'),
-            emoji: item.emoji || emojiFor(item.name),
-            addedAt: s.day,
-          }));
-          return fresh.length ? { pantry: [...s.pantry, ...fresh] } : {};
-        }),
-      togglePantryLow: (id) =>
-        set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.map((p) => (p.id === id ? { ...p, low: !p.low } : p)) } : {})),
-
-      /* ---------- Shopping ---------- */
-      addToList: (items) =>
-        set((s) => {
-          if (!householdPermission(s, 'shopping')) return {};
-          const keyFor = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-          const have = new Set(s.shoppingList.map((i) => keyFor(i.name)));
-          const quantities = new Map();
-          [...s.shops].reverse().forEach((shop) => shop.items.forEach((item) => {
-            const key = keyFor(item.name);
-            if (!quantities.has(key) && item.qty) quantities.set(key, item.qty);
-          }));
-          const fresh = mergeItems(Array.isArray(items) ? items : [items])
-            .filter((i) => i.name && !have.has(keyFor(i.name)))
-            .map((i) => ({
-              id: i.id || uid('s'),
-              checked: false,
-              price: Number(i.price) || 0,
-              qty: i.qty || quantities.get(keyFor(i.name)) || '',
-              note: String(i.note || '').trim(),
-              priority: i.priority === 'high' ? 'high' : 'normal',
-              emoji: i.emoji || emojiFor(i.name),
-              ...i,
-              // What you filed it under last time wins over the name guess.
-              aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
-                ? (i.aisle || guessAisle(i.name))
-                : aisleFor(i.name, s.aisleMemory),
-            }));
-          return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
-        }),
-      repeatLastShop: () =>
-        set((s) => {
-          const last = s.shops.at(-1);
-          if (!last?.items?.length) return {};
-          const have = new Set(s.shoppingList.map((i) => String(i.name).trim().toLowerCase()));
-          const items = last.items.filter((i) => i.name && !have.has(String(i.name).trim().toLowerCase()))
-            .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0,
-              emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
-              note: '', priority: 'normal' }));
-          return items.length ? { shoppingList: [...s.shoppingList, ...items] } : {};
-        }),
-      /** Moving an item to another aisle teaches the list where it lives. */
-      setItemAisle: (id, aisle) =>
-        set((s) => {
-          const item = s.shoppingList.find((i) => i.id === id);
-          if (!item) return {};
-          return {
-            shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, aisle } : i)),
-            aisleMemory: rememberAisle(s.aisleMemory, item.name, aisle),
-          };
-        }),
-      updateListItem: (id, patch) =>
-        set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
-      moveListItem: (id, beforeId) =>
-        set((s) => {
-          const shoppingList = moveBefore(s.shoppingList, id, beforeId);
-          return shoppingList === s.shoppingList ? {} : { shoppingList };
-        }),
-      removeListItem: (id) => set((s) => ({ shoppingList: s.shoppingList.filter((i) => i.id !== id) })),
-      /** When you tick it matters: the order becomes this shop's route. */
-      toggleChecked: (id) =>
-        set((s) => ({
-          shoppingList: s.shoppingList.map((i) => (i.id === id
-            ? { ...i, checked: !i.checked, checkedAt: i.checked ? null : Date.now() }
-            : i)),
-        })),
-      clearChecked: () => set((s) => ({ shoppingList: s.shoppingList.filter((i) => !i.checked) })),
-
-      /**
-       * Record a shop: the ticked items leave the list, the trip joins your
-       * spending history, and anything you bought can land in the pantry.
-       */
-      recordShop: ({ store, total, toPantry = false, location = 'Cupboard' }) =>
-        set((s) => {
-          const bought = s.shoppingList.filter((i) => i.checked);
-          if (!bought.length) return {};
-          const shopStore = store || 'Unnamed shop';
-          const { saved } = applyOffers(bought, s.offers, { store: shopStore, today: s.day });
-          const shop = {
-            id: uid('h'),
-            date: s.day,
-            store: shopStore,
-            total: Math.round((Number(total) || 0) * 100) / 100,
-            saved,
-            items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
-          };
-          // The order you ticked things off is this shop's layout, learned.
-          const route = routeFromTicks(bought);
-          return {
-            shops: [...s.shops, shop],
-            shoppingList: s.shoppingList.filter((i) => !i.checked),
-            storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
-            pantry: toPantry
-              ? [...s.pantry, ...bought.map((i) => ({
-                  id: uid('p'),
-                  name: i.name,
-                  emoji: i.emoji,
-                  cat: 'Fresh',
-                  location,
-                  qty: i.qty || '',
-                  cost: Number(i.price) || 0,
-                  store: shop.store,
-                  expiry: null,
-                  low: false,
-                  addedAt: s.day,
-                }))]
-              : s.pantry,
-          };
-        }),
-
-      /* ---------- Offers you were given ---------- */
-      /** Offers are yours: typed in from a voucher, an email or a shelf edge. */
-      addOffer: (offer) =>
-        set((s) => {
-          const label = String(offer.label || '').trim();
-          const match = String(offer.match || '').trim();
-          if (label.length < 2 || !match) return {};
-          return {
-            offers: [...s.offers, {
-              id: uid('o'),
-              label,
-              match,
-              kind: ['money', 'percent', 'multibuy'].includes(offer.kind) ? offer.kind : 'money',
-              value: Math.max(0, Number(offer.value) || 0),
-              store: String(offer.store || '').trim(),
-              expiry: /^\d{4}-\d{2}-\d{2}$/.test(offer.expiry || '') ? offer.expiry : null,
-              addedAt: s.day,
-            }],
-          };
-        }),
-      removeOffer: (id) => set((s) => ({ offers: s.offers.filter((o) => o.id !== id) })),
-      addPriceAlert: ({ name, target }) =>
-        set((s) => {
-          const label = String(name || '').trim();
-          const price = Math.max(0, Number(target) || 0);
-          if (label.length < 2 || !price) return {};
-          return { priceAlerts: [...s.priceAlerts, { id: uid('pa'), name: label, target: price }] };
-        }),
-      removePriceAlert: (id) =>
-        set((s) => ({ priceAlerts: s.priceAlerts.filter((alert) => alert.id !== id) })),
-
-      /* ---------- Waste ---------- */
-      /** Binning something records what it cost, so the waste figure is real. */
-      binPantryItem: (id) =>
-        set((s) => {
-          const item = s.pantry.find((p) => p.id === id);
-          if (!item) return {};
-          return {
-            pantry: s.pantry.filter((p) => p.id !== id),
-            waste: [...s.waste, { name: item.name, cost: Number(item.cost) || 0, date: s.day }],
-          };
-        }),
-
-      /* ---------- Plan ---------- */
-      setPlanSlot: (date, slot, recipeId) =>
-        set((s) => {
-          const day = { ...(s.plan[date] || {}) };
-          if (recipeId) day[slot] = recipeId;
-          else delete day[slot];
-          const plan = { ...s.plan };
-          if (Object.keys(day).length) plan[date] = day;
-          else delete plan[date];
-          return { plan };
-        }),
-      clearPlanWeek: (dates) => set((s) => ({ plan: clearDates(s.plan, dates) })),
-      /** Drag a meal to another day or slot; an occupied target swaps back. */
-      moveMealSlot: (from, to) => set((s) => ({ plan: moveMeal(s.plan, from, to) })),
-      /** Drop a whole generated plan in at once: [{date, slot, recipeId}]. */
-      applyPlanEntries: (entries) => set((s) => ({ plan: applyEntries(s.plan, entries) })),
-
-      /* ---------- Household ---------- */
-      ...householdActions(set, uid),
-
-      /* ---------- Leftovers ---------- */
-      /** Portions cooked but not eaten go in the fridge, dated. */
-      saveLeftovers: (recipe, portions) =>
-        set((s) => (portions > 0
-          ? { pantry: [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, portions, s.day) }] }
-          : {})),
-      /** Eat one portion; the item leaves the pantry when the last one goes. */
-      useLeftover: (id) =>
-        set((s) => ({
-          pantry: s.pantry
-            .map((p) => {
-              if (p.id !== id) return p;
-              const portions = (Number(p.portions) || 1) - 1;
-              return { ...p, portions, qty: `${portions} portion${portions === 1 ? '' : 's'}` };
-            })
-            .filter((p) => p.cat !== LEFTOVER_CAT || (Number(p.portions) || 0) > 0),
-        })),
-
-      /* ---------- Health and exercise (see health-actions.js) ---------- */
-      ...healthActions(set),
-
-      /* ---------- Reminders (see reminder-actions.js) ---------- */
-      ...reminderActions(set),
-      ...smartActions(set),
-
-      /* ---------- Preferences and advanced (see preference-actions.js) ---------- */
-      ...preferenceActions(set),
-      ...advancedActions(set, uid),
-
-      /* ---------- Food diary ---------- */
-      logEntries: addEntries,
-      logEntry: (entry, date) => addEntries([entry], date),
-      updateEntry: (id, patch, date) =>
-        set((s) => {
-          const day = date || s.day;
-          return {
-            log: { ...s.log, [day]: (s.log[day] || []).map((e) => (e.id === id ? { ...e, ...patch } : e)) },
-          };
-        }),
-      removeEntry: (id, date) =>
-        set((s) => {
-          const day = date || s.day;
-          return { log: { ...s.log, [day]: (s.log[day] || []).filter((e) => e.id !== id) } };
-        }),
-      copyMeal: ({ fromDate, fromMeal, toMeal, toDate }) =>
-        set((s) => {
-          const source = (s.log[fromDate] || []).filter((e) => e.meal === fromMeal);
-          if (!source.length) return {};
-          const day = toDate || s.day;
-          const copied = copyEntries(source, { meal: toMeal || fromMeal });
-          return { log: { ...s.log, [day]: [...(s.log[day] || []), ...copied] } };
-        }),
-      saveTemplate: (name, meal, entries) =>
-        set((s) => ({
-          mealTemplates: [...s.mealTemplates, {
-            id: uid('tpl'),
-            name: name || `${meal} template`,
-            meal,
-            entries: entries.map((e) => ({ ...e, time: '00:00' })),
-          }],
-        })),
-      deleteTemplate: (id) => set((s) => ({ mealTemplates: s.mealTemplates.filter((t) => t.id !== id) })),
-      applyTemplate: (id, meal) =>
-        set((s) => {
-          const tpl = s.mealTemplates.find((t) => t.id === id);
-          if (!tpl) return {};
-          const copied = copyEntries(tpl.entries, { meal: meal || tpl.meal }).map((e) => ({
-            ...e,
-            time: new Date().toTimeString().slice(0, 5),
-            source: 'template',
-          }));
-          return { log: { ...s.log, [s.day]: [...(s.log[s.day] || []), ...copied] } };
-        }),
-      addCustomFood: (food) => set((s) => ({ customFoods: [...s.customFoods, food] })),
-      removeCustomFood: (id) => set((s) => ({ customFoods: s.customFoods.filter((f) => f.id !== id) })),
-      toggleFavouriteFood: (id) =>
-        set((s) => ({
-          favouriteFoods: s.favouriteFoods.includes(id)
-            ? s.favouriteFoods.filter((x) => x !== id)
-            : [...s.favouriteFoods, id],
-        })),
-
-      /**
-       * Finishing cooking mode: history, XP, and the meal logged to the diary.
-       * Portions you cooked but didn't eat go to the fridge as leftovers.
-       */
-      completeRecipe: (recipe, { leftovers = 0 } = {}) =>
-        set((s) => {
-          const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
-          const consumed = s.autoUsePantry
-            ? consumePantryIngredients(s.pantry, recipe.ingredients)
-            : { pantry: s.pantry };
-          return {
-            cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
-            log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
-            pantry: leftovers > 0
-              ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
-              : consumed.pantry,
-          };
-        }),
-    };
-  }, [storageIssue, cloudStatus]);
+  const api = useStoreApi({
+    blockPersistence, cloudStatus, latest, setState, setStorageIssue, storageIssue,
+    undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
+  });
 
   /* Everything below is derived — the app never stores a number twice. */
   const derived = useMemo(() => deriveApp(state), [state]);
@@ -771,8 +260,13 @@ export function AppProvider({ children }) {
     ...derived,
     ...alerts,
     reminderLine: (kind) => reminderContext(kind, { ...state, ...derived }),
+    healthVault: {
+      enabled: state.healthVaultEnabled,
+      unlocked: vaultUnlocked,
+      platformAvailable: platformUnlockAvailable(),
+    },
     ...api,
-  }), [state, derived, alerts, api]);
+  }), [state, derived, alerts, api, vaultUnlocked]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
@@ -781,3 +275,5 @@ export const useApp = () => {
   if (!ctx) throw new Error('useApp outside AppProvider');
   return ctx;
 };
+
+export const useOptionalApp = () => useContext(AppContext);

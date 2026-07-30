@@ -53,8 +53,29 @@ export function publicHousehold(household, membership) {
     name: household.name,
     role: membership.role,
     permissions: membership.permissions,
+    personal: Boolean(household.personalOwnerId),
     updatedAt: household.updatedAt,
   };
+}
+
+const HOUSEHOLD_CHILD_COLLECTIONS = [
+  'householdStates',
+  'memberships',
+  'invitations',
+  'coachShares',
+  'uploads',
+  'notificationOutbox',
+  'auditEvents',
+  'aiUsage',
+];
+
+export async function deleteHouseholdData(db, householdId) {
+  const deleted = {};
+  for (const name of HOUSEHOLD_CHILD_COLLECTIONS) {
+    const result = await db.collection(name).deleteMany({ householdId });
+    deleted[name] = result.deletedCount || 0;
+  }
+  return deleted;
 }
 
 export const newHouseholdId = () => new ObjectId();

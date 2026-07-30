@@ -36,7 +36,7 @@ export default function BudgetPanel() {
         <Card className="space-y-3">
           <div className="grid grid-cols-2 gap-2.5">
             <label>
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Weekly budget</span>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Weekly budget</span>
               <input
                 type="number"
                 min="0"
@@ -44,12 +44,12 @@ export default function BudgetPanel() {
                 value={weekly}
                 onChange={(event) => setWeekly(event.target.value)}
                 aria-label="Weekly grocery budget"
-                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
                 style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
             </label>
             <label>
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Monthly budget</span>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Monthly budget</span>
               <input
                 type="number"
                 min="0"
@@ -57,14 +57,14 @@ export default function BudgetPanel() {
                 value={monthly}
                 onChange={(event) => setMonthly(event.target.value)}
                 aria-label="Monthly grocery budget"
-                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
                 style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
             </label>
           </div>
           <button
             onClick={saveBudgets}
-            className="press w-full rounded-2xl py-2.5 text-[13px] font-extrabold"
+            className="press w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Save budgets
@@ -72,7 +72,7 @@ export default function BudgetPanel() {
           <div className="space-y-3">
             {app.weeklyBudget > 0 && (
               <div>
-                <div className="mb-1 flex justify-between text-[12px] font-semibold">
+                <div className="mb-1 flex justify-between text-[0.75rem] font-semibold">
                   <span>This week</span><span>{gbp(app.spentThisWeek, { always: true })} of {gbp(app.weeklyBudget)}</span>
                 </div>
                 <Meter value={app.spentThisWeek} max={app.weeklyBudget} color={app.spentThisWeek > app.weeklyBudget ? 'var(--danger)' : 'var(--accent)'} />
@@ -80,7 +80,7 @@ export default function BudgetPanel() {
             )}
             {app.monthlyBudget > 0 && (
               <div>
-                <div className="mb-1 flex justify-between text-[12px] font-semibold">
+                <div className="mb-1 flex justify-between text-[0.75rem] font-semibold">
                   <span>This month</span><span>{gbp(app.spentThisMonth, { always: true })} of {gbp(app.monthlyBudget)}</span>
                 </div>
                 <Meter value={app.spentThisMonth} max={app.monthlyBudget} color={app.spentThisMonth > app.monthlyBudget ? 'var(--danger)' : 'var(--accent)'} />
@@ -95,7 +95,7 @@ export default function BudgetPanel() {
           {spend.some((month) => month.spend > 0) ? (
             <Bars data={spend.map((month) => ({ label: month.label, value: month.spend }))} format={(value) => gbp(value, { always: true })} />
           ) : (
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Record completed shops to build a monthly trend.
             </p>
           )}
@@ -105,12 +105,12 @@ export default function BudgetPanel() {
       <Section className="rise rise-2" title="Cost of this week’s plan">
         <div className="grid grid-cols-2 gap-2.5">
           <Card className="text-center !p-3">
-            <p className="text-[18px] font-extrabold">{planned.meals ? gbp(costPerMeal, { always: true }) : '—'}</p>
-            <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>per household meal</p>
+            <p className="text-[1.125rem] font-extrabold">{planned.meals ? gbp(costPerMeal, { always: true }) : '—'}</p>
+            <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>per household meal</p>
           </Card>
           <Card className="text-center !p-3">
-            <p className="text-[18px] font-extrabold">{planned.meals ? gbp(costPerServing, { always: true }) : '—'}</p>
-            <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>per serving</p>
+            <p className="text-[1.125rem] font-extrabold">{planned.meals ? gbp(costPerServing, { always: true }) : '—'}</p>
+            <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>per serving</p>
           </Card>
         </div>
       </Section>
@@ -119,17 +119,17 @@ export default function BudgetPanel() {
         <div className="grid grid-cols-2 gap-2.5">
           <Card className="!p-3">
             <TrendingUp size={16} style={{ color: 'var(--muted)' }} />
-            <p className="mt-1 text-[18px] font-extrabold">
+            <p className="mt-1 text-[1.125rem] font-extrabold">
               {app.inflation.items ? `${app.inflation.percent > 0 ? '+' : ''}${app.inflation.percent}%` : '—'}
             </p>
-            <p className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Like-for-like across {app.inflation.items} repeated item{app.inflation.items === 1 ? '' : 's'}.
             </p>
           </Card>
           <Card className="!p-3">
             <PiggyBank size={16} style={{ color: 'var(--muted)' }} />
-            <p className="mt-1 text-[18px] font-extrabold">{gbp(app.savings.saved, { always: true })}</p>
-            <p className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[1.125rem] font-extrabold">{gbp(app.savings.saved, { always: true })}</p>
+            <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Recorded coupon savings across {app.savings.trips} shop{app.savings.trips === 1 ? '' : 's'}.
             </p>
           </Card>
@@ -140,7 +140,7 @@ export default function BudgetPanel() {
         <Card className="space-y-3">
           <div className="flex items-start gap-2">
             <Bell size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--muted)' }} />
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Checked when you record another shop. There is no live retailer price feed.
             </p>
           </div>
@@ -150,7 +150,7 @@ export default function BudgetPanel() {
               onChange={(event) => setAlertName(event.target.value)}
               placeholder="Product"
               aria-label="Price alert product"
-              className="rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+              className="rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             />
             <input
@@ -161,14 +161,14 @@ export default function BudgetPanel() {
               onChange={(event) => setAlertTarget(event.target.value)}
               placeholder="£ target"
               aria-label="Target price"
-              className="rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+              className="rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             />
           </div>
           <button
             onClick={addAlert}
             disabled={alertName.trim().length < 2 || Number(alertTarget) <= 0}
-            className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+            className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
             style={{ borderColor: 'var(--line)' }}
           >
             <span className="inline-flex items-center gap-1.5"><Plus size={14} /> Add price alert</span>
@@ -176,8 +176,8 @@ export default function BudgetPanel() {
           {app.priceAlertStatus.map((alert) => (
             <div key={alert.id} className="flex items-center gap-3 border-t pt-2.5" style={{ borderColor: 'var(--line)' }}>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-[13px] truncate">{alert.name}</p>
-                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="font-bold text-[0.8125rem] truncate">{alert.name}</p>
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   Target {gbp(alert.target, { always: true })}
                   {alert.latest !== null && ` · best current ${gbp(alert.latest, { always: true })}${alert.store ? ` at ${alert.store}` : ''}`}
                 </p>
@@ -199,7 +199,7 @@ export default function BudgetPanel() {
       <Section className="rise rise-2">
         <Card className="flex items-center gap-3 !p-3">
           <ChartNoAxesColumn size={17} style={{ color: 'var(--muted)' }} />
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Store comparison, cheapest basket and full price history are under Prices. Coupons are managed from the list.
           </p>
         </Card>

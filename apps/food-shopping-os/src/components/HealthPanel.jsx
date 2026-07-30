@@ -6,6 +6,7 @@ import {
 import { useApp, PHOTO_LIMIT } from '../lib/store.jsx';
 import { prettyDate } from '../lib/utils.js';
 import { MEASUREMENTS, MEDICAL_DISCLAIMER, VITALS } from '../data/health.js';
+import { PRIVACY_COPY } from '../data/privacy.js';
 import { series } from '../lib/health.js';
 import { healthierSwaps } from '../lib/advice.js';
 import { shrinkImage, storageEstimate } from '../lib/photos.js';
@@ -26,7 +27,7 @@ const VIEWS = [
 ];
 
 const Disclaimer = () => (
-  <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+  <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
     <Info size={13} className="mt-0.5 shrink-0" /> {MEDICAL_DISCLAIMER}
   </p>
 );
@@ -46,7 +47,7 @@ function HealthySwapsView() {
   if (!recent) {
     return (
       <Card className="text-center py-8">
-        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Log a food first and healthy swaps will compare it with foods that do the same job.
         </p>
       </Card>
@@ -56,9 +57,9 @@ function HealthySwapsView() {
   return (
     <>
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Instead of</p>
-        <p className="mt-1 text-[18px] font-extrabold">{recent.name}</p>
-        <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Instead of</p>
+        <p className="mt-1 text-[1.125rem] font-extrabold">{recent.name}</p>
+        <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Every suggestion below improves a measured nutrient per calorie and respects your dietary filters.
         </p>
       </Card>
@@ -66,8 +67,8 @@ function HealthySwapsView() {
         <Card key={swap.food.id}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-extrabold text-[14px]">{swap.food.name}</p>
-              <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{swap.why}</p>
+              <p className="font-extrabold text-[0.875rem]">{swap.food.name}</p>
+              <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{swap.why}</p>
             </div>
             <Pill tone={swap.kcalDiff <= 0 ? 'good' : 'muted'}>
               {swap.kcalDiff > 0 ? '+' : ''}{swap.kcalDiff} kcal
@@ -76,7 +77,7 @@ function HealthySwapsView() {
         </Card>
       )) : (
         <Card className="text-center py-8">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Nothing in the catalogue clearly improves protein, fibre, saturated fat or sugar for this food.
           </p>
         </Card>
@@ -104,7 +105,7 @@ function BodyView() {
   return (
     <>
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Take a reading</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Take a reading</p>
         <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
           {MEASUREMENTS.map((m) => (
             <Chip key={m.key} active={key === m.key} onClick={() => { setKey(m.key); setValue(''); }}>{m.label}</Chip>
@@ -117,7 +118,7 @@ function BodyView() {
           <button
             onClick={save}
             disabled={!Number(value)}
-            className="press rounded-2xl px-5 py-3 text-[14px] font-extrabold disabled:opacity-40"
+            className="press rounded-2xl px-5 py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Log
@@ -126,7 +127,7 @@ function BodyView() {
         {points.length > 1 && (
           <div className="mt-3 flex items-center justify-between gap-3">
             <Sparkline points={points} />
-            <p className="text-[12px] font-semibold text-right" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold text-right" style={{ color: 'var(--muted)' }}>
               {points.length} readings
             </p>
           </div>
@@ -135,7 +136,7 @@ function BodyView() {
 
       {summary.count === 0 ? (
         <Card className="text-center py-8">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Nothing measured yet. Everything on this page is a reading you took — there are no
             estimates and no imports standing in for one.
           </p>
@@ -146,19 +147,19 @@ function BodyView() {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>BMI</p>
-                  <p className="text-[22px] font-extrabold">{summary.bmi.value}</p>
+                  <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>BMI</p>
+                  <p className="text-[1.375rem] font-extrabold">{summary.bmi.value}</p>
                 </div>
                 <Pill tone={summary.bmi.tone}>{summary.bmi.label}</Pill>
               </div>
-              <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Computed from your latest weight and your height — never stored, so it can’t go stale.
               </p>
             </Card>
           )}
           {summary.needsHeight && (
             <Card className="!p-3">
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Add your height under Goals and this page can work out your BMI.
               </p>
             </Card>
@@ -172,17 +173,17 @@ function BodyView() {
               <Card key={m.key} className="!p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{m.label}</p>
-                    <p className="text-[18px] font-extrabold">{reading.value} {m.unit}</p>
-                    <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate(reading.date)}</p>
+                    <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{m.label}</p>
+                    <p className="text-[1.125rem] font-extrabold">{reading.value} {m.unit}</p>
+                    <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate(reading.date)}</p>
                   </div>
                   {trend ? (
                     <div className="text-right">
-                      <p className="text-[13px] font-bold inline-flex items-center gap-1">
+                      <p className="text-[0.8125rem] font-bold inline-flex items-center gap-1">
                         {trend.direction === 'up' ? <TrendingUp size={14} /> : trend.direction === 'down' ? <TrendingDown size={14} /> : null}
                         {trend.change > 0 ? '+' : ''}{trend.change} {m.unit}
                       </p>
-                      <p className="text-[11px] font-semibold" style={{ color: 'var(--faint)' }}>
+                      <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
                         over {trend.spanDays} days · {trend.readings} readings
                       </p>
                     </div>
@@ -191,7 +192,7 @@ function BodyView() {
                   )}
                 </div>
                 {m.key === 'waist' && summary.waist && (
-                  <p className="mt-1.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     {summary.waist.label ? `${summary.waist.label} — ${summary.waist.note}` : summary.waist.note}
                   </p>
                 )}
@@ -232,16 +233,16 @@ function PhotosCard() {
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Progress photos</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Progress photos</p>
         <Pill tone="muted">{app.photos.length}/{PHOTO_LIMIT}</Pill>
       </div>
-      <label className="press mt-2 flex items-center justify-center gap-2 rounded-2xl border py-3 text-[13.5px] font-extrabold cursor-pointer"
+      <label className="press mt-2 flex items-center justify-center gap-2 rounded-2xl border py-3 text-[0.84375rem] font-extrabold cursor-pointer"
         style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
         <Camera size={15} /> {busy ? 'Shrinking…' : 'Add a photo'}
         <input type="file" accept="image/*" onChange={pick} className="hidden" aria-label="Add a progress photo" />
       </label>
       {failed && (
-        <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--danger)' }}>
+        <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--danger)' }}>
           That image couldn’t be read here. Nothing was saved.
         </p>
       )}
@@ -258,16 +259,15 @@ function PhotosCard() {
               >
                 <Trash2 size={11} />
               </button>
-              <p className="mt-1 text-[10.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+              <p className="mt-1 text-[0.65625rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
                 {prettyDate(p.date)}
               </p>
             </div>
           ))}
         </div>
       )}
-      <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
-        Photos stay on this device — there is nowhere else for them to go. They’re shrunk to
-        thumbnails and capped at {PHOTO_LIMIT}, because browser storage is small
+      <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+        {PRIVACY_COPY.photos} They’re shrunk to thumbnails and capped at {PHOTO_LIMIT}, because browser storage is small
         {storage.kb > 0 && ` (yours are using about ${storage.kb} KB)`}.
       </p>
     </Card>
@@ -298,7 +298,7 @@ function VitalsView() {
       </div>
 
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
           New {vital.label.toLowerCase()} reading ({vital.unit})
         </p>
         <div className="grid grid-cols-2 gap-2.5">
@@ -312,11 +312,11 @@ function VitalsView() {
             />
           ))}
         </div>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{vital.note}</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{vital.note}</p>
         <button
           onClick={save}
           disabled={!vital.fields.every((f) => Number(values[f.key]) > 0)}
-          className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+          className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           Save reading
@@ -335,10 +335,10 @@ function VitalsView() {
             return (
               <div key={reading.id} className="flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
-                  <p className="font-bold text-[14px]">
+                  <p className="font-bold text-[0.875rem]">
                     {vital.fields.map((f) => reading.values[f.key]).filter((n) => n !== undefined).join(' / ')} {vital.unit}
                   </p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate(reading.date)}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate(reading.date)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {category && <Pill tone={category.tone}>{category.label}</Pill>}
@@ -354,7 +354,7 @@ function VitalsView() {
 
       {summary.latest?.category?.advice && (
         <Card className="!p-3" style={{ borderColor: 'var(--warn)' }}>
-          <p className="text-[13px] font-semibold">{summary.latest.category.advice}</p>
+          <p className="text-[0.8125rem] font-semibold">{summary.latest.category.advice}</p>
         </Card>
       )}
       <Disclaimer />
@@ -372,6 +372,32 @@ function VitalsView() {
 export default function HealthPanel() {
   const app = useApp();
   const [view, setView] = useState('body');
+  if (!app.householdAccess.health && app.activeMember) {
+    return (
+      <div className="px-5 pb-10">
+        <Card className="py-8 text-center">
+          <HeartPulse size={24} className="mx-auto" />
+          <p className="mt-2 font-extrabold text-[0.9375rem]">Health access is off</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            An adult can enable this separately under household permissions.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+  if (app.healthVault.enabled && !app.healthVault.unlocked) {
+    return (
+      <div className="px-5 pb-10">
+        <Card className="py-8 text-center">
+          <HeartPulse size={24} className="mx-auto" />
+          <p className="mt-2 font-extrabold text-[0.9375rem]">Health data is locked</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Open Privacy, storage &amp; deletion and unlock the encrypted health vault first.
+          </p>
+        </Card>
+      </div>
+    );
+  }
   // The cycle page is there because you asked for it, not because of anything
   // the app decided about you.
   const views = VIEWS.filter(([key]) => key !== 'cycle' || app.trackCycle);

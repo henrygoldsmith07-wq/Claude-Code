@@ -49,7 +49,7 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
       </div>
 
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
           Add to which meal today
         </p>
         <MealPicker value={target} onChange={setTarget} />
@@ -77,14 +77,14 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
               <Card key={m.key}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-extrabold text-[15px]">{m.label}</p>
-                    <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <p className="font-extrabold text-[0.9375rem]">{m.label}</p>
+                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                       {meal.length} item{meal.length === 1 ? '' : 's'} · {totals.kcal} kcal · {totals.protein}g protein
                     </p>
                   </div>
                   <button
                     onClick={() => copy(m.key)}
-                    className="press inline-flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-[12.5px] font-extrabold"
+                    className="press inline-flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-[0.78125rem] font-extrabold"
                     style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
                   >
                     <Copy size={13} /> Copy
@@ -99,7 +99,7 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
             );
           })}
           {entries.length === 0 && (
-            <p className="text-center text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Nothing logged on that day.
             </p>
           )}
@@ -112,15 +112,15 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
               <Card key={t.id}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-extrabold text-[15px] truncate">{t.name}</p>
-                    <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <p className="font-extrabold text-[0.9375rem] truncate">{t.name}</p>
+                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                       {mealLabel(t.meal)} · {t.entries.length} items · {totals.kcal} kcal · {totals.protein}g protein
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => { app.applyTemplate(t.id, target); setDone(`${t.name} added to ${mealLabel(target)}`); }}
-                      className="press inline-flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-[12.5px] font-extrabold"
+                      className="press inline-flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-[0.78125rem] font-extrabold"
                       style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
                     >
                       <Layers size={13} /> Use
@@ -144,7 +144,7 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
             );
           })}
           {app.mealTemplates.length === 0 && (
-            <p className="text-center text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               No templates yet — save one from a meal you eat often.
             </p>
           )}
@@ -152,8 +152,8 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
           {/* Save today's meal as a template */}
           <Card className="space-y-3">
             <div>
-              <p className="font-extrabold text-[15px]">Save a meal as a template</p>
-              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="font-extrabold text-[0.9375rem]">Save a meal as a template</p>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Turn what you logged today into a one-tap meal.
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
               onChange={(e) => setTemplateName(e.target.value)}
               placeholder={`My ${mealLabel(saveFrom).toLowerCase()}`}
               aria-label="Template name"
-              className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+              className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             />
             <button
@@ -173,7 +173,7 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
                 setTemplateName('');
                 setDone('Template saved');
               }}
-              className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+              className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {todaysMeal.length
@@ -186,7 +186,7 @@ export default function CopyMeal({ defaultMeal, initialMode = 'previous', onDone
 
       <button
         onClick={onDone}
-        className="press w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+        className="press w-full rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
         style={{ borderColor: 'var(--line)' }}
       >
         Back to the diary

@@ -35,13 +35,13 @@ describe('analytics dashboards', () => {
     localStorage.clear();
   });
 
-  it('opens every dashboard and calendar report from Profile', () => {
+  it('opens every dashboard and calendar report from Guidance', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^You — profile/ }));
-    fireEvent.click(screen.getByText('Analytics'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guidance — what matters now' }));
 
-    const analytics = screen.getByRole('dialog', { name: 'Analytics' });
-    expect(within(analytics).getByText('Spending dashboard')).toBeDefined();
+    const analytics = screen.getByRole('dialog', { name: 'Guidance' });
+    fireEvent.click(within(analytics).getByText('Review'));
+    expect(await within(analytics).findByText('Spending dashboard')).toBeDefined();
     expect(within(analytics).getAllByText('£50.00').length).toBeGreaterThan(0);
 
     fireEvent.click(within(analytics).getByText('Nutrition'));

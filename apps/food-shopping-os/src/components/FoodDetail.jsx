@@ -21,16 +21,16 @@ export const MealPicker = ({ value, onChange }) => (
 export const MacroSummary = ({ macros, size = 'lg' }) => (
   <div className="flex items-end justify-between">
     <div>
-      <p className={cx('font-extrabold leading-none', size === 'lg' ? 'text-[34px]' : 'text-[22px]')}>
+      <p className={cx('font-extrabold leading-none', size === 'lg' ? 'text-[2.125rem]' : 'text-[1.375rem]')}>
         {macros.kcal.toLocaleString()}
       </p>
-      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal</p>
+      <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal</p>
     </div>
     <div className="flex gap-4 text-right">
       {[['Protein', 'protein'], ['Carbs', 'carbs'], ['Fat', 'fat']].map(([label, key]) => (
         <div key={label}>
-          <p className="text-[15px] font-extrabold leading-none">{formatAmount(key, macros[key])}</p>
-          <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+          <p className="text-[0.9375rem] font-extrabold leading-none">{formatAmount(key, macros[key])}</p>
+          <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
         </div>
       ))}
     </div>
@@ -39,7 +39,7 @@ export const MacroSummary = ({ macros, size = 'lg' }) => (
 
 export const NumberField = ({ label, value, onChange, suffix, step = 1, min = 0 }) => (
   <label className="block">
-    <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</span>
+    <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</span>
     <div className="mt-1 flex items-center gap-1 rounded-2xl border px-3 py-2.5" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
       <input
         type="number"
@@ -48,10 +48,10 @@ export const NumberField = ({ label, value, onChange, suffix, step = 1, min = 0 
         step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-transparent text-[15px] font-bold outline-none"
+        className="w-full bg-transparent text-[0.9375rem] font-bold outline-none"
         style={{ color: 'var(--ink)' }}
       />
-      {suffix && <span className="text-[12px] font-bold shrink-0" style={{ color: 'var(--faint)' }}>{suffix}</span>}
+      {suffix && <span className="text-[0.75rem] font-bold shrink-0" style={{ color: 'var(--faint)' }}>{suffix}</span>}
     </div>
   </label>
 );
@@ -72,7 +72,7 @@ function HealthierSwaps({ food }) {
   if (!swaps.length) return null;
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+      <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
         Similar, but better on paper
       </p>
       <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
@@ -80,8 +80,8 @@ function HealthierSwaps({ food }) {
           <div key={alt.id} className="flex items-center gap-3 p-2.5">
             <Glyph e={alt.emoji} size={18} style={{ color: 'var(--muted)' }} />
             <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-bold truncate">{alt.name}</p>
-              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.84375rem] font-bold truncate">{alt.name}</p>
+              <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {why}{kcalDiff ? ` · ${kcalDiff > 0 ? '+' : ''}${kcalDiff} kcal per 100 g` : ''}
               </p>
             </div>
@@ -162,8 +162,8 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
           <Glyph e={source.emoji} size={22} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-extrabold text-[17px] leading-tight">{source.name}</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-extrabold text-[1.0625rem] leading-tight">{source.name}</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {source.brand || 'Generic'}{!isQuick && ` · ${source.per100.kcal} kcal / 100 ${unit}`}
           </p>
         </div>
@@ -184,13 +184,13 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         <MacroSummary macros={macros} />
         {!isQuick && (
           <>
-            <p className="mt-3 pt-3 border-t text-[12px] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
+            <p className="mt-3 pt-3 border-t text-[0.75rem] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
               {grams} {unit} · fibre {formatAmount('fibre', macros.fibre)} · sugar {formatAmount('sugar', macros.sugar)}
               {' '}· sodium {formatAmount('sodium', macros.sodium)}
             </p>
             <button
               onClick={() => setShowAll((v) => !v)}
-              className="press mt-2 inline-flex items-center gap-1.5 text-[12px] font-bold"
+              className="press mt-2 inline-flex items-center gap-1.5 text-[0.75rem] font-bold"
               style={{ color: 'var(--accent)' }}
             >
               {showAll ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -199,7 +199,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
             {showAll && (
               <div className="mt-2 pt-2 border-t grid grid-cols-2 gap-x-4 gap-y-1" style={{ borderColor: 'var(--line)' }}>
                 {NUTRIENTS.filter((n) => n.key !== 'kcal').map((n) => (
-                  <div key={n.key} className="flex justify-between text-[11.5px]">
+                  <div key={n.key} className="flex justify-between text-[0.71875rem]">
                     <span className="font-semibold truncate" style={{ color: 'var(--muted)' }}>{n.label}</span>
                     <span className="font-bold tabular-nums shrink-0">{formatAmount(n.key, macros[n.key] || 0)}</span>
                   </div>
@@ -221,7 +221,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         <>
           {/* Serving sizes */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Serving size</p>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Serving size</p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
               {options.map((o, i) => (
                 <Chip key={o.label} active={i === servingIdx} onClick={() => pickServing(i)}>{o.label}</Chip>
@@ -232,7 +232,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
           {/* Quantity + weight */}
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>How many</p>
+              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>How many</p>
               <Stepper value={qty} onChange={changeQty} min={1} max={10} />
             </div>
             <div className="w-[46%]">
@@ -266,16 +266,16 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
 
       {/* Meal + timing */}
       <div className="space-y-2.5">
-        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Meal</p>
+        <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Meal</p>
         <MealPicker value={meal} onChange={setMeal} />
         <div className="flex items-center justify-between gap-3 pt-1">
-          <span className="text-[13px] font-bold">Time eaten</span>
+          <span className="text-[0.8125rem] font-bold">Time eaten</span>
           <input
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
             aria-label="Time eaten"
-            className="rounded-2xl border px-3 py-2 text-[14px] font-bold outline-none"
+            className="rounded-2xl border px-3 py-2 text-[0.875rem] font-bold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </div>
@@ -294,7 +294,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         )}
         <button
           onClick={save}
-          className="press flex-1 rounded-2xl py-3.5 text-[15px] font-extrabold"
+          className="press flex-1 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-2">

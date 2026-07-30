@@ -20,7 +20,7 @@ const TONE_COLOR = {
 const NutrientRow = ({ row, editing, onTarget }) => (
   <div className="py-2.5">
     <div className="flex items-baseline justify-between gap-2 mb-1.5">
-      <span className="text-[13px] font-bold">{row.label}</span>
+      <span className="text-[0.8125rem] font-bold">{row.label}</span>
       {editing ? (
         <span className="inline-flex items-center gap-1.5">
           <input
@@ -29,13 +29,13 @@ const NutrientRow = ({ row, editing, onTarget }) => (
             value={row.target}
             onChange={(e) => onTarget(row.key, e.target.value)}
             aria-label={`${row.label} target`}
-            className="w-20 rounded-xl border px-2 py-1 text-[13px] font-bold text-right outline-none"
+            className="w-20 rounded-xl border px-2 py-1 text-[0.8125rem] font-bold text-right outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
-          <span className="text-[11px] font-bold" style={{ color: 'var(--faint)' }}>{row.unit}</span>
+          <span className="text-[0.6875rem] font-bold" style={{ color: 'var(--faint)' }}>{row.unit}</span>
         </span>
       ) : (
-        <span className="text-[12px] font-semibold tabular-nums" style={{ color: 'var(--muted)' }}>
+        <span className="text-[0.75rem] font-semibold tabular-nums" style={{ color: 'var(--muted)' }}>
           {formatAmount(row.key, row.value)}
           <span style={{ color: 'var(--faint)' }}> / {formatAmount(row.key, row.target)}</span>
         </span>
@@ -45,7 +45,7 @@ const NutrientRow = ({ row, editing, onTarget }) => (
       <div className="flex-1">
         <Meter value={Math.min(row.value, row.target)} max={row.target} color={TONE_COLOR[row.tone]} height={5} />
       </div>
-      <span className="w-10 text-right text-[11px] font-bold tabular-nums" style={{ color: TONE_COLOR[row.tone] }}>
+      <span className="w-10 text-right text-[0.6875rem] font-bold tabular-nums" style={{ color: TONE_COLOR[row.tone] }}>
         {row.pct}%
       </span>
     </div>
@@ -60,8 +60,8 @@ const WaterCard = () => {
   return (
     <Card>
       <div className="flex items-baseline justify-between">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Water intake</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Water intake</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {total.toLocaleString()} / {target.toLocaleString()} ml
         </p>
       </div>
@@ -72,14 +72,14 @@ const WaterCard = () => {
           <button
             key={ml}
             onClick={() => app.addWaterMl(ml)}
-            className="press flex-1 rounded-2xl border py-2 text-[12.5px] font-extrabold"
+            className="press flex-1 rounded-2xl border py-2 text-[0.78125rem] font-extrabold"
             style={{ borderColor: 'var(--line)' }}
           >
             +{ml} ml
           </button>
         ))}
       </div>
-      <p className="mt-3 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="mt-3 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
         {fromGlasses.toLocaleString()} ml tracked ({app.water} glass{app.water === 1 ? '' : 'es'}
         {app.waterExtraMl ? ` + ${app.waterExtraMl} ml` : ''}) · {fromDrinks.toLocaleString()} ml from
         food and drinks in your diary
@@ -120,7 +120,7 @@ export default function NutritionPanel() {
             sub={`of ${targets.kcal.toLocaleString()}`}
           />
           <div className="flex-1 space-y-1.5">
-            <p className="text-[13px] font-bold">
+            <p className="text-[0.8125rem] font-bold">
               {kcal.pct}% of your energy target
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -133,7 +133,7 @@ export default function NutritionPanel() {
           </div>
         </div>
         {(alerts.over.length > 0 || alerts.low.length > 0) && (
-          <p className="mt-3 pt-3 border-t text-[12.5px] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
+          <p className="mt-3 pt-3 border-t text-[0.78125rem] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
             {alerts.over.length > 0 && <>Over: {alerts.over.map((r) => r.label).join(', ')}. </>}
             {alerts.low.length > 0 && <>Short on: {alerts.low.slice(0, 4).map((r) => r.label).join(', ')}.</>}
           </p>
@@ -143,10 +143,10 @@ export default function NutritionPanel() {
       <Card>
         <div className="flex items-baseline justify-between gap-3">
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Salt equivalent</p>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Converted from tracked sodium</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Salt equivalent</p>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Converted from tracked sodium</p>
           </div>
-          <p className="text-[13px] font-bold tabular-nums">{salt} g / {saltTarget} g</p>
+          <p className="text-[0.8125rem] font-bold tabular-nums">{salt} g / {saltTarget} g</p>
         </div>
         <div className="mt-2">
           <Meter
@@ -161,7 +161,7 @@ export default function NutritionPanel() {
       {/* Honesty about where the numbers come from */}
       <div className="flex items-start gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--line)' }}>
         <Info size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--faint)' }} />
-        <p className="text-[11.5px] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.71875rem] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>
           Micronutrients are carried by {app.coverage.pct}% of today’s calories — quick-adds and
           custom foods without a full profile contribute energy and macros only.
         </p>
@@ -170,7 +170,7 @@ export default function NutritionPanel() {
       <div className="flex gap-2">
         <button
           onClick={() => setEditing((v) => !v)}
-          className="press flex-1 rounded-2xl border py-2.5 text-[13px] font-extrabold"
+          className="press flex-1 rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
           style={editing
             ? { background: 'var(--accent)', color: 'var(--on-accent)', borderColor: 'var(--accent)' }
             : { borderColor: 'var(--line)' }}
@@ -204,7 +204,7 @@ export default function NutritionPanel() {
               />
             ))}
             {group.id === 'other' && totals.alcohol > 0 && (
-              <p className="pb-2 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="pb-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {units} UK unit{units === 1 ? '' : 's'} today · guidance is under 14 a week.
               </p>
             )}

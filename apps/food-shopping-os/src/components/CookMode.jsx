@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Check, ExternalLink, Mic, Pause, PartyPopper, Play, PlayCircle, Snowflake, X,
+  Check, ExternalLink, Lightbulb, Mic, Pause, PartyPopper, Play, PlayCircle, Snowflake, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { Card, Meter, Stepper } from './ui.jsx';
@@ -28,7 +28,7 @@ function Timer({ mins, state, onChange }) {
   return (
     <button
       onClick={() => (done ? onChange({ left: mins * 60, running: false }) : onChange({ left, running: !running }))}
-      className="press mt-4 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-[15px] font-extrabold tabular-nums"
+      className="press mt-4 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-[0.9375rem] font-extrabold tabular-nums"
       style={done
         ? { background: 'color-mix(in srgb, var(--good) 15%, transparent)', color: 'var(--good)' }
         : running
@@ -51,9 +51,50 @@ export default function CookMode({ recipe, onExit, onClose }) {
   const [dwell, setDwell] = useState(DWELL_SECONDS);
   const [spare, setSpare] = useState(Math.max(0, (recipe.servings || 1) - 1));
   const [saved, setSaved] = useState(false);
+  const [wakeState, setWakeState] = useState('checking');
 
   const s = recipe.steps[step];
   const last = step === recipe.steps.length - 1;
+
+  useEffect(() => {
+    if (finished) {
+      setWakeState('released');
+      return undefined;
+    }
+    if (!navigator.wakeLock?.request) {
+      setWakeState('unsupported');
+      return undefined;
+    }
+    let active = true;
+    let lock = null;
+    const acquire = async () => {
+      if (!active || document.visibilityState !== 'visible' || lock) return;
+      try {
+        lock = await navigator.wakeLock.request('screen');
+        if (!active) {
+          await lock.release();
+          return;
+        }
+        setWakeState('active');
+        lock.addEventListener('release', () => {
+          lock = null;
+          if (active) setWakeState('released');
+        });
+      } catch {
+        if (active) setWakeState('unavailable');
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') acquire();
+    };
+    acquire();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisibility);
+      lock?.release();
+    };
+  }, [finished]);
 
   const finish = () => {
     app.completeRecipe(recipe);
@@ -101,29 +142,34 @@ export default function CookMode({ recipe, onExit, onClose }) {
     <div className="flex h-full flex-col" style={{ background: 'var(--bg)' }}>
       <div className="px-5 pt-5 pb-3 shrink-0">
         <div className="flex items-center justify-between">
-          <button onClick={onExit} className="press inline-flex items-center gap-1 text-[13px] font-extrabold" style={{ color: 'var(--muted)' }}>
+          <button onClick={onExit} className="press inline-flex items-center gap-1 text-[0.8125rem] font-extrabold" style={{ color: 'var(--muted)' }}>
             <X size={14} strokeWidth={2.6} /> Exit
           </button>
-          <p className="text-[13px] font-extrabold truncate px-2">{recipe.name}</p>
-          <span className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.8125rem] font-extrabold truncate px-2">{recipe.name}</p>
+          <span className="text-[0.8125rem] font-bold tabular-nums" style={{ color: 'var(--faint)' }}>
             {step + 1}/{recipe.steps.length}
           </span>
         </div>
         <div className="mt-3"><Meter value={step + 1} max={recipe.steps.length} /></div>
+        {wakeState === 'active' && (
+          <p className="mt-2 inline-flex items-center gap-1 text-[0.6875rem] font-bold" style={{ color: 'var(--muted)' }}>
+            <Lightbulb size={12} /> Screen stays awake while you cook
+          </p>
+        )}
       </div>
 
       {finished ? (
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center rise">
           <PartyPopper size={56} strokeWidth={1.4} style={{ color: 'var(--accent)' }} />
-          <h2 className="mt-4 text-[24px] font-extrabold">Chef’s kiss!</h2>
-          <p className="mt-2 text-[14.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <h2 className="mt-4 text-[1.5rem] font-extrabold">Chef’s kiss!</h2>
+          <p className="mt-2 text-[0.90625rem] font-semibold" style={{ color: 'var(--muted)' }}>
             +60 XP · cooking streak: {app.streak} days.<br />Nutrition logged to today’s totals.
           </p>
 
           {recipe.servings > 1 && (
             <Card className="mt-6 w-full !p-3 text-left">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[13px] font-bold inline-flex items-center gap-1.5">
+                <p className="text-[0.8125rem] font-bold inline-flex items-center gap-1.5">
                   <Snowflake size={14} style={{ color: 'var(--muted)' }} /> Portions left over
                 </p>
                 <Stepper value={spare} onChange={setSpare} min={0} max={recipe.servings - 1} />
@@ -131,7 +177,7 @@ export default function CookMode({ recipe, onExit, onClose }) {
               <button
                 onClick={() => { app.saveLeftovers(recipe, spare); setSaved(true); }}
                 disabled={saved || spare === 0}
-                className="press mt-2.5 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-50"
+                className="press mt-2.5 w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-50"
                 style={saved ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
               >
                 {saved
@@ -148,8 +194,8 @@ export default function CookMode({ recipe, onExit, onClose }) {
       ) : (
         <>
           <div className="flex flex-1 flex-col justify-center px-7 rise" key={step}>
-            <p className="text-[13px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>Step {step + 1}</p>
-            <p className="mt-3 text-[24px] font-bold leading-snug">{s.text}</p>
+            <p className="text-[0.8125rem] font-extrabold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>Step {step + 1}</p>
+            <p className="mt-3 text-[1.5rem] font-bold leading-snug">{s.text}</p>
             {s.timerMins && s.timerMins <= 90 && (
               <div>
                 <Timer
@@ -163,7 +209,7 @@ export default function CookMode({ recipe, onExit, onClose }) {
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 onClick={() => setAuto((v) => !v)}
-                className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-extrabold"
+                className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.78125rem] font-extrabold"
                 style={auto
                   ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
                   : { borderColor: 'var(--line)', color: 'var(--muted)' }}
@@ -175,14 +221,14 @@ export default function CookMode({ recipe, onExit, onClose }) {
                   href={recipe.video}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-extrabold"
+                  className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.78125rem] font-extrabold"
                   style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
                 >
                   <ExternalLink size={13} /> Watch the original
                 </a>
               )}
             </div>
-            <p className="mt-3 text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+            <p className="mt-3 text-[0.78125rem] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
               <Mic size={13} /> Voice mode: say “next” or swipe — hands-free.
             </p>
           </div>

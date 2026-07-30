@@ -106,6 +106,7 @@ export const EMPTY_STATE = {
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
   autoUsePantry: false,
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
+  calendarBusy: [], // [{date,source,importedAt}] imported from a connected calendar
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids
   tasteRatings: {}, // recipe id -> nope | like | love
@@ -119,7 +120,8 @@ export const EMPTY_STATE = {
   stress: [], // {id, date, level, note}
   cycles: [], // {id, start, end, flow, symptoms[]}
   trackCycle: false, // asked at setup, and yours to change whenever
-  photos: [], // {id, date, thumb, note} — small, capped, on your device
+  healthVaultEnabled: false,
+  photos: [], // {id, date, thumb, note} — small, capped, local-first and syncable
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
   countExerciseKcal: false, // eating back an estimate is a choice

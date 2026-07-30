@@ -53,14 +53,14 @@ const EntryRow = ({ entry, onEdit }) => {
     <button onClick={onEdit} className="press flex w-full items-center gap-3 p-3 text-left" style={{ borderColor: 'var(--line)' }}>
       <Glyph e={entry.emoji} size={19} style={{ color: 'var(--muted)' }} />
       <span className="min-w-0 flex-1">
-        <span className="block font-bold text-[14px] truncate">{entry.name}</span>
-        <span className="block text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>
+        <span className="block font-bold text-[0.875rem] truncate">{entry.name}</span>
+        <span className="block text-[0.71875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
           {entry.servingLabel}{weight} · {entry.time}
         </span>
       </span>
       <span className="text-right shrink-0">
-        <span className="block font-extrabold text-[14px]">{m.kcal}</span>
-        <span className="block text-[10px] font-bold uppercase" style={{ color: 'var(--faint)' }}>kcal</span>
+        <span className="block font-extrabold text-[0.875rem]">{m.kcal}</span>
+        <span className="block text-[0.625rem] font-bold uppercase" style={{ color: 'var(--faint)' }}>kcal</span>
       </span>
     </button>
   );
@@ -116,7 +116,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
     <div className="pb-6 space-y-6">
       {/* Header + day totals */}
       <div className="hero-gradient px-5 pt-1 pb-2">
-        <p className="text-[13px] font-semibold rise" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>
+        <p className="text-[0.8125rem] font-semibold rise" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>
 
         <Card className="mt-4 rise rise-1">
           <div className="flex items-center gap-5">
@@ -129,10 +129,26 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
               label={totals.kcal.toLocaleString()}
               sub={`of ${app.kcalGoal.toLocaleString()}`}
             />
-            <div className="flex-1 space-y-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                Calories remaining
+              </p>
+              <p className="mt-1 text-[1.5rem] font-extrabold leading-none" style={{ color: left.kcal >= 0 ? 'var(--ink)' : 'var(--warn)' }}>
+                {left.kcal >= 0 ? left.kcal.toLocaleString() : `${Math.abs(left.kcal).toLocaleString()} over`}
+              </p>
+              <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {left.protein > 0 ? `${left.protein}g protein to go` : 'Protein target reached'}
+              </p>
+            </div>
+          </div>
+          <details className="mt-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+            <summary className="tap press cursor-pointer text-[0.8125rem] font-extrabold" style={{ color: 'var(--muted)' }}>
+              Macros, nutrients and weekly progress
+            </summary>
+            <div className="mt-3 space-y-2.5">
               {macros.map((m) => (
                 <div key={m.label}>
-                  <div className="flex justify-between text-[12px] font-bold mb-1">
+                  <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                     <span>{m.label}</span>
                     <span style={{ color: 'var(--muted)' }}>
                       {formatAmount(m.key, m.now)} / {formatAmount(m.key, m.goal)}
@@ -142,8 +158,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
                 </div>
               ))}
             </div>
-          </div>
-          <p className="mt-3 pt-3 border-t text-[12.5px] font-bold" style={{ borderColor: 'var(--line)', color: left.kcal >= 0 ? 'var(--good)' : 'var(--warn)' }}>
+          <p className="mt-3 pt-3 border-t text-[0.78125rem] font-bold" style={{ borderColor: 'var(--line)', color: left.kcal >= 0 ? 'var(--good)' : 'var(--warn)' }}>
             {left.kcal >= 0
               ? `${left.kcal.toLocaleString()} kcal left today · ${left.protein}g protein to go`
               : `${Math.abs(left.kcal).toLocaleString()} kcal over your goal`}
@@ -159,14 +174,14 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
           </div>
           {/* The week as a budget, not seven separate days */}
           <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
-            <div className="flex justify-between text-[12px] font-bold mb-1">
+            <div className="flex justify-between text-[0.75rem] font-bold mb-1">
               <span>This week · {app.goalSummary}</span>
               <span style={{ color: 'var(--muted)' }}>
                 {app.week.eaten.toLocaleString()} / {app.weeklyKcalTarget.toLocaleString()} kcal
               </span>
             </div>
             <Meter value={app.week.eaten} max={app.weeklyKcalTarget} color={app.week.onTrack ? 'var(--accent)' : 'var(--warn)'} height={5} />
-            <p className="mt-1.5 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1.5 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {app.week.left >= 0
                 ? `${app.week.left.toLocaleString()} kcal left this week · about ${app.week.perDayLeft.toLocaleString()} a day`
                 : `${Math.abs(app.week.left).toLocaleString()} kcal over for the week so far`}
@@ -175,13 +190,14 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
 
           <button
             onClick={() => setSheet('nutrition')}
-            className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+            className="press mt-3 w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
             style={{ borderColor: 'var(--line)' }}
           >
             <span className="inline-flex items-center gap-1.5">
               <Activity size={14} /> All 24 nutrients{alerts.over.length ? ` · ${alerts.over.length} over limit` : ''}
             </span>
           </button>
+          </details>
         </Card>
       </div>
 
@@ -191,7 +207,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
           <button
             key={id}
             onClick={() => open(id)}
-            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
+            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[0.78125rem] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <Icon size={14} /> {label}
@@ -206,13 +222,13 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
         return (
           <Section key={m.key} className={`rise rise-${Math.min(4, i + 1)}`}>
             <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-[15px] font-bold tracking-tight">
+              <h2 className="text-[0.9375rem] font-bold tracking-tight">
                 {m.label}
-                <span className="ml-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <span className="ml-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {sub.kcal} kcal
                 </span>
               </h2>
-              <button onClick={() => open('add', m.key)} className="tap press text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+              <button onClick={() => open('add', m.key)} className="tap press text-[0.8125rem] font-semibold" style={{ color: 'var(--accent)' }}>
                 + Add food
               </button>
             </div>
@@ -225,7 +241,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl shrink-0" style={{ background: 'var(--card-2)', color: 'var(--faint)' }}>
                     <Plus size={18} />
                   </span>
-                  <span className="text-[13.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <span className="text-[0.84375rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     Nothing logged — search, scan, snap or say it
                   </span>
                 </button>
@@ -239,14 +255,14 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
               <div className="mt-2 flex gap-3">
                 <button
                   onClick={() => { setCopyMode('previous'); open('copy', m.key); }}
-                  className="press text-[12px] font-bold"
+                  className="press text-[0.75rem] font-bold"
                   style={{ color: 'var(--muted)' }}
                 >
                   Copy an earlier {m.key === 'snack' ? 'snack' : m.label.toLowerCase()}
                 </button>
                 <button
                   onClick={() => { setCopyMode('templates'); open('copy', m.key); }}
-                  className="press text-[12px] font-bold"
+                  className="press text-[0.75rem] font-bold"
                   style={{ color: 'var(--muted)' }}
                 >
                   Save as template
@@ -258,28 +274,28 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
       })}
 
       {/* Snacks + timing insight */}
-      <div className="px-5 grid grid-cols-2 gap-3 rise rise-4">
+      <div className="type-responsive-pair px-5 grid gap-3 rise rise-4">
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
             <Cookie size={12} /> Snacking
           </p>
-          <p className="mt-1.5 text-[22px] font-extrabold leading-none">{snacks.count}</p>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1.5 text-[1.375rem] font-extrabold leading-none">{snacks.count}</p>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             snacks · {snacks.kcal} kcal
           </p>
           <div className="mt-2"><Meter value={snacks.pctOfDay} max={100} height={5} /></div>
-          <p className="mt-1.5 text-[11px] font-bold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1.5 text-[0.6875rem] font-bold" style={{ color: 'var(--muted)' }}>
             {snacks.pctOfDay}% of today’s calories
           </p>
         </Card>
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
             <Clock size={12} /> Meal timing
           </p>
           {timing ? (
             <>
-              <p className="mt-1.5 text-[22px] font-extrabold leading-none">{timing.windowLabel}</p>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1.5 text-[1.375rem] font-extrabold leading-none">{timing.windowLabel}</p>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 eating window · {timing.first}–{timing.last}
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -290,7 +306,7 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
               </div>
             </>
           ) : (
-            <p className="mt-1.5 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1.5 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Log something and your eating window appears here.
             </p>
           )}
@@ -301,17 +317,17 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
       <Section className="rise rise-4">
         <Card>
           <div className="flex items-baseline justify-between">
-            <p className="text-[12px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
               <Droplet size={12} /> Water
             </p>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {app.hydration.total.toLocaleString()} / {app.targets.water.toLocaleString()} ml
             </p>
           </div>
           <div className="mt-2.5"><WaterGlasses /></div>
           <button
             onClick={() => app.addWaterMl(500)}
-            className="tap press mt-2 rounded-full border px-3 py-3 text-[11.5px] font-extrabold"
+            className="tap press mt-2 rounded-full border px-3 py-3 text-[0.71875rem] font-extrabold"
             style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
           >
             +500 ml
@@ -337,8 +353,8 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
         >
           <Utensils size={18} style={{ color: 'var(--muted)' }} />
           <span className="flex-1">
-            <span className="block font-bold text-[14px]">Import a recipe</span>
-            <span className="block text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <span className="block font-bold text-[0.875rem]">Import a recipe</span>
+            <span className="block text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Paste a recipe or a link and log a serving with its nutrition worked out.
             </span>
           </span>

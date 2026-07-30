@@ -28,11 +28,12 @@ const logFood = (name) => {
   fireEvent.click(within(dialogFor('How much?')).getByText(/Add \d+ kcal to/));
 };
 
-const openAdvanced = (tab) => {
-  openProfile();
-  const section = screen.getByText('Reports & you').closest('section');
-  fireEvent.click(within(section).getByText('Advanced'));
-  const sheet = dialogFor('Advanced');
+const openAdvanced = async (tab) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Guidance — what matters now' }));
+  const sheet = dialogFor('Guidance');
+  fireEvent.click(within(sheet).getByText('Tools'));
+  fireEvent.click(within(sheet).getByText('Health & impact'));
+  await within(sheet).findByText('Planet');
   if (tab) fireEvent.click(within(sheet).getByText(tab));
   return sheet;
 };
@@ -44,25 +45,25 @@ describe('the footprint', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('computes nothing from an empty diary, and says why', () => {
+  it('computes nothing from an empty diary, and says why', async () => {
     onboard();
-    const sheet = openAdvanced();
+    const sheet = await openAdvanced();
     expect(within(sheet).getByText(/it doesn’t estimate a diet for you/)).toBeTruthy();
   });
 
-  it('says what share of your food it could actually place', () => {
+  it('says what share of your food it could actually place', async () => {
     onboard();
     logFood('Chicken breast');
-    const sheet = openAdvanced();
+    const sheet = await openAdvanced();
     expect(within(sheet).getByText(/kg CO₂e a day/)).toBeTruthy();
     expect(within(sheet).getByText(/of what you logged/)).toBeTruthy();
     expect(within(sheet).getByText(/rather than counted as nothing/)).toBeTruthy();
   });
 
-  it('names its source and its uncertainty rather than presenting a bare figure', () => {
+  it('names its source and its uncertainty rather than presenting a bare figure', async () => {
     onboard();
     logFood('Chicken breast');
-    const sheet = openAdvanced();
+    const sheet = await openAdvanced();
     expect(within(sheet).getByText(/Poore & Nemecek/)).toBeTruthy();
     expect(within(sheet).getByText(/order of magnitude, not a reading/)).toBeTruthy();
   });
@@ -72,9 +73,9 @@ describe('nutrient gaps', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('will not compute an optimisation off a couple of days', () => {
+  it('will not compute an optimisation off a couple of days', async () => {
     onboard();
-    const sheet = openAdvanced('Gaps');
+    const sheet = await openAdvanced('Gaps');
     expect(within(sheet).getByText(/5 logged days make this worth computing — you have 0/)).toBeTruthy();
   });
 });
@@ -83,15 +84,15 @@ describe('fasting', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('offers a window without recommending one', () => {
+  it('offers a window without recommending one', async () => {
     onboard();
-    const sheet = openAdvanced('Fasting');
+    const sheet = await openAdvanced('Fasting');
     expect(within(sheet).getByText(/A window you chose — Forq isn’t\s+recommending one/)).toBeTruthy();
   });
 
-  it('runs a fast only once you start it, and can end it', () => {
+  it('runs a fast only once you start it, and can end it', async () => {
     onboard();
-    const sheet = openAdvanced('Fasting');
+    const sheet = await openAdvanced('Fasting');
     expect(within(sheet).getByText('Start a fast')).toBeTruthy();
     fireEvent.click(within(sheet).getByText('Start now'));
     expect(within(sheet).getByText('Fasting now')).toBeTruthy();
@@ -100,9 +101,9 @@ describe('fasting', () => {
     expect(within(sheet).getByText('Start a fast')).toBeTruthy();
   });
 
-  it('needs nights the diary can bound before calling it a pattern', () => {
+  it('needs nights the diary can bound before calling it a pattern', async () => {
     onboard();
-    const sheet = openAdvanced('Fasting');
+    const sheet = await openAdvanced('Fasting');
     expect(within(sheet).getByText(/3 nights the diary can bound either side/)).toBeTruthy();
   });
 });
@@ -111,26 +112,28 @@ describe('results you had taken elsewhere', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('is clear that no lab is being called', () => {
+  it('is clear that no lab is being called', async () => {
     onboard();
-    const sheet = openAdvanced('Results');
+    const sheet = await openAdvanced('Results');
     expect(within(sheet).getByText(/No lab has an API a web page can call/)).toBeTruthy();
     expect(within(sheet).queryByText(/Connect your lab/i)).toBeNull();
   });
 
-  it('bands a result you type against its reference range', () => {
+  it('bands a result you type against its reference range', async () => {
     onboard();
-    const sheet = openAdvanced('Results');
+    const sheet = await openAdvanced('Results');
     fireEvent.change(within(sheet).getByLabelText(/^Ferritin/), { target: { value: '15' } });
     fireEvent.click(within(sheet).getByText('Save this panel'));
     expect(within(sheet).getByText('Below range')).toBeTruthy();
     expect(within(sheet).getByText(/the person who ordered the test can/)).toBeTruthy();
   });
 
-  it('says why there is no CGM connect button, and reads the export instead', () => {
+  it('says why there is no CGM connect button, and reads the export instead', async () => {
     onboard();
-    const sheet = openAdvanced('Results');
-    expect(within(sheet).getByText(/Dexcom and Libre have no browser API/)).toBeTruthy();
+    const sheet = await openAdvanced('Results');
+    expect(within(sheet).getByText(/Dexcom and Libre use vendor OAuth APIs/)).toBeTruthy();
+    expect(within(sheet).getByText(/join household sync if you sign in/)).toBeTruthy();
+    expect(within(sheet).getByText(/sent to OpenAI only if you deliberately include them/)).toBeTruthy();
     fireEvent.change(within(sheet).getByLabelText('Glucose export'), {
       target: {
         value: [
@@ -149,27 +152,27 @@ describe('the register of what it will not pretend to do', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('names what a browser genuinely cannot do, with the nearest real thing', () => {
+  it('names what a browser genuinely cannot do, with the nearest real thing', async () => {
     onboard();
-    const sheet = openAdvanced('What it can’t');
+    const sheet = await openAdvanced('What it can’t');
     fireEvent.click(within(sheet).getAllByText('A browser can’t')[0]);
     expect(within(sheet).getByText('Smart kitchen integration')).toBeTruthy();
-    expect(within(sheet).getByText('Healthcare provider access')).toBeTruthy();
     expect(within(sheet).getAllByText(/Instead:/).length).toBeGreaterThan(0);
+    expect(within(sheet).queryByText('Healthcare provider access')).toBeNull();
   });
 
-  it('refuses DNA-based advice and explains, rather than saying coming soon', () => {
+  it('refuses DNA-based advice and explains, rather than saying coming soon', async () => {
     onboard();
-    const sheet = openAdvanced('What it can’t');
+    const sheet = await openAdvanced('What it can’t');
     fireEvent.click(within(sheet).getAllByText('Deliberately not')[0]);
     expect(within(sheet).getByText('DNA-based nutrition advice')).toBeTruthy();
     expect(within(sheet).getByText(/evidence that does not support them/)).toBeTruthy();
     expect(within(sheet).queryByText(/coming soon/i)).toBeNull();
   });
 
-  it('is honest that the interface is English only', () => {
+  it('is honest that the interface is English only', async () => {
     onboard();
-    const sheet = openAdvanced('What it can’t');
+    const sheet = await openAdvanced('What it can’t');
     expect(within(sheet).getByText(/interface is English only/)).toBeTruthy();
   });
 });

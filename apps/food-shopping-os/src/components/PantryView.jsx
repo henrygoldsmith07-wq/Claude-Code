@@ -41,41 +41,41 @@ function AddItemForm() {
         onKeyDown={(e) => e.key === 'Enter' && save()}
         placeholder="What did you put away?"
         aria-label="Item name"
-        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <div className="grid grid-cols-2 gap-2.5">
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
           <input
             value={draft.qty}
             onChange={(e) => field('qty')(e.target.value)}
             placeholder="500 g, 2 tins…"
             aria-label="Amount"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
         <NumberField label="Cost" value={draft.cost} onChange={field('cost')} suffix="£" step={0.5} />
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Use by</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Use by</span>
           <input
             type="date"
             value={draft.expiry}
             onChange={(e) => field('expiry')(e.target.value)}
             aria-label="Use by"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where from</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where from</span>
           <input
             value={draft.store}
             onChange={(e) => field('store')(e.target.value)}
             placeholder="Shop"
             aria-label="Where from"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
@@ -93,7 +93,7 @@ function AddItemForm() {
       <button
         onClick={save}
         disabled={draft.name.trim().length < 2}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         Add to pantry
@@ -164,7 +164,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
         <Card className="text-center py-8">
           <Package size={28} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
           <p className="font-bold">Pantry editing is off for {app.activeMember?.name}.</p>
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>An adult can change this under household permissions.</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>An adult can change this under household permissions.</p>
         </Card>
       </div>
     );
@@ -179,8 +179,8 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
           [expiring.length, 'use soon'],
         ].map(([v, label]) => (
           <Card key={label} className="!p-3 text-center">
-            <p className="text-[17px] font-extrabold">{v}</p>
-            <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+            <p className="text-[1.0625rem] font-extrabold">{v}</p>
+            <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
           </Card>
         ))}
       </div>
@@ -188,7 +188,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
       <div className="grid grid-cols-2 gap-2.5">
         <button
           onClick={() => { setAdding((v) => !v); setCapturing(false); setScanning(false); }}
-          className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+          className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
           style={adding ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-1.5">
@@ -197,7 +197,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
         </button>
         <button
           onClick={() => { setCapturing((v) => !v); setAdding(false); setScanning(false); }}
-          className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+          className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
           style={capturing ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-1.5">
@@ -207,7 +207,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
       </div>
       <button
         onClick={() => { setScanning((v) => !v); setAdding(false); setCapturing(false); }}
-        className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+        className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
         style={scanning ? { borderColor: 'var(--line)' } : { borderColor: 'var(--line)', color: 'var(--muted)' }}
       >
         <span className="inline-flex items-center gap-1.5">
@@ -230,7 +230,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
         <Section title="Use-by dates" className="!px-0">
           {buckets.map((bucket) => (
             <div key={bucket.id} className="mb-2.5">
-              <p className="mb-1.5 text-[12px] font-bold uppercase tracking-wide" style={{ color: bucket.id === 'gone' ? 'var(--danger)' : 'var(--faint)' }}>
+              <p className="mb-1.5 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: bucket.id === 'gone' ? 'var(--danger)' : 'var(--faint)' }}>
                 {bucket.label} · {bucket.items.length}
               </p>
               <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
@@ -238,14 +238,14 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
                   <div key={item.id} className="flex items-center gap-3 p-3">
                     <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-[14px] truncate">{item.name}</p>
-                      <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                      <p className="font-bold text-[0.875rem] truncate">{item.name}</p>
+                      <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                         {expiryStatus(days).label}{item.cost > 0 ? ` · ${gbp(item.cost, { always: true })}` : ''}
                       </p>
                     </div>
                     <button
                       onClick={() => app.binPantryItem(item.id)}
-                      className="press rounded-full border px-3 py-1.5 text-[12px] font-extrabold shrink-0"
+                      className="press rounded-full border px-3 py-1.5 text-[0.75rem] font-extrabold shrink-0"
                       style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
                     >
                       Threw it away
@@ -256,14 +256,14 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
             </div>
           ))}
           {undated > 0 && (
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {undated} item{undated === 1 ? ' has' : 's have'} no use-by date, so {undated === 1 ? 'it isn’t' : 'they aren’t'} tracked here.
             </p>
           )}
           {app.wasted.count > 0 && (
             <Card className="mt-2 flex items-center gap-3 !p-3">
               <TrendingDown size={16} style={{ color: 'var(--muted)' }} />
-              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 You’ve binned {app.wasted.count} item{app.wasted.count === 1 ? '' : 's'}, worth{' '}
                 {gbp(app.wasted.cost, { always: true })} at what you paid
                 {app.wasted.worst?.cost > 0 && ` — the priciest was ${app.wasted.worst.name}`}.
@@ -277,7 +277,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
         <Card className="text-center py-10">
           <Package size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
           <p className="font-bold">Your pantry is empty</p>
-          <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Add what you have in and Forq can tell you what's about to go off, what a
             recipe still needs, and what your kitchen is worth.
           </p>
@@ -289,7 +289,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search your pantry…"
             aria-label="Search pantry"
-            className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+            className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
 
@@ -298,7 +298,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
               value={status}
               onChange={(event) => setStatus(event.target.value)}
               aria-label="Pantry status filter"
-              className="rounded-xl border px-3 py-2.5 text-[12px] font-bold"
+              className="rounded-xl border px-3 py-2.5 text-[0.75rem] font-bold"
               style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
             >
               <option value="all">All stock</option>
@@ -310,7 +310,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
               value={sort}
               onChange={(event) => setSort(event.target.value)}
               aria-label="Sort pantry"
-              className="rounded-xl border px-3 py-2.5 text-[12px] font-bold"
+              className="rounded-xl border px-3 py-2.5 text-[0.75rem] font-bold"
               style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
             >
               <option value="expiry">Expiry first</option>
@@ -339,7 +339,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
                   return (
                     <Card key={p.id} className="w-[150px] shrink-0 !p-3">
                       <Glyph e={p.emoji} size={22} style={{ color: 'var(--muted)' }} />
-                      <p className="mt-1 font-bold text-[13px] leading-tight">{p.name}</p>
+                      <p className="mt-1 font-bold text-[0.8125rem] leading-tight">{p.name}</p>
                       <div className="mt-1.5"><Pill tone={st.tone}>{st.label}</Pill></div>
                     </Card>
                   );
@@ -388,13 +388,13 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
                   <div className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
                   <Glyph e={p.emoji} size={22} style={{ color: 'var(--muted)' }} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-[14px] truncate">{p.name}</p>
-                    <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>
+                    <p className="font-bold text-[0.875rem] truncate">{p.name}</p>
+                    <p className="text-[0.71875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
                       {[p.qty, p.location, p.store].filter(Boolean).join(' · ') || p.cat}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    {p.cost > 0 && <p className="font-bold text-[13px]">{gbp(p.cost, { always: true })}</p>}
+                    {p.cost > 0 && <p className="font-bold text-[0.8125rem]">{gbp(p.cost, { always: true })}</p>}
                     {st && <Pill tone={st.tone}>{st.label}</Pill>}
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
@@ -424,7 +424,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
           {app.pantry.some((p) => p.low) && (
             <button
               onClick={() => app.addToList(app.pantry.filter((p) => p.low).map((p) => ({ name: p.name, emoji: p.emoji, qty: p.qty })))}
-              className="press w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+              className="press w-full rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
               style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -437,23 +437,23 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
             <Card>
               <div className="flex items-center gap-2">
                 <BarChart3 size={16} style={{ color: 'var(--muted)' }} />
-                <p className="text-[13px] font-bold">
+                <p className="text-[0.8125rem] font-bold">
                   {analytics.dated} of {analytics.total} items have expiry dates
                 </p>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>By location</p>
+                  <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>By location</p>
                   {analytics.byLocation.slice(0, 4).map((row) => (
-                    <p key={row.label} className="mt-1 flex justify-between text-[12px] font-semibold">
+                    <p key={row.label} className="mt-1 flex justify-between text-[0.75rem] font-semibold">
                       <span>{row.label}</span><span>{row.count}</span>
                     </p>
                   ))}
                 </div>
                 <div>
-                  <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>By category</p>
+                  <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>By category</p>
                   {analytics.byCategory.slice(0, 4).map((row) => (
-                    <p key={row.label} className="mt-1 flex justify-between text-[12px] font-semibold">
+                    <p key={row.label} className="mt-1 flex justify-between text-[0.75rem] font-semibold">
                       <span>{row.label}</span><span>{row.count}</span>
                     </p>
                   ))}
@@ -476,8 +476,8 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
               <Check size={13} strokeWidth={3} />
             </span>
             <span>
-              <span className="block font-bold text-[14px]">Auto-remove cooked ingredients</span>
-              <span className="block text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <span className="block font-bold text-[0.875rem]">Auto-remove cooked ingredients</span>
+              <span className="block text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Completing a recipe removes matching inventory rows.
               </span>
             </span>

@@ -1,6 +1,11 @@
+import { del } from '@vercel/blob';
 import { NextResponse } from 'next/server';
-import { assertSameOrigin, handleApiError, rateLimit, requireUser } from '../../../server/api.js';
-import { ensurePersonalHousehold, publicHousehold } from '../../../server/households.js';
+import {
+  ApiError, assertSameOrigin, handleApiError, rateLimit, requireUser,
+} from '../../../server/api.js';
+import {
+  deleteHouseholdData, ensurePersonalHousehold, publicHousehold, requireHousehold,
+} from '../../../server/households.js';
 import { getDatabase } from '../../../server/mongodb.js';
 import { householdSchema } from '../../../server/schemas.js';
 
@@ -46,6 +51,48 @@ export async function POST(request) {
       createdAt: now,
     });
     return NextResponse.json({ id: inserted.insertedId.toString(), name: input.name, role: 'owner' }, { status: 201 });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    assertSameOrigin(request);
+    const user = await requireUser();
+    await rateLimit(`households:delete:${user.id}`, 5, 3600000);
+    const { household, membership } = await requireHousehold(
+      user,
+      request.headers.get('x-forq-household-id'),
+    );
+    if (membership.role !== 'owner' || String(household.ownerId) !== String(user.id)) {
+      throw new ApiError(403, 'Only the household owner can delete its server data.');
+    }
+
+    const db = await getDatabase();
+    const uploads = await db.collection('uploads')
+      .find({ householdId: household._id }, { projection: { pathname: 1 } })
+      .toArray();
+    const paths = uploads.map((upload) => upload.pathname).filter(Boolean);
+    if (paths.length && !process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new ApiError(503, 'Receipt storage deletion is not configured.');
+    }
+    for (let index = 0; index < paths.length; index += 100) {
+      await del(paths.slice(index, index + 100), { token: process.env.BLOB_READ_WRITE_TOKEN });
+    }
+
+    const deleted = await deleteHouseholdData(db, household._id);
+    const result = await db.collection('households').deleteOne({
+      _id: household._id,
+      ownerId: user.id,
+    });
+    if (result.deletedCount !== 1) throw new ApiError(409, 'The household changed before it could be deleted.');
+
+    return NextResponse.json({
+      deleted: true,
+      householdId: household._id.toString(),
+      removed: deleted,
+    });
   } catch (error) {
     return handleApiError(error);
   }

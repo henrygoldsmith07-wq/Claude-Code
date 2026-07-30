@@ -1,11 +1,10 @@
 /**
  * What the coach knows.
  *
- * Every figure here is read off your diary, your plan and your kitchen — there
- * is no model and no server. The rule the whole file follows is that a claim
- * needs evidence: each answer carries how many days it was computed from, and
- * anything the data can't support comes back as `null` with a reason rather
- * than a confident sentence.
+ * Every figure here is computed locally from your diary, plan and kitchen.
+ * This module does not call Forq's server or its OpenAI relay. Each answer
+ * carries how many days it was computed from, and anything the data cannot
+ * support comes back as `null` with a reason rather than a confident sentence.
  */
 
 import { dayTotals, entryMacros, mealLabel, MEAL_KEYS } from './nutrition.js';

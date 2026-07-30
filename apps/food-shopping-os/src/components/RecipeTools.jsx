@@ -6,6 +6,7 @@ import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
 import { nutrientRows } from '../lib/nutrition.js';
 import { formatAmount } from '../data/nutrients.js';
+import { PRIVACY_COPY } from '../data/privacy.js';
 import { recipeConflicts } from '../lib/goals.js';
 import { swapsFor, swapsForDiet, recipeNutrition, shareCode } from '../lib/recipe-tools.js';
 import { Card, Chip, Pill, Meter, Stepper } from './ui.jsx';
@@ -36,7 +37,7 @@ export function SwapPanel({ recipe, onSwap }) {
 
   return (
     <Card className="rise rise-2">
-      <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Substitutions</p>
+      <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Substitutions</p>
 
       {fits.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-2">
@@ -55,8 +56,8 @@ export function SwapPanel({ recipe, onSwap }) {
               onClick={() => setOpen(open === ingredient ? null : ingredient)}
               className="press flex w-full items-center justify-between py-1.5 text-left"
             >
-              <span className="text-[13.5px] font-bold">{ingredient}</span>
-              <span className="text-[12px] font-extrabold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+              <span className="text-[0.84375rem] font-bold">{ingredient}</span>
+              <span className="text-[0.75rem] font-extrabold inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
                 <ArrowLeftRight size={12} /> {options.length} swap{options.length === 1 ? '' : 's'}
               </span>
             </button>
@@ -69,8 +70,8 @@ export function SwapPanel({ recipe, onSwap }) {
                     className="press w-full rounded-xl p-2.5 text-left"
                     style={{ background: 'var(--card-2)' }}
                   >
-                    <p className="text-[13px] font-extrabold">{option.name}</p>
-                    <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{option.why}</p>
+                    <p className="text-[0.8125rem] font-extrabold">{option.name}</p>
+                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{option.why}</p>
                   </button>
                 ))}
               </div>
@@ -87,8 +88,8 @@ export function ServingsControl({ servings, base, onChange, costPerServing }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Cooking for</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Cooking for</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {gbp(costPerServing * servings, { always: true })} in total
           {servings !== base && ` · written for ${base}`}
         </p>
@@ -114,7 +115,7 @@ export function NutritionBreakdown({ recipe }) {
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
           Where the calories come from
         </p>
         <div className="flex h-3 overflow-hidden rounded-full" style={{ background: 'var(--card-2)' }}>
@@ -122,7 +123,7 @@ export function NutritionBreakdown({ recipe }) {
             <div key={key} style={{ width: `${split[key]}%`, background: colour }} />
           ))}
         </div>
-        <div className="mt-2 flex justify-between text-[12px] font-bold">
+        <div className="mt-2 flex justify-between text-[0.75rem] font-bold">
           <span>{split.protein}% protein</span>
           <span>{split.carbs}% carbs</span>
           <span>{split.fat}% fat</span>
@@ -132,7 +133,7 @@ export function NutritionBreakdown({ recipe }) {
       <div className="space-y-2">
         {rows.map((row) => (
           <div key={row.key}>
-            <div className="flex items-baseline justify-between text-[12.5px]">
+            <div className="flex items-baseline justify-between text-[0.78125rem]">
               <span className="font-bold">{row.label}</span>
               <span className="font-semibold tabular-nums" style={{ color: 'var(--muted)' }}>
                 {formatAmount(row.key, row.value)}
@@ -144,7 +145,7 @@ export function NutritionBreakdown({ recipe }) {
         ))}
       </div>
 
-      <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
         <Info size={13} className="mt-0.5 shrink-0" />
         {estimated
           ? `Macros are computed from the dish's own ingredients; micronutrients are estimated from the food catalogue, which recognised ${matched}% of the ingredient list.`
@@ -155,8 +156,8 @@ export function NutritionBreakdown({ recipe }) {
 }
 
 /**
- * Sharing. There is no feed and no server: a recipe becomes a code you send to
- * someone, and their app reads it back. Nothing leaves the device on its own.
+ * Sharing is an explicitly local action: a recipe becomes a code the user
+ * chooses to send, and the other app reads it back.
  */
 export function SharePanel({ recipe }) {
   const app = useApp();
@@ -181,14 +182,14 @@ export function SharePanel({ recipe }) {
     <Card className="rise rise-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Share</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            A code you send to someone — no account, no upload.
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Share</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            {PRIVACY_COPY.recipeShare}
           </p>
         </div>
         <button
           onClick={make}
-          className="press rounded-full border px-3 py-1.5 text-[12.5px] font-extrabold"
+          className="press rounded-full border px-3 py-1.5 text-[0.78125rem] font-extrabold"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Share2 size={13} /> {code ? 'Refresh' : 'Get a code'}</span>
@@ -201,12 +202,12 @@ export function SharePanel({ recipe }) {
             value={code}
             aria-label="Recipe share code"
             rows={3}
-            className="w-full rounded-xl border p-2 text-[11px] font-mono outline-none"
+            className="w-full rounded-xl border p-2 text-[0.6875rem] font-mono outline-none"
             style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--muted)' }}
           />
           <button
             onClick={copy}
-            className="press mt-2 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+            className="press mt-2 w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
             style={copied ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--line)' }}
           >
             <span className="inline-flex items-center gap-1.5">
@@ -224,14 +225,14 @@ export function VariantBanner({ recipe, onReset, onSave, saved }) {
   const swaps = recipe.swaps || [];
   return (
     <Card className="!p-3 rise" style={{ borderColor: 'var(--accent)' }}>
-      <p className="text-[12.5px] font-bold inline-flex items-center gap-1.5">
+      <p className="text-[0.78125rem] font-bold inline-flex items-center gap-1.5">
         <Sparkles size={13} style={{ color: 'var(--accent)' }} />
         {recipe.generated ? 'Invented for what you have' : 'Your version of this dish'}
       </p>
       {swaps.length > 0 && (
         <ul className="mt-1.5 space-y-0.5">
           {swaps.map((s, i) => (
-            <li key={i} className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <li key={i} className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {s.from} → {s.to}
               {recipe.recalculated === false && ' (figures unchanged — not in the ingredient table)'}
             </li>
@@ -242,7 +243,7 @@ export function VariantBanner({ recipe, onReset, onSave, saved }) {
         <button
           onClick={onSave}
           disabled={saved}
-          className="press flex-1 rounded-xl py-2 text-[12.5px] font-extrabold disabled:opacity-60"
+          className="press flex-1 rounded-xl py-2 text-[0.78125rem] font-extrabold disabled:opacity-60"
           style={saved
             ? { background: 'var(--card-2)', color: 'var(--good)' }
             : { background: 'var(--accent)', color: 'var(--on-accent)' }}
@@ -252,7 +253,7 @@ export function VariantBanner({ recipe, onReset, onSave, saved }) {
         {onReset && (
           <button
             onClick={onReset}
-            className="press rounded-xl border px-3 py-2 text-[12.5px] font-extrabold"
+            className="press rounded-xl border px-3 py-2 text-[0.78125rem] font-extrabold"
             style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
           >
             Undo

@@ -140,8 +140,9 @@ describe('what came due while the app was shut', () => {
   });
 
   it('is honest in the copy about why it could not tell you sooner', () => {
-    expect(NOTIFY_TRUTH.closed).toMatch(/push server/);
-    expect(NOTIFY_TRUTH.closed).toMatch(/doesn’t have one/);
+    expect(NOTIFY_TRUTH.closed).toMatch(/household sync/);
+    expect(NOTIFY_TRUTH.closed).toMatch(/Web Push/);
+    expect(NOTIFY_TRUTH.closed).toMatch(/not sent to OpenAI/);
     expect(NOTIFY_TRUTH.calendar).toMatch(/calendar/);
   });
 });

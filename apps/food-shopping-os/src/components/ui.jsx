@@ -9,9 +9,9 @@ export const Section = ({ title, action, onAction, children, className }) => (
   <section className={cx('px-5', className)}>
     {title && (
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
+        <h2 className="text-[0.9375rem] font-bold tracking-tight">{title}</h2>
         {action && (
-          <button onClick={onAction} className="tap press text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>
+          <button onClick={onAction} className="tap press text-[0.8125rem] font-semibold" style={{ color: 'var(--accent)' }}>
             {action}
           </button>
         )}
@@ -44,7 +44,8 @@ export const Card = ({ children, className, onClick, style, label }) => (
 export const Chip = ({ active, children, onClick, tone }) => (
   <button
     onClick={onClick}
-    className="tap press shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold border transition-colors"
+    aria-pressed={active}
+    className="tap press shrink-0 rounded-full px-3.5 py-2 text-[0.8125rem] font-semibold border transition-colors"
     style={
       active
         ? { background: 'var(--accent)', color: 'var(--on-accent)', borderColor: 'var(--accent)' }
@@ -148,7 +149,7 @@ export const GestureMenu = ({
                 action.onClick();
                 setOpen(false);
               }}
-              className="press block w-full rounded-lg px-3 py-2 text-left text-[12.5px] font-bold"
+              className="press block w-full rounded-lg px-3 py-2 text-left text-[0.78125rem] font-bold"
               style={{ color: action.tone === 'danger' ? 'var(--danger)' : 'var(--ink)' }}
             >
               {action.label}
@@ -157,7 +158,7 @@ export const GestureMenu = ({
           <button
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="press block w-full rounded-lg px-3 py-2 text-left text-[12px] font-semibold"
+            className="press block w-full rounded-lg px-3 py-2 text-left text-[0.75rem] font-semibold"
             style={{ color: 'var(--muted)' }}
           >
             Close
@@ -178,7 +179,7 @@ export const Pill = ({ children, tone = 'muted' }) => {
     faint: { background: 'var(--card-2)', color: 'var(--faint)' },
   };
   return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={tones[tone]}>
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-bold" style={tones[tone]}>
       {children}
     </span>
   );
@@ -198,18 +199,18 @@ export const Pill = ({ children, tone = 'muted' }) => {
 export const Empty = ({ Icon, title, children, action, onAction, note }) => (
   <Card className="text-center py-8">
     {Icon && <Icon size={28} strokeWidth={1.4} className="mx-auto mb-2.5" style={{ color: 'var(--faint)' }} />}
-    {title && <p className="font-bold text-[14.5px]">{title}</p>}
-    <p className="mx-auto max-w-[34ch] text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
+    {title && <p className="font-bold text-[0.90625rem]">{title}</p>}
+    <p className="mx-auto max-w-[34ch] text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
     {action && onAction && (
       <button
         onClick={onAction}
-        className="press mt-3.5 rounded-2xl px-5 py-3 text-[13.5px] font-extrabold"
+        className="press mt-3.5 rounded-2xl px-5 py-3 text-[0.84375rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         {action}
       </button>
     )}
-    {note && <p className="mt-2.5 text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>{note}</p>}
+    {note && <p className="mt-2.5 text-[0.71875rem] font-semibold" style={{ color: 'var(--faint)' }}>{note}</p>}
   </Card>
 );
 
@@ -232,8 +233,8 @@ export const Ring = ({ value, max, size = 72, stroke = 7, color = 'var(--accent)
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-extrabold" style={{ fontSize: size / 4.4 }}>{label}</span>
-        {sub && <span className="text-[9px] font-semibold mt-0.5" style={{ color: 'var(--faint)' }}>{sub}</span>}
+        <span className="font-extrabold" style={{ fontSize: `${size / 4.4 / 16}rem` }}>{label}</span>
+        {sub && <span className="text-[0.5625rem] font-semibold mt-0.5" style={{ color: 'var(--faint)' }}>{sub}</span>}
       </div>
     </div>
   );
@@ -269,7 +270,7 @@ export const Bars = ({ data, height = 96, color = 'var(--series-1)', highlight, 
         return (
           <div key={d.label} className="flex-1 flex flex-col items-center justify-end gap-1 h-full min-w-0">
             {labelled && (
-              <span className="text-[10px] font-bold leading-none" style={{ color: 'var(--muted)' }}>
+              <span className="text-[0.625rem] font-bold leading-none" style={{ color: 'var(--muted)' }}>
                 {format(d.value)}
               </span>
             )}
@@ -281,7 +282,7 @@ export const Bars = ({ data, height = 96, color = 'var(--series-1)', highlight, 
                 transition: 'height 500ms cubic-bezier(0.22,1,0.36,1)',
               }}
             />
-            <span className="text-[10px] font-semibold" style={{ color: 'var(--faint)' }}>{d.label}</span>
+            <span className="text-[0.625rem] font-semibold" style={{ color: 'var(--faint)' }}>{d.label}</span>
           </div>
         );
       })}
@@ -420,7 +421,13 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
             </button>
           </div>
         )}
-        <div data-sheet-scroll className="overflow-y-auto no-scrollbar flex-1 overscroll-contain">{children}</div>
+        <div
+          data-sheet-scroll
+          tabIndex={0}
+          className="overflow-y-auto no-scrollbar flex-1 overscroll-contain"
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -429,7 +436,7 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
 export const Stepper = ({ value, onChange, min = 1, max = 12 }) => (
   <div className="inline-flex items-center gap-3 rounded-full border px-2 py-1" style={{ borderColor: 'var(--line)', background: 'var(--card)' }}>
     <button className="press h-7 w-7 rounded-full font-bold" style={{ background: 'var(--card-2)' }} onClick={() => onChange(Math.max(min, value - 1))} aria-label="Decrease">−</button>
-    <span className="w-5 text-center font-extrabold text-[15px]">{value}</span>
+    <span className="w-5 text-center font-extrabold text-[0.9375rem]">{value}</span>
     <button className="press h-7 w-7 rounded-full font-bold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)' }} onClick={() => onChange(Math.min(max, value + 1))} aria-label="Increase">+</button>
   </div>
 );

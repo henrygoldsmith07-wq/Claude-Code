@@ -25,7 +25,7 @@ function PermissionCard() {
   return (
     <Card className="space-y-2.5">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5">
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5">
           {granted ? <Bell size={15} /> : <BellOff size={15} style={{ color: 'var(--muted)' }} />}
           Notifications
         </p>
@@ -34,21 +34,21 @@ function PermissionCard() {
         </Pill>
       </div>
       {support.reason && (
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{support.reason}</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{support.reason}</p>
       )}
       {support.supported && support.permission === 'default' && (
         <button
           onClick={ask}
-          className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+          className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           Allow notifications
         </button>
       )}
       <div className="rounded-2xl p-3 space-y-1.5" style={{ background: 'var(--card-2)' }}>
-        <p className="text-[12.5px] font-semibold">{NOTIFY_TRUTH.open}</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{NOTIFY_TRUTH.closed}</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{NOTIFY_TRUTH.caughtUp}</p>
+        <p className="text-[0.78125rem] font-semibold">{NOTIFY_TRUTH.open}</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{NOTIFY_TRUTH.closed}</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{NOTIFY_TRUTH.caughtUp}</p>
       </div>
     </Card>
   );
@@ -68,17 +68,17 @@ function CalendarCard() {
 
   return (
     <Card className="space-y-2.5">
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><CalendarArrowDown size={15} /> Send to your calendar</p>
-      <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{NOTIFY_TRUTH.calendar}</p>
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><CalendarArrowDown size={15} /> Send to your calendar</p>
+      <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{NOTIFY_TRUTH.calendar}</p>
       <button
         onClick={send}
         disabled={!events}
-        className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
         style={{ borderColor: 'var(--line)' }}
       >
         {events ? `Download ${events} repeating alarm${events === 1 ? '' : 's'}` : 'Nothing switched on to send'}
       </button>
-      {done && <p className="text-[12.5px] font-semibold">{done}</p>}
+      {done && <p className="text-[0.78125rem] font-semibold">{done}</p>}
     </Card>
   );
 }
@@ -93,18 +93,18 @@ function SuggestionsCard() {
 
   return (
     <Card className="space-y-2.5">
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Sparkles size={15} /> From your own records</p>
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Sparkles size={15} /> From your own records</p>
       {suggestions.map((s) => (
         <div key={s.key} className="rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
-          <p className="text-[13.5px] font-bold inline-flex items-center gap-1.5">
+          <p className="text-[0.84375rem] font-bold inline-flex items-center gap-1.5">
             <Glyph e={s.emoji} size={13} /> {s.label} · {s.times.join(', ')}
           </p>
-          <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{s.why}</p>
+          <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{s.why}</p>
         </div>
       ))}
       <button
         onClick={() => app.addSuggestedReminders(suggestions)}
-        className="press w-full rounded-2xl py-2.5 text-[13px] font-extrabold"
+        className="press w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         {suggestions.length === 1 ? 'Set it up' : `Set up all ${suggestions.length}`}
@@ -121,10 +121,10 @@ function NotificationPresetsCard() {
   return (
     <Card className="space-y-2.5">
       <div>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5">
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5">
           <BellRing size={15} /> Notification presets
         </p>
-        <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Suggested schedules only. Add them, then change any time or day.
         </p>
       </div>
@@ -136,10 +136,10 @@ function NotificationPresetsCard() {
             className="press rounded-2xl p-3 text-left"
             style={{ background: 'var(--card-2)' }}
           >
-            <span className="text-[13px] font-extrabold inline-flex items-center gap-1.5">
+            <span className="text-[0.8125rem] font-extrabold inline-flex items-center gap-1.5">
               <Glyph e={preset.emoji} size={13} /> {kindBy[preset.kind].label}
             </span>
-            <span className="mt-0.5 block text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <span className="mt-0.5 block text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {scheduleLabel(preset)}
             </span>
           </button>
@@ -147,7 +147,7 @@ function NotificationPresetsCard() {
       </div>
       <button
         onClick={() => app.addSuggestedReminders(presets)}
-        className="press w-full rounded-2xl py-2.5 text-[13px] font-extrabold"
+        className="press w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         {presets.length === 1 ? 'Set it up' : `Set up all ${presets.length}`}
@@ -165,17 +165,17 @@ export function DueList({ compact = false }) {
 
   return (
     <Card className="space-y-2.5">
-      <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+      <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
         Due now
       </p>
       {due.map(({ reminder, stamp, time, lateBy }) => (
         <div key={`${reminder.id}-${time}`} className="rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[14px] font-extrabold inline-flex items-center gap-1.5">
+              <p className="text-[0.875rem] font-extrabold inline-flex items-center gap-1.5">
                 <Glyph e={kindBy[reminder.kind]?.emoji || '🔔'} size={14} /> {reminder.label}
               </p>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {time}{lateBy >= 5 ? ` · ${lateBy} min ago` : ''}
                 {app.reminderLine(reminder.kind) ? ` · ${app.reminderLine(reminder.kind)}` : ''}
               </p>
@@ -213,25 +213,25 @@ function MissedCard() {
   return (
     <Card className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
           While Forq was closed
         </p>
-        <button onClick={app.markRemindersSeen} className="press text-[12px] font-extrabold" style={{ color: 'var(--accent)' }}>
+        <button onClick={app.markRemindersSeen} className="press text-[0.75rem] font-extrabold" style={{ color: 'var(--accent)' }}>
           Clear
         </button>
       </div>
       {shown.map((m) => (
-        <p key={`${m.reminder.id}-${m.stamp}-${m.time}`} className="text-[13px] font-semibold">
+        <p key={`${m.reminder.id}-${m.stamp}-${m.time}`} className="text-[0.8125rem] font-semibold">
           <span className="font-extrabold">{m.time}</span> · {m.reminder.label}
           <span style={{ color: 'var(--faint)' }}> · {m.stamp === app.day ? 'today' : m.stamp}</span>
         </p>
       ))}
       {missed.length > shown.length && (
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           and {missed.length - shown.length} more.
         </p>
       )}
-      <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
         <Info size={13} className="mt-0.5 shrink-0" /> {NOTIFY_TRUTH.closed}
       </p>
     </Card>
@@ -269,7 +269,7 @@ export default function RemindersPanel() {
       <div className="px-5 pb-10 space-y-4">
         <button
           onClick={() => { setAdding(false); setEditing(null); }}
-          className="press inline-flex items-center gap-1 text-[13px] font-extrabold"
+          className="press inline-flex items-center gap-1 text-[0.8125rem] font-extrabold"
           style={{ color: 'var(--muted)' }}
         >
           <ChevronLeft size={15} /> Back
@@ -286,7 +286,7 @@ export default function RemindersPanel() {
 
       {app.reminders.length === 0 ? (
         <Card className="text-center py-8">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             No reminders. Forq won’t invent a routine for you — add the ones you want, or take one
             of the suggestions below if your records support it.
           </p>
@@ -297,8 +297,8 @@ export default function RemindersPanel() {
             <div key={reminder.id} className="flex items-center gap-3 p-3">
               <Glyph e={kindBy[reminder.kind]?.emoji || '🔔'} size={18} style={{ color: 'var(--muted)' }} />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-[13.5px] truncate">{reminder.label}</p>
-                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="font-bold text-[0.84375rem] truncate">{reminder.label}</p>
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {scheduleLabel(reminder)} · {nextLabel(reminder, app.now)}
                 </p>
               </div>
@@ -316,7 +316,7 @@ export default function RemindersPanel() {
 
       <button
         onClick={() => setAdding(true)}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-1.5"><Plus size={15} /> New reminder</span>

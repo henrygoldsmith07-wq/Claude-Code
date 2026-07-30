@@ -117,6 +117,13 @@ describe('every screen is navigable without sight or a mouse', () => {
     }
   });
 
+  it('makes long sheet content keyboard-scrollable', () => {
+    onboard();
+    openProfile();
+    const sheet = dialogNamed('You');
+    expect(sheet.querySelector('[data-sheet-scroll]').getAttribute('tabindex')).toBe('0');
+  });
+
   it('makes a tappable card a real button, reachable and keyboard-operable', () => {
     onboard();
     openProfile();

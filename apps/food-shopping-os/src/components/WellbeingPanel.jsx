@@ -29,7 +29,7 @@ export function RestView() {
   return (
     <>
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Last night</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Last night</p>
         <NumberField label="Hours slept" value={hours} onChange={setHours} suffix="h" step={0.5} />
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {SLEEP_QUALITY.map((q) => (
@@ -39,7 +39,7 @@ export function RestView() {
         <button
           onClick={() => { app.logSleep({ hours, quality }); setHours(''); }}
           disabled={!Number(hours)}
-          className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+          className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           Log sleep
@@ -48,11 +48,11 @@ export function RestView() {
 
       {sleep.nights > 0 && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
             Last {sleep.nights} night{sleep.nights === 1 ? '' : 's'}
           </p>
-          <p className="mt-0.5 text-[22px] font-extrabold">{sleep.avgHours} h <span className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>average</span></p>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-0.5 text-[1.375rem] font-extrabold">{sleep.avgHours} h <span className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>average</span></p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {sleep.shortest}–{sleep.longest} h · {sleep.under7} night{sleep.under7 === 1 ? '' : 's'} under seven
             {sleep.avgQuality ? ` · quality ${sleep.avgQuality}/5` : ''}
           </p>
@@ -60,7 +60,7 @@ export function RestView() {
       )}
 
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Today’s stress</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Today’s stress</p>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {STRESS_LEVELS.map((s) => (
             <Chip key={s.value} active={level === s.value} onClick={() => setLevel(s.value)}>{s.label}</Chip>
@@ -71,12 +71,12 @@ export function RestView() {
           onChange={(e) => setNote(e.target.value)}
           placeholder="What’s going on? (optional)"
           aria-label="Stress note"
-          className="w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+          className="w-full rounded-2xl border px-4 py-2.5 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <button
           onClick={() => { app.logStress({ level, note }); setNote(''); }}
-          className="press w-full rounded-2xl border py-3 text-[14px] font-extrabold"
+          className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           Log how today felt
@@ -85,18 +85,18 @@ export function RestView() {
 
       {stress.days > 0 && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
             Stress · {stress.days} day{stress.days === 1 ? '' : 's'} logged
           </p>
-          <p className="mt-0.5 text-[18px] font-extrabold">{stress.avg}/5 average</p>
+          <p className="mt-0.5 text-[1.125rem] font-extrabold">{stress.avg}/5 average</p>
           <div className="mt-2"><Meter value={stress.avg} max={5} color={stress.avg >= 4 ? 'var(--warn)' : 'var(--accent)'} /></div>
           {stress.high > 0 && (
-            <p className="mt-1.5 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1.5 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {stress.high} day{stress.high === 1 ? '' : 's'} at four or five.
             </p>
           )}
           {stress.notes.map((n) => (
-            <p key={n.id} className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p key={n.id} className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {prettyDate(n.date)}: {n.note}
             </p>
           ))}
@@ -122,33 +122,33 @@ export function CycleView() {
     <>
       <Card>
         {cycle.logged === 0 ? (
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{cycle.reason}</p>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{cycle.reason}</p>
         ) : (
           <>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Day of cycle</p>
-            <p className="text-[24px] font-extrabold">{cycle.dayOfCycle}</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Day of cycle</p>
+            <p className="text-[1.5rem] font-extrabold">{cycle.dayOfCycle}</p>
             {cycle.ready ? (
-              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Average {cycle.avgLength} days from {cycle.basis} (range {cycle.shortest}–{cycle.longest}).
                 Next one estimated {prettyDate(cycle.next)}, {cycle.daysUntilNext >= 0 ? `in ${cycle.daysUntilNext} days` : `${Math.abs(cycle.daysUntilNext)} days ago`}.
               </p>
             ) : (
-              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{cycle.reason}</p>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{cycle.reason}</p>
             )}
           </>
         )}
       </Card>
 
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Log a period</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Log a period</p>
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Started</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Started</span>
           <input
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
             aria-label="Period start"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
@@ -162,7 +162,7 @@ export function CycleView() {
         </div>
         <button
           onClick={() => { app.logCycle({ start, flow, symptoms }); setSymptoms([]); setFlow(null); }}
-          className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+          className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           Save
@@ -171,9 +171,9 @@ export function CycleView() {
 
       {counts.length > 0 && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>What you’ve noted</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>What you’ve noted</p>
           {counts.map((c) => (
-            <div key={c.name} className="flex justify-between text-[13px] font-semibold">
+            <div key={c.name} className="flex justify-between text-[0.8125rem] font-semibold">
               <span>{c.name}</span>
               <span style={{ color: 'var(--muted)' }}>{c.times}×</span>
             </div>
@@ -186,8 +186,8 @@ export function CycleView() {
           {[...app.cycles].reverse().slice(0, 6).map((c) => (
             <div key={c.id} className="flex items-center justify-between p-3">
               <div>
-                <p className="font-bold text-[13.5px]">{prettyDate(c.start)}</p>
-                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="font-bold text-[0.84375rem]">{prettyDate(c.start)}</p>
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {[c.flow, c.symptoms?.join(', ')].filter(Boolean).join(' · ') || 'no details'}
                 </p>
               </div>
@@ -198,7 +198,7 @@ export function CycleView() {
           ))}
         </Card>
       )}
-      <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
         Predictions here are the average of your own logged cycles and nothing else — no model,
         no population average standing in for you.
       </p>

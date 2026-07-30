@@ -20,6 +20,7 @@ import { Section, Card, Chip, Pill, Sheet, FoodArt } from './ui.jsx';
 import { MonthGrid, WeekGrid } from './PlanCalendar.jsx';
 import PlanGenerator from './PlanGenerator.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
+import CalendarAvailability from './CalendarAvailability.jsx';
 
 const dayLabel = (date) =>
   new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -60,11 +61,11 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
         onChange={(e) => setQuery(e.target.value)}
         placeholder={`Search ${app.safeRecipes.length} recipes…`}
         aria-label="Search recipes"
-        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {list.length} {anyMeal || query ? 'recipes' : `${slot} recipes`}
           {app.planDiets.length ? ' that fit your diet' : ''}
         </p>
@@ -76,7 +77,7 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
       {hasMeal && (
         <button
           onClick={onClear}
-          className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+          className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
           style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
         >
           <span className="inline-flex items-center gap-1.5"><X size={14} /> Clear this slot</span>
@@ -95,8 +96,8 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
             >
               <FoodArt recipe={r} className="h-11 w-11 shrink-0 rounded-xl" />
               <span className="min-w-0 flex-1">
-                <span className="block font-bold text-[14px] truncate">{r.name}</span>
-                <span className="block text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <span className="block font-bold text-[0.875rem] truncate">{r.name}</span>
+                <span className="block text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {r.time} min · {gbp(r.costPerServing, { always: true })}/serving · {r.protein}g protein
                 </span>
               </span>
@@ -166,7 +167,7 @@ export default function PlanTab({ openRecipe }) {
   return (
     <div className="pb-6 space-y-6">
       <div className="hero-gradient px-5 pt-1 pb-3">
-        <p className="text-[13.5px] font-semibold rise rise-1" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.84375rem] font-semibold rise rise-1" style={{ color: 'var(--muted)' }}>
           {stats.meals
             ? `${stats.meals} meal${stats.meals === 1 ? '' : 's'} planned · about ${gbp(stats.cost, { always: true })} for ${app.portions} ${view === 'week' ? 'this week' : 'this month'}`
             : 'Tap any slot to plan a meal, or let the generator fill the week.'}
@@ -191,7 +192,7 @@ export default function PlanTab({ openRecipe }) {
             </button>
             <button
               onClick={() => { setOffset(0); setCalendarStatus(''); }}
-              className="tap press shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-extrabold"
+              className="tap press shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.78125rem] font-extrabold"
               style={{ background: offset ? 'var(--card-2)' : 'transparent', color: offset ? 'var(--ink)' : 'var(--faint)' }}
             >
               {offset ? 'Today' : rangeLabel}
@@ -208,16 +209,16 @@ export default function PlanTab({ openRecipe }) {
         </div>
 
         {offset !== 0 && (
-          <p className="mb-2 text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>{rangeLabel}</p>
+          <p className="mb-2 text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>{rangeLabel}</p>
         )}
 
         {moving && (
           <Card className="!p-3 mb-2.5 flex items-center justify-between gap-2" style={{ borderColor: 'var(--accent)' }}>
-            <p className="text-[12.5px] font-bold inline-flex items-center gap-1.5">
+            <p className="text-[0.78125rem] font-bold inline-flex items-center gap-1.5">
               <Move size={14} style={{ color: 'var(--accent)' }} />
               Moving {byId((app.plan[moving.date] || {})[moving.slot])?.name} — tap where it goes
             </p>
-            <button onClick={() => setMoving(null)} className="press text-[12.5px] font-extrabold" style={{ color: 'var(--muted)' }}>
+            <button onClick={() => setMoving(null)} className="press text-[0.78125rem] font-extrabold" style={{ color: 'var(--muted)' }}>
               Cancel
             </button>
           </Card>
@@ -249,6 +250,8 @@ export default function PlanTab({ openRecipe }) {
           />
         )}
 
+        <CalendarAvailability dates={dates} />
+
         {stats.meals > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
@@ -257,8 +260,8 @@ export default function PlanTab({ openRecipe }) {
               ['Kcal/day', stats.kcalPerDay || '—'],
             ].map(([label, value]) => (
               <div key={label} className="rounded-xl py-2 text-center" style={{ background: 'var(--card-2)' }}>
-                <p className="text-[15px] font-extrabold">{value}</p>
-                <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+                <p className="text-[0.9375rem] font-extrabold">{value}</p>
+                <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
               </div>
             ))}
           </div>
@@ -268,7 +271,7 @@ export default function PlanTab({ openRecipe }) {
           <div className="mt-3 space-y-2">
             <button
               onClick={sendToList}
-              className="press w-full rounded-2xl border py-3 text-[14px] font-extrabold"
+              className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
               style={addedToList
                 ? { borderColor: 'var(--good)', color: 'var(--good)' }
                 : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
@@ -284,7 +287,7 @@ export default function PlanTab({ openRecipe }) {
             </button>
             <button
               onClick={exportCalendar}
-              className="press w-full rounded-2xl border py-3 text-[14px] font-extrabold"
+              className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
             >
               <span className="inline-flex items-center gap-2">
@@ -292,13 +295,13 @@ export default function PlanTab({ openRecipe }) {
               </span>
             </button>
             {calendarStatus && (
-              <p role="status" className="text-center text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p role="status" className="text-center text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {calendarStatus}
               </p>
             )}
             <button
               onClick={() => { app.clearPlanWeek(dates); setAddedToList(false); }}
-              className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+              className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
             >
               Clear {view === 'week' ? 'week' : 'month'}
@@ -315,14 +318,14 @@ export default function PlanTab({ openRecipe }) {
               <div key={item.id} className="flex items-center gap-3 p-3">
                 <Snowflake size={16} style={{ color: 'var(--muted)' }} />
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[14px] truncate">{item.name}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.875rem] truncate">{item.name}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     {item.portions} portion{item.portions === 1 ? '' : 's'} · best by {item.expiry}
                   </p>
                 </div>
                 <button
                   onClick={() => app.useLeftover(item.id)}
-                  className="press rounded-full border px-3 py-1.5 text-[12px] font-extrabold"
+                  className="press rounded-full border px-3 py-1.5 text-[0.75rem] font-extrabold"
                   style={{ borderColor: 'var(--line)' }}
                 >
                   Ate one
@@ -331,7 +334,7 @@ export default function PlanTab({ openRecipe }) {
             ))}
           </Card>
           {covered.length > 0 && (
-            <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {covered.length} planned meal{covered.length === 1 ? '' : 's'} already covered — the shopping list skips {covered.length === 1 ? 'it' : 'them'}.
             </p>
           )}
@@ -346,8 +349,8 @@ export default function PlanTab({ openRecipe }) {
               <div key={recipe.id} className="flex items-start gap-3">
                 <FoodArt recipe={recipe} className="h-11 w-11 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[14px]">{recipe.name}</p>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.875rem]">{recipe.name}</p>
+                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     Cook {n > 1 ? `${n} batches ` : ''}on {dayLabel(cookOn)} — {portions} portions, covering {covers.length} more meal{covers.length === 1 ? '' : 's'}.
                   </p>
                 </div>
@@ -362,7 +365,7 @@ export default function PlanTab({ openRecipe }) {
       <Section className="rise rise-2">
         <button
           onClick={() => setShowGenerator((v) => !v)}
-          className="press w-full rounded-2xl border py-3 text-[14px] font-extrabold"
+          className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
           style={showGenerator ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-2">
@@ -408,14 +411,14 @@ export default function PlanTab({ openRecipe }) {
                     ? <FoodArt recipe={recipe} className="h-11 w-11 shrink-0 rounded-xl" />
                     : <Utensils size={18} style={{ color: 'var(--faint)' }} />}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
-                    <p className="font-bold text-[14.5px] truncate">{recipe ? recipe.name : 'Nothing planned yet'}</p>
+                    <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+                    <p className="font-bold text-[0.90625rem] truncate">{recipe ? recipe.name : 'Nothing planned yet'}</p>
                   </div>
                   <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
                 </Card>
               );
             })}
-            <p className="pt-1 text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+            <p className="pt-1 text-[0.78125rem] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
               <Info size={13} /> Drag a meal in the week view to move it, or use its grip to pick it up.
             </p>
           </div>
@@ -426,7 +429,7 @@ export default function PlanTab({ openRecipe }) {
         <Section className="rise">
           <Card className="flex items-center gap-3 !p-3">
             <CalendarDays size={18} style={{ color: 'var(--muted)' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Nothing planned this month yet — tap a day to fill it, or generate a month in one go.
             </p>
           </Card>

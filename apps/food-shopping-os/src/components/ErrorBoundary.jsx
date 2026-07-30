@@ -16,12 +16,12 @@ export default class ErrorBoundary extends Component {
           <AlertTriangle size={24} style={{ color: 'var(--danger)' }} />
           <div>
             <h1 className="text-xl font-extrabold">Forq hit a problem</h1>
-            <p className="mt-1 text-[13px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.8125rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
               Your saved data is still on this device. Reload the app first; if the problem returns, export your data from Profile after recovery.
             </p>
           </div>
           <button
-            className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold"
+            className="press rounded-2xl px-4 py-3 text-[0.8125rem] font-extrabold"
             style={{ background: 'var(--ink)', color: 'var(--bg)' }}
             onClick={() => window.location.reload()}
           >

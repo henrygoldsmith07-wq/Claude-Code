@@ -37,12 +37,12 @@ export function WeekGrid({
         return (
           <Card key={date} className="!p-3" style={isToday ? { borderColor: 'var(--accent)' } : undefined}>
             <div className="flex items-center justify-between mb-2">
-              <p className="font-extrabold text-[14px]">
+              <p className="font-extrabold text-[0.875rem]">
                 {WEEK_DAYS[i % 7]}
-                <span className="ml-1.5 text-[12px] font-semibold" style={{ color: 'var(--faint)' }}>
+                <span className="ml-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--faint)' }}>
                   {dayNumber(date)}
                 </span>
-                {isToday && <span className="ml-2 text-[11px] font-bold" style={{ color: 'var(--accent)' }}>Today</span>}
+                {isToday && <span className="ml-2 text-[0.6875rem] font-bold" style={{ color: 'var(--accent)' }}>Today</span>}
               </p>
               {planCost(slots) > 0 && <Pill tone="muted">{gbp(planCost(slots), { always: true })}/person</Pill>}
             </div>
@@ -73,9 +73,9 @@ export function WeekGrid({
                       className="press block w-full text-left"
                     >
                       <FoodArt recipe={recipe} className="h-8 w-full rounded-lg" />
-                      <p className="mt-1 text-[11px] font-bold leading-tight line-clamp-2">{recipe.name}</p>
+                      <p className="mt-1 text-[0.6875rem] font-bold leading-tight line-clamp-2">{recipe.name}</p>
                       {fromFridge && (
-                        <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold" style={{ color: 'var(--good)' }}>
+                        <p className="mt-1 inline-flex items-center gap-1 text-[0.625rem] font-bold" style={{ color: 'var(--good)' }}>
                           <Snowflake size={10} /> leftovers
                         </p>
                       )}
@@ -94,7 +94,7 @@ export function WeekGrid({
                     key={key}
                     onClick={() => (moving ? onMove(moving, target) : onPick(target))}
                     {...dropProps(target, onMove, setDragging, dragging)}
-                    className="press rounded-xl p-2 flex flex-col items-center justify-center gap-1 text-[11px] font-semibold min-h-[60px]"
+                    className="press rounded-xl p-2 flex flex-col items-center justify-center gap-1 text-[0.6875rem] font-semibold min-h-[60px]"
                     style={{
                       background: 'var(--card-2)',
                       color: 'var(--faint)',
@@ -122,7 +122,7 @@ export function MonthGrid({ cells, plan, today, onOpenDay, moving, onMove, dragg
     <div>
       <div className="grid grid-cols-7 gap-1 mb-1.5">
         {WEEK_DAYS.map((d) => (
-          <p key={d} className="text-center text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          <p key={d} className="text-center text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
             {d[0]}
           </p>
         ))}
@@ -146,7 +146,7 @@ export function MonthGrid({ cells, plan, today, onOpenDay, moving, onMove, dragg
               }}
             >
               <span
-                className="text-[11px] font-extrabold leading-none pt-0.5"
+                className="text-[0.6875rem] font-extrabold leading-none pt-0.5"
                 style={{ color: date === today ? 'var(--accent)' : 'var(--ink)' }}
               >
                 {dayNumber(date)}

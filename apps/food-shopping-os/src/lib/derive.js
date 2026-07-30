@@ -54,6 +54,12 @@ export const deriveApp = (state) => {
   const glasses = state.water + state.waterExtraMl / GLASS_ML;
   const cookedDays = state.cooked.map((c) => c.date);
   const progress = progressSummary(state, state.day);
+  const loggedDays = Object.keys(state.log).filter((date) => state.log[date]?.length).length;
+  const personaTier = loggedDays < 3 && state.cooked.length < 2
+    ? 'starter'
+    : loggedDays < 30 && state.cooked.length < 20
+      ? 'regular'
+      : 'established';
   const footprint = periodFootprint(state.log, { today: state.day });
   return {
     catalogue,
@@ -124,6 +130,7 @@ export const deriveApp = (state) => {
     restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
     wasted: wasteSummary(state.waste),
     stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
+    personaTier,
     /* preferences: the filter every recipe surface shares, and the formatters
        that decide how a number is written */
     prefs,

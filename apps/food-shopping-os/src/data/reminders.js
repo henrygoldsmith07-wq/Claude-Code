@@ -6,6 +6,8 @@
  * about when a notification will and won't reach you.
  */
 
+import { PRIVACY_COPY } from './privacy.js';
+
 const kind = (key, label, emoji, blurb, times, reads = null) =>
   ({ key, label, emoji, blurb, times, reads });
 
@@ -73,18 +75,18 @@ export const NOTIFICATION_PRESETS = [
 ];
 
 /**
- * The honest limits of notifications in a web app with no server.
+ * The honest limits of notifications in this local-first web app.
  *
  * A browser can show a notification while the page is running. Firing one
- * when the app is closed needs either Web Push — which needs a server, and
- * there isn't one — or the Notification Triggers API, which no browser ships.
- * So the app does the two things it actually can: it notifies while it's open,
- * it tells you what came due while it was shut, and it hands the job to the
- * alarm clock you already trust by exporting to your calendar.
+ * when the app is closed needs a device Web Push subscription or the
+ * Notification Triggers API. Synced households have server-side reminder jobs,
+ * but this app does not register the browser for Web Push. It therefore
+ * notifies while open, reports missed reminders on return, and can export the
+ * schedule to the phone's calendar.
  */
 export const NOTIFY_TRUTH = {
   open: 'While Forq is open, a due reminder shows as a notification.',
-  closed: 'While it is closed, it can’t. A web app can only be woken by a push server, and Forq doesn’t have one — everything lives on your device.',
+  closed: PRIVACY_COPY.reminders,
   caughtUp: 'What came due while it was shut is waiting for you when you open it.',
   calendar: 'For alarms that fire with the app closed, send these to your calendar. Your phone already does that job properly.',
 };

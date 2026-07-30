@@ -25,8 +25,8 @@ function MaintenanceCard() {
   return (
     <Card className="space-y-3">
       <div>
-        <p className="font-extrabold text-[15px]">Maintenance calories</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem]">Maintenance calories</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Everything else is worked out from this. Give your stats and Forq estimates it
           (Mifflin-St Jeor), or just type the number you already know.
         </p>
@@ -38,7 +38,7 @@ function MaintenanceCard() {
         <NumberField label="Height" value={body.heightCm ?? ''} onChange={(v) => app.setBody({ heightCm: Number(v) || null })} suffix="cm" step={1} />
         <NumberField label="Age" value={body.age ?? ''} onChange={(v) => app.setBody({ age: Number(v) || null })} suffix="yrs" step={1} />
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
           <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
             {SEXES.map((s) => (
               <Chip key={s.id} active={body.sex === s.id} onClick={() => app.setBody({ sex: s.id })}>{s.label}</Chip>
@@ -48,7 +48,7 @@ function MaintenanceCard() {
       </div>
 
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>Activity</p>
+        <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>Activity</p>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {ACTIVITY_LEVELS.map((a) => (
             <Chip key={a.id} active={body.activity === a.id} onClick={() => app.setBody({ activity: a.id })}>{a.label}</Chip>
@@ -57,7 +57,7 @@ function MaintenanceCard() {
       </div>
 
       {fromStats ? (
-        <p className="text-[13px] font-bold inline-flex items-center gap-1.5">
+        <p className="text-[0.8125rem] font-bold inline-flex items-center gap-1.5">
           <Calculator size={14} style={{ color: 'var(--muted)' }} />
           Estimated maintenance: {computed?.toLocaleString()} kcal a day
         </p>
@@ -71,15 +71,15 @@ function MaintenanceCard() {
         />
       )}
 
-      <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
         Sex is here because Mifflin-St Jeor&rsquo;s constants differ by 166 kcal; &ldquo;Rather not
         say&rdquo; takes the midpoint rather than picking one for you.
       </p>
 
       <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
         <div className="min-w-0">
-          <p className="font-bold text-[14px]">Track your cycle</p>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-bold text-[0.875rem]">Track your cycle</p>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {app.trackCycle
               ? 'A page under Health for periods and symptoms'
               : 'Off — turning it on adds a page under Health'}
@@ -102,14 +102,14 @@ function MacroCard() {
     <Card className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-extrabold text-[15px]">Daily targets</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-extrabold text-[0.9375rem]">Daily targets</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {custom ? 'Yours — nothing recalculates them.' : 'Following your goal and patterns.'}
           </p>
         </div>
         <button
           onClick={() => app.setTargetMode(custom ? 'auto' : 'custom')}
-          className="press shrink-0 rounded-2xl border px-3 py-2 text-[12.5px] font-extrabold"
+          className="press shrink-0 rounded-2xl border px-3 py-2 text-[0.78125rem] font-extrabold"
           style={custom
             ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
             : { borderColor: 'var(--line)' }}
@@ -131,7 +131,7 @@ function MacroCard() {
       <div className="space-y-2 pt-1">
         {rows.map((r) => (
           <div key={r.key}>
-            <div className="flex justify-between text-[12px] font-bold mb-1">
+            <div className="flex justify-between text-[0.75rem] font-bold mb-1">
               <span className="capitalize">{r.key}</span>
               <span style={{ color: 'var(--muted)' }}>{r.pct}% · {r.kcal.toLocaleString()} kcal</span>
             </div>
@@ -141,7 +141,7 @@ function MacroCard() {
       </div>
 
       {Math.abs(mismatch) > 25 && (
-        <p className="inline-flex items-start gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--warn)' }}>
+        <p className="inline-flex items-start gap-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--warn)' }}>
           <TriangleAlert size={13} className="shrink-0 mt-0.5" />
           Your macros add up to {(app.targets.kcal + mismatch).toLocaleString()} kcal —
           {mismatch > 0 ? ` ${mismatch} over` : ` ${-mismatch} under`} the calorie target.
@@ -160,8 +160,8 @@ function WeeklyCard() {
   return (
     <Card className="space-y-3">
       <div>
-        <p className="font-extrabold text-[15px]">Weekly target</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem]">Weekly target</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Judge the week rather than the day. Leave it at seven times your daily target,
           or set your own.
         </p>
@@ -175,18 +175,18 @@ function WeeklyCard() {
         step={100}
       />
       {app.weeklyKcal > 0 && (
-        <button onClick={() => app.setWeeklyKcal(0)} className="press text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
+        <button onClick={() => app.setWeeklyKcal(0)} className="press text-[0.75rem] font-bold" style={{ color: 'var(--accent)' }}>
           Back to 7 × daily ({auto.toLocaleString()} kcal)
         </button>
       )}
 
       <div>
-        <div className="flex justify-between text-[12px] font-bold mb-1">
+        <div className="flex justify-between text-[0.75rem] font-bold mb-1">
           <span>{week.eaten.toLocaleString()} kcal so far</span>
           <span style={{ color: 'var(--muted)' }}>of {app.weeklyKcalTarget.toLocaleString()}</span>
         </div>
         <Meter value={week.eaten} max={app.weeklyKcalTarget} color={week.onTrack ? 'var(--accent)' : 'var(--warn)'} />
-        <p className="mt-1.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {week.left >= 0
             ? `${week.left.toLocaleString()} kcal left · about ${week.perDayLeft.toLocaleString()} a day for the rest of the week`
             : `${Math.abs(week.left).toLocaleString()} kcal over — the coming days can pull it back`}
@@ -215,8 +215,8 @@ export default function GoalsPanel() {
           ))}
         </div>
         <Card className="!py-3">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{goal.blurb}</p>
-          <p className="mt-1.5 text-[12px] font-bold">
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{goal.blurb}</p>
+          <p className="mt-1.5 text-[0.75rem] font-bold">
             {Math.round((goal.kcalFactor - 1) * 100) === 0
               ? 'Energy: at maintenance'
               : `Energy: ${goal.kcalFactor > 1 ? '+' : ''}${Math.round((goal.kcalFactor - 1) * 100)}% of maintenance`}
@@ -227,7 +227,7 @@ export default function GoalsPanel() {
 
       {/* Dietary patterns */}
       <Section title="How you eat" className="!px-0">
-        <p className="-mt-1 mb-2.5 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="-mt-1 mb-2.5 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Pick as many as apply. Macro patterns reshape your split; the rest filter recipes
           and flag foods that clash.
         </p>
@@ -241,7 +241,7 @@ export default function GoalsPanel() {
             {app.diets.map((id) => {
               const d = DIET_PATTERNS.find((x) => x.id === id);
               return d ? (
-                <p key={id} className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p key={id} className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   <b style={{ color: 'var(--ink)' }}>{d.label}</b> — {d.blurb}
                 </p>
               ) : null;
@@ -257,7 +257,7 @@ export default function GoalsPanel() {
       {/* Show the working */}
       <button
         onClick={() => setShowWorking((v) => !v)}
-        className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+        className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
         style={{ borderColor: 'var(--line)' }}
       >
         <span className="inline-flex items-center gap-1.5">
@@ -265,7 +265,7 @@ export default function GoalsPanel() {
         </span>
       </button>
       {showWorking && (
-        <Card className="space-y-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <Card className="space-y-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           <p>
             <b style={{ color: 'var(--ink)' }}>1.</b> Maintenance
             {app.body?.weightKg && app.body?.heightCm && app.body?.age
@@ -294,14 +294,14 @@ export default function GoalsPanel() {
       <p className="text-center">
         <Pill tone="muted"><Target size={11} /> {app.goalSummary}</Pill>
       </p>
-      <p className="text-center text-[12px] font-semibold" style={{ color: 'var(--faint)' }}>
+      <p className="text-center text-[0.75rem] font-semibold" style={{ color: 'var(--faint)' }}>
         Today: {formatAmount('kcal', app.totals.kcal)} of {formatAmount('kcal', app.targets.kcal)}
         {app.targetMode === 'custom' && ' · custom targets'}
       </p>
       {app.targetMode === 'custom' && (
         <button
           onClick={() => app.resetTargets()}
-          className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+          className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
           style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Check size={14} /> Recalculate from my goal</span>

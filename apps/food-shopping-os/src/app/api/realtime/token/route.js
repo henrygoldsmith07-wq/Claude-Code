@@ -13,11 +13,11 @@ export async function POST(request) {
     if (!process.env.ABLY_API_KEY) throw new ApiError(503, 'Realtime syncing is not configured.');
     const { household } = await requireHousehold(user, request.headers.get('x-forq-household-id'));
     const client = new Ably.Rest(process.env.ABLY_API_KEY);
-    const token = await client.auth.createTokenRequest({
+    const token = await client.auth.requestToken({
       clientId: user.id,
       capability: { [`household:${household._id}`]: ['subscribe'] },
     });
-    return NextResponse.json(token);
+    return NextResponse.json({ token: token.token, expires: token.expires });
   } catch (error) {
     return handleApiError(error);
   }

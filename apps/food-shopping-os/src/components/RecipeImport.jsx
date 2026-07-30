@@ -5,6 +5,7 @@ import { importRecipeText } from '../lib/foodlog.js';
 import { isVideoLink, recipeFromImport } from '../lib/recipe-tools.js';
 import { buildEntry, mealForTime, timeStamp } from '../lib/nutrition.js';
 import { itemsFromRecipes } from '../data/stores.js';
+import { PRIVACY_COPY } from '../data/privacy.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
 import { MacroSummary, MealPicker } from './FoodDetail.jsx';
 
@@ -20,7 +21,7 @@ Serves 2
 /**
  * Recipe importer. Copied recipe text is parsed for real — quantities, units
  * and ingredient matches drive the per-serving estimate. A source URL is kept
- * with it, but the offline browser does not pretend it fetched another site.
+ * with it, but this importer does not pretend it fetched another site.
  */
 export default function RecipeImport({ defaultMeal, onDone }) {
   const app = useApp();
@@ -87,7 +88,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
       {mode === 'url' && (
         <>
           <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Recipe URL</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Recipe URL</span>
           <div className="mt-1 flex items-center gap-2 rounded-2xl border px-4 py-3" style={{ background: 'var(--card)', borderColor: 'var(--line)' }}>
             <Link2 size={15} style={{ color: 'var(--faint)' }} />
             <input
@@ -95,13 +96,13 @@ export default function RecipeImport({ defaultMeal, onDone }) {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://bbcgoodfood.com/recipes/…"
               aria-label="Recipe URL"
-              className="w-full bg-transparent text-[14px] font-semibold outline-none"
+              className="w-full bg-transparent text-[0.875rem] font-semibold outline-none"
               style={{ color: 'var(--ink)' }}
             />
           </div>
           </label>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
-            Copy the recipe text from that page below. Browser privacy rules stop this offline app fetching most recipe sites directly.
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Copy the recipe text from that page below. Browser cross-origin rules stop Forq fetching most recipe sites directly. {PRIVACY_COPY.recipeImport}
           </p>
         </>
       )}
@@ -112,12 +113,12 @@ export default function RecipeImport({ defaultMeal, onDone }) {
         rows={7}
         placeholder={'Recipe title\nServes 4\n400g chicken breast\n200g rice\nMethod steps…'}
         aria-label="Recipe text"
-        className="w-full rounded-2xl border px-4 py-3 text-[13.5px] font-semibold outline-none resize-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.84375rem] font-semibold outline-none resize-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <button
         onClick={() => setText(SAMPLE)}
-        className="press inline-flex items-center gap-1.5 text-[12.5px] font-bold"
+        className="press inline-flex items-center gap-1.5 text-[0.78125rem] font-bold"
         style={{ color: 'var(--accent)' }}
       >
         <ClipboardPaste size={13} /> Use an example
@@ -126,7 +127,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
       <button
         onClick={run}
         disabled={!text.trim() || (mode === 'url' && !url.trim())}
-        className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-2"><Sparkles size={16} /> Import recipe</span>
@@ -137,13 +138,13 @@ export default function RecipeImport({ defaultMeal, onDone }) {
       {result && (
         <div className="space-y-4 rise">
           <Card>
-            <p className="font-extrabold text-[16px] leading-tight">{result.title}</p>
-            <p className="mt-0.5 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="font-extrabold text-[1rem] leading-tight">{result.title}</p>
+            <p className="mt-0.5 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {result.domain ? `From ${result.domain} · ` : ''}makes {result.servings} servings
               {result.matchedCount !== undefined && ` · ${result.matchedCount}/${result.ingredients.length} ingredients matched`}
             </p>
             {mode === 'url' && (
-              <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--good)' }}>
+              <p className="mt-1 text-[0.71875rem] font-semibold" style={{ color: 'var(--good)' }}>
                 Parsed from copied text · source link kept
               </p>
             )}
@@ -151,14 +152,14 @@ export default function RecipeImport({ defaultMeal, onDone }) {
               <MacroSummary macros={macros} size="sm" />
             </div>
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-[12.5px] font-bold">Servings eaten</span>
+              <span className="text-[0.78125rem] font-bold">Servings eaten</span>
               <Stepper value={servings} onChange={setServings} min={1} max={6} />
             </div>
           </Card>
 
           <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
             {result.ingredients.slice(0, 14).map((ing, i) => (
-              <div key={`${ing.name}-${i}`} className="flex items-center gap-3 p-3 text-[13.5px]">
+              <div key={`${ing.name}-${i}`} className="flex items-center gap-3 p-3 text-[0.84375rem]">
                 <span className="flex-1 font-semibold truncate">{ing.line}</span>
                 {ing.food
                   ? <Pill tone="good">{ing.grams} g · {ing.food.name}</Pill>
@@ -169,16 +170,16 @@ export default function RecipeImport({ defaultMeal, onDone }) {
 
           {/* Keep it as a recipe you can cook and plan, not just a food to log */}
           <Card className="space-y-2.5">
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Keep it as a recipe</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Keep it as a recipe</p>
             <input
               value={mode === 'url' ? url : link}
               onChange={(e) => (mode === 'url' ? setUrl(e.target.value) : setLink(e.target.value))}
               placeholder="Link to the original (optional)"
               aria-label="Link to the original"
-              className="w-full rounded-xl border px-3 py-2.5 text-[13px] font-semibold outline-none"
+              className="w-full rounded-xl border px-3 py-2.5 text-[0.8125rem] font-semibold outline-none"
               style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             />
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {isVideoLink(mode === 'url' ? url : link)
                 ? 'Recognised as a video — the recipe page will offer to open it.'
                 : 'Only the method you pasted is kept; nothing is written for you.'}
@@ -189,7 +190,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
                 setKept(true);
               }}
               disabled={kept}
-              className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-60"
+              className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-60"
               style={kept
                 ? { borderColor: 'var(--good)', color: 'var(--good)' }
                 : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
@@ -206,7 +207,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
             <button
               onClick={() => { app.addCustomFood(result.food); setSaved(true); }}
               disabled={saved}
-              className="press rounded-2xl border py-3 text-[13.5px] font-extrabold disabled:opacity-60"
+              className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
               style={{ borderColor: saved ? 'var(--good)' : 'var(--line)', color: saved ? 'var(--good)' : 'var(--ink)' }}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -220,7 +221,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
                   setListed(true);
                 }}
                 disabled={listed}
-                className="press rounded-2xl border py-3 text-[13.5px] font-extrabold disabled:opacity-60"
+                className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
                 style={{ borderColor: listed ? 'var(--good)' : 'var(--line)', color: listed ? 'var(--good)' : 'var(--ink)' }}
               >
                 <span className="inline-flex items-center gap-1.5">
@@ -231,7 +232,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
 
           <button
             onClick={log}
-            className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
+            className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Log {servings} serving{servings === 1 ? '' : 's'} · {macros.kcal} kcal

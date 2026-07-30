@@ -67,8 +67,8 @@ export const FoodRow = ({ food, onPick, right }) => {
       <button onClick={() => onPick(food)} className="press flex flex-1 items-center gap-3 min-w-0 text-left">
         <Glyph e={food.emoji} size={20} style={{ color: 'var(--muted)' }} />
         <span className="min-w-0 flex-1">
-          <span className="block font-bold text-[14px] truncate">{food.name}</span>
-          <span className="block text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>
+          <span className="block font-bold text-[0.875rem] truncate">{food.name}</span>
+          <span className="block text-[0.71875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
             {food.brand ? `${food.brand} · ` : ''}{serving.label} · {macros.protein}g protein
           </span>
           {clashes.length > 0 && (
@@ -76,8 +76,8 @@ export const FoodRow = ({ food, onPick, right }) => {
           )}
         </span>
         <span className="text-right shrink-0">
-          <span className="block font-extrabold text-[14px]">{macros.kcal}</span>
-          <span className="block text-[10px] font-bold uppercase" style={{ color: 'var(--faint)' }}>kcal</span>
+          <span className="block font-extrabold text-[0.875rem]">{macros.kcal}</span>
+          <span className="block text-[0.625rem] font-bold uppercase" style={{ color: 'var(--faint)' }}>kcal</span>
         </span>
       </button>
       {right || (
@@ -95,7 +95,7 @@ export const FoodRow = ({ food, onPick, right }) => {
 };
 
 const EmptyRow = ({ children }) => (
-  <p className="p-6 text-center text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
+  <p className="p-6 text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
 );
 
 /* ---------- Quick add ---------- */
@@ -109,8 +109,8 @@ function QuickAddPanel({ defaultMeal, onDone }) {
   return (
     <Card className="space-y-3">
       <div>
-        <p className="font-extrabold text-[15px]">Quick add calories</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem]">Quick add calories</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           No food, no searching — just the number. Macros are optional.
         </p>
       </div>
@@ -131,7 +131,7 @@ function QuickAddPanel({ defaultMeal, onDone }) {
       <button
         disabled={kcal <= 0}
         onClick={() => { app.logEntry(buildQuickEntry({ ...v, meal })); onDone(); }}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         Add {kcal || 0} kcal
@@ -168,8 +168,8 @@ function CustomFoodForm({ onCreated }) {
   return (
     <Card className="space-y-3">
       <div>
-        <p className="font-extrabold text-[15px]">Create a custom food</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem]">Create a custom food</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Nutrition per serving, straight off the packet.
         </p>
       </div>
@@ -177,14 +177,14 @@ function CustomFoodForm({ onCreated }) {
         value={draft.name}
         onChange={(e) => field('name')(e.target.value)}
         placeholder="Name (e.g. Mum’s lasagne)"
-        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <input
         value={draft.brand}
         onChange={(e) => field('brand')(e.target.value)}
         placeholder="Brand (optional)"
-        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <div className="grid grid-cols-2 gap-2.5">
@@ -202,7 +202,7 @@ function CustomFoodForm({ onCreated }) {
 
       <button
         onClick={() => setShowAll((v) => !v)}
-        className="press inline-flex items-center gap-1.5 text-[12.5px] font-bold"
+        className="press inline-flex items-center gap-1.5 text-[0.78125rem] font-bold"
         style={{ color: 'var(--accent)' }}
       >
         {showAll ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -229,7 +229,7 @@ function CustomFoodForm({ onCreated }) {
       )}
       <button
         onClick={submit}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         Save food
@@ -285,7 +285,7 @@ export default function AddFood({
           <button
             key={id}
             onClick={() => onCapture(id)}
-            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
+            className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[0.78125rem] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <Icon size={14} /> {label}
@@ -293,7 +293,7 @@ export default function AddFood({
         ))}
         <button
           onClick={() => setPanel(panel === 'quick' ? null : 'quick')}
-          className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[12.5px] font-bold"
+          className="press shrink-0 inline-flex items-center gap-1.5 rounded-2xl border px-3.5 py-3 text-[0.78125rem] font-bold"
           style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
         >
           <Zap size={14} /> Quick add
@@ -311,7 +311,7 @@ export default function AddFood({
             onChange={(e) => { setQuery(e.target.value); setTab('search'); }}
             placeholder="Search foods, brands and menus…"
             aria-label="Search foods"
-            className="w-full bg-transparent text-[14px] font-semibold outline-none"
+            className="w-full bg-transparent text-[0.875rem] font-semibold outline-none"
             style={{ color: 'var(--ink)' }}
           />
         </div>
@@ -330,7 +330,7 @@ export default function AddFood({
           <SlidersHorizontal size={17} />
           {activeFilterCount > 0 && (
             <span
-              className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-black text-white"
+              className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.625rem] font-black text-white"
               style={{ background: 'var(--accent)' }}
               aria-hidden="true"
             >
@@ -348,12 +348,12 @@ export default function AddFood({
           style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
         >
           <div className="flex items-center justify-between gap-3">
-            <h3 id="food-filter-heading" className="text-[13px] font-extrabold" style={{ color: 'var(--ink)' }}>Filter foods</h3>
+            <h3 id="food-filter-heading" className="text-[0.8125rem] font-extrabold" style={{ color: 'var(--ink)' }}>Filter foods</h3>
             {activeFilterCount > 0 && (
               <button
                 type="button"
                 onClick={() => setFilters(EMPTY_FILTERS)}
-                className="press text-[12px] font-extrabold"
+                className="press text-[0.75rem] font-extrabold"
                 style={{ color: 'var(--accent)' }}
               >
                 Clear all
@@ -361,7 +361,7 @@ export default function AddFood({
             )}
           </div>
 
-          <p className="mt-3 text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--faint)' }}>Nutrition</p>
+          <p className="mt-3 text-[0.625rem] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--faint)' }}>Nutrition</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {[
               ['highProtein', '15g+ protein'],
@@ -374,7 +374,7 @@ export default function AddFood({
                 type="button"
                 onClick={() => toggleFilter(id)}
                 aria-pressed={filters[id]}
-                className="press rounded-full border px-3 py-2 text-[12px] font-extrabold"
+                className="press rounded-full border px-3 py-2 text-[0.75rem] font-extrabold"
                 style={{
                   background: filters[id] ? 'var(--accent-soft)' : 'transparent',
                   borderColor: filters[id] ? 'var(--accent)' : 'var(--line)',
@@ -386,7 +386,7 @@ export default function AddFood({
             ))}
           </div>
 
-          <p className="mt-4 text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--faint)' }}>Food type</p>
+          <p className="mt-4 text-[0.625rem] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--faint)' }}>Food type</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {CATEGORY_FILTERS.map((option) => {
               const active = filters.category === option.id;
@@ -396,7 +396,7 @@ export default function AddFood({
                   type="button"
                   onClick={() => setFilters((current) => ({ ...current, category: option.id }))}
                   aria-pressed={active}
-                  className="press rounded-full border px-3 py-2 text-[12px] font-extrabold"
+                  className="press rounded-full border px-3 py-2 text-[0.75rem] font-extrabold"
                   style={{
                     background: active ? 'var(--accent-soft)' : 'transparent',
                     borderColor: active ? 'var(--accent)' : 'var(--line)',
@@ -409,7 +409,7 @@ export default function AddFood({
             })}
           </div>
 
-          <p className="mt-3 text-[11px] font-bold" style={{ color: 'var(--faint)' }} aria-live="polite">
+          <p className="mt-3 text-[0.6875rem] font-bold" style={{ color: 'var(--faint)' }}>
             {list.length} {list.length === 1 ? 'food' : 'foods'} shown
           </p>
         </div>
@@ -432,7 +432,7 @@ export default function AddFood({
       {tab === 'mine' && (
         <button
           onClick={() => setPanel(panel === 'custom' ? null : 'custom')}
-          className="press w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+          className="press w-full rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Plus size={15} /> New custom food</span>
@@ -475,8 +475,8 @@ export default function AddFood({
           style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
         >
           <span className="text-left">
-            <span className="block font-bold text-[14px]">Got the packet in your hand?</span>
-            <span className="block text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>Scanning the barcode is two taps.</span>
+            <span className="block font-bold text-[0.875rem]">Got the packet in your hand?</span>
+            <span className="block text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>Scanning the barcode is two taps.</span>
           </span>
           <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
         </button>

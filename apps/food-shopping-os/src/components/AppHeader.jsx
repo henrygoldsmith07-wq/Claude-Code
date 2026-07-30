@@ -21,7 +21,7 @@ const TITLES = {
  * corner — and taking Profile out of the bottom bar gave the five tabs you
  * actually work in a fifth more width each.
  */
-export default function AppHeader({ tab, onProfile, onAi }) {
+export default function AppHeader({ tab, onProfile, onGuidance }) {
   const app = useApp();
   const screen = TITLES[tab];
   const setup = setupProgress(app);
@@ -32,15 +32,15 @@ export default function AppHeader({ tab, onProfile, onAi }) {
         <div className="min-w-0">
           {screen ? (
             <>
-              <p className="text-[12px] font-bold" style={{ color: 'var(--muted)' }}>{screen.eyebrow}</p>
-              <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">{screen.title}</h1>
+              <p className="text-[0.75rem] font-bold" style={{ color: 'var(--muted)' }}>{screen.eyebrow}</p>
+              <h1 className="text-[1.75rem] font-extrabold tracking-tight leading-tight">{screen.title}</h1>
             </>
           ) : (
             <>
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>
+              <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{prettyDate()}</p>
               {/* A shade smaller than a screen title: it has a name in it,
                   and it has to clear the two buttons on the right. */}
-              <h1 className="text-[22px] font-extrabold tracking-tight leading-tight">
+              <h1 className="text-[1.375rem] font-extrabold tracking-tight leading-tight">
                 {greeting()}, {app.name}
               </h1>
             </>
@@ -52,8 +52,8 @@ export default function AppHeader({ tab, onProfile, onAi }) {
               exactly where the screen's primary action now lives. It reads
               better up here anyway: it's a thing you ask, not a thing you do. */}
           <button
-            onClick={onAi}
-            aria-label="AI food coach"
+            onClick={onGuidance}
+            aria-label="Guidance — what matters now"
             className="press flex h-11 w-11 items-center justify-center rounded-full border"
             style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
           >

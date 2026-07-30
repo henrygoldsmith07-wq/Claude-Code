@@ -53,7 +53,7 @@ export default function ReminderForm({ editing, onDone }) {
     <div className="space-y-4">
       {!editing && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>What is it about?</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>What is it about?</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {REMINDER_KINDS.map((k) => (
               <Chip key={k.key} active={kind === k.key} onClick={() => pickKind(k.key)}>
@@ -61,25 +61,25 @@ export default function ReminderForm({ editing, onDone }) {
               </Chip>
             ))}
           </div>
-          <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{kindBy[kind].blurb}.</p>
+          <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{kindBy[kind].blurb}.</p>
         </Card>
       )}
 
       <Card className="space-y-3">
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>What should it say?</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>What should it say?</span>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder={DEFAULT_TEXT[kind]}
             aria-label="Reminder text"
             maxLength={60}
-            className="mt-1 w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-4 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
         {kindBy[kind].reads && (
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             It arrives with your own figure attached — right now that would read:
             {' '}“{app.reminderLine(kind) || 'nothing yet, there’s no data behind it'}”
           </p>
@@ -87,21 +87,21 @@ export default function ReminderForm({ editing, onDone }) {
       </Card>
 
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>At what times?</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>At what times?</p>
         <div className="flex flex-wrap gap-2">
           {cleanTimes(times).map((t) => (
             <button
               key={t}
               onClick={() => setTimes((list) => list.filter((x) => x !== t))}
               aria-label={`Remove ${t}`}
-              className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-bold"
+              className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.8125rem] font-bold"
               style={{ borderColor: 'var(--line)' }}
             >
               {t} <X size={12} style={{ color: 'var(--faint)' }} />
             </button>
           ))}
           {!cleanTimes(times).length && (
-            <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>No times yet — add at least one.</p>
+            <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>No times yet — add at least one.</p>
           )}
         </div>
         <div className="flex gap-2">
@@ -110,13 +110,13 @@ export default function ReminderForm({ editing, onDone }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             aria-label="New time"
-            className="flex-1 rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="flex-1 rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
           <button
             onClick={addTime}
             disabled={minutesOf(draft) === null || times.length >= MAX_TIMES}
-            className="press rounded-2xl border px-4 py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+            className="press rounded-2xl border px-4 py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
             style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
           >
             <span className="inline-flex items-center gap-1.5"><Plus size={14} /> Add</span>
@@ -125,7 +125,7 @@ export default function ReminderForm({ editing, onDone }) {
       </Card>
 
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>On which days?</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>On which days?</p>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {REPEATS.map((r) => (
             <Chip key={r.key} active={repeat === r.key} onClick={() => setRepeat(r.key)}>{r.label}</Chip>
@@ -149,7 +149,7 @@ export default function ReminderForm({ editing, onDone }) {
       <button
         onClick={save}
         disabled={!ready}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-1.5">
@@ -157,7 +157,7 @@ export default function ReminderForm({ editing, onDone }) {
         </span>
       </button>
       {!ready && (
-        <p className="text-center text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-center text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           A reminder needs at least one time and one day, or it would never go off.
         </p>
       )}

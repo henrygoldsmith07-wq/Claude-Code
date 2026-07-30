@@ -10,6 +10,7 @@ import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
 import { byId } from '../data/recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays } from '../lib/kitchen.js';
+import { haptic } from '../lib/haptics.js';
 import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -91,6 +92,7 @@ export default function Onboarding() {
       weeklyBudget: Math.max(0, Number(budget) || 0),
       targets: targetsFor(state),
     });
+    haptic();
   };
 
   const restore = async (event) => {
@@ -105,10 +107,10 @@ export default function Onboarding() {
     <div className="mx-auto max-w-lg min-h-screen px-5 pt-16 pb-10" style={{ background: 'var(--bg)' }}>
       <div className="rise">
         <UtensilsCrossed size={30} strokeWidth={1.5} style={{ color: 'var(--muted)' }} />
-        <h1 className="mt-3 text-[28px] font-extrabold tracking-tight leading-tight">
+        <h1 className="mt-3 text-[1.75rem] font-extrabold tracking-tight leading-tight">
           {step === 0 ? 'Welcome to Forq' : step === 1 ? 'A little context' : 'Your first win'}
         </h1>
-        <p className="mt-1.5 text-[14px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1.5 text-[0.875rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {step === 0 && 'Choose what you want help with first. Nothing is filled in for you, and you can change direction at any time.'}
           {step === 1 && 'Two useful details make portions and spending more accurate. Both are optional.'}
           {step === 2 && 'Pick up to three recipes and Forq will turn them into meals and one shopping list.'}
@@ -119,7 +121,7 @@ export default function Onboarding() {
         {step === 0 && (
           <>
             <fieldset>
-              <legend className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+              <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
                 What would you like help with first?
               </legend>
               <div className="mt-2 grid gap-2.5">
@@ -142,8 +144,8 @@ export default function Onboarding() {
                       <Icon size={18} />
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[14px] font-extrabold">{title}</span>
-                      <span className="block text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{text}</span>
+                      <span className="block text-[0.875rem] font-extrabold">{title}</span>
+                      <span className="block text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{text}</span>
                     </span>
                   </button>
                 ))}
@@ -151,7 +153,7 @@ export default function Onboarding() {
             </fieldset>
             <Card className="space-y-3">
             <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
                 What should we call you? <span className="normal-case tracking-normal">(optional)</span>
               </span>
               <input
@@ -161,7 +163,7 @@ export default function Onboarding() {
                 placeholder="Your name"
                 aria-label="Your name"
                 autoFocus
-                className="mt-1.5 w-full rounded-2xl border px-4 py-3 text-[15px] font-semibold outline-none"
+                className="mt-1.5 w-full rounded-2xl border px-4 py-3 text-[0.9375rem] font-semibold outline-none"
                 style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
             </label>
@@ -173,8 +175,8 @@ export default function Onboarding() {
           <>
             <Card className="flex items-center justify-between">
               <div>
-                <p className="font-bold text-[14px]">People you cook for</p>
-                <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>Including you</p>
+                <p className="font-bold text-[0.875rem]">People you cook for</p>
+                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>Including you</p>
               </div>
               <Stepper value={household} onChange={setHousehold} min={1} max={10} />
             </Card>
@@ -186,12 +188,12 @@ export default function Onboarding() {
                 suffix="£"
                 step={5}
               />
-              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Leave it at 0 if you'd rather not track spending.
               </p>
             </Card>
             <Card>
-              <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
                 How you eat
               </p>
               <div className="flex flex-wrap gap-2">
@@ -199,7 +201,7 @@ export default function Onboarding() {
                   <Chip key={d.id} active={diets.includes(d.id)} onClick={() => toggleDiet(d.id)}>{d.label}</Chip>
                 ))}
               </div>
-              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Pick any that apply, or none. They filter recipes and shape your macro split.
               </p>
             </Card>
@@ -209,7 +211,7 @@ export default function Onboarding() {
         {step === 2 && (
           <>
             <fieldset>
-              <legend className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+              <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
                 Choose up to three dinners
               </legend>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -234,11 +236,11 @@ export default function Onboarding() {
                     >
                       <FoodArt recipe={recipe} className="h-24 w-full" px={28} />
                       <span className="block p-2.5">
-                        <span className="block text-[12px] font-extrabold leading-tight">{recipe.name}</span>
-                        <span className="mt-1 block text-[10.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                        <span className="block text-[0.75rem] font-extrabold leading-tight">{recipe.name}</span>
+                        <span className="mt-1 block text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
                           {recipe.time} min · £{recipe.costPerServing.toFixed(2)}/serving
                         </span>
-                        <span className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
+                        <span className="mt-1.5 inline-flex items-center gap-1 text-[0.65625rem] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
                           {selected && <Check size={11} strokeWidth={3} />}
                           {selected ? 'Selected' : 'Choose'}
                         </span>
@@ -247,7 +249,7 @@ export default function Onboarding() {
                   );
                 })}
               </div>
-              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Optional. Choose nothing to start with an empty app.
               </p>
             </fieldset>
@@ -260,8 +262,8 @@ export default function Onboarding() {
               style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
             >
               <span>
-                <span className="block text-[13.5px] font-extrabold">Personalise nutrition</span>
-                <span className="block text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>Optional goals, body metrics and cycle tracking</span>
+                <span className="block text-[0.84375rem] font-extrabold">Personalise nutrition</span>
+                <span className="block text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>Optional goals, body metrics and cycle tracking</span>
               </span>
               <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
             </button>
@@ -269,7 +271,7 @@ export default function Onboarding() {
             {showPersonalisation && (
               <>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
                 What are you aiming for?
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -277,7 +279,7 @@ export default function Onboarding() {
                   <Chip key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
                 ))}
               </div>
-              <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {BODY_GOALS.find((g) => g.id === goal).blurb}
               </p>
             </div>
@@ -288,7 +290,7 @@ export default function Onboarding() {
                 <NumberField label="Your height" value={heightCm} onChange={setHeightCm} suffix="cm" step={1} />
                 <NumberField label="Age" value={age} onChange={setAge} suffix="yrs" step={1} />
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
+                  <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
                   <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
                     {SEXES.map((s) => (
                       <Chip key={s.id} active={sex === s.id} onClick={() => setSex(s.id)}>{s.label}</Chip>
@@ -297,7 +299,7 @@ export default function Onboarding() {
                 </div>
               </div>
               {estimated ? (
-                <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   That estimates your maintenance at <strong>{estimated.toLocaleString()} kcal</strong>
                   {' '}(Mifflin-St Jeor, lightly active). Change the activity level under Goals any time.
                 </p>
@@ -305,7 +307,7 @@ export default function Onboarding() {
                 <NumberField label="Maintenance" value={maintenance} onChange={setMaintenance} suffix="kcal" step={50} />
               )}
             </Card>
-            <p className="text-[12px] font-semibold px-1 -mt-1" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold px-1 -mt-1" style={{ color: 'var(--muted)' }}>
               All optional. Weight, height, age and sex together let Forq estimate your maintenance
               instead of you knowing it — sex matters because the equation&rsquo;s constants differ by
               166 kcal, which is a meal. &ldquo;Rather not say&rdquo; takes the midpoint rather than
@@ -315,39 +317,39 @@ export default function Onboarding() {
             <Card>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-bold text-[14px]">Track your cycle</p>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.875rem]">Track your cycle</p>
+                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     Adds a page under Health for periods and symptoms
                   </p>
                 </div>
                 <Toggle label="Track your cycle" on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
               </div>
-              <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Off by default, and nothing else changes either way. Turn it on or off whenever you
                 like under Goals.
               </p>
             </Card>
 
             <Card>
-              <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
                 That works out as
               </p>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-[30px] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
-                  <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
+                  <p className="text-[1.875rem] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
                 </div>
                 <div className="flex gap-4 text-right">
                   {[['Protein', preview.protein], ['Carbs', preview.carbs], ['Fat', preview.fat]].map(([label, v]) => (
                     <div key={label}>
-                      <p className="text-[15px] font-extrabold leading-none">{v}g</p>
-                      <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+                      <p className="text-[0.9375rem] font-extrabold leading-none">{v}g</p>
+                      <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
                     </div>
                   ))}
                 </div>
               </div>
             </Card>
-            <p className="text-[12px] font-semibold px-1" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold px-1" style={{ color: 'var(--muted)' }}>
               Vitamins and minerals start at UK reference intakes. Everything here is editable later.
             </p>
               </>
@@ -368,7 +370,7 @@ export default function Onboarding() {
         )}
         <button
           onClick={() => (step === 2 ? finish() : setStep(step + 1))}
-          className="press flex-1 rounded-2xl py-3.5 text-[15px] font-extrabold"
+          className="press flex-1 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-2">
@@ -380,7 +382,7 @@ export default function Onboarding() {
       {step === 0 && (
         <div className="mt-4 text-center">
           <button
-            className="press px-4 py-2 text-[12.5px] font-bold"
+            className="press px-4 py-2 text-[0.78125rem] font-bold"
             style={{ color: 'var(--muted)' }}
             onClick={() => restoreRef.current?.click()}
           >
@@ -394,7 +396,7 @@ export default function Onboarding() {
             aria-label="Restore Forq backup"
             onChange={restore}
           />
-          {restoreStatus && <p role="status" className="mt-1 text-[12px] font-semibold">{restoreStatus}</p>}
+          {restoreStatus && <p role="status" className="mt-1 text-[0.75rem] font-semibold">{restoreStatus}</p>}
         </div>
       )}
 

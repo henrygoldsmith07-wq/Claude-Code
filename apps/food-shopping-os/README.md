@@ -12,8 +12,10 @@ spending history and no pre-earned achievements. A first run asks for your
 name, budget and targets, and from then on every number you see is computed
 from what you actually log, buy, cook and plan. Backups can be exported and
 restored, including from first-run setup. Invalid saved data opens a recovery
-screen instead of being silently replaced. Everything persists to
-localStorage on your device — no backend, no account.
+screen instead of being silently replaced. Forq is local-first by default:
+data starts in localStorage and no account is required. Signing in is an opt-in
+to MongoDB household sync. When a user chooses a server-backed AI action, Forq
+relays that prompt and its relevant context to OpenAI.
 
 The only data that ships with the app is reference material, not user data: a
 recipe book, a food/barcode/restaurant nutrition catalogue, per-100 g nutrient
@@ -21,10 +23,10 @@ tables and UK reference intakes.
 
 ## Backend setup
 
-Forq now runs on Next.js and keeps its offline-first local store. The backend is
-optional: without environment variables it stays in local-only mode; with them
-it adds Auth.js accounts, MongoDB household sync, Ably change signals, private
-receipt uploads, calendar writes, licensed retailer data and server-side AI.
+Forq runs on Next.js and keeps its local-first store. The backend is optional:
+without environment variables it stays local-only; with them it offers opt-in
+Auth.js accounts, MongoDB household sync, Ably change signals, private receipt
+uploads, calendar reads and writes, licensed retailer data and an AI relay to OpenAI.
 
 1. Copy `.env.example` to `.env.local`.
 2. Create a MongoDB Atlas database and set `MONGODB_URI`.
@@ -40,10 +42,12 @@ the new application version receives traffic.
 The first sign-in copies existing on-device data to the user's personal
 household. Later writes use optimistic versions: a concurrent change returns a
 conflict and does not overwrite either copy. Open browser tabs update
-immediately, the web client checks for cross-device changes every 15 seconds,
-and optional Ably signals support other subscribed clients. MongoDB remains the
+immediately, and private Ably channels push new household versions to subscribed
+clients with a one-minute poll as fallback. MongoDB remains the
 source of truth. Receipt images require
 Vercel Blob. AI calls require an OpenAI key and run only on the server.
+`AI_MONTHLY_TOKEN_LIMIT` sets the hard monthly allowance per household; it
+defaults to 250,000 reserved-and-used tokens.
 
 Retailer results require a licensed provider implementing
 `GET /v1/products/search?retailer=&query=` at `RETAILER_API_BASE_URL`. Forq does
@@ -116,7 +120,10 @@ is patched.
   losing anything. The **generator** builds a meal, a day, a week or a whole
   month from your goal, budget-per-serving, people, occasion and time, and will
   favour **what's already in your pantry** and **what's in season this month**.
-  **Batch mode** deliberately plans fewer dishes in blocks, and any dish planned
+  Connected Google or Outlook calendars can mark busy dinner times so generated
+  plans leave those evenings empty. **Leftover-first** uses portions already in
+  the fridge before choosing new cooking; seasonal and lower-cost matches rank
+  first. **Batch mode** deliberately plans fewer dishes in blocks, and any dish planned
   twice gets a cook-once schedule: which day, how many batches, how much time it
   saves. **Leftovers** you save after cooking sit in the fridge with a use-by
   date, cover planned meals, and drop out of the shopping list. The list itself
@@ -130,6 +137,12 @@ is patched.
   tabs in the same browser update live through local storage events; true
   cross-device live sync still requires an account and backend and is labelled
   that way in the app
+- **Coach or trainer view** — household admins can issue a read-only 30-day
+  link scoped to diary, nutrition, plan and separately opted-in health data.
+  Links are revocable, access-counted and never grant household membership or
+  edit access
+- **Household audit trail** — synced mutations record the actor, version and
+  changed top-level fields without copying sensitive values into the log
 - **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
   day and meal, up to a fortnight out
 - **Shop** — a list that learns. Items **group by aisle**, guessed from the
@@ -140,7 +153,8 @@ is patched.
 - **Price comparison** — what this same list would cost at every shop you've
   recorded, from the prices you typed in, always saying how many items each
   shop can actually price. Plus what you're about to overpay for, and a price
-  history per item with where it was cheapest
+  history per item with where it was cheapest. Pack sizes in g, kg, ml or l
+  also show a normalised price per 100 g or 100 ml on the shopping row
 - **Budget tracking** — the basket against your week: what it comes to, what
   your offers take off, and what that leaves of the budget after what you've
   already spent — with unpriced items counted as unknown, never as free
@@ -176,8 +190,8 @@ is patched.
   *can make now*, read against your actual pantry
 - **Recipe import and saving** — copied recipe text is parsed into ingredients,
   per-serving nutrition and method steps, then saved to My recipes. Add the
-  original URL or video link and it stays attached; the offline browser does
-  not claim it fetched a page that cross-origin privacy rules blocked
+  original URL or video link and it stays attached; the importer does not claim
+  it fetched a page that browser cross-origin rules blocked
 - **Recipe generator** — invents a dish from what you have, composed from the
   same ingredient tables as the book, so its nutrition and cost are computed
   rather than written. It says which parts of the dish your kitchen covered and
@@ -195,12 +209,13 @@ is patched.
   food catalogue, with how much of the ingredient list that estimate recognised
 - **Cooking mode** — full screen, one step at a time, with timers that survive
   navigating back and forth, plus a **hands-free walkthrough** that plays the
-  method itself. There is no stock video in this app and none is invented; a
+  method itself. A supported device's screen wake lock stays active until
+  cooking finishes or the view closes. There is no stock video in this app and none is invented; a
   recipe you imported from a video keeps its link and offers it as what it is
-- **Community recipes** — sharing without a server: a recipe becomes a code you
-  send someone, and theirs reads it back, credited to whoever sent it. Imported
-  and shared dishes join your library and can be planned and cooked like any
-  other
+- **Community recipes** — a recipe share code is generated locally without an
+  upload; you choose who receives it, and their app reads it back. Saved recipes
+  still join opted-in household sync, while this share action does not send the
+  recipe to OpenAI
 - **Profile** — nutrition dashboard, weekly calories from your diary, spending
   from your recorded shops, the cuisines you actually cook, theme and accent,
   plus export and reset for your data
@@ -215,25 +230,17 @@ is patched.
   actually happened, with the day they happened on. **Rewards** are three extra
   accent colours at levels 4, 8 and 12; the five the app always had stay
   available from level one, so nothing you use is ever taken away
-- **AI food coach** — a page and a chat, both reading only your own data.
-  **Today** gives the day back to you with **feedback on each meal** (its share
-  of your calories and protein, and at most one suggestion). **Habits** counts
-  what your diary shows: eating window, snack share, which meals reach the
-  diary, weekdays against weekends, what you eat most. **Progress** turns your
-  average intake against your maintenance figure into a **weekly pace** and, if
-  you've set a target weight, how many weeks that is — refusing to run on
-  fewer than five logged days and printing its assumptions. **Ideas** carries
-  **personalised tips** (each with the number behind it), **grocery
-  recommendations** answering the nutrients your week actually came up short
-  on, **macro adjustments** when a target you never hit needs to move rather
-  than you, and **restaurant picks** from the handful of chains the app ships
-  figures for. The **chat** also connects the rest of the app: it can generate
-  a pantry recipe, draft a pantry-first week, explain or guide tonight's
-  recipe, suggest verified substitutions, improve a logged meal, surface
-  expiring food, optimise a basket from recorded prices and build the aisle
-  route learned from previous shops. There is no model, supermarket feed or
-  server here: every answer is computed on-device from your records and the
-  bundled food tables, and missing evidence is stated rather than invented
+- **Guidance** — one adaptive route replaces Coach, Smart Features, Analytics,
+  Reports, Advanced and Getting Started. **Next** ranks one action from the
+  diary, plan, pantry, reminders and recorded shops, then shows the evidence
+  and at most three later actions. **Review** holds dashboards and honest
+  day/week/month reports; **Tools** holds capture, predictions, health and
+  impact; **Ask** keeps the assistant in the same surface. Setup gates,
+  expiring food and budget risk compete in one explicit urgency order, so two
+  panels cannot recommend the same action. The specialist views load only when
+  opened, keeping them out of the first bundle. The local assistant can still
+  generate pantry recipes and plans, explain recipes, suggest substitutions,
+  surface expiring food and optimise a basket from recorded prices
 - **Healthy swaps** — on any food, alternatives from the catalogue that beat it
   on protein, fibre, saturated fat or sugar per calorie, with the reason
   attached; a swap is only offered when a real number supports it
@@ -259,9 +266,9 @@ is patched.
   isn't there unless you asked for it, at setup or later under Goals — and it
   predicts the next period
   from the average of *your* logged cycles and nothing else — one logged period
-  gives no prediction, and it says so. **Progress photos** stay on the device
-  (there is nowhere else for them to go), shrunk to thumbnails and capped,
-  because browser storage is a few megabytes for the whole app
+  gives no prediction, and it says so. **Progress photos** start on the device;
+  after an opt-in sign-in their thumbnails join household sync. They are capped
+  because browser storage is small and are not sent through the OpenAI relay
 - **Exercise** — **workout logging** across ten kinds of training with an
   intensity and the extras that belong to each (distance for a run, sets and
   reps for a gym session). **Calories burned** are the standard MET equation —
@@ -368,7 +375,7 @@ is patched.
   `0.482 kg @ £4.99/kg`), store and date, with loyalty and payment lines
   skipped — then it **checks its own total against the printed one** and says
   whether to trust the parse, and lists any line it couldn't read
-- **Smart Features** — predicts the next shopping trip from median trip gaps,
+- **Predictions & capture** — under Guidance → Tools, predicts the next shopping trip from median trip gaps,
   products likely due from repeat purchase cadence, and weekly budget overrun
   from the current recorded pace. Every prediction carries its evidence and
   declines to guess when history is too thin. One tap builds a deduplicated
@@ -398,11 +405,12 @@ is patched.
   Every screen names its single most likely next move and puts it in the bottom
   third of the phone, where a thumb already is — and the label follows the
   state, because an empty week wants filling and a full one wants shopping for
-- **Getting started** — six steps, each one a gate on a real feature rather
+- **Adaptive setup** — Guidance includes six gates on real features rather
   than a chore with a tick next to it: set a target and the diary has something
   to measure against, record a shop and the price comparison has prices. Each
   reads the same records as everything else, so it ticks itself the moment you
-  do the thing, unticks if you undo it, and the card disappears at six of six
+  do the thing and unticks if you undo it. Once setup is complete, the same
+  space moves on to the most useful diary, kitchen or shopping action
 - **Reachable and readable** — every control clears the 44×44 WCAG target,
   most of them through a hit area larger than the thing you can see rather than
   by making a dense layout bigger; every control has a name in the
@@ -425,10 +433,11 @@ npm test         # vitest suite
 ```
 src/
   App.jsx              # shell: 5-tab bottom nav, overlays, onboarding gate
-  components/AppHeader.jsx     # the one header: title, coach, profile avatar
+  components/AppHeader.jsx     # the one header: title, Guidance, profile avatar
+  components/GuidancePanel.jsx # Next, Review, Tools and Ask in one lazy surface
   components/PrimaryAction.jsx # each screen's main action, in the thumb zone
-  components/GettingStarted.jsx # the six gates, ticked off your own records
   lib/setup.js         # what's still switched off, read from the same state
+  lib/guidance.js      # ranks one next action and attaches its evidence
   index.css            # theme tokens (light/dark + 5 accents), animations
   lib/state.js         # what an install is: empty state + pure state helpers
   lib/store.jsx        # the provider: actions, the clock, persistence

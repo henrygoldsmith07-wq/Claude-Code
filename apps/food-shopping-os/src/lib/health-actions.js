@@ -107,9 +107,9 @@ export const healthActions = (set) => ({
   /* ---------- Photos ---------- */
 
   /**
-   * Progress photos live on your device, shrunk to a thumbnail, and are
-   * capped — localStorage is small, and silently filling it would break
-   * everything else in here.
+   * Progress photos start locally and join household sync only after sign-in.
+   * They are shrunk and capped because silently filling localStorage would
+   * break everything else in here.
    */
   addPhoto: ({ thumb, date, note: text }) =>
     set((s) => {
