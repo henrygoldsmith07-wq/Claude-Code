@@ -67,6 +67,20 @@ export default function LearningPath({ path, dueCount, onStartLesson, onOpenSetu
         </button>
       </div>
 
+      {/* Re-placement: keeps completed lessons; only CEFR/goal can move via setup */}
+      <div className="px-5 pb-2">
+        <button
+          type="button"
+          onClick={onOpenSetup}
+          className="w-full text-left rounded-xl border border-line bg-surface2 px-3 py-2 text-[11px] font-semibold text-ink2 hover:border-ink3 transition-colors"
+        >
+          Re-take placement test
+          <span className="block font-normal text-ink3 mt-0.5">
+            New CEFR from a short quiz — your completed lessons stay on the path.
+          </span>
+        </button>
+      </div>
+
       {finished ? (
         <div className="px-5 pb-5">
           <p className="text-sm text-ink">

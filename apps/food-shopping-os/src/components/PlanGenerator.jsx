@@ -195,9 +195,19 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
           </p>
         )}
         {busyDates.size > 0 && ['A week', 'A month'].includes(scope) && (
-          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            Leaving {dates.length - planDates.length} calendar-busy evening{dates.length - planDates.length === 1 ? '' : 's'} empty.
-          </p>
+          <div
+            className="rounded-2xl border px-3 py-2.5"
+            style={{ borderColor: 'var(--warn, #a55a12)', background: 'color-mix(in srgb, var(--warn, #a55a12) 8%, transparent)' }}
+          >
+            <p className="text-[0.75rem] font-extrabold" style={{ color: 'var(--warn, #a55a12)' }}>
+              {dates.length - planDates.length} busy evening{dates.length - planDates.length === 1 ? '' : 's'} (from calendar / ICS)
+            </p>
+            <p className="text-[0.7rem] font-semibold mt-0.5" style={{ color: 'var(--muted)' }}>
+              Generator fills {planDates.length} open night{planDates.length === 1 ? '' : 's'} only.
+              {[...busyDates].filter((d) => dates.includes(d)).slice(0, 5).join(' · ')}
+              {[...busyDates].filter((d) => dates.includes(d)).length > 5 ? '…' : ''}
+            </p>
+          </div>
         )}
 
         <button

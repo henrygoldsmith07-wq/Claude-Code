@@ -14,7 +14,7 @@ export const GOALS = [
 
 // Roadmap data (twelve units per goal) lives in roadmaps.js; re-exported
 // here so consumers keep a single import surface.
-import { getRoadmap } from './roadmaps';
+import { getRoadmap } from './roadmaps.js';
 
 export { getRoadmap };
 
@@ -71,6 +71,33 @@ export function createPath(goal, cefr) {
     checkpoints: [], // [{ unitId, score, passed, date }]
     momentum: 0, // consecutive strong checkpoints → CEFR bump
     startedAt: new Date().toISOString(),
+  };
+  savePath(path);
+  return path;
+}
+
+/**
+ * Re-run placement / change goal without wiping completed lessons.
+ * Progress keys for the previous goal remain in `completed` for stats;
+ * unitIndex is rewound only if the new goal's unit list is shorter.
+ */
+export function retakePlacement(goal, cefr, existing = getPath()) {
+  if (!existing) return createPath(goal, cefr);
+  const roadmap = getRoadmap(goal);
+  const unitIndex = Math.min(existing.unitIndex || 0, Math.max(0, roadmap.length - 1));
+  const unit = roadmap[unitIndex];
+  const lessonIndex = Math.min(
+    existing.lessonIndex || 0,
+    Math.max(0, (unit?.lessons?.length || 1) - 1),
+  );
+  const path = {
+    ...existing,
+    goal,
+    cefr,
+    unitIndex,
+    lessonIndex,
+    momentum: 0,
+    lastPlacementAt: new Date().toISOString(),
   };
   savePath(path);
   return path;

@@ -4,7 +4,10 @@
   "description": "Shared design tokens for Le Studio, Chrono and Forq",
   "main": "tokens.css",
   "style": "tokens.css",
-  "files": ["tokens.css", "README.md", "tokens.json"],
+  "files": ["tokens.css", "aliases.css", "README.md", "tokens.json", "check-tokens.mjs"],
+  "scripts": {
+    "check": "node check-tokens.mjs"
+  },
   "license": "UNLICENSED",
   "private": true
 }
