@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp, getRepairableStreak, canFreeRepairThisWeek, repairStreak } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp, getRepairableStreak, canFreeRepairThisWeek, repairStreak, reviewHabit } from '../lib/storage';
+import { wordOfDay } from '../lib/wordOfDay';
 import { encouragement, dailyChallenges, leagueTier, weeklyLeague, ACHIEVEMENTS, levelFromXp } from '../lib/game';
 import { wordsLearned, fmtDuration } from '../lib/analytics';
 import { getPhrasebook } from '../lib/phrasebook';
@@ -117,6 +118,49 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
           >
             Free streak repair this week — restore {getRepairableStreak()} days (one free repair / week)
           </button>
+        )}
+
+        {/* Word of the day — Memrise / Duolingo daily vocab bite */}
+        {(() => {
+          const w = wordOfDay();
+          if (!w) return null;
+          return (
+            <section className="bg-surface border border-line rounded-2xl px-4 py-3.5 space-y-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Word of the day</p>
+              <p className="text-lg font-bold text-ink" lang="fr">{w.fr}</p>
+              <p className="text-sm text-ink2">{w.en}</p>
+              {w.example && (
+                <p className="text-xs text-ink3 leading-relaxed" lang="fr">
+                  {w.example}
+                  {w.exampleEn ? <span className="block text-ink3/80 not-italic" lang="en">{w.exampleEn}</span> : null}
+                </p>
+              )}
+            </section>
+          );
+        })()}
+
+        {/* Mistake review — Duolingo practice mistakes bank */}
+        {getHabits().filter((h) => (h.count || 0) > 0).length > 0 && (
+          <section className="bg-surface border border-line rounded-2xl px-4 py-3.5 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Practice mistakes</p>
+              <span className="text-[11px] text-ink3 tabular-nums">
+                {getHabits().filter((h) => (h.count || 0) > 0).length} open
+              </span>
+            </div>
+            {getHabits().filter((h) => (h.count || 0) > 0).slice(0, 3).map((h) => (
+              <div key={h.key} className="flex items-center gap-2 rounded-xl bg-surface2 border border-line px-3 py-2">
+                <p className="flex-1 text-sm text-ink min-w-0 truncate" title={h.text}>{h.text}</p>
+                <button
+                  type="button"
+                  className="text-[11px] font-bold text-ink shrink-0 px-2 py-1 rounded-lg border border-line hover:bg-surface"
+                  onClick={() => { reviewHabit(h.key, true); setHomeTick((t) => t + 1); }}
+                >
+                  Got it
+                </button>
+              </div>
+            ))}
+          </section>
         )}
 
         {/* resume in-progress activity */}

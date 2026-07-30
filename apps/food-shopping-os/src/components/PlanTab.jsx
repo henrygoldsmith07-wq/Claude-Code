@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, Move, ShoppingCart, Snowflake,
+  CalendarDays, CalendarPlus, Check, ChevronLeft, ChevronRight, ClipboardList, Info, Move, ShoppingCart, Snowflake,
   Sparkles, Utensils, X,
 } from 'lucide-react';
 import { gbp } from '../lib/utils.js';
@@ -12,6 +12,7 @@ import {
   batchGroups, coveredByLeftovers, monthDates, monthGrid, monthLabel, planStats,
   mealPlanIcs, shiftMonth, shiftWeek, shoppingForPlan,
 } from '../lib/mealplan.js';
+import { prepChecklist, prepProgress } from '../lib/prep-checklist.js';
 import { downloadFile } from '../lib/notify.js';
 import { filterByDiet } from '../lib/goals.js';
 import { monthOf, seasonalHits } from '../data/seasons.js';
@@ -123,6 +124,7 @@ export default function PlanTab({ openRecipe }) {
   const [showGenerator, setShowGenerator] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState('');
+  const [prepDone, setPrepDone] = useState([]);
 
   const anchorWeek = shiftWeek(app.day, offset);
   const anchorMonth = shiftMonth(app.day, offset);
@@ -135,6 +137,8 @@ export default function PlanTab({ openRecipe }) {
   const covered = coveredByLeftovers(app.plan, dates, app.pantry);
   const batches = batchGroups(app.plan, dates, { people: app.portions });
   const thisWeekDates = useMemo(() => weekDates(app.day), [app.day]);
+  const prepSteps = useMemo(() => prepChecklist(app.plan, dates), [app.plan, dates]);
+  const prep = prepProgress(prepSteps, prepDone);
 
   const rangeLabel = view === 'week'
     ? (offset === 0 ? 'This week' : `Week of ${Number(anchorWeek.slice(8, 10))} ${new Date(`${anchorWeek}T12:00:00`).toLocaleDateString('en-GB', { month: 'short' })}`)
@@ -252,6 +256,64 @@ export default function PlanTab({ openRecipe }) {
         )}
 
         <CalendarAvailability dates={dates} />
+
+        {/* Mealime-style weekly prep checklist */}
+        {prepSteps.length > 0 && (
+          <Section className="mt-4 rise" title="Prep checklist">
+            <Card className="!p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[0.75rem] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+                  <ClipboardList size={14} /> {prep.complete}/{prep.total} done · {prep.pct}%
+                </p>
+                {prep.complete > 0 && (
+                  <button
+                    type="button"
+                    className="text-[0.7rem] font-extrabold"
+                    style={{ color: 'var(--muted)' }}
+                    onClick={() => setPrepDone([])}
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <ul className="space-y-1.5">
+                {prepSteps.map((step) => {
+                  const done = prepDone.includes(step.id);
+                  return (
+                    <li key={step.id}>
+                      <button
+                        type="button"
+                        onClick={() => setPrepDone((ids) => (
+                          done ? ids.filter((id) => id !== step.id) : [...ids, step.id]
+                        ))}
+                        className="press flex w-full items-start gap-2 rounded-xl border px-2.5 py-2 text-left"
+                        style={{
+                          borderColor: done ? 'var(--good)' : 'var(--line)',
+                          background: done ? 'color-mix(in srgb, var(--good) 8%, transparent)' : 'var(--card-2)',
+                        }}
+                      >
+                        <span
+                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
+                          style={{ borderColor: done ? 'var(--good)' : 'var(--line)', color: 'var(--good)' }}
+                        >
+                          {done ? <Check size={12} strokeWidth={3} /> : null}
+                        </span>
+                        <span className="min-w-0">
+                          <span className={`block text-[0.8125rem] font-bold ${done ? 'line-through' : ''}`} style={{ color: done ? 'var(--muted)' : 'var(--ink)' }}>
+                            {step.label}
+                          </span>
+                          {step.detail && (
+                            <span className="block text-[0.7rem] font-semibold" style={{ color: 'var(--faint)' }}>{step.detail}</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          </Section>
+        )}
 
         {stats.meals > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
