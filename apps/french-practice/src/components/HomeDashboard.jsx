@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp, getRepairableStreak, canFreeRepairThisWeek, repairStreak, reviewHabit } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp, getRepairableStreak, canFreeRepairThisWeek, repairStreak, reviewHabit, getStarredLines, getXpLog } from '../lib/storage';
+import { periodReport, fmtDuration, wordsLearned } from '../lib/analytics';
 import { wordOfDay } from '../lib/wordOfDay';
 import { encouragement, dailyChallenges, leagueTier, weeklyLeague, ACHIEVEMENTS, levelFromXp } from '../lib/game';
-import { wordsLearned, fmtDuration } from '../lib/analytics';
 import { getPhrasebook } from '../lib/phrasebook';
 import { dueEntries, notebookAsEntries } from '../lib/memory';
 import LearningPath from './LearningPath';
@@ -261,6 +261,30 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             <div className={`h-full rounded-full bar-anim ${weekXp >= weeklyGoal ? 'bg-success' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round((weekXp / Math.max(1, weeklyGoal)) * 100))}%` }} />
           </div>
           <p className="text-xs text-ink2 leading-relaxed">{cheer}</p>
+          {(() => {
+            const week = periodReport(7, {
+              xpLog: getXpLog(),
+              timeLog: getTimeLog(),
+              metrics: getMetrics(),
+              sessions,
+            });
+            const starredN = getStarredLines().length;
+            const weekSessions = sessions.filter((s) => {
+              const d = String(s.date || '').slice(0, 10);
+              const start = new Date();
+              start.setDate(start.getDate() - 6);
+              return d >= start.toISOString().slice(0, 10);
+            }).length;
+            if (!week.seconds && !weekSessions && !starredN) return null;
+            return (
+              <p className="text-[11px] text-ink3 tabular-nums pt-1 border-t border-line">
+                {week.seconds > 0 ? fmtDuration(week.seconds) : 'No timed study yet'}
+                {weekSessions ? ` · ${weekSessions} roleplay${weekSessions === 1 ? '' : 's'}` : ''}
+                {week.activities ? ` · ${week.activities} scored activities` : ''}
+                {starredN ? ` · ${starredN} starred` : ''}
+              </p>
+            );
+          })()}
         </section>
 
         {/* daily challenge — surfaced from the profile's challenge set */}
@@ -296,6 +320,12 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
             badge={dueCount > 0 ? String(dueCount) : null}
             onClick={() => onNavigate('cards')}
+          />
+          <ActionCard
+            icon={Target}
+            title="Phrase drills"
+            subtitle="Shadow, type, or flip real-world lines"
+            onClick={() => onOpenReference?.('drills')}
           />
           <ActionCard
             icon={Volume}

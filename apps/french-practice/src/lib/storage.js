@@ -35,6 +35,7 @@ const KEYS = {
   onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
   syncId: 'fp.syncId', // stable local account id — travels with a sync snapshot
   lastBackup: 'fp.lastBackup', // ISO time of the last export/sync-code created
+  starred: 'fp.starredLines', // [{ id, fr, en, source, addedAt }] — favourited survival phrases
 };
 
 export { KEYS };
@@ -487,6 +488,25 @@ export function removeFromNotebook(id) {
   const nb = getNotebook().filter((e) => e.id !== id);
   write(KEYS.notebook, nb);
   return nb;
+}
+
+// ---- starred survival lines (real-world / phrase drills) ----
+
+export const getStarredLines = () => read(KEYS.starred, []);
+
+export const isStarredLine = (id) => getStarredLines().some((e) => e.id === id);
+
+export function toggleStarredLine({ id, fr, en, source = '' }) {
+  const list = getStarredLines();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    write(KEYS.starred, list);
+    return { list, starred: false };
+  }
+  list.unshift({ id, fr, en, source, addedAt: new Date().toISOString() });
+  write(KEYS.starred, list.slice(0, 100));
+  return { list: getStarredLines(), starred: true };
 }
 
 // ---- tap-to-translate word cache ----

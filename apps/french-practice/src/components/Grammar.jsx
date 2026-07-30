@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GRAMMAR_TOPICS, getGrammarTopic, grammarTopicOfDay, grammarStatsByCefr } from '../lib/grammar';
-import { getGrammarProgress, recordGrammarQuiz } from '../lib/storage';
+import { getGrammarProgress, recordGrammarQuiz, bumpChallengeMetric } from '../lib/storage';
 import { Drill, SentenceBuilder, Quiz } from './GrammarExercises';
 import { Markdown, SpeakButton } from './ui';
 import { ChevronLeft, ChevronRight, Book, CheckCircle, Search, Target } from './icons';
@@ -67,6 +67,7 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
           recordGrammarQuiz(topicId, score);
           onXp(Math.max(1, Math.round(score / 10)));
           onActivity?.({ type: 'grammar', topicId, score });
+          bumpChallengeMetric('grammar', 1);
           setTick((t) => t + 1);
         }}
       />

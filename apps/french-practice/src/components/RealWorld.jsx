@@ -8,9 +8,10 @@ import {
   situationTipOfDay,
   searchSituations,
 } from '../lib/realworld';
+import { getStarredLines, isStarredLine, toggleStarredLine } from '../lib/storage';
 import { SpeakButton } from './ui';
 import {
-  X, ChevronLeft, ChevronRight, Check, MessageCircle, FileText, Trophy, Search, Lightbulb,
+  X, ChevronLeft, ChevronRight, Check, MessageCircle, FileText, Trophy, Search, Lightbulb, Bookmark, BookmarkFilled,
 } from './icons';
 
 const SEEN_KEY = 'fp.realworldSeen';
@@ -225,6 +226,9 @@ function Hub({ onOpen, onExam, query, setQuery, tip, totalPhrases, opened, seen 
 }
 
 function Situation({ situation, onBack, onRoleplay }) {
+  const [starTick, setStarTick] = useState(0);
+  void starTick;
+
   if (!situation) {
     return (
       <div className="h-full grid place-items-center px-4">
@@ -232,6 +236,8 @@ function Situation({ situation, onBack, onRoleplay }) {
       </div>
     );
   }
+
+  const phraseId = (p) => `${situation.id}:${p.fr.slice(0, 40)}`;
 
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-5">
@@ -249,18 +255,34 @@ function Situation({ situation, onBack, onRoleplay }) {
         <p className="text-xs text-ink3 text-center">
           {situation.blurb}
           {situation.level ? ` · ${situation.level}` : ''}
+          {getStarredLines().length ? ` · ${getStarredLines().length} starred` : ''}
         </p>
 
         <ul className="space-y-2">
-          {situation.phrases.map((p, i) => (
-            <li key={i} className="flex items-center gap-3 bg-surface border border-line rounded-2xl px-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] text-ink font-medium leading-snug" lang="fr">{p.fr}</p>
-                <p className="text-xs text-ink3 italic mt-0.5">{p.en}</p>
-              </div>
-              <SpeakButton text={p.fr} label="Listen" />
-            </li>
-          ))}
+          {situation.phrases.map((p, i) => {
+            const id = phraseId(p);
+            const starred = isStarredLine(id);
+            return (
+              <li key={i} className="flex items-center gap-2 bg-surface border border-line rounded-2xl px-3 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] text-ink font-medium leading-snug" lang="fr">{p.fr}</p>
+                  <p className="text-xs text-ink3 italic mt-0.5">{p.en}</p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={starred ? 'Unstar phrase' : 'Star phrase for drills'}
+                  onClick={() => {
+                    toggleStarredLine({ id, fr: p.fr, en: p.en, source: situation.title });
+                    setStarTick((t) => t + 1);
+                  }}
+                  className="w-9 h-9 shrink-0 grid place-items-center rounded-full text-ink2 hover:bg-surface2"
+                >
+                  {starred ? <BookmarkFilled size={15} className="text-ink" /> : <Bookmark size={15} />}
+                </button>
+                <SpeakButton text={p.fr} label="Listen" />
+              </li>
+            );
+          })}
         </ul>
 
         {situation.scenarioId && (

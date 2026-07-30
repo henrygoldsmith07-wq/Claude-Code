@@ -8,6 +8,7 @@ import {
   searchCulture,
   cultureEntryCount,
 } from '../lib/culture';
+import { bumpChallengeMetric } from '../lib/storage';
 import { SpeakButton } from './ui';
 import { ChevronLeft, ChevronRight, Check, X, RefreshCw, Lightbulb, Trophy, Search } from './icons';
 
@@ -225,8 +226,16 @@ function CultureQuiz({ onXp, onBack }) {
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState(null);
   const [score, setScore] = useState(0);
+  const [logged, setLogged] = useState(false);
 
   const done = idx >= quiz.length;
+
+  useEffect(() => {
+    if (done && !logged) {
+      setLogged(true);
+      bumpChallengeMetric('culture', 1);
+    }
+  }, [done, logged]);
 
   const pick = (i) => {
     if (picked !== null) return;
