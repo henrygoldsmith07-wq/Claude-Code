@@ -58,7 +58,7 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
       >
         <div className="absolute inset-x-10 inset-y-12 rounded-xl border-2" style={{ borderColor: 'var(--accent)' }} />
         {phase === 'scanning' && <div className="scanline absolute inset-x-10 h-0.5" style={{ background: 'var(--accent)' }} />}
-        <p className="relative text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>
+        <p className="relative text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>
           {phase === 'scanning' ? 'Reading barcode…' : 'Hold the barcode inside the frame'}
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
       <button
         onClick={() => fileRef.current?.click()}
         disabled={!support.barcode || phase === 'scanning'}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-60"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-60"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-2">
@@ -87,11 +87,11 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
         aria-label="Barcode image"
       />
       {!support.barcode && (
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           This browser has no native barcode detector. Type the number or choose a catalogue example below.
         </p>
       )}
-      {message && <p role="status" className="text-[12px] font-semibold">{message}</p>}
+      {message && <p role="status" className="text-[0.75rem] font-semibold">{message}</p>}
 
       <div className="flex gap-2">
         <input
@@ -101,13 +101,13 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
           placeholder="…or type the number"
           aria-label="Barcode number"
           inputMode="numeric"
-          className="min-w-0 flex-1 rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+          className="min-w-0 flex-1 rounded-2xl border px-4 py-2.5 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <button
           onClick={() => resolve(code)}
           disabled={!isBarcode(code)}
-          className="press rounded-2xl border px-4 text-[13px] font-extrabold disabled:opacity-40"
+          className="press rounded-2xl border px-4 text-[0.8125rem] font-extrabold disabled:opacity-40"
           style={{ borderColor: 'var(--line)' }}
         >
           <ScanLine size={15} />
@@ -122,14 +122,14 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
         <Card className="flex items-center gap-3 !p-3">
           <Glyph e={food.emoji} size={22} style={{ color: 'var(--muted)' }} />
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-[14px] truncate">{food.name}</p>
-            <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="font-bold text-[0.875rem] truncate">{food.name}</p>
+            <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {[food.brand, code].filter(Boolean).join(' · ')}
             </p>
           </div>
           <button
             onClick={() => take({ name: food.brand ? `${food.brand} ${food.name}` : food.name, emoji: food.emoji, barcode: code })}
-            className="press rounded-full px-3 py-1.5 text-[12.5px] font-extrabold"
+            className="press rounded-full px-3 py-1.5 text-[0.78125rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {action}
@@ -139,13 +139,13 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
 
       {phase === 'unknown' && (
         <Card className="!p-3">
-          <p className="font-bold text-[13.5px]">Barcode {code} isn’t in the catalogue</p>
-          <p className="mt-0.5 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-bold text-[0.84375rem]">Barcode {code} isn’t in the catalogue</p>
+          <p className="mt-0.5 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Nothing is invented for an unknown code. Add it by name instead and it’ll be yours from then on.
           </p>
           <button
             onClick={() => take({ name: `Item ${code.slice(-4)}`, barcode: code })}
-            className="press mt-2 w-full rounded-2xl border py-2 text-[12.5px] font-extrabold"
+            className="press mt-2 w-full rounded-2xl border py-2 text-[0.78125rem] font-extrabold"
             style={{ borderColor: 'var(--line)' }}
           >
             {action} it as an unnamed item
@@ -154,7 +154,7 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
       )}
 
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>
           Barcodes this build can read
         </p>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">

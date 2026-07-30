@@ -15,155 +15,9 @@ import RecipeGenerator from './RecipeGenerator.jsx';
 import RecipeImport from './RecipeImport.jsx';
 import TasteGame from './TasteGame.jsx';
 
-const TIME_STEPS = [
-  { label: 'Any time', value: null },
-  { label: '≤ 15 min', value: 15 },
-  { label: '≤ 25 min', value: 25 },
-  { label: '≤ 45 min', value: 45 },
-];
+import RecipeFilterSheet from './RecipeFilterSheet.jsx';
 
-const SHOPPING = [
-  { label: 'Anything', value: null },
-  { label: 'Missing ≤ 2', value: 2 },
-  { label: 'Can make now', value: 0 },
-];
-
-const DIET_IDS = DIET_PATTERNS.filter((d) => d.kind !== 'macro').map((d) => d.id);
-
-/** How many recipe cards go into the page at a time. */
 const PAGE = 24;
-
-/** Filters that read as sentences: what's in it, what isn't, how long, whose diet. */
-function FilterSheet({ filters, setFilters, onClose, results }) {
-  const app = useApp();
-  const [term, setTerm] = useState('');
-  const [field, setField] = useState('include');
-
-  const addTerm = () => {
-    const value = term.trim();
-    if (!value) return;
-    setFilters((f) => ({ ...f, [field]: [...new Set([...f[field], value])] }));
-    setTerm('');
-  };
-
-  const drop = (key, value) =>
-    setFilters((f) => ({ ...f, [key]: f[key].filter((v) => v !== value) }));
-
-  return (
-    <div className="px-5 pb-10 space-y-5">
-      <div>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Ingredients</p>
-        <div className="flex gap-2">
-          <Chip active={field === 'include'} onClick={() => setField('include')}>With</Chip>
-          <Chip active={field === 'exclude'} onClick={() => setField('exclude')}>Without</Chip>
-        </div>
-        <div className="mt-2 flex gap-2">
-          <input
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addTerm()}
-            placeholder={field === 'include' ? 'chicken, spinach…' : 'mushrooms, coriander…'}
-            aria-label={field === 'include' ? 'Ingredient to include' : 'Ingredient to exclude'}
-            className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
-            style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-          />
-          <button
-            onClick={addTerm}
-            className="press rounded-xl px-4 text-[13px] font-extrabold"
-            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-          >
-            <Plus size={15} />
-          </button>
-        </div>
-        {(filters.include.length > 0 || filters.exclude.length > 0) && (
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {filters.include.map((t) => (
-              <button key={`in-${t}`} onClick={() => drop('include', t)} className="press">
-                <Pill tone="accent">with {t} <X size={11} /></Pill>
-              </button>
-            ))}
-            {filters.exclude.map((t) => (
-              <button key={`ex-${t}`} onClick={() => drop('exclude', t)} className="press">
-                <Pill tone="warn">without {t} <X size={11} /></Pill>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Cooking time</p>
-        <div className="flex flex-wrap gap-2">
-          {TIME_STEPS.map((t) => (
-            <Chip key={t.label} active={filters.maxTime === t.value} onClick={() => setFilters((f) => ({ ...f, maxTime: t.value }))}>
-              {t.label}
-            </Chip>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Diet</p>
-        <div className="flex flex-wrap gap-2">
-          {DIET_PATTERNS.filter((d) => d.kind !== 'macro').map((d) => (
-            <Chip
-              key={d.id}
-              active={filters.diets.includes(d.id)}
-              onClick={() => setFilters((f) => ({
-                ...f,
-                diets: f.diets.includes(d.id) ? f.diets.filter((x) => x !== d.id) : [...f.diets, d.id],
-              }))}
-            >
-              {d.label}
-            </Chip>
-          ))}
-        </div>
-        {app.planDiets.length > 0 && (
-          <button
-            onClick={() => setFilters((f) => ({ ...f, diets: [...new Set([...f.diets, ...app.planDiets.filter((d) => DIET_IDS.includes(d))])] }))}
-            className="press mt-2 text-[12.5px] font-extrabold"
-            style={{ color: 'var(--accent)' }}
-          >
-            Use my patterns ({app.planDiets.join(', ')})
-          </button>
-        )}
-      </div>
-
-      <div>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Shopping</p>
-        <div className="flex flex-wrap gap-2">
-          {SHOPPING.map((s) => (
-            <Chip key={s.label} active={filters.maxMissing === s.value} onClick={() => setFilters((f) => ({ ...f, maxMissing: s.value }))}>
-              {s.label}
-            </Chip>
-          ))}
-        </div>
-        {filters.maxMissing !== null && app.pantry.length === 0 && (
-          <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            Your pantry is empty, so nothing counts as makeable yet.
-          </p>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={onClose}
-          className="press flex-[2] rounded-2xl py-3 text-[14px] font-extrabold"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-        >
-          Show {results} recipe{results === 1 ? '' : 's'}
-        </button>
-        <button
-          onClick={() => setFilters({ diets: [], maxTime: null, include: [], exclude: [], maxMissing: null })}
-          className="press flex-1 rounded-2xl border py-3 text-[13.5px] font-extrabold"
-          style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
-        >
-          Clear
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Paste in a recipe someone sent you. */
 function SharedImport({ onDone }) {
@@ -180,7 +34,7 @@ function SharedImport({ onDone }) {
 
   return (
     <div className="px-5 pb-10 space-y-3">
-      <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
         Forq has no feed of strangers’ dinners. A recipe travels as a code someone sends you —
         paste it here and it becomes yours, credited to whoever shared it.
       </p>
@@ -190,27 +44,27 @@ function SharedImport({ onDone }) {
         rows={4}
         placeholder="FORQ1:…"
         aria-label="Recipe code"
-        className="w-full rounded-2xl border p-3 text-[12px] font-mono outline-none"
+        className="w-full rounded-2xl border p-3 text-[0.75rem] font-mono outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <button
         onClick={read}
         disabled={!code.trim()}
-        className="press w-full rounded-2xl border py-3 text-[14px] font-extrabold disabled:opacity-50"
+        className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold disabled:opacity-50"
         style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
       >
         Read the code
       </button>
-      {error && <p className="text-[13px] font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}
+      {error && <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}
       {preview && (
         <Card className="space-y-2">
-          <p className="font-extrabold text-[15px]">{preview.name}</p>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-extrabold text-[0.9375rem]">{preview.name}</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {preview.sharedBy ? `From ${preview.sharedBy} · ` : ''}{preview.ingredients.length} ingredients · {preview.steps.length} steps · {preview.time} min
           </p>
           <button
             onClick={() => { app.saveRecipe(preview); onDone(); }}
-            className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+            className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Add to my recipes
@@ -296,7 +150,7 @@ export default function RecipesTab({ openRecipe }) {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search recipes, cuisines, ingredients…"
               aria-label="Search recipes"
-              className="w-full rounded-2xl border py-3 pl-9 pr-3 text-[14px] font-semibold outline-none focus:ring-2"
+              className="w-full rounded-2xl border py-3 pl-9 pr-3 text-[0.875rem] font-semibold outline-none focus:ring-2"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)', '--tw-ring-color': 'var(--accent-soft)' }}
             />
           </div>
@@ -309,7 +163,7 @@ export default function RecipesTab({ openRecipe }) {
             <SlidersHorizontal size={17} />
             {active > 0 && (
               <span
-                className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-extrabold"
+                className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[0.625rem] font-extrabold"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 {active}
@@ -329,11 +183,11 @@ export default function RecipesTab({ openRecipe }) {
 
       <details className="mt-3 px-5 rise rise-1">
         <summary
-          className="flex cursor-pointer list-none items-center justify-between rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+          className="flex cursor-pointer list-none items-center justify-between rounded-2xl border px-4 py-3 text-[0.8125rem] font-extrabold"
           style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
         >
           More recipe tools
-          <span className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>Taste, import and create</span>
+          <span className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>Taste, import and create</span>
         </summary>
       <div className="mt-3">
         <button
@@ -346,8 +200,8 @@ export default function RecipesTab({ openRecipe }) {
               <Heart size={19} fill="currentColor" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-black">Taste match</span>
-              <span className="block text-[11.5px] font-bold opacity-80">
+              <span className="block text-[0.9375rem] font-black">Taste match</span>
+              <span className="block text-[0.71875rem] font-bold opacity-80">
                 Swipe recipes to tune your AI plans
                 {Object.keys(app.tasteRatings).length ? ` · ${Object.keys(app.tasteRatings).length} rated` : ''}
               </span>
@@ -362,21 +216,21 @@ export default function RecipesTab({ openRecipe }) {
       <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           onClick={() => setSheet('import')}
-          className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
+          className="press rounded-2xl border py-2.5 px-1 text-[0.75rem] font-extrabold"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-1"><Link2 size={13} /> Import from URL</span>
         </button>
         <button
           onClick={() => setSheet('generate')}
-          className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
+          className="press rounded-2xl border py-2.5 px-1 text-[0.75rem] font-extrabold"
           style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
         >
           <span className="inline-flex items-center gap-1"><Sparkles size={13} /> Invent a recipe</span>
         </button>
         <button
           onClick={() => setSheet('shared')}
-          className="press rounded-2xl border py-2.5 px-1 text-[12px] font-extrabold"
+          className="press rounded-2xl border py-2.5 px-1 text-[0.75rem] font-extrabold"
           style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
         >
           <span className="inline-flex items-center gap-1"><Inbox size={13} /> Add a shared one</span>
@@ -385,7 +239,7 @@ export default function RecipesTab({ openRecipe }) {
       ) : (
         <div className="mt-3 px-5">
           <Card className="!p-3">
-            <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Recipe saving is off for {app.activeMember?.name}. Browsing and cooking still work.
             </p>
           </Card>
@@ -396,7 +250,7 @@ export default function RecipesTab({ openRecipe }) {
       {view === 'collections' && app.householdAccess.recipes && (
         <Section className="mt-3 rise rise-1">
           <Card>
-            <p className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+            <p className="flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
               <FolderOpen size={14} /> Recipe collections
             </p>
             <div className="mt-2 flex gap-2">
@@ -406,7 +260,7 @@ export default function RecipesTab({ openRecipe }) {
                 aria-label="Collection name"
                 placeholder="e.g. Batch cooking"
                 maxLength={40}
-                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[13px] font-semibold outline-none"
+                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[0.8125rem] font-semibold outline-none"
                 style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
               <button
@@ -415,7 +269,7 @@ export default function RecipesTab({ openRecipe }) {
                   setCollectionName('');
                 }}
                 disabled={collectionName.trim().length < 2}
-                className="press rounded-xl px-3 py-2 text-[12.5px] font-extrabold disabled:opacity-40"
+                className="press rounded-xl px-3 py-2 text-[0.78125rem] font-extrabold disabled:opacity-40"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 Create
@@ -460,7 +314,7 @@ export default function RecipesTab({ openRecipe }) {
       )}
 
       <Section className="mt-4 rise rise-2">
-        <p className="mb-3 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mb-3 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {recipes.length} recipe{recipes.length === 1 ? '' : 's'}
           {filters.maxMissing === 0 && ' you can cook right now'}
           {filters.maxTime && ` in ${filters.maxTime} minutes or less`}
@@ -471,7 +325,7 @@ export default function RecipesTab({ openRecipe }) {
           <Card className="text-center py-10">
             <UtensilsCrossed size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="font-bold">Nothing matches</p>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{emptyLine}</p>
+            <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{emptyLine}</p>
           </Card>
         ) : (
           <div className="recipe-grid grid grid-cols-2 gap-3 items-start">
@@ -480,17 +334,15 @@ export default function RecipesTab({ openRecipe }) {
               const fav = app.favourites.includes(r.id);
               const short = missingFrom(r, pantryNames).length;
               return (
-                <Card key={r.id} onClick={() => openRecipe(r)} className="!p-0 overflow-hidden">
+                <Card key={r.id} className="relative !p-0 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => openRecipe(r)}
+                    aria-label={`Open ${r.name}`}
+                    className="press block w-full text-left"
+                  >
                       <div className="relative">
                         <FoodArt recipe={r} className={tall ? 'h-40 w-full' : 'h-28 w-full'} px={tall ? 44 : 36} />
-                        {app.householdAccess.recipes && <button
-                          onClick={(e) => { e.stopPropagation(); app.toggleFavourite(r.id); }}
-                          aria-label={fav ? 'Unfavourite' : 'Favourite'}
-                          className="tap press absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border"
-                          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
-                        >
-                          <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
-                        </button>}
                         <span className="absolute bottom-2 left-2">
                           {r.generated ? <Pill tone="accent"><Sparkles size={11} /> yours</Pill>
                             : r.shared ? <Pill tone="accent">shared</Pill>
@@ -501,19 +353,32 @@ export default function RecipesTab({ openRecipe }) {
                         </span>
                       </div>
                       <div className="p-3">
-                        <p className="font-bold text-[13.5px] leading-tight line-clamp-2">{r.name}</p>
-                        <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                        <p className="font-bold text-[0.84375rem] leading-tight line-clamp-2">{r.name}</p>
+                        <p className="mt-1 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                           {r.time <= 60 ? `${r.time} min` : `${Math.round(r.time / 60)} h`} · {r.kcal} kcal · {r.protein}g protein
                         </p>
-                        <p className="mt-1 text-[12px] font-extrabold" style={{ color: 'var(--accent)' }}>
+                        <p className="mt-1 text-[0.75rem] font-extrabold" style={{ color: 'var(--accent)' }}>
                           {gbp(r.costPerServing, { always: true })}/serving
                         </p>
                         {app.recipeRatings[r.id] && (
-                          <p className="mt-1 text-[11.5px] font-bold" style={{ color: 'var(--warn)' }}>
+                          <p className="mt-1 text-[0.71875rem] font-bold" style={{ color: 'var(--warn)' }}>
                             ★ {app.recipeRatings[r.id]}/5
                           </p>
                         )}
                       </div>
+                  </button>
+                  {app.householdAccess.recipes && (
+                    <button
+                      type="button"
+                      onClick={() => app.toggleFavourite(r.id)}
+                      aria-label={fav ? 'Unfavourite' : 'Favourite'}
+                      aria-pressed={fav}
+                      className="tap press absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border"
+                      style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
+                    >
+                      <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
+                    </button>
+                  )}
                 </Card>
               );
             })}
@@ -523,7 +388,7 @@ export default function RecipesTab({ openRecipe }) {
         {shown < recipes.length && (
           <button
             onClick={() => setShown((n) => n + PAGE)}
-            className="press mt-3 w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+            className="press mt-3 w-full rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
             style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
           >
             Show {Math.min(PAGE, recipes.length - shown)} more
@@ -535,7 +400,7 @@ export default function RecipesTab({ openRecipe }) {
       </Section>
 
       <Sheet open={sheet === 'filters'} onClose={() => setSheet(null)} title="Filters">
-        <FilterSheet filters={filters} setFilters={setFilters} onClose={() => setSheet(null)} results={recipes.length} />
+        <RecipeFilterSheet filters={filters} setFilters={setFilters} onClose={() => setSheet(null)} results={recipes.length} />
       </Sheet>
       <Sheet open={sheet === 'generate'} onClose={() => setSheet(null)} title="Invent a recipe">
         <RecipeGenerator openRecipe={(r) => { setSheet(null); openRecipe(r); }} />

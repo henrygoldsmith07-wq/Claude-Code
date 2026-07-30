@@ -204,23 +204,19 @@ describe('meal plan', () => {
   });
 });
 
-describe('the coach', () => {
+describe('Guidance', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('answers from your data, and admits when there is none', () => {
+  it('keeps questions in the adaptive surface and admits when there is no data', async () => {
     onboard();
-    fireEvent.click(screen.getByLabelText('AI food coach'));
-    // The coach opens on its summary; the chat is the other half of the sheet.
-    expect(screen.getByText(/blank\s*page until you put something in it/)).toBeDefined();
-    fireEvent.click(screen.getByText('Ask'));
-    expect(screen.getByText(/there’s not much there yet/)).toBeDefined();
+    fireEvent.click(screen.getByLabelText('Guidance — what matters now'));
+    const guidance = dialogFor('Guidance');
+    expect(within(guidance).getByText('What matters now')).toBeDefined();
+    fireEvent.click(within(guidance).getByText('Ask'));
+    expect(await within(guidance).findByText(/there’s not much there yet/)).toBeDefined();
 
-    fireEvent.click(screen.getByText('What needs using up?'));
-    // No pantry → it says so rather than inventing items.
-    return new Promise((resolve) => setTimeout(() => {
-      expect(screen.getByText(/Your pantry is empty/)).toBeDefined();
-      resolve();
-    }, 700));
+    fireEvent.click(within(guidance).getByText('What needs using up?'));
+    await waitFor(() => expect(within(guidance).getByText(/Your pantry is empty/)).toBeDefined(), { timeout: 1500 });
   });
 });

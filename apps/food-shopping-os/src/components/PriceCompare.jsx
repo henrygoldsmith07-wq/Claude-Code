@@ -28,7 +28,7 @@ export default function PriceCompare() {
           <Card className="text-center py-8">
             <Store size={28} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="font-bold">No comparison yet</p>
-            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Record a shop with prices against the items and Forq can price the same list
               at every shop you've been to. Nothing is fetched from anywhere.
             </p>
@@ -38,20 +38,20 @@ export default function PriceCompare() {
             {stores.map((row) => (
               <Card key={row.store} className="flex items-center justify-between !p-3.5">
                 <div className="min-w-0">
-                  <p className="font-bold text-[14.5px] truncate">{row.store}</p>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.90625rem] truncate">{row.store}</p>
+                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     prices known for {row.covered} of {row.of} item{row.of === 1 ? '' : 's'}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-extrabold text-[16px]">{gbp(row.total, { always: true })}</p>
+                  <p className="font-extrabold text-[1rem]">{gbp(row.total, { always: true })}</p>
                   {best && row.store === best.store && row.covered === best.covered && (
                     <Pill tone="good">best cover</Pill>
                   )}
                 </div>
               </Card>
             ))}
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Totals only count items that shop has a price for, so two shops with different
               cover aren’t the same basket.
             </p>
@@ -65,8 +65,8 @@ export default function PriceCompare() {
             {savings.map((s) => (
               <div key={s.name} className="flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
-                  <p className="font-bold text-[14px] truncate">{s.name}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.875rem] truncate">{s.name}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     you’ve paid {gbp(s.best, { always: true })} at {s.store}
                   </p>
                 </div>
@@ -82,7 +82,7 @@ export default function PriceCompare() {
           <Card className="text-center py-10">
             <TrendingUp size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="font-bold">No price history yet</p>
-            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Put prices against items as you shop and Forq tracks what each one costs you
               over time — including where it was cheapest.
             </p>
@@ -93,14 +93,14 @@ export default function PriceCompare() {
               <Card key={p.name}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-extrabold text-[14.5px] flex items-center gap-1.5">
+                    <p className="font-extrabold text-[0.90625rem] flex items-center gap-1.5">
                       <Glyph e={p.emoji} size={15} style={{ color: 'var(--muted)' }} /> {p.name}
                     </p>
-                    <p className="text-[13px] font-bold mt-0.5">
+                    <p className="text-[0.8125rem] font-bold mt-0.5">
                       {gbp(p.latest, { always: true })}
                       {p.change !== null && (
                         <span
-                          className="ml-1.5 text-[11.5px] font-bold"
+                          className="ml-1.5 text-[0.71875rem] font-bold"
                           style={{ color: p.change > 0 ? 'var(--danger)' : p.change < 0 ? 'var(--good)' : 'var(--faint)' }}
                         >
                           {p.change > 0 ? `▲ ${gbp(p.change, { always: true })}` : p.change < 0 ? `▼ ${gbp(-p.change, { always: true })}` : '· flat'}
@@ -110,7 +110,7 @@ export default function PriceCompare() {
                   </div>
                   {p.prices.length > 1 && <Sparkline points={p.prices} />}
                 </div>
-                <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {p.times === 1
                     ? 'Bought once — buy it again to see a trend.'
                     : `Bought ${p.times} times · cheapest ${gbp(p.best, { always: true })}${p.bestStore ? ` at ${p.bestStore}` : ''}`}

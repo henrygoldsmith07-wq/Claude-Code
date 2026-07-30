@@ -60,7 +60,7 @@ export function CommandPalette({ open, onClose, onRun }) {
             }}
             aria-label="Search Forq"
             placeholder="Search everything or type a command…"
-            className="w-full rounded-2xl border py-3 pl-10 pr-4 text-[14px] font-semibold outline-none"
+            className="w-full rounded-2xl border py-3 pl-10 pr-4 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
@@ -69,7 +69,7 @@ export function CommandPalette({ open, onClose, onRun }) {
             value={type}
             onChange={(event) => setType(event.target.value)}
             aria-label="Result type"
-            className="rounded-xl border px-3 py-2 text-[12px] font-bold"
+            className="rounded-xl border px-3 py-2 text-[0.75rem] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <option value="all">All results</option>
@@ -79,7 +79,7 @@ export function CommandPalette({ open, onClose, onRun }) {
             value={sort}
             onChange={(event) => setSort(event.target.value)}
             aria-label="Sort results"
-            className="rounded-xl border px-3 py-2 text-[12px] font-bold"
+            className="rounded-xl border px-3 py-2 text-[0.75rem] font-bold"
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <option value="relevance">Best match</option>
@@ -98,20 +98,20 @@ export function CommandPalette({ open, onClose, onRun }) {
                 <ResultIcon type={result.type} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] font-extrabold">{result.title}</span>
-                <span className="block truncate text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <span className="block truncate text-[0.84375rem] font-extrabold">{result.title}</span>
+                <span className="block truncate text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {TYPE_LABELS[result.type]} · {result.subtitle}
                 </span>
               </span>
             </button>
           ))}
           {!results.length && (
-            <p className="p-6 text-center text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="p-6 text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Nothing matched. Try fewer words or another result type.
             </p>
           )}
         </div>
-        <p className="text-center text-[11px] font-semibold" style={{ color: 'var(--faint)' }}>
+        <p className="text-center text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
           Ctrl K search · Q quick add · Ctrl Z undo · 1–6 switch tabs
         </p>
       </div>
@@ -126,7 +126,7 @@ export function QuickAdd({ open, onClose, onRun }) {
     ['pantry', 'Pantry item', 'Put something into your kitchen', Package],
     ['plan', 'Meal plan', 'Choose a meal or generate a plan', BookOpen],
     ['water', 'Glass of water', 'Add 250 ml now', Waves],
-    ['assistant', 'Ask the coach', 'Open the AI food coach', Sparkles],
+    ['assistant', 'Ask Forq', 'Open Guidance and ask a question', Sparkles],
     ['undo', 'Undo last action', 'Revert your latest saved change', Undo2],
   ];
   return (
@@ -140,8 +140,8 @@ export function QuickAdd({ open, onClose, onRun }) {
             style={{ background: 'var(--card)', borderColor: 'var(--line)' }}
           >
             <Icon size={17} style={{ color: 'var(--muted)' }} />
-            <span className="mt-2 block text-[13.5px] font-extrabold">{title}</span>
-            <span className="mt-0.5 block text-[11.5px] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>{subtitle}</span>
+            <span className="mt-2 block text-[0.84375rem] font-extrabold">{title}</span>
+            <span className="mt-0.5 block text-[0.71875rem] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>{subtitle}</span>
           </button>
         ))}
       </div>

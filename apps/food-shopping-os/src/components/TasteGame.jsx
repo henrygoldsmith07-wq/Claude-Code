@@ -43,12 +43,12 @@ export default function TasteGame() {
           <Sparkles size={28} />
         </div>
         <h3 className="mt-4 text-xl font-extrabold">Taste profile complete</h3>
-        <p className="mt-2 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-2 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Your AI plans now favour {app.tasteProfile.topCuisines.slice(0, 2).join(' and ') || 'the recipes you liked'}.
         </p>
         <button
           onClick={app.resetRecipeTaste}
-          className="press mt-5 inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+          className="press mt-5 inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-[0.8125rem] font-extrabold"
           style={{ borderColor: 'var(--line)' }}
         >
           <RotateCcw size={15} /> Play again
@@ -67,10 +67,10 @@ export default function TasteGame() {
     <div className="px-5 pb-10">
       <div className="flex items-start justify-between gap-3 pb-3">
         <div>
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Swipe through recipes: left to skip, right to like, up to love.
           </p>
-          <p role="status" className="mt-1 text-[12px] font-extrabold" style={{ color: 'var(--accent)' }}>
+          <p className="mt-1 text-[0.75rem] font-extrabold" style={{ color: 'var(--accent)' }}>
             {recorded} taste{recorded === 1 ? '' : 's'} recorded
           </p>
         </div>
@@ -116,7 +116,7 @@ export default function TasteGame() {
             )}
             <div className="absolute inset-x-5 bottom-4 text-white">
               <h3 className="text-2xl font-black leading-tight">{current.name}</h3>
-              <p className="mt-1 text-[13px] font-bold text-white/85">
+              <p className="mt-1 text-[0.8125rem] font-bold text-white/85">
                 {current.cuisine} · {current.time} min · {current.protein}g protein
               </p>
             </div>
@@ -125,7 +125,7 @@ export default function TasteGame() {
             <div className="flex flex-wrap gap-2">
               {(current.tags || []).slice(0, 3).map((tag) => <Pill key={tag} tone="muted">{tag}</Pill>)}
             </div>
-            <p className="mt-3 line-clamp-2 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-3 line-clamp-2 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {(current.ingredients || []).slice(0, 5).map((item) => item.name || item).join(' · ')}
             </p>
           </div>
@@ -158,12 +158,12 @@ export default function TasteGame() {
           <Heart size={23} fill="currentColor" />
         </button>
       </div>
-      <div className="mt-2 grid grid-cols-3 text-center text-[10px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+      <div className="mt-2 grid grid-cols-3 text-center text-[0.625rem] font-extrabold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
         <span>No thanks</span><span>Like</span><span>Love</span>
       </div>
 
       {app.tasteProfile.topCuisines.length > 0 && (
-        <p className="mt-4 text-center text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-4 text-center text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>
           Current match: {app.tasteProfile.topCuisines.slice(0, 2).join(' · ')}
         </p>
       )}

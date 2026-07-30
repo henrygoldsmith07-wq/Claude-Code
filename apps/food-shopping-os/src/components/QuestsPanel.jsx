@@ -19,18 +19,18 @@ const Quest = ({ quest }) => (
   <Card className="!p-3">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[14px] font-extrabold leading-tight inline-flex items-center gap-1.5">
+        <p className="text-[0.875rem] font-extrabold leading-tight inline-flex items-center gap-1.5">
           {quest.done && <Check size={14} strokeWidth={3} style={{ color: 'var(--good)' }} />}
           {quest.label}
         </p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{quest.detail}</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{quest.detail}</p>
       </div>
       <Pill tone={quest.done ? 'good' : 'muted'}>{quest.progress}/{quest.of}</Pill>
     </div>
     <div className="mt-2">
       <Meter value={quest.progress} max={quest.of} height={5} color={quest.done ? 'var(--good)' : 'var(--accent)'} />
     </div>
-    <p className="mt-1.5 text-[11.5px] font-bold" style={{ color: 'var(--faint)' }}>
+    <p className="mt-1.5 text-[0.71875rem] font-bold" style={{ color: 'var(--faint)' }}>
       {quest.done ? `earned ${quest.xp} XP` : `${quest.xp} XP`}
     </p>
   </Card>
@@ -56,17 +56,17 @@ export default function QuestsPanel() {
       <Card>
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
               Level {game.level.level}
             </p>
-            <p className="text-[20px] font-extrabold leading-tight">{game.level.title}</p>
+            <p className="text-[1.25rem] font-extrabold leading-tight">{game.level.title}</p>
           </div>
-          <p className="text-[13px] font-bold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.8125rem] font-bold" style={{ color: 'var(--muted)' }}>
             {game.xp.toLocaleString()} XP
           </p>
         </div>
         <div className="mt-2"><Meter value={game.level.into} max={game.level.into + game.level.need} /></div>
-        <p className="mt-1.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {game.level.need} XP to level {game.level.level + 1}
           {game.level.nextTitle && ` · ${game.level.nextTitle}`}
         </p>
@@ -78,9 +78,9 @@ export default function QuestsPanel() {
           const s = game.streaks[key];
           return (
             <Card key={key} className="!p-3 text-center">
-              <p className="text-[19px] font-extrabold">{s.days}</p>
-              <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{s.label}</p>
-              <p className="text-[10.5px] font-semibold" style={{ color: 'var(--muted)' }}>best {s.best}</p>
+              <p className="text-[1.1875rem] font-extrabold">{s.days}</p>
+              <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{s.label}</p>
+              <p className="text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>best {s.best}</p>
             </Card>
           );
         })}
@@ -97,7 +97,7 @@ export default function QuestsPanel() {
       {view === 'today' && (
         <>
           {game.daily.map((goal) => <Quest key={goal.id} quest={goal} />)}
-          <p className="text-[12px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
             {game.daily.filter((g) => g.done).length} of {game.daily.length} done today.
           </p>
         </>
@@ -107,14 +107,14 @@ export default function QuestsPanel() {
         <>
           {game.event && (
             <Card style={{ borderColor: 'var(--accent)' }}>
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
                 Seasonal · {game.event.name}
               </p>
-              <p className="mt-0.5 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{game.event.blurb}</p>
+              <p className="mt-0.5 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{game.event.blurb}</p>
             </Card>
           )}
           {game.weekly.map((quest) => <Quest key={quest.id} quest={quest} />)}
-          <p className="text-[12px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
             Challenges are picked by the week itself, so they’re the same all week.
           </p>
         </>
@@ -125,35 +125,35 @@ export default function QuestsPanel() {
       {view === 'earned' && (
         <>
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
               Badges · {earned.length} of {badges.length}
             </p>
             <div className="grid grid-cols-4 gap-2.5">
               {badges.map((b) => (
                 <div key={b.id} className="text-center" style={{ opacity: b.earned ? 1 : 0.4 }}>
                   <Glyph e={b.emoji} size={22} style={{ color: b.earned ? 'var(--ink)' : 'var(--faint)' }} />
-                  <p className="mt-1 text-[10.5px] font-bold leading-tight">{b.name}</p>
-                  <p className="text-[10px] font-semibold" style={{ color: 'var(--faint)' }}>{b.progress}/{b.of}</p>
+                  <p className="mt-1 text-[0.65625rem] font-bold leading-tight">{b.name}</p>
+                  <p className="text-[0.625rem] font-semibold" style={{ color: 'var(--faint)' }}>{b.progress}/{b.of}</p>
                 </div>
               ))}
             </div>
           </Card>
 
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Achievements</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Achievements</p>
             {game.achievements.length === 0 ? (
-              <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Nothing yet — these are the things that actually happened, with the date they happened on.
               </p>
             ) : (
               game.achievements.map((a) => (
                 <div key={a.id} className="mt-2 flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold truncate">{a.label}</p>
-                    <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--muted)' }}>{a.detail}</p>
+                    <p className="text-[0.84375rem] font-bold truncate">{a.label}</p>
+                    <p className="text-[0.75rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>{a.detail}</p>
                   </div>
                   {a.date && (
-                    <p className="text-[11.5px] font-semibold shrink-0" style={{ color: 'var(--faint)' }}>{prettyDate(a.date)}</p>
+                    <p className="text-[0.71875rem] font-semibold shrink-0" style={{ color: 'var(--faint)' }}>{prettyDate(a.date)}</p>
                   )}
                 </div>
               ))
@@ -161,14 +161,14 @@ export default function QuestsPanel() {
           </Card>
 
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where your XP came from</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where your XP came from</p>
             {game.breakdown.length === 0 ? (
-              <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 No XP yet. It’s counted from what you do — cook, log, plan, shop.
               </p>
             ) : (
               game.breakdown.map((row) => (
-                <div key={row.key} className="mt-1.5 flex items-baseline justify-between text-[13px]">
+                <div key={row.key} className="mt-1.5 flex items-baseline justify-between text-[0.8125rem]">
                   <span className="font-bold">{row.label}</span>
                   <span className="font-semibold" style={{ color: 'var(--muted)' }}>
                     {row.count} × {row.each} = {row.xp.toLocaleString()} XP
@@ -176,21 +176,21 @@ export default function QuestsPanel() {
                 </div>
               ))
             )}
-            <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               XP is a reading of your history, not a balance — a recipe cooked is worth
               {' '}{XP_AWARDS.cooked} XP for as long as it’s in your history, and no longer.
             </p>
           </Card>
 
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Unlocked</p>
-            <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Unlocked</p>
+            <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {game.accents.length
                 ? `${game.accents.length} extra accent${game.accents.length === 1 ? '' : 's'} — pick one under Appearance.`
                 : 'Reach level 4 for a new accent colour. The five you started with never go away.'}
             </p>
             {game.accents.length < 3 && (
-              <p className="mt-1 text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+              <p className="mt-1 text-[0.75rem] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
                 <Lock size={12} /> More at levels 4, 8 and 12.
               </p>
             )}

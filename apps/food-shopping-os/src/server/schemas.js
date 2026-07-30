@@ -25,6 +25,15 @@ export const aiRequestSchema = z.object({
   task: z.enum(['shopping', 'nutrition', 'recipe', 'pantry', 'substitution', 'meal-plan', 'budget', 'waste', 'route', 'cooking']),
   prompt: z.string().trim().min(1).max(4000),
   context: z.record(z.string(), z.unknown()).optional(),
+}).refine((value) => JSON.stringify(value.context || {}).length <= 12000, {
+  message: 'AI context is too large.',
+  path: ['context'],
+});
+
+export const coachShareSchema = z.object({
+  label: z.string().trim().min(1).max(80).default('Coach'),
+  scopes: z.array(z.enum(['diary', 'nutrition', 'plan', 'health'])).min(1).max(4),
+  expiresInDays: z.number().int().min(1).max(90).default(30),
 });
 
 export const calendarEventSchema = z.object({
@@ -36,6 +45,15 @@ export const calendarEventSchema = z.object({
 }).refine((value) => new Date(value.end) > new Date(value.start), {
   message: 'Event end must be after its start.',
 });
+
+export const calendarRangeSchema = z.object({
+  provider: z.enum(['google', 'azure-ad']),
+  from: z.iso.datetime(),
+  to: z.iso.datetime(),
+}).refine((value) => {
+  const duration = new Date(value.to) - new Date(value.from);
+  return duration > 0 && duration <= 93 * 86400000;
+}, { message: 'Calendar range must be between one moment and 93 days.' });
 
 export const retailerQuerySchema = z.object({
   retailer: z.enum(['tesco', 'sainsburys', 'asda', 'aldi', 'lidl', 'morrisons', 'waitrose', 'ocado', 'amazon-fresh']),

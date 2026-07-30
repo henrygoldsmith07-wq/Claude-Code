@@ -16,8 +16,8 @@ const Capability = ({ Icon, title, status, children }) => (
   <Card className="!p-3">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-bold text-[13.5px] inline-flex items-center gap-1.5"><Icon size={15} /> {title}</p>
-        <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
+        <p className="font-bold text-[0.84375rem] inline-flex items-center gap-1.5"><Icon size={15} /> {title}</p>
+        <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
       </div>
       <Pill tone={status === 'Ready' ? 'good' : status === 'Partial' ? 'accent' : 'muted'}>{status}</Pill>
     </div>
@@ -40,14 +40,14 @@ function CaptureCard({ onOpenAssistant }) {
       <Card className="!p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-bold text-[13.5px] inline-flex items-center gap-1.5"><Mic size={15} /> Voice assistant</p>
-            <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="font-bold text-[0.84375rem] inline-flex items-center gap-1.5"><Mic size={15} /> Voice assistant</p>
+            <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {support.speech ? 'Ask the food coach by voice using browser speech recognition.' : 'Speech recognition is unavailable here; typed questions still work.'}
             </p>
           </div>
           <button
             onClick={onOpenAssistant}
-            className="press shrink-0 rounded-xl border px-3 py-2 text-[12px] font-extrabold"
+            className="press shrink-0 rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
             style={{ borderColor: 'var(--line)' }}
           >
             Open
@@ -62,45 +62,45 @@ function PredictionsCard({ trip, stock, budget }) {
   return (
     <div className="space-y-2.5">
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><CalendarClock size={15} /> Next shopping trip</p>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><CalendarClock size={15} /> Next shopping trip</p>
         {trip ? (
           <>
-            <p className="mt-1 text-[22px] font-extrabold">{prettyDate(trip.date)}</p>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[1.375rem] font-extrabold">{prettyDate(trip.date)}</p>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {trip.reason} {trip.confidence} pattern.
             </p>
           </>
-        ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Three dated shopping trips are needed before Forq predicts another.</p>}
+        ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Three dated shopping trips are needed before Forq predicts another.</p>}
       </Card>
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><PackageSearch size={15} /> Predicted low stock</p>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><PackageSearch size={15} /> Predicted low stock</p>
         {stock.length ? (
           <div className="mt-2 space-y-2">
             {stock.slice(0, 6).map((item) => (
               <div key={item.name} className="rounded-xl p-2.5" style={{ background: 'var(--card-2)' }}>
                 <div className="flex justify-between gap-3">
-                  <p className="text-[13px] font-bold">{item.name}</p>
+                  <p className="text-[0.8125rem] font-bold">{item.name}</p>
                   <Pill tone={item.overdueDays ? 'warn' : 'muted'}>{item.overdueDays ? `${item.overdueDays}d overdue` : `due ${item.dueDate.slice(8)}`}</Pill>
                 </div>
-                <p className="mt-0.5 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{item.reason}</p>
+                <p className="mt-0.5 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{item.reason}</p>
               </div>
             ))}
           </div>
-        ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Nothing has enough repeat purchase history to predict yet.</p>}
+        ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Nothing has enough repeat purchase history to predict yet.</p>}
       </Card>
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><TriangleAlert size={15} /> Budget overrun</p>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><TriangleAlert size={15} /> Budget overrun</p>
         {budget ? (
           <>
             <div className="mt-1 flex items-center gap-2">
-              <p className="text-[22px] font-extrabold">{gbp(budget.projected, { always: true })}</p>
+              <p className="text-[1.375rem] font-extrabold">{gbp(budget.projected, { always: true })}</p>
               <Pill tone={budget.risk === 'over' ? 'warn' : 'good'}>{budget.risk === 'over' ? 'projected over' : 'within budget'}</Pill>
             </div>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {gbp(budget.spent, { always: true })} recorded against {gbp(budget.budget)}. {budget.reason}
             </p>
           </>
-        ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Set a weekly grocery budget to enable overrun prediction.</p>}
+        ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Set a weekly grocery budget to enable overrun prediction.</p>}
       </Card>
     </div>
   );
@@ -113,26 +113,26 @@ function SmartRemindersCard() {
       reminder.kind === suggestion.kind && reminder.times.join() === suggestion.times.join()));
   return (
     <Card>
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Bell size={15} /> Smart reminders</p>
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Bell size={15} /> Smart reminders</p>
       {suggestions.length ? (
         <>
           <div className="mt-2 space-y-2">
             {suggestions.slice(0, 4).map((suggestion) => (
               <div key={suggestion.key} className="rounded-xl p-2.5" style={{ background: 'var(--card-2)' }}>
-                <p className="text-[13px] font-bold">{suggestion.label} · {suggestion.times.join(', ')}</p>
-                <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{suggestion.why}</p>
+                <p className="text-[0.8125rem] font-bold">{suggestion.label} · {suggestion.times.join(', ')}</p>
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{suggestion.why}</p>
               </div>
             ))}
           </div>
           <button
             onClick={() => app.addSuggestedReminders(suggestions)}
-            className="press mt-3 w-full rounded-xl py-2.5 text-[12.5px] font-extrabold"
+            className="press mt-3 w-full rounded-xl py-2.5 text-[0.78125rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Add {suggestions.length} smart reminder{suggestions.length === 1 ? '' : 's'}
           </button>
         </>
-      ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Suggestions appear once meal, exercise or weigh-in records show a repeat routine.</p>}
+      ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Suggestions appear once meal, exercise or weigh-in records show a repeat routine.</p>}
     </Card>
   );
 }
@@ -166,8 +166,8 @@ function PlaceRemindersCard() {
 
   return (
     <Card>
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><MapPin size={15} /> Foreground location reminder</p>
-      <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><MapPin size={15} /> Foreground location reminder</p>
+      <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
         Saves a 200m area on this device and watches for re-entry only while Forq is open and notifications are allowed. Background geofencing requires a native app and is not claimed here.
       </p>
       <div className="mt-3 flex gap-2">
@@ -175,25 +175,25 @@ function PlaceRemindersCard() {
           value={label}
           onChange={(event) => setLabel(event.target.value)}
           aria-label="Location reminder name"
-          className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[13px] font-semibold outline-none"
+          className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[0.8125rem] font-semibold outline-none"
           style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <button
           onClick={saveHere}
-          className="press rounded-xl border px-3 text-[12px] font-extrabold"
+          className="press rounded-xl border px-3 text-[0.75rem] font-extrabold"
           style={{ borderColor: 'var(--line)' }}
         >
           Save here
         </button>
       </div>
-      {status && <p role="status" className="mt-2 text-[12px] font-semibold">{status}</p>}
+      {status && <p role="status" className="mt-2 text-[0.75rem] font-semibold">{status}</p>}
       {app.placeReminders.length > 0 && (
         <div className="mt-3 space-y-2">
           {app.placeReminders.map((place) => (
             <div key={place.id} className="flex items-center gap-2 rounded-xl p-2.5" style={{ background: 'var(--card-2)' }}>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold truncate">{place.label}</p>
-                <p className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>{place.radius}m · while open</p>
+                <p className="text-[0.8125rem] font-bold truncate">{place.label}</p>
+                <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{place.radius}m · while open</p>
               </div>
               <Toggle label={`${place.on ? 'Disable' : 'Enable'} ${place.label}`} on={place.on} onChange={() => app.togglePlaceReminder(place.id)} />
               <button onClick={() => app.removePlaceReminder(place.id)} aria-label={`Delete ${place.label}`} className="press p-1" style={{ color: 'var(--faint)' }}>
@@ -223,22 +223,22 @@ export default function SmartFeaturesPanel({ onOpenAssistant }) {
   return (
     <div className="px-5 pb-10 space-y-4">
       <Card>
-        <p className="font-extrabold text-[15px] inline-flex items-center gap-1.5"><Sparkles size={16} /> Smart Features</p>
-        <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem] inline-flex items-center gap-1.5"><Sparkles size={16} /> Predictions & capture</p>
+        <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Device features where the browser provides them; explainable predictions from your own records everywhere else.
         </p>
       </Card>
       <CaptureCard onOpenAssistant={onOpenAssistant} />
       <PredictionsCard trip={trip} stock={stock} budget={budget} />
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><ListPlus size={15} /> Auto-generated list</p>
-        <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><ListPlus size={15} /> Auto-generated list</p>
+        <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Combines pantry items marked low with products due from repeat purchase cadence, excluding anything already listed.
         </p>
         <button
           onClick={addList}
           disabled={!generated.length || added || !app.householdAccess.shopping}
-          className="press mt-3 w-full rounded-xl py-2.5 text-[12.5px] font-extrabold disabled:opacity-40"
+          className="press mt-3 w-full rounded-xl py-2.5 text-[0.78125rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {added

@@ -10,7 +10,7 @@ const ExternalButton = ({ href, children, primary = false }) => (
     href={href}
     target="_blank"
     rel="noreferrer"
-    className="press inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-extrabold"
+    className="press inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
     style={primary
       ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
       : { background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
@@ -47,16 +47,16 @@ export default function StoreIntegrations() {
         <Card>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="flex items-center gap-2 font-extrabold text-[18px]">
+              <p className="flex items-center gap-2 font-extrabold text-[1.125rem]">
                 <Store size={18} /> {selected.name}
               </p>
-              <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {canDeliver ? 'Online grocery delivery' : 'Browse prices · shop in store'}
               </p>
             </div>
             <Pill tone={canDeliver ? 'good' : 'muted'}>{canDeliver ? 'delivery' : 'in store'}</Pill>
           </div>
-          <p className="mt-3 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-3 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Forq keeps your recorded prices and offers locally. Current prices, stock and slots are checked on {selected.name}.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -75,26 +75,26 @@ export default function StoreIntegrations() {
           <Card className="text-center py-8">
             <PackageSearch size={28} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="font-bold">Your shopping list is empty</p>
-            <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Add an item, then use its retailer link to check today’s price and availability.
             </p>
           </Card>
         ) : (
           <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
             <div className="p-3" style={{ borderColor: 'var(--line)' }}>
-              <p className="font-bold text-[13px]">
+              <p className="font-bold text-[0.8125rem]">
                 Recorded prices for {basket.covered} of {basket.of} item{basket.of === 1 ? '' : 's'}
                 {basket.covered > 0 && ` · ${gbp(basket.total, { always: true })}`}
               </p>
-              <p className="mt-0.5 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-0.5 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 This total uses your latest recorded {selected.name} prices, not a live feed.
               </p>
             </div>
             {basket.rows.map((row) => (
               <div key={row.id || row.name} data-retailer-item className="flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
-                  <p className="font-bold text-[13.5px] truncate">{row.name}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: row.price === null ? 'var(--faint)' : 'var(--good)' }}>
+                  <p className="font-bold text-[0.84375rem] truncate">{row.name}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: row.price === null ? 'var(--faint)' : 'var(--good)' }}>
                     {row.price === null ? 'No recorded price' : `${gbp(row.price, { always: true })} recorded`}
                   </p>
                 </div>
@@ -102,7 +102,7 @@ export default function StoreIntegrations() {
                   href={row.searchUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="press shrink-0 inline-flex items-center gap-1 text-[11.5px] font-bold"
+                  className="press shrink-0 inline-flex items-center gap-1 text-[0.71875rem] font-bold"
                   style={{ color: 'var(--accent)' }}
                 >
                   Check price & availability <ExternalLink size={11} />
@@ -115,7 +115,7 @@ export default function StoreIntegrations() {
 
       <Section className="rise rise-2" title="Offers">
         <Card>
-          <p className="flex items-center gap-2 font-bold text-[13.5px]">
+          <p className="flex items-center gap-2 font-bold text-[0.84375rem]">
             <Tag size={15} /> {savedOffers.length
               ? `${savedOffers.length} saved offer${savedOffers.length === 1 ? '' : 's'} can apply`
               : `No saved ${selected.name} offers`}
@@ -123,13 +123,13 @@ export default function StoreIntegrations() {
           {savedOffers.length > 0 && (
             <ul className="mt-2 space-y-1">
               {savedOffers.map((offer) => (
-                <li key={offer.id} className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <li key={offer.id} className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {offer.label}
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-2 text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>
+          <p className="mt-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--faint)' }}>
             Official offers can change. Open the retailer page before relying on one.
           </p>
         </Card>
@@ -139,10 +139,10 @@ export default function StoreIntegrations() {
         <Card className="flex items-start gap-3">
           <Truck size={18} className="shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
           <div>
-            <p className="font-bold text-[13.5px]">
+            <p className="font-bold text-[0.84375rem]">
               {canDeliver ? 'Check slots and postcode availability' : 'No direct full-basket grocery delivery'}
             </p>
-            <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {canDeliver
                 ? `${selected.name} confirms the products, substitutions, delivery charge and available times at checkout.`
                 : `${selected.name} products can be browsed here, but the weekly shop is completed in store.`}

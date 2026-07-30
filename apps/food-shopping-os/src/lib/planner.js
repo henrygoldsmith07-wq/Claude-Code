@@ -73,6 +73,7 @@ export function buildPlan(
   {
     scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
     pantry = [], month = null, batch = false, days = null, recipes = RECIPES, taste = null,
+    leftovers = [],
   },
   seed,
 ) {
@@ -94,7 +95,11 @@ export function buildPlan(
       const narrowed = out.filter(pref);
       if (narrowed.length >= Math.min(wanted, 3)) out = narrowed;
     }
-    return out;
+    return [...out].sort((a, b) => {
+      const seasonal = month ? seasonScore(b, month) - seasonScore(a, month) : 0;
+      const cost = (Number(a.costPerServing) || 0) - (Number(b.costPerServing) || 0);
+      return seasonal * 4 + cost;
+    });
   };
 
   // A day's plan takes one dish from each meal; everything else is dinners.
@@ -121,6 +126,30 @@ export function buildPlan(
   if (pool.length === 0) {
     pool = dinners;
     relaxed = true;
+  }
+
+  const leftoverMeals = leftovers
+    .flatMap((item) => {
+      const recipe = recipes.find((candidate) => candidate.id === item.recipeId);
+      const portions = Math.max(0, Math.floor(Number(item.portions) || 0));
+      return recipe && pool.some((candidate) => candidate.id === recipe.id)
+        ? Array.from({ length: Math.min(portions, count) }, () => recipe)
+        : [];
+    })
+    .slice(0, count);
+  if (leftoverMeals.length) {
+    const remaining = count - leftoverMeals.length;
+    const ranked = narrow(
+      pool.filter((recipe) => !leftoverMeals.some((item) => item.id === recipe.id)),
+      remaining,
+    );
+    const fillPool = ranked.length ? ranked : pool;
+    const unique = seededPick(fillPool, Math.min(remaining, fillPool.length), seed);
+    const fill = Array.from({ length: remaining }, (_, index) => unique[index % unique.length]).filter(Boolean);
+    return {
+      meals: [...leftoverMeals, ...fill],
+      note: `Leftover-first plan: ${leftoverMeals.length} meal${leftoverMeals.length === 1 ? '' : 's'} use portions already in the fridge; the rest favour seasonal, lower-cost dishes.`,
+    };
   }
 
   // Batch mode asks for fewer dishes on purpose: cook once, eat three times.

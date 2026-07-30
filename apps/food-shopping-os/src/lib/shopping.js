@@ -1,11 +1,10 @@
 /**
  * The shopping list, made smarter by what you have actually done.
  *
- * Nothing here talks to a supermarket — there is no backend and no price feed.
- * Every "smart" behaviour is derived from your own history: the aisle you last
- * filed something under, the prices you typed in as you shopped, the order you
- * ticked things off in each shop, the offers you told it about. Where your
- * history can't answer, it says so instead of guessing.
+ * This module does not call the optional licensed retailer backend. Every
+ * "smart" behaviour here is derived from your own history: the aisle you last
+ * filed something under, prices you recorded, the order you ticked items off
+ * and offers you entered. Missing history is stated rather than guessed.
  */
 
 import { AISLE_ORDER, guessAisle } from '../data/stores.js';
@@ -13,6 +12,25 @@ import { priceHistory } from './kitchen.js';
 
 const key = (name) => String(name || '').trim().toLowerCase();
 const round2 = (n) => Math.round(n * 100) / 100;
+
+export const unitPrice = (item = {}) => {
+  const price = Number(item.price);
+  if (!(price > 0)) return null;
+  const text = String(item.qty || '').toLowerCase().replace(',', '.');
+  const packed = text.match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\b/);
+  const plain = text.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\b/);
+  if (!packed && !plain) return null;
+  const count = packed ? Number(packed[1]) : 1;
+  const amount = Number(packed ? packed[2] : plain[1]);
+  const unit = packed ? packed[3] : plain[2];
+  const baseAmount = count * amount * (unit === 'kg' || unit === 'l' ? 1000 : 1);
+  if (!(baseAmount > 0)) return null;
+  const isVolume = unit === 'ml' || unit === 'l';
+  return {
+    value: Math.round((price / baseAmount) * 100 * 100) / 100,
+    unit: isVolume ? '100ml' : '100g',
+  };
+};
 
 /* ---------- Aisles that learn ---------- */
 

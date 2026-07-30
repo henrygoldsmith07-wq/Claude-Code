@@ -4,11 +4,10 @@
  * What this can do: show a notification while Forq is open, once you've
  * granted permission.
  *
- * What it cannot do, and no code here pretends otherwise: fire one while the
- * app is closed. That needs Web Push (a server, which Forq hasn't got — the
- * whole app is on your device) or the Notification Triggers API, which no
- * browser ships. Everything touching the platform is kept in this one file so
- * the rest of the app can be pure and tested.
+ * What it cannot do: fire one while the app is closed. Synced households have
+ * server-side reminder jobs, but Forq does not register this browser for Web
+ * Push, and no shipping browser exposes Notification Triggers. Everything
+ * touching the platform is kept here so the rest stays pure and tested.
  */
 
 /** What this browser, right now, will actually let us do. */

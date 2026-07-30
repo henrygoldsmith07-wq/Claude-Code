@@ -32,9 +32,9 @@ export default function OffersPanel() {
   return (
     <div className="px-5 pb-10 space-y-4">
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>On your list</p>
-        <p className="mt-0.5 text-[22px] font-extrabold">{gbp(saved, { always: true })}</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>On your list</p>
+        <p className="mt-0.5 text-[1.375rem] font-extrabold">{gbp(saved, { always: true })}</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {app.offers.length === 0
             ? 'No offers yet. Nothing here is fetched from a shop — add the ones you actually have.'
             : lines.length === 0
@@ -51,12 +51,12 @@ export default function OffersPanel() {
               <Card key={offer.id} className="flex items-start gap-3 !p-3">
                 <Tag size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--muted)' }} />
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[14px]">{offer.label}</p>
-                  <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.875rem]">{offer.label}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     matches “{offer.match}”{offer.store ? ` · ${offer.store}` : ''}
                   </p>
                   {offer.expiry && (
-                    <p className="text-[11.5px] font-semibold" style={{ color: offer.expiry < app.day ? 'var(--danger)' : 'var(--muted)' }}>
+                    <p className="text-[0.71875rem] font-semibold" style={{ color: offer.expiry < app.day ? 'var(--danger)' : 'var(--muted)' }}>
                       {offer.expiry < app.day ? 'Expired' : 'Expires'} {offer.expiry}
                     </p>
                   )}
@@ -79,13 +79,13 @@ export default function OffersPanel() {
       )}
 
       <Card className="space-y-3">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Add an offer</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Add an offer</p>
         <input
           value={draft.label}
           onChange={(e) => field('label')(e.target.value)}
           placeholder={`What it says — “${kind.hint} pasta”`}
           aria-label="Offer description"
-          className="w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+          className="w-full rounded-2xl border px-4 py-2.5 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <div className="flex gap-2">
@@ -95,13 +95,13 @@ export default function OffersPanel() {
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           <label className="block">
-            <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Applies to</span>
+            <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Applies to</span>
             <input
               value={draft.match}
               onChange={(e) => field('match')(e.target.value)}
               placeholder="pasta"
               aria-label="Applies to"
-              className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+              className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
               style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
             />
           </label>
@@ -118,29 +118,29 @@ export default function OffersPanel() {
           onChange={(e) => field('store')(e.target.value)}
           placeholder="Which shop (optional)"
           aria-label="Offer shop"
-          className="w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+          className="w-full rounded-2xl border px-4 py-2.5 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Expiry date (optional)</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Expiry date (optional)</span>
           <input
             type="date"
             value={draft.expiry}
             onChange={(e) => field('expiry')(e.target.value)}
             aria-label="Offer expiry date"
-            className="mt-1 w-full rounded-2xl border px-4 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-4 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
         <button
           onClick={add}
           disabled={draft.label.trim().length < 2 || !draft.match.trim()}
-          className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+          className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Plus size={15} /> Add offer</span>
         </button>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           A multibuy of “3 for 2” takes the cheapest of every three matching items off the total.
         </p>
       </Card>

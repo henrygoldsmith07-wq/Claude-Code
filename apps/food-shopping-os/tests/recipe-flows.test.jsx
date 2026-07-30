@@ -90,7 +90,10 @@ describe('the recipe library', () => {
   it('keeps favourites in their own view', () => {
     onboard();
     openRecipes();
-    fireEvent.click(screen.getAllByLabelText('Favourite')[0]);
+    const favourite = screen.getAllByLabelText('Favourite')[0];
+    expect(favourite.parentElement.closest('button, [role="button"], a[href]')).toBeNull();
+    fireEvent.click(favourite);
+    expect(favourite.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByText('Favourites (1)'));
     expect(countLine()).toMatch(/^1 recipe/);
   });

@@ -8,6 +8,7 @@ export const DEFAULT_PERMISSIONS = {
   shopping: true,
   pantry: true,
   recipes: true,
+  health: false,
 };
 
 export const householdPermission = (state, permission) => {

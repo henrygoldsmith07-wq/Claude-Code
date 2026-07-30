@@ -19,7 +19,7 @@ export default function PrimaryAction({ label, onClick, hint }) {
     >
       <button
         onClick={onClick}
-        className="press pop w-full rounded-2xl py-3.5 text-[14.5px] font-extrabold"
+        className="press pop w-full rounded-2xl py-3.5 text-[0.90625rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'var(--shadow-lg)' }}
       >
         {label}

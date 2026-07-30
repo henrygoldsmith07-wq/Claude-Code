@@ -54,20 +54,20 @@ export default function RecipeGenerator({ openRecipe }) {
   return (
     <div className="px-5 pb-10 space-y-4">
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Your kitchen</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Your kitchen</p>
         {usable.length === 0 ? (
-          <p className="mt-1 text-[13.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.84375rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Your pantry is empty, so there is nothing to invent from yet. Add a few things and this
             will build a dish around them — until then it can only suggest a store-cupboard meal.
           </p>
         ) : (
           <>
-            <p className="mt-1 text-[13.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.84375rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {usable.length} of 4 parts of a dish are covered by what you have.
             </p>
             <div className="mt-2.5 space-y-1.5">
               {inputs.map((axis) => (
-                <div key={axis.key} className="flex items-baseline justify-between gap-3 text-[12.5px]">
+                <div key={axis.key} className="flex items-baseline justify-between gap-3 text-[0.78125rem]">
                   <span className="font-bold capitalize">{axis.key}</span>
                   <span className="font-semibold text-right truncate" style={{ color: axis.options.length ? 'var(--muted)' : 'var(--faint)' }}>
                     {axis.options.length
@@ -83,11 +83,11 @@ export default function RecipeGenerator({ openRecipe }) {
 
       <Card className="space-y-4">
         <div className="flex items-center justify-between">
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Serves</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Serves</p>
           <Stepper value={servings} onChange={setServings} />
         </div>
         <div>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Ready in</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Ready in</p>
           <div className="flex gap-2">
             {TIMES.map((t) => (
               <Chip key={t.label} active={maxTime === t.value} onClick={() => setMaxTime(t.value)}>{t.label}</Chip>
@@ -95,18 +95,18 @@ export default function RecipeGenerator({ openRecipe }) {
           </div>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[13px] font-bold flex items-center gap-1.5"><Zap size={14} /> Favour what’s in season</p>
+          <p className="text-[0.8125rem] font-bold flex items-center gap-1.5"><Zap size={14} /> Favour what’s in season</p>
           <Chip active={seasonal} onClick={() => setSeasonal((v) => !v)}>{seasonal ? 'On' : 'Off'}</Chip>
         </div>
         {app.planDiets.length > 0 && (
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Built to fit {app.planDiets.join(' · ')}.
           </p>
         )}
         <button
           onClick={invent}
           disabled={thinking}
-          className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
+          className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: thinking ? 0.7 : 1 }}
         >
           <span className="inline-flex items-center gap-2">
@@ -123,8 +123,8 @@ export default function RecipeGenerator({ openRecipe }) {
           <FoodArt recipe={recipe} className="h-32 w-full" px={44} />
           <div className="p-4 space-y-3">
             <div>
-              <p className="font-extrabold text-[16px] leading-tight">{recipe.name}</p>
-              <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="font-extrabold text-[1rem] leading-tight">{recipe.name}</p>
+              <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {recipe.time} min · serves {recipe.servings} · {gbp(recipe.costPerServing, { always: true })}/serving · {recipe.kcal} kcal
               </p>
             </div>
@@ -137,14 +137,14 @@ export default function RecipeGenerator({ openRecipe }) {
             </div>
 
             {recipe.bought.length > 0 && (
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Assumes you’ll pick up: {recipe.bought.join(', ')}.
               </p>
             )}
 
             <ul className="space-y-1">
               {recipe.ingredients.map((i) => (
-                <li key={i.name} className="flex justify-between text-[13px]">
+                <li key={i.name} className="flex justify-between text-[0.8125rem]">
                   <span className="font-semibold">{i.name}</span>
                   <span className="font-bold" style={{ color: 'var(--muted)' }}>{i.qty}</span>
                 </li>
@@ -155,7 +155,7 @@ export default function RecipeGenerator({ openRecipe }) {
               <button
                 onClick={() => { app.saveRecipe(recipe); setSaved(true); }}
                 disabled={saved}
-                className="press rounded-2xl py-3 text-[13.5px] font-extrabold disabled:opacity-60"
+                className="press rounded-2xl py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
                 style={saved
                   ? { background: 'var(--card-2)', color: 'var(--good)' }
                   : { background: 'var(--accent)', color: 'var(--on-accent)' }}
@@ -164,7 +164,7 @@ export default function RecipeGenerator({ openRecipe }) {
               </button>
               <button
                 onClick={() => openRecipe(recipe)}
-                className="press rounded-2xl border py-3 text-[13.5px] font-extrabold"
+                className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
               >
                 <span className="inline-flex items-center gap-1.5">Open it <ChevronRight size={14} /></span>

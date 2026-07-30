@@ -109,3 +109,98 @@ export async function pushCloud(state, meta) {
 export function selectCloudHousehold(householdId) {
   saveMeta({ ...readMeta(), householdId, version: 0 });
 }
+
+export async function pullCloud(meta) {
+  try {
+    const remote = await request('/api/sync', {
+      headers: meta.householdId ? { 'x-forq-household-id': meta.householdId } : {},
+    });
+    return {
+      state: remote.version > meta.version ? remote.state : null,
+      meta: saveMeta({ ...meta, householdId: remote.householdId, version: remote.version }),
+      status: { kind: 'ready', message: 'Household changes received live.' },
+    };
+  } catch (error) {
+    return {
+      state: null,
+      meta,
+      status: {
+        kind: navigator.onLine ? 'error' : 'offline',
+        message: navigator.onLine ? error.message : 'Offline. Live changes will resume when you reconnect.',
+      },
+    };
+  }
+}
+
+export async function subscribeCloud(meta, onChanged) {
+  if (typeof EventSource === 'undefined') throw new Error('Live updates are not supported by this browser.');
+  let source;
+  let refreshTimer;
+  let stopped = false;
+  const connect = async () => {
+    const auth = await request('/api/realtime/token', {
+      method: 'POST',
+      headers: meta.householdId ? { 'x-forq-household-id': meta.householdId } : {},
+      body: '{}',
+    });
+    if (stopped) return;
+    source?.close();
+    const url = new URL('https://main.realtime.ably.net/sse');
+    url.search = new URLSearchParams({
+      channels: `household:${meta.householdId}`,
+      v: '1.2',
+      accessToken: auth.token,
+      enveloped: 'true',
+    });
+    source = new EventSource(url);
+    source.addEventListener('message', (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.name !== 'changed') return;
+        const data = typeof message.data === 'string' ? JSON.parse(message.data) : message.data;
+        onChanged(data || {});
+      } catch {
+        // Ignore malformed provider messages; the fallback poll still runs.
+      }
+    });
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(connect, Math.max(60000, Number(auth.expires) - Date.now() - 60000));
+  };
+  await connect();
+  return () => {
+    stopped = true;
+    clearTimeout(refreshTimer);
+    source?.close();
+  };
+}
+
+const selectedHeaders = () => {
+  const householdId = readMeta().householdId;
+  return householdId ? { 'x-forq-household-id': householdId } : {};
+};
+
+export const listCoachShares = () => request('/api/coach-shares', { headers: selectedHeaders() });
+
+export const createCoachShare = (input) => request('/api/coach-shares', {
+  method: 'POST',
+  headers: selectedHeaders(),
+  body: JSON.stringify(input),
+});
+
+export const revokeCoachShare = (id) => request(`/api/coach-shares?id=${encodeURIComponent(id)}`, {
+  method: 'DELETE',
+  headers: selectedHeaders(),
+  body: '{}',
+});
+
+export const listHouseholdAudit = () => request('/api/households/audit', {
+  headers: selectedHeaders(),
+});
+
+export function selectedCloudHouseholdId() {
+  return readMeta().householdId || null;
+}
+
+export function forgetCloudHousehold() {
+  localStorage.removeItem(META_KEY);
+}

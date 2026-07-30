@@ -30,15 +30,15 @@ const NUTRIENT_LABELS = {
 
 const Stat = ({ label, value, detail }) => (
   <Card className="!p-3">
-    <p className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
-    <p className="mt-0.5 text-[19px] font-extrabold">{value}</p>
-    {detail && <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>{detail}</p>}
+    <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+    <p className="mt-0.5 text-[1.1875rem] font-extrabold">{value}</p>
+    {detail && <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{detail}</p>}
   </Card>
 );
 
 const Empty = ({ children }) => (
   <Card className="py-8 text-center">
-    <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
+    <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{children}</p>
   </Card>
 );
 
@@ -47,8 +47,8 @@ function SpendingView({ report }) {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px]">Spending dashboard</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Only completed shops you recorded are counted.</p>
+        <p className="font-extrabold text-[0.9375rem]">Spending dashboard</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Only completed shops you recorded are counted.</p>
       </Card>
       <div className="grid grid-cols-3 gap-2.5">
         <Stat label="This month" value={gbp(report.spent.month, { always: true })} />
@@ -58,24 +58,24 @@ function SpendingView({ report }) {
       {report.trips ? (
         <>
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Monthly spend</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Monthly spend</p>
             <Bars data={months.map((row) => ({ label: row.label, value: row.spend }))} format={(value) => `£${Math.round(value)}`} />
           </Card>
           <Card>
             <div className="flex items-center justify-between">
-              <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Store size={15} /> Favourite stores</p>
+              <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Store size={15} /> Favourite stores</p>
               <Pill tone="muted">by visits</Pill>
             </div>
             <div className="mt-2 space-y-2">
               {report.stores.slice(0, 5).map((store, index) => (
                 <div key={store.name} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[13px] font-bold truncate">{index + 1}. {store.name}</p>
-                    <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <p className="text-[0.8125rem] font-bold truncate">{index + 1}. {store.name}</p>
+                    <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                       {store.trips} trip{store.trips === 1 ? '' : 's'} · {gbp(store.average, { always: true })} average
                     </p>
                   </div>
-                  <p className="text-[13px] font-extrabold">{gbp(store.spent, { always: true })}</p>
+                  <p className="text-[0.8125rem] font-extrabold">{gbp(store.spent, { always: true })}</p>
                 </div>
               ))}
             </div>
@@ -83,9 +83,9 @@ function SpendingView({ report }) {
         </>
       ) : <Empty>Record a completed shop and spending trends will start here.</Empty>}
       <Card>
-        <p className="font-bold text-[14px]">Savings dashboard</p>
-        <p className="mt-0.5 text-[24px] font-extrabold">{gbp(report.savings.total, { always: true })}</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-bold text-[0.875rem]">Savings dashboard</p>
+        <p className="mt-0.5 text-[1.5rem] font-extrabold">{gbp(report.savings.total, { always: true })}</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Recorded offer savings across {report.savings.trips} shop{report.savings.trips === 1 ? '' : 's'} · {gbp(report.savings.month, { always: true })} this month.
         </p>
       </Card>
@@ -97,8 +97,8 @@ function NutritionView({ report }) {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px]">Nutrition dashboard</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem]">Nutrition dashboard</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {report.loggedDays} of {report.days} days logged ({report.coverage}%). Averages exclude unlogged days.
         </p>
       </Card>
@@ -110,11 +110,11 @@ function NutritionView({ report }) {
             <Stat label="Fibre" value={`${report.averages.fibre}g`} detail="daily average" />
           </div>
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Average against target</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Average against target</p>
             <div className="space-y-3">
               {report.nutrients.map((row) => (
                 <div key={row.key}>
-                  <div className="flex justify-between text-[12px] font-bold mb-1">
+                  <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                     <span>{NUTRIENT_LABELS[row.key]}</span>
                     <span style={{ color: 'var(--muted)' }}>
                       {row.average}{row.key === 'kcal' ? ' kcal' : 'g'}{row.target ? ` / ${row.target}` : ''}
@@ -127,7 +127,7 @@ function NutritionView({ report }) {
           </Card>
           {report.rows.length > 1 && (
             <Card>
-              <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Logged-day calories</p>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Logged-day calories</p>
               <Bars
                 data={report.rows.slice(-7).map((row) => ({ label: row.date.slice(8), value: row.kcal }))}
                 color="var(--series-2)"
@@ -143,12 +143,12 @@ function NutritionView({ report }) {
 
 const Breakdown = ({ title, rows }) => (
   <Card>
-    <p className="font-bold text-[14px]">{title}</p>
+    <p className="font-bold text-[0.875rem]">{title}</p>
     {rows.length ? (
       <div className="mt-2 space-y-2.5">
         {rows.slice(0, 6).map((row) => (
           <div key={row.label}>
-            <div className="flex justify-between text-[12px] font-bold mb-1">
+            <div className="flex justify-between text-[0.75rem] font-bold mb-1">
               <span>{row.label}</span>
               <span style={{ color: 'var(--muted)' }}>{row.count} · {gbp(row.value, { always: true })}</span>
             </div>
@@ -156,7 +156,7 @@ const Breakdown = ({ title, rows }) => (
           </div>
         ))}
       </div>
-    ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>No inventory rows yet.</p>}
+    ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>No inventory rows yet.</p>}
   </Card>
 );
 
@@ -164,8 +164,8 @@ function PantryDashboard({ report }) {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px]">Pantry dashboard</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>A live view of what is currently in your household inventory.</p>
+        <p className="font-extrabold text-[0.9375rem]">Pantry dashboard</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>A live view of what is currently in your household inventory.</p>
       </Card>
       <div className="grid grid-cols-3 gap-2.5">
         <Stat label="Items" value={report.total} />
@@ -186,8 +186,8 @@ function WasteView({ report }) {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px]">Waste dashboard</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Based on pantry items you marked as thrown away.</p>
+        <p className="font-extrabold text-[0.9375rem]">Waste dashboard</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Based on pantry items you marked as thrown away.</p>
       </Card>
       <div className="grid grid-cols-3 gap-2.5">
         <Stat label="This month" value={gbp(report.month.cost, { always: true })} detail={`${report.month.count} item${report.month.count === 1 ? '' : 's'}`} />
@@ -197,14 +197,14 @@ function WasteView({ report }) {
       {report.total.count ? (
         <>
           <Card>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Food waste analytics</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--faint)' }}>Food waste analytics</p>
             <Bars data={report.monthly.map((row) => ({ label: row.label, value: row.cost }))} color="var(--warn)" format={(value) => `£${Math.round(value)}`} />
           </Card>
           <Card>
-            <p className="font-bold text-[14px]">Most wasted</p>
+            <p className="font-bold text-[0.875rem]">Most wasted</p>
             <div className="mt-2 space-y-2">
               {report.top.slice(0, 5).map((row) => (
-                <div key={row.name} className="flex justify-between text-[12.5px] font-bold">
+                <div key={row.name} className="flex justify-between text-[0.78125rem] font-bold">
                   <span>{row.name} · {row.count}</span>
                   <span style={{ color: 'var(--muted)' }}>{gbp(row.cost, { always: true })}</span>
                 </div>
@@ -221,8 +221,8 @@ function HabitsView({ report }) {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px]">Shopping habits</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Patterns come from your completed shops and food diary.</p>
+        <p className="font-extrabold text-[0.9375rem]">Shopping habits</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Patterns come from your completed shops and food diary.</p>
       </Card>
       <div className="grid grid-cols-3 gap-2.5">
         <Stat label="Trips" value={report.trips} />
@@ -230,28 +230,28 @@ function HabitsView({ report }) {
         <Stat label="Usual day" value={report.favouriteDay?.name?.slice(0, 3) || '—'} />
       </div>
       <Card>
-        <p className="font-bold text-[14px]">Frequently bought</p>
+        <p className="font-bold text-[0.875rem]">Frequently bought</p>
         {report.products.length ? (
           <div className="mt-2 space-y-2">
             {report.products.slice(0, 8).map((row) => (
-              <div key={row.name} className="flex justify-between text-[12.5px] font-bold">
+              <div key={row.name} className="flex justify-between text-[0.78125rem] font-bold">
                 <span>{row.name}</span><Pill tone="muted">{row.times}×</Pill>
               </div>
             ))}
           </div>
-        ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>No bought products recorded yet.</p>}
+        ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>No bought products recorded yet.</p>}
       </Card>
       <Card>
-        <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Tag size={15} /> Favourite brands</p>
+        <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Tag size={15} /> Favourite brands</p>
         {report.brands.length ? (
           <div className="mt-2 space-y-2">
             {report.brands.slice(0, 8).map((row) => (
-              <div key={row.name} className="flex justify-between text-[12.5px] font-bold">
+              <div key={row.name} className="flex justify-between text-[0.78125rem] font-bold">
                 <span>{row.name}</span><span style={{ color: 'var(--muted)' }}>{row.times} logged</span>
               </div>
             ))}
           </div>
-        ) : <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>Brands appear when branded foods are logged.</p>}
+        ) : <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Brands appear when branded foods are logged.</p>}
       </Card>
     </>
   );
@@ -262,8 +262,8 @@ function ImpactView({ report }) {
   return (
     <>
       <Card>
-        <p className="font-extrabold text-[15px]">Carbon footprint</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-extrabold text-[0.9375rem]">Carbon footprint</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Estimated from logged food names and published category factors; it is not a product-level lifecycle assessment.
         </p>
       </Card>
@@ -273,11 +273,11 @@ function ImpactView({ report }) {
       </div>
       {categories.length ? (
         <Card>
-          <p className="font-bold text-[14px]">Food footprint by category</p>
+          <p className="font-bold text-[0.875rem]">Food footprint by category</p>
           <div className="mt-2 space-y-2.5">
             {categories.slice(0, 6).map((row) => (
               <div key={row.id}>
-                <div className="flex justify-between text-[12px] font-bold mb-1">
+                <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                   <span>{row.label}</span><span style={{ color: 'var(--muted)' }}>{row.co2} kg CO₂e</span>
                 </div>
                 <Meter value={row.co2} max={categories[0].co2 || 1} color="var(--good)" height={5} />
@@ -287,7 +287,7 @@ function ImpactView({ report }) {
         </Card>
       ) : <Empty>Log foods with recognisable ingredient names to estimate their footprint.</Empty>}
       <Card>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Shopping estimates assume 500g per recorded item because receipts do not contain reliable weights. The assumption is shown rather than hidden.
         </p>
       </Card>
@@ -305,8 +305,8 @@ function ReportsView({ month, year }) {
         <Chip active={period === 'year'} onClick={() => setPeriod('year')}>Year</Chip>
       </div>
       <Card>
-        <p className="font-extrabold text-[15px]">{period === 'month' ? 'Monthly report' : 'Yearly report'}</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{report.label} to date · recorded data only.</p>
+        <p className="font-extrabold text-[0.9375rem]">{period === 'month' ? 'Monthly report' : 'Yearly report'}</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{report.label} to date · recorded data only.</p>
       </Card>
       <div className="grid grid-cols-3 gap-2.5">
         <Stat label="Spend" value={gbp(report.spend, { always: true })} detail={`${report.trips} trips`} />
@@ -314,16 +314,16 @@ function ReportsView({ month, year }) {
         <Stat label="Waste" value={gbp(report.wasteCost, { always: true })} detail={`${report.wasteItems} items`} />
       </div>
       <Card>
-        <p className="font-bold text-[14px]">Nutrition</p>
-        <p className="mt-0.5 text-[22px] font-extrabold">{report.nutrition.kcal.toLocaleString()} kcal</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-bold text-[0.875rem]">Nutrition</p>
+        <p className="mt-0.5 text-[1.375rem] font-extrabold">{report.nutrition.kcal.toLocaleString()} kcal</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Daily average across {report.loggedDays} logged day{report.loggedDays === 1 ? '' : 's'} · {report.nutrition.protein}g protein · {report.nutrition.fibre}g fibre.
         </p>
       </Card>
       <Card>
-        <p className="font-bold text-[14px]">Footprint</p>
-        <p className="mt-0.5 text-[22px] font-extrabold">{report.carbon.co2} kg CO₂e</p>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-bold text-[0.875rem]">Footprint</p>
+        <p className="mt-0.5 text-[1.375rem] font-extrabold">{report.carbon.co2} kg CO₂e</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Estimate across {report.carbon.loggedDays} logged day{report.carbon.loggedDays === 1 ? '' : 's'} in this period.
         </p>
       </Card>

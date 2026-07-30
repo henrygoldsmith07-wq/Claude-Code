@@ -28,10 +28,10 @@ function BackendPanelContent({ backend }) {
         <div className="flex items-start gap-3">
           {synced ? <Cloud size={20} /> : <CloudOff size={20} />}
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-extrabold">
+            <p className="text-[0.8125rem] font-extrabold">
               {session?.user ? session.user.email || session.user.name : 'Local-only mode'}
             </p>
-            <p role="status" className="mt-1 text-[12px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            <p role="status" className="mt-1 text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
               {app.cloudStatus.message}
             </p>
           </div>
@@ -41,7 +41,7 @@ function BackendPanelContent({ backend }) {
           <div className="grid gap-2">
             {backend.providers?.google && (
               <button
-                className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold"
+                className="press rounded-2xl px-4 py-3 text-[0.8125rem] font-extrabold"
                 style={{ background: 'var(--ink)', color: 'var(--bg)' }}
                 onClick={() => signIn('google', { callbackUrl: '/' })}
               >
@@ -50,7 +50,7 @@ function BackendPanelContent({ backend }) {
             )}
             {backend.providers?.apple && (
               <button
-                className="press rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+                className="press rounded-2xl border px-4 py-3 text-[0.8125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
                 onClick={() => signIn('apple', { callbackUrl: '/' })}
               >
@@ -59,7 +59,7 @@ function BackendPanelContent({ backend }) {
             )}
             {backend.providers?.microsoft && (
               <button
-                className="press rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+                className="press rounded-2xl border px-4 py-3 text-[0.8125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
                 onClick={() => signIn('azure-ad', { callbackUrl: '/' })}
               >
@@ -72,7 +72,7 @@ function BackendPanelContent({ backend }) {
         {session?.user && (
           <>
             {households.length > 1 && (
-              <label className="grid gap-1 text-[12px] font-bold">
+              <label className="grid gap-1 text-[0.75rem] font-bold">
                 Household
                 <select
                   className="rounded-xl border bg-transparent px-3 py-2"
@@ -92,7 +92,7 @@ function BackendPanelContent({ backend }) {
               </label>
             )}
             <button
-              className="press rounded-2xl border px-4 py-3 text-[13px] font-extrabold"
+              className="press rounded-2xl border px-4 py-3 text-[0.8125rem] font-extrabold"
               style={{ borderColor: 'var(--line)' }}
               onClick={() => signOut({ callbackUrl: '/' })}
             >
@@ -102,7 +102,7 @@ function BackendPanelContent({ backend }) {
         )}
 
         {!backend?.enabled && backend && (
-          <p className="text-[11px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.6875rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
             The backend is not configured on this deployment. Your on-device data still works normally.
           </p>
         )}
@@ -123,7 +123,7 @@ function BackendPanelRuntime() {
     return (
       <Section title="Account & sync">
         <Card>
-          <p className="text-[12px] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
             {backend ? 'Backend credentials are not configured. Your on-device data still works normally.' : 'Checking backend…'}
           </p>
         </Card>

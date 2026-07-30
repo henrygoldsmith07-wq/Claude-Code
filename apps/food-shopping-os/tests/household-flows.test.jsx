@@ -73,7 +73,7 @@ describe('household controls', () => {
     const sheet = openHousehold();
     fireEvent.click(within(sheet).getByText('Sharing'));
     expect(within(sheet).getByText(/open tabs in this browser update live/i)).toBeTruthy();
-    expect(within(sheet).getByText(/Cross-device live sync needs an account and backend/i)).toBeTruthy();
+    expect(within(sheet).getByText(/Signed-in households receive cross-device changes/i)).toBeTruthy();
     expect(within(sheet).getByLabelText('Household share code').value).toMatch(/^FORQ-HOUSEHOLD-1\./);
   });
 

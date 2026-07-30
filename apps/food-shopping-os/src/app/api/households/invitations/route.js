@@ -4,6 +4,7 @@ import { ApiError, assertSameOrigin, handleApiError, rateLimit, requireUser } fr
 import { requireHousehold } from '../../../../server/households.js';
 import { getDatabase } from '../../../../server/mongodb.js';
 import { invitationSchema } from '../../../../server/schemas.js';
+import { writeAuditEvent } from '../../../../server/audit.js';
 
 const tokenHash = (token) => createHash('sha256').update(token).digest('hex');
 
@@ -16,7 +17,8 @@ export async function POST(request) {
     const { household, membership } = await requireHousehold(user, request.headers.get('x-forq-household-id'));
     if (!['owner', 'admin'].includes(membership.role)) throw new ApiError(403, 'Household admin access required.');
     const token = randomBytes(32).toString('base64url');
-    await (await getDatabase()).collection('invitations').insertOne({
+    const db = await getDatabase();
+    const inserted = await db.collection('invitations').insertOne({
       householdId: household._id,
       email: input.email.toLowerCase(),
       role: input.role,
@@ -26,6 +28,10 @@ export async function POST(request) {
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       acceptedAt: null,
+    });
+    await writeAuditEvent({
+      db, householdId: household._id, user, action: 'invitation.created',
+      resource: inserted.insertedId.toString(), fields: input.permissions,
     });
     return NextResponse.json({ token, expiresInHours: 168 }, { status: 201 });
   } catch (error) {
@@ -60,6 +66,10 @@ export async function PATCH(request) {
       { upsert: true },
     );
     await db.collection('invitations').updateOne({ _id: invite._id }, { $set: { acceptedAt: new Date(), acceptedBy: user.id } });
+    await writeAuditEvent({
+      db, householdId: invite.householdId, user, action: 'invitation.accepted',
+      resource: invite._id.toString(), fields: invite.permissions,
+    });
     return NextResponse.json({ householdId: invite.householdId.toString() });
   } catch (error) {
     return handleApiError(error);

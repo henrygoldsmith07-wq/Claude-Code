@@ -15,7 +15,13 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
   providers.push(GoogleProvider({
     clientId: process.env.AUTH_GOOGLE_ID,
     clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    authorization: { params: { scope: 'openid email profile https://www.googleapis.com/auth/calendar.events' } },
+    authorization: {
+      params: {
+        scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
   }));
 }
 

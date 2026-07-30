@@ -8,6 +8,7 @@ import { Glyph } from './icons.jsx';
 import { gbp, cx, prettyDate } from '../lib/utils.js';
 import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { groupForStore } from '../lib/shopping.js';
+import { haptic } from '../lib/haptics.js';
 import ReceiptScan from './ReceiptScan.jsx';
 import {
   Section, Card, Empty, Meter, Chip, GestureMenu, Pill, Sheet,
@@ -20,105 +21,7 @@ import BarcodeAdd from './BarcodeAdd.jsx';
 import BudgetPanel from './BudgetPanel.jsx';
 import StoreIntegrations from './StoreIntegrations.jsx';
 
-/* ---------- One line of the list ---------- */
-
-function ListRow({ item, onAisle, dragging, setDragging }) {
-  const app = useApp();
-  const [moving, setMoving] = useState(false);
-  return (
-    <GestureMenu
-      label={item.name}
-      actions={[
-        { label: item.checked ? 'Mark not bought' : 'Mark bought', onClick: () => app.toggleChecked(item.id) },
-        { label: item.priority === 'high' ? 'Normal priority' : 'High priority', onClick: () => app.updateListItem(item.id, { priority: item.priority === 'high' ? 'normal' : 'high' }) },
-        { label: 'Move to another aisle', onClick: () => setMoving(true) },
-        { label: 'Remove', tone: 'danger', onClick: () => app.removeListItem(item.id) },
-      ]}
-      onSwipeLeft={() => app.removeListItem(item.id)}
-      onSwipeRight={() => app.toggleChecked(item.id)}
-      draggable
-      onDragStart={() => setDragging(item.id)}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={() => {
-        if (dragging) app.moveListItem(dragging, item.id);
-        setDragging(null);
-      }}
-    >
-      <div className="p-3" style={{ borderColor: 'var(--line)' }}>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => app.toggleChecked(item.id)}
-          aria-label={`Tick ${item.name}`}
-          className="press flex h-6 w-6 items-center justify-center rounded-full border-2 shrink-0"
-          style={item.checked
-            ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--on-accent)' }
-            : { borderColor: 'var(--line)', color: 'transparent' }}
-        >
-          {item.checked && <Check className="check-in" size={13} strokeWidth={3} />}
-        </button>
-        <button onClick={() => setMoving((v) => !v)} aria-label={`Move ${item.name} to another aisle`} className="press shrink-0">
-          <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className={cx('font-bold text-[14px] truncate', item.checked && 'line-through opacity-45')}>
-            {item.name}
-            {item.qty && <span className="font-semibold text-[12px]" style={{ color: 'var(--muted)' }}> · {item.qty}</span>}
-          </p>
-          {item.priority === 'high' && <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--warn)' }}>Need it</p>}
-          {item.note && <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>{item.note}</p>}
-          {item.fromRecipe && (
-            <p className="text-[11.5px] font-semibold truncate" style={{ color: 'var(--muted)' }}>for {item.fromRecipe}</p>
-          )}
-          {app.members.length > 0 && (
-            <select
-              value={item.assigneeId || ''}
-              onChange={(event) => app.assignListItem(item.id, event.target.value)}
-              aria-label={`Assign ${item.name}`}
-              className="mt-1 rounded-lg border px-2 py-1 text-[11px] font-bold"
-              style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--muted)' }}
-            >
-              <option value="">Anyone</option>
-              {app.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-            </select>
-          )}
-        </div>
-        <input
-          type="number"
-          min="0"
-          step="0.25"
-          value={item.price || ''}
-          onChange={(e) => app.updateListItem(item.id, { price: Number(e.target.value) || 0 })}
-          placeholder="£"
-          aria-label={`Price of ${item.name}`}
-          className="w-16 shrink-0 rounded-xl border px-2 py-1.5 text-[13px] font-bold text-right outline-none"
-          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-        />
-        <button
-          onClick={() => app.removeListItem(item.id)}
-          aria-label={`Remove ${item.name}`}
-          className="press p-1 shrink-0"
-          style={{ color: 'var(--faint)' }}
-        >
-          <Trash2 size={15} />
-        </button>
-      </div>
-      {moving && (
-        <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
-          {AISLE_ORDER.map((aisle) => (
-            <Chip
-              key={aisle}
-              active={item.aisle === aisle}
-              onClick={() => { onAisle(item.id, aisle); setMoving(false); }}
-            >
-              {aisle}
-            </Chip>
-          ))}
-        </div>
-      )}
-      </div>
-    </GestureMenu>
-  );
-}
+import ShoppingListRow from './ShoppingListRow.jsx';
 
 /* ---------- Tab ---------- */
 
@@ -207,28 +110,28 @@ export default function ShopTab({ quickAddKey = 0 }) {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                  <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
                     {shoppingMode ? 'Running total' : 'Estimated basket'}
                   </p>
-                  <p className="text-[24px] font-extrabold">
+                  <p className="text-[1.5rem] font-extrabold">
                     {/* Keyed on the value, so a changed total animates in
                         instead of silently swapping under your eyes. */}
                     <span key={shoppingMode ? checkedTotal : basket.projected} className="count-up inline-block">
                       {gbp(shoppingMode ? checkedTotal : basket.projected, { always: true })}
                     </span>
                     {shoppingMode && (
-                      <span className="text-[13px] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
+                      <span className="text-[0.8125rem] font-semibold ml-1.5" style={{ color: 'var(--muted)' }}>
                         of {gbp(basket.projected, { always: true })}
                       </span>
                     )}
                   </p>
                   {basket.saved > 0 && (
-                    <p className="text-[12px] font-bold" style={{ color: 'var(--good)' }}>
+                    <p className="text-[0.75rem] font-bold" style={{ color: 'var(--good)' }}>
                       {gbp(basket.total, { always: true })} less {gbp(basket.saved, { always: true })} of your offers
                     </p>
                   )}
                   {basket.unpriced > 0 && (
-                    <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                       {basket.unpriced} item{basket.unpriced === 1 ? '' : 's'} with no price yet — the total is only what you’ve typed in.
                     </p>
                   )}
@@ -238,7 +141,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
                 {shoppingMode && (
                   <button
                     onClick={() => setShoppingMode(false)}
-                    className="press rounded-2xl px-4 py-3 text-[13px] font-extrabold shrink-0"
+                    className="press rounded-2xl px-4 py-3 text-[0.8125rem] font-extrabold shrink-0"
                     style={{ background: 'var(--card-2)', color: 'var(--ink)' }}
                   >
                     <span className="inline-flex items-center gap-1.5"><X size={14} /> Exit mode</span>
@@ -253,7 +156,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
                     max={app.weeklyBudget}
                     color={basket.over ? 'var(--warn)' : 'var(--accent)'}
                   />
-                  <div className="mt-1.5 flex items-center justify-between text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <div className="mt-1.5 flex items-center justify-between text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     <span>{gbp(basket.spent, { always: true })} spent this week</span>
                     <span className="inline-flex items-center gap-1" style={basket.over ? { color: 'var(--warn)', fontWeight: 700 } : {}}>
                       {basket.over && <TriangleAlert size={12} />}
@@ -264,7 +167,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   Set a weekly budget in your profile to see headroom here.
                 </p>
               )}
@@ -272,7 +175,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
               {ticked > 0 && (
                 <button
                   onClick={() => setSheet('finish')}
-                  className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+                  className="press mt-3 w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
                   style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -287,7 +190,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
           {(stores.length > 0 || list.length > 0) && (
             <Section className="rise rise-1">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-[12px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
+                <p className="text-[0.75rem] font-bold uppercase tracking-wide inline-flex items-center gap-1.5" style={{ color: 'var(--faint)' }}>
                   <MapPin size={12} /> Shopping at
                 </p>
                 {known && <Pill tone="good">your route, learned</Pill>}
@@ -299,7 +202,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
                 ))}
               </div>
               {store && (
-                <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {known
                     ? `Aisles in the order you walked ${store} last time: ${known.join(' → ')}. Everything else follows the usual order.`
                     : `No route for ${store} yet — tick items off in the order you find them and it'll remember.`}
@@ -312,7 +215,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
             <div className="grid grid-cols-4 gap-2.5 mb-3">
               <button
                 onClick={() => setAdding((v) => !v)}
-                className="press col-span-2 rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                className="press col-span-2 rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold"
                 style={adding ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
               >
                 <span className="inline-flex items-center gap-1.5">
@@ -321,21 +224,21 @@ export default function ShopTab({ quickAddKey = 0 }) {
               </button>
               <button
                 onClick={() => setSheet('scan')}
-                className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><ScanLine size={14} /> Scan</span>
               </button>
               <button
                 onClick={() => setSheet('offers')}
-                className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold"
                 style={{ borderColor: app.offers.length ? 'var(--accent)' : 'var(--line)', color: app.offers.length ? 'var(--accent)' : 'var(--ink)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Tag size={14} /> Offers{app.offers.length ? ` (${app.offers.length})` : ''}</span>
               </button>
               <button
                 onClick={voiceAdd}
-                className="press rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                className="press rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Mic size={14} /> Voice</span>
@@ -344,21 +247,21 @@ export default function ShopTab({ quickAddKey = 0 }) {
                   behind a list that has to be full first. */}
               <button
                 onClick={() => setSheet('receipt')}
-                className="press col-span-2 rounded-2xl border py-2.5 text-[12.5px] font-extrabold"
+                className="press col-span-2 rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Receipt size={14} /> Read a receipt</span>
               </button>
             </div>
             {adding && <AddItem onAdd={(item) => app.addToList(item)} />}
-            {voiceStatus && <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{voiceStatus}</p>}
+            {voiceStatus && <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{voiceStatus}</p>}
           </Section>
 
           {app.shops.length > 0 && (
             <Section className="rise rise-2">
               <button
                 onClick={() => app.repeatLastShop()}
-                className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+                className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><RotateCcw size={14} /> Repeat your last shop</span>
@@ -386,7 +289,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
               <Card className="text-center py-10">
                 <ShoppingCart size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
                 <p className="font-bold">Nothing on the list yet</p>
-                <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   Add items here, scan a barcode, send a week's meals over from the planner,
                   or flag something as running low in your pantry.
                 </p>
@@ -399,12 +302,12 @@ export default function ShopTab({ quickAddKey = 0 }) {
                   const allDone = items.every((i) => i.checked);
                   return (
                     <div key={aisle}>
-                      <p className="mb-2 text-[12px] font-bold uppercase tracking-wide flex items-center gap-2" style={{ color: allDone ? 'var(--good)' : 'var(--faint)' }}>
+                      <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-wide flex items-center gap-2" style={{ color: allDone ? 'var(--good)' : 'var(--faint)' }}>
                         {aisle} {allDone && '✓'}
                       </p>
                       <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
                         {items.map((item) => (
-                          <ListRow
+                          <ShoppingListRow
                             key={item.id}
                             item={item}
                             onAisle={app.setItemAisle}
@@ -419,7 +322,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
               </div>
               <button
                 onClick={() => setSheet('export')}
-                className="press mt-3 w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+                className="press mt-3 w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
                 style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Copy size={14} /> Copy the list as text</span>
@@ -436,7 +339,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
             <Card className="text-center py-10">
               <Receipt size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
               <p className="font-bold">No shops recorded</p>
-              <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Tick items off as you shop, then hit “Finish shop”. Spending, budget streaks,
                 price comparison and your route round each shop all come from these.
               </p>
@@ -446,12 +349,12 @@ export default function ShopTab({ quickAddKey = 0 }) {
               {[...app.shops].reverse().map((s) => (
                 <Card key={s.id} className="flex items-center justify-between !p-3.5">
                   <div className="min-w-0">
-                    <p className="font-bold text-[14.5px] truncate">{s.store}</p>
-                    <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <p className="font-bold text-[0.90625rem] truncate">{s.store}</p>
+                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                       {prettyDate(s.date)} · {s.items.length} item{s.items.length === 1 ? '' : 's'}
                     </p>
                   </div>
-                  <p className="font-extrabold text-[16px] shrink-0">{gbp(s.total, { always: true })}</p>
+                  <p className="font-extrabold text-[1rem] shrink-0">{gbp(s.total, { always: true })}</p>
                 </Card>
               ))}
             </div>
@@ -479,7 +382,7 @@ export default function ShopTab({ quickAddKey = 0 }) {
       </Sheet>
       <Sheet open={sheet === 'export'} onClose={() => setSheet(null)} title="Your list as text">
         <div className="px-5 pb-10 space-y-3">
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Forq doesn’t connect to any supermarket. This is your list as plain text, in the
             aisle order you’d walk — paste it into whichever shop’s app or site you use.
           </p>
@@ -488,12 +391,12 @@ export default function ShopTab({ quickAddKey = 0 }) {
             value={asText()}
             rows={12}
             aria-label="List as text"
-            className="w-full rounded-2xl border p-3 text-[12.5px] font-semibold outline-none"
+            className="w-full rounded-2xl border p-3 text-[0.78125rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
           <button
             onClick={() => navigator.clipboard?.writeText(asText())}
-            className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+            className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             <span className="inline-flex items-center gap-1.5"><Copy size={15} /> Copy</span>

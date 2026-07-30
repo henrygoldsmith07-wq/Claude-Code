@@ -31,9 +31,20 @@ const logFood = (name) => {
 
 const openCard = (name) => {
   openProfile();
-  const section = screen.getByText('Reports & you').closest('section');
+  const section = screen.getByText('Guidance & you').closest('section');
   fireEvent.click(within(section).getByText(name));
   return dialogFor(name);
+};
+
+const openReports = async () => {
+  openProfile();
+  const section = screen.getByText('Guidance & you').closest('section');
+  fireEvent.click(within(section).getByText('Guidance'));
+  const guidance = dialogFor('Guidance');
+  fireEvent.click(within(guidance).getByText('Review'));
+  fireEvent.click(within(guidance).getByText('Reports & export'));
+  await within(guidance).findByText('Week');
+  return guidance;
 };
 
 const openPrefs = (tab) => {
@@ -127,14 +138,14 @@ describe('units', () => {
     expect(within(sheet).getByText(/Only the display changes/)).toBeTruthy();
   });
 
-  it('carries the choice through to a report', () => {
+  it('carries the choice through to a report', async () => {
     onboard();
     logFood('Banana');
     const prefs = openPrefs('Units');
     const energy = within(prefs).getByText('Energy').closest('.card');
     fireEvent.click(within(energy).getByText('Kilojoules'));
     fireEvent.click(within(prefs).getByLabelText('Close'));
-    const reports = openCard('Reports');
+    const reports = await openReports();
     // The week's headline figure, in the unit you chose.
     expect(within(reports).getByText(/^[\d,]+ kJ$/)).toBeTruthy();
     expect(within(reports).queryByText(/^[\d,]+ kcal$/)).toBeNull();
@@ -180,30 +191,30 @@ describe('reports', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('reports an empty diary as empty rather than as zeroes', () => {
+  it('reports an empty diary as empty rather than as zeroes', async () => {
     onboard();
-    const sheet = openCard('Reports');
+    const sheet = await openReports();
     expect(within(sheet).getByText(/No days logged in this window/)).toBeTruthy();
   });
 
-  it('leads with how many days it saw once there is something', () => {
+  it('leads with how many days it saw once there is something', async () => {
     onboard();
     logFood('Banana');
-    const sheet = openCard('Reports');
+    const sheet = await openReports();
     expect(within(sheet).getByText(/1 of 7 days logged/)).toBeTruthy();
     expect(within(sheet).getByText(/a blank day is a day\s+you didn’t record/)).toBeTruthy();
   });
 
-  it('will not call anything a deficiency off a couple of days', () => {
+  it('will not call anything a deficiency off a couple of days', async () => {
     onboard();
-    const sheet = openCard('Reports');
+    const sheet = await openReports();
     fireEvent.click(within(sheet).getByText('Patterns'));
     expect(within(sheet).getByText(/7 logged days make this worth reading — you have 0/)).toBeTruthy();
   });
 
-  it('offers CSV, and is straight about where the PDF comes from', () => {
+  it('offers CSV, and is straight about where the PDF comes from', async () => {
     onboard();
-    const sheet = openCard('Reports');
+    const sheet = await openReports();
     expect(within(sheet).getByText('Days CSV')).toBeTruthy();
     expect(within(sheet).getByText('Every food CSV')).toBeTruthy();
     expect(within(sheet).getByText(/The PDF is your browser’s own/)).toBeTruthy();

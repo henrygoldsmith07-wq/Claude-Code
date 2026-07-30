@@ -58,7 +58,7 @@ export default function LabelScan({ onDone }) {
         style={{ background: 'var(--card-2)', borderColor: 'var(--line)' }}
       >
         <div className="absolute inset-x-8 inset-y-6 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--line)' }} />
-        <p className="relative px-6 text-center text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>
+        <p className="relative px-6 text-center text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>
           <Camera size={16} className="mx-auto mb-1" />
           Line the panel up and copy it in below — this build reads text, not pixels.
         </p>
@@ -70,12 +70,12 @@ export default function LabelScan({ onDone }) {
         rows={8}
         placeholder={'Energy 250kcal\nFat 12g\nof which saturates 5.1g\nProtein 8.5g\nSalt 1.2g'}
         aria-label="Nutrition panel"
-        className="w-full rounded-2xl border px-4 py-3 text-[13.5px] font-semibold outline-none resize-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.84375rem] font-semibold outline-none resize-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <button
         onClick={() => setText(SAMPLE)}
-        className="press inline-flex items-center gap-1.5 text-[12.5px] font-bold"
+        className="press inline-flex items-center gap-1.5 text-[0.78125rem] font-bold"
         style={{ color: 'var(--accent)' }}
       >
         <ScanText size={13} /> Use an example panel
@@ -83,13 +83,13 @@ export default function LabelScan({ onDone }) {
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Name</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="What is it?"
             aria-label="Food name"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
@@ -99,7 +99,7 @@ export default function LabelScan({ onDone }) {
       {text.trim().length > 5 && (
         <Card className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>What it read</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>What it read</p>
             {read.basis && (
               <Pill tone={read.basis.stated ? 'good' : 'warn'}>
                 {read.basis.stated ? `per ${read.basis.grams} ${read.basis.unit}` : 'basis not stated — assuming 100 g'}
@@ -107,13 +107,13 @@ export default function LabelScan({ onDone }) {
             )}
           </div>
           {read.found.length === 0 ? (
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Nothing recognisable yet. Panels read like “Protein 8.5g” — one nutrient a line.
             </p>
           ) : (
             <ul className="space-y-1">
               {read.found.map((key) => (
-                <li key={key} className="flex justify-between text-[13px]">
+                <li key={key} className="flex justify-between text-[0.8125rem]">
                   <span className="font-semibold">{nutrientBy[key]?.label || key}</span>
                   <span className="font-bold" style={{ color: 'var(--muted)' }}>
                     {read.draft[key]} {nutrientBy[key]?.unit} per serving
@@ -123,7 +123,7 @@ export default function LabelScan({ onDone }) {
             </ul>
           )}
           {read.missing.length > 0 && (
-            <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
               <Info size={13} className="mt-0.5 shrink-0" />
               Couldn’t find {read.missing.map((k) => nutrientBy[k]?.label.toLowerCase() || k).join(', ')} — those stay blank rather than being guessed.
             </p>
@@ -136,7 +136,7 @@ export default function LabelScan({ onDone }) {
       <button
         onClick={save}
         disabled={!read.ok || name.trim().length < 2 || saved}
-        className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-2">
@@ -144,7 +144,7 @@ export default function LabelScan({ onDone }) {
         </span>
       </button>
       {!read.ok && text.trim().length > 5 && (
-        <p className="text-[12px] font-semibold text-center" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold text-center" style={{ color: 'var(--muted)' }}>
           A calorie figure is the one thing it can’t do without.
         </p>
       )}

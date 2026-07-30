@@ -2,10 +2,9 @@
  * Capture layer for the food diary: search, barcode lookup, voice parsing,
  * photo recognition and recipe import.
  *
- * The app is offline-first with no backend, so the "AI" surfaces (photo,
- * barcode camera) resolve against the bundled catalogue deterministically —
- * same input, same result — while the text-driven ones (voice, recipe paste)
- * do real parsing on whatever the user actually typed or said.
+ * These local capture surfaces do not call the backend or OpenAI relay. Photo
+ * and barcode demos resolve against the bundled catalogue deterministically;
+ * voice and recipe paste parse what the user actually supplied.
  */
 
 import { CATALOGUE, FOODS } from '../data/foods.js';
@@ -346,8 +345,8 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
 };
 
 /**
- * Validate a source URL. The offline app cannot reliably fetch cross-origin
- * recipe pages, so the caller must pair this metadata with copied recipe text.
+ * Validate a source URL. This local importer cannot reliably fetch
+ * cross-origin recipe pages, so the caller pairs it with copied recipe text.
  */
 export const importRecipeUrl = (url) => {
   const clean = String(url).trim();

@@ -12,7 +12,7 @@ const PrimaryButton = ({ children, onClick, disabled }) => (
   <button
     onClick={onClick}
     disabled={disabled}
-    className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold disabled:opacity-40"
+    className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold disabled:opacity-40"
     style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
   >
     {children}
@@ -67,7 +67,7 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
         )}
         <div className="relative text-center px-8">
           <ScanBarcode size={34} strokeWidth={1.4} style={{ color: 'var(--muted)' }} />
-          <p className="mt-2 text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-2 text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>
             {phase === 'scanning' ? 'Reading barcode…' : 'Hold the barcode inside the frame'}
           </p>
         </div>
@@ -90,21 +90,21 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
         aria-label="Barcode image"
       />
       {!support.barcode && (
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           This browser has no native barcode detector. Type the number or choose a catalogue example below.
         </p>
       )}
-      {message && <p role="status" className="text-[12px] font-semibold">{message}</p>}
+      {message && <p role="status" className="text-[0.75rem] font-semibold">{message}</p>}
 
       <label className="block">
-        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Or type the number</span>
+        <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Or type the number</span>
         <input
           value={code}
           onChange={(e) => lookup(e.target.value.replace(/\D/g, ''))}
           inputMode="numeric"
           placeholder="5000108000015"
           aria-label="Barcode number"
-          className="mt-1 w-full rounded-2xl border px-4 py-3 text-[15px] font-bold tabular-nums outline-none"
+          className="mt-1 w-full rounded-2xl border px-4 py-3 text-[0.9375rem] font-bold tabular-nums outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
       </label>
@@ -114,8 +114,8 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
           <div className="flex items-center gap-3">
             <Glyph e={food.emoji} size={22} style={{ color: 'var(--muted)' }} />
             <div className="min-w-0 flex-1">
-              <p className="font-extrabold text-[15px] truncate">{food.name}</p>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="font-extrabold text-[0.9375rem] truncate">{food.name}</p>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {food.brand} · {food.per100.kcal} kcal / 100 {food.unit}
               </p>
             </div>
@@ -129,13 +129,13 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
 
       {phase === 'unknown' && (
         <Card className="rise">
-          <p className="font-extrabold text-[15px]">No product for {code}</p>
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="font-extrabold text-[0.9375rem]">No product for {code}</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Add it once as a custom food and the barcode search will find it next time.
           </p>
           <button
             onClick={onCreateCustom}
-            className="press mt-3 w-full rounded-2xl border py-3 text-[13.5px] font-extrabold"
+            className="press mt-3 w-full rounded-2xl border py-3 text-[0.84375rem] font-extrabold"
             style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
           >
             Create a custom food
@@ -144,7 +144,7 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
       )}
 
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
           Barcodes in this demo catalogue
         </p>
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
@@ -153,7 +153,7 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
           ))}
         </div>
       </div>
-      <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+      <p className="text-[0.71875rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
         Logging to {defaultMeal}
       </p>
     </div>
@@ -168,8 +168,8 @@ const ItemRow = ({ item, onGrams, onRemove }) => {
     <div className="flex items-center gap-3 p-3" style={{ borderColor: 'var(--line)' }}>
       <Glyph e={item.food.emoji} size={20} style={{ color: 'var(--muted)' }} />
       <div className="min-w-0 flex-1">
-        <p className="font-bold text-[14px] truncate">{item.food.name}</p>
-        <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="font-bold text-[0.875rem] truncate">{item.food.name}</p>
+        <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {macros.kcal} kcal · {macros.protein}g protein
           {item.confidence ? ` · ${item.confidence}% sure` : ''}
         </p>
@@ -182,10 +182,10 @@ const ItemRow = ({ item, onGrams, onRemove }) => {
           value={item.grams}
           onChange={(e) => onGrams(Math.max(0, Number(e.target.value) || 0))}
           aria-label={`Grams of ${item.food.name}`}
-          className="w-16 rounded-xl border px-2 py-1.5 text-[13px] font-bold outline-none"
+          className="w-16 rounded-xl border px-2 py-1.5 text-[0.8125rem] font-bold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
-        <span className="text-[11px] font-bold" style={{ color: 'var(--faint)' }}>{item.food.unit}</span>
+        <span className="text-[0.6875rem] font-bold" style={{ color: 'var(--faint)' }}>{item.food.unit}</span>
         <button onClick={onRemove} aria-label="Remove" className="press p-1" style={{ color: 'var(--faint)' }}>
           <Trash2 size={15} />
         </button>
@@ -244,11 +244,11 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
           ? <img src={preview} alt="Your meal" className="h-full w-full object-cover" />
           : <div className="text-center px-8">
               <Camera size={34} strokeWidth={1.4} style={{ color: 'var(--muted)' }} />
-              <p className="mt-2 text-[12.5px] font-bold" style={{ color: 'var(--muted)' }}>Snap the plate before you eat it</p>
+              <p className="mt-2 text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>Snap the plate before you eat it</p>
             </div>}
         {busy && (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--bg) 70%, transparent)' }}>
-            <p className="inline-flex items-center gap-2 text-[13px] font-extrabold">
+            <p className="inline-flex items-center gap-2 text-[0.8125rem] font-extrabold">
               <Sparkles size={15} className="pulse-dot" /> Preparing sample suggestions…
             </p>
           </div>
@@ -259,20 +259,20 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
       <div className="grid grid-cols-2 gap-2.5">
         <button
           onClick={() => fileRef.current?.click()}
-          className="press rounded-2xl py-3 text-[14px] font-extrabold"
+          className="press rounded-2xl py-3 text-[0.875rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Image size={15} /> Choose photo</span>
         </button>
         <button
           onClick={() => analyse(`sample-${Date.now() % 8}`, null)}
-          className="press rounded-2xl border py-3 text-[14px] font-extrabold"
+          className="press rounded-2xl border py-3 text-[0.875rem] font-extrabold"
           style={{ borderColor: 'var(--line)' }}
         >
           Try a sample plate
         </button>
       </div>
-      {message && <p role="status" className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
+      {message && <p role="status" className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
 
       {/* The shape of the answer, while the answer is being worked out — so
           the page doesn't jump the moment it lands. */}
@@ -293,7 +293,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
       {items.length > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
               Detected · adjust anything
             </p>
             <Pill tone="accent">{total} kcal</Pill>
@@ -312,7 +312,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
           <PrimaryButton onClick={log}>Log {items.length} items · {total} kcal</PrimaryButton>
         </>
       )}
-      <p className="text-[11.5px] font-semibold text-center" style={{ color: 'var(--faint)' }}>
+      <p className="text-[0.71875rem] font-semibold text-center" style={{ color: 'var(--faint)' }}>
         Catalogue demo only: this build does not inspect the image pixels or ship a vision model.
       </p>
     </div>
@@ -384,10 +384,10 @@ export function VoiceLog({ defaultMeal, onDone }) {
         >
           {listening ? <MicOff size={28} /> : <Mic size={28} className={listening ? 'pulse-dot' : ''} />}
         </button>
-        <p className="mt-3 text-[13px] font-bold">
+        <p className="mt-3 text-[0.8125rem] font-bold">
           {listening ? 'Listening — say what you ate' : SpeechRecognition ? 'Tap and talk' : 'Voice input unavailable — type it instead'}
         </p>
-        <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           “two slices of wholemeal bread, 200g greek yogurt and a banana for breakfast”
         </p>
       </Card>
@@ -398,7 +398,7 @@ export function VoiceLog({ defaultMeal, onDone }) {
         rows={3}
         placeholder="…or type it here"
         aria-label="What you ate"
-        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none resize-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none resize-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
 
@@ -425,13 +425,13 @@ export function VoiceLog({ defaultMeal, onDone }) {
               ) : (
                 <div key={`${item.query}-${i}`} className="flex items-center gap-3 p-3">
                   <X size={16} style={{ color: 'var(--faint)' }} />
-                  <p className="flex-1 text-[13.5px] font-semibold" style={{ color: 'var(--muted)' }}>“{item.text}”</p>
+                  <p className="flex-1 text-[0.84375rem] font-semibold" style={{ color: 'var(--muted)' }}>“{item.text}”</p>
                   <Pill tone="warn">No match</Pill>
                 </div>
               )
             ))}
             {parsed.items.length === 0 && (
-              <p className="p-6 text-center text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="p-6 text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Nothing recognisable in there yet.
               </p>
             )}

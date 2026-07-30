@@ -34,18 +34,18 @@ export function AddItem({ onAdd }) {
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         placeholder="Add to the list…"
         aria-label="Item name"
-        className="w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <div className="grid grid-cols-2 gap-2.5">
         <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
+          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
           <input
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             placeholder="2, 500 g…"
             aria-label="Amount"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
             style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
           />
         </label>
@@ -56,7 +56,7 @@ export function AddItem({ onAdd }) {
         onChange={(e) => setNote(e.target.value)}
         placeholder="Note, e.g. semi-skimmed"
         aria-label="Item note"
-        className="w-full rounded-2xl border px-3 py-2.5 text-[14px] font-semibold outline-none"
+        className="w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <div className="flex gap-2">
@@ -66,7 +66,7 @@ export function AddItem({ onAdd }) {
       <button
         onClick={submit}
         disabled={name.trim().length < 2}
-        className="press w-full rounded-2xl py-2.5 text-[13.5px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-2.5 text-[0.84375rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-1.5"><Plus size={15} /> Add item</span>
@@ -87,21 +87,21 @@ export function FinishShop({ items, store: initial, onDone }) {
   return (
     <div className="px-5 pb-10 space-y-4">
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ticked off</p>
-        <p className="text-[26px] font-extrabold">{items.filter((i) => i.checked).length} items</p>
-        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Ticked off</p>
+        <p className="text-[1.625rem] font-extrabold">{items.filter((i) => i.checked).length} items</p>
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Estimated {gbp(suggested, { always: true })} — put in what you actually paid.
         </p>
       </Card>
 
       <label className="block">
-        <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where</span>
+        <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where</span>
         <input
           value={store}
           onChange={(e) => setStore(e.target.value)}
           placeholder="Shop name"
           aria-label="Shop name"
-          className="mt-1 w-full rounded-2xl border px-4 py-3 text-[14px] font-semibold outline-none"
+          className="mt-1 w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
       </label>
@@ -127,8 +127,8 @@ export function FinishShop({ items, store: initial, onDone }) {
           <Check size={13} strokeWidth={3} />
         </span>
         <span>
-          <span className="block font-bold text-[14px]">Put these in the pantry</span>
-          <span className="block text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <span className="block font-bold text-[0.875rem]">Put these in the pantry</span>
+          <span className="block text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             You can add use-by dates afterwards.
           </span>
         </span>
@@ -136,12 +136,12 @@ export function FinishShop({ items, store: initial, onDone }) {
 
       <button
         onClick={() => { app.recordShop({ store, total, toPantry }); onDone(); }}
-        className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
+        className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         <span className="inline-flex items-center gap-2"><Receipt size={16} /> Record this shop</span>
       </button>
-      <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
         The order you ticked things off becomes this shop’s aisle order next time.
       </p>
     </div>

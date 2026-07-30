@@ -7,6 +7,7 @@ import { prettyDate } from '../lib/utils.js';
 import {
   CAPABILITIES, REGISTER_INTRO, STATUS_LABELS,
 } from '../data/capabilities.js';
+import { PRIVACY_COPY } from '../data/privacy.js';
 import { FOOTPRINT_CAVEAT, FOOTPRINT_SOURCE, UK_DAILY_AVERAGE_CO2 } from '../data/sustainability.js';
 import { BLOOD_CAVEAT, BLOOD_MARKERS, bloodCategory } from '../data/health.js';
 import { equivalents } from '../lib/footprint.js';
@@ -36,7 +37,7 @@ function PlanetView() {
   if (!report.loggedDays) {
     return (
       <Card className="text-center py-8">
-        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Nothing logged this week, so there is no footprint to compute. This reads the grams in
           your diary — it doesn’t estimate a diet for you.
         </p>
@@ -47,23 +48,23 @@ function PlanetView() {
   return (
     <>
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Your food, this week</p>
-        <p className="mt-0.5 text-[24px] font-extrabold">
-          {report.perDay} <span className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>kg CO₂e a day</span>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Your food, this week</p>
+        <p className="mt-0.5 text-[1.5rem] font-extrabold">
+          {report.perDay} <span className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>kg CO₂e a day</span>
         </p>
         <div className="mt-1 flex items-center gap-2">
           <Pill tone={report.tone}>{report.band}</Pill>
-          <span className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <span className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {report.vsAverage}% of the UK average ({UK_DAILY_AVERAGE_CO2} kg)
           </span>
         </div>
-        <p className="mt-1.5 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1.5 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Over {report.loggedDays} logged day{report.loggedDays === 1 ? '' : 's'}, from{' '}
           <strong>{report.coverage}% of what you logged</strong> — {report.unmatched} item
           {report.unmatched === 1 ? '' : 's'} the table couldn’t place {report.unmatched === 1 ? 'is' : 'are'} left out
           rather than counted as nothing.
         </p>
-        <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
           Water: {report.water.toLocaleString()} litres. Roughly{' '}
           {equivalents(report.co2).map((e) => `${e.amount.toLocaleString()} ${e.label}`).join(', ')}.
         </p>
@@ -71,10 +72,10 @@ function PlanetView() {
 
       {report.byCategory.length > 0 && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>What’s driving it</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>What’s driving it</p>
           {report.byCategory.slice(0, 6).map((row) => (
             <div key={row.id} className="mb-2">
-              <div className="flex justify-between text-[12px] font-bold mb-1">
+              <div className="flex justify-between text-[0.75rem] font-bold mb-1">
                 <span>{row.label}</span>
                 <span style={{ color: 'var(--muted)' }}>{row.co2} kg · {(row.grams / 1000).toFixed(1)} kg food</span>
               </div>
@@ -86,9 +87,9 @@ function PlanetView() {
 
       {swaps.length > 0 && (
         <Card>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>What would move it</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>What would move it</p>
           {swaps.map((swap) => (
-            <p key={swap.line} className="text-[13px] font-semibold mb-1">
+            <p key={swap.line} className="text-[0.8125rem] font-semibold mb-1">
               {swap.line} — <strong>{swap.saved} kg</strong> off the week
               <span style={{ color: 'var(--faint)' }}> ({swap.share}% of your total comes from it)</span>
             </p>
@@ -97,10 +98,10 @@ function PlanetView() {
       )}
 
       <Card className="!p-3">
-        <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+        <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
           <Info size={13} className="mt-0.5 shrink-0" /> {FOOTPRINT_CAVEAT}
         </p>
-        <p className="mt-1.5 text-[11.5px] font-semibold" style={{ color: 'var(--faint)' }}>Source: {FOOTPRINT_SOURCE}</p>
+        <p className="mt-1.5 text-[0.71875rem] font-semibold" style={{ color: 'var(--faint)' }}>Source: {FOOTPRINT_SOURCE}</p>
       </Card>
     </>
   );
@@ -129,14 +130,14 @@ function MicrosView() {
   if (!result.ready) {
     return (
       <Card className="text-center py-8">
-        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{result.reason}</p>
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{result.reason}</p>
       </Card>
     );
   }
   if (!result.picks.length) {
     return (
       <Card className="text-center py-8">
-        <p className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>{result.reason}</p>
+        <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{result.reason}</p>
       </Card>
     );
   }
@@ -144,10 +145,10 @@ function MicrosView() {
   return (
     <>
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Running short on</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Running short on</p>
         {result.gaps.slice(0, 6).map((gap) => (
           <div key={gap.key} className="mb-2">
-            <div className="flex justify-between text-[12px] font-bold mb-1">
+            <div className="flex justify-between text-[0.75rem] font-bold mb-1">
               <span>{gap.label}</span>
               <span style={{ color: 'var(--warn)' }}>{gap.pct}% of {gap.need}{gap.unit}</span>
             </div>
@@ -157,28 +158,28 @@ function MicrosView() {
       </Card>
 
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
           What would close the most of it
         </p>
         {result.picks.map((pick) => (
           <div key={pick.id} className="mb-2.5 rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
-            <p className="text-[13.5px] font-extrabold inline-flex items-center gap-1.5">
+            <p className="text-[0.84375rem] font-extrabold inline-flex items-center gap-1.5">
               <Glyph e={pick.emoji || '🍽️'} size={14} /> {pick.name}
               <span className="font-semibold" style={{ color: 'var(--muted)' }}>· {pick.grams} g</span>
             </p>
-            <p className="mt-0.5 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {pick.closes.map((c) => `${c.pctOfGap}% of your ${c.label.toLowerCase()} gap`).join(' · ')}
             </p>
           </div>
         ))}
         {result.stillShort.length > 0 && (
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Still short after all of those: {result.stillShort.map((s) => `${s.label} (${s.left}${s.unit})`).join(', ')}.
           </p>
         )}
       </Card>
 
-      <p className="text-[12px] font-semibold px-1 inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold px-1 inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
         <Info size={13} className="mt-0.5 shrink-0" /> {result.caveat}
       </p>
     </>
@@ -195,23 +196,23 @@ function FastingView() {
   return (
     <>
       <Card className="space-y-2.5">
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
           {running.running ? 'Fasting now' : 'Start a fast'}
         </p>
         {running.running ? (
           <>
-            <p className="text-[26px] font-extrabold">{running.label}</p>
+            <p className="text-[1.625rem] font-extrabold">{running.label}</p>
             {running.target && (
               <>
                 <Meter value={running.pct} max={100} />
-                <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {running.done ? `Past your ${running.target} hours.` : `${running.pct}% of ${running.target} hours.`}
                 </p>
               </>
             )}
             <button
               onClick={app.endFast}
-              className="press w-full rounded-2xl border py-2.5 text-[13px] font-extrabold"
+              className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
               style={{ borderColor: 'var(--line)' }}
             >
               End the fast
@@ -224,13 +225,13 @@ function FastingView() {
                 <Chip key={p.id} active={app.fastPlan === p.id} onClick={() => app.setFastPlan(p.id)}>{p.label}</Chip>
               ))}
             </div>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {FAST_PLANS.find((p) => p.id === app.fastPlan)?.blurb}. A window you chose — Forq isn’t
               recommending one.
             </p>
             <button
               onClick={() => app.startFast(app.fastPlan)}
-              className="press w-full rounded-2xl py-3 text-[14px] font-extrabold"
+              className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               Start now
@@ -240,26 +241,26 @@ function FastingView() {
       </Card>
 
       <Card>
-        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>From your diary</p>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>From your diary</p>
         {!summary.ready ? (
-          <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{summary.reason}</p>
+          <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{summary.reason}</p>
         ) : (
           <>
-            <p className="mt-0.5 text-[22px] font-extrabold">
-              {summary.avgHours} h <span className="text-[13px] font-semibold" style={{ color: 'var(--muted)' }}>overnight, on average</span>
+            <p className="mt-0.5 text-[1.375rem] font-extrabold">
+              {summary.avgHours} h <span className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>overnight, on average</span>
             </p>
-            <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {summary.shortest}–{summary.longest} h across {summary.nights} night{summary.nights === 1 ? '' : 's'} the diary can bound
               {summary.target ? ` · ${summary.met} reached ${summary.target} h` : ''}
             </p>
             <div className="mt-2 space-y-1">
               {summary.history.slice(0, 5).map((f) => (
-                <p key={f.date} className="text-[12.5px] font-semibold">
+                <p key={f.date} className="text-[0.78125rem] font-semibold">
                   {prettyDate(f.date)} · <span style={{ color: 'var(--muted)' }}>{f.from} to {f.to} — {f.hours} h</span>
                 </p>
               ))}
             </div>
-            <p className="mt-2 text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+            <p className="mt-2 text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
               <Info size={13} className="mt-0.5 shrink-0" /> {summary.caveat}
             </p>
           </>
@@ -283,8 +284,8 @@ function BloodsCard() {
 
   return (
     <Card className="space-y-3">
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Beaker size={15} /> Blood results</p>
-      <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Beaker size={15} /> Blood results</p>
+      <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
         No lab has an API a web page can call, so nothing is fetched — you type in what your report
         says, and it’s banded and kept so you can see a trend.
       </p>
@@ -302,7 +303,7 @@ function BloodsCard() {
       <button
         onClick={save}
         disabled={!Object.values(values).some((v) => Number(v) > 0)}
-        className="press w-full rounded-2xl py-3 text-[14px] font-extrabold disabled:opacity-40"
+        className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         Save this panel
@@ -310,16 +311,16 @@ function BloodsCard() {
 
       {latest && (
         <div className="rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-1" style={{ color: 'var(--faint)' }}>
             {prettyDate(latest.date)}
           </p>
           {Object.entries(latest.values).map(([key, value]) => {
             const band = bloodCategory(key, value);
             return (
               <div key={key} className="flex items-center justify-between py-0.5">
-                <span className="text-[12.5px] font-semibold">{BLOOD_MARKERS.find((m) => m.key === key)?.label}</span>
+                <span className="text-[0.78125rem] font-semibold">{BLOOD_MARKERS.find((m) => m.key === key)?.label}</span>
                 <span className="inline-flex items-center gap-2">
-                  <span className="text-[12.5px] font-bold">{value}</span>
+                  <span className="text-[0.78125rem] font-bold">{value}</span>
                   {band && <Pill tone={band.tone}>{band.label}</Pill>}
                 </span>
               </div>
@@ -327,7 +328,7 @@ function BloodsCard() {
           })}
         </div>
       )}
-      <p className="text-[12px] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
+      <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
         <Info size={13} className="mt-0.5 shrink-0" /> {BLOOD_CAVEAT}
       </p>
     </Card>
@@ -344,11 +345,10 @@ function GlucoseCard() {
 
   return (
     <Card className="space-y-3">
-      <p className="font-bold text-[14px] inline-flex items-center gap-1.5"><Droplets size={15} /> Glucose</p>
-      <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-        Dexcom and Libre have no browser API — theirs is OAuth against a vendor server, and Forq
-        hasn’t got a server to hold the secret. What they both do is export a CSV, so paste it here
-        and the trace gets lined up against what you logged eating.
+      <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><Droplets size={15} /> Glucose</p>
+      <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+        Dexcom and Libre use vendor OAuth APIs that Forq’s backend does not currently integrate with.
+        Import their CSV instead and the trace gets lined up against what you logged eating. {PRIVACY_COPY.cgm}
       </p>
       <textarea
         value={text}
@@ -356,35 +356,35 @@ function GlucoseCard() {
         rows={4}
         placeholder="Device Timestamp,Historic Glucose mmol/L"
         aria-label="Glucose export"
-        className="w-full rounded-2xl border px-3 py-2.5 text-[12px] font-mono outline-none"
+        className="w-full rounded-2xl border px-3 py-2.5 text-[0.75rem] font-mono outline-none"
         style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
       <div className="flex gap-2">
         <button
           onClick={() => setResult(parseCgmCsv(text))}
           disabled={!text.trim()}
-          className="press flex-1 rounded-2xl border py-2.5 text-[13px] font-extrabold disabled:opacity-40"
+          className="press flex-1 rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
           style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Upload size={14} /> Read it</span>
         </button>
         {span.days > 0 && (
-          <button onClick={app.clearGlucose} className="press rounded-2xl border px-4 py-2.5 text-[13px] font-extrabold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
+          <button onClick={app.clearGlucose} className="press rounded-2xl border px-4 py-2.5 text-[0.8125rem] font-extrabold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
             Clear
           </button>
         )}
       </div>
 
-      {result?.error && <p className="text-[12.5px] font-semibold" style={{ color: 'var(--danger)' }}>{result.error}</p>}
+      {result?.error && <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--danger)' }}>{result.error}</p>}
       {result?.readings?.length > 0 && (
         <>
-          <p className="text-[13px] font-semibold">
+          <p className="text-[0.8125rem] font-semibold">
             {result.readings.length.toLocaleString()} readings
             {result.skipped > 0 && `, ${result.skipped} row${result.skipped === 1 ? '' : 's'} skipped`}.
           </p>
           <button
             onClick={() => { app.importGlucose(result.readings); setResult(null); setText(''); }}
-            className="press w-full rounded-2xl py-2.5 text-[13px] font-extrabold"
+            className="press w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             Add them
@@ -394,11 +394,11 @@ function GlucoseCard() {
 
       {span.days > 0 && (
         <div className="rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
-          <p className="text-[12.5px] font-semibold">
+          <p className="text-[0.78125rem] font-semibold">
             {span.readings.toLocaleString()} readings across {span.days} day{span.days === 1 ? '' : 's'} ({span.from} to {span.to}).
           </p>
           {today.readings > 0 && (
-            <p className="mt-1 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
               Today: average {today.avg}, range {today.min}–{today.max} mmol/L, {today.coverage}% of the day covered.
             </p>
           )}
@@ -407,15 +407,15 @@ function GlucoseCard() {
 
       {responses.length > 0 && (
         <>
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Around today’s meals</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Around today’s meals</p>
           {responses.map((r) => (
-            <p key={`${r.time}-${r.name}`} className="text-[12.5px] font-semibold">
+            <p key={`${r.time}-${r.name}`} className="text-[0.78125rem] font-semibold">
               {r.time} {r.name} · <span style={{ color: 'var(--muted)' }}>
                 {r.baseline} → {r.peak} mmol/L, peak {r.peakAfterMinutes} min after
               </span>
             </p>
           ))}
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Reported, not graded. Glucose responses are individual and vary day to day — a rise after
             eating is what eating does, and Forq isn’t going to call a food good or bad from one.
           </p>
@@ -433,7 +433,7 @@ function RegisterView() {
 
   return (
     <>
-      <p className="text-[12.5px] font-semibold px-1" style={{ color: 'var(--muted)' }}>{REGISTER_INTRO}</p>
+      <p className="text-[0.78125rem] font-semibold px-1" style={{ color: 'var(--muted)' }}>{REGISTER_INTRO}</p>
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
         {[['all', 'Everything'], ...Object.entries(STATUS_LABELS).map(([k, v]) => [k, v.label])].map(([key, label]) => (
           <Chip key={key} active={filter === key} onClick={() => setFilter(key)}>{label}</Chip>
@@ -442,12 +442,12 @@ function RegisterView() {
       {shown.map((c) => (
         <Card key={c.id} className="space-y-1.5">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-bold text-[14px]">{c.name}</p>
+            <p className="font-bold text-[0.875rem]">{c.name}</p>
             <Pill tone={STATUS_LABELS[c.status].tone}>{STATUS_LABELS[c.status].label}</Pill>
           </div>
-          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{c.detail}</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{c.detail}</p>
           {c.instead && (
-            <p className="text-[12.5px] font-semibold rounded-2xl p-2.5" style={{ background: 'var(--card-2)' }}>
+            <p className="text-[0.78125rem] font-semibold rounded-2xl p-2.5" style={{ background: 'var(--card-2)' }}>
               <span className="font-extrabold">Instead: </span>{c.instead}
             </p>
           )}

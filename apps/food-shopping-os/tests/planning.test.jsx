@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import {
+  render, screen, fireEvent, cleanup, waitFor, within,
+} from '@testing-library/react';
 import App from '../src/App.jsx';
-import { STORAGE_KEY } from '../src/lib/state.js';
+import { STORAGE_KEY, todayStamp } from '../src/lib/state.js';
 
 const OWN_RECIPE = {
   id: 'mine-tomato-pasta',
@@ -51,7 +53,10 @@ const openProfile = () => fireEvent.click(screen.getByRole('button', { name: /^Y
 
 describe('the weekly planner', () => {
   beforeEach(() => localStorage.clear());
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it('walks forwards and back through the weeks', () => {
     onboard();
@@ -95,6 +100,25 @@ describe('the weekly planner', () => {
       revokeObjectURL.mockRestore();
       click.mockRestore();
     }
+  });
+
+  it('imports busy dinner times before generating a plan', async () => {
+    const day = todayStamp();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      events: [{
+        id: 'out',
+        title: 'Out',
+        start: `${day}T18:00:00Z`,
+        end: `${day}T21:00:00Z`,
+        allDay: false,
+      }],
+    }), { status: 200 })));
+    onboard();
+    openPlan();
+    fireEvent.click(screen.getByRole('button', { name: /Find busy evenings/ }));
+    expect(await screen.findByText(/1 busy evening imported/)).toBeDefined();
+    fireEvent.click(screen.getByText('Generate a plan for me'));
+    expect(screen.getByText(/Leaving 1 calendar-busy evening empty/)).toBeDefined();
   });
 
   it('can search and plan any saved recipe', () => {
@@ -200,7 +224,27 @@ describe('the month view', () => {
 
 describe('leftovers and batch cooking', () => {
   beforeEach(() => localStorage.clear());
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: undefined });
+  });
+
+  it('keeps the screen awake only while cooking mode is open', async () => {
+    const release = vi.fn().mockResolvedValue(undefined);
+    const request = vi.fn().mockResolvedValue({ release, addEventListener: vi.fn() });
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: { request },
+    });
+    onboard();
+    fireEvent.click(screen.getByText('Recipes'));
+    fireEvent.click(screen.getAllByText('Coconut Chickpea Curry')[0]);
+    fireEvent.click(screen.getByText(/Start cooking mode/));
+    await waitFor(() => expect(request).toHaveBeenCalledWith('screen'));
+    expect(screen.getByText('Screen stays awake while you cook')).toBeDefined();
+    fireEvent.click(screen.getByText('Exit'));
+    await waitFor(() => expect(release).toHaveBeenCalled());
+  });
 
   it('offers a batch plan when the same dish is planned twice', () => {
     onboard();

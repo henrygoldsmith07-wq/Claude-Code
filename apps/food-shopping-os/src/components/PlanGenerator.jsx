@@ -30,12 +30,16 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const [batch, setBatch] = useState(false);
   const [usePantry, setUsePantry] = useState(true);
   const [seasonal, setSeasonal] = useState(true);
+  const [leftoverFirst, setLeftoverFirst] = useState(app.leftovers.length > 0);
   const [seed, setSeed] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
 
   const month = monthOf(app.day);
   const dates = scope === 'A month' ? monthDates : weekDates;
+  const busyDates = new Set((app.calendarBusy || []).map((item) => item.date));
+  const planDates = dates.filter((date) => !busyDates.has(date));
+  const noOpenDates = ['A week', 'A month'].includes(scope) && planDates.length === 0;
   const pantryNames = app.pantry.map((p) => p.name);
   const ownRecipeIds = new Set(app.myRecipes.map((recipe) => recipe.id));
   const ownCandidates = app.safeRecipes.filter((recipe) => ownRecipeIds.has(recipe.id)).length;
@@ -54,19 +58,21 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         batch,
         pantry: usePantry ? pantryNames : [],
         month: seasonal ? month : null,
-        days: scope === 'A month' ? monthDates.length : null,
+        days: ['A week', 'A month'].includes(scope) ? planDates.length : null,
         recipes: app.safeRecipes,
         taste: app.tasteProfile,
+        leftovers: leftoverFirst ? app.leftovers : [],
       },
       seed,
     );
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, occasion, people, batch, usePantry, seasonal, month, monthDates.length]);
+  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, occasion, people, batch, usePantry, seasonal, leftoverFirst, app.leftovers, month, planDates.length]);
 
   const generated = plan?.meals ?? null;
 
   const generate = () => {
+    if (noOpenDates) return;
     setGenerating(true);
     setAddedToList(false);
     setTimeout(() => {
@@ -82,8 +88,8 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
       return scopeMeals('A day').map((slot, i) => ({ date: app.day, slot, recipeId: generated[i]?.id }));
     }
     if (scope === '1 meal') return [{ date: app.day, slot: 'dinner', recipeId: generated[0]?.id }];
-    return dates.map((date, i) => ({ date, slot: 'dinner', recipeId: generated[i]?.id }));
-  }, [generated, scope, dates, app.day]);
+    return planDates.map((date, i) => ({ date, slot: 'dinner', recipeId: generated[i]?.id }));
+  }, [generated, scope, planDates, app.day]);
 
   const apply = () => {
     app.applyPlanEntries(entries.filter((e) => e.recipeId));
@@ -102,7 +108,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const labelFor = (i) => {
     if (scope === 'A day') return ['Breakfast', 'Lunch', 'Dinner'][i];
     if (scope === '1 meal') return 'Suggested';
-    const date = dates[i];
+    const date = planDates[i];
     return date ? `${WEEK_DAYS[i % 7]} ${Number(date.slice(8, 10))}` : '';
   };
 
@@ -110,14 +116,14 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
     <>
       <Card className="space-y-4">
         <div>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Generate</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Generate</p>
           <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
             {SCOPES.map((s) => <Chip key={s} active={scope === s} onClick={() => setScope(s)}>{s}</Chip>)}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
             People
             {app.members.length > 0 && (
               <span className="ml-1.5 normal-case font-semibold" style={{ color: 'var(--muted)' }}>
@@ -130,8 +136,8 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Budget per serving</p>
-            <p className="text-[14px] font-extrabold" style={{ color: 'var(--accent)' }}>{gbp(budget, { always: true })}</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Budget per serving</p>
+            <p className="text-[0.875rem] font-extrabold" style={{ color: 'var(--accent)' }}>{gbp(budget, { always: true })}</p>
           </div>
           <input
             type="range" min="1" max="4" step="0.25" value={budget}
@@ -143,26 +149,26 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
         {/* Goal and diet come from your profile — one place, not two */}
         <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--line)' }}>
-          <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Planning for</p>
-          <p className="mt-0.5 text-[13.5px] font-bold">{app.goalSummary}</p>
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Planning for</p>
+          <p className="mt-0.5 text-[0.84375rem] font-bold">{app.goalSummary}</p>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {app.planDiets.length > app.diets.length
               ? 'Includes everyone you cook for — change it under Family in your profile.'
               : 'Change it under Goals & targets in your profile.'}
           </p>
-          <p className="mt-1 text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             Choosing from {app.safeRecipes.length} recipes
             {ownCandidates ? `, including ${ownCandidates} of yours` : ''}.
           </p>
           {app.tasteProfile.rated > 0 && (
-            <p className="mt-1 text-[12px] font-bold" style={{ color: 'var(--accent)' }}>
+            <p className="mt-1 text-[0.75rem] font-bold" style={{ color: 'var(--accent)' }}>
               Taste Match favours {app.tasteProfile.topCuisines.slice(0, 2).join(' and ') || 'the flavours you liked'}.
             </p>
           )}
         </div>
 
         <div>
-          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Occasion</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Occasion</p>
           <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
             {PLANNER_OCCASIONS.map((o) => <Chip key={o} active={occasion === o} onClick={() => setOccasion(o)}>{o}</Chip>)}
           </div>
@@ -174,29 +180,35 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             { on: batch, set: setBatch, icon: <Snowflake size={14} />, label: 'Batch cook — fewer dishes, more portions' },
             { on: usePantry, set: setUsePantry, icon: <Package size={14} />, label: 'Use what I already have' },
             { on: seasonal, set: setSeasonal, icon: <Leaf size={14} />, label: 'Favour what’s in season' },
+            { on: leftoverFirst, set: setLeftoverFirst, icon: <Snowflake size={14} />, label: 'Use fridge leftovers before cooking again' },
           ].map(({ on, set, icon, label }) => (
             <div key={label} className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-bold flex items-center gap-1.5">{icon} {label}</p>
+              <p className="text-[0.8125rem] font-bold flex items-center gap-1.5">{icon} {label}</p>
               <Chip active={on} onClick={() => set(!on)}>{on ? 'On' : 'Off'}</Chip>
             </div>
           ))}
         </div>
 
         {seasonal && (
-          <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
             In season now: {peakNow(month, 5).join(' · ')}.
+          </p>
+        )}
+        {busyDates.size > 0 && ['A week', 'A month'].includes(scope) && (
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Leaving {dates.length - planDates.length} calendar-busy evening{dates.length - planDates.length === 1 ? '' : 's'} empty.
           </p>
         )}
 
         <button
           onClick={generate}
-          disabled={generating}
-          className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
+          disabled={generating || noOpenDates}
+          className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: generating ? 0.7 : 1 }}
         >
           <span className="inline-flex items-center gap-2">
             {!generating && <Sparkles size={16} />}
-            {generating ? 'Thinking…' : seed ? 'Regenerate' : 'Generate'}
+            {noOpenDates ? 'Every evening is busy' : generating ? 'Thinking…' : seed ? 'Regenerate' : 'Generate'}
           </span>
         </button>
       </Card>
@@ -212,19 +224,19 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
           {plan.note && (
             <Card className="!p-3 flex items-start gap-2" style={{ background: 'var(--card-2)' }}>
               <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
-              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{plan.note}</p>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{plan.note}</p>
             </Card>
           )}
           <Card className="!p-3 flex items-center justify-between">
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Estimated cost</p>
-              <p className="text-[18px] font-extrabold">
-                {gbp(cost, { always: true })} <span className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>for {people}</span>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Estimated cost</p>
+              <p className="text-[1.125rem] font-extrabold">
+                {gbp(cost, { always: true })} <span className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>for {people}</span>
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[13px] font-bold">{kcal} kcal avg</p>
-              <p className="text-[11.5px] font-semibold" style={{ color: 'var(--muted)' }}>
+              <p className="text-[0.8125rem] font-bold">{kcal} kcal avg</p>
+              <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {distinct} dish{distinct === 1 ? '' : 'es'}
               </p>
             </div>
@@ -234,11 +246,11 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
               <Card key={`${r.id}-${i}`} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
                 <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
                     {labelFor(i)}
                   </p>
-                  <p className="font-bold text-[15px] truncate">{r.name}</p>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <p className="font-bold text-[0.9375rem] truncate">{r.name}</p>
+                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                     {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
                   </p>
                 </div>
@@ -250,7 +262,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={apply}
-              className="press rounded-2xl py-3 text-[13.5px] font-extrabold"
+              className="press rounded-2xl py-3 text-[0.84375rem] font-extrabold"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Check size={15} strokeWidth={3} /> Put in my plan</span>
@@ -258,7 +270,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             <button
               onClick={addAllToList}
               disabled={addedToList}
-              className="press rounded-2xl border py-3 text-[13.5px] font-extrabold disabled:opacity-60"
+              className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
               style={addedToList ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--line)' }}
             >
               <span className="inline-flex items-center gap-1.5">

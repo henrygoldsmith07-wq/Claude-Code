@@ -105,7 +105,7 @@ export const consumePantryIngredients = (pantry = [], ingredients = []) => {
 const encodeUtf8 = (value) => btoa(unescape(encodeURIComponent(value)));
 const decodeUtf8 = (value) => decodeURIComponent(escape(atob(value)));
 
-/** Portable snapshot for another household member; no account or server needed. */
+/** Portable snapshot generated locally for the user to send without an upload. */
 export const pantryShareCode = (pantry = []) =>
   `FORQ-PANTRY-1.${encodeUtf8(JSON.stringify(pantry.map((item) => ({
     name: String(item.name || '').trim(),

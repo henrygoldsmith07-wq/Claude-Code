@@ -8,12 +8,14 @@
  *
  * Three kinds of "no" are kept apart, because they are not the same:
  *
- *   `impossible` — a browser cannot do it. No amount of work here changes
- *                  that; it needs a server, a native app, or a vendor deal.
+ *   `impossible` — the current web platform cannot do it without native or
+ *                  vendor support that Forq does not have.
  *   `refused`    — it could be built and shouldn't be, because the output
  *                  would be advice the evidence doesn't support.
  *   `partial`    — the useful half is built and the label oversells it.
  */
+
+import { DATA_BOUNDARY } from './privacy.js';
 
 const cap = (id, name, status, detail, instead = null) => ({ id, name, status, detail, instead });
 
@@ -40,7 +42,7 @@ export const CAPABILITIES = [
   cap('uxLayer', 'Global UX controls', 'built',
     'Cross-app search and commands, quick add, keyboard shortcuts, a 30-action local undo history, type filters and sorting, touch/context menus, and drag ordering for meals, shopping and dashboard widgets. Gestures supplement visible controls rather than hiding the only route to an action.'),
   cap('recipeImport', 'Recipe URL import', 'partial',
-    'Parses recipe text copied from a page and keeps its source or video URL. The offline browser cannot reliably fetch cross-origin recipe sites, so the app asks for the copied text instead of generating a pretend result from a URL.'),
+    'Parses recipe text copied from a page and keeps its source or video URL. Browser cross-origin rules block reliable direct fetching, so this local importer asks for copied text. It does not upload that text or send it to OpenAI.'),
   cap('retailers', 'UK retailer integration', 'partial',
     'Tesco, Sainsbury’s, Asda, Aldi, Lidl, Morrisons, Waitrose, Ocado and Amazon Fresh each have official product, offers and fulfilment links. Recorded receipt prices and saved vouchers stay local; live prices, stock and delivery slots are confirmed by the retailer because there is no retailer API connection.'),
   cap('menu', 'Restaurant menu analysis', 'built',
@@ -64,28 +66,27 @@ export const CAPABILITIES = [
   cap('geofence', 'Geofenced reminders', 'partial',
     'A saved 200m area can trigger a notification on re-entry while Forq is open. Background geofencing needs native operating-system permissions and is not available to this web app.'),
   cap('offline', 'Offline mode', 'built',
-    'The whole app is offline. There is no backend to lose: everything lives in your browser’s storage, and the service worker caches the app itself so it opens with no connection.'),
+    'The core app opens from its service-worker cache and reads and writes the local store without a connection. Household sync and the OpenAI relay pause while offline; local changes remain available and can sync after the app reconnects.'),
   cap('bloods', 'Blood test results', 'partial',
     'No lab has an API a web app can call, and none would open one to an unauthenticated browser. You enter your own results and they are banded against the published reference ranges.'),
   cap('cgm', 'Continuous glucose monitor', 'partial',
-    'No browser API exists for Dexcom or Libre — their APIs are OAuth against a vendor server, which needs a server of our own. So: import the CSV they export, and the app lines the trace up against what you logged eating.'),
+    'Dexcom and Libre use vendor OAuth APIs rather than a browser API. Forq has a backend, but it does not currently implement or hold credentials for either vendor. Import their CSV instead; parsing happens locally, and signed-in household sync includes the saved readings.'),
 
   /* ---------- A browser cannot ---------- */
   cap('smartKitchen', 'Smart kitchen integration', 'impossible',
     'Ovens, fridges and scales speak Matter, Zigbee or a vendor cloud. A web page can reach none of them — there is no browser API for any of it, and a “Connect” button here would be decoration.',
     'The plan and the recipe are on your phone, which is the screen you were going to use in the kitchen anyway.'),
-  cap('api', 'Authenticated API integrations', 'impossible',
-    'An authenticated live feed needs a server to hold credentials and take requests. Forq has neither, by design — that is the same decision that means nobody can read your diary.',
-    'Retailer links, local receipt prices and open-format exports provide useful hand-offs without claiming a live connection.'),
-  cap('coach', 'Coach or trainer dashboard', 'impossible',
-    'A dashboard means accounts, a server, and your food diary sitting on someone else’s computer. None of that exists here.',
-    'Generate the report and hand it over — the printable PDF and the CSVs are exactly what a coach would want, and you decide what goes and when.'),
-  cap('provider', 'Healthcare provider access', 'impossible',
-    'Clinical access needs identity, audit and a legal basis for holding health data. An app with no server can offer none of it, and pretending otherwise around medical data would be worse than not offering it.',
+  cap('api', 'Authenticated API integrations', 'built',
+    'Forq has authenticated server routes for household sync, calendar reads and writes, licensed retailer data and an AI relay. Each integration works only when its credentials are configured and you opt in; AI prompts and relevant context are relayed to OpenAI. Without an account or provider, the local-first app and open-format hand-offs still work.'),
+  cap('coach', 'Coach or trainer dashboard', 'built',
+    'A household admin can create a read-only link scoped to diary, nutrition, meal plan and—only when explicitly selected—health records. Links expire, can be revoked immediately and record access counts.',
+    'Open Household → Sharing. The coach never gets edit access, household shopping data or household membership.'),
+  cap('provider', 'Healthcare provider access', 'refused',
+    'Forq’s backend supports household identity and sync; it is not a clinical system and does not provide clinician roles, clinical audit, consent records or a legal basis for provider access.',
     'The same report, printed or as CSV, is something you can take to an appointment. It says how many days it covers, which is the first thing a clinician will ask.'),
-  cap('corporate', 'Corporate wellness', 'impossible',
-    'Corporate programmes mean an employer-side view of employee data. There is no server to host it, and an app whose whole premise is that your data never leaves your device is the wrong place to build one.',
-    'Nothing stops you using Forq while your employer runs a scheme; your data simply isn’t part of it.'),
+  cap('corporate', 'Corporate wellness', 'refused',
+    'Forq is local-first, with opt-in household sync and an OpenAI relay for AI requests. Neither path creates an employer account or employer view, and Forq deliberately does not expose one.',
+    'Nothing stops you using Forq while your employer runs a scheme; Forq does not share your data with that scheme.'),
   cap('languages', 'Multi-language support', 'partial',
     'The interface is English only. Numbers, dates and times follow your device’s locale, and units are yours to set — but the words have not been translated, and shipping a machine translation of nutrition copy is how a caveat becomes a claim.'),
 
@@ -105,4 +106,4 @@ export const STATUS_LABELS = {
 };
 
 export const REGISTER_INTRO =
-  'Everything people ask a nutrition app for, and where Forq actually stands on it. “A browser can’t” means exactly that — no server, no native permissions, no vendor deal. “Deliberately not” means it could be built and shouldn’t be.';
+  `Everything people ask a nutrition app for, and where Forq actually stands on it. “A browser can’t” means the required native or vendor support is unavailable; “Deliberately not” means Forq has chosen not to build it. ${DATA_BOUNDARY}`;
