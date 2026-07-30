@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  ArrowRight, Check, ChevronDown, LayoutGrid, ShoppingCart,
+  ArrowRight, Check, ChevronDown, FlaskConical, LayoutGrid, ShoppingCart,
   Upload, UtensilsCrossed, Users, Apple, Home,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -254,7 +254,20 @@ export default function Onboarding() {
         </p>
       </div>
 
-      <div className="mt-4 text-center">
+      <div className="mt-4 space-y-2 text-center">
+        <button
+          type="button"
+          className="press px-4 py-2 text-[0.78125rem] font-bold"
+          style={{ color: 'var(--accent)' }}
+          onClick={() => app.enterDemoMode()}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <FlaskConical size={14} /> Try an example week
+          </span>
+        </button>
+        <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+          Demonstration data only — cleared instantly, never saved
+        </p>
         <button
           type="button"
           className="press px-4 py-2 text-[0.78125rem] font-bold"

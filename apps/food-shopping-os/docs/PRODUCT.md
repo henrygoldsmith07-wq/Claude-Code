@@ -35,6 +35,17 @@ Without a single promise, Forq can be read as ten different apps (meal planner, 
 - Prefer “supports your plan” language over “all-in-one food OS” when introducing new surfaces.
 - Capability register remains honest about platform limits.
 
+## Try an example week (demo)
+
+Temporary guided demonstration, **outside** the real user store:
+
+- Labelled demonstration data (banner + walkthrough)
+- Cleared instantly (Exit / Clear demo)
+- Walks plan → shopping list → aisle shop → pantry update
+- Never persisted, never cloud-synced, never counts toward streaks, XP, badges or analytics
+
+Code: `src/data/exampleWeek.js`, `DemoWalkthrough.jsx`, demo overlay in `store.jsx`.
+
 ## Onboarding stages
 
 Collect only what blocks value. Three stages:

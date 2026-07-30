@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  AlarmClock, Camera, CheckCircle2, ChevronRight, Layers, Mic, Package, Plus,
+  AlarmClock, Camera, CheckCircle2, ChevronRight, FlaskConical, Layers, Mic, Package, Plus,
   ScanBarcode, Search, SlidersHorizontal, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -114,6 +114,16 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeek
     setup: () => (
       <Section className="rise rise-1">
         <UsefulSetupCard />
+        {!app.isDemoMode && (
+          <Card className="mb-3 !p-3.5" onClick={() => app.enterDemoMode()}>
+            <p className="font-extrabold text-[0.875rem] inline-flex items-center gap-1.5">
+              <FlaskConical size={15} style={{ color: 'var(--warn)' }} /> Try an example week
+            </p>
+            <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              Temporary demonstration data. See plan → list → shop → pantry, then clear instantly. Never saved.
+            </p>
+          </Card>
+        )}
         {openWeekLoop && (
           <Card
             onClick={() => openWeekLoop()}

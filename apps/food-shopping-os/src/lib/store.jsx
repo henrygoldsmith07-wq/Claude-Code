@@ -31,6 +31,7 @@ import {
   hydrate, loadStoredState, parseBackup, serialiseBackup,
 } from './store-persistence.js';
 import { useStoreApi } from './store-api.js';
+import { createExampleWeekState, isDemoState } from '../data/exampleWeek.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
@@ -52,7 +53,20 @@ const AppContext = createContext(null);
 export function AppProvider({ children }) {
   const initial = useRef(null);
   if (!initial.current) initial.current = loadStoredState();
-  const [state, setState] = useState(initial.current.state);
+  /** Real kitchen — the only state that may be persisted or synced. */
+  const [realState, setRealState] = useState(initial.current.state);
+  /**
+   * Temporary example week. When non-null, the UI reads this instead of
+   * realState. Never written to localStorage, cloud, analytics or achievements.
+   */
+  const [demoState, setDemoState] = useState(null);
+  const demoActiveRef = useRef(false);
+  const state = demoState ?? realState;
+  const setState = (updater) => {
+    const run = (current) => (typeof updater === 'function' ? updater(current) : { ...current, ...updater });
+    if (demoActiveRef.current) setDemoState((current) => run(current));
+    else setRealState((current) => run(current));
+  };
   const [storageIssue, setStorageIssue] = useState(initial.current.issue);
   const [cloudStatus, setCloudStatus] = useState({ kind: 'checking', message: 'Checking cloud sync…' });
   const blockPersistence = useRef(initial.current.issue?.kind === 'corrupt');
@@ -70,7 +84,7 @@ export function AppProvider({ children }) {
   // move on its own. A minute is finer than any reminder needs.
   const [tick, setTick] = useState(() => Date.now());
   // Where the catch-up starts: read once, so it doesn't slide as you look at it.
-  const [seenFrom] = useState(() => state.lastSeenAt);
+  const [seenFrom] = useState(() => realState.lastSeenAt);
 
   useEffect(() => {
     const timer = setInterval(() => setTick(Date.now()), 60000);
@@ -119,6 +133,8 @@ export function AppProvider({ children }) {
       applyingRemote.current = false;
       return;
     }
+    // Demo sessions never touch disk — real kitchen is frozen underneath.
+    if (demoActiveRef.current || isDemoState(state)) return;
     if (!blockPersistence.current) persist(state);
   }, [state]);
 
@@ -128,7 +144,8 @@ export function AppProvider({ children }) {
       try {
         applyingRemote.current = true;
         undoHistory.current = [];
-        setState(parseBackup(event.newValue));
+        // Always update the real kitchen; demo overlay is unaffected.
+        setRealState(parseBackup(event.newValue));
       } catch {
         // Ignore incomplete writes from another tab.
       }
@@ -141,6 +158,8 @@ export function AppProvider({ children }) {
   // left after it — so this one writes directly.
   const latest = useRef(state);
   latest.current = state;
+  const realLatest = useRef(realState);
+  realLatest.current = realState;
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') return undefined;
     let cancelled = false;
@@ -152,19 +171,20 @@ export function AppProvider({ children }) {
       if (update.state) {
         cloudMeta.current = update.meta;
         skipCloudPush.current = true;
-        setState(hydrate(update.state));
+        // Cloud always updates the real kitchen, never a demo overlay.
+        setRealState(hydrate(update.state));
         setCloudStatus(update.status);
       }
     };
     const loadCloud = async () => {
-      const result = await initialiseCloud(latest.current);
+      const result = await initialiseCloud(realLatest.current);
       if (cancelled) return;
       cloudMeta.current = result.meta || null;
       cloudReady.current = result.status.kind === 'ready';
       setCloudStatus(result.status);
       if (result.state) {
         skipCloudPush.current = true;
-        setState(hydrate(result.state));
+        setRealState(hydrate(result.state));
       }
       if (result.meta && result.status.kind === 'ready') {
         poll = setInterval(pullNewerState, 60000);
@@ -193,12 +213,14 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (!cloudReady.current || !cloudMeta.current) return;
+    if (demoActiveRef.current || isDemoState(latest.current)) return;
     if (skipCloudPush.current) {
       skipCloudPush.current = false;
       return;
     }
     clearTimeout(cloudTimer.current);
     cloudTimer.current = setTimeout(async () => {
+      if (demoActiveRef.current) return;
       const result = await pushCloud({
         ...latest.current,
         ...(latest.current.healthVaultEnabled && !vaultKey.current ? { __preserveHealth: true } : {}),
@@ -211,8 +233,9 @@ export function AppProvider({ children }) {
   }, [state]);
 
   useEffect(() => {
+    // Always stamp the real kitchen — never the demo overlay.
     const mark = () => {
-      if (!blockPersistence.current) persist(latest.current);
+      if (!blockPersistence.current) persist(realLatest.current);
     };
     const onHide = () => { if (document.visibilityState === 'hidden') mark(); };
     document.addEventListener('visibilitychange', onHide);
@@ -237,6 +260,17 @@ export function AppProvider({ children }) {
     undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
   });
 
+  const enterDemoMode = () => {
+    demoActiveRef.current = true;
+    undoHistory.current = [];
+    setDemoState(createExampleWeekState(realLatest.current.day || todayStamp()));
+  };
+  const exitDemoMode = () => {
+    demoActiveRef.current = false;
+    undoHistory.current = [];
+    setDemoState(null);
+  };
+
   /* Everything below is derived — the app never stores a number twice. */
   const derived = useMemo(() => deriveApp(state), [state]);
 
@@ -255,10 +289,14 @@ export function AppProvider({ children }) {
     };
   }, [state.reminders, state.reminderDone, seenFrom, tick]);
 
+  const isDemoMode = Boolean(demoState);
   const value = useMemo(() => ({
     ...state,
     ...derived,
     ...alerts,
+    isDemoMode,
+    enterDemoMode,
+    exitDemoMode,
     reminderLine: (kind) => reminderContext(kind, { ...state, ...derived }),
     healthVault: {
       enabled: state.healthVaultEnabled,
@@ -266,7 +304,21 @@ export function AppProvider({ children }) {
       platformAvailable: platformUnlockAvailable(),
     },
     ...api,
-  }), [state, derived, alerts, api, vaultUnlocked]);
+    // Never export or reset through the demo overlay — protect the real kitchen.
+    exportData: () => serialiseBackup(
+      isDemoMode ? realLatest.current : latest.current,
+      (isDemoMode ? realLatest.current : latest.current).healthVaultEnabled
+        ? JSON.parse(localStorage.getItem(HEALTH_VAULT_KEY) || 'null')
+        : null,
+    ),
+    reset: () => {
+      if (isDemoMode) {
+        exitDemoMode();
+        return;
+      }
+      return api.reset();
+    },
+  }), [state, derived, alerts, api, vaultUnlocked, isDemoMode]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 

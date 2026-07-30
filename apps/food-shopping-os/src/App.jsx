@@ -23,6 +23,9 @@ const RecipeDetail = deferred(testScreens.RecipeDetail, () => import('./componen
 const PantryView = deferred(testScreens.PantryView, () => import('./components/PantryView.jsx'));
 const GuidancePanel = deferred(testScreens.GuidancePanel, () => import('./components/GuidancePanel.jsx'));
 const WeekLoop = deferred(testScreens.WeekLoop, () => import('./components/WeekLoop.jsx'));
+const DemoBannerLazy = deferred(testScreens.DemoBanner, () => import('./components/DemoWalkthrough.jsx')
+  .then((m) => ({ default: m.DemoBanner })));
+const DemoWalkthroughLazy = deferred(testScreens.DemoWalkthrough, () => import('./components/DemoWalkthrough.jsx'));
 const launcherPart = (name) => deferred(testScreens[name], () => import('./components/GlobalLauncher.jsx')
   .then((module) => ({ default: module[name] })));
 const CommandPalette = launcherPart('CommandPalette');
@@ -274,7 +277,8 @@ function Shell() {
   if (app.storageIssue?.kind === 'corrupt') return <StorageRecovery />;
 
   // Nothing is pre-filled, so the first run asks for the little it needs.
-  if (!app.onboarded) {
+  // Demo can open before onboarding — it uses an isolated store.
+  if (!app.onboarded && !app.isDemoMode) {
     return <Onboarding />;
   }
 
@@ -285,6 +289,9 @@ function Shell() {
       <a href="#main" className="skip-link">Skip to content</a>
 
       <div className="app-workspace">
+        <Suspense fallback={null}>
+          <DemoBannerLazy />
+        </Suspense>
         <AppHeader
           tab={tab}
           onProfile={() => setProfileOpen(true)}
@@ -440,6 +447,11 @@ function Shell() {
           {notice}
         </div>
       )}
+      <Suspense fallback={null}>
+        {app.isDemoMode && (
+          <DemoWalkthroughLazy onNavigate={(id) => goTab(id)} />
+        )}
+      </Suspense>
       <GeofenceWatcher />
     </div>
   );
