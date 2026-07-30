@@ -6,18 +6,15 @@ Shared CSS custom properties for **Le Studio** (French), **Chrono**, and **Forq*
 
 ```html
 <link rel="stylesheet" href="../../packages/le-studio-tokens/tokens.css" />
+<link rel="stylesheet" href="../../packages/le-studio-tokens/aliases.css" />
 ```
 
 Or in app CSS:
 
 ```css
 @import "../../packages/le-studio-tokens/tokens.css";
-
-:root {
-  --bg: var(--ls-bg);
-  --surface: var(--ls-surface);
-  --ink: var(--ls-ink);
-}
+@import "../../packages/le-studio-tokens/aliases.css";
+/* aliases maps --ls-* → --bg, --surface, --ink, --accent, … */
 ```
 
 ## Rules

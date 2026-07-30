@@ -28,14 +28,23 @@ const dropProps = (target, onMove, setDragging, dragging) => ({
 
 export function WeekGrid({
   dates, plan, today, leftoverPortions, onPick, moving, onGrab, onMove, dragging, setDragging,
+  busyDates,
 }) {
+  const busy = busyDates instanceof Set ? busyDates : new Set(busyDates || []);
   return (
     <div className="space-y-2.5">
       {dates.map((date, i) => {
         const slots = plan[date] || {};
         const isToday = date === today;
+        const isBusy = busy.has(date);
         return (
-          <Card key={date} className="!p-3" style={isToday ? { borderColor: 'var(--accent)' } : undefined}>
+          <Card
+            key={date}
+            className="!p-3"
+            style={isBusy
+              ? { borderColor: 'var(--warn, #a55a12)', background: 'color-mix(in srgb, var(--warn, #a55a12) 6%, var(--card))' }
+              : isToday ? { borderColor: 'var(--accent)' } : undefined}
+          >
             <div className="flex items-center justify-between mb-2">
               <p className="font-extrabold text-[0.875rem]">
                 {WEEK_DAYS[i % 7]}
@@ -43,6 +52,11 @@ export function WeekGrid({
                   {dayNumber(date)}
                 </span>
                 {isToday && <span className="ml-2 text-[0.6875rem] font-bold" style={{ color: 'var(--accent)' }}>Today</span>}
+                {isBusy && (
+                  <span className="ml-2 text-[0.6875rem] font-bold" style={{ color: 'var(--warn, #a55a12)' }} title="Busy evening from calendar">
+                    Busy evening
+                  </span>
+                )}
               </p>
               {planCost(slots) > 0 && <Pill tone="muted">{gbp(planCost(slots), { always: true })}/person</Pill>}
             </div>

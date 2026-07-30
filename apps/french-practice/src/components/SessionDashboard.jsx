@@ -121,6 +121,10 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
                 <ProgressRing value={report.average_scores.fluency} label="Fluency" size={70} />
               </div>
             </div>
+            <p className="text-[11px] text-ink3 leading-relaxed">
+              Overall is 30% grammar + 30% naturalness + 20% relevance + 20% fluency.
+              Grammar = endings and agreement; naturalness = what a native would actually say.
+            </p>
 
             {/* radar + written feedback */}
             <div className="grid sm:grid-cols-2 gap-6 items-center">

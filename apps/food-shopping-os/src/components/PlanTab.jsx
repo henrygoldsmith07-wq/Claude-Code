@@ -236,6 +236,7 @@ export default function PlanTab({ openRecipe }) {
             onMove={move}
             dragging={dragging}
             setDragging={setDragging}
+            busyDates={(app.calendarBusy || []).map((b) => b.date)}
           />
         ) : (
           <MonthGrid
