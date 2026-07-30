@@ -417,10 +417,31 @@ export function getRepairableStreak() {
   return ageDays <= REPAIR_WINDOW_DAYS ? s.lostCount : null;
 }
 
-export function repairStreak() {
+/** ISO week key (YYYY-Www) for free repair quota. */
+function isoWeekKey(d = new Date()) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/** One free streak repair per calendar week (Plan 1 A2.2). */
+export function canFreeRepairThisWeek() {
+  const used = read('fp.freeRepairWeek', null);
+  return used !== isoWeekKey();
+}
+
+export function repairStreak({ free = false } = {}) {
   const lost = getRepairableStreak();
   if (!lost) return null;
-  if (spendCoins(REPAIR_COST) == null) return null;
+  if (free) {
+    if (!canFreeRepairThisWeek()) return null;
+    write('fp.freeRepairWeek', isoWeekKey());
+  } else if (spendCoins(REPAIR_COST) == null) {
+    return null;
+  }
   const restored = { count: lost, lastDay: dayStamp(new Date(Date.now() - 86400000)) };
   write(KEYS.streak, restored);
   return restored;

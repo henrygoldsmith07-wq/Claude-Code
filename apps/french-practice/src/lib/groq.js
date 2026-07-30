@@ -606,7 +606,4 @@ export async function sessionReport(apiKey, { scenario, history, level = 'B1', m
   };
 }
 
-// weighted composite used across the UI: S = 0.30G + 0.30N + 0.20R + 0.20F
-export function compositeScore(s) {
-  return Math.round(0.3 * s.grammar + 0.3 * s.naturalness + 0.2 * s.relevance + 0.2 * s.fluency);
-}
+export { compositeScore } from './score.js';

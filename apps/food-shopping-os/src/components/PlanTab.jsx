@@ -291,7 +291,7 @@ export default function PlanTab({ openRecipe }) {
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
             >
               <span className="inline-flex items-center gap-2">
-                <CalendarPlus size={15} /> Add {view === 'week' ? 'week' : 'month'} to calendar
+                <CalendarPlus size={15} /> Export {view} to calendar (.ics)
               </span>
             </button>
             {calendarStatus && (

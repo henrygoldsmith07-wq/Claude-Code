@@ -91,7 +91,7 @@ export const mealPlanIcs = (
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Forq//Meal Planner//EN',
+    'PRODID:-//Le Studio//Forq//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${icsEscape(calendarName)}`,
