@@ -35,6 +35,16 @@ Without a single promise, Forq can be read as ten different apps (meal planner, 
 - Prefer “supports your plan” language over “all-in-one food OS” when introducing new surfaces.
 - Capability register remains honest about platform limits.
 
+## Onboarding stages
+
+Collect only what blocks value. Three stages:
+
+| Stage | Fields | When |
+|-------|--------|------|
+| **Required** | Name, household size, main goal (product mode) | First open — then **Start planning** |
+| **Useful later** | Dietary patterns, weekly budget | Soft Home card or Preferences — never blocks |
+| **Optional advanced** | Body stats, nutrition targets, health, cycle | Goals / Add tools after the user is already planning |
+
 ## Perfect week loop
 
 The strongest end-to-end experience is a single guided flow (`WeekLoop`):

@@ -105,6 +105,16 @@ export function useStoreApi({
             : [...s.dismissedSetupSteps, id],
         })),
       dismissWelcome: () => set({ welcomeDismissed: true }),
+      /** Soft stage-2 (diets / budget) — never blocks planning */
+      dismissUsefulSetup: () => set({ usefulSetupPending: false }),
+      completeUsefulSetup: ({ diets, weeklyBudget } = {}) =>
+        set((s) => ({
+          ...(Array.isArray(diets) ? { diets } : {}),
+          ...(weeklyBudget !== undefined
+            ? { weeklyBudget: Math.max(0, Number(weeklyBudget) || 0) }
+            : {}),
+          usefulSetupPending: false,
+        })),
       ...vaultActions({
         latest, set, setVaultUnlocked, undoHistory, vaultKey, vaultSalt, vaultWrites,
       }),

@@ -84,6 +84,11 @@ export const EMPTY_STATE = {
   starterRecipeIds: [],
   dismissedSetupSteps: [],
   welcomeDismissed: false,
+  /**
+   * Soft stage-2 setup: diets / weekly budget not collected at first open.
+   * Cleared when filled or dismissed so planning is never blocked.
+   */
+  usefulSetupPending: false,
   theme: 'light',
   accent: 'mono',
   name: '',

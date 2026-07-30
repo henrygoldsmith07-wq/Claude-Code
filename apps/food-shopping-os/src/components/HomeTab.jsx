@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import {
   AlarmClock, Camera, CheckCircle2, ChevronRight, Layers, Mic, Package, Plus,
-  ScanBarcode, Search, SlidersHorizontal,
+  ScanBarcode, Search, SlidersHorizontal, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp, greeting, prettyDate } from '../lib/utils.js';
 import { byId, RECIPES } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
+import { DIET_PATTERNS } from '../data/goals.js';
 import {
   daysUntil, expiringSoon, leftovers, pantryValue, planForDay, runningLow,
 } from '../lib/kitchen.js';
 import { totalOf } from '../data/stores.js';
-import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
+import { Section, Card, Ring, Pill, Meter, FoodArt, Chip } from './ui.jsx';
 import GuidancePreview from './GuidancePreview.jsx';
 import WaterGlasses from './WaterGlasses.jsx';
 import { DueList } from './RemindersPanel.jsx';
 import { Glyph } from './icons.jsx';
+import { NumberField } from './FoodDetail.jsx';
 
 /** Capture routes that open straight into the diary's matching sheet. */
 const LOG_SHORTCUTS = [
@@ -25,6 +27,65 @@ const LOG_SHORTCUTS = [
   { id: 'voice', label: 'Voice', Icon: Mic },
   { id: 'copy', label: 'Copy meal', Icon: Layers },
 ];
+
+/** Soft stage-2: diets / budget after the user is already planning. */
+function UsefulSetupCard() {
+  const app = useApp();
+  const [budget, setBudget] = useState(app.weeklyBudget || '');
+  const [diets, setDiets] = useState(app.diets || []);
+  if (!app.usefulSetupPending) return null;
+
+  const toggleDiet = (id) =>
+    setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+
+  const save = () => {
+    app.completeUsefulSetup({
+      diets,
+      weeklyBudget: Math.max(0, Number(budget) || 0),
+    });
+  };
+
+  return (
+    <Card className="mb-3 !p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+            Useful later
+          </p>
+          <p className="mt-0.5 text-[0.9375rem] font-extrabold">Diet & weekly budget</p>
+          <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Optional — helps filter recipes and track spend. Skip anytime.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Dismiss"
+          onClick={app.dismissUsefulSetup}
+          className="press p-1"
+          style={{ color: 'var(--muted)' }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div className="mt-3">
+        <NumberField label="Weekly food budget" value={budget} onChange={setBudget} suffix="£" step={5} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {DIET_PATTERNS.map((d) => (
+          <Chip key={d.id} active={diets.includes(d.id)} onClick={() => toggleDiet(d.id)}>{d.label}</Chip>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={save}
+        className="press mt-3 w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold"
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+      >
+        Save
+      </button>
+    </Card>
+  );
+}
 
 export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeekLoop, goTab, goLog }) {
   const app = useApp();
@@ -52,6 +113,7 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeek
   const blocks = {
     setup: () => (
       <Section className="rise rise-1">
+        <UsefulSetupCard />
         {openWeekLoop && (
           <Card
             onClick={() => openWeekLoop()}
