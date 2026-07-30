@@ -130,8 +130,8 @@ export const guidanceFor = (app) => {
       title: 'Choose your next meal',
       reason: 'A planned meal can become a shopping list with pantry ingredients already deducted.',
       evidence: 'Nothing planned for today',
-      actionLabel: 'Open meal planner',
-      action: { kind: 'tab', target: 'plan' },
+      actionLabel: 'Run the week loop',
+      action: { kind: 'weekLoop', target: 'plan' },
     });
   }
 

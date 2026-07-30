@@ -35,6 +35,25 @@ Without a single promise, Forq can be read as ten different apps (meal planner, 
 - Prefer “supports your plan” language over “all-in-one food OS” when introducing new surfaces.
 - Capability register remains honest about platform limits.
 
+## Perfect week loop
+
+The strongest end-to-end experience is a single guided flow (`WeekLoop`):
+
+1. Select meals for the week  
+2. Adjust portions  
+3. Check ingredients against the pantry  
+4. Generate a deduplicated list  
+5. Compare prices (from your own shops)  
+6. Shop in aisle order  
+7. Mark purchased → update pantry  
+8. Start cooking mode  
+9. Save leftovers  
+10. Use leftovers in the next plan  
+
+Entry: Home “Start the week”, Plan “Shop for this week” (continues into the loop), Guidance when nothing is planned.
+
+Code: `src/data/weekLoop.js`, `src/lib/week-loop.js`, `src/components/WeekLoop.jsx`.
+
 ## Progressive disclosure
 
 New users only see the **core loop**:

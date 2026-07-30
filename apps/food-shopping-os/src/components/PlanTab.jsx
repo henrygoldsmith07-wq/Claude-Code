@@ -113,7 +113,7 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
   );
 }
 
-export default function PlanTab({ openRecipe }) {
+export default function PlanTab({ openRecipe, openWeekLoop }) {
   const app = useApp();
   const [view, setView] = useState('week');
   const [offset, setOffset] = useState(0); // weeks or months from today
@@ -153,6 +153,8 @@ export default function PlanTab({ openRecipe }) {
   const sendToList = () => {
     app.addToList(shoppingForPlan(app.plan, dates, { pantry: app.pantry }));
     setAddedToList(true);
+    // Hand off into the guided week loop (prices → shop) rather than leaving the user stranded.
+    openWeekLoop?.('prices');
   };
 
   const exportCalendar = () => {
@@ -501,10 +503,26 @@ export default function PlanTab({ openRecipe }) {
 
       {/* An empty calendar wants filling; a full one wants shopping for. */}
       {stats.meals === 0
-        ? <PrimaryAction label={`Fill this ${view} for me`} onClick={() => setShowGenerator(true)} />
+        ? (
+          <>
+            <PrimaryAction label={`Fill this ${view} for me`} onClick={() => setShowGenerator(true)} />
+            {openWeekLoop && (
+              <div className="px-5 mt-2">
+                <button
+                  type="button"
+                  onClick={() => openWeekLoop('plan')}
+                  className="press w-full rounded-2xl border py-3 text-[0.8125rem] font-extrabold"
+                  style={{ borderColor: 'var(--line)' }}
+                >
+                  Or run the full week loop →
+                </button>
+              </div>
+            )}
+          </>
+        )
         : <PrimaryAction
-            label={addedToList ? 'Added to your shopping list' : `Shop for this ${view}`}
-            hint={addedToList ? undefined : `${stats.meals} meal${stats.meals === 1 ? '' : 's'}`}
+            label={addedToList ? 'Continue to shop →' : `Shop for this ${view}`}
+            hint={addedToList ? 'Prices, aisles, pantry' : `${stats.meals} meal${stats.meals === 1 ? '' : 's'}`}
             onClick={sendToList}
           />}
     </div>

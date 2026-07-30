@@ -22,6 +22,7 @@ const RecipesTab = deferred(testScreens.RecipesTab, () => import('./components/R
 const RecipeDetail = deferred(testScreens.RecipeDetail, () => import('./components/RecipeDetail.jsx'));
 const PantryView = deferred(testScreens.PantryView, () => import('./components/PantryView.jsx'));
 const GuidancePanel = deferred(testScreens.GuidancePanel, () => import('./components/GuidancePanel.jsx'));
+const WeekLoop = deferred(testScreens.WeekLoop, () => import('./components/WeekLoop.jsx'));
 const launcherPart = (name) => deferred(testScreens[name], () => import('./components/GlobalLauncher.jsx')
   .then((module) => ({ default: module[name] })));
 const CommandPalette = launcherPart('CommandPalette');
@@ -170,6 +171,9 @@ function Shell() {
   const [shopAdd, setShopAdd] = useState(0);
   const [pantryAdd, setPantryAdd] = useState(0);
   const [pantryQuery, setPantryQuery] = useState('');
+  const [weekLoopOpen, setWeekLoopOpen] = useState(false);
+  const [weekLoopStep, setWeekLoopStep] = useState(null);
+  const [startCooking, setStartCooking] = useState(false);
   const noticeTimer = useRef(null);
   const completedGoals = useRef(null);
   // Which logging sheet the diary should open with, when arriving from Home.
@@ -182,7 +186,14 @@ function Shell() {
     return order.map((id) => byId[id]).filter(Boolean);
   }, [app.navTabs]);
 
-  const openRecipe = (r) => setRecipe(r);
+  const openRecipe = (r, { cook = false } = {}) => {
+    setStartCooking(Boolean(cook));
+    setRecipe(r);
+  };
+  const openWeekLoop = (step = null) => {
+    setWeekLoopStep(step);
+    setWeekLoopOpen(true);
+  };
   const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
   const flash = (message) => {
     clearTimeout(noticeTimer.current);
@@ -293,12 +304,13 @@ function Shell() {
               openRecipe={openRecipe}
               openPantry={() => setPantryOpen(true)}
               openGuidance={(view = 'next') => { setGuidanceView(view); setGuidanceOpen(true); }}
+              openWeekLoop={openWeekLoop}
               goTab={goTab}
               goLog={goLog}
             />
           )}
           <Suspense fallback={<ScreenFallback />}>
-            {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
+            {tab === 'plan' && <PlanTab openRecipe={openRecipe} openWeekLoop={openWeekLoop} />}
             {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
             {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
             {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
@@ -349,9 +361,33 @@ function Shell() {
       </nav>
 
       {/* Overlays */}
-      <Sheet open={!!recipe} onClose={() => setRecipe(null)} full>
+      <Sheet open={!!recipe} onClose={() => { setRecipe(null); setStartCooking(false); }} full>
         <Suspense fallback={<ScreenFallback />}>
-          {recipe && <RecipeDetail recipe={recipe} onClose={() => setRecipe(null)} />}
+          {recipe && (
+            <RecipeDetail
+              key={`${recipe.id}-${startCooking ? 'cook' : 'view'}`}
+              recipe={recipe}
+              startCooking={startCooking}
+              onClose={() => {
+                setRecipe(null);
+                setStartCooking(false);
+                // After cooking from the week loop, resume leftovers step
+                if (startCooking && weekLoopOpen) setWeekLoopStep('leftovers');
+              }}
+            />
+          )}
+        </Suspense>
+      </Sheet>
+      <Sheet open={weekLoopOpen} onClose={() => { setWeekLoopOpen(false); setWeekLoopStep(null); }} title="Week loop" full>
+        <Suspense fallback={<ScreenFallback />}>
+          <WeekLoop
+            key={weekLoopStep || 'auto'}
+            initialStep={weekLoopStep || undefined}
+            onClose={() => { setWeekLoopOpen(false); setWeekLoopStep(null); }}
+            onCook={(r) => {
+              openRecipe(r, { cook: true });
+            }}
+          />
         </Suspense>
       </Sheet>
       <Sheet open={pantryOpen} onClose={() => { setPantryOpen(false); setPantryQuery(''); }} title="Smart pantry">
@@ -383,6 +419,10 @@ function Shell() {
             onOpenProfile={() => {
               setGuidanceOpen(false);
               setProfileOpen(true);
+            }}
+            onOpenWeekLoop={(step) => {
+              setGuidanceOpen(false);
+              openWeekLoop(step);
             }}
           />
         </Suspense>

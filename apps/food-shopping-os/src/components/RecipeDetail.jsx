@@ -27,9 +27,9 @@ const scheduleDays = (today) =>
     return { date, label };
   });
 
-export default function RecipeDetail({ recipe: original, onClose }) {
+export default function RecipeDetail({ recipe: original, onClose, startCooking = false }) {
   const app = useApp();
-  const [cooking, setCooking] = useState(false);
+  const [cooking, setCooking] = useState(Boolean(startCooking));
   const [addedMissing, setAddedMissing] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [when, setWhen] = useState({ date: app.day, slot: original.meal || 'dinner' });

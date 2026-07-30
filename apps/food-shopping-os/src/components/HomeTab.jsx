@@ -26,7 +26,7 @@ const LOG_SHORTCUTS = [
   { id: 'copy', label: 'Copy meal', Icon: Layers },
 ];
 
-export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, goLog }) {
+export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeekLoop, goTab, goLog }) {
   const app = useApp();
   const [customising, setCustomising] = useState(false);
   const [dragging, setDragging] = useState(null);
@@ -43,6 +43,7 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
     else if (action.kind === 'pantry') openPantry();
     else if (action.kind === 'profile') goTab('profile');
     else if (action.kind === 'log') goLog('add');
+    else if (action.kind === 'weekLoop') openWeekLoop?.(action.target || 'plan');
     else goTab(action.target);
   };
 
@@ -51,6 +52,26 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
   const blocks = {
     setup: () => (
       <Section className="rise rise-1">
+        {openWeekLoop && (
+          <Card
+            onClick={() => openWeekLoop()}
+            className="mb-3 !p-4"
+            style={{ borderColor: 'var(--accent)' }}
+          >
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+              Perfect week loop
+            </p>
+            <p className="mt-1 text-[1.0625rem] font-extrabold tracking-tight">
+              Plan → list → shop → pantry → cook → leftovers
+            </p>
+            <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              One guided flow. Each step hands straight to the next — no hunting between tabs.
+            </p>
+            <p className="mt-2 text-[0.8125rem] font-extrabold" style={{ color: 'var(--accent)' }}>
+              Start the week →
+            </p>
+          </Card>
+        )}
         <GuidancePreview onOpen={() => openGuidance('next')} onAction={runGuidanceAction} />
       </Section>
     ),
