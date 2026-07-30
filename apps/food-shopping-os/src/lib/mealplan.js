@@ -66,10 +66,32 @@ export const planEntries = (plan = {}, dates = []) =>
       .map((slot) => ({ date, slot, recipeId: plan[date][slot], recipe: byId(plan[date][slot]) }))
       .filter((e) => e.recipe));
 
-const CALENDAR_TIMES = {
-  breakfast: ['080000', '090000'],
-  lunch: ['123000', '133000'],
-  dinner: ['183000', '193000'],
+/** Default eat-by times (HHMMSS). Cook blocks start earlier using recipe.time. */
+const CALENDAR_EAT = {
+  breakfast: { h: 8, m: 0 },
+  lunch: { h: 12, m: 30 },
+  dinner: { h: 18, m: 30 },
+};
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const compactDate = (stamp) => String(stamp).replace(/-/g, '');
+const toIcsLocal = (stamp, h, m) => `${compactDate(stamp)}T${pad2(h)}${pad2(m)}00`;
+
+/** Cook start = eat time minus prep minutes (minimum 15). Returns { start, end } as ICS local strings. */
+export const mealSlotTimes = (date, slot, prepMins = 30) => {
+  const eat = CALENDAR_EAT[slot] || CALENDAR_EAT.dinner;
+  const prep = Math.max(15, Math.min(180, +prepMins || 30));
+  const eatDate = new Date(`${date}T${pad2(eat.h)}:${pad2(eat.m)}:00`);
+  const startDate = new Date(+eatDate - prep * 60000);
+  // If prep pushes before midnight, clamp to 06:00 that day
+  if (startDate.getDate() !== eatDate.getDate()) {
+    startDate.setTime(+new Date(`${date}T06:00:00`));
+  }
+  return {
+    start: toIcsLocal(date, startDate.getHours(), startDate.getMinutes()),
+    end: toIcsLocal(date, eat.h, eat.m),
+    prep,
+  };
 };
 
 const icsEscape = (value) => String(value || '')
@@ -78,9 +100,7 @@ const icsEscape = (value) => String(value || '')
   .replace(/,/g, '\\,')
   .replace(/;/g, '\\;');
 
-const compactDate = (stamp) => String(stamp).replace(/-/g, '');
-
-/** Export a selected week or month as portable calendar events. */
+/** Export a selected week or month as portable calendar events (Chrono / Apple / Google). */
 export const mealPlanIcs = (
   plan = {},
   dates = [],
@@ -98,16 +118,17 @@ export const mealPlanIcs = (
     `X-WR-TIMEZONE:${timezone}`,
   ];
   entries.forEach(({ date, slot, recipe }) => {
-    const [start, end] = CALENDAR_TIMES[slot] || CALENDAR_TIMES.dinner;
+    const { start, end, prep } = mealSlotTimes(date, slot, recipe.time);
     const label = MEAL_SLOTS.find((meal) => meal.key === slot)?.label || slot;
     lines.push(
       'BEGIN:VEVENT',
       `UID:forq-${date}-${slot}@forq.app`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;TZID=${timezone}:${compactDate(date)}T${start}`,
-      `DTEND;TZID=${timezone}:${compactDate(date)}T${end}`,
-      `SUMMARY:${icsEscape(`${label} · ${recipe.name}`)}`,
-      `DESCRIPTION:${icsEscape(`${recipe.time} min · ${recipe.kcal} kcal · ${recipe.protein}g protein`)}`,
+      `DTSTART;TZID=${timezone}:${start}`,
+      `DTEND;TZID=${timezone}:${end}`,
+      `SUMMARY:${icsEscape(`Cook: ${recipe.name}`)}`,
+      `DESCRIPTION:${icsEscape(`${label} · ${prep} min prep · ${recipe.kcal} kcal · ${recipe.protein}g protein\\nOpen in Forq plan for ${date}`)}`,
+      'CATEGORIES:meal,forq,le-studio',
       'END:VEVENT',
     );
   });

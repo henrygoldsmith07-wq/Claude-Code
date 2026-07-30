@@ -583,6 +583,7 @@ export default function App() {
           )}
           {tab === 'arena' && (
             <ChatArena
+              onEndSession={endSession}
               apiKey={apiKey}
               mockMode={settings.mockMode}
               ttsRate={settings.ttsRate}

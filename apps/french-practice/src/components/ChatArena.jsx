@@ -15,7 +15,15 @@ import { getGrammarTopic } from '../lib/grammar';
 
 const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
 
-export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, onGrammarTip, history, setHistory, scenario, setScenario }) {
+function readSessionBudget() {
+  try {
+    const m = +sessionStorage.getItem('fp.sessionMins');
+    if (m === 5 || m === 10 || m === 15) return m * 60;
+  } catch { /* ignore */ }
+  return null;
+}
+
+export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, onGrammarTip, history, setHistory, scenario, setScenario, onEndSession }) {
   const [phase, setPhase] = useState('idle'); // idle | transcribing | editing | thinking
   const [draft, setDraft] = useState(''); // transcription editor / manual text
   const [spoken, setSpoken] = useState(null); // delivery coaching for a voice turn
@@ -23,7 +31,20 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   const [hint, setHint] = useState('');
   const [hintLoading, setHintLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(readSessionBudget);
   const scrollRef = useRef(null);
+
+  // Honour Home's 5/10/15 min presets: countdown only, never auto-sends speech.
+  useEffect(() => {
+    if (secondsLeft == null) return undefined;
+    if (secondsLeft <= 0) {
+      try { sessionStorage.removeItem('fp.sessionMins'); } catch { /* ignore */ }
+      onEndSession?.();
+      return undefined;
+    }
+    const id = setInterval(() => setSecondsLeft((s) => (s == null ? s : s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [secondsLeft, onEndSession]);
 
   const recorder = useRecorder({
     onComplete: async (blob, durationMs) => {
@@ -149,7 +170,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
             );
           })}
         </div>
-        <div className="flex items-center justify-between pr-1">
+        <div className="flex items-center justify-between pr-1 gap-2">
           <button
             onClick={() => { setReversed((v) => !v); setHistory([]); setHint(''); setHintLevel(0); setPhase('idle'); }}
             aria-pressed={reversed}
@@ -160,7 +181,20 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
           >
             🔄 {reversed ? 'Roles swapped — you serve' : 'Swap roles'}
           </button>
-          <RateSlider rate={ttsRate} onChange={onTtsRate} />
+          <div className="flex items-center gap-2">
+            {secondsLeft != null && (
+              <span
+                className={`tabular-nums text-[11px] font-bold px-2 py-1 rounded-lg border ${
+                  secondsLeft <= 60 ? 'border-ink text-ink bg-surface2' : 'border-line text-ink3'
+                }`}
+                title="Session timer from Home preset"
+                aria-live="polite"
+              >
+                {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
+              </span>
+            )}
+            <RateSlider rate={ttsRate} onChange={onTtsRate} />
+          </div>
         </div>
       </div>
 
