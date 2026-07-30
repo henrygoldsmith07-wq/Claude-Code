@@ -3,7 +3,8 @@
 // and a scored quiz. Pure local content; the Arena's LLM classifies mistakes
 // against these topic ids to surface "grammar tip" deep links.
 
-import { EXTRA_GRAMMAR_TOPICS } from './grammar-extra';
+import { EXTRA_GRAMMAR_TOPICS } from './grammar-extra.js';
+import { MORE_GRAMMAR_TOPICS } from './grammar-more.js';
 
 const BASE_TOPICS = [
   {
@@ -261,8 +262,24 @@ const BASE_TOPICS = [
   },
 ];
 
-export const GRAMMAR_TOPICS = [...BASE_TOPICS, ...EXTRA_GRAMMAR_TOPICS];
+export const GRAMMAR_TOPICS = [...BASE_TOPICS, ...EXTRA_GRAMMAR_TOPICS, ...MORE_GRAMMAR_TOPICS];
 
 export const getGrammarTopic = (id) => GRAMMAR_TOPICS.find((t) => t.id === id) || null;
 
 export const GRAMMAR_TOPIC_IDS = GRAMMAR_TOPICS.map((t) => t.id);
+
+export const grammarStatsByCefr = () => {
+  const out = {};
+  for (const t of GRAMMAR_TOPICS) {
+    out[t.cefr] = (out[t.cefr] || 0) + 1;
+  }
+  return out;
+};
+
+/** Deterministic daily topic for the hub. */
+export function grammarTopicOfDay(date = new Date()) {
+  if (!GRAMMAR_TOPICS.length) return null;
+  const utc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const i = Math.abs(Math.floor(utc / 864e5)) % GRAMMAR_TOPICS.length;
+  return GRAMMAR_TOPICS[i];
+}
