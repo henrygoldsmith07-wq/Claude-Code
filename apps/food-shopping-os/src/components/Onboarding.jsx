@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import {
-  ArrowRight, CalendarDays, Check, Package, ShoppingCart, SlidersHorizontal,
-  Upload, UtensilsCrossed,
+  ArrowRight, Check, LayoutGrid, ShoppingCart, SlidersHorizontal,
+  Upload, UtensilsCrossed, Users, Apple, Home,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
@@ -10,6 +10,7 @@ import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
 import { byId } from '../data/recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { PRODUCT } from '../data/product.js';
+import { PRODUCT_MODES, resolveProductMode, DEFAULT_PRODUCT_MODE } from '../data/productModes.js';
 import { addDays } from '../lib/kitchen.js';
 import { haptic } from '../lib/haptics.js';
 import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
@@ -17,12 +18,13 @@ import { NumberField } from './FoodDetail.jsx';
 
 const num = (value) => Math.max(0, Number(value) || 0) || null;
 
-/** Entry points map to the primary promise: plan → buy what you need → waste less */
-const ENTRY_GOALS = [
-  { id: 'plan', title: 'Plan my meals', text: 'Decide what you will cook — the list comes from this.', Icon: CalendarDays },
-  { id: 'shop', title: 'Buy only what I need', text: 'One list from the plan, not a second inventory.', Icon: ShoppingCart },
-  { id: 'pantry', title: 'Use food I already have', text: 'Start from the kitchen so you waste less.', Icon: Package },
-];
+const MODE_ICONS = {
+  meal_planning: UtensilsCrossed,
+  shopping_budget: ShoppingCart,
+  nutrition: Apple,
+  household: Users,
+  everything: LayoutGrid,
+};
 
 const STARTER_RECIPE_IDS = ['chicken-traybake', 'chickpea-curry', 'salmon-teriyaki'];
 
@@ -32,7 +34,7 @@ export default function Onboarding() {
   const [restoreStatus, setRestoreStatus] = useState('');
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [entryGoal, setEntryGoal] = useState('plan');
+  const [productMode, setProductMode] = useState(DEFAULT_PRODUCT_MODE);
   const [starterRecipeIds, setStarterRecipeIds] = useState([]);
   const [showPersonalisation, setShowPersonalisation] = useState(false);
   const [household, setHousehold] = useState(1);
@@ -46,6 +48,9 @@ export default function Onboarding() {
   const [maintenance, setMaintenance] = useState('');
   const [trackCycle, setTrackCycle] = useState(false);
 
+  const modeDef = resolveProductMode(productMode);
+  const onboarding = modeDef.onboarding;
+
   const toggleDiet = (id) =>
     setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
 
@@ -56,11 +61,8 @@ export default function Onboarding() {
     weightKg: num(weightKg),
     activity: 'light',
   };
-  // With weight, height and age, the equation runs; without, we fall back to
-  // whatever figure you typed, and with neither to the default.
   const estimated = maintenanceFrom(body);
 
-  /** Whatever we know: the estimate, a typed figure, or the default. */
   const preview = computeTargets({
     goal,
     diets,
@@ -87,7 +89,8 @@ export default function Onboarding() {
       name: name.trim() || 'you',
       household,
       trackCycle,
-      entryGoal,
+      productMode,
+      entryGoal: modeDef.entryGoal,
       starterRecipeIds,
       plan: starterPlan,
       shoppingList: itemsFromRecipes(starterRecipes),
@@ -105,6 +108,9 @@ export default function Onboarding() {
     setRestoreStatus(result.ok ? 'Backup restored.' : result.error);
   };
 
+  // Nutrition mode opens personalisation by default; others keep it optional.
+  const nutritionOpen = showPersonalisation || (onboarding.showNutrition && step === 2);
+
   return (
     <div className="mx-auto max-w-lg min-h-screen px-5 pt-16 pb-10" style={{ background: 'var(--bg)' }}>
       <div className="rise">
@@ -117,13 +123,22 @@ export default function Onboarding() {
             <>
               <span className="block font-extrabold" style={{ color: 'var(--ink)' }}>{PRODUCT.promise}</span>
               <span className="mt-1.5 block">
-                Start with the loop that matters: plan meals, shop from that plan, waste less.
-                Nutrition and health can wait — nothing is filled in for you.
+                Choose what you mainly need. Everything else stays available — this only simplifies the surfaces you see first.
               </span>
             </>
           )}
-          {step === 1 && 'Optional details for portions and spending. Skip anything you do not need yet.'}
-          {step === 2 && 'Pick up to three recipes. Forq puts them on the plan and builds one shopping list.'}
+          {step === 1 && (
+            onboarding.showBudget || onboarding.showHousehold || onboarding.showDiets
+              ? 'Optional details for your mode. Skip anything you do not need yet.'
+              : 'Almost ready — continue for your first win, or skip optional context.'
+          )}
+          {step === 2 && (
+            onboarding.showStarters
+              ? 'Pick up to three recipes. Forq puts them on the plan and builds one shopping list.'
+              : onboarding.showNutrition
+                ? 'Optional targets and body metrics so the diary has numbers to measure against.'
+                : 'You can start empty and fill the kitchen when you are ready.'
+          )}
         </p>
       </div>
 
@@ -132,237 +147,270 @@ export default function Onboarding() {
           <>
             <fieldset>
               <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-                What would you like help with first?
+                What do you mainly need?
               </legend>
               <div className="mt-2 grid gap-2.5">
-                {ENTRY_GOALS.map(({ id, title, text, Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={entryGoal === id}
-                    onClick={() => setEntryGoal(id)}
-                    className="press flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left"
-                    style={{
-                      background: entryGoal === id ? 'var(--accent-soft)' : 'var(--card)',
-                      borderColor: entryGoal === id ? 'var(--accent)' : 'var(--line)',
-                    }}
-                  >
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: entryGoal === id ? 'var(--accent)' : 'var(--card-2)', color: entryGoal === id ? 'var(--on-accent)' : 'var(--muted)' }}
+                {PRODUCT_MODES.map(({ id, label, blurb }) => {
+                  const Icon = MODE_ICONS[id] || Home;
+                  const selected = productMode === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setProductMode(id)}
+                      className="press flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left"
+                      style={{
+                        background: selected ? 'var(--accent-soft)' : 'var(--card)',
+                        borderColor: selected ? 'var(--accent)' : 'var(--line)',
+                      }}
                     >
-                      <Icon size={18} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[0.875rem] font-extrabold">{title}</span>
-                      <span className="block text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{text}</span>
-                    </span>
-                  </button>
-                ))}
+                      <span
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                        style={{
+                          background: selected ? 'var(--accent)' : 'var(--card-2)',
+                          color: selected ? 'var(--on-accent)' : 'var(--muted)',
+                        }}
+                      >
+                        <Icon size={18} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[0.875rem] font-extrabold">{label}</span>
+                        <span className="block text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{blurb}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </fieldset>
             <Card className="space-y-3">
-            <label className="block">
-              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-                What should we call you? <span className="normal-case tracking-normal">(optional)</span>
-              </span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && setStep(1)}
-                placeholder="Your name"
-                aria-label="Your name"
-                autoFocus
-                className="mt-1.5 w-full rounded-2xl border px-4 py-3 text-[0.9375rem] font-semibold outline-none"
-                style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-              />
-            </label>
+              <label className="block">
+                <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                  What should we call you? <span className="normal-case tracking-normal">(optional)</span>
+                </span>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && setStep(1)}
+                  placeholder="Your name"
+                  aria-label="Your name"
+                  autoFocus
+                  className="mt-1.5 w-full rounded-2xl border px-4 py-3 text-[0.9375rem] font-semibold outline-none"
+                  style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+                />
+              </label>
             </Card>
           </>
         )}
 
         {step === 1 && (
           <>
-            <Card className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-[0.875rem]">People you cook for</p>
-                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>Including you</p>
-              </div>
-              <Stepper value={household} onChange={setHousehold} min={1} max={10} />
-            </Card>
-            <Card>
-              <NumberField
-                label="Weekly food budget"
-                value={budget}
-                onChange={setBudget}
-                suffix="£"
-                step={5}
-              />
-              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Leave it at 0 if you'd rather not track spending.
-              </p>
-            </Card>
-            <Card>
-              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
-                How you eat
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {DIET_PATTERNS.map((d) => (
-                  <Chip key={d.id} active={diets.includes(d.id)} onClick={() => toggleDiet(d.id)}>{d.label}</Chip>
-                ))}
-              </div>
-              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Pick any that apply, or none. They filter recipes and shape your macro split.
-              </p>
-            </Card>
+            {onboarding.showHousehold && (
+              <Card className="flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-[0.875rem]">People you cook for</p>
+                  <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>Including you</p>
+                </div>
+                <Stepper value={household} onChange={setHousehold} min={1} max={10} />
+              </Card>
+            )}
+            {onboarding.showBudget && (
+              <Card>
+                <NumberField
+                  label="Weekly food budget"
+                  value={budget}
+                  onChange={setBudget}
+                  suffix="£"
+                  step={5}
+                />
+                <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Leave it at 0 if you&rsquo;d rather not track spending.
+                </p>
+              </Card>
+            )}
+            {onboarding.showDiets && (
+              <Card>
+                <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+                  How you eat
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {DIET_PATTERNS.map((d) => (
+                    <Chip key={d.id} active={diets.includes(d.id)} onClick={() => toggleDiet(d.id)}>{d.label}</Chip>
+                  ))}
+                </div>
+                <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Pick any that apply, or none. They filter recipes and shape your macro split.
+                </p>
+              </Card>
+            )}
+            {!onboarding.showHousehold && !onboarding.showBudget && !onboarding.showDiets && (
+              <Card>
+                <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {modeDef.label} keeps setup light. You can add household size, budget and diets later under Preferences.
+                </p>
+              </Card>
+            )}
           </>
         )}
 
         {step === 2 && (
           <>
-            <fieldset>
-              <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-                Choose up to three dinners
-              </legend>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {STARTER_RECIPE_IDS.map((id) => {
-                  const recipe = byId(id);
-                  const selected = starterRecipeIds.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setStarterRecipeIds((current) =>
-                        current.includes(id)
-                          ? current.filter((recipeId) => recipeId !== id)
-                          : current.length < 3 ? [...current, id] : current)}
-                      className="press overflow-hidden rounded-2xl border text-left"
-                      style={{
-                        background: 'var(--card)',
-                        borderColor: selected ? 'var(--accent)' : 'var(--line)',
-                        boxShadow: selected ? '0 0 0 1px var(--accent)' : 'none',
-                      }}
-                    >
-                      <FoodArt recipe={recipe} className="h-24 w-full" px={28} />
-                      <span className="block p-2.5">
-                        <span className="block text-[0.75rem] font-extrabold leading-tight">{recipe.name}</span>
-                        <span className="mt-1 block text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                          {recipe.time} min · £{recipe.costPerServing.toFixed(2)}/serving
+            {onboarding.showStarters && (
+              <fieldset>
+                <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                  Choose up to three dinners
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {STARTER_RECIPE_IDS.map((id) => {
+                    const recipe = byId(id);
+                    const selected = starterRecipeIds.includes(id);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setStarterRecipeIds((current) =>
+                          current.includes(id)
+                            ? current.filter((recipeId) => recipeId !== id)
+                            : current.length < 3 ? [...current, id] : current)}
+                        className="press overflow-hidden rounded-2xl border text-left"
+                        style={{
+                          background: 'var(--card)',
+                          borderColor: selected ? 'var(--accent)' : 'var(--line)',
+                          boxShadow: selected ? '0 0 0 1px var(--accent)' : 'none',
+                        }}
+                      >
+                        <FoodArt recipe={recipe} className="h-24 w-full" px={28} />
+                        <span className="block p-2.5">
+                          <span className="block text-[0.75rem] font-extrabold leading-tight">{recipe.name}</span>
+                          <span className="mt-1 block text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                            {recipe.time} min · £{recipe.costPerServing.toFixed(2)}/serving
+                          </span>
+                          <span className="mt-1.5 inline-flex items-center gap-1 text-[0.65625rem] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
+                            {selected && <Check size={11} strokeWidth={3} />}
+                            {selected ? 'Selected' : 'Choose'}
+                          </span>
                         </span>
-                        <span className="mt-1.5 inline-flex items-center gap-1 text-[0.65625rem] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
-                          {selected && <Check size={11} strokeWidth={3} />}
-                          {selected ? 'Selected' : 'Choose'}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Optional. Choose nothing to start with an empty app.
-              </p>
-            </fieldset>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Optional. Choose nothing to start with an empty app.
+                </p>
+              </fieldset>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setShowPersonalisation((value) => !value)}
-              aria-expanded={showPersonalisation}
-              className="press flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left"
-              style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
-            >
-              <span>
-                <span className="block text-[0.84375rem] font-extrabold">Personalise nutrition</span>
-                <span className="block text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>Optional goals, body metrics and cycle tracking</span>
-              </span>
-              <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
-            </button>
+            {!onboarding.showNutrition && (
+              <button
+                type="button"
+                onClick={() => setShowPersonalisation((value) => !value)}
+                aria-expanded={showPersonalisation}
+                className="press flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left"
+                style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
+              >
+                <span>
+                  <span className="block text-[0.84375rem] font-extrabold">Personalise nutrition</span>
+                  <span className="block text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>Optional goals, body metrics and cycle tracking</span>
+                </span>
+                <SlidersHorizontal size={17} style={{ color: 'var(--muted)' }} />
+              </button>
+            )}
 
-            {showPersonalisation && (
+            {nutritionOpen && (
               <>
-            <div>
-              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
-                What are you aiming for?
-              </p>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {BODY_GOALS.map((g) => (
-                  <Chip key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
-                ))}
-              </div>
-              <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {BODY_GOALS.find((g) => g.id === goal).blurb}
-              </p>
-            </div>
-
-            <Card className="space-y-2.5">
-              <div className="grid grid-cols-2 gap-2.5">
-                <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
-                <NumberField label="Your height" value={heightCm} onChange={setHeightCm} suffix="cm" step={1} />
-                <NumberField label="Age" value={age} onChange={setAge} suffix="yrs" step={1} />
                 <div>
-                  <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
-                  <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
-                    {SEXES.map((s) => (
-                      <Chip key={s.id} active={sex === s.id} onClick={() => setSex(s.id)}>{s.label}</Chip>
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+                    What are you aiming for?
+                  </p>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                    {BODY_GOALS.map((g) => (
+                      <Chip key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
                     ))}
                   </div>
-                </div>
-              </div>
-              {estimated ? (
-                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                  That estimates your maintenance at <strong>{estimated.toLocaleString()} kcal</strong>
-                  {' '}(Mifflin-St Jeor, lightly active). Change the activity level under Goals any time.
-                </p>
-              ) : (
-                <NumberField label="Maintenance" value={maintenance} onChange={setMaintenance} suffix="kcal" step={50} />
-              )}
-            </Card>
-            <p className="text-[0.75rem] font-semibold px-1 -mt-1" style={{ color: 'var(--muted)' }}>
-              All optional. Weight, height, age and sex together let Forq estimate your maintenance
-              instead of you knowing it — sex matters because the equation&rsquo;s constants differ by
-              166 kcal, which is a meal. &ldquo;Rather not say&rdquo; takes the midpoint rather than
-              picking one for you, and every field is editable later.
-            </p>
-
-            <Card>
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-bold text-[0.875rem]">Track your cycle</p>
-                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                    Adds a page under Health for periods and symptoms
+                  <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {BODY_GOALS.find((g) => g.id === goal).blurb}
                   </p>
                 </div>
-                <Toggle label="Track your cycle" on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
-              </div>
-              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Off by default, and nothing else changes either way. Turn it on or off whenever you
-                like under Goals.
-              </p>
-            </Card>
 
-            <Card>
-              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
-                That works out as
-              </p>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-[1.875rem] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
-                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
-                </div>
-                <div className="flex gap-4 text-right">
-                  {[['Protein', preview.protein], ['Carbs', preview.carbs], ['Fat', preview.fat]].map(([label, v]) => (
-                    <div key={label}>
-                      <p className="text-[0.9375rem] font-extrabold leading-none">{v}g</p>
-                      <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+                <Card className="space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
+                    <NumberField label="Your height" value={heightCm} onChange={setHeightCm} suffix="cm" step={1} />
+                    <NumberField label="Age" value={age} onChange={setAge} suffix="yrs" step={1} />
+                    <div>
+                      <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
+                      <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
+                        {SEXES.map((s) => (
+                          <Chip key={s.id} active={sex === s.id} onClick={() => setSex(s.id)}>{s.label}</Chip>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-            <p className="text-[0.75rem] font-semibold px-1" style={{ color: 'var(--muted)' }}>
-              Vitamins and minerals start at UK reference intakes. Everything here is editable later.
-            </p>
+                  </div>
+                  {estimated ? (
+                    <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                      That estimates your maintenance at <strong>{estimated.toLocaleString()} kcal</strong>
+                      {' '}(Mifflin-St Jeor, lightly active). Change the activity level under Goals any time.
+                    </p>
+                  ) : (
+                    <NumberField label="Maintenance" value={maintenance} onChange={setMaintenance} suffix="kcal" step={50} />
+                  )}
+                </Card>
+                <p className="text-[0.75rem] font-semibold px-1 -mt-1" style={{ color: 'var(--muted)' }}>
+                  All optional. Weight, height, age and sex together let Forq estimate your maintenance
+                  instead of you knowing it — sex matters because the equation&rsquo;s constants differ by
+                  166 kcal, which is a meal. &ldquo;Rather not say&rdquo; takes the midpoint rather than
+                  picking one for you, and every field is editable later.
+                </p>
+
+                <Card>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-[0.875rem]">Track your cycle</p>
+                      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                        Adds a page under Health for periods and symptoms
+                      </p>
+                    </div>
+                    <Toggle label="Track your cycle" on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
+                  </div>
+                  <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    Off by default, and nothing else changes either way. Turn it on or off whenever you
+                    like under Goals.
+                  </p>
+                </Card>
+
+                <Card>
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+                    That works out as
+                  </p>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-[1.875rem] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
+                      <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
+                    </div>
+                    <div className="flex gap-4 text-right">
+                      {[['Protein', preview.protein], ['Carbs', preview.carbs], ['Fat', preview.fat]].map(([label, v]) => (
+                        <div key={label}>
+                          <p className="text-[0.9375rem] font-extrabold leading-none">{v}g</p>
+                          <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+                <p className="text-[0.75rem] font-semibold px-1" style={{ color: 'var(--muted)' }}>
+                  Vitamins and minerals start at UK reference intakes. Everything here is editable later.
+                </p>
               </>
+            )}
+
+            {!onboarding.showStarters && !nutritionOpen && (
+              <Card>
+                <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Start empty and add pantry items, plans or diary entries when you are ready.
+                  Product mode only changes what shows first — nothing is locked away.
+                </p>
+              </Card>
             )}
           </>
         )}

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, CalendarDays, ChefHat, ClipboardList, Download, Home, ShoppingCart, Upload,
 } from 'lucide-react';
@@ -175,6 +175,13 @@ function Shell() {
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
+  /** Mode reorders nav shortcuts; every tab stays available. */
+  const navTabs = useMemo(() => {
+    const byId = Object.fromEntries(TABS.map((item) => [item.id, item]));
+    const order = app.navTabs || TABS.map((item) => item.id);
+    return order.map((id) => byId[id]).filter(Boolean);
+  }, [app.navTabs]);
+
   const openRecipe = (r) => setRecipe(r);
   const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
   const flash = (message) => {
@@ -188,7 +195,7 @@ function Shell() {
     return undone;
   };
   const runCommand = (target) => {
-    const tabs = new Set(TABS.map((item) => item.id));
+    const tabs = new Set(navTabs.map((item) => item.id));
     if (tabs.has(target)) setTab(target);
     else if (target === 'pantry') setPantryOpen(true);
     else if (target === 'add-food') goLog('add');
@@ -230,7 +237,8 @@ function Shell() {
       } else if (!typing && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'q') {
         setLauncher('quick');
       } else if (!typing && !launcher && /^[1-6]$/.test(event.key)) {
-        setTab(TABS[Number(event.key) - 1].id);
+        const item = navTabs[Number(event.key) - 1];
+        if (item) setTab(item.id);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -319,7 +327,7 @@ function Shell() {
           </div>
         </div>
         <div className="app-nav-items">
-          {TABS.map(({ id, label, Icon }) => {
+          {navTabs.map(({ id, label, Icon }) => {
             const active = tab === id;
             return (
               <button

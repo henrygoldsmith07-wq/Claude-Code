@@ -71,7 +71,11 @@ export const emojiFor = (name) => searchFoods(name, CATALOGUE, 1)[0]?.emoji || '
 export const EMPTY_STATE = {
   schemaVersion: STATE_VERSION,
   onboarded: false,
-  entryGoal: 'plan', // plan · shop · pantry — chosen on first entry
+  /** meal_planning · shopping_budget · nutrition · household · everything */
+  productMode: 'meal_planning',
+  entryGoal: 'plan', // plan · shop · pantry — derived from product mode
+  /** AdvancedPanel views shown initially; null = use mode default */
+  advancedToolsVisible: null,
   starterRecipeIds: [],
   dismissedSetupSteps: [],
   welcomeDismissed: false,

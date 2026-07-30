@@ -27,6 +27,16 @@ const VIEWS = [
   ['register', 'What it can’t', Info],
 ];
 
+/** Mode controls which advanced tools are initially visible; register always stays. */
+const viewsForMode = (visible) => {
+  const allow = new Set(visible || []);
+  if (!allow.size) {
+    // Empty = hide specialised tools; keep the honesty register.
+    return VIEWS.filter(([key]) => key === 'register');
+  }
+  return VIEWS.filter(([key]) => allow.has(key) || key === 'register');
+};
+
 /* ---------- Footprint ---------- */
 
 function PlanetView() {
@@ -466,21 +476,29 @@ function RegisterView() {
  * shouldn't be.
  */
 export default function AdvancedPanel() {
-  const [view, setView] = useState('planet');
+  const app = useApp();
+  const views = viewsForMode(app.advancedToolsVisible);
+  const [view, setView] = useState(() => views[0]?.[0] || 'register');
+  const active = views.some(([key]) => key === view) ? view : (views[0]?.[0] || 'register');
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {VIEWS.map(([key, label, Icon]) => (
-          <Chip key={key} active={view === key} onClick={() => setView(key)}>
+        {views.map(([key, label, Icon]) => (
+          <Chip key={key} active={active === key} onClick={() => setView(key)}>
             <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
           </Chip>
         ))}
       </div>
-      {view === 'planet' && <PlanetView />}
-      {view === 'micros' && <MicrosView />}
-      {view === 'fasting' && <FastingView />}
-      {view === 'results' && <><BloodsCard /><GlucoseCard /></>}
-      {view === 'register' && <RegisterView />}
+      {views.length < VIEWS.length && (
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          Extra tools stay available under Preferences → product mode (Everything), or when your mode includes them.
+        </p>
+      )}
+      {active === 'planet' && <PlanetView />}
+      {active === 'micros' && <MicrosView />}
+      {active === 'fasting' && <FastingView />}
+      {active === 'results' && <><BloodsCard /><GlucoseCard /></>}
+      {active === 'register' && <RegisterView />}
     </div>
   );
 }

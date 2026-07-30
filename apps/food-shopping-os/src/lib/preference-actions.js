@@ -10,6 +10,7 @@ import {
   allergenBy, CUISINES, DEFAULT_UNITS, DEFAULT_WIDGETS, intoleranceBy, religiousBy, skillBy,
   timeBudgetBy, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
+import { applyProductMode, PRODUCT_MODE_IDS } from '../data/productModes.js';
 import { moveBefore } from './utils.js';
 
 const toggleIn = (list = [], id, valid) => {
@@ -60,6 +61,24 @@ export const preferenceActions = (set) => ({
       return widgets === current ? {} : { widgets };
     }),
   resetWidgets: () => set({ widgets: null }),
+
+  /**
+   * Change product mode after setup. Re-applies widgets and advanced-tool
+   * visibility for the new mode; does not wipe diary or plan data.
+   */
+  setProductMode: (modeId) =>
+    set((s) => {
+      if (!PRODUCT_MODE_IDS.includes(modeId)) return {};
+      const next = applyProductMode(modeId, {
+        entryGoal: undefined, // let mode set entryGoal
+      });
+      return {
+        productMode: next.productMode,
+        entryGoal: next.entryGoal,
+        widgets: next.widgets,
+        advancedToolsVisible: next.advancedToolsVisible,
+      };
+    }),
 });
 
 /* ---------- Advanced: things measured or imported elsewhere ---------- */

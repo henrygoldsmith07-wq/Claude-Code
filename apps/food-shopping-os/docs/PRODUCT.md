@@ -35,6 +35,21 @@ Without a single promise, Forq can be read as ten different apps (meal planner, 
 - Prefer “supports your plan” language over “all-in-one food OS” when introducing new surfaces.
 - Capability register remains honest about platform limits.
 
+## Product modes (simplify the surface, keep the depth)
+
+At setup (and later in Preferences), users pick what they mainly need:
+
+| Mode | Surfaces first |
+|------|----------------|
+| **Meal Planning** | Plan, recipes, leftovers |
+| **Shopping and Budgeting** | Shop, pantry, spend |
+| **Nutrition** | Diary, targets, macros |
+| **Household Organisation** | Pantry, people, expiry |
+| **Everything** | Full UI from day one |
+
+Mode controls: home widgets, bottom-nav order, onboarding questions, guidance ranking, notification presets, and which advanced tools show initially. Features are not removed — switch mode or open Preferences to surface more.
+
 ## Source of truth in code
 
-`src/data/product.js` — import `PRODUCT`, `PRIMARY_LOOP`, `SUPPORTING_PILLARS`, `SURFACE_POSITIONING` for UI and docs.
+- `src/data/product.js` — `PRODUCT`, `PRIMARY_LOOP`, `SUPPORTING_PILLARS`, `SURFACE_POSITIONING`
+- `src/data/productModes.js` — selectable modes and apply helpers

@@ -25,6 +25,12 @@ import { recentFoodsFrom } from './state.js';
 import { allowedByPrefs, prefsSummary, reach, recipeFit } from './preferences.js';
 import { formatters } from './units.js';
 import { DEFAULT_WIDGETS } from '../data/preferences.js';
+import {
+  advancedToolsForMode,
+  DEFAULT_PRODUCT_MODE,
+  resolveProductMode,
+  tabsForMode,
+} from '../data/productModes.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
@@ -141,7 +147,14 @@ export const deriveApp = (state) => {
     tasteProfile,
     fitFor: (recipe) => recipeFit(recipe, prefs),
     fmt: formatters(prefs),
-    homeWidgets: state.widgets || DEFAULT_WIDGETS,
+    homeWidgets: state.widgets || resolveProductMode(state.productMode || DEFAULT_PRODUCT_MODE).widgets || DEFAULT_WIDGETS,
+    productMode: state.productMode || DEFAULT_PRODUCT_MODE,
+    productModeDef: resolveProductMode(state.productMode || DEFAULT_PRODUCT_MODE),
+    navTabs: tabsForMode(state.productMode || DEFAULT_PRODUCT_MODE),
+    advancedToolsVisible: advancedToolsForMode(
+      state.productMode || DEFAULT_PRODUCT_MODE,
+      state.advancedToolsVisible,
+    ),
     /* advanced surfaces, each derived from what you logged like everything else */
     footprint,
     footprintSwaps: swapIdeas(footprint),
