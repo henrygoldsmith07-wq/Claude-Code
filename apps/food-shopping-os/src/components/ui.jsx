@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { recipeImage } from '../data/recipe-images.js';
+import { fallbackImage, recipeImage } from '../data/recipe-images.js';
 
 /* ---------- Layout ---------- */
 
@@ -462,18 +462,31 @@ export const Toggle = ({ on, onChange, label }) => (
   </button>
 );
 
-/** Local, licensed recipe photography with a stable category match. */
-export const FoodArt = ({ recipe, className, alt = '' }) => (
-  <div
-    className={cx('relative flex items-center justify-center overflow-hidden', className)}
-    style={{ background: 'var(--card-2)' }}
-  >
-    <img
-      src={recipeImage(recipe)}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      className="h-full w-full object-cover"
-    />
-  </div>
-);
+/**
+ * A picture of the dish, generated from the recipe itself (see
+ * `data/recipe-images.js`). It comes over the network, so a failed request —
+ * offline, blocked, or the service having a bad day — falls back to the
+ * bundled picture for that kind of food rather than an empty frame.
+ */
+export const FoodArt = ({ recipe, className, alt = '' }) => {
+  const generated = recipeImage(recipe);
+  const [src, setSrc] = useState(generated);
+
+  useEffect(() => { setSrc(generated); }, [generated]);
+
+  return (
+    <div
+      className={cx('relative flex items-center justify-center overflow-hidden', className)}
+      style={{ background: 'var(--card-2)' }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onError={() => setSrc(fallbackImage(recipe))}
+        className="h-full w-full object-cover"
+      />
+    </div>
+  );
+};

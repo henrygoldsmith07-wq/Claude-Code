@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTasteDeck, buildTasteProfile, tasteScore } from '../src/lib/taste.js';
 import { buildPlan } from '../src/lib/planner.js';
-import { recipeImage, RECIPE_IMAGES } from '../src/data/recipe-images.js';
+import { fallbackImage, imagePrompt, recipeImage, RECIPE_IMAGES } from '../src/data/recipe-images.js';
 import { RECIPES } from '../src/data/recipes.js';
 
 const recipe = (id, cuisine, tags = []) => ({
@@ -56,10 +56,34 @@ describe('recipe taste matching', () => {
   });
 });
 
-describe('recipe photography', () => {
-  it('gives every bundled and personal recipe a local image', () => {
-    const knownImages = new Set(Object.values(RECIPE_IMAGES));
-    expect(RECIPES.every((item) => knownImages.has(recipeImage(item)))).toBe(true);
-    expect(knownImages.has(recipeImage({ id: 'mine-anything', name: 'My own dish' }))).toBe(true);
+describe('recipe imagery', () => {
+  it('gives every recipe its own picture rather than one of eight', () => {
+    const images = new Set(RECIPES.map((item) => recipeImage(item)));
+    expect(images.size).toBe(RECIPES.length);
+  });
+
+  it('describes the actual dish in the prompt', () => {
+    const prompt = imagePrompt({
+      name: 'Teriyaki Salmon Bowls',
+      cuisine: 'Japanese',
+      meal: 'dinner',
+      ingredients: [{ name: 'Salmon fillet' }, { name: 'Rice' }, { name: 'Sesame oil' }],
+    });
+
+    expect(prompt).toContain('Teriyaki Salmon Bowls');
+    expect(prompt).toContain('japanese dinner');
+    expect(prompt).toContain('made with salmon fillet, rice, sesame oil');
+  });
+
+  it('resolves the same recipe to the same picture every time', () => {
+    const recipe = { id: 'r-1', name: 'Coconut Chickpea Curry' };
+    expect(recipeImage(recipe)).toBe(recipeImage({ ...recipe }));
+  });
+
+  it('falls back to a bundled picture when there is nothing to generate from', () => {
+    const bundled = new Set(Object.values(RECIPE_IMAGES));
+    expect(bundled.has(recipeImage({ id: 'nameless' }))).toBe(true);
+    expect(bundled.has(fallbackImage({ id: 'mine', name: 'My own dish' }))).toBe(true);
+    expect(RECIPES.every((item) => bundled.has(fallbackImage(item)))).toBe(true);
   });
 });
