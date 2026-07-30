@@ -35,6 +35,21 @@ Without a single promise, Forq can be read as ten different apps (meal planner, 
 - Prefer “supports your plan” language over “all-in-one food OS” when introducing new surfaces.
 - Capability register remains honest about platform limits.
 
+## Progressive disclosure
+
+New users only see the **core loop**:
+
+1. Plan meals  
+2. Generate shopping list  
+3. Shop  
+4. Update pantry  
+5. Cook  
+6. Repeat  
+
+Secondary capabilities (exercise, cycle tracking, blood results, fasting, carbon analysis, receipt capture, advanced reports, coach links, AI coach) live under **Add tools** and stay hidden until enabled.
+
+State: `enabledTools` in `src/data/optionalTools.js`.
+
 ## Product modes (simplify the surface, keep the depth)
 
 At setup (and later in Preferences), users pick what they mainly need:

@@ -10,6 +10,7 @@
 
 import { DEFAULT_WIDGETS } from './preferences.js';
 import { NOTIFICATION_PRESETS } from './reminders.js';
+import { ALL_ENABLED_TOOLS, DEFAULT_ENABLED_TOOLS } from './optionalTools.js';
 
 const ALL_TABS = ['home', 'plan', 'log', 'shop', 'recipes'];
 const ALL_ADVANCED = ['planet', 'micros', 'fasting', 'results', 'register'];
@@ -184,12 +185,17 @@ export const resolveProductMode = (id) =>
  */
 export const applyProductMode = (modeId, base = {}) => {
   const m = resolveProductMode(modeId);
+  // Everything unlocks optional tools; focused modes start with the core loop only.
+  const enabledTools = base.enabledTools !== undefined
+    ? base.enabledTools
+    : (m.id === 'everything' ? [...ALL_ENABLED_TOOLS] : [...DEFAULT_ENABLED_TOOLS]);
   return {
     ...base,
     productMode: m.id,
     entryGoal: base.entryGoal || m.entryGoal,
     widgets: base.widgets ?? [...m.widgets],
     advancedToolsVisible: base.advancedToolsVisible ?? [...m.advancedToolsVisible],
+    enabledTools,
   };
 };
 

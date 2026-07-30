@@ -76,6 +76,11 @@ export const EMPTY_STATE = {
   entryGoal: 'plan', // plan · shop · pantry — derived from product mode
   /** AdvancedPanel views shown initially; null = use mode default */
   advancedToolsVisible: null,
+  /**
+   * Progressive disclosure: optional tool ids the user has added.
+   * Empty = core loop only (plan → list → shop → pantry → cook).
+   */
+  enabledTools: [],
   starterRecipeIds: [],
   dismissedSetupSteps: [],
   welcomeDismissed: false,

@@ -13,7 +13,7 @@ import { PRODUCT } from '../data/product.js';
 import { PRODUCT_MODES, resolveProductMode, DEFAULT_PRODUCT_MODE } from '../data/productModes.js';
 import { addDays } from '../lib/kitchen.js';
 import { haptic } from '../lib/haptics.js';
-import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
+import { Card, Chip, FoodArt, Stepper } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
 const num = (value) => Math.max(0, Number(value) || 0) || null;
@@ -46,7 +46,7 @@ export default function Onboarding() {
   const [age, setAge] = useState('');
   const [sex, setSex] = useState('unspecified');
   const [maintenance, setMaintenance] = useState('');
-  const [trackCycle, setTrackCycle] = useState(false);
+
 
   const modeDef = resolveProductMode(productMode);
   const onboarding = modeDef.onboarding;
@@ -88,7 +88,6 @@ export default function Onboarding() {
       ...state,
       name: name.trim() || 'you',
       household,
-      trackCycle,
       productMode,
       entryGoal: modeDef.entryGoal,
       starterRecipeIds,
@@ -362,22 +361,6 @@ export default function Onboarding() {
                   166 kcal, which is a meal. &ldquo;Rather not say&rdquo; takes the midpoint rather than
                   picking one for you, and every field is editable later.
                 </p>
-
-                <Card>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-bold text-[0.875rem]">Track your cycle</p>
-                      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                        Adds a page under Health for periods and symptoms
-                      </p>
-                    </div>
-                    <Toggle label="Track your cycle" on={trackCycle} onChange={() => setTrackCycle(!trackCycle)} />
-                  </div>
-                  <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                    Off by default, and nothing else changes either way. Turn it on or off whenever you
-                    like under Goals.
-                  </p>
-                </Card>
 
                 <Card>
                   <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>

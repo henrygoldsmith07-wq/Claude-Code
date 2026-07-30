@@ -15,6 +15,7 @@ import { optimiseMicros } from '../lib/micro-optimise.js';
 import { currentFast, FAST_PLANS } from '../lib/fasting.js';
 import { dayResponses, daySummary, importSpan, parseCgmCsv } from '../lib/cgm.js';
 import { adherenceReport } from '../lib/reports.js';
+import { ADVANCED_VIEW_TOOL } from '../data/optionalTools.js';
 import { Card, Chip, Meter, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
@@ -27,15 +28,15 @@ const VIEWS = [
   ['register', 'What it can’t', Info],
 ];
 
-/** Mode controls which advanced tools are initially visible; register always stays. */
-const viewsForMode = (visible) => {
-  const allow = new Set(visible || []);
-  if (!allow.size) {
-    // Empty = hide specialised tools; keep the honesty register.
-    return VIEWS.filter(([key]) => key === 'register');
-  }
-  return VIEWS.filter(([key]) => allow.has(key) || key === 'register');
-};
+/**
+ * Progressive disclosure: carbon / fasting / bloods only when the user added
+ * that tool. Register always stays. Micronutrient gaps stay available as diary support.
+ */
+const viewsForTools = (hasTool) => VIEWS.filter(([key]) => {
+  if (key === 'register' || key === 'micros') return true;
+  const toolId = ADVANCED_VIEW_TOOL[key];
+  return toolId ? hasTool(toolId) : true;
+});
 
 /* ---------- Footprint ---------- */
 
@@ -477,7 +478,7 @@ function RegisterView() {
  */
 export default function AdvancedPanel() {
   const app = useApp();
-  const views = viewsForMode(app.advancedToolsVisible);
+  const views = viewsForTools(app.hasTool);
   const [view, setView] = useState(() => views[0]?.[0] || 'register');
   const active = views.some(([key]) => key === view) ? view : (views[0]?.[0] || 'register');
   return (
@@ -491,7 +492,7 @@ export default function AdvancedPanel() {
       </div>
       {views.length < VIEWS.length && (
         <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-          Extra tools stay available under Preferences → product mode (Everything), or when your mode includes them.
+          Extra tools are under Guidance → Add tools. Enable carbon, fasting or blood results there when you need them.
         </p>
       )}
       {active === 'planet' && <PlanetView />}

@@ -31,6 +31,10 @@ import {
   resolveProductMode,
   tabsForMode,
 } from '../data/productModes.js';
+import {
+  isToolEnabled,
+  normaliseEnabledTools,
+} from '../data/optionalTools.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
@@ -155,6 +159,9 @@ export const deriveApp = (state) => {
       state.productMode || DEFAULT_PRODUCT_MODE,
       state.advancedToolsVisible,
     ),
+    enabledTools: normaliseEnabledTools(state.enabledTools),
+    /** Progressive disclosure: secondary capability opted in? */
+    hasTool: (id) => isToolEnabled(state.enabledTools, id),
     /* advanced surfaces, each derived from what you logged like everything else */
     footprint,
     footprintSwaps: swapIdeas(footprint),

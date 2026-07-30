@@ -167,7 +167,7 @@ export default function ProfileTab({ openGuidance }) {
               <div className="min-w-0">
                 <p className="font-extrabold text-[0.90625rem]">Guidance</p>
                 <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                  One next step, with trends, reports and tools behind it
+                  Next step for the plan–shop–cook loop. Optional tools stay under Add tools.
                 </p>
               </div>
               <Sparkles size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
@@ -184,9 +184,10 @@ export default function ProfileTab({ openGuidance }) {
         </div>
       </Section>
       )}
-{(show('health') || show('exercise') || show('reminders')) && (
-      <Section title="Health & training" className="rise rise-1">
-        {(show('health') || show('exercise')) && (
+{/* Exercise / advanced health only after progressive disclosure; reminders stay core. */}
+{(show('health') || (show('exercise') && app.hasTool('exercise')) || show('reminders')) && (
+      <Section title={app.hasTool('exercise') || show('health') ? 'Health & training' : 'Reminders'} className="rise rise-1">
+        {(show('health') || (show('exercise') && app.hasTool('exercise'))) && (
         <div className="grid grid-cols-2 gap-2.5">
           {show('health') && (
           <Card onClick={() => setHealthOpen(true)}>
@@ -195,11 +196,11 @@ export default function ProfileTab({ openGuidance }) {
             <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
               {app.body_.readings.weight
                 ? `${app.body_.readings.weight.value} kg${app.body_.bmi ? ` · BMI ${app.body_.bmi.value}` : ''}`
-                : `Weight, vitals, sleep${app.trackCycle ? ', cycle' : ''}`}
+                : `Weight, vitals, sleep${app.hasTool('cycle') && app.trackCycle ? ', cycle' : ''}`}
             </p>
           </Card>
           )}
-          {show('exercise') && (
+          {show('exercise') && app.hasTool('exercise') && (
           <Card onClick={() => setExerciseOpen(true)}>
             <Dumbbell size={17} style={{ color: 'var(--muted)' }} />
             <p className="mt-1.5 font-extrabold text-[0.90625rem]">Exercise</p>
