@@ -1,8 +1,10 @@
 import './globals.css';
 
+import { PRODUCT } from '../data/product.js';
+
 export const metadata = {
-  title: 'Forq — Food Shopping OS',
-  description: 'Plan meals, shop smarter, cook better — spend less and waste less.',
+  title: PRODUCT.title,
+  description: PRODUCT.metaDescription,
   manifest: '/manifest.webmanifest',
   icons: { icon: '/icon.svg', apple: '/icon-192.png' },
 };

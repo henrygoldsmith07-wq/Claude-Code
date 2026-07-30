@@ -1,7 +1,7 @@
 {
-  "name": "Forq — Food Shopping OS",
+  "name": "Forq — Plan meals, buy less waste",
   "short_name": "Forq",
-  "description": "Plan meals, shop smarter, cook better — spend less and waste less.",
+  "description": "Plan meals, buy exactly what you need and waste less food.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fafafa",
