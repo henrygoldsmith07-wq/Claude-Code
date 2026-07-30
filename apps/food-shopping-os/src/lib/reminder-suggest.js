@@ -9,6 +9,7 @@
  */
 
 import { DEFAULT_TEXT, kindBy, NOTIFICATION_PRESETS } from '../data/reminders.js';
+import { notificationKindsForMode } from '../data/productModes.js';
 import { cleanTimes, dayIndex, minutesOf, timeOf } from './reminders.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 
@@ -123,10 +124,14 @@ export const suggestedReminders = (state = {}) => {
 };
 
 /** Ready-made schedules remain a choice: return only kinds not already set. */
-export const notificationPresets = (reminders = []) => {
+export const notificationPresets = (reminders = [], productMode) => {
   const configured = new Set(reminders.map((reminder) => reminder.kind));
+  const allowed = productMode
+    ? new Set(notificationKindsForMode(productMode))
+    : null;
   return NOTIFICATION_PRESETS
     .filter((preset) => !configured.has(preset.kind))
+    .filter((preset) => !allowed || allowed.has(preset.kind))
     .map((preset) => ({ ...preset, label: DEFAULT_TEXT[preset.kind] }));
 };
 

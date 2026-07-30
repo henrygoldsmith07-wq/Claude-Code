@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, CalendarDays, ChefHat, ClipboardList, Download, Home, ShoppingCart, Upload,
 } from 'lucide-react';
@@ -22,6 +22,10 @@ const RecipesTab = deferred(testScreens.RecipesTab, () => import('./components/R
 const RecipeDetail = deferred(testScreens.RecipeDetail, () => import('./components/RecipeDetail.jsx'));
 const PantryView = deferred(testScreens.PantryView, () => import('./components/PantryView.jsx'));
 const GuidancePanel = deferred(testScreens.GuidancePanel, () => import('./components/GuidancePanel.jsx'));
+const WeekLoop = deferred(testScreens.WeekLoop, () => import('./components/WeekLoop.jsx'));
+const DemoBannerLazy = deferred(testScreens.DemoBanner, () => import('./components/DemoWalkthrough.jsx')
+  .then((m) => ({ default: m.DemoBanner })));
+const DemoWalkthroughLazy = deferred(testScreens.DemoWalkthrough, () => import('./components/DemoWalkthrough.jsx'));
 const launcherPart = (name) => deferred(testScreens[name], () => import('./components/GlobalLauncher.jsx')
   .then((module) => ({ default: module[name] })));
 const CommandPalette = launcherPart('CommandPalette');
@@ -170,12 +174,29 @@ function Shell() {
   const [shopAdd, setShopAdd] = useState(0);
   const [pantryAdd, setPantryAdd] = useState(0);
   const [pantryQuery, setPantryQuery] = useState('');
+  const [weekLoopOpen, setWeekLoopOpen] = useState(false);
+  const [weekLoopStep, setWeekLoopStep] = useState(null);
+  const [startCooking, setStartCooking] = useState(false);
   const noticeTimer = useRef(null);
   const completedGoals = useRef(null);
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
-  const openRecipe = (r) => setRecipe(r);
+  /** Mode reorders nav shortcuts; every tab stays available. */
+  const navTabs = useMemo(() => {
+    const byId = Object.fromEntries(TABS.map((item) => [item.id, item]));
+    const order = app.navTabs || TABS.map((item) => item.id);
+    return order.map((id) => byId[id]).filter(Boolean);
+  }, [app.navTabs]);
+
+  const openRecipe = (r, { cook = false } = {}) => {
+    setStartCooking(Boolean(cook));
+    setRecipe(r);
+  };
+  const openWeekLoop = (step = null) => {
+    setWeekLoopStep(step);
+    setWeekLoopOpen(true);
+  };
   const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
   const flash = (message) => {
     clearTimeout(noticeTimer.current);
@@ -188,7 +209,7 @@ function Shell() {
     return undone;
   };
   const runCommand = (target) => {
-    const tabs = new Set(TABS.map((item) => item.id));
+    const tabs = new Set(navTabs.map((item) => item.id));
     if (tabs.has(target)) setTab(target);
     else if (target === 'pantry') setPantryOpen(true);
     else if (target === 'add-food') goLog('add');
@@ -230,7 +251,8 @@ function Shell() {
       } else if (!typing && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'q') {
         setLauncher('quick');
       } else if (!typing && !launcher && /^[1-6]$/.test(event.key)) {
-        setTab(TABS[Number(event.key) - 1].id);
+        const item = navTabs[Number(event.key) - 1];
+        if (item) setTab(item.id);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -255,7 +277,8 @@ function Shell() {
   if (app.storageIssue?.kind === 'corrupt') return <StorageRecovery />;
 
   // Nothing is pre-filled, so the first run asks for the little it needs.
-  if (!app.onboarded) {
+  // Demo can open before onboarding — it uses an isolated store.
+  if (!app.onboarded && !app.isDemoMode) {
     return <Onboarding />;
   }
 
@@ -266,6 +289,9 @@ function Shell() {
       <a href="#main" className="skip-link">Skip to content</a>
 
       <div className="app-workspace">
+        <Suspense fallback={null}>
+          <DemoBannerLazy />
+        </Suspense>
         <AppHeader
           tab={tab}
           onProfile={() => setProfileOpen(true)}
@@ -285,12 +311,13 @@ function Shell() {
               openRecipe={openRecipe}
               openPantry={() => setPantryOpen(true)}
               openGuidance={(view = 'next') => { setGuidanceView(view); setGuidanceOpen(true); }}
+              openWeekLoop={openWeekLoop}
               goTab={goTab}
               goLog={goLog}
             />
           )}
           <Suspense fallback={<ScreenFallback />}>
-            {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
+            {tab === 'plan' && <PlanTab openRecipe={openRecipe} openWeekLoop={openWeekLoop} />}
             {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
             {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
             {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
@@ -319,7 +346,7 @@ function Shell() {
           </div>
         </div>
         <div className="app-nav-items">
-          {TABS.map(({ id, label, Icon }) => {
+          {navTabs.map(({ id, label, Icon }) => {
             const active = tab === id;
             return (
               <button
@@ -341,9 +368,33 @@ function Shell() {
       </nav>
 
       {/* Overlays */}
-      <Sheet open={!!recipe} onClose={() => setRecipe(null)} full>
+      <Sheet open={!!recipe} onClose={() => { setRecipe(null); setStartCooking(false); }} full>
         <Suspense fallback={<ScreenFallback />}>
-          {recipe && <RecipeDetail recipe={recipe} onClose={() => setRecipe(null)} />}
+          {recipe && (
+            <RecipeDetail
+              key={`${recipe.id}-${startCooking ? 'cook' : 'view'}`}
+              recipe={recipe}
+              startCooking={startCooking}
+              onClose={() => {
+                setRecipe(null);
+                setStartCooking(false);
+                // After cooking from the week loop, resume leftovers step
+                if (startCooking && weekLoopOpen) setWeekLoopStep('leftovers');
+              }}
+            />
+          )}
+        </Suspense>
+      </Sheet>
+      <Sheet open={weekLoopOpen} onClose={() => { setWeekLoopOpen(false); setWeekLoopStep(null); }} title="Week loop" full>
+        <Suspense fallback={<ScreenFallback />}>
+          <WeekLoop
+            key={weekLoopStep || 'auto'}
+            initialStep={weekLoopStep || undefined}
+            onClose={() => { setWeekLoopOpen(false); setWeekLoopStep(null); }}
+            onCook={(r) => {
+              openRecipe(r, { cook: true });
+            }}
+          />
         </Suspense>
       </Sheet>
       <Sheet open={pantryOpen} onClose={() => { setPantryOpen(false); setPantryQuery(''); }} title="Smart pantry">
@@ -376,6 +427,10 @@ function Shell() {
               setGuidanceOpen(false);
               setProfileOpen(true);
             }}
+            onOpenWeekLoop={(step) => {
+              setGuidanceOpen(false);
+              openWeekLoop(step);
+            }}
           />
         </Suspense>
       </Sheet>
@@ -392,6 +447,11 @@ function Shell() {
           {notice}
         </div>
       )}
+      <Suspense fallback={null}>
+        {app.isDemoMode && (
+          <DemoWalkthroughLazy onNavigate={(id) => goTab(id)} />
+        )}
+      </Suspense>
       <GeofenceWatcher />
     </div>
   );

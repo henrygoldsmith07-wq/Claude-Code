@@ -326,7 +326,7 @@ function SharingView() {
         </p>
       </Card>
 
-      <CoachAccess />
+      {app.hasTool('coach') && <CoachAccess />}
 
       <Card className="space-y-3">
         <div>

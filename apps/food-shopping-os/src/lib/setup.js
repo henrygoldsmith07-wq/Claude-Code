@@ -11,6 +11,8 @@
  * the moment you do the thing, and unticks if you undo it.
  */
 
+import { orderSetupSteps } from '../data/productModes.js';
+
 const step = (id, label, why, done, go) => ({ id, label, why, done, go });
 
 /**
@@ -64,7 +66,8 @@ export const setupSteps = (state = {}) => [
 
 /** How far through you are, and what to do next. */
 export const setupProgress = (state = {}) => {
-  const steps = setupSteps(state);
+  // Product mode only reorders — every gate stays available.
+  const steps = orderSetupSteps(setupSteps(state), state.productMode);
   const done = steps.filter((s) => s.done).length;
   return {
     steps,

@@ -62,6 +62,17 @@ describe('the getting-started checklist', () => {
     expect(p.pct).toBe(33);
   });
 
+  it('reorders the next gate when a product mode is set', () => {
+    const p = setupProgress({
+      productMode: 'meal_planning',
+      targets: { kcal: 2000 },
+      targetMode: 'custom',
+      log: { d: [{}] },
+    });
+    // Meal planning puts plan before pantry.
+    expect(p.next.id).toBe('plan');
+  });
+
   it('reports complete, with nothing left to point at', () => {
     const p = setupProgress({
       targets: { kcal: 2000 },

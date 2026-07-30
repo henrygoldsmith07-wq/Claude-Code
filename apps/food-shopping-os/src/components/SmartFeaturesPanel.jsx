@@ -24,19 +24,22 @@ const Capability = ({ Icon, title, status, children }) => (
   </Card>
 );
 
-function CaptureCard({ onOpenAssistant }) {
+function CaptureCard({ onOpenAssistant, hideReceipt, hideAssistant }) {
   const support = captureSupport();
   return (
     <div className="space-y-2.5">
       <Capability Icon={ScanBarcode} title="Barcode recognition" status={support.barcode ? 'Ready' : 'Fallback'}>
         Reads EAN/UPC barcodes from a camera image through the browser’s native detector. Manual entry remains available.
       </Capability>
-      <Capability Icon={ReceiptText} title="OCR receipt scanning" status={support.receiptText ? 'Ready' : 'Fallback'}>
-        Uses the browser’s native text detector when available, then checks parsed items against the printed total. Paste text elsewhere.
-      </Capability>
+      {!hideReceipt && (
+        <Capability Icon={ReceiptText} title="OCR receipt scanning" status={support.receiptText ? 'Ready' : 'Fallback'}>
+          Uses the browser’s native text detector when available, then checks parsed items against the printed total. Paste text elsewhere.
+        </Capability>
+      )}
       <Capability Icon={Image} title="Image recognition for food" status="Partial">
         The plate and shelf flows are an editable on-device catalogue demo. This build does not ship a vision model, so it does not claim to identify the actual pixels.
       </Capability>
+      {!hideAssistant && (
       <Card className="!p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -54,6 +57,7 @@ function CaptureCard({ onOpenAssistant }) {
           </button>
         </div>
       </Card>
+      )}
     </div>
   );
 }
@@ -207,7 +211,11 @@ function PlaceRemindersCard() {
   );
 }
 
-export default function SmartFeaturesPanel({ onOpenAssistant }) {
+export default function SmartFeaturesPanel({
+  onOpenAssistant,
+  hideReceipt = false,
+  hideAssistant = false,
+}) {
   const app = useApp();
   const trip = predictNextTrip(app.shops, app.day);
   const stock = predictLowStock(app.shops, app.pantry, app.day);
@@ -228,7 +236,11 @@ export default function SmartFeaturesPanel({ onOpenAssistant }) {
           Device features where the browser provides them; explainable predictions from your own records everywhere else.
         </p>
       </Card>
-      <CaptureCard onOpenAssistant={onOpenAssistant} />
+      <CaptureCard
+        onOpenAssistant={onOpenAssistant}
+        hideReceipt={hideReceipt}
+        hideAssistant={hideAssistant}
+      />
       <PredictionsCard trip={trip} stock={stock} budget={budget} />
       <Card>
         <p className="font-bold text-[0.875rem] inline-flex items-center gap-1.5"><ListPlus size={15} /> Auto-generated list</p>

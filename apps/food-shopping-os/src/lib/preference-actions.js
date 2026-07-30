@@ -10,6 +10,13 @@ import {
   allergenBy, CUISINES, DEFAULT_UNITS, DEFAULT_WIDGETS, intoleranceBy, religiousBy, skillBy,
   timeBudgetBy, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
+import { applyProductMode, PRODUCT_MODE_IDS } from '../data/productModes.js';
+import {
+  ALL_ENABLED_TOOLS,
+  DEFAULT_ENABLED_TOOLS,
+  normaliseEnabledTools,
+  OPTIONAL_TOOL_IDS,
+} from '../data/optionalTools.js';
 import { moveBefore } from './utils.js';
 
 const toggleIn = (list = [], id, valid) => {
@@ -60,6 +67,59 @@ export const preferenceActions = (set) => ({
       return widgets === current ? {} : { widgets };
     }),
   resetWidgets: () => set({ widgets: null }),
+
+  /**
+   * Change product mode after setup. Re-applies widgets and advanced-tool
+   * visibility for the new mode; does not wipe diary or plan data.
+   * Everything mode also enables all optional tools; other modes leave
+   * enabledTools alone so progressive disclosure is not wiped by a mode change.
+   */
+  setProductMode: (modeId) =>
+    set((s) => {
+      if (!PRODUCT_MODE_IDS.includes(modeId)) return {};
+      const next = applyProductMode(modeId, {
+        entryGoal: undefined, // let mode set entryGoal
+      });
+      const patch = {
+        productMode: next.productMode,
+        entryGoal: next.entryGoal,
+        widgets: next.widgets,
+        advancedToolsVisible: next.advancedToolsVisible,
+      };
+      if (modeId === 'everything') {
+        patch.enabledTools = [...ALL_ENABLED_TOOLS];
+      }
+      return patch;
+    }),
+
+  /** Progressive disclosure — turn a secondary capability on or off. */
+  toggleOptionalTool: (id) =>
+    set((s) => {
+      if (!OPTIONAL_TOOL_IDS.includes(id)) return {};
+      const current = normaliseEnabledTools(s.enabledTools);
+      const turningOn = !current.includes(id);
+      const enabledTools = turningOn
+        ? [...current, id]
+        : current.filter((toolId) => toolId !== id);
+      if (id === 'cycle') {
+        return { enabledTools, trackCycle: turningOn };
+      }
+      return { enabledTools };
+    }),
+  setOptionalTool: (id, on) =>
+    set((s) => {
+      if (!OPTIONAL_TOOL_IDS.includes(id)) return {};
+      const current = normaliseEnabledTools(s.enabledTools);
+      const has = current.includes(id);
+      if (on && has) return {};
+      if (!on && !has) return {};
+      const enabledTools = on
+        ? [...current, id]
+        : current.filter((toolId) => toolId !== id);
+      if (id === 'cycle') return { enabledTools, trackCycle: Boolean(on) };
+      return { enabledTools };
+    }),
+  resetOptionalTools: () => set({ enabledTools: [...DEFAULT_ENABLED_TOOLS], trackCycle: false }),
 });
 
 /* ---------- Advanced: things measured or imported elsewhere ---------- */

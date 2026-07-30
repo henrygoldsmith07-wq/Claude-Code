@@ -71,10 +71,24 @@ export const emojiFor = (name) => searchFoods(name, CATALOGUE, 1)[0]?.emoji || '
 export const EMPTY_STATE = {
   schemaVersion: STATE_VERSION,
   onboarded: false,
-  entryGoal: 'plan', // plan · shop · pantry — chosen on first entry
+  /** meal_planning · shopping_budget · nutrition · household · everything */
+  productMode: 'meal_planning',
+  entryGoal: 'plan', // plan · shop · pantry — derived from product mode
+  /** AdvancedPanel views shown initially; null = use mode default */
+  advancedToolsVisible: null,
+  /**
+   * Progressive disclosure: optional tool ids the user has added.
+   * Empty = core loop only (plan → list → shop → pantry → cook).
+   */
+  enabledTools: [],
   starterRecipeIds: [],
   dismissedSetupSteps: [],
   welcomeDismissed: false,
+  /**
+   * Soft stage-2 setup: diets / weekly budget not collected at first open.
+   * Cleared when filled or dismissed so planning is never blocked.
+   */
+  usefulSetupPending: false,
   theme: 'light',
   accent: 'mono',
   name: '',

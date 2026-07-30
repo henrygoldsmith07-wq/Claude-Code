@@ -19,6 +19,7 @@ import { moveBefore } from './utils.js';
 import { emojiFor, EMPTY_STATE, todayStamp, uid } from './state.js';
 import { parseBackup, serialiseBackup } from './store-persistence.js';
 import { vaultActions } from './vault-actions.js';
+import { applyProductMode, DEFAULT_PRODUCT_MODE } from '../data/productModes.js';
 export function useStoreApi({
   blockPersistence, cloudStatus, latest, setState, setStorageIssue, storageIssue,
   undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
@@ -88,11 +89,15 @@ export function useStoreApi({
         setState({ ...EMPTY_STATE, day: todayStamp() });
       },
       finishOnboarding: (profile) =>
-        set((s) => ({
-          ...profile,
-          onboarded: true,
-          measurements: seedMeasurements(profile.body, s.day, s.measurements),
-        })),
+        set((s) => {
+          const modeId = profile.productMode || DEFAULT_PRODUCT_MODE;
+          const withMode = applyProductMode(modeId, profile);
+          return {
+            ...withMode,
+            onboarded: true,
+            measurements: seedMeasurements(withMode.body, s.day, s.measurements),
+          };
+        }),
       dismissSetupStep: (id) =>
         set((s) => ({
           dismissedSetupSteps: s.dismissedSetupSteps.includes(id)
@@ -100,6 +105,16 @@ export function useStoreApi({
             : [...s.dismissedSetupSteps, id],
         })),
       dismissWelcome: () => set({ welcomeDismissed: true }),
+      /** Soft stage-2 (diets / budget) — never blocks planning */
+      dismissUsefulSetup: () => set({ usefulSetupPending: false }),
+      completeUsefulSetup: ({ diets, weeklyBudget } = {}) =>
+        set((s) => ({
+          ...(Array.isArray(diets) ? { diets } : {}),
+          ...(weeklyBudget !== undefined
+            ? { weeklyBudget: Math.max(0, Number(weeklyBudget) || 0) }
+            : {}),
+          usefulSetupPending: false,
+        })),
       ...vaultActions({
         latest, set, setVaultUnlocked, undoHistory, vaultKey, vaultSalt, vaultWrites,
       }),

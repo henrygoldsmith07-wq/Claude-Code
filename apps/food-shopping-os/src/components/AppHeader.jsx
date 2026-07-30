@@ -2,14 +2,27 @@ import { Flame, Sparkles } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { greeting, prettyDate } from '../lib/utils.js';
 import { setupProgress } from '../lib/setup.js';
+import { SURFACE_POSITIONING } from '../data/product.js';
 import { Pill } from './ui.jsx';
 
 const TITLES = {
   home: null, // Home says hello instead — it's the one screen that greets you
-  plan: { title: 'Meal planner', eyebrow: 'Build your week' },
-  log: { title: 'Food diary', eyebrow: 'Track meals and nutrition' },
-  shop: { title: 'Shop', eyebrow: 'Your list, prices and stores' },
-  recipes: { title: 'Recipes', eyebrow: 'Find something worth cooking' },
+  plan: {
+    title: SURFACE_POSITIONING.plan.title,
+    eyebrow: SURFACE_POSITIONING.plan.eyebrow,
+  },
+  log: {
+    title: SURFACE_POSITIONING.log.title,
+    eyebrow: SURFACE_POSITIONING.log.eyebrow,
+  },
+  shop: {
+    title: SURFACE_POSITIONING.shop.title,
+    eyebrow: SURFACE_POSITIONING.shop.eyebrow,
+  },
+  recipes: {
+    title: SURFACE_POSITIONING.recipes.title,
+    eyebrow: SURFACE_POSITIONING.recipes.eyebrow,
+  },
 };
 
 /**

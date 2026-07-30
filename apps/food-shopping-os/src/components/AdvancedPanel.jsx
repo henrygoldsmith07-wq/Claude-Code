@@ -15,6 +15,7 @@ import { optimiseMicros } from '../lib/micro-optimise.js';
 import { currentFast, FAST_PLANS } from '../lib/fasting.js';
 import { dayResponses, daySummary, importSpan, parseCgmCsv } from '../lib/cgm.js';
 import { adherenceReport } from '../lib/reports.js';
+import { ADVANCED_VIEW_TOOL } from '../data/optionalTools.js';
 import { Card, Chip, Meter, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
@@ -26,6 +27,16 @@ const VIEWS = [
   ['results', 'Results', Beaker],
   ['register', 'What it can’t', Info],
 ];
+
+/**
+ * Progressive disclosure: carbon / fasting / bloods only when the user added
+ * that tool. Register always stays. Micronutrient gaps stay available as diary support.
+ */
+const viewsForTools = (hasTool) => VIEWS.filter(([key]) => {
+  if (key === 'register' || key === 'micros') return true;
+  const toolId = ADVANCED_VIEW_TOOL[key];
+  return toolId ? hasTool(toolId) : true;
+});
 
 /* ---------- Footprint ---------- */
 
@@ -466,21 +477,29 @@ function RegisterView() {
  * shouldn't be.
  */
 export default function AdvancedPanel() {
-  const [view, setView] = useState('planet');
+  const app = useApp();
+  const views = viewsForTools(app.hasTool);
+  const [view, setView] = useState(() => views[0]?.[0] || 'register');
+  const active = views.some(([key]) => key === view) ? view : (views[0]?.[0] || 'register');
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {VIEWS.map(([key, label, Icon]) => (
-          <Chip key={key} active={view === key} onClick={() => setView(key)}>
+        {views.map(([key, label, Icon]) => (
+          <Chip key={key} active={active === key} onClick={() => setView(key)}>
             <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
           </Chip>
         ))}
       </div>
-      {view === 'planet' && <PlanetView />}
-      {view === 'micros' && <MicrosView />}
-      {view === 'fasting' && <FastingView />}
-      {view === 'results' && <><BloodsCard /><GlucoseCard /></>}
-      {view === 'register' && <RegisterView />}
+      {views.length < VIEWS.length && (
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          Extra tools are under Guidance → Add tools. Enable carbon, fasting or blood results there when you need them.
+        </p>
+      )}
+      {active === 'planet' && <PlanetView />}
+      {active === 'micros' && <MicrosView />}
+      {active === 'fasting' && <FastingView />}
+      {active === 'results' && <><BloodsCard /><GlucoseCard /></>}
+      {active === 'register' && <RegisterView />}
     </div>
   );
 }

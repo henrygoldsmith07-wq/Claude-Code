@@ -76,6 +76,7 @@ function MaintenanceCard() {
         say&rdquo; takes the midpoint rather than picking one for you.
       </p>
 
+      {app.hasTool('cycle') && (
       <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
         <div className="min-w-0">
           <p className="font-bold text-[0.875rem]">Track your cycle</p>
@@ -87,6 +88,7 @@ function MaintenanceCard() {
         </div>
         <Toggle label="Track your cycle" on={app.trackCycle} onChange={() => app.setTrackCycle(!app.trackCycle)} />
       </div>
+      )}
     </Card>
   );
 }
