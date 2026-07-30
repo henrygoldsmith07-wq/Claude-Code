@@ -1,20 +1,55 @@
-import { useMemo, useState } from 'react';
-import { CULTURE_SECTIONS, getSectionEntries, CULTURE_QUIZ } from '../lib/culture';
+import { useMemo, useState, useEffect } from 'react';
+import {
+  CULTURE_SECTIONS,
+  getSectionEntries,
+  CULTURE_QUIZ,
+  cultureSectionStats,
+  cultureTipOfDay,
+  searchCulture,
+  cultureEntryCount,
+} from '../lib/culture';
 import { SpeakButton } from './ui';
-import { ChevronLeft, ChevronRight, Check, X, RefreshCw, Lightbulb, Trophy } from './icons';
+import { ChevronLeft, ChevronRight, Check, X, RefreshCw, Lightbulb, Trophy, Search } from './icons';
 
-// Cultural learning hub: eight themed sections of authored notes with
-// spoken phrases and "did you know" tips, plus a culture quiz that pays XP.
-// A read section is remembered for the session so progress feels visible.
+const SEEN_KEY = 'fp.cultureSeen';
+
+function loadSeen() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeen(set) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...set]));
+  } catch { /* ignore */ }
+}
+
+// Cultural learning hub: themed sections with spoken phrases, daily tip,
+// search, persistent progress, and an XP quiz.
 
 export default function Culture({ onXp }) {
-  const [view, setView] = useState({ mode: 'hub' }); // hub | section | quiz
-  const [seen, setSeen] = useState(() => new Set());
+  const [view, setView] = useState({ mode: 'hub' }); // hub | section | quiz | search
+  const [seen, setSeen] = useState(loadSeen);
+  const [query, setQuery] = useState('');
+  const stats = useMemo(() => cultureSectionStats(), []);
+  const tip = useMemo(() => cultureTipOfDay(), []);
+  const totalEntries = cultureEntryCount();
+  const sectionsRead = CULTURE_SECTIONS.filter((s) => seen.has(s.id)).length;
+
+  useEffect(() => {
+    saveSeen(seen);
+  }, [seen]);
 
   const openSection = (id) => {
     setView({ mode: 'section', sectionId: id });
     setSeen((prev) => new Set(prev).add(id));
   };
+
+  const searchHits = useMemo(() => (query.trim() ? searchCulture(query) : []), [query]);
 
   if (view.mode === 'quiz') {
     return <CultureQuiz onXp={onXp} onBack={() => setView({ mode: 'hub' })} />;
@@ -31,39 +66,107 @@ export default function Culture({ onXp }) {
         <div className="text-center">
           <h2 className="text-lg font-semibold text-ink">Culture</h2>
           <p className="text-xs text-ink2 mt-1">
-            The context behind the language — customs, food, history and the many Frances.
+            Context behind the language — {totalEntries} notes across {CULTURE_SECTIONS.length} themes.
           </p>
+          <p className="text-[11px] text-ink3 mt-1 tabular-nums">
+            {sectionsRead}/{CULTURE_SECTIONS.length} sections opened
+          </p>
+          <div className="mt-2 h-1.5 rounded-full bg-surface2 overflow-hidden max-w-xs mx-auto">
+            <div
+              className="h-full bg-ink rounded-full transition-all"
+              style={{ width: `${Math.round((sectionsRead / CULTURE_SECTIONS.length) * 100)}%` }}
+            />
+          </div>
         </div>
 
-        <button
-          onClick={() => setView({ mode: 'quiz' })}
-          className="w-full flex items-center gap-3.5 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity"
-        >
-          <Trophy size={18} className="shrink-0" />
-          <span className="flex-1">
-            <span className="block text-sm font-semibold">Culture quiz</span>
-            <span className="block text-xs opacity-70">Test what you’ve learned — earn XP</span>
-          </span>
-          <ChevronRight size={16} className="shrink-0" />
-        </button>
+        {/* Daily culture tip — Duolingo/Babbel-style daily bite */}
+        {tip && (
+          <button
+            type="button"
+            onClick={() => openSection(tip.section)}
+            className="w-full text-left bg-surface border border-line rounded-2xl px-4 py-3.5 hover:border-ink3 transition-colors space-y-1"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Culture tip of the day</p>
+            <p className="text-sm font-semibold text-ink flex items-center gap-2">
+              <span aria-hidden="true">{tip.emoji}</span>
+              <span lang="fr">{tip.title}</span>
+            </p>
+            <p className="text-xs text-ink2 line-clamp-2 leading-relaxed">{tip.body}</p>
+          </button>
+        )}
 
-        <div className="space-y-2.5">
-          {CULTURE_SECTIONS.map((s) => (
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink3 pointer-events-none" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search culture notes…"
+            aria-label="Search culture notes"
+            className="w-full rounded-2xl border border-line bg-surface pl-9 pr-3 py-2.5 text-sm text-ink placeholder:text-ink3 focus:outline-none focus:border-ink3"
+          />
+        </div>
+
+        {query.trim() ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">
+              {searchHits.length} result{searchHits.length === 1 ? '' : 's'}
+            </p>
+            {searchHits.length === 0 && (
+              <p className="text-sm text-ink3">No notes match that search.</p>
+            )}
+            {searchHits.map((entry) => {
+              const section = CULTURE_SECTIONS.find((s) => s.id === entry.section);
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => openSection(entry.section)}
+                  className="w-full text-left bg-surface border border-line rounded-2xl px-4 py-3 hover:border-ink3 transition-colors"
+                >
+                  <p className="text-[11px] text-ink3 font-semibold">{section?.title}</p>
+                  <p className="text-sm font-semibold text-ink" lang="fr">{entry.title}</p>
+                  <p className="text-xs text-ink2 line-clamp-2 mt-0.5">{entry.body}</p>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <>
             <button
-              key={s.id}
-              onClick={() => openSection(s.id)}
-              className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+              onClick={() => setView({ mode: 'quiz' })}
+              className="w-full flex items-center gap-3.5 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity"
             >
-              <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-xl" role="img" aria-hidden="true">{s.emoji}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-ink">{s.title}</span>
-                <span className="block text-xs text-ink3">{s.blurb}</span>
+              <Trophy size={18} className="shrink-0" />
+              <span className="flex-1">
+                <span className="block text-sm font-semibold">Culture quiz</span>
+                <span className="block text-xs opacity-70">
+                  {CULTURE_QUIZ.length} questions in the bank · 8 per run · earn XP
+                </span>
               </span>
-              {seen.has(s.id) && <Check size={15} className="text-ink3 shrink-0" aria-label="Read" />}
-              <ChevronRight size={16} className="text-ink3 shrink-0" />
+              <ChevronRight size={16} className="shrink-0" />
             </button>
-          ))}
-        </div>
+
+            <div className="space-y-2.5">
+              {stats.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => openSection(s.id)}
+                  className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+                >
+                  <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-xl" role="img" aria-hidden="true">{s.emoji}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-ink">{s.title}</span>
+                    <span className="block text-xs text-ink3">{s.blurb}</span>
+                    <span className="block text-[11px] text-ink3 mt-0.5 tabular-nums">{s.count} notes</span>
+                  </span>
+                  {seen.has(s.id) && <Check size={15} className="text-ink3 shrink-0" aria-label="Opened" />}
+                  <ChevronRight size={16} className="text-ink3 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -81,8 +184,12 @@ function SectionView({ section, onBack }) {
           <h2 className="flex-1 text-center text-sm font-semibold text-ink flex items-center justify-center gap-1.5">
             <span role="img" aria-hidden="true">{section.emoji}</span> {section.title}
           </h2>
-          <span className="w-10" aria-hidden="true" />
+          <span className="w-10 text-[11px] text-ink3 tabular-nums text-right" aria-label={`${entries.length} notes`}>
+            {entries.length}
+          </span>
         </div>
+
+        <p className="text-center text-xs text-ink3">{section.blurb}</p>
 
         {entries.map((entry) => (
           <article key={entry.id} className="bg-surface border border-line rounded-2xl p-5 space-y-2.5 fade-in">
@@ -114,8 +221,7 @@ function SectionView({ section, onBack }) {
 }
 
 function CultureQuiz({ onXp, onBack }) {
-  // A fresh shuffled subset each run keeps replays interesting.
-  const quiz = useMemo(() => [...CULTURE_QUIZ].sort(() => Math.random() - 0.5).slice(0, 6), []);
+  const quiz = useMemo(() => [...CULTURE_QUIZ].sort(() => Math.random() - 0.5).slice(0, 8), []);
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState(null);
   const [score, setScore] = useState(0);
@@ -144,58 +250,68 @@ function CultureQuiz({ onXp, onBack }) {
             <ChevronLeft size={18} />
           </button>
           <h2 className="flex-1 text-center text-sm font-semibold text-ink">Culture quiz</h2>
-          <span className="w-10" aria-hidden="true" />
+          <span className="w-10 text-[11px] text-ink3 tabular-nums text-right">
+            {done ? '' : `${idx + 1}/${quiz.length}`}
+          </span>
         </div>
 
         {done ? (
-          <div className="fade-in bg-surface border border-line rounded-2xl p-6 text-center space-y-3">
-            <p className="text-3xl font-bold text-ink tabular-nums">{score}/{quiz.length}</p>
+          <div className="text-center space-y-4 py-8">
+            <Trophy size={36} className="mx-auto text-ink" />
+            <p className="text-2xl font-bold text-ink tabular-nums">{score}/{quiz.length}</p>
             <p className="text-sm text-ink2">
-              {score === quiz.length ? 'Sans faute — you know your France.' : 'Nicely done — the sections cover every answer.'}
+              {score === quiz.length
+                ? 'Sans faute — you know your France.'
+                : score >= quiz.length * 0.75
+                  ? 'Nicely done — a few sections more and you’ll be fluent in context.'
+                  : 'Good start — open the themes you missed and try again.'}
             </p>
-            <button onClick={onBack} className="btn btn-primary min-h-11 px-5 rounded-xl text-sm">
+            <button onClick={onBack} className="btn btn-primary min-h-11 px-6 rounded-xl text-sm inline-flex items-center gap-2">
               <RefreshCw size={13} /> Back to sections
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-ink3 text-center">
-              Question {idx + 1} of {quiz.length}
-            </p>
-            <div className="bg-surface border border-line rounded-2xl p-5">
-              <p className="text-[15px] text-ink font-medium leading-relaxed">{quiz[idx].q}</p>
+          <div className="space-y-4">
+            <div className="h-1 rounded-full bg-surface2 overflow-hidden">
+              <div
+                className="h-full bg-ink transition-all"
+                style={{ width: `${(idx / quiz.length) * 100}%` }}
+              />
             </div>
-            <div className="space-y-2">
+            <p className="text-[15px] text-ink font-medium leading-relaxed">{quiz[idx].q}</p>
+            <div className="space-y-2" role="radiogroup">
               {quiz[idx].options.map((opt, i) => {
-                const isAnswer = i === quiz[idx].answer;
-                const isPicked = i === picked;
-                let cls = 'bg-surface border-line hover:border-ink3';
-                if (picked !== null) {
-                  if (isAnswer) cls = 'bg-surface2 border-ink';
-                  else if (isPicked) cls = 'bg-surface border-line opacity-60';
-                  else cls = 'bg-surface border-line opacity-60';
-                }
+                const show = picked !== null;
+                const correct = i === quiz[idx].answer;
+                const chosen = picked === i;
+                let cls = 'border-line bg-surface text-ink2 hover:border-ink3';
+                if (show && correct) cls = 'border-ink bg-surface2 text-ink font-semibold';
+                else if (show && chosen) cls = 'border-line bg-surface text-ink3 line-through';
                 return (
                   <button
                     key={i}
+                    type="button"
+                    role="radio"
+                    aria-checked={chosen}
+                    disabled={show}
                     onClick={() => pick(i)}
-                    disabled={picked !== null}
-                    className={`w-full flex items-center gap-3 border rounded-xl px-4 py-3 text-left text-sm text-ink transition-colors ${cls}`}
+                    className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors flex items-center gap-2 ${cls}`}
                   >
-                    <span className="flex-1">{opt}</span>
-                    {picked !== null && isAnswer && <Check size={15} className="shrink-0" />}
-                    {picked !== null && isPicked && !isAnswer && <X size={15} className="shrink-0" />}
+                    {show && correct && <Check size={14} className="shrink-0" />}
+                    {show && chosen && !correct && <X size={14} className="shrink-0" />}
+                    <span>{opt}</span>
                   </button>
                 );
               })}
             </div>
             {picked !== null && (
-              <div className="fade-in space-y-3">
-                <div className="bg-surface2 border border-line rounded-xl px-3.5 py-2.5">
-                  <p className="text-xs text-ink2">{quiz[idx].why}</p>
-                </div>
-                <button onClick={next} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">
-                  {idx + 1 < quiz.length ? 'Next question' : 'See score'} <ChevronRight size={14} />
+              <div className="space-y-3">
+                <p className="text-xs text-ink3 flex items-start gap-2">
+                  <Lightbulb size={13} className="shrink-0 mt-px" />
+                  {quiz[idx].why}
+                </p>
+                <button type="button" onClick={next} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">
+                  {idx + 1 < quiz.length ? 'Next' : 'See score'}
                 </button>
               </div>
             )}
