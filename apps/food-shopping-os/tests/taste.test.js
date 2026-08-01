@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTasteDeck, buildTasteProfile, tasteScore } from '../src/lib/taste.js';
 import { buildPlan } from '../src/lib/planner.js';
-import { fallbackImage, imagePrompt, recipeImage, RECIPE_IMAGES } from '../src/data/recipe-images.js';
+import { fallbackImage, imagePrompt, recipeFallbackImage, recipeImage, RECIPE_IMAGES } from '../src/data/recipe-images.js';
 import { RECIPES } from '../src/data/recipes.js';
 
 const recipe = (id, cuisine, tags = []) => ({
@@ -68,6 +68,23 @@ describe('recipe imagery', () => {
       return !Number.isInteger(seed) || seed < 0 || seed > 2147483647;
     });
     expect(invalid).toEqual([]);
+  });
+
+  it('includes the name and a hero ingredient in every catalogue prompt', () => {
+    const missing = RECIPES.filter((item) => {
+      const prompt = imagePrompt(item).toLowerCase();
+      const firstIngredient = String(item.ingredients?.[0]?.name || item.ingredients?.[0] || '').trim().toLowerCase();
+      return !prompt.includes(String(item.name).toLowerCase())
+        || (firstIngredient && !prompt.includes(firstIngredient));
+    });
+
+    expect(missing).toEqual([]);
+  });
+
+  it('has a distinct recipe-aware local fallback for every catalogue recipe', () => {
+    const fallbacks = new Set(RECIPES.map((item) => recipeFallbackImage(item)));
+    expect(fallbacks.size).toBe(RECIPES.length);
+    expect([...fallbacks].every((src) => src.startsWith('data:image/svg+xml'))).toBe(true);
   });
 
   it('describes the actual dish in the prompt', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { fallbackImage, recipeImage } from '../data/recipe-images.js';
+import { recipeFallbackImage, recipeImage } from '../data/recipe-images.js';
 
 /* ---------- Layout ---------- */
 
@@ -465,8 +465,8 @@ export const Toggle = ({ on, onChange, label }) => (
 /**
  * A picture of the dish, generated from the recipe itself (see
  * `data/recipe-images.js`). It comes over the network, so a failed request —
- * offline, blocked, or the service having a bad day — falls back to the
- * bundled picture for that kind of food rather than an empty frame.
+ * offline, blocked, or the service having a bad day — falls back to a
+ * recipe-specific local illustration rather than an unrelated food photo.
  */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
   const generated = recipeImage(recipe);
@@ -484,7 +484,7 @@ export const FoodArt = ({ recipe, className, alt = '' }) => {
         alt={alt}
         loading="lazy"
         decoding="async"
-        onError={() => setSrc(fallbackImage(recipe))}
+        onError={() => setSrc(recipeFallbackImage(recipe))}
         className="h-full w-full object-cover"
       />
     </div>

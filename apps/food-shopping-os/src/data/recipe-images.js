@@ -18,9 +18,9 @@
  * Two honesty notes, because they are the reason this file is shaped the way
  * it is. These are illustrations of a dish, not photographs of the food you
  * will make, and the app says so wherever one is shown large. And they come
- * from the network, so the eight bundled pictures stay exactly where they were
- * as the fallback — offline, or on a failed request, a card still shows
- * something sensible rather than a broken frame.
+ * from the network, so a local, recipe-specific illustration is used when the
+ * request cannot be made — offline, or on a failed request, a card still shows
+ * the dish it belongs to rather than an unrelated category photo.
  */
 
 const IMAGE_ROOT = '/recipe-images';
@@ -33,7 +33,7 @@ const IMAGE_HEIGHT = 512;
 const MAX_GENERATOR_SEED = 2147483647;
 
 /** Long prompts stop steering the picture and only bloat the URL. */
-const MAX_PROMPT = 320;
+const MAX_PROMPT = 420;
 
 /**
  * The bundled pictures. No longer the primary source, but still the answer
@@ -79,16 +79,79 @@ const hash = (s) => String(s).split('')
 /** The bundled picture for a recipe: the offline answer, and the fallback. */
 export const fallbackImage = (recipe) => RECIPE_IMAGES[imageKey(recipe)];
 
+const escapeXml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&apos;');
+
+const fallbackPalette = {
+  breakfast: ['#FFF1D7', '#D47B38', '#F5C06A'],
+  curry: ['#FBE7C4', '#B9542A', '#E69B45'],
+  noodles: ['#E5F0E8', '#377A58', '#E6A24A'],
+  pasta: ['#F8E8C8', '#C65B37', '#E1A24A'],
+  roast: ['#F3E4D9', '#8E4933', '#C87746'],
+  salad: ['#E4F1E2', '#3B8050', '#9DBD54'],
+  sandwich: ['#F5E9D2', '#9A5B35', '#D39A56'],
+  tacos: ['#FBE6BE', '#BD672F', '#E2A845'],
+};
+
 /**
- * The three ingredients a cook would actually name when describing the dish.
+ * The hero ingredients a cook would actually name when describing the dish.
  * Components are listed base-first, and the salt and oil at the end of the
  * list describe nothing, so the front of the list is the useful part.
  */
 const heroIngredients = (recipe = {}) => (recipe.ingredients || [])
   .map((item) => (typeof item === 'string' ? item : item?.name))
   .filter((name) => typeof name === 'string' && name.trim())
-  .slice(0, 3)
+  .slice(0, 4)
   .map((name) => name.trim().toLowerCase());
+
+/**
+ * A deterministic, recipe-specific local illustration. It is deliberately
+ * not another stock photograph: if a generated image is unavailable, the
+ * name and hero ingredients still travel with the recipe instead of silently
+ * showing the wrong dish.
+ */
+export const recipeFallbackImage = (recipe = {}) => {
+  const name = String(recipe.name || '').trim();
+  if (!name) return fallbackImage(recipe);
+
+  const key = imageKey(recipe);
+  const [background, accent, highlight] = fallbackPalette[key];
+  const ingredients = heroIngredients(recipe);
+  const ingredientLabels = ingredients.length ? ingredients : ['your ingredients'];
+  const ingredientChips = ingredientLabels.map((ingredient, index) => {
+    const x = 48 + (index * 170);
+    return `<g transform="translate(${x} 430)"><rect width="154" height="32" rx="16" fill="${highlight}" opacity=".82"/><text x="77" y="21" text-anchor="middle" font-size="13" font-weight="700" fill="#3b3028">${escapeXml(ingredient.slice(0, 22))}</text></g>`;
+  }).join('');
+  const seed = hash(`${recipe.id || name}:${key}`);
+  const random = (index, modulo) => (seed + (index * 7919)) % modulo;
+  const garnish = Array.from({ length: 7 }, (_, index) => {
+    const x = 260 + random(index, 250);
+    const y = 228 + random(index + 7, 94);
+    const radius = 10 + random(index + 13, 10);
+    return `<circle cx="${x}" cy="${y}" r="${radius}" fill="${index % 2 ? highlight : accent}" opacity=".${index % 3 + 4}"/>`;
+  }).join('');
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512" viewBox="0 0 768 512"><rect width="768" height="512" fill="${background}"/><circle cx="384" cy="274" r="176" fill="#ffffff" opacity=".42"/><ellipse cx="384" cy="306" rx="190" ry="118" fill="#ffffff" stroke="${accent}" stroke-width="8"/><ellipse cx="384" cy="298" rx="150" ry="86" fill="${background}" opacity=".82"/>${garnish}<text x="48" y="58" font-family="system-ui, sans-serif" font-size="14" font-weight="700" letter-spacing="2" fill="${accent}">RECIPE ILLUSTRATION</text><text x="48" y="103" font-family="system-ui, sans-serif" font-size="30" font-weight="800" fill="#2f2924">${escapeXml(name.slice(0, 42))}</text>${ingredientChips}</svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+const dishFormat = (recipe = {}) => {
+  const text = [recipe.name, recipe.meal, ...(recipe.tags || [])].join(' ').toLowerCase();
+  if (/porridge|oat|smoothie|yogurt|yoghurt|cereal/.test(text)) return 'one breakfast bowl of';
+  if (/pancake|waffle|crumpet/.test(text)) return 'one breakfast stack of';
+  if (/soup|pho|ramen|noodle|curry|dal|dahl|chilli|chili|stew|tagine|casserole/.test(text)) return 'one bowl of';
+  if (/salad|grain bowl|poke|bibimbap|bowl/.test(text)) return 'one bowl of';
+  if (/pasta|spaghetti|linguine|penne|lasagne|lasagna|risotto/.test(text)) return 'one plate of';
+  if (/traybake|tray bake|roast|barbecue|bbq/.test(text)) return 'one roasting tray of';
+  if (/sandwich|toastie|wrap|burger|bagel/.test(text)) return 'one finished sandwich';
+  if (/taco|fajita|burrito|quesadilla|pizza|flatbread|roti/.test(text)) return 'one plate of';
+  if (/omelette|omelet|frittata|quiche|pie|bake/.test(text)) return 'one finished bake on one plate';
+  return 'one finished meal on one plate';
+};
 
 /**
  * What the picture should show. The dish leads, because the name is the most
@@ -101,10 +164,10 @@ export const imagePrompt = (recipe = {}) => {
 
   const ingredients = heroIngredients(recipe);
   const parts = [
-    `photorealistic food photograph of one finished ${name}`,
+    `photorealistic food photograph of ${dishFormat(recipe)} ${name}`,
     [recipe.cuisine, recipe.meal].filter(Boolean).join(' ').trim().toLowerCase(),
-    ingredients.length ? `made with ${ingredients.join(', ')}` : '',
-    'overhead, natural daylight, plain background, show the named ingredients, no text',
+    ingredients.length ? `made with ${ingredients.join(', ')} only` : '',
+    'show only this named dish and its listed ingredients, overhead, natural daylight, plain background, no extra food, no text',
   ].filter(Boolean);
 
   return parts.join(', ').slice(0, MAX_PROMPT);
@@ -123,14 +186,13 @@ export const recipeImage = (recipe = {}) => {
   // intentionally unsigned so it can be stable across browsers; reduce it
   // before putting it on the wire or the request becomes a generic fallback.
   const seed = hash(recipe.id || recipe.name) % MAX_GENERATOR_SEED;
+  // The keyless legacy endpoint currently honours size and seed. Its newer
+  // model and post-processing parameters are ignored (and the newer endpoint
+  // requires an API key), so keep the URL to the parameters that work here.
   const query = new URLSearchParams({
     width: String(IMAGE_WIDTH),
     height: String(IMAGE_HEIGHT),
     seed: String(seed),
-    nologo: 'true',
-    model: 'flux',
-    enhance: 'true',
-    negative_prompt: 'people, text, collage, multiple dishes, unrelated ingredients',
   });
 
   return `${GENERATOR_ROOT}/${encodeURIComponent(prompt)}?${query}`;
