@@ -25,7 +25,7 @@ tables and UK reference intakes.
 
 Forq runs on Next.js and keeps its local-first store. The backend is optional:
 without environment variables it stays local-only; with them it offers opt-in
-Auth.js accounts, Upstash Redis household sync, Ably change signals, private receipt
+Auth.js accounts, Upstash Redis household sync, Ably or Redis live updates, private receipt
 uploads, calendar reads and writes, licensed retailer data and an AI relay to OpenAI.
 
 1. Copy `.env.example` to `.env.local`.
@@ -42,9 +42,9 @@ the new application version receives traffic.
 The first sign-in copies existing on-device data to the user's personal
 household. Later writes use optimistic versions: a concurrent change returns a
 conflict and does not overwrite either copy. Open browser tabs update
-immediately, and private Ably channels push new household versions to subscribed
-clients with a one-minute poll as fallback. Upstash Redis remains the
-source of truth. Receipt images require
+immediately, and private Ably channels (or a Redis-backed stream when Ably is not
+configured) push new household versions to subscribed clients. Upstash Redis
+remains the source of truth. Receipt images require
 Vercel Blob. AI calls require an OpenAI key and run only on the server.
 `AI_MONTHLY_TOKEN_LIMIT` sets the hard monthly allowance per household; it
 defaults to 250,000 reserved-and-used tokens.

@@ -4,7 +4,9 @@ import {
   aiRequestSchema, calendarRangeSchema, coachShareSchema, invitationSchema, syncSchema,
 } from '../src/server/schemas.js';
 import { down, up } from '../scripts/migrations/001-initial-backend.mjs';
-import { initialiseCloud, pushCloud, subscribeCloud } from '../src/lib/cloud.js';
+import {
+  initialiseCloud, pushCloud, retryQueuedCloud, subscribeCloud,
+} from '../src/lib/cloud.js';
 import { deleteHouseholdData } from '../src/server/households.js';
 
 describe('backend contracts', () => {
@@ -79,6 +81,7 @@ describe('household erasure', () => {
       'notificationOutbox',
       'auditEvents',
       'aiUsage',
+      'realtimeEvents',
     ]);
     for (const [, query] of calls) expect(query).toEqual({ householdId });
     expect(deleted.uploads).toBe(1);
@@ -137,6 +140,21 @@ describe('offline-first cloud migration', () => {
     expect(result.meta.version).toBe(2);
   });
 
+  it('queues failed writes and retries them after reconnecting', async () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network unavailable')));
+    const meta = { version: 2, deviceId: 'device-123456', householdId: 'household' };
+    const queued = await pushCloud({ onboarded: true }, meta);
+    expect(queued.status.kind).toBe('offline');
+    expect(localStorage.getItem('forq-cloud-queue-v1')).toContain('onboarded');
+
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ version: 3 }), { status: 200 })));
+    const retried = await retryQueuedCloud();
+    expect(retried.status.kind).toBe('ready');
+    expect(localStorage.getItem('forq-cloud-queue-v1')).toBeNull();
+  });
+
   it('subscribes to the private household stream and closes it cleanly', async () => {
     const listeners = {};
     const close = vi.fn();
@@ -169,6 +187,36 @@ describe('offline-first cloud migration', () => {
     expect(url.searchParams.get('channels')).toBe('household:household-1');
     listeners.message({ data: JSON.stringify({ name: 'changed', data: JSON.stringify({ version: 3 }) }) });
     expect(changed).toHaveBeenCalledWith({ version: 3 });
+    unsubscribe();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('uses the Redis SSE stream when Ably is unavailable', async () => {
+    const listeners = {};
+    const close = vi.fn();
+    class EventSourceMock {
+      constructor(url) {
+        this.url = String(url);
+        EventSourceMock.instance = this;
+      }
+
+      addEventListener(name, handler) {
+        listeners[name] = handler;
+      }
+
+      close() {
+        close();
+      }
+    }
+    vi.stubGlobal('EventSource', EventSourceMock);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ fallback: 'redis' }))));
+    const changed = vi.fn();
+    const unsubscribe = await subscribeCloud({ householdId: 'household-1', deviceId: 'device-1' }, changed);
+    const url = new URL(EventSourceMock.instance.url, window.location.origin);
+    expect(url.pathname).toBe('/api/realtime/stream');
+    expect(url.searchParams.get('householdId')).toBe('household-1');
+    listeners.changed({ data: JSON.stringify({ version: 4 }) });
+    expect(changed).toHaveBeenCalledWith({ version: 4 });
     unsubscribe();
     expect(close).toHaveBeenCalled();
   });

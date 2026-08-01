@@ -27,6 +27,7 @@ export const PRIVACY_DISCLOSURE = [
     items: [
       'Upstash Redis stores your sign-in identity, household membership and a complete synced copy of the household data listed above, including health data.',
       'Sync metadata includes an opaque device ID, time zone, version and timestamps. Invitations, coach-share scopes, field-level audit events, queued reminders and temporary security rate-limit counters are also stored.',
+      'Short-lived live-update events are stored in Redis when the optional Ably provider is not configured, then expire automatically.',
       'Receipt files you explicitly upload are stored privately in Vercel Blob; Upstash Redis stores their file metadata.',
     ],
   },
@@ -37,7 +38,7 @@ export const PRIVACY_DISCLOSURE = [
     items: [
       'OpenAI receives your prompt and the relevant context only when you run a server-backed AI action.',
       'Google, Apple or Microsoft receive sign-in requests. Google or Microsoft receive meal-event details when you add them to a calendar, and return event times when you ask Forq to find busy evenings.',
-      'Ably receives opaque household, user, device and sync-version identifiers for live update signals. A configured retailer data provider receives the retailer and product search terms you request.',
+      'Ably receives opaque household, user, device and sync-version identifiers for live update signals when configured. Otherwise, the same short-lived signal is held in your Upstash Redis household store. A configured retailer data provider receives the retailer and product search terms you request.',
       'Anyone holding an active coach link can read only the sections selected when that link was created. Health is a separate opt-in scope; the link is read-only, expiring and revocable.',
     ],
   },

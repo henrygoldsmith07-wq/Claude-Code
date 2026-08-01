@@ -1,4 +1,5 @@
 const META_KEY = 'forq-cloud-meta-v1';
+const QUEUE_KEY = 'forq-cloud-queue-v1';
 
 const readMeta = () => {
   try {
@@ -18,6 +19,23 @@ const deviceId = () => {
 const saveMeta = (next) => {
   localStorage.setItem(META_KEY, JSON.stringify(next));
   return next;
+};
+
+const readQueue = () => {
+  try {
+    const queued = JSON.parse(localStorage.getItem(QUEUE_KEY) || 'null');
+    return queued?.state && queued?.meta ? queued : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveQueue = (state, meta) => {
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify({ state, meta, queuedAt: Date.now() }));
+  } catch {
+    // The main local store reports storage failures; sync queuing is best effort.
+  }
 };
 
 const syncState = (state) => ({
@@ -82,7 +100,7 @@ export async function initialiseCloud(localState) {
   }
 }
 
-export async function pushCloud(state, meta) {
+export async function pushCloud(state, meta, { queueOnFailure = true } = {}) {
   try {
     const result = await request('/api/sync', {
       method: 'PUT',
@@ -94,16 +112,29 @@ export async function pushCloud(state, meta) {
       status: { kind: 'ready', message: 'All changes synced.' },
     };
   } catch (error) {
+    if (queueOnFailure && error.status !== 409) saveQueue(state, meta);
     return {
       meta,
       status: {
         kind: error.status === 409 ? 'conflict' : (navigator.onLine ? 'error' : 'offline'),
         message: error.status === 409
           ? 'This household changed on another device. Export a backup, then reload to use the newer copy.'
-          : (navigator.onLine ? error.message : 'Offline. Changes will sync when Forq is reopened online.'),
+          : (navigator.onLine ? error.message : 'Offline changes queued. They will sync automatically when you reconnect.'),
       },
     };
   }
+}
+
+export async function retryQueuedCloud() {
+  const queued = readQueue();
+  if (!queued) return null;
+  const result = await pushCloud(queued.state, queued.meta, { queueOnFailure: false });
+  if (result.status.kind === 'ready') localStorage.removeItem(QUEUE_KEY);
+  return result;
+}
+
+export function hasQueuedCloud() {
+  return Boolean(readQueue());
 }
 
 export function selectCloudHousehold(householdId) {
@@ -136,14 +167,46 @@ export async function subscribeCloud(meta, onChanged) {
   if (typeof EventSource === 'undefined') throw new Error('Live updates are not supported by this browser.');
   let source;
   let refreshTimer;
+  let reconnectTimer;
   let stopped = false;
+  let redisSince = new Date(Date.now() - 10000).toISOString();
+  const connectRedis = () => {
+    if (stopped) return;
+    source?.close();
+    const url = new URL('/api/realtime/stream', window.location.origin);
+    url.search = new URLSearchParams({
+      householdId: meta.householdId,
+      since: redisSince,
+    });
+    source = new EventSource(url);
+    source.addEventListener('changed', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        redisSince = new Date().toISOString();
+        onChanged(data || {});
+      } catch {
+        // Ignore malformed provider messages; the stream reconnects on failure.
+      }
+    });
+    source.onerror = () => {
+      source?.close();
+      if (!stopped) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(connectRedis, 3000);
+      }
+    };
+  };
   const connect = async () => {
     const auth = await request('/api/realtime/token', {
       method: 'POST',
       headers: meta.householdId ? { 'x-forq-household-id': meta.householdId } : {},
       body: '{}',
-    });
+    }).catch(() => ({ fallback: 'redis' }));
     if (stopped) return;
+    if (auth.fallback === 'redis') {
+      connectRedis();
+      return;
+    }
     source?.close();
     const url = new URL('https://main.realtime.ably.net/sse');
     url.search = new URLSearchParams({
@@ -160,7 +223,7 @@ export async function subscribeCloud(meta, onChanged) {
         const data = typeof message.data === 'string' ? JSON.parse(message.data) : message.data;
         onChanged(data || {});
       } catch {
-        // Ignore malformed provider messages; the fallback poll still runs.
+        // Ignore malformed provider messages; the provider refresh still runs.
       }
     });
     clearTimeout(refreshTimer);
@@ -170,6 +233,7 @@ export async function subscribeCloud(meta, onChanged) {
   return () => {
     stopped = true;
     clearTimeout(refreshTimer);
+    clearTimeout(reconnectTimer);
     source?.close();
   };
 }

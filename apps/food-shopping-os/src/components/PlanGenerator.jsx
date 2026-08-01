@@ -31,13 +31,14 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const [usePantry, setUsePantry] = useState(true);
   const [seasonal, setSeasonal] = useState(true);
   const [leftoverFirst, setLeftoverFirst] = useState(app.leftovers.length > 0);
-  const [seed, setSeed] = useState(0);
+  const [seed, setSeed] = useState(() => (app.calendarBusy?.length ? Date.now() % 100000 : 0));
   const [generating, setGenerating] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
 
   const month = monthOf(app.day);
   const dates = scope === 'A month' ? monthDates : weekDates;
   const busyDates = new Set((app.calendarBusy || []).map((item) => item.date));
+  const busyInScope = [...busyDates].filter((date) => dates.includes(date)).length;
   const planDates = dates.filter((date) => !busyDates.has(date));
   const noOpenDates = ['A week', 'A month'].includes(scope) && planDates.length === 0;
   const pantryNames = app.pantry.map((p) => p.name);
@@ -73,12 +74,9 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
   const generate = () => {
     if (noOpenDates) return;
-    setGenerating(true);
     setAddedToList(false);
-    setTimeout(() => {
-      setSeed(Date.now() % 100000);
-      setGenerating(false);
-    }, 500);
+    setSeed(Date.now() % 100000);
+    setGenerating(false);
   };
 
   /** Turn the generated run into dated slots. */
@@ -104,6 +102,12 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const cost = generated ? generated.reduce((s, r) => s + r.costPerServing * people, 0) : 0;
   const kcal = generated ? Math.round(generated.reduce((s, r) => s + r.kcal, 0) / generated.length) : 0;
   const distinct = generated ? new Set(generated.map((r) => r.id)).size : 0;
+  const planNotes = [
+    plan?.note,
+    generated && busyInScope > 0
+      ? `Leaving ${busyInScope} calendar-busy evening${busyInScope === 1 ? '' : 's'} empty.`
+      : null,
+  ].filter(Boolean);
 
   const labelFor = (i) => {
     if (scope === 'A day') return ['Breakfast', 'Lunch', 'Dinner'][i];
@@ -200,7 +204,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             style={{ borderColor: 'var(--warn, #a55a12)', background: 'color-mix(in srgb, var(--warn, #a55a12) 8%, transparent)' }}
           >
             <p className="text-[0.75rem] font-extrabold" style={{ color: 'var(--warn, #a55a12)' }}>
-              {dates.length - planDates.length} busy evening{dates.length - planDates.length === 1 ? '' : 's'} (from calendar / ICS)
+              {busyInScope} busy evening{busyInScope === 1 ? '' : 's'} (from calendar / ICS)
             </p>
             <p className="text-[0.7rem] font-semibold mt-0.5" style={{ color: 'var(--muted)' }}>
               Generator fills {planDates.length} open night{planDates.length === 1 ? '' : 's'} only.
@@ -231,10 +235,10 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
       {generated && !generating && (
         <div className="mt-3 space-y-3">
-          {plan.note && (
+          {planNotes.length > 0 && (
             <Card className="!p-3 flex items-start gap-2" style={{ background: 'var(--card-2)' }}>
               <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
-              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{plan.note}</p>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{planNotes.join(' ')}</p>
             </Card>
           )}
           <Card className="!p-3 flex items-center justify-between">

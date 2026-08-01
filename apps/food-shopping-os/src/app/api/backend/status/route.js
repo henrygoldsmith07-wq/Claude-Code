@@ -2,7 +2,42 @@ import { NextResponse } from 'next/server';
 import { getSession } from '../../../../server/auth.js';
 import { databaseConfigured } from '../../../../server/database.js';
 
+const integrationStatus = () => {
+  const google = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+  const apple = Boolean(process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET);
+  const microsoft = Boolean(process.env.AUTH_MICROSOFT_ID && process.env.AUTH_MICROSOFT_SECRET);
+  const ably = Boolean(process.env.ABLY_API_KEY);
+  const redis = Boolean(databaseConfigured);
+  const retailer = Boolean(process.env.RETAILER_API_BASE_URL && process.env.RETAILER_API_KEY);
+  return {
+    google: { label: 'Google sign-in & Calendar', ready: google, detail: google ? 'Connected' : 'Add OAuth credentials' },
+    apple: { label: 'Apple sign-in', ready: apple, detail: apple ? 'Connected' : 'Add OAuth credentials' },
+    microsoft: { label: 'Microsoft sign-in & Calendar', ready: microsoft, detail: microsoft ? 'Connected' : 'Add OAuth credentials' },
+    openai: {
+      label: 'AI relay (OpenAI)',
+      ready: Boolean(process.env.OPENAI_API_KEY),
+      detail: process.env.OPENAI_API_KEY ? 'Connected' : 'Add OPENAI_API_KEY',
+    },
+    uploads: {
+      label: 'Private receipt uploads',
+      ready: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+      detail: process.env.BLOB_READ_WRITE_TOKEN ? 'Connected' : 'Add BLOB_READ_WRITE_TOKEN',
+    },
+    realtime: {
+      label: 'Household live updates',
+      ready: ably || redis,
+      detail: ably ? 'Ably' : (redis ? 'Redis fallback' : 'Add Ably or database credentials'),
+    },
+    retailers: {
+      label: 'Retailer prices & availability',
+      ready: retailer,
+      detail: retailer ? 'Licensed provider connected' : 'Add licensed retailer provider credentials',
+    },
+  };
+};
+
 export async function GET() {
+  const integrations = integrationStatus();
   const enabled = Boolean(databaseConfigured && process.env.AUTH_SECRET);
   if (!enabled) {
     return NextResponse.json({
@@ -11,6 +46,7 @@ export async function GET() {
       user: null,
       providers: {},
       capabilities: {},
+      integrations,
     });
   }
   const session = await getSession();
@@ -26,8 +62,9 @@ export async function GET() {
     capabilities: {
       ai: Boolean(process.env.OPENAI_API_KEY),
       uploads: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-      realtime: Boolean(process.env.ABLY_API_KEY),
+      realtime: Boolean(process.env.ABLY_API_KEY || databaseConfigured),
       calendar: Boolean(process.env.AUTH_GOOGLE_ID || process.env.AUTH_MICROSOFT_ID),
     },
+    integrations,
   });
 }

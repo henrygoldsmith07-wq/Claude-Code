@@ -67,6 +67,7 @@ const HOUSEHOLD_CHILD_COLLECTIONS = [
   'notificationOutbox',
   'auditEvents',
   'aiUsage',
+  'realtimeEvents',
 ];
 
 export async function deleteHouseholdData(db, householdId) {

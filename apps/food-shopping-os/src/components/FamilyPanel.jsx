@@ -322,7 +322,7 @@ function SharingView() {
           Open tabs in this browser update live through browser storage events.
         </p>
         <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-          Signed-in households receive cross-device changes through a private realtime channel, with a one-minute fallback check.
+          Signed-in households receive cross-device changes through a private realtime channel. Ably is used when configured; otherwise Forq uses an expiring Redis-backed stream.
         </p>
       </Card>
 

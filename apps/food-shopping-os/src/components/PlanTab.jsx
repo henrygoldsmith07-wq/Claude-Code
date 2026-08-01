@@ -54,7 +54,6 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
         || tasteScore(b, app.tasteProfile) - tasteScore(a, app.tasteProfile)
       ));
   }, [query, anyMeal, inSeason, slot, month, app.safeRecipes, app.favourites, app.planDiets, app.tasteProfile]);
-
   return (
     <div className="px-5 pb-10 space-y-3">
       <input
@@ -112,7 +111,6 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
     </div>
   );
 }
-
 export default function PlanTab({ openRecipe }) {
   const app = useApp();
   const [view, setView] = useState('week');
@@ -139,7 +137,6 @@ export default function PlanTab({ openRecipe }) {
   const thisWeekDates = useMemo(() => weekDates(app.day), [app.day]);
   const prepSteps = useMemo(() => prepChecklist(app.plan, dates), [app.plan, dates]);
   const prep = prepProgress(prepSteps, prepDone);
-
   const rangeLabel = view === 'week'
     ? (offset === 0 ? 'This week' : `Week of ${Number(anchorWeek.slice(8, 10))} ${new Date(`${anchorWeek}T12:00:00`).toLocaleDateString('en-GB', { month: 'short' })}`)
     : monthLabel(anchorMonth);
@@ -149,7 +146,6 @@ export default function PlanTab({ openRecipe }) {
     setMoving(null);
     setDragging(null);
   };
-
   const sendToList = () => {
     app.addToList(shoppingForPlan(app.plan, dates, { pantry: app.pantry }));
     setAddedToList(true);
@@ -178,7 +174,6 @@ export default function PlanTab({ openRecipe }) {
         </p>
       </div>
 
-      {/* Week / month, and where in the calendar you are */}
       <Section className="rise rise-1">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex gap-2">
@@ -211,11 +206,9 @@ export default function PlanTab({ openRecipe }) {
             </button>
           </div>
         </div>
-
         {offset !== 0 && (
           <p className="mb-2 text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>{rangeLabel}</p>
         )}
-
         {moving && (
           <Card className="!p-3 mb-2.5 flex items-center justify-between gap-2" style={{ borderColor: 'var(--accent)' }}>
             <p className="text-[0.78125rem] font-bold inline-flex items-center gap-1.5">
@@ -227,7 +220,6 @@ export default function PlanTab({ openRecipe }) {
             </button>
           </Card>
         )}
-
         {view === 'week' ? (
           <WeekGrid
             dates={week}
@@ -256,8 +248,6 @@ export default function PlanTab({ openRecipe }) {
         )}
 
         <CalendarAvailability dates={dates} />
-
-        {/* Mealime-style weekly prep checklist */}
         {prepSteps.length > 0 && (
           <Section className="mt-4 rise" title="Prep checklist">
             <Card className="!p-3 space-y-2">
@@ -314,7 +304,6 @@ export default function PlanTab({ openRecipe }) {
             </Card>
           </Section>
         )}
-
         {stats.meals > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
@@ -329,7 +318,6 @@ export default function PlanTab({ openRecipe }) {
             ))}
           </div>
         )}
-
         {stats.meals > 0 && (
           <div className="mt-3 space-y-2">
             <button
@@ -350,6 +338,7 @@ export default function PlanTab({ openRecipe }) {
             </button>
             <button
               onClick={exportCalendar}
+              aria-label={`Add ${view} to calendar`}
               className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
             >
@@ -372,8 +361,6 @@ export default function PlanTab({ openRecipe }) {
           </div>
         )}
       </Section>
-
-      {/* What the fridge already covers */}
       {app.leftovers.length > 0 && (
         <Section title="Leftovers" className="rise rise-2">
           <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
@@ -403,8 +390,6 @@ export default function PlanTab({ openRecipe }) {
           )}
         </Section>
       )}
-
-      {/* Cook once, eat several times */}
       {batches.length > 0 && (
         <Section title="Batch cooking" className="rise rise-2">
           <Card className="space-y-3">
@@ -423,8 +408,6 @@ export default function PlanTab({ openRecipe }) {
           </Card>
         </Section>
       )}
-
-      {/* Generator */}
       <Section className="rise rise-2">
         <button
           onClick={() => setShowGenerator((v) => !v)}
@@ -436,7 +419,6 @@ export default function PlanTab({ openRecipe }) {
           </span>
         </button>
       </Section>
-
       {showGenerator && (
         <Section className="rise">
           <PlanGenerator
@@ -447,7 +429,6 @@ export default function PlanTab({ openRecipe }) {
           />
         </Section>
       )}
-
       <Sheet open={!!picking} onClose={() => setPicking(null)} title="Plan a meal">
         {picking && (
           <RecipePicker
@@ -458,7 +439,6 @@ export default function PlanTab({ openRecipe }) {
           />
         )}
       </Sheet>
-
       <Sheet open={!!openDay} onClose={() => setOpenDay(null)} title={openDay ? dayLabel(openDay) : ''}>
         {openDay && (
           <div className="px-5 pb-10 space-y-2.5">
@@ -487,7 +467,6 @@ export default function PlanTab({ openRecipe }) {
           </div>
         )}
       </Sheet>
-
       {view === 'month' && !stats.meals && (
         <Section className="rise">
           <Card className="flex items-center gap-3 !p-3">
@@ -498,8 +477,6 @@ export default function PlanTab({ openRecipe }) {
           </Card>
         </Section>
       )}
-
-      {/* An empty calendar wants filling; a full one wants shopping for. */}
       {stats.meals === 0
         ? <PrimaryAction label={`Fill this ${view} for me`} onClick={() => setShowGenerator(true)} />
         : <PrimaryAction

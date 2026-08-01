@@ -2,10 +2,39 @@ import { useEffect, useState } from 'react';
 import {
   SessionProvider, signIn, signOut, useSession,
 } from 'next-auth/react';
-import { Cloud, CloudOff, LogIn, LogOut } from 'lucide-react';
+import {
+  CheckCircle2, CircleAlert, Cloud, CloudOff, LogIn, LogOut,
+} from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { selectCloudHousehold } from '../lib/cloud.js';
 import { Card, Section } from './ui.jsx';
+
+function IntegrationStatus({ integrations = {} }) {
+  const entries = Object.entries(integrations);
+  if (!entries.length) return null;
+  return (
+    <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--line)' }}>
+      <p className="text-[0.6875rem] font-extrabold uppercase tracking-[0.14em]" style={{ color: 'var(--muted)' }}>
+        Connected services
+      </p>
+      <div className="mt-2 grid gap-2">
+        {entries.map(([key, integration]) => (
+          <div key={key} className="flex items-start gap-2 text-[0.75rem]">
+            {integration.ready
+              ? <CheckCircle2 size={15} aria-hidden="true" style={{ color: 'var(--accent)' }} />
+              : <CircleAlert size={15} aria-hidden="true" style={{ color: 'var(--muted)' }} />}
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">{integration.label}</p>
+              <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {integration.detail}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function BackendPanelContent({ backend }) {
   const app = useApp();
@@ -36,6 +65,8 @@ function BackendPanelContent({ backend }) {
             </p>
           </div>
         </div>
+
+        <IntegrationStatus integrations={backend.integrations} />
 
         {!session?.user && backend?.enabled && (
           <div className="grid gap-2">
@@ -117,7 +148,7 @@ function BackendPanelRuntime() {
     fetch('/api/backend/status')
       .then((response) => response.json())
       .then(setBackend)
-      .catch(() => setBackend({ enabled: false, providers: {}, capabilities: {} }));
+      .catch(() => setBackend({ enabled: false, providers: {}, capabilities: {}, integrations: {} }));
   }, []);
   if (!backend?.enabled) {
     return (
@@ -126,6 +157,7 @@ function BackendPanelRuntime() {
           <p className="text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
             {backend ? 'Backend credentials are not configured. Your on-device data still works normally.' : 'Checking backend…'}
           </p>
+          <IntegrationStatus integrations={backend?.integrations} />
         </Card>
       </Section>
     );

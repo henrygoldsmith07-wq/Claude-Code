@@ -21,7 +21,7 @@ import { DEFAULT_PERMISSIONS, householdPermission } from './household.js';
 import { dueBetween, dueNow, reminderContext } from './reminders.js';
 import { moveBefore } from './utils.js';
 import {
-  initialiseCloud, pullCloud, pushCloud, subscribeCloud,
+  initialiseCloud, pullCloud, pushCloud, retryQueuedCloud, subscribeCloud,
 } from './cloud.js';
 import {
   createHealthVault, decryptHealth, encryptHealth, HEALTH_CREDENTIAL_KEY, HEALTH_FIELDS, HEALTH_VAULT_KEY,
@@ -75,6 +75,31 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const timer = setInterval(() => setTick(Date.now()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return undefined;
+    let retrying = false;
+    const retry = async () => {
+      if (retrying || !cloudMeta.current) return;
+      retrying = true;
+      try {
+        const result = await retryQueuedCloud();
+        if (result) {
+          cloudMeta.current = result.meta;
+          cloudReady.current = result.status.kind === 'ready';
+          setCloudStatus(result.status);
+        }
+      } finally {
+        retrying = false;
+      }
+    };
+    window.addEventListener('online', retry);
+    const timer = setInterval(retry, 30000);
+    return () => {
+      window.removeEventListener('online', retry);
+      clearInterval(timer);
+    };
   }, []);
 
   /* Every write stamps the moment the app was last in front of you, which is
