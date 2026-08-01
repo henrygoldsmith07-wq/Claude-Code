@@ -30,9 +30,10 @@ const GENERATOR_ROOT = 'https://image.pollinations.ai/prompt';
 /** One request size for every use, so a thumbnail and a hero share a cache entry. */
 const IMAGE_WIDTH = 768;
 const IMAGE_HEIGHT = 512;
+const MAX_GENERATOR_SEED = 2147483647;
 
 /** Long prompts stop steering the picture and only bloat the URL. */
-const MAX_PROMPT = 220;
+const MAX_PROMPT = 320;
 
 /**
  * The bundled pictures. No longer the primary source, but still the answer
@@ -100,10 +101,10 @@ export const imagePrompt = (recipe = {}) => {
 
   const ingredients = heroIngredients(recipe);
   const parts = [
-    name,
+    `photorealistic food photograph of one finished ${name}`,
     [recipe.cuisine, recipe.meal].filter(Boolean).join(' ').trim().toLowerCase(),
     ingredients.length ? `made with ${ingredients.join(', ')}` : '',
-    'appetising food photography, overhead, natural daylight, plain background, no text',
+    'overhead, natural daylight, plain background, show the named ingredients, no text',
   ].filter(Boolean);
 
   return parts.join(', ').slice(0, MAX_PROMPT);
@@ -118,13 +119,18 @@ export const recipeImage = (recipe = {}) => {
   const prompt = imagePrompt(recipe);
   if (!prompt) return fallbackImage(recipe);
 
-  const seed = hash(recipe.id || recipe.name);
+  // Pollinations validates seed as a signed 32-bit integer. The hash is
+  // intentionally unsigned so it can be stable across browsers; reduce it
+  // before putting it on the wire or the request becomes a generic fallback.
+  const seed = hash(recipe.id || recipe.name) % MAX_GENERATOR_SEED;
   const query = new URLSearchParams({
     width: String(IMAGE_WIDTH),
     height: String(IMAGE_HEIGHT),
     seed: String(seed),
     nologo: 'true',
     model: 'flux',
+    enhance: 'true',
+    negative_prompt: 'people, text, collage, multiple dishes, unrelated ingredients',
   });
 
   return `${GENERATOR_ROOT}/${encodeURIComponent(prompt)}?${query}`;

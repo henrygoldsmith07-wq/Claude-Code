@@ -62,6 +62,14 @@ describe('recipe imagery', () => {
     expect(images.size).toBe(RECIPES.length);
   });
 
+  it('keeps generated image seeds within the provider range', () => {
+    const invalid = RECIPES.filter((recipe) => {
+      const seed = Number(new URL(recipeImage(recipe)).searchParams.get('seed'));
+      return !Number.isInteger(seed) || seed < 0 || seed > 2147483647;
+    });
+    expect(invalid).toEqual([]);
+  });
+
   it('describes the actual dish in the prompt', () => {
     const prompt = imagePrompt({
       name: 'Teriyaki Salmon Bowls',
