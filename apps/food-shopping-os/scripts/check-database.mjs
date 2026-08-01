@@ -1,4 +1,4 @@
-import { getDatabase } from '../src/server/mongodb.js';
+import { getDatabase } from '../src/server/database.js';
 
 const db = await getDatabase();
 await db.command({ ping: 1 });

@@ -36,7 +36,7 @@ describe('the real data boundary', () => {
     expect(disclosure).toMatch(/Stored on Forq’s servers/);
     expect(disclosure).toMatch(/health data/i);
     expect(disclosure).toMatch(/coach-share scopes/i);
-    for (const processor of ['MongoDB', 'Vercel Blob', 'OpenAI', 'Google', 'Apple', 'Microsoft', 'Ably']) {
+    for (const processor of ['Upstash Redis', 'Vercel Blob', 'OpenAI', 'Google', 'Apple', 'Microsoft', 'Ably']) {
       expect(disclosure).toContain(processor);
     }
   });

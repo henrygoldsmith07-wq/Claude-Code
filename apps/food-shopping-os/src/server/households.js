@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
+import { randomBytes } from 'node:crypto';
 import { ApiError, objectId } from './api.js';
-import { getDatabase } from './mongodb.js';
+import { getDatabase } from './database.js';
 
 export async function ensurePersonalHousehold(user) {
   const db = await getDatabase();
@@ -78,4 +78,4 @@ export async function deleteHouseholdData(db, householdId) {
   return deleted;
 }
 
-export const newHouseholdId = () => new ObjectId();
+export const newHouseholdId = () => randomBytes(12).toString('hex');

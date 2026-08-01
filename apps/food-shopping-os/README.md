@@ -14,7 +14,7 @@ from what you actually log, buy, cook and plan. Backups can be exported and
 restored, including from first-run setup. Invalid saved data opens a recovery
 screen instead of being silently replaced. Forq is local-first by default:
 data starts in localStorage and no account is required. Signing in is an opt-in
-to MongoDB household sync. When a user chooses a server-backed AI action, Forq
+to Upstash Redis household sync. When a user chooses a server-backed AI action, Forq
 relays that prompt and its relevant context to OpenAI.
 
 The only data that ships with the app is reference material, not user data: a
@@ -25,14 +25,14 @@ tables and UK reference intakes.
 
 Forq runs on Next.js and keeps its local-first store. The backend is optional:
 without environment variables it stays local-only; with them it offers opt-in
-Auth.js accounts, MongoDB household sync, Ably change signals, private receipt
+Auth.js accounts, Upstash Redis household sync, Ably change signals, private receipt
 uploads, calendar reads and writes, licensed retailer data and an AI relay to OpenAI.
 
 1. Copy `.env.example` to `.env.local`.
-2. Create a MongoDB Atlas database and set `MONGODB_URI`.
+2. Create an Upstash Redis database and set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
 3. Generate `AUTH_SECRET` with at least 32 random bytes.
 4. Add Google, Apple and/or Microsoft OAuth credentials.
-5. Run `npm run db:migrate` to create the required unique, lookup and TTL indexes.
+5. Run `npm run db:migrate` to record the current data-store migration.
 6. Run `npm run dev`.
 
 `npm run db:check` verifies the connection and applied migrations. Production
@@ -43,7 +43,7 @@ The first sign-in copies existing on-device data to the user's personal
 household. Later writes use optimistic versions: a concurrent change returns a
 conflict and does not overwrite either copy. Open browser tabs update
 immediately, and private Ably channels push new household versions to subscribed
-clients with a one-minute poll as fallback. MongoDB remains the
+clients with a one-minute poll as fallback. Upstash Redis remains the
 source of truth. Receipt images require
 Vercel Blob. AI calls require an OpenAI key and run only on the server.
 `AI_MONTHLY_TOKEN_LIMIT` sets the hard monthly allowance per household; it

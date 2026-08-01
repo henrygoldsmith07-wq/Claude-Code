@@ -1,8 +1,7 @@
-import { ObjectId } from 'mongodb';
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { getSession } from './auth.js';
-import { getDatabase } from './mongodb.js';
+import { databaseConfigured, getDatabase } from './database.js';
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -17,7 +16,7 @@ export function assertSameOrigin(request) {
 }
 
 export async function requireUser() {
-  if (!process.env.AUTH_SECRET || !process.env.MONGODB_URI) {
+  if (!process.env.AUTH_SECRET || !databaseConfigured) {
     throw new ApiError(503, 'The backend is not configured.');
   }
   const session = await getSession();
@@ -38,8 +37,10 @@ export async function rateLimit(key, limit = 120, windowMs = 60000) {
 }
 
 export function objectId(value, label = 'identifier') {
-  if (!ObjectId.isValid(value)) throw new ApiError(400, `Invalid ${label}.`);
-  return new ObjectId(value);
+  if (typeof value !== 'string' || !/^[a-f0-9]{24}$/i.test(value)) {
+    throw new ApiError(400, `Invalid ${label}.`);
+  }
+  return value;
 }
 
 export function handleApiError(error) {

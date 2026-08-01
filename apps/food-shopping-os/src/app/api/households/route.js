@@ -6,7 +6,7 @@ import {
 import {
   deleteHouseholdData, ensurePersonalHousehold, publicHousehold, requireHousehold,
 } from '../../../server/households.js';
-import { getDatabase } from '../../../server/mongodb.js';
+import { getDatabase } from '../../../server/database.js';
 import { householdSchema } from '../../../server/schemas.js';
 
 export async function GET() {

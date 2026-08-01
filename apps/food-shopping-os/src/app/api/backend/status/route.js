@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '../../../../server/auth.js';
+import { databaseConfigured } from '../../../../server/database.js';
 
 export async function GET() {
-  const enabled = Boolean(process.env.MONGODB_URI && process.env.AUTH_SECRET);
+  const enabled = Boolean(databaseConfigured && process.env.AUTH_SECRET);
   if (!enabled) {
     return NextResponse.json({
       enabled: false,

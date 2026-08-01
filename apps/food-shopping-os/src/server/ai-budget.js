@@ -1,5 +1,5 @@
 import { ApiError } from './api.js';
-import { getDatabase } from './mongodb.js';
+import { getDatabase } from './database.js';
 
 const DEFAULT_MONTHLY_LIMIT = 250000;
 

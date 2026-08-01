@@ -38,7 +38,7 @@ describe('backend contracts', () => {
   });
 });
 
-describe('MongoDB migrations', () => {
+describe('database migrations', () => {
   it('creates and reverses every named index', async () => {
     const created = [];
     const dropped = [];

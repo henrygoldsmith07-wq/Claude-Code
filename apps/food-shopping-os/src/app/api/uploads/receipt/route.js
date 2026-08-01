@@ -2,7 +2,7 @@ import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { ApiError, assertSameOrigin, handleApiError, rateLimit, requireUser } from '../../../../server/api.js';
 import { requireHousehold } from '../../../../server/households.js';
-import { getDatabase } from '../../../../server/mongodb.js';
+import { getDatabase } from '../../../../server/database.js';
 
 const MAX_SIZE = 8 * 1024 * 1024;
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);

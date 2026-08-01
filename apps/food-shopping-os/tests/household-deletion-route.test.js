@@ -22,7 +22,7 @@ vi.mock('../src/server/households.js', async (importOriginal) => ({
   requireHousehold: mocks.requireHousehold,
   deleteHouseholdData: mocks.deleteHouseholdData,
 }));
-vi.mock('../src/server/mongodb.js', async (importOriginal) => ({
+vi.mock('../src/server/database.js', async (importOriginal) => ({
   ...(await importOriginal()),
   getDatabase: mocks.getDatabase,
 }));

@@ -1,4 +1,4 @@
-import { getDatabase } from '../src/server/mongodb.js';
+import { getDatabase } from '../src/server/database.js';
 import * as initial from './migrations/001-initial-backend.mjs';
 
 const migrations = [initial];

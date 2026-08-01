@@ -25,9 +25,9 @@ export const PRIVACY_DISCLOSURE = [
     title: 'Stored on Forq’s servers after sign-in',
     summary: 'Signing in opts the selected household into sync through Forq’s backend.',
     items: [
-      'MongoDB stores your sign-in identity, household membership and a complete synced copy of the household data listed above, including health data.',
+      'Upstash Redis stores your sign-in identity, household membership and a complete synced copy of the household data listed above, including health data.',
       'Sync metadata includes an opaque device ID, time zone, version and timestamps. Invitations, coach-share scopes, field-level audit events, queued reminders and temporary security rate-limit counters are also stored.',
-      'Receipt files you explicitly upload are stored privately in Vercel Blob; MongoDB stores their file metadata.',
+      'Receipt files you explicitly upload are stored privately in Vercel Blob; Upstash Redis stores their file metadata.',
     ],
   },
   {
