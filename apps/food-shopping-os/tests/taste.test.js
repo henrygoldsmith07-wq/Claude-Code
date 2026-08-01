@@ -79,6 +79,18 @@ describe('recipe icons', () => {
     expect(source).toContain('lentils');
   });
 
+  it('matches the selected Le Studio light/dark surfaces and accent', () => {
+    const item = { id: 'theme-soup', name: 'Leeks & lentils soup', meal: 'lunch' };
+    const light = decodeURIComponent(recipeIconImage(item, { theme: 'light', accent: 'forest' }).split(',')[1]);
+    const dark = decodeURIComponent(recipeIconImage(item, { theme: 'dark', accent: 'forest' }).split(',')[1]);
+
+    expect(light).toContain('#F4F4F6');
+    expect(light).toContain('#3D5C4B');
+    expect(dark).toContain('#0B0B0D');
+    expect(dark).toContain('#17171A');
+    expect(light).not.toBe(dark);
+  });
+
   it('keeps common dishes on distinct icon families', () => {
     const family = (name, meal = 'dinner') => decodeURIComponent(
       recipeIconImage({ name, meal }).split(',')[1],

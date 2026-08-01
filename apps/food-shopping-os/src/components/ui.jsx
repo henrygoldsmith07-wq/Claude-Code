@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
+import { useOptionalApp } from '../lib/store.jsx';
 import { recipeIconImage } from '../data/recipe-images.js';
 
 /* ---------- Layout ---------- */
@@ -464,10 +465,12 @@ export const Toggle = ({ on, onChange, label }) => (
 
 /**
  * A high-definition, multi-colour SVG icon is generated from the recipe and
- * its dish family. It is inline, deterministic, and works offline.
+ * its dish family. It is inline, deterministic, works offline, and follows
+ * the selected Le Studio theme.
  */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
-  const src = recipeIconImage(recipe);
+  const app = useOptionalApp();
+  const src = recipeIconImage(recipe, { theme: app?.theme, accent: app?.accent });
 
   return (
     <div

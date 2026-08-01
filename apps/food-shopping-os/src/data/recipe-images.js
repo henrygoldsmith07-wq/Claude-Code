@@ -3,8 +3,8 @@
  *
  * Recipe cards use deterministic inline SVG rather than stock photography or
  * a remote image service. The icon is crisp at any size, works offline, and
- * changes colour and motif with the dish family while keeping the recipe name
- * and hero ingredients visible in the artwork.
+ * uses the same neutral surfaces and restrained accents as the Le Studio UI.
+ * Dish families still get a recognisable motif and a quiet colour cue.
  */
 
 const hash = (value) => String(value).split('')
@@ -70,19 +70,35 @@ const iconKey = (recipe = {}) => {
   return 'default';
 };
 
-const PALETTES = {
-  sunrise: { background: '#FFF3C4', wash: '#FFD6A5', primary: '#F59E0B', secondary: '#7C3AED', accent: '#EF476F', ink: '#3D2B1F', plate: '#FFFDF8' },
-  berry: { background: '#FCE7F3', wash: '#DDD6FE', primary: '#DB2777', secondary: '#7C3AED', accent: '#F97316', ink: '#40134F', plate: '#FFF8FC' },
-  spice: { background: '#FFE4C7', wash: '#FECACA', primary: '#E85D04', secondary: '#9D174D', accent: '#FACC15', ink: '#4A1D11', plate: '#FFF9F0' },
-  jade: { background: '#D1FAE5', wash: '#BAE6FD', primary: '#047857', secondary: '#0E7490', accent: '#F59E0B', ink: '#123B36', plate: '#F6FFFB' },
-  tomato: { background: '#FFE0D2', wash: '#FED7AA', primary: '#DC2626', secondary: '#C2410C', accent: '#FACC15', ink: '#4A1712', plate: '#FFF9F6' },
-  leaf: { background: '#DCFCE7', wash: '#D9F99D', primary: '#15803D', secondary: '#0F766E', accent: '#F59E0B', ink: '#163C2A', plate: '#F8FFF8' },
-  sand: { background: '#FEF3C7', wash: '#FDE68A', primary: '#B45309', secondary: '#0F766E', accent: '#E11D48', ink: '#432818', plate: '#FFFCF1' },
-  citrus: { background: '#FEF3C7', wash: '#FED7AA', primary: '#EA580C', secondary: '#CA8A04', accent: '#16A34A', ink: '#4A2512', plate: '#FFFDF5' },
-  ocean: { background: '#DBEAFE', wash: '#CFFAFE', primary: '#0369A1', secondary: '#0F766E', accent: '#F97316', ink: '#12324A', plate: '#F6FCFF' },
-  ember: { background: '#FEE2E2', wash: '#FED7AA', primary: '#B91C1C', secondary: '#92400E', accent: '#65A30D', ink: '#421512', plate: '#FFF9F7' },
-  cocoa: { background: '#F5E8DC', wash: '#FDE68A', primary: '#92400E', secondary: '#BE185D', accent: '#7C3AED', ink: '#3B201A', plate: '#FFFBF7' },
-  default: { background: '#EDE9FE', wash: '#CFFAFE', primary: '#4F46E5', secondary: '#0891B2', accent: '#F97316', ink: '#27264A', plate: '#FBFAFF' },
+const THEME_TOKENS = {
+  light: {
+    background: '#F4F4F6', wash: '#ECECEF', plate: '#FFFFFF', line: '#DCDCE1',
+    ink: '#131316', muted: '#4D4D55', faint: '#6A6A74',
+  },
+  dark: {
+    background: '#0B0B0D', wash: '#242428', plate: '#17171A', line: '#34343A',
+    ink: '#F4F4F5', muted: '#B2B2BA', faint: '#8F8F99',
+  },
+};
+
+const ACCENT_TONES = {
+  mono: '#131316', forest: '#3D5C4B', ocean: '#3B5B73', wine: '#6E4550',
+  honey: '#8A6A3B', sage: '#5F7360', clay: '#8C5A44', ink: '#2F3640',
+};
+
+const FAMILY_TONES = {
+  sunrise: { light: ['#8A6A3B', '#B69D70'], dark: ['#D2B077', '#AA8043'] },
+  berry: { light: ['#6E4550', '#AA8791'], dark: ['#C797A3', '#9B6573'] },
+  spice: { light: ['#8C5A44', '#B58D78'], dark: ['#D1A289', '#A16D53'] },
+  jade: { light: ['#3D5C4B', '#85A18C'], dark: ['#87B89B', '#5F8C71'] },
+  tomato: { light: ['#8F4D47', '#C78576'], dark: ['#D49A91', '#A96B62'] },
+  leaf: { light: ['#3D5C4B', '#85A18C'], dark: ['#87B89B', '#5F8C71'] },
+  sand: { light: ['#8A6A3B', '#B69D70'], dark: ['#D2B077', '#AA8043'] },
+  citrus: { light: ['#8A6A3B', '#C4A34D'], dark: ['#D2B077', '#AD893D'] },
+  ocean: { light: ['#3B5B73', '#7F9DB3'], dark: ['#8DB8D4', '#5C91B4'] },
+  ember: { light: ['#6E4550', '#B98272'], dark: ['#C797A3', '#9B6573'] },
+  cocoa: { light: ['#60473B', '#A98065'], dark: ['#C4A18A', '#946E58'] },
+  default: { light: ['#2F3640', '#85909C'], dark: ['#C1CAD4', '#7E8D9F'] },
 };
 
 const PALETTE_BY_KEY = {
@@ -95,6 +111,20 @@ const PALETTE_BY_KEY = {
   sandwich: 'sand', bagel: 'sand', tacos: 'citrus',
   salmon: 'ocean', tuna: 'ocean', roast: 'ember', roastveg: 'ember',
   brownie: 'cocoa', crumble: 'cocoa',
+};
+
+const resolvePalette = (key, theme = 'light', accent = 'mono') => {
+  const mode = theme === 'dark' ? 'dark' : 'light';
+  const tokens = THEME_TOKENS[mode];
+  const family = FAMILY_TONES[PALETTE_BY_KEY[key] || 'default'] || FAMILY_TONES.default;
+  const [primary, accentTone] = family[mode];
+  return {
+    ...tokens,
+    primary,
+    accent: accentTone,
+    secondary: tokens.muted,
+    brand: ACCENT_TONES[accent] || ACCENT_TONES.mono,
+  };
 };
 
 const FAMILY_LABELS = {
@@ -116,13 +146,13 @@ const garnish = (palette, seed) => Array.from({ length: 9 }, (_, index) => {
   return `<circle cx="${x}" cy="${y}" r="${radius}" fill="${colour}" opacity=".88"/>`;
 }).join('');
 
-const plate = (palette) => `<ellipse cx="512" cy="398" rx="260" ry="142" fill="${palette.plate}" stroke="${palette.secondary}" stroke-width="10"/><ellipse cx="512" cy="390" rx="204" ry="103" fill="${palette.background}" opacity=".8"/>`;
-const bowl = (palette) => `<path d="M278 330 Q512 540 746 330 Q718 520 512 554 Q306 520 278 330Z" fill="${palette.plate}" stroke="${palette.secondary}" stroke-width="10"/><ellipse cx="512" cy="331" rx="236" ry="74" fill="${palette.primary}" opacity=".82"/>`;
+const plate = (palette) => `<ellipse cx="512" cy="398" rx="260" ry="142" fill="${palette.plate}" stroke="${palette.line}" stroke-width="7"/><ellipse cx="512" cy="390" rx="204" ry="103" fill="${palette.background}" opacity=".8"/>`;
+const bowl = (palette) => `<path d="M278 330 Q512 540 746 330 Q718 520 512 554 Q306 520 278 330Z" fill="${palette.plate}" stroke="${palette.line}" stroke-width="7"/><ellipse cx="512" cy="331" rx="236" ry="74" fill="${palette.primary}" opacity=".88"/>`;
 
 const renderMotif = (key, palette, seed) => {
   const garnishDots = garnish(palette, seed);
   if (['soup', 'curry', 'chilli', 'stew'].includes(key)) {
-    return `${bowl(palette)}<ellipse cx="512" cy="324" rx="188" ry="52" fill="${palette.accent}" opacity=".5"/>${garnishDots}<path d="M395 245 Q405 196 430 182 M512 235 Q512 184 535 162 M620 245 Q634 202 659 188" fill="none" stroke="${palette.plate}" stroke-width="12" stroke-linecap="round" opacity=".65"/>`;
+    return `${bowl(palette)}<ellipse cx="512" cy="324" rx="188" ry="52" fill="${palette.accent}" opacity=".72"/>${garnishDots}<path d="M395 245 Q405 196 430 182 M512 235 Q512 184 535 162 M620 245 Q634 202 659 188" fill="none" stroke="${palette.plate}" stroke-width="10" stroke-linecap="round" opacity=".8"/>`;
   }
   if (['porridge', 'overnight', 'smoothie'].includes(key)) {
     return `${bowl(palette)}<ellipse cx="512" cy="326" rx="184" ry="48" fill="${palette.secondary}" opacity=".55"/>${garnishDots}<path d="M407 303 Q470 270 530 310 T628 302" fill="none" stroke="${palette.plate}" stroke-width="14" stroke-linecap="round"/>`;
@@ -165,7 +195,9 @@ const renderMotif = (key, palette, seed) => {
 
 const ICON_CACHE = new Map();
 
-const iconCacheKey = (recipe = {}) => [
+const iconCacheKey = (recipe = {}, theme = 'light', accent = 'mono') => [
+  theme,
+  accent,
   recipe.id,
   recipe.name,
   recipe.meal,
@@ -174,22 +206,24 @@ const iconCacheKey = (recipe = {}) => [
 ].join('|');
 
 /** Render the recipe as an inline SVG data URI; no photo files or network calls are needed. */
-export const recipeIconImage = (recipe = {}) => {
-  const cacheKey = iconCacheKey(recipe);
+export const recipeIconImage = (recipe = {}, options = {}) => {
+  const theme = options?.theme === 'dark' ? 'dark' : 'light';
+  const accent = options?.accent || 'mono';
+  const cacheKey = iconCacheKey(recipe, theme, accent);
   const cached = ICON_CACHE.get(cacheKey);
   if (cached) return cached;
 
   const name = String(recipe.name || 'Recipe').trim() || 'Recipe';
   const key = iconKey(recipe);
-  const palette = PALETTES[PALETTE_BY_KEY[key] || 'default'];
+  const palette = resolvePalette(key, theme, accent);
   const seed = hash(`${recipe.id || name}:${key}`);
   const gradientId = `recipe-icon-${seed}`;
   const label = FAMILY_LABELS[key] || 'RECIPE ICON';
   const chips = heroIngredients(recipe).map((ingredient, index) => {
     const x = 48 + (index * 236);
-    return `<g transform="translate(${x} 607)"><rect width="214" height="38" rx="19" fill="${palette.plate}" opacity=".82"/><text x="107" y="25" text-anchor="middle" font-size="15" font-weight="750" fill="${palette.ink}">${escapeXml(ingredient.slice(0, 22))}</text></g>`;
+    return `<g transform="translate(${x} 607)"><rect width="214" height="38" rx="19" fill="${palette.plate}" stroke="${palette.line}" stroke-width="2" opacity=".92"/><text x="107" y="25" text-anchor="middle" font-size="15" font-weight="750" fill="${palette.muted}">${escapeXml(ingredient.slice(0, 22))}</text></g>`;
   }).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette.background}"/><stop offset="1" stop-color="${palette.wash}"/></linearGradient></defs><rect width="1024" height="680" rx="42" fill="url(#${gradientId})"/><circle cx="860" cy="96" r="150" fill="${palette.secondary}" opacity=".1"/><circle cx="120" cy="594" r="170" fill="${palette.primary}" opacity=".1"/><path d="M0 520 Q220 438 410 560 T820 520 T1120 550 V680 H0Z" fill="${palette.plate}" opacity=".34"/>${renderMotif(key, palette, seed)}<g transform="translate(48 46)"><rect width="190" height="36" rx="18" fill="${palette.ink}" opacity=".9"/><text x="95" y="24" text-anchor="middle" font-size="14" font-weight="800" letter-spacing="1.5" fill="${palette.plate}">${escapeXml(label)}</text></g><text x="48" y="565" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="32" font-weight="850" fill="${palette.ink}">${escapeXml(name.slice(0, 42))}</text>${chips}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette.background}"/><stop offset="1" stop-color="${palette.wash}"/></linearGradient></defs><rect width="1024" height="680" rx="42" fill="url(#${gradientId})"/><circle cx="860" cy="96" r="150" fill="${palette.secondary}" opacity=".08"/><circle cx="120" cy="594" r="170" fill="${palette.primary}" opacity=".08"/><path d="M0 520 Q220 438 410 560 T820 520 T1120 550 V680 H0Z" fill="${palette.plate}" opacity=".45"/><path d="M828 58l9 54 54 9-54 9-9 54-9-54-54-9 54-9Z" fill="${palette.brand}" opacity=".55"/>${renderMotif(key, palette, seed)}<g transform="translate(48 46)"><rect width="190" height="36" rx="18" fill="${palette.ink}" opacity=".92"/><text x="95" y="24" text-anchor="middle" font-size="14" font-weight="800" letter-spacing="1.5" fill="${palette.background}">${escapeXml(label)}</text></g><text x="48" y="565" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="30" font-weight="750" fill="${palette.ink}">${escapeXml(name.slice(0, 42))}</text>${chips}</svg>`;
   const icon = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   if (ICON_CACHE.size >= 2048) ICON_CACHE.delete(ICON_CACHE.keys().next().value);
   ICON_CACHE.set(cacheKey, icon);
