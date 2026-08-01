@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { buildTasteDeck, buildTasteProfile, tasteScore } from '../src/lib/taste.js';
 import { buildPlan } from '../src/lib/planner.js';
-import { fallbackImage, imagePrompt, recipeFallbackImage, recipeImage, RECIPE_IMAGES } from '../src/data/recipe-images.js';
+import {
+  fallbackImage,
+  imagePrompt,
+  recipeFallbackImage,
+  recipeImage,
+  recipePhotoImage,
+  RECIPE_PHOTOS,
+  RECIPE_IMAGES,
+} from '../src/data/recipe-images.js';
 import { RECIPES } from '../src/data/recipes.js';
 
 const recipe = (id, cuisine, tags = []) => ({
@@ -68,6 +78,25 @@ describe('recipe imagery', () => {
       return !Number.isInteger(seed) || seed < 0 || seed > 2147483647;
     });
     expect(invalid).toEqual([]);
+  });
+
+  it('gives every catalogue recipe a local photo before network generation', () => {
+    const missing = RECIPES.filter((item) => !recipePhotoImage(item).startsWith('/recipe-images/'));
+    expect(missing).toEqual([]);
+  });
+
+  it('ships every local photo used by the catalogue', () => {
+    const paths = [...new Set(RECIPES.map(recipePhotoImage))];
+    const missing = paths.filter((src) => !existsSync(path.resolve(process.cwd(), 'public', src.slice(1))));
+    expect(missing).toEqual([]);
+  });
+
+  it('keeps common generated dishes on a matching family photo', () => {
+    expect(recipePhotoImage({ name: 'Leeks & lentils soup', meal: 'lunch' })).toBe(RECIPE_PHOTOS.curry);
+    expect(recipePhotoImage({ name: 'Smoky Three-Bean Chilli', meal: 'dinner' })).toBe(RECIPE_PHOTOS.curry);
+    expect(recipePhotoImage({ name: 'Eggs & spinach on wholemeal toast', meal: 'breakfast' })).toBe(RECIPE_PHOTOS.frittata);
+    expect(recipePhotoImage({ name: 'Salmon fillet & broccoli traybake', meal: 'dinner' })).toBe(RECIPE_PHOTOS.salmon);
+    expect(recipePhotoImage({ name: 'Chicken breast wrap with herby yogurt', meal: 'lunch' })).toBe(RECIPE_PHOTOS.sandwich);
   });
 
   it('includes the name and a hero ingredient in every catalogue prompt', () => {

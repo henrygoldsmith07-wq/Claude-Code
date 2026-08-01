@@ -8,19 +8,19 @@
  * omelette and every smoothie shared one bowl of oats. A picture that generic
  * tells you nothing about what you are about to cook.
  *
- * So the picture is made from the dish itself. The recipe's name, cuisine and
- * hero ingredients become a prompt to Pollinations — a free image service that
- * needs no key and no account — and the recipe's id becomes the seed, so the
- * same dish always resolves to the same picture. Stable seeds matter for more
- * than consistency: an unchanging URL is one the browser can cache, so a
- * recipe is only ever generated once per device.
+ * The primary picture is a small set of curated, public-domain food photos
+ * bundled with the app and selected by dish family. That makes the first
+ * render reliable and keeps the catalogue useful offline. Recipes that do not
+ * fit a named family use a meal-format photo rather than a random dish; the
+ * name, cuisine and hero ingredients remain available to Pollinations as a
+ * secondary network option for custom recipes.
  *
  * Two honesty notes, because they are the reason this file is shaped the way
- * it is. These are illustrations of a dish, not photographs of the food you
- * will make, and the app says so wherever one is shown large. And they come
- * from the network, so a local, recipe-specific illustration is used when the
- * request cannot be made — offline, or on a failed request, a card still shows
- * the dish it belongs to rather than an unrelated category photo.
+ * it is. These are reference images of a dish, not photographs of the food
+ * the user will make, and the app says so wherever one is shown large. A
+ * generated image is only a secondary illustration; if it cannot be fetched,
+ * the final fallback carries the recipe name and hero ingredients instead of
+ * showing a wrong dish.
  */
 
 const IMAGE_ROOT = '/recipe-images';
@@ -36,9 +36,8 @@ const MAX_GENERATOR_SEED = 2147483647;
 const MAX_PROMPT = 420;
 
 /**
- * The bundled pictures. No longer the primary source, but still the answer
- * when there is no network — and still the reason an offline recipe card
- * looks like a recipe card.
+ * The original category photos remain available for broad families and as the
+ * final image fallback for recipes with incomplete data.
  */
 export const RECIPE_IMAGES = {
   breakfast: `${IMAGE_ROOT}/breakfast.webp`,
@@ -49,6 +48,40 @@ export const RECIPE_IMAGES = {
   salad: `${IMAGE_ROOT}/salad.webp`,
   sandwich: `${IMAGE_ROOT}/sandwich.webp`,
   tacos: `${IMAGE_ROOT}/tacos.webp`,
+};
+
+const PHOTO_ROOT = `${IMAGE_ROOT}/families`;
+
+/**
+ * Curated CC0/public-domain photos bundled with the app. Keeping the primary
+ * photo local means a recipe card never depends on a third-party generator or
+ * image host being available at the moment it is opened.
+ */
+export const RECIPE_PHOTOS = {
+  bagel: `${PHOTO_ROOT}/bagel.webp`,
+  breakfast: RECIPE_IMAGES.breakfast,
+  bibimbap: `${PHOTO_ROOT}/bibimbap.webp`,
+  brownie: `${PHOTO_ROOT}/brownie.webp`,
+  couscous: `${PHOTO_ROOT}/couscous.webp`,
+  crumble: `${PHOTO_ROOT}/crumble.webp`,
+  frittata: `${PHOTO_ROOT}/frittata.webp`,
+  noodles: RECIPE_IMAGES.noodles,
+  overnight: `${PHOTO_ROOT}/overnight.webp`,
+  pancakes: RECIPE_IMAGES.breakfast,
+  pasta: RECIPE_IMAGES.pasta,
+  pizza: `${PHOTO_ROOT}/pizza.webp`,
+  porridge: `${PHOTO_ROOT}/overnight.webp`,
+  roast: RECIPE_IMAGES.roast,
+  roastveg: `${PHOTO_ROOT}/roastveg.webp`,
+  salad: RECIPE_IMAGES.salad,
+  salmon: `${PHOTO_ROOT}/salmon.webp`,
+  sandwich: RECIPE_IMAGES.sandwich,
+  shakshuka: `${PHOTO_ROOT}/shakshuka.webp`,
+  smoothie: `${PHOTO_ROOT}/smoothie.webp`,
+  stirfry: `${PHOTO_ROOT}/stirfry.webp`,
+  tacos: `${PHOTO_ROOT}/tacos.webp`,
+  tuna: `${PHOTO_ROOT}/tuna.webp`,
+  curry: RECIPE_IMAGES.curry,
 };
 
 const imageKey = (recipe = {}) => {
@@ -73,11 +106,58 @@ const imageKey = (recipe = {}) => {
   return keys[hash(String(recipe.id || recipe.name || '')) % keys.length];
 };
 
+const photoKey = (recipe = {}) => {
+  const text = [
+    recipe.name,
+    recipe.cuisine,
+    recipe.meal,
+    ...(recipe.tags || []),
+    ...(recipe.ingredients || []).map((item) => item.name || item),
+  ].join(' ').toLowerCase();
+
+  if (/shakshuka|poached egg|tomato.*egg/.test(text)) return 'shakshuka';
+  if (/smoothie bowl|smoothie/.test(text)) return 'smoothie';
+  if (/overnight oat/.test(text)) return 'overnight';
+  if (/porridge|oatmeal/.test(text)) return 'porridge';
+  if (/pancake|waffle|crumpet/.test(text)) return 'pancakes';
+  if (/bagel/.test(text)) return 'bagel';
+  if (/omelette|omelet|frittata|quiche|egg[s]? .*toast|egg[s]? .*wholemeal/.test(text)) return 'frittata';
+  if (/yogurt bowl|yoghurt bowl/.test(text)) return 'overnight';
+  if (/bibimbap/.test(text)) return 'bibimbap';
+  if (/salmon.*bowl|bowl.*salmon/.test(text)) return 'salmon';
+  if (/salmon/.test(text)) return 'salmon';
+  if (/pho/.test(text)) return 'noodles';
+  if (/couscous|quinoa bowl|grain bowl/.test(text)) return 'couscous';
+  if (/pesto.*pasta|pasta.*pesto/.test(text)) return 'pasta';
+  if (/pasta|spaghetti|linguine|penne|lasagne|lasagna|risotto/.test(text)) return 'pasta';
+  if (/stir[- ]?fry/.test(text)) return 'stirfry';
+  if (/brownie/.test(text)) return 'brownie';
+  if (/crumble|cobbler/.test(text)) return 'crumble';
+  if (/curry|korma|dal|dahl|tikka|masala/.test(text)) return 'curry';
+  if (/paella|tagine/.test(text)) return 'couscous';
+  if (/soup|stew|casserole|chilli|chili|jerk/.test(text)) return 'curry';
+  if (/tuna.*salad|salad.*tuna/.test(text)) return 'tuna';
+  if (/salad/.test(text)) return 'salad';
+  if (/jacket potato/.test(text)) return 'roastveg';
+  if (/traybake|roast/.test(text)) return /chicken|turkey|pork|lamb/.test(text) ? 'roast' : 'roastveg';
+  if (/pizza/.test(text)) return 'pizza';
+  if (/taco|fajita|burrito|quesadilla/.test(text)) return 'tacos';
+  if (/sandwich|wrap|burger|toastie|halloumi/.test(text)) return 'sandwich';
+  if (/ramen|noodle/.test(text)) return 'noodles';
+  if (recipe.meal === 'breakfast') return 'breakfast';
+  if (recipe.meal === 'lunch') return 'salad';
+  if (recipe.meal === 'dinner') return 'roast';
+  return undefined;
+};
+
 const hash = (s) => String(s).split('')
   .reduce((total, char) => ((total * 31) + char.charCodeAt(0)) >>> 0, 0);
 
 /** The bundled picture for a recipe: the offline answer, and the fallback. */
 export const fallbackImage = (recipe) => RECIPE_IMAGES[imageKey(recipe)];
+
+/** The best local photo family for a recipe, available before any network call. */
+export const recipePhotoImage = (recipe) => RECIPE_PHOTOS[photoKey(recipe)];
 
 const escapeXml = (value) => String(value || '')
   .replace(/&/g, '&amp;')

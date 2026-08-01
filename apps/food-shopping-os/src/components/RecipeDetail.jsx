@@ -75,14 +75,13 @@ export default function RecipeDetail({ recipe: original, onClose }) {
     <div className="pb-8">
       <div className="relative">
         <FoodArt recipe={recipe} className="h-56 w-full" px={64} />
-        {/* The picture is generated from the recipe, not a photograph of the
-            dish you will make. Said plainly, where the picture is big enough
-            to be mistaken for one. */}
+        {/* This is a reference image for the recipe family, not a photograph
+            of the exact portion the user will make. */}
         <p
           className="absolute bottom-8 right-3 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
           style={{ background: 'var(--card)', color: 'var(--muted)' }}
         >
-          Illustration, not a photo of this dish
+          Reference photo - your dish may vary
         </p>
         <button
           onClick={onClose}
