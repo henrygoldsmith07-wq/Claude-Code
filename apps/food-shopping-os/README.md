@@ -1,11 +1,38 @@
-# Forq — Food Shopping OS
+# Forq
 
-One app for planning, shopping, cooking, nutrition, budgeting and reducing
-waste. Mobile-first PWA-style web app built with Vite + React 18 + Tailwind
-CSS 4, styled in the calm monochrome Le Studio design language (see
-`apps/le-studio-site`): ink-on-neutral surfaces, border-first cards,
-black-on-white CTAs, and monochrome stroke iconography (lucide-react)
-throughout — no emoji in the UI.
+> **Plan meals, buy exactly what you need and waste less food.**
+
+That is the product. Nutrition, health, exercise and analytics **support** that
+promise — they are not competing primary products.
+
+## Primary loop
+
+1. **Plan meals** — decide what you will cook this week.  
+2. **Buy exactly what you need** — one shopping list from the plan, reduced by
+   pantry and leftovers.  
+3. **Waste less food** — use what is expiring, cook what you planned, record
+   waste honestly.
+
+Everything else is optional support:
+
+| Support | Role |
+|--------|------|
+| Recipes & cook mode | Make the plan cookable |
+| Pantry | Stop rebuying stock |
+| Budget / receipts | Keep “buy less” affordable |
+| Food diary / nutrition | Fit the plan to energy and macro targets |
+| Health / activity | Adjust targets — not a clinic or gym app |
+| Insights & footprint | Evidence on whether the loop is working |
+
+Full positioning: [`docs/PRODUCT.md`](./docs/PRODUCT.md) · source of truth in
+code: `src/data/product.js`.
+
+---
+
+Mobile-first web app (Next.js + React + Tailwind), styled in the calm monochrome
+Le Studio design language (`apps/le-studio-site`): ink-on-neutral surfaces,
+border-first cards, black-on-white CTAs, monochrome stroke icons (lucide-react)
+— no emoji in the UI.
 
 **The app starts empty.** There is no demo user, no pretend pantry, no invented
 spending history and no pre-earned achievements. A first run asks for your
@@ -58,6 +85,21 @@ is patched.
 
 ## Features
 
+Organised under the **primary loop** first, then **supporting** tools.
+
+### Primary — plan, shop, waste less
+
+- **Meal planner** — weekly and monthly slots; generator favours pantry stock
+  and season; leftovers first; calendar busy times can leave evenings free
+- **Shopping list** — generated from the plan, minus pantry and covered leftovers;
+  aisle organisation, prices and store links
+- **Pantry** — what you have, what is low, what is about to expire
+- **Waste tracking** — binning records cost at what you paid; repeat-waste insight
+- **Home dashboard** — today's planned meals, list snapshot, expiring food,
+  budget ring when you use one
+
+### Supporting — nutrition, health, insights (optional)
+
 - **First-run setup** — name, household size, weekly budget, how you eat, and
   what you're aiming at. It also asks for weight, height, age and sex, because
   together they let Forq *estimate* your maintenance calories instead of asking
@@ -77,10 +119,9 @@ is patched.
   hand the numbers over entirely, **daily calorie targets** drive the diary,
   and a **weekly target** reads the week as one budget — what you've eaten,
   what's left, and what that leaves per day
-- **Home dashboard** — today's planned meals, budget and calorie rings, water,
-  cooking streak and XP, pantry snapshot with what's about to go off, and
-  suggestions derived from your own kitchen (never generic marketing copy).
-  Empty states explain what each surface will do once you feed it
+- **Home extras** — optional cooking streak and XP, water, and suggestions
+  derived from your own kitchen (never generic marketing copy). Empty states
+  explain what each surface will do once you feed it
 - **Global interaction layer** — Ctrl/Cmd+K searches commands, foods, recipes,
   pantry and the shopping list together, with type filters and relevance or
   A–Z sorting. Q opens Quick add, Ctrl/Cmd+Z undoes the latest saved action,
