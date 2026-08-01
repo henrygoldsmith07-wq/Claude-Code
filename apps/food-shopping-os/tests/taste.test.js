@@ -65,7 +65,7 @@ describe('recipe icons', () => {
     expect(new Set(icons).size).toBe(RECIPES.length);
   });
 
-  it('uses multi-colour vector artwork with the dish family and ingredients', () => {
+  it('uses simple monochrome vector artwork with hidden dish metadata', () => {
     const source = decodeURIComponent(recipeIconImage({
       id: 'lentil-soup',
       name: 'Leeks & lentils soup',
@@ -73,21 +73,24 @@ describe('recipe icons', () => {
       ingredients: [{ name: 'Lentils' }, { name: 'Leeks' }],
     }).split(',')[1]);
 
-    expect(source).toContain('<linearGradient');
-    expect((source.match(/fill="/g) || []).length).toBeGreaterThan(8);
-    expect(source).toContain('SOUP');
+    expect(source).toContain('data-family="SOUP"');
+    expect((source.match(/fill="/g) || []).length).toBeGreaterThan(6);
+    expect(source).toContain('<title>');
     expect(source).toContain('lentils');
   });
 
-  it('matches the selected Le Studio light/dark surfaces and accent', () => {
+  it('matches the monochrome Le Studio light and dark surfaces', () => {
     const item = { id: 'theme-soup', name: 'Leeks & lentils soup', meal: 'lunch' };
-    const light = decodeURIComponent(recipeIconImage(item, { theme: 'light', accent: 'forest' }).split(',')[1]);
-    const dark = decodeURIComponent(recipeIconImage(item, { theme: 'dark', accent: 'forest' }).split(',')[1]);
+    const light = decodeURIComponent(recipeIconImage(item, { theme: 'light' }).split(',')[1]);
+    const dark = decodeURIComponent(recipeIconImage(item, { theme: 'dark' }).split(',')[1]);
 
-    expect(light).toContain('#F4F4F6');
-    expect(light).toContain('#3D5C4B');
-    expect(dark).toContain('#0B0B0D');
-    expect(dark).toContain('#17171A');
+    const isGrey = (hex) => hex.slice(1, 3) === hex.slice(3, 5) && hex.slice(3, 5) === hex.slice(5, 7);
+    expect(light).toContain('#F4F4F4');
+    expect(light).toContain('#131313');
+    expect(dark).toContain('#0B0B0B');
+    expect(dark).toContain('#171717');
+    expect((light.match(/#[0-9A-F]{6}/gi) || []).every(isGrey)).toBe(true);
+    expect((dark.match(/#[0-9A-F]{6}/gi) || []).every(isGrey)).toBe(true);
     expect(light).not.toBe(dark);
   });
 

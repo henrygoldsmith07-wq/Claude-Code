@@ -464,13 +464,12 @@ export const Toggle = ({ on, onChange, label }) => (
 );
 
 /**
- * A high-definition, multi-colour SVG icon is generated from the recipe and
- * its dish family. It is inline, deterministic, works offline, and follows
- * the selected Le Studio theme.
+ * A simple monochrome SVG icon is generated from the recipe's dish family.
+ * It is inline, deterministic, works offline, and follows light or dark mode.
  */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
   const app = useOptionalApp();
-  const src = recipeIconImage(recipe, { theme: app?.theme, accent: app?.accent });
+  const src = recipeIconImage(recipe, { theme: app?.theme });
 
   return (
     <div

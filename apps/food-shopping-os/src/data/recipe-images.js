@@ -3,8 +3,8 @@
  *
  * Recipe cards use deterministic inline SVG rather than stock photography or
  * a remote image service. The icon is crisp at any size, works offline, and
- * uses the same neutral surfaces and restrained accents as the Le Studio UI.
- * Dish families still get a recognisable motif and a quiet colour cue.
+ * uses the same monochrome surfaces as the Le Studio UI. Dish families get a
+ * recognisable silhouette without decorative colour or embedded card copy.
  */
 
 const hash = (value) => String(value).split('')
@@ -72,58 +72,23 @@ const iconKey = (recipe = {}) => {
 
 const THEME_TOKENS = {
   light: {
-    background: '#F4F4F6', wash: '#ECECEF', plate: '#FFFFFF', line: '#DCDCE1',
-    ink: '#131316', muted: '#4D4D55', faint: '#6A6A74',
+    background: '#F4F4F4', plate: '#FFFFFF', line: '#DCDCDC',
+    ink: '#131313', muted: '#4D4D4D', faint: '#6A6A6A',
   },
   dark: {
-    background: '#0B0B0D', wash: '#242428', plate: '#17171A', line: '#34343A',
-    ink: '#F4F4F5', muted: '#B2B2BA', faint: '#8F8F99',
+    background: '#0B0B0B', plate: '#171717', line: '#343434',
+    ink: '#F4F4F4', muted: '#B2B2B2', faint: '#8F8F8F',
   },
 };
 
-const ACCENT_TONES = {
-  mono: '#131316', forest: '#3D5C4B', ocean: '#3B5B73', wine: '#6E4550',
-  honey: '#8A6A3B', sage: '#5F7360', clay: '#8C5A44', ink: '#2F3640',
-};
-
-const FAMILY_TONES = {
-  sunrise: { light: ['#8A6A3B', '#B69D70'], dark: ['#D2B077', '#AA8043'] },
-  berry: { light: ['#6E4550', '#AA8791'], dark: ['#C797A3', '#9B6573'] },
-  spice: { light: ['#8C5A44', '#B58D78'], dark: ['#D1A289', '#A16D53'] },
-  jade: { light: ['#3D5C4B', '#85A18C'], dark: ['#87B89B', '#5F8C71'] },
-  tomato: { light: ['#8F4D47', '#C78576'], dark: ['#D49A91', '#A96B62'] },
-  leaf: { light: ['#3D5C4B', '#85A18C'], dark: ['#87B89B', '#5F8C71'] },
-  sand: { light: ['#8A6A3B', '#B69D70'], dark: ['#D2B077', '#AA8043'] },
-  citrus: { light: ['#8A6A3B', '#C4A34D'], dark: ['#D2B077', '#AD893D'] },
-  ocean: { light: ['#3B5B73', '#7F9DB3'], dark: ['#8DB8D4', '#5C91B4'] },
-  ember: { light: ['#6E4550', '#B98272'], dark: ['#C797A3', '#9B6573'] },
-  cocoa: { light: ['#60473B', '#A98065'], dark: ['#C4A18A', '#946E58'] },
-  default: { light: ['#2F3640', '#85909C'], dark: ['#C1CAD4', '#7E8D9F'] },
-};
-
-const PALETTE_BY_KEY = {
-  breakfast: 'sunrise', pancakes: 'sunrise', eggs: 'sunrise', frittata: 'sunrise', shakshuka: 'sunrise',
-  overnight: 'berry', porridge: 'berry', smoothie: 'berry',
-  curry: 'spice', chilli: 'spice', soup: 'spice', stew: 'spice',
-  noodles: 'jade', stirfry: 'jade',
-  pasta: 'tomato', pizza: 'tomato',
-  salad: 'leaf', couscous: 'leaf', bibimbap: 'leaf',
-  sandwich: 'sand', bagel: 'sand', tacos: 'citrus',
-  salmon: 'ocean', tuna: 'ocean', roast: 'ember', roastveg: 'ember',
-  brownie: 'cocoa', crumble: 'cocoa',
-};
-
-const resolvePalette = (key, theme = 'light', accent = 'mono') => {
+const resolvePalette = (theme = 'light') => {
   const mode = theme === 'dark' ? 'dark' : 'light';
   const tokens = THEME_TOKENS[mode];
-  const family = FAMILY_TONES[PALETTE_BY_KEY[key] || 'default'] || FAMILY_TONES.default;
-  const [primary, accentTone] = family[mode];
   return {
     ...tokens,
-    primary,
-    accent: accentTone,
+    primary: tokens.ink,
+    accent: tokens.faint,
     secondary: tokens.muted,
-    brand: ACCENT_TONES[accent] || ACCENT_TONES.mono,
   };
 };
 
@@ -138,12 +103,12 @@ const FAMILY_LABELS = {
 
 const seeded = (seed, index, modulo) => (seed + (index * 7919)) % modulo;
 
-const garnish = (palette, seed) => Array.from({ length: 9 }, (_, index) => {
-  const x = 335 + seeded(seed, index, 360);
-  const y = 250 + seeded(seed, index + 11, 170);
-  const radius = 8 + seeded(seed, index + 23, 13);
+const garnish = (palette, seed) => Array.from({ length: 5 }, (_, index) => {
+  const x = 370 + seeded(seed, index, 285);
+  const y = 270 + seeded(seed, index + 11, 125);
+  const radius = 7 + seeded(seed, index + 23, 10);
   const colour = [palette.primary, palette.secondary, palette.accent][index % 3];
-  return `<circle cx="${x}" cy="${y}" r="${radius}" fill="${colour}" opacity=".88"/>`;
+  return `<circle cx="${x}" cy="${y}" r="${radius}" fill="${colour}" opacity=".84"/>`;
 }).join('');
 
 const plate = (palette) => `<ellipse cx="512" cy="398" rx="260" ry="142" fill="${palette.plate}" stroke="${palette.line}" stroke-width="7"/><ellipse cx="512" cy="390" rx="204" ry="103" fill="${palette.background}" opacity=".8"/>`;
@@ -195,9 +160,8 @@ const renderMotif = (key, palette, seed) => {
 
 const ICON_CACHE = new Map();
 
-const iconCacheKey = (recipe = {}, theme = 'light', accent = 'mono') => [
+const iconCacheKey = (recipe = {}, theme = 'light') => [
   theme,
-  accent,
   recipe.id,
   recipe.name,
   recipe.meal,
@@ -208,22 +172,17 @@ const iconCacheKey = (recipe = {}, theme = 'light', accent = 'mono') => [
 /** Render the recipe as an inline SVG data URI; no photo files or network calls are needed. */
 export const recipeIconImage = (recipe = {}, options = {}) => {
   const theme = options?.theme === 'dark' ? 'dark' : 'light';
-  const accent = options?.accent || 'mono';
-  const cacheKey = iconCacheKey(recipe, theme, accent);
+  const cacheKey = iconCacheKey(recipe, theme);
   const cached = ICON_CACHE.get(cacheKey);
   if (cached) return cached;
 
   const name = String(recipe.name || 'Recipe').trim() || 'Recipe';
   const key = iconKey(recipe);
-  const palette = resolvePalette(key, theme, accent);
+  const palette = resolvePalette(theme);
   const seed = hash(`${recipe.id || name}:${key}`);
-  const gradientId = `recipe-icon-${seed}`;
   const label = FAMILY_LABELS[key] || 'RECIPE ICON';
-  const chips = heroIngredients(recipe).map((ingredient, index) => {
-    const x = 48 + (index * 236);
-    return `<g transform="translate(${x} 607)"><rect width="214" height="38" rx="19" fill="${palette.plate}" stroke="${palette.line}" stroke-width="2" opacity=".92"/><text x="107" y="25" text-anchor="middle" font-size="15" font-weight="750" fill="${palette.muted}">${escapeXml(ingredient.slice(0, 22))}</text></g>`;
-  }).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette.background}"/><stop offset="1" stop-color="${palette.wash}"/></linearGradient></defs><rect width="1024" height="680" rx="42" fill="url(#${gradientId})"/><circle cx="860" cy="96" r="150" fill="${palette.secondary}" opacity=".08"/><circle cx="120" cy="594" r="170" fill="${palette.primary}" opacity=".08"/><path d="M0 520 Q220 438 410 560 T820 520 T1120 550 V680 H0Z" fill="${palette.plate}" opacity=".45"/><path d="M828 58l9 54 54 9-54 9-9 54-9-54-54-9 54-9Z" fill="${palette.brand}" opacity=".55"/>${renderMotif(key, palette, seed)}<g transform="translate(48 46)"><rect width="190" height="36" rx="18" fill="${palette.ink}" opacity=".92"/><text x="95" y="24" text-anchor="middle" font-size="14" font-weight="800" letter-spacing="1.5" fill="${palette.background}">${escapeXml(label)}</text></g><text x="48" y="565" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="30" font-weight="750" fill="${palette.ink}">${escapeXml(name.slice(0, 42))}</text>${chips}</svg>`;
+  const ingredients = heroIngredients(recipe).join(', ');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon" data-family="${escapeXml(label)}"><title>${escapeXml(name)}${ingredients ? ` — ${escapeXml(ingredients)}` : ''}</title><rect width="1024" height="680" rx="42" fill="${palette.background}"/>${renderMotif(key, palette, seed)}</svg>`;
   const icon = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   if (ICON_CACHE.size >= 2048) ICON_CACHE.delete(ICON_CACHE.keys().next().value);
   ICON_CACHE.set(cacheKey, icon);
