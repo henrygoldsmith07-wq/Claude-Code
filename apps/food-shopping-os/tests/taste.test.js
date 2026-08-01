@@ -65,7 +65,7 @@ describe('recipe icons', () => {
     expect(new Set(icons).size).toBe(RECIPES.length);
   });
 
-  it('uses simple monochrome vector artwork with hidden dish metadata', () => {
+  it('uses minimal single-weight line artwork with hidden dish metadata', () => {
     const source = decodeURIComponent(recipeIconImage({
       id: 'lentil-soup',
       name: 'Leeks & lentils soup',
@@ -74,7 +74,9 @@ describe('recipe icons', () => {
     }).split(',')[1]);
 
     expect(source).toContain('data-family="SOUP"');
-    expect((source.match(/fill="/g) || []).length).toBeGreaterThan(6);
+    expect(source).toContain('stroke-width="16"');
+    expect((source.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length).toBeLessThanOrEqual(8);
+    expect(source).not.toContain('<linearGradient');
     expect(source).toContain('<title>');
     expect(source).toContain('lentils');
   });
@@ -88,7 +90,7 @@ describe('recipe icons', () => {
     expect(light).toContain('#F4F4F4');
     expect(light).toContain('#131313');
     expect(dark).toContain('#0B0B0B');
-    expect(dark).toContain('#171717');
+    expect(dark).toContain('#F4F4F4');
     expect((light.match(/#[0-9A-F]{6}/gi) || []).every(isGrey)).toBe(true);
     expect((dark.match(/#[0-9A-F]{6}/gi) || []).every(isGrey)).toBe(true);
     expect(light).not.toBe(dark);

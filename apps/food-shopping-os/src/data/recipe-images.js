@@ -7,9 +7,6 @@
  * recognisable silhouette without decorative colour or embedded card copy.
  */
 
-const hash = (value) => String(value).split('')
-  .reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
-
 const escapeXml = (value) => String(value || '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -71,26 +68,11 @@ const iconKey = (recipe = {}) => {
 };
 
 const THEME_TOKENS = {
-  light: {
-    background: '#F4F4F4', plate: '#FFFFFF', line: '#DCDCDC',
-    ink: '#131313', muted: '#4D4D4D', faint: '#6A6A6A',
-  },
-  dark: {
-    background: '#0B0B0B', plate: '#171717', line: '#343434',
-    ink: '#F4F4F4', muted: '#B2B2B2', faint: '#8F8F8F',
-  },
+  light: { background: '#F4F4F4', ink: '#131313' },
+  dark: { background: '#0B0B0B', ink: '#F4F4F4' },
 };
 
-const resolvePalette = (theme = 'light') => {
-  const mode = theme === 'dark' ? 'dark' : 'light';
-  const tokens = THEME_TOKENS[mode];
-  return {
-    ...tokens,
-    primary: tokens.ink,
-    accent: tokens.faint,
-    secondary: tokens.muted,
-  };
-};
+const resolvePalette = (theme = 'light') => THEME_TOKENS[theme === 'dark' ? 'dark' : 'light'];
 
 const FAMILY_LABELS = {
   breakfast: 'BREAKFAST', pancakes: 'PANCAKES', eggs: 'EGGS ON TOAST', frittata: 'BAKED EGGS',
@@ -101,61 +83,50 @@ const FAMILY_LABELS = {
   roast: 'ROAST', roastveg: 'ROASTED VEG', brownie: 'BROWNIE', crumble: 'CRUMBLE',
 };
 
-const seeded = (seed, index, modulo) => (seed + (index * 7919)) % modulo;
+const lineIcon = (palette, body) => `<g fill="none" stroke="${palette.ink}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">${body}</g>`;
+const bowl = '<path d="M342 310H682"/><path d="M362 312Q382 490 512 518Q642 490 662 312"/>';
 
-const garnish = (palette, seed) => Array.from({ length: 5 }, (_, index) => {
-  const x = 370 + seeded(seed, index, 285);
-  const y = 270 + seeded(seed, index + 11, 125);
-  const radius = 7 + seeded(seed, index + 23, 10);
-  const colour = [palette.primary, palette.secondary, palette.accent][index % 3];
-  return `<circle cx="${x}" cy="${y}" r="${radius}" fill="${colour}" opacity=".84"/>`;
-}).join('');
-
-const plate = (palette) => `<ellipse cx="512" cy="398" rx="260" ry="142" fill="${palette.plate}" stroke="${palette.line}" stroke-width="7"/><ellipse cx="512" cy="390" rx="204" ry="103" fill="${palette.background}" opacity=".8"/>`;
-const bowl = (palette) => `<path d="M278 330 Q512 540 746 330 Q718 520 512 554 Q306 520 278 330Z" fill="${palette.plate}" stroke="${palette.line}" stroke-width="7"/><ellipse cx="512" cy="331" rx="236" ry="74" fill="${palette.primary}" opacity=".88"/>`;
-
-const renderMotif = (key, palette, seed) => {
-  const garnishDots = garnish(palette, seed);
+const renderMotif = (key, palette) => {
   if (['soup', 'curry', 'chilli', 'stew'].includes(key)) {
-    return `${bowl(palette)}<ellipse cx="512" cy="324" rx="188" ry="52" fill="${palette.accent}" opacity=".72"/>${garnishDots}<path d="M395 245 Q405 196 430 182 M512 235 Q512 184 535 162 M620 245 Q634 202 659 188" fill="none" stroke="${palette.plate}" stroke-width="10" stroke-linecap="round" opacity=".8"/>`;
+    return lineIcon(palette, `${bowl}<path d="M430 252Q408 214 430 180M512 242Q490 204 512 170M594 252Q572 214 594 180"/>`);
   }
-  if (['porridge', 'overnight', 'smoothie'].includes(key)) {
-    return `${bowl(palette)}<ellipse cx="512" cy="326" rx="184" ry="48" fill="${palette.secondary}" opacity=".55"/>${garnishDots}<path d="M407 303 Q470 270 530 310 T628 302" fill="none" stroke="${palette.plate}" stroke-width="14" stroke-linecap="round"/>`;
-  }
-  if (['salad', 'couscous', 'bibimbap'].includes(key)) {
-    return `${bowl(palette)}<path d="M350 326 Q410 284 470 326 T590 326 T674 326" fill="none" stroke="${palette.accent}" stroke-width="40" stroke-linecap="round"/>${garnishDots}<path d="M382 345 Q440 306 490 347 M536 347 Q590 306 650 345" fill="none" stroke="${palette.plate}" stroke-width="13" stroke-linecap="round"/>`;
+  if (['porridge', 'overnight', 'smoothie', 'salad', 'couscous', 'bibimbap'].includes(key)) {
+    return lineIcon(palette, `${bowl}<path d="M430 360H594"/><circle cx="410" cy="350" r="8" fill="${palette.ink}" stroke="none"/><circle cx="614" cy="350" r="8" fill="${palette.ink}" stroke="none"/>`);
   }
   if (['noodles', 'stirfry'].includes(key)) {
-    return `${bowl(palette)}<path d="M344 320 Q410 278 468 323 T588 323 T680 315 M350 350 Q414 308 475 350 T598 348 T675 338" fill="none" stroke="${palette.plate}" stroke-width="16" stroke-linecap="round"/>${garnishDots}`;
+    return lineIcon(palette, `${bowl}<path d="M420 250V370M512 250V370M604 250V370"/>`);
   }
-  if (['pasta'].includes(key)) {
-    return `${plate(palette)}<path d="M374 340 Q440 270 506 347 T638 338 M392 382 Q460 314 520 382 T646 374 M410 420 Q475 352 530 420 T616 414" fill="none" stroke="${palette.primary}" stroke-width="24" stroke-linecap="round"/>${garnishDots}`;
+  if (key === 'pasta') {
+    return lineIcon(palette, '<circle cx="512" cy="350" r="170"/><path d="M420 350Q460 270 512 350T604 350Q560 430 512 350T420 350"/>');
   }
-  if (['sandwich', 'bagel'].includes(key)) {
-    const bread = key === 'bagel'
-      ? `<ellipse cx="512" cy="370" rx="174" ry="92" fill="${palette.primary}" stroke="${palette.secondary}" stroke-width="10"/><ellipse cx="512" cy="370" rx="65" ry="30" fill="${palette.background}" stroke="${palette.secondary}" stroke-width="10"/>`
-      : `<rect x="336" y="294" width="352" height="92" rx="30" fill="${palette.primary}" stroke="${palette.secondary}" stroke-width="10" transform="rotate(-7 512 340)"/><rect x="356" y="382" width="352" height="92" rx="30" fill="${palette.accent}" stroke="${palette.secondary}" stroke-width="10" transform="rotate(7 512 420)"/>`;
-    return `${plate(palette)}${bread}<path d="M382 360 Q512 310 642 360" fill="none" stroke="${palette.plate}" stroke-width="16" stroke-linecap="round" opacity=".9"/>`;
+  if (key === 'bagel') {
+    return lineIcon(palette, '<ellipse cx="512" cy="350" rx="180" ry="120"/><ellipse cx="512" cy="350" rx="62" ry="42"/>');
   }
-  if (['tacos'].includes(key)) {
-    return `${plate(palette)}<path d="M342 394 Q392 258 468 394Z M462 394 Q512 250 588 394Z M582 394 Q632 264 706 394Z" fill="${palette.primary}" stroke="${palette.secondary}" stroke-width="10"/>${garnishDots}`;
+  if (key === 'sandwich') {
+    return lineIcon(palette, '<path d="M340 440L512 230L684 440Z"/><path d="M390 380H634"/>');
   }
-  if (['pizza'].includes(key)) {
-    return `${plate(palette)}<circle cx="512" cy="378" r="132" fill="${palette.primary}" stroke="${palette.secondary}" stroke-width="10"/><path d="M512 246 V510 M380 378 H644" stroke="${palette.plate}" stroke-width="8" opacity=".8"/>${garnishDots}`;
+  if (key === 'tacos') {
+    return lineIcon(palette, '<path d="M340 430Q390 240 440 430M462 430Q512 240 562 430M584 430Q634 240 684 430"/>');
+  }
+  if (key === 'pizza') {
+    return lineIcon(palette, `<path d="M392 460L512 220L632 460Z"/><path d="M416 412H608"/><circle cx="490" cy="350" r="9" fill="${palette.ink}" stroke="none"/><circle cx="550" cy="390" r="9" fill="${palette.ink}" stroke="none"/>`);
   }
   if (['salmon', 'tuna'].includes(key)) {
-    return `${plate(palette)}<path d="M352 384 Q448 270 594 350 Q645 378 694 330 Q682 398 694 446 Q638 400 594 414 Q448 490 352 384Z" fill="${palette.primary}" stroke="${palette.secondary}" stroke-width="10"/><circle cx="590" cy="360" r="10" fill="${palette.plate}"/> <path d="M420 354 Q495 382 576 378 M424 398 Q500 420 580 400" fill="none" stroke="${palette.accent}" stroke-width="12" stroke-linecap="round"/>`;
+    return lineIcon(palette, `<path d="M350 350Q470 230 620 350L690 285V415L620 350Q470 470 350 350Z"/><circle cx="590" cy="330" r="8" fill="${palette.ink}" stroke="none"/>`);
   }
   if (['roast', 'roastveg'].includes(key)) {
-    return `<rect x="296" y="282" width="432" height="190" rx="32" fill="${palette.plate}" stroke="${palette.secondary}" stroke-width="10"/><ellipse cx="420" cy="370" rx="92" ry="56" fill="${palette.primary}"/><ellipse cx="580" cy="370" rx="92" ry="56" fill="${palette.accent}"/>${garnishDots}`;
+    return lineIcon(palette, '<rect x="330" y="250" width="364" height="220" rx="30"/><ellipse cx="440" cy="360" rx="62" ry="42"/><ellipse cx="584" cy="360" rx="62" ry="42"/>');
   }
   if (['brownie', 'crumble'].includes(key)) {
-    return `${plate(palette)}<rect x="372" y="288" width="280" height="166" rx="22" fill="${palette.primary}" stroke="${palette.secondary}" stroke-width="10" transform="rotate(-4 512 370)"/><path d="M415 350 H610 M430 404 H590" stroke="${palette.accent}" stroke-width="20" stroke-linecap="round"/>${garnishDots}`;
+    return lineIcon(palette, '<rect x="390" y="240" width="244" height="230" rx="24"/><path d="M430 325H594M430 390H594"/>');
   }
   if (['eggs', 'frittata', 'shakshuka'].includes(key)) {
-    return `${plate(palette)}<ellipse cx="448" cy="362" rx="66" ry="55" fill="${palette.plate}" stroke="${palette.primary}" stroke-width="10"/><circle cx="448" cy="362" r="22" fill="${palette.accent}"/><ellipse cx="580" cy="392" rx="66" ry="55" fill="${palette.plate}" stroke="${palette.primary}" stroke-width="10"/><circle cx="580" cy="392" r="22" fill="${palette.accent}"/>${garnishDots}`;
+    return lineIcon(palette, `<ellipse cx="430" cy="340" rx="92" ry="72"/><circle cx="430" cy="340" r="22" fill="${palette.ink}" stroke="none"/><ellipse cx="594" cy="380" rx="92" ry="72"/><circle cx="594" cy="380" r="22" fill="${palette.ink}" stroke="none"/>`);
   }
-  return `${plate(palette)}${garnishDots}`;
+  if (['breakfast', 'pancakes'].includes(key)) {
+    return lineIcon(palette, '<ellipse cx="512" cy="400" rx="160" ry="52"/><path d="M376 344Q512 420 648 344M400 290Q512 352 624 290"/>');
+  }
+  return lineIcon(palette, '<circle cx="512" cy="350" r="150"/><path d="M320 230V470M290 230V310Q320 342 350 310V230M704 230V470M704 230Q790 300 704 370"/>');
 };
 
 const ICON_CACHE = new Map();
@@ -179,10 +150,9 @@ export const recipeIconImage = (recipe = {}, options = {}) => {
   const name = String(recipe.name || 'Recipe').trim() || 'Recipe';
   const key = iconKey(recipe);
   const palette = resolvePalette(theme);
-  const seed = hash(`${recipe.id || name}:${key}`);
   const label = FAMILY_LABELS[key] || 'RECIPE ICON';
   const ingredients = heroIngredients(recipe).join(', ');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon" data-family="${escapeXml(label)}"><title>${escapeXml(name)}${ingredients ? ` — ${escapeXml(ingredients)}` : ''}</title><rect width="1024" height="680" rx="42" fill="${palette.background}"/>${renderMotif(key, palette, seed)}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon" data-family="${escapeXml(label)}"><title>${escapeXml(name)}${ingredients ? ` — ${escapeXml(ingredients)}` : ''}</title><rect width="1024" height="680" rx="42" fill="${palette.background}"/>${renderMotif(key, palette)}</svg>`;
   const icon = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   if (ICON_CACHE.size >= 2048) ICON_CACHE.delete(ICON_CACHE.keys().next().value);
   ICON_CACHE.set(cacheKey, icon);
