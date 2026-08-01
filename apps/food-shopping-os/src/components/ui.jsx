@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { recipeFallbackImage, recipeImage, recipePhotoImage } from '../data/recipe-images.js';
+import { recipeFallbackImage, recipePhotoImage } from '../data/recipe-images.js';
 
 /* ---------- Layout ---------- */
 
@@ -464,15 +464,15 @@ export const Toggle = ({ on, onChange, label }) => (
 
 /**
  * A local curated photo is the primary image, chosen by dish family so cards
- * work offline. Generated imagery is still available for a failed/missing
- * local asset, with a recipe-specific illustration as the final fallback.
+ * work offline. A recipe-specific illustration is the final fallback when a
+ * bundled photo cannot be read.
  */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
   const photo = recipePhotoImage(recipe);
-  const generated = recipeImage(recipe);
-  const [src, setSrc] = useState(photo || generated);
+  const fallback = recipeFallbackImage(recipe);
+  const [src, setSrc] = useState(photo || fallback);
 
-  useEffect(() => { setSrc(photo || generated); }, [photo, generated]);
+  useEffect(() => { setSrc(photo || fallback); }, [photo, fallback]);
 
   return (
     <div
@@ -484,9 +484,7 @@ export const FoodArt = ({ recipe, className, alt = '' }) => {
         alt={alt}
         loading="lazy"
         decoding="async"
-        onError={() => setSrc((current) => (
-          current === photo && generated !== current ? generated : recipeFallbackImage(recipe)
-        ))}
+        onError={() => setSrc(fallback)}
         className="h-full w-full object-cover"
       />
     </div>

@@ -81,7 +81,7 @@ export default function RecipeDetail({ recipe: original, onClose }) {
           className="absolute bottom-8 right-3 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
           style={{ background: 'var(--card)', color: 'var(--muted)' }}
         >
-          Reference photo - your dish may vary
+          Reference image - your dish may vary
         </p>
         <button
           onClick={onClose}

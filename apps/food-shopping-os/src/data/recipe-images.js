@@ -10,27 +10,17 @@
  *
  * The primary picture is a small set of curated, public-domain food photos
  * bundled with the app and selected by dish family. That makes the first
- * render reliable and keeps the catalogue useful offline. Recipes that do not
- * fit a named family use a meal-format photo rather than a random dish; the
- * name, cuisine and hero ingredients remain available to Pollinations as a
- * secondary network option for custom recipes.
+ * render reliable and keeps the catalogue useful offline. There is no runtime
+ * image-generation request: every catalogue card resolves to a local asset.
  *
  * Two honesty notes, because they are the reason this file is shaped the way
  * it is. These are reference images of a dish, not photographs of the food
- * the user will make, and the app says so wherever one is shown large. A
- * generated image is only a secondary illustration; if it cannot be fetched,
- * the final fallback carries the recipe name and hero ingredients instead of
- * showing a wrong dish.
+ * the user will make, and the app says so wherever one is shown large. If a
+ * local asset is ever unavailable, the final fallback carries the recipe name
+ * and hero ingredients instead of showing a wrong dish.
  */
 
 const IMAGE_ROOT = '/recipe-images';
-
-const GENERATOR_ROOT = 'https://image.pollinations.ai/prompt';
-
-/** One request size for every use, so a thumbnail and a hero share a cache entry. */
-const IMAGE_WIDTH = 768;
-const IMAGE_HEIGHT = 512;
-const MAX_GENERATOR_SEED = 2147483647;
 
 /** Long prompts stop steering the picture and only bloat the URL. */
 const MAX_PROMPT = 420;
@@ -62,8 +52,10 @@ export const RECIPE_PHOTOS = {
   breakfast: RECIPE_IMAGES.breakfast,
   bibimbap: `${PHOTO_ROOT}/bibimbap.webp`,
   brownie: `${PHOTO_ROOT}/brownie.webp`,
+  chilli: `${PHOTO_ROOT}/chilli.webp`,
   couscous: `${PHOTO_ROOT}/couscous.webp`,
   crumble: `${PHOTO_ROOT}/crumble.webp`,
+  eggsToast: `${PHOTO_ROOT}/eggs-toast.webp`,
   frittata: `${PHOTO_ROOT}/frittata.webp`,
   noodles: RECIPE_IMAGES.noodles,
   overnight: `${PHOTO_ROOT}/overnight.webp`,
@@ -78,6 +70,7 @@ export const RECIPE_PHOTOS = {
   sandwich: RECIPE_IMAGES.sandwich,
   shakshuka: `${PHOTO_ROOT}/shakshuka.webp`,
   smoothie: `${PHOTO_ROOT}/smoothie.webp`,
+  soup: `${PHOTO_ROOT}/soup.webp`,
   stirfry: `${PHOTO_ROOT}/stirfry.webp`,
   tacos: `${PHOTO_ROOT}/tacos.webp`,
   tuna: `${PHOTO_ROOT}/tuna.webp`,
@@ -121,7 +114,8 @@ const photoKey = (recipe = {}) => {
   if (/porridge|oatmeal/.test(text)) return 'porridge';
   if (/pancake|waffle|crumpet/.test(text)) return 'pancakes';
   if (/bagel/.test(text)) return 'bagel';
-  if (/omelette|omelet|frittata|quiche|egg[s]? .*toast|egg[s]? .*wholemeal/.test(text)) return 'frittata';
+  if (/egg[s]? .*toast|egg[s]? .*wholemeal/.test(text)) return 'eggsToast';
+  if (/omelette|omelet|frittata|quiche/.test(text)) return 'frittata';
   if (/yogurt bowl|yoghurt bowl/.test(text)) return 'overnight';
   if (/bibimbap/.test(text)) return 'bibimbap';
   if (/salmon.*bowl|bowl.*salmon/.test(text)) return 'salmon';
@@ -133,9 +127,11 @@ const photoKey = (recipe = {}) => {
   if (/stir[- ]?fry/.test(text)) return 'stirfry';
   if (/brownie/.test(text)) return 'brownie';
   if (/crumble|cobbler/.test(text)) return 'crumble';
+  if (/soup/.test(text)) return 'soup';
   if (/curry|korma|dal|dahl|tikka|masala/.test(text)) return 'curry';
+  if (/chilli|chili/.test(text)) return 'chilli';
   if (/paella|tagine/.test(text)) return 'couscous';
-  if (/soup|stew|casserole|chilli|chili|jerk/.test(text)) return 'curry';
+  if (/stew|casserole|jerk/.test(text)) return 'chilli';
   if (/tuna.*salad|salad.*tuna/.test(text)) return 'tuna';
   if (/salad/.test(text)) return 'salad';
   if (/jacket potato/.test(text)) return 'roastveg';
@@ -156,7 +152,7 @@ const hash = (s) => String(s).split('')
 /** The bundled picture for a recipe: the offline answer, and the fallback. */
 export const fallbackImage = (recipe) => RECIPE_IMAGES[imageKey(recipe)];
 
-/** The best local photo family for a recipe, available before any network call. */
+/** The best local photo family for a recipe, available without a network call. */
 export const recipePhotoImage = (recipe) => RECIPE_PHOTOS[photoKey(recipe)];
 
 const escapeXml = (value) => String(value || '')
@@ -254,26 +250,9 @@ export const imagePrompt = (recipe = {}) => {
 };
 
 /**
- * The picture for a recipe. Generated from the dish where there is enough to
- * describe it, bundled where there is not — a recipe with no name would only
- * produce a prompt for "food".
+ * The local picture for a recipe comes from a bundled free photo when the
+ * dish family is known; incomplete recipes use the local fallback instead.
  */
 export const recipeImage = (recipe = {}) => {
-  const prompt = imagePrompt(recipe);
-  if (!prompt) return fallbackImage(recipe);
-
-  // Pollinations validates seed as a signed 32-bit integer. The hash is
-  // intentionally unsigned so it can be stable across browsers; reduce it
-  // before putting it on the wire or the request becomes a generic fallback.
-  const seed = hash(recipe.id || recipe.name) % MAX_GENERATOR_SEED;
-  // The keyless legacy endpoint currently honours size and seed. Its newer
-  // model and post-processing parameters are ignored (and the newer endpoint
-  // requires an API key), so keep the URL to the parameters that work here.
-  const query = new URLSearchParams({
-    width: String(IMAGE_WIDTH),
-    height: String(IMAGE_HEIGHT),
-    seed: String(seed),
-  });
-
-  return `${GENERATOR_ROOT}/${encodeURIComponent(prompt)}?${query}`;
+  return recipePhotoImage(recipe) || fallbackImage(recipe);
 };

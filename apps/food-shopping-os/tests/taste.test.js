@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildTasteDeck, buildTasteProfile, tasteScore } from '../src/lib/taste.js';
 import { buildPlan } from '../src/lib/planner.js';
@@ -67,20 +67,17 @@ describe('recipe taste matching', () => {
 });
 
 describe('recipe imagery', () => {
-  it('gives every recipe its own picture rather than one of eight', () => {
-    const images = new Set(RECIPES.map((item) => recipeImage(item)));
-    expect(images.size).toBe(RECIPES.length);
+  it('uses bundled free photos for every catalogue recipe', () => {
+    const images = RECIPES.map((item) => recipeImage(item));
+    expect(images.every((src) => src.startsWith('/recipe-images/'))).toBe(true);
+    expect(new Set(images).size).toBeGreaterThan(1);
   });
 
-  it('keeps generated image seeds within the provider range', () => {
-    const invalid = RECIPES.filter((recipe) => {
-      const seed = Number(new URL(recipeImage(recipe)).searchParams.get('seed'));
-      return !Number.isInteger(seed) || seed < 0 || seed > 2147483647;
-    });
-    expect(invalid).toEqual([]);
+  it('does not send recipe cards to an external image generator', () => {
+    expect(RECIPES.every((item) => !/^https?:\/\//.test(recipeImage(item)))).toBe(true);
   });
 
-  it('gives every catalogue recipe a local photo before network generation', () => {
+  it('gives every catalogue recipe a local photo', () => {
     const missing = RECIPES.filter((item) => !recipePhotoImage(item).startsWith('/recipe-images/'));
     expect(missing).toEqual([]);
   });
@@ -91,10 +88,18 @@ describe('recipe imagery', () => {
     expect(missing).toEqual([]);
   });
 
-  it('keeps common generated dishes on a matching family photo', () => {
-    expect(recipePhotoImage({ name: 'Leeks & lentils soup', meal: 'lunch' })).toBe(RECIPE_PHOTOS.curry);
-    expect(recipePhotoImage({ name: 'Smoky Three-Bean Chilli', meal: 'dinner' })).toBe(RECIPE_PHOTOS.curry);
-    expect(recipePhotoImage({ name: 'Eggs & spinach on wholemeal toast', meal: 'breakfast' })).toBe(RECIPE_PHOTOS.frittata);
+  it('precaches every local photo for offline recipe browsing', () => {
+    const serviceWorker = readFileSync(path.resolve(process.cwd(), 'public/sw.js'), 'utf8');
+    const paths = [...new Set(RECIPES.map(recipePhotoImage))];
+    const missing = paths.filter((src) => !serviceWorker.includes(`'${src}'`));
+    expect(missing).toEqual([]);
+  });
+
+  it('keeps common dishes on a matching family photo', () => {
+    expect(recipePhotoImage({ name: 'Leeks & lentils soup', meal: 'lunch' })).toBe(RECIPE_PHOTOS.soup);
+    expect(recipePhotoImage({ name: 'Smoky Three-Bean Chilli', meal: 'dinner' })).toBe(RECIPE_PHOTOS.chilli);
+    expect(recipePhotoImage({ name: 'Chicken breast Thai green curry', meal: 'dinner', ingredients: [{ name: 'Red chilli' }] })).toBe(RECIPE_PHOTOS.curry);
+    expect(recipePhotoImage({ name: 'Eggs & spinach on wholemeal toast', meal: 'breakfast' })).toBe(RECIPE_PHOTOS.eggsToast);
     expect(recipePhotoImage({ name: 'Salmon fillet & broccoli traybake', meal: 'dinner' })).toBe(RECIPE_PHOTOS.salmon);
     expect(recipePhotoImage({ name: 'Chicken breast wrap with herby yogurt', meal: 'lunch' })).toBe(RECIPE_PHOTOS.sandwich);
   });
