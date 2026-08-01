@@ -79,14 +79,6 @@ export default function RecipeDetail({ recipe: original, onClose }) {
           alt={`${recipe.name} recipe icon`}
           className="h-56 w-full"
         />
-        {/* The artwork is a recipe icon, not a photograph of the exact portion
-            the user will make. */}
-        <p
-          className="absolute top-3 right-16 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
-          style={{ background: 'var(--card)', color: 'var(--muted)' }}
-        >
-          Recipe icon - ingredients are illustrative
-        </p>
         <button
           onClick={onClose}
           aria-label="Close"

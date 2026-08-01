@@ -67,6 +67,8 @@ const iconKey = (recipe = {}) => {
   return 'default';
 };
 
+export const recipeIconFamily = iconKey;
+
 const THEME_TOKENS = {
   light: { background: '#F4F4F4', ink: '#131313' },
   dark: { background: '#0B0B0B', ink: '#F4F4F4' },

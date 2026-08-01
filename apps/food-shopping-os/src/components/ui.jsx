@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { useOptionalApp } from '../lib/store.jsx';
-import { recipeIconImage } from '../data/recipe-images.js';
+import { recipeGlyphFor } from './recipe-icons.jsx';
 
 /* ---------- Layout ---------- */
 
@@ -463,26 +462,25 @@ export const Toggle = ({ on, onChange, label }) => (
   </button>
 );
 
-/**
- * A simple monochrome SVG icon is generated from the recipe's dish family.
- * It is inline, deterministic, works offline, and follows light or dark mode.
- */
+/** Use the same Lucide glyph system as every other product surface. */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
-  const app = useOptionalApp();
-  const src = recipeIconImage(recipe, { theme: app?.theme });
+  const { family, Icon } = recipeGlyphFor(recipe);
 
   return (
     <div
       className={cx('relative flex items-center justify-center overflow-hidden', className)}
-      style={{ background: 'var(--card-2)' }}
+      style={{ background: 'var(--card-2)', color: 'var(--muted)' }}
+      data-recipe-family={family}
     >
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-        className="h-full w-full object-contain"
-      />
+      <Icon
+        role={alt ? 'img' : undefined}
+        aria-hidden={alt ? undefined : 'true'}
+        focusable="false"
+        strokeWidth={1.8}
+        className="h-[42%] w-[42%] max-h-16 max-w-16"
+      >
+        {alt ? <title>{alt}</title> : null}
+      </Icon>
     </div>
   );
 };
