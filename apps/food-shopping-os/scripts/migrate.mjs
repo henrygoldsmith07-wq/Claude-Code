@@ -14,4 +14,3 @@ for (const migration of migrations) {
 }
 
 console.log('Database migrations are current.');
-process.exit(0);
