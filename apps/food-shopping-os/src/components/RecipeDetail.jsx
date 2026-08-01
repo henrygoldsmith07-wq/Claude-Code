@@ -74,11 +74,15 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   return (
     <div className="pb-8">
       <div className="relative">
-        <FoodArt recipe={recipe} className="h-56 w-full" px={64} />
+        <FoodArt
+          recipe={recipe}
+          alt={`${recipe.name} recipe icon`}
+          className="h-56 w-full"
+        />
         {/* The artwork is a recipe icon, not a photograph of the exact portion
             the user will make. */}
         <p
-          className="absolute bottom-8 right-3 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
+          className="absolute top-3 right-16 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
           style={{ background: 'var(--card)', color: 'var(--muted)' }}
         >
           Recipe icon - ingredients are illustrative

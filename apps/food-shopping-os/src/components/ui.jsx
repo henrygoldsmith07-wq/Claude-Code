@@ -477,8 +477,9 @@ export const FoodArt = ({ recipe, className, alt = '' }) => {
       <img
         src={src}
         alt={alt}
+        loading="lazy"
         decoding="async"
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
       />
     </div>
   );

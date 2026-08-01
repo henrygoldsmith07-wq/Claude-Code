@@ -163,8 +163,22 @@ const renderMotif = (key, palette, seed) => {
   return `${plate(palette)}${garnishDots}`;
 };
 
+const ICON_CACHE = new Map();
+
+const iconCacheKey = (recipe = {}) => [
+  recipe.id,
+  recipe.name,
+  recipe.meal,
+  recipe.cuisine,
+  ...(recipe.ingredients || []).map((item) => (typeof item === 'string' ? item : item?.name)),
+].join('|');
+
 /** Render the recipe as an inline SVG data URI; no photo files or network calls are needed. */
 export const recipeIconImage = (recipe = {}) => {
+  const cacheKey = iconCacheKey(recipe);
+  const cached = ICON_CACHE.get(cacheKey);
+  if (cached) return cached;
+
   const name = String(recipe.name || 'Recipe').trim() || 'Recipe';
   const key = iconKey(recipe);
   const palette = PALETTES[PALETTE_BY_KEY[key] || 'default'];
@@ -176,7 +190,10 @@ export const recipeIconImage = (recipe = {}) => {
     return `<g transform="translate(${x} 607)"><rect width="214" height="38" rx="19" fill="${palette.plate}" opacity=".82"/><text x="107" y="25" text-anchor="middle" font-size="15" font-weight="750" fill="${palette.ink}">${escapeXml(ingredient.slice(0, 22))}</text></g>`;
   }).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="680" viewBox="0 0 1024 680" role="img" aria-label="${escapeXml(name)} recipe icon"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette.background}"/><stop offset="1" stop-color="${palette.wash}"/></linearGradient></defs><rect width="1024" height="680" rx="42" fill="url(#${gradientId})"/><circle cx="860" cy="96" r="150" fill="${palette.secondary}" opacity=".1"/><circle cx="120" cy="594" r="170" fill="${palette.primary}" opacity=".1"/><path d="M0 520 Q220 438 410 560 T820 520 T1120 550 V680 H0Z" fill="${palette.plate}" opacity=".34"/>${renderMotif(key, palette, seed)}<g transform="translate(48 46)"><rect width="190" height="36" rx="18" fill="${palette.ink}" opacity=".9"/><text x="95" y="24" text-anchor="middle" font-size="14" font-weight="800" letter-spacing="1.5" fill="${palette.plate}">${escapeXml(label)}</text></g><text x="48" y="565" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="32" font-weight="850" fill="${palette.ink}">${escapeXml(name.slice(0, 42))}</text>${chips}</svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  const icon = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  if (ICON_CACHE.size >= 2048) ICON_CACHE.delete(ICON_CACHE.keys().next().value);
+  ICON_CACHE.set(cacheKey, icon);
+  return icon;
 };
 
 /** Compatibility names for callers that only need the recipe artwork. */
