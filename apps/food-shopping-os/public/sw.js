@@ -1,18 +1,6 @@
-const CACHE = 'forq-shell-v4';
+const CACHE = 'forq-shell-v5';
 const SHELL = [
   '/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png',
-  '/recipe-images/breakfast.webp', '/recipe-images/curry.webp', '/recipe-images/noodles.webp',
-  '/recipe-images/pasta.webp', '/recipe-images/roast.webp', '/recipe-images/salad.webp',
-  '/recipe-images/sandwich.webp', '/recipe-images/tacos.webp',
-  '/recipe-images/families/bagel.webp', '/recipe-images/families/bibimbap.webp',
-  '/recipe-images/families/brownie.webp', '/recipe-images/families/chilli.webp',
-  '/recipe-images/families/couscous.webp', '/recipe-images/families/crumble.webp',
-  '/recipe-images/families/eggs-toast.webp', '/recipe-images/families/frittata.webp',
-  '/recipe-images/families/overnight.webp', '/recipe-images/families/pizza.webp',
-  '/recipe-images/families/roastveg.webp', '/recipe-images/families/salmon.webp',
-  '/recipe-images/families/shakshuka.webp', '/recipe-images/families/smoothie.webp',
-  '/recipe-images/families/soup.webp', '/recipe-images/families/stirfry.webp',
-  '/recipe-images/families/tacos.webp', '/recipe-images/families/tuna.webp',
 ];
 
 self.addEventListener('install', (event) => {

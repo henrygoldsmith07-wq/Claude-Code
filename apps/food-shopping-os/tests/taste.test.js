@@ -1,17 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildTasteDeck, buildTasteProfile, tasteScore } from '../src/lib/taste.js';
 import { buildPlan } from '../src/lib/planner.js';
-import {
-  fallbackImage,
-  imagePrompt,
-  recipeFallbackImage,
-  recipeImage,
-  recipePhotoImage,
-  RECIPE_PHOTOS,
-  RECIPE_IMAGES,
-} from '../src/data/recipe-images.js';
+import { recipeFallbackImage, recipeIconImage, recipeImage } from '../src/data/recipe-images.js';
 import { RECIPES } from '../src/data/recipes.js';
 
 const recipe = (id, cuisine, tags = []) => ({
@@ -66,83 +58,48 @@ describe('recipe taste matching', () => {
   });
 });
 
-describe('recipe imagery', () => {
-  it('uses bundled free photos for every catalogue recipe', () => {
-    const images = RECIPES.map((item) => recipeImage(item));
-    expect(images.every((src) => src.startsWith('/recipe-images/'))).toBe(true);
-    expect(new Set(images).size).toBeGreaterThan(1);
+describe('recipe icons', () => {
+  it('renders a unique local SVG icon for every catalogue recipe', () => {
+    const icons = RECIPES.map(recipeIconImage);
+    expect(icons.every((src) => src.startsWith('data:image/svg+xml'))).toBe(true);
+    expect(new Set(icons).size).toBe(RECIPES.length);
   });
 
-  it('does not send recipe cards to an external image generator', () => {
+  it('uses multi-colour vector artwork with the dish family and ingredients', () => {
+    const source = decodeURIComponent(recipeIconImage({
+      id: 'lentil-soup',
+      name: 'Leeks & lentils soup',
+      meal: 'lunch',
+      ingredients: [{ name: 'Lentils' }, { name: 'Leeks' }],
+    }).split(',')[1]);
+
+    expect(source).toContain('<linearGradient');
+    expect((source.match(/fill="/g) || []).length).toBeGreaterThan(8);
+    expect(source).toContain('SOUP');
+    expect(source).toContain('lentils');
+  });
+
+  it('keeps common dishes on distinct icon families', () => {
+    const family = (name, meal = 'dinner') => decodeURIComponent(
+      recipeIconImage({ name, meal }).split(',')[1],
+    );
+
+    expect(family('Leeks & lentils soup', 'lunch')).toContain('SOUP');
+    expect(family('Smoky Three-Bean Chilli')).toContain('CHILLI');
+    expect(family('Chicken breast Thai green curry')).toContain('CURRY');
+    expect(family('Eggs & spinach on wholemeal toast', 'breakfast')).toContain('EGGS ON TOAST');
+  });
+
+  it('does not reference a remote photo host or old photo cache', () => {
     expect(RECIPES.every((item) => !/^https?:\/\//.test(recipeImage(item)))).toBe(true);
-  });
-
-  it('gives every catalogue recipe a local photo', () => {
-    const missing = RECIPES.filter((item) => !recipePhotoImage(item).startsWith('/recipe-images/'));
-    expect(missing).toEqual([]);
-  });
-
-  it('ships every local photo used by the catalogue', () => {
-    const paths = [...new Set(RECIPES.map(recipePhotoImage))];
-    const missing = paths.filter((src) => !existsSync(path.resolve(process.cwd(), 'public', src.slice(1))));
-    expect(missing).toEqual([]);
-  });
-
-  it('precaches every local photo for offline recipe browsing', () => {
     const serviceWorker = readFileSync(path.resolve(process.cwd(), 'public/sw.js'), 'utf8');
-    const paths = [...new Set(RECIPES.map(recipePhotoImage))];
-    const missing = paths.filter((src) => !serviceWorker.includes(`'${src}'`));
-    expect(missing).toEqual([]);
+    expect(serviceWorker).not.toContain('/recipe-images/');
   });
 
-  it('keeps common dishes on a matching family photo', () => {
-    expect(recipePhotoImage({ name: 'Leeks & lentils soup', meal: 'lunch' })).toBe(RECIPE_PHOTOS.soup);
-    expect(recipePhotoImage({ name: 'Smoky Three-Bean Chilli', meal: 'dinner' })).toBe(RECIPE_PHOTOS.chilli);
-    expect(recipePhotoImage({ name: 'Chicken breast Thai green curry', meal: 'dinner', ingredients: [{ name: 'Red chilli' }] })).toBe(RECIPE_PHOTOS.curry);
-    expect(recipePhotoImage({ name: 'Eggs & spinach on wholemeal toast', meal: 'breakfast' })).toBe(RECIPE_PHOTOS.eggsToast);
-    expect(recipePhotoImage({ name: 'Salmon fillet & broccoli traybake', meal: 'dinner' })).toBe(RECIPE_PHOTOS.salmon);
-    expect(recipePhotoImage({ name: 'Chicken breast wrap with herby yogurt', meal: 'lunch' })).toBe(RECIPE_PHOTOS.sandwich);
-  });
-
-  it('includes the name and a hero ingredient in every catalogue prompt', () => {
-    const missing = RECIPES.filter((item) => {
-      const prompt = imagePrompt(item).toLowerCase();
-      const firstIngredient = String(item.ingredients?.[0]?.name || item.ingredients?.[0] || '').trim().toLowerCase();
-      return !prompt.includes(String(item.name).toLowerCase())
-        || (firstIngredient && !prompt.includes(firstIngredient));
-    });
-
-    expect(missing).toEqual([]);
-  });
-
-  it('has a distinct recipe-aware local fallback for every catalogue recipe', () => {
-    const fallbacks = new Set(RECIPES.map((item) => recipeFallbackImage(item)));
-    expect(fallbacks.size).toBe(RECIPES.length);
-    expect([...fallbacks].every((src) => src.startsWith('data:image/svg+xml'))).toBe(true);
-  });
-
-  it('describes the actual dish in the prompt', () => {
-    const prompt = imagePrompt({
-      name: 'Teriyaki Salmon Bowls',
-      cuisine: 'Japanese',
-      meal: 'dinner',
-      ingredients: [{ name: 'Salmon fillet' }, { name: 'Rice' }, { name: 'Sesame oil' }],
-    });
-
-    expect(prompt).toContain('Teriyaki Salmon Bowls');
-    expect(prompt).toContain('japanese dinner');
-    expect(prompt).toContain('made with salmon fillet, rice, sesame oil');
-  });
-
-  it('resolves the same recipe to the same picture every time', () => {
-    const recipe = { id: 'r-1', name: 'Coconut Chickpea Curry' };
-    expect(recipeImage(recipe)).toBe(recipeImage({ ...recipe }));
-  });
-
-  it('falls back to a bundled picture when there is nothing to generate from', () => {
-    const bundled = new Set(Object.values(RECIPE_IMAGES));
-    expect(bundled.has(recipeImage({ id: 'nameless' }))).toBe(true);
-    expect(bundled.has(fallbackImage({ id: 'mine', name: 'My own dish' }))).toBe(true);
-    expect(RECIPES.every((item) => bundled.has(fallbackImage(item)))).toBe(true);
+  it('uses the same icon for the compatibility aliases', () => {
+    const item = { id: 'r-1', name: 'Coconut Chickpea Curry', meal: 'dinner' };
+    expect(recipeImage(item)).toBe(recipeIconImage(item));
+    expect(recipeFallbackImage(item)).toBe(recipeIconImage(item));
+    expect(recipeImage(item)).toBe(recipeImage({ ...item }));
   });
 });

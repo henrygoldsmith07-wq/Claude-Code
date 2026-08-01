@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { recipeFallbackImage, recipePhotoImage } from '../data/recipe-images.js';
+import { recipeIconImage } from '../data/recipe-images.js';
 
 /* ---------- Layout ---------- */
 
@@ -463,16 +463,11 @@ export const Toggle = ({ on, onChange, label }) => (
 );
 
 /**
- * A local curated photo is the primary image, chosen by dish family so cards
- * work offline. A recipe-specific illustration is the final fallback when a
- * bundled photo cannot be read.
+ * A high-definition, multi-colour SVG icon is generated from the recipe and
+ * its dish family. It is inline, deterministic, and works offline.
  */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
-  const photo = recipePhotoImage(recipe);
-  const fallback = recipeFallbackImage(recipe);
-  const [src, setSrc] = useState(photo || fallback);
-
-  useEffect(() => { setSrc(photo || fallback); }, [photo, fallback]);
+  const src = recipeIconImage(recipe);
 
   return (
     <div
@@ -482,9 +477,7 @@ export const FoodArt = ({ recipe, className, alt = '' }) => {
       <img
         src={src}
         alt={alt}
-        loading="lazy"
         decoding="async"
-        onError={() => setSrc(fallback)}
         className="h-full w-full object-cover"
       />
     </div>
