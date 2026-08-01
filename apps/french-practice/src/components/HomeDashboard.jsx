@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp } from '../lib/storage';
+import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp, getRepairableStreak, canFreeRepairThisWeek, repairStreak, reviewHabit, getStarredLines, getXpLog } from '../lib/storage';
+import { periodReport, fmtDuration, wordsLearned } from '../lib/analytics';
+import { wordOfDay } from '../lib/wordOfDay';
 import { encouragement, dailyChallenges, leagueTier, weeklyLeague, ACHIEVEMENTS, levelFromXp } from '../lib/game';
-import { wordsLearned, fmtDuration } from '../lib/analytics';
 import { getPhrasebook } from '../lib/phrasebook';
 import { dueEntries, notebookAsEntries } from '../lib/memory';
 import LearningPath from './LearningPath';
@@ -25,6 +26,8 @@ function suggestScenario(sessions) {
 }
 
 export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onOpenProfile, onPickScenario, lastActivity, onResume }) {
+  const [homeTick, setHomeTick] = useState(0);
+  void homeTick;
   const streak = getStreak();
   const todayXp = getTodayXp();
   const last = getLastReport();
@@ -65,18 +68,113 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
   return (
     <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
       <div className="max-w-lg mx-auto space-y-5">
-        {/* the single clearest next step, right at the top */}
+        {/* Daily brief: primary speaking CTA + session length presets */}
+        <section className="bg-accent text-onaccent rounded-2xl px-4 py-4 space-y-3 elev-card">
+          <div className="flex items-start gap-3">
+            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><MessageCircle size={15} /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider opacity-70">Today’s speaking</p>
+              <p className="text-sm font-semibold leading-snug mt-0.5">
+                {last?.report?.tomorrow_focus
+                  ? last.report.tomorrow_focus
+                  : dueCount > 0
+                    ? `${dueCount} card${dueCount === 1 ? '' : 's'} due — then a short roleplay.`
+                    : `Try “${suggested.title}” for a focused session.`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Session length">
+            {[5, 10, 15].map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                onClick={() => {
+                  try { sessionStorage.setItem('fp.sessionMins', String(mins)); } catch { /* ignore */ }
+                  onPickScenario(suggested);
+                  onNavigate('arena');
+                }}
+                className="rounded-xl bg-onaccent/15 hover:bg-onaccent/25 px-3 py-2 text-xs font-bold transition-colors"
+              >
+                {mins} min
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => { onPickScenario(suggested); onNavigate('arena'); }}
+              className="rounded-xl bg-onaccent text-accent px-3 py-2 text-xs font-bold ml-auto"
+            >
+              Start roleplay
+            </button>
+          </div>
+        </section>
+
+        {getRepairableStreak() != null && canFreeRepairThisWeek() && (
+          <button
+            type="button"
+            onClick={() => {
+              if (repairStreak({ free: true }) != null) setHomeTick((t) => t + 1);
+            }}
+            className="w-full rounded-2xl border border-line bg-surface px-4 py-3 text-left text-sm font-semibold text-ink hover:border-ink3 transition-colors"
+          >
+            Free streak repair this week — restore {getRepairableStreak()} days (one free repair / week)
+          </button>
+        )}
+
+        {/* Word of the day — Memrise / Duolingo daily vocab bite */}
+        {(() => {
+          const w = wordOfDay();
+          if (!w) return null;
+          return (
+            <section className="bg-surface border border-line rounded-2xl px-4 py-3.5 space-y-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Word of the day</p>
+              <p className="text-lg font-bold text-ink" lang="fr">{w.fr}</p>
+              <p className="text-sm text-ink2">{w.en}</p>
+              {w.example && (
+                <p className="text-xs text-ink3 leading-relaxed" lang="fr">
+                  {w.example}
+                  {w.exampleEn ? <span className="block text-ink3/80 not-italic" lang="en">{w.exampleEn}</span> : null}
+                </p>
+              )}
+            </section>
+          );
+        })()}
+
+        {/* Mistake review — Duolingo practice mistakes bank */}
+        {getHabits().filter((h) => (h.count || 0) > 0).length > 0 && (
+          <section className="bg-surface border border-line rounded-2xl px-4 py-3.5 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Practice mistakes</p>
+              <span className="text-[11px] text-ink3 tabular-nums">
+                {getHabits().filter((h) => (h.count || 0) > 0).length} open
+              </span>
+            </div>
+            {getHabits().filter((h) => (h.count || 0) > 0).slice(0, 3).map((h) => (
+              <div key={h.key} className="flex items-center gap-2 rounded-xl bg-surface2 border border-line px-3 py-2">
+                <p className="flex-1 text-sm text-ink min-w-0 truncate" title={h.text}>{h.text}</p>
+                <button
+                  type="button"
+                  className="text-[11px] font-bold text-ink shrink-0 px-2 py-1 rounded-lg border border-line hover:bg-surface"
+                  onClick={() => { reviewHabit(h.key, true); setHomeTick((t) => t + 1); }}
+                >
+                  Got it
+                </button>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* resume in-progress activity */}
         {lastActivity && (
           <button
             onClick={() => onResume(lastActivity)}
-            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity elev-card"
+            className="w-full flex items-center gap-3 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors elev-card"
           >
-            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><Play size={15} /></span>
+            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-surface2" aria-hidden="true"><Play size={15} /></span>
             <span className="flex-1 min-w-0">
-              <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Pick up where you left off</span>
-              <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-ink3">Pick up where you left off</span>
+              <span className="block text-sm font-semibold truncate text-ink">{lastActivity.label}</span>
             </span>
-            <ChevronRight size={16} className="shrink-0 opacity-70" />
+            <ChevronRight size={16} className="shrink-0 text-ink3" />
           </button>
         )}
 
@@ -163,6 +261,30 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             <div className={`h-full rounded-full bar-anim ${weekXp >= weeklyGoal ? 'bg-success' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round((weekXp / Math.max(1, weeklyGoal)) * 100))}%` }} />
           </div>
           <p className="text-xs text-ink2 leading-relaxed">{cheer}</p>
+          {(() => {
+            const week = periodReport(7, {
+              xpLog: getXpLog(),
+              timeLog: getTimeLog(),
+              metrics: getMetrics(),
+              sessions,
+            });
+            const starredN = getStarredLines().length;
+            const weekSessions = sessions.filter((s) => {
+              const d = String(s.date || '').slice(0, 10);
+              const start = new Date();
+              start.setDate(start.getDate() - 6);
+              return d >= start.toISOString().slice(0, 10);
+            }).length;
+            if (!week.seconds && !weekSessions && !starredN) return null;
+            return (
+              <p className="text-[11px] text-ink3 tabular-nums pt-1 border-t border-line">
+                {week.seconds > 0 ? fmtDuration(week.seconds) : 'No timed study yet'}
+                {weekSessions ? ` · ${weekSessions} roleplay${weekSessions === 1 ? '' : 's'}` : ''}
+                {week.activities ? ` · ${week.activities} scored activities` : ''}
+                {starredN ? ` · ${starredN} starred` : ''}
+              </p>
+            );
+          })()}
         </section>
 
         {/* daily challenge — surfaced from the profile's challenge set */}
@@ -198,6 +320,12 @@ export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onSt
             subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
             badge={dueCount > 0 ? String(dueCount) : null}
             onClick={() => onNavigate('cards')}
+          />
+          <ActionCard
+            icon={Target}
+            title="Phrase drills"
+            subtitle="Shadow, type, or flip real-world lines"
+            onClick={() => onOpenReference?.('drills')}
           />
           <ActionCard
             icon={Volume}

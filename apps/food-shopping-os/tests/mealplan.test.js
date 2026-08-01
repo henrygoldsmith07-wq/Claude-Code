@@ -81,10 +81,15 @@ describe('reading a plan', () => {
     const { text, events } = mealPlanIcs(plan, week, { now: new Date('2026-07-01T09:00:00Z') });
     expect(events).toBe(4);
     expect(text).toContain('BEGIN:VCALENDAR');
-    expect(text).toContain('DTSTART;TZID=Europe/London:20260706T080000');
-    expect(text).toContain('SUMMARY:Breakfast · Banana Protein Pancakes');
-    expect(text).toContain('DTSTART;TZID=Europe/London:20260706T183000');
-    expect(text).toContain('SUMMARY:Dinner · Coconut Chickpea Curry');
+    expect(text).toContain('PRODID:-//Le Studio//Forq//EN');
+    // Cook start = eat time minus prep (pancakes 15m → 07:45; curry 25m → 18:05)
+    expect(text).toContain('DTSTART;TZID=Europe/London:20260706T074500');
+    expect(text).toContain('DTEND;TZID=Europe/London:20260706T080000');
+    expect(text).toContain('SUMMARY:Cook: Banana Protein Pancakes');
+    expect(text).toContain('DTSTART;TZID=Europe/London:20260706T180500');
+    expect(text).toContain('DTEND;TZID=Europe/London:20260706T183000');
+    expect(text).toContain('SUMMARY:Cook: Coconut Chickpea Curry');
+    expect(text).toContain('CATEGORIES:meal,forq,le-studio');
     expect(text).not.toContain('20260713');
   });
 

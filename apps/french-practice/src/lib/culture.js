@@ -1,17 +1,22 @@
-// Cultural learning content: eight themed sections of French culture, each
-// with short notes, a useful phrase or two (spoken via TTS in the UI) and a
-// "did you know" hook. Content is authored, factual and self-contained —
-// no external media, in keeping with the app's no-backend design.
+// Cultural learning content for Le Studio French.
+// Authored notes with optional spoken phrases and practical tips.
+// No external media — offline, factual, self-contained.
 
 export const CULTURE_SECTIONS = [
   { id: 'notes', title: 'Cultural notes', emoji: '💡', blurb: 'The unspoken rules that shape daily life' },
   { id: 'customs', title: 'Customs', emoji: '🤝', blurb: 'Rituals from the apéro to the galette' },
   { id: 'etiquette', title: 'Etiquette', emoji: '🎩', blurb: 'Politeness that opens (and closes) doors' },
   { id: 'festivals', title: 'Festivals', emoji: '🎉', blurb: 'The calendar of fêtes worth knowing' },
-  { id: 'food', title: 'Food', emoji: '🍽️', blurb: 'How France eats, and in what order' },
+  { id: 'food', title: 'Food & drink', emoji: '🍽️', blurb: 'How France eats, drinks and shops' },
   { id: 'history', title: 'History', emoji: '📜', blurb: 'From the Gauls to the Fifth Republic' },
   { id: 'geography', title: 'Geography', emoji: '🗺️', blurb: 'The Hexagone and beyond' },
-  { id: 'regional', title: 'Regional differences', emoji: '🧭', blurb: 'One country, many Frances' },
+  { id: 'regional', title: 'Regional France', emoji: '🧭', blurb: 'One country, many Frances' },
+  { id: 'arts', title: 'Arts & letters', emoji: '🎨', blurb: 'Museums, literature and the canon' },
+  { id: 'cinema', title: 'Cinema & media', emoji: '🎬', blurb: 'Film, press and the small screen' },
+  { id: 'sport', title: 'Sport & leisure', emoji: '⚽', blurb: 'Football, Tour de France and Sunday walks' },
+  { id: 'work', title: 'Work & school', emoji: '🏫', blurb: 'Offices, holidays and the bac' },
+  { id: 'language', title: 'Language life', emoji: '💬', blurb: 'Slang, registers and what not to say' },
+  { id: 'francophonie', title: 'Francophonie', emoji: '🌍', blurb: 'French beyond the Hexagone' },
 ];
 
 // entry: { id, section, title, emoji, body, phrase?: {fr, en}, tip }
@@ -36,6 +41,22 @@ export const CULTURE_ENTRIES = [
     'Secularism is a core republican value: the state stays strictly neutral on religion, which is treated as a private matter. It shapes debates on schools, symbols and public life.',
     null,
     'Religion and salary are both considered private — not first-date small talk.'),
+  e('notes-terrasse', 'notes', 'La terrasse', '🪑',
+    'Café terraces are outdoor living rooms. Ordering one drink and staying for an hour is normal; you are renting a seat as much as a coffee. Smoking rules apply, but the social theatre is half the point.',
+    { fr: 'On s’installe en terrasse ?', en: 'Shall we sit on the terrace?' },
+    'Prices rise from the bar (comptoir) to the terrace — same coffee, different rent.'),
+  e('notes-grèves', 'notes', 'Les grèves', '🪧',
+    'Strikes are a familiar feature of public life. Transport and schools may stop with little notice; locals plan around them rather than treating them as rare crises.',
+    { fr: 'Il y a une grève demain.', en: 'There’s a strike tomorrow.' },
+    'Check RATP/SNCF apps before a big journey — and leave a buffer.'),
+  e('notes-rendez-vous', 'notes', 'Le rendez-vous', '📅',
+    'Plans are often locked as «un rendez-vous». Cancelling last-minute without a serious reason is frowned on; a text apologising and rescheduling is expected.',
+    { fr: 'On fixe un rendez-vous ?', en: 'Shall we set a time to meet?' },
+    '«On se tient au courant» can mean “we’ll keep in touch” — or “don’t hold your breath.”'),
+  e('notes-silence', 'notes', 'Comfortable silence', '🤫',
+    'Quiet on a train or in a lift is normal, not awkward. Strangers rarely start small talk the Anglo way; a brief «bonjour» is enough social glue.',
+    null,
+    'Don’t force chat with strangers — silence is polite, not cold.'),
 
   // ---- customs ----
   e('customs-apero', 'customs', "L'apéro", '🥂',
@@ -54,6 +75,22 @@ export const CULTURE_ENTRIES = [
     'Each January, families share a galette hiding a small charm (la fève). Whoever finds it is crowned king or queen for the day. The youngest child traditionally calls out who gets each slice from under the table.',
     { fr: 'J’ai eu la fève !', en: 'I got the charm!' },
     'Sold all through January — you’ll eat several before Candlemas.'),
+  e('customs-marche', 'customs', 'Le marché', '🧺',
+    'Open-air markets still structure the week. You greet the stallholder, may sample cheese or melon, and buy by the piece or by weight. Cash is still handy though cards are widespread.',
+    { fr: 'Je peux goûter ?', en: 'May I taste?' },
+    'Bring a tote bag — «un sac» — plastic bags are often not free.'),
+  e('customs-vacances', 'customs', 'Les grandes vacances', '⛱️',
+    'July–August empties Paris and fills the coasts and countryside. Many shops close for «congés annuels». School holidays are staggered by zone (A/B/C) to ease traffic.',
+    { fr: 'On part en vacances en août.', en: 'We’re going on holiday in August.' },
+    'Book trains early for late July — the whole country seems to move at once.'),
+  e('customs-touche-pas', 'customs', 'Queues & personal space', '🧍',
+    'Queues are mostly respected; cutting in is a social foul. Physical distance on public transport is larger than in some Mediterranean cultures — avoid loud phone calls in carriages.',
+    { fr: 'C’est mon tour.', en: 'It’s my turn.' },
+    'A firm but calm «Pardon, la file d’attente» sorts most queue-jumpers.'),
+  e('customs-poteau', 'customs', 'La rentrée', '📚',
+    'Early September’s «rentrée» restarts school, politics and culture after summer. New books, TV schedules and diets all launch then — a second new year of sorts.',
+    { fr: 'Bonne rentrée !', en: 'Have a good start to the new term / year!' },
+    '«La rentrée littéraire» floods bookshops with hundreds of new novels.'),
 
   // ---- etiquette ----
   e('etiquette-bonjour', 'etiquette', 'Always say bonjour', '🙋',
@@ -72,6 +109,22 @@ export const CULTURE_ENTRIES = [
     'For casual dinners, arriving 10–15 minutes late — «le quart d’heure de politesse» — is polite, giving the host time. For professional meetings and trains, be exactly on time.',
     { fr: 'Je serai là vers 20h.', en: 'I’ll be there around 8pm.' },
     'Never arrive early to a home dinner — the host may not be ready.'),
+  e('etiquette-tutoiement', 'etiquette', 'Emails & titles', '✉️',
+    'Formal emails open with «Madame, Monsieur,» and close with elaborate formulas. In shops and admin, use titles: «Madame la directrice», «Monsieur le maire».',
+    { fr: 'Je vous prie d’agréer, Madame, mes salutations distinguées.', en: 'Formal letter closing (very formal).' },
+    'In casual mail «Cordialement» is enough; English-style “Best” is too short for admin.'),
+  e('etiquette-tip', 'etiquette', 'Tipping', '💶',
+    'Service is included by law («service compris»). Rounding up a euro or two for good café service is kind but never obligatory; 15% American-style tips can confuse.',
+    { fr: 'C’est bon, merci.', en: 'We’re fine, thanks (when paying).' },
+    'Leave coins on the saucer or tell the waiter «gardez la monnaie».'),
+  e('etiquette-phone', 'etiquette', 'Phones in company', '📱',
+    'Putting a phone on the dinner table is still widely seen as rude. Step outside for calls; at meetings, screens down unless you’re taking notes for the group.',
+    { fr: 'Je vous laisse, j’ai un appel.', en: 'Excuse me, I have a call.' },
+    'A quick glance at a message is forgiven; scrolling through dinner is not.'),
+  e('etiquette-vous-boulot', 'etiquette', 'At work', '💼',
+    'Many offices keep «vous» longer than start-ups. Hierarchy is felt in meetings: junior staff often wait to be invited to speak. Disagree with ideas, not people, and keep criticism precise.',
+    { fr: 'Si je puis me permettre…', en: 'If I may…' },
+    'A well-placed «si je puis me permettre» softens a contrary view.'),
 
   // ---- festivals ----
   e('festivals-14juillet', 'festivals', 'Le 14 juillet', '🎆',
@@ -90,6 +143,22 @@ export const CULTURE_ENTRIES = [
     'On 2 February, everyone makes crêpes. Tradition says to flip one with a coin in your other hand for a year of prosperity. 1 April is «poisson d’avril», when children stick paper fish on backs.',
     { fr: 'On fait des crêpes pour la Chandeleur.', en: 'We make crêpes for Candlemas.' },
     'Round, golden crêpes are said to symbolise the returning sun.'),
+  e('festivals-toussaint', 'festivals', 'La Toussaint', '🌼',
+    '1 November is All Saints’ Day: families visit cemeteries with chrysanthemums. Many take a long weekend; it is quiet and reflective rather than carnival.',
+    { fr: 'On va fleurir les tombes.', en: 'We’re going to put flowers on the graves.' },
+    'Never give chrysanthemums as a party gift — the association is too strong.'),
+  e('festivals-paques', 'festivals', 'Pâques', '🐰',
+    'Easter brings chocolate bells (cloches) rather than only rabbits — legend says the bells fly to Rome and return with eggs. Lamb and chocolate dominate the table.',
+    { fr: 'Joyeuses Pâques !', en: 'Happy Easter!' },
+    'School «vacances de Pâques» are a major spring break for families.'),
+  e('festivals-beauj', 'festivals', 'Beaujolais nouveau', '🍷',
+    'The third Thursday of November, the new Beaujolais is released at midnight with parties and posters: «Le Beaujolais nouveau est arrivé !»',
+    { fr: 'Le Beaujolais nouveau est arrivé !', en: 'The new Beaujolais has arrived!' },
+    'More marketing ritual than fine wine — join for the atmosphere.'),
+  e('festivals-fete-travail', 'festivals', '1er mai', '🪷',
+    'Labour Day is a public holiday with marches and the tradition of giving lily of the valley (muguet) for luck. Many shops close; transport runs on a Sunday timetable.',
+    { fr: 'Je t’offre du muguet.', en: 'I’m giving you lily of the valley.' },
+    'Street sellers appear with bunches of muguet from early morning.'),
 
   // ---- food ----
   e('food-repas', 'food', 'The shape of a meal', '🍽️',
@@ -108,6 +177,22 @@ export const CULTURE_ENTRIES = [
     'Order «un café» and you get an espresso; «un crème» is with milk, mostly a morning drink. Prices rise from the counter (au comptoir) to the terrace. You can linger for ages over one cup.',
     { fr: 'Un café et l’addition, s’il vous plaît.', en: 'A coffee and the bill, please.' },
     'Table service means you pay as you leave — flag the waiter for «l’addition».'),
+  e('food-vin', 'food', 'Wine at the table', '🍷',
+    'Wine is food’s partner, not a cocktail. Regions pair with dishes (Bordeaux with meat, Loire with fish). A house carafe or half-bottle is normal at lunch; empty glasses get refilled by the host.',
+    { fr: 'Je vais prendre un verre de rouge.', en: 'I’ll have a glass of red.' },
+    'You need not finish the bottle — leaving some is fine.'),
+  e('food-marche-bio', 'food', 'Seasons & terroir', '🥬',
+    'Menus still track seasons: asparagus in spring, game in autumn, citrus in winter. «Terroir» means the taste of place — soil, climate and craft — not just “organic”.',
+    { fr: 'C’est de saison.', en: 'It’s in season.' },
+    'Market stall labels often show origin: «France», «Espagne», «local».'),
+  e('food-tip-resto', 'food', 'Restaurant rhythms', '🔔',
+    'Lunch service is roughly 12–14h, dinner from 19h30. Asking for a meal at 16h will get a raised eyebrow. Booking («réserver») is wise on Friday nights.',
+    { fr: 'Vous avez une table pour deux ?', en: 'Do you have a table for two?' },
+    'Water is free («une carafe d’eau»); you should not be forced to buy bottled.'),
+  e('food-regions', 'food', 'Regional plates', '🗺️',
+    'Brittany has galettes and cider; Lyon its bouchons and quenelles; Provence ratatouille and olive oil; Alsace choucroute. Ordering local is a conversation starter.',
+    { fr: 'C’est une spécialité de la région.', en: 'It’s a regional speciality.' },
+    'Tourist traps still exist — a full lunchtime local crowd is a good sign.'),
 
   // ---- history ----
   e('history-gaulois', 'history', 'Les Gaulois', '🗡️',
@@ -126,6 +211,18 @@ export const CULTURE_ENTRIES = [
     'After the 1940 defeat, de Gaulle’s June 18 radio appeal from London rallied resistance to occupation. 1944’s Liberation and the post-war Fifth Republic (1958) shaped today’s France.',
     { fr: 'le 8 mai 1945', en: 'V-E Day (8 May 1945)' },
     '8 May and 11 November are public holidays commemorating the world wars.'),
+  e('history-lumières', 'history', 'Les Lumières', '💡',
+    'The Enlightenment (Voltaire, Rousseau, Diderot’s Encyclopédie) championed reason, rights and critique of absolute power — intellectual fuel for 1789 and modern republican ideals.',
+    null,
+    'Café debates of the 18th century still colour how France values public argument.'),
+  e('history-mai68', 'history', 'Mai 68', '✊',
+    'Student and worker protests in May 1968 shook the country, briefly halted Paris, and left a lasting mark on culture, education and labour rights — even as politics later stabilised.',
+    { fr: 'Sous les pavés, la plage !', en: 'Under the paving stones, the beach! (May ’68 slogan)' },
+    'You’ll still hear «c’est mon mai 68» for someone’s rebellious youth.'),
+  e('history-ue', 'history', 'Europe & the Republic', '🇪🇺',
+    'France is a founding EU member; the euro replaced the franc in 2002. Presidential terms are five years; the President and Prime Minister share executive power in the Fifth Republic’s hybrid system.',
+    { fr: 'la Cinquième République', en: 'the Fifth Republic' },
+    '«Cohabitation» is when president and parliamentary majority are from opposing camps.'),
 
   // ---- geography ----
   e('geo-hexagone', 'geography', "L'Hexagone", '⬡',
@@ -144,6 +241,14 @@ export const CULTURE_ENTRIES = [
     'Paris spirals out in 20 arrondissements from the Louvre. But «la province» — everywhere that isn’t Paris — is where regional life and pride truly sit, a distinction Parisians and others both feel.',
     { fr: 'Tu montes à Paris ?', en: 'Are you heading up to Paris?' },
     'One always «monte à Paris» and «descend en province», whatever the map says.'),
+  e('geo-montagnes', 'geography', 'Mountains & coasts', '⛰️',
+    'The Alps and Pyrenees frame winter sports; Brittany and Normandy face the Channel; the Côte d’Azur draws summer crowds. Climate and accent shift fast over a few hours’ train ride.',
+    { fr: 'On part à la mer / à la montagne.', en: 'We’re going to the sea / the mountains.' },
+    'TGV culture makes weekend coastal escapes normal from Paris.'),
+  e('geo-outremer-drom', 'geography', 'DROM-COM alphabet', '✈️',
+    'You’ll see DROM (départements d’outre-mer) and COM (collectivités) on forms. Overseas citizens vote in national elections; their products sit in mainland supermarkets as «produits d’outre-mer».',
+    null,
+    'Réunion’s rum and Guyane’s space centre are both “French” in civic terms.'),
 
   // ---- regional differences ----
   e('regional-langues', 'regional', 'Regional languages', '🗣️',
@@ -162,10 +267,182 @@ export const CULTURE_ENTRIES = [
     'The sunny Midi brings a lilting accent, olive-oil cooking and pétanque; the north leans to butter, beer and the warm «ch’ti» dialect. Pace, food and even greetings shift as you travel.',
     { fr: 'Il a l’accent du Midi.', en: 'He has a southern accent.' },
     'The film «Bienvenue chez les Ch’tis» gently mines this north–south gap.'),
+  e('regional-corse', 'regional', 'Corsica', '⛰️',
+    'Corsica is a French island with a strong identity, its own language, and dramatic politics of autonomy. Beaches and mountains sit minutes apart; French and Corsican share public space.',
+    { fr: 'la Corse', en: 'Corsica' },
+    'Locals may prefer «Bonjour» and a respectful curiosity about Corsican culture.'),
+  e('regional-outre-rhum', 'regional', 'Creole & Caribbean French', '🏝️',
+    'In the Antilles and Réunion, French coexists with Creole languages. Food, music (zouk, maloya) and festivals have flavours distinct from mainland habits.',
+    { fr: 'Ça va ? — Ça va bien, et toi ?', en: 'How are you? — Fine, and you?' },
+    'French from overseas territories is fully standard French in schools and media.'),
+
+  // ---- arts & letters ----
+  e('arts-louvre', 'arts', 'Museums as civic pride', '🖼️',
+    'The Louvre, Orsay and Centre Pompidou are national living rooms. Free or cheap entry days exist for under-26 EU residents; long queues are part of the pilgrimage.',
+    { fr: 'On se retrouve au musée.', en: 'Let’s meet at the museum.' },
+    'Book timed tickets online — walk-up lines can eat an afternoon.'),
+  e('arts-litterature', 'arts', 'A literary nation', '📚',
+    'School still builds a shared bookshelf: Molière, Hugo, Camus, Beauvoir. The autumn «rentrée littéraire» and TV show «La Grande Librairie» keep books in public chat.',
+    { fr: 'Tu as lu le dernier prix Goncourt ?', en: 'Have you read the latest Goncourt winner?' },
+    'The Prix Goncourt each autumn is the headline literary prize.'),
+  e('arts-bd', 'arts', 'La bande dessinée', '📖',
+    'Comics are a serious art form (the «9th art»). Astérix, Tintin and modern graphic novels fill dedicated bookshop sections; Angoulême hosts a major annual festival.',
+    { fr: 'une BD', en: 'a comic / graphic novel' },
+    'Calling BD “just for kids” will get you corrected.'),
+  e('arts-patrimoine', 'arts', 'Patrimoine', '🏛️',
+    'Heritage is political: listed buildings, UNESCO sites, and «Journées du patrimoine» open usually closed doors one weekend a year. Preservation and modern life constantly negotiate.',
+    { fr: 'les Journées du patrimoine', en: 'Heritage Open Days' },
+    'Third weekend of September — free entry to many monuments.'),
+  e('arts-mode', 'arts', 'Fashion & design', '👗',
+    'Paris Fashion Week is global industry, but everyday style is often understated: good shoes, a scarf, dark colours. Luxury houses sit beside thrift culture and «vide-greniers».',
+    { fr: 'un vide-grenier', en: 'a car-boot / yard sale' },
+    'Sunday flea markets are social as much as shopping.'),
+
+  // ---- cinema & media ----
+  e('cinema-auteur', 'cinema', 'Cinéma d’auteur', '🎥',
+    'France funds and debates film as culture, not only entertainment. The Cannes Festival each May is a national ritual; «cinéma d’art et d’essai» cinemas prioritise independent work.',
+    { fr: 'On va au ciné ?', en: 'Shall we go to the cinema?' },
+    'Tuesday is often cheaper ticket night.'),
+  e('cinema-newswave', 'cinema', 'Nouvelle Vague', '📼',
+    'The 1960s New Wave (Godard, Truffaut, Varda) broke studio rules with handheld cameras and jump cuts. Its spirit still shapes how French film is taught and talked about.',
+    null,
+    'Even blockbuster fans know the phrase «nouvelle vague».'),
+  e('cinema-presse', 'cinema', 'The press', '📰',
+    'Le Monde, Libération, Le Figaro and regional dailies still set agendas. «La presse people» covers celebrities; serious Sunday papers reward slow reading.',
+    { fr: 'Tu as vu l’édito ?', en: 'Did you see the editorial?' },
+    'Kiosks still sell papers; many titles are paywalled online.'),
+  e('cinema-tv', 'cinema', 'TV & streaming', '📺',
+    'Public channels (France Télévisions) coexist with TF1 and global streamers. «Le 20 heures» evening news remains a national appointment for many households.',
+    { fr: 'le journal de 20 heures', en: 'the 8pm news' },
+    'Political interviews on Sunday morning TV can make Monday’s headlines.'),
+  e('cinema-radio', 'cinema', 'Radio culture', '📻',
+    'France Inter, France Culture and Europe 1 fill commutes with debate and music. Podcasts thrive, but live morning radio still shapes the day’s talking points.',
+    { fr: 'J’écoute la radio le matin.', en: 'I listen to the radio in the morning.' },
+    '«Les Grosses Têtes» and long political interviews are cultural furniture.'),
+
+  // ---- sport ----
+  e('sport-foot', 'sport', 'Football', '⚽',
+    'Ligue 1, the national team (les Bleus) and café talk after big matches structure the sporting year. World Cup and Euros weekends empty streets into living rooms.',
+    { fr: 'On a gagné !', en: 'We won!' },
+    'Shirt colours: blue home kit; «Allez les Bleus !» is the chant.'),
+  e('sport-tdf', 'sport', 'Le Tour de France', '🚴',
+    'Every July the Tour threads mountains and villages for three weeks. Roadside picnics, helicopter shots and yellow jerseys are summer wallpaper even for non-fans.',
+    { fr: 'le maillot jaune', en: 'the yellow jersey (race leader)' },
+    'Stages finish in towns that celebrate for days.'),
+  e('sport-petanque', 'sport', 'Pétanque & flânerie', '🟡',
+    'Pétanque in village squares, long Sunday walks, and «flâner» (strolling without purpose) are leisure forms as important as gym culture.',
+    { fr: 'On fait une partie de pétanque ?', en: 'Fancy a game of pétanque?' },
+    'Boules courts appear near almost every small-town café.'),
+  e('sport-ski', 'sport', 'Winter sports', '⛷️',
+    'School «classes de neige» and February ski weeks empty cities toward the Alps. Ski is both elite sport and mass family holiday — traffic on the roads is legendary.',
+    { fr: 'On part au ski.', en: 'We’re going skiing.' },
+    'Book trains early for February half-term (zone-dependent).'),
+  e('sport-roland', 'sport', 'Roland-Garros', '🎾',
+    'The French Open on clay each late spring is a society and sporting event. Strawberries, debate over players, and night sessions fill sports pages.',
+    { fr: 'Tu suis Roland-Garros ?', en: 'Are you following the French Open?' },
+    'Clay rewards patience — rallies are longer than on grass.'),
+
+  // ---- work & school ----
+  e('work-bac', 'work', 'Le bac', '🎓',
+    'The baccalauréat crowns lycée and gates university. June exam season is national news; results day has its own emotional weather map on TV.',
+    { fr: 'J’ai eu mon bac !', en: 'I passed my bac!' },
+    '«Mention bien / très bien» are honours grades people still mention years later.'),
+  e('work-rtt', 'work', '35 hours & RTT', '🕐',
+    'The legal full-time week is 35 hours in many sectors. Overtime often becomes RTT days off rather than only cash — a structural reason France feels holiday-rich.',
+    { fr: 'Je prends un RTT vendredi.', en: 'I’m taking a time-off day on Friday.' },
+    'August closures and RTT can stack into long breaks.'),
+  e('work-grande-ecole', 'work', 'Grandes écoles', '🏫',
+    'Elite tracks (Polytechnique, ENA’s successors, HEC…) sit beside universities. Prep classes («prépas») are famously intense; network effects last a career.',
+    null,
+    'You need not join that path — but knowing it exists explains some workplace codes.'),
+  e('work-dejeuner', 'work', 'Lunch culture', '🥗',
+    'A real lunch break is still valued. Ticket restaurant vouchers are common; eating at your desk is less admired than in some Anglo offices.',
+    { fr: 'On va déjeuner ?', en: 'Shall we go for lunch?' },
+    'Business lunches can run long — the deal may happen over coffee.'),
+  e('work-syndicats', 'work', 'Unions & protest', '📢',
+    'Union density is modest but strike capacity is real in transport and public services. Manifestations are a recognised form of political speech.',
+    { fr: 'Ils sont en grève.', en: 'They’re on strike.' },
+    'Plan around announced strike days; they’re often known days ahead.'),
+
+  // ---- language life ----
+  e('language-registers', 'language', 'Registers', '🎚️',
+    'French shifts sharply between formal («soutenu»), standard and familiar («familier»). Using slang in a job interview or pure formality with friends both sound off-key.',
+    { fr: 'Ça va ? / Comment allez-vous ?', en: 'How’s it going? / How do you do?' },
+    'Match the other person’s level — or aim one notch more formal.'),
+  e('language-verlan', 'language', 'Verlan & youth talk', '🔁',
+    'Verlan inverts syllables: «femme» → «meuf», «louche» → «chelou». It ages fast; what was cool can sound dated. Learn to recognise, use sparingly as a learner.',
+    { fr: 'C’est chelou.', en: 'That’s weird / shady (slang).' },
+    'If peers use it with you, mirror lightly — don’t force a full slang monologue.'),
+  e('language-anglicismes', 'language', 'Anglicisms debate', '🇬🇧',
+    '«Email», «weekend» and «job» are everyday, yet institutions promote French alternatives («courriel», «fin de semaine»). You’ll hear both; neither side has fully won.',
+    { fr: 'le week-end / la fin de semaine', en: 'the weekend' },
+    'In formal writing, French terms still score points.'),
+  e('language-tutoyer-net', 'language', 'Online tone', '💻',
+    'Forums and Discord skew to «tu»; customer chat and LinkedIn stay on «vous». Emoji soften tone; ALL CAPS still shouts.',
+    { fr: 'Tu peux m’aider ?', en: 'Can you help me? (informal)' },
+    'When in doubt online with strangers, start with «vous».'),
+  e('language-faux-amis', 'language', 'False friends', '⚠️',
+    '«Actuellement» means currently, not actually; «librairie» is a bookshop; «préservatif» is not a food preservative. These trip confident speakers.',
+    { fr: 'Actuellement, je travaille à Lyon.', en: 'Currently, I work in Lyon.' },
+    'Keep a personal list — every learner has favourite traps.'),
+
+  // ---- francophonie ----
+  e('franco-oif', 'francophonie', 'La Francophonie', '🌍',
+    'French is an official language across Africa, Canada, Belgium, Switzerland, Lebanon and more. The Organisation internationale de la Francophonie links states and cultures.',
+    { fr: 'la Francophonie', en: 'the French-speaking world' },
+    'Most French speakers now live outside Europe.'),
+  e('franco-quebec', 'francophonie', 'Québec', '🍁',
+    'Québécois French has its own pronunciation, vocabulary («char» for car, «magasiner» for shopping) and cultural industries. France and Québec both export music and TV.',
+    { fr: 'Bienvenue au Québec !', en: 'Welcome to Québec!' },
+    'Mutual intelligibility is high — curiosity beats imitation.'),
+  e('franco-afrique', 'francophonie', 'Africa & French', '🌍',
+    'West and Central Africa host huge French-speaking populations. Local languages mix with French; literature and music from Dakar to Kinshasa reshape the language’s centre of gravity.',
+    null,
+    'Treat African French as standard varieties — not “incorrect” Hexagone French.'),
+  e('franco-belgique', 'francophonie', 'Belgium & Switzerland', '🇧🇪',
+    'Belgian and Swiss French use septante/nonante, different food words, and their own media. Cross-border workers switch codes daily.',
+    { fr: 'nonante-neuf', en: 'ninety-nine (Belgium/Switzerland)' },
+    'A warm interest in local words is always appreciated.'),
+  e('franco-learning', 'francophonie', 'Why culture matters', '🧠',
+    'Grammar gets you understood; culture gets you trusted. Knowing when to say bonjour, what cheese before dessert means, and why Sunday is quiet signals respect more than perfect subjunctive.',
+    { fr: 'Je m’intéresse à la culture française.', en: 'I’m interested in French culture.' },
+    'One entry a day beats cramming — open a section after your speaking practice.'),
 ];
 
 export const getSectionEntries = (sectionId) =>
   CULTURE_ENTRIES.filter((x) => x.section === sectionId);
+
+export const cultureEntryCount = () => CULTURE_ENTRIES.length;
+
+export const cultureSectionStats = () =>
+  CULTURE_SECTIONS.map((s) => ({
+    ...s,
+    count: getSectionEntries(s.id).length,
+  }));
+
+/** Deterministic daily tip from the full catalogue. */
+export function cultureTipOfDay(date = new Date()) {
+  if (!CULTURE_ENTRIES.length) return null;
+  const utc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const i = Math.abs(Math.floor(utc / 864e5)) % CULTURE_ENTRIES.length;
+  return CULTURE_ENTRIES[i];
+}
+
+export const searchCulture = (query) => {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  return CULTURE_ENTRIES.filter((entry) => {
+    const hay = [
+      entry.title,
+      entry.body,
+      entry.tip,
+      entry.phrase?.fr,
+      entry.phrase?.en,
+      entry.section,
+    ].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+};
 
 // ---- culture quiz (drawn from the content above) ----
 
@@ -178,4 +455,12 @@ export const CULTURE_QUIZ = [
   { q: 'Which flowers should you NOT give a host?', options: ['Tulips', 'Chrysanthemums', 'Daisies'], answer: 1, why: 'Chrysanthemums are for graves on Toussaint.' },
   { q: 'Who united the Gauls against Caesar?', options: ['Napoléon', 'Vercingétorix', 'De Gaulle'], answer: 1, why: 'Vercingétorix led the Gauls, losing at Alésia in 52 BC.' },
   { q: 'In the south-west, a «pain au chocolat» is called…', options: ['une chocolatine', 'un croissant', 'une brioche'], answer: 0, why: 'The south-west says «chocolatine».' },
+  { q: 'What do you get if you order «un café»?', options: ['Filter coffee', 'An espresso', 'Coffee with milk'], answer: 1, why: '«Un café» is an espresso; milk drinks have other names.' },
+  { q: 'Le quart d’heure de politesse means you…', options: ['Arrive 10–15 min late to a casual dinner', 'Leave 15 min early', 'Never check the time'], answer: 0, why: 'A short delay is polite for informal home dinners.' },
+  { q: 'When is Beaujolais nouveau released?', options: ['Third Thursday of November', '1 May', '21 June'], answer: 0, why: 'The new Beaujolais lands on the third Thursday of November.' },
+  { q: '«Service compris» on a bill means…', options: ['Tip 20%', 'Service is already included', 'You must tip in cash'], answer: 1, why: 'Service is included by law; small change is optional.' },
+  { q: 'The yellow jersey is worn by…', options: ['The Ligue 1 top scorer', 'The Tour de France race leader', 'The French Open champion'], answer: 1, why: 'Le maillot jaune is the Tour leader’s jersey.' },
+  { q: 'Most French speakers today live…', options: ['Only in Paris', 'Outside Europe', 'Only in Québec'], answer: 1, why: 'Francophonie is global; most speakers are outside Europe.' },
+  { q: '«Actuellement» means…', options: ['Actually', 'Currently', 'Accidentally'], answer: 1, why: 'Classic false friend: actuellement = currently.' },
+  { q: 'La rentrée is mainly…', options: ['A wine harvest', 'The September return to school and work', 'A Christmas market'], answer: 1, why: 'Early September restarts school, politics and culture.' },
 ];

@@ -90,6 +90,7 @@ export default function App() {
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
+  const [referenceTool, setReferenceTool] = useState(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(shouldOnboard);
   const [prefs, setPrefsState] = useState(getPrefs);
@@ -350,7 +351,7 @@ export default function App() {
     };
     if (labels[evt.type]) setLastActivity(evt.type, evt.scenarioId || evt.topicId || evt.trackId || evt.textId, labels[evt.type]);
     // Daily-challenge metrics count the same activity stream the path uses.
-    if (['cards', 'session', 'dictation', 'quickfire'].includes(evt.type)) {
+    if (['cards', 'session', 'dictation', 'quickfire', 'grammar'].includes(evt.type)) {
       bumpChallengeMetric(evt.type);
     }
     const result = applyActivity(getPath(), evt);
@@ -567,7 +568,7 @@ export default function App() {
               onOpenPersonalise={() => setPersonaliseOpen(true)}
               onOpenOffline={() => setOfflineOpen(true)}
               onOpenAnalytics={() => setAnalyticsOpen(true)}
-              onOpenReference={() => setReferenceOpen(true)}
+              onOpenReference={(tool) => { setReferenceTool(tool || null); setReferenceOpen(true); }}
               onOpenFocus={() => setFocusOpen(true)}
               onOpenProfile={() => setProfileOpen(true)}
               lastActivity={getLastActivity()}
@@ -583,6 +584,7 @@ export default function App() {
           )}
           {tab === 'arena' && (
             <ChatArena
+              onEndSession={endSession}
               apiKey={apiKey}
               mockMode={settings.mockMode}
               ttsRate={settings.ttsRate}
@@ -703,7 +705,14 @@ export default function App() {
       )}
       {offlineOpen && <Offline open={offlineOpen} onClose={() => setOfflineOpen(false)} pwa={pwa} />}
       {analyticsOpen && <Analytics open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />}
-      {referenceOpen && <Reference open={referenceOpen} onClose={() => setReferenceOpen(false)} />}
+      {referenceOpen && (
+        <Reference
+          open={referenceOpen}
+          initialTool={referenceTool}
+          onXp={awardXp}
+          onClose={() => { setReferenceOpen(false); setReferenceTool(null); }}
+        />
+      )}
       {focusOpen && <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />}
       {onboardingOpen && <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />}
       {searchOpen && <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} onGo={goFromSearch} />}
@@ -715,7 +724,8 @@ export default function App() {
         onTab={(id) => { setTab(id); setMoreOpen(false); }}
         onOpen={(fn) => { fn(); setMoreOpen(false); }}
         overlays={{
-          reference: () => setReferenceOpen(true),
+          reference: () => { setReferenceTool(null); setReferenceOpen(true); },
+          drills: () => { setReferenceTool('drills'); setReferenceOpen(true); },
           realWorld: () => setRealWorldOpen(true),
           focus: () => setFocusOpen(true),
           analytics: () => setAnalyticsOpen(true),
@@ -872,6 +882,7 @@ function MoreSheet({ open, onClose, activeTab, devPanel, onTab, onOpen, overlays
       label: 'Practice & tools',
       items: [
         { icon: Compass, title: 'Real-world', subtitle: 'Travel, restaurant, medical…', onClick: () => onOpen(overlays.realWorld) },
+        { icon: Target, title: 'Phrase drills', subtitle: 'Shadow, type, flip survival lines', onClick: () => onOpen(overlays.drills) },
         { icon: BookOpen, title: 'Reference', subtitle: 'Dictionary, conjugations, drills', onClick: () => onOpen(overlays.reference) },
         { icon: Clock, title: 'Focus & habits', subtitle: 'Timer, Pomodoro, habit tracker', onClick: () => onOpen(overlays.focus) },
       ],

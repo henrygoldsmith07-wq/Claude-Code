@@ -3,7 +3,7 @@ import {
   getXp, getStreak, getSessions, getReviewLog, getNotebook, getGrammarProgress,
   getXpLog, getWeekXp, getCollectibles, getAchievements,
   getFreezes, buyFreeze, FREEZE_COST, MAX_FREEZES, getCoins,
-  getVacationUntil, setVacationDays, getRepairableStreak, repairStreak, REPAIR_COST,
+  getVacationUntil, setVacationDays, getRepairableStreak, repairStreak, canFreeRepairThisWeek, REPAIR_COST,
 } from '../lib/storage';
 import { MILESTONES, CERTIFICATES } from '../lib/game';
 import { totalReviews } from '../lib/memory';
@@ -84,20 +84,32 @@ export default function Stats({ weeklyGoal, onCoinsChange }) {
           )}
         </div>
 
-        {/* streak repair: buy back a recently broken streak */}
+        {/* streak repair: free once per week, or buy back with coins */}
         {getRepairableStreak() != null && (
           <div className="flex items-center gap-3 pt-1 border-t border-line">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-ink">Repair your streak</p>
-              <p className="text-xs text-ink3">Restore your {getRepairableStreak()}-day streak (window closes after 3 days)</p>
+              <p className="text-xs text-ink3">
+                Restore your {getRepairableStreak()}-day streak
+                {canFreeRepairThisWeek() ? ' — one free repair available this week' : ' (window closes after 3 days)'}
+              </p>
             </div>
-            <button
-              onClick={() => { if (repairStreak() != null) { onCoinsChange?.(getCoins()); setTick((t) => t + 1); } }}
-              disabled={s.coins < REPAIR_COST}
-              className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs disabled:opacity-50"
-            >
-              <Coins size={12} /> {REPAIR_COST}
-            </button>
+            {canFreeRepairThisWeek() ? (
+              <button
+                onClick={() => { if (repairStreak({ free: true }) != null) { onCoinsChange?.(getCoins()); setTick((t) => t + 1); } }}
+                className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs"
+              >
+                Free
+              </button>
+            ) : (
+              <button
+                onClick={() => { if (repairStreak() != null) { onCoinsChange?.(getCoins()); setTick((t) => t + 1); } }}
+                disabled={s.coins < REPAIR_COST}
+                className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs disabled:opacity-50"
+              >
+                <Coins size={12} /> {REPAIR_COST}
+              </button>
+            )}
           </div>
         )}
 

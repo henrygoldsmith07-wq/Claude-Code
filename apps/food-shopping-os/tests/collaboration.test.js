@@ -3,7 +3,7 @@ import {
   changedStateFields, mergePermittedState, scopeHouseholdState,
 } from '../src/server/household-scope.js';
 import { coachSnapshot } from '../src/server/coach-shares.js';
-import { busyMealDates } from '../src/lib/calendar.js';
+import { busyFromIcs, busyMealDates, parseIcsEvents } from '../src/lib/calendar.js';
 import { buildPlan } from '../src/lib/planner.js';
 import { unitPrice } from '../src/lib/shopping.js';
 
@@ -76,6 +76,32 @@ describe('calendar-aware planning', () => {
       { start: '2026-08-04T09:00:00Z', end: '2026-08-04T10:00:00Z', allDay: false },
       { start: '2026-08-05T18:00:00Z', end: '2026-08-05T20:00:00Z', allDay: false },
     ])).toEqual(['2026-08-03', '2026-08-05']);
+  });
+
+  it('parses Chrono-style ICS into dinner-busy dates', () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Le Studio//Chrono//EN',
+      'BEGIN:VEVENT',
+      'UID:1@chrono',
+      'DTSTART:20260805T180000',
+      'DTEND:20260805T193000',
+      'SUMMARY:Team call',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:2@chrono',
+      'DTSTART:20260806T090000',
+      'DTEND:20260806T100000',
+      'SUMMARY:Morning standup',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const events = parseIcsEvents(ics);
+    expect(events).toHaveLength(2);
+    const busy = busyFromIcs(ics, { source: 'Chrono ICS', now: 1 });
+    expect(busy.map((b) => b.date)).toEqual(['2026-08-05']);
+    expect(busy[0].source).toBe('Chrono ICS');
   });
 });
 

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.js",
+    "lint:content": "node scripts/lint-content.mjs",
+    "check": "npm run lint:content && npm test"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { GRAMMAR_TOPICS, getGrammarTopic } from '../lib/grammar';
-import { getGrammarProgress, recordGrammarQuiz } from '../lib/storage';
+import { GRAMMAR_TOPICS, getGrammarTopic, grammarTopicOfDay, grammarStatsByCefr } from '../lib/grammar';
+import { getGrammarProgress, recordGrammarQuiz, bumpChallengeMetric } from '../lib/storage';
 import { Drill, SentenceBuilder, Quiz } from './GrammarExercises';
 import { Markdown, SpeakButton } from './ui';
-import { ChevronLeft, ChevronRight, Book, CheckCircle, Search } from './icons';
+import { ChevronLeft, ChevronRight, Book, CheckCircle, Search, Target } from './icons';
 
 // Accent- and case-insensitive haystack match, so «etre» finds «être».
 const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -28,6 +28,12 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
   const [query, setQuery] = useState('');
   const progress = getGrammarProgress();
   void tick;
+  const tip = useMemo(() => grammarTopicOfDay(), []);
+  const byCefr = useMemo(() => grammarStatsByCefr(), []);
+  const masteredCount = useMemo(
+    () => GRAMMAR_TOPICS.filter((t) => (progress[t.id]?.best ?? 0) >= 80).length,
+    [progress, tick],
+  );
 
   // Only offer level chips that actually exist in the library, in CEFR order.
   const levels = useMemo(
@@ -61,6 +67,7 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
           recordGrammarQuiz(topicId, score);
           onXp(Math.max(1, Math.round(score / 10)));
           onActivity?.({ type: 'grammar', topicId, score });
+          bumpChallengeMetric('grammar', 1);
           setTick((t) => t + 1);
         }}
       />
@@ -73,9 +80,39 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
         <div className="text-center">
           <h2 className="text-lg font-semibold text-ink">Grammar</h2>
           <p className="text-xs text-ink2 mt-1">
-            Reference library and interactive lessons — mastered at a quiz score of 80+.
+            {GRAMMAR_TOPICS.length} interactive topics · Learn → Drill → Build → Quiz
+          </p>
+          <p className="text-[11px] text-ink3 mt-1 tabular-nums">
+            {masteredCount}/{GRAMMAR_TOPICS.length} mastered (quiz ≥ 80%)
+          </p>
+          <div className="mt-2 h-1.5 rounded-full bg-surface2 overflow-hidden max-w-xs mx-auto">
+            <div
+              className="h-full bg-ink rounded-full transition-all"
+              style={{ width: `${Math.round((masteredCount / Math.max(1, GRAMMAR_TOPICS.length)) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-ink3 mt-2 tabular-nums">
+            {CEFR_ORDER.filter((c) => byCefr[c]).map((c) => `${c}: ${byCefr[c]}`).join(' · ')}
           </p>
         </div>
+
+        {tip && (
+          <button
+            type="button"
+            onClick={() => setTopicId(tip.id)}
+            className="w-full text-left bg-surface border border-line rounded-2xl px-4 py-3.5 hover:border-ink3 transition-colors flex items-start gap-3"
+          >
+            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink">
+              <Target size={16} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-ink3">Topic of the day</span>
+              <span className="block text-sm font-semibold text-ink" lang="fr">{tip.title}</span>
+              <span className="block text-xs text-ink2 mt-0.5">{tip.summary}</span>
+              <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md border border-line text-[10px] font-semibold text-ink3">{tip.cefr}</span>
+            </span>
+          </button>
+        )}
 
         {/* find a topic: search by name, then narrow to your CEFR level */}
         <div className="flex items-center gap-2 bg-surface border border-line rounded-xl px-3">

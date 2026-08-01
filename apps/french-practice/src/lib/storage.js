@@ -35,6 +35,7 @@ const KEYS = {
   onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
   syncId: 'fp.syncId', // stable local account id — travels with a sync snapshot
   lastBackup: 'fp.lastBackup', // ISO time of the last export/sync-code created
+  starred: 'fp.starredLines', // [{ id, fr, en, source, addedAt }] — favourited survival phrases
 };
 
 export { KEYS };
@@ -417,10 +418,31 @@ export function getRepairableStreak() {
   return ageDays <= REPAIR_WINDOW_DAYS ? s.lostCount : null;
 }
 
-export function repairStreak() {
+/** ISO week key (YYYY-Www) for free repair quota. */
+function isoWeekKey(d = new Date()) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/** One free streak repair per calendar week (Plan 1 A2.2). */
+export function canFreeRepairThisWeek() {
+  const used = read('fp.freeRepairWeek', null);
+  return used !== isoWeekKey();
+}
+
+export function repairStreak({ free = false } = {}) {
   const lost = getRepairableStreak();
   if (!lost) return null;
-  if (spendCoins(REPAIR_COST) == null) return null;
+  if (free) {
+    if (!canFreeRepairThisWeek()) return null;
+    write('fp.freeRepairWeek', isoWeekKey());
+  } else if (spendCoins(REPAIR_COST) == null) {
+    return null;
+  }
   const restored = { count: lost, lastDay: dayStamp(new Date(Date.now() - 86400000)) };
   write(KEYS.streak, restored);
   return restored;
@@ -466,6 +488,25 @@ export function removeFromNotebook(id) {
   const nb = getNotebook().filter((e) => e.id !== id);
   write(KEYS.notebook, nb);
   return nb;
+}
+
+// ---- starred survival lines (real-world / phrase drills) ----
+
+export const getStarredLines = () => read(KEYS.starred, []);
+
+export const isStarredLine = (id) => getStarredLines().some((e) => e.id === id);
+
+export function toggleStarredLine({ id, fr, en, source = '' }) {
+  const list = getStarredLines();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    write(KEYS.starred, list);
+    return { list, starred: false };
+  }
+  list.unshift({ id, fr, en, source, addedAt: new Date().toISOString() });
+  write(KEYS.starred, list.slice(0, 100));
+  return { list: getStarredLines(), starred: true };
 }
 
 // ---- tap-to-translate word cache ----

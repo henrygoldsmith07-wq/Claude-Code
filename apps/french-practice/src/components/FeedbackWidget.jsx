@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScoreBadge, scoreColor } from './ui';
 import { compositeScore } from '../lib/groq';
+import { scoreExplainers } from '../lib/score';
 
 // Live per-turn scores: bottom sheet on mobile, side pane on desktop.
 // S = 0.30·Grammaire + 0.30·Naturel + 0.20·Pertinence + 0.20·Fluidité
@@ -12,6 +13,8 @@ const ROWS = [
   ['fluency', 'Fluency', 0.2],
 ];
 
+const EXPLAIN = scoreExplainers();
+
 function ScoreRows({ scores }) {
   return (
     <div className="space-y-2.5">
@@ -21,7 +24,7 @@ function ScoreRows({ scores }) {
         return (
           <div key={key}>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-ink2">
+              <span className="text-ink2" title={EXPLAIN[key]}>
                 {label} <span className="text-ink3">×{weight.toFixed(2)}</span>
               </span>
               <span className={`font-bold font-mono ${c.text}`}>{v}</span>
@@ -32,6 +35,7 @@ function ScoreRows({ scores }) {
                 style={{ width: `${v}%`, background: c.ring }}
               />
             </div>
+            <p className="text-[10px] text-ink3 mt-1 leading-snug">{EXPLAIN[key]}</p>
           </div>
         );
       })}
@@ -54,8 +58,8 @@ export default function FeedbackWidget({ scores, turnCount }) {
         </div>
         <div className="flex items-center gap-3">
           <ScoreBadge value={composite} size="lg" />
-          <p className="text-[11px] text-ink3 leading-snug">
-            Weighted score<br />0.30 G + 0.30 N + 0.20 R + 0.20 F
+          <p className="text-[11px] text-ink3 leading-snug" title={EXPLAIN.overall}>
+            {EXPLAIN.overall}
           </p>
         </div>
         <ScoreRows scores={scores} />

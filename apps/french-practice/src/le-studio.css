@@ -2,6 +2,9 @@
    Le Studio design system — the single source of truth for every app's theme.
    Canonical origin: apps/french-practice (the Le Studio app itself).
 
+   Machine-readable twin: packages/le-studio-tokens (tokens.css / tokens.json).
+   Keep CSS variables here in lockstep with --ls-* there (bg/surface/ink/accent).
+
    DO NOT EDIT the copies inside apps/. Each app carries a generated
    src/le-studio.css; edit this file and run scripts/sync-theme.sh to
    propagate. The copies exist because each Vercel project builds with its
