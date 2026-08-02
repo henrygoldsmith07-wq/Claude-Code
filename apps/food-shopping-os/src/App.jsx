@@ -12,6 +12,7 @@ import { cx } from './lib/utils.js';
 import { distanceMetres } from './lib/smart.js';
 import { downloadFile, showNotification } from './lib/notify.js';
 import { haptic } from './lib/haptics.js';
+import { flushProductEvents, recordProductEvent } from './lib/product-analytics.js';
 
 const testScreens = globalThis.__FORQ_TEST_SCREENS__ || {};
 const deferred = (testComponent, loader) => testComponent || lazy(loader);
@@ -161,6 +162,7 @@ function Shell() {
   const app = useApp();
   const [tab, setTab] = useState('home');
   const [recipe, setRecipe] = useState(null);
+  const [recipeStartCooking, setRecipeStartCooking] = useState(false);
   const [pantryOpen, setPantryOpen] = useState(false);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -170,13 +172,22 @@ function Shell() {
   const [shopAdd, setShopAdd] = useState(0);
   const [pantryAdd, setPantryAdd] = useState(0);
   const [pantryQuery, setPantryQuery] = useState('');
+  const [planFocus, setPlanFocus] = useState(null);
   const noticeTimer = useRef(null);
   const completedGoals = useRef(null);
+  const analyticsOpened = useRef(false);
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
-  const openRecipe = (r) => setRecipe(r);
-  const goLog = (intent = null) => { setLogIntent(intent); setTab('log'); };
+  const openRecipe = (r, options = null) => {
+    setRecipeStartCooking(Boolean(options?.startCooking));
+    setRecipe(r);
+  };
+  const goLog = (intent = null) => {
+    setLogIntent(intent);
+    setTab('log');
+    recordProductEvent('screen_viewed', { screen: 'log', intent: typeof intent === 'string' ? intent : 'shortcut' });
+  };
   const flash = (message) => {
     clearTimeout(noticeTimer.current);
     setNotice(message);
@@ -243,12 +254,30 @@ function Shell() {
     completedGoals.current = count;
   }, [app.game.daily]);
 
+  useEffect(() => {
+    if (!app.onboarded || analyticsOpened.current) return undefined;
+    analyticsOpened.current = true;
+    recordProductEvent('app_opened');
+    const flush = () => { flushProductEvents(); };
+    window.addEventListener('forq-product-event', flush);
+    window.addEventListener('forq-analytics-consent', flush);
+    window.addEventListener('online', flush);
+    flush();
+    return () => {
+      window.removeEventListener('forq-product-event', flush);
+      window.removeEventListener('forq-analytics-consent', flush);
+      window.removeEventListener('online', flush);
+    };
+  }, [app.onboarded]);
+
   /* Screens still ask to go to "profile" — it just isn't a tab any more, it's
      the sheet behind the avatar. Routing it here means nothing that pointed at
      it had to learn where it went. */
-  const goTab = (id) => {
+  const goTab = (id, context = null) => {
     if (id === 'profile') return setProfileOpen(true);
+    setPlanFocus(id === 'plan' ? context?.date || null : null);
     setTab(id);
+    recordProductEvent('screen_viewed', { screen: id });
     window.scrollTo({ top: 0 });
   };
 
@@ -290,9 +319,9 @@ function Shell() {
             />
           )}
           <Suspense fallback={<ScreenFallback />}>
-            {tab === 'plan' && <PlanTab openRecipe={openRecipe} />}
+            {tab === 'plan' && <PlanTab openRecipe={openRecipe} goTab={goTab} focusDate={planFocus} />}
             {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
-            {tab === 'shop' && <ShopTab quickAddKey={shopAdd} />}
+            {tab === 'shop' && <ShopTab quickAddKey={shopAdd} onOpenPantry={() => setPantryOpen(true)} />}
             {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
           </Suspense>
         </main>
@@ -341,14 +370,22 @@ function Shell() {
       </nav>
 
       {/* Overlays */}
-      <Sheet open={!!recipe} onClose={() => setRecipe(null)} full>
+      <Sheet open={!!recipe} onClose={() => { setRecipe(null); setRecipeStartCooking(false); }} full>
         <Suspense fallback={<ScreenFallback />}>
-          {recipe && <RecipeDetail recipe={recipe} onClose={() => setRecipe(null)} />}
+          {recipe && <RecipeDetail recipe={recipe} onClose={() => { setRecipe(null); setRecipeStartCooking(false); }} goTab={goTab} startCooking={recipeStartCooking} />}
         </Suspense>
       </Sheet>
       <Sheet open={pantryOpen} onClose={() => { setPantryOpen(false); setPantryQuery(''); }} title="Smart pantry">
         <Suspense fallback={<ScreenFallback />}>
-          <PantryView quickAddKey={pantryAdd} initialQuery={pantryQuery} />
+          <PantryView
+            quickAddKey={pantryAdd}
+            initialQuery={pantryQuery}
+            onPlan={() => {
+              setPantryOpen(false);
+              setPantryQuery('');
+              goTab('plan');
+            }}
+          />
         </Suspense>
       </Sheet>
       <Sheet open={profileOpen} onClose={() => setProfileOpen(false)} title="You">

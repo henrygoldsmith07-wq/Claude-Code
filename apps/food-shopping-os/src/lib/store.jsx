@@ -60,6 +60,10 @@ export function AppProvider({ children }) {
   const cloudReady = useRef(false);
   const skipCloudPush = useRef(false);
   const cloudTimer = useRef(null);
+  const cloudPulling = useRef(false);
+  const cloudPullPending = useRef(false);
+  const cloudInitialising = useRef(false);
+  const liveConnection = useRef(false);
   const undoHistory = useRef([]);
   const applyingRemote = useRef(false);
   const vaultKey = useRef(null);
@@ -81,14 +85,22 @@ export function AppProvider({ children }) {
     if (process.env.NODE_ENV === 'test') return undefined;
     let retrying = false;
     const retry = async () => {
-      if (retrying || !cloudMeta.current) return;
+      if (retrying || cloudInitialising.current) return;
       retrying = true;
       try {
+        if (!cloudMeta.current) {
+          window.dispatchEvent(new Event('forq-cloud-refresh'));
+          return;
+        }
         const result = await retryQueuedCloud();
         if (result) {
-          cloudMeta.current = result.meta;
+          cloudMeta.current = result.meta || cloudMeta.current;
           cloudReady.current = result.status.kind === 'ready';
-          setCloudStatus(result.status);
+          setCloudStatus((current) => {
+            if (result.status.kind !== 'ready') return result.status;
+            if (liveConnection.current) return { kind: 'live', message: 'Live household sync connected.' };
+            return current.kind === 'reconnecting' ? current : result.status;
+          });
         }
       } finally {
         retrying = false;
@@ -171,48 +183,129 @@ export function AppProvider({ children }) {
     let cancelled = false;
     let poll;
     let unsubscribeRealtime;
-    const pullNewerState = async () => {
+    const pullNewerState = async (fromLiveEvent = false) => {
       if (!cloudMeta.current) return;
-      const update = await pullCloud(cloudMeta.current);
-      if (update.state) {
-        cloudMeta.current = update.meta;
-        skipCloudPush.current = true;
-        setState(hydrate(update.state));
-        setCloudStatus(update.status);
+      if (cloudPulling.current) {
+        cloudPullPending.current = true;
+        return;
+      }
+      cloudPulling.current = true;
+      try {
+        const requestedVersion = Number(cloudMeta.current.version || 0);
+        const update = await pullCloud(cloudMeta.current);
+        if (cancelled) return;
+        const currentVersion = Number(cloudMeta.current?.version || 0);
+        const remoteVersion = Number(update.meta?.version || 0);
+        if (currentVersion > requestedVersion && remoteVersion <= currentVersion) return;
+        if (update.state) {
+          cloudMeta.current = update.meta;
+          skipCloudPush.current = true;
+          setState(hydrate(update.state));
+          if (liveConnection.current && update.status.kind === 'ready') {
+            setCloudStatus({
+              kind: 'live',
+              message: fromLiveEvent ? 'Updated from your household.' : 'Live household sync connected.',
+            });
+          } else if (!fromLiveEvent) {
+            setCloudStatus((current) => current.kind === 'reconnecting' ? current : update.status);
+          }
+        } else if (!fromLiveEvent && update.status.kind === 'ready') {
+          setCloudStatus(liveConnection.current
+            ? { kind: 'live', message: 'Live household sync connected.' }
+            : { kind: 'ready', message: 'Household is up to date.' });
+        } else if (update.status.kind !== 'ready' && (!fromLiveEvent || !liveConnection.current)) {
+          setCloudStatus((current) => current.kind === 'reconnecting'
+            ? current
+            : { kind: 'reconnecting', message: update.status.message || 'Live sync paused. Reconnectingâ€¦' });
+        }
+      } finally {
+        cloudPulling.current = false;
+        if (!cancelled && cloudPullPending.current) {
+          cloudPullPending.current = false;
+          pullNewerState(true);
+        }
       }
     };
+    const refreshCloud = () => {
+      setCloudStatus({ kind: 'connecting', message: 'Checking household changesâ€¦' });
+      if (cloudMeta.current) pullNewerState();
+      else loadCloud();
+    };
+    window.addEventListener('forq-cloud-refresh', refreshCloud);
     const loadCloud = async () => {
-      const result = await initialiseCloud(latest.current);
-      if (cancelled) return;
-      cloudMeta.current = result.meta || null;
-      cloudReady.current = result.status.kind === 'ready';
-      setCloudStatus(result.status);
-      if (result.state) {
-        skipCloudPush.current = true;
-        setState(hydrate(result.state));
-      }
-      if (result.meta && result.status.kind === 'ready') {
+      if (cloudInitialising.current) return;
+      cloudInitialising.current = true;
+      try {
+        const result = await initialiseCloud(latest.current);
+        if (cancelled) return;
+        let status = result.status;
+        let meta = result.meta || null;
+        let remoteState = result.state;
+        if (result.state && result.meta) {
+          const localChanged = JSON.stringify(latest.current) !== JSON.stringify(initial.current.state);
+          if (localChanged) {
+            if (Number.isInteger(result.baseVersion)) {
+              const localPush = await pushCloud(
+                latest.current,
+                { ...result.meta, version: result.baseVersion },
+              );
+              meta = localPush.status.kind === 'conflict' ? result.meta : localPush.meta;
+              status = localPush.status.kind === 'ready'
+                ? { kind: 'ready', message: 'Your offline changes are synced.' }
+                : localPush.status;
+            } else {
+              status = {
+                kind: 'conflict',
+                message: 'Cloud data was found after offline edits. Your local changes were kept; export a backup before reconciling.',
+              };
+            }
+            remoteState = null;
+          }
+        }
+        cloudMeta.current = meta;
+        cloudReady.current = status.kind === 'ready';
+        setCloudStatus((current) => {
+          if (status.kind !== 'ready') return status;
+          if (liveConnection.current) return { kind: 'live', message: 'Live household sync connected.' };
+          return current.kind === 'reconnecting' ? current : status;
+        });
+        if (remoteState) {
+          skipCloudPush.current = true;
+          setState(hydrate(remoteState));
+        }
+        if (meta && status.kind === 'ready') {
         poll = setInterval(pullNewerState, 60000);
-        subscribeCloud(result.meta, (event) => {
-          if (event.deviceId === result.meta.deviceId) return;
+          subscribeCloud(meta, (event) => {
+            if (event.deviceId === meta.deviceId) return;
           if (Number(event.version) <= Number(cloudMeta.current?.version || 0)) return;
-          pullNewerState();
+          pullNewerState(true);
+        }, (nextStatus) => {
+          if (nextStatus.kind === 'connected') {
+            liveConnection.current = true;
+            setCloudStatus({ kind: 'live', message: nextStatus.message });
+          } else if (nextStatus.kind === 'reconnecting' || nextStatus.kind === 'connecting') {
+            liveConnection.current = false;
+            setCloudStatus({ kind: 'reconnecting', message: nextStatus.message });
+          }
         }).then((unsubscribe) => {
           if (cancelled) unsubscribe();
-          else {
-            unsubscribeRealtime = unsubscribe;
-            setCloudStatus({ kind: 'ready', message: 'Live household sync connected.' });
-          }
+          else unsubscribeRealtime = unsubscribe;
         }).catch(() => {
-          setCloudStatus({ kind: 'ready', message: 'Cloud sync ready. Checking for changes every minute.' });
+          liveConnection.current = false;
+          setCloudStatus({ kind: 'reconnecting', message: 'Cloud sync ready. Reconnecting live updates…' });
         });
+        }
+      } finally {
+        cloudInitialising.current = false;
       }
     };
     loadCloud();
     return () => {
       cancelled = true;
+      liveConnection.current = false;
       clearInterval(poll);
       unsubscribeRealtime?.();
+      window.removeEventListener('forq-cloud-refresh', refreshCloud);
     };
   }, []);
 
@@ -224,13 +317,21 @@ export function AppProvider({ children }) {
     }
     clearTimeout(cloudTimer.current);
     cloudTimer.current = setTimeout(async () => {
+      const requestedVersion = Number(cloudMeta.current?.version || 0);
       const result = await pushCloud({
         ...latest.current,
         ...(latest.current.healthVaultEnabled && !vaultKey.current ? { __preserveHealth: true } : {}),
       }, cloudMeta.current);
-      cloudMeta.current = result.meta;
+      const currentVersion = Number(cloudMeta.current?.version || 0);
+      if (Number(result.meta?.version || 0) >= currentVersion || currentVersion <= requestedVersion) {
+        cloudMeta.current = result.meta;
+      }
       if (result.status.kind !== 'ready') cloudReady.current = false;
-      setCloudStatus(result.status);
+      setCloudStatus((current) => {
+        if (result.status.kind !== 'ready') return result.status;
+        if (liveConnection.current) return { kind: 'live', message: 'Live household sync connected.' };
+        return current.kind === 'reconnecting' ? current : result.status;
+      });
     }, 750);
     return () => clearTimeout(cloudTimer.current);
   }, [state]);

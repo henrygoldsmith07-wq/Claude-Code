@@ -216,6 +216,17 @@ describe('a recipe page', () => {
     expect(screen.getByText(/micronutrients are estimated/)).toBeDefined();
   });
 
+  it('hands missing recipe ingredients to Shop, then offers a review handoff', () => {
+    onboard();
+    openFirstMatch('Coconut Chickpea Curry');
+
+    fireEvent.click(screen.getByRole('button', { name: /Add \d+ missing to shopping list/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review shopping list' }));
+
+    expect(screen.getByText('Your list')).toBeDefined();
+    expect(screen.getByText('Chickpeas (tins)')).toBeDefined();
+  });
+
   it('hands the recipe over as a code, and takes one back', () => {
     onboard();
     openFirstMatch('Coconut Chickpea Curry');

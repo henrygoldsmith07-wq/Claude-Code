@@ -291,6 +291,16 @@ const VIDEO_HOST = /(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instagram\.co
 
 export const isVideoLink = (url) => VIDEO_HOST.test(String(url || ''));
 
+export const safeExternalUrl = (value) => {
+  const text = String(value || '').trim();
+  try {
+    const parsed = new URL(text);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+  } catch {
+    return '';
+  }
+};
+
 /**
  * Turn a parsed import into a recipe you can keep, cook and plan.
  *
@@ -301,6 +311,7 @@ export const isVideoLink = (url) => VIDEO_HOST.test(String(url || ''));
  */
 export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
   const known = new Set((result.ingredients || []).map((i) => (i.line || '').trim()));
+  const source = safeExternalUrl(url);
   const steps = String(text)
     .split('\n')
     .map((l) => l.trim())
@@ -331,13 +342,13 @@ export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
     envScore: 60,
     ingredients: (result.ingredients || []).map((i) => ({
       name: i.food?.name || i.name || i.line,
-      qty: i.grams ? `${Math.round(i.grams * servings)} g` : '',
+      qty: i.food && i.grams ? `${Math.round(i.grams * servings)} g` : (i.line || ''),
     })),
     steps: steps.length
       ? steps
       : [{ text: 'No method came with this import — paste the steps in as well and they’ll appear here.' }],
-    source: url || null,
-    video: isVideoLink(url) ? url : undefined,
+    source: source || null,
+    video: isVideoLink(source) ? source : undefined,
     imported: true,
   };
 };
@@ -380,6 +391,8 @@ export const parseShareCode = (code) => {
     return { recipe: null, error: 'That code doesn’t contain a full recipe.' };
   }
   const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+  const source = safeExternalUrl(r.source);
+  const video = safeExternalUrl(r.video);
   return {
     error: null,
     recipe: {
@@ -405,6 +418,8 @@ export const parseShareCode = (code) => {
       costPerServing: num(r.costPerServing, 0),
       ingredients: r.ingredients.slice(0, 40).map((i) => ({ name: String(i.name || '').slice(0, 60), qty: String(i.qty || '') })),
       steps: r.steps.slice(0, 30).map((s) => ({ text: String(s.text || '').slice(0, 400), timerMins: s.timerMins ? num(s.timerMins) : undefined })),
+      source: source || null,
+      video: video || undefined,
       sharedBy: payload.by ? String(payload.by).slice(0, 40) : '',
       shared: true,
     },

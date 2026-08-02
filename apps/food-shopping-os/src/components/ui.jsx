@@ -333,7 +333,8 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
     }, 0);
     return () => {
       clearTimeout(timer);
-      previousFocus.current?.focus?.();
+      if (previousFocus.current?.isConnected) previousFocus.current.focus();
+      else document.getElementById('main')?.focus?.();
     };
   }, [open]);
   useEffect(() => {

@@ -1,9 +1,10 @@
 import {
   addDays, dayStamp, spentInWeek, weekStart,
 } from './kitchen.js';
+import { shoppingNameKey } from './shopping.js';
 
 const DAY_MS = 86400000;
-const normalise = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const normalise = shoppingNameKey;
 const dayDiff = (from, to) => Math.round(
   (new Date(`${to}T12:00:00`) - new Date(`${from}T12:00:00`)) / DAY_MS,
 );

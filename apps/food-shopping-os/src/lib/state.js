@@ -95,7 +95,8 @@ export const EMPTY_STATE = {
   members: [], // {id,name,portions,diets,role,permissions,notifications}
   chores: [],
   householdEvents: [],
-  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked,note,priority,assigneeId}
+  shoppingList: [], // {id,name,emoji,aisle,store,qty,price,checked,note,priority,assigneeId}
+  favouriteShopping: [], // saved products {name,emoji,aisle,qty,price,note}
   shops: [], // recorded trips {id,date,store,total,items[]}
   aisleMemory: {}, // name → the aisle you filed it under
   storeRoutes: {}, // store → the aisle order you actually walked

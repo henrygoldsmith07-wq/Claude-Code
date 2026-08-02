@@ -37,8 +37,7 @@ describe('Smart Features centre', () => {
     expect(within(dialog).getByText(/Foreground location reminder/)).toBeDefined();
 
     fireEvent.click(within(dialog).getByText(/Add 2 items to shopping/));
-    fireEvent.click(within(dialog).getByLabelText('Close'));
-    fireEvent.click(screen.getByText('Shop'));
+    fireEvent.click(within(dialog).getByText('Review shopping list'));
     expect(screen.getByLabelText('Tick Eggs')).toBeDefined();
     expect(screen.getByLabelText('Tick Milk')).toBeDefined();
   });

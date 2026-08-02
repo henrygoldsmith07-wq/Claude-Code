@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Check, ChevronRight, Info, Leaf, Package, ShoppingCart, Snowflake, Sparkles, Zap,
 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { PLANNER_OCCASIONS, WEEK_DAYS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { monthOf, peakNow } from '../data/seasons.js';
 import { Card, Chip, Pill, Stepper, FoodArt } from './ui.jsx';
+import { recordProductEvent } from '../lib/product-analytics.js';
 
 const SCOPES = ['1 meal', 'A day', 'A week', 'A month'];
 
@@ -20,7 +21,7 @@ const SCOPES = ['1 meal', 'A day', 'A week', 'A month'];
  * lean towards what you already have and what's at its best right now. Applying
  * it writes real dates into the plan.
  */
-export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApplied }) {
+export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApplied, goTab }) {
   const app = useApp();
   const [scope, setScope] = useState('A week');
   const [people, setPeople] = useState(Math.max(1, Math.round(app.portions)));
@@ -44,6 +45,18 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const pantryNames = app.pantry.map((p) => p.name);
   const ownRecipeIds = new Set(app.myRecipes.map((recipe) => recipe.id));
   const ownCandidates = app.safeRecipes.filter((recipe) => ownRecipeIds.has(recipe.id)).length;
+  const recipeKey = app.safeRecipes.map((recipe) => recipe.id).join(',');
+  const tasteKey = JSON.stringify(app.tasteProfile);
+  const leftoversKey = app.leftovers.map((item) => `${item.recipeId}:${item.portions}:${item.expiry || ''}`).join(',');
+  const generatorKey = [
+    scope, people, budget, occasion, quick, batch, usePantry, seasonal, leftoverFirst,
+    planDates.join(','), pantryNames.join(','), app.planDiets.join(','), app.goal, month,
+    recipeKey, tasteKey, leftoversKey,
+  ].join('|');
+
+  useEffect(() => {
+    setAddedToList(false);
+  }, [generatorKey]);
 
   const plan = useMemo(() => {
     if (!seed) return null;
@@ -77,6 +90,12 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
     setAddedToList(false);
     setSeed(Date.now() % 100000);
     setGenerating(false);
+    recordProductEvent('plan_generated', {
+      scope,
+      hasPantry: usePantry && pantryNames.length > 0,
+      seasonal,
+      leftoverFirst,
+    });
   };
 
   /** Turn the generated run into dated slots. */
@@ -91,10 +110,15 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
   const apply = () => {
     app.applyPlanEntries(entries.filter((e) => e.recipeId));
+    recordProductEvent('plan_accepted', { scope, mealCount: entries.filter((e) => e.recipeId).length });
     onApplied?.();
   };
 
   const addAllToList = () => {
+    if (addedToList) {
+      goTab?.('shop');
+      return;
+    }
     app.addToList(itemsFromRecipes([...new Set(generated)], pantryNames));
     setAddedToList(true);
   };
@@ -283,12 +307,11 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             </button>
             <button
               onClick={addAllToList}
-              disabled={addedToList}
               className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
               style={addedToList ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--line)' }}
             >
               <span className="inline-flex items-center gap-1.5">
-                <ShoppingCart size={15} /> {addedToList ? 'On your list' : 'Shop for it'}
+                <ShoppingCart size={15} /> {addedToList ? 'Review shopping list' : 'Shop for it'}
               </span>
             </button>
           </div>

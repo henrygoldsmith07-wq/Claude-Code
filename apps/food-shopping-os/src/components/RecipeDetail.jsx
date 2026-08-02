@@ -8,7 +8,7 @@ import { gbp, cx } from '../lib/utils.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { addDays } from '../lib/kitchen.js';
-import { applySwap, makeItFit, scaleRecipe } from '../lib/recipe-tools.js';
+import { applySwap, makeItFit, safeExternalUrl, scaleRecipe } from '../lib/recipe-tools.js';
 import { Card, Ring, Pill, FoodArt, Chip } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import CookMode from './CookMode.jsx';
@@ -27,10 +27,10 @@ const scheduleDays = (today) =>
     return { date, label };
   });
 
-export default function RecipeDetail({ recipe: original, onClose }) {
+export default function RecipeDetail({ recipe: original, onClose, goTab, startCooking = false }) {
   const app = useApp();
-  const [cooking, setCooking] = useState(false);
-  const [addedMissing, setAddedMissing] = useState(false);
+  const [cooking, setCooking] = useState(startCooking);
+  const [addedMissingKey, setAddedMissingKey] = useState('');
   const [scheduling, setScheduling] = useState(false);
   const [when, setWhen] = useState({ date: app.day, slot: original.meal || 'dinner' });
   const [scheduled, setScheduled] = useState(null);
@@ -42,6 +42,8 @@ export default function RecipeDetail({ recipe: original, onClose }) {
 
   const base = variant || original;
   const recipe = useMemo(() => scaleRecipe(base, servings), [base, servings]);
+  const videoUrl = safeExternalUrl(recipe.video);
+  const sourceUrl = safeExternalUrl(recipe.source);
   const fav = app.favourites.includes(recipe.id);
   const isMine = app.myRecipes.some((r) => r.id === original.id);
   const rating = app.recipeRatings[original.id] || 0;
@@ -51,6 +53,9 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   const has = (ing) => pantryNames.some((n) => n.includes(ing.name.toLowerCase()) || ing.name.toLowerCase().includes(n));
   const missing = recipe.ingredients.filter((i) => !has(i));
   const havePantry = recipe.ingredients.length - missing.length;
+  const missingKey = missing.map(({ name, qty }) => `${name}:${qty}`).join('|');
+  const addedMissing = Boolean(addedMissingKey && addedMissingKey === missingKey);
+  const canShop = app.householdAccess.shopping;
 
   const swap = ({ diet, ingredient, option }) => {
     setVariant((v) => (diet ? makeItFit(v || original, diet) : applySwap(v || original, ingredient, option)));
@@ -63,8 +68,19 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   };
 
   const addMissing = () => {
+    if (!canShop) return;
+    if (addedMissing) {
+      onClose?.();
+      goTab?.('shop');
+      return;
+    }
     app.addToList(itemsFromRecipes([recipe], app.pantry.map((p) => p.name)));
-    setAddedMissing(true);
+    setAddedMissingKey(missingKey);
+  };
+
+  const reviewPlan = () => {
+    onClose?.();
+    goTab?.('plan', { date: when.date });
   };
 
   if (cooking) {
@@ -136,9 +152,9 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             </div>
           )}
           <div className="mt-2"><ConflictPills recipe={recipe} diets={app.planDiets} /></div>
-          {recipe.video && (
+          {videoUrl && (
             <a
-              href={recipe.video}
+              href={videoUrl}
               target="_blank"
               rel="noreferrer noopener"
               className="press mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-extrabold"
@@ -147,9 +163,9 @@ export default function RecipeDetail({ recipe: original, onClose }) {
               <ExternalLink size={14} /> Watch the original
             </a>
           )}
-          {recipe.source && !recipe.video && (
+          {sourceUrl && !videoUrl && (
             <a
-              href={recipe.source}
+              href={sourceUrl}
               target="_blank"
               rel="noreferrer noopener"
               className="press mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-extrabold"
@@ -294,15 +310,19 @@ export default function RecipeDetail({ recipe: original, onClose }) {
           {missing.length > 0 && (
             <button
               onClick={addMissing}
-              disabled={addedMissing}
+              disabled={!canShop}
               className="press mt-3 w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold border disabled:opacity-60"
-              style={addedMissing
+              style={!canShop
+                ? { borderColor: 'var(--line)', color: 'var(--muted)' }
+                : addedMissing
                 ? { borderColor: 'var(--good)', color: 'var(--good)' }
                 : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
             >
               <span className="inline-flex items-center gap-1.5">
-                {addedMissing
-                  ? <><Check size={14} strokeWidth={3} /> Added to your Shop list</>
+                {!canShop
+                  ? <>Shopping access required</>
+                  : addedMissing
+                  ? <><Check size={14} strokeWidth={3} /> Review shopping list</>
                   : <>Add {missing.length} missing to shopping list</>}
               </span>
             </button>
@@ -323,7 +343,16 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             </span>
           </button>
           {scheduled && !scheduling && (
-            <p className="mt-2 text-[0.8125rem] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
+              <button
+                onClick={reviewPlan}
+                className="press shrink-0 rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
+                style={{ borderColor: 'var(--line)', color: 'var(--accent)' }}
+              >
+                Review meal plan
+              </button>
+            </div>
           )}
           {scheduling && (
             <div className="mt-3 space-y-3">

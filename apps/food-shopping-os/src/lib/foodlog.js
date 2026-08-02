@@ -11,6 +11,8 @@ import { CATALOGUE, FOODS } from '../data/foods.js';
 import { NUTRIENT_KEYS } from '../data/nutrients.js';
 import { EMPTY, buildEntry, recipeAsFood, timeStamp, mealForTime } from './nutrition.js';
 
+export { recipeTextFromMarkup } from './recipe-markup.js';
+
 const norm = (str) => String(str || '').toLowerCase().trim();
 
 /* ---------- Search ---------- */
@@ -269,9 +271,60 @@ export const recogniseShelf = (seed, catalogue = CATALOGUE) => {
 
 /* ---------- Recipe import ---------- */
 
-const QTY_LINE = /^\s*(?:[-*•]\s*)?(\d+(?:[.,]\d+)?|½|¼|¾)?\s*(kg|g|ml|l|tbsp|tsp|cups?|cloves?|tins?|cans?|handfuls?|slices?)?\s*(?:of\s+)?(.+?)\s*$/i;
+const QTY_LINE = /^\s*(?:[-*•]\s*)?(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?|½|¼|¾)?\s*((?:kg|g|ml|l|tbsp|tbs|tablespoons?|tsp|teaspoons?|cups?|cloves?|tins?|cans?|handfuls?|slices?|kilograms?|grams?|grammes?|litres?|liters?|millilitres?|milliliters?)\b)?\s*(?:of\s+)?(.+?)\s*$/i;
 const FRACTIONS = { '½': 0.5, '¼': 0.25, '¾': 0.75 };
+const UNIT_ALIASES = {
+  kilogram: 'kg', kilograms: 'kg', gram: 'g', grams: 'g', gramme: 'g', grammes: 'g',
+  litre: 'l', litres: 'l', liter: 'l', liters: 'l', millilitre: 'ml', millilitres: 'ml',
+  milliliter: 'ml', milliliters: 'ml', tablespoon: 'tbsp', tablespoons: 'tbsp', tbs: 'tbsp',
+  teaspoon: 'tsp', teaspoons: 'tsp',
+};
 const GRAMS_PER = { kg: 1000, g: 1, l: 1000, ml: 1, tbsp: 15, tsp: 5, cup: 240, cups: 240, clove: 5, cloves: 5, tin: 240, tins: 240, can: 240, cans: 240, handful: 30, handfuls: 30, slice: 36, slices: 36 };
+
+const ingredientTokens = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/[^\p{L}\p{N}]+/gu, ' ')
+  .trim()
+  .split(/\s+/)
+  .filter(Boolean);
+
+const singularToken = (token) => {
+  if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith('s') && token.length > 3) return token.slice(0, -1);
+  return token;
+};
+
+const sameIngredientToken = (left, right) => left === right || singularToken(left) === singularToken(right);
+const PREPARATION_WORDS = new Set(['baked', 'boiled', 'canned', 'cooked', 'diced', 'dried', 'frozen', 'grilled', 'raw', 'roasted', 'sliced', 'steamed', 'tinned']);
+
+const matchIngredientFood = (name, catalogue) => {
+  const query = ingredientTokens(name);
+  if (!query.length) return null;
+  return catalogue
+    .map((food) => {
+      const foodTokens = ingredientTokens(food.name);
+      const overlap = foodTokens.filter((token) => query.some((part) => sameIngredientToken(part, token))).length;
+      if (!overlap) return null;
+      const coverage = overlap / Math.max(foodTokens.length, query.length);
+      const exact = foodTokens.length === query.length
+        && foodTokens.every((token, index) => sameIngredientToken(token, query[index]));
+      const queryMatchesAll = query.every((part) => foodTokens.some((token) => sameIngredientToken(part, token)));
+      const foodMatchesAll = foodTokens.every((token) => query.some((part) => sameIngredientToken(part, token)));
+      const extraWordsArePreparation = foodTokens
+        .filter((token) => !query.some((part) => sameIngredientToken(part, token)))
+        .every((token) => PREPARATION_WORDS.has(token));
+      if (!exact && !foodMatchesAll && !(queryMatchesAll && extraWordsArePreparation)) return null;
+      const exactTokenHits = foodTokens.filter((token) => query.includes(token)).length;
+      const staple = (food.tags || []).some((tag) => ['grain', 'dairy', 'veg', 'fruit', 'meat', 'fish', 'fat', 'tinned', 'bread', 'spread', 'drink', 'high-protein'].includes(tag));
+      const noisy = food.source === 'restaurant' || (food.tags || []).includes('eating out') || (food.tags || []).includes('treat');
+      return { food, exact, exactTokenHits, coverage, overlap, staple, noisy };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.exact) - Number(a.exact) || b.exactTokenHits - a.exactTokenHits
+      || Number(b.staple) - Number(a.staple) || Number(a.noisy) - Number(b.noisy)
+      || b.coverage - a.coverage || b.overlap - a.overlap
+      || a.food.name.localeCompare(b.food.name))[0]?.food || null;
+};
 
 /** Parse one pasted ingredient line into a weight + a catalogue match. */
 export const parseIngredientLine = (line, catalogue = CATALOGUE) => {
@@ -280,9 +333,16 @@ export const parseIngredientLine = (line, catalogue = CATALOGUE) => {
   const [, rawQty, rawUnit, rawName] = m;
   const name = rawName.replace(/\(.*?\)/g, '').replace(/,.*$/, '').trim();
   if (!name || name.length < 2) return null;
-  const qty = rawQty ? (FRACTIONS[rawQty] ?? Number(String(rawQty).replace(',', '.'))) : 1;
-  const unit = (rawUnit || '').toLowerCase();
-  const food = searchFoods(name, catalogue, 1)[0] || null;
+  const cleanQty = String(rawQty || '').replace(',', '.').replace(/\s+/g, '');
+  const slash = cleanQty.match(/^(\d+)\/(\d+)$/);
+  if (slash && Number(slash[2]) === 0) return null;
+  const qty = rawQty
+    ? (FRACTIONS[rawQty] ?? (slash ? Number(slash[1]) / Number(slash[2]) : Number(cleanQty)))
+    : 1;
+  if (!Number.isFinite(qty) || qty <= 0 || qty > 100000) return null;
+  const rawUnitKey = (rawUnit || '').toLowerCase();
+  const unit = UNIT_ALIASES[rawUnitKey] || rawUnitKey;
+  const food = matchIngredientFood(name, catalogue);
   const perUnit = GRAMS_PER[unit];
   const grams = perUnit ? qty * perUnit : (food?.servings?.[0]?.grams || 100) * qty;
   return { line: String(line).trim(), name, qty, unit, grams: Math.round(grams), food };
@@ -298,9 +358,10 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
   const title = lines[0].replace(/^#+\s*/, '').slice(0, 80);
   const servingsLine = lines.find((l) => /serves|servings|makes/i.test(l));
   const servings = Math.max(1, Number(servingsLine?.match(/(\d+)/)?.[1]) || 4);
+  const methodStart = lines.findIndex((l, index) => index > 0 && /^(method|steps?|instructions?|directions?)\b/i.test(l));
   const ingredientLines = lines
-    .slice(1)
-    .filter((l) => l !== servingsLine && !/^(method|steps?|instructions?|directions?)\b/i.test(l))
+    .slice(1, methodStart > 0 ? methodStart : lines.length)
+    .filter((l) => l !== servingsLine)
     .filter((l) => l.length < 90);
 
   const ingredients = ingredientLines.map((l) => parseIngredientLine(l, catalogue)).filter(Boolean);
@@ -312,6 +373,7 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
   }, { ...EMPTY });
 
   const grams = Math.max(1, matched.reduce((g, i) => g + i.grams, 0)) / servings;
+  const servingGrams = Math.max(1, Math.round(grams));
   const perServing = Object.fromEntries(
     Object.entries(total).map(([k, v]) => [k, Math.round((v / servings) * 10) / 10]),
   );
@@ -333,12 +395,12 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
       per100: Object.fromEntries(NUTRIENT_KEYS.map((key) => [
         key,
         key === 'kcal'
-          ? Math.round((perServing.kcal / grams) * 100)
-          : Math.round(((perServing[key] || 0) / grams) * 1000) / 10,
+          ? Math.round((perServing.kcal / servingGrams) * 100)
+          : Math.round(((perServing[key] || 0) / servingGrams) * 1000) / 10,
       ])),
       servings: [
-        { label: '1 serving', grams: Math.round(grams) },
-        { label: 'Half serving', grams: Math.round(grams / 2) },
+        { label: '1 serving', grams: servingGrams },
+        { label: 'Half serving', grams: Math.max(1, Math.round(servingGrams / 2)) },
       ],
     },
   };
@@ -346,7 +408,7 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
 
 /**
  * Validate a source URL. This local importer cannot reliably fetch
- * cross-origin recipe pages, so the caller pairs it with copied recipe text.
+ * cross-origin recipe pages, so the caller pairs it with copied text or page markup.
  */
 export const importRecipeUrl = (url) => {
   const clean = String(url).trim();

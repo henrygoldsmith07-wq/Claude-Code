@@ -59,6 +59,32 @@ describe('pantry', () => {
     expect(within(sheet).getByText('280 g · Fridge')).toBeDefined();
   });
 
+  it('uses one countable unit at a time and removes the last one', () => {
+    onboard();
+    const sheet = openPantry();
+    fireEvent.click(within(sheet).getByText('Add an item'));
+    fireEvent.change(within(sheet).getByLabelText('Item name'), { target: { value: 'Beans' } });
+    fireEvent.change(within(sheet).getByLabelText('Amount'), { target: { value: '2 tins' } });
+    fireEvent.click(within(sheet).getByText('Add to pantry'));
+
+    fireEvent.click(within(sheet).getByLabelText('Use one Beans'));
+    expect(within(sheet).getByText(/1 tin/)).toBeDefined();
+    fireEvent.click(within(sheet).getByLabelText('Use up Beans'));
+    expect(within(sheet).getByText('Your pantry is empty')).toBeDefined();
+  });
+
+  it('links expiring food to the meal planner', () => {
+    onboard();
+    const sheet = openPantry();
+    fireEvent.click(within(sheet).getByText('Add an item'));
+    fireEvent.change(within(sheet).getByLabelText('Item name'), { target: { value: 'Spinach' } });
+    fireEvent.change(within(sheet).getByLabelText('Use by'), { target: { value: '2026-08-02' } });
+    fireEvent.click(within(sheet).getByText('Add to pantry'));
+
+    fireEvent.click(within(sheet).getByText('Open meal planner'));
+    expect(screen.getByText('Generate a plan for me')).toBeDefined();
+  });
+
   it('flags a low item and pushes it to the shopping list', () => {
     onboard();
     const sheet = openPantry();

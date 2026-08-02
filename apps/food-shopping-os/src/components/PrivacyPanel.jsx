@@ -7,6 +7,9 @@ import { PRIVACY_DISCLOSURE } from '../data/privacy.js';
 import { forgetCloudHousehold, selectedCloudHouseholdId } from '../lib/cloud.js';
 import { Card } from './ui.jsx';
 import HealthVaultPanel from './HealthVaultPanel.jsx';
+import {
+  clearProductEvents, readAnalyticsConsent, setAnalyticsConsent,
+} from '../lib/product-analytics.js';
 
 const ICONS = {
   device: HardDrive,
@@ -26,6 +29,7 @@ export default function PrivacyPanel({
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [status, setStatus] = useState('');
+  const [analyticsConsent, setAnalyticsConsentState] = useState(() => readAnalyticsConsent());
   const selectedId = selectedCloudHouseholdId();
 
   useEffect(() => {
@@ -72,6 +76,7 @@ export default function PrivacyPanel({
       const body = await readJson(response);
       if (!response.ok) throw new Error(body.error || 'The server copy could not be deleted.');
       forgetCloudHousehold();
+      clearProductEvents();
       setHouseholds((items) => items.filter((household) => household.id !== target.id));
       setConfirming(false);
       setStatus('Server household deleted. The copy in this browser remains.');
@@ -103,6 +108,43 @@ export default function PrivacyPanel({
       </Card>
 
       <HealthVaultPanel />
+
+      <Card className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-extrabold text-[0.90625rem]">Help improve Forq</p>
+            <p className="mt-1 text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+              Optional product insights count screens and completed planning, shopping and cooking steps.
+              They never include food names, health values, recipe text or prices, and stay on this device until you sign in.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={analyticsConsent}
+            aria-label="Share anonymous product insights"
+            onClick={() => {
+              const next = !analyticsConsent;
+              setAnalyticsConsent(next);
+              setAnalyticsConsentState(next);
+            }}
+            className="press shrink-0 rounded-full border px-3 py-2 text-[0.75rem] font-extrabold"
+            style={{
+              borderColor: analyticsConsent ? 'var(--accent)' : 'var(--line)',
+              background: analyticsConsent ? 'var(--accent-soft)' : 'var(--card)',
+              color: analyticsConsent ? 'var(--accent)' : 'var(--muted)',
+            }}
+          >
+            {analyticsConsent ? 'On' : 'Off'}
+          </button>
+        </div>
+        {analyticsConsent && (
+          <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            When signed in, Forq uploads daily counts to your household record so the product team can see which journeys work.
+            Turning this off clears the pending queue.
+          </p>
+        )}
+      </Card>
 
       {PRIVACY_DISCLOSURE.map((section) => {
         const Icon = ICONS[section.id];

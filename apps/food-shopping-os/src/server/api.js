@@ -47,6 +47,9 @@ export function handleApiError(error) {
   if (error instanceof ApiError) {
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
+  if (error?.code === 'HOUSEHOLD_DELETING') {
+    return NextResponse.json({ error: 'Household deletion in progress.' }, { status: 410 });
+  }
   if (error instanceof ZodError) {
     return NextResponse.json({ error: 'Invalid request.', issues: error.issues }, { status: 400 });
   }

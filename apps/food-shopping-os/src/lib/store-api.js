@@ -2,12 +2,13 @@ import { useMemo } from 'react';
 import { CATALOGUE } from '../data/foods.js';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
-import { aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks } from './shopping.js';
+import { aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks, shoppingNameKey } from './shopping.js';
 import { buildEntry, copyEntries } from './nutrition.js';
 import { recipeFood } from './foodlog.js';
 import { targetsFor } from './goals.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { consumePantryIngredients } from './kitchen.js';
+import { pantryActions } from './pantry-actions.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
 import { advancedActions, preferenceActions } from './preference-actions.js';
@@ -19,6 +20,7 @@ import { moveBefore } from './utils.js';
 import { emojiFor, EMPTY_STATE, todayStamp, uid } from './state.js';
 import { parseBackup, serialiseBackup } from './store-persistence.js';
 import { vaultActions } from './vault-actions.js';
+import { receiptActions, shoppingActions } from './shopping-actions.js';
 export function useStoreApi({
   blockPersistence, cloudStatus, latest, setState, setStorageIssue, storageIssue,
   undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
@@ -41,6 +43,7 @@ export function useStoreApi({
         };
       });
     return {
+      ...shoppingActions(set), ...receiptActions(set),
       set,
       storageIssue,
       cloudStatus,
@@ -260,7 +263,7 @@ export function useStoreApi({
       addToList: (items) =>
         set((s) => {
           if (!householdPermission(s, 'shopping')) return {};
-          const keyFor = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          const keyFor = shoppingNameKey;
           const have = new Set(s.shoppingList.map((i) => keyFor(i.name)));
           const quantities = new Map();
           [...s.shops].reverse().forEach((shop) => shop.items.forEach((item) => {
@@ -278,7 +281,6 @@ export function useStoreApi({
               priority: i.priority === 'high' ? 'high' : 'normal',
               emoji: i.emoji || emojiFor(i.name),
               ...i,
-              // What you filed it under last time wins over the name guess.
               aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
                 ? (i.aisle || guessAisle(i.name))
                 : aisleFor(i.name, s.aisleMemory),
@@ -289,10 +291,10 @@ export function useStoreApi({
         set((s) => {
           const last = s.shops.at(-1);
           if (!last?.items?.length) return {};
-          const have = new Set(s.shoppingList.map((i) => String(i.name).trim().toLowerCase()));
-          const items = last.items.filter((i) => i.name && !have.has(String(i.name).trim().toLowerCase()))
+          const have = new Set(s.shoppingList.map((i) => shoppingNameKey(i.name)));
+          const items = last.items.filter((i) => i.name && !have.has(shoppingNameKey(i.name)) && (have.add(shoppingNameKey(i.name)), true))
             .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0,
-              emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
+              store: last.store || '', emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
               note: '', priority: 'normal' }));
           return items.length ? { shoppingList: [...s.shoppingList, ...items] } : {};
         }),
@@ -320,9 +322,9 @@ export function useStoreApi({
             : i)),
         })),
       clearChecked: () => set((s) => ({ shoppingList: s.shoppingList.filter((i) => !i.checked) })),
-      recordShop: ({ store, total, toPantry = false, location = 'Cupboard' }) =>
+      recordShop: ({ store, total, toPantry = false, location = 'Cupboard', itemIds = null }) =>
         set((s) => {
-          const bought = s.shoppingList.filter((i) => i.checked);
+          const bought = s.shoppingList.filter((i) => i.checked && (!itemIds || itemIds.includes(i.id)));
           if (!bought.length) return {};
           const shopStore = store || 'Unnamed shop';
           const { saved } = applyOffers(bought, s.offers, { store: shopStore, today: s.day });
@@ -334,13 +336,12 @@ export function useStoreApi({
             saved,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
-          // The order you ticked things off is this shop's layout, learned.
           const route = routeFromTicks(bought);
           return {
             shops: [...s.shops, shop],
-            shoppingList: s.shoppingList.filter((i) => !i.checked),
+            shoppingList: s.shoppingList.filter((i) => !bought.some((item) => item.id === i.id)),
             storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
-            pantry: toPantry
+            pantry: toPantry && householdPermission(s, 'pantry')
               ? [...s.pantry, ...bought.map((i) => ({
                   id: uid('p'),
                   name: i.name,
@@ -387,7 +388,7 @@ export function useStoreApi({
         set((s) => ({ priceAlerts: s.priceAlerts.filter((alert) => alert.id !== id) })),
       binPantryItem: (id) =>
         set((s) => {
-          const item = s.pantry.find((p) => p.id === id);
+          const item = householdPermission(s, 'pantry') ? s.pantry.find((p) => p.id === id) : null;
           if (!item) return {};
           return {
             pantry: s.pantry.filter((p) => p.id !== id),
@@ -409,11 +410,11 @@ export function useStoreApi({
       applyPlanEntries: (entries) => set((s) => ({ plan: applyEntries(s.plan, entries) })),
       ...householdActions(set, uid),
       saveLeftovers: (recipe, portions) =>
-        set((s) => (portions > 0
+        set((s) => (householdPermission(s, 'pantry') && portions > 0
           ? { pantry: [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, portions, s.day) }] }
           : {})),
       useLeftover: (id) =>
-        set((s) => ({
+        set((s) => (householdPermission(s, 'pantry') ? {
           pantry: s.pantry
             .map((p) => {
               if (p.id !== id) return p;
@@ -421,10 +422,10 @@ export function useStoreApi({
               return { ...p, portions, qty: `${portions} portion${portions === 1 ? '' : 's'}` };
             })
             .filter((p) => p.cat !== LEFTOVER_CAT || (Number(p.portions) || 0) > 0),
-        })),
+        } : {})),
       ...healthActions(set),
       ...reminderActions(set),
-      ...smartActions(set),
+      ...smartActions(set), ...pantryActions(set),
       ...preferenceActions(set),
       ...advancedActions(set, uid),
       logEntries: addEntries,
@@ -481,13 +482,13 @@ export function useStoreApi({
       completeRecipe: (recipe, { leftovers = 0 } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
-          const consumed = s.autoUsePantry
+          const consumed = householdPermission(s, 'pantry') && s.autoUsePantry
             ? consumePantryIngredients(s.pantry, recipe.ingredients)
             : { pantry: s.pantry };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
-            pantry: leftovers > 0
+            pantry: householdPermission(s, 'pantry') && leftovers > 0
               ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
               : consumed.pantry,
           };

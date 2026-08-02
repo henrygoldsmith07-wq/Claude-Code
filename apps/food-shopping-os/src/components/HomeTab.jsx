@@ -10,6 +10,7 @@ import { MEAL_SLOTS } from '../data/plan.js';
 import {
   daysUntil, expiringSoon, leftovers, pantryValue, planForDay, runningLow,
 } from '../lib/kitchen.js';
+import { weeklyFoodLoop } from '../lib/food-loop.js';
 import { totalOf } from '../data/stores.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
 import GuidancePreview from './GuidancePreview.jsx';
@@ -37,6 +38,7 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
   const recipeOfDay = RECIPES[new Date().getDate() % RECIPES.length];
   const listTotal = totalOf(app.shoppingList);
   const leftoverItems = leftovers(app.pantry);
+  const foodLoop = weeklyFoodLoop(app);
   const runGuidanceAction = (item) => {
     const { action } = item;
     if (action.kind === 'view') openGuidance(action.target);
@@ -311,6 +313,56 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
 
   return (
     <div className="pb-6 space-y-6">
+      <section className="px-5 rise rise-1" aria-labelledby="food-loop-title">
+        <Card className="!p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p id="food-loop-title" className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                This week’s food loop
+              </p>
+              <p className="mt-1 text-[1rem] font-extrabold tracking-tight">
+                {foodLoop.next === 'plan' && 'Start with a plan'}
+                {foodLoop.next === 'shop' && 'Your list is ready'}
+                {foodLoop.next === 'cook' && 'Your next meal is waiting'}
+                {foodLoop.next === 'steady' && 'Keep the week moving'}
+              </p>
+            </div>
+            <Pill tone={foodLoop.steps.filter((step) => step.done).length === 3 ? 'good' : 'muted'}>
+              {foodLoop.steps.filter((step) => step.done).length}/3
+            </Pill>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Weekly plan, shop and cook progress">
+            {foodLoop.steps.map((step) => (
+              <div
+                key={step.id}
+                className="rounded-xl border px-2.5 py-2 text-center"
+                style={{
+                  borderColor: step.done ? 'var(--good)' : 'var(--line)',
+                  background: step.done ? 'color-mix(in srgb, var(--good) 8%, transparent)' : 'var(--card-2)',
+                }}
+              >
+                <p className="text-[0.75rem] font-extrabold">{step.done ? '✓ ' : ''}{step.label}</p>
+                <p className="text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {step.id === 'plan' ? `${foodLoop.plannedMeals} meal${foodLoop.plannedMeals === 1 ? '' : 's'}`
+                    : step.id === 'shop' ? `${foodLoop.shops} shop${foodLoop.shops === 1 ? '' : 's'}`
+                      : `${foodLoop.cookedMeals} cooked`}
+                </p>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => goTab(foodLoop.next === 'shop' ? 'shop' : 'plan')}
+            className="press mt-3 w-full rounded-xl px-3.5 py-2.5 text-[0.78125rem] font-extrabold"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          >
+            {foodLoop.next === 'plan' ? 'Plan this week'
+              : foodLoop.next === 'shop' ? 'Open shopping list'
+                : foodLoop.next === 'cook' ? 'Open today’s plan' : 'Review this week'}
+          </button>
+        </Card>
+      </section>
+
       {/* Budget + nutrition */}
       {(app.weeklyBudget > 0 || app.entries.length > 0) && (
       <div className="px-5 grid grid-cols-2 gap-3 rise rise-1">

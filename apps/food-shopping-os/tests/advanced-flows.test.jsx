@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import App from '../src/App.jsx';
+import { STORAGE_KEY } from '../src/lib/state.js';
 
 const onboard = () => {
   render(<App />);
@@ -211,7 +212,116 @@ describe('reading a receipt', () => {
     fireEvent.click(within(sheet).getByText('Example'));
     fireEvent.click(within(sheet).getByText(/Read it/));
     fireEvent.click(within(sheet).getByText(/Add 5 to the pantry/));
-    goTab('Shop');
+    expect(dialogFor('Smart pantry')).toBeTruthy();
     expect(screen.getAllByText(/BANANAS LOOSE/i).length).toBeGreaterThan(0);
+  });
+
+  it('records the receipt in shop history as well as the pantry', () => {
+    onboard();
+    const sheet = openReceipt();
+    fireEvent.click(within(sheet).getByText('Example'));
+    fireEvent.click(within(sheet).getByText(/Read it/));
+    fireEvent.click(within(sheet).getByText(/Add 5 to the pantry/));
+    fireEvent.click(within(dialogFor('Smart pantry')).getByLabelText('Close'));
+    goTab('Shop');
+    fireEvent.click(screen.getByText('Shops'));
+
+    expect(screen.getByText('Tesco')).toBeTruthy();
+    expect(screen.getAllByText(/5 items/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/£12.38/).length).toBeGreaterThan(0);
+  });
+
+  it('deduplicates repeated receipt lines when repeating that shop', () => {
+    onboard();
+    const sheet = openReceipt();
+    fireEvent.change(within(sheet).getByLabelText('Receipt text'), {
+      target: { value: 'TESCO\nZUCCHINI £1.00\nZUCCHINI £1.20\nTOTAL £2.20' },
+    });
+    fireEvent.click(within(sheet).getByText(/Read it/));
+    fireEvent.click(within(sheet).getByText(/Add 2 to the pantry/));
+    fireEvent.click(within(dialogFor('Smart pantry')).getByLabelText('Close'));
+    goTab('Shop');
+    fireEvent.click(screen.getByRole('button', { name: 'Repeat your last shop' }));
+
+    expect(screen.getAllByLabelText('Tick ZUCCHINI')).toHaveLength(1);
+  });
+
+  it('undoes the pantry and history receipt save as one action', () => {
+    onboard();
+    const sheet = openReceipt();
+    fireEvent.click(within(sheet).getByText('Example'));
+    fireEvent.click(within(sheet).getByText(/Read it/));
+    fireEvent.click(within(sheet).getByText(/Add 5 to the pantry/));
+    fireEvent.click(within(dialogFor('Smart pantry')).getByLabelText('Close'));
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+
+    goTab('Shop');
+    fireEvent.click(screen.getByText('Shops'));
+    expect(screen.getByText('No shops recorded')).toBeTruthy();
+    goTab('Home');
+    fireEvent.click(screen.getByText('Open pantry →'));
+    expect(within(dialogFor('Smart pantry')).getByText('Your pantry is empty')).toBeTruthy();
+  });
+
+  it('lets you correct or remove recognised lines before keeping them', () => {
+    onboard();
+    const sheet = openReceipt();
+    fireEvent.click(within(sheet).getByText('Example'));
+    fireEvent.click(within(sheet).getByText(/Read it/));
+
+    fireEvent.change(within(sheet).getByLabelText('Receipt item 1 name'), { target: { value: 'Ripe bananas' } });
+    fireEvent.change(within(sheet).getByLabelText('Receipt item 1 quantity'), { target: { value: '2' } });
+    const price = within(sheet).getByLabelText('Receipt item 1 price');
+    fireEvent.change(price, { target: { value: '1.' } });
+    expect(price.value).toBe('1.');
+    fireEvent.change(price, { target: { value: '1.66' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: /Remove receipt item 2/ }));
+
+    expect(within(sheet).getByText(/4 items/)).toBeTruthy();
+    expect(within(sheet).getByDisplayValue('Ripe bananas')).toBeTruthy();
+    expect(within(sheet).getByDisplayValue('2')).toBeTruthy();
+    expect(within(sheet).getByDisplayValue('1.66')).toBeTruthy();
+    expect(within(sheet).queryByDisplayValue('SEMI SKIMMED MILK 2L')).toBeNull();
+    expect(within(sheet).getByText(/Items come to £10.71/)).toBeTruthy();
+  });
+
+  it('does not send a blank corrected line to the pantry', () => {
+    onboard();
+    const sheet = openReceipt();
+    fireEvent.click(within(sheet).getByText('Example'));
+    fireEvent.click(within(sheet).getByText(/Read it/));
+    fireEvent.change(within(sheet).getByLabelText('Receipt item 1 name'), { target: { value: ' ' } });
+
+    expect(within(sheet).getByRole('alert')).toBeTruthy();
+    expect(within(sheet).getByText(/Add 5 to the pantry/).closest('button').disabled).toBe(true);
+  });
+
+  it('does not save receipt lines with invalid quantities or prices', () => {
+    onboard();
+    const sheet = openReceipt();
+    fireEvent.click(within(sheet).getByText('Example'));
+    fireEvent.click(within(sheet).getByText(/Read it/));
+    fireEvent.change(within(sheet).getByLabelText('Receipt item 1 price'), { target: { value: 'not-a-price' } });
+
+    expect(within(sheet).getByText(/non-negative quantity and price/)).toBeTruthy();
+    expect(within(sheet).getByText(/Add 5 to the pantry/).closest('button').disabled).toBe(true);
+  });
+
+  it('does not offer a receipt pantry write when pantry access is off', () => {
+    onboard();
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const member = {
+      id: 'member-receipt-test', name: 'Alex', portions: 1, diets: [], role: 'child',
+      permissions: { shopping: true, pantry: false, recipes: true, health: false }, notifications: true,
+    };
+    const next = { ...current, members: [member], activeMemberId: member.id };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: JSON.stringify(next) }));
+
+    const sheet = openReceipt();
+    fireEvent.click(within(sheet).getByText('Example'));
+    fireEvent.click(within(sheet).getByText(/Read it/));
+    expect(within(sheet).getByText(/Pantry editing is off/)).toBeTruthy();
+    expect(within(sheet).getByRole('button', { name: 'Pantry permission required' }).disabled).toBe(true);
   });
 });

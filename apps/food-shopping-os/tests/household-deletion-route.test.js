@@ -69,11 +69,12 @@ describe('DELETE /api/households', () => {
 
   it('deletes private receipt blobs before every household database record', async () => {
     const deleteOne = vi.fn().mockResolvedValue({ deletedCount: 1 });
+    const updateOne = vi.fn().mockResolvedValue({ matchedCount: 1 });
     const toArray = vi.fn().mockResolvedValue([{ pathname: 'receipts/household-1/file.pdf' }]);
     const db = {
       collection: vi.fn((name) => (name === 'uploads'
         ? { find: () => ({ toArray }) }
-        : { deleteOne })),
+        : { deleteOne, updateOne })),
     };
     mocks.requireHousehold.mockResolvedValue({
       household: { _id: 'household-1', ownerId: 'user-1' },
@@ -91,6 +92,10 @@ describe('DELETE /api/households', () => {
       expect(mocks.del).toHaveBeenCalledWith(
         ['receipts/household-1/file.pdf'],
         { token: 'blob-token' },
+      );
+      expect(updateOne).toHaveBeenCalledWith(
+        { _id: 'household-1', ownerId: 'user-1', deletingAt: { $exists: false } },
+        expect.objectContaining({ $set: { deletingAt: expect.any(Date) } }),
       );
       expect(mocks.deleteHouseholdData).toHaveBeenCalledWith(db, 'household-1');
       expect(deleteOne).toHaveBeenCalledWith({ _id: 'household-1', ownerId: 'user-1' });

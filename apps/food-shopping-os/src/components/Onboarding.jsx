@@ -11,6 +11,7 @@ import { byId } from '../data/recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays } from '../lib/kitchen.js';
 import { haptic } from '../lib/haptics.js';
+import { recordProductEvent } from '../lib/product-analytics.js';
 import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -91,6 +92,10 @@ export default function Onboarding() {
       shoppingList: itemsFromRecipes(starterRecipes),
       weeklyBudget: Math.max(0, Number(budget) || 0),
       targets: targetsFor(state),
+    });
+    recordProductEvent('onboarding_completed', {
+      intent: entryGoal,
+      count: starterRecipeIds.length,
     });
     haptic();
   };

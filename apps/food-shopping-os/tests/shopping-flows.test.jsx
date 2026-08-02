@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
 const onboard = ({ budget = '60' } = {}) => {
@@ -20,9 +20,10 @@ const dialogFor = (title) => {
 
 const openShop = () => fireEvent.click(screen.getByText('Shop'));
 
-const addItem = (name, price) => {
+const addItem = (name, price, qty) => {
   if (screen.queryByText('Add an item')) fireEvent.click(screen.getByText('Add an item'));
   fireEvent.change(screen.getByLabelText('Item name'), { target: { value: name } });
+  if (qty) fireEvent.change(screen.getByLabelText('Amount'), { target: { value: qty } });
   if (price) fireEvent.change(screen.getByLabelText(/^Price each/), { target: { value: price } });
   fireEvent.click(screen.getByText('Add item'));
 };
@@ -39,7 +40,7 @@ const recordShop = (store, total, { toPantry = true } = {}) => {
 };
 
 describe('a list that learns', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
   afterEach(cleanup);
 
   it('files an item where you moved it to, next time too', () => {
@@ -75,6 +76,58 @@ describe('a list that learns', () => {
     expect(screen.getByText(/Bakery → Fruit & veg\./)).toBeDefined();
   });
 
+  it('repeats the last shop and starts shopping mode', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+    fireEvent.click(screen.getByLabelText('Tick Milk'));
+    recordShop('Tesco', '1.30');
+    fireEvent.click(within(screen.getByText('Shopping at').closest('section')).getByText('Aldi'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Repeat your last shop' }));
+
+    expect(screen.getByText('Exit mode')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Review shopping list' })).toBeDefined();
+    expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+    expect(screen.getByText('at Tesco')).toBeDefined();
+  });
+
+  it('resumes an active shop after the tab reloads', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+    fireEvent.click(screen.getByText('Start shopping'));
+    expect(screen.getByText('Exit mode')).toBeDefined();
+    expect(screen.getByRole('progressbar', { name: 'Shopping progress' }).getAttribute('aria-valuenow')).toBe('0');
+    fireEvent.click(screen.getByLabelText('Tick Milk'));
+    expect(screen.getByRole('progressbar', { name: 'Shopping progress' }).getAttribute('aria-valuenow')).toBe('100');
+    expect(screen.getByText(/Everything is ticked/)).toBeDefined();
+
+    cleanup();
+    render(<App />);
+    fireEvent.click(screen.getByText('Shop'));
+    expect(screen.getByText('Exit mode')).toBeDefined();
+    expect(screen.getByText(/Everything is ticked/)).toBeDefined();
+  });
+
+  it('keeps the current shop filter when the active session changes it', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+    const picker = screen.getByText('Shopping at').closest('section');
+    fireEvent.click(within(picker).getByText('Tesco'));
+    addItem('Bread', '1.10');
+    fireEvent.click(screen.getByText('Start shopping'));
+    fireEvent.click(within(picker).getByText('All shops'));
+
+    cleanup();
+    render(<App />);
+    fireEvent.click(screen.getByText('Shop'));
+    expect(screen.getByText('Exit mode')).toBeDefined();
+    expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+    expect(screen.getByLabelText('Tick Bread')).toBeDefined();
+  });
+
   it('offers to restock what you buy again and again, once it has run out', () => {
     onboard();
     openShop();
@@ -84,7 +137,7 @@ describe('a list that learns', () => {
       recordShop('Tesco', `1.3${round}`);
     }
     // Bought twice and put away — nothing to restock while you still have it.
-    expect(screen.queryByText('You usually have')).toBeNull();
+    expect(screen.queryByText('Frequently bought')).toBeNull();
 
     fireEvent.click(screen.getByText('Home'));
     fireEvent.click(screen.getByText('Open pantry →'));
@@ -93,14 +146,41 @@ describe('a list that learns', () => {
     fireEvent.click(within(pantry).getByLabelText('Close'));
 
     openShop();
-    expect(screen.getByText('You usually have')).toBeDefined();
+    const restock = screen.getByText('Frequently bought').closest('section');
+    expect(within(restock).getByRole('button', { name: 'Add all' })).toBeDefined();
     fireEvent.click(screen.getByText(/Milk · 2×/));
     expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+  });
+
+  it('adds every frequently bought item in one tap', () => {
+    onboard();
+    openShop();
+    for (const product of [['Milk', '1.30'], ['Bread', '1.10']]) {
+      for (const round of [1, 2]) {
+        addItem(product[0], product[1]);
+        fireEvent.click(screen.getByLabelText(`Tick ${product[0]}`));
+        recordShop('Tesco', product[1]);
+      }
+    }
+
+    fireEvent.click(screen.getByText('Home'));
+    fireEvent.click(screen.getByText('Open pantry →'));
+    const pantry = dialogFor('Smart pantry');
+    for (const name of ['Milk', 'Bread']) {
+      for (const button of within(pantry).getAllByLabelText(`Remove ${name}`)) fireEvent.click(button);
+    }
+    fireEvent.click(within(pantry).getByLabelText('Close'));
+
+    openShop();
+    const restock = screen.getByText('Frequently bought').closest('section');
+    fireEvent.click(within(restock).getByRole('button', { name: 'Add all' }));
+    expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+    expect(screen.getByLabelText('Tick Bread')).toBeDefined();
   });
 });
 
 describe('budget and offers', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
   afterEach(cleanup);
 
   it('counts an unpriced item as unknown rather than free', () => {
@@ -108,6 +188,88 @@ describe('budget and offers', () => {
     openShop();
     addItem('Sourdough');
     expect(screen.getByText(/1 item with no price yet/)).toBeDefined();
+  });
+
+  it('explains and blocks an exact duplicate before it is added', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+    fireEvent.change(screen.getByLabelText('Item name'), { target: { value: 'MILK' } });
+
+    expect(screen.getByText(/Already on your list as “Milk”/)).toBeDefined();
+    expect(screen.getByText('Add item').closest('button').disabled).toBe(true);
+  });
+
+  it('saves a product as a favourite and adds it back in one tap', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+    fireEvent.click(screen.getByLabelText('Save Milk as favourite'));
+    expect(screen.getByLabelText('Remove favourite Milk')).toBeDefined();
+
+    fireEvent.click(screen.getByLabelText('Remove Milk'));
+    const favourites = screen.getByText('Favourites').closest('section');
+    fireEvent.click(within(favourites).getByRole('button', { name: /Milk/ }));
+    expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+  });
+
+  it('does not re-add a favourite under a singular or plural spelling', () => {
+    onboard();
+    openShop();
+    addItem('Bananas');
+    fireEvent.click(screen.getByLabelText('Save Bananas as favourite'));
+    fireEvent.click(screen.getByLabelText('Remove Bananas'));
+    addItem('Banana');
+
+    const favourites = screen.getByText('Favourites').closest('section');
+    fireEvent.click(within(favourites).getByRole('button', { name: /Bananas/ }));
+    expect(screen.queryByLabelText('Tick Bananas')).toBeNull();
+    expect(screen.getByLabelText('Tick Banana')).toBeDefined();
+  });
+
+  it('suggests a familiar quantity from recorded shops', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30', '2 pints');
+    fireEvent.click(screen.getByLabelText('Tick Milk'));
+    recordShop('Tesco', '1.30');
+
+    fireEvent.change(screen.getByLabelText('Item name'), { target: { value: 'Milk' } });
+    expect(screen.getByRole('button', { name: 'Use usual quantity 2 pints' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Use usual quantity 2 pints' }));
+    expect(screen.getByLabelText('Amount').value).toBe('2 pints');
+    expect(document.activeElement).toBe(screen.getByLabelText('Amount'));
+  });
+
+  it('keeps products in separate store views', () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+
+    const picker = screen.getByText('Shopping at').closest('section');
+    fireEvent.click(within(picker).getByText('Tesco'));
+    addItem('Bread', '1.10');
+
+    expect(screen.getByLabelText('Tick Bread')).toBeDefined();
+    expect(screen.queryByLabelText('Tick Milk')).toBeNull();
+    expect(screen.getByText(/1 assigned item shown/)).toBeDefined();
+
+    fireEvent.click(within(picker).getByText('All shops'));
+    expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+    expect(screen.getByLabelText('Tick Bread')).toBeDefined();
+
+    fireEvent.click(within(picker).getByText('Tesco'));
+    fireEvent.click(screen.getByLabelText('Tick Bread'));
+    fireEvent.click(within(picker).getByText('All shops'));
+    fireEvent.click(screen.getByLabelText('Tick Milk'));
+    fireEvent.click(within(picker).getByText('Tesco'));
+    fireEvent.click(screen.getAllByText(/Finish shop/)[0]);
+    const finish = dialogFor('Finish shop');
+    fireEvent.click(within(finish).getByText('Record this shop'));
+
+    fireEvent.click(within(picker).getByText('All shops'));
+    expect(screen.getByLabelText('Tick Milk')).toBeDefined();
+    expect(screen.queryByLabelText('Tick Bread')).toBeNull();
   });
 
   it('takes your own offer off the projected total', () => {
@@ -134,6 +296,21 @@ describe('budget and offers', () => {
     openShop();
     addItem('Weekly shop', '25');
     expect(screen.getByText(/over budget/)).toBeDefined();
+  });
+
+  it('keeps an active shop usable offline and recovers when the connection returns', async () => {
+    onboard();
+    openShop();
+    addItem('Milk', '1.30');
+    fireEvent.click(screen.getByText('Start shopping'));
+
+    window.dispatchEvent(new Event('offline'));
+    await waitFor(() => expect(screen.getByText(/Offline · changes save locally/)).toBeDefined());
+    fireEvent.click(screen.getByLabelText('Tick Milk'));
+    expect(screen.getByText(/Finish shop · 1 item/)).toBeDefined();
+
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(screen.getByText(/Online · changes save locally/)).toBeDefined());
   });
 
   it('sets monthly and weekly budgets and creates a price alert', () => {
@@ -175,7 +352,7 @@ describe('budget and offers', () => {
 });
 
 describe('price comparison', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
   afterEach(cleanup);
 
   it('prices your list at the shops you have been to, and says what it could not price', () => {
@@ -204,7 +381,7 @@ describe('price comparison', () => {
 });
 
 describe('scanning and exporting', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
   afterEach(cleanup);
 
   it('scans a barcode onto the list, and refuses to invent an unknown one', () => {
@@ -238,7 +415,7 @@ describe('scanning and exporting', () => {
 });
 
 describe('expiry and waste', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
   afterEach(cleanup);
 
   const openPantry = () => {
@@ -277,7 +454,7 @@ describe('expiry and waste', () => {
 });
 
 describe('meals to shopping', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
   afterEach(cleanup);
 
   it('puts one line on the list for an ingredient two meals want', () => {

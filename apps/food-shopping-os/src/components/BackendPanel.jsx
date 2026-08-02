@@ -6,8 +6,8 @@ import {
   CheckCircle2, CircleAlert, Cloud, CloudOff, LogIn, LogOut,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { selectCloudHousehold } from '../lib/cloud.js';
-import { Card, Section } from './ui.jsx';
+import { selectCloudHousehold, selectedCloudHouseholdId } from '../lib/cloud.js';
+import { Card, Meter, Section } from './ui.jsx';
 
 function IntegrationStatus({ integrations = {} }) {
   const entries = Object.entries(integrations);
@@ -40,6 +40,7 @@ function BackendPanelContent({ backend }) {
   const app = useApp();
   const { data: session } = useSession();
   const [households, setHouseholds] = useState([]);
+  const [aiUsage, setAiUsage] = useState(null);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -49,7 +50,19 @@ function BackendPanelContent({ backend }) {
       .catch(() => setHouseholds([]));
   }, [session?.user]);
 
-  const synced = app.cloudStatus.kind === 'ready';
+  useEffect(() => {
+    if (!session?.user || !backend.integrations?.openai?.ready) return undefined;
+    const householdId = selectedCloudHouseholdId();
+    fetch('/api/ai/usage', {
+      headers: householdId ? { 'x-forq-household-id': householdId } : {},
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((usage) => setAiUsage(usage && typeof usage.limit === 'number' ? usage : null))
+      .catch(() => setAiUsage(null));
+    return undefined;
+  }, [backend.integrations?.openai?.ready, session?.user]);
+
+  const synced = ['ready', 'live'].includes(app.cloudStatus.kind);
 
   return (
     <Section title="Account & sync">
@@ -60,13 +73,30 @@ function BackendPanelContent({ backend }) {
             <p className="text-[0.8125rem] font-extrabold">
               {session?.user ? session.user.email || session.user.name : 'Local-only mode'}
             </p>
-            <p role="status" className="mt-1 text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            {/* AppHeader owns the single live region; this copy stays passive to avoid double announcements. */}
+            <p className="mt-1 text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
               {app.cloudStatus.message}
             </p>
           </div>
         </div>
 
         <IntegrationStatus integrations={backend.integrations} />
+
+        {aiUsage && (
+          <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--line)' }}>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[0.75rem] font-extrabold">AI relay allowance</p>
+              <span className="text-[0.6875rem] font-bold" style={{ color: 'var(--muted)' }}>{aiUsage.month}</span>
+            </div>
+            <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {(aiUsage.used + aiUsage.reserved).toLocaleString()} of {aiUsage.limit.toLocaleString()} tokens reserved or used
+            </p>
+            <Meter value={aiUsage.used + aiUsage.reserved} max={aiUsage.limit} height={5} />
+            <p className="mt-1.5 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+              {aiUsage.remaining.toLocaleString()} remaining this month. Prompts and responses are not stored in this usage record.
+            </p>
+          </div>
+        )}
 
         {!session?.user && backend?.enabled && (
           <div className="grid gap-2">

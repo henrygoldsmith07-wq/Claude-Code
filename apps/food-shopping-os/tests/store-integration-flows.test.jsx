@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 import { STORAGE_KEY } from '../src/lib/state.js';
@@ -52,5 +52,21 @@ describe('store integrations', () => {
     expect(screen.getByText('Browse prices · shop in store')).toBeDefined();
     expect(screen.getByRole('link', { name: 'Browse Aldi groceries' })).toBeDefined();
     expect(screen.queryByRole('link', { name: 'Shop Aldi delivery' })).toBeNull();
+  });
+
+  it('can request a licensed feed without replacing the recorded basket truth', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      products: [{ name: 'Milk 2 pint', price: 1.25, currency: 'GBP', unitPrice: 0.125, unit: 'litre', availability: 'available', sourceLabel: 'Tesco partner feed' }],
+    }), { status: 200 })));
+    render(<App />);
+    fireEvent.click(screen.getByText('Shop'));
+    fireEvent.click(screen.getByText('Stores'));
+
+    const milk = screen.getByText('Milk').closest('[data-retailer-item]');
+    fireEvent.click(within(milk).getByRole('button', { name: 'Check live feed' }));
+
+    expect(await screen.findByText('Milk 2 pint')).toBeDefined();
+    expect(screen.getByText('£1.25 · £0.13 / litre · available')).toBeDefined();
+    expect(screen.getByText('£1.55 recorded')).toBeDefined();
   });
 });

@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Redis } from '@upstash/redis';
 
 const prefix = process.env.UPSTASH_REDIS_PREFIX || 'forq';
@@ -13,17 +13,33 @@ const UNIQUE_FIELDS = {
   invitations: [['tokenHash']],
   notificationOutbox: [['dedupeKey']],
   coachShares: [['tokenHash']],
+  analyticsDaily: [['householdId', 'day', 'event']],
+  analyticsEventReceipts: [['householdId', 'eventId']],
   users: [['email']],
   accounts: [['provider', 'providerAccountId']],
   sessions: [['sessionToken']],
   verificationTokens: [['identifier', 'token']],
 };
+const HOUSEHOLD_SCOPED_COLLECTIONS = new Set([
+  'householdStates', 'memberships', 'invitations', 'coachShares', 'uploads',
+  'notificationOutbox', 'auditEvents', 'aiUsage', 'realtimeEvents',
+  'analyticsDaily', 'analyticsEventReceipts',
+]);
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const newId = () => randomBytes(12).toString('hex');
 const collectionKey = (name) => `${prefix}:collection:${name}`;
 const documentKey = (name, id) => `${prefix}:document:${name}:${id}`;
 const lockKey = (name) => `${prefix}:lock:${name}`;
+const analyticsReceiptExpiryKey = () => `${prefix}:analytics:receipt-expiry`;
+const householdIdFrom = (...values) => {
+  for (const value of values) {
+    if (!value || typeof value !== 'object') continue;
+    const id = value.householdId || value.$set?.householdId || value.$setOnInsert?.householdId;
+    if (id !== undefined && id !== null) return id.toString();
+  }
+  return null;
+};
 
 const encode = (value) => {
   if (value instanceof Date) return { $forqDate: value.toISOString() };
@@ -56,7 +72,6 @@ const comparable = (value) => {
   if (value && typeof value === 'object' && typeof value.toString === 'function') return value.toString();
   return value;
 };
-
 const valueAt = (document, path) =>
   path.split('.').reduce((value, part) => (value === null || value === undefined ? undefined : value[part]), document);
 
@@ -68,6 +83,12 @@ const setAt = (document, path, value) => {
     target = target[part];
   }
   target[parts.at(-1)] = value;
+};
+
+const unsetAt = (document, path) => {
+  const parts = path.split('.');
+  const target = parts.slice(0, -1).reduce((value, part) => value?.[part], document);
+  if (target && typeof target === 'object') delete target[parts.at(-1)];
 };
 
 const valuesEqual = (left, right) => {
@@ -148,10 +169,19 @@ const applyUpdate = (document, update, inserting = false) => {
     for (const [field, value] of Object.entries(update.$setOnInsert || {})) setAt(next, field, value);
   }
   for (const [field, value] of Object.entries(update.$set || {})) setAt(next, field, value);
+  for (const field of Object.keys(update.$unset || {})) unsetAt(next, field);
   for (const [field, amount] of Object.entries(update.$inc || {})) {
     setAt(next, field, Number(valueAt(next, field) || 0) + Number(amount));
   }
   return next;
+};
+
+const assertHouseholdActive = async (householdId) => {
+  const household = deserialise(await redis.get(documentKey('households', householdId)));
+  if (household && !household.deletingAt) return;
+  const error = new Error('Household deletion in progress.');
+  error.code = 'HOUSEHOLD_DELETING';
+  throw error;
 };
 
 class RedisCursor {
@@ -202,21 +232,25 @@ class RedisCollection {
     if (!ids.length) return [];
     const values = await redis.mget(...ids.map((id) => documentKey(this.name, id)));
     const expiredIds = ids.filter((id, index) => values[index] === null);
-    if (expiredIds.length) await redis.srem(collectionKey(this.name), ...expiredIds);
+    if (expiredIds.length) {
+      await redis.srem(collectionKey(this.name), ...expiredIds);
+      if (this.name === 'analyticsEventReceipts') await redis.zrem(analyticsReceiptExpiryKey(), ...expiredIds);
+    }
     return values.map(deserialise).filter(Boolean);
   }
 
-  async withLock(task) {
+  async withLock(task, scope = this.name) {
     const owner = randomUUID();
     for (let attempt = 0; attempt < 50; attempt += 1) {
-      const acquired = await redis.set(lockKey(this.name), owner, { nx: true, px: 5000 });
+      const scopedKey = lockKey(scope);
+      const acquired = await redis.set(scopedKey, owner, { nx: true, px: 5000 });
       if (acquired) {
         try {
           return await task();
         } finally {
           await redis.eval(
             'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end',
-            [lockKey(this.name)],
+            [scopedKey],
             [owner],
           );
         }
@@ -224,6 +258,22 @@ class RedisCollection {
       await sleep(40);
     }
     throw new Error(`Database collection "${this.name}" is busy.`);
+  }
+
+  async withWriteLock(task, householdId = null, checkActive = true) {
+    const scope = householdId ? `household:${householdId}` : this.name;
+    return this.withLock(async () => {
+      if (householdId && checkActive) await assertHouseholdActive(householdId);
+      return task();
+    }, scope);
+  }
+
+  async resolveHouseholdId(filter, update = null) {
+    if (!HOUSEHOLD_SCOPED_COLLECTIONS.has(this.name)) return null;
+    const direct = householdIdFrom(filter, update);
+    if (direct) return direct;
+    const current = await this.findOne(filter);
+    return current?.householdId?.toString() || null;
   }
 
   async save(document) {
@@ -263,21 +313,26 @@ class RedisCollection {
   }
 
   async insertOne(input) {
-    return this.withLock(async () => {
+    const householdId = HOUSEHOLD_SCOPED_COLLECTIONS.has(this.name) ? householdIdFrom(input) : null;
+    return this.withWriteLock(async () => {
       const documents = await this.loadAll();
       const document = { ...structuredClone(input), _id: input._id?.toString() || newId() };
       this.assertUnique(document, documents);
       await this.save(document);
       return { acknowledged: true, insertedId: document._id };
-    });
+    }, householdId);
   }
 
   async updateOne(filter, update, options = {}) {
-    return this.withLock(async () => {
+    const householdId = HOUSEHOLD_SCOPED_COLLECTIONS.has(this.name)
+      ? await this.resolveHouseholdId(filter, update)
+      : this.name === 'households' ? filter._id?.toString() : null;
+    return this.withWriteLock(async () => {
       const documents = await this.loadAll();
       const current = documents.find((item) => matches(item, filter));
       if (!current && !options.upsert) return { acknowledged: true, matchedCount: 0, modifiedCount: 0 };
-      const document = applyUpdate(current || { ...baseDocument(filter), _id: newId() }, update, !current);
+      const seed = baseDocument(filter);
+      const document = applyUpdate(current || { ...seed, _id: seed._id || newId() }, update, !current);
       this.assertUnique(document, documents, current?._id);
       await this.save(document);
       return {
@@ -287,39 +342,53 @@ class RedisCollection {
         upsertedCount: current ? 0 : 1,
         upsertedId: current ? null : document._id,
       };
-    });
+    }, householdId, this.name !== 'households');
   }
 
   async findOneAndUpdate(filter, update, options = {}) {
-    return this.withLock(async () => {
+    const householdId = HOUSEHOLD_SCOPED_COLLECTIONS.has(this.name)
+      ? await this.resolveHouseholdId(filter, update)
+      : this.name === 'households' ? filter._id?.toString() : null;
+    return this.withWriteLock(async () => {
       const documents = await this.loadAll();
       const current = documents.find((item) => matches(item, filter));
       if (!current && !options.upsert) return null;
-      const document = applyUpdate(current || { ...baseDocument(filter), _id: newId() }, update, !current);
+      const seed = baseDocument(filter);
+      const document = applyUpdate(current || { ...seed, _id: seed._id || newId() }, update, !current);
       this.assertUnique(document, documents, current?._id);
       await this.save(document);
       return options.returnDocument === 'before' ? current : document;
-    });
+    }, householdId, this.name !== 'households');
   }
 
   async deleteOne(filter) {
-    return this.withLock(async () => {
+    const householdId = HOUSEHOLD_SCOPED_COLLECTIONS.has(this.name)
+      ? await this.resolveHouseholdId(filter)
+      : this.name === 'households' ? filter._id?.toString() : null;
+    return this.withWriteLock(async () => {
       const document = (await this.loadAll()).find((item) => matches(item, filter));
       if (!document) return { acknowledged: true, deletedCount: 0 };
       await redis.del(documentKey(this.name, document._id));
       await redis.srem(collectionKey(this.name), document._id);
+      if (this.name === 'analyticsEventReceipts') await redis.zrem(analyticsReceiptExpiryKey(), document._id);
       return { acknowledged: true, deletedCount: 1 };
-    });
+    }, householdId, false);
   }
 
   async deleteMany(filter) {
-    return this.withLock(async () => {
+    const householdId = HOUSEHOLD_SCOPED_COLLECTIONS.has(this.name)
+      ? householdIdFrom(filter)
+      : null;
+    return this.withWriteLock(async () => {
       const documents = (await this.loadAll()).filter((item) => matches(item, filter));
       if (!documents.length) return { acknowledged: true, deletedCount: 0 };
       await redis.del(...documents.map((document) => documentKey(this.name, document._id)));
       await redis.srem(collectionKey(this.name), ...documents.map((document) => document._id));
+      if (this.name === 'analyticsEventReceipts') {
+        await redis.zrem(analyticsReceiptExpiryKey(), ...documents.map((document) => document._id));
+      }
       return { acknowledged: true, deletedCount: documents.length };
-    });
+    }, householdId, false);
   }
 
   async bulkWrite(operations) {
@@ -348,6 +417,77 @@ class RedisCollection {
 const database = {
   databaseName: 'upstash-redis',
   collection: (name) => new RedisCollection(name),
+  recordAnalyticsEvent: async ({ householdId, eventId, event, day, now }) => {
+    householdId = householdId.toString();
+    const receiptId = createHash('sha256')
+      .update(`receipt\0${householdId}\0${eventId}`)
+      .digest('hex');
+    const dailyId = createHash('sha256')
+      .update(`daily\0${householdId}\0${day}\0${event}`)
+      .digest('hex');
+    const nowIso = now.toISOString();
+    const expiresAt = now.getTime() + 90 * 86400000;
+    const expiresAtIso = new Date(expiresAt).toISOString();
+    const result = await redis.eval(`
+      local expired = redis.call('zrangebyscore', KEYS[5], '-inf', ARGV[10], 'LIMIT', 0, 200)
+      for _, id in ipairs(expired) do
+        redis.call('del', ARGV[11] .. id)
+        redis.call('srem', KEYS[2], id)
+        redis.call('zrem', KEYS[5], id)
+      end
+
+      local household = redis.call('get', KEYS[6])
+      if not household then return -1 end
+      local householdDocument = cjson.decode(household)
+      if householdDocument.deletingAt then return -1 end
+
+      local receipt = redis.call('get', KEYS[1])
+      if receipt then return 0 end
+
+      local date = { ['$forqDate'] = ARGV[7] }
+      local receiptDocument = cjson.encode({
+        _id = ARGV[1],
+        householdId = ARGV[2],
+        eventId = ARGV[3],
+        createdAt = date,
+        expiresAt = { ['$forqDate'] = ARGV[8] },
+      })
+      redis.call('set', KEYS[1], receiptDocument)
+      redis.call('pexpireat', KEYS[1], tonumber(ARGV[9]))
+      redis.call('sadd', KEYS[2], ARGV[1])
+      redis.call('pexpireat', KEYS[2], tonumber(ARGV[9]))
+      redis.call('zadd', KEYS[5], ARGV[9], ARGV[1])
+
+      local daily = redis.call('get', KEYS[3])
+      local document
+      if daily then
+        document = cjson.decode(daily)
+        document.count = (document.count or 0) + 1
+        document.updatedAt = date
+      else
+        document = {
+          _id = ARGV[4],
+          householdId = ARGV[2],
+          day = ARGV[5],
+          event = ARGV[6],
+          count = 1,
+          createdAt = date,
+          updatedAt = date,
+        }
+      end
+      redis.call('set', KEYS[3], cjson.encode(document))
+      redis.call('sadd', KEYS[4], ARGV[4])
+      return 1
+    `, [
+      documentKey('analyticsEventReceipts', receiptId),
+      collectionKey('analyticsEventReceipts'),
+      documentKey('analyticsDaily', dailyId),
+      collectionKey('analyticsDaily'),
+      analyticsReceiptExpiryKey(),
+      documentKey('households', householdId),
+    ], [receiptId, householdId, eventId, dailyId, day, event, nowIso, expiresAtIso, expiresAt, now.getTime(), `${prefix}:document:analyticsEventReceipts:`]);
+    return { duplicate: Number(result) === 0, deleting: Number(result) === -1 };
+  },
   command: async ({ ping } = {}) => (ping ? { ok: await redis.ping() === 'PONG' ? 1 : 0 } : { ok: 1 }),
 };
 

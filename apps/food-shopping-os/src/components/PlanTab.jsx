@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays, CalendarPlus, Check, ChevronLeft, ChevronRight, ClipboardList, Info, Move, ShoppingCart, Snowflake,
-  Sparkles, Utensils, X,
+  Sparkles, X,
 } from 'lucide-react';
 import { gbp } from '../lib/utils.js';
 import { useApp } from '../lib/store.jsx';
@@ -10,7 +10,7 @@ import { MEAL_SLOTS } from '../data/plan.js';
 import { weekDates } from '../lib/kitchen.js';
 import {
   batchGroups, coveredByLeftovers, monthDates, monthGrid, monthLabel, planStats,
-  mealPlanIcs, shiftMonth, shiftWeek, shoppingForPlan,
+  mealPlanIcs, shiftMonth, shiftWeek, shoppingForPlan, weekOffset,
 } from '../lib/mealplan.js';
 import { prepChecklist, prepProgress } from '../lib/prep-checklist.js';
 import { downloadFile } from '../lib/notify.js';
@@ -22,6 +22,7 @@ import { MonthGrid, WeekGrid } from './PlanCalendar.jsx';
 import PlanGenerator from './PlanGenerator.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
 import CalendarAvailability from './CalendarAvailability.jsx';
+import MonthMealRow from './MonthMealRow.jsx';
 
 const dayLabel = (date) =>
   new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -111,7 +112,7 @@ function RecipePicker({ slot, onPick, onClear, hasMeal }) {
     </div>
   );
 }
-export default function PlanTab({ openRecipe }) {
+export default function PlanTab({ openRecipe, goTab, focusDate }) {
   const app = useApp();
   const [view, setView] = useState('week');
   const [offset, setOffset] = useState(0); // weeks or months from today
@@ -123,6 +124,7 @@ export default function PlanTab({ openRecipe }) {
   const [addedToList, setAddedToList] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState('');
   const [prepDone, setPrepDone] = useState([]);
+  useEffect(() => { if (focusDate) { setView('week'); setOffset(weekOffset(app.day, focusDate)); } }, [focusDate, app.day]);
 
   const anchorWeek = shiftWeek(app.day, offset);
   const anchorMonth = shiftMonth(app.day, offset);
@@ -146,7 +148,12 @@ export default function PlanTab({ openRecipe }) {
     setMoving(null);
     setDragging(null);
   };
+  const clearRangeStatus = () => { setAddedToList(false); setCalendarStatus(''); };
   const sendToList = () => {
+    if (addedToList) {
+      goTab?.('shop');
+      return;
+    }
     app.addToList(shoppingForPlan(app.plan, dates, { pantry: app.pantry }));
     setAddedToList(true);
   };
@@ -177,12 +184,12 @@ export default function PlanTab({ openRecipe }) {
       <Section className="rise rise-1">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex gap-2">
-            <Chip active={view === 'week'} onClick={() => { setView('week'); setOffset(0); setCalendarStatus(''); }}>Week</Chip>
-            <Chip active={view === 'month'} onClick={() => { setView('month'); setOffset(0); setCalendarStatus(''); }}>Month</Chip>
+            <Chip active={view === 'week'} onClick={() => { setView('week'); setOffset(0); clearRangeStatus(); }}>Week</Chip>
+            <Chip active={view === 'month'} onClick={() => { setView('month'); setOffset(0); clearRangeStatus(); }}>Month</Chip>
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => { setOffset((o) => o - 1); setCalendarStatus(''); }}
+              onClick={() => { setOffset((o) => o - 1); clearRangeStatus(); }}
               aria-label={view === 'week' ? 'Previous week' : 'Previous month'}
               className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
@@ -190,14 +197,14 @@ export default function PlanTab({ openRecipe }) {
               <ChevronLeft size={15} />
             </button>
             <button
-              onClick={() => { setOffset(0); setCalendarStatus(''); }}
+              onClick={() => { setOffset(0); clearRangeStatus(); }}
               className="tap press shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.78125rem] font-extrabold"
               style={{ background: offset ? 'var(--card-2)' : 'transparent', color: offset ? 'var(--ink)' : 'var(--faint)' }}
             >
               {offset ? 'Today' : rangeLabel}
             </button>
             <button
-              onClick={() => { setOffset((o) => o + 1); setCalendarStatus(''); }}
+              onClick={() => { setOffset((o) => o + 1); clearRangeStatus(); }}
               aria-label={view === 'week' ? 'Next week' : 'Next month'}
               className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
               style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
@@ -233,6 +240,7 @@ export default function PlanTab({ openRecipe }) {
             dragging={dragging}
             setDragging={setDragging}
             busyDates={(app.calendarBusy || []).map((b) => b.date)}
+            onCook={(recipe) => { setMoving(null); setDragging(null); openRecipe?.(recipe, { startCooking: true }); }}
           />
         ) : (
           <MonthGrid
@@ -330,7 +338,7 @@ export default function PlanTab({ openRecipe }) {
               <span className="inline-flex items-center gap-2">
                 <ShoppingCart size={15} />
                 {addedToList
-                  ? 'Added to your list'
+                  ? 'Review shopping list'
                   : view === 'week'
                     ? "Send this week's ingredients to the list"
                     : "Send this month's ingredients to the list"}
@@ -425,6 +433,7 @@ export default function PlanTab({ openRecipe }) {
             weekDates={view === 'week' ? week : thisWeekDates}
             monthDates={month}
             openRecipe={openRecipe}
+            goTab={goTab}
             onApplied={() => { setShowGenerator(false); setAddedToList(false); }}
           />
         </Section>
@@ -442,25 +451,15 @@ export default function PlanTab({ openRecipe }) {
       <Sheet open={!!openDay} onClose={() => setOpenDay(null)} title={openDay ? dayLabel(openDay) : ''}>
         {openDay && (
           <div className="px-5 pb-10 space-y-2.5">
-            {MEAL_SLOTS.map(({ key, label }) => {
-              const recipe = byId((app.plan[openDay] || {})[key]);
-              return (
-                <Card
-                  key={key}
-                  onClick={() => { setPicking({ date: openDay, slot: key }); setOpenDay(null); }}
-                  className="flex items-center gap-3 !p-3"
-                >
-                  {recipe
-                    ? <FoodArt recipe={recipe} className="h-11 w-11 shrink-0 rounded-xl" />
-                    : <Utensils size={18} style={{ color: 'var(--faint)' }} />}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
-                    <p className="font-bold text-[0.90625rem] truncate">{recipe ? recipe.name : 'Nothing planned yet'}</p>
-                  </div>
-                  <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
-                </Card>
-              );
-            })}
+            {MEAL_SLOTS.map(({ key, label }) => (
+              <MonthMealRow
+                key={key}
+                label={label}
+                recipe={byId((app.plan[openDay] || {})[key])}
+                onEdit={() => { setPicking({ date: openDay, slot: key }); setOpenDay(null); }}
+                onCook={(recipe) => { setOpenDay(null); setMoving(null); setDragging(null); openRecipe?.(recipe, { startCooking: true }); }}
+              />
+            ))}
             <p className="pt-1 text-[0.78125rem] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
               <Info size={13} /> Drag a meal in the week view to move it, or use its grip to pick it up.
             </p>

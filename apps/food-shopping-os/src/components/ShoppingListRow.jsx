@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, Star, Trash2 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { AISLE_ORDER } from '../data/stores.js';
 import { cx } from '../lib/utils.js';
 import { haptic } from '../lib/haptics.js';
-import { unitPrice } from '../lib/shopping.js';
+import { shoppingNameKey, unitPrice } from '../lib/shopping.js';
 import { Glyph } from './icons.jsx';
 import { Chip, GestureMenu } from './ui.jsx';
 
-export default function ShoppingListRow({ item, onAisle, dragging, setDragging }) {
+export default function ShoppingListRow({ item, onAisle, onStore, storeOptions = [], dragging, setDragging }) {
   const app = useApp();
   const [moving, setMoving] = useState(false);
   const comparablePrice = unitPrice(item);
+  const favourite = app.favouriteShopping.some((saved) => shoppingNameKey(saved.name) === shoppingNameKey(item.name));
   const toggle = () => {
     app.toggleChecked(item.id);
     if (!item.checked) haptic();
@@ -22,6 +23,7 @@ export default function ShoppingListRow({ item, onAisle, dragging, setDragging }
       actions={[
         { label: item.checked ? 'Mark not bought' : 'Mark bought', onClick: toggle },
         { label: item.priority === 'high' ? 'Normal priority' : 'High priority', onClick: () => app.updateListItem(item.id, { priority: item.priority === 'high' ? 'normal' : 'high' }) },
+        { label: favourite ? 'Remove favourite' : 'Save as favourite', onClick: () => app.toggleFavouriteShopping(item) },
         { label: 'Move to another aisle', onClick: () => setMoving(true) },
         { label: 'Remove', tone: 'danger', onClick: () => app.removeListItem(item.id) },
       ]}
@@ -60,6 +62,9 @@ export default function ShoppingListRow({ item, onAisle, dragging, setDragging }
           {item.fromRecipe && (
             <p className="text-[0.71875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>for {item.fromRecipe}</p>
           )}
+          {item.store && (
+            <p className="text-[0.71875rem] font-bold truncate" style={{ color: 'var(--accent)' }}>at {item.store}</p>
+          )}
           {comparablePrice && (
             <p className="text-[0.71875rem] font-extrabold" style={{ color: 'var(--accent)' }}>
               £{comparablePrice.value.toFixed(2)} / {comparablePrice.unit}
@@ -90,6 +95,15 @@ export default function ShoppingListRow({ item, onAisle, dragging, setDragging }
           style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
         />
         <button
+          onClick={() => app.toggleFavouriteShopping(item)}
+          aria-label={favourite ? `Remove favourite ${item.name}` : `Save ${item.name} as favourite`}
+          aria-pressed={favourite}
+          className="press p-1 shrink-0"
+          style={{ color: favourite ? 'var(--accent)' : 'var(--faint)' }}
+        >
+          <Star size={15} fill={favourite ? 'currentColor' : 'none'} />
+        </button>
+        <button
           onClick={() => app.removeListItem(item.id)}
           aria-label={`Remove ${item.name}`}
           className="press p-1 shrink-0"
@@ -99,17 +113,29 @@ export default function ShoppingListRow({ item, onAisle, dragging, setDragging }
         </button>
       </div>
       {moving && (
-        <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
-          {AISLE_ORDER.map((aisle) => (
-            <Chip
-              key={aisle}
-              active={item.aisle === aisle}
-              onClick={() => { onAisle(item.id, aisle); setMoving(false); }}
-            >
-              {aisle}
-            </Chip>
-          ))}
-        </div>
+        <>
+          <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+            {AISLE_ORDER.map((aisle) => (
+              <Chip
+                key={aisle}
+                active={item.aisle === aisle}
+                onClick={() => { onAisle(item.id, aisle); setMoving(false); }}
+              >
+                {aisle}
+              </Chip>
+            ))}
+          </div>
+          {onStore && storeOptions.length > 0 && (
+            <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+              <Chip active={!item.store} onClick={() => { onStore(item.id, ''); setMoving(false); }}>Any shop</Chip>
+              {storeOptions.map((store) => (
+                <Chip key={store} active={item.store === store} onClick={() => { onStore(item.id, store); setMoving(false); }}>
+                  {store}
+                </Chip>
+              ))}
+            </div>
+          )}
+        </>
       )}
       </div>
     </GestureMenu>

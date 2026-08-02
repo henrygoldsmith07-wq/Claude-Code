@@ -13,6 +13,46 @@ import { priceHistory } from './kitchen.js';
 const key = (name) => String(name || '').trim().toLowerCase();
 const round2 = (n) => Math.round(n * 100) / 100;
 
+const VOICE_NUMBERS = {
+  an: '1', a: '1', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6',
+  seven: '7', eight: '8', nine: '9', ten: '10', couple: '2', few: '3',
+};
+const VOICE_UNIT_PATTERN = 'kilograms?|kg|grams?|grammes?|g|millilitres?|milliliters?|ml|litres?|liters?|l|packs?|bags?|boxes?|cartons?|bottles?|jars?|tins?|cans?|bunch|bunches|loaf|loaves|pieces?|slices?|portions?|servings?|dozens?';
+const VOICE_UNIT_ALIASES = {
+  kilogram: 'kg', kilograms: 'kg', gram: 'g', grams: 'g', gramme: 'g', grammes: 'g',
+  litre: 'l', litres: 'l', liter: 'l', liters: 'l', millilitre: 'ml', millilitres: 'ml',
+  milliliter: 'ml', milliliters: 'ml',
+};
+const normaliseVoiceQty = (value) => String(value || '').replace(/\b(kilograms?|grams?|grammes?|litres?|liters?|millilitres?|milliliters?)\b/gi, (unit) => VOICE_UNIT_ALIASES[unit.toLowerCase()] || unit.toLowerCase());
+
+const voiceItem = (chunk) => {
+  const text = String(chunk || '').trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+  const bulk = text.match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*x\\s*(\\d+(?:\\.\\d+)?\\s*(?:${VOICE_UNIT_PATTERN}))\\s+(?:of\\s+)?(.+)$`, 'i'));
+  if (bulk) {
+    const packed = normaliseVoiceQty(bulk[2]).replace(/\s+/g, '');
+    return { name: bulk[3].replace(/[.!?]+$/, '').trim(), qty: `${bulk[1]} x ${packed}` };
+  }
+  const prefix = text.match(new RegExp(`^(\\d+(?:\\.\\d+)?|${Object.keys(VOICE_NUMBERS).join('|')})\\s*((${VOICE_UNIT_PATTERN})\\b)?\\s*(?:of\\s+)?(.+)$`, 'i'));
+  if (!prefix) return { name: text.replace(/[.!?]+$/, '').trim(), qty: '' };
+  const number = VOICE_NUMBERS[prefix[1].toLowerCase()] || prefix[1];
+  const unit = prefix[3] ? (VOICE_UNIT_ALIASES[prefix[3].toLowerCase()] || prefix[3].toLowerCase()) : '';
+  const name = prefix[4].replace(/[.!?]+$/, '').trim();
+  return name ? { name, qty: unit ? `${number} ${unit}` : number } : null;
+};
+
+/** Turn a spoken shopping sentence into separate, editable list items. */
+export const parseVoiceShopping = (text) => {
+  const body = String(text || '')
+    .trim()
+    .replace(/^(?:please\s+)?(?:add|buy|put\s+on\s+the\s+list|we\s+need|need)\s+/i, '');
+  if (!body || /^(?:add|buy|please|need)$/i.test(body)) return { items: [], heard: body };
+  const chunks = body.split(/\s*(?:,|;|\band\b|\bplus\b)\s*/i)
+    .map((chunk) => voiceItem(chunk))
+    .filter((item) => item?.name.length >= 2);
+  return { items: chunks, heard: body };
+};
+
 export const unitPrice = (item = {}) => {
   const price = Number(item.price);
   if (!(price > 0)) return null;
@@ -30,6 +70,63 @@ export const unitPrice = (item = {}) => {
     value: Math.round((price / baseAmount) * 100 * 100) / 100,
     unit: isVolume ? '100ml' : '100g',
   };
+};
+
+export const shoppingNameKey = (name) => {
+  const raw = String(name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const words = raw.replace(/&/g, ' and ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  const key = words.map((word) => {
+    if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`;
+    if (word.endsWith('s') && !word.endsWith('ss') && !word.endsWith('us') && word.length > 3) return word.slice(0, -1);
+    return word;
+  }).join(' ');
+  return key || raw;
+};
+
+/** Suggest the quantity this household most often recorded for a product. */
+export const quantitySuggestion = (name, shops = []) => {
+  const target = shoppingNameKey(name);
+  if (!target) return null;
+  const seen = new Map();
+  for (const [shopIndex, shop] of (shops || []).entries()) {
+    const shopKey = shop.id || `${shop.date || ''}|${shop.store || ''}|${shopIndex}`;
+    for (const item of shop.items || []) {
+      if (shoppingNameKey(item.name) !== target) continue;
+      const qty = String(item.qty || '').trim();
+      if (!qty) continue;
+      const current = seen.get(qty) || { qty, count: 0, shops: new Set(), lastShop: -1 };
+      seen.set(qty, {
+        ...current,
+        count: current.count + 1,
+        shops: new Set([...current.shops, shopKey]),
+        lastShop: Math.max(current.lastShop, shopIndex),
+      });
+    }
+  }
+  if (!seen.size) return null;
+  const usual = [...seen.values()].sort((a, b) => b.shops.size - a.shops.size || b.lastShop - a.lastShop)[0];
+  return {
+    qty: usual.qty,
+    times: [...seen.values()].reduce((total, row) => total + row.count, 0),
+    matches: usual.shops.size,
+  };
+};
+
+/** Find an existing list row that looks like the item someone is typing. */
+export const findShoppingDuplicate = (name, items = []) => {
+  const key = shoppingNameKey(name);
+  if (!key) return null;
+  const exact = items.find((item) => shoppingNameKey(item.name) === key);
+  if (exact) return { kind: 'exact', item: exact };
+
+  const words = new Set(key.split(' '));
+  if (words.size < 2) return null;
+  const similar = items.find((item) => {
+    const other = new Set(shoppingNameKey(item.name).split(' '));
+    const shared = [...words].filter((word) => other.has(word)).length;
+    return shared >= 2 && shared / Math.min(words.size, other.size) >= 0.75;
+  });
+  return similar ? { kind: 'similar', item: similar } : null;
 };
 
 /* ---------- Aisles that learn ---------- */
@@ -170,10 +267,12 @@ const matches = (item, offer) => {
 export const applyOffers = (items = [], offers = [], { store = '', today = '' } = {}) => {
   const lines = [];
   let saved = 0;
+  const hasStoreAssignments = items.some((item) => item.store);
   for (const offer of offers) {
     if (offer.store && store && key(offer.store) !== key(store)) continue;
     if (offer.expiry && today && offer.expiry < today) continue;
-    const hits = items.filter((i) => matches(i, offer));
+    const hits = items.filter((i) => matches(i, offer)
+      && (!offer.store || !hasStoreAssignments || key(i.store) === key(store || offer.store)));
     if (!hits.length) continue;
     const spend = hits.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
     let off = 0;

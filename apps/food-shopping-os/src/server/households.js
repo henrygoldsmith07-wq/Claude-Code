@@ -33,7 +33,7 @@ export async function ensurePersonalHousehold(user) {
   return household;
 }
 
-export async function requireHousehold(user, requestedId) {
+export async function requireHousehold(user, requestedId, { allowDeleting = false } = {}) {
   const db = await getDatabase();
   const household = requestedId
     ? await db.collection('households').findOne({ _id: objectId(requestedId, 'household') })
@@ -43,7 +43,15 @@ export async function requireHousehold(user, requestedId) {
     householdId: household._id,
     userId: user.id,
   });
-  if (!membership) throw new ApiError(403, 'You do not have access to this household.');
+  if (!membership) {
+    if (!(allowDeleting && household.deletingAt && String(household.ownerId) === String(user.id))) {
+      throw new ApiError(403, 'You do not have access to this household.');
+    }
+    return { household, membership: { role: 'owner', permissions: ['admin'] } };
+  }
+  if (household.deletingAt && !allowDeleting) {
+    throw new ApiError(410, 'Household deletion in progress.');
+  }
   return { household, membership };
 }
 
@@ -68,6 +76,8 @@ const HOUSEHOLD_CHILD_COLLECTIONS = [
   'auditEvents',
   'aiUsage',
   'realtimeEvents',
+  'analyticsDaily',
+  'analyticsEventReceipts',
 ];
 
 export async function deleteHouseholdData(db, householdId) {

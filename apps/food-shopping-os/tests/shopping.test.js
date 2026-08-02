@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   aisleFor, applyOffers, basketProjection, cheapestFor, compareStores, expiryBuckets,
   groupForStore, mergeItems, refile, rememberAisle, restockSuggestions, routeFor,
-  priceAlertMatches, routeFromTicks, savingsAvailable, wasteSummary,
+  findShoppingDuplicate, parseVoiceShopping, priceAlertMatches, quantitySuggestion, routeFromTicks,
+  savingsAvailable, wasteSummary,
 } from '../src/lib/shopping.js';
 import { priceHistory } from '../src/lib/kitchen.js';
 
@@ -141,6 +142,75 @@ describe('offers you entered', () => {
     expect(applyOffers(list, [offer], { store: 'Aldi', today: '2026-07-28' }).saved).toBe(0);
     expect(applyOffers(list, [{ ...offer, expiry: '2026-07-27' }], { store: 'Tesco', today: '2026-07-28' }).saved).toBe(0);
     expect(applyOffers(list, [{ ...offer, expiry: '2026-07-29' }], { store: 'Tesco', today: '2026-07-28' }).saved).toBe(1);
+  });
+
+  it('keeps store-only offers on items assigned to that store', () => {
+    const list = [item('Milk', 1.2, { store: 'Aldi' }), item('Milk', 1.3, { store: 'Tesco' })];
+    const offer = { id: 'o7', label: '£1 off milk', match: 'milk', kind: 'money', value: 1, store: 'Tesco' };
+    const result = applyOffers(list, [offer]);
+    expect(result.saved).toBe(1);
+    expect(result.lines[0].items).toEqual(['Milk']);
+  });
+});
+
+describe('voice shopping', () => {
+  it('splits spoken items and keeps their quantities', () => {
+    const parsed = parseVoiceShopping('add two cartons of milk, 3 bananas and 500g chicken breast');
+    expect(parsed.items).toEqual([
+      { name: 'milk', qty: '2 cartons' },
+      { name: 'bananas', qty: '3' },
+      { name: 'chicken breast', qty: '500 g' },
+    ]);
+  });
+
+  it('handles a spoken command and items without quantities', () => {
+    expect(parseVoiceShopping('please buy a bag of spinach plus olive oil').items).toEqual([
+      { name: 'spinach', qty: '1 bag' },
+      { name: 'olive oil', qty: '' },
+    ]);
+    expect(parseVoiceShopping('add an apple and 2 litres of milk')).toEqual({
+      items: [{ name: 'apple', qty: '1' }, { name: 'milk', qty: '2 l' }],
+      heard: 'an apple and 2 litres of milk',
+    });
+    expect(parseVoiceShopping('a loaf of bread').items).toEqual([{ name: 'bread', qty: '1 loaf' }]);
+    expect(parseVoiceShopping('500 grams chicken and 250 millilitres stock').items).toEqual([
+      { name: 'chicken', qty: '500 g' },
+      { name: 'stock', qty: '250 ml' },
+    ]);
+    expect(parseVoiceShopping('add 2 x 500 grams chicken').items).toEqual([{ name: 'chicken', qty: '2 x 500g' }]);
+    expect(parseVoiceShopping('')).toEqual({ items: [], heard: '' });
+    expect(parseVoiceShopping('add')).toEqual({ items: [], heard: 'add' });
+  });
+});
+
+describe('shopping duplicate detection', () => {
+  it('catches normalised singular/plural duplicates', () => {
+    const result = findShoppingDuplicate('BANANAS', [item('Banana')]);
+    expect(result).toMatchObject({ kind: 'exact', item: { name: 'Banana' } });
+  });
+
+  it('flags close pack-name variants without blocking distinct short names', () => {
+    expect(findShoppingDuplicate('oat milk 1l', [item('Oat milk')])).toMatchObject({ kind: 'similar' });
+    expect(findShoppingDuplicate('milk', [item('Oat milk')])).toBeNull();
+  });
+});
+
+describe('quantity suggestions', () => {
+  it('uses the most common recorded quantity and breaks ties by the latest shop', () => {
+    const shops = [
+      { items: [{ name: 'Milk', qty: '2 pints' }] },
+      { items: [{ name: 'MILK', qty: '2 pints' }] },
+      { items: [{ name: 'Milk', qty: '4 pints' }] },
+    ];
+    expect(quantitySuggestion('milk', shops)).toEqual({ qty: '2 pints', times: 3, matches: 2 });
+    expect(quantitySuggestion('Bread', shops)).toBeNull();
+  });
+
+  it('uses the latest quantity when there is no usual pack size', () => {
+    expect(quantitySuggestion('Rice', [
+      { items: [{ name: 'Rice', qty: '500 g' }] },
+      { items: [{ name: 'Rice', qty: '1 kg' }] },
+    ])).toMatchObject({ qty: '1 kg', times: 2, matches: 1 });
   });
 });
 

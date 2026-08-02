@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart3, Camera, Check, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
+  BarChart3, Camera, Check, Minus, Package, Plus, ScanLine, ShoppingCart, Trash2, TrendingDown, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { cx, gbp, expiryStatus } from '../lib/utils.js';
-import { daysUntil, expiringSoon, pantryAnalytics, pantryValue } from '../lib/kitchen.js';
+import { daysUntil, expiringSoon, pantryAnalytics, pantryUseLabel, pantryValue } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
 import { Card, Chip, Empty, GestureMenu, Pill, Section } from './ui.jsx';
@@ -105,7 +105,7 @@ function AddItemForm() {
   );
 }
 
-export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
+export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan }) {
   const app = useApp();
   const [location, setLocation] = useState('All');
   const [category, setCategory] = useState('All');
@@ -332,7 +332,12 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
           </div>
 
           {location === 'All' && !query && expiring.length > 0 && (
-            <Section title="Use soon" className="!px-0">
+            <Section
+              title="Use soon"
+              action={onPlan ? 'Open meal planner' : undefined}
+              onAction={onPlan}
+              className="!px-0"
+            >
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-5 px-5">
                 {expiring.map((p) => {
                   const st = expiryStatus(daysUntil(p.expiry, app.day));
@@ -372,13 +377,14 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
           <Card className={cx('!p-0 divide-y', items.length === 0 && 'hidden')} style={{ borderColor: 'var(--line)' }}>
             {items.map((p) => {
               const days = p.expiry ? daysUntil(p.expiry, app.day) : null;
-              const st = days === null ? null : expiryStatus(days);
+              const st = days === null ? null : expiryStatus(days); const useLabel = pantryUseLabel(p);
               return (
                 <GestureMenu
                   key={p.id}
                   label={p.name}
                   actions={[
                     { label: p.low ? 'Mark stocked' : 'Mark running low', onClick: () => app.togglePantryLow(p.id) },
+                    { label: useLabel, onClick: () => app.usePantryItem(p.id) },
                     { label: 'Add to shopping list', onClick: () => app.addToList({ name: p.name, emoji: p.emoji, qty: p.qty }) },
                     { label: 'Remove', tone: 'danger', onClick: () => app.removePantryItem(p.id) },
                   ]}
@@ -398,6 +404,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '' }) {
                     {st && <Pill tone={st.tone}>{st.label}</Pill>}
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
+                    <button onClick={() => app.usePantryItem(p.id)} aria-label={`${useLabel} ${p.name}`} title={useLabel} className="press p-1" style={{ color: 'var(--muted)' }}><Minus size={15} /></button>
                     <button
                       onClick={() => app.togglePantryLow(p.id)}
                       aria-label={`Mark ${p.name} ${p.low ? 'stocked' : 'running low'}`}

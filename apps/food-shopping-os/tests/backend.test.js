@@ -1,13 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import React from 'react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assertSameOrigin } from '../src/server/api.js';
 import {
-  aiRequestSchema, calendarRangeSchema, coachShareSchema, invitationSchema, syncSchema,
+  aiRequestSchema, analyticsBatchSchema, calendarRangeSchema, coachShareSchema, invitationSchema, syncSchema,
 } from '../src/server/schemas.js';
 import { down, up } from '../scripts/migrations/001-initial-backend.mjs';
+import { down as downAnalytics, up as upAnalytics } from '../scripts/migrations/002-analytics-idempotency.mjs';
 import {
   initialiseCloud, pushCloud, retryQueuedCloud, subscribeCloud,
 } from '../src/lib/cloud.js';
+import { AppProvider, EMPTY_STATE, STORAGE_KEY, useApp } from '../src/lib/store.jsx';
 import { deleteHouseholdData } from '../src/server/households.js';
+
+const CloudProbe = () => {
+  const app = useApp();
+  return React.createElement('div', null,
+    React.createElement('span', { 'data-testid': 'cloud-kind' }, app.cloudStatus.kind),
+    React.createElement('span', { 'data-testid': 'shopping-items' }, app.shoppingList.map((item) => item.name).join(',')),
+    React.createElement('button', { onClick: () => app.addToList({ name: 'Milk' }) }, 'Add offline item'),
+  );
+};
 
 describe('backend contracts', () => {
   it('accepts a complete versioned sync payload', () => {
@@ -30,6 +43,18 @@ describe('backend contracts', () => {
       permissions: ['shopping', 'pantry'],
     }).email).toBe('person@example.com');
     expect(() => aiRequestSchema.parse({ task: 'diagnose', prompt: 'x' })).toThrow();
+  });
+
+  it('keeps product insights coarse and bounded', () => {
+    expect(analyticsBatchSchema.parse({
+      events: [{ id: 'event-123456', name: 'plan_generated', properties: { scope: 'A week', hasPantry: true } }],
+    }).events).toHaveLength(1);
+    expect(analyticsBatchSchema.parse({
+      events: [{ name: 'plan_generated', properties: { hasPantry: false } }],
+    }).events).toHaveLength(1);
+    expect(() => analyticsBatchSchema.parse({
+      events: [{ id: 'event-123456', name: 'private_event', properties: {} }],
+    })).toThrow();
   });
 
   it('rejects cross-origin mutations', () => {
@@ -55,6 +80,22 @@ describe('database migrations', () => {
     expect(created).toHaveLength(14);
     expect(dropped).toHaveLength(14);
     expect(created[0][2]).toBe('personal_owner_unique');
+  });
+
+  it('adds analytics idempotency indexes as a follow-up migration', async () => {
+    const created = [];
+    const dropped = [];
+    const db = {
+      collection: (name) => ({
+        createIndex: async (keys, options) => created.push([name, keys, options.name]),
+        dropIndex: async (index) => dropped.push([name, index]),
+      }),
+    };
+    await upAnalytics(db);
+    await downAnalytics(db);
+    expect(created).toHaveLength(3);
+    expect(dropped).toHaveLength(3);
+    expect(created[2][2]).toBe('analytics_event_receipt_expiry');
   });
 });
 
@@ -82,6 +123,8 @@ describe('household erasure', () => {
       'auditEvents',
       'aiUsage',
       'realtimeEvents',
+      'analyticsDaily',
+      'analyticsEventReceipts',
     ]);
     for (const [, query] of calls) expect(query).toEqual({ householdId });
     expect(deleted.uploads).toBe(1);
@@ -112,8 +155,17 @@ describe('offline-first cloud migration', () => {
     localStorage.clear();
     vi.restoreAllMocks();
   });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllEnvs();
+  });
 
   it('pulls an existing household state after authentication', async () => {
+    localStorage.setItem('forq-cloud-meta-v1', JSON.stringify({
+      householdId: '507f1f77bcf86cd799439011',
+      version: 3,
+      deviceId: 'device-123456',
+    }));
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ enabled: true, authenticated: true }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -124,7 +176,51 @@ describe('offline-first cloud migration', () => {
     const result = await initialiseCloud({ onboarded: false });
     expect(result.status.kind).toBe('ready');
     expect(result.meta.version).toBe(4);
+    expect(result.baseVersion).toBe(3);
     expect(result.state.onboarded).toBe(true);
+  });
+
+  it('keeps edits made offline when the household has moved on', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...EMPTY_STATE,
+      onboarded: true,
+      name: 'Sam',
+    }));
+    localStorage.setItem('forq-cloud-meta-v1', JSON.stringify({
+      householdId: 'household-1',
+      version: 3,
+      deviceId: 'device-123456',
+    }));
+    let online = false;
+    vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
+      if (!online) return Promise.reject(new Error('Network unavailable'));
+      if (url === '/api/backend/status') {
+        return Promise.resolve(new Response(JSON.stringify({ enabled: true, authenticated: true }), { status: 200 }));
+      }
+      if (url === '/api/sync' && !options.method) {
+        return Promise.resolve(new Response(JSON.stringify({
+          householdId: 'household-1',
+          version: 4,
+          state: { ...EMPTY_STATE, onboarded: true, name: 'Remote', shoppingList: [{ id: 'remote', name: 'Bread' }] },
+        }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ error: 'A newer household version is available.' }), { status: 409 }));
+    }));
+
+    render(React.createElement(AppProvider, null, React.createElement(CloudProbe)));
+    await waitFor(() => expect(screen.getByTestId('cloud-kind').textContent).toBe('offline'));
+    fireEvent.click(screen.getByText('Add offline item'));
+    await waitFor(() => expect(screen.getByTestId('shopping-items').textContent).toContain('Milk'));
+
+    online = true;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(screen.getByTestId('cloud-kind').textContent).toBe('conflict'));
+    expect(screen.getByTestId('shopping-items').textContent).toContain('Milk');
+    expect(screen.getByTestId('shopping-items').textContent).not.toContain('Bread');
   });
 
   it('reports an optimistic concurrency conflict without replacing local data', async () => {
@@ -178,15 +274,18 @@ describe('offline-first cloud migration', () => {
       expires: Date.now() + 3600000,
     }), { status: 200 })));
     const changed = vi.fn();
+    const statuses = [];
     const unsubscribe = await subscribeCloud({
       householdId: 'household-1',
       deviceId: 'device-1',
-    }, changed);
+    }, changed, (status) => statuses.push(status));
     const url = new URL(EventSourceMock.instance.url);
     expect(url.hostname).toBe('main.realtime.ably.net');
     expect(url.searchParams.get('channels')).toBe('household:household-1');
+    EventSourceMock.instance.onopen?.();
     listeners.message({ data: JSON.stringify({ name: 'changed', data: JSON.stringify({ version: 3 }) }) });
     expect(changed).toHaveBeenCalledWith({ version: 3 });
+    expect(statuses.some((status) => status.kind === 'connected')).toBe(true);
     unsubscribe();
     expect(close).toHaveBeenCalled();
   });
@@ -211,12 +310,19 @@ describe('offline-first cloud migration', () => {
     vi.stubGlobal('EventSource', EventSourceMock);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ fallback: 'redis' }))));
     const changed = vi.fn();
-    const unsubscribe = await subscribeCloud({ householdId: 'household-1', deviceId: 'device-1' }, changed);
+    const statuses = [];
+    const unsubscribe = await subscribeCloud(
+      { householdId: 'household-1', deviceId: 'device-1' },
+      changed,
+      (status) => statuses.push(status),
+    );
     const url = new URL(EventSourceMock.instance.url, window.location.origin);
     expect(url.pathname).toBe('/api/realtime/stream');
     expect(url.searchParams.get('householdId')).toBe('household-1');
-    listeners.changed({ data: JSON.stringify({ version: 4 }) });
+    EventSourceMock.instance.onopen?.();
+    listeners.changed({ data: JSON.stringify({ version: 4, __forqCreatedAt: '2026-08-01T10:00:00.000Z' }) });
     expect(changed).toHaveBeenCalledWith({ version: 4 });
+    expect(statuses.some((status) => status.kind === 'connected')).toBe(true);
     unsubscribe();
     expect(close).toHaveBeenCalled();
   });

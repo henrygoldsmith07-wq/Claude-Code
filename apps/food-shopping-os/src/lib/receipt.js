@@ -110,6 +110,7 @@ export const parseReceipt = (text) => {
 
   const items = [];
   const unread = [];
+  let lastItem = null;
   for (const line of lines) {
     if (isNoise(line)) continue;
     const price = money(line);
@@ -117,15 +118,23 @@ export const parseReceipt = (text) => {
     if (price === null) {
       // A line with words but no price is usually a wrapped item name; a line
       // with neither is furniture we already skipped.
-      if (isName(name) && name.length > 2) unread.push(line.trim());
+      if (isName(name) && name.length > 2) {
+        unread.push(line.trim());
+        lastItem = null;
+      }
       continue;
     }
-    if (!isName(name)) continue; // a price with no description tells us nothing
-    items.push({
+    if (!isName(name)) {
+      const quantity = quantityOf(line);
+      if (lastItem && quantity !== null) lastItem.qty = quantity;
+      continue; // a price with no description belongs to the preceding item when it has a quantity
+    }
+    lastItem = {
       name: name.slice(0, 60),
       price,
       qty: quantityOf(line) || 1,
-    });
+    };
+    items.push(lastItem);
   }
 
   const printed = totalFrom(lines);

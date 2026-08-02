@@ -85,6 +85,12 @@ describe('what is due right now', () => {
     expect(due[0]).toMatchObject({ stamp: TODAY, time: '09:00', lateBy: 5 });
   });
 
+  it('does not fire a newly added reminder for a time that already passed', () => {
+    const reminder = remind({ createdAt: at('09:05').getTime() });
+    expect(dueNow([reminder], { now: at('09:10') })).toHaveLength(0);
+    expect(dueNow([reminder], { now: at('13:05') })).toHaveLength(1);
+  });
+
   it('treats late as still due, until it is too late to be useful', () => {
     expect(dueNow([remind()], { now: at('10:29') })).toHaveLength(1); // 89 min late
     expect(dueNow([remind()], { now: at('10:31') })).toHaveLength(0); // past the grace window

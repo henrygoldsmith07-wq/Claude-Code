@@ -15,11 +15,13 @@ export async function GET(request) {
     const params = new URL(request.url).searchParams;
     const { household } = await requireHousehold(user, params.get('householdId'));
     const initialSince = new Date(params.get('since') || Date.now() - 10000);
+    const initialCursor = params.get('cursor') || '';
     const db = await getDatabase();
 
     const stream = new ReadableStream({
       async start(controller) {
         let since = Number.isNaN(initialSince.getTime()) ? new Date(Date.now() - 10000) : initialSince;
+        let cursor = initialCursor;
         let closed = false;
         const close = () => {
           if (closed) return;
@@ -34,11 +36,20 @@ export async function GET(request) {
         for (let tick = 0; tick < 12 && !closed; tick += 1) {
           const events = await db.collection('realtimeEvents').find({
             householdId: household._id,
-            createdAt: { $gte: since },
-          }).sort({ createdAt: 1 }).limit(25).toArray();
+            ...(cursor
+              ? { $or: [{ createdAt: { $gt: since } }, { createdAt: since, _id: { $gt: cursor } }] }
+              : { createdAt: { $gte: since } }),
+          }).sort({ createdAt: 1, _id: 1 }).limit(25).toArray();
           for (const item of events) {
-            send(`event: changed\ndata: ${JSON.stringify(item.event)}\n\n`);
-            if (item.createdAt instanceof Date && item.createdAt > since) since = item.createdAt;
+            const parsedCreatedAt = item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt);
+            if (Number.isNaN(parsedCreatedAt.getTime())) continue;
+            const createdAt = parsedCreatedAt.toISOString();
+            const eventCursor = item._id.toString();
+            send(`id: ${createdAt}|${eventCursor}\nevent: changed\ndata: ${JSON.stringify({ ...item.event, __forqCreatedAt: createdAt, __forqCursor: eventCursor })}\n\n`);
+            if (parsedCreatedAt > since || (parsedCreatedAt.getTime() === since.getTime() && eventCursor > cursor)) {
+              since = parsedCreatedAt;
+              cursor = eventCursor;
+            }
           }
           if (tick < 11) await wait(2000);
         }
