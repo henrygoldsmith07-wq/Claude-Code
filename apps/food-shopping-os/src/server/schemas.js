@@ -55,30 +55,6 @@ export const calendarRangeSchema = z.object({
   return duration > 0 && duration <= 93 * 86400000;
 }, { message: 'Calendar range must be between one moment and 93 days.' });
 
-export const retailerQuerySchema = z.object({
-  retailer: z.enum(['tesco', 'sainsburys', 'asda', 'aldi', 'lidl', 'morrisons', 'waitrose', 'ocado', 'amazon-fresh']),
-  query: z.string().trim().min(2).max(120),
-});
-
-export const retailerResultSchema = z.object({
-  id: z.string().max(200).optional(),
-  name: z.string().max(200),
-  brand: z.string().max(200).nullable().optional(),
-  barcode: z.string().regex(/^\d{8,14}$/).nullable().optional(),
-  price: z.number().nonnegative().nullable(),
-  currency: z.string().regex(/^[A-Z]{3}$/).default('GBP'),
-  unitPrice: z.number().nonnegative().nullable().optional(),
-  unit: z.string().max(40).nullable().optional(),
-  offer: z.string().max(300).nullable().optional(),
-  availability: z.enum(['available', 'unavailable', 'unknown']),
-  deliveryUrl: z.url().nullable().optional(),
-  productUrl: z.url().nullable().optional(),
-  imageUrl: z.url().nullable().optional(),
-  source: z.string().max(60).optional(),
-  sourceLabel: z.string().max(120).optional(),
-  checkedAt: z.iso.datetime(),
-});
-
 export const barcodeLookupSchema = z.object({
   barcode: z.string().trim().regex(/^\d{8,14}$/, 'Barcode must contain 8 to 14 digits.'),
 });

@@ -26,7 +26,7 @@ tables and UK reference intakes.
 Forq runs on Next.js and keeps its local-first store. The backend is optional:
 without environment variables it stays local-only; with them it offers opt-in
 Auth.js accounts, Upstash Redis household sync, Ably or Redis live updates, private receipt
-uploads, calendar reads and writes, licensed retailer data and an AI relay to OpenAI.
+uploads, calendar reads and writes, open product observations and an AI relay to OpenAI.
 
 1. Copy `.env.example` to `.env.local`.
 2. Create an Upstash Redis database and set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
@@ -55,27 +55,10 @@ defaults to 250,000 reserved-and-used tokens. Signed-in users can see the
 current month’s used, reserved and remaining allowance under Account & sync;
 prompts and responses are not included in that usage record.
 
-Retailer results use a licensed provider implementing
-`GET /v1/products/search?retailer=&query=` at `RETAILER_API_BASE_URL`, or the
-per-retailer adapters in `RETAILER_API_CONFIG_JSON`. The adapter supports
-bearer and API-key headers without exposing credentials to the browser. Forq
-does not scrape or fabricate prices, offers or availability. If no licensed
-feed is configured, the retailer hub still links to official shop, offer and
-delivery pages and keeps using your recorded receipt prices.
-
-Example per-retailer configuration (the key stays in a server environment
-variable):
-
-```json
-{
-  "tesco": {
-    "baseUrl": "https://partner.example.com",
-    "path": "/v1/tesco/products/search",
-    "apiKeyEnv": "TESCO_API_KEY",
-    "auth": "bearer"
-  }
-}
-```
+Forq does not provide live supermarket prices, offers or availability. The
+retailer hub keeps your recorded receipt prices and saved offers, then links to
+the official retailer site so you can check today's basket, stock and delivery
+or collection options yourself.
 
 Barcode lookups can optionally use the public Open Food Facts API through the
 authenticated `/api/integrations/products` route. It returns product identity,
@@ -87,10 +70,8 @@ Forq labels them as observed and never treats them as a live supermarket quote.
 Both lookups run only after an explicit user action and require a signed-in
 backend household.
 
-The UK supermarkets do not expose one common public third-party price API.
-Where a retailer offers a commercial or partner feed, configure it server-side
-with `RETAILER_API_CONFIG_JSON` and an `apiKeyEnv`; do not point this at an
-undocumented consumer endpoint. Scheduled reminders use the authenticated
+The UK supermarkets do not expose one common public third-party price API, and
+Forq does not configure or query undocumented consumer endpoints. Scheduled reminders use the authenticated
 `/api/jobs/reminders` endpoint and Vercel Cron. Trigger.dev can invoke the same
 endpoint once its current vulnerable SDK dependency chain is patched.
 
@@ -206,9 +187,9 @@ endpoint once its current vulnerable SDK dependency chain is patched.
   duplicate ingredient merged into a single line that remembers every meal that
   wanted it, minus your pantry and minus what leftovers already cover
 - **UK retailer hub** — Tesco, Sainsbury's, Asda, Aldi, Lidl, Morrisons,
-  Waitrose, Ocado and Amazon Fresh. See recorded prices and saved offers, check
-  each item’s current price and availability on the official retailer page,
-  and open delivery or collection links. Aldi and Lidl are labelled as
+  Waitrose, Ocado and Amazon Fresh. See recorded prices and saved offers, then
+  open the official retailer page yourself for today's price, stock and
+  delivery or collection links. Aldi and Lidl are labelled as
   browse/in-store rather than being given a delivery button they do not support
 - **Store hand-off** — the list also exports as plain text in your aisle order,
   to paste into whichever app you use
@@ -339,9 +320,9 @@ endpoint once its current vulnerable SDK dependency chain is patched.
   target you set, the weekday most of your weigh-ins already land on, the days
   your workouts cluster on — and nothing is offered that your data can't
   support.
-  Sale alerts are checked against prices in shops you recorded. A configured
-  licensed feed can add live retailer results, while Open Prices observations
-  remain explicitly community data. Restocks come from your repeat-buy history,
+  Sale alerts are checked against prices in shops you recorded. Open Prices
+  observations remain explicitly community data, not live supermarket quotes.
+  Restocks come from your repeat-buy history,
   expiry alerts from dates you saved, and every preset can be edited or switched
   off.
   On **notifications**, the app is blunt about the platform: while Forq is open
@@ -562,15 +543,10 @@ never depends on colour); status colours (good/warn/danger) are muted and always
 paired with a label. All tokens live as CSS custom properties in `index.css`,
 with the accent defaulting to mono (ink) plus four restrained alternatives.
 
-## Retailer data sources
+## External product data
 
 Forq keeps the source visible for every external result:
 
-- **Licensed retailer provider** — live product, price, offer and availability
-  fields returned by a provider you have contracted and configured. Set one
-  shared feed with `RETAILER_API_BASE_URL`/`RETAILER_API_KEY`, or map individual
-  retailers through `RETAILER_API_CONFIG_JSON` and server-only `apiKeyEnv`
-  values.
 - **Open Food Facts** — barcode identity, ingredients, allergens, nutrition,
   labels and product imagery. It is open catalogue data, not a supermarket
   stock or price feed.
@@ -578,6 +554,6 @@ Forq keeps the source visible for every external result:
   be old, incomplete or from another location, so it is useful for context and
   history rather than checkout decisions.
 
-The app does not call undocumented retailer website endpoints or scrape pages.
-The official retailer links remain the authority for the current basket, stock,
-offers, delivery fees and slots.
+Forq does not provide live supermarket prices or query undocumented retailer
+website endpoints. The official retailer links remain the authority for the
+current basket, stock, offers, delivery fees and slots.

@@ -1,8 +1,8 @@
 /**
  * The shopping list, made smarter by what you have actually done.
  *
- * This module does not call the optional licensed retailer backend. Every
- * "smart" behaviour here is derived from your own history: the aisle you last
+ * This module does not call a supermarket price feed. Every "smart" behaviour
+ * here is derived from your own history: the aisle you last
  * filed something under, prices you recorded, the order you ticked items off
  * and offers you entered. Missing history is stated rather than guessed.
  */

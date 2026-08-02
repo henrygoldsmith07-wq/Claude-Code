@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 import { STORAGE_KEY } from '../src/lib/state.js';
@@ -26,7 +26,7 @@ describe('store integrations', () => {
     localStorage.clear();
   });
 
-  it('shows all supported retailers and keeps live claims on retailer pages', () => {
+  it('shows supported retailers and keeps price claims on recorded history', () => {
     render(<App />);
     fireEvent.click(screen.getByText('Shop'));
     fireEvent.click(screen.getByText('Stores'));
@@ -38,7 +38,7 @@ describe('store integrations', () => {
 
     const milk = screen.getByText('Milk').closest('[data-retailer-item]');
     expect(within(milk).getByText('£1.55 recorded')).toBeDefined();
-    expect(within(milk).getByRole('link', { name: 'Check price & availability' }).href).toContain('tesco.com');
+    expect(within(milk).getByRole('link', { name: 'Open retailer site' }).href).toContain('tesco.com');
     expect(screen.getByRole('link', { name: 'View Tesco offers' }).href).toContain('tesco.com');
     expect(screen.getByRole('link', { name: 'Shop Tesco delivery' }).href).toContain('tesco.com');
   });
@@ -49,24 +49,9 @@ describe('store integrations', () => {
     fireEvent.click(screen.getByText('Stores'));
     fireEvent.click(screen.getByRole('button', { name: 'Aldi' }));
 
-    expect(screen.getByText('Browse prices · shop in store')).toBeDefined();
+    expect(screen.getByText('Browse products · shop in store')).toBeDefined();
     expect(screen.getByRole('link', { name: 'Browse Aldi groceries' })).toBeDefined();
     expect(screen.queryByRole('link', { name: 'Shop Aldi delivery' })).toBeNull();
   });
 
-  it('can request a licensed feed without replacing the recorded basket truth', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      products: [{ name: 'Milk 2 pint', price: 1.25, currency: 'GBP', unitPrice: 0.125, unit: 'litre', availability: 'available', sourceLabel: 'Tesco partner feed' }],
-    }), { status: 200 })));
-    render(<App />);
-    fireEvent.click(screen.getByText('Shop'));
-    fireEvent.click(screen.getByText('Stores'));
-
-    const milk = screen.getByText('Milk').closest('[data-retailer-item]');
-    fireEvent.click(within(milk).getByRole('button', { name: 'Check live feed' }));
-
-    expect(await screen.findByText('Milk 2 pint')).toBeDefined();
-    expect(screen.getByText('£1.25 · £0.13 / litre · available')).toBeDefined();
-    expect(screen.getByText('£1.55 recorded')).toBeDefined();
-  });
 });

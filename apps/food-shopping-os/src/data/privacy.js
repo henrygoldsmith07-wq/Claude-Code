@@ -40,10 +40,10 @@ export const PRIVACY_DISCLOSURE = [
     items: [
       'OpenAI receives your prompt and the relevant context only when you run a server-backed AI action.',
       'Google, Apple or Microsoft receive sign-in requests. Google or Microsoft receive meal-event details when you add them to a calendar, and return event times when you ask Forq to find busy evenings.',
-      'Ably receives opaque household, user, device and sync-version identifiers for live update signals when configured. Otherwise, the same short-lived signal is held in your Upstash Redis household store. A configured retailer data provider receives the retailer and product search terms you request.',
-      'When you choose barcode enrichment, Forq sends that barcode to Open Food Facts for product and nutrition data and to Open Prices for GBP observations. Those services are separate from the supermarket feeds; Forq labels their results and does not save them unless you add the returned product to your household.',
+      'Ably receives opaque household, user, device and sync-version identifiers for live update signals when configured. Otherwise, the same short-lived signal is held in your Upstash Redis household store.',
+      'When you choose barcode enrichment, Forq sends that barcode to Open Food Facts for product and nutrition data and to Open Prices for GBP observations. Forq labels those results as external observations and does not save them unless you add the returned product to your household.',
       'Anyone holding an active coach link can read only the sections selected when that link was created. Health is a separate opt-in scope; the link is read-only, expiring and revocable.',
-      'Optional product insights are sent only to Forqâ€™s own backend after sign-in. They are not sent to OpenAI, retailers, calendar providers or live-update services.',
+      'Optional product insights are sent only to Forqâ€™s own backend after sign-in. They are not sent to OpenAI, calendar providers or live-update services.',
     ],
   },
 ];

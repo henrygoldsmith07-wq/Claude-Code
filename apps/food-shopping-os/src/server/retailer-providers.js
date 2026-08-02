@@ -3,13 +3,7 @@ import {
   observedPriceSchema,
   priceLookupSchema,
   productDataSchema,
-  retailerResultSchema,
 } from './schemas.js';
-
-export const SUPPORTED_RETAILERS = Object.freeze([
-  'tesco', 'sainsburys', 'asda', 'aldi', 'lidl', 'morrisons',
-  'waitrose', 'ocado', 'amazon-fresh',
-]);
 
 const DEFAULT_OPEN_FOOD_FACTS_URL = 'https://world.openfoodfacts.org';
 const DEFAULT_OPEN_PRICES_URL = 'https://prices.openfoodfacts.org';
@@ -56,73 +50,10 @@ const baseUrl = (value) => {
 
 const checkedAt = () => new Date().toISOString();
 
-const configuredMap = () => {
-  if (!process.env.RETAILER_API_CONFIG_JSON) return {};
-  try {
-    const parsed = JSON.parse(process.env.RETAILER_API_CONFIG_JSON);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const providerFromConfig = (retailer) => {
-  const entry = configuredMap()[retailer];
-  if (!entry || typeof entry !== 'object') return null;
-  const base = baseUrl(entry.baseUrl);
-  if (!base) return null;
-  const keyEnv = typeof entry.apiKeyEnv === 'string' && /^[A-Z0-9_]+$/.test(entry.apiKeyEnv)
-    ? entry.apiKeyEnv
-    : null;
-  const auth = ['bearer', 'x-api-key', 'none'].includes(entry.auth) ? entry.auth : 'bearer';
-  const apiKey = keyEnv ? process.env[keyEnv] : '';
-  if (auth !== 'none' && !apiKey) return null;
-  return {
-    base,
-    path: typeof entry.path === 'string' && /^\/(?!\/)/.test(entry.path) ? entry.path : '/v1/products/search',
-    apiKey,
-    auth,
-    apiKeyHeader: typeof entry.apiKeyHeader === 'string' && /^[A-Za-z0-9-]+$/.test(entry.apiKeyHeader)
-      ? entry.apiKeyHeader
-      : 'x-api-key',
-    retailerParam: typeof entry.retailerParam === 'string' ? entry.retailerParam.slice(0, 40) : 'retailer',
-    queryParam: typeof entry.queryParam === 'string' ? entry.queryParam.slice(0, 40) : 'query',
-    label: typeof entry.label === 'string' ? entry.label.slice(0, 120) : 'Licensed retailer provider',
-  };
-};
-
-export const retailerProviderFor = (retailer) => providerFromConfig(retailer) || (() => {
-  const base = baseUrl(process.env.RETAILER_API_BASE_URL);
-  if (!base || !process.env.RETAILER_API_KEY) return null;
-  return {
-    base,
-    path: '/v1/products/search',
-    apiKey: process.env.RETAILER_API_KEY,
-    auth: 'bearer',
-    apiKeyHeader: 'x-api-key',
-    retailerParam: 'retailer',
-    queryParam: 'query',
-    label: 'Licensed retailer provider',
-  };
-})();
-
-export const retailerProviderStatus = () => {
-  const configuredRetailers = SUPPORTED_RETAILERS.filter((retailer) => retailerProviderFor(retailer));
+export const openDataStatus = () => {
   const openFoodFacts = process.env.OPEN_FOOD_FACTS_ENABLED !== 'false';
   const openPrices = process.env.OPEN_PRICES_ENABLED !== 'false';
-  return {
-    licensed: configuredRetailers.length > 0,
-    configuredRetailers,
-    openFoodFacts,
-    openPrices,
-  };
-};
-
-const providerHeaders = (provider) => {
-  const headers = { accept: 'application/json' };
-  if (provider.auth === 'bearer') headers.authorization = `Bearer ${provider.apiKey}`;
-  if (provider.auth === 'x-api-key') headers[provider.apiKeyHeader] = provider.apiKey;
-  return headers;
+  return { openFoodFacts, openPrices };
 };
 
 const getJson = async (endpoint, options = {}, failureMessage = 'Provider data is temporarily unavailable.', { allowNotFound = false } = {}) => {
@@ -155,54 +86,6 @@ const rowsFrom = (payload) => {
   if (Array.isArray(payload.data)) return payload.data;
   if (payload.data && typeof payload.data === 'object') return rowsFrom(payload.data);
   return [];
-};
-
-export const normaliseRetailerProduct = (raw, { retailer, source = 'licensed-provider', sourceLabel = 'Licensed retailer provider' } = {}) => {
-  const value = raw && typeof raw === 'object' ? raw : {};
-  const availability = String(value.availability ?? value.stock ?? value.status ?? 'unknown').toLowerCase();
-  const normalisedAvailability = ['available', 'in stock', 'instock', 'yes', 'true'].includes(availability)
-    ? 'available'
-    : ['unavailable', 'out of stock', 'outofstock', 'no', 'false'].includes(availability)
-      ? 'unavailable'
-      : 'unknown';
-  const productPrice = numeric(value.price ?? value.currentPrice ?? value.salePrice);
-  const productCurrency = text(value.currency, 3)?.toUpperCase()
-    || (productPrice === null ? undefined : '');
-  const candidate = {
-    id: text(value.id ?? value.productId ?? value.sku, 200) || undefined,
-    name: text(value.name ?? value.productName ?? value.title, 200) || 'Unnamed product',
-    brand: text(value.brand ?? value.brandName, 200),
-    barcode: barcode(value.barcode ?? value.gtin ?? value.ean),
-    price: productPrice,
-    currency: productCurrency,
-    unitPrice: numeric(value.unitPrice ?? value.pricePerUnit ?? value.price_per_100g),
-    unit: text(value.unit ?? value.priceUnit ?? value.unitPriceUnit, 40)
-      || (value.price_per_100g !== undefined ? '100g' : null),
-    offer: text(value.offer ?? value.offerText ?? value.promotion, 300),
-    availability: normalisedAvailability,
-    deliveryUrl: url(value.deliveryUrl ?? value.delivery_url),
-    productUrl: url(value.productUrl ?? value.url ?? value.link),
-    imageUrl: url(value.imageUrl ?? value.image ?? value.thumbnail),
-    source,
-    sourceLabel,
-    checkedAt: checkedAt(),
-  };
-  const product = retailerResultSchema.safeParse(candidate);
-  return product.success ? { ...product.data, retailer } : null;
-};
-
-export const searchRetailerProducts = async ({ retailer, query }) => {
-  const provider = retailerProviderFor(retailer);
-  if (!provider) throw new ApiError(503, 'No licensed provider is configured for this retailer.');
-  const endpoint = new URL(provider.path, provider.base);
-  if (endpoint.origin !== provider.base.origin) throw new ApiError(503, 'The configured retailer provider path is invalid.');
-  endpoint.searchParams.set(provider.retailerParam, retailer);
-  endpoint.searchParams.set(provider.queryParam, query);
-  const payload = await getJson(endpoint, { headers: providerHeaders(provider) }, 'Retailer data is temporarily unavailable.');
-  return rowsFrom(payload)
-    .slice(0, 30)
-    .map((row) => normaliseRetailerProduct(row, { retailer, sourceLabel: provider.label }))
-    .filter(Boolean);
 };
 
 const openFoodFactsBase = () => baseUrl(process.env.OPEN_FOOD_FACTS_API_BASE_URL || DEFAULT_OPEN_FOOD_FACTS_URL);

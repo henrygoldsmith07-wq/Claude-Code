@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '../../../../server/auth.js';
 import { databaseConfigured } from '../../../../server/database.js';
-import { retailerProviderStatus } from '../../../../server/retailer-providers.js';
+import { openDataStatus } from '../../../../server/retailer-providers.js';
 
 const integrationStatus = () => {
   const google = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
@@ -9,7 +9,7 @@ const integrationStatus = () => {
   const microsoft = Boolean(process.env.AUTH_MICROSOFT_ID && process.env.AUTH_MICROSOFT_SECRET);
   const ably = Boolean(process.env.ABLY_API_KEY);
   const redis = Boolean(databaseConfigured);
-  const retailerStatus = retailerProviderStatus();
+  const openData = openDataStatus();
   const serverAvailable = Boolean(databaseConfigured && process.env.AUTH_SECRET);
   return {
     google: { label: 'Google sign-in & Calendar', ready: google, detail: google ? 'Connected' : 'Add OAuth credentials' },
@@ -30,26 +30,19 @@ const integrationStatus = () => {
       ready: ably || redis,
       detail: ably ? 'Ably' : (redis ? 'Redis fallback' : 'Add Ably or database credentials'),
     },
-    retailers: {
-      label: 'Retailer prices & availability',
-      ready: retailerStatus.licensed,
-      detail: retailerStatus.licensed
-        ? `Licensed feed connected for ${retailerStatus.configuredRetailers.length} retailer${retailerStatus.configuredRetailers.length === 1 ? '' : 's'}`
-        : 'Add a licensed retailer provider; official shop links still work',
-    },
     productData: {
       label: 'Barcode product data (Open Food Facts)',
-      ready: retailerStatus.openFoodFacts && serverAvailable,
+      ready: openData.openFoodFacts && serverAvailable,
       detail: !serverAvailable
         ? 'Requires backend sign-in'
-        : retailerStatus.openFoodFacts ? 'Available on demand; nutrition and ingredients' : 'Disabled by configuration',
+        : openData.openFoodFacts ? 'Available on demand; nutrition and ingredients' : 'Disabled by configuration',
     },
     observedPrices: {
       label: 'Observed prices (Open Prices)',
-      ready: retailerStatus.openPrices && serverAvailable,
+      ready: openData.openPrices && serverAvailable,
       detail: !serverAvailable
         ? 'Requires backend sign-in'
-        : retailerStatus.openPrices ? 'Community observations; not live retailer quotes' : 'Disabled by configuration',
+        : openData.openPrices ? 'Community observations; not live retailer quotes' : 'Disabled by configuration',
     },
   };
 };

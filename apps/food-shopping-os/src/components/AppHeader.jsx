@@ -8,7 +8,7 @@ const TITLES = {
   home: null, // Home says hello instead — it's the one screen that greets you
   plan: { title: 'Meal planner', eyebrow: 'Build your week' },
   log: { title: 'Food diary', eyebrow: 'Track meals and nutrition' },
-  shop: { title: 'Shop', eyebrow: 'Your list, prices and stores' },
+  shop: { title: 'Shop', eyebrow: 'Your list, history and stores' },
   recipes: { title: 'Recipes', eyebrow: 'Find something worth cooking' },
 };
 
