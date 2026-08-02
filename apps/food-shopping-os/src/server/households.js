@@ -18,6 +18,7 @@ export async function ensurePersonalHousehold(user) {
     },
     { upsert: true, returnDocument: 'after', includeResultMetadata: false },
   );
+  if (household.deletingAt) return household;
   await db.collection('memberships').updateOne(
     { householdId: household._id, userId: user.id },
     {

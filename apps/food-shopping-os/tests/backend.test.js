@@ -11,7 +11,7 @@ import {
   initialiseCloud, pushCloud, retryQueuedCloud, subscribeCloud,
 } from '../src/lib/cloud.js';
 import { AppProvider, EMPTY_STATE, STORAGE_KEY, useApp } from '../src/lib/store.jsx';
-import { deleteHouseholdData } from '../src/server/households.js';
+import { deleteHouseholdData, ensurePersonalHousehold } from '../src/server/households.js';
 
 const CloudProbe = () => {
   const app = useApp();
@@ -325,5 +325,25 @@ describe('offline-first cloud migration', () => {
     expect(statuses.some((status) => status.kind === 'connected')).toBe(true);
     unsubscribe();
     expect(close).toHaveBeenCalled();
+  });
+});
+
+describe('personal household recovery', () => {
+  it('does not write a membership while deletion is in progress', async () => {
+    const deletingAt = new Date('2026-08-02T12:00:00.000Z');
+    const updateOne = vi.fn();
+    const findOneAndUpdate = vi.fn().mockResolvedValue({ _id: 'household-id', deletingAt });
+    const database = await import('../src/server/database.js');
+    const databaseSpy = vi.spyOn(database, 'getDatabase').mockResolvedValue({
+      collection: (name) => (name === 'households' ? { findOneAndUpdate } : { updateOne }),
+    });
+
+    try {
+      const result = await ensurePersonalHousehold({ id: 'user-1', name: 'Sam', email: 'sam@example.com' });
+      expect(result.deletingAt).toEqual(deletingAt);
+      expect(updateOne).not.toHaveBeenCalled();
+    } finally {
+      databaseSpy.mockRestore();
+    }
   });
 });
