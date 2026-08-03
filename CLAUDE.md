@@ -12,10 +12,30 @@
 - Keep files under 500 lines
 - Validate input at system boundaries
 
+## Token Discipline
+
+Everything in this file, every skill description, and every byte a hook prints
+to stdout is re-sent on *every* request. Treat context as a budget:
+
+- Read the narrowest slice that answers the question — `Grep`/`Glob` to locate,
+  then `Read` with `offset`/`limit`. Never `cat` a large file to inspect it.
+- Pipe noisy shell output through `head`/`wc`/`--quiet`; never dump full build,
+  test, or `npm install` logs when the summary line is what matters.
+- Spawn a subagent only when its work would otherwise flood this context
+  (broad multi-file searches). Each spawn re-derives context from cold — for a
+  task you can already see, doing it inline is cheaper.
+- Don't re-read a file you just edited to verify; the edit tools already failed
+  loudly if the change didn't apply.
+- Hooks stay silent on success (`CLAUDE_FLOW_HOOKS_VERBOSE=1` to debug them).
+  Keep it that way — success chatter buys nothing and is billed every turn.
+- Prefer one batch of parallel independent tool calls over serial round trips.
+- Run `/improve-system` to compress feedback loops instead of carrying a long,
+  drifting session; `/re-fresh` beats `/compact` for a clean handoff.
+
 ## Self-Improving System (Knowledge Base)
 
-The workspace maintains a learning loop: data flows into `/raw`, gets indexed
-in `/wiki`, and the improvement loop turns it into workspace upgrades.
+Data flows into `/raw`, gets indexed in `/wiki`, and the improvement loop turns
+it into workspace upgrades.
 
 ### Directory Contract
 
@@ -42,10 +62,8 @@ in `/wiki`, and the improvement loop turns it into workspace upgrades.
 
 ### Routines (cloud Routines, fresh session per run)
 
-- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday 00:00 UK time
-  (cron `0 23 * * 1,4` UTC)
-- **System Improvements**: `/improve-system` — Tuesday & Friday 01:00 UK time
-  (cron `0 0 * * 2,5` UTC), one hour after ingestion
+- **Data Ingestion**: `/data-ingestion` — Tue & Fri 00:00 UK (cron `0 23 * * 1,4` UTC)
+- **System Improvements**: `/improve-system` — Tue & Fri 01:00 UK (cron `0 0 * * 2,5` UTC), one hour after ingestion
 - Cron is UTC, so both shift an hour later in UK winter (GMT); notifications
   are off — results surface only via the "Knowledge base updates" PR
 
@@ -65,33 +83,13 @@ a single draft PR open; merge it periodically to fold knowledge into `main`.
 
 ## Agent Comms (SendMessage-First Coordination)
 
-Named agents coordinate via `SendMessage`, not polling or shared state.
+Named agents coordinate via `SendMessage`, not polling or shared state:
+`Lead (you) ←→ architect ←→ coder ←→ tester ←→ reviewer`.
 
-```
-Lead (you) ←→ architect ←→ developer ←→ tester ←→ reviewer
-              (named agents message each other directly)
-```
-
-### Spawning a Coordinated Team
-
-```javascript
-// ALL agents in ONE message, each knows WHO to message next
-Agent({ prompt: "Research the codebase. SendMessage findings to 'architect'.",
-  subagent_type: "researcher", name: "researcher", run_in_background: true })
-Agent({ prompt: "Wait for 'researcher'. Design solution. SendMessage to 'coder'.",
-  subagent_type: "system-architect", name: "architect", run_in_background: true })
-Agent({ prompt: "Wait for 'architect'. Implement it. SendMessage to 'tester'.",
-  subagent_type: "coder", name: "coder", run_in_background: true })
-Agent({ prompt: "Wait for 'coder'. Write tests. SendMessage results to 'reviewer'.",
-  subagent_type: "tester", name: "tester", run_in_background: true })
-Agent({ prompt: "Wait for 'tester'. Review code quality and security.",
-  subagent_type: "reviewer", name: "reviewer", run_in_background: true })
-
-// Kick off the pipeline
-SendMessage({ to: "researcher", summary: "Start", message: "[task context]" })
-```
-
-### Patterns
+Spawn the whole team in ONE message — each `Agent({...})` call gets
+`name: "<role>"`, `run_in_background: true`, and a prompt naming who to wait
+for and who to `SendMessage` next. Kick the pipeline off with a single
+`SendMessage` to the first agent.
 
 | Pattern | Flow | Use When |
 |---------|------|----------|
@@ -99,88 +97,51 @@ SendMessage({ to: "researcher", summary: "Start", message: "[task context]" })
 | **Fan-out** | Lead → A, B, C → Lead | Independent parallel work (research) |
 | **Supervisor** | Lead ↔ workers | Ongoing coordination (complex refactor) |
 
-### Rules
-
 - ALWAYS name agents — `name: "role"` makes them addressable
 - ALWAYS include comms instructions in prompts — who to message, what to send
-- Spawn ALL agents in ONE message with `run_in_background: true`
 - After spawning: STOP, tell user what's running, wait for results
 - NEVER poll status — agents message back or complete automatically
 
 ## Swarm & Routing
 
-### Config
-- **Topology**: hierarchical-mesh (anti-drift)
-- **Max Agents**: 15
-- **Memory**: hybrid
-- **HNSW**: Enabled
-- **Neural**: Enabled
+Config: hierarchical-mesh topology (anti-drift), max 15 agents, hybrid memory,
+HNSW + neural enabled.
 
-```bash
-npx @claude-flow/cli@latest swarm init --topology hierarchical --max-agents 8 --strategy specialized
-```
+| Task | Agents |
+|------|--------|
+| Bug Fix | researcher, coder, tester |
+| Feature | architect, coder, tester, reviewer |
+| Refactor | architect, coder, reviewer |
+| Performance | perf-engineer, coder |
+| Security | security-architect, auditor |
 
-### Agent Routing
+- **Swarm**: 3+ files, new features, cross-module refactoring, API changes, security, performance
+- **Don't swarm**: single file edits, 1-2 line fixes, docs updates, config changes, questions
 
-| Task | Agents | Topology |
-|------|--------|----------|
-| Bug Fix | researcher, coder, tester | hierarchical |
-| Feature | architect, coder, tester, reviewer | hierarchical |
-| Refactor | architect, coder, reviewer | hierarchical |
-| Performance | perf-engineer, coder | hierarchical |
-| Security | security-architect, auditor | hierarchical |
-
-### When to Swarm
-- **YES**: 3+ files, new features, cross-module refactoring, API changes, security, performance
-- **NO**: single file edits, 1-2 line fixes, docs updates, config changes, questions
-
-### 3-Tier Model Routing
-
-| Tier | Handler | Use Cases |
-|------|---------|-----------|
-| 1 | Agent Booster (WASM) | Simple transforms — skip LLM, use Edit directly |
-| 2 | Haiku | Simple tasks, low complexity |
-| 3 | Sonnet/Opus | Architecture, security, complex reasoning |
+Model tiers: (1) simple transforms — skip the LLM, use `Edit` directly;
+(2) Haiku for low-complexity tasks; (3) Sonnet/Opus for architecture, security,
+and complex reasoning.
 
 ## Memory & Learning
 
-### Before Any Task
-```bash
-npx @claude-flow/cli@latest memory search --query "[task keywords]" --namespace patterns
-npx @claude-flow/cli@latest hooks route --task "[task description]"
-```
+Memory is opt-in, not a per-task ritual — a search that returns nothing still
+costs a round trip. Use it when prior art would actually change the approach:
 
-### After Success
 ```bash
+npx @claude-flow/cli@latest memory search --query "[keywords]" --namespace patterns
 npx @claude-flow/cli@latest memory store --namespace patterns --key "[name]" --value "[what worked]"
-npx @claude-flow/cli@latest hooks post-task --task-id "[id]" --success true --store-results true
 ```
 
-### MCP Tools (use `ToolSearch("keyword")` to discover)
+Store after a non-obvious success; skip it for routine edits.
 
-| Category | Key Tools |
-|----------|-----------|
-| **Memory** | `memory_store`, `memory_search`, `memory_search_unified` |
-| **Bridge** | `memory_import_claude`, `memory_bridge_status` |
-| **Swarm** | `swarm_init`, `swarm_status`, `swarm_health` |
-| **Agents** | `agent_spawn`, `agent_list`, `agent_status` |
-| **Hooks** | `hooks_route`, `hooks_post-task`, `hooks_worker-dispatch` |
-| **Security** | `aidefence_scan`, `aidefence_is_safe`, `aidefence_has_pii` |
-| **Hive-Mind** | `hive-mind_init`, `hive-mind_consensus`, `hive-mind_spawn` |
+MCP tools (discover with `ToolSearch("keyword")`): memory (`memory_store`,
+`memory_search`), swarm (`swarm_init`, `swarm_status`), agents (`agent_spawn`,
+`agent_list`), hooks (`hooks_route`, `hooks_post-task`), security
+(`aidefence_scan`), hive-mind (`hive-mind_init`, `hive-mind_consensus`).
 
-### Background Workers
-
-| Worker | When |
-|--------|------|
-| `audit` | After security changes |
-| `optimize` | After performance work |
-| `testgaps` | After adding features |
-| `map` | Every 5+ file changes |
-| `document` | After API changes |
-
-```bash
-npx @claude-flow/cli@latest hooks worker dispatch --trigger audit
-```
+Background workers (`hooks worker dispatch --trigger <name>`): `audit` after
+security changes, `optimize` after perf work, `testgaps` after new features,
+`map` every 5+ file changes, `document` after API changes.
 
 ## Agents
 
@@ -196,36 +157,19 @@ Any string works as a custom agent type.
 ## Build & Test
 
 - ALWAYS run tests after code changes
-- ALWAYS verify build succeeds before committing
+- ALWAYS verify build succeeds before committing (`npm run build && npm test`)
 
-```bash
-npm run build && npm test
-```
+## CLI
 
-## CLI Quick Reference
+`npx @claude-flow/cli@latest <command>` — 26 commands, 140+ subcommands
+(`init`, `swarm`, `memory`, `hooks`, `doctor --fix`, `security scan`,
+`performance benchmark`). Use `--help` for details rather than guessing.
 
-```bash
-npx @claude-flow/cli@latest init --wizard           # Setup
-npx @claude-flow/cli@latest swarm init --v3-mode     # Start swarm
-npx @claude-flow/cli@latest memory search --query "" # Vector search
-npx @claude-flow/cli@latest hooks route --task ""    # Route to agent
-npx @claude-flow/cli@latest doctor --fix             # Diagnostics
-npx @claude-flow/cli@latest security scan            # Security scan
-npx @claude-flow/cli@latest performance benchmark    # Benchmarks
-```
+Setup: `claude mcp add claude-flow -- npx -y ruflo@latest mcp start`.
 
-26 commands, 140+ subcommands. Use `--help` on any command for details.
-
-## Setup
-
-```bash
-claude mcp add claude-flow -- npx -y ruflo@latest mcp start
-npx ruflo@latest doctor --fix
-```
-
-> The background `daemon` is optional. It runs interval workers that each spawn
-> a headless `claude` session, so it consumes tokens continuously. Start it only
-> if you want those sweeps: `npx ruflo@latest daemon start` (self-stops after 12h
-> by default; `--ttl 0` to disable, `daemon status --all` to audit running daemons).
+> The background `daemon` is optional and **expensive**: its interval workers
+> each spawn a headless `claude` session, so it burns tokens continuously.
+> Start it only if you want those sweeps: `npx ruflo@latest daemon start`
+> (self-stops after 12h; `--ttl 0` to disable, `daemon status --all` to audit).
 
 **Agent tool** handles execution (agents, files, code, git). **MCP tools** handle coordination (swarm, memory, hooks). **CLI** is the same via Bash.

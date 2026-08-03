@@ -176,7 +176,10 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_FLOW_V3_ENABLED": "true",
-    "CLAUDE_FLOW_HOOKS_ENABLED": "true"
+    "CLAUDE_FLOW_HOOKS_ENABLED": "true",
+    "CLAUDE_FLOW_HOOKS_VERBOSE": "0",
+    "CLAUDE_FLOW_CONTEXT_BUDGET": "800",
+    "MAX_MCP_OUTPUT_TOKENS": "10000"
   },
   "claudeFlow": {
     "version": "3.0.0",
