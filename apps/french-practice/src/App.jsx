@@ -13,6 +13,7 @@ const SettingsModal = lazy(() => import('./components/SettingsModal'));
 const Skills = lazy(() => import('./components/Skills'));
 const AiHub = lazy(() => import('./components/AiHub'));
 const PathSetup = lazy(() => import('./components/PathSetup'));
+const LearningPath = lazy(() => import('./components/LearningPath'));
 const Profile = lazy(() => import('./components/Profile'));
 const Culture = lazy(() => import('./components/Culture'));
 const RealWorld = lazy(() => import('./components/RealWorld'));
@@ -35,7 +36,7 @@ import {
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
-  shouldOnboard, setOnboarded, setLastActivity, getLastActivity,
+  setOnboarded, setLastActivity, getLastActivity,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries, dueEntries } from './lib/memory';
@@ -44,7 +45,7 @@ import { AVATARS, activeEvent, levelFromXp } from './lib/game';
 import { syncLanguage } from './lib/i18n';
 import { getLanguage } from './lib/languages';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Target, Coins as CoinsIcon } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Mic, Layers, Terminal, Book, BookOpen, Sparkles, Landmark, Download, X, Grid, Compass, Sliders, BarChart, Clock, ChevronRight, Search, Target, Coins as CoinsIcon, Map, StudioMark } from './components/icons';
 
 // The bottom bar holds only the core daily-practice destinations; everything
 // else lives in the "More" sheet (see MORE_GROUPS) so the bar stays uncluttered.
@@ -61,7 +62,12 @@ const MORE_TAB_IDS = ['grammar', 'ai', 'culture', 'dev'];
 
 export default function App() {
   const [apiKey, setApiKey] = useState(getApiKey);
-  const [settings, setSettings] = useState(getSettings);
+  const [settings, setSettings] = useState(() => {
+    const current = getSettings();
+    // First-time users get a working local demo; a provider key is an
+    // optional upgrade, never a prerequisite for the first conversation.
+    return getApiKey() ? current : { ...current, mockMode: true };
+  });
   const [tab, setTab] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -92,11 +98,14 @@ export default function App() {
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [referenceTool, setReferenceTool] = useState(null);
   const [focusOpen, setFocusOpen] = useState(false);
-  const [onboardingOpen, setOnboardingOpen] = useState(shouldOnboard);
+  // First value comes before configuration. Full onboarding remains available
+  // from Settings when the learner is ready to personalise the studio.
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [prefs, setPrefsState] = useState(getPrefs);
   const pwa = usePwaInstall();
   const [installDismissed, setInstallDismissed] = useState(false);
   const [path, setPath] = useState(getPath);
+  const [learningPathOpen, setLearningPathOpen] = useState(false);
   const [pathSetupOpen, setPathSetupOpen] = useState(false);
   const [grammarFocus, setGrammarFocus] = useState(null); // topic id from an Arena tip
   const [skillArea, setSkillArea] = useState(null); // null = skills hub; speaking|listening|reading|writing
@@ -128,6 +137,7 @@ export default function App() {
       import('./components/Personalise');
       import('./components/Offline');
       import('./components/PathSetup');
+      import('./components/LearningPath');
       import('./components/SettingsModal');
       import('./components/SessionDashboard');
     };
@@ -149,6 +159,7 @@ export default function App() {
     [analyticsOpen, () => setAnalyticsOpen(false)],
     [referenceOpen, () => setReferenceOpen(false)],
     [focusOpen, () => setFocusOpen(false)],
+    [learningPathOpen, () => setLearningPathOpen(false)],
     [pathSetupOpen, () => setPathSetupOpen(false)],
   ];
   const anyOverlayOpen = overlayClosers.some(([o]) => o);
@@ -248,6 +259,11 @@ export default function App() {
     persistSettings(s);
   };
 
+  const handleApiKeyChange = (key) => {
+    setApiKey(key);
+    if (key && settings.mockMode) updateSettings({ ...settings, mockMode: false });
+  };
+
   const updatePrefs = (patch) => {
     setPrefs(patch);
     setPrefsState(getPrefs());
@@ -266,7 +282,7 @@ export default function App() {
       dailyGoal: d.dailyGoal,
       weeklyGoal: d.weeklyGoal,
       smartReminders: d.reminders,
-      mockMode: settings.mockMode || d.mock,
+      mockMode: d.mock || (!d.apiKey.trim() && settings.mockMode),
     });
     syncLanguage(d.language);
     updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
@@ -453,6 +469,7 @@ export default function App() {
       </span>
       {/* header */}
       <header className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-surface backdrop-blur">
+        <StudioMark size={27} />
         <h1 className="font-bold text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
           {getLanguage(settings.language).studio}
           <span className="sr-only"> — {getLanguage(settings.language).name} speaking practice</span>
@@ -558,19 +575,9 @@ export default function App() {
           {tab === 'home' && (
             <HomeDashboard
               dailyGoal={settings.dailyGoal}
-              weeklyGoal={settings.weeklyGoal}
               level={settings.level}
-              path={path}
               onStartLesson={startLesson}
-              onOpenSetup={() => setPathSetupOpen(true)}
               onNavigate={setTab}
-              onOpenRealWorld={() => setRealWorldOpen(true)}
-              onOpenPersonalise={() => setPersonaliseOpen(true)}
-              onOpenOffline={() => setOfflineOpen(true)}
-              onOpenAnalytics={() => setAnalyticsOpen(true)}
-              onOpenReference={(tool) => { setReferenceTool(tool || null); setReferenceOpen(true); }}
-              onOpenFocus={() => setFocusOpen(true)}
-              onOpenProfile={() => setProfileOpen(true)}
               lastActivity={getLastActivity()}
               onResume={resumeActivity}
               onPickScenario={(s) => {
@@ -671,7 +678,7 @@ export default function App() {
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           apiKey={apiKey}
-          onKeyChange={setApiKey}
+          onKeyChange={handleApiKeyChange}
           settings={settings}
           onSettingsChange={updateSettings}
           onReplayOnboarding={() => { setSettingsOpen(false); setOnboardingOpen(true); }}
@@ -714,7 +721,32 @@ export default function App() {
         />
       )}
       {focusOpen && <Focus open={focusOpen} onClose={() => setFocusOpen(false)} />}
-      {onboardingOpen && <Onboarding open={onboardingOpen} onComplete={finishOnboarding} onSkip={skipOnboarding} />}
+      {learningPathOpen && (
+        <div className="fixed inset-0 z-[55] overflow-y-auto bg-bg" role="dialog" aria-modal="true" aria-label="Learning path">
+          <div className="mx-auto min-h-full max-w-lg px-4 py-4">
+            <div className="mb-4 flex items-center gap-3">
+              <h2 className="flex-1 text-lg font-bold text-ink">Learning path</h2>
+              <button type="button" onClick={() => setLearningPathOpen(false)} aria-label="Close learning path" className="grid h-9 w-9 place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink">
+                <X size={18} />
+              </button>
+            </div>
+            <LearningPath
+              path={path}
+              dueCount={dueEntries([...allEntries(), ...notebookAsEntries(getNotebook())], getSrs()).length}
+              onStartLesson={startLesson}
+              onOpenSetup={() => { setLearningPathOpen(false); setPathSetupOpen(true); }}
+            />
+          </div>
+        </div>
+      )}
+      {onboardingOpen && (
+        <Onboarding
+          open={onboardingOpen}
+          onComplete={finishOnboarding}
+          onSkip={skipOnboarding}
+          onStartConversation={() => setTab('arena')}
+        />
+      )}
       {searchOpen && <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} onGo={goFromSearch} />}
       <MoreSheet
         open={moreOpen}
@@ -731,6 +763,7 @@ export default function App() {
           analytics: () => setAnalyticsOpen(true),
           personalise: () => setPersonaliseOpen(true),
           offline: () => setOfflineOpen(true),
+          learningPath: () => setLearningPathOpen(true),
         }}
       />
       {realWorldOpen && (
@@ -890,6 +923,7 @@ function MoreSheet({ open, onClose, activeTab, devPanel, onTab, onOpen, overlays
     {
       label: 'Your progress',
       items: [
+        { icon: Map, title: 'Learning path', subtitle: 'Roadmap, lessons & placement', onClick: () => onOpen(overlays.learningPath) },
         { icon: BarChart, title: 'Analytics', subtitle: 'Time, retention, skill breakdown', onClick: () => onOpen(overlays.analytics) },
         { icon: Sliders, title: 'Personalise', subtitle: 'Style, difficulty, recommendations', onClick: () => onOpen(overlays.personalise) },
         { icon: Download, title: 'Offline & devices', subtitle: 'Downloads, install, sync', onClick: () => onOpen(overlays.offline) },

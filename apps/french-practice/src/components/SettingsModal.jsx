@@ -60,7 +60,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
 
         <section className="space-y-2">
           <label htmlFor="groq-key" className="text-sm font-semibold text-ink">
-            Groq API Key
+            Live AI key <span className="font-normal text-ink3">(optional)</span>
           </label>
           {apiKey ? (
             <div className="flex items-center justify-between gap-3 bg-surface2 rounded-xl px-4 py-3">
@@ -95,6 +95,9 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
                   {state === 'checking' ? '…' : 'Validate'}
                 </button>
               </div>
+              <p className="text-[11px] text-ink3">
+                Demo mode works without a key. Add one only when you want live AI responses.
+              </p>
               <p className="text-[11px] text-ink3">
                 Create a free key at console.groq.com — it is checked against the
                 <code className="mx-1 text-ink2">/models</code> endpoint before being saved.

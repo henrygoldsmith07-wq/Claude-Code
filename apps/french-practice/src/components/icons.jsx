@@ -195,6 +195,21 @@ export const FileText = (p) => (
   <Icon {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></Icon>
 );
 
+// Le Studio mark: a conversation window with the three colours of the
+// French flag. It stays legible at header size and gives the speaking flow a
+// recognisable visual anchor without adding another image dependency.
+export function StudioMark({ size = 24, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className={`inline-block shrink-0 ${className}`}>
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="var(--ink)" />
+      <path d="M7 6v9.5a1.5 1.5 0 0 0 1.5 1.5H17" stroke="var(--speak)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M10.5 6v9.5a1.5 1.5 0 0 0 1.5 1.5h1" stroke="var(--surface)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M14 6v9.5a1.5 1.5 0 0 0 1.5 1.5H17" stroke="var(--review)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M7 19h7" stroke="var(--on-accent)" strokeWidth="1.5" strokeLinecap="round" opacity=".8" />
+    </svg>
+  );
+}
+
 export const Scissors = (p) => (
   <Icon {...p}><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><line x1="20" x2="8.12" y1="4" y2="15.88" /><line x1="14.47" x2="20" y1="14.48" y2="20" /><line x1="8.12" x2="12" y1="8.12" y2="12" /></Icon>
 );
