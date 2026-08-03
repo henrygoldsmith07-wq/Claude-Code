@@ -4,6 +4,8 @@ import {
   Database, HardDrive, Send, ShieldCheck, Trash2,
 } from 'lucide-react';
 import { PRIVACY_DISCLOSURE } from '../data/privacy.js';
+import { useOptionalApp } from '../lib/store.jsx';
+import { YOUTH_COPY, YOUTH_SIGNPOST } from '../lib/youth.js';
 import { forgetCloudHousehold, selectedCloudHouseholdId } from '../lib/cloud.js';
 import { Card } from './ui.jsx';
 import HealthVaultPanel from './HealthVaultPanel.jsx';
@@ -24,6 +26,10 @@ export default function PrivacyPanel({
   request = defaultRequest,
   signOutUser = signOut,
 } = {}) {
+  // This panel is also rendered on its own in tests, so a missing provider
+  // means "no under-18 mode" rather than a crash.
+  const app = useOptionalApp();
+  const youth = app?.youth || { on: false, separateConsent: false, consentGiven: false };
   const [backend, setBackend] = useState(null);
   const [households, setHouseholds] = useState([]);
   const [confirming, setConfirming] = useState(false);
@@ -109,6 +115,39 @@ export default function PrivacyPanel({
 
       <HealthVaultPanel />
 
+      {/* The under-18 consent flow: a separate question, with a separate
+          answer stored, and the choices it makes on the user's behalf named. */}
+      {youth.on && (
+        <Card className="space-y-3">
+          <div>
+            <p className="font-extrabold text-[0.90625rem]">Under-18 privacy</p>
+            <p className="mt-1 text-[0.78125rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+              {YOUTH_COPY.consent}
+            </p>
+          </div>
+          <ul className="list-disc space-y-1 pl-5 text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+            <li>Product insights are off and cannot be turned on.</li>
+            <li>Coach and trainer links never include health records.</li>
+            <li>{YOUTH_COPY.sharing}</li>
+          </ul>
+          <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+            <p className="text-[0.78125rem] font-bold">
+              {youth.consentGiven ? `Accepted ${app.youthConsent.acceptedAt}` : 'Not yet accepted'}
+            </p>
+            <button
+              type="button"
+              onClick={() => app.setYouthConsent(youth.consentGiven ? null : {})}
+              className="press rounded-2xl border px-3 py-2 text-[0.75rem] font-extrabold"
+              style={{ borderColor: youth.consentGiven ? 'var(--line)' : 'var(--accent)', color: youth.consentGiven ? 'var(--muted)' : 'var(--accent)' }}
+            >
+              {youth.consentGiven ? 'Withdraw' : 'Accept'}
+            </button>
+          </div>
+          <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{YOUTH_SIGNPOST}</p>
+        </Card>
+      )}
+
+      {!youth.separateConsent && (
       <Card className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -145,6 +184,7 @@ export default function PrivacyPanel({
           </p>
         )}
       </Card>
+      )}
 
       {PRIVACY_DISCLOSURE.map((section) => {
         const Icon = ICONS[section.id];

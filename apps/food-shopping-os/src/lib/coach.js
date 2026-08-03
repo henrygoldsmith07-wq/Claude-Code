@@ -10,6 +10,7 @@
 import { dayTotals, entryMacros, mealLabel, MEAL_KEYS } from './nutrition.js';
 import { addDays, dayStamp } from './kitchen.js';
 import { resolveMaintenance } from './goals.js';
+import { isUnderEighteen, YOUTH_COPY } from './youth.js';
 
 const round = (n, dp = 0) => {
   const k = 10 ** dp;
@@ -159,6 +160,11 @@ const GOAL_DIRECTION = { lose: -1, gain: 1, muscle: 1, recomp: 0, maintain: 0 };
  * assumes your logging is complete.
  */
 export const predictProgress = (state, { days = 14, today = dayStamp() } = {}) => {
+  // Under 18 there is no estimate to give: growth breaks the arithmetic, and a
+  // dated weight projection is not something this app should hand a child.
+  if (isUnderEighteen(state)) {
+    return { ready: false, youth: true, reason: YOUTH_COPY.prediction, days: 0 };
+  }
   const rows = recentDays(state.log, { days, today }).filter((d) => d.logged);
   const maintenance = resolveMaintenance(state);
   if (rows.length < 5) {

@@ -7,6 +7,9 @@ import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { BODY_GOALS, DIET_PATTERNS, SEXES } from '../data/goals.js';
 import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
+import {
+  isUnderEighteen, YOUTH_COPY, YOUTH_SIGNPOST, youthConsentRecord, youthGoal,
+} from '../lib/youth.js';
 import { byId } from '../data/recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays } from '../lib/kitchen.js';
@@ -44,6 +47,7 @@ export default function Onboarding() {
   const [sex, setSex] = useState('unspecified');
   const [maintenance, setMaintenance] = useState('');
   const [trackCycle, setTrackCycle] = useState(false);
+  const [youthConsent, setYouthConsent] = useState(false);
 
   const toggleDiet = (id) =>
     setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
@@ -58,14 +62,20 @@ export default function Onboarding() {
   // With weight, height and age, the equation runs; without, we fall back to
   // whatever figure you typed, and with neither to the default.
   const estimated = maintenanceFrom(body);
+  /* The age is asked before anything is offered, so under-18 mode is on for the
+     rest of setup rather than applied afterwards. */
+  const youth = isUnderEighteen({ body });
+  const offeredGoals = youth ? BODY_GOALS.filter((g) => g.kcalFactor >= 1) : BODY_GOALS;
+  const chosenGoal = youth ? youthGoal(goal) : goal;
 
   /** Whatever we know: the estimate, a typed figure, or the default. */
   const preview = computeTargets({
-    goal,
+    goal: chosenGoal,
     diets,
     maintenanceKcal: estimated || num(maintenance),
     weightKg: body.weightKg,
     fallbackKcal: DEFAULT_TARGETS.kcal,
+    youth,
   });
 
   const finish = () => {
@@ -75,7 +85,7 @@ export default function Onboarding() {
       { dinner: recipe.id },
     ]));
     const state = {
-      goal,
+      goal: chosenGoal,
       diets,
       body,
       maintenanceKcal: Math.max(0, Number(maintenance) || 0),
@@ -86,6 +96,9 @@ export default function Onboarding() {
       name: name.trim() || 'you',
       household,
       trackCycle,
+      // Under 18 the consent answer is stored as its own record; over 18 there
+      // is nothing extra to store and it stays null.
+      youthConsent: youth && youthConsent ? youthConsentRecord(app.day) : null,
       entryGoal,
       starterRecipeIds,
       plan: starterPlan,
@@ -178,6 +191,23 @@ export default function Onboarding() {
 
         {step === 1 && (
           <>
+            <Card>
+              <NumberField label="Your age" value={age} onChange={setAge} suffix="yrs" step={1} />
+              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                Asked here rather than buried in the nutrition settings, because it decides how the
+                rest of the app behaves. Leave it blank and Forq stays as it is.
+              </p>
+              {youth && (
+                <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--accent)', background: 'var(--accent-soft)' }}>
+                  <p className="text-[0.8125rem] font-extrabold">Forq is set up for under-18s</p>
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <li>{YOUTH_COPY.targets}</li>
+                    <li>{YOUTH_COPY.balance}</li>
+                    <li>Fasting, alcohol targets and weight predictions are not part of it.</li>
+                  </ul>
+                </div>
+              )}
+            </Card>
             <Card className="flex items-center justify-between">
               <div>
                 <p className="font-bold text-[0.875rem]">People you cook for</p>
@@ -280,20 +310,24 @@ export default function Onboarding() {
                 What are you aiming for?
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {BODY_GOALS.map((g) => (
-                  <Chip key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
+                {offeredGoals.map((g) => (
+                  <Chip key={g.id} active={chosenGoal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
                 ))}
               </div>
               <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {BODY_GOALS.find((g) => g.id === goal).blurb}
+                {BODY_GOALS.find((g) => g.id === chosenGoal).blurb}
               </p>
+              {youth && (
+                <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_COPY.goals}
+                </p>
+              )}
             </div>
 
             <Card className="space-y-2.5">
               <div className="grid grid-cols-2 gap-2.5">
                 <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
                 <NumberField label="Your height" value={heightCm} onChange={setHeightCm} suffix="cm" step={1} />
-                <NumberField label="Age" value={age} onChange={setAge} suffix="yrs" step={1} />
                 <div>
                   <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
                   <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -359,6 +393,29 @@ export default function Onboarding() {
             </p>
               </>
             )}
+
+            {/* A separate consent question, asked outside the optional block so
+                it cannot be skipped by leaving personalisation closed. */}
+            {youth && (
+              <Card className="space-y-2.5" style={{ borderColor: youthConsent ? 'var(--accent)' : 'var(--line)' }}>
+                <p className="font-extrabold text-[0.90625rem]">Before you start</p>
+                <p className="text-[0.78125rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_COPY.consent}
+                </p>
+                <ul className="list-disc space-y-1 pl-4 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <li>Your data stays in this browser unless you sign in.</li>
+                  <li>Anonymous product insights stay off, and cannot be turned on in this mode.</li>
+                  <li>{YOUTH_COPY.sharing}</li>
+                </ul>
+                <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+                  <p className="text-[0.8125rem] font-bold">I have read this and want to continue</p>
+                  <Toggle label="Accept the under-18 privacy terms" on={youthConsent} onChange={() => setYouthConsent(!youthConsent)} />
+                </div>
+                <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_SIGNPOST}
+                </p>
+              </Card>
+            )}
           </>
         )}
       </div>
@@ -375,7 +432,8 @@ export default function Onboarding() {
         )}
         <button
           onClick={() => (step === 2 ? finish() : setStep(step + 1))}
-          className="press flex-1 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
+          disabled={step === 2 && youth && !youthConsent}
+          className="press flex-1 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-2">

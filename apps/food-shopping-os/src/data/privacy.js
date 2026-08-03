@@ -19,6 +19,7 @@ export const PRIVACY_DISCLOSURE = [
       'Food diary, nutrition targets and allergies. When you enable the health vault, body measurements, sleep, cycle, exercise, lab and glucose entries plus progress-photo thumbnails move into an encrypted local record.',
       'Browser storage is not encrypted. Anyone who can use this browser profile may be able to read it.',
       'Optional product insights are kept as a short local queue until you enable them and sign in. They contain only coarse journey counts.',
+      'When the age you gave is under 18, Forq stores your answer to its separate consent question, keeps product insights off, and does not offer to include health records in a coach link.',
     ],
   },
   {

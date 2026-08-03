@@ -12,6 +12,7 @@ import {
 } from '../data/goals.js';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { weekDates } from './kitchen.js';
+import { caffeineLimitMg, isUnderEighteen, youthGoal, youthKcalFactor } from './youth.js';
 
 const round = (n) => Math.round(n);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
@@ -78,12 +79,16 @@ export const computeTargets = ({
   maintenanceKcal = null,
   weightKg = null,
   fallbackKcal = DEFAULT_TARGETS.kcal,
+  youth = false,
 } = {}) => {
-  const g = bodyGoal(goal);
+  // Under 18 a deficit goal falls back to maintenance, and no multiplier is
+  // allowed to take the day below it — whatever the stored goal says.
+  const g = bodyGoal(youth ? youthGoal(goal) : goal);
+  const kcalFactor = youth ? youthKcalFactor(g.kcalFactor) : g.kcalFactor;
   const patterns = diets.map(dietPattern).filter(Boolean);
 
   const base = maintenanceKcal || fallbackKcal;
-  const kcal = Math.max(1000, round(base * g.kcalFactor));
+  const kcal = Math.max(1000, round(base * kcalFactor));
 
   // Protein: per kilo when we know the weight, otherwise a share of energy.
   let protein = weightKg ? weightKg * g.proteinPerKg : (kcal * g.proteinPct) / KCAL_PER_G.protein;
@@ -115,18 +120,32 @@ export const dietTargetPatch = (diets = []) =>
     .filter(Boolean)
     .reduce((acc, p) => ({ ...acc, ...(p.targetPatch || {}) }), {});
 
-/** The full target set to store: macros from the goal, micros from reference + diet. */
-export const targetsFor = (state) => ({
-  ...DEFAULT_TARGETS,
-  ...dietTargetPatch(state.diets),
-  ...computeTargets({
-    goal: state.goal,
-    diets: state.diets,
-    maintenanceKcal: resolveMaintenance(state),
-    weightKg: state.body?.weightKg || null,
-    fallbackKcal: state.targets?.kcal || DEFAULT_TARGETS.kcal,
-  }),
+/**
+ * Micronutrient limits that follow the person rather than the pattern: an
+ * age-appropriate caffeine figure under 18, and no alcohol allowance at all.
+ */
+export const youthTargetPatch = (state) => ({
+  caffeine: caffeineLimitMg({ age: state.body?.age ?? null, weightKg: state.body?.weightKg || null }),
+  alcohol: 0,
 });
+
+/** The full target set to store: macros from the goal, micros from reference + diet. */
+export const targetsFor = (state) => {
+  const youth = isUnderEighteen(state);
+  return {
+    ...DEFAULT_TARGETS,
+    ...dietTargetPatch(state.diets),
+    ...computeTargets({
+      goal: state.goal,
+      diets: state.diets,
+      maintenanceKcal: resolveMaintenance(state),
+      weightKg: state.body?.weightKg || null,
+      fallbackKcal: state.targets?.kcal || DEFAULT_TARGETS.kcal,
+      youth,
+    }),
+    ...(youth ? youthTargetPatch(state) : {}),
+  };
+};
 
 /** What the current macro split works out as, in calories and percentages. */
 export const macroBreakdown = (targets) => {
@@ -224,8 +243,9 @@ export const filterByDiet = (recipes = [], diets = []) => {
 };
 
 /** A one-line summary of the goal set, for headers and the coach. */
-export const goalSummary = ({ goal, diets = [] }) => {
-  const g = bodyGoal(goal);
+export const goalSummary = (state = {}) => {
+  const { diets = [] } = state;
+  const g = bodyGoal(isUnderEighteen(state) ? youthGoal(state.goal) : state.goal);
   const names = diets.map((d) => dietPattern(d)?.label).filter(Boolean);
   return names.length ? `${g.label} · ${names.join(' · ')}` : g.label;
 };

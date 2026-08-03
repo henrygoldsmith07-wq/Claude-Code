@@ -3,6 +3,7 @@ import {
   Activity, Camera, Clock, Cookie, Droplet, Layers, Mic, Plus, ScanBarcode, ScanText, Search, Utensils,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { YOUTH_COPY } from '../lib/youth.js';
 import { prettyDate } from '../lib/utils.js';
 import {
   MEALS, alcoholUnits, byTime, entryMacros, mealForTime, mealLabel, nutrientAlerts,
@@ -335,13 +336,20 @@ export default function LogTab({ initialSheet = null, onIntentUsed }) {
           <div className="mt-2.5"><Meter value={app.hydration.total} max={app.targets.water} height={5} /></div>
           <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: 'var(--line)' }}>
             <Pill tone={totals.caffeine > app.targets.caffeine ? 'danger' : 'muted'}>
-              Caffeine {formatAmount('caffeine', totals.caffeine)}
+              Caffeine {formatAmount('caffeine', totals.caffeine)} of {formatAmount('caffeine', app.targets.caffeine)}
             </Pill>
-            <Pill tone={totals.alcohol > app.targets.alcohol ? 'warn' : 'muted'}>
-              Alcohol {alcoholUnits(totals.alcohol)} units
-            </Pill>
+            {app.youth.alcohol && (
+              <Pill tone={totals.alcohol > app.targets.alcohol ? 'warn' : 'muted'}>
+                Alcohol {alcoholUnits(totals.alcohol)} units
+              </Pill>
+            )}
             <Pill tone="muted">{app.hydration.fromDrinks.toLocaleString()} ml from food & drink</Pill>
           </div>
+          {app.youth.on && (
+            <p className="mt-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {YOUTH_COPY.caffeine}
+            </p>
+          )}
         </Card>
       </Section>
 

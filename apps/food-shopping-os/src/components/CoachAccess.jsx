@@ -3,6 +3,8 @@ import { Clipboard, Link2, ShieldCheck, Trash2 } from 'lucide-react';
 import {
   createCoachShare, listCoachShares, revokeCoachShare,
 } from '../lib/cloud.js';
+import { useOptionalApp } from '../lib/store.jsx';
+import { YOUTH_COPY, youthShareScopes } from '../lib/youth.js';
 import { Card, Chip } from './ui.jsx';
 
 const SCOPES = [
@@ -13,6 +15,11 @@ const SCOPES = [
 ];
 
 export default function CoachAccess() {
+  const app = useOptionalApp();
+  const strict = Boolean(app?.youth?.strictSharing);
+  // Health records are never in an under-18 coach link, so the scope isn't
+  // offered and is stripped again on the way out.
+  const offered = strict ? SCOPES.filter(([id]) => youthShareScopes([id]).length) : SCOPES;
   const [label, setLabel] = useState('My coach');
   const [scopes, setScopes] = useState(['diary', 'nutrition', 'plan']);
   const [shares, setShares] = useState([]);
@@ -36,7 +43,11 @@ export default function CoachAccess() {
     setBusy(true);
     setStatus('');
     try {
-      const share = await createCoachShare({ label, scopes, expiresInDays: 30 });
+      const share = await createCoachShare({
+        label,
+        scopes: strict ? youthShareScopes(scopes) : scopes,
+        expiresInDays: 30,
+      });
       setLink(`${window.location.origin}/coach/${share.token}`);
       setShares((current) => [share, ...current]);
       setStatus('Read-only link created. It expires in 30 days.');
@@ -90,11 +101,16 @@ export default function CoachAccess() {
         style={{ borderColor: 'var(--line)', background: 'var(--card-2)' }}
       />
       <div className="flex flex-wrap gap-2">
-        {SCOPES.map(([id, name]) => (
+        {offered.map(([id, name]) => (
           <Chip key={id} active={scopes.includes(id)} onClick={() => toggle(id)}>{name}</Chip>
         ))}
       </div>
-      {scopes.includes('health') && (
+      {strict && (
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          {YOUTH_COPY.sharing}
+        </p>
+      )}
+      {!strict && scopes.includes('health') && (
         <p className="rounded-xl border p-2.5 text-[0.75rem] font-bold" style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}>
           Health includes body measurements, sleep, cycle, exercise, blood results and glucose records.
         </p>
