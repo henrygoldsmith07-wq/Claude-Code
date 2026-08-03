@@ -1,6 +1,6 @@
 ---
 name: sync-claude-sessions
-description: Scrape local Claude Code session history into the knowledge base — digest recent CLI conversations into /raw/sessions and index recurring mistakes and skill opportunities in /wiki. Use when syncing session data or as part of /data-ingestion.
+description: 'Digest recent local Claude Code CLI history into /raw/sessions and index recurring mistakes in /wiki. Use when syncing session data or as part of /data-ingestion.'
 ---
 
 # Sync Claude Sessions

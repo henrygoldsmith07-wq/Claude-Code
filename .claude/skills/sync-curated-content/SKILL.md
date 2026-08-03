@@ -1,6 +1,6 @@
 ---
 name: sync-curated-content
-description: Capture outside learning material — read the newsletter email alias, extract claims and techniques, and update wiki entries with digests stored in /raw/curated. Use when syncing newsletters/curated content or as part of /data-ingestion.
+description: 'Read the +newsletter Gmail alias, extract claims and techniques into /raw/curated, update wiki entries. Use when syncing newsletters or as part of /data-ingestion.'
 ---
 
 # Sync Curated Content
