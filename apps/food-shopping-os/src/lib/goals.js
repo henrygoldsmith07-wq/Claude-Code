@@ -13,6 +13,7 @@ import {
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { weekDates } from './kitchen.js';
 import { caffeineLimitMg, isUnderEighteen, youthGoal, youthKcalFactor } from './youth.js';
+import { assessTarget, floorFor, MAX_DEFICIT_PCT, MAX_SURPLUS_PCT } from './target-safety.js';
 
 const round = (n) => Math.round(n);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
@@ -68,27 +69,50 @@ const balance = (kcal, protein, { carbCap = Infinity, fatFloorPct = 0, fatPct = 
 };
 
 /**
+ * The energy figure for a goal, when no safety assessment has been made.
+ *
+ * This is the arithmetic on its own: the goal's factor, held inside the
+ * permitted range, and floored by what this body actually burns. It is the
+ * least the function may do — `targetsFor` runs the full assessment in
+ * `target-safety.js` and hands the result in, which is what governs the app.
+ */
+const clampedKcal = ({ base, factor, sex, bmrKcal }) => {
+  const held = clamp(factor, 1 - MAX_DEFICIT_PCT, 1 + MAX_SURPLUS_PCT);
+  return Math.max(floorFor({ sex, bmrKcal, maintenanceKcal: base }), round(base * held));
+};
+
+/**
  * Daily targets for a goal + diet combination.
  *
  * `maintenanceKcal` anchors everything; without one we fall back to the
  * calorie target already in play, so the split is still meaningful.
+ *
+ * `safety` is an `assessTarget` report. When one is given it decides the
+ * calorie figure and which goal is actually in force — including refusing to
+ * personalise at all, in which case the fallback stands in as a reference
+ * figure and the report tells the screens not to present it as anybody's.
  */
 export const computeTargets = ({
   goal = 'maintain',
   diets = [],
   maintenanceKcal = null,
   weightKg = null,
+  sex = 'unspecified',
+  bmrKcal = null,
   fallbackKcal = DEFAULT_TARGETS.kcal,
   youth = false,
+  safety = null,
 } = {}) => {
   // Under 18 a deficit goal falls back to maintenance, and no multiplier is
   // allowed to take the day below it — whatever the stored goal says.
-  const g = bodyGoal(youth ? youthGoal(goal) : goal);
+  const g = bodyGoal(safety ? safety.appliedGoal : youth ? youthGoal(goal) : goal);
   const kcalFactor = youth ? youthKcalFactor(g.kcalFactor) : g.kcalFactor;
   const patterns = diets.map(dietPattern).filter(Boolean);
 
   const base = maintenanceKcal || fallbackKcal;
-  const kcal = Math.max(1000, round(base * kcalFactor));
+  const kcal = safety
+    ? (safety.personalised ? safety.kcal : round(fallbackKcal))
+    : clampedKcal({ base, factor: kcalFactor, sex, bmrKcal });
 
   // Protein: per kilo when we know the weight, otherwise a share of energy.
   let protein = weightKg ? weightKg * g.proteinPerKg : (kcal * g.proteinPct) / KCAL_PER_G.protein;
@@ -129,9 +153,28 @@ export const youthTargetPatch = (state) => ({
   alcohol: 0,
 });
 
+/**
+ * The safety assessment for the person the state describes.
+ *
+ * Every screen that shows, edits or explains a calorie target reads this rather
+ * than re-deciding from an age and a goal — one rule, one set of consequences,
+ * the same way `youthPolicy` works for under-18 mode.
+ */
+export const targetSafety = (state = {}) =>
+  assessTarget({
+    goal: state.goal,
+    body: state.body || {},
+    maintenanceKcal: resolveMaintenance(state),
+    bmrKcal: bmr(state.body || {}),
+    typedMaintenance: Math.max(0, Number(state.maintenanceKcal) || 0),
+    screening: state.goalScreening,
+    confirmation: state.targetConfirmation,
+  });
+
 /** The full target set to store: macros from the goal, micros from reference + diet. */
 export const targetsFor = (state) => {
   const youth = isUnderEighteen(state);
+  const safety = targetSafety(state);
   return {
     ...DEFAULT_TARGETS,
     ...dietTargetPatch(state.diets),
@@ -140,8 +183,11 @@ export const targetsFor = (state) => {
       diets: state.diets,
       maintenanceKcal: resolveMaintenance(state),
       weightKg: state.body?.weightKg || null,
+      sex: state.body?.sex || 'unspecified',
+      bmrKcal: bmr(state.body || {}),
       fallbackKcal: state.targets?.kcal || DEFAULT_TARGETS.kcal,
       youth,
+      safety,
     }),
     ...(youth ? youthTargetPatch(state) : {}),
   };

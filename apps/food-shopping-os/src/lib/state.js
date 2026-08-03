@@ -85,6 +85,11 @@ export const EMPTY_STATE = {
   body: { sex: 'unspecified', age: null, heightCm: null, weightKg: null, activity: 'light' },
   maintenanceKcal: 0, // typed in when body stats aren't given
   targetMode: 'auto', // 'auto' follows the goal; 'custom' is yours to set
+  // The questions asked before a restrictive goal, and the answers given:
+  // { control, preoccupied, 'unplanned-loss', 'advised-against', pregnancy } → yes | no
+  goalScreening: null,
+  // A deficit is proposed until it is agreed to: { signature, confirmedAt }
+  targetConfirmation: null,
   weeklyKcal: 0, // 0 = seven times the daily target
   /* budget & shopping */
   weeklyBudget: 0,

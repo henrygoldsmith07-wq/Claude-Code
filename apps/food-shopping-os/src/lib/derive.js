@@ -13,7 +13,9 @@ import { dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import {
   groceryInflation, kitchenStats, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom,
 } from './kitchen.js';
-import { defaultWeeklyKcal, goalSummary, resolveMaintenance, weekProgress } from './goals.js';
+import {
+  defaultWeeklyKcal, goalSummary, resolveMaintenance, targetSafety, weekProgress,
+} from './goals.js';
 import { leftoverItems, leftoverPortions } from './mealplan.js';
 import { progressSummary } from './progress.js';
 import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
@@ -81,6 +83,10 @@ export const deriveApp = (state) => {
     hydration: hydration(totals, glasses),
     /* goals */
     maintenanceKcalResolved: resolveMaintenance(state),
+    /* One assessment of this person's calorie target — whether it may exist at
+       all, how wide the estimate is, and what it is still waiting on. Screens
+       read this rather than deciding from an age and a goal themselves. */
+    targetSafety: targetSafety(state),
     goalSummary: goalSummary(state),
     weeklyKcalTarget: state.weeklyKcal || defaultWeeklyKcal(state.targets.kcal),
     week: weekProgress(state.log, {
