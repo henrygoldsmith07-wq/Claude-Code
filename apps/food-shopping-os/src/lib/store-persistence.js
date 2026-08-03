@@ -3,7 +3,7 @@ import {
   ACCENT_IDS, EMPTY_STATE, rolloverDay, STATE_VERSION, STORAGE_KEY,
 } from './state.js';
 import { HEALTH_VAULT_KEY, withoutHealth } from './health-vault.js';
-import { DEFAULT_PERMISSIONS } from './household.js';
+import { permissionsForRole } from './household.js';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -16,7 +16,10 @@ export const hydrate = (stored = {}) => {
     members: (Array.isArray(candidate.members) ? candidate.members : []).map((member) => ({
       ...member,
       role: member.role === 'child' ? 'child' : 'adult',
-      permissions: { ...DEFAULT_PERMISSIONS, ...(member.permissions || {}) },
+      permissions: {
+        ...permissionsForRole(member.role === 'child' ? 'child' : 'adult'),
+        ...(member.permissions || {}),
+      },
       notifications: member.notifications !== false,
     })),
     body: { ...EMPTY_STATE.body, ...(isObject(candidate.body) ? candidate.body : {}) },

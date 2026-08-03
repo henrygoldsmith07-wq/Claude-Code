@@ -28,13 +28,16 @@ import { DEFAULT_WIDGETS } from '../data/preferences.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
-import { DEFAULT_PERMISSIONS } from './household.js';
+import { DEFAULT_PERMISSIONS, permissionsForRole } from './household.js';
 import { buildTasteProfile } from './taste.js';
+import { YOUTH_COPY, youthPolicy } from './youth.js';
 
 export const deriveApp = (state) => {
   const activeMember = state.members.find((member) => member.id === state.activeMemberId) || null;
+  // One decision, made once: every screen reads this rather than an age.
+  const youth = youthPolicy(state);
   const householdAccess = activeMember
-    ? { ...DEFAULT_PERMISSIONS, ...(activeMember.permissions || {}) }
+    ? { ...permissionsForRole(activeMember.role), ...(activeMember.permissions || {}) }
     : { ...DEFAULT_PERMISSIONS };
   // The hard lines, gathered once so every surface filters the same way.
   const prefs = {
@@ -93,7 +96,10 @@ export const deriveApp = (state) => {
       : state.household || 1,
     planDiets: [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])],
     activeMember,
-    childMode: activeMember?.role === 'child',
+    /* Under-18 mode: automatic from the age given at setup, and still on when
+       a child profile in the household is the one being used. */
+    youth,
+    childMode: youth.on,
     householdAccess,
     /* leftovers */
     leftovers: leftoverItems(state.pantry),
@@ -145,6 +151,10 @@ export const deriveApp = (state) => {
     /* advanced surfaces, each derived from what you logged like everything else */
     footprint,
     footprintSwaps: swapIdeas(footprint),
-    fasting: fastingSummary(state.log, { today: state.day, plan: state.fastPlan }),
+    // Fasting isn't computed at all under 18 — a hidden screen that still runs
+    // its own arithmetic is a screen waiting to be shown by accident.
+    fasting: youth.fasting
+      ? fastingSummary(state.log, { today: state.day, plan: state.fastPlan })
+      : { ready: false, hidden: true, nights: 0, reason: YOUTH_COPY.fasting },
   };
 };

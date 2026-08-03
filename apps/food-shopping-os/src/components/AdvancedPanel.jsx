@@ -15,6 +15,7 @@ import { optimiseMicros } from '../lib/micro-optimise.js';
 import { currentFast, FAST_PLANS } from '../lib/fasting.js';
 import { dayResponses, daySummary, importSpan, parseCgmCsv } from '../lib/cgm.js';
 import { adherenceReport } from '../lib/reports.js';
+import { YOUTH_COPY } from '../lib/youth.js';
 import { Card, Chip, Meter, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import { NumberField } from './FoodDetail.jsx';
@@ -466,21 +467,30 @@ function RegisterView() {
  * shouldn't be.
  */
 export default function AdvancedPanel() {
+  const app = useApp();
   const [view, setView] = useState('planet');
+  // Under 18 fasting isn't a tab you can reach, not a tab that says no.
+  const views = app.youth.fasting ? VIEWS : VIEWS.filter(([key]) => key !== 'fasting');
+  const current = views.some(([key]) => key === view) ? view : 'planet';
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {VIEWS.map(([key, label, Icon]) => (
-          <Chip key={key} active={view === key} onClick={() => setView(key)}>
+        {views.map(([key, label, Icon]) => (
+          <Chip key={key} active={current === key} onClick={() => setView(key)}>
             <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
           </Chip>
         ))}
       </div>
-      {view === 'planet' && <PlanetView />}
-      {view === 'micros' && <MicrosView />}
-      {view === 'fasting' && <FastingView />}
-      {view === 'results' && <><BloodsCard /><GlucoseCard /></>}
-      {view === 'register' && <RegisterView />}
+      {current === 'planet' && <PlanetView />}
+      {current === 'micros' && <MicrosView />}
+      {current === 'fasting' && app.youth.fasting && <FastingView />}
+      {current === 'results' && <><BloodsCard /><GlucoseCard /></>}
+      {current === 'register' && <RegisterView />}
+      {!app.youth.fasting && (
+        <p className="px-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          {YOUTH_COPY.fasting}
+        </p>
+      )}
     </div>
   );
 }

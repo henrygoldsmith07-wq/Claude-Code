@@ -122,6 +122,9 @@ export const EMPTY_STATE = {
   cycles: [], // {id, start, end, flow, symptoms[]}
   trackCycle: false, // asked at setup, and yours to change whenever
   healthVaultEnabled: false,
+  // Under-18 setup asks separately about what leaves the device; this is that
+  // answer, and null until it has actually been given.
+  youthConsent: null, // {acceptedAt, productInsights, healthSharing}
   photos: [], // {id, date, thumb, note} — small, capped, local-first and syncable
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}

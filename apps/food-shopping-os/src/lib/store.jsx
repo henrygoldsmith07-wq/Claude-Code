@@ -31,6 +31,8 @@ import {
   hydrate, loadStoredState, parseBackup, serialiseBackup,
 } from './store-persistence.js';
 import { useStoreApi } from './store-api.js';
+import { isUnderEighteen } from './youth.js';
+import { readAnalyticsConsent, setAnalyticsConsent } from './product-analytics.js';
 
 export { PHOTO_LIMIT } from './health-actions.js';
 
@@ -353,6 +355,13 @@ export function AppProvider({ children }) {
     document.documentElement.dataset.theme = state.theme;
     document.documentElement.dataset.accent = state.accent;
   }, [state.theme, state.accent]);
+
+  /* Under 18 the product-insights answer is "no" and stays "no". Hiding the
+     toggle isn't enough — a consent granted before a birthday, or restored
+     from a backup, is revoked here rather than quietly honoured. */
+  useEffect(() => {
+    if (isUnderEighteen(state) && readAnalyticsConsent()) setAnalyticsConsent(false);
+  }, [state.body?.age]);
 
   // Your recipes join the book's lookup, so a plan slot or a cook history entry
   // pointing at one of yours resolves like any other dish.

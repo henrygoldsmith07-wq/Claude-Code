@@ -86,7 +86,25 @@ endpoint once its current vulnerable SDK dependency chain is patched.
   one for you. The
   weight you give starts your body series rather than sitting apart from it.
   Cycle tracking is a yes/no at setup, off by default, offered to everyone
-  rather than inferred from an answer. Every one of them is editable afterwards
+  rather than inferred from an answer. Every one of them is editable afterwards.
+  Age is asked on the context step rather than inside the optional nutrition
+  block, because it decides which app the rest of setup builds
+- **Under-18 mode** — automatic from that age, not a switch anyone has to find,
+  and on for a household child profile too. It sets targets at maintenance and
+  will not apply a weight-loss or body-recomposition multiplier; drops the
+  weekly calorie budget, so a bigger day is never a debt to pay back; hides
+  fasting and alcohol targets; reads caffeine against age and weight (EFSA's
+  3 mg/kg for children and adolescents) rather than the adult 400 mg; never
+  converts exercise into calories to eat back; stops scoring exact calorie
+  adherence in streaks, XP and challenges; shows no BMI band, because the NHS
+  reads child weight against age- and sex-specific centiles; and makes no body
+  prediction or comparison between people. What it says instead is balanced
+  meals, regular eating and variety, with a plain pointer to a parent or carer,
+  a GP, a school nurse or a registered dietitian for anything about weight,
+  growth or eating. Setup asks its own consent question before it will start,
+  product insights stay off, health never joins a coach link, and a child
+  profile's permissions start closed. This follows NICE NG246 on
+  age-appropriate dietary approaches for children and young people
 - **Goals & targets** — a body goal (weight loss · weight gain · maintenance ·
   muscle gain · body recomposition) sets the energy delta and protein
   priority; dietary patterns (keto · low-carb · high-protein · Mediterranean ·
@@ -465,6 +483,7 @@ src/
   lib/state.js         # what an install is: empty state + pure state helpers
   lib/store.jsx        # the provider: actions, the clock, persistence
   lib/derive.js        # every number the screens read, computed from state
+  lib/youth.js         # under-18 mode: one rule, and everything it decides
   lib/health-actions.js # the store's body/training actions, bounded on the way in
   lib/reminder-actions.js # the store's reminder actions, validated on the way in
   lib/reminders.js     # when one is due, what came due while you were away,

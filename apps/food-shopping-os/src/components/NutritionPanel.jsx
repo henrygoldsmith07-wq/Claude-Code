@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Info, RotateCcw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { YOUTH_COPY } from '../lib/youth.js';
 import {
   alcoholUnits, nutrientAlerts, nutrientRows, saltEquivalent,
 } from '../lib/nutrition.js';
@@ -98,7 +99,9 @@ export default function NutritionPanel() {
   // Hydration counts the glasses tracker as well as the water in your food.
   const totals = { ...app.totals, water: app.hydration.total };
   const targets = app.targets;
-  const rows = nutrientRows(totals, targets);
+  // Alcohol is not a target an under-18 app should be tracking against.
+  const rows = nutrientRows(totals, targets)
+    .filter((row) => app.youth.alcohol || row.key !== 'alcohol');
   const alerts = nutrientAlerts(totals, targets);
   const kcal = rows.find((r) => r.key === 'kcal');
   const units = alcoholUnits(totals.alcohol);
@@ -203,9 +206,14 @@ export default function NutritionPanel() {
                 onTarget={app.setTarget}
               />
             ))}
-            {group.id === 'other' && totals.alcohol > 0 && (
+            {group.id === 'other' && app.youth.alcohol && totals.alcohol > 0 && (
               <p className="pb-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {units} UK unit{units === 1 ? '' : 's'} today · guidance is under 14 a week.
+              </p>
+            )}
+            {group.id === 'other' && app.youth.on && (
+              <p className="pb-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {YOUTH_COPY.caffeine}
               </p>
             )}
           </Card>

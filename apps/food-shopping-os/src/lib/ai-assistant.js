@@ -10,6 +10,7 @@ import { inventRecipe } from './recipe-ai.js';
 import { swapsFor } from './recipe-tools.js';
 import { compareStores, groupForStore } from './shopping.js';
 import { gbp } from './utils.js';
+import { YOUTH_SIGNPOST } from './youth.js';
 
 const recipeLine = (recipe) =>
   `• ${recipe.name} — ${recipe.time} min, ${gbp(recipe.costPerServing, { always: true })}/serving, ${recipe.kcal} kcal`;
@@ -118,7 +119,11 @@ const cookingHelp = (app) => {
 const mealImprovement = (app) => {
   const order = ['dinner', 'lunch', 'breakfast', 'snack'];
   const feedback = order.map((meal) =>
-    mealFeedback(app.entries || [], meal, { targets: app.targets || {}, dayEntries: app.entries || [] })).find(Boolean);
+    mealFeedback(app.entries || [], meal, {
+      targets: app.targets || {},
+      dayEntries: app.entries || [],
+      youth: app.youth?.calorieDebtLanguage === false,
+    })).find(Boolean);
   if (!feedback) return 'Log a meal first and I’ll assess it from its calories, protein and fibre—without inventing a star rating.';
   return `${feedback.label}: ${feedback.points.join(' · ')}.\n\n${feedback.suggestion || 'This meal is balanced against the targets you set; no evidence-backed change stands out.'}`;
 };
@@ -172,6 +177,7 @@ export function answer(text, app) {
 
   if (/on track|progress|predict|losing|gaining|weight|pace/.test(t)) {
     const p = predictProgress(app, { today: app.day });
+    if (p.youth) return `${p.reason}\n\n${YOUTH_SIGNPOST}`;
     if (!p.ready) return `${p.reason}\n\nI’d rather say nothing than guess at your progress.`;
     const target = p.toTarget?.weeks
       ? `\n\n${Math.abs(p.toTarget.gapKg)} kg to your target — roughly ${p.toTarget.weeks} weeks at this rate.`
@@ -196,7 +202,12 @@ export function answer(text, app) {
   if (/eat(ing)? out|restaurant|takeaway|takeout|nando|greggs|pret/.test(t)) {
     const out = restaurantPicks(app, { today: app.day });
     if (!out.picks.length) return 'Nothing on the bundled menus fits what’s left of today. The app only knows a handful of chains and has no idea what is near you.';
-    return `${out.kcalLeft ? `${out.kcalLeft.toLocaleString()} kcal left today. ` : ''}Best protein per calorie:\n\n${out.picks.map((p) => `• ${p.food.name} (${p.food.chain}) — ${p.kcal} kcal, ${p.protein}g protein`).join('\n')}\n\nThese are the only chains I ship figures for.`;
+    // "X kcal left today" is a running balance; under 18 the answer is the
+    // dishes and what is in them, without the ledger.
+    const budget = app.youth?.calorieDebtLanguage === false || !out.kcalLeft
+      ? ''
+      : `${out.kcalLeft.toLocaleString()} kcal left today. `;
+    return `${budget}Best protein per calorie:\n\n${out.picks.map((p) => `• ${p.food.name} (${p.food.chain}) — ${p.kcal} kcal, ${p.protein}g protein`).join('\n')}\n\nThese are the only chains I ship figures for.`;
   }
 
   if (/swap|instead of|healthier|alternative/.test(t)) {
@@ -208,7 +219,12 @@ export function answer(text, app) {
   }
 
   if (/goal|target|aiming/.test(t)) {
-    return `You're set to ${goalSummary(app)}: ${app.targets.kcal.toLocaleString()} kcal a day (${app.weeklyKcalTarget.toLocaleString()} across the week), ${app.targets.protein}g protein, ${app.targets.carbs}g carbs, ${app.targets.fat}g fat.`;
+    // No weekly figure under 18: a week's total is the number a day gets paid
+    // back into, and that is the compensation loop this mode removes.
+    const week = app.youth?.weeklyCompensation === false
+      ? ''
+      : ` (${app.weeklyKcalTarget.toLocaleString()} across the week)`;
+    return `You're set to ${goalSummary(app)}: ${app.targets.kcal.toLocaleString()} kcal a day${week}, ${app.targets.protein}g protein, ${app.targets.carbs}g carbs, ${app.targets.fat}g fat.`;
   }
 
   if (/protein|macro|calorie|kcal|nutrition coach|how am i doing/.test(t)) {

@@ -10,6 +10,7 @@ import {
   allergenBy, CUISINES, DEFAULT_UNITS, DEFAULT_WIDGETS, intoleranceBy, religiousBy, skillBy,
   timeBudgetBy, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
+import { youthConsentRecord } from './youth.js';
 import { moveBefore } from './utils.js';
 
 const toggleIn = (list = [], id, valid) => {
@@ -20,6 +21,18 @@ const toggleIn = (list = [], id, valid) => {
 const unitKeys = Object.fromEntries(UNIT_CHOICES.map((c) => [c.key, c.options.map(([id]) => id)]));
 
 export const preferenceActions = (set) => ({
+  /**
+   * The under-18 consent answer, recorded rather than assumed. Passing null
+   * withdraws it, which puts the question back rather than quietly keeping an
+   * old yes on file.
+   */
+  setYouthConsent: (patch) =>
+    set((s) => ({
+      youthConsent: patch === null
+        ? null
+        : { ...youthConsentRecord(s.day), ...(s.youthConsent || {}), ...(patch || {}) },
+    })),
+
   /** An allergy is a hard line: adding one immediately removes recipes. */
   toggleAllergy: (id) => set((s) => ({ allergies: toggleIn(s.allergies, id, (x) => Boolean(allergenBy[x])) })),
   toggleIntolerance: (id) => set((s) => ({ intolerances: toggleIn(s.intolerances, id, (x) => Boolean(intoleranceBy[x])) })),

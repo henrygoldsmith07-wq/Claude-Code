@@ -1,4 +1,4 @@
-import { DEFAULT_PERMISSIONS } from './household.js';
+import { permissionsForRole } from './household.js';
 
 const event = (state, uid, message, kind = 'household') => ({
   householdEvents: [...state.householdEvents, {
@@ -12,13 +12,14 @@ export const householdActions = (set, uid) => ({
     set((state) => ({ activeMemberId: state.members.some((member) => member.id === activeMemberId) ? activeMemberId : null })),
   addMember: (member) =>
     set((state) => {
+      const role = member.role === 'child' ? 'child' : 'adult';
       const created = {
         id: uid('m'),
         name: member.name?.trim() || `Person ${state.members.length + 1}`,
         portions: Math.max(0.5, Number(member.portions) || 1),
         diets: member.diets || [],
-        role: member.role === 'child' ? 'child' : 'adult',
-        permissions: { ...DEFAULT_PERMISSIONS, ...(member.permissions || {}) },
+        role,
+        permissions: { ...permissionsForRole(role), ...(member.permissions || {}) },
         notifications: member.notifications !== false,
       };
       return { members: [...state.members, created], ...event(state, uid, `${created.name} joined the household.`) };
@@ -48,9 +49,9 @@ export const householdActions = (set, uid) => ({
         ? {
           ...member,
           permissions: {
-            ...DEFAULT_PERMISSIONS,
+            ...permissionsForRole(member.role),
             ...(member.permissions || {}),
-            [permission]: !(member.permissions?.[permission] ?? DEFAULT_PERMISSIONS[permission]),
+            [permission]: !(member.permissions?.[permission] ?? permissionsForRole(member.role)[permission]),
           },
         }
         : member)),

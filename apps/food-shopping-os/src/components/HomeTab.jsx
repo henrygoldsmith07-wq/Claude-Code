@@ -331,18 +331,21 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
               {foodLoop.steps.filter((step) => step.done).length}/3
             </Pill>
           </div>
+          {/* Three equal cells with words in them: at 200% text the cell is
+              narrower than the word, so the text has to be allowed to break
+              rather than run past the border. */}
           <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Weekly plan, shop and cook progress">
             {foodLoop.steps.map((step) => (
               <div
                 key={step.id}
-                className="rounded-xl border px-2.5 py-2 text-center"
+                className="min-w-0 rounded-xl border px-2.5 py-2 text-center"
                 style={{
                   borderColor: step.done ? 'var(--good)' : 'var(--line)',
                   background: step.done ? 'color-mix(in srgb, var(--good) 8%, transparent)' : 'var(--card-2)',
                 }}
               >
-                <p className="text-[0.75rem] font-extrabold">{step.done ? '✓ ' : ''}{step.label}</p>
-                <p className="text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                <p className="text-[0.75rem] font-extrabold [overflow-wrap:anywhere]">{step.done ? '✓ ' : ''}{step.label}</p>
+                <p className="text-[0.65625rem] font-semibold [overflow-wrap:anywhere]" style={{ color: 'var(--muted)' }}>
                   {step.id === 'plan' ? `${foodLoop.plannedMeals} meal${foodLoop.plannedMeals === 1 ? '' : 's'}`
                     : step.id === 'shop' ? `${foodLoop.shops} shop${foodLoop.shops === 1 ? '' : 's'}`
                       : `${foodLoop.cookedMeals} cooked`}

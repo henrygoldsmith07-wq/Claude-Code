@@ -6,6 +6,7 @@ import {
 } from '../data/goals.js';
 import { defaultWeeklyKcal, macroBreakdown, macroMismatch, resolveMaintenance } from '../lib/goals.js';
 import { formatAmount } from '../data/nutrients.js';
+import { YOUTH_COPY, YOUTH_SIGNPOST } from '../lib/youth.js';
 import { Card, Chip, Meter, Pill, Section, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -75,6 +76,12 @@ function MaintenanceCard() {
         Sex is here because Mifflin-St Jeor&rsquo;s constants differ by 166 kcal; &ldquo;Rather not
         say&rdquo; takes the midpoint rather than picking one for you.
       </p>
+
+      {app.youth.on && (
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          {YOUTH_COPY.targets}
+        </p>
+      )}
 
       <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
         <div className="min-w-0">
@@ -203,19 +210,27 @@ function WeeklyCard() {
 export default function GoalsPanel() {
   const app = useApp();
   const [showWorking, setShowWorking] = useState(false);
-  const goal = BODY_GOALS.find((g) => g.id === app.goal) || BODY_GOALS[2];
+  // Under 18 a stored deficit goal is not the goal in force — the panel shows
+  // what the app is actually doing, which is maintenance.
+  const goal = BODY_GOALS.find((g) => g.id === app.goal && app.youth.goals.includes(g.id))
+    || BODY_GOALS.find((g) => g.id === 'maintain');
 
   return (
     <div className="px-5 pb-10 space-y-5">
       {/* Body goal */}
       <Section title="Your goal" className="!px-0">
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-2.5">
-          {BODY_GOALS.map((g) => (
-            <Chip key={g.id} active={app.goal === g.id} onClick={() => app.setGoal(g.id)}>{g.label}</Chip>
+          {BODY_GOALS.filter((g) => app.youth.goals.includes(g.id)).map((g) => (
+            <Chip key={g.id} active={goal.id === g.id} onClick={() => app.setGoal(g.id)}>{g.label}</Chip>
           ))}
         </div>
         <Card className="!py-3">
           <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{goal.blurb}</p>
+          {app.youth.on && (
+            <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {YOUTH_COPY.goals}
+            </p>
+          )}
           <p className="mt-1.5 text-[0.75rem] font-bold">
             {Math.round((goal.kcalFactor - 1) * 100) === 0
               ? 'Energy: at maintenance'
@@ -252,7 +267,17 @@ export default function GoalsPanel() {
 
       <MaintenanceCard />
       <MacroCard />
-      <WeeklyCard />
+      {app.youth.weeklyCompensation ? <WeeklyCard /> : (
+        <Card className="space-y-2">
+          <p className="font-extrabold text-[0.9375rem]">No weekly calorie budget</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            {YOUTH_COPY.weekly}
+          </p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            {YOUTH_COPY.balance}
+          </p>
+        </Card>
+      )}
 
       {/* Show the working */}
       <button
@@ -288,6 +313,12 @@ export default function GoalsPanel() {
           <p className="pt-1" style={{ color: 'var(--faint)' }}>
             Estimates, not medical advice — every number above is editable.
           </p>
+        </Card>
+      )}
+
+      {app.youth.on && (
+        <Card className="!py-3">
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{YOUTH_SIGNPOST}</p>
         </Card>
       )}
 
