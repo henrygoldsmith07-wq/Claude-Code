@@ -6,7 +6,7 @@ import { useApp } from '../lib/store.jsx';
 import { YOUTH_COPY } from '../lib/youth.js';
 import { prettyDate } from '../lib/utils.js';
 import {
-  MEALS, alcoholUnits, byTime, entryMacros, mealForTime, mealLabel, nutrientAlerts,
+  MEALS, alcoholUnits, byTime, entryNumbers, mealForTime, mealLabel, nutrientAlerts,
   nutrientRows, remaining, snackSummary, sumMacros, timingInsight,
 } from '../lib/nutrition.js';
 import { formatAmount } from '../data/nutrients.js';
@@ -44,7 +44,7 @@ const SHEET_TITLES = {
 
 /** One logged food in the diary. */
 const EntryRow = ({ entry, onEdit }) => {
-  const m = entryMacros(entry);
+  const m = entryNumbers(entry);
   // The serving label often already states the weight ("1 medium (118 g)") —
   // only spell it out again when it doesn't.
   const weight = entry.grams && !String(entry.servingLabel).includes(String(entry.grams))

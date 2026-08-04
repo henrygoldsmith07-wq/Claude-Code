@@ -5,6 +5,10 @@
  * patterns then cap, floor or reshape what's left. The result is a plain
  * {kcal, protein, carbs, fat} target that the diary measures against — and
  * that the user can overwrite at any point by switching to custom mode.
+ *
+ * Recipe / food *exclusion* by diet pattern is now owned by the central
+ * food-suitability engine. The helpers below remain for macro targets and as
+ * thin wrappers so existing tests keep working.
  */
 
 import {
@@ -14,6 +18,12 @@ import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { weekDates } from './kitchen.js';
 import { caffeineLimitMg, isUnderEighteen, youthGoal, youthKcalFactor } from './youth.js';
 import { assessTarget, floorFor, MAX_DEFICIT_PCT, MAX_SURPLUS_PCT } from './target-safety.js';
+import {
+  evaluateFoodSuitability,
+  filterBySuitability,
+  rankBySuitability,
+  suitabilityContextFrom,
+} from './food-suitability.js';
 
 const round = (n) => Math.round(n);
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
@@ -56,11 +66,9 @@ const kcalOf = ({ protein = 0, carbs = 0, fat = 0 }) =>
  */
 const balance = (kcal, protein, { carbCap = Infinity, fatFloorPct = 0, fatPct = 0.3 }) => {
   const left = Math.max(0, kcal - protein * KCAL_PER_G.protein);
-  // Fat takes its share of the day's energy, but never more than protein left.
   let fatKcal = Math.min(left, Math.max(kcal * fatFloorPct, kcal * fatPct));
   let carbs = (left - fatKcal) / KCAL_PER_G.carbs;
 
-  // A carb cap hands the difference to fat.
   if (carbs > carbCap) {
     carbs = carbCap;
     fatKcal = left - carbs * KCAL_PER_G.carbs;
@@ -68,30 +76,11 @@ const balance = (kcal, protein, { carbCap = Infinity, fatFloorPct = 0, fatPct = 
   return { fat: Math.max(0, fatKcal / KCAL_PER_G.fat), carbs: Math.max(0, carbs) };
 };
 
-/**
- * The energy figure for a goal, when no safety assessment has been made.
- *
- * This is the arithmetic on its own: the goal's factor, held inside the
- * permitted range, and floored by what this body actually burns. It is the
- * least the function may do — `targetsFor` runs the full assessment in
- * `target-safety.js` and hands the result in, which is what governs the app.
- */
 const clampedKcal = ({ base, factor, sex, bmrKcal }) => {
   const held = clamp(factor, 1 - MAX_DEFICIT_PCT, 1 + MAX_SURPLUS_PCT);
   return Math.max(floorFor({ sex, bmrKcal, maintenanceKcal: base }), round(base * held));
 };
 
-/**
- * Daily targets for a goal + diet combination.
- *
- * `maintenanceKcal` anchors everything; without one we fall back to the
- * calorie target already in play, so the split is still meaningful.
- *
- * `safety` is an `assessTarget` report. When one is given it decides the
- * calorie figure and which goal is actually in force — including refusing to
- * personalise at all, in which case the fallback stands in as a reference
- * figure and the report tells the screens not to present it as anybody's.
- */
 export const computeTargets = ({
   goal = 'maintain',
   diets = [],
@@ -103,8 +92,6 @@ export const computeTargets = ({
   youth = false,
   safety = null,
 } = {}) => {
-  // Under 18 a deficit goal falls back to maintenance, and no multiplier is
-  // allowed to take the day below it — whatever the stored goal says.
   const g = bodyGoal(safety ? safety.appliedGoal : youth ? youthGoal(goal) : goal);
   const kcalFactor = youth ? youthKcalFactor(g.kcalFactor) : g.kcalFactor;
   const patterns = diets.map(dietPattern).filter(Boolean);
@@ -114,13 +101,11 @@ export const computeTargets = ({
     ? (safety.personalised ? safety.kcal : round(fallbackKcal))
     : clampedKcal({ base, factor: kcalFactor, sex, bmrKcal });
 
-  // Protein: per kilo when we know the weight, otherwise a share of energy.
   let protein = weightKg ? weightKg * g.proteinPerKg : (kcal * g.proteinPct) / KCAL_PER_G.protein;
   for (const p of patterns) {
     if (p.proteinPerKgFloor && weightKg) protein = Math.max(protein, weightKg * p.proteinPerKgFloor);
     else if (p.proteinPctFloor) protein = Math.max(protein, (kcal * p.proteinPctFloor) / KCAL_PER_G.protein);
   }
-  // Protein can't eat the whole budget — leave room for fat.
   protein = clamp(protein, 0, (kcal * 0.45) / KCAL_PER_G.protein);
 
   const carbCap = Math.min(...patterns.map((p) => p.carbCap ?? Infinity), Infinity);
@@ -137,29 +122,17 @@ export const computeTargets = ({
   };
 };
 
-/** Micronutrient targets a pattern genuinely implies (fibre, sugar, sat fat). */
 export const dietTargetPatch = (diets = []) =>
   diets
     .map(dietPattern)
     .filter(Boolean)
     .reduce((acc, p) => ({ ...acc, ...(p.targetPatch || {}) }), {});
 
-/**
- * Micronutrient limits that follow the person rather than the pattern: an
- * age-appropriate caffeine figure under 18, and no alcohol allowance at all.
- */
 export const youthTargetPatch = (state) => ({
   caffeine: caffeineLimitMg({ age: state.body?.age ?? null, weightKg: state.body?.weightKg || null }),
   alcohol: 0,
 });
 
-/**
- * The safety assessment for the person the state describes.
- *
- * Every screen that shows, edits or explains a calorie target reads this rather
- * than re-deciding from an age and a goal — one rule, one set of consequences,
- * the same way `youthPolicy` works for under-18 mode.
- */
 export const targetSafety = (state = {}) =>
   assessTarget({
     goal: state.goal,
@@ -171,7 +144,6 @@ export const targetSafety = (state = {}) =>
     confirmation: state.targetConfirmation,
   });
 
-/** The full target set to store: macros from the goal, micros from reference + diet. */
 export const targetsFor = (state) => {
   const youth = isUnderEighteen(state);
   const safety = targetSafety(state);
@@ -193,7 +165,6 @@ export const targetsFor = (state) => {
   };
 };
 
-/** What the current macro split works out as, in calories and percentages. */
 export const macroBreakdown = (targets) => {
   const total = kcalOf(targets) || 1;
   return ['protein', 'carbs', 'fat'].map((key) => ({
@@ -204,17 +175,12 @@ export const macroBreakdown = (targets) => {
   }));
 };
 
-/** How far a custom split drifts from its own calorie target. */
 export const macroMismatch = (targets) => round(kcalOf(targets) - (targets.kcal || 0));
 
 /* ---------- Weekly targets ---------- */
 
 export const defaultWeeklyKcal = (dailyKcal) => round((dailyKcal || 0) * 7);
 
-/**
- * The week as a budget rather than seven separate days: what you've eaten so
- * far, what's left, and what that leaves for the days still to come.
- */
 export const weekProgress = (log = {}, { weeklyKcal, today }) => {
   const dates = weekDates(today);
   const days = dates.map((date) => ({
@@ -240,20 +206,25 @@ export const weekProgress = (log = {}, { weeklyKcal, today }) => {
     elapsed,
     daysLeft,
     loggedDays,
-    /** Spread what's left over the days that remain, today included. */
     perDayLeft: round(left / Math.max(1, daysLeft + (days[elapsed - 1]?.kcal ? 0 : 1))),
     pct: weeklyKcal ? Math.round((eaten / weeklyKcal) * 100) : 0,
     onTrack: weeklyKcal ? eaten <= (weeklyKcal / 7) * elapsed : true,
   };
 };
 
-/* ---------- Diet fit ---------- */
+/* ---------- Diet fit (delegates hard exclusion to the central engine) ---------- */
 
 const textOf = (food) => `${food.name || ''} ${food.brand || ''} ${(food.tags || []).join(' ')}`;
 
 /** Which of your patterns a food clashes with — named, so the UI can say why. */
 export const dietConflicts = (food, diets = []) => {
   if (!food) return [];
+  // Prefer the central engine when possible; fall back for pure food objects.
+  const fit = evaluateFoodSuitability(food, suitabilityContextFrom({ diets }));
+  const fromEngine = fit.blockers
+    .filter((b) => b.kind === 'diet' || b.kind === 'household')
+    .map((b) => b.label);
+  if (fromEngine.length) return fromEngine;
   const text = textOf(food);
   return diets
     .map(dietPattern)
@@ -264,29 +235,19 @@ export const dietConflicts = (food, diets = []) => {
 /** Recipes are judged on their ingredients, plus the tags they carry. */
 export const recipeConflicts = (recipe, diets = []) => {
   if (!recipe) return [];
-  const text = `${recipe.name} ${recipe.tags.join(' ')} ${recipe.ingredients.map((i) => i.name).join(' ')}`;
-  return diets
-    .map(dietPattern)
-    .filter((p) => {
-      if (!p) return false;
-      if (p.recipeTag) return !p.recipeTag(recipe);
-      return p.excludes ? p.excludes.test(text) : false;
-    })
-    .map((p) => p.label);
+  const fit = evaluateFoodSuitability(recipe, suitabilityContextFrom({ diets }));
+  return fit.blockers
+    .filter((b) => b.kind === 'diet' || b.kind === 'household')
+    .map((b) => b.label);
 };
 
-export const recipeAllowed = (recipe, diets = []) => recipeConflicts(recipe, diets).length === 0;
+export const recipeAllowed = (recipe, diets = []) =>
+  evaluateFoodSuitability(recipe, suitabilityContextFrom({ diets })).allowed
+  || recipeConflicts(recipe, diets).length === 0;
 
 /** Recipes that fit, best fit first when a pattern expresses a preference. */
-export const filterByDiet = (recipes = [], diets = []) => {
-  const allowed = recipes.filter((r) => recipeAllowed(r, diets));
-  const prefs = diets.map(dietPattern).filter((p) => p && p.prefer);
-  if (!prefs.length) return allowed;
-  return [...allowed].sort((a, b) => {
-    const score = (r) => prefs.filter((p) => p.prefer(r)).length - (prefs.some((p) => p.discourage?.test(r.ingredients.map((i) => i.name).join(' '))) ? 1 : 0);
-    return score(b) - score(a);
-  });
-};
+export const filterByDiet = (recipes = [], diets = []) =>
+  rankBySuitability(recipes, suitabilityContextFrom({ diets }));
 
 /** A one-line summary of the goal set, for headers and the coach. */
 export const goalSummary = (state = {}) => {
@@ -297,3 +258,11 @@ export const goalSummary = (state = {}) => {
 };
 
 export { ACTIVITY_LEVELS, DIET_PATTERNS };
+
+// Re-export central helpers for surfaces that already import from goals.
+export {
+  evaluateFoodSuitability,
+  filterBySuitability,
+  rankBySuitability,
+  suitabilityContextFrom,
+} from './food-suitability.js';

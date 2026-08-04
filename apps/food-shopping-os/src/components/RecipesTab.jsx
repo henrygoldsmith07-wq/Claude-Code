@@ -8,7 +8,6 @@ import { gbp } from '../lib/utils.js';
 import { allRecipes, DISCOVER_FILTERS, filterRecipes } from '../data/recipes.js';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { missingFrom, parseShareCode, searchRecipes } from '../lib/recipe-tools.js';
-import { rankByPrefs } from '../lib/preferences.js';
 import { Section, Card, Chip, Pill, FoodArt, Sheet } from './ui.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
 import RecipeGenerator from './RecipeGenerator.jsx';
@@ -62,6 +61,25 @@ function SharedImport({ onDone }) {
           <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
             {preview.sharedBy ? `From ${preview.sharedBy} · ` : ''}{preview.ingredients.length} ingredients · {preview.steps.length} steps · {preview.time} min
           </p>
+          {(() => {
+            const fit = app.suitabilityFor?.(preview);
+            if (!fit) return null;
+            if (!fit.allowed) {
+              return (
+                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--danger)' }}>
+                  Blocked by your rules: {fit.blockers.map((b) => b.label).join(', ')}.
+                </p>
+              );
+            }
+            if (fit.warnings.length) {
+              return (
+                <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--warn)' }}>
+                  Note: {fit.warnings.map((w) => w.label).join(', ')}.
+                </p>
+              );
+            }
+            return null;
+          })()}
           <button
             onClick={() => { app.saveRecipe(preview); onDone(); }}
             className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
@@ -104,29 +122,31 @@ export default function RecipesTab({ openRecipe }) {
     return query.trim() ? allRecipes() : filterRecipes(filter);
   }, [view, filter, query, app.myRecipes, app.favourites, selectedCollection]);
 
-  // Allergens and observed rules cut the pool before anything else runs. A
-  // blocked recipe is never a search result, however you got here.
-  const safePool = useMemo(() => rankByPrefs(pool, app.prefs), [pool, app.prefs]);
+  // Central engine: allergens, religious rules, diet patterns and household
+  // diets cut the pool before anything else runs. A blocked recipe is never a
+  // search result, however you got here.
+  const safePool = useMemo(
+    () => (app.rankRecipes ? app.rankRecipes(pool) : pool),
+    [pool, app.rankRecipes, app.suitabilityCtx],
+  );
   const blocked = pool.length - safePool.length;
 
   const recipes = useMemo(
-    () => searchRecipes(safePool, { query, have: pantryNames, ...filters }),
-    [safePool, query, filters, app.pantry],
+    () => searchRecipes(safePool, {
+      query,
+      have: pantryNames,
+      suitabilityCtx: app.suitabilityCtx,
+      ...filters,
+    }),
+    [safePool, query, filters, app.pantry, app.suitabilityCtx],
   );
 
-  /* The library is over a thousand dishes. Putting all of them in the page at
-     once made a screen you had to scroll for a minute to reach the end of, and
-     a first paint that had to build every card before showing you the first
-     one. A page at a time, growing when you ask: the count above still tells
-     you the real total, so nothing is hidden — just not all laid out at once. */
   const [shown, setShown] = useState(PAGE);
   useEffect(() => setShown(PAGE), [query, filters, view, filter]);
   const visible = recipes.slice(0, shown);
 
-  // Saying how many were removed is the difference between a filter and a
-  // disappearance you can't account for.
   const blockedLine = blocked > 0
-    ? `${blocked} recipe${blocked === 1 ? '' : 's'} hidden by your allergies and rules.`
+    ? `${blocked} recipe${blocked === 1 ? '' : 's'} hidden by your allergies, diets and rules.`
     : null;
 
   const emptyLine = view === 'mine'
@@ -173,7 +193,6 @@ export default function RecipesTab({ openRecipe }) {
         </div>
       </div>
 
-      {/* Library · my recipes · favourites · collections */}
       <div className="mt-4 px-5 flex gap-2 overflow-x-auto no-scrollbar rise rise-1">
         {[['library', `Library (${allRecipes().length})`], ['mine', `Mine (${app.myRecipes.length})`], ['favourites', `Favourites (${app.favourites.length})`], ['collections', `Collections (${app.recipeCollections.length})`]]
           .map(([key, label]) => (
@@ -211,7 +230,6 @@ export default function RecipesTab({ openRecipe }) {
         </button>
       </div>
 
-      {/* Make one, or take one in */}
       {app.householdAccess.recipes ? (
       <div className="mt-3 grid grid-cols-3 gap-2">
         <button
@@ -333,6 +351,7 @@ export default function RecipesTab({ openRecipe }) {
               const tall = i % 5 === 0;
               const fav = app.favourites.includes(r.id);
               const short = missingFrom(r, pantryNames).length;
+              const fit = app.suitabilityFor?.(r);
               return (
                 <Card key={r.id} className="relative !p-0 overflow-hidden">
                   <button
@@ -347,9 +366,10 @@ export default function RecipesTab({ openRecipe }) {
                           {r.generated ? <Pill tone="accent"><Sparkles size={11} /> yours</Pill>
                             : r.shared ? <Pill tone="accent">shared</Pill>
                               : app.pantry.length > 0 && short === 0 ? <Pill tone="good"><ChefHat size={11} /> can cook now</Pill>
-                                : r.tags.includes('high-protein') ? <Pill tone="accent">{r.protein}g protein</Pill>
-                                  : r.time <= 20 ? <Pill tone="muted"><Clock size={11} /> {r.time} min</Pill>
-                                    : null}
+                                : fit?.warnings?.length ? <Pill tone="warn">check</Pill>
+                                  : r.tags.includes('high-protein') ? <Pill tone="accent">{r.protein}g protein</Pill>
+                                    : r.time <= 20 ? <Pill tone="muted"><Clock size={11} /> {r.time} min</Pill>
+                                      : null}
                         </span>
                       </div>
                       <div className="p-3">
@@ -415,9 +435,6 @@ export default function RecipesTab({ openRecipe }) {
         <TasteGame />
       </Sheet>
 
-      {/* With a thousand-odd dishes on the shelf, the useful move depends on
-          where you are: cut them to what your kitchen can already make, undo a
-          filter that left you with nothing, or just be handed one. */}
       {recipes.length === 0 ? (
         <PrimaryAction
           label="Clear the filters"

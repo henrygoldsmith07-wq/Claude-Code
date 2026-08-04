@@ -8,6 +8,9 @@
  * one it brought, using the same per-100 g tables the recipe book is built
  * from. Where an ingredient isn't in those tables the app says the figures are
  * unchanged rather than inventing new ones.
+ *
+ * Diet / allergy filtering for search goes through the central food-suitability
+ * engine when a suitabilityCtx is supplied.
  */
 
 import { partByName } from '../data/recipe-parts.js';
@@ -16,6 +19,7 @@ import { NUTRIENT_KEYS } from '../data/nutrients.js';
 import { estimateRecipeMicros } from './foodlog.js';
 import { KCAL_PER_G } from '../data/goals.js';
 import { recipeAllowed } from './goals.js';
+import { evaluateFoodSuitability, suitabilityContextFrom } from './food-suitability.js';
 
 const round1 = (n) => Math.round(n * 10) / 10;
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -41,23 +45,14 @@ const pretty = (n) => {
   return String(Math.round(rounded * 10) / 10);
 };
 
-/**
- * Scale one amount. Anything we can't read a number out of ("to serve", "a
- * thumb") is left exactly as written rather than mangled.
- */
 export const scaleQty = (qty, factor) => {
   const parsed = parseQty(qty);
   if (!parsed || factor === 1) return String(qty ?? '');
   const amount = pretty(parsed.amount * factor);
   if (!parsed.unit) return amount;
-  // Keep the dish's own spacing: "600g" stays "900g", "600 g" stays "900 g".
   return parsed.spaced ? `${amount} ${parsed.unit}` : `${amount}${parsed.unit}`;
 };
 
-/**
- * The same dish for a different number of people: amounts scale, per-serving
- * nutrition does not, and the cost quoted for the whole dish does.
- */
 export const scaleRecipe = (recipe, servings) => {
   const from = recipe.servings || 1;
   const to = Math.max(1, Math.round(servings));
@@ -81,7 +76,6 @@ const strip = (text) => text
 const MEAT = /chicken|beef|lamb|pork|turkey|bacon|ham|sausage|salmon|cod|prawn|tuna|mackerel|anchov|fish|seafood/i;
 const ANIMAL_PRODUCT = /milk|yogurt|yoghurt|cheese|halloumi|feta|paneer|parmesan|butter|egg|honey|whey|korma|tikka|pesto|cream/i;
 
-/** Recompute vegan/vegetarian from what a dish now contains. */
 export const dietTagsFor = (ingredients = []) => {
   const text = strip(ingredients.map((i) => i.name).join(' '));
   const meat = MEAT.test(text);
@@ -98,7 +92,6 @@ const retag = (recipe, ingredients) => {
 
 /* ---------- Substitutions ---------- */
 
-/** The swaps on offer for a dish, ingredient by ingredient. */
 export const swapsFor = (recipe) =>
   (recipe.ingredients || [])
     .map((i) => ({ ingredient: i.name, options: substitutesFor(i.name) }))
@@ -107,23 +100,16 @@ export const swapsFor = (recipe) =>
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const stem = (w) => w.toLowerCase().replace(/s$/, '');
 
-/** Drop a word that just repeats the one before it ("noodles noodle"). */
 const dedupe = (text) => text
   .split(/\s+/)
   .filter((word, i, all) => i === 0 || stem(word) !== stem(all[i - 1]))
   .join(' ');
 
-/**
- * A dish whose name still says "chicken" after the chicken came out is a lie
- * the diet filters would then believe, so the name is rewritten too — on the
- * whole ingredient name where it appears, otherwise on the word that does.
- */
 const rename = (name, from, to) => {
   for (const token of [from, ...from.split(/\s+/)]) {
     const re = new RegExp(`\\b${escapeRe(token)}\\b`, 'i');
     const found = name.match(re);
     if (found) {
-      // Match the case of what it replaces, so a Title Case name stays one.
       const upper = /^[A-Z]/.test(found[0]);
       const replacement = upper ? to.charAt(0).toUpperCase() + to.slice(1) : to.toLowerCase();
       const out = dedupe(name.replace(re, replacement));
@@ -133,11 +119,6 @@ const rename = (name, from, to) => {
   return `${name} with ${to.toLowerCase()}`;
 };
 
-/**
- * Swap one ingredient for another. When both sides are in the ingredient
- * tables the dish's nutrition, cost and diet tags are recomputed; when they
- * aren't, only the ingredient line changes and `recalculated` says so.
- */
 export const applySwap = (recipe, ingredientName, option) => {
   const index = recipe.ingredients.findIndex((i) => i.name.toLowerCase() === ingredientName.toLowerCase());
   if (index < 0) return recipe;
@@ -184,10 +165,6 @@ export const applySwap = (recipe, ingredientName, option) => {
   };
 };
 
-/**
- * The swaps that would make a dish fit a pattern it currently clashes with —
- * one per offending ingredient, best (first-listed) option each.
- */
 export const swapsForDiet = (recipe, diet) =>
   (recipe.ingredients || [])
     .map((i) => {
@@ -196,13 +173,18 @@ export const swapsForDiet = (recipe, diet) =>
     })
     .filter(Boolean);
 
-/** Apply all of them, in order. */
 export const makeItFit = (recipe, diet) =>
   swapsForDiet(recipe, diet).reduce((acc, { ingredient, option }) => applySwap(acc, ingredient, option), recipe);
 
+/**
+ * After a swap (or import), re-check the dish against the user's full safety
+ * context so AI generation / substitutions never hand back a blocker.
+ */
+export const suitabilityAfterSwap = (recipe, context = {}) =>
+  evaluateFoodSuitability(recipe, suitabilityContextFrom(context));
+
 /* ---------- Nutrition ---------- */
 
-/** Share of the calories carried by each macro, as whole percentages. */
 export const macroSplit = ({ protein = 0, carbs = 0, fat = 0 }) => {
   const parts = {
     protein: protein * KCAL_PER_G.protein,
@@ -218,17 +200,11 @@ export const macroSplit = ({ protein = 0, carbs = 0, fat = 0 }) => {
   };
 };
 
-/**
- * Everything a serving contains: the macros the dish computed for itself, plus
- * micronutrients estimated by matching its ingredients to the food catalogue.
- * `matched` says how much of the dish that estimate could actually see.
- */
 export const recipeNutrition = (recipe, catalogue) => {
   const per100 = estimateRecipeMicros(recipe, catalogue);
   const lines = recipe.ingredients.length;
   const totals = { kcal: recipe.kcal, protein: recipe.protein, carbs: recipe.carbs, fat: recipe.fat, fibre: recipe.fibre };
   if (per100) {
-    // Scale the per-100 g estimate to this serving's calories.
     const factor = per100.kcal ? recipe.kcal / per100.kcal : 0;
     for (const key of NUTRIENT_KEYS) {
       if (key in totals) continue;
@@ -252,7 +228,6 @@ const hasIngredient = (recipe, term) => {
     || recipe.name.toLowerCase().includes(t);
 };
 
-/** Ingredients a dish needs that your kitchen doesn't have. */
 export const missingFrom = (recipe, have = []) => {
   const stock = have.map((n) => String(n).toLowerCase()).filter(Boolean);
   return recipe.ingredients.filter((i) => {
@@ -262,15 +237,16 @@ export const missingFrom = (recipe, have = []) => {
 };
 
 /**
- * One query over the library: free text, dietary patterns, a time ceiling,
- * ingredients that must be in or out, and how much shopping you're willing to
- * do. Every filter is a plain predicate — none of them reorder by "relevance"
- * you can't see.
+ * One query over the library. When `suitabilityCtx` is provided, hard blocks
+ * (allergens, religious, diet patterns, household) are applied by the central
+ * engine. Extra `diets` in the filter still work for one-off search filters.
  */
 export const searchRecipes = (pool = [], {
   query = '', diets = [], maxTime = null, include = [], exclude = [], have = [], maxMissing = null,
+  suitabilityCtx = null,
 } = {}) => {
   const q = query.trim().toLowerCase();
+  const ctx = suitabilityCtx ? suitabilityContextFrom(suitabilityCtx) : null;
   return pool.filter((r) => {
     if (q && !(r.name.toLowerCase().includes(q)
       || r.cuisine.toLowerCase().includes(q)
@@ -280,6 +256,7 @@ export const searchRecipes = (pool = [], {
     if (include.length && !include.every((t) => hasIngredient(r, t))) return false;
     if (exclude.length && exclude.some((t) => hasIngredient(r, t))) return false;
     if (maxMissing !== null && missingFrom(r, have).length > maxMissing) return false;
+    if (ctx && !evaluateFoodSuitability(r, ctx).allowed) return false;
     if (diets.length && !recipeAllowed(r, diets)) return false;
     return true;
   });
@@ -301,14 +278,6 @@ export const safeExternalUrl = (value) => {
   }
 };
 
-/**
- * Turn a parsed import into a recipe you can keep, cook and plan.
- *
- * Only what was actually in the paste is used: if no method came with it, the
- * recipe says so rather than inventing steps. A link is kept as the source, and
- * recognised as a video link when it is one — the app has no footage of its
- * own and never pretends otherwise.
- */
 export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
   const known = new Set((result.ingredients || []).map((i) => (i.line || '').trim()));
   const source = safeExternalUrl(url);
@@ -353,6 +322,10 @@ export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
   };
 };
 
+/** Evaluate an imported / shared recipe against the user's safety context. */
+export const importSuitability = (recipe, context = {}) =>
+  evaluateFoodSuitability(recipe, suitabilityContextFrom(context));
+
 /* ---------- Sharing ---------- */
 
 const FIELDS = ['name', 'emoji', 'cuisine', 'meal', 'tags', 'time', 'prep', 'difficulty', 'servings',
@@ -367,16 +340,11 @@ const fromBase64 = (text) => (typeof atob === 'function'
   ? decodeURIComponent(escape(atob(text)))
   : Buffer.from(text, 'base64').toString('utf8'));
 
-/**
- * A recipe as a paste-able code. This action is local and has no public feed:
- * sharing is the user choosing to send someone a string.
- */
 export const shareCode = (recipe, by = '') => {
   const payload = { v: 1, by, r: Object.fromEntries(FIELDS.filter((f) => recipe[f] !== undefined).map((f) => [f, recipe[f]])) };
   return `FORQ1:${toBase64(JSON.stringify(payload))}`;
 };
 
-/** Read a code back, refusing anything that isn't a recipe. */
 export const parseShareCode = (code) => {
   const text = String(code || '').trim();
   if (!text.startsWith('FORQ1:')) return { recipe: null, error: 'That doesn’t look like a Forq recipe code.' };

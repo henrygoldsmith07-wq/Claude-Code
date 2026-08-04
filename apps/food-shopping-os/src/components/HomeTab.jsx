@@ -4,12 +4,13 @@ import {
   ScanBarcode, Search, SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { gbp, greeting, prettyDate } from '../lib/utils.js';
+import { gbp, greeting, prettyDate, expiryStatus } from '../lib/utils.js';
 import { byId, RECIPES } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import {
   daysUntil, expiringSoon, leftovers, pantryValue, planForDay, runningLow,
 } from '../lib/kitchen.js';
+import { rankLeftovers } from '../lib/food-suitability.js';
 import { weeklyFoodLoop } from '../lib/food-loop.js';
 import { totalOf } from '../data/stores.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
@@ -37,7 +38,14 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
   const left = app.weeklyBudget - app.spentThisWeek;
   const recipeOfDay = RECIPES[new Date().getDate() % RECIPES.length];
   const listTotal = totalOf(app.shoppingList);
-  const leftoverItems = leftovers(app.pantry);
+  // Rank leftovers through the central engine so expired ones drop out and
+  // near-expiry ones surface first with consistent warnings.
+  const leftoverItems = rankLeftovers(leftovers(app.pantry), {
+    ...app.prefs,
+    today: app.day,
+    members: app.members || [],
+    diets: app.diets || app.prefs?.diets || [],
+  });
   const foodLoop = weeklyFoodLoop(app);
   const runGuidanceAction = (item) => {
     const { action } = item;
@@ -245,20 +253,30 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
     ),
     leftovers: () => (
       <>
-          {/* Leftovers, if any are tracked */}
+          {/* Leftovers ranked by the central engine — expired filtered out,
+              near-expiry shown first with explicit use-by warnings. */}
           {leftoverItems.length > 0 && (
             <Section title="Leftovers to use" className="rise rise-4">
               <div className="grid grid-cols-2 gap-3">
-                {leftoverItems.map((l) => (
-                  <Card key={l.id} className="!p-3">
-                    <p className="font-bold text-[0.875rem] flex items-center gap-1.5">
-                      <Glyph e={l.emoji} size={15} style={{ color: 'var(--muted)' }} /> {l.name}
-                    </p>
-                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                      {[l.qty, l.location].filter(Boolean).join(' · ')}
-                    </p>
-                  </Card>
-                ))}
+                {leftoverItems.map((l) => {
+                  const days = l.expiry ? daysUntil(l.expiry, app.day) : null;
+                  const st = days === null ? null : expiryStatus(days);
+                  return (
+                    <Card key={l.id} className="!p-3">
+                      <p className="font-bold text-[0.875rem] flex items-center gap-1.5">
+                        <Glyph e={l.emoji} size={15} style={{ color: 'var(--muted)' }} /> {l.name}
+                      </p>
+                      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                        {[l.qty, l.location].filter(Boolean).join(' · ')}
+                      </p>
+                      {st && (
+                        <div className="mt-1.5">
+                          <Pill tone={st.tone}>{st.label}</Pill>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             </Section>
           )}

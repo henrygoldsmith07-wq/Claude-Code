@@ -14,6 +14,9 @@
  * because tracking six separate B vitamins is more precision than this dataset
  * can honestly carry. A strong source (salmon, liver-ish territory) sits around
  * 20% per 100 g, a staple around 5%, so an ordinary day lands near 100%.
+ *
+ * Missing table rows return null for every column — "not in this database" —
+ * never zero. Explicit 0 in a row still means measured none.
  */
 
 export const MICRO_COLUMNS = [
@@ -72,11 +75,14 @@ const TABLE = {
 };
 /* eslint-enable no-multi-spaces */
 
-/** Micronutrients for a generic food, as an object keyed by nutrient. */
+/**
+ * Micronutrients for a generic food, as an object keyed by nutrient.
+ * Unknown foods return null for every column — not zero.
+ */
 export const microsFor = (foodId) => {
   const row = TABLE[foodId];
-  if (!row) return Object.fromEntries(MICRO_COLUMNS.map((k) => [k, 0]));
-  return Object.fromEntries(MICRO_COLUMNS.map((k, i) => [k, row[i] ?? 0]));
+  if (!row) return Object.fromEntries(MICRO_COLUMNS.map((k) => [k, null]));
+  return Object.fromEntries(MICRO_COLUMNS.map((k, i) => [k, row[i] ?? null]));
 };
 
 /**
@@ -108,19 +114,33 @@ export const BLENDS = {
 /** 1 g of salt is 393 mg of sodium — menus quote salt, we track sodium. */
 export const SALT_TO_SODIUM = 393;
 
-/** Blend generic micronutrient rows into a per-100 g profile for a dish. */
+/**
+ * Blend generic micronutrient rows into a per-100 g profile for a dish.
+ * Contributions from missing table rows are skipped (not treated as zero).
+ */
 export const microsFromBlend = (blendId, saltGramsPer100) => {
   const parts = BLENDS[blendId] || [];
   const out = Object.fromEntries(MICRO_COLUMNS.map((k) => [k, 0]));
+  const seen = Object.fromEntries(MICRO_COLUMNS.map((k) => [k, false]));
   let solids = 0;
   for (const [foodId, share] of parts) {
     const micros = microsFor(foodId);
     solids += share;
-    for (const k of MICRO_COLUMNS) out[k] += micros[k] * share;
+    for (const k of MICRO_COLUMNS) {
+      if (micros[k] === null || micros[k] === undefined) continue;
+      out[k] += micros[k] * share;
+      seen[k] = true;
+    }
   }
   // Whatever the blend doesn't account for is water (sauce, stock, moisture).
-  out.water += Math.max(0, 1 - solids) * 100;
-  for (const k of MICRO_COLUMNS) out[k] = Math.round(out[k] * 100) / 100;
+  if (seen.water || parts.length) {
+    out.water += Math.max(0, 1 - solids) * 100;
+    seen.water = true;
+  }
+  for (const k of MICRO_COLUMNS) {
+    if (!seen[k]) out[k] = null;
+    else out[k] = Math.round(out[k] * 100) / 100;
+  }
   if (saltGramsPer100 !== undefined) out.sodium = Math.round(saltGramsPer100 * SALT_TO_SODIUM);
   return out;
 };

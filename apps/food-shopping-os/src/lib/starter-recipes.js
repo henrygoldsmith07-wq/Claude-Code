@@ -24,8 +24,7 @@ import { partByName } from '../data/recipe-parts.js';
 import { CATALOGUE } from '../data/foods.js';
 import { DIET_PATTERNS, dietPattern } from '../data/goals.js';
 import { religiousBy } from '../data/preferences.js';
-import { blockedBy } from './preferences.js';
-import { recipeConflicts } from './goals.js';
+import { evaluateFoodSuitability, suitabilityContextFrom } from './food-suitability.js';
 
 /** How many suitable dishes setup aims to put in front of you. */
 export const STARTER_OPTION_COUNT = 6;
@@ -99,15 +98,29 @@ export const householdRules = ({ diets = [], members = [], prefs = {} } = {}) =>
   const all = [...new Set([...diets, ...memberDiets])];
   return {
     patterns: all.filter((id) => DIET_IDS.has(id)),
-    prefs: {
-      ...prefs,
-      allergies: [...new Set([...(prefs.allergies || [])])],
-      // A religious rule set on a member is as hard a line as one set on you.
-      religious: [...new Set([...(prefs.religious || []), ...all.filter((id) => RELIGIOUS_IDS.has(id))])],
-    },
     fromMembers: memberDiets.length > 0,
+    prefs,
+    /* The one engine every surface asks. Setup does not re-implement the rules
+       — a screen that decides for itself what is safe is a second answer to a
+       question that must only have one. A religious rule set on a member is as
+       hard a line as one set on you, which the context below folds in. */
+    context: suitabilityContextFrom({
+      allergies: prefs.allergies || [],
+      intolerances: prefs.intolerances || [],
+      religious: [...new Set([...(prefs.religious || []), ...all.filter((id) => RELIGIOUS_IDS.has(id))])],
+      diets,
+      members,
+      cuisines: prefs.cuisines || [],
+      skill: prefs.skill || null,
+      timeBudget: prefs.timeBudget || null,
+    }),
   };
 };
+
+/** Hard lines (allergen, observed rule) as opposed to a dietary pattern. */
+const HARD = new Set(['allergy', 'religious']);
+const blockedKinds = (recipe, context) =>
+  evaluateFoodSuitability(recipe, context).blockers.map((blocker) => blocker.kind);
 
 const list = (items) => (items.length < 2
   ? items.join('')
@@ -119,9 +132,7 @@ const list = (items) => (items.length < 2
  */
 export const starterSuitable = (recipe, { diets = [], members = [], prefs = {} } = {}) => {
   if (!recipe) return false;
-  const rules = householdRules({ diets, members, prefs });
-  return blockedBy(recipe, rules.prefs).length === 0
-    && recipeConflicts(recipe, rules.patterns).length === 0;
+  return evaluateFoodSuitability(recipe, householdRules({ diets, members, prefs }).context).allowed;
 };
 
 /** Why this dish is on the list — plain sentences, not a score. */
@@ -241,10 +252,15 @@ export const starterOptions = ({
   const rules = householdRules({ diets, members, prefs });
   const dinners = recipes.filter((recipe) => recipe.meal !== 'breakfast' && recipe.meal !== 'lunch');
 
+  /* One evaluation per dish, read twice: the hard lines are what removed it
+     first, the patterns are what removed it next. Both come from the same
+     engine, so setup can never disagree with the rest of the app about what is
+     safe — it only reports the order in which the answer was reached. */
+  const judged = dinners.map((recipe) => [recipe, blockedKinds(recipe, rules.context)]);
   // 1. Hard lines. These recipes leave the list entirely.
-  const safe = dinners.filter((recipe) => blockedBy(recipe, rules.prefs).length === 0);
-  // 2. Dietary patterns, pooled across the household.
-  const suitable = safe.filter((recipe) => recipeConflicts(recipe, rules.patterns).length === 0);
+  const safe = judged.filter(([, kinds]) => !kinds.some((kind) => HARD.has(kind)));
+  // 2. Dietary patterns, yours and the household's.
+  const suitable = safe.filter(([, kinds]) => kinds.length === 0).map(([recipe]) => recipe);
   // 3. Preference only, from here down.
   const ranked = [...suitable].sort((a, b) => baseScore(b, rules.patterns) - baseScore(a, rules.patterns)
     || a.id.localeCompare(b.id));
