@@ -8,8 +8,8 @@
  *
  * Result shape (FoodSuitability):
  *   allowed      — false only when there is at least one blocker
- *   blockers     — hard stops (allergens, religious rules, exclude diets)
- *   warnings     — soft flags (intolerances, time/skill stretch, household)
+ *   blockers     — hard stops (allergens, religious rules, exclude diets, expired)
+ *   warnings     — soft flags (intolerances, time/skill stretch, household, near-expiry)
  *   preferences  — ranking nudges (favourite cuisine, prefer tags)
  *   confidence   — how complete the ingredient + preference data is
  *   missingData  — what is still unknown (so UI can ask for it)
@@ -19,8 +19,9 @@ import {
   allergenBy, intoleranceBy, religiousBy, skillBy, timeBudgetBy, MATCH_CAVEAT,
 } from '../data/preferences.js';
 import { dietPattern } from '../data/goals.js';
+import { dayStamp, daysUntil } from './kitchen.js';
 
-/** @typedef {'allergy'|'intolerance'|'religious'|'diet'|'household'|'preference'|'skill'|'time'|'other'} SuitabilityKind */
+/** @typedef {'allergy'|'intolerance'|'religious'|'diet'|'household'|'preference'|'skill'|'time'|'expiry'|'other'} SuitabilityKind */
 /** @typedef {'block'|'warn'|'prefer'} SuitabilitySeverity */
 
 /**
@@ -70,6 +71,7 @@ const isRecipe = (item) => Array.isArray(item?.ingredients);
 /**
  * Build the context object every surface should pass.
  * Accepts either a full app state, a deriveApp result, or a plain prefs bag.
+ * Optional `today` (YYYY-MM-DD) drives expiry evaluation for leftovers/pantry.
  */
 export const suitabilityContextFrom = (source = {}) => {
   // deriveApp exposes `prefs`; raw state has the fields at top level.
@@ -91,6 +93,7 @@ export const suitabilityContextFrom = (source = {}) => {
     skill: prefs.skill || source.skill || null,
     timeBudget: prefs.timeBudget || source.timeBudget || null,
     members,
+    today: source.today || prefs.today || dayStamp(),
   };
 };
 
@@ -121,13 +124,61 @@ const dietConflictsFor = (item, diets) => {
     .map((p) => ({ id: p.id, label: p.label, prefer: p.prefer, discourage: p.discourage }));
 };
 
+/** Expiry signals for dated pantry / leftover items. */
+const expiryReasons = (item, today) => {
+  const blockers = [];
+  const warnings = [];
+  if (!item?.expiry) return { blockers, warnings };
+  const days = daysUntil(item.expiry, today);
+  if (days === null) return { blockers, warnings };
+
+  if (days < 0) {
+    blockers.push(reason(
+      'expiry:expired',
+      'Past use-by',
+      'expiry',
+      'block',
+      `Past use-by by ${-days} day${-days === 1 ? '' : 's'}. Do not recommend.`,
+    ));
+  } else if (days === 0) {
+    // Still usable today, but treat as urgent warning (not a hard block).
+    warnings.push(reason(
+      'expiry:today',
+      'Use by today',
+      'expiry',
+      'warn',
+      'Use-by is today — prioritise this leftover.',
+    ));
+  } else if (days === 1) {
+    warnings.push(reason(
+      'expiry:1day',
+      '1 day left',
+      'expiry',
+      'warn',
+      'Use by tomorrow.',
+    ));
+  } else if (days <= 3) {
+    warnings.push(reason(
+      'expiry:soon',
+      `${days} days left`,
+      'expiry',
+      'warn',
+      `Use within ${days} days.`,
+    ));
+  }
+  return { blockers, warnings };
+};
+
 /* ---------- Core evaluation ---------- */
 
 /**
- * Evaluate one recipe or food against the full safety + preference context.
- * This is the single function every surface must call.
+ * Evaluate one recipe, food, or leftover/pantry item against the full safety +
+ * preference context. This is the single function every surface must call.
  *
- * @param {object} item - recipe or food
+ * Leftover / pantry items with an `expiry` field receive expiry blockers
+ * (past use-by) and warnings (today / 1 day / within 3 days).
+ *
+ * @param {object} item - recipe, food, or pantry leftover
  * @param {object} context - from suitabilityContextFrom, or a plain bag
  * @returns {FoodSuitability}
  */
@@ -185,6 +236,11 @@ export const evaluateFoodSuitability = (item, context = {}) => {
         : `Does not fit ${hit.label}.`,
     ));
   }
+
+  // --- Expiry for leftovers / dated pantry items ---
+  const expiry = expiryReasons(item, ctx.today);
+  blockers.push(...expiry.blockers);
+  warnings.push(...expiry.warnings);
 
   // --- Warnings: intolerances (never silent blocks) ---
   for (const hit of intoleranceHits(item, ctx.intolerances)) {
@@ -270,11 +326,15 @@ export const evaluateFoodSuitability = (item, context = {}) => {
   } else if (!item.name) {
     missingData.push('name-missing');
   }
+  // Leftovers without a use-by cannot be prioritised safely
+  if (item.cat === 'Leftovers' && !item.expiry) {
+    missingData.push('expiry-missing');
+  }
 
   let confidence = 'high';
   if (missingData.includes('ingredients-empty') || missingData.includes('ingredients-incomplete')) {
     confidence = 'low';
-  } else if (missingData.includes('preferences-unset') || missingData.length) {
+  } else if (missingData.includes('preferences-unset') || missingData.includes('expiry-missing') || missingData.length) {
     confidence = 'medium';
   }
 
@@ -305,17 +365,45 @@ export const filterBySuitability = (items = [], context = {}) =>
 
 /**
  * Rank allowed items: preferences first, then fewer warnings, then original order.
+ * Near-expiry leftovers rank higher so they are used first.
  */
 export const rankBySuitability = (items = [], context = {}) => {
   const scored = filterBySuitability(items, context).map((item, index) => {
     const fit = evaluateFoodSuitability(item, context);
+    const expiryWarn = fit.warnings.filter((w) => w.kind === 'expiry').length;
     const score =
       fit.preferences.length * 3
-      - fit.warnings.length * 2
+      + expiryWarn * 4 // push soon-to-expire leftovers up
+      - (fit.warnings.length - expiryWarn) * 2
       - (fit.confidence === 'low' ? 1 : 0);
     return { item, score, index, fit };
   });
   scored.sort((a, b) => b.score - a.score || a.index - b.index);
+  return scored.map((row) => row.item);
+};
+
+/**
+ * Leftover recommendations: only allowed leftovers, ordered by urgency of
+ * expiry then suitability. Surfaces that show "use these leftovers" must call
+ * this (or evaluateFoodSuitability directly) so expiry warnings stay central.
+ */
+export const rankLeftovers = (leftovers = [], context = {}) => {
+  const ctx = suitabilityContextFrom(context);
+  const scored = leftovers
+    .map((item, index) => {
+      const fit = evaluateFoodSuitability(item, ctx);
+      if (!fit.allowed) return null;
+      const days = item.expiry ? daysUntil(item.expiry, ctx.today) : 999;
+      // Lower days = more urgent; still respect preference/warning balance.
+      const score =
+        (days <= 0 ? -100 : 0)
+        + (days <= 1 ? 50 : days <= 3 ? 30 : days <= 7 ? 10 : 0)
+        + fit.preferences.length * 3
+        - fit.warnings.filter((w) => w.kind !== 'expiry').length * 2;
+      return { item, score, days: days ?? 999, index, fit };
+    })
+    .filter(Boolean);
+  scored.sort((a, b) => b.score - a.score || a.days - b.days || a.index - b.index);
   return scored.map((row) => row.item);
 };
 

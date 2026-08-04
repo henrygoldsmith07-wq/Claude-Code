@@ -3,10 +3,12 @@ import {
   evaluateFoodSuitability,
   filterBySuitability,
   rankBySuitability,
+  rankLeftovers,
   suitabilityContextFrom,
   suitabilityReach,
   suitabilitySummary,
 } from '../src/lib/food-suitability.js';
+import { addDays, dayStamp } from '../src/lib/kitchen.js';
 
 const recipe = (name, ingredients, over = {}) => ({
   id: name.toLowerCase().replace(/\W+/g, '-'),
@@ -24,6 +26,17 @@ const FISH_PIE = recipe('Fish pie', ['cod', 'milk', 'potato'], { cuisine: 'Briti
 const BACON_PASTA = recipe('Bacon pasta', ['bacon', 'pasta', 'cream'], { cuisine: 'Italian', tags: [] });
 const RICE_BOWL = recipe('Rice bowl', ['rice', 'spring onion', 'sesame'], { cuisine: 'Japanese', tags: ['vegan', 'vegetarian'] });
 const TOFU_STIR = recipe('Tofu stir fry', ['tofu', 'broccoli', 'soy sauce'], { cuisine: 'Chinese', tags: ['vegan', 'vegetarian'] });
+
+const today = dayStamp();
+const leftover = (name, daysFromToday, over = {}) => ({
+  id: `lo-${name}`,
+  name: `${name} (leftovers)`,
+  cat: 'Leftovers',
+  portions: 2,
+  qty: '2 portions',
+  expiry: addDays(today, daysFromToday),
+  ...over,
+});
 
 describe('evaluateFoodSuitability — hard blockers', () => {
   it('blocks allergens', () => {
@@ -66,6 +79,50 @@ describe('evaluateFoodSuitability — hard blockers', () => {
   });
 });
 
+describe('evaluateFoodSuitability — leftover expiry', () => {
+  it('blocks leftovers past use-by', () => {
+    const item = leftover('Curry', -2);
+    const fit = evaluateFoodSuitability(item, { today });
+    expect(fit.allowed).toBe(false);
+    expect(fit.blockers.some((b) => b.kind === 'expiry' && b.code === 'expiry:expired')).toBe(true);
+  });
+
+  it('warns when use-by is today', () => {
+    const item = leftover('Pasta', 0);
+    const fit = evaluateFoodSuitability(item, { today });
+    expect(fit.allowed).toBe(true);
+    expect(fit.warnings.some((w) => w.code === 'expiry:today')).toBe(true);
+  });
+
+  it('warns when 1 day left', () => {
+    const item = leftover('Soup', 1);
+    const fit = evaluateFoodSuitability(item, { today });
+    expect(fit.allowed).toBe(true);
+    expect(fit.warnings.some((w) => w.code === 'expiry:1day')).toBe(true);
+  });
+
+  it('warns when within three days', () => {
+    const item = leftover('Stew', 3);
+    const fit = evaluateFoodSuitability(item, { today });
+    expect(fit.allowed).toBe(true);
+    expect(fit.warnings.some((w) => w.code === 'expiry:soon')).toBe(true);
+  });
+
+  it('does not warn when expiry is further out', () => {
+    const item = leftover('Bake', 5);
+    const fit = evaluateFoodSuitability(item, { today });
+    expect(fit.allowed).toBe(true);
+    expect(fit.warnings.filter((w) => w.kind === 'expiry')).toEqual([]);
+  });
+
+  it('marks medium confidence when leftover has no expiry', () => {
+    const item = { id: 'x', name: 'Mystery leftovers', cat: 'Leftovers', portions: 1 };
+    const fit = evaluateFoodSuitability(item, { today });
+    expect(fit.missingData).toContain('expiry-missing');
+    expect(fit.confidence).toBe('medium');
+  });
+});
+
 describe('evaluateFoodSuitability — warnings and preferences', () => {
   it('flags intolerances without blocking', () => {
     const fit = evaluateFoodSuitability(FISH_PIE, { intolerances: ['lactose'] });
@@ -87,7 +144,7 @@ describe('evaluateFoodSuitability — warnings and preferences', () => {
   });
 });
 
-describe('filter / rank / reach', () => {
+describe('filter / rank / reach / leftovers', () => {
   const pool = [PEANUT_STEW, FISH_PIE, BACON_PASTA, RICE_BOWL, TOFU_STIR];
 
   it('filterBySuitability removes blockers only', () => {
@@ -112,6 +169,21 @@ describe('filter / rank / reach', () => {
   it('suitabilitySummary is human readable', () => {
     expect(suitabilitySummary({})).toMatch(/Nothing set/);
     expect(suitabilitySummary({ allergies: ['peanuts'] })).toMatch(/allergen/);
+  });
+
+  it('rankLeftovers drops expired and prioritises soonest use-by', () => {
+    const items = [
+      leftover('Old', -1),
+      leftover('Soon', 1),
+      leftover('Later', 4),
+      leftover('Today', 0),
+    ];
+    const ranked = rankLeftovers(items, { today });
+    expect(ranked.map((i) => i.name)).toEqual([
+      'Today (leftovers)',
+      'Soon (leftovers)',
+      'Later (leftovers)',
+    ]);
   });
 });
 
