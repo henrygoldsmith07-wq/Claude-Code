@@ -3,7 +3,7 @@ import { Check, ChevronDown, ChevronUp, Heart, Scale, Trash2 } from 'lucide-reac
 import { useApp } from '../lib/store.jsx';
 import { cx } from '../lib/utils.js';
 import { NUTRIENTS, formatAmount } from '../data/nutrients.js';
-import { MEALS, entryMacros, mealForTime, scale, servingOptions, timeStamp } from '../lib/nutrition.js';
+import { MEALS, entryNumbers, mealForTime, nutrientNumber, scale, servingOptions, timeStamp } from '../lib/nutrition.js';
 import { healthierSwaps } from '../lib/advice.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
 import { Glyph } from './icons.jsx';
@@ -18,24 +18,28 @@ export const MealPicker = ({ value, onChange }) => (
   </div>
 );
 
-export const MacroSummary = ({ macros, size = 'lg' }) => (
-  <div className="flex items-end justify-between">
-    <div>
-      <p className={cx('font-extrabold leading-none', size === 'lg' ? 'text-[2.125rem]' : 'text-[1.375rem]')}>
-        {macros.kcal.toLocaleString()}
-      </p>
-      <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal</p>
+/** macros may contain null for unmeasured nutrients — never show those as 0. */
+export const MacroSummary = ({ macros, size = 'lg' }) => {
+  const kcal = nutrientNumber(macros?.kcal);
+  return (
+    <div className="flex items-end justify-between">
+      <div>
+        <p className={cx('font-extrabold leading-none', size === 'lg' ? 'text-[2.125rem]' : 'text-[1.375rem]')}>
+          {kcal === null || kcal === undefined ? '—' : kcal.toLocaleString()}
+        </p>
+        <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal</p>
+      </div>
+      <div className="flex gap-4 text-right">
+        {[['Protein', 'protein'], ['Carbs', 'carbs'], ['Fat', 'fat']].map(([label, key]) => (
+          <div key={label}>
+            <p className="text-[0.9375rem] font-extrabold leading-none">{formatAmount(key, nutrientNumber(macros?.[key]))}</p>
+            <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+          </div>
+        ))}
+      </div>
     </div>
-    <div className="flex gap-4 text-right">
-      {[['Protein', 'protein'], ['Carbs', 'carbs'], ['Fat', 'fat']].map(([label, key]) => (
-        <div key={label}>
-          <p className="text-[0.9375rem] font-extrabold leading-none">{formatAmount(key, macros[key])}</p>
-          <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 export const NumberField = ({ label, value, onChange, suffix, step = 1, min = 0 }) => (
   <label className="block">
@@ -56,13 +60,6 @@ export const NumberField = ({ label, value, onChange, suffix, step = 1, min = 0 
   </label>
 );
 
-/* ---------- Portion editor ---------- */
-
-/**
- * Foods that do the same job with a better profile — drawn from the catalogue
- * by comparing per-calorie protein, fibre, saturated fat and sugar. Nothing is
- * offered unless a real number beats the one you're looking at.
- */
 function HealthierSwaps({ food }) {
   const app = useApp();
   const swaps = useMemo(
@@ -92,11 +89,6 @@ function HealthierSwaps({ food }) {
   );
 }
 
-/**
- * One screen for "how much of this, and when". Handles both a new log and an
- * edit of something already in the diary; weight-based foods scale from their
- * per-100 profile, quick-adds expose their calories directly.
- */
 export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete }) {
   const app = useApp();
   const source = food || (entry && { ...entry, id: entry.foodId, servings: [] });
@@ -116,15 +108,28 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
   });
   const [meal, setMeal] = useState(entry?.meal || defaultMeal || mealForTime());
   const [time, setTime] = useState(entry?.time || timeStamp());
-  const [quick, setQuick] = useState(() => ({ ...(entry?.nutrients || { kcal: 0, protein: 0, carbs: 0, fat: 0 }) }));
+  const [quick, setQuick] = useState(() => {
+    const n = entry?.nutrients || {};
+    return {
+      kcal: nutrientNumber(n.kcal) ?? '',
+      protein: nutrientNumber(n.protein) ?? '',
+      carbs: nutrientNumber(n.carbs) ?? '',
+      fat: nutrientNumber(n.fat) ?? '',
+    };
+  });
   const [showAll, setShowAll] = useState(false);
 
   const unit = source?.unit || 'g';
   const fav = app.favouriteFoods.includes(source?.id);
 
   const macros = isQuick
-    ? { ...entryMacros({ nutrients: quick }) }
-    : scale(source.per100, grams);
+    ? entryNumbers({ nutrients: {
+      kcal: quick.kcal === '' ? null : Number(quick.kcal),
+      protein: quick.protein === '' ? null : Number(quick.protein),
+      carbs: quick.carbs === '' ? null : Number(quick.carbs),
+      fat: quick.fat === '' ? null : Number(quick.fat),
+    }, source: 'quick' })
+    : scale(source.per100, grams, source.source);
 
   const pickServing = (i) => {
     setServingIdx(i);
@@ -148,15 +153,25 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
       ? (qty === 1 ? options[servingIdx].label : `${qty} × ${options[servingIdx].label}`)
       : `${grams} ${unit}`;
     onSave(isQuick
-      ? { meal, time, nutrients: { ...quick, kcal: Number(quick.kcal) || 0, fibre: 0 } }
+      ? {
+        meal,
+        time,
+        nutrients: {
+          kcal: quick.kcal === '' ? null : Number(quick.kcal),
+          protein: quick.protein === '' ? null : Number(quick.protein),
+          carbs: quick.carbs === '' ? null : Number(quick.carbs),
+          fat: quick.fat === '' ? null : Number(quick.fat),
+        },
+      }
       : { grams, meal, time, servingLabel });
   };
 
   if (!source) return null;
 
+  const displayKcal = nutrientNumber(macros.kcal);
+
   return (
     <div className="px-5 pb-8 space-y-4">
-      {/* Identity */}
       <div className="flex items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: 'var(--card-2)', color: 'var(--muted)' }}>
           <Glyph e={source.emoji} size={22} />
@@ -164,7 +179,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         <div className="min-w-0 flex-1">
           <p className="font-extrabold text-[1.0625rem] leading-tight">{source.name}</p>
           <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            {source.brand || 'Generic'}{!isQuick && ` · ${source.per100.kcal} kcal / 100 ${unit}`}
+            {source.brand || 'Generic'}{!isQuick && source.per100?.kcal != null && ` · ${source.per100.kcal} kcal / 100 ${unit}`}
           </p>
         </div>
         {source.id && !isQuick && (
@@ -179,7 +194,6 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         )}
       </div>
 
-      {/* Live nutrition for the chosen portion */}
       <Card>
         <MacroSummary macros={macros} />
         {!isQuick && (
@@ -201,7 +215,7 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
                 {NUTRIENTS.filter((n) => n.key !== 'kcal').map((n) => (
                   <div key={n.key} className="flex justify-between text-[0.71875rem]">
                     <span className="font-semibold truncate" style={{ color: 'var(--muted)' }}>{n.label}</span>
-                    <span className="font-bold tabular-nums shrink-0">{formatAmount(n.key, macros[n.key] || 0)}</span>
+                    <span className="font-bold tabular-nums shrink-0">{formatAmount(n.key, macros[n.key])}</span>
                   </div>
                 ))}
               </div>
@@ -219,7 +233,6 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         </div>
       ) : (
         <>
-          {/* Serving sizes */}
           <div>
             <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Serving size</p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5">
@@ -229,7 +242,6 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
             </div>
           </div>
 
-          {/* Quantity + weight */}
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--faint)' }}>How many</p>
@@ -264,7 +276,6 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
 
       <HealthierSwaps food={food} />
 
-      {/* Meal + timing */}
       <div className="space-y-2.5">
         <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Meal</p>
         <MealPicker value={meal} onChange={setMeal} />
@@ -299,7 +310,9 @@ export default function FoodDetail({ food, entry, defaultMeal, onSave, onDelete 
         >
           <span className="inline-flex items-center gap-2">
             <Check size={16} strokeWidth={3} />
-            {entry ? 'Save changes' : `Add ${macros.kcal} kcal to ${MEALS.find((m) => m.key === meal).label}`}
+            {entry
+              ? 'Save changes'
+              : `Add ${displayKcal === null ? 'entry' : `${displayKcal} kcal`} to ${MEALS.find((m) => m.key === meal).label}`}
           </span>
         </button>
       </div>
