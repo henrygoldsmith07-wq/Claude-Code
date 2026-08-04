@@ -1,23 +1,65 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildEntry, buildQuickEntry, copyEntries, dayTotals, entryMacros, mealForTime,
-  remaining, scale, servingOptions, snackSummary, sumMacros, timingInsight,
+  asNutrientValue, buildEntry, buildQuickEntry, copyEntries, dayTotals, entryMacros,
+  hasNutrientData, mealForTime, nutrientNumber, nutrientValue, remaining, scale,
+  servingOptions, snackSummary, sumMacros, timingInsight,
 } from '../src/lib/nutrition.js';
+import { formatAmount } from '../src/data/nutrients.js';
 import { FOODS } from '../src/data/foods.js';
+import { microsFor } from '../src/data/micronutrients.js';
 
 const oats = FOODS.find((f) => f.id === 'porridge-oats');
 const banana = FOODS.find((f) => f.id === 'banana');
 
+describe('NutrientValue', () => {
+  it('distinguishes measured zero from missing data', () => {
+    const zero = nutrientValue(0, 'label', 'high');
+    const missing = nutrientValue(null, 'verified_database', 'low');
+    expect(zero.value).toBe(0);
+    expect(missing.value).toBeNull();
+    expect(hasNutrientData(zero)).toBe(true);
+    expect(hasNutrientData(missing)).toBe(false);
+  });
+
+  it('normalises plain numbers without inventing values for absent keys', () => {
+    expect(asNutrientValue(12).value).toBe(12);
+    expect(asNutrientValue(undefined).value).toBeNull();
+    expect(asNutrientValue(null).value).toBeNull();
+  });
+
+  it('formatAmount shows an em dash for unknown', () => {
+    expect(formatAmount('protein', null)).toBe('—');
+    expect(formatAmount('protein', 0)).toMatch(/0/);
+  });
+});
+
 describe('portion scaling', () => {
   it('scales a per-100 profile by weight', () => {
-    expect(scale(oats.per100, 100)).toMatchObject({ kcal: 379, protein: 11 });
-    expect(scale(oats.per100, 50).kcal).toBe(190);
-    expect(scale(oats.per100, 0)).toMatchObject({ kcal: 0, protein: 0, carbs: 0, fat: 0 });
+    const full = scale(oats.per100, 100);
+    expect(nutrientNumber(full.kcal)).toBe(379);
+    expect(nutrientNumber(full.protein)).toBe(11);
+    expect(nutrientNumber(scale(oats.per100, 50).kcal)).toBe(190);
+  });
+
+  it('keeps missing nutrients as null when scaling', () => {
+    const sparse = { kcal: 100, protein: 5 }; // no micros
+    const scaled = scale(sparse, 100);
+    expect(nutrientNumber(scaled.kcal)).toBe(100);
+    expect(nutrientNumber(scaled.protein)).toBe(5);
+    expect(nutrientNumber(scaled.sodium)).toBeNull();
+    expect(nutrientNumber(scaled.vitC)).toBeNull();
+  });
+
+  it('preserves measured zero through scale', () => {
+    const scaled = scale({ kcal: 0, caffeine: 0, protein: 10 }, 200);
+    expect(nutrientNumber(scaled.kcal)).toBe(0);
+    expect(nutrientNumber(scaled.caffeine)).toBe(0);
+    expect(nutrientNumber(scaled.protein)).toBe(20);
   });
 
   it('doubling the portion doubles the calories', () => {
-    const one = scale(banana.per100, 118).kcal;
-    const two = scale(banana.per100, 236).kcal;
+    const one = nutrientNumber(scale(banana.per100, 118).kcal);
+    const two = nutrientNumber(scale(banana.per100, 236).kcal);
     expect(two).toBe(one * 2);
   });
 
@@ -37,8 +79,18 @@ describe('entries and totals', () => {
   ];
 
   it('reads weight-based and quick-add entries the same way', () => {
-    expect(entryMacros(entries[0]).kcal).toBe(152);
-    expect(entryMacros(entries[2]).kcal).toBe(500);
+    expect(nutrientNumber(entryMacros(entries[0]).kcal)).toBe(152);
+    expect(nutrientNumber(entryMacros(entries[2]).kcal)).toBe(500);
+  });
+
+  it('quick-add leaves untyped nutrients unknown, not zero', () => {
+    const quick = buildQuickEntry({ kcal: 300 });
+    const macros = entryMacros(quick);
+    expect(nutrientNumber(macros.kcal)).toBe(300);
+    expect(nutrientNumber(macros.sodium)).toBeNull();
+    expect(nutrientNumber(macros.vitC)).toBeNull();
+    // protein was not passed — unknown, not 0
+    expect(nutrientNumber(macros.protein)).toBeNull();
   });
 
   it('sums a day and breaks it down by meal', () => {
@@ -47,6 +99,17 @@ describe('entries and totals', () => {
     expect(totals.byMeal.breakfast.kcal).toBe(152);
     expect(totals.byMeal.lunch.kcal).toBe(500);
     expect(totals.byMeal.dinner.kcal).toBe(0);
+  });
+
+  it('exposes known / estimated / coverage / confidence on daily totals', () => {
+    const totals = dayTotals(entries);
+    expect(totals.dataQuality).toBeDefined();
+    expect(totals.dataQuality.knownAmount).toBeGreaterThan(0);
+    expect(totals.dataQuality.coverage).toBeGreaterThan(0);
+    expect(['high', 'medium', 'low']).toContain(totals.dataQuality.confidence);
+    expect(totals.detail.kcal.known + totals.detail.kcal.estimated).toBe(totals.kcal);
+    // Quick-add has no sodium → sodium detail should record unknowns
+    expect(totals.detail.sodium.unknownCount).toBeGreaterThan(0);
   });
 
   it('reports what is left against the goals', () => {
@@ -69,6 +132,20 @@ describe('entries and totals', () => {
     expect(mealForTime(new Date('2026-07-27T19:00:00'))).toBe('dinner');
     expect(mealForTime(new Date('2026-07-27T23:30:00'))).toBe('snack');
     expect(mealForTime(new Date('2026-07-27T16:00:00'))).toBe('snack');
+  });
+});
+
+describe('micronutrient table honesty', () => {
+  it('returns nulls for foods not in the micro table', () => {
+    const missing = microsFor('totally-unknown-food');
+    expect(missing.sodium).toBeNull();
+    expect(missing.vitC).toBeNull();
+  });
+
+  it('returns explicit zeros for measured-none columns', () => {
+    const oil = microsFor('olive-oil');
+    expect(oil.cholesterol).toBe(0);
+    expect(oil.caffeine).toBe(0);
   });
 });
 
