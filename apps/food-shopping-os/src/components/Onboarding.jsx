@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, CalendarDays, Check, Package, ShoppingCart, SlidersHorizontal,
   Upload, UtensilsCrossed,
@@ -12,11 +12,13 @@ import {
   isUnderEighteen, YOUTH_COPY, YOUTH_SIGNPOST, youthConsentRecord, youthGoal,
 } from '../lib/youth.js';
 import { byId } from '../data/recipes.js';
+import { MAX_STARTER_PICKS, starterOptions, starterSuitable } from '../lib/starter-recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays } from '../lib/kitchen.js';
 import { haptic } from '../lib/haptics.js';
 import { recordProductEvent } from '../lib/product-analytics.js';
-import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
+import { Card, Chip, Stepper, Toggle } from './ui.jsx';
+import StarterPicker from './StarterPicker.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import { TargetPreview } from './TargetSafety.jsx';
 
@@ -28,8 +30,6 @@ const ENTRY_GOALS = [
   { id: 'pantry', title: 'Use food I already have', text: 'Start with your kitchen and waste less.', Icon: Package },
 ];
 
-const STARTER_RECIPE_IDS = ['chicken-traybake', 'chickpea-curry', 'salmon-teriyaki'];
-
 export default function Onboarding() {
   const app = useApp();
   const restoreRef = useRef(null);
@@ -38,6 +38,7 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [entryGoal, setEntryGoal] = useState('plan');
   const [starterRecipeIds, setStarterRecipeIds] = useState([]);
+  const [starterRound, setStarterRound] = useState(0);
   const [showPersonalisation, setShowPersonalisation] = useState(false);
   const [household, setHousehold] = useState(1);
   const [budget, setBudget] = useState('');
@@ -53,6 +54,25 @@ export default function Onboarding() {
 
   const toggleDiet = (id) =>
     setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+
+  /* What we can offer, worked out from what has been said so far: allergens and
+     religious rules remove a dish, dietary patterns remove a dish, and only
+     then does anything get ranked. Changing a pattern on the step before this
+     one changes what is on this one. */
+  const rules = useMemo(() => ({
+    diets,
+    members: app.members,
+    prefs: { allergies: app.allergies, religious: app.religious },
+  }), [diets, app.members, app.allergies, app.religious]);
+  const starters = useMemo(
+    () => starterOptions({ ...rules, round: starterRound }),
+    [rules, starterRound],
+  );
+
+  /* Go back, choose "vegan", and a chicken dish picked a moment ago is no
+     longer suitable — so it is no longer selected either. Choices made in an
+     earlier round of suggestions do survive. */
+  const picked = starterRecipeIds.filter((id) => starterSuitable(byId(id), rules));
 
   const body = {
     sex,
@@ -94,7 +114,7 @@ export default function Onboarding() {
   });
 
   const finish = () => {
-    const starterRecipes = starterRecipeIds.map(byId).filter(Boolean);
+    const starterRecipes = picked.map(byId).filter(Boolean);
     const starterPlan = Object.fromEntries(starterRecipes.map((recipe, index) => [
       addDays(app.day, index),
       { dinner: recipe.id },
@@ -115,7 +135,7 @@ export default function Onboarding() {
       // is nothing extra to store and it stays null.
       youthConsent: youth && youthConsent ? youthConsentRecord(app.day) : null,
       entryGoal,
-      starterRecipeIds,
+      starterRecipeIds: picked,
       plan: starterPlan,
       shoppingList: itemsFromRecipes(starterRecipes),
       weeklyBudget: Math.max(0, Number(budget) || 0),
@@ -123,7 +143,7 @@ export default function Onboarding() {
     });
     recordProductEvent('onboarding_completed', {
       intent: entryGoal,
-      count: starterRecipeIds.length,
+      count: picked.length,
     });
     haptic();
   };
@@ -260,49 +280,14 @@ export default function Onboarding() {
 
         {step === 2 && (
           <>
-            <fieldset>
-              <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-                Choose up to three dinners
-              </legend>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {STARTER_RECIPE_IDS.map((id) => {
-                  const recipe = byId(id);
-                  const selected = starterRecipeIds.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setStarterRecipeIds((current) =>
-                        current.includes(id)
-                          ? current.filter((recipeId) => recipeId !== id)
-                          : current.length < 3 ? [...current, id] : current)}
-                      className="press overflow-hidden rounded-2xl border text-left"
-                      style={{
-                        background: 'var(--card)',
-                        borderColor: selected ? 'var(--accent)' : 'var(--line)',
-                        boxShadow: selected ? '0 0 0 1px var(--accent)' : 'none',
-                      }}
-                    >
-                      <FoodArt recipe={recipe} className="h-24 w-full" px={28} />
-                      <span className="block p-2.5">
-                        <span className="block text-[0.75rem] font-extrabold leading-tight">{recipe.name}</span>
-                        <span className="mt-1 block text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                          {recipe.time} min · £{recipe.costPerServing.toFixed(2)}/serving
-                        </span>
-                        <span className="mt-1.5 inline-flex items-center gap-1 text-[0.65625rem] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
-                          {selected && <Check size={11} strokeWidth={3} />}
-                          {selected ? 'Selected' : 'Choose'}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Optional. Choose nothing to start with an empty app.
-              </p>
-            </fieldset>
+            <StarterPicker
+              starters={starters}
+              picked={picked}
+              onToggle={(id) => setStarterRecipeIds((current) => (current.includes(id)
+                ? current.filter((recipeId) => recipeId !== id)
+                : picked.length < MAX_STARTER_PICKS ? [...current, id] : current))}
+              onMore={() => setStarterRound((round) => round + 1)}
+            />
 
             <button
               type="button"
