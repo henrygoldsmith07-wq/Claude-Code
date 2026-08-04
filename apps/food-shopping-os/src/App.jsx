@@ -161,6 +161,13 @@ function StorageRecovery() {
 function Shell() {
   const app = useApp();
   const [tab, setTab] = useState('home');
+  /* Product modes take screens off the bar. Home is never one of them, so
+     there is always somewhere to be — and a mode turned off later puts the tab
+     straight back, with everything that was recorded while it was hidden. */
+  const tabs = TABS.filter((item) => app.visibleTabs(TABS.map((t) => t.id)).includes(item.id));
+  // Turning a mode on while standing on a screen it hides puts you on Home
+  // rather than on a blank one. Nothing about that screen's data changes.
+  const activeTab = tabs.some((item) => item.id === tab) ? tab : 'home';
   const [recipe, setRecipe] = useState(null);
   const [recipeStartCooking, setRecipeStartCooking] = useState(false);
   const [pantryOpen, setPantryOpen] = useState(false);
@@ -199,8 +206,8 @@ function Shell() {
     return undone;
   };
   const runCommand = (target) => {
-    const tabs = new Set(TABS.map((item) => item.id));
-    if (tabs.has(target)) setTab(target);
+    const tabIds = new Set(TABS.map((item) => item.id));
+    if (tabIds.has(target)) setTab(target);
     else if (target === 'pantry') setPantryOpen(true);
     else if (target === 'add-food') goLog('add');
     else if (target === 'barcode') goLog('barcode');
@@ -241,7 +248,7 @@ function Shell() {
       } else if (!typing && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'q') {
         setLauncher('quick');
       } else if (!typing && !launcher && /^[1-6]$/.test(event.key)) {
-        setTab(TABS[Number(event.key) - 1].id);
+        setTab((tabs[Number(event.key) - 1] || tabs[0]).id);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -296,7 +303,7 @@ function Shell() {
 
       <div className="app-workspace">
         <AppHeader
-          tab={tab}
+          tab={activeTab}
           onProfile={() => setProfileOpen(true)}
           onGuidance={() => { setGuidanceView('next'); setGuidanceOpen(true); }}
         />
@@ -309,7 +316,7 @@ function Shell() {
               <p className="text-[0.75rem] font-semibold leading-relaxed">{app.storageIssue.message}</p>
             </div>
           )}
-          {tab === 'home' && (
+          {activeTab === 'home' && (
             <HomeTab
               openRecipe={openRecipe}
               openPantry={() => setPantryOpen(true)}
@@ -319,10 +326,10 @@ function Shell() {
             />
           )}
           <Suspense fallback={<ScreenFallback />}>
-            {tab === 'plan' && <PlanTab openRecipe={openRecipe} goTab={goTab} focusDate={planFocus} />}
-            {tab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
-            {tab === 'shop' && <ShopTab quickAddKey={shopAdd} onOpenPantry={() => setPantryOpen(true)} />}
-            {tab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
+            {activeTab === 'plan' && <PlanTab openRecipe={openRecipe} goTab={goTab} focusDate={planFocus} />}
+            {activeTab === 'log' && <LogTab initialSheet={logIntent} onIntentUsed={() => setLogIntent(null)} />}
+            {activeTab === 'shop' && <ShopTab quickAddKey={shopAdd} onOpenPantry={() => setPantryOpen(true)} />}
+            {activeTab === 'recipes' && <RecipesTab openRecipe={openRecipe} />}
           </Suspense>
         </main>
       </div>
@@ -348,8 +355,8 @@ function Shell() {
           </div>
         </div>
         <div className="app-nav-items">
-          {TABS.map(({ id, label, Icon }) => {
-            const active = tab === id;
+          {tabs.map(({ id, label, Icon }) => {
+            const active = activeTab === id;
             return (
               <button
                 key={id}

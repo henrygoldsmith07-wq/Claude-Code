@@ -147,7 +147,7 @@ export default function ProfileTab({ openGuidance }) {
           </div>
         </Card>
       </Section>
-<Section title="Household" className="rise rise-1">
+<Section title="Household" className="rise rise-1" hidden={!app.moduleOn('household')}>
         <Card onClick={() => setFamilyOpen(true)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -188,7 +188,7 @@ export default function ProfileTab({ openGuidance }) {
           </Card>
         </div>
       </Section>
-<Section title="Health & training" className="rise rise-1">
+<Section title="Health & training" className="rise rise-1" hidden={!app.moduleOn('health')}>
         <div className="grid grid-cols-2 gap-2.5">
           <Card onClick={() => setHealthOpen(true)}>
             <HeartPulse size={17} style={{ color: 'var(--muted)' }} />
@@ -224,7 +224,7 @@ export default function ProfileTab({ openGuidance }) {
           </div>
         </Card>
       </Section>
-<Section title="Nutrition today" className="rise rise-1">
+<Section title="Nutrition today" className="rise rise-1" hidden={!app.moduleOn('nutrition')}>
         <Card>
           <div className="flex items-center gap-5">
             <Ring value={app.kcalToday} max={app.kcalGoal} size={92} stroke={9} color="var(--series-2)"
@@ -287,7 +287,7 @@ export default function ProfileTab({ openGuidance }) {
           )}
         </Card>
       </Section>
-<Section title="Spending" className="rise rise-2">
+<Section title="Spending" className="rise rise-2" hidden={!app.moduleOn('waste')}>
         <Card className="space-y-3">
           <div className="flex items-end gap-3">
             <div className="flex-1">
@@ -313,7 +313,7 @@ export default function ProfileTab({ openGuidance }) {
         )}
       </Section>
 {cuisines.length > 0 && (
-        <Section title="What you cook" className="rise rise-3">
+        <Section title="What you cook" className="rise rise-3" hidden={!app.moduleOn('recipes')}>
           <Card>
             <div className="space-y-2.5">
               {cuisines.map((c, i) => (
@@ -329,7 +329,7 @@ export default function ProfileTab({ openGuidance }) {
           </Card>
         </Section>
       )}
-<Section title="Achievements" className="rise rise-3">
+<Section title="Achievements" className="rise rise-3" hidden={!app.moduleOn('progress')}>
         <Card onClick={() => setQuestsOpen(true)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

@@ -26,6 +26,9 @@ import {
 import { recentFoodsFrom } from './state.js';
 import { allowedByPrefs, prefsSummary, reach, recipeFit } from './preferences.js';
 import { formatters } from './units.js';
+import {
+  cleanModes, hiddenModules, moduleOn, modesSummary, visibleTabs, visibleWidgets,
+} from './modes.js';
 import { DEFAULT_WIDGETS } from '../data/preferences.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
@@ -153,7 +156,16 @@ export const deriveApp = (state) => {
     tasteProfile,
     fitFor: (recipe) => recipeFit(recipe, prefs),
     fmt: formatters(prefs),
-    homeWidgets: state.widgets || DEFAULT_WIDGETS,
+    /* product modes: one answer to "is this module on", read by the tab bar,
+       Home and the settings panels alike. It filters screens, never records —
+       every total above is computed from all of state regardless of what is
+       currently on show. */
+    modes: cleanModes(state.modes),
+    modesSummary: modesSummary(state.modes),
+    moduleOn: (id) => moduleOn(id, state.modes),
+    visibleTabs: (tabs) => visibleTabs(state.modes, tabs),
+    hiddenModules: hiddenModules(state),
+    homeWidgets: visibleWidgets(state.widgets || DEFAULT_WIDGETS, state.modes),
     /* advanced surfaces, each derived from what you logged like everything else */
     footprint,
     footprintSwaps: swapIdeas(footprint),
