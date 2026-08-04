@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { CATALOGUE } from '../data/foods.js';
-import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
 import { aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks, shoppingNameKey } from './shopping.js';
 import { buildEntry, copyEntries } from './nutrition.js';
 import { recipeFood } from './foodlog.js';
-import { targetsFor } from './goals.js';
+import { targetActions } from './target-actions.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { consumePantryIngredients } from './kitchen.js';
 import { pantryActions } from './pantry-actions.js';
@@ -110,41 +109,7 @@ export function useStoreApi({
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),
       addWaterMl: (ml) => set((s) => ({ waterExtraMl: Math.max(0, s.waterExtraMl + ml) })),
-      setTarget: (key, value) =>
-        set((s) => ({
-          targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) },
-          targetMode: ['kcal', 'protein', 'carbs', 'fat'].includes(key) ? 'custom' : s.targetMode,
-        })),
-      resetTargets: () => set((s) => ({ targets: targetsFor({ ...s, targets: DEFAULT_TARGETS }), targetMode: 'auto' })),
-      setGoal: (goal) =>
-        set((s) => {
-          const next = { ...s, goal };
-          return { goal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      toggleDiet: (id) =>
-        set((s) => {
-          const diets = s.diets.includes(id) ? s.diets.filter((d) => d !== id) : [...s.diets, id];
-          const next = { ...s, diets };
-          return { diets, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setBody: (patch) =>
-        set((s) => {
-          const body = { ...s.body, ...patch };
-          const next = { ...s, body };
-          return { body, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setMaintenance: (kcal) =>
-        set((s) => {
-          const maintenanceKcal = Math.max(0, Number(kcal) || 0);
-          const next = { ...s, maintenanceKcal };
-          return { maintenanceKcal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setTargetMode: (targetMode) =>
-        set((s) => ({
-          targetMode,
-          targets: targetMode === 'auto' ? targetsFor(s) : s.targets,
-        })),
-      setWeeklyKcal: (kcal) => set({ weeklyKcal: Math.max(0, Number(kcal) || 0) }),
+      ...targetActions(set),
       saveRecipe: (recipe) =>
         set((s) => {
           if (!householdPermission(s, 'recipes')) return {};

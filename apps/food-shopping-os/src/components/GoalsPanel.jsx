@@ -7,8 +7,10 @@ import {
 import { defaultWeeklyKcal, macroBreakdown, macroMismatch, resolveMaintenance } from '../lib/goals.js';
 import { formatAmount } from '../data/nutrients.js';
 import { YOUTH_COPY, YOUTH_SIGNPOST } from '../lib/youth.js';
+import { MAX_DEFICIT_PCT } from '../lib/target-safety.js';
 import { Card, Chip, Meter, Pill, Section, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
+import TargetSafetyCard from './TargetSafety.jsx';
 
 const MACRO_COLOR = {
   protein: 'var(--series-1)',
@@ -104,6 +106,10 @@ function MacroCard() {
   const rows = macroBreakdown(app.targets);
   const mismatch = macroMismatch(app.targets);
   const custom = app.targetMode === 'custom';
+  // Nothing personal has been worked out, so the figures on screen are the
+  // reference ones. Saying so is the difference between a placeholder and a
+  // number somebody follows.
+  const generic = !custom && !app.targetSafety.personalised;
 
   return (
     <Card className="space-y-3">
@@ -111,7 +117,11 @@ function MacroCard() {
         <div>
           <p className="font-extrabold text-[0.9375rem]">Daily targets</p>
           <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            {custom ? 'Yours — nothing recalculates them.' : 'Following your goal and patterns.'}
+            {custom
+              ? 'Yours — nothing recalculates them.'
+              : generic
+                ? 'General reference figures, not yours — Forq has not been given enough to work one out.'
+                : 'Following your goal and patterns.'}
           </p>
         </div>
         <button
@@ -231,6 +241,12 @@ export default function GoalsPanel() {
               {YOUTH_COPY.goals}
             </p>
           )}
+          {!app.youth.on && app.targetSafety.appliedGoal !== app.targetSafety.goal && (
+            <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--warn)' }}>
+              Chosen, but not in force: Forq is planning at maintenance until the checks below
+              are done.
+            </p>
+          )}
           <p className="mt-1.5 text-[0.75rem] font-bold">
             {Math.round((goal.kcalFactor - 1) * 100) === 0
               ? 'Energy: at maintenance'
@@ -266,6 +282,7 @@ export default function GoalsPanel() {
       </Section>
 
       <MaintenanceCard />
+      <TargetSafetyCard />
       <MacroCard />
       {app.youth.weeklyCompensation ? <WeeklyCard /> : (
         <Card className="space-y-2">
@@ -300,6 +317,12 @@ export default function GoalsPanel() {
           <p>
             <b style={{ color: 'var(--ink)' }}>2.</b> {goal.label} applies ×{goal.kcalFactor} →
             {' '}{app.targets.kcal.toLocaleString()} kcal a day.
+          </p>
+          <p>
+            <b style={{ color: 'var(--ink)' }}>2a.</b> Then the safety checks: a deficit is held
+            to {Math.round(MAX_DEFICIT_PCT * 100)}% of maintenance at most, the day is floored
+            at {app.targetSafety.floor.kcal.toLocaleString()} kcal for your body, and anything
+            unusual is said rather than absorbed.
           </p>
           <p>
             <b style={{ color: 'var(--ink)' }}>3.</b> Protein{app.body?.weightKg ? ` at ${goal.proteinPerKg} g per kg` : ` at ${Math.round(goal.proteinPct * 100)}% of energy`},

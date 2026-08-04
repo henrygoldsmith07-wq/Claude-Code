@@ -12,6 +12,7 @@ import { permissionsForRole } from '../src/lib/household.js';
 import { deriveApp } from '../src/lib/derive.js';
 import { EMPTY_STATE } from '../src/lib/state.js';
 import { DEFAULT_TARGETS } from '../src/data/nutrients.js';
+import { agreedDeficit } from './helpers/target-safety.js';
 
 const person = (age, extra = {}) => ({
   ...EMPTY_STATE,
@@ -73,8 +74,10 @@ describe('1–2 · no deficits, no weight-loss multipliers', () => {
     const state = person(16, { goal: 'lose' });
     const maintenance = resolveMaintenance(state);
     expect(targetsFor(state).kcal).toBe(maintenance);
-    expect(targetsFor({ ...state, body: { ...state.body, age: 30 } }).kcal)
-      .toBeLessThan(resolveMaintenance({ ...state, body: { ...state.body, age: 30 } }));
+    // The adult with the same body does get the deficit — once the safety
+    // system's own gates have been passed, which is a separate question.
+    const adult = { ...state, body: { ...state.body, age: 30 } };
+    expect(targetsFor(agreedDeficit(adult)).kcal).toBeLessThan(resolveMaintenance(adult));
     expect(goalSummary(state)).toBe('Maintenance');
     expect(goalSummary({ ...state, body: { ...state.body, age: 30 } })).toBe('Weight loss');
   });

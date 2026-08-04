@@ -6,7 +6,8 @@ import {
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { BODY_GOALS, DIET_PATTERNS, SEXES } from '../data/goals.js';
-import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
+import { bmr, computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
+import { assessTarget } from '../lib/target-safety.js';
 import {
   isUnderEighteen, YOUTH_COPY, YOUTH_SIGNPOST, youthConsentRecord, youthGoal,
 } from '../lib/youth.js';
@@ -17,6 +18,7 @@ import { haptic } from '../lib/haptics.js';
 import { recordProductEvent } from '../lib/product-analytics.js';
 import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
+import { TargetPreview } from './TargetSafety.jsx';
 
 const num = (value) => Math.max(0, Number(value) || 0) || null;
 
@@ -68,14 +70,27 @@ export default function Onboarding() {
   const offeredGoals = youth ? BODY_GOALS.filter((g) => g.kcalFactor >= 1) : BODY_GOALS;
   const chosenGoal = youth ? youthGoal(goal) : goal;
 
+  /* Setup runs the same safety assessment the app does, so the preview cannot
+     promise a target the app will then refuse to set. */
+  const safety = assessTarget({
+    goal: chosenGoal,
+    body,
+    maintenanceKcal: estimated || num(maintenance),
+    bmrKcal: bmr(body),
+    typedMaintenance: num(maintenance),
+  });
+
   /** Whatever we know: the estimate, a typed figure, or the default. */
   const preview = computeTargets({
     goal: chosenGoal,
     diets,
     maintenanceKcal: estimated || num(maintenance),
     weightKg: body.weightKg,
+    sex: body.sex,
+    bmrKcal: bmr(body),
     fallbackKcal: DEFAULT_TARGETS.kcal,
     youth,
+    safety,
   });
 
   const finish = () => {
@@ -369,27 +384,10 @@ export default function Onboarding() {
               </p>
             </Card>
 
-            <Card>
-              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
-                That works out as
-              </p>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-[1.875rem] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
-                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
-                </div>
-                <div className="flex gap-4 text-right">
-                  {[['Protein', preview.protein], ['Carbs', preview.carbs], ['Fat', preview.fat]].map(([label, v]) => (
-                    <div key={label}>
-                      <p className="text-[0.9375rem] font-extrabold leading-none">{v}g</p>
-                      <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
+            <TargetPreview safety={safety} preview={preview} />
             <p className="text-[0.75rem] font-semibold px-1" style={{ color: 'var(--muted)' }}>
               Vitamins and minerals start at UK reference intakes. Everything here is editable later.
+              {' '}{safety.support[0]}
             </p>
               </>
             )}

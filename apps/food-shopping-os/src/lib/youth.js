@@ -28,15 +28,15 @@ export const YOUTH_AGE = 18;
  * Ages outside this range are typing mistakes rather than users, and a typo
  * shouldn't silently move somebody into — or out of — a different app.
  */
-const MIN_AGE = 2;
-const MAX_AGE = 120;
+export const AGE_MIN = 2;
+export const AGE_MAX = 120;
 
 /** The stated age, or null when there isn't a usable one. */
 export const ageOf = (state = {}) => {
   const value = Number(state?.body?.age);
   if (!Number.isFinite(value)) return null;
   const age = Math.round(value);
-  return age >= MIN_AGE && age <= MAX_AGE ? age : null;
+  return age >= AGE_MIN && age <= AGE_MAX ? age : null;
 };
 
 /** Under 18 by the age given at setup. An unknown age is not under 18. */
