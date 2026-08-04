@@ -394,10 +394,12 @@ export const rankLeftovers = (leftovers = [], context = {}) => {
       const fit = evaluateFoodSuitability(item, ctx);
       if (!fit.allowed) return null;
       const days = item.expiry ? daysUntil(item.expiry, ctx.today) : 999;
-      // Lower days = more urgent; still respect preference/warning balance.
+      /* Lower days = more urgent; still respect preference/warning balance.
+         Anything past its use-by was already dropped as not allowed, so a
+         zero here means "use it today" — the most urgent case there is, and
+         it has to outrank tomorrow's rather than sink below it. */
       const score =
-        (days <= 0 ? -100 : 0)
-        + (days <= 1 ? 50 : days <= 3 ? 30 : days <= 7 ? 10 : 0)
+        (days <= 0 ? 60 : days <= 1 ? 50 : days <= 3 ? 30 : days <= 7 ? 10 : 0)
         + fit.preferences.length * 3
         - fit.warnings.filter((w) => w.kind !== 'expiry').length * 2;
       return { item, score, days: days ?? 999, index, fit };

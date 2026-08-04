@@ -1,4 +1,4 @@
-import { entryMacros } from './nutrition.js';
+import { entryNumbers } from './nutrition.js';
 
 const round = (value) => Math.round(value);
 
@@ -11,7 +11,7 @@ const percentage = (value, total) => (total ? Math.round((value / total) * 100) 
 const dayRow = (date, entries = []) => {
   const safeEntries = Array.isArray(entries) ? entries : [];
   const totals = safeEntries.reduce((sum, entry) => {
-    const macros = entryMacros(entry);
+    const macros = entryNumbers(entry);
     return {
       kcal: sum.kcal + (macros.kcal || 0),
       protein: sum.protein + (macros.protein || 0),

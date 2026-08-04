@@ -148,6 +148,10 @@ export const EMPTY_STATE = {
   timeBudget: 'normal',
   units: {}, // only what you changed; the rest follow DEFAULT_UNITS
   widgets: null, // null = the default Home layout
+  // What you're here for: plan-shop · reduce-waste · consistency · nutrition ·
+  // household. Empty shows every module. Hiding one hides its screens only —
+  // nothing below this line is ever filtered by it.
+  modes: [],
   /* reminders — none until you make one */
   reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
   placeReminders: [], // foreground-only geofences: {id,label,latitude,longitude,radius,on}

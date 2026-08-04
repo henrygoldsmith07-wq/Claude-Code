@@ -220,7 +220,10 @@ describe('nutrition panel', () => {
       'Vitamin C', 'Vitamin D', 'Vitamin E', 'Vitamin K', 'Caffeine', 'Alcohol']) {
       expect(within(sheet).getAllByText(label).length, label).toBeGreaterThan(0);
     }
-    expect(within(sheet).getByText('0 kcal')).toBeDefined();
+    // The panel now reports data quality too, so a fresh day reads 0 kcal
+    // for both the known and the estimated amount.
+    expect(within(sheet).getAllByText('0 kcal').length).toBeGreaterThan(0);
+    expect(within(sheet).getByText('Known amount')).toBeDefined();
   });
 
   it('edits a daily target and re-reads the percentage against it', () => {

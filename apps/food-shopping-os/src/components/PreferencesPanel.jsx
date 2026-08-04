@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Info, LayoutGrid, Ruler, ShieldAlert, Utensils } from 'lucide-react';
+import { ChevronDown, ChevronUp, Compass, Info, LayoutGrid, Ruler, ShieldAlert, Utensils } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import {
   ALLERGENS, CUISINES, INTOLERANCES, MATCH_CAVEAT, RELIGIOUS_DIETS, SKILL_LEVELS,
@@ -7,8 +7,10 @@ import {
 } from '../data/preferences.js';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { Card, Chip, Meter, Pill, Toggle } from './ui.jsx';
+import ModesView from './ModesPanel.jsx';
 
 const VIEWS = [
+  ['focus', 'Focus', Compass],
   ['safety', 'Can’t eat', ShieldAlert],
   ['taste', 'Taste', Utensils],
   ['units', 'Units', Ruler],
@@ -282,6 +284,7 @@ export default function PreferencesPanel() {
           </Chip>
         ))}
       </div>
+      {view === 'focus' && <ModesView />}
       {view === 'safety' && <SafetyView />}
       {view === 'taste' && <TasteView />}
       {view === 'units' && <UnitsView />}

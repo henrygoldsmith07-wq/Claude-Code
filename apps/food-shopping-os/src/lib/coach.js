@@ -7,7 +7,7 @@
  * support comes back as `null` with a reason rather than a confident sentence.
  */
 
-import { dayTotals, entryMacros, mealLabel, MEAL_KEYS } from './nutrition.js';
+import { dayTotals, entryNumbers, mealLabel, MEAL_KEYS } from './nutrition.js';
 import { addDays, dayStamp } from './kitchen.js';
 import { resolveMaintenance } from './goals.js';
 import { isUnderEighteen, YOUTH_COPY } from './youth.js';
@@ -98,7 +98,7 @@ export const habitAnalysis = (log = {}, { today = dayStamp(), days = 28 } = {}) 
   if (!entries.length) return { days: 0, entries: 0 };
 
   const times = entries.map((e) => minutesOf(e.time)).filter((m) => m !== null).sort((a, b) => a - b);
-  const kcalOf = (e) => entryMacros(e).kcal || 0;
+  const kcalOf = (e) => entryNumbers(e).kcal || 0;
   const snackKcal = entries.filter((e) => e.meal === 'snack').reduce((s, e) => s + kcalOf(e), 0);
   const totalKcal = entries.reduce((s, e) => s + kcalOf(e), 0);
 
@@ -220,7 +220,7 @@ export const dailySummary = (state, { today = dayStamp() } = {}) => {
     .map((key) => ({
       key,
       label: mealLabel(key),
-      kcal: Math.round(entries.filter((e) => e.meal === key).reduce((s, e) => s + (entryMacros(e).kcal || 0), 0)),
+      kcal: Math.round(entries.filter((e) => e.meal === key).reduce((s, e) => s + (entryNumbers(e).kcal || 0), 0)),
     }));
   const planned = state.plan?.[today] || {};
 

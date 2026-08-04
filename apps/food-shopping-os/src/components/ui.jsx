@@ -5,7 +5,11 @@ import { recipeGlyphFor } from './recipe-icons.jsx';
 
 /* ---------- Layout ---------- */
 
-export const Section = ({ title, action, onAction, children, className }) => (
+/**
+ * `hidden` is how product modes take a section off a screen: the caller asks
+ * for it, the section renders nothing, and the data behind it is untouched.
+ */
+export const Section = ({ title, action, onAction, children, className, hidden }) => (hidden ? null : (
   <section className={cx('px-5', className)}>
     {title && (
       <div className="flex items-baseline justify-between mb-3">
@@ -19,7 +23,7 @@ export const Section = ({ title, action, onAction, children, className }) => (
     )}
     {children}
   </section>
-);
+));
 
 export const Card = ({ children, className, onClick, style, label }) => (
   <div
