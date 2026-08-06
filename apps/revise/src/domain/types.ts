@@ -76,7 +76,7 @@ export interface Topic {
 
 // --- spaced repetition -----------------------------------------------------
 
-export type CardKind = "basic" | "cloze" | "image" | "equation" | "mistake";
+export type CardKind = "basic" | "cloze" | "image" | "equation" | "mistake" | "audio";
 export type RecallGrade = "again" | "hard" | "good" | "easy";
 
 export interface Card {
@@ -89,11 +89,21 @@ export interface Card {
   back: string;
   /** Cloze cards keep the un-blanked sentence so it can be re-rendered. */
   clozeSource?: string;
+  /** Data URL or remote URL. Data URLs keep images working offline. */
   imageUrl?: string;
+  /** Data URL for a recorded or uploaded clip. */
+  audioUrl?: string;
+  /** Free-form note shown under the answer; never tested. */
+  note?: string;
+  /** Lower-case, deduplicated. The browser filters on these. */
+  tags: string[];
   /** Set when the card was minted from a specific mistake. */
   sourceMistakeId?: Id;
-  origin: "seed" | "manual" | "ai" | "document" | "mistake";
+  origin: "seed" | "manual" | "ai" | "document" | "mistake" | "import";
+  /** Suspended cards never appear until explicitly unsuspended. */
   suspended?: boolean;
+  /** Buried cards reappear on this date. Bury is a one-day snooze. */
+  buriedUntil?: IsoDate;
   // FSRS state
   due: IsoDate;
   stability: number;
@@ -327,6 +337,60 @@ export interface GamificationStats {
   streak: number;
   masteredTopics: number;
   perfectSessions: number;
+}
+
+// --- custom study ----------------------------------------------------------
+
+/** What goes into a hand-built session, as chosen in the custom-study dialog. */
+export interface CustomStudySpec {
+  /** Browser query string; empty means "everything in scope". */
+  query: string;
+  subjectIds?: Id[];
+  topicIds?: Id[];
+  tags?: string[];
+  /** Which pool to draw from before the query narrows it further. */
+  pool: "due" | "new" | "lapsed" | "suspended" | "all";
+  limit: number;
+  order: "due" | "random" | "difficulty" | "lapses" | "added";
+  /** Custom sessions can preview ahead of schedule without rescheduling. */
+  ahead?: boolean;
+}
+
+// --- deck import/export ----------------------------------------------------
+
+export interface DeckExportCard {
+  front: string;
+  back: string;
+  kind: CardKind;
+  tags: string[];
+  note?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  clozeSource?: string;
+  topicId?: Id;
+  subjectId?: Id;
+  /** Present in a full export, absent in a shared deck. */
+  scheduling?: {
+    due: IsoDate;
+    stability: number;
+    difficulty: number;
+    reps: number;
+    lapses: number;
+    state: number;
+    lastReviewedAt: IsoInstant | null;
+  };
+}
+
+export interface DeckExport {
+  /** Bumped when the shape changes; importers refuse what they cannot read. */
+  formatVersion: 1;
+  name: string;
+  description?: string;
+  exportedAt: IsoInstant;
+  /** Set when the deck came from this app rather than a third party. */
+  source?: string;
+  subjectId?: Id;
+  cards: DeckExportCard[];
 }
 
 // --- sync ------------------------------------------------------------------

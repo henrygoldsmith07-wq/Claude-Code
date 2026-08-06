@@ -5,3 +5,10 @@
 /* KaTeX inherits the ink token so equations match body text in both themes. */
 .katex { color: var(--ink); font-size: 1em; }
 .katex-display { margin: 0.6em 0; overflow-x: auto; overflow-y: hidden; }
+
+/* Le Studio's `.field` is unlayered, and Tailwind v4 puts its utilities in the
+   `utilities` layer — so an unlayered rule always wins over `w-auto`/`pl-9`.
+   These two overrides are unlayered for the same reason, and exist so a field
+   can size to its content or make room for a leading icon. */
+.field-inline { width: auto; }
+.field-search { padding-left: 2.25rem; }

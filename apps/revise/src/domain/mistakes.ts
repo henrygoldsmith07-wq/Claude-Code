@@ -75,6 +75,7 @@ export function mistakesFromAttempt(
         topicId,
         kind: "mistake",
         origin: "mistake",
+        tags: ["mistake", mistake.category],
         sourceMistakeId: mistakeId,
         front: prompt,
         back: part?.modelAnswer ?? marked.missedPoints.join("; "),

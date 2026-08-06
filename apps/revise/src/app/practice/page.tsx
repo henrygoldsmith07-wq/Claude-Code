@@ -172,7 +172,7 @@ function Practice() {
             setIndex(0);
             setOrder(orderFor(subjectId, e.target.value));
           }}
-          className="field w-auto text-sm"
+          className="field field-inline text-sm"
           aria-label="Topic"
         >
           <option value="">All topics</option>

@@ -63,6 +63,9 @@ interface StoreValue extends Snapshot {
   recordAttempt(attempt: Attempt, question: Question): Promise<Mistake[]>;
   addCards(cards: Card[]): Promise<void>;
   removeCard(id: Id): Promise<void>;
+  /** Bulk save for the browser: tag edits, suspend, bury, field rewrites. */
+  updateCards(cards: Card[]): Promise<void>;
+  removeCards(ids: Id[]): Promise<void>;
   addQuestions(questions: Question[]): Promise<void>;
   addPaper(paper: Paper): Promise<void>;
   regeneratePlan(): Promise<void>;
@@ -320,6 +323,26 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     [patch],
   );
 
+  const updateCards = useCallback<StoreValue["updateCards"]>(
+    async (updated) => {
+      if (!updated.length) return;
+      await repo.saveCards(updated);
+      const byId = new Map(updated.map((c) => [c.id, c]));
+      patch((prev) => ({ ...prev, cards: prev.cards.map((c) => byId.get(c.id) ?? c) }));
+    },
+    [patch],
+  );
+
+  const removeCards = useCallback<StoreValue["removeCards"]>(
+    async (ids) => {
+      if (!ids.length) return;
+      await repo.deleteCards(ids);
+      const gone = new Set(ids);
+      patch((prev) => ({ ...prev, cards: prev.cards.filter((c) => !gone.has(c.id)) }));
+    },
+    [patch],
+  );
+
   const addQuestions = useCallback<StoreValue["addQuestions"]>(
     async (questions) => {
       if (!questions.length) return;
@@ -434,6 +457,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       recordAttempt,
       addCards,
       removeCard,
+      updateCards,
+      removeCards,
       addQuestions,
       addPaper,
       regeneratePlan,
@@ -456,6 +481,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     recordAttempt,
     addCards,
     removeCard,
+    updateCards,
+    removeCards,
     addQuestions,
     addPaper,
     regeneratePlan,

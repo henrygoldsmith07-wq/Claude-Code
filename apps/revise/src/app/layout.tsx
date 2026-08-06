@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 import { ServiceWorker } from "@/components/ServiceWorker";
+import { ShortcutProvider } from "@/components/shortcuts";
 import { StoreProvider } from "@/state/store";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -39,7 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.variable} antialiased`}>
         <StoreProvider>
-          <AppShell>{children}</AppShell>
+          <ShortcutProvider>
+            <AppShell>{children}</AppShell>
+          </ShortcutProvider>
         </StoreProvider>
         <ServiceWorker />
       </body>

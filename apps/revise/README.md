@@ -17,7 +17,7 @@ changing nothing else.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 95 unit tests over the revision engine
+npm test             # 170 unit tests over the revision engine
 npm run build        # production build
 ```
 
@@ -38,6 +38,11 @@ optional Supabase and AI provider settings.
 | **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, sit them timed. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
 | **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
+| **Card browser** | Anki-flavoured query language (`tag:paper-1 is:leech prop:lapses>3`), saved searches, tag chips, multi-select and bulk edit. |
+| **Card maintenance** | Suspend indefinitely or bury for a day, rich editor (LaTeX, images, audio, tables), and per-card statistics — ease, lapses, interval, true retention, full review history. |
+| **Custom study** | Build a session by filter, pool, order and size. Studying ahead runs as a preview and leaves scheduling untouched. |
+| **Decks** | Export as a backup (scheduling intact) or to share (scheduling stripped); import Revise JSON or any Anki/Quizlet CSV/TSV. |
+| **Keyboard** | Shortcuts throughout, with a `?` sheet generated from the live bindings. |
 | **Input** | Typing, voice dictation, or a photo of handwritten working (OCR). LaTeX throughout. |
 | **Offline** | IndexedDB-first with a durable outbox. Installable PWA. Everything works on a train. |
 
@@ -56,6 +61,10 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   grades.ts        Grade prediction with confidence bands
   gamification.ts  Streaks, XP, achievements
   search.ts        Local search across topics, cards and questions
+  browser.ts       The card browser's query language and sorting
+  card-stats.ts    Per-card and per-deck statistics, incl. true retention
+  custom-study.ts  Hand-built sessions, with preview-only cramming
+  deck-io.ts       Deck export/import, validation and materialisation
 
 src/content/     Authored revision content (cards derived from spec, question bank)
 src/data/        IndexedDB primary store, repository, outbox sync to Supabase
