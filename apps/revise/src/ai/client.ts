@@ -91,6 +91,12 @@ export function aiExtractQuestions(subjectId: string, text: string) {
   }));
 }
 
+/** Generate cards from the student's own notes. Needs a model: nothing local
+ *  can comprehend arbitrary prose. */
+export function aiCardsFromNotes(text: string, count = 10, topicId?: string) {
+  return call<{ cards: GeneratedCard[] }>("cards-from-notes", { text, count, topicId }, () => ({ cards: [] }));
+}
+
 /**
  * Transcribe a photographed answer or paper. Returns empty text when no vision
  * provider is available — callers must keep the type/dictate paths available.

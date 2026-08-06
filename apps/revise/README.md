@@ -17,7 +17,7 @@ changing nothing else.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 170 unit tests over the revision engine
+npm test             # 220 unit tests over the revision engine
 npm run build        # production build
 ```
 
@@ -38,6 +38,10 @@ optional Supabase and AI provider settings.
 | **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, sit them timed. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
 | **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
+| **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, and hands-free Listen — all over the same cards. |
+| **From notes** | One click: drop a PDF, paste notes or photograph a page, and get flashcards back, previewed before they join the deck. |
+| **Onboarding** | Four questions that each change what the app does, ending with a built plan rather than an empty state. |
+| **Sharing** | A link that carries the deck in its fragment (never sent to a server), or a file via the native share sheet. |
 | **Card browser** | Anki-flavoured query language (`tag:paper-1 is:leech prop:lapses>3`), saved searches, tag chips, multi-select and bulk edit. |
 | **Card maintenance** | Suspend indefinitely or bury for a day, rich editor (LaTeX, images, audio, tables), and per-card statistics — ease, lapses, interval, true retention, full review history. |
 | **Custom study** | Build a session by filter, pool, order and size. Studying ahead runs as a preview and leaves scheduling untouched. |
@@ -65,6 +69,10 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   card-stats.ts    Per-card and per-deck statistics, incl. true retention
   custom-study.ts  Hand-built sessions, with preview-only cramming
   deck-io.ts       Deck export/import, validation and materialisation
+  study-modes.ts   Learn, Test and Match rules
+  diagrams.ts      Diagram cards, hotspots and the labelling round
+  sharing.ts       Link encoding for deck sharing
+  shuffle.ts       One deterministic shuffle, shared by every mode
 
 src/content/     Authored revision content (cards derived from spec, question bank)
 src/data/        IndexedDB primary store, repository, outbox sync to Supabase

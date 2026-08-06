@@ -23,6 +23,16 @@ import { enqueue } from "./sync";
 // network, so a slow connection can never make the app feel slow.
 // ---------------------------------------------------------------------------
 
+export const ONBOARDED_KEY = "onboardedAt";
+
+export async function hasOnboarded(): Promise<boolean> {
+  return Boolean(await readMeta<string>(ONBOARDED_KEY));
+}
+
+export async function markOnboarded(): Promise<void> {
+  await writeMeta(ONBOARDED_KEY, new Date().toISOString());
+}
+
 export interface Snapshot {
   cards: Card[];
   reviewLogs: ReviewLog[];

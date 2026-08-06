@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { allTopics } from "@/domain/curriculum";
-import { search } from "@/domain/search";
+import { buildSearchIndex, searchIndex } from "@/domain/search";
 import type { SearchResult } from "@/domain/search";
 import { useStore } from "@/state/store";
 import { cx, Pill } from "./ui";
@@ -17,11 +17,13 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const corpus = useMemo(
-    () => ({ topics: allTopics(settings.subjectIds), cards, questions }),
+  // Indexed once per corpus change so each keystroke is a scan of prepared
+  // strings rather than a re-lower-casing of the whole deck.
+  const index = useMemo(
+    () => buildSearchIndex({ topics: allTopics(settings.subjectIds), cards, questions }),
     [cards, questions, settings.subjectIds],
   );
-  const results = useMemo(() => search(corpus, query, 20), [corpus, query]);
+  const results = useMemo(() => searchIndex(index, query, 20), [index, query]);
 
   useEffect(() => inputRef.current?.focus(), []);
 
@@ -85,8 +87,25 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
             <li className="px-4 py-6 text-center text-sm text-ink3">Nothing matches “{query}”.</li>
           ) : null}
           {query.length < 2 ? (
-            <li className="px-4 py-6 text-center text-xs text-ink3">
-              Type at least two characters. Search runs on this device, so it works offline.
+            <li className="px-4 py-5">
+              <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Try</p>
+              <div className="flex flex-wrap gap-1.5">
+                {["photosynthesis", "moles", "momentum", "enzymes", "integration"].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => {
+                      setQuery(suggestion);
+                      setCursor(0);
+                    }}
+                    className="pill hover:border-ink3 transition-colors"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-ink3 mt-3">
+                {index.docs.length} items indexed on this device — search works offline.
+              </p>
             </li>
           ) : null}
         </ul>

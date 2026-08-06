@@ -89,6 +89,10 @@ async function dispatch(task: AiTask, payload: unknown) {
       const p = payload as { topicIds: string[]; mistakes: unknown[] };
       return tasks.diagnose(p.topicIds, p.mistakes);
     }
+    case "cards-from-notes": {
+      const p = payload as { text: string; count: number; topicId?: string };
+      return tasks.cardsFromNotes(p.text, p.count, p.topicId);
+    }
     case "ocr": {
       const p = payload as { image: string; mediaType: string; hint: "handwriting" | "printed" | "auto" };
       return tasks.ocr(p.image, p.mediaType, p.hint);

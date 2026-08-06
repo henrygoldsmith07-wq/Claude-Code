@@ -10,6 +10,7 @@ import { useShortcuts } from "@/components/shortcuts";
 import type { Card, RecallGrade } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading } from "@/components/ui";
+import { SpeakButton } from "@/components/SpeakButton";
 import { RichText } from "@/components/RichText";
 
 // The review session. One card, one decision, no chrome competing for
@@ -195,15 +196,23 @@ function ReviewSession() {
         <div className="flex items-center gap-2 mb-3">
           <Pill>{cardKindLabel(current)}</Pill>
           {current.lapses > 2 ? <Pill tone="danger">Leech · {current.lapses} lapses</Pill> : null}
+          <span className="ml-auto">
+            <SpeakButton text={revealed ? current.back : current.front} audioUrl={current.audioUrl} />
+          </span>
         </div>
 
         <div className="flex-1">
           <RichText className="text-base text-ink">{current.front}</RichText>
+          {current.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={current.imageUrl} alt="" className="mt-3 max-h-60 rounded-[8px] border border-line mx-auto" />
+          ) : null}
 
           {revealed ? (
             <div className="mt-5 pt-4 border-t border-line fade-in">
               <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-1.5">Answer</p>
               <RichText className="text-base">{current.back}</RichText>
+              {current.note ? <p className="text-xs text-ink3 mt-2 italic">{current.note}</p> : null}
             </div>
           ) : null}
         </div>
@@ -218,7 +227,7 @@ function ReviewSession() {
                     key={value}
                     onClick={() => setConfidence(value as 1 | 2 | 3 | 4 | 5)}
                     aria-pressed={confidence === value}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-[8px] border transition-colors ${
+                    className={`flex-1 min-h-[2.5rem] text-xs font-semibold rounded-[8px] border transition-colors ${
                       confidence === value
                         ? "bg-accent text-onaccent border-transparent"
                         : "border-line text-ink3 hover:text-ink"
@@ -229,7 +238,7 @@ function ReviewSession() {
                 ))}
               </div>
             </div>
-            <Button variant="primary" className="w-full" onClick={() => setRevealed(true)}>
+            <Button variant="primary" className="w-full min-h-[3rem]" onClick={() => setRevealed(true)}>
               Show answer <span className="text-[10px] opacity-60">space</span>
             </Button>
           </div>
@@ -239,7 +248,9 @@ function ReviewSession() {
               <button
                 key={option.grade}
                 onClick={() => void grade(option.grade)}
-                className="card p-2 text-center hover:border-ink3 transition-colors"
+                // min-h keeps these comfortably tappable on a phone, where
+                // this is the single most-used control in the app.
+                className="card p-2 min-h-[4.25rem] flex flex-col justify-center text-center hover:border-ink3 active:scale-[0.98] transition-all"
               >
                 <span className="block text-xs font-semibold text-ink">{option.label}</span>
                 <span className="block text-[10px] text-ink3">{option.hint}</span>

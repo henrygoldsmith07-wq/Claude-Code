@@ -14,6 +14,7 @@ export const AI_TASKS = [
   "diagnose",
   "extract-questions",
   "ocr",
+  "cards-from-notes",
 ] as const;
 
 export type AiTask = (typeof AI_TASKS)[number];
