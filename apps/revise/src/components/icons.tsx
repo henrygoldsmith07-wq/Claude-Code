@@ -28,6 +28,11 @@ import {
   LayoutGrid,
   Layers,
   Mic,
+  Shapes,
+  Share2,
+  Sparkle,
+  Volume2,
+  VolumeX,
   MicOff,
   PenLine,
   RefreshCw,
@@ -65,6 +70,13 @@ export const CardsIcon = LayoutGrid;
 /** The Socratic tutor. */
 export const TutorIcon = Sparkles;
 export const SettingsIcon = Settings;
+/** Study modes other than plain review. */
+export const ModesIcon = Shapes;
+/** One-click generation from notes. */
+export const GenerateIcon = Sparkle;
+export const ShareIcon = Share2;
+export const AudioIcon = Volume2;
+export const AudioOffIcon = VolumeX;
 export const SearchIcon = Search;
 
 // --- actions and status -----------------------------------------------------

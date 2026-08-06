@@ -8,7 +8,9 @@ import { useStore } from "@/state/store";
 import { cx } from "./ui";
 import {
   CardsIcon,
+  GenerateIcon,
   ICON_SIZE,
+  ModesIcon,
   LibraryIcon,
   PapersIcon,
   PlanIcon,
@@ -24,6 +26,7 @@ import {
 import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
 import { useShortcuts } from "./shortcuts";
+import { Onboarding } from "./Onboarding";
 
 // Navigation is verb-first: every destination is something the student does,
 // not a noun they browse. "Today" is always first because the product's whole
@@ -31,9 +34,11 @@ import { useShortcuts } from "./shortcuts";
 const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[] = [
   { href: "/", label: "Today", Icon: TodayIcon, primary: true },
   { href: "/review", label: "Review", Icon: ReviewIcon, primary: true },
-  { href: "/practice", label: "Practice", Icon: PracticeIcon, primary: true },
+  { href: "/study", label: "Study", Icon: ModesIcon, primary: true },
+  { href: "/practice", label: "Practice", Icon: PracticeIcon },
   { href: "/planner", label: "Plan", Icon: PlanIcon, primary: true },
   { href: "/progress", label: "Progress", Icon: ProgressIcon, primary: true },
+  { href: "/generate", label: "From notes", Icon: GenerateIcon },
   { href: "/cards", label: "Cards", Icon: CardsIcon },
   { href: "/papers", label: "Past papers", Icon: PapersIcon },
   { href: "/library", label: "Library", Icon: LibraryIcon },
@@ -44,7 +49,7 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { settings, dueCards, streak, syncStatus, updateSettings } = useStore();
+  const { settings, dueCards, streak, syncStatus, updateSettings, needsOnboarding, completeOnboarding } = useStore();
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Theme and accessibility preferences live on <html> so Le Studio's tokens
@@ -89,6 +94,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       { key: "g", group: "Go to", label: "Today", run: () => router.push("/") },
       { key: "r", group: "Go to", label: "Review", run: () => router.push("/review") },
       { key: "p", group: "Go to", label: "Practice", run: () => router.push("/practice") },
+      { key: "m", group: "Go to", label: "Study modes", run: () => router.push("/study") },
+      { key: "e", group: "Go to", label: "Cards from notes", run: () => router.push("/generate") },
       { key: "l", group: "Go to", label: "Cards", run: () => router.push("/cards") },
       { key: "t", group: "Go to", label: "Plan", run: () => router.push("/planner") },
       { key: "d", group: "Global", label: "Toggle dark mode", run: toggleTheme },
@@ -97,6 +104,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  if (needsOnboarding) {
+    return <Onboarding onDone={() => void completeOnboarding()} />;
+  }
 
   return (
     <div className="min-h-dvh bg-bg">

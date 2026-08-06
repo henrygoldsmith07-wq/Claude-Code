@@ -112,6 +112,12 @@ export const payloadSchemas = {
     mistakes: z.array(z.any()).max(100),
   }),
   "extract-questions": z.object({ subjectId: z.string(), text: z.string().max(60_000) }),
+  "cards-from-notes": z.object({
+    text: z.string().max(20_000),
+    subjectId: z.string().optional(),
+    topicId: z.string().optional(),
+    count: z.number().int().min(1).max(25).default(10),
+  }),
   ocr: z.object({
     // ~8 MB of base64 is roughly a 6 MB photo, which is plenty for a page of
     // handwriting and small enough to keep the request from timing out.
@@ -190,6 +196,35 @@ export async function mark(question: Question, answers: Record<string, string>) 
     `{ "marked": [{ "partId": string, "awarded": number, "max": number, "creditedPoints": string[], "missedPoints": string[], "comment": string }], "feedback": string }`,
     () => markFallback(question, answers),
     1800,
+  );
+}
+
+/**
+ * Cards from the student's own notes. Grounded in the notes rather than in the
+ * specification: the point is to revise what their teacher actually taught,
+ * so the model is told not to add material that is not in front of it.
+ */
+export async function cardsFromNotes(text: string, count: number, topicId?: string) {
+  const topic = topicId ? getTopic(topicId) : undefined;
+  return run(
+    z.object({ cards: z.array(generatedCardSchema).min(1).max(25) }),
+    EXAMINER_VOICE,
+    [
+      topic ? topicContext(topic) : "",
+      "",
+      `Write up to ${count} flashcards from the notes below.`,
+      "Use only what the notes contain — do not add facts they do not mention.",
+      "One idea per card, answerable in under 20 seconds, phrased as a question.",
+      "Skip headings, page numbers, references and anything that is not examinable content.",
+      "",
+      "--- NOTES ---",
+      text.slice(0, 18_000),
+    ].join("\n"),
+    `{ "cards": [{ "front": string, "back": string, "kind": "basic" | "cloze" | "equation" }] }`,
+    // Without a model there is no way to comprehend arbitrary notes, so the
+    // caller is told plainly rather than handed unrelated spec cards.
+    () => ({ cards: [] }),
+    2400,
   );
 }
 

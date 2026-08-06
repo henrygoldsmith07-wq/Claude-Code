@@ -1,4 +1,5 @@
 import { browse } from "./browser";
+import { shuffleWithSeed } from "./shuffle";
 import { isAvailable, isDue, todayIso } from "./scheduling";
 import type { Card, CustomStudySpec } from "./types";
 
@@ -46,18 +47,6 @@ function inPool(card: Card, pool: CustomStudySpec["pool"], today: string): boole
   }
 }
 
-/** Deterministic shuffle so a given seed always produces the same order. */
-function shuffle<T>(items: T[], seed: number): T[] {
-  const out = [...items];
-  let state = seed || 1;
-  for (let i = out.length - 1; i > 0; i--) {
-    state = (state * 1664525 + 1013904223) % 4294967296;
-    const j = state % (i + 1);
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
 export function buildCustomStudy(
   cards: Card[],
   spec: CustomStudySpec,
@@ -94,7 +83,7 @@ export function buildCustomStudy(
 export function orderCards(cards: Card[], order: CustomStudySpec["order"], seed: number): Card[] {
   switch (order) {
     case "random":
-      return shuffle(cards, seed);
+      return shuffleWithSeed(cards, seed);
     case "difficulty":
       return [...cards].sort((a, b) => b.difficulty - a.difficulty);
     case "lapses":

@@ -60,8 +60,10 @@ export default function TodayPage() {
           </p>
           <p className="text-sm text-ink2 mt-3 max-w-2xl">{primary.reason}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href={recommendationHref(primary)}>
-              <Button variant="primary">Start now</Button>
+            <Link href={recommendationHref(primary)} className="flex-1 sm:flex-none">
+              <Button variant="primary" className="w-full sm:w-auto min-h-[3rem] px-6">
+                Start now
+              </Button>
             </Link>
             {alternatives[0] ? (
               <Link href={recommendationHref(alternatives[0])}>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useRef, useState } from "react";
 import { browse, easeFactor, SAVED_SEARCHES, sortCards, tagCounts } from "@/domain/browser";
@@ -15,6 +16,7 @@ import type { CardDraft } from "@/components/CardEditor";
 import { CardStatsPanel, DeckStatsPanel } from "@/components/CardStatsPanel";
 import { CustomStudyDialog } from "@/components/CustomStudyDialog";
 import { deckNameFor, ExportDeckPanel, ImportDeckPanel } from "@/components/DeckIO";
+import { ShareDeck } from "@/components/ShareDeck";
 import { useShortcuts } from "@/components/shortcuts";
 import { RichText } from "@/components/RichText";
 import { Button, EmptyState, Pill, SectionHeading, Segmented, cx } from "@/components/ui";
@@ -179,6 +181,9 @@ function CardBrowser() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href={`/study?q=${encodeURIComponent(query)}${subjectId ? `&subject=${subjectId}` : ""}`}>
+            <Button size="sm">Study these</Button>
+          </Link>
           <Button size="sm" onClick={() => setCustomStudy(true)}>Custom study</Button>
           <Button size="sm" variant="primary" onClick={startNewCard}>New card</Button>
         </div>
@@ -205,6 +210,7 @@ function CardBrowser() {
       {pane === "io" ? (
         <div className="space-y-4 max-w-2xl">
           <ImportDeckPanel />
+          <ShareDeck cards={matched} name={deckNameFor(getSubject(subjectId)?.name, query)} />
           <ExportDeckPanel cards={matched} defaultName={deckNameFor(getSubject(subjectId)?.name, query)} />
         </div>
       ) : null}

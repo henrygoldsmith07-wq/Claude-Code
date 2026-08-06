@@ -52,6 +52,9 @@ export interface SyncStatus {
 
 interface StoreValue extends Snapshot {
   ready: boolean;
+  /** True until the student has been through (or skipped) onboarding. */
+  needsOnboarding: boolean;
+  completeOnboarding(): Promise<void>;
   userId: Id;
   mastery: TopicMastery[];
   recommendations: Recommendation[];
@@ -87,6 +90,7 @@ export function useStore(): StoreValue {
 
 export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: ReactNode; userId?: Id }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     online: true,
     pending: 0,
@@ -102,6 +106,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     void (async () => {
       const loaded = await repo.loadSnapshot(userId);
       setSnapshot(loaded);
+      setNeedsOnboarding(!(await repo.hasOnboarded()));
       // A plan that has drifted into the past is worse than no plan: fold
       // missed sessions forward before the dashboard renders anything.
       const today = todayIso();
@@ -124,6 +129,11 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
     };
+  }, []);
+
+  const completeOnboarding = useCallback(async () => {
+    await repo.markOnboarded();
+    setNeedsOnboarding(false);
   }, []);
 
   const syncNow = useCallback(async () => {
@@ -447,6 +457,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     return {
       ...snapshot,
       ready: true,
+      needsOnboarding,
+      completeOnboarding,
       userId,
       mastery,
       recommendations,
@@ -471,6 +483,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     };
   }, [
     snapshot,
+    needsOnboarding,
+    completeOnboarding,
     userId,
     mastery,
     recommendations,

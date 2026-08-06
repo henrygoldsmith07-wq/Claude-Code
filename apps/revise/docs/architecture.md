@@ -145,6 +145,40 @@ whole import is previewed before a single card is written. Shared decks drop
 scheduling: one student's stability numbers are meaningless to another and
 would hand the recipient a deck that claims to be learned when it is not.
 
+## Study modes
+
+Five ways to work the same cards, because they train different things — and
+because a student who is bored of one will stop rather than switch.
+
+* **Learn** promotes each card from recognition (multiple choice) to
+  production (typed from memory). A card graduates only after it is produced,
+  never merely recognised, because recognising an answer among four options is
+  a far weaker signal than the exam demands. A wrong answer demotes it.
+* **Test** builds a fixed paper and grades it only at the end. The delay is
+  the point: knowing you got the last one right changes how you attack the
+  next, and a real paper offers no such feedback.
+* **Match** is the one mode that is genuinely about speed, drilling the
+  front↔back association until recognition is automatic.
+* **Diagram labelling** exists because a large share of biology and physics
+  marks come from labelling a figure, which prose recall does not train.
+  Hotspots are stored as percentages of the image, so a diagram labelled on a
+  laptop lines up on a phone.
+* **Listen** reads cards aloud through the browser's own speech synthesis —
+  no network, no audio files — so the walk to school is revisable time.
+
+Distractors for multiple choice are drawn from the same topic first. A wrong
+option from another subject teaches nothing: the student eliminates it on
+vibes rather than on knowing the material.
+
+## Sharing without a server
+
+There is no backend to upload to, so a shared deck travels either as a **file**
+(native share sheet on a phone, download elsewhere) or as a **link whose
+fragment carries the deck itself**. Fragments are never sent to any host, so a
+shared link stays between the two people sharing it. Links have a hard size
+limit; `buildShareLink` halves the deck until it fits and reports what was
+dropped rather than failing.
+
 ## Offline behaviour
 
 | Feature | No network | No AI provider |
@@ -165,7 +199,7 @@ navigations) and never caches `/api/*` — a stale explanation is worse than non
 
 ## Testing
 
-170 unit tests over the engine, in `tests/`. They target behaviour that would be
+220 unit tests over the engine, in `tests/`. They target behaviour that would be
 a real defect if it broke, not implementation shape:
 
 - **scheduling** — grade ordering, lapse counting, immutability, decay curve
@@ -187,6 +221,11 @@ a real defect if it broke, not implementation shape:
 - **study tools** — suspend/bury semantics and their expiry, card and deck
   statistics, true retention, custom-study pools, limits, preview detection and
   deterministic shuffling.
+- **study modes** — learn-stage promotion and demotion, distractor selection,
+  written-answer leniency, test generation and grading, match pairing, and
+  diagram parsing, placement and scoring.
+- **sharing** — unicode-safe base64url round-trips, link size trimming, and
+  the guarantee that a shared deck never carries scheduling.
 - **content** — every seeded topic has usable content, every question is
   internally consistent and points at a topic that exists, ids are unique and
   stable, prediction and gamification invariants.
