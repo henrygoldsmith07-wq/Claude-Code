@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "./le-studio.css";
+@import "katex/dist/katex.min.css";
+
+/* KaTeX inherits the ink token so equations match body text in both themes. */
+.katex { color: var(--ink); font-size: 1em; }
+.katex-display { margin: 0.6em 0; overflow-x: auto; overflow-y: hidden; }

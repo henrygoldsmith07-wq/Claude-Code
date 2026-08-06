@@ -1,0 +1,197 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { useStore } from "@/state/store";
+import { cx } from "./ui";
+import { SearchOverlay } from "./SearchOverlay";
+
+// Navigation is verb-first: every destination is something the student does,
+// not a noun they browse. "Today" is always first because the product's whole
+// claim is that it knows what you should do next.
+const NAV = [
+  { href: "/", label: "Today", icon: "◎", primary: true },
+  { href: "/review", label: "Review", icon: "▤", primary: true },
+  { href: "/practice", label: "Practice", icon: "✎", primary: true },
+  { href: "/planner", label: "Plan", icon: "▦", primary: true },
+  { href: "/progress", label: "Progress", icon: "◔", primary: true },
+  { href: "/papers", label: "Past papers", icon: "❐" },
+  { href: "/library", label: "Library", icon: "☰" },
+  { href: "/tutor", label: "Tutor", icon: "✦" },
+  { href: "/settings", label: "Settings", icon: "⚙" },
+];
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { settings, dueCards, streak, syncStatus } = useStore();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Theme and accessibility preferences live on <html> so Le Studio's tokens
+  // flip everything at once, including anything rendered into a portal.
+  useEffect(() => {
+    const root = document.documentElement;
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const dark = settings.theme === "dark" || (settings.theme === "system" && prefersDark.matches);
+      root.classList.toggle("dark", dark);
+      root.dataset.theme = dark ? "dark" : "light";
+    };
+    apply();
+    prefersDark.addEventListener("change", apply);
+    return () => prefersDark.removeEventListener("change", apply);
+  }, [settings.theme]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("large-text", settings.accessibility.largeText);
+    root.classList.toggle("dyslexia", settings.accessibility.dyslexiaFont);
+    root.classList.toggle("high-contrast", settings.accessibility.highContrast);
+    root.classList.toggle("reduce-motion", settings.accessibility.reduceMotion);
+  }, [settings.accessibility]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  return (
+    <div className="min-h-dvh bg-bg">
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+
+      {/* Desktop rail */}
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-56 flex-col border-r border-line bg-surface z-20">
+        <div className="px-4 py-5">
+          <p className="text-sm font-semibold tracking-tight">Revise</p>
+          <p className="text-[11px] text-ink3 mt-0.5">{settings.displayName}</p>
+        </div>
+        <nav className="flex-1 px-2 space-y-0.5" aria-label="Main">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              className={cx(
+                "flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-sm transition-colors",
+                isActive(item.href) ? "bg-surface2 text-ink font-semibold" : "text-ink2 hover:bg-surface2",
+              )}
+            >
+              <span aria-hidden className="w-4 text-center text-ink3">
+                {item.icon}
+              </span>
+              <span className="flex-1">{item.label}</span>
+              {item.href === "/review" && dueCards.length > 0 ? (
+                <span className="text-[11px] font-semibold tabular-nums text-review">{dueCards.length}</span>
+              ) : null}
+            </Link>
+          ))}
+        </nav>
+        <div className="p-3 space-y-2">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full field text-left text-xs text-ink3 flex items-center justify-between"
+          >
+            Search<kbd className="text-[10px]">⌘K</kbd>
+          </button>
+          <StatusStrip />
+        </div>
+      </aside>
+
+      {/* Mobile top bar */}
+      <header className="lg:hidden sticky top-0 z-20 bg-surface border-b border-line">
+        <div className="flex items-center justify-between px-4 h-14">
+          <div>
+            <p className="text-sm font-semibold tracking-tight">Revise</p>
+            <p className="text-[11px] text-ink3">
+              {streak.current > 0 ? `${streak.current}-day streak` : "Start your streak today"}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setSearchOpen(true)} className="btn btn-ghost" aria-label="Search">
+              ⌕
+            </button>
+            <Link href="/settings" className="btn btn-ghost" aria-label="Settings">
+              ⚙
+            </Link>
+          </div>
+        </div>
+        {!syncStatus.online ? (
+          <p className="px-4 py-1.5 text-[11px] bg-reviewsoft text-review font-medium">
+            Offline — everything still works and will sync when you reconnect.
+          </p>
+        ) : null}
+      </header>
+
+      <main id="main" className="lg:pl-56 pb-24 lg:pb-10">
+        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-5 sm:py-7 app-enter">{children}</div>
+      </main>
+
+      {/* Mobile bottom bar */}
+      <nav
+        className="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line elev-nav pb-safe"
+        aria-label="Main"
+      >
+        <div className="grid grid-cols-5">
+          {NAV.filter((item) => item.primary).map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              className={cx(
+                "flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors relative",
+                isActive(item.href) ? "text-ink" : "text-ink3",
+              )}
+            >
+              <span aria-hidden className="text-base leading-none">
+                {item.icon}
+              </span>
+              {item.label}
+              {item.href === "/review" && dueCards.length > 0 ? (
+                <span className="absolute top-1 right-[22%] w-1.5 h-1.5 rounded-full bg-review" />
+              ) : null}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
+      {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function StatusStrip() {
+  const { syncStatus, syncNow, streak } = useStore();
+  return (
+    <div className="text-[11px] text-ink3 space-y-1">
+      <div className="flex items-center justify-between">
+        <span>{streak.current > 0 ? `${streak.current}-day streak` : "No streak yet"}</span>
+        <span className="tabular-nums">{streak.xp} XP</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className={cx("w-1.5 h-1.5 rounded-full", syncStatus.online ? "bg-success" : "bg-review")}
+          />
+          {syncStatus.enabled ? (syncStatus.online ? "Synced" : "Offline") : "Local only"}
+        </span>
+        {syncStatus.enabled ? (
+          <button onClick={() => void syncNow()} className="underline hover:text-ink">
+            {syncStatus.syncing ? "Syncing…" : syncStatus.pending ? `${syncStatus.pending} queued` : "Sync"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
