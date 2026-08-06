@@ -11,6 +11,7 @@ import type { Card, Topic } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
 import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented, SourceBadge } from "@/components/ui";
+import { BackIcon, CreditedIcon, DeleteIcon, ICON_SIZE, MissedIcon } from "@/components/icons";
 
 // The library is where a topic is *learned* rather than tested: spec content,
 // an explanation, and the two buttons that turn reading into revisable
@@ -190,7 +191,8 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
     <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ghost" onClick={onBack}>
-          ← Library
+          <BackIcon size={ICON_SIZE.sm} aria-hidden />
+          Library
         </Button>
         <span className="text-xs text-ink3">{getSubject(topic.subjectId)?.name}</span>
       </div>
@@ -215,9 +217,7 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
         <ul className="space-y-1.5">
           {topic.keyPoints.map((point, i) => (
             <li key={i} className="text-sm text-ink2 flex gap-2">
-              <span className="text-ink3" aria-hidden>
-                ·
-              </span>
+              <CreditedIcon size={ICON_SIZE.md} aria-hidden className="shrink-0 mt-0.5 text-success" />
               <RichText className="flex-1">{point}</RichText>
             </li>
           ))}
@@ -228,7 +228,7 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
         <ul className="space-y-1.5">
           {topic.commonErrors.map((error, i) => (
             <li key={i} className="text-sm text-danger flex gap-2">
-              <span aria-hidden>✗</span>
+              <MissedIcon size={ICON_SIZE.md} aria-hidden className="shrink-0 mt-0.5" />
               <span className="flex-1">{error}</span>
             </li>
           ))}
@@ -286,8 +286,13 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
                     {card.lapses ? ` · ${card.lapses} lapses` : ""}
                   </p>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => void store.removeCard(card.id)}>
-                  Delete
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void store.removeCard(card.id)}
+                  aria-label="Delete card"
+                >
+                  <DeleteIcon size={ICON_SIZE.sm} aria-hidden />
                 </Button>
               </li>
             ))}
