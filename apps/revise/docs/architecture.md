@@ -48,6 +48,11 @@ lives:
 - `marking.ts` marks answers against a mark scheme with no model involved.
 - `mistakes.ts` converts dropped marks into classified mistakes and cards.
 - `grades.ts` predicts a grade with an explicit confidence and range.
+- `browser.ts` parses the card-browser query language and filters on it.
+- `card-stats.ts` computes per-card and per-deck statistics, including
+  measured true retention.
+- `custom-study.ts` assembles a hand-built session from a spec.
+- `deck-io.ts` validates and materialises imported decks.
 
 ### `src/content` — authored revision material
 
@@ -118,6 +123,28 @@ CSS custom properties that flip themselves for dark mode, so components carry no
 `dark:` variants. `RichText` renders the small markdown subset the content uses
 plus KaTeX maths, escaping input before adding any markup.
 
+## Card maintenance
+
+Three decisions worth recording:
+
+**Suspend and bury are different tools.** Suspend removes a card indefinitely
+for material that is off-spec; bury is a one-day snooze that expires on its
+own. Both leave FSRS state untouched, so unsuspending resumes exactly where the
+card left off rather than restarting it.
+
+**Custom study never corrupts the schedule.** Cramming ahead of an exam is
+legitimate, but grading a card that is not due would shorten every future
+interval on it. Sessions containing not-yet-due cards therefore run as
+*previews*: the UI says so, and no grade is recorded.
+
+**Imported decks are treated as hostile input.** It is the one place the app
+ingests a file a stranger wrote, so every field is validated and clamped, media
+URLs are restricted to `data:image/*`, `data:audio/*` and `http(s)`, a
+malformed row is skipped with a reason rather than failing the file, and the
+whole import is previewed before a single card is written. Shared decks drop
+scheduling: one student's stability numbers are meaningless to another and
+would hand the recipient a deck that claims to be learned when it is not.
+
 ## Offline behaviour
 
 | Feature | No network | No AI provider |
@@ -138,7 +165,7 @@ navigations) and never caches `/api/*` — a stale explanation is worse than non
 
 ## Testing
 
-95 unit tests over the engine, in `tests/`. They target behaviour that would be
+170 unit tests over the engine, in `tests/`. They target behaviour that would be
 a real defect if it broke, not implementation shape:
 
 - **scheduling** — grade ordering, lapse counting, immutability, decay curve
@@ -152,6 +179,14 @@ a real defect if it broke, not implementation shape:
   subjects excluded, deduplication.
 - **marking / mistakes** — mark-scheme point crediting, partial marks, the
   short-answer cap, MCQ routing, mistake classification, resolution criteria.
+- **browser** — query parsing (fields, negation, `or`, numeric properties),
+  filtering, warnings on nonsense, tag counting and sorting stability.
+- **deck-io** — backup round-trip with scheduling intact, shared-deck stripping,
+  CSV/TSV parsing with quoted fields and tab preference, hostile-input clamping,
+  duplicate and unknown-topic handling.
+- **study tools** — suspend/bury semantics and their expiry, card and deck
+  statistics, true retention, custom-study pools, limits, preview detection and
+  deterministic shuffling.
 - **content** — every seeded topic has usable content, every question is
   internally consistent and points at a topic that exists, ids are unique and
   stable, prediction and gamification invariants.

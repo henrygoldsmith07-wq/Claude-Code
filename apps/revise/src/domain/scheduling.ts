@@ -60,7 +60,22 @@ export interface NewCardInput {
   origin?: Card["origin"];
   clozeSource?: string;
   imageUrl?: string;
+  audioUrl?: string;
+  note?: string;
+  tags?: string[];
   sourceMistakeId?: Id;
+}
+
+/** Tags are lower-cased, trimmed, de-duplicated and sorted so that filtering,
+ *  counting and equality checks never depend on how they were typed. */
+export function normaliseTags(tags: string[]): string[] {
+  return [
+    ...new Set(
+      tags
+        .map((t) => t.trim().toLowerCase().replace(/\s+/g, "-"))
+        .filter((t) => t.length > 0 && t.length <= 40),
+    ),
+  ].sort();
 }
 
 export function createCard(input: NewCardInput, now: Date = new Date()): Card {
@@ -76,6 +91,9 @@ export function createCard(input: NewCardInput, now: Date = new Date()): Card {
     clozeSource: input.clozeSource,
     imageUrl: input.imageUrl,
     sourceMistakeId: input.sourceMistakeId,
+    tags: normaliseTags(input.tags ?? []),
+    note: input.note,
+    audioUrl: input.audioUrl,
     origin: input.origin ?? "manual",
     due: toDateOnly(empty.due),
     stability: empty.stability,
@@ -132,7 +150,43 @@ export function retrievability(card: Card, now: Date = new Date()): number {
 }
 
 export function isDue(card: Card, on: IsoDate = todayIso()): boolean {
-  return !card.suspended && card.due <= on;
+  return isAvailable(card, on) && card.due <= on;
+}
+
+/** Suspended cards never surface; buried ones come back the next day. */
+export function isAvailable(card: Card, on: IsoDate = todayIso()): boolean {
+  if (card.suspended) return false;
+  if (card.buriedUntil && card.buriedUntil > on) return false;
+  return true;
+}
+
+export function isBuried(card: Card, on: IsoDate = todayIso()): boolean {
+  return Boolean(card.buriedUntil && card.buriedUntil > on);
+}
+
+/**
+ * Suspend takes a card out of circulation indefinitely — for material that is
+ * off-spec or that the student has decided not to learn. It leaves the FSRS
+ * state untouched so unsuspending resumes exactly where it left off.
+ */
+export function setSuspended(card: Card, suspended: boolean, now: Date = new Date()): Card {
+  return { ...card, suspended, updatedAt: now.toISOString() };
+}
+
+/**
+ * Bury is a one-day snooze — for a card met today whose sibling you have just
+ * seen, or one you simply do not want again this session. Unlike suspend it
+ * expires on its own, so nothing is lost by using it liberally.
+ */
+export function buryCard(card: Card, days = 1, now: Date = new Date()): Card {
+  const until = toDateOnly(new Date(now.getTime() + Math.max(1, days) * 86_400_000));
+  return { ...card, buriedUntil: until, updatedAt: now.toISOString() };
+}
+
+export function unburyCard(card: Card, now: Date = new Date()): Card {
+  const next = { ...card, updatedAt: now.toISOString() };
+  delete next.buriedUntil;
+  return next;
 }
 
 export function isMastered(card: Card): boolean {
@@ -145,7 +199,7 @@ export function isMastered(card: Card): boolean {
  * `limit` caps the session so it fits the planned block.
  */
 export function buildReviewQueue(cards: Card[], limit: number, on: IsoDate = todayIso()): Card[] {
-  const live = cards.filter((c) => !c.suspended);
+  const live = cards.filter((c) => isAvailable(c, on));
   const due = live
     .filter((c) => c.state !== State.New && c.due <= on)
     .sort((a, b) => (a.due === b.due ? b.lapses - a.lapses : a.due < b.due ? -1 : 1));
@@ -178,7 +232,9 @@ export function dueCountByDay(cards: Card[], days: number, from: IsoDate = today
   for (let i = 0; i < days; i++) {
     const d = new Date(start.getTime() + i * 86_400_000);
     const iso = toDateOnly(d);
-    const count = cards.filter((c) => !c.suspended && (i === 0 ? c.due <= iso : c.due === iso)).length;
+    const count = cards.filter(
+      (c) => isAvailable(c, iso) && (i === 0 ? c.due <= iso : c.due === iso),
+    ).length;
     out.push({ date: iso, count });
   }
   return out;

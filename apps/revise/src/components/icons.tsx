@@ -25,6 +25,7 @@ import {
   Clock,
   FileText,
   Flame,
+  LayoutGrid,
   Layers,
   Mic,
   MicOff,
@@ -59,6 +60,8 @@ export const ProgressIcon = ChartLine;
 export const PapersIcon = FileText;
 /** The curriculum and card decks. */
 export const LibraryIcon = BookOpen;
+/** The card browser — a grid of everything, for maintenance. */
+export const CardsIcon = LayoutGrid;
 /** The Socratic tutor. */
 export const TutorIcon = Sparkles;
 export const SettingsIcon = Settings;

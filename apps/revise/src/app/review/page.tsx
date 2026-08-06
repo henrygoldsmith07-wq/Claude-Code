@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
-import { buildReviewQueue, isDue, previewIntervals, reinsert, todayIso } from "@/domain/scheduling";
+import { buildReviewQueue, buryCard, isDue, previewIntervals, reinsert, setSuspended, todayIso } from "@/domain/scheduling";
+import { CUSTOM_STUDY_KEY } from "@/components/CustomStudyDialog";
+import { useShortcuts } from "@/components/shortcuts";
 import type { Card, RecallGrade } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading } from "@/components/ui";
@@ -44,8 +46,26 @@ function ReviewSession() {
   const [done, setDone] = useState({ reviewed: 0, again: 0, totalMs: 0 });
   const cardShownAt = useRef(0);
 
+  // A custom session hands over an explicit id list through sessionStorage.
+  // Read once, at mount: re-reading would resurrect the session after it ends.
+  const [custom] = useState(() => {
+    if (mode !== "custom" || typeof sessionStorage === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem(CUSTOM_STUDY_KEY);
+      return raw ? (JSON.parse(raw) as { ids: string[]; preview: boolean }) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const pool = useMemo(() => {
     const today = todayIso();
+    if (custom) {
+      const wanted = new Map(custom.ids.map((id, index) => [id, index]));
+      return store.cards
+        .filter((card) => wanted.has(card.id))
+        .sort((a, b) => (wanted.get(a.id) ?? 0) - (wanted.get(b.id) ?? 0));
+    }
     return store.cards.filter((card) => {
       if (!store.settings.subjectIds.includes(card.subjectId)) return false;
       if (subjectId && card.subjectId !== subjectId) return false;
@@ -53,11 +73,14 @@ function ReviewSession() {
       if (mode === "mistakes") return card.kind === "mistake" && !card.suspended;
       return isDue(card, today);
     });
-  }, [store.cards, store.settings.subjectIds, subjectId, topicId, mode]);
+  }, [store.cards, store.settings.subjectIds, subjectId, topicId, mode, custom]);
 
   // The queue is built once, at mount: rebuilding it as cards are graded would
   // reshuffle the deck underneath the student mid-session.
   const [queue, setQueue] = useState<Card[]>(() => {
+    // A custom session is already ordered and limited by the dialog; passing it
+    // back through the scheduler's queue builder would undo both.
+    if (custom) return pool;
     const limit = mode === "mistakes" ? 20 : Math.max(10, Math.ceil(store.settings.sessionLengthMinutes * 2.5));
     return buildReviewQueue(pool, limit);
   });
@@ -68,27 +91,49 @@ function ReviewSession() {
 
   const current = queue[0];
   const total = queue.length + done.reviewed;
+  const isPreview = Boolean(custom?.preview);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
+  // useCallback rather than a plain declaration: these read the clock and the
+  // card-shown ref, which only makes sense once an interaction has happened,
+  // never while rendering.
+  const skipCurrent = useCallback(
+    async (transform: (card: Card) => Card) => {
       if (!current) return;
-      if (event.key === " " || event.key === "Enter") {
-        event.preventDefault();
-        setRevealed(true);
-        return;
-      }
-      if (!revealed) return;
-      const index = ["1", "2", "3", "4"].indexOf(event.key);
-      if (index >= 0) void grade(GRADES[index].grade);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+      await store.updateCards([transform(current)]);
+      setQueue((q) => q.slice(1));
+      setRevealed(false);
+      setConfidence(null);
+      cardShownAt.current = Date.now();
+    },
+    [current, store],
+  );
 
-  async function grade(value: RecallGrade) {
+  useShortcuts(
+    [
+      { key: " ", group: "Review", label: "Show answer", disabled: revealed, run: () => setRevealed(true) },
+      { key: "enter", group: "Review", label: "Show answer", disabled: revealed, run: () => setRevealed(true) },
+      ...GRADES.map((option, i) => ({
+        key: String(i + 1),
+        group: "Review",
+        label: `Grade "${option.label}"`,
+        disabled: !revealed,
+        run: () => void grade(option.grade),
+      })),
+      { key: "s", group: "Review", label: "Suspend this card", run: () => void skipCurrent((c) => setSuspended(c, true)) },
+      { key: "b", group: "Review", label: "Bury until tomorrow", run: () => void skipCurrent((c) => buryCard(c)) },
+    ],
+    [current, revealed, confidence, isPreview],
+  );
+
+  const grade = useCallback(
+    async (value: RecallGrade) => {
     if (!current) return;
     const elapsed = cardShownAt.current ? Date.now() - cardShownAt.current : 0;
-    await store.reviewCard(current, value, elapsed, confidence ?? undefined);
+    // Preview sessions are cramming: grading a card that is not due would
+    // shorten every future interval on it, so the schedule is left alone.
+    if (!isPreview) {
+      await store.reviewCard(current, value, elapsed, confidence ?? undefined);
+    }
 
     // "Again" cards come back inside this session — tomorrow is too late to
     // repair a card you have just proved you cannot recall.
@@ -102,7 +147,9 @@ function ReviewSession() {
     setRevealed(false);
     setConfidence(null);
     cardShownAt.current = Date.now();
-  }
+    },
+    [current, queue, confidence, isPreview, store],
+  );
 
   if (!current) {
     return (
@@ -126,7 +173,7 @@ function ReviewSession() {
             {getSubject(current.subjectId)?.name} · {topic?.title}
           </p>
           <h1 className="text-sm font-semibold">
-            {mode === "mistakes" ? "Mistake repair" : "Spaced repetition"}
+            {custom ? "Custom study" : mode === "mistakes" ? "Mistake repair" : "Spaced repetition"}
           </h1>
         </div>
         <Link href="/">
@@ -135,6 +182,12 @@ function ReviewSession() {
           </Button>
         </Link>
       </div>
+
+      {isPreview ? (
+        <p className="text-xs text-review card card-2 px-3 py-2">
+          Preview session — you are studying ahead, so nothing here changes when these cards come back.
+        </p>
+      ) : null}
 
       <ProgressBar value={total ? done.reviewed / total : 0} label={`${done.reviewed} of ${total}`} />
 

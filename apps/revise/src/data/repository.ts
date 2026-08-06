@@ -137,6 +137,16 @@ export async function deleteCard(id: Id): Promise<void> {
   await enqueue("cards", "delete", { id });
 }
 
+/** Bulk delete for the browser's multi-select. One transaction, one pass. */
+export async function deleteCards(ids: Id[]): Promise<void> {
+  if (!ids.length) return;
+  const db = await getDb();
+  const tx = db.transaction("cards", "readwrite");
+  await Promise.all(ids.map((id) => tx.store.delete(id)));
+  await tx.done;
+  for (const id of ids) await enqueue("cards", "delete", { id });
+}
+
 export async function saveReviewLog(log: ReviewLog): Promise<void> {
   await putOne("reviewLogs", log);
   await enqueue("reviewLogs", "upsert", log);

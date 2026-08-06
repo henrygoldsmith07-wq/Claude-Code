@@ -23,10 +23,10 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const DB_NAME = "revise";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 interface ReviseSchema extends DBSchema {
-  cards: { key: Id; value: Card; indexes: { byUser: Id; byTopic: Id; byDue: string } };
+  cards: { key: Id; value: Card; indexes: { byUser: Id; byTopic: Id; byDue: string; byTag: string } };
   reviewLogs: { key: Id; value: ReviewLog; indexes: { byUser: Id; byCard: Id } };
   questions: { key: Id; value: Question; indexes: { bySubject: Id } };
   attempts: { key: Id; value: Attempt; indexes: { byUser: Id; byQuestion: Id } };
@@ -49,11 +49,29 @@ export function getDb(): Promise<ReviseDB> {
     return Promise.reject(new Error("IndexedDB unavailable — this must run in the browser."));
   }
   dbPromise ??= openDB<ReviseSchema>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    async upgrade(db, oldVersion, _newVersion, tx) {
+      // v1 → v2 adds tags. Existing cards predate the field, and code all over
+      // the app calls card.tags.something, so they are backfilled here rather
+      // than defended against at every call site.
+      if (oldVersion >= 1) {
+        const store = tx.objectStore("cards");
+        store.createIndex("byTag", "tags", { multiEntry: true });
+        let cursor = await store.openCursor();
+        while (cursor) {
+          const card = cursor.value as Card;
+          if (!Array.isArray(card.tags)) await cursor.update({ ...card, tags: [] });
+          cursor = await cursor.continue();
+        }
+        return;
+      }
+
       const cards = db.createObjectStore("cards", { keyPath: "id" });
       cards.createIndex("byUser", "userId");
       cards.createIndex("byTopic", "topicId");
       cards.createIndex("byDue", "due");
+      // Multi-entry: one index record per tag, so tag filters stay fast as a
+      // deck grows past a few thousand cards.
+      cards.createIndex("byTag", "tags", { multiEntry: true });
 
       const logs = db.createObjectStore("reviewLogs", { keyPath: "id" });
       logs.createIndex("byUser", "userId");

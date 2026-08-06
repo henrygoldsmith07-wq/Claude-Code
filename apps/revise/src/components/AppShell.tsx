@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "@/state/store";
 import { cx } from "./ui";
 import {
+  CardsIcon,
   ICON_SIZE,
   LibraryIcon,
   PapersIcon,
@@ -22,6 +23,7 @@ import {
 } from "./icons";
 import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
+import { useShortcuts } from "./shortcuts";
 
 // Navigation is verb-first: every destination is something the student does,
 // not a noun they browse. "Today" is always first because the product's whole
@@ -32,6 +34,7 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
   { href: "/practice", label: "Practice", Icon: PracticeIcon, primary: true },
   { href: "/planner", label: "Plan", Icon: PlanIcon, primary: true },
   { href: "/progress", label: "Progress", Icon: ProgressIcon, primary: true },
+  { href: "/cards", label: "Cards", Icon: CardsIcon },
   { href: "/papers", label: "Past papers", Icon: PapersIcon },
   { href: "/library", label: "Library", Icon: LibraryIcon },
   { href: "/tutor", label: "Tutor", Icon: TutorIcon },
@@ -40,7 +43,8 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { settings, dueCards, streak, syncStatus } = useStore();
+  const router = useRouter();
+  const { settings, dueCards, streak, syncStatus, updateSettings } = useStore();
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Theme and accessibility preferences live on <html> so Le Studio's tokens
@@ -66,16 +70,31 @@ export function AppShell({ children }: { children: ReactNode }) {
     root.classList.toggle("reduce-motion", settings.accessibility.reduceMotion);
   }, [settings.accessibility]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const toggleTheme = () => {
+    const dark = document.documentElement.dataset.theme === "dark";
+    const next = dark ? "light" : "dark";
+    void updateSettings({ theme: next });
+    try {
+      localStorage.setItem("revise.theme", next);
+    } catch {
+      /* private browsing keeps the in-app preference only */
+    }
+  };
+
+  // Navigation shortcuts are global, so they are registered by the shell
+  // rather than by each page — and they show up in the `?` sheet everywhere.
+  useShortcuts(
+    [
+      { key: "k", meta: true, group: "Global", label: "Search", allowInInput: true, run: () => setSearchOpen(true) },
+      { key: "g", group: "Go to", label: "Today", run: () => router.push("/") },
+      { key: "r", group: "Go to", label: "Review", run: () => router.push("/review") },
+      { key: "p", group: "Go to", label: "Practice", run: () => router.push("/practice") },
+      { key: "l", group: "Go to", label: "Cards", run: () => router.push("/cards") },
+      { key: "t", group: "Go to", label: "Plan", run: () => router.push("/planner") },
+      { key: "d", group: "Global", label: "Toggle dark mode", run: toggleTheme },
+    ],
+    [router, settings.theme],
+  );
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 

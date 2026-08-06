@@ -62,6 +62,9 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
           back: point,
           kind: /[=+−×÷^√∫Δ]|\b\d/.test(point) ? "equation" : "basic",
           origin: "seed",
+          // Tags the browser can filter on from day one, without the student
+          // having to tag 500 cards by hand.
+          tags: ["seed", "key-point", topic.id.split(".").pop() ?? ""],
         },
         now,
       ),
@@ -83,6 +86,7 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
             clozeSource: point,
             kind: "cloze",
             origin: "seed",
+            tags: ["seed", "cloze", topic.id.split(".").pop() ?? ""],
           },
           now,
         ),
@@ -104,6 +108,7 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
           back: `This drops marks. ${error}\n\nCorrect approach: ${topic.keyPoints[Math.min(i, topic.keyPoints.length - 1)]}`,
           kind: "basic",
           origin: "seed",
+          tags: ["seed", "common-error", topic.id.split(".").pop() ?? ""],
         },
         now,
       ),
