@@ -6,21 +6,36 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "@/state/store";
 import { cx } from "./ui";
+import {
+  ICON_SIZE,
+  LibraryIcon,
+  PapersIcon,
+  PlanIcon,
+  PracticeIcon,
+  ProgressIcon,
+  ReviewIcon,
+  SearchIcon,
+  OfflineIcon,
+  SettingsIcon,
+  TodayIcon,
+  TutorIcon,
+} from "./icons";
+import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
 
 // Navigation is verb-first: every destination is something the student does,
 // not a noun they browse. "Today" is always first because the product's whole
 // claim is that it knows what you should do next.
-const NAV = [
-  { href: "/", label: "Today", icon: "◎", primary: true },
-  { href: "/review", label: "Review", icon: "▤", primary: true },
-  { href: "/practice", label: "Practice", icon: "✎", primary: true },
-  { href: "/planner", label: "Plan", icon: "▦", primary: true },
-  { href: "/progress", label: "Progress", icon: "◔", primary: true },
-  { href: "/papers", label: "Past papers", icon: "❐" },
-  { href: "/library", label: "Library", icon: "☰" },
-  { href: "/tutor", label: "Tutor", icon: "✦" },
-  { href: "/settings", label: "Settings", icon: "⚙" },
+const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[] = [
+  { href: "/", label: "Today", Icon: TodayIcon, primary: true },
+  { href: "/review", label: "Review", Icon: ReviewIcon, primary: true },
+  { href: "/practice", label: "Practice", Icon: PracticeIcon, primary: true },
+  { href: "/planner", label: "Plan", Icon: PlanIcon, primary: true },
+  { href: "/progress", label: "Progress", Icon: ProgressIcon, primary: true },
+  { href: "/papers", label: "Past papers", Icon: PapersIcon },
+  { href: "/library", label: "Library", Icon: LibraryIcon },
+  { href: "/tutor", label: "Tutor", Icon: TutorIcon },
+  { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -87,9 +102,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 isActive(item.href) ? "bg-surface2 text-ink font-semibold" : "text-ink2 hover:bg-surface2",
               )}
             >
-              <span aria-hidden className="w-4 text-center text-ink3">
-                {item.icon}
-              </span>
+              {/* No colour of its own: the icon inherits the link's ink so the
+                  active item's icon sharpens with its label. */}
+              <item.Icon size={ICON_SIZE.md} aria-hidden className="shrink-0" />
               <span className="flex-1">{item.label}</span>
               {item.href === "/review" && dueCards.length > 0 ? (
                 <span className="text-[11px] font-semibold tabular-nums text-review">{dueCards.length}</span>
@@ -100,9 +115,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="p-3 space-y-2">
           <button
             onClick={() => setSearchOpen(true)}
-            className="w-full field text-left text-xs text-ink3 flex items-center justify-between"
+            className="w-full field text-left text-xs text-ink3 flex items-center gap-2"
           >
-            Search<kbd className="text-[10px]">⌘K</kbd>
+            <SearchIcon size={ICON_SIZE.sm} aria-hidden />
+            <span className="flex-1">Search</span>
+            <kbd className="text-[10px]">⌘K</kbd>
           </button>
           <StatusStrip />
         </div>
@@ -119,15 +136,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => setSearchOpen(true)} className="btn btn-ghost" aria-label="Search">
-              ⌕
+              <SearchIcon size={ICON_SIZE.lg} aria-hidden />
             </button>
             <Link href="/settings" className="btn btn-ghost" aria-label="Settings">
-              ⚙
+              <SettingsIcon size={ICON_SIZE.lg} aria-hidden />
             </Link>
           </div>
         </div>
         {!syncStatus.online ? (
-          <p className="px-4 py-1.5 text-[11px] bg-reviewsoft text-review font-medium">
+          <p className="px-4 py-1.5 text-[11px] bg-reviewsoft text-review font-medium flex items-center gap-1.5">
+            <OfflineIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0" />
             Offline — everything still works and will sync when you reconnect.
           </p>
         ) : null}
@@ -153,9 +171,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 isActive(item.href) ? "text-ink" : "text-ink3",
               )}
             >
-              <span aria-hidden className="text-base leading-none">
-                {item.icon}
-              </span>
+              <item.Icon size={ICON_SIZE.lg} aria-hidden />
               {item.label}
               {item.href === "/review" && dueCards.length > 0 ? (
                 <span className="absolute top-1 right-[22%] w-1.5 h-1.5 rounded-full bg-review" />

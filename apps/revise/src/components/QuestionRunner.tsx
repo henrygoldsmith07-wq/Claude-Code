@@ -9,6 +9,7 @@ import { useStore } from "@/state/store";
 import { AnswerInput } from "./AnswerInput";
 import { RichText } from "./RichText";
 import { Button, Panel, Pill, ProgressBar, SourceBadge, cx } from "./ui";
+import { CreditedIcon, ICON_SIZE, MissedIcon } from "./icons";
 
 // The practice loop: attempt → marked instantly → see exactly which mark-scheme
 // points were earned → dropped marks become mistakes and mistake cards without
@@ -212,7 +213,7 @@ function MarkedResult({
                 <ul className="mt-1.5 space-y-1">
                   {marked.creditedPoints.map((point, i) => (
                     <li key={i} className="text-xs text-success flex gap-1.5">
-                      <span aria-hidden>✓</span>
+                      <CreditedIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0 mt-px" />
                       <span>{point}</span>
                     </li>
                   ))}
@@ -222,7 +223,7 @@ function MarkedResult({
                 <ul className="mt-1.5 space-y-1">
                   {marked.missedPoints.map((point, i) => (
                     <li key={i} className="text-xs text-danger flex gap-1.5">
-                      <span aria-hidden>✗</span>
+                      <MissedIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0 mt-px" />
                       <span>{point}</span>
                     </li>
                   ))}

@@ -10,6 +10,7 @@ import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented } from "@/components/ui";
+import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
 
 // Past papers: upload, extract, map to topics, practise by topic or as a timed
 // paper. Extraction needs a model; everything after it does not, so a paper
@@ -220,7 +221,8 @@ function UploadPaper({ subjectId }: { subjectId: string }) {
 
       <div className="flex flex-wrap gap-2 items-center">
         <label className="btn btn-secondary text-sm cursor-pointer">
-          ▣ Photograph paper
+          <PhotoIcon size={ICON_SIZE.md} aria-hidden />
+          Photograph paper
           <input
             type="file"
             accept="image/*"
@@ -233,7 +235,8 @@ function UploadPaper({ subjectId }: { subjectId: string }) {
           />
         </label>
         <label className="btn btn-secondary text-sm cursor-pointer">
-          ▣ Photograph mark scheme
+          <PhotoIcon size={ICON_SIZE.md} aria-hidden />
+          Photograph mark scheme
           <input
             type="file"
             accept="image/*"
@@ -336,7 +339,10 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={elapsedMinutes > 90 ? "danger" : undefined}>{elapsedMinutes} min</Pill>
+          <Pill tone={elapsedMinutes > 90 ? "danger" : undefined}>
+            <TimerIcon size={ICON_SIZE.sm} aria-hidden />
+            {elapsedMinutes} min
+          </Pill>
           <Button size="sm" variant="ghost" onClick={onExit}>
             Exit
           </Button>

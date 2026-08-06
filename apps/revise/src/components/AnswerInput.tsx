@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { aiOcr } from "@/ai/client";
 import { Button, cx } from "./ui";
+import { DictateIcon, DictateStopIcon, ICON_SIZE, PhotoIcon } from "./icons";
 
 // Three ways in, because exam answers are not all typed: keyboard, voice, and
 // a photo of handwritten working. Voice and photo are progressive
@@ -134,10 +135,21 @@ export function AnswerInput({
           className={cx(listening && "text-danger")}
           title={speechAvailable ? "Dictate your answer" : "Speech recognition unavailable in this browser"}
         >
-          {listening ? "◉ Stop dictation" : "◎ Dictate"}
+          {listening ? (
+            <>
+              <DictateStopIcon size={ICON_SIZE.sm} aria-hidden />
+              Stop dictation
+            </>
+          ) : (
+            <>
+              <DictateIcon size={ICON_SIZE.sm} aria-hidden />
+              Dictate
+            </>
+          )}
         </Button>
         <Button size="sm" variant="ghost" type="button" onClick={() => fileInput.current?.click()}>
-          ▣ Photo of working
+          <PhotoIcon size={ICON_SIZE.sm} aria-hidden />
+          Photo of working
         </Button>
         <input
           ref={fileInput}
