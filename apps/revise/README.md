@@ -100,17 +100,52 @@ mark scheme, explanations to the spec content, generation to the question bank.
 Responses are labelled with which one answered — the UI never implies a model
 wrote something a rubric did.
 
+## Content pipeline — the competitive moat
+
+Every topic and exam question carries provenance so Revise can answer "how do
+you know this is right?" without hand-waving. That is the moat: competitors
+can generate plausible content, but proving coverage and verification is the
+hard part and this repo enforces it.
+
+| Field | Where | Values |
+|-------|-------|--------|
+| **Board / spec** | `Subject.spec` + `SPEC_MANIFEST` | `wjec` · `A200QS` · version `2024-1.0` · `lastChecked` |
+| **Qualification** | `Subject.qualificationId` | `A Level` / `GCSE` / … |
+| **Unit / paper** | `Unit.id` + `Subject.papers` | weight, duration, calculator flag |
+| **Spec point** | `Topic.specRef` + `Topic.specPoints[]` | exact board ref + paraphrased text + `aos` |
+| **AO mapping** | `Topic.aos` / `QuestionPart.aos` | `AO1` `AO2` `AO3` |
+| **Source** | `Topic.source` / `Question.source` | `authored` / `licensed` / `generated` / … |
+| **Verification** | `Topic.verification` / `Question.verification` | `unverified` → `checked` → `verified` |
+| **Last checked** | `Topic.lastChecked` / `Question.lastChecked` | ISO date |
+| **Spec version** | `Topic.specVersion` / `Question.specVersion` | `2024-1.0` |
+| **Coverage** | `src/domain/coverage.ts` | topics · spec points · retrieval items · exam questions, auto-measured |
+
+```ts
+// Progress → Specification coverage (live from authored content):
+//  WJEC A-level Physics: 100% topic coverage · 11 topics · 78 retrieval items · 6 exam questions · Last checked: 2026-08-01
+```
+
+Fine-grained `specPoints[]` are the next step: today every topic has a `specRef`
+("Unit 2.4") and board-level versioning; splitting those into discrete
+statements (one `ref` per phrase the spec actually makes) is what moves the
+headline from "topics covered" to the requested "189 statements verified". The
+plumbing is in place — see `src/domain/types.ts:SpecPoint` and the `specPoints?`
+field on `Topic` — and the validator already treats "no-spec-points" as a gap.
+Run `node scripts/validate-curriculum.mjs` in CI; it fails on missing
+provenance, unknown topic refs, or a coverage drop. `tests/coverage.test.ts`
+pins the contracts so a regression cannot land silently.
+
 ## Adding a new exam board or subject
 
 One file. Create `src/domain/curriculum/<board>-<subject>.ts`:
 
 ```ts
 const { units, topics } = buildUnits(SUBJECT_ID, [
-  { slug: "unit-1", title: "…", topics: [{ slug, title, difficulty, summary, keyPoints, commonErrors }] },
+  { slug: "unit-1", title: "…", topics: [{ slug, title, difficulty, summary, keyPoints, commonErrors, aos: ["AO1", "AO2"], source: "authored", verification: "checked", lastChecked: "2026-08-01", specVersion: "2024-1.0" }] },
 ]);
 
 export const mySubject = registerSubject({
-  subject: { id: SUBJECT_ID, qualificationId: "…", name: "…", papers: [...], gradeBoundaries: [...] },
+  subject: { id: SUBJECT_ID, qualificationId: "…", name: "…", specCode: "…", spec: { version: "2024-1.0", releaseDate: "2024-09-01", lastChecked: "2026-08-01", url: "https://…" }, papers: [...], gradeBoundaries: [...] },
   units,
   topics,
 });
@@ -118,8 +153,8 @@ export const mySubject = registerSubject({
 
 Import it in `src/domain/curriculum/index.ts` and it is live: flashcards are
 derived from the key points automatically, the planner and recommender pick it
-up, mastery and grade prediction work, and it is searchable. No other file
-changes.
+up, mastery and grade prediction work, coverage appears on Progress, and it is
+searchable. No other file changes. Add the subject to `src/domain/spec.ts:SPEC_MANIFEST` so the headline totals stay true.
 
 ## Docs
 
@@ -132,3 +167,9 @@ Topic lists follow the broad content areas of each specification and are a
 study-planning guide, not a transcription of the official document. Grade
 boundaries are approximate and labelled as such in the UI. Always check the
 current WJEC specification for exact assessment objectives and weightings.
+
+Recovery note: the deleted `apps/wjec-study-app` had **no** per-topic
+validation, provenance or coverage tooling — only bare topic titles — so
+nothing of competitive value was lost in that deletion. The previous repo's
+only reusable asset was the FSRS + study-plan scheduling math, which Revise
+already supersedes.

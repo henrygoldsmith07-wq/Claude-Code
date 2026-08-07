@@ -9,12 +9,28 @@ import {
 } from './mocks';
 
 import { getLanguage, DEFAULT_LANG } from './languages';
+import { consume, getRemaining } from './quota';
+import { relayEnabled } from './relay';
 
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';
 const WHISPER_MODEL = 'whisper-large-v3-turbo';
 // Multimodal model for Snap & learn — accepts an image alongside the prompt.
 const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+
+// Quota guard — mirrors the server relay's daily cap on the client. When a
+// relay is configured the server is authoritative; this keeps the UX honest
+// offline and avoids burning the key on accidental loops.
+function assertQuota(label) {
+  const res = consume(1, label);
+  if (!res.ok) {
+    throw new Error(`Daily AI quota reached (${res.quota.limit} calls). Try again tomorrow — or wire VITE_GROQ_RELAY_URL for shared quotas.`);
+  }
+}
+
+export function quotaStatus() {
+  return { relay: relayEnabled, remaining: getRemaining() };
+}
 
 // Active target language — set once from settings so every prompt below teaches
 // the right language (French / German / Spanish) without threading it through
@@ -119,6 +135,7 @@ export async function pingLatency(apiKey) {
 
 export async function transcribe(apiKey, blob, { mock } = {}) {
   if (mock) return mockTurn().transcript;
+  assertQuota('whisper');
   const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
   const form = new FormData();
   form.append('file', blob, `recording.${ext}`);
@@ -145,6 +162,7 @@ function extractJson(content) {
 }
 
 async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } = {}) {
+  assertQuota(label);
   const body = {
     model: CHAT_MODEL,
     messages,
@@ -165,6 +183,7 @@ async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } 
 
 // JSON chat with an attached image (multimodal). Used by Snap & learn.
 async function chatVisionJson(apiKey, { system, prompt, imageDataUrl, temperature = 0.3, label = 'vision' }) {
+  assertQuota(label);
   const body = {
     model: VISION_MODEL,
     messages: [
@@ -191,6 +210,7 @@ async function chatVisionJson(apiKey, { system, prompt, imageDataUrl, temperatur
 
 // Plain-text chat (no JSON mode) — for the tutor and free-form explanations.
 async function chatPlain(apiKey, messages, { temperature = 0.6, label = 'chat-plain', maxTokens = 700 } = {}) {
+  assertQuota(label);
   const body = { model: CHAT_MODEL, messages, temperature, max_tokens: maxTokens };
   const { data } = await timedFetch(label, `${BASE}/chat/completions`, {
     method: 'POST',
@@ -387,6 +407,32 @@ export async function explainMistake(apiKey, { userText, corrections, level = 'B
 }
 
 // ---- conversational turn evaluation ----
+
+// ---- redo: targeted re-evaluation of the same turn ----
+export async function evaluateRedoTurn(apiKey, { scenario, historyBefore, originalText, retryText, level = 'B1', mock }) {
+  if (mock) {
+    const { mockRedoEvaluation } = await import('./redo.js');
+    return mockRedoEvaluation(level);
+  }
+  // Judge only the retry — same history prefix, same system — but include the
+  // original + its correction so the model can reward incorporation.
+  const originalEv = historyBefore.length ? null : null; // placeholder — caller threads it via prompt
+  const json = await chatJson(apiKey, [
+    {
+      role: 'system',
+      content: `${turnSystem()}\n\n${LEVEL_NOTES[level] || LEVEL_NOTES.B1}\n\nCurrent scenario: ${scenario.title} — ${scenario.setup}\nYour role: ${scenario.aiRole}\n\nREDO MODE: the learner is retrying their last turn. Original: "${originalText}" Retry: "${retryText}" — score ONLY the retry, but in corrections call out specifically whether they incorporated the previous correction. Include a "redo_note" field (one sentence in English: did the retry improve and what specifically got better or still needs work?).`,
+    },
+    ...historyBefore.flatMap((t) => [
+      { role: 'user', content: t.userText },
+      { role: 'assistant', content: JSON.stringify({ reply: t.reply }) },
+    ]),
+    { role: 'user', content: retryText },
+  ], { label: 'evaluate-redo', temperature: 0.5 });
+  // tolerate models that omit redo_note
+  const base = normalizeTurn(json);
+  base.redo_note = String(json.redo_note || '');
+  return base;
+}
 
 const LEVEL_NOTES = {
   A1: 'The learner is CEFR A1 (beginner). Use very short present-tense sentences and the most frequent vocabulary only. Repeat key words. Score very generously — reward any successful communication.',

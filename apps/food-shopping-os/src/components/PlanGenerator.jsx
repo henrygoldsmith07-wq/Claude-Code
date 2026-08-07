@@ -8,8 +8,10 @@ import { useApp } from '../lib/store.jsx';
 import { PLANNER_OCCASIONS, WEEK_DAYS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { monthOf, peakNow } from '../data/seasons.js';
+import { explainRecommendation } from '../lib/recommend.js';
 import { Card, Chip, Pill, Stepper, FoodArt } from './ui.jsx';
 import { recordProductEvent } from '../lib/product-analytics.js';
+import RecommendationExplanation from './RecommendationExplanation.jsx';
 
 const SCOPES = ['1 meal', 'A day', 'A week', 'A month'];
 
@@ -132,6 +134,17 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
       ? `Leaving ${busyInScope} calendar-busy evening${busyInScope === 1 ? '' : 's'} empty.`
       : null,
   ].filter(Boolean);
+  const busyMap = useMemo(() => {
+    const m = {};
+    for (const b of app.calendarBusy || []) m[b.date] = { busy: true, date: b.date, dayName: new Date(`${b.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) };
+    return m;
+  }, [app.calendarBusy]);
+  const slotDates = useMemo(() => {
+    if (!generated) return [];
+    if (scope === 'A day') return Array(generated.length).fill(app.day);
+    if (scope === '1 meal') return [app.day];
+    return planDates;
+  }, [generated, scope, planDates, app.day]);
 
   const labelFor = (i) => {
     if (scope === 'A day') return ['Breakfast', 'Lunch', 'Dinner'][i];
@@ -280,22 +293,40 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             </div>
           </Card>
           <div className="space-y-2.5">
-            {generated.map((r, i) => (
-              <Card key={`${r.id}-${i}`} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
-                <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
-                    {labelFor(i)}
-                  </p>
-                  <p className="font-bold text-[0.9375rem] truncate">{r.name}</p>
-                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                    {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
-                  </p>
-                </div>
-                {usePantry && <PantryPill recipe={r} pantryNames={pantryNames} />}
-                <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
-              </Card>
-            ))}
+            {generated.map((r, i) => {
+              const date = slotDates[i] || app.day;
+              const ctx = {
+                pantry: app.pantry,
+                today: app.day,
+                date,
+                availability: busyMap,
+                people,
+                budget,
+                month,
+                taste: app.tasteProfile,
+              };
+              const explanation = explainRecommendation(r, ctx);
+              return (
+                <Card key={`${r.id}-${i}`} className="!p-0 overflow-hidden">
+                  <div onClick={() => openRecipe(r)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecipe(r); } }} className="press flex items-center gap-3 p-3 cursor-pointer">
+                    <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
+                        {labelFor(i)}
+                      </p>
+                      <p className="font-bold text-[0.9375rem] truncate">{r.name}</p>
+                      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                        {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
+                      </p>
+                    </div>
+                    <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
+                  </div>
+                  <div className="px-3 pb-3">
+                    <RecommendationExplanation explanation={explanation} compact />
+                  </div>
+                </Card>
+              );
+            })}
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <button
@@ -321,11 +352,4 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   );
 }
 
-/** How much of a suggested dish your pantry already covers. */
-function PantryPill({ recipe, pantryNames }) {
-  const have = pantryNames.filter((n) =>
-    recipe.ingredients.some((i) => i.name.toLowerCase().includes(n.toLowerCase())
-      || n.toLowerCase().includes(i.name.toLowerCase()))).length;
-  if (!have) return null;
-  return <Pill tone="good">Have {have}</Pill>;
-}
+

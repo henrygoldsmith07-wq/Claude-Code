@@ -10,6 +10,8 @@ import { todayIso } from "@/domain/scheduling";
 import { levelFor } from "@/domain/gamification";
 import { useStore } from "@/state/store";
 import { formatMinutes, recommendationHref, relativeDay } from "@/lib/activity";
+import { ExpectedMarksCard } from "@/components/AssessmentPanels";
+import { RecommendationCard } from "@/components/RecommendationCard";
 import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "@/components/ui";
 
 // The whole product in one screen: what to do next, why, and how long it takes.
@@ -45,33 +47,7 @@ export default function TodayPage() {
       </header>
 
       {primary ? (
-        <Panel className="relative overflow-hidden">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Pill tone="speak">Recommended now</Pill>
-            <Pill>{formatMinutes(primary.minutes)}</Pill>
-            {primary.plannedSessionId ? <Pill tone="success">In today&apos;s plan</Pill> : null}
-          </div>
-          <h2 className="text-lg sm:text-xl font-semibold tracking-tight">
-            {ACTIVITY_LABEL[primary.activity]}
-            {primary.topicId ? ` · ${getTopic(primary.topicId)?.title}` : ""}
-          </h2>
-          <p className="text-sm text-ink3 mt-0.5">
-            {getSubject(primary.subjectId)?.name} — {ACTIVITY_BLURB[primary.activity]}
-          </p>
-          <p className="text-sm text-ink2 mt-3 max-w-2xl">{primary.reason}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link href={recommendationHref(primary)} className="flex-1 sm:flex-none">
-              <Button variant="primary" className="w-full sm:w-auto min-h-[3rem] px-6">
-                Start now
-              </Button>
-            </Link>
-            {alternatives[0] ? (
-              <Link href={recommendationHref(alternatives[0])}>
-                <Button variant="ghost">Do something else</Button>
-              </Link>
-            ) : null}
-          </div>
-        </Panel>
+        <RecommendationCard recommendation={primary} variant="primary" />
       ) : (
         <EmptyState
           title="No revision queued"
@@ -110,6 +86,12 @@ export default function TodayPage() {
         />
       </div>
 
+      {store.assessment ? (
+        <section>
+          <ExpectedMarksCard />
+        </section>
+      ) : null}
+
       {alternatives.length ? (
         <section>
           <SectionHeading
@@ -118,21 +100,9 @@ export default function TodayPage() {
           />
           <ul className="grid sm:grid-cols-2 gap-3">
             {alternatives.slice(0, 4).map((rec) => (
-              <Panel as="li" key={`${rec.activity}:${rec.subjectId}:${rec.topicId ?? ""}`} className="flex flex-col">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Pill>{ACTIVITY_LABEL[rec.activity]}</Pill>
-                  <span className="text-[11px] text-ink3">{formatMinutes(rec.minutes)}</span>
-                </div>
-                <p className="text-sm font-medium text-ink">
-                  {rec.topicId ? getTopic(rec.topicId)?.title : getSubject(rec.subjectId)?.name}
-                </p>
-                <p className="text-xs text-ink3 mt-1 flex-1">{rec.reason}</p>
-                <Link href={recommendationHref(rec)} className="mt-3">
-                  <Button size="sm" className="w-full">
-                    Start
-                  </Button>
-                </Link>
-              </Panel>
+              <li key={`${rec.activity}:${rec.subjectId}:${rec.topicId ?? ""}`}>
+                <RecommendationCard recommendation={rec} variant="secondary" />
+              </li>
             ))}
           </ul>
         </section>

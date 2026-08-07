@@ -193,6 +193,7 @@ describe("mistake capture", () => {
         userId: "u",
         subjectId: "chem",
         topicId: "chem.kinetics",
+        marksLost: 1,
         description: "d",
         category: "arithmetic" as const,
         resolved: false,
@@ -203,6 +204,7 @@ describe("mistake capture", () => {
         userId: "u",
         subjectId: "chem",
         topicId: "chem.equilibria",
+        marksLost: 1,
         description: "d",
         category: "method" as const,
         resolved: false,
@@ -212,5 +214,34 @@ describe("mistake capture", () => {
     expect(patterns[0].category).toBe("arithmetic");
     expect(patterns[0].count).toBe(3);
     expect(patterns[0].insight.length).toBeGreaterThan(20);
+  });
+});
+
+describe("mistake enrichment — assessment depth", () => {
+  it("mistakes carry command, misconception, marksLost, ao and timing", () => {
+    const a: Attempt = {
+      id: "a9",
+      userId: "u",
+      questionId: "q1",
+      subjectId: "chem",
+      topicIds: ["chem.kinetics"],
+      answers: { p1: "concentration falls" },
+      marked: [
+        { partId: "p1", awarded: 1, max: 3, creditedPoints: ["Concentration of reactants decreases"], missedPoints: ["Fewer successful collisions per second — method skipped"], comment: "" },
+      ],
+      awarded: 1,
+      max: 3,
+      feedback: "",
+      markedBy: "rubric",
+      elapsedMs: 180_000,
+      mode: "practice",
+      createdAt: "2025-06-01T09:00:00.000Z",
+    };
+    let n = 0;
+    const [draft] = mistakesFromAttempt(a, question(), () => `gen-${n++}`, new Date("2025-06-01T09:00:00Z"));
+    expect(draft.mistake.marksLost).toBe(2);
+    expect(typeof draft.mistake.command).toBe("string");
+    expect(typeof draft.mistake.misconception).toBe("string");
+    expect(typeof draft.mistake.timing).toBe("string");
   });
 });

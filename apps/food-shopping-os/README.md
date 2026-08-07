@@ -1,7 +1,7 @@
 # Forq — Food Shopping OS
 
 One app for planning, shopping, cooking, nutrition, budgeting and reducing
-waste. Mobile-first PWA-style web app built with Vite + React 18 + Tailwind
+waste. Mobile-first PWA-style web app built with Next.js 15 + React 18 + Tailwind
 CSS 4, styled in the calm monochrome Le Studio design language (see
 `apps/le-studio-site`): ink-on-neutral surfaces, border-first cards,
 black-on-white CTAs, and monochrome stroke iconography (lucide-react)
@@ -465,7 +465,7 @@ endpoint once its current vulnerable SDK dependency chain is patched.
 ```bash
 npm install
 npm run dev      # local dev server
-npm run build    # production build to dist/ (installable PWA with service worker)
+npm run build    # production build to .next/ (installable PWA with service worker)
 npm test         # vitest suite
 ```
 

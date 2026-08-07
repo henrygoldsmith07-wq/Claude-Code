@@ -11,6 +11,8 @@ import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
+import { CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard } from "@/components/AssessmentPanels";
+import { CoverageCard } from "@/components/CoverageCard";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
 
 // Analytics that answer one question — where are the marks? — rather than
@@ -246,6 +248,18 @@ export default function ProgressPage() {
             );
           })}
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <ExpectedMarksCard />
+        <MarksLostByCause />
+        <DifficultyAndSubtopics />
+        <PaperSimulationCard />
+        <CalibrationCard />
+      </section>
+
+      <section>
+        <CoverageCard />
       </section>
 
       <section>

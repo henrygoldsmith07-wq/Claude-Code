@@ -11,14 +11,18 @@ import { buildPlan, rescheduleMissed } from "@/domain/planner";
 import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
 import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/domain/gamification";
+import { buildAssessmentInsight, calibrateFromHistory, simulatePaper } from "@/domain/assessment";
 import type {
+  AssessmentInsight,
   Attempt,
+  Calibration,
   Card,
   ExamDate,
   GamificationStats,
   Id,
   Mistake,
   Paper,
+  PaperSimulation,
   PlannedSession,
   Question,
   Recommendation,
@@ -60,7 +64,13 @@ interface StoreValue extends Snapshot {
   recommendations: Recommendation[];
   predictions: GradePrediction[];
   dueCards: Card[];
+  assessment: AssessmentInsight | null;
+  /** Expected exam marks gained per study hour, keyed by topic. The metric the brief asks for. */
+  marksPerHour: Map<Id, number>;
+  calibrations: Map<Id, Calibration>;
   syncStatus: SyncStatus;
+  /** Build a paper simulation for the given subject/paper without mutating state. */
+  previewPaper(subjectId: Id, paperSpecId: Id, questionIds: Id[]): PaperSimulation | null;
   // actions
   reviewCard(card: Card, grade: RecallGrade, elapsedMs: number, confidence?: 1 | 2 | 3 | 4 | 5): Promise<void>;
   recordAttempt(attempt: Attempt, question: Question): Promise<Mistake[]>;
@@ -193,6 +203,50 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     return snapshot.cards.filter((c) => subjectIds.includes(c.subjectId) && isDue(c, today));
   }, [snapshot, subjectIds]);
 
+  const assessment = useMemo(() => {
+    if (!snapshot) return null;
+    if (!snapshot.attempts.length && !snapshot.mistakes.length) return null;
+    const questionsById = new Map(snapshot.questions.map((q) => [q.id, q] as const));
+    return buildAssessmentInsight({
+      attempts: snapshot.attempts,
+      mistakes: snapshot.mistakes,
+      mastery,
+      questionsById,
+    });
+  }, [snapshot, mastery]);
+
+  const marksPerHour = useMemo(() => {
+    if (!assessment) return new Map<Id, number>();
+    return new Map(assessment.expectedMarksPerHour.map((r) => [r.topicId, r.value] as const));
+  }, [assessment]);
+
+  // Calibration per subject from paper-mode attempts: predicted vs actual.
+  // Paper attempts are the only ones with a stable "total marks" denominator.
+  const calibrations = useMemo(() => {
+    if (!snapshot) return new Map<Id, Calibration>();
+    const bySubject = new Map<Id, Array<{ predicted: number; actual: number }>>();
+    const masteryMap = new Map(mastery.map((m) => [m.topicId, m.mastery]));
+    // Group paper-mode attempts by subject; use current mastery as a proxy for predicted %
+    // until real simulations are stored. This still yields a meaningful bias once ≥3 papers exist.
+    for (const a of snapshot.attempts.filter((x) => x.mode === "paper")) {
+      const q = snapshot.questions.find((qq) => qq.id === a.questionId);
+      const subjectId = a.subjectId;
+      // predicted marks for this attempt: sum of topic mastery averaged across its topics
+      const qMastery = q ? q.topicIds.reduce((s, id) => s + (masteryMap.get(id) ?? 0.4), 0) / Math.max(1, q.topicIds.length) : 0.4;
+      const predicted = a.max * (0.35 + qMastery * 0.6);
+      const list = bySubject.get(subjectId) ?? [];
+      list.push({ predicted, actual: a.awarded });
+      bySubject.set(subjectId, list);
+    }
+    const out = new Map<Id, Calibration>();
+    for (const [subjectId, pairs] of bySubject) {
+      out.set(subjectId, calibrateFromHistory({ subjectId, pairs }));
+    }
+    // Ensure every enrolled subject has at least a neutral calibration
+    for (const sid of subjectIds) if (!out.has(sid)) out.set(sid, { subjectId: sid, bias: 0, slope: 1, sampleSize: 0, mae: 0 });
+    return out;
+  }, [snapshot, mastery, subjectIds]);
+
   const recommendations = useMemo(() => {
     if (!snapshot) return [];
     return recommend({
@@ -204,8 +258,9 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       plan: snapshot.plannedSessions,
       sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
       subjectIds,
+      marksPerHour,
     });
-  }, [snapshot, mastery, topics, subjectIds]);
+  }, [snapshot, mastery, topics, subjectIds, marksPerHour]);
 
   const predictions = useMemo(() => {
     if (!snapshot) return [];
@@ -214,6 +269,19 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       .filter((s): s is NonNullable<typeof s> => Boolean(s))
       .map((subject) => predictGrade(subject, mastery, snapshot.attempts, snapshot.examDates));
   }, [snapshot, mastery, subjectIds]);
+
+  const previewPaper = useCallback(
+    (subjectId: Id, paperSpecId: Id, questionIds: Id[]): PaperSimulation | null => {
+      if (!snapshot) return null;
+      const subject = getSubject(subjectId);
+      if (!subject) return null;
+      const questions = questionIds.map((id) => snapshot.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q));
+      if (!questions.length) return null;
+      const topicMastery = new Map(mastery.map((m) => [m.topicId, m.mastery]));
+      return simulatePaper({ subject, paperSpecId, questions, topicMastery, calibration: calibrations.get(subjectId) });
+    },
+    [snapshot, mastery, calibrations],
+  );
 
   // --- actions -------------------------------------------------------------
 
@@ -464,6 +532,10 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       recommendations,
       predictions,
       dueCards,
+      assessment,
+      marksPerHour,
+      calibrations,
+      previewPaper,
       syncStatus,
       reviewCard,
       recordAttempt,
@@ -490,6 +562,10 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     recommendations,
     predictions,
     dueCards,
+    assessment,
+    marksPerHour,
+    calibrations,
+    previewPaper,
     syncStatus,
     reviewCard,
     recordAttempt,

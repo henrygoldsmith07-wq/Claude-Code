@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Spinner } from './ui';
 import { X as XIcon } from './icons';
 import { validateKey } from '../lib/groq';
 import { setApiKey, clearApiKey } from '../lib/storage';
 import { LANGUAGE_LIST } from '../lib/languages';
+import { getQuota, formatQuota } from '../lib/quota';
+import { getRelayConfig } from '../lib/relay';
 
 // Captures + validates the Groq API key before committing it to localStorage.
 
@@ -59,6 +61,8 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         </div>
 
         <section className="space-y-2">
+          <RelayBanner />
+          <QuotaStrip />
           <label htmlFor="groq-key" className="text-sm font-semibold text-ink">
             Live AI key <span className="font-normal text-ink3">(optional)</span>
           </label>
@@ -263,6 +267,39 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         </section>
       </div>
     </Modal>
+  );
+}
+
+function RelayBanner() {
+  const cfg = getRelayConfig();
+  return (
+    <div className={`rounded-xl border px-3.5 py-3 text-xs leading-relaxed ${cfg.enabled ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+      <span className="font-bold">{cfg.enabled ? 'Server relay active' : 'Direct key mode'}</span>
+      <span className="block mt-1 text-[11px] leading-relaxed opacity-90">{cfg.note}</span>
+      {!cfg.enabled && (
+        <span className="block mt-1.5 text-[11px] font-mono bg-white/60 rounded-lg px-2 py-1 border border-black/5">
+          For a public launch, set VITE_GROQ_RELAY_URL=/api/groq and VITE_GROQ_DAILY_LIMIT. Key then lives on the server only — see <code>server/relay.js</code>.
+        </span>
+      )}
+    </div>
+  );
+}
+
+function QuotaStrip() {
+  const [q, setQ] = useState(getQuota());
+  useEffect(() => {
+    const id = setInterval(() => setQ(getQuota()), 2000);
+    return () => clearInterval(id);
+  }, []);
+  const pct = q.limit ? Math.round((q.count / q.limit) * 100) : 0;
+  return (
+    <div className="rounded-xl border border-line bg-surface2 px-3.5 py-2.5 flex items-center gap-3">
+      <span className="text-[11px] font-bold text-ink2 whitespace-nowrap">Daily AI quota</span>
+      <div className="flex-1 h-1.5 rounded-full bg-surface overflow-hidden">
+        <div className={`h-full transition-all ${pct > 85 ? 'bg-amber-500' : 'bg-ink'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+      <span className="text-[11px] font-semibold text-ink tabular-nums whitespace-nowrap">{formatQuota()}</span>
+    </div>
   );
 }
 

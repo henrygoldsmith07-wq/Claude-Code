@@ -47,6 +47,8 @@ export interface Subject {
   papers: PaperSpec[];
   /** Percentage thresholds per grade, best grade first. Approximate by nature. */
   gradeBoundaries: { grade: string; percent: number }[];
+  /** Which spec document this subject's content tracks, and when it was last checked. */
+  spec?: SubjectSpec;
 }
 
 export interface Unit {
@@ -54,6 +56,30 @@ export interface Unit {
   subjectId: Id;
   title: string;
   order: number;
+}
+
+export type AoCode = "AO1" | "AO2" | "AO3";
+export type VerificationStatus = "unverified" | "checked" | "verified";
+export type ContentSource = "authored" | "licensed" | "generated" | "past-paper" | "import";
+
+export interface SpecPoint {
+  /** Exact spec reference as printed by the board, e.g. "Unit 1.1(a)" or "Pure 1.2.4". */
+  ref: string;
+  /** Paraphrased statement — never verbatim spec text unless licensed. */
+  text: string;
+  /** Which assessment objectives this statement is examined under. */
+  aos: AoCode[];
+}
+
+export interface SubjectSpec {
+  /** Version label tied to the spec document, e.g. "2024-1.0". */
+  version: string;
+  /** Publication / last amendment date of the spec document. */
+  releaseDate: IsoDate;
+  /** When the content for this subject was last checked against the spec. */
+  lastChecked: IsoDate;
+  /** Public URL or citation for the spec, when known. */
+  url?: string;
 }
 
 export interface Topic {
@@ -64,6 +90,8 @@ export interface Topic {
   order: number;
   /** Spec reference as printed by the board, when known. */
   specRef?: string;
+  /** Version of the spec this topic was checked against. */
+  specVersion?: string;
   /** 1 (foundational) – 5 (stretch). Seeds the planner before any data exists. */
   intrinsicDifficulty: 1 | 2 | 3 | 4 | 5;
   /** Short prose used by the learn step and as AI grounding. */
@@ -72,6 +100,16 @@ export interface Topic {
   keyPoints: string[];
   /** Errors this topic is notorious for; drives targeted feedback. */
   commonErrors: string[];
+  /** Fine-grained spec statements this topic covers. Absent on old content until migrated. */
+  specPoints?: SpecPoint[];
+  /** AO coverage for this topic (union of its spec points / cards). */
+  aos?: AoCode[];
+  /** Provenance: who wrote this content and under what licence. */
+  source?: ContentSource;
+  /** How thoroughly this topic has been checked against the spec. */
+  verification?: VerificationStatus;
+  /** When verification was last performed. */
+  lastChecked?: IsoDate | null;
 }
 
 // --- spaced repetition -----------------------------------------------------
@@ -140,6 +178,8 @@ export interface QuestionPart {
   /** Mark-scheme points; each is one awardable mark unless `marks` says more. */
   markScheme: string[];
   modelAnswer: string;
+  /** Which AOs this part examines. Empty means unclassified. */
+  aos?: AoCode[];
 }
 
 export interface Question {
@@ -156,6 +196,16 @@ export interface Question {
   calculatorAllowed: boolean;
   difficulty: 1 | 2 | 3 | 4 | 5;
   origin: "seed" | "ai" | "past-paper";
+  /** Provenance for display and filtering. */
+  source?: ContentSource;
+  /** Verification state against the spec / mark scheme. */
+  verification?: VerificationStatus;
+  /** When this question was last checked. */
+  lastChecked?: IsoDate | null;
+  /** Spec version this question was checked against. */
+  specVersion?: string;
+  /** Union of AOs across parts, for quick filtering. */
+  aos?: AoCode[];
   /** Set when extracted from an uploaded paper. */
   paperId?: Id;
   paperQuestionNumber?: string;
@@ -192,6 +242,41 @@ export interface Attempt {
   createdAt: IsoInstant;
 }
 
+export type CommandWord =
+  | "state"
+  | "describe"
+  | "explain"
+  | "calculate"
+  | "show that"
+  | "suggest"
+  | "compare"
+  | "evaluate"
+  | "discuss"
+  | "justify"
+  | "deduce"
+  | "predict"
+  | "outline"
+  | "other";
+
+export type MisconceptionTag =
+  | "units"
+  | "significant-figures"
+  | "rearrangement"
+  | "substitution-slips"
+  | "graph-reading"
+  | "method-skipped"
+  | "misread-command"
+  | "terminology"
+  | "conceptual"
+  | "other";
+
+export interface PointAttempt {
+  point: string;
+  awarded: boolean;
+  /** Which command word governed this point. */
+  command?: CommandWord;
+}
+
 export interface Mistake {
   id: Id;
   userId: Id;
@@ -199,6 +284,23 @@ export interface Mistake {
   topicId: Id;
   questionId?: Id;
   attemptId?: Id;
+  partId?: Id;
+  /** Exact mark-scheme point that was lost. */
+  point?: string;
+  /** Command word that governed where the mark was lost. */
+  command?: CommandWord;
+  /** Fine-grained misconception tag. */
+  misconception?: MisconceptionTag;
+  /** AO this mistake belongs to. */
+  ao?: AoCode;
+  /** Difficulty of the question/part where the mark was lost. */
+  difficultyAtLoss?: number;
+  /** Marks lost on this mistake. */
+  marksLost: number;
+  /** Seconds spent on the part at the time of loss, when recorded. */
+  secondsSpent?: number;
+  /** Whether the attempt was rushed for that part's time budget. */
+  timing?: "ok" | "rushed" | "slow" | "unknown";
   /** What went wrong, in the student's language. */
   description: string;
   /** Classification used to spot repeat patterns across topics. */
@@ -207,6 +309,47 @@ export interface Mistake {
   resolved: boolean;
   createdAt: IsoInstant;
   resolvedAt?: IsoInstant;
+}
+
+export interface AssessmentInsight {
+  /** Marks lost broken down by command word. */
+  byCommand: Record<CommandWord, number>;
+  /** Marks lost broken down by misconception. */
+  byMisconception: Record<MisconceptionTag, number>;
+  /** Marks lost per topic (total dropped, recoverable estimate). */
+  marksLostByTopic: Array<{ topicId: Id; subjectId: Id; lost: number; recoverable: number }>;
+  /** Marks lost per AO. */
+  marksLostByAo: Record<string, number>;
+  /** Repeated weak subtopics (topics where mistakes cluster and recur). */
+  repeatedWeakSubtopics: Id[];
+  /** Expected marks gained if 1 hour is spent on each listed topic. */
+  expectedMarksPerHour: Array<{ topicId: Id; value: number }>;
+}
+
+export interface PaperSimulation {
+  paperSpecId: Id;
+  subjectId: Id;
+  questionIds: Id[];
+  totalMarks: number;
+  timeMinutes: number;
+  /** Scaled predicted total using current topic mastery + calibration. */
+  predictedMarks: number;
+  predictedGrade: string;
+  /** Marks that are statistically recoverable (lost on weak but recently practised topics). */
+  recoverableMarks: number;
+  /** Per-topic marks expected vs actual (from calibration). */
+  marksByTopic: Array<{ topicId: Id; expected: number; available: number }>;
+}
+
+export interface Calibration {
+  subjectId: Id;
+  /** Actual vs predicted regression: predicted marks -> actual. */
+  bias: number;
+  slope: number;
+  /** How reliable the regression is. */
+  sampleSize: number;
+  /** Mean absolute error on known paper simulations. */
+  mae: number;
 }
 
 // --- past papers -----------------------------------------------------------
@@ -299,6 +442,39 @@ export interface TopicMastery {
   weak: boolean;
 }
 
+export interface RecommendationFactors {
+  /** Total marks the activity is expected to recover (or protect). */
+  examGain: number;
+  /** 1.0 far from exam, ~2.0 on exam day. */
+  urgency: number;
+  /** 0–1, higher when mastery is lower. */
+  weakness: number;
+  /** 0–1, higher when retention has decayed or days since retrieval are many. */
+  forgetting: number;
+  /** 0.7–1.4, higher when evidence is thin. */
+  uncertainty: number;
+}
+
+export interface RecommendationExplanation {
+  /** Marks expected to be recovered by this activity (total, not per hour). */
+  recoverableMarks: number;
+  /** Marks per hour for the same topic, when known. */
+  marksPerHour: number | null;
+  /** Last exam accuracy for the topic, 0–100, or null when no evidence. */
+  lastEvidencePercent: number | null;
+  /** Days since the last successful retrieval, or null when never studied. */
+  daysSinceRetrieval: number | null;
+  /** Days to the next paper for the subject, or null when no date set. */
+  daysToExam: number | null;
+  /** Human label for the paper, e.g. "Paper 1". */
+  paperLabel: string | null;
+  /** The five factors that produced the score. */
+  factors: RecommendationFactors;
+  /** How many cards/mistakes contributed, when relevant. */
+  count?: number;
+  overdueCount?: number;
+}
+
 export interface Recommendation {
   activity: ActivityKind;
   subjectId: Id;
@@ -309,6 +485,10 @@ export interface Recommendation {
   /** Higher runs first. */
   score: number;
   plannedSessionId?: Id;
+  /** Structured breakdown for the "why this?" disclosure. */
+  explanation?: RecommendationExplanation;
+  /** Alias for tests that want the factors without unwrapping explanation. */
+  factors?: RecommendationFactors;
 }
 
 export interface StreakState {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlarmClock, Camera, CheckCircle2, ChevronRight, Layers, Mic, Package, Plus,
   ScanBarcode, Search, SlidersHorizontal,
@@ -13,11 +13,13 @@ import {
 import { rankLeftovers } from '../lib/food-suitability.js';
 import { weeklyFoodLoop } from '../lib/food-loop.js';
 import { totalOf } from '../data/stores.js';
+import { bestForSlot } from '../lib/recommend.js';
 import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
 import GuidancePreview from './GuidancePreview.jsx';
 import WaterGlasses from './WaterGlasses.jsx';
 import { DueList } from './RemindersPanel.jsx';
 import { Glyph } from './icons.jsx';
+import RecommendationExplanation from './RecommendationExplanation.jsx';
 
 /** Capture routes that open straight into the diary's matching sheet. */
 const LOG_SHORTCUTS = [
@@ -47,6 +49,31 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
     diets: app.diets || app.prefs?.diets || [],
   });
   const foodLoop = weeklyFoodLoop(app);
+  const availability = useMemo(() => {
+    const map = {};
+    for (const entry of app.calendarBusy || []) {
+      const d = entry.date;
+      map[d] = { busy: true, date: d, dayName: new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) };
+    }
+    return map;
+  }, [app.calendarBusy]);
+  const pantryHero = useMemo(() => {
+    if (!app.pantry.length || !app.safeRecipes.length) return null;
+    const dinners = app.safeRecipes.filter((r) => r.meal === 'dinner');
+    if (!dinners.length) return null;
+    const month = Number(String(app.day).slice(5, 7)) || new Date().getMonth() + 1;
+    const ctx = {
+      pantry: app.pantry,
+      today: app.day,
+      date: app.day,
+      availability,
+      people: Math.max(1, Math.round(app.portions || 1)),
+      budget: app.weeklyBudget ? Math.min(4, Math.max(1, app.weeklyBudget / 7)) : 2.5,
+      month,
+      taste: app.tasteProfile,
+    };
+    return bestForSlot(dinners, ctx);
+  }, [app.pantry, app.safeRecipes, app.day, app.portions, app.weeklyBudget, app.tasteProfile, availability]);
   const runGuidanceAction = (item) => {
     const { action } = item;
     if (action.kind === 'view') openGuidance(action.target);
@@ -383,6 +410,30 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
           </button>
         </Card>
       </section>
+
+      {pantryHero && (
+        <section className="px-5 rise rise-1" aria-label="Tonight's pantry pick">
+          <Card className="!p-0 overflow-hidden">
+            <div className="px-4 pt-3 pb-1 flex items-baseline justify-between">
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Tonight — from what you have</p>
+              <span className="text-[0.6875rem] font-bold" style={{ color: 'var(--accent)' }}>{pantryHero.explanation.coverage.pct}% in your kitchen</span>
+            </div>
+            <div role="button" tabIndex={0} onClick={() => openRecipe(pantryHero.recipe)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecipe(pantryHero.recipe); } }} className="press flex items-center gap-3 px-4 pb-3 pt-1 cursor-pointer">
+              <FoodArt recipe={pantryHero.recipe} className="h-14 w-14 rounded-xl shrink-0" px={26} />
+              <div className="min-w-0 flex-1">
+                <p className="font-extrabold text-[0.9375rem] truncate">{pantryHero.recipe.name}</p>
+                <p className="text-[0.75rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
+                  {pantryHero.recipe.cuisine} · {pantryHero.recipe.time} min · {gbp(pantryHero.recipe.costPerServing, { always: true })}/serving
+                </p>
+              </div>
+              <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
+            </div>
+            <div className="px-4 pb-4">
+              <RecommendationExplanation explanation={pantryHero.explanation} compact />
+            </div>
+          </Card>
+        </section>
+      )}
 
       {/* Budget + nutrition */}
       {(app.weeklyBudget > 0 || app.entries.length > 0) && (

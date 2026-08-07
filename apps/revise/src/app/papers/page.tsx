@@ -306,6 +306,18 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   }
 
   if (!current) {
+    const paperPct = totalMax ? totalAwarded / totalMax : 0;
+    const predictedBefore = (() => {
+      const subject = getSubject(paper.subjectId);
+      const qs = paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q));
+      if (!subject || !qs.length) return null;
+      const masteryMap = new Map(store.mastery.map((m) => [m.topicId, m.mastery]));
+      const psId = paper.paperSpecId ?? subject.papers[0]?.id ?? "";
+      return store.previewPaper(subject.id, psId, paper.questionIds);
+    })();
+    const calibration = predictedBefore && predictedBefore.predictedMarks !== totalAwarded
+      ? `Simulation had predicted ${predictedBefore.predictedMarks}/${predictedBefore.totalMarks} — calibration will tighten next time.`
+      : null;
     return (
       <div className="max-w-lg mx-auto space-y-5">
         <SectionHeading title="Paper complete" hint={paper.title} />
@@ -315,11 +327,12 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
             <span className="text-ink3 text-xl">/{totalMax || paper.totalMarks}</span>
           </p>
           <div className="mt-3">
-            <ProgressBar value={totalMax ? totalAwarded / totalMax : 0} />
+            <ProgressBar value={paperPct} tone={paperPct >= 0.7 ? "success" : paperPct >= 0.5 ? "review" : "danger"} />
           </div>
           <p className="text-xs text-ink3 mt-3">
             {elapsedMinutes} minutes. Every dropped mark is now a mistake card in your review queue.
           </p>
+          {calibration ? <p className="text-[11px] text-ink3 mt-2">{calibration} See Progress for the updated calibration.</p> : null}
         </Panel>
         <Button variant="primary" className="w-full" onClick={() => void finish()}>
           Finish

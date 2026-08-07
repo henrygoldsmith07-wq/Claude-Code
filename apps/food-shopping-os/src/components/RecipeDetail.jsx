@@ -9,8 +9,10 @@ import { itemsFromRecipes } from '../data/stores.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { addDays } from '../lib/kitchen.js';
 import { applySwap, makeItFit, safeExternalUrl, scaleRecipe } from '../lib/recipe-tools.js';
+import { explainRecommendation } from '../lib/recommend.js';
 import { Card, Ring, Pill, FoodArt, Chip } from './ui.jsx';
 import { Glyph } from './icons.jsx';
+import RecommendationExplanation from './RecommendationExplanation.jsx';
 import CookMode from './CookMode.jsx';
 import {
   ConflictPills, NutritionBreakdown, ServingsControl, SharePanel, SwapPanel, VariantBanner,
@@ -56,6 +58,21 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
   const missingKey = missing.map(({ name, qty }) => `${name}:${qty}`).join('|');
   const addedMissing = Boolean(addedMissingKey && addedMissingKey === missingKey);
   const canShop = app.householdAccess.shopping;
+  const detailExplanation = useMemo(() => {
+    const month = Number(String(app.day).slice(5, 7)) || new Date().getMonth() + 1;
+    const availability = {};
+    for (const b of app.calendarBusy || []) availability[b.date] = { busy: true, date: b.date, dayName: new Date(`${b.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) };
+    return explainRecommendation(recipe, {
+      pantry: app.pantry,
+      today: app.day,
+      date: when.date,
+      availability,
+      people: recipe.servings,
+      budget: 2.5,
+      month,
+      taste: app.tasteProfile,
+    });
+  }, [recipe, app.pantry, app.day, when.date, app.calendarBusy, app.tasteProfile]);
 
   const swap = ({ diet, ingredient, option }) => {
     setVariant((v) => (diet ? makeItFit(v || original, diet) : applySwap(v || original, ingredient, option)));
@@ -152,6 +169,10 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
             </div>
           )}
           <div className="mt-2"><ConflictPills recipe={recipe} diets={app.planDiets} /></div>
+          <Card className="mt-3 !p-3" style={{ background: 'var(--card-2)' }}>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Why this fits your kitchen tonight</p>
+            <RecommendationExplanation explanation={detailExplanation} compact />
+          </Card>
           {videoUrl && (
             <a
               href={videoUrl}

@@ -241,12 +241,27 @@ function MarkedResult({
         })}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-line">
+      <div className="mt-4 pt-4 border-t border-line space-y-3">
         <RichText className="text-sm">{result.feedback}</RichText>
+        {/* Ask: what did this one attempt teach us? */}
+        {result.marked.some((m) => m.missedPoints.length) ? (
+          <div className="flex flex-wrap gap-1.5">
+            {result.marked.flatMap((m) => m.missedPoints).slice(0, 3).map((point, i) => {
+              const part = question.parts.find((p) => result.marked.some((mm) => mm.partId === p.id && mm.missedPoints.includes(point)));
+              const ao = part?.aos?.[0];
+              const difficulty = question.difficulty;
+              return (
+                <span key={i} className="inline-flex gap-1">
+                  {ao ? <Pill tone="danger">{ao}</Pill> : null}
+                  <Pill>Lvl {difficulty}</Pill>
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
         {awarded < question.totalMarks ? (
-          <p className="text-[11px] text-ink3 mt-3">
-            The dropped marks have been logged as mistakes and turned into cards — they will come back in your
-            reviews until you can answer them.
+          <p className="text-[11px] text-ink3">
+            The dropped marks have been logged as mistakes — with AO, command word and timing — and turned into cards that will reappear until you can answer them. See <span className="font-semibold">Progress</span> for expected marks per hour.
           </p>
         ) : null}
       </div>

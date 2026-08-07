@@ -201,11 +201,38 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
         <h1 className="text-xl font-semibold tracking-tight">{topic.title}</h1>
         <div className="flex flex-wrap items-center gap-2 mt-2">
           {topic.specRef ? <Pill>{topic.specRef}</Pill> : null}
+          {topic.specVersion ? <Pill title="Spec version this topic was checked against">{topic.specVersion}</Pill> : null}
           <Pill>Difficulty {topic.intrinsicDifficulty}/5</Pill>
           <Pill>{cards.length} cards</Pill>
           <Pill>{questions.length} questions</Pill>
+          {topic.aos?.length ? (
+            <Pill tone="accent" title="Assessment objectives">
+              {topic.aos.join(" · ")}
+            </Pill>
+          ) : null}
+          <Pill
+            tone={topic.verification === "verified" ? "success" : topic.verification === "checked" ? "review" : undefined}
+            title={topic.lastChecked ? `Last checked ${topic.lastChecked}` : "Not yet checked against the spec"}
+          >
+            {topic.source ?? "authored"} · {topic.verification ?? "unverified"}
+            {topic.lastChecked ? ` · ${topic.lastChecked}` : ""}
+          </Pill>
           {mastery?.cardsDue ? <Pill tone="review">{mastery.cardsDue} due</Pill> : null}
         </div>
+        {topic.specPoints?.length ? (
+          <div className="mt-3 card-2 card p-3">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Spec coverage</p>
+            <ul className="mt-1.5 space-y-1">
+              {topic.specPoints.map((point) => (
+                <li key={point.ref} className="flex gap-2 text-xs">
+                  <span className="font-mono text-ink3 shrink-0">{point.ref}</span>
+                  <span className="text-ink2 flex-1">{point.text}</span>
+                  <span className="text-ink3 shrink-0">{point.aos.join(", ")}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="mt-3 max-w-sm">
           <ProgressBar value={mastery?.mastery ?? 0} label="Mastery" />
         </div>

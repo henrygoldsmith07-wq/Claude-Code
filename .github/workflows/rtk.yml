@@ -1,0 +1,29 @@
+name: RTK
+
+on:
+  push:
+    paths:
+      - "apps/rtk/**"
+      - ".github/workflows/rtk.yml"
+  pull_request:
+    paths:
+      - "apps/rtk/**"
+      - ".github/workflows/rtk.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/rtk
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - run: node benchmark/run.js
+      - run: npm pack --dry-run

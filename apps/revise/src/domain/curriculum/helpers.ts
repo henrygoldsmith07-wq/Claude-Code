@@ -1,13 +1,19 @@
-import type { Id, Topic, Unit } from "../types";
+import type { AoCode, ContentSource, Id, SpecPoint, Topic, Unit, VerificationStatus } from "../types";
 
 export interface TopicSpec {
   slug: string;
   title: string;
   specRef?: string;
+  specVersion?: string;
   difficulty: 1 | 2 | 3 | 4 | 5;
   summary: string;
   keyPoints: string[];
   commonErrors: string[];
+  specPoints?: SpecPoint[];
+  aos?: AoCode[];
+  source?: ContentSource;
+  verification?: VerificationStatus;
+  lastChecked?: string | null;
 }
 
 export interface UnitSpec {
@@ -33,10 +39,16 @@ export function buildUnits(subjectId: Id, specs: UnitSpec[]): { units: Unit[]; t
         title: topicSpec.title,
         order: order++,
         specRef: topicSpec.specRef,
+        specVersion: topicSpec.specVersion,
         intrinsicDifficulty: topicSpec.difficulty,
         summary: topicSpec.summary,
         keyPoints: topicSpec.keyPoints,
         commonErrors: topicSpec.commonErrors,
+        specPoints: topicSpec.specPoints,
+        aos: topicSpec.aos,
+        source: topicSpec.source ?? "authored",
+        verification: topicSpec.verification ?? "unverified",
+        lastChecked: topicSpec.lastChecked ?? null,
       });
     }
   });

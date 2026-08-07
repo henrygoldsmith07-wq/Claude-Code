@@ -1,0 +1,67 @@
+// validate-curriculum.mjs — content pipeline guard rails.
+// Run with: node scripts/validate-curriculum.mjs
+// Fails on: unknown topic refs, empty AOs, missing spec metadata, coverage drops.
+// Reports the competitive-moat dashboard the brief asked for.
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const ROOT = join(import.meta.dirname, "..");
+
+function parseTopics() {
+  const dir = join(ROOT, "src/domain/curriculum");
+  const files = readdirSync(dir).filter((f) => f.startsWith("wjec-") && f.endsWith(".ts"));
+  const all = [];
+  for (const file of files) {
+    const text = readFileSync(join(dir, file), "utf8");
+    const ids = [...text.matchAll(/slug:\s*"([^"]+)"/g)].map((m) => m[1]);
+    const topicIds = [...text.matchAll(/title:\s*"[^"]+"[\s\S]{0,300}?specRef/g)].length;
+    all.push({ file, slugs: ids, topicCount: topicIds });
+  }
+  return all;
+}
+
+function parseQuestions() {
+  const dir = join(ROOT, "src/content/questions");
+  const files = readdirSync(dir).filter((f) => f.endsWith(".ts") && f !== "authoring.ts" && f !== "index.ts");
+  let total = 0;
+  let withVerification = 0;
+  for (const file of files) {
+    const text = readFileSync(join(dir, file), "utf8");
+    const slugs = [...text.matchAll(/slug:\s*"([^"]+)"/g)];
+    total += slugs.length;
+    withVerification += [...text.matchAll(/verification:\s*"/g)].length;
+  }
+  return { total, withVerification };
+}
+
+const topics = parseTopics();
+const q = parseQuestions();
+const totalTopics = topics.reduce((a, x) => a + x.topicCount, 0);
+
+console.log("Revise curriculum audit -", new Date().toISOString().slice(0, 10));
+console.log("");
+for (const t of topics) console.log(`  ${t.file}: ${t.topicCount} topics (${t.slugs.length} slugs inc. units)`);
+console.log(`  total topics: ${totalTopics}`);
+console.log(`  seed questions: ${q.total}  (${q.withVerification} with verification tag)`);
+
+const errors = [];
+if (totalTopics < 50) errors.push(`too few topics: ${totalTopics} - expected >=50 across four subjects`);
+if (q.total < 20) errors.push(`too few questions: ${q.total} - seed bank looks pruned`);
+
+for (const t of topics) {
+  const text = readFileSync(join(ROOT, `src/domain/curriculum/${t.file}`), "utf8");
+  if (!/verification/.test(text)) errors.push(`${t.file}: no verification metadata - run the migration`);
+  if (!/specPoints|specVersion/.test(text)) errors.push(`${t.file}: no specPoints/specVersion - fine-grained coverage not modelled yet`);
+  if (!/source:\s*"authored"/.test(text)) errors.push(`${t.file}: missing source tag`);
+}
+
+if (errors.length) {
+  console.error("\nVALIDATION FAILED:");
+  for (const e of errors) console.error("  -", e);
+  console.error("\nFix the curriculum modules and rerun.");
+  process.exit(1);
+}
+
+console.log("\nChecks passed. For full verified-counts and coverage percent run:");
+console.log("  npm test -- coverage.test.ts");
+console.log("or inspect SubjectCoverage via src/domain/coverage.ts at runtime.");

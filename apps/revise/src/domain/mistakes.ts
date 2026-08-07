@@ -32,6 +32,40 @@ export interface MistakeDraft {
   card: Card;
 }
 
+const COMMAND_WORD_RE = /\b(state|describe|explain|calculate|suggest|compare|evaluate|discuss|justify|deduce|predict|outline|show that)\b/i;
+export function commandWordOf(parts: Array<{ prompt: string }>): ReturnType<typeof classifyMistake> extends never ? never : string {
+  // legacy shim handled in assessment.ts — kept here only for the fallback below
+  return "" as unknown as string;
+}
+function detectCommandWord(prompt: string): import("./types").CommandWord {
+  const m = prompt.match(COMMAND_WORD_RE);
+  if (!m) return "other";
+  const w = m[1].toLowerCase();
+  if (w === "show that") return "show that";
+  return w as import("./types").CommandWord;
+}
+const MISCONCEPTION_RE: Array<{ tag: import("./types").MisconceptionTag; re: RegExp }> = [
+  { tag: "units", re: /unit|kJ|J\b|m s-1|mol dm/i },
+  { tag: "significant-figures", re: /sig fig|significant|decimal/i },
+  { tag: "graph-reading", re: /graph|gradient|intercept|area under/i },
+  { tag: "method-skipped", re: /method|working|step/i },
+  { tag: "terminology", re: /terminolog|term|define/i },
+];
+function detectMisconception(missed: string[]): import("./types").MisconceptionTag {
+  const hay = missed.join(" ");
+  for (const { tag, re } of MISCONCEPTION_RE) if (re.test(hay)) return tag;
+  return "other";
+}
+function timingFor(attempt: Attempt, partId: string, marks: number): Mistake["timing"] {
+  if (!attempt.elapsedMs || !attempt.marked.length) return "unknown";
+  const perPartMs = attempt.elapsedMs / attempt.marked.length;
+  const budget = marks * 90_000;
+  if (perPartMs < budget * 0.5) return "rushed";
+  if (perPartMs > budget * 2) return "slow";
+  void partId;
+  return "ok";
+}
+
 /**
  * Turn every dropped mark in an attempt into a mistake plus a card. Parts that
  * scored full marks produce nothing — the point is signal, not noise.
@@ -52,6 +86,8 @@ export function mistakesFromAttempt(
     const prompt = part ? `${question.stem}\n\n${part.label} ${part.prompt}` : question.stem;
     const mistakeId = idFactory();
 
+    const marksLost = marked.max - marked.awarded;
+    const ao = part?.aos?.[0];
     const mistake: Mistake = {
       id: mistakeId,
       userId: attempt.userId,
@@ -59,9 +95,18 @@ export function mistakesFromAttempt(
       topicId,
       questionId: question.id,
       attemptId: attempt.id,
+      partId: part?.id,
+      point: marked.missedPoints[0],
+      command: detectCommandWord(part?.prompt ?? question.stem),
+      misconception: detectMisconception(marked.missedPoints),
+      ao,
+      difficultyAtLoss: question.difficulty,
+      marksLost,
+      secondsSpent: attempt.elapsedMs ? Math.round(attempt.elapsedMs / Math.max(1, attempt.marked.length) / 1000) : undefined,
+      timing: timingFor(attempt, marked.partId, marked.max),
       description: marked.missedPoints.length
-        ? `Dropped ${marked.max - marked.awarded} mark(s): ${marked.missedPoints.slice(0, 2).join("; ")}`
-        : `Dropped ${marked.max - marked.awarded} mark(s) on "${part?.label ?? "this question"}"`,
+        ? `Dropped ${marksLost} mark(s): ${marked.missedPoints.slice(0, 2).join("; ")}`
+        : `Dropped ${marksLost} mark(s) on "${part?.label ?? "this question"}"`,
       category: classifyMistake(question.stem, marked.missedPoints),
       resolved: false,
       createdAt: now.toISOString(),

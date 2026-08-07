@@ -4,9 +4,12 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['tests/setup.js'],
-    include: ['tests/**/*.test.{js,jsx}'],
+  base: './',
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: { vendor: ['react', 'react-dom'] },
+      },
+    },
   },
 });

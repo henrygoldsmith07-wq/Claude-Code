@@ -71,7 +71,7 @@ export function Pill({
   title,
 }: {
   children: ReactNode;
-  tone?: "neutral" | "success" | "review" | "danger" | "speak";
+  tone?: "neutral" | "success" | "review" | "danger" | "speak" | "accent";
   className?: string;
   title?: string;
 }) {
@@ -81,6 +81,7 @@ export function Pill({
     review: "bg-reviewsoft text-review border-transparent",
     danger: "bg-dangersoft text-danger border-transparent",
     speak: "bg-speaksoft text-speak border-transparent",
+    accent: "bg-accentsoft text-accent border-transparent",
   };
   return (
     <span className={cx("pill", tones[tone], className)} title={title}>
