@@ -1,11 +1,10 @@
 import { lazy, Suspense, useState } from 'react';
-import { BarChart, Map, Clock, Sliders, Download } from './icons';
+import { BarChart, Map, Clock } from './icons';
 import { ChevronRight } from './icons';
 
 const LazyProfile = lazy(() => import('./Profile'));
 const LazyAnalytics = lazy(() => import('./Analytics'));
 const LazyFocus = lazy(() => import('./Focus'));
-const LazyPersonalise = lazy(() => import('./Personalise'));
 const LazyLearningPath = lazy(() => import('./LearningPath'));
 
 function ScreenLoader() {
@@ -17,10 +16,10 @@ function ScreenLoader() {
 }
 
 const SECTIONS = [
-  { id: 'stats', title: 'Stats & streak', subtitle: 'XP, level, streak, weekly goal', icon: BarChart },
-  { id: 'path', title: 'Learning path', subtitle: 'Roadmap, checkpoints, lessons', icon: Map },
-  { id: 'analytics', title: 'Analytics', subtitle: 'Time, retention, skill breakdown', icon: BarChart },
-  { id: 'focus', title: 'Focus & habits', subtitle: 'Timer, Pomodoro, habit tracker', icon: Clock },
+  { id: 'stats', title: 'Stats & streak', subtitle: 'XP, level, streak & weekly goal — your private dashboard.', icon: BarChart },
+  { id: 'path', title: 'Learning path', subtitle: '12 units · checkpoints · 60 lessons per goal.', icon: Map },
+  { id: 'analytics', title: 'Analytics', subtitle: 'Time, retention & skill breakdown.', icon: BarChart },
+  { id: 'focus', title: 'Focus & habits', subtitle: 'Timer, Pomodoro & habit tracker.', icon: Clock },
 ];
 
 export default function ProgressHub({
@@ -29,7 +28,6 @@ export default function ProgressHub({
   onXp,
   weeklyGoal,
   onHeaderChange,
-  // parent bridges
   path,
   dueCount,
   onStartLesson,
@@ -39,8 +37,6 @@ export default function ProgressHub({
   baseLevel,
   onRunRecommendation,
 }) {
-  const [focusOpen, setFocusOpen] = useState(false);
-
   if (view === 'stats') {
     return (
       <div className="h-full flex flex-col min-h-0">
@@ -57,7 +53,7 @@ export default function ProgressHub({
     return (
       <div className="h-full flex flex-col min-h-0">
         <HubBack onBack={() => onView(null)} label="Progress" />
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-[22px] py-4">
           <Suspense fallback={<ScreenLoader />}>
             <LazyLearningPath path={path} dueCount={dueCount} onStartLesson={onStartLesson} onOpenSetup={onOpenPathSetup} />
           </Suspense>
@@ -91,27 +87,29 @@ export default function ProgressHub({
   }
 
   return (
-    <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
-      <div className="max-w-lg mx-auto space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-ink">Progress</h2>
-          <p className="text-xs text-ink3 mt-1">Streak, learning path, analytics and focus tools.</p>
+    <div className="h-full overflow-y-auto nice-scroll">
+      <div className="max-w-[1020px] mx-auto px-[22px] py-6 space-y-6">
+        <div className="text-center">
+          <h2 className="text-[clamp(22px,4vw,30px)] font-bold tracking-[-0.02em]">Progress</h2>
+          <p className="text-ink2 mt-1.5 text-sm max-w-xl mx-auto">Streak, learning path and analytics — the quiet scoreboard. No guilt, just shape and momentum.</p>
         </div>
-        <div className="grid gap-2.5">
+        <div className="grid gap-3.5 sm:grid-cols-2">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               onClick={() => onView(s.id)}
-              className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+              className="text-left bg-surface border border-line rounded-[20px] p-[22px] hover:border-ink3 transition flex flex-col gap-2"
             >
-              <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink border border-line"><s.icon size={18} /></span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-ink">{s.title}</span>
-                <span className="block text-xs text-ink3">{s.subtitle}</span>
-              </span>
-              <ChevronRight size={16} className="text-ink3 shrink-0" />
+              <span className="w-8 h-8 grid place-items-center rounded-full bg-surface2 border border-line text-ink"><s.icon size={16} /></span>
+              <span className="text-[18px] font-bold tracking-[-0.02em] leading-tight">{s.title}</span>
+              <span className="text-sm text-ink2 leading-relaxed">{s.subtitle}</span>
+              <span className="text-xs font-semibold text-ink inline-flex items-center gap-1 mt-1">Open <ChevronRight size={12} /></span>
             </button>
           ))}
+        </div>
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Private by architecture</span>
+          <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Works offline</span>
         </div>
       </div>
     </div>
@@ -120,7 +118,7 @@ export default function ProgressHub({
 
 function HubBack({ onBack, label }) {
   return (
-    <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold text-ink3 hover:text-ink shrink-0">
+    <button onClick={onBack} className="flex items-center gap-1.5 px-[22px] py-2 text-[11px] font-semibold text-ink3 hover:text-ink shrink-0">
       <ChevronRight size={13} className="rotate-180" /> Back to {label}
     </button>
   );

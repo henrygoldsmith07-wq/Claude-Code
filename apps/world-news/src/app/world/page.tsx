@@ -6,6 +6,15 @@ import SourceList from "@/components/SourceList";
 import TimeAgo from "@/components/TimeAgo";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import TimelineControl from "@/components/TimelineControl";
+import StoryClusterCard from "@/components/StoryClusterCard";
+import StorySourceSummary from "@/components/StorySourceSummary";
+import {
+  WhatChangedPanel,
+  AgreedFactsPanel,
+  UncertaintyPanel,
+  CoverageGapsPanel,
+  CorrectionsPanel,
+} from "@/components/NewsMetaPanels";
 
 // News is fetched live (with a short cache in getWorldNews), so never
 // prerender this at build time.
@@ -15,6 +24,9 @@ export const metadata = {
   title: "Around the World — World News Globe",
 };
 
+const POSITIONING_SUB =
+  "Understand what happened, where it happened, who is reporting it and where accounts differ.";
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
@@ -22,9 +34,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         ← Back to the globe
       </Link>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight">Around the World</h1>
-      <p className="mt-1 text-sm text-muted">
-        The most important news worldwide, summarised impartially and split by topic.
-      </p>
+      <p className="mt-1 text-sm text-muted">{POSITIONING_SUB}</p>
       <div className="mt-6">{children}</div>
     </main>
   );
@@ -49,7 +59,7 @@ export default async function WorldPage({
     return (
       <Shell>
         {timeline}
-        {!archived || archived.topics.length === 0 ? (
+        {!archived || (archived.topics.length === 0 && (archived.stories?.length ?? 0) === 0) ? (
           <div className="mt-4 rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
             No archived world news for this date.
           </div>
@@ -58,10 +68,21 @@ export default async function WorldPage({
             <p className="text-xs text-muted">
               Archived snapshot · <TimeAgo iso={archived.generatedAt} prefix="generated " />
             </p>
+            {(archived.stories ?? []).length > 0 && (
+              <div className="space-y-4">
+                {archived.stories!.map((s) => (
+                  <StoryClusterCard key={s.id} story={s} />
+                ))}
+              </div>
+            )}
             {archived.topics.map((topic) => (
               <TopicSection key={topic.topic} topic={topic} />
             ))}
             <SourceList sources={archived.sources} />
+            <AgreedFactsPanel news={archived} />
+            <UncertaintyPanel news={archived} />
+            <CoverageGapsPanel news={archived} />
+            <CorrectionsPanel news={archived} />
           </div>
         )}
       </Shell>
@@ -125,7 +146,7 @@ export default async function WorldPage({
         <TimeAgo iso={news.generatedAt} />
       </p>
 
-      {news.topics.length === 0 ? (
+      {news.topics.length === 0 && (news.stories?.length ?? 0) === 0 ? (
         <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
           No significant news surfaced right now. Try again later.
         </div>
@@ -133,10 +154,25 @@ export default async function WorldPage({
         <div className="space-y-4">
           <PodcastPlayer scope="world" title="Around the World" />
           {archiveDates.length >= 2 && timeline}
+          <WhatChangedPanel news={news} />
+          {(news.stories?.length ?? 0) > 0 && (
+            <>
+              <StorySourceSummary news={news} />
+              <div className="space-y-4">
+                {news.stories!.map((s) => (
+                  <StoryClusterCard key={s.id} story={s} />
+                ))}
+              </div>
+            </>
+          )}
           {news.topics.map((topic) => (
             <TopicSection key={topic.topic} topic={topic} />
           ))}
           <SourceList sources={news.sources} />
+          <AgreedFactsPanel news={news} />
+          <UncertaintyPanel news={news} />
+          <CoverageGapsPanel news={news} />
+          <CorrectionsPanel news={news} />
         </div>
       )}
     </Shell>

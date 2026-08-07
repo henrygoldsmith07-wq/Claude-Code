@@ -16,18 +16,17 @@ function ScreenLoader() {
 }
 
 const SECTIONS = [
-  { id: 'grammar', title: 'Grammar', subtitle: 'CEFR topics, drills, explainers', icon: Book },
-  { id: 'skills', title: 'Skills practice', subtitle: 'Speaking · Listening · Reading · Writing', icon: Mic },
+  { id: 'grammar', title: 'Grammar', subtitle: '25 CEFR topics · drills & explainers', icon: Book },
+  { id: 'skills', title: 'Skills', subtitle: 'Speaking · Listening · Reading · Writing', icon: Mic },
   { id: 'ai', title: 'AI tutor', subtitle: 'Ask anything, get exercises', icon: Sparkles },
   { id: 'culture', title: 'Culture', subtitle: 'Customs, food, regions, history', icon: Landmark },
-  { id: 'reference', title: 'Reference', subtitle: 'Dictionary, conjugations', icon: Search },
+  { id: 'reference', title: 'Reference', subtitle: 'Dictionary & conjugations', icon: Search },
   { id: 'realworld', title: 'Real-world', subtitle: 'Travel, café, medical phrases', icon: Compass },
 ];
 
 export default function LearnHub({
   view,
   onView,
-  // forwarded props
   grammarFocus,
   onFocusConsumed,
   onXp,
@@ -104,42 +103,43 @@ export default function LearnHub({
     );
   }
   if (view === 'realworld') {
-    // RealWorld is an overlay-style component; reuse via Learn view by delegating to parent overlay
     return (
-      <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
-        <div className="max-w-lg mx-auto space-y-4">
+      <div className="h-full overflow-y-auto nice-scroll px-[22px] py-6">
+        <div className="max-w-[1020px] mx-auto space-y-4">
           <HubBack onBack={() => onView(null)} label="Learn" inline={false} />
           <p className="text-sm text-ink2">Real-world phrasebooks live as an overlay — tap below to open it.</p>
-          <button onClick={() => onView('realworld-overlay')} className="btn btn-primary w-full min-h-11 rounded-xl text-sm">Open phrasebook</button>
+          <button onClick={() => onView('realworld-overlay')} className="inline-flex items-center justify-center bg-ink text-bg font-bold rounded-[14px] px-5 py-3 text-sm hover:opacity-90 transition">Open phrasebook</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
-      <div className="max-w-lg mx-auto space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-ink">Learn</h2>
-          <p className="text-xs text-ink3 mt-1">Grammar, skills and reference — all in one place. Pick what you need today.</p>
+    <div className="h-full overflow-y-auto nice-scroll">
+      <div className="max-w-[1020px] mx-auto px-[22px] py-6 space-y-6">
+        <div className="text-center">
+          <h2 className="text-[clamp(22px,4vw,30px)] font-bold tracking-[-0.02em]">Learn</h2>
+          <p className="text-ink2 mt-1.5 text-sm max-w-xl mx-auto">Grammar, skills and reference — one calm place. Pick what you need today; the rest waits.</p>
         </div>
-        <div className="grid gap-2.5">
+        <div className="grid gap-3.5 sm:grid-cols-2">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               onClick={() => onView(s.id)}
-              className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
+              className="text-left bg-surface border border-line rounded-[20px] p-[22px] hover:border-ink3 transition flex flex-col gap-2"
             >
-              <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink border border-line"><s.icon size={18} /></span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-semibold text-ink">{s.title}</span>
-                <span className="block text-xs text-ink3">{s.subtitle}</span>
-              </span>
-              <ChevronRight size={16} className="text-ink3 shrink-0" />
+              <span className="w-8 h-8 grid place-items-center rounded-full bg-surface2 border border-line text-ink"><s.icon size={16} /></span>
+              <span className="text-[18px] font-bold tracking-[-0.02em] leading-tight">{s.title}</span>
+              <span className="text-sm text-ink2 leading-relaxed">{s.subtitle}</span>
+              <span className="text-xs font-semibold text-ink inline-flex items-center gap-1 mt-1">Open <ChevronRight size={12} /></span>
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-ink3 text-center px-2">Everything here is searchable — tap the search icon in the header to jump straight to a topic.</p>
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">25 grammar topics</span>
+          <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">4 skills · PWA offline</span>
+          <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Search with ⌘K</span>
+        </div>
       </div>
     </div>
   );
@@ -149,7 +149,7 @@ function HubBack({ onBack, label, inline = true }) {
   return (
     <button
       onClick={onBack}
-      className={`flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold text-ink3 hover:text-ink shrink-0 ${inline ? '' : 'mb-2'}`}
+      className={`flex items-center gap-1.5 px-[22px] py-2 text-[11px] font-semibold text-ink3 hover:text-ink shrink-0 ${inline ? '' : 'mb-2'}`}
     >
       <ChevronRight size={13} className="rotate-180" /> Back to {label}
     </button>

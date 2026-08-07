@@ -75,7 +75,7 @@ export default function Sidebar({
         <div className="px-5 pb-6 pt-14">
           <Link href="/" className="block">
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
-              Impartial · AI · Grounded
+              What · Where · Who · Where they differ
             </p>
             <h1 className="mt-1 text-xl font-semibold tracking-tight">World News Globe</h1>
           </Link>

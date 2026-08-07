@@ -19,7 +19,7 @@ export default function Home() {
   const [showInsights, setShowInsights] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
 
-  const { startEntry, appendMessage, completeEntry, deleteEntry } = useEntries(
+  const { startEntry, appendMessage, completeEntry, updateFollowUp, deleteEntry } = useEntries(
     entries,
     setEntries,
   );
@@ -82,6 +82,7 @@ export default function Home() {
               apiKey={apiKey}
               onAppendMessage={appendMessage}
               onCompleteEntry={completeEntry}
+              onUpdateFollowUp={updateFollowUp}
               onError={(message) => setToast({ message })}
             />
           )}

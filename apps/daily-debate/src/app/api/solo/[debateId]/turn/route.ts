@@ -6,7 +6,7 @@ import { pointsForTurn } from "@/lib/gamification";
 import type { InputMode } from "@/lib/types";
 
 export async function POST(request: Request, { params }: { params: Promise<{ debateId: string }> }) {
-  const limited = checkRateLimit(request, { name: "solo-turn", limit: 20, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "solo-turn", limit: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   const { debateId } = await params;
