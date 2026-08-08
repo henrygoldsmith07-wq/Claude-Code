@@ -9,7 +9,9 @@
       "Grep",
       "Glob",
       "NotebookEdit",
-      "WebSearch"
+      "WebSearch",
+      "Bash(curl -fsSL pols.dev/slop.md)",
+      "Bash(echo \"---exit: $?---\")"
     ],
     "deny": [],
     "ask": []
