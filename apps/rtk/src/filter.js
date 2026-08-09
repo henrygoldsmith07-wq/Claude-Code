@@ -1,9 +1,10 @@
 'use strict';
 
-const SUMMARY_PATTERN = /\b\d+\s*(passed|passing|tests?\s+passed)\b/i;
-const FAILURE_PATTERN = /FAIL|Error|✗|✖|AssertionError|Expected:|Received:|❯|^\s*at\s.+:\d+:\d+/;
-const TOTALS_PATTERN = /Test Files|Tests\s+\d/;
-const MAX_FAILURE_LINES = 30;
+const SUMMARY_PATTERN = /\b\d+\s*(passed|passing|tests?\s+passed|failed|failing)\b/i;
+const FAILURE_PATTERN =
+  /FAIL|Error|✗|✖|×|AssertionError|Expected:|Received:|❯|●\s|TIMEOUT|Timeout|not to be|toBe\(|toEqual\(|^\s*at\s.+:\d+:\d+/;
+const TOTALS_PATTERN = /Test Files|Tests\s+\d|Suites:|Snapshots:|Time:/;
+const MAX_FAILURE_LINES = 40;
 
 function extractSummaryLine(lines) {
   const match = lines.find((line) => SUMMARY_PATTERN.test(line));

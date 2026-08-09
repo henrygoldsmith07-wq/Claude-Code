@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Meeting Recorder</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+        background: #0b0d12;
+        color: #e6e8ee;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        background: #6d5efc;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        color: #8a90a2;
+        margin: 10px 0 4px;
+      }
+      input[type="text"],
+      input[type="password"],
+      select {
+        width: 100%;
+        background: #12151d;
+        border: 1px solid #232838;
+        color: #e6e8ee;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      input:focus,
+      select:focus {
+        border-color: #6d5efc;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .card {
+        background: #12151d;
+        border: 1px solid #232838;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+      button {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #fff;
+      }
+      .primary {
+        background: #6d5efc;
+        width: 100%;
+      }
+      .stop {
+        background: #e5484d;
+        width: 100%;
+      }
+      .ghost {
+        background: #232838;
+        color: #cbd0dc;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      #timer {
+        font-variant-numeric: tabular-nums;
+        font-size: 28px;
+        text-align: center;
+        margin: 6px 0;
+      }
+      #status {
+        font-size: 12px;
+        color: #8a90a2;
+        min-height: 18px;
+        text-align: center;
+      }
+      #status.err {
+        color: #ff8a8a;
+      }
+      #status.ok {
+        color: #58d68d;
+      }
+      a {
+        color: #8b7dff;
+      }
+      details summary {
+        cursor: pointer;
+        font-size: 12px;
+        color: #8a90a2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1><span class="dot">●</span> Meeting Recorder</h1>
+
+    <details class="card" id="settingsCard">
+      <summary>Connection settings</summary>
+      <label>Web app URL</label>
+      <input type="text" id="appUrl" placeholder="http://localhost:3000" />
+      <label>Desktop API key (must match DESKTOP_API_KEY)</label>
+      <input type="password" id="apiKey" placeholder="the shared secret" />
+      <div class="row">
+        <button class="ghost" id="saveSettings">Save</button>
+      </div>
+    </details>
+
+    <div class="card">
+      <label>Meeting title</label>
+      <input type="text" id="title" placeholder="Untitled meeting" />
+
+      <label>Screen / window</label>
+      <select id="sources"></select>
+
+      <div class="row">
+        <input type="checkbox" id="mic" checked />
+        <label for="mic" style="margin: 0">Capture microphone</label>
+      </div>
+      <div class="row">
+        <input type="checkbox" id="sysAudio" checked />
+        <label for="sysAudio" style="margin: 0">Capture system audio (Windows)</label>
+      </div>
+    </div>
+
+    <div id="timer">0:00</div>
+    <div class="card">
+      <button class="primary" id="record">● Record</button>
+      <div style="height: 8px"></div>
+      <button class="stop" id="stop" disabled>■ Stop &amp; upload</button>
+    </div>
+    <div id="status"></div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

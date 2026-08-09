@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "./le-studio.css";
+
+/* This app is dark by design — the globe needs a near-black canvas to read —
+   so layout.tsx pins `dark` on <html> rather than following the OS. It still
+   draws every colour from the shared Le Studio tokens, so it sits in the same
+   family as the other apps instead of carrying its own blue-tinted palette.
+
+   The names below (--panel, --rule, --muted…) predate the shared system and
+   are kept as aliases so existing markup keeps working. Prefer the shared
+   names (bg-surface, border-line, text-ink3) in new code. */
+:root {
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --panel: var(--surface);
+  --panel-soft: var(--surface-2);
+  --rule: var(--line);
+  --muted: var(--ink-3);
+  --accent-strong: var(--ink-2);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-panel: var(--surface);
+  --color-panel-soft: var(--surface-2);
+  --color-rule: var(--line);
+  --color-muted: var(--ink-3);
+  --color-accent: var(--accent);
+  --font-mono: var(--font-geist-mono);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
