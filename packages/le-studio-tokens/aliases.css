@@ -1,0 +1,29 @@
+/**
+ * Map shared --ls-* tokens onto the app-level names used by Chrono / Forq / French.
+ * Import after tokens.css:
+ *   @import "./tokens.css";
+ *   @import "./aliases.css";
+ */
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  --bg: var(--ls-bg);
+  --surface: var(--ls-surface);
+  --surface-2: var(--ls-surface-2);
+  --line: var(--ls-line);
+  --ink: var(--ls-ink);
+  --ink-2: var(--ls-ink-2);
+  --ink-3: var(--ls-ink-3);
+  --accent: var(--ls-accent);
+  --on-accent: var(--ls-on-accent);
+  --danger: var(--ls-danger);
+  --warn: var(--ls-warn);
+  --good: var(--ls-good);
+  --shadow-sm: var(--ls-shadow-sm);
+  --shadow-md: var(--ls-shadow-md);
+  --ring: var(--ls-ring);
+  --radius-sm: var(--ls-radius-sm);
+  --radius: var(--ls-radius);
+  --radius-lg: var(--ls-radius-lg);
+  --radius-xl: var(--ls-radius-xl);
+}

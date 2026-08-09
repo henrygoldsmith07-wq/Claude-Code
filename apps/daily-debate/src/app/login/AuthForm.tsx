@@ -15,14 +15,14 @@ export default function AuthForm() {
   const pending = mode === "sign-in" ? signInPending : signUpPending;
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+    <div className="surface-raised flex w-full max-w-sm flex-col gap-6 p-6">
       <div className="flex gap-4 border-b border-[var(--rule)]">
         <button
           type="button"
           onClick={() => setMode("sign-in")}
           aria-pressed={mode === "sign-in"}
           className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
-            mode === "sign-in" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-zinc-500"
+            mode === "sign-in" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-ink3"
           }`}
         >
           Sign in
@@ -32,7 +32,7 @@ export default function AuthForm() {
           onClick={() => setMode("sign-up")}
           aria-pressed={mode === "sign-up"}
           className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
-            mode === "sign-up" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-zinc-500"
+            mode === "sign-up" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-ink3"
           }`}
         >
           Create account
@@ -79,11 +79,7 @@ export default function AuthForm() {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
+        <button type="submit" disabled={pending} className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40">
           {pending ? "Please wait…" : mode === "sign-in" ? "Sign in" : "Create account"}
         </button>
       </form>

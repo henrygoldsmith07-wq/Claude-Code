@@ -33,6 +33,9 @@ Next.js (App Router) + Supabase (auth, Postgres, Realtime) + the Gemini API.
   only; the composer falls back to typing where unsupported.
 - **Gamification** — points per round, levels, and daily streaks, plus a
   global leaderboard.
+- **UX polish** — Ctrl/⌘+Enter to send, auto-scroll in the debate room,
+  color-coded score badges, copyable result summary, mobile-friendly header,
+  clearer empty states and loading indicators.
 
 ## Setup
 
@@ -41,10 +44,28 @@ Next.js (App Router) + Supabase (auth, Postgres, Realtime) + the Gemini API.
    anon key, service role key, and a `GEMINI_API_KEY`.
 3. `npm install && npm run dev`.
 
-## Known limitations
+## Argument graph & judging (why the winner won)
 
-- Daily topics and PvP matchmaking are scoped per calendar day and per
-  server-process rate limits — fine for a single-instance deployment, not
-  yet built for multi-region scale.
-- Matchmaking is FIFO on a shared queue table; there's no skill-based (Elo)
-  pairing yet.
+Every finished debate now produces a structured **argument graph**: `claim → evidence → counterclaim → rebuttal → impact`.
+The judge tracks:
+
+- **Unsupported claims** (no evidence edge)
+- **Dropped arguments** (never directly rebutted)
+- **Contradictions** and **concessions**
+- **Rebuttals** and their targets
+- **Evidence strength** (`anecdotal` → `strong`)
+- **Logical fallacies**
+- **Impact comparison** (which impacts frame the debate more)
+
+The judge returns `rationale` + `decidingFactor` (one sentence) + per-side `breakdown` and the full `argGraph` so the UI can explain the result instead of just showing a score. See `src/lib/argGraph.ts` for the types (`ArgGraph`, `validateGraph`, `unsupportedClaims`) and `src/components/ArgGraphView.tsx` for the panels used in PvP and Solo results. Rendering is backwards compatible: older verdicts without a graph still show their rationale.
+
+## Rate limiting & testing
+
+- **Rate limiting** is now Supabase-backed (`supabase/migrations/002_rate_limits.sql`): `rate_limits(key, count, reset_at)` is shared across all serverless instances with a local in-memory fallback for tests/local dev without credentials. Before serious public use (PvP expansion) run both migrations. See `src/lib/rateLimit.ts` (`checkRateLimit` is now async — callers `await` it).
+- **Tests:** `npm test` (`vitest run`) / `npm run test:watch`. Covers `argGraph`, the rate-limiter fallback, and gamification. Add more before PvP matchmaking grows (see TODO below).
+
+## Known limitations / TODO before wider PvP
+
+- Matchmaking is still FIFO on `pvp_queue`; no Elo/skill pairing yet.
+- Consider a periodic `cleanup_rate_limits()` (or Supabase cron) to prune expired windows.
+- Evidence strength and fallacy tagging currently rely on the judge model's judgment; consider adding rule-based heuristics or a second pass for higher reliability.

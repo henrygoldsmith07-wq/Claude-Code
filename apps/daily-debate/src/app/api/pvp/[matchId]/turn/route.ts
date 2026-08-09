@@ -25,7 +25,7 @@ async function awardPoints(userId: string, points: number) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ matchId: string }> }) {
-  const limited = checkRateLimit(request, { name: "pvp-turn", limit: 20, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "pvp-turn", limit: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   const { matchId } = await params;

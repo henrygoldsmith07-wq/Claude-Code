@@ -3,7 +3,7 @@ import { getOrCreateTodayTopic } from "@/lib/dailyTopic";
 import AppHeader from "@/components/AppHeader";
 import TopicCard from "@/components/TopicCard";
 
-// Generates today's topic via the Gemini API on first request each day —
+// Generates today&apos;s topic via the Anthropic API on first request each day —
 // not something that can be prerendered at build time.
 export const dynamic = "force-dynamic";
 
@@ -30,9 +30,9 @@ export default async function DashboardPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Today&apos;s topic</p>
+          <p className="text-xs uppercase tracking-wide text-ink3">Today&apos;s topic</p>
           <h1 className="text-2xl font-semibold tracking-tight">{topic.title}</h1>
         </div>
         <TopicCard topic={topic} activeDebateId={activeDebate?.id ?? null} />

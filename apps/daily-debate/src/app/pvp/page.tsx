@@ -14,9 +14,9 @@ export default async function PvpLobbyPage() {
       <AppHeader />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
         <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Player vs Player</p>
+          <p className="text-xs uppercase tracking-wide text-ink3">Player vs Player</p>
           <h1 className="text-2xl font-semibold tracking-tight">{topic.title}</h1>
-          <p className="mt-2 text-sm text-zinc-400">{topic.prompt}</p>
+          <p className="mt-2 text-sm text-ink3">{topic.prompt}</p>
         </div>
         <PvpLobby />
       </main>

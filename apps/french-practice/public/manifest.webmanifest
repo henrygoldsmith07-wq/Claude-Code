@@ -1,0 +1,65 @@
+{
+  "name": "Le Studio — French Speaking Practice",
+  "short_name": "Le Studio",
+  "description": "Practise French speaking, listening, reading and writing with an AI conversation partner — 40 roleplay scenarios, 60-lesson learning paths, 520+ flashcards, grammar, culture and stats. 100% on your device.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fafafa",
+  "theme_color": "#0a0a0a",
+  "categories": [
+    "education"
+  ],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "id": "./",
+  "lang": "en",
+  "screenshots": [
+    {
+      "src": "./screenshots/home.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home — your daily loop"
+    },
+    {
+      "src": "./screenshots/arena.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Roleplay Arena — voice conversations"
+    },
+    {
+      "src": "./screenshots/vocab.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vocabulary — 42 packs, spaced repetition"
+    }
+  ]
+}

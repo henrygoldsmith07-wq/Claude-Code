@@ -1,7 +1,7 @@
 ---
 name: automerge
-description: Merge open pull requests in bulk, or turn on GitHub auto-merge so PRs land the moment their required checks pass. Use when the user says "merge everything", "automerge all PRs", "enable auto-merge", "clear the PR queue", "merge all my open PRs", or asks to set up automatic merging for a repo. Triggers on "automerge", "auto-merge", "merge everything", "merge all PRs", "/automerge".
 allowed-tools: Bash, Read, Grep, Glob, ToolSearch
+description: 'Merge open PRs in bulk or enable GitHub auto-merge. Use for "automerge", "merge everything", "merge all PRs", "clear the PR queue", "enable auto-merge".'
 ---
 
 # Automerge — Bulk & Automatic PR Merging

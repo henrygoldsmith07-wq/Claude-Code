@@ -1,0 +1,13 @@
+{
+  "name": "@le-studio/tokens",
+  "version": "1.0.0",
+  "description": "Shared design tokens for Le Studio, Chrono and Forq",
+  "main": "tokens.css",
+  "style": "tokens.css",
+  "files": ["tokens.css", "aliases.css", "README.md", "tokens.json", "check-tokens.mjs"],
+  "scripts": {
+    "check": "node check-tokens.mjs"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
