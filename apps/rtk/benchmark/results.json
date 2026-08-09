@@ -1,0 +1,114 @@
+{
+  "generatedAt": "2026-08-07T20:16:01.896Z",
+  "rows": [
+    {
+      "label": "Vitest pass (200 tests)",
+      "parser": "vitest",
+      "rawChars": 61210,
+      "emittedChars": 76,
+      "reductionPct": 100,
+      "rawLines": 1200,
+      "emittedLines": 3,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "200 passed",
+        "Duration"
+      ]
+    },
+    {
+      "label": "Vitest failure (2 fails)",
+      "parser": "vitest",
+      "rawChars": 57281,
+      "emittedChars": 491,
+      "reductionPct": 99,
+      "rawLines": 1173,
+      "emittedLines": 15,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "FAIL",
+        "AssertionError",
+        "Expected:",
+        "Duration",
+        "1 failed"
+      ]
+    },
+    {
+      "label": "tsc pass (clean)",
+      "parser": "tsc",
+      "rawChars": 13,
+      "emittedChars": 38,
+      "reductionPct": -192,
+      "rawLines": 2,
+      "emittedLines": 1,
+      "criticalRetained": true,
+      "criticalNeedles": []
+    },
+    {
+      "label": "tsc failure (4 errors)",
+      "parser": "tsc",
+      "rawChars": 522,
+      "emittedChars": 522,
+      "reductionPct": 0,
+      "rawLines": 9,
+      "emittedLines": 9,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "error TS2322",
+        "Found 4 errors"
+      ]
+    },
+    {
+      "label": "Next build failure",
+      "parser": "next",
+      "rawChars": 236,
+      "emittedChars": 191,
+      "reductionPct": 19,
+      "rawLines": 8,
+      "emittedLines": 6,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "Failed to compile",
+        "Type error"
+      ]
+    },
+    {
+      "label": "Next build pass",
+      "parser": "next",
+      "rawChars": 371,
+      "emittedChars": 288,
+      "reductionPct": 22,
+      "rawLines": 10,
+      "emittedLines": 8,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "Compiled successfully",
+        "Build completed"
+      ]
+    },
+    {
+      "label": "Generic failure",
+      "parser": "generic",
+      "rawChars": 85,
+      "emittedChars": 65,
+      "reductionPct": 24,
+      "rawLines": 5,
+      "emittedLines": 3,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "Error:",
+        "1 failed"
+      ]
+    },
+    {
+      "label": "Truncate (2k-line verbose log)",
+      "parser": "generic",
+      "rawChars": 112889,
+      "emittedChars": 32,
+      "reductionPct": 100,
+      "rawLines": 2000,
+      "emittedLines": 1,
+      "criticalRetained": true,
+      "criticalNeedles": []
+    }
+  ]
+}

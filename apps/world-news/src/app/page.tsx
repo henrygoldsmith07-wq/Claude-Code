@@ -11,8 +11,8 @@ export default function HomePage() {
         <NewsGlobe worldPoints searchable />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 text-center text-xs text-muted">
-        Hover to highlight a country · click to open its news
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 px-4 text-center text-xs text-muted">
+        Hover to highlight · click a country for news · Ctrl/⌘+B toggles sidebar
       </div>
     </main>
   );

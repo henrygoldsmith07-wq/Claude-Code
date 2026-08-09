@@ -1,6 +1,6 @@
 ---
 name: improve-system
-description: The self-improvement loop — parse freshly synced /raw data, propose workspace upgrades, auto-apply low-risk fixes, and write high-stakes proposals to a dated review file for sign-off. Use for the scheduled improvement routine or when the user says "improve the system" / "optimize my workspace".
+description: 'The self-improvement loop — parse freshly synced /raw data, auto-apply low-risk fixes, write high-stakes proposals to output/review_[date].md for sign-off. Use for the scheduled routine or "improve the system".'
 ---
 
 # Improve System

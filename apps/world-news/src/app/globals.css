@@ -1,32 +1,33 @@
 @import "tailwindcss";
+@import "./le-studio.css";
 
+/* This app is dark by design — the globe needs a near-black canvas to read —
+   so layout.tsx pins `dark` on <html> rather than following the OS. It still
+   draws every colour from the shared Le Studio tokens, so it sits in the same
+   family as the other apps instead of carrying its own blue-tinted palette.
+
+   The names below (--panel, --rule, --muted…) predate the shared system and
+   are kept as aliases so existing markup keeps working. Prefer the shared
+   names (bg-surface, border-line, text-ink3) in new code. */
 :root {
-  --background: #05070d;
-  --foreground: #e9eef7;
-  --panel: #0e131f;
-  --panel-soft: #131a29;
-  --rule: #222b3d;
-  --muted: #8a94a8;
-  --accent: #4f8cff;
-  --accent-strong: #3a6fe0;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --panel: var(--surface);
+  --panel-soft: var(--surface-2);
+  --rule: var(--line);
+  --muted: var(--ink-3);
+  --accent-strong: var(--ink-2);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-panel: var(--panel);
-  --color-panel-soft: var(--panel-soft);
-  --color-rule: var(--rule);
-  --color-muted: var(--muted);
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-panel: var(--surface);
+  --color-panel-soft: var(--surface-2);
+  --color-rule: var(--line);
+  --color-muted: var(--ink-3);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 .tabular {

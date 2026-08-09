@@ -30,7 +30,7 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
   }
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+    <div className="surface-card flex flex-col gap-6 p-6">
       <div>
         <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs text-[var(--accent)]">
           {topic.category}
@@ -39,11 +39,16 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
       </div>
 
       <div>
-        <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Credible sources to consider</p>
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink3">Credible sources to consider</p>
         <ul className="flex flex-col gap-2">
           {topic.sources.map((source) => (
-            <li key={source.name} className="text-sm text-zinc-400">
-              <a href={source.homepage} target="_blank" rel="noreferrer" className="font-medium text-zinc-200 hover:underline">
+            <li key={source.name} className="text-sm text-ink3">
+              <a
+                href={source.homepage}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-ink hover:underline"
+              >
                 {source.name}
               </a>{" "}
               — {source.angle}
@@ -53,22 +58,19 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
       </div>
 
       {activeDebateId ? (
-        <Link
-          href={`/debate/${activeDebateId}`}
-          className="rounded-full bg-[var(--accent)] px-4 py-2 text-center text-sm font-medium text-white"
-        >
+        <Link href={`/debate/${activeDebateId}`} className="btn btn-primary px-4 py-2 text-center text-sm">
           Continue your debate
         </Link>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-zinc-400">Pick your side, then debate the AI for at least 5 rounds.</p>
-          <div className="flex gap-2">
+          <p className="text-sm text-ink3">Pick your side, then debate the AI for at least 5 rounds.</p>
+          <div className="flex gap-2" role="group" aria-label="Choose side">
             <button
               type="button"
               onClick={() => setSide("for")}
               aria-pressed={side === "for"}
-              className={`flex-1 rounded-full border px-4 py-2 text-sm font-medium ${
-                side === "for" ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--rule)] text-zinc-400"
+              className={`btn flex-1 px-4 py-2 text-sm ${
+                side === "for" ? "chip-elevated text-[var(--accent)]" : "btn-ghost"
               }`}
             >
               Argue For
@@ -77,8 +79,8 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
               type="button"
               onClick={() => setSide("against")}
               aria-pressed={side === "against"}
-              className={`flex-1 rounded-full border px-4 py-2 text-sm font-medium ${
-                side === "against" ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--rule)] text-zinc-400"
+              className={`btn flex-1 px-4 py-2 text-sm ${
+                side === "against" ? "chip-elevated text-[var(--accent)]" : "btn-ghost"
               }`}
             >
               Argue Against
@@ -88,15 +90,26 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
             type="button"
             onClick={startDebate}
             disabled={starting}
-            className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40"
           >
-            {starting ? "Starting…" : "Start solo debate"}
+            {starting ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-transparent" />
+                Starting…
+              </span>
+            ) : (
+              "Start solo debate"
+            )}
           </button>
-          {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
+          {error && (
+            <p className="text-sm text-[var(--bad)]" role="alert">
+              {error}
+            </p>
+          )}
         </div>
       )}
 
-      <Link href="/pvp" className="text-center text-sm text-zinc-400 hover:text-[var(--foreground)]">
+      <Link href="/pvp" className="text-center text-sm text-ink3 hover:text-[var(--foreground)]">
         Or challenge another player on today&apos;s topic →
       </Link>
     </div>

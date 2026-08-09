@@ -1,10 +1,8 @@
 # World News Globe
 
-A personal, impartial world-news reader. The home page is an interactive 3D globe —
-hover to highlight a country, click to open its news page. Each country's news is
-summarised by **Google Gemini with Google Search grounding** (so it's current and
-cites real sources), split into topics: Politics, Economy & Business, World & Conflict,
-Science & Health, Technology, Society & Culture, and Sport.
+Understand what happened, where it happened, who is reporting it and where accounts differ.
+
+The home page is an interactive 3D globe — hover to highlight a country, click to open its news page. Each country's news is summarised by **Google Gemini with Google Search grounding** (so it's current and cites real sources), organised as **story clusters** rather than only country summaries, plus source-country mix, source perspective where available, primary sources, timeline, conflicting claims, widely agreed facts, uncertainty, correction history, "what changed since yesterday?" and coverage gaps.
 
 ## Stack
 
@@ -59,14 +57,21 @@ To enable: create a Supabase project, run the migration in
 - `public/countries.geojson` — bundled Natural Earth country polygons (name + ISO codes)
   drive the globe and map codes to names (`src/lib/countries.ts`).
 - `src/lib/gemini.ts` — prompts Gemini to search current news for a country and return a
-  neutral, topic-split JSON summary; grounding source links come from
+  JSON summary grounded in real sources, plus **story clusters** (what/where/who/differ), source mix, perspective, primary sources, timeline, conflicting claims, agreed facts, uncertainty, corrections and what changed. Grounding source links come from
   `groundingMetadata.groundingChunks`.
+- `src/lib/storyModel.ts` / `src/lib/storyAnalysis.ts` — typed model for stories and pure helpers for source mix, perspective mapping, headline overlap and "what changed" diffing.
 - `src/lib/news.ts` — caches each country's summary (`getCountryNews`).
-- `src/app/country/[code]/page.tsx` — renders topics + sources. `/api/country/<code>`
-  returns the same data as JSON.
+- `src/app/country/[code]/page.tsx` and `src/app/world/page.tsx` — render story clusters + topics + meta panels (widely agreed, uncertainty, coverage gaps, corrections, what changed).
+- `/api/country/<code>` returns the same data as JSON.
 
-## Impartiality
+## Positioning
 
-Summaries are grounded in live search results (not model memory), and the prompt requires
-neutral tone, attribution of contested claims, and presenting multiple sides. Source links
-are always shown so you can verify.
+Not "impartial AI news" as the headline — instead: *Understand what happened, where it happened, who is reporting it and where accounts differ.* Summaries are grounded in live search results (not model memory), and the prompt requires neutral tone, attribution of contested claims, and presenting multiple sides. Source links are always shown so you can verify. New in this repositioning: story clustering, source-country mix, source political perspective where available, primary sources, timeline, conflicting claims, widely agreed facts, uncertainty, correction history, "what changed since yesterday?" and coverage gaps.
+
+## Tests
+
+```bash
+npm test          # vitest (see src/lib/*.test.ts)
+npm run type-check
+npm run build
+```

@@ -1,5 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { ArgGraph } from "./argGraph";
 import type { DebateSide, DebateSummary, TopicSource, TurnScores } from "./types";
+
+// Lazy import to avoid circular deps: types -> argGraph ok, but anthropic -> types is fine.
+// ArgGraph types are structural; runtime validation via argGraph.validateGraph.
 
 const MODEL = "claude-sonnet-5";
 
@@ -25,8 +29,7 @@ const TOPIC_TOOL = {
       title: { type: "string", description: "Short, punchy title for the topic (under 10 words)." },
       prompt: {
         type: "string",
-        description:
-          "A one or two sentence debate proposition/question, phrased neutrally so it can be argued from either side.",
+        description: "A one or two sentence debate proposition/question, phrased neutrally so it can be argued from either side.",
       },
       category: {
         type: "string",
@@ -34,8 +37,7 @@ const TOPIC_TOOL = {
       },
       sources: {
         type: "array",
-        description:
-          "3-5 well-known, credible, real institutions or outlets (never invent deep-link URLs) whose reporting or research bears on this topic, each with the angle/data they're known for.",
+        description: "3-5 well-known, credible, real institutions or outlets (never invent deep-link URLs) whose reporting or research bears on this topic, each with the angle/data they're known for.",
         items: {
           type: "object",
           properties: {
@@ -53,9 +55,7 @@ const TOPIC_TOOL = {
 
 export async function generateDailyTopic(recentTitles: string[]): Promise<GeneratedTopic> {
   const anthropic = getClient();
-  const avoid = recentTitles.length
-    ? `Avoid repeating or closely resembling these recent topics: ${recentTitles.join("; ")}.`
-    : "";
+  const avoid = recentTitles.length ? `Avoid repeating or closely resembling these recent topics: ${recentTitles.join("; ")}.` : "";
 
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -83,8 +83,7 @@ export interface DebateTurnResult {
 
 const TURN_TOOL = {
   name: "emit_debate_turn",
-  description:
-    "Score the user's latest debate response and produce the AI opponent's next rebuttal or probing question.",
+  description: "Score the user's latest debate response and produce the AI opponent's next rebuttal or probing question.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -100,14 +99,10 @@ const TURN_TOOL = {
         },
         required: ["depth", "evidence", "logic", "rebuttal", "clarity"],
       },
-      feedback: {
-        type: "string",
-        description: "One or two sentences of specific, constructive feedback on this response.",
-      },
+      feedback: { type: "string", description: "One or two sentences of specific, constructive feedback on this response." },
       aiMessage: {
         type: "string",
-        description:
-          "The AI opponent's next move: a sharp counter-argument, a probing follow-up question, or a challenge to a weak point — 2-4 sentences, arguing the opposite side from the user.",
+        description: "The AI opponent's next move: a sharp counter-argument, a probing follow-up question, or a challenge to a weak point — 2-4 sentences, arguing the opposite side from the user.",
       },
     },
     required: ["scores", "feedback", "aiMessage"],
@@ -124,9 +119,7 @@ export async function debateTurn(params: {
   const anthropic = getClient();
   const aiSide: DebateSide = params.userSide === "for" ? "against" : "for";
 
-  const transcript = params.history
-    .map((turn) => `${turn.role === "ai" ? "AI (opposing)" : "User"}: ${turn.text}`)
-    .join("\n");
+  const transcript = params.history.map((turn) => `${turn.role === "ai" ? "AI (opposing)" : "User"}: ${turn.text}`).join("\n");
 
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -151,18 +144,12 @@ const OPENING_TOOL = {
   description: "Open a debate by arguing the given side in 2-4 sentences.",
   input_schema: {
     type: "object" as const,
-    properties: {
-      aiMessage: { type: "string", description: "Opening argument, 2-4 sentences." },
-    },
+    properties: { aiMessage: { type: "string", description: "Opening argument, 2-4 sentences." } },
     required: ["aiMessage"],
   },
 };
 
-export async function debateOpening(params: {
-  topicTitle: string;
-  topicPrompt: string;
-  aiSide: DebateSide;
-}): Promise<string> {
+export async function debateOpening(params: { topicTitle: string; topicPrompt: string; aiSide: DebateSide }): Promise<string> {
   const anthropic = getClient();
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -195,10 +182,7 @@ const SUMMARY_TOOL = {
   },
 };
 
-export async function summarizeSoloDebate(params: {
-  topicTitle: string;
-  transcript: string;
-}): Promise<DebateSummary> {
+export async function summarizeSoloDebate(params: { topicTitle: string; transcript: string }): Promise<DebateSummary> {
   const anthropic = getClient();
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -214,7 +198,9 @@ export async function summarizeSoloDebate(params: {
   });
   const toolUse = message.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") throw new Error("Claude did not return structured output");
-  return toolUse.input as DebateSummary;
+  const ret = toolUse.input as DebateSummary;
+  // New optional field: if the model returns argGraph, keep it; otherwise leave undefined.
+  return ret;
 }
 
 export interface PvpJudgeResult {
@@ -222,11 +208,14 @@ export interface PvpJudgeResult {
   playerAScore: number;
   playerBScore: number;
   rationale: string;
+  argGraph?: ArgGraph;
+  breakdown?: { a: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number }; b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number } };
+  decidingFactor?: string;
 }
 
 const JUDGE_TOOL = {
   name: "emit_verdict",
-  description: "Act as a neutral judge on a completed player-vs-player debate.",
+  description: "Act as a neutral judge on a completed player-vs-player debate, producing both the verdict and a structured argument graph so the UI can show why the winner won.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -234,31 +223,171 @@ const JUDGE_TOOL = {
       playerBScore: { type: "integer", description: "Player B's score out of 100 for argument quality across the whole match." },
       winner: { type: "string", enum: ["a", "b", "tie"], description: "Who made the stronger case overall." },
       rationale: { type: "string", description: "2-4 sentences explaining the verdict, citing specific moments from the transcript." },
+      decidingFactor: { type: "string", description: "One sentence naming the single biggest reason the winner won (e.g. 'Player A's strongest impact went unrebutted while Player B left two claims unsupported')." },
+      breakdown: {
+        type: "object",
+        description: "Short tallies so the UI can compare sides without parsing prose.",
+        properties: {
+          a: {
+            type: "object",
+            properties: {
+              claims: { type: "integer", description: "Number of distinct claims made by A." },
+              evidence: { type: "integer", description: "Number of evidence-backed supports by A." },
+              rebuttals: { type: "integer", description: "Number of direct rebuttals by A." },
+              impacts: { type: "integer", description: "Number of impact/framing moves by A." },
+              fallacies: { type: "integer", description: "Number of fallacious moves by A." },
+              droppedSuffered: { type: "integer", description: "How many of A's arguments were dropped (unanswered) by B." },
+            },
+            required: ["claims", "evidence", "rebuttals", "impacts", "fallacies", "droppedSuffered"],
+          },
+          b: {
+            type: "object",
+            properties: {
+              claims: { type: "integer", description: "Number of distinct claims made by B." },
+              evidence: { type: "integer", description: "Number of evidence-backed supports by B." },
+              rebuttals: { type: "integer", description: "Number of direct rebuttals by B." },
+              impacts: { type: "integer", description: "Number of impact/framing moves by B." },
+              fallacies: { type: "integer", description: "Number of fallacious moves by B." },
+              droppedSuffered: { type: "integer", description: "How many of B's arguments were dropped (unanswered) by A." },
+            },
+            required: ["claims", "evidence", "rebuttals", "impacts", "fallacies", "droppedSuffered"],
+          },
+        },
+        required: ["a", "b"],
+      },
+      argGraph: {
+        type: "object",
+        description: "The full argument graph so the UI can render claim→evidence→counterclaim→rebuttal→impact. Keep every text field concise (≤18 words).",
+        properties: {
+          nodes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "Stable id like c1, e1, k1, r1, i1." },
+                kind: { type: "string", enum: ["claim", "evidence", "counterclaim", "rebuttal", "impact"] },
+                owner: { type: "string", enum: ["a", "b", "ai"] },
+                text: { type: "string", description: "One-sentence summary of the node." },
+                round: { type: "integer", description: "Round number where this was introduced." },
+                evidenceStrength: { type: "string", enum: ["anecdotal", "general", "cited", "strong"] },
+                targets: { type: "array", items: { type: "string" }, description: "For rebuttals: node ids rebutted." },
+                fallacy: {
+                  type: "string",
+                  enum: ["strawman", "ad_hominem", "false_dilemma", "slippery_slope", "appeal_to_emotion", "hasty_generalization", "appeal_to_authority", "whataboutism", "begging_the_question", "equivocation", "none"],
+                },
+              },
+              required: ["id", "kind", "owner", "text", "round"],
+            },
+          },
+          edges: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                from: { type: "string" },
+                to: { type: "string" },
+                relation: { type: "string", enum: ["supports", "counters", "rebuts", "impacts"] },
+              },
+              required: ["from", "to", "relation"],
+            },
+          },
+          dropped: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                nodeId: { type: "string" },
+                text: { type: "string" },
+                owner: { type: "string", enum: ["a", "b", "ai"] },
+                round: { type: "integer" },
+              },
+              required: ["nodeId", "text", "owner", "round"],
+            },
+          },
+          contradictions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { a: { type: "string" }, b: { type: "string" }, explanation: { type: "string" }, owner: { type: "string", enum: ["a", "b", "ai"] } },
+              required: ["a", "b", "explanation", "owner"],
+            },
+          },
+          concessions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { nodeId: { type: "string" }, by: { type: "string", enum: ["a", "b", "ai"] }, note: { type: "string" } },
+              required: ["nodeId", "by", "note"],
+            },
+          },
+          fallacies: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { nodeId: { type: "string" }, fallacy: { type: "string", enum: ["strawman", "ad_hominem", "false_dilemma", "slippery_slope", "appeal_to_emotion", "hasty_generalization", "appeal_to_authority", "whataboutism", "begging_the_question", "equivocation", "none"] }, note: { type: "string" } },
+              required: ["nodeId", "fallacy", "note"],
+            },
+          },
+          evidenceStats: {
+            type: "object",
+            properties: {
+              total: { type: "integer" },
+              byOwner: {
+                type: "object",
+                properties: { a: { type: "integer" }, b: { type: "integer" }, ai: { type: "integer" } },
+                required: ["a", "b", "ai"],
+              },
+              byStrength: {
+                type: "object",
+                properties: { anecdotal: { type: "integer" }, general: { type: "integer" }, cited: { type: "integer" }, strong: { type: "integer" } },
+                required: ["anecdotal", "general", "cited", "strong"],
+              },
+              unsupportedClaimIds: { type: "array", items: { type: "string" } },
+            },
+            required: ["total", "byOwner", "byStrength", "unsupportedClaimIds"],
+          },
+          impactComparison: {
+            type: "object",
+            properties: { a: { type: "integer" }, b: { type: "integer" }, rationale: { type: "string" } },
+            required: ["a", "b", "rationale"],
+          },
+        },
+        required: ["nodes", "edges", "dropped", "contradictions", "concessions", "fallacies", "evidenceStats", "impactComparison"],
+      },
     },
     required: ["playerAScore", "playerBScore", "winner", "rationale"],
   },
 };
 
-export async function judgePvpMatch(params: {
-  topicTitle: string;
-  topicPrompt: string;
-  playerASide: DebateSide;
-  transcript: string;
-}): Promise<PvpJudgeResult> {
+export async function judgePvpMatch(params: { topicTitle: string; topicPrompt: string; playerASide: DebateSide; transcript: string }): Promise<PvpJudgeResult> {
   const anthropic = getClient();
+  const instructions = `You are a neutral, rigorous debate judge for a critical-thinking app.
+
+Topic: "${params.topicTitle}" — ${params.topicPrompt}
+Player A argued "${params.playerASide}"; Player B argued the opposite side.
+
+Transcript:
+${params.transcript}
+
+Judge purely on the quality of reasoning, evidence, and clash — not on which side of the topic is "correct".
+- Score each player out of 100.
+- Pick a winner (or tie) and give a 2-4 sentence rationale citing specific moments.
+- Also produce:
+  - decidingFactor: one sentence naming the single biggest reason the winner won.
+  - breakdown: short tallies per side (claims, evidence-backed supports, direct rebuttals, impact moves, fallacies, how many of each side's arguments were dropped by the opponent).
+  - argGraph: the full structured graph. Every node id should be short (c1, e2, k1, r1, i1). Each node's text is a one-sentence summary (≤18 words). Track unsupported claims (no evidence edge), dropped arguments (never directly rebutted), contradictions (a debater contradicted themselves), concessions, evidence strength per evidence node, logical fallacies, and which impacts frame the debate more. Keep it faithful to the transcript — do not invent arguments that weren't made.`;
+
   const message = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 768,
+    max_tokens: 4096,
     tools: [JUDGE_TOOL],
     tool_choice: { type: "tool", name: JUDGE_TOOL.name },
-    messages: [
-      {
-        role: "user",
-        content: `You are a neutral, rigorous debate judge. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nPlayer A argued "${params.playerASide}"; Player B argued the opposite side.\n\nTranscript:\n${params.transcript}\n\nJudge purely on the quality of reasoning, evidence, and rebuttals — not on which side of the topic is "correct". Score each player out of 100 and declare a winner (or tie).`,
-      },
-    ],
+    messages: [{ role: "user", content: instructions }],
   });
+
   const toolUse = message.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") throw new Error("Claude did not return structured output");
-  return toolUse.input as PvpJudgeResult;
+  const result = toolUse.input as PvpJudgeResult;
+  // Normalize: if the model omitted optional structured fields, leave them undefined
+  return result;
 }

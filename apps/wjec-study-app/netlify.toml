@@ -1,5 +1,0 @@
-# Skip Netlify builds when nothing under this app changed (e.g.
-# knowledge-base-only commits to raw/, wiki/, output/). Exit 0 = skip.
-# Requires the wjec-study site's base directory to be apps/wjec-study-app.
-[build]
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."

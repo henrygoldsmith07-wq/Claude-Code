@@ -8,54 +8,106 @@ interface Props {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onNew: () => void;
+  onInsights: () => void;
 }
 
-export default function EntryList({ entries, selectedId, onSelect, onDelete, onNew }: Props) {
+export default function EntryList({
+  entries,
+  selectedId,
+  onSelect,
+  onDelete,
+  onNew,
+  onInsights,
+}: Props) {
   return (
-    <div className="flex h-full w-72 shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800">
-      <div className="border-b border-zinc-200 p-3 dark:border-zinc-800">
+    <div className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-sidebar">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-base">
+          🪞
+        </span>
+        <div>
+          <div className="text-sm font-semibold tracking-tight">Reflect</div>
+          <div className="text-[10px] text-muted">Emotion · Insight · Clarity</div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col gap-2 border-b border-border p-3">
         <button
           onClick={onNew}
-          className="w-full rounded-full border border-zinc-300 px-4 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="w-full rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
         >
           + New reflection
         </button>
+        <button
+          onClick={onInsights}
+          className="w-full rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-card-hover"
+        >
+          📊 Insights
+        </button>
       </div>
+
+      {/* List */}
       <div className="flex-1 overflow-y-auto">
         {entries.length === 0 && (
-          <p className="p-4 text-sm text-zinc-500">No reflections yet. Start one above.</p>
+          <div className="p-5 text-center">
+            <p className="text-sm text-muted">No reflections yet</p>
+            <p className="mt-1 text-xs text-muted/70">
+              Start one above to begin understanding what&apos;s underneath.
+            </p>
+          </div>
         )}
-        <ul>
-          {entries.map((entry) => (
-            <li key={entry.id}>
-              <div
-                onClick={() => onSelect(entry.id)}
-                className={`group flex cursor-pointer items-start justify-between gap-2 border-b border-zinc-100 px-3 py-3 text-sm dark:border-zinc-900 ${
-                  entry.id === selectedId
-                    ? "bg-zinc-100 dark:bg-zinc-900"
-                    : "hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{entry.title}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {new Date(entry.createdAt).toLocaleDateString()} ·{" "}
-                    {entry.status === "complete" ? entry.summary?.coreEmotion ?? "complete" : "in progress"}
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(entry.id);
-                  }}
-                  className="shrink-0 text-zinc-400 opacity-0 hover:text-red-500 group-hover:opacity-100"
-                  aria-label="Delete reflection"
+        <ul className="p-1.5">
+          {entries.map((entry) => {
+            const isSelected = entry.id === selectedId;
+            const isComplete = entry.status === "complete";
+            const emotion = entry.summary?.coreEmotion;
+
+            return (
+              <li key={entry.id}>
+                <div
+                  onClick={() => onSelect(entry.id)}
+                  className={`group flex cursor-pointer items-start justify-between gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                    isSelected
+                      ? "bg-accent/10 ring-1 ring-accent/30"
+                      : "hover:bg-card-hover"
+                  }`}
                 >
-                  ✕
-                </button>
-              </div>
-            </li>
-          ))}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium leading-snug">{entry.title}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-muted">
+                        {new Date(entry.createdAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      {isComplete && emotion ? (
+                        <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                          {emotion}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-reviewsoft px-1.5 py-0.5 text-[10px] font-medium text-review">
+                          in progress
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(entry.id);
+                    }}
+                    className="shrink-0 rounded-md p-0.5 text-muted opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+                    aria-label="Delete reflection"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>

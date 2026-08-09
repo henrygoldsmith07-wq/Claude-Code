@@ -1,4 +1,4 @@
-// Hand-written to match supabase/migrations/001_initial_schema.sql. If the
+// Hand-written to match supabase/migrations/*.sql. If the
 // schema changes, regenerate with `supabase gen types typescript` instead of
 // hand-editing where possible.
 
@@ -81,6 +81,12 @@ export type PvpTurnRow = {
   created_at: string;
 };
 
+export type RateLimitRow = {
+  key: string;
+  count: number;
+  reset_at: string;
+};
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export type Database = {
@@ -96,6 +102,7 @@ export type Database = {
       pvp_queue: TableDef<PvpQueueRow>;
       pvp_matches: TableDef<PvpMatchRow>;
       pvp_turns: TableDef<PvpTurnRow>;
+      rate_limits: TableDef<RateLimitRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

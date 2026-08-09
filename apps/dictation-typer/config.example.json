@@ -1,0 +1,8 @@
+{
+  "hotkey": "ctrl+alt",
+  "mode": "push_to_talk",
+  "insert_method": "paste",
+  "sample_rate": 16000,
+  "beep": true,
+  "min_seconds": 0.3
+}

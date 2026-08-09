@@ -9,7 +9,7 @@ import type { DebateSide } from "@/lib/types";
 // entries are cleared (best-effort; a rare race can double-match a player,
 // which is acceptable for this MVP matchmaker).
 export async function POST(request: Request) {
-  const limited = checkRateLimit(request, { name: "pvp-queue", limit: 20, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "pvp-queue", limit: 20, windowMs: 60_000 });
   if (limited) return limited;
 
   const supabase = await createClient();

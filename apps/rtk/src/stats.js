@@ -46,6 +46,15 @@ function record(cwd, label, rawChars, emittedChars) {
   return data;
 }
 
+function approxTokens(chars) {
+  return Math.round(chars / 4);
+}
+
+function miniBar(pct, width = 10) {
+  const filled = Math.round((Math.max(0, Math.min(100, pct)) / 100) * width);
+  return '#'.repeat(filled).padEnd(width, '.');
+}
+
 function formatGain(data) {
   const labels = Object.keys(data.commands);
   if (!labels.length) {
@@ -63,28 +72,37 @@ function formatGain(data) {
       totalEmitted += entry.emittedChars;
       totalInvocations += entry.invocations;
       const pct = entry.rawChars ? Math.round((1 - entry.emittedChars / entry.rawChars) * 100) : 0;
-      return { label, invocations: entry.invocations, raw: entry.rawChars, emitted: entry.emittedChars, pct };
+      return {
+        label,
+        invocations: entry.invocations,
+        raw: entry.rawChars,
+        emitted: entry.emittedChars,
+        pct,
+      };
     })
     .sort((a, b) => b.raw - a.raw);
 
   const totalPct = totalRaw ? Math.round((1 - totalEmitted / totalRaw) * 100) : 0;
-  const barPct = Math.max(0, Math.min(100, totalPct));
-  const bar = '#'.repeat(Math.round(barPct / 5)).padEnd(20, '.');
+  const tokensSaved = approxTokens(totalRaw - totalEmitted);
+  const bar = miniBar(totalPct, 20);
 
   const lines = [
     'rtk gain — cumulative token savings',
     '',
     `  efficiency     [${bar}] ${totalPct}%`,
     `  commands run   ${totalInvocations}`,
-    `  raw chars      ${totalRaw}  (~${Math.round(totalRaw / 4)} tokens)`,
-    `  emitted chars  ${totalEmitted}  (~${Math.round(totalEmitted / 4)} tokens)`,
+    `  raw chars      ${totalRaw.toLocaleString()}  (~${approxTokens(totalRaw).toLocaleString()} tokens)`,
+    `  emitted chars  ${totalEmitted.toLocaleString()}  (~${approxTokens(totalEmitted).toLocaleString()} tokens)`,
+    `  tokens saved   ~${tokensSaved.toLocaleString()}`,
     '',
-    '  command           calls   raw       emitted   saved',
+    '  command           calls   raw         emitted     saved',
+    '  ───────────────────────────────────────────────────────',
   ];
 
   for (const row of rows) {
+    const bar = miniBar(row.pct, 8);
     lines.push(
-      `  ${row.label.padEnd(16)}  ${String(row.invocations).padEnd(6)} ${String(row.raw).padEnd(9)} ${String(row.emitted).padEnd(9)} ${row.pct}%`
+      `  ${row.label.padEnd(16)}  ${String(row.invocations).padEnd(6)} ${String(row.raw).padEnd(11)} ${String(row.emitted).padEnd(11)} [${bar}] ${row.pct}%`
     );
   }
 

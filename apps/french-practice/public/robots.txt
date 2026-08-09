@@ -1,0 +1,53 @@
+# Le Studio — French speaking practice. All crawlers welcome, including
+# AI/LLM crawlers: the app is free, client-side, and meant to be found.
+
+User-agent: *
+Allow: /
+
+# AI / LLM crawlers, explicitly welcome
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+Sitemap: https://claude-code-alpha-nine.vercel.app/sitemap.xml
+
+# AI-readable site summary
+# https://claude-code-alpha-nine.vercel.app/llms.txt

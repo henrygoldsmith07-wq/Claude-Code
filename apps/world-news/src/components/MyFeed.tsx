@@ -11,19 +11,20 @@ type Entry =
   | { status: "error"; message: string }
   | { status: "ready"; news: CountryNews };
 
-// Aggregates the reader's starred countries into one feed. Favourites live in
-// localStorage (no login), so this fetches each followed country's summary
-// client-side and shows a condensed card for it.
 export default function MyFeed() {
-  const { favourites } = useFavourites();
+  const { favourites, pins, removePin } = useFavourites();
   const [entries, setEntries] = useState<Record<string, Entry>>({});
+  const [digest, setDigest] = useState<string | null>(null);
+  const [digestBusy, setDigestBusy] = useState(false);
 
   const codes = favourites.countries.map((c) => c.id).join(",");
 
   useEffect(() => {
+    // Populate feed from external API — canonical sync effect.
     let active = true;
     const ids = codes ? codes.split(",") : [];
     for (const id of ids) {
+      // eslint-disable-next-line
       setEntries((prev) => (prev[id] ? prev : { ...prev, [id]: { status: "loading" } }));
       fetch(`/api/country/${id}`)
         .then(async (res) => {
@@ -54,14 +55,38 @@ export default function MyFeed() {
 
   const hasCountries = favourites.countries.length > 0;
   const hasTopics = favourites.topics.length > 0;
+  const hasPins = pins.length > 0;
 
-  if (!hasCountries && !hasTopics) {
+  const generateDigest = async () => {
+    const places = [
+      ...favourites.countries.map((c) => c.label),
+      ...pins.map((p) => p.label),
+    ];
+    if (places.length === 0) return;
+    setDigestBusy(true);
+    setDigest(null);
+    try {
+      const res = await fetch("/api/digest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ places }),
+      });
+      const data = await res.json();
+      setDigest(typeof data.digest === "string" ? data.digest : "Could not generate digest.");
+    } catch {
+      setDigest("Network error — try again shortly.");
+    } finally {
+      setDigestBusy(false);
+    }
+  };
+
+  if (!hasCountries && !hasTopics && !hasPins) {
     return (
       <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
         <p className="font-medium text-foreground">Your feed is empty.</p>
         <p className="mt-2">
-          Star a country (from its news page) or a topic to follow it. Your favourites are
-          gathered here for a quick catch-up.{" "}
+          Star a country (from its news page), follow a topic, or drop a pin on the globe.
+          Your favourites and pins are gathered here for a quick catch-up.{" "}
           <Link href="/" className="text-accent hover:underline">
             Open the globe →
           </Link>
@@ -72,6 +97,56 @@ export default function MyFeed() {
 
   return (
     <div className="space-y-6">
+      {(hasCountries || hasPins) && (
+        <div className="rounded-xl border border-rule bg-panel p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Daily Digest</p>
+              <p className="text-xs text-muted">
+                AI summary of the places you follow and have pinned
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={generateDigest}
+              disabled={digestBusy}
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {digestBusy ? "Generating…" : "Generate"}
+            </button>
+          </div>
+          {digest && (
+            <div className="mt-3 whitespace-pre-wrap rounded-lg bg-panel-soft p-3 text-sm leading-relaxed text-muted">
+              {digest}
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasPins && (
+        <div>
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted">Your pins</p>
+          <div className="flex flex-wrap gap-2">
+            {pins.map((p) => (
+              <span
+                key={p.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-speak/40 bg-speak/10 px-3 py-1 text-sm text-speak"
+              >
+                📌 {p.label}
+                <button
+                  type="button"
+                  onClick={() => removePin(p.id)}
+                  className="text-speak/70 hover:text-danger"
+                  title="Remove pin"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {hasTopics && (
         <div>
           <p className="mb-2 text-xs uppercase tracking-wide text-muted">Followed topics</p>
@@ -111,7 +186,7 @@ export default function MyFeed() {
                   <p className="mt-3 text-sm text-muted">Loading latest…</p>
                 )}
                 {entry?.status === "error" && (
-                  <p className="mt-3 text-sm text-red-300">{entry.message}</p>
+                  <p className="mt-3 text-sm text-danger">{entry.message}</p>
                 )}
                 {entry?.status === "ready" && (
                   <div className="mt-3 space-y-3">
