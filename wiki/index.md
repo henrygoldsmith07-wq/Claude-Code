@@ -4,7 +4,7 @@ Table of contents for everything in `/raw`. Claude maps project metadata from
 this file instead of parsing raw files, keeping token usage low. Every entry
 links to its raw source; open the raw file only when the summary isn't enough.
 
-> **Monorepo structure & apps inventory**: see the root [README.md](../README.md).
+> **Monorepo structure & apps inventory**: machine-readable [`apps/registry.json`](../apps/registry.json) is the source of truth (validated by `scripts/validate-registry.mjs`); rendered summary in the root [README.md](../README.md).
 
 ## Core Training Document
 

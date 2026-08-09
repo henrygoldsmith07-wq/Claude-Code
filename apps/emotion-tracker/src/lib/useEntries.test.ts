@@ -34,6 +34,7 @@ describe("follow-up mutation shape", () => {
           alternativeInterpretations: ["alt"],
           intendedOutcome: "outcome",
           intendedAction: "action",
+          predictedOutcome: "If I ask, they'll clarify.",
           followUpAt: null,
           followUpNote: null,
         },

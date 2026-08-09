@@ -63,6 +63,15 @@ export default function EntryList({
             const isSelected = entry.id === selectedId;
             const isComplete = entry.status === "complete";
             const emotion = entry.summary?.coreEmotion;
+            const due = (() => {
+              const d = entry.summary?.trace.followUpAt;
+              if (!d || entry.longitudinalReview?.assumptionVerdict) return false;
+              const dd = new Date(d);
+              if (Number.isNaN(dd.getTime())) return false;
+              const t = new Date(); t.setHours(0,0,0,0); dd.setHours(0,0,0,0);
+              return dd.getTime() <= t.getTime();
+            })();
+            const verdict = entry.longitudinalReview?.assumptionVerdict ?? null;
 
             return (
               <li key={entry.id}>
@@ -83,7 +92,13 @@ export default function EntryList({
                           day: "numeric",
                         })}
                       </span>
-                      {isComplete && emotion ? (
+                      {verdict ? (
+                        <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${verdict === "unsupported" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" : verdict === "supported" ? "border-amber-500/30 bg-amber-500/10 text-amber-700" : "border-border bg-card text-muted"}`}>
+                          {verdict}
+                        </span>
+                      ) : due ? (
+                        <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">due: review</span>
+                      ) : isComplete && emotion ? (
                         <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
                           {emotion}
                         </span>

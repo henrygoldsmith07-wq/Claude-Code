@@ -355,9 +355,24 @@ export const wasteSummary = (waste = []) => ({
 /**
  * Things you buy again and again but haven't got in — read off your own
  * receipts, never a generic "people also buy" list.
+ * Pantry truth: probably_available and confirmed_sufficient count as have;
+ * running_low / unknown / confirmed_insufficient do not suppress the suggestion.
  */
 export const restockSuggestions = (shops = [], pantry = [], list = [], limit = 6) => {
-  const have = new Set([...pantry.map((p) => key(p.name)), ...list.map((i) => key(i.name))]);
+  const pantryCovered = new Set(
+    pantry
+      .filter((row) => {
+        const c = String(row.confidence || "definite").toLowerCase();
+        const a = String(row.amountConfidence || (row.qty ? "approximate" : "unknown")).toLowerCase();
+        if (c === "unknown") return false;
+        if (row.low) return false;
+        if (c === "probable") return true;
+        if (a === "unknown") return false;
+        return true;
+      })
+      .map((p) => key(p.name)),
+  );
+  const have = new Set([...pantryCovered, ...list.map((i) => key(i.name))]);
   const counts = new Map();
   for (const shop of shops) {
     for (const item of shop.items || []) {

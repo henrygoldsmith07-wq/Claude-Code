@@ -6,6 +6,7 @@ import {
 import { allEntries } from '../lib/vocab';
 import { getGrammarErrors } from '../lib/storage';
 import { getGrammarTopic } from '../lib/grammar';
+import { getWeaknessMemory, getWeaknessSummary } from '../lib/storage';
 import { levelFromXp } from '../lib/game';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
@@ -32,7 +33,7 @@ export default function Analytics({ open, onClose }) {
     const breakdown = skillBreakdown(metrics, sessions, grammar);
     return {
       breakdown,
-      recap: yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs }),
+      recap: yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs, weakness: getWeaknessSummary() }),
       totalSeconds: Object.values(timeLog).reduce((a, b) => a + b, 0),
       weekSeconds: periodReport(7, { xpLog, timeLog, metrics, sessions }).seconds,
       wordsLearned: wordsLearned(srs),
@@ -135,7 +136,9 @@ export default function Analytics({ open, onClose }) {
           </section>
 
           {/* period reports */}
+          <WeaknessMemory />
           <ErrorCategories />
+
 
           <section className="space-y-2.5">
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Reports</h3>
@@ -154,6 +157,42 @@ export default function Analytics({ open, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Persistent weakness memory: error → repair → deliberate retest → recurrence.
+function WeaknessMemory() {
+  const summary = getWeaknessSummary();
+  const items = getWeaknessMemory().slice(0, 6);
+  if (!items.length) return null;
+  const pct = summary.recurrenceRate == null ? '—' : `${Math.round(summary.recurrenceRate * 100)}%`;
+  return (
+    <section className="space-y-2.5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Weakness memory & retests</h3>
+      <div className="bg-surface border border-line rounded-2xl p-4 space-y-3">
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div><p className="text-base font-bold text-ink tabular-nums">{summary.byStatus.active}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Active</p></div>
+          <div><p className="text-base font-bold text-ink tabular-nums">{summary.byStatus.recovering}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Recovering</p></div>
+          <div><p className="text-base font-bold text-ink tabular-nums">{summary.byStatus.resolved}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Resolved</p></div>
+          <div><p className="text-base font-bold text-ink tabular-nums">{pct}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Recurrence</p></div>
+        </div>
+        <p className="text-[11px] text-ink3">{summary.retests} retests · {summary.recurrences} recurrences{summary.due ? ` · ${summary.due} due now` : ''} — lower recurrence means fixes are sticking.</p>
+        <div className="space-y-2">
+          {items.map((e) => {
+            const topic = getGrammarTopic(e.topicId);
+            const label = topic ? topic.title : e.topicId;
+            const badge = e.status === 'resolved' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : e.status === 'recovering' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-surface2 text-ink3 border-line';
+            return (
+              <div key={e.topicId} className="flex items-center gap-2">
+                <span className="flex-1 text-xs text-ink truncate" lang="fr">{label}</span>
+                <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full border ${badge}`}>{e.status}</span>
+                <span className="shrink-0 text-[11px] text-ink3 tabular-nums">{e.errorCount}×</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -185,6 +224,7 @@ function YearRecap({ r }) {
       <p className="text-xs opacity-80 leading-relaxed border-t border-bg/20 pt-3">
         {r.busiestMonth ? <>Your strongest month was <span className="font-semibold">{r.busiestMonth}</span>. </> : null}
         {r.topSkill ? <>Sharpest skill: <span className="font-semibold">{r.topSkill.label}</span> at {r.topSkill.score}%. </> : null}
+        {r.weakness && r.weakness.retests ? <> Weakness memory: <span className="font-semibold">{r.weakness.retests} retest{r.weakness.retests===1?'':'s'}</span>, recurrence <span className="font-semibold">{r.weakness.recurrenceRate==null?'—':Math.round(r.weakness.recurrenceRate*100)+'%'} </span>— lower is stickier. </> : null}
         {fmtDuration(r.seconds) !== '—' ? <>That's <span className="font-semibold">{fmtDuration(r.seconds)}</span> of practice — félicitations.</> : 'Keep the momentum going.'}
       </p>
     </section>

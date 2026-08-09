@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { cx, gbp, expiryStatus } from '../lib/utils.js';
-import { daysUntil, expiringSoon, pantryAnalytics, pantryUseLabel, pantryUncertaintyLabel, pantryValue } from '../lib/kitchen.js';
+import { daysUntil, expiringSoon, pantryAnalytics, pantryAvailability, pantryTruthLabel, pantryTruthTone, pantryUseLabel, pantryUncertaintyLabel, pantryValue } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
 import { Card, Chip, Empty, GestureMenu, Pill, Section } from './ui.jsx';
@@ -143,7 +143,10 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
     let list = app.pantry;
     if (location !== 'All') list = list.filter((p) => p.location === location);
     if (category !== 'All') list = list.filter((p) => p.cat === category);
-    if (status === 'low') list = list.filter((p) => p.low);
+    if (status === 'low') list = list.filter((p) => pantryAvailability(p) === 'running_low');
+    if (status === 'unknown') list = list.filter((p) => pantryAvailability(p) === 'unknown');
+    if (status === 'sufficient') list = list.filter((p) => pantryAvailability(p) === 'confirmed_sufficient');
+    if (status === 'probable') list = list.filter((p) => pantryAvailability(p) === 'probably_available');
     if (status === 'expiring') list = list.filter((p) => p.expiry && daysUntil(p.expiry, app.day) <= 7);
     if (status === 'dated') list = list.filter((p) => p.expiry);
     if (query.trim()) {
@@ -314,6 +317,9 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
             >
               <option value="all">All stock</option>
               <option value="low">Running low</option>
+              <option value="unknown">Unknown stock</option>
+              <option value="sufficient">Confirmed sufficient</option>
+              <option value="probable">Probably have</option>
               <option value="expiring">Expiring this week</option>
               <option value="dated">Has expiry date</option>
             </select>

@@ -11,7 +11,7 @@
 import { byId } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
-import { addDays, dayStamp, weekStart } from './kitchen.js';
+import { addDays, dayStamp, pantryAvailability, pantryTruthForNeed, weekStart } from './kitchen.js';
 
 export const SLOT_KEYS = MEAL_SLOTS.map((s) => s.key);
 
@@ -280,7 +280,10 @@ export const batchGroups = (plan = {}, dates = [], { people = 1 } = {}) =>
 
 /**
  * The list for a range: every dish you haven't already got in the fridge as
- * leftovers, minus the ingredients your pantry already holds.
+ * leftovers, minus ingredients your pantry already covers *with confidence*.
+ * Unknown / running_low / confirmed_insufficient rows are NOT considered
+ * sufficient — they still generate a shopping item so the list reflects
+ * what you truly need.
  */
 export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => {
   const coveredIds = coveredByLeftovers(plan, dates, pantry).map((e) => e.recipeId);
@@ -289,10 +292,63 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
   const seen = new Set();
   for (const entry of planEntries(plan, dates)) {
     const i = spend.indexOf(entry.recipeId);
-    if (i >= 0) { spend.splice(i, 1); continue; } // a leftover portion covers it
+    if (i >= 0) { spend.splice(i, 1); continue; }
     if (seen.has(entry.recipeId)) continue;
     seen.add(entry.recipeId);
     recipes.push(entry.recipe);
   }
-  return itemsFromRecipes(recipes, pantry.map((p) => p.name));
+  // pantry truth: only confirmed_sufficient + probably_available count as have
+  // running_low / unknown / confirmed_insufficient still need shopping
+  const sufficientNames = pantry
+    .filter((item) => {
+      const avail = pantryAvailability(item);
+      return avail === "confirmed_sufficient" || avail === "probably_available";
+    })
+    .map((p) => p.name);
+  // quantity-aware pass: if an ingredient needs e.g. "500 g" but pantry has "100 g", treat as insufficient
+  const byName = new Map();
+  for (const item of pantry) {
+    const k = String(item.name || "").toLowerCase().trim();
+    if (!k) continue;
+    if (!byName.has(k)) byName.set(k, []);
+    byName.get(k).push(item);
+  }
+  const filteredRecipes = recipes; // itemsFromRecipes handles name-level de-dupe; quantity refinement happens per-ingredient below
+  const raw = itemsFromRecipes(filteredRecipes, sufficientNames);
+  // Second pass: re-add ingredients where qty is known insufficient
+  const needByKey = new Map();
+  for (const r of filteredRecipes) for (const ing of r.ingredients) needByKey.set(String(ing.name).toLowerCase(), ing.qty || "");
+  const insufficientKeys = new Set();
+  for (const [key, needQty] of needByKey.entries()) {
+    const candidates = byName.get(key) || [];
+    if (!candidates.length) continue;
+    // if any candidate is sufficient for this need, keep it covered
+    const anySufficient = candidates.some((c) => pantryTruthForNeed(c, needQty) === "confirmed_sufficient" || pantryTruthForNeed(c, needQty) === "probably_available");
+    if (!anySufficient && sufficientNames.some((n) => String(n).toLowerCase() === key)) {
+      // was considered sufficient by name, but qty shows insufficient -> needs shopping
+      insufficientKeys.add(key);
+    }
+  }
+  if (!insufficientKeys.size) return raw;
+  const rawKeys = new Set(raw.map((i) => String(i.name).toLowerCase()));
+  for (const r of filteredRecipes) {
+    for (const ing of r.ingredients) {
+      const k = String(ing.name).toLowerCase();
+      if (!insufficientKeys.has(k)) continue;
+      if (rawKeys.has(k)) continue;
+      raw.push({
+        id: `x-${k.replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 6)}`,
+        name: ing.name,
+        emoji: r.emoji,
+        aisle: "From recipes",
+        qty: ing.qty,
+        price: 0,
+        checked: false,
+        fromRecipe: r.name,
+        pantryTruth: "confirmed_insufficient",
+      });
+      rawKeys.add(k);
+    }
+  }
+  return raw;
 };

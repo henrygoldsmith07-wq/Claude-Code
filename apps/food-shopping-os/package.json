@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "db:migrate": "node scripts/migrate.mjs",
     "db:check": "node scripts/check-database.mjs",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "verify": "npm run type-check && npm test && npm run build"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",
@@ -32,7 +33,8 @@
     "sharp": "0.35.3",
     "jsdom": {
       "undici": "7.29.0"
-    }
+    },
+    "nanoid": "3.3.18"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

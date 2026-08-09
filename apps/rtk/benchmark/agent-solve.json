@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-08-09T12:17:15.286Z",
+  "rows": [
+    {
+      "label": "Vitest — wrong discount math (assertion diff + stack)",
+      "parser": "vitest",
+      "rawChars": 57281,
+      "rtkChars": 491,
+      "rawTokens": 14320,
+      "rtkTokens": 123,
+      "tokensSaved": 14197,
+      "savingPct": 99,
+      "fixNeedles": [
+        "FAIL",
+        "AssertionError",
+        "Expected:",
+        "Received:",
+        "billing.ts:14",
+        "Duration"
+      ],
+      "rawHas": true,
+      "rtkHas": true,
+      "rawMissing": [],
+      "rtkMissing": [],
+      "fixable": true
+    },
+    {
+      "label": "tsc — 4 type errors (file:line + TS code)",
+      "parser": "tsc",
+      "rawChars": 522,
+      "rtkChars": 522,
+      "rawTokens": 131,
+      "rtkTokens": 131,
+      "tokensSaved": 0,
+      "savingPct": 0,
+      "fixNeedles": [
+        "error TS2322",
+        "Found 4 errors"
+      ],
+      "rawHas": true,
+      "rtkHas": true,
+      "rawMissing": [],
+      "rtkMissing": [],
+      "fixable": true
+    },
+    {
+      "label": "Next build — type error in page (Failed to compile + file ref)",
+      "parser": "next",
+      "rawChars": 236,
+      "rtkChars": 191,
+      "rawTokens": 59,
+      "rtkTokens": 48,
+      "tokensSaved": 11,
+      "savingPct": 19,
+      "fixNeedles": [
+        "Failed to compile",
+        "Type error",
+        "page.tsx:42"
+      ],
+      "rawHas": true,
+      "rtkHas": true,
+      "rawMissing": [],
+      "rtkMissing": [],
+      "fixable": true
+    },
+    {
+      "label": "Generic tool failure (Error + totals)",
+      "parser": "generic",
+      "rawChars": 85,
+      "rtkChars": 65,
+      "rawTokens": 21,
+      "rtkTokens": 16,
+      "tokensSaved": 5,
+      "savingPct": 24,
+      "fixNeedles": [
+        "Error:",
+        "1 failed"
+      ],
+      "rawHas": true,
+      "rtkHas": true,
+      "rawMissing": [],
+      "rtkMissing": [],
+      "fixable": true
+    },
+    {
+      "label": "tsc — single TS error with context line (true TS shape)",
+      "parser": "tsc",
+      "rawChars": 146,
+      "rtkChars": 146,
+      "rawTokens": 37,
+      "rtkTokens": 37,
+      "tokensSaved": 0,
+      "savingPct": 0,
+      "fixNeedles": [
+        "error TS2322",
+        "Foo.tsx:10:5",
+        "Found 1 error"
+      ],
+      "rawHas": true,
+      "rtkHas": true,
+      "rawMissing": [],
+      "rtkMissing": [],
+      "fixable": true
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 // Pure validators shared by the API route and the UI — and exercised directly by regression tests.
 // They enforce the structured pipeline and the hedged-language contract.
 
-import type { BiasFlag, ReflectionSummary, StructuredTrace } from "./types";
+import type { BiasFlag, LongitudinalReview, ReflectionSummary, StructuredTrace } from "./types";
 
 const FORBIDDEN_CERTAINTY_RE = /\b(you have|you are suffering from|diagnosis|you suffer from)\b/i;
 const MIN_CONFIDENCE_THRESHOLD = 0.45;
@@ -48,6 +48,7 @@ export function validateTrace(t: StructuredTrace): string[] {
   if (!t.namedEmotion || !t.namedEmotion.trim()) errors.push("trace.namedEmotion is required");
   if (!t.intendedOutcome || !t.intendedOutcome.trim()) errors.push("trace.intendedOutcome is required");
   if (!t.intendedAction || !t.intendedAction.trim()) errors.push("trace.intendedAction is required");
+  if (!t.predictedOutcome || !String(t.predictedOutcome).trim()) errors.push("trace.predictedOutcome is required (what did I think would happen?)");
   // Check false certainty in observation vs assumption leakage — observations shouldn't contain mind-reading
   const obsText = t.observations.join(" ");
   if (/\b(they think|they believe|they want to make me)\b/i.test(obsText)) {
@@ -76,4 +77,23 @@ export function validateSummary(s: ReflectionSummary): string[] {
   return errors;
 }
 
-export const VALIDATION = { MIN_CONFIDENCE_THRESHOLD } as const;
+const VALID_VERDICTS: LongitudinalReview["assumptionVerdict"][] = ["supported", "unsupported", "partial", "unclear"];
+
+export function validateLongitudinalReview(r: LongitudinalReview | null | undefined): string[] {
+  if (!r) return [];
+  const hasAny = Boolean(r.actualActionTaken || r.actualOutcome || r.assumptionVerdict || r.calibrationNote);
+  if (!hasAny) return [];
+  const errors: string[] = [];
+  if (r.assumptionVerdict !== null && !VALID_VERDICTS.includes(r.assumptionVerdict)) {
+    errors.push("assumptionVerdict must be supported|unsupported|partial|unclear");
+  }
+  // If a review is started, actualOutcome is the core field
+  if (r.assumptionVerdict !== null && (!r.actualOutcome || !r.actualOutcome.trim())) {
+    errors.push("actualOutcome is required when recording a verdict");
+  }
+  if (r.actualOutcome && r.actualOutcome.trim().length > 2000) errors.push("actualOutcome too long");
+  if (r.calibrationNote && r.calibrationNote.trim().length > 2000) errors.push("calibrationNote too long");
+  return errors;
+}
+
+export const VALIDATION = { MIN_CONFIDENCE_THRESHOLD, VALID_VERDICTS } as const;

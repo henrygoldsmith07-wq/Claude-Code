@@ -60,6 +60,83 @@ export const amountConfidence = (item) => {
   const v = String(item?.amountConfidence || (item?.qty ? "approximate" : "unknown")).toLowerCase();
   return AMOUNT_CONFIDENCE.includes(v) ? v : "approximate";
 };
+export const PANTRY_AVAILABILITY = ["confirmed_sufficient", "confirmed_insufficient", "probably_available", "running_low", "unknown"];
+
+/**
+ * Quantity/confidence-aware pantry truth — the 5-state model the app promises.
+ *  - confirmed_sufficient: definitely have, not low, amount sufficient for any need passed in
+ *  - confirmed_insufficient: definitely have but amount is known to be insufficient for the need
+ *  - probably_available: probably have (confidence=probable) — counted, but flagged
+ *  - running_low: have, but marked low — still counts as have, but surfaces as "add to list"
+ *  - unknown: confidence=unknown or amount unknown with no usable qty — not counted in coverage
+ *
+ * The need-aware variant compares parsed have qty vs need qty when both are countable.
+ */
+export const pantryAvailability = (item) => {
+  const c = pantryConfidence(item);
+  const a = amountConfidence(item);
+  if (c === "unknown") return "unknown";
+  if (item?.low) return "running_low";
+  if (c === "probable") return "probably_available";
+  if (a === "unknown") return "unknown";
+  return "confirmed_sufficient";
+};
+
+const _parseAvailQty = (value) => {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return null;
+  const m = text.match(/^(\d+(?:\.\d+)?)\s*(kg|g|ml|l|tin|tins|can|cans|pack|packs|bag|bags|box|boxes|bottle|bottles|jar|jars|portion|portions|egg|eggs|unit|units)?$/);
+  if (!m) return null;
+  const amount = Number(m[1]);
+  if (!Number.isFinite(amount)) return null;
+  let unit = (m[2] || "").toLowerCase();
+  if (unit === "tins") unit = "tin";
+  if (unit === "cans") unit = "can";
+  if (unit === "packs") unit = "pack";
+  if (unit === "bags") unit = "bag";
+  if (unit === "boxes") unit = "box";
+  if (unit === "bottles") unit = "bottle";
+  if (unit === "jars") unit = "jar";
+  if (unit === "portions") unit = "portion";
+  if (unit === "eggs") unit = "egg";
+  if (unit === "units") unit = "unit";
+  return { amount, unit };
+};
+
+export const pantryTruthForNeed = (item, needQty) => {
+  const base = pantryAvailability(item);
+  if (base !== "confirmed_sufficient") return base;
+  if (!needQty) return base;
+  const have = _parseAvailQty(item?.qty);
+  const need = _parseAvailQty(needQty);
+  if (!have || !need) return base;
+  // Only compare when units match (or both empty/countable). Different mass/volume units are not comparable here.
+  if (have.unit !== need.unit) return base;
+  if (have.amount < need.amount) return "confirmed_insufficient";
+  return "confirmed_sufficient";
+};
+
+export const isPantrySufficient = (item, needQty) => {
+  const truth = needQty ? pantryTruthForNeed(item, needQty) : pantryAvailability(item);
+  return truth === "confirmed_sufficient" || truth === "probably_available";
+};
+
+export const pantryTruthLabel = (truth) => ({
+  confirmed_sufficient: "Confirmed sufficient",
+  confirmed_insufficient: "Not enough — add to list",
+  probably_available: "Probably have",
+  running_low: "Running low",
+  unknown: "Unknown — check before you shop",
+}[truth] || truth);
+
+export const pantryTruthTone = (truth) => ({
+  confirmed_sufficient: "good",
+  confirmed_insufficient: "warn",
+  probably_available: "muted",
+  running_low: "warn",
+  unknown: "faint",
+}[truth] || "muted");
+
 export const pantryUncertaintyLabel = (item) => {
   const c = pantryConfidence(item);
   const a = amountConfidence(item);

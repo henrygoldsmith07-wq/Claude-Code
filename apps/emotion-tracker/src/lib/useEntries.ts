@@ -1,4 +1,4 @@
-import type { Entry, Message, ReflectionSummary } from "./types";
+import type { Entry, LongitudinalReview, Message, ReflectionSummary } from "./types";
 
 type SetEntries = (value: Entry[] | ((current: Entry[]) => Entry[])) => void;
 
@@ -48,9 +48,34 @@ export function useEntries(entries: Entry[], setEntries: SetEntries) {
     );
   }
 
+  function updateLongitudinalReview(id: string, patch: Partial<LongitudinalReview>) {
+    setEntries((current) =>
+      current.map((e) => {
+        if (e.id !== id) return e;
+        const prev: LongitudinalReview = e.longitudinalReview ?? {
+          actualActionTaken: null,
+          actualOutcome: null,
+          assumptionVerdict: null,
+          calibrationNote: null,
+          reviewedAt: null,
+        };
+        const next: LongitudinalReview = {
+          ...prev,
+          ...patch,
+          reviewedAt: patch.reviewedAt ?? new Date().toISOString(),
+        };
+        return { ...e, longitudinalReview: next };
+      }),
+    );
+  }
+
+  function clearLongitudinalReview(id: string) {
+    setEntries((current) => current.map((e) => (e.id === id ? { ...e, longitudinalReview: null } : e)));
+  }
+
   function deleteEntry(id: string) {
     setEntries((current) => current.filter((e) => e.id !== id));
   }
 
-  return { startEntry, appendMessage, completeEntry, updateFollowUp, deleteEntry };
+  return { startEntry, appendMessage, completeEntry, updateFollowUp, updateLongitudinalReview, clearLongitudinalReview, deleteEntry };
 }

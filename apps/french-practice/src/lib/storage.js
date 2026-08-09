@@ -36,6 +36,7 @@ const KEYS = {
   syncId: 'fp.syncId', // stable local account id — travels with a sync snapshot
   lastBackup: 'fp.lastBackup', // ISO time of the last export/sync-code created
   starred: 'fp.starredLines', // [{ id, fr, en, source, addedAt }] — favourited survival phrases
+  weaknessMemory: 'fp.weaknessMemory', // persistent weakness memory: error → repair → retest → recurrence
 };
 
 export { KEYS };
@@ -207,6 +208,109 @@ export function recordGrammarError(topicId) {
   write(KEYS.grammarErrors, all);
 }
 
+// ---- persistent learner weakness memory (moat) ----
+// error occurs → repair → later scenario deliberately tests it → recurrence
+// Each entry tracks a grammar topic that has actually been mis-used in the Arena.
+// Tiny, bounded, and fully local — carries inside the fp.* snapshot export.
+const WEAKNESS_CAP = 30;
+const RETEST_LADDER_DAYS = [1, 3, 7, 14]; // spaced retests after a repair
+function clampTopicId(id) { return String(id || '').slice(0, 64); }
+export const getWeaknessMemory = () => {
+  const raw = read(KEYS.weaknessMemory, []);
+  return Array.isArray(raw) ? raw : [];
+};
+function writeWeakness(list) { write(KEYS.weaknessMemory, list.slice(0, WEAKNESS_CAP)); }
+function nextRetestDelay(repairCount) {
+  const i = Math.min(Math.max(0, (repairCount || 0) - 1), RETEST_LADDER_DAYS.length - 1);
+  return RETEST_LADDER_DAYS[i] * 86400000;
+}
+export function recordWeaknessError(topicId, { scenarioId = null } = {}) {
+  const id = clampTopicId(topicId);
+  if (!id) return null;
+  const now = new Date().toISOString();
+  const list = getWeaknessMemory();
+  let e = list.find((x) => x.topicId === id);
+  if (!e) {
+    e = { topicId: id, firstSeen: now, lastErrorAt: now, errorCount: 1, lastRepairAt: null, repairCount: 0, retestDueAt: null, retests: [], status: 'active', lastScenarioId: scenarioId };
+    list.unshift(e);
+  } else {
+    e.lastErrorAt = now;
+    e.errorCount = (e.errorCount || 0) + 1;
+    e.status = 'active';
+    // Recurrence: a new error after a previous repair/retest is the signal we measure
+    if (e.retests && e.retests.length) {
+      const last = e.retests[e.retests.length - 1];
+      if (last && last.passed) e.recurrenceCount = (e.recurrenceCount || 0) + 1;
+    }
+    if (scenarioId) e.lastScenarioId = scenarioId;
+    e.retestDueAt = null; // new slip cancels any scheduled retest until repaired again
+  }
+  writeWeakness(list);
+  return e;
+}
+export function recordWeaknessRepair(topicId, { scenarioId = null, passed = true } = {}) {
+  const id = clampTopicId(topicId);
+  if (!id) return null;
+  const now = new Date().toISOString();
+  const list = getWeaknessMemory();
+  let e = list.find((x) => x.topicId === id);
+  if (!e) {
+    e = { topicId: id, firstSeen: now, lastErrorAt: now, errorCount: 0, lastRepairAt: now, repairCount: 1, retestDueAt: new Date(Date.now() + nextRetestDelay(1)).toISOString(), retests: [{ at: now, scenarioId, passed }], status: passed ? 'recovering' : 'active' };
+    list.unshift(e);
+  } else {
+    e.lastRepairAt = now;
+    e.repairCount = (e.repairCount || 0) + 1;
+    e.retestDueAt = new Date(Date.now() + nextRetestDelay(e.repairCount)).toISOString();
+    e.retests = [...(e.retests || []), { at: now, scenarioId, passed }].slice(-12);
+    // Two consecutive passed retests after repair → resolved
+    const tail = e.retests.slice(-2);
+    e.status = tail.length === 2 && tail.every((r) => r.passed) ? 'resolved' : (passed ? 'recovering' : 'active');
+  }
+  writeWeakness(list);
+  return e;
+}
+export function recordWeaknessRetestResult(topicId, passed, { scenarioId = null } = {}) {
+  const id = clampTopicId(topicId);
+  if (!id) return null;
+  const now = new Date().toISOString();
+  const list = getWeaknessMemory();
+  const e = list.find((x) => x.topicId === id);
+  if (!e) return null;
+  e.retests = [...(e.retests || []), { at: now, scenarioId, passed }].slice(-12);
+  if (passed) {
+    e.repairCount = (e.repairCount || 0) + 1;
+    e.lastRepairAt = now;
+    e.retestDueAt = new Date(Date.now() + nextRetestDelay(e.repairCount)).toISOString();
+    const tail = e.retests.slice(-2);
+    e.status = tail.length === 2 && tail.every((r) => r.passed) ? 'resolved' : 'recovering';
+  } else {
+    e.lastErrorAt = now;
+    e.errorCount = (e.errorCount || 0) + 1;
+    e.recurrenceCount = (e.recurrenceCount || 0) + 1;
+    e.status = 'active';
+    e.retestDueAt = null;
+  }
+  writeWeakness(list);
+  return e;
+}
+export function getDueWeaknesses(nowMs = Date.now()) {
+  return getWeaknessMemory()
+    .filter((e) => e && e.status !== 'resolved' && e.retestDueAt && new Date(e.retestDueAt).getTime() <= nowMs)
+    .sort((a, b) => new Date(a.retestDueAt) - new Date(b.retestDueAt));
+}
+export function getWeaknessSummary() {
+  const list = getWeaknessMemory();
+  const byStatus = { active: 0, recovering: 0, resolved: 0 };
+  let retests = 0, recurrences = 0;
+  for (const e of list) {
+    if (e.status in byStatus) byStatus[e.status] += 1;
+    retests += (e.retests || []).length;
+    recurrences += e.recurrenceCount || 0;
+  }
+  const recurrenceRate = retests ? Math.round((recurrences / retests) * 100) / 100 : null;
+  return { total: list.length, byStatus, retests, recurrences, recurrenceRate, due: getDueWeaknesses().length };
+}
+
 // ---- recurring mistake bank ----
 // Stubborn habits from each report accumulate across sessions so patterns
 // ("you've hit this 4 times") become visible instead of being overwritten.
@@ -225,11 +329,15 @@ export function getLearnerBrief() {
   const weakGrammar = Object.entries(getGrammarErrors())
     .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([topic]) => topic);
   const prefs = getPrefs();
+  // Retest intent: nudge the tutor toward the next due weakness (if any)
+  const due = getDueWeaknesses()[0] || null;
+  const memory = due ? { focusTopic: due.topicId, status: due.status, errorCount: due.errorCount } : null;
   return {
     name: String(getSettings().name || '').slice(0, 40),
     topics: (prefs.favouriteTopics || []).slice(0, 4),
     mistakes,
     weakGrammar,
+    memory,
   };
 }
 

@@ -20,7 +20,7 @@ export interface BiasFlag {
 }
 
 // Structured reflection pipeline:
-// event → observations → assumptions → emotion → alternative interpretations → intended outcome → action → follow-up
+// event → observations → assumptions → emotion → alternative interpretations → intended outcome → action → predicted outcome → follow-up
 export interface StructuredTrace {
   event: string;
   // Observable facts only, no mind-reading ("they said X", not "they think Y")
@@ -34,10 +34,27 @@ export interface StructuredTrace {
   intendedOutcome: string;
   // Chosen next step the user intends to take
   intendedAction: string;
+  // What did I think would happen if I take that action? (prediction to calibrate later)
+  predictedOutcome: string;
   // When to check back in (ISO date or free-text like "tomorrow")
   followUpAt: string | null;
-  // Free-text outcome recorded later
+  // Free-text outcome recorded later (legacy — prefer Entry.longitudinalReview)
   followUpNote: string | null;
+}
+
+export type AssumptionVerdict = "supported" | "unsupported" | "partial" | "unclear";
+
+export interface LongitudinalReview {
+  // What action did I actually take? (may differ from intendedAction)
+  actualActionTaken: string | null;
+  // What actually happened?
+  actualOutcome: string | null;
+  // Was my original assumption supported?
+  assumptionVerdict: AssumptionVerdict | null;
+  // Brief calibration note: what did I learn?
+  calibrationNote: string | null;
+  // When the review was completed (ISO)
+  reviewedAt: string | null;
 }
 
 export interface ReflectionSummary {
@@ -62,6 +79,8 @@ export interface Entry {
   messages: Message[];
   summary: ReflectionSummary | null;
   status: "in_progress" | "complete";
+  // Full longitudinal loop — filled after followUpAt, separate from the original trace
+  longitudinalReview?: LongitudinalReview | null;
 }
 
 export interface ToastState {

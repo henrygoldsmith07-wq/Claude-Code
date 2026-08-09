@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Entry, Message, ReflectionSummary } from "@/lib/types";
+import type { Entry, LongitudinalReview, Message, ReflectionSummary } from "@/lib/types";
 import SummaryView from "./SummaryView";
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
   onAppendMessage: (id: string, message: Message) => void;
   onCompleteEntry: (id: string, summary: ReflectionSummary) => void;
   onUpdateFollowUp?: (id: string, at: string | null, note: string | null) => void;
+  onSaveReview?: (id: string, patch: Partial<LongitudinalReview>) => void;
+  onClearReview?: (id: string) => void;
   onError: (message: string) => void;
 }
 
@@ -19,6 +21,8 @@ export default function ReflectionSession({
   onAppendMessage,
   onCompleteEntry,
   onUpdateFollowUp,
+  onSaveReview,
+  onClearReview,
   onError,
 }: Props) {
   const [answer, setAnswer] = useState("");
@@ -113,11 +117,14 @@ export default function ReflectionSession({
             <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm animate-fade-in">
               <SummaryView
                 summary={entry.summary}
+                longitudinalReview={entry.longitudinalReview ?? null}
                 onFollowUp={
                   onUpdateFollowUp
                     ? (at, note) => onUpdateFollowUp(entry.id, at, note)
                     : undefined
                 }
+                onSaveReview={onSaveReview ? (patch) => onSaveReview(entry.id, patch) : undefined}
+                onClearReview={onClearReview ? () => onClearReview(entry.id) : undefined}
               />
             </div>
           )}

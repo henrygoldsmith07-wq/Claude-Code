@@ -1,7 +1,7 @@
 # RTK benchmark — evidence
 
-Generated: 2026-08-07T20:16:01.890Z
-Commit: 4530ad3
+Generated: 2026-08-09T12:17:15.204Z
+Commit: 13df9bb
 
 | Command | Parser | Raw chars | Emitted chars | Reduction | Raw lines | Emitted lines | Critical retained |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

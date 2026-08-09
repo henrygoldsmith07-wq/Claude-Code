@@ -17,7 +17,12 @@ A game-like, offline-first training companion. Not a nutrition app.
 9. **Mobile tested (guide)** — see below. Touch targets ≥44px, safe-area insets, standalone display.
 10. **Accessibility** — landmarks (`header`/`main`/`nav` with `aria-label`), skip link, `aria-current="page"`, `aria-live="polite"` on result counts, `role="status"` on import messages, labelled inputs, visible `:focus-visible` ring from `le-studio.css`, `Esc` + overlay-click to dismiss dialogs, `prefers-reduced-motion` respected, OS theme respected.
 11. **No nutrition system** — intentionally out of scope. Adding one recreates Forq and distracts from the training/level-up proposition.
-12. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+12. **SessionRunner extras ported from Life OS:** auto rest timer (tap Rest to start a countdown per `restSec`, with vibrate on finish), **previous session comparison** (“Last: 20kg×8 on 2026-02-01” per exercise via `store.lastExerciseSets`), and a **post-workout summary** in Progress (last session volume/sets/exercises + note). Life OS's eval-based Web Worker was **not** ported — intentionally replaced with safe helpers.
+13. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+
+## Consolidation
+
+Arise is the canonical training app. `vendor/life-os-scrape` is an **archived, read-only mirror** of the old standalone Life OS production build (scraped 2026-07-03) and is no longer developed. Its strongest fitness practices have been ported into Arise — see `vendor/life-os-scrape/README.md` for the porting log — and its one known engineering issue (`eval()` in the analytics Web Worker) is documented there and **not** carried forward (Arise uses safe in-thread helpers).
 
 ## Run
 
@@ -26,9 +31,10 @@ cd apps/arise
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # → dist/
-npm test           # node:test (data / attributes / export)
 npm run lint:content
-npm run check      # lint:content && test
+npm run type-check # tsc --noEmit (jsconfig.json, src + scripts)
+npm test           # node:test (data / attributes / export / store)
+npm run verify     # lint:content && type-check && test && build  (also in CI)
 ```
 
 No env vars. Data is local — clear via **More → Clear local data** (or export first).
@@ -64,10 +70,11 @@ This app shares the Le Studio monochrome design system and has no franchise, her
 ```
 src/lib/data.js        single source of truth + schedule helpers
 src/lib/attributes.js  history-derived attributes + level
-src/lib/store.js       localStorage + streak/volume helpers
+src/lib/store.js       localStorage + streak/volume + lastExerciseSets / prsHitBySession
 src/lib/export.js      versioned backup
 src/lib/schedule.js    today/next/progress + startProgram
-src/components/*       Today / Train+SessionRunner / Exercises / Progress / More + Onboarding + AppShell
+src/components/*       Today / Train+SessionRunner(rest timer+previous session) / Exercises / Progress(summary) / More + Onboarding + AppShell
 public/                manifest.webmanifest + sw.js + icons
 scripts/lint-content.mjs  validates exercises/programs
+tsconfig.json + jsconfig.json  real type-check (noEmit)
 ```

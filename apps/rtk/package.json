@@ -34,12 +34,17 @@
     "benchmark": "node benchmark/run.js",
     "benchmark:write": "node benchmark/run.js --write",
     "prepublishOnly": "npm test && node benchmark/run.js",
-    "type-check": "npm test"
+    "type-check": "tsc --noEmit",
+    "verify": "npm run type-check && npm test && node benchmark/run.js"
   },
   "engines": {
     "node": ">=18"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
   }
 }

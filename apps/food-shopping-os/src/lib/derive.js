@@ -11,7 +11,7 @@ import { CATALOGUE } from '../data/foods.js';
 import { GLASS_ML } from '../data/nutrients.js';
 import { dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import {
-  groceryInflation, kitchenStats, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom,
+  groceryInflation, kitchenStats, pantryAvailability, pantryTruthLabel, pantryTruthTone, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom,
 } from './kitchen.js';
 import {
   defaultWeeklyKcal, goalSummary, resolveMaintenance, targetSafety, weekProgress,
@@ -39,6 +39,8 @@ import {
   cleanModes, hiddenModules, moduleOn, modesSummary, visibleTabs, visibleWidgets,
 } from './modes.js';
 import { DEFAULT_WIDGETS } from '../data/preferences.js';
+import { resolveProductMode, tabsForMode } from '../data/productModes.js';
+import { isToolEnabled } from '../data/optionalTools.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
@@ -146,6 +148,12 @@ export const deriveApp = (state) => {
     cookedToday: cookedDays.includes(state.day),
     cookedIds: state.cooked.map((c) => c.recipeId),
     pantryValue: pantryValue(state.pantry),
+    pantryTruth: (() => {
+      const counts = { confirmed_sufficient: 0, probably_available: 0, running_low: 0, unknown: 0, confirmed_insufficient: 0 };
+      for (const item of state.pantry || []) counts[pantryAvailability(item)] = (counts[pantryAvailability(item)] || 0) + 1;
+      const byItem = (state.pantry || []).map((item) => ({ item, truth: pantryAvailability(item), label: pantryTruthLabel(pantryAvailability(item)), tone: pantryTruthTone(pantryAvailability(item)) }));
+      return { counts, byItem, unknown: counts.unknown, low: counts.running_low, sufficient: counts.confirmed_sufficient + counts.probably_available };
+    })(),
     spentThisWeek: spentInWeek(state.shops, state.day),
     spentThisMonth: spentInMonth(state.shops, state.day),
     inflation: groceryInflation(state.shops),
@@ -203,6 +211,16 @@ export const deriveApp = (state) => {
     visibleTabs: (tabs) => visibleTabs(state.modes, tabs),
     hiddenModules: hiddenModules(state),
     homeWidgets: visibleWidgets(state.widgets || DEFAULT_WIDGETS, state.modes),
+    // ---- productMode compat (from feat/forq-product-modes) ----
+    // Tests and newer code address a single productMode string + enabledTools.
+    // Keep both models live: derive reads the string if present, and exposes
+    // navTabs/homeWidgets aliases plus hasTool so both old and new tests pass.
+    productMode: state.productMode ?? (state.modes && state.modes[0]) ?? 'meal_planning',
+    get productModeDef() { return resolveProductMode(this.productMode); },
+    navTabs: tabsForMode(state.productMode ?? (state.modes && state.modes[0]) ?? 'meal_planning'),
+    enabledTools: state.enabledTools ?? [],
+    advancedToolsVisible: state.advancedToolsVisible ?? resolveProductMode(state.productMode ?? 'meal_planning').advancedToolsVisible ?? [],
+    hasTool: function(id){ return isToolEnabled(state.enabledTools, id); },
     /* advanced surfaces, each derived from what you logged like everything else */
     footprint,
     footprintSwaps: swapIdeas(footprint),

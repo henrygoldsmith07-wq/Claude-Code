@@ -28,7 +28,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run type-check
       - run: npm test
       - run: node benchmark/run.js
+      - run: node benchmark/retention.js
+      - run: node benchmark/agent-solve.js
       - run: npm pack --dry-run
       - run: ls -lh *.tgz 2>/dev/null | head -n 5 || echo "no tarball (dry-run)"

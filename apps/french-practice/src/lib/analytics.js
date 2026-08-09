@@ -168,7 +168,7 @@ function longestRun(log) {
 // from the logs the app already keeps. Pure. `metrics` dates the skill work;
 // `srs` supplies the learned-word count (all-time, since SRS has no per-year
 // history). Returns null when the year has no recorded activity.
-export function yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs }, year = new Date().getFullYear()) {
+export function yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs, weakness }, year = new Date().getFullYear()) {
   const inYear = (stamp) => String(stamp).slice(0, 4) === String(year);
   const xpDays = Object.entries(xpLog).filter(([d]) => inYear(d));
   const totalXp = xpDays.reduce((a, [, v]) => a + v, 0);
@@ -210,6 +210,7 @@ export function yearRecap({ xpLog, timeLog, sessions, metrics, reviewLog, srs },
     reviews: yearReviews,
     busiestMonth,
     topSkill,
+    weakness: typeof weakness !== 'undefined' ? weakness : null,
   };
 }
 

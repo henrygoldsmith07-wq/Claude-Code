@@ -11,6 +11,7 @@ import {
   timeBudgetBy, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
 import { MODE_IDS } from '../data/modes.js';
+import { OPTIONAL_TOOL_IDS } from '../data/optionalTools.js';
 import { cleanModes } from './modes.js';
 import { youthConsentRecord } from './youth.js';
 import { moveBefore } from './utils.js';
@@ -84,6 +85,15 @@ export const preferenceActions = (set) => ({
   toggleMode: (id) => set((s) => ({ modes: cleanModes(toggleIn(s.modes || [], id, (x) => MODE_IDS.includes(x))) })),
   setModes: (list) => set({ modes: cleanModes(list) }),
   clearModes: () => set({ modes: [] }),
+  toggleOptionalTool: (id) => set((s) => {
+    if (!OPTIONAL_TOOL_IDS.includes(id)) return {};
+    const next = (s.enabledTools || []).includes(id) ? (s.enabledTools || []).filter((x) => x !== id) : [...(s.enabledTools || []), id];
+    const patch = { enabledTools: next };
+    if (id === 'cycle' && !next.includes('cycle')) patch.trackCycle = false;
+    if (id === 'cycle' && next.includes('cycle')) patch.trackCycle = true;
+    return patch;
+  }),
+  resetOptionalTools: () => set({ enabledTools: [] }),
 });
 
 /* ---------- Advanced: things measured or imported elsewhere ---------- */

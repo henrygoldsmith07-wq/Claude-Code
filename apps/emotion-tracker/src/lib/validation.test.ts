@@ -22,6 +22,7 @@ function validTrace(overrides: Partial<StructuredTrace> = {}): StructuredTrace {
     alternativeInterpretations: ["Manager wanted quicker handovers for the release, not a judgment on ability"],
     intendedOutcome: "Feel competent and trusted in handovers",
     intendedAction: "Ask manager for one concrete example of good handover",
+    predictedOutcome: "If I ask, they'll give one example and I'll feel clearer.",
     followUpAt: "2026-01-20",
     followUpNote: null,
     ...overrides,
@@ -128,5 +129,21 @@ describe("validateSummary", () => {
       possibleBiases: [hedgedBias({ description: "You have catastrophizing bias." })],
     });
     expect(validateSummary(s).length).toBeGreaterThan(1);
+  });
+});
+
+describe("validateLongitudinalReview", () => {
+  it("passes null/empty", async () => {
+    const { validateLongitudinalReview } = await import("./validation");
+    expect(validateLongitudinalReview(null)).toEqual([]);
+    expect(validateLongitudinalReview({ actualActionTaken: null, actualOutcome: null, assumptionVerdict: null, calibrationNote: null, reviewedAt: null })).toEqual([]);
+  });
+  it("requires actualOutcome when verdict set", async () => {
+    const { validateLongitudinalReview } = await import("./validation");
+    expect(validateLongitudinalReview({ actualActionTaken: "asked", actualOutcome: null, assumptionVerdict: "unsupported", calibrationNote: null, reviewedAt: null }).join(" ")).toMatch(/actualOutcome/i);
+  });
+  it("passes full review", async () => {
+    const { validateLongitudinalReview } = await import("./validation");
+    expect(validateLongitudinalReview({ actualActionTaken: "asked", actualOutcome: "they clarified", assumptionVerdict: "unsupported", calibrationNote: "mind-reading was wrong", reviewedAt: new Date().toISOString() })).toEqual([]);
   });
 });

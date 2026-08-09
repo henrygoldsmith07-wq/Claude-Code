@@ -102,6 +102,15 @@ export function ArgGraphInline({ graph, playerAName, playerBName }: { graph: Arg
                   <span className="flex-1">{n.text}</span>
                   <span className="shrink-0 text-xs text-ink3">{nameFor(n.owner)}</span>
                   {n.evidenceStrength ? <span className="shrink-0 text-xs tabular text-ink3">[{n.evidenceStrength}]</span> : null}
+                  {n.kind === "evidence" && n.citations?.length ? (
+                    <span className="shrink-0 text-xs tabular text-ink3" title={n.citations.map((c) => `${c.sourceName}${c.homepage ? ` — ${c.homepage}` : ""}${c.excerpt ? `: ${c.excerpt}` : ""}`).join(" | ")}>
+                      ↳ {n.citations.map((c) => c.sourceName).join(", ")}
+                    </span>
+                  ) : n.kind === "evidence" && n.evidenceStrength && !["anecdotal", "general"].includes(n.evidenceStrength) ? (
+                    <span className="shrink-0 text-xs text-amber-600" title="Cited/strong evidence should carry a citation — the judge omitted one.">
+                      ⚠ no citation
+                    </span>
+                  ) : null}
                   {n.fallacy && n.fallacy !== "none" ? <span className="shrink-0 text-xs text-[var(--bad)]">{n.fallacy}</span> : null}
                   {n.targets?.length ? <span className="shrink-0 text-xs tabular text-ink3">→ {n.targets.join(", ")}</span> : null}
                 </div>
@@ -144,6 +153,13 @@ export function TrackingGrid({ graph }: { graph: ArgGraph }) {
           `strong ${graph.evidenceStats.byStrength.strong}`,
         ]}
         empty="No evidence tagged."
+      />
+      <TrackCard
+        title="Source grounding"
+        items={graph.nodes
+          .filter((n) => n.kind === "evidence")
+          .map((n) => `${n.id} [${n.evidenceStrength ?? "—"}] ${n.text} — ${(n.citations?.length ?? 0) > 0 ? n.citations!.map((c) => `${c.sourceName}${c.homepage ? ` (${c.homepage})` : ""}`).join(", ") : "⚠ uncited"}`)}
+        empty="No evidence to ground."
       />
       <TrackCard
         title="Logical fallacies"

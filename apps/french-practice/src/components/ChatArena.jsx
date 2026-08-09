@@ -7,12 +7,13 @@ import { transcribe, evaluateTurn, evaluateRedoTurn, getHint, explainMistake, fr
 import { scoreDelta, redoVerdict } from '../lib/redo';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
-import { getSrs, recordGrammarError } from '../lib/storage';
+import { getSrs, recordGrammarError, recordWeaknessError, recordWeaknessRepair, getDueWeaknesses, getLearnerBrief } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
-import { ArrowRight, Book, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
+import { ArrowRight, Book, Lightbulb, Mic, Square, scenarioIcon } from './icons';
 import { getGrammarTopic } from '../lib/grammar';
+import ScenarioPicker from './ScenarioPicker';
 
 const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
 
@@ -36,6 +37,8 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   // Active redo: idx of the turn being retried. While set, the correction
   // for that turn is hidden so the learner must recall it.
   const [redoIdx, setRedoIdx] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [weaknessDue, setWeaknessDue] = useState(() => getDueWeaknesses()[0] || null);
   const scrollRef = useRef(null);
 
   // Honour Home's 5/10/15 min presets: countdown only, never auto-sends speech.
@@ -88,6 +91,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
 
   const changeScenario = (id) => {
     const s = getScenarios().find((x) => x.id === id);
+    if (!s) return;
     setScenario(s);
     setHistory([]);
     setHint('');
@@ -95,6 +99,14 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     setError(null);
     setPhase('idle');
     setRedoIdx(null);
+    setPickerOpen(false);
+    // If this scenario targets a due weakness, count it as a deliberate retest attempt
+    const due = weaknessDue;
+    if (due && due.topicId) {
+      // Mark the retest as started; outcome is recorded on next error/repair
+      try { window.dispatchEvent(new CustomEvent('fp:retest-start', { detail: { topicId: due.topicId, scenarioId: id } })); } catch { /* ignore */ }
+    }
+    setWeaknessDue(getDueWeaknesses()[0] || null);
   };
 
   const send = async (text) => {
@@ -118,7 +130,15 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
           level,
           mock: mockMode,
         });
-        if (redoEval.grammar_topic) recordGrammarError(redoEval.grammar_topic);
+        if (redoEval.grammar_topic) {
+          recordGrammarError(redoEval.grammar_topic);
+          recordWeaknessError(redoEval.grammar_topic, { scenarioId: scenario.id });
+        }
+        // Repair signal: successful redo counts as evidence the learner recovered the form
+        if (original.evaluation?.grammar_topic) {
+          const improved = (redoEval.scores?.overall ?? 0) > (original.evaluation.scores?.overall ?? 0);
+          if (improved) recordWeaknessRepair(original.evaluation.grammar_topic, { scenarioId: scenario.id, passed: true });
+        }
         const { deltas, deltaOverall } = scoreDelta(original.evaluation.scores, redoEval.scores);
         const verdict = redoVerdict(deltaOverall);
         const redo = { retryText: userText, evaluation: redoEval, deltas, deltaOverall, verdict, note: redoEval.redo_note };
@@ -143,6 +163,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     setError(null);
     const turnNumber = history.length + 1;
     try {
+      const learner = getLearnerBrief();
       const evaluation = await evaluateTurn(apiKey, {
         scenario,
         history,
@@ -151,8 +172,10 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         level,
         knownWords: knownWords(),
         reversed,
+        learner,
         mock: mockMode,
       });
+      if (evaluation.grammar_topic) recordWeaknessError(evaluation.grammar_topic, { scenarioId: scenario.id });
       if (evaluation.grammar_topic) recordGrammarError(evaluation.grammar_topic);
       const turn = { userText, evaluation, reply: evaluation.reply, curveball: turnNumber === CURVEBALL_TURN };
       setHistory((h) => [...h, turn]);
@@ -190,7 +213,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choose a scenario">
           {getScenarios().map((s) => {
             const active = s.id === scenario.id;
-            const ScenarioIcon = SCENARIO_ICONS[s.id];
+            const ScenarioIcon = scenarioIcon(s.id);
             return (
               <button
                 key={s.id}
@@ -209,7 +232,15 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
               </button>
             );
           })}
+          <button onClick={() => setPickerOpen(true)} className="shrink-0 px-3.5 py-2.5 rounded-xl border border-dashed border-line bg-surface text-xs font-semibold text-ink2 hover:border-ink3 hover:text-ink whitespace-nowrap">Browse all {getScenarios().length} →</button>
         </div>
+        <ScenarioPicker open={pickerOpen} activeId={scenario.id} onPick={changeScenario} onClose={() => setPickerOpen(false)} />
+        {weaknessDue && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 flex items-center justify-between gap-2" role="status">
+            <span className="text-xs text-ink"><span className="font-bold">Retest due:</span> {(() => { const t = getGrammarTopic(weaknessDue.topicId); return t ? t.title : weaknessDue.topicId; })()} — last slip {Math.max(1, Math.round((Date.now() - new Date(weaknessDue.lastErrorAt).getTime())/86400000))}d ago. Practise it again?</span>
+            <button onClick={() => changeScenario(scenario.id)} className="shrink-0 text-xs font-semibold text-amber-800 underline">Keep this scenario</button>
+          </div>
+        )}
         <div className="flex items-center justify-between pr-1 gap-2">
           <button
             onClick={() => { setReversed((v) => !v); setHistory([]); setHint(''); setHintLevel(0); setPhase('idle'); }}

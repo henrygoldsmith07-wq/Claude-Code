@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Machine-readable app registry for the Ruflo monorepo. Single source of truth for docs, tooling, and lifecycle. Update when adding, retiring, or moving any entry under apps/, packages/, vendor/, or standalone roots.",
+  "version": 1,
+  "lifecycleStates": {
+    "active": "Shipped product; listed on the family hub and in README; has CI and an owner.",
+    "incubating": "In development behind a branch or feature flag; not yet listed as active.",
+    "maintenance": "Shipped but not under active feature work; security/bug fixes only.",
+    "archived": "Frozen reference; not developed further (e.g. scraped build kept for provenance).",
+    "superseded": "Replaced by another entry; kept only to document the migration.",
+    "tooling": "Internal skill/helper/daemon — not a user-facing app but part of delivery.",
+    "external": "Standalone repo outside this monorepo; referenced for ecosystem completeness."
+  },
+  "siteConvention": "Each active app's marketing landing lives in <app>-site (static Next export, vercel.json framework=Other). Sites inherit lifecycle from their app unless overridden.",
+  "apps": [
+    {
+      "id": "arise",
+      "path": "apps/arise",
+      "site": "apps/arise-site",
+      "name": "Arise",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Vite + React + Tailwind",
+      "owner": "apps/arise/README.md",
+      "workflow": ".github/workflows/arise.yml",
+      "description": "Offline-first training companion with programs, sessions, and levelled attributes."
+    },
+    {
+      "id": "daily-debate",
+      "path": "apps/daily-debate",
+      "site": "apps/daily-debate-site",
+      "name": "Daily Debate",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js + Supabase + Anthropic",
+      "workflow": ".github/workflows/daily-debate.yml",
+      "description": "Daily critical-thinking debates (solo vs AI and PvP) with an argument graph."
+    },
+    {
+      "id": "dictation-typer",
+      "path": "apps/dictation-typer",
+      "site": "apps/dictation-typer-site",
+      "name": "Dictation Typer",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Python (Groq Whisper) — Windows-native, cross-platform fallback",
+      "description": "Hold-hotkey speech-to-text typer that pastes the transcript into the focused window."
+    },
+    {
+      "id": "emotion-tracker",
+      "path": "apps/emotion-tracker",
+      "site": "apps/reflect-site",
+      "name": "Reflect",
+      "siteId": "reflect",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js + Anthropic (Reflect pipeline)",
+      "workflow": ".github/workflows/emotion-tracker.yml",
+      "description": "Structured reflection (event→assumptions→alternatives→action→follow-up) with hedged bias language and longitudinal calibration."
+    },
+    {
+      "id": "food-shopping-os",
+      "path": "apps/food-shopping-os",
+      "site": "apps/forq-site",
+      "name": "Forq",
+      "siteId": "forq",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js — local-first, optional cloud",
+      "workflow": ".github/workflows/food-shopping-os.yml",
+      "description": "Meal/shopping planning OS with pantry, retailer and nutrition flows (Forq)."
+    },
+    {
+      "id": "french-practice",
+      "path": "apps/french-practice",
+      "site": "apps/le-studio-site",
+      "name": "Le Studio French",
+      "siteId": "le-studio",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Vite + React + Tailwind — local-first",
+      "workflow": ".github/workflows/french-practice.yml",
+      "description": "French speaking/study PWA (Today/Speak/Review/Learn/Progress, Groq STT/TTS arena).",
+      "designSystemOrigin": "packages/le-studio-tokens",
+      "notes": "Marketing site is the Le Studio family hub (French + Forq + Chrono) at apps/le-studio-site."
+    },
+    {
+      "id": "le-studio-site",
+      "path": "apps/le-studio-site",
+      "site": null,
+      "name": "Le Studio (family hub)",
+      "lifecycle": "active",
+      "kind": "site",
+      "stack": "Static HTML",
+      "description": "Marketing hub for the Le Studio family (French, Forq, Chrono). Not an app itself — see french-practice for the product.",
+      "family": ["french-practice", "food-shopping-os"]
+    },
+    {
+      "id": "meeting-recorder",
+      "path": "apps/meeting-recorder",
+      "site": "apps/meeting-recorder-site",
+      "name": "Meeting Recorder",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Electron (desktop) + Next.js (web) + R2 + Groq + Anthropic",
+      "description": "Fathom-style recorder (screen+audio capture, R2 upload, Whisper transcript, Claude chat)."
+    },
+    {
+      "id": "mental-load-tracker",
+      "path": "apps/mental-load-tracker",
+      "site": null,
+      "name": "Noticed",
+      "siteId": "noticed",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js + Supabase Realtime",
+      "description": "Shared board for the invisible labor of running a household — capture what you notice, compare side-by-side weekly."
+    },
+    {
+      "id": "revise",
+      "path": "apps/revise",
+      "site": "apps/revise-site",
+      "name": "Revise",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js + Supabase + FSRS",
+      "workflow": ".github/workflows/revise.yml",
+      "description": "WJEC A-level revision platform (277 specPoints, statement-level coverage & validator)."
+    },
+    {
+      "id": "rtk",
+      "path": "apps/rtk",
+      "site": "apps/rtk-site",
+      "name": "rtk",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Node CLI",
+      "workflow": ".github/workflows/rtk.yml",
+      "description": "Token-saving CLI that filters noisy tool output to what an LLM/human actually needs."
+    },
+    {
+      "id": "world-news",
+      "path": "apps/world-news",
+      "site": "apps/world-news-site",
+      "name": "World News Globe",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js + Gemini/GDELT + react-globe.gl",
+      "workflow": ".github/workflows/world-news.yml",
+      "description": "Globe-based world news with story clustering and source-mix provenance panels."
+    },
+    {
+      "id": "agent-os-control-room",
+      "path": "apps/agent-os-control-room",
+      "site": null,
+      "name": "Agent OS Control Room",
+      "lifecycle": "active",
+      "kind": "product",
+      "stack": "Next.js",
+      "description": "Control-room dashboard for agent OS orchestration."
+    }
+  ],
+  "auxiliary": [
+    {
+      "id": "genetic-health",
+      "path": "apps/genetic-health",
+      "name": "Genetic Health",
+      "lifecycle": "active",
+      "kind": "workspace",
+      "stack": "Python (23andMe + ClinVar/PharmGKB pipeline)",
+      "description": "Offline genetic health analysis workspace (docs/pipeline, no hosted app)."
+    },
+    {
+      "id": "le-studio-tokens",
+      "path": "packages/le-studio-tokens",
+      "name": "Le Studio Tokens",
+      "lifecycle": "active",
+      "kind": "package",
+      "stack": "CSS / design tokens",
+      "description": "Shared design tokens for Le Studio, Chrono and Forq."
+    },
+    {
+      "id": "workspace-daemon",
+      "path": "src/workspace_daemon",
+      "name": "Workspace Daemon",
+      "lifecycle": "active",
+      "kind": "service",
+      "stack": "Python (Google/MSFT sync)",
+      "description": "Background sync daemon (calendar/mail). Not a user-facing app."
+    },
+    {
+      "id": "claude-tooling",
+      "path": ".claude",
+      "name": "Claude tooling",
+      "lifecycle": "tooling",
+      "kind": "tooling",
+      "stack": "Claude Code skills/agents/helpers",
+      "description": "Skills, agents, hooks and helpers (including prompt-improver). Broader than product code — deliberately separate."
+    },
+    {
+      "id": "life-os-scrape",
+      "path": "vendor/life-os-scrape",
+      "name": "Life OS (scraped build)",
+      "lifecycle": "archived",
+      "kind": "reference",
+      "supersededBy": "arise",
+      "archivedAt": "2026-07-03",
+      "description": "Frozen mirror of the deployed Life OS static build, kept only as provenance for the arise port. Not live code.",
+      "readme": "vendor/life-os-scrape/README.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "chrono",
+      "repo": "henrygoldsmith07-wq/chrono-calendar",
+      "name": "Chrono",
+      "lifecycle": "external",
+      "kind": "product",
+      "description": "Calendar companion (standalone repo) — interop with Le Studio/Forq via ICS/JSON."
+    }
+  ]
+}

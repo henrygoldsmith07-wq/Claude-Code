@@ -195,6 +195,32 @@ export default function InsightsView({ entries, onBack }: Props) {
               </div>
             </div>
           )}
+
+          {/* Longitudinal calibration */}
+          {(() => {
+            const withPrediction = completed.filter((e) => Boolean((e.summary?.trace as unknown as { predictedOutcome?: string })?.predictedOutcome));
+            const reviewed = completed.filter((e) => Boolean(e.longitudinalReview?.assumptionVerdict));
+            if (withPrediction.length === 0 && reviewed.length === 0) return null;
+            const counts: Record<string, number> = { supported: 0, unsupported: 0, partial: 0, unclear: 0 };
+            for (const e of reviewed) if (e.longitudinalReview?.assumptionVerdict) counts[e.longitudinalReview.assumptionVerdict]++;
+            return (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted">Calibration — was the assumption supported?</h3>
+                <p className="mt-1 text-xs text-muted">{withPrediction.length} with a prediction · {reviewed.length} reviewed · {completed.length - reviewed.length} still open</p>
+                {reviewed.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(["unsupported", "supported", "partial", "unclear"] as const).map((k) => (
+                      <span key={k} className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium">
+                        {k}: <span className="tabular-nums">{counts[k]}</span> {k !== "unclear" && reviewed.length > 0 ? <span className="text-muted">({Math.round((counts[k] / reviewed.length) * 100)}%)</span> : null}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-muted">Complete the loop at follow-up — record what actually happened and whether your original assumption held. Those verdicts build this calibration over time.</p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

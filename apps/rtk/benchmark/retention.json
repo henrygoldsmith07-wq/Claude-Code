@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-08-09T12:17:15.248Z",
+  "rows": [
+    {
+      "label": "corpus/generic-fail.log",
+      "parser": "vitest",
+      "rawChars": 46,
+      "emittedChars": 37,
+      "reductionPct": 20,
+      "criticalNeedles": [
+        "Error:",
+        "1 failed"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/node-test-fail.log",
+      "parser": "vitest",
+      "rawChars": 785,
+      "emittedChars": 318,
+      "reductionPct": 59,
+      "criticalNeedles": [
+        "AssertionError",
+        "fail.test.js",
+        "expected: 2"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/npm-test-pass.log",
+      "parser": "vitest",
+      "rawChars": 2794,
+      "emittedChars": 402,
+      "reductionPct": 86,
+      "criticalNeedles": [],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/tsc-fail.log",
+      "parser": "tsc",
+      "rawChars": 544,
+      "emittedChars": 38,
+      "reductionPct": 93,
+      "criticalNeedles": [],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/tsc-pass.log",
+      "parser": "tsc",
+      "rawChars": 0,
+      "emittedChars": 38,
+      "reductionPct": 0,
+      "criticalNeedles": [],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/vitest-fail.log",
+      "parser": "vitest",
+      "rawChars": 3504,
+      "emittedChars": 870,
+      "reductionPct": 75,
+      "criticalNeedles": [
+        "ERR_TEST_FAILURE",
+        "fail"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "synthetic/tsc-fail (true TS error)",
+      "parser": "tsc",
+      "rawChars": 146,
+      "emittedChars": 146,
+      "reductionPct": 0,
+      "criticalNeedles": [
+        "error TS2322",
+        "Foo.tsx:10:5",
+        "Found 1 error"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    }
+  ]
+}

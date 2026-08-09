@@ -18,6 +18,12 @@ export type Fallacy =
   | "equivocation"
   | "none";
 
+export interface EvidenceCitation {
+  sourceName: string; // e.g. "Pew Research Center" — must be a real institution, not invented
+  homepage?: string; // root homepage only, e.g. https://www.pewresearch.org (never invent article URLs)
+  excerpt?: string; // ≤200 chars: what the source is known for / short quote paraphrase
+}
+
 export interface ArgNode {
   id: string;
   kind: ArgNodeKind;
@@ -26,6 +32,7 @@ export interface ArgNode {
   round: number;
   // only for evidence nodes
   evidenceStrength?: EvidenceStrength;
+  citations?: EvidenceCitation[]; // source-grounded: cited/strong evidence must carry ≥1 citation
   // only for rebuttal nodes
   targets?: string[]; // node ids this directly rebuts
   fallacy?: Fallacy;
@@ -107,6 +114,31 @@ export function emptyGraph(): ArgGraph {
   };
 }
 
+// Evidence groundedness: which evidence nodes have citations vs dangling/uncited.
+export function groundedEvidenceRatio(graph: ArgGraph): number {
+  const ev = graph.nodes.filter((n) => n.kind === "evidence");
+  if (ev.length === 0) return 1; // vacuous: no evidence to ground
+  const grounded = ev.filter((n) => (n.citations?.length ?? 0) > 0 && n.evidenceStrength !== "anecdotal").length;
+  return grounded / ev.length;
+}
+
+export function claimCoverageWithGroundedEvidence(graph: ArgGraph): number {
+  const claims = graph.nodes.filter((n) => n.kind === "claim");
+  if (claims.length === 0) return 1;
+  // A claim counts as "grounded" if it has a supports edge from an evidence node that itself has citations.
+  const groundedEvidenceIds = new Set(graph.nodes.filter((n) => n.kind === "evidence" && (n.citations?.length ?? 0) > 0).map((n) => n.id));
+  const supportedByGrounded = new Set<string>();
+  for (const e of graph.edges) {
+    if (e.relation === "supports" && groundedEvidenceIds.has(e.from)) supportedByGrounded.add(e.to);
+    if (e.relation === "supports" && groundedEvidenceIds.has(e.to)) supportedByGrounded.add(e.from);
+  }
+  // Also count if judge explicitly marked unsupported
+  const unsupported = new Set(graph.evidenceStats.unsupportedClaimIds);
+  let grounded = 0;
+  for (const c of claims) if (supportedByGrounded.has(c.id) && !unsupported.has(c.id)) grounded++;
+  return grounded / claims.length;
+}
+
 // Validate a graph produced by the judge (defense in depth before persistence).
 export function validateGraph(graph: ArgGraph): string[] {
   const errors: string[] = [];
@@ -124,6 +156,13 @@ export function validateGraph(graph: ArgGraph): string[] {
     if (!ids.has(c.b)) errors.push(`Contradiction b=${c.b} not in nodes`);
   }
   for (const f of graph.fallacies) if (!ids.has(f.nodeId)) errors.push(`Fallacy ${f.nodeId} not in nodes`);
+  // Groundedness warnings: cited/strong evidence without citations is a quality error.
+  for (const n of graph.nodes) {
+    if (n.kind === "evidence" && (n.evidenceStrength === "cited" || n.evidenceStrength === "strong")) {
+      if (!n.citations?.length) errors.push(`Evidence ${n.id} is ${n.evidenceStrength} but has no citations`);
+      else for (const c of n.citations) if (!c.sourceName?.trim()) errors.push(`Evidence ${n.id} has an empty citation sourceName`);
+    }
+  }
   return errors;
 }
 

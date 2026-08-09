@@ -9,7 +9,8 @@ function check(cmd, args, opts={}) {
   if (r.status !== 0) { console.error(`FAIL ${cmd} ${args.join(" ")}`); if (r.stdout) console.error(r.stdout.slice(-1200)); if (r.stderr) console.error(r.stderr.slice(-1200)); failures++; }
   else console.log(`OK   ${cmd} ${args.join(" ")}`);
 }
-// content lints
+// registry + content lints
+check("node", ["scripts/validate-registry.mjs"]);
 check("node", ["scripts/check-links.mjs"]);
 check("node", ["apps/revise/scripts/validate-curriculum.mjs"]);
 check("node", ["apps/arise/scripts/lint-content.mjs"]);

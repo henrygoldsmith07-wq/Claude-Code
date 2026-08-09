@@ -1,21 +1,44 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EXERCISE_BY_ID } from '../lib/data.js';
+import { lastExerciseSets } from '../lib/store.js';
 
 function parseNum(v){ const n=Number(v); return Number.isFinite(n)? n : 0; }
+function fmtRest(s){ const m=Math.floor(s/60); const r=s%60; return m? `${m}:${String(r).padStart(2,'0')}` : `${r}s`; }
 
-export default function SessionRunner({ session, onSave, onCancel }){
+export default function SessionRunner({ session, history = [], onSave, onCancel }){
   const [blocks,setBlocks]=useState(()=> session.blocks.map(b=> ({
     exerciseId: b.exerciseId,
     sets: Array.from({length: b.sets}, ()=> ({ reps: firstInt(b.reps), weightKg: '', rpe: '' })),
     restSec: b.restSec,
   })));
   const [note,setNote]=useState('');
+  const [restLeft,setRestLeft]=useState(null);
+  const [restLabel,setRestLabel]=useState('');
+  const restRef=useRef(null);
 
   useEffect(()=>{
     const onKey = (e)=>{ if(e.key==='Escape') onCancel(); };
     window.addEventListener('keydown', onKey);
     return ()=> window.removeEventListener('keydown', onKey);
   }, [onCancel]);
+
+  useEffect(()=>{
+    if(restLeft===null) return;
+    if(restLeft<=0){
+      try{ navigator.vibrate?.(180); }catch{}
+      setRestLeft(null);
+      return;
+    }
+    const id=setTimeout(()=> setRestLeft(v=> (v===null?null:Math.max(0,v-1))), 1000);
+    return ()=> clearTimeout(id);
+  }, [restLeft]);
+
+  const startRest=(sec,label)=>{
+    if(!sec) return;
+    setRestLabel(label);
+    setRestLeft(sec);
+    clearTimeout(restRef.current);
+  };
 
   const volume = useMemo(()=>{
     let total=0;
@@ -61,6 +84,7 @@ export default function SessionRunner({ session, onSave, onCancel }){
         <p className="text-xs text-ink3">Log resistance honestly — weight × reps × sets. Leave weight blank for bodyweight. Attributes and PRs derive from what you log, not what the program says.</p>
         {blocks.map((b,bi)=>{
           const ex = EXERCISE_BY_ID[b.exerciseId];
+          const prev = lastExerciseSets(history, b.exerciseId);
           return (
             <div key={bi} className="rounded-2xl border border-line bg-surface p-3 space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -68,8 +92,17 @@ export default function SessionRunner({ session, onSave, onCancel }){
                   <p className="text-sm font-bold">{ex?.name || b.exerciseId}</p>
                   <p className="text-xs text-ink3">{ex?.muscle} • {ex?.level} • {ex?.equipment.join(', ')}</p>
                   {ex?.cues?.[0] && <p className="text-xs text-ink3 mt-1">Cue: {ex.cues[0]}</p>}
+                  {prev ? (
+                    <p className="text-[11px] text-ink3 mt-1">Last: {prev.dateISO} • {prev.sets.map(s=> `${s.reps}${s.weightKg?`@${s.weightKg}kg`:''}`).join(', ')}</p>
+                  ) : (
+                    <p className="text-[11px] text-ink3 mt-1">No prior log for this exercise — first time.</p>
+                  )}
+                  {b.restSec ? <p className="text-[11px] text-ink3">Rest {fmtRest(b.restSec)} • load hint: {session.blocks[bi]?.loadHint || '—'}</p> : null}
                 </div>
-                <button onClick={()=> addSet(bi)} className="text-xs font-bold px-3 py-1.5 rounded-full bg-ink text-bg">+ Set</button>
+                <div className="flex gap-1.5 shrink-0">
+                  {b.restSec ? <button onClick={()=> startRest(b.restSec, ex?.name || b.exerciseId)} className="text-xs font-bold px-3 py-1.5 rounded-full border border-line bg-surface2">Rest {fmtRest(b.restSec)}</button> : null}
+                  <button onClick={()=> addSet(bi)} className="text-xs font-bold px-3 py-1.5 rounded-full bg-ink text-bg">+ Set</button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -95,6 +128,14 @@ export default function SessionRunner({ session, onSave, onCancel }){
           <span className="text-xs font-semibold">Session note (optional)</span>
           <textarea value={note} onChange={e=> setNote(e.target.value)} rows={2} placeholder="How did it feel? Anything to adjust next time?" className="mt-1 w-full rounded-xl border border-line bg-surface2 px-3 py-2.5 text-sm" />
         </label>
+
+        {restLeft!==null && (
+          <div className="sticky bottom-4 z-10 rounded-2xl border border-line bg-ink text-bg px-4 py-3 flex items-center gap-3">
+            <span className="text-xs font-bold uppercase tracking-widest opacity-80">Rest • {restLabel}</span>
+            <span className="ml-auto text-lg font-black tabular-nums">{fmtRest(restLeft)}</span>
+            <button onClick={()=> setRestLeft(null)} className="text-xs font-bold px-3 py-1.5 rounded-full bg-white text-ink">Skip</button>
+          </div>
+        )}
 
         <div className="flex gap-2 pb-6">
           <button onClick={onCancel} className="btn btn-secondary flex-1 min-h-11 rounded-xl">Cancel</button>

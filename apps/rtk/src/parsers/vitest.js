@@ -10,7 +10,7 @@
 const SUMMARY_RE = /(?:Test Files|Tests|Suites|Snapshots|Duration|Time)[^:\n]*:?[^\n]*\d+[^\n]*/i;
 const SUMMARY_LINE_RE = /^\s*(?:Test Files|Tests|Suites|Snapshots|Duration|Time|Start at|Coverage)\b/i;
 const FAIL_HEADER_RE = /^\s*FAIL\b|^\s*×\s|^\s*✕\s|^\s*✖\s|^FAIL\s/i;
-const ERROR_RE = /AssertionError|Expected|Received|Error:|TypeError|ReferenceError|FAIL|❯|●\s|not to be|toBe\(|toEqual\(|TIMEOUT|Timeout/i;
+const ERROR_RE = /AssertionError|Expected|Received|Error:|TypeError|ReferenceError|FAIL|ERR_[A-Z_]+|❯|●\s|not to be|toBe\(|toEqual\(|TIMEOUT|Timeout/i;
 const STACK_RE = /^\s*at\s.+:\d+:\d+|^\s*❯\s|node_modules\/vitest|src\/.+:\d+/;
 const DURATION_RE = /Duration|Time:/i;
 

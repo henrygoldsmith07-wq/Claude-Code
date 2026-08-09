@@ -28,8 +28,7 @@ jobs:
           cache: npm
           cache-dependency-path: apps/revise/package-lock.json
       - run: npm ci
-      - run: node scripts/validate-curriculum.mjs
-      - run: npm test
-      - run: npm run build
+      - run: npm run verify
+      - run: npm run test:e2e --if-present
       - run: du -sh .next 2>/dev/null || du -sh dist 2>/dev/null || du -sh build 2>/dev/null || echo "no build artifact to measure"
-      - run: node -e "const fs=require('fs');try{const s=require('child_process').execSync('du -sk .next 2>/dev/null || du -sk dist 2>/dev/null || echo 0',{encoding:'utf8'}).trim();console.log('SIZE_KB:'+s.split(/\s+/)[0])}catch(e){console.log('size check skipped')}"
+      - run: node -e "const fs=require('fs');try{const s=require('child_process').execSync('du -sk .next 2>/dev/null || du -sk dist 2>/dev/null || echo 0',{encoding:'utf8'}).trim();console.log('SIZE_KB:'+s.split(/\s+/)[0])}catch(e){console.log('size check skipped')}" 

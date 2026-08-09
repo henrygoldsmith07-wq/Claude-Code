@@ -176,15 +176,63 @@ export interface PvpJudgeResult {
   playerAScore: number;
   playerBScore: number;
   rationale: string;
+  decidingFactor?: string;
+  breakdown?: { a: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number }; b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number } };
+  argGraph?: import("./argGraph").ArgGraph;
 }
+
+const EVIDENCE_CITATION_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    sourceName: { type: Type.STRING, description: "Real institution/outlet name backing this evidence, e.g. 'Pew Research Center'. Must be real; never invent." },
+    homepage: { type: Type.STRING, description: "Root homepage URL only, e.g. https://www.pewresearch.org. Never invent article URLs." },
+    excerpt: { type: Type.STRING, description: "≤200 chars: what this source is known for or the data point it supports." },
+  },
+  required: ["sourceName"],
+};
+
+const ARG_NODE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    id: { type: Type.STRING, description: "Stable id like c1, e1, k1, r1, i1." },
+    kind: { type: Type.STRING, enum: ["claim", "evidence", "counterclaim", "rebuttal", "impact"] },
+    owner: { type: Type.STRING, enum: ["a", "b", "ai"] },
+    text: { type: Type.STRING, description: "One-sentence summary (≤18 words)." },
+    round: { type: Type.INTEGER, description: "Round where introduced." },
+    evidenceStrength: { type: Type.STRING, enum: ["anecdotal", "general", "cited", "strong"] },
+    citations: { type: Type.ARRAY, description: "Source grounding for this node. cited/strong evidence MUST include ≥1 citation; anecdotal/general may omit.", items: EVIDENCE_CITATION_SCHEMA },
+    targets: { type: Type.ARRAY, items: { type: Type.STRING }, description: "For rebuttals: ids rebutted." },
+    fallacy: { type: Type.STRING, enum: ["strawman", "ad_hominem", "false_dilemma", "slippery_slope", "appeal_to_emotion", "hasty_generalization", "appeal_to_authority", "whataboutism", "begging_the_question", "equivocation", "none"] },
+  },
+  required: ["id", "kind", "owner", "text", "round"],
+};
+
+const ARG_GRAPH_SCHEMA = {
+  type: Type.OBJECT,
+  description: "Full argument graph. Keep every text field concise (≤18 words). cited/strong evidence must carry citations.",
+  properties: {
+    nodes: { type: Type.ARRAY, items: ARG_NODE_SCHEMA },
+    edges: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { from: { type: Type.STRING }, to: { type: Type.STRING }, relation: { type: Type.STRING, enum: ["supports", "counters", "rebuts", "impacts"] } }, required: ["from", "to", "relation"] } },
+    dropped: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nodeId: { type: Type.STRING }, text: { type: Type.STRING }, owner: { type: Type.STRING, enum: ["a", "b", "ai"] }, round: { type: Type.INTEGER } }, required: ["nodeId", "text", "owner", "round"] } },
+    contradictions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { a: { type: Type.STRING }, b: { type: Type.STRING }, explanation: { type: Type.STRING }, owner: { type: Type.STRING, enum: ["a", "b", "ai"] } }, required: ["a", "b", "explanation", "owner"] } },
+    concessions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nodeId: { type: Type.STRING }, by: { type: Type.STRING, enum: ["a", "b", "ai"] }, note: { type: Type.STRING } }, required: ["nodeId", "by", "note"] } },
+    fallacies: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nodeId: { type: Type.STRING }, fallacy: { type: Type.STRING, enum: ["strawman", "ad_hominem", "false_dilemma", "slippery_slope", "appeal_to_emotion", "hasty_generalization", "appeal_to_authority", "whataboutism", "begging_the_question", "equivocation", "none"] }, note: { type: Type.STRING } }, required: ["nodeId", "fallacy", "note"] } },
+    evidenceStats: { type: Type.OBJECT, properties: { total: { type: Type.INTEGER }, byOwner: { type: Type.OBJECT, properties: { a: { type: Type.INTEGER }, b: { type: Type.INTEGER }, ai: { type: Type.INTEGER } }, required: ["a", "b", "ai"] }, byStrength: { type: Type.OBJECT, properties: { anecdotal: { type: Type.INTEGER }, general: { type: Type.INTEGER }, cited: { type: Type.INTEGER }, strong: { type: Type.INTEGER } }, required: ["anecdotal", "general", "cited", "strong"] }, unsupportedClaimIds: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["total", "byOwner", "byStrength", "unsupportedClaimIds"] },
+    impactComparison: { type: Type.OBJECT, properties: { a: { type: Type.INTEGER }, b: { type: Type.INTEGER }, rationale: { type: Type.STRING } }, required: ["a", "b", "rationale"] },
+  },
+  required: ["nodes", "edges", "dropped", "contradictions", "concessions", "fallacies", "evidenceStats", "impactComparison"],
+};
 
 const JUDGE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    playerAScore: { type: Type.INTEGER, description: "Player A's score out of 100 for argument quality across the whole match." },
-    playerBScore: { type: Type.INTEGER, description: "Player B's score out of 100 for argument quality across the whole match." },
+    playerAScore: { type: Type.INTEGER, description: "Player A's score out of 100 — weight grounded, cited evidence > asserted claims." },
+    playerBScore: { type: Type.INTEGER, description: "Player B's score out of 100." },
     winner: { type: Type.STRING, enum: ["a", "b", "tie"], description: "Who made the stronger case overall." },
-    rationale: { type: Type.STRING, description: "2-4 sentences explaining the verdict, citing specific moments from the transcript." },
+    rationale: { type: Type.STRING, description: "2-4 sentences, citing specific transcript moments." },
+    decidingFactor: { type: Type.STRING, description: "One sentence naming the single biggest reason the winner won." },
+    breakdown: { type: Type.OBJECT, properties: { a: { type: Type.OBJECT, properties: { claims: { type: Type.INTEGER }, evidence: { type: Type.INTEGER }, rebuttals: { type: Type.INTEGER }, impacts: { type: Type.INTEGER }, fallacies: { type: Type.INTEGER }, droppedSuffered: { type: Type.INTEGER } }, required: ["claims", "evidence", "rebuttals", "impacts", "fallacies", "droppedSuffered"] }, b: { type: Type.OBJECT, properties: { claims: { type: Type.INTEGER }, evidence: { type: Type.INTEGER }, rebuttals: { type: Type.INTEGER }, impacts: { type: Type.INTEGER }, fallacies: { type: Type.INTEGER }, droppedSuffered: { type: Type.INTEGER } }, required: ["claims", "evidence", "rebuttals", "impacts", "fallacies", "droppedSuffered"] } }, required: ["a", "b"] },
+    argGraph: ARG_GRAPH_SCHEMA,
   },
   required: ["playerAScore", "playerBScore", "winner", "rationale"],
 };
@@ -198,7 +246,7 @@ export async function judgePvpMatch(params: {
   const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL,
-    contents: `You are a neutral, rigorous debate judge. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nPlayer A argued "${params.playerASide}"; Player B argued the opposite side.\n\nTranscript:\n${params.transcript}\n\nJudge purely on the quality of reasoning, evidence, and rebuttals — not on which side of the topic is "correct". Score each player out of 100 and declare a winner (or tie).`,
+    contents: `You are a neutral, rigorous debate judge. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nPlayer A argued "${params.playerASide}"; Player B argued the opposite side.\n\nTranscript:\n${params.transcript}\n\nJudge purely on the quality of reasoning, evidence, and clash — not on which side of the topic is "correct".\n- Score each player out of 100 (grounded, cited evidence counts more than asserted claims).\n- Pick a winner (or tie) and give a 2-4 sentence rationale citing specific moments.\n- Also produce decidingFactor, breakdown (claims/evidence/rebuttals/impacts/fallacies/droppedSuffered per side), and the full argGraph: nodes (c1,e1,k1,r1,i1, text ≤18 words), edges, dropped, contradictions, concessions, fallacies, evidenceStats (with unsupportedClaimIds), and impactComparison. Every cited/strong evidence node MUST include ≥1 citation {sourceName, homepage (root only), excerpt ≤200 chars} naming a real institution; never invent article URLs. Keep the graph faithful — do not invent arguments not in the transcript.`,
     config: { responseMimeType: "application/json", responseSchema: JUDGE_SCHEMA },
   });
 

@@ -19,13 +19,13 @@ function getClient(apiKey?: string): Anthropic {
 const ASK_TOOL = {
   name: "ask_followup",
   description:
-    "Ask exactly one more probing question to help the user go deeper into the structured reflection pipeline (event → observations → assumptions → emotion → alternatives → outcome → action), before concluding.",
+    "Ask exactly one more probing question to help the user go deeper into the structured reflection pipeline (event → observations → assumptions → emotion → alternatives → outcome → action → predicted outcome), before concluding.",
   input_schema: {
     type: "object" as const,
     properties: {
       question: {
         type: "string",
-        description: "A single, specific, non-leading follow-up question, grounded in what the user just said. It should advance the structured pipeline (e.g. separate observations from assumptions, name the emotion, propose an alternative interpretation, clarify intended outcome or next action).",
+        description: "A single, specific, non-leading follow-up question, grounded in what the user just said. It should advance the structured pipeline (e.g. separate observations from assumptions, name the emotion, propose an alternative interpretation, clarify intended outcome, next action, or what they expect to happen if they take that action).",
       },
     },
     required: ["question"],
@@ -33,9 +33,8 @@ const ASK_TOOL = {
 };
 
 const CONCLUDE_TOOL = {
-  name: "conclude_reflection",
-  description:
-    "Conclude the reflection with a structured, hedged, non-diagnostic summary that follows the pipeline event → observations → assumptions → emotion → alternatives → outcome → action → follow-up.",
+  name: "conclude_reflection",    description:
+    "Conclude the reflection with a structured, hedged, non-diagnostic summary that follows the pipeline event → observations → assumptions → emotion → alternatives → outcome → action → predicted outcome → follow-up.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -62,11 +61,15 @@ const CONCLUDE_TOOL = {
           },
           intendedOutcome: { type: "string", description: "What the user actually wants to happen." },
           intendedAction: { type: "string", description: "The single next action the user intends to take." },
+          predictedOutcome: {
+            type: "string",
+            description: "The user's explicit prediction: what do they think will happen if they take the intended action? 1-2 sentences. This is the calibration anchor (ask directly before concluding).",
+          },
           followUpAt: {
             type: "string",
             description: "When to revisit (ISO date YYYY-MM-DD or free text like 'tomorrow'); null if user declined to set one.",
           },
-          followUpNote: { type: "string", description: "Usually null at conclusion time; reserved for later follow-up." },
+          followUpNote: { type: "string", description: "Usually null at conclusion time; reserved for later follow-up (legacy)." },
         },
         required: [
           "event",
@@ -76,6 +79,7 @@ const CONCLUDE_TOOL = {
           "alternativeInterpretations",
           "intendedOutcome",
           "intendedAction",
+          "predictedOutcome",
           "followUpAt",
           "followUpNote",
         ],
@@ -163,13 +167,14 @@ export function buildSystemPrompt(questionsAskedSoFar: number): string {
   return `You are a rigorous, compassionate reflection guide inside Reflect — a structured reflection tool (not a mood tracker, not a Bearable-style tracker). Your job is to challenge interpretations helpfully, not merely log a mood.
 
 STRUCTURED PIPELINE — keep the conversation on this track:
-  event → observations → assumptions → emotion → alternative interpretations → intended outcome → action → later follow-up
+  event → observations → assumptions → emotion → alternative interpretations → intended outcome → action → predicted outcome → later follow-up
 - observations = verifiable facts ("they said…", "they did…"). Not "they think…" — that's an assumption.
 - assumptions = inferences the user treated as fact ("they don't respect me", "this will ruin everything").
 - emotion = the specific feeling underneath the first label.
 - alternatives = at least one other plausible reading of the SAME observations.
 - outcome = what the user actually wants to happen.
 - action = the single concrete next step they will take.
+- predicted outcome = what would happen if you take the action? Explicit prediction to calibrate later.
 - follow-up = when to check whether it helped (ask for a date like YYYY-MM-DD or "tomorrow"/"end of week").
 
 LANGUAGE CONTRACT — no false certainty:
@@ -182,14 +187,14 @@ RULES:
 1. Never simply affirm the user's initial framing as correct. Test blame, motive and proportion.
 2. If the situation is vague, get concrete facts first. Dig beneath the first label — anger is often hurt/fear/shame/insecurity.
 3. Even if the user was genuinely wronged, that does not make every subsequent reaction justified. Call retaliatory reasoning out plainly.
-4. Ask exactly one question per turn via ask_followup, specific to what the user just said. Never more than ${MAX_QUESTIONS} total.
+4. Ask exactly one question per turn via ask_followup, specific to what the user just said. Never more than ${MAX_QUESTIONS} total. Before concluding, you MUST elicit a predicted outcome ("What do you think will happen if you take that step?") if the conversation hasn't already produced one — it becomes trace.predictedOutcome.
 5. So far you have asked ${questionsAskedSoFar} question(s). ${
     remaining > 0
       ? `You must ask at least ${remaining} more question(s) before concluding — do not call conclude_reflection yet.`
       : `You have asked enough to conclude once you genuinely have enough to fill trace, alternatives, outcome, action and follow-up — call conclude_reflection instead of asking another question when that point is reached. Do not interrogate past diminishing returns, and do not conclude just to validate.`
   }
 6. In the final summary, be honest even when unflattering. Name caution flags for any rash/retaliatory decision mentioned.
-7. When you conclude, you MUST fill every trace field, include at least one alternative interpretation, one observation, one assumption (or state \"none identified — assumptions were minimal\"), and propose a follow-up checkpoint (ask the user for a date; default to null only if they declined).`;
+7. When you conclude, you MUST fill every trace field — including predictedOutcome (what the user thinks will happen if they take the action; ask directly if not yet stated), include at least one alternative interpretation, one observation, one assumption (or state \"none identified — assumptions were minimal\"), and propose a follow-up checkpoint (ask the user for a date; default to null only if they declined).`;
 }
 
 function toAnthropicMessages(messages: Message[]) {
@@ -224,8 +229,13 @@ export async function getNextReflectionStep(messages: Message[], apiKey?: string
   }
 
   const summary = toolUse.input as ReflectionSummary;
-  // Normalize nulls -> null (Anthropic may omit followUpAt/followUpNote)
+  // Normalize / backfill for older localStorage entries and partial provider payloads
   if (summary.trace) {
+    const t = summary.trace as unknown as Record<string, unknown>;
+    if (typeof t.predictedOutcome !== "string" || !String(t.predictedOutcome).trim()) {
+      summary.trace.predictedOutcome =
+        "No specific prediction was captured — compare your intended outcome vs what actually happened at follow-up.";
+    }
     if (summary.trace.followUpAt === undefined) summary.trace.followUpAt = null;
     if (summary.trace.followUpNote === undefined) summary.trace.followUpNote = null;
   }

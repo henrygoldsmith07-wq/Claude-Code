@@ -54,8 +54,21 @@ export const shoppingForWeekLoop = (app, dates = weekDates(app.day)) => {
 /** Ingredients the plan needs vs what the pantry already covers (name match). */
 export const pantryCheckForPlan = (app, dates = weekDates(app.day)) => {
   const need = shoppingForPlan(app.plan || {}, dates, { pantry: [] });
-  const haveNames = new Set((app.pantry || []).map((p) => String(p.name || '').toLowerCase()));
-  const covered = need.filter((i) => haveNames.has(String(i.name).toLowerCase()));
+  // truth-aware: only confirmed_sufficient / probably_available count as have
+  const sufficientNames = new Set(
+    (app.pantry || [])
+      .filter((row) => {
+        const c = String(row.confidence || "definite").toLowerCase();
+        const a = String(row.amountConfidence || (row.qty ? "approximate" : "unknown")).toLowerCase();
+        if (c === "unknown") return false;
+        if (row.low) return false;
+        if (c === "probable") return true;
+        if (a === "unknown") return false;
+        return true;
+      })
+      .map((p) => String(p.name || '').toLowerCase()),
+  );
+  const covered = need.filter((i) => sufficientNames.has(String(i.name).toLowerCase()));
   const missing = shoppingForPlan(app.plan || {}, dates, { pantry: app.pantry || [] });
   const leftoverCovered = coveredByLeftovers(app.plan || {}, dates, app.pantry || []);
   return {

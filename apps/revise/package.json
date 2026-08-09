@@ -6,13 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
+    "lint:check": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "npm run lint:check --silent && npm run type-check && node scripts/validate-curriculum.mjs && npm test -- --run && npm run build",
     "prebuild": "node scripts/copy-pdf-worker.mjs",
     "predev": "node scripts/copy-pdf-worker.mjs",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:e2e": "echo 'No E2E suite configured \u2014 wire Playwright and replace this hook'"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

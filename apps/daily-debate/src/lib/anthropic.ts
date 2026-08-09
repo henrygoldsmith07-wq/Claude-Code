@@ -257,7 +257,7 @@ const JUDGE_TOOL = {
       },
       argGraph: {
         type: "object",
-        description: "The full argument graph so the UI can render claim→evidence→counterclaim→rebuttal→impact. Keep every text field concise (≤18 words).",
+        description: "The full argument graph. Keep every text field concise (≤18 words). cited/strong evidence must carry citations.",
         properties: {
           nodes: {
             type: "array",
@@ -270,6 +270,19 @@ const JUDGE_TOOL = {
                 text: { type: "string", description: "One-sentence summary of the node." },
                 round: { type: "integer", description: "Round number where this was introduced." },
                 evidenceStrength: { type: "string", enum: ["anecdotal", "general", "cited", "strong"] },
+                citations: {
+                  type: "array",
+                  description: "Source grounding for this node. cited/strong evidence MUST include ≥1 citation.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      sourceName: { type: "string", description: "Real institution/outlet, e.g. Pew Research Center." },
+                      homepage: { type: "string", description: "Root homepage only, e.g. https://www.pewresearch.org" },
+                      excerpt: { type: "string", description: "≤200 chars: what the source is known for." },
+                    },
+                    required: ["sourceName"],
+                  },
+                },
                 targets: { type: "array", items: { type: "string" }, description: "For rebuttals: node ids rebutted." },
                 fallacy: {
                   type: "string",
@@ -370,12 +383,9 @@ Transcript:
 ${params.transcript}
 
 Judge purely on the quality of reasoning, evidence, and clash — not on which side of the topic is "correct".
-- Score each player out of 100.
+- Score each player out of 100 (grounded, cited evidence counts more than asserted claims).
 - Pick a winner (or tie) and give a 2-4 sentence rationale citing specific moments.
-- Also produce:
-  - decidingFactor: one sentence naming the single biggest reason the winner won.
-  - breakdown: short tallies per side (claims, evidence-backed supports, direct rebuttals, impact moves, fallacies, how many of each side's arguments were dropped by the opponent).
-  - argGraph: the full structured graph. Every node id should be short (c1, e2, k1, r1, i1). Each node's text is a one-sentence summary (≤18 words). Track unsupported claims (no evidence edge), dropped arguments (never directly rebutted), contradictions (a debater contradicted themselves), concessions, evidence strength per evidence node, logical fallacies, and which impacts frame the debate more. Keep it faithful to the transcript — do not invent arguments that weren't made.`;
+- Also produce decidingFactor, breakdown (claims/evidence/rebuttals/impacts/fallacies/droppedSuffered per side), and the full argGraph: nodes (c1,e1,k1,r1,i1, text ≤18 words), edges, dropped, contradictions, concessions, fallacies, evidenceStats (with unsupportedClaimIds), and impactComparison. Every cited/strong evidence node MUST include ≥1 citation {sourceName, homepage (root only), excerpt ≤200 chars} naming a real institution; never invent article URLs. Keep the graph faithful — do not invent arguments not in the transcript.`;
 
   const message = await anthropic.messages.create({
     model: MODEL,

@@ -61,6 +61,25 @@ export default function ProgressView({ store }){
         )}
       </section>
 
+      {history.length ? (
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h3 className="text-sm font-bold">Last session summary</h3>
+          {(() => {
+            const last = [...history].slice().reverse()[0];
+            const vol = (last.blocks || []).reduce((acc,b)=> acc + b.sets.reduce((a,s)=> a + (Number(s.reps)||0) * (Number(s.weightKg)||0), 0), 0);
+            const sets = (last.blocks || []).reduce((a,b)=> a + b.sets.length, 0);
+            return (
+              <div className="mt-2 rounded-xl border border-line bg-surface2 px-3 py-3">
+                <p className="text-sm font-bold">{last.title} <span className="text-xs text-ink3">• {last.dateISO}</span></p>
+                <p className="text-xs text-ink3 mt-1">{sets} sets • {Math.round(vol).toLocaleString()} kg volume • {last.blocks.length} exercises</p>
+                <p className="text-xs text-ink3 mt-1">{last.blocks.map(b=> `${EXERCISE_BY_ID[b.exerciseId]?.name || b.exerciseId}: ${b.sets.map(s=> `${s.reps}${s.weightKg?`@${s.weightKg}kg`:''}`).join(', ')}`).join(' • ')}</p>
+                {last.note && <p className="text-xs mt-2 italic">“{last.note}”</p>}
+              </div>
+            );
+          })()}
+        </section>
+      ) : null}
+
       <section className="rounded-2xl border border-line bg-surface p-4">
         <h3 className="text-sm font-bold">History</h3>
         {!history.length ? <p className="text-sm text-ink3 mt-2">No sessions yet — schedule a program and run it from Today.</p> : (

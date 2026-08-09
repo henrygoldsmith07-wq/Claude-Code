@@ -25,6 +25,49 @@ export function saveStore(s){
 
 export function clearStore(){ try{ localStorage.removeItem(KEY);}catch{} }
 
+// Hevy-style helpers ported from the standalone Life OS fitness module
+// (vendor/life-os-scrape) — previous-session lookup and PR helpers.
+// Life OS used an eval-based Web Worker for sorting; Arise uses safe in-thread
+// helpers instead (see docs in vendor/life-os-scrape/README.md).
+
+/** Last logged sets for an exercise, most recent first. Used in SessionRunner to
+ *  show "Last: 20kg ×8" so progressive overload is obvious. */
+export function lastExerciseSets(history, exerciseId){
+  for(let i = history.length - 1; i >= 0; i--){
+    const sess = history[i];
+    const block = (sess.blocks || []).find(b => b.exerciseId === exerciseId);
+    if(block?.sets?.length) return { dateISO: sess.dateISO, title: sess.title, sets: block.sets };
+  }
+  return null;
+}
+
+/** New PRs hit by a just-saved session vs prior history (Epley 1RM). */
+export function prsHitBySession(session, priorHistory){
+  const priorBest = new Map();
+  for(const h of priorHistory) for(const b of h.blocks || []) for(const s of b.sets || []){
+    const w = Number(s.weightKg), r = Number(String(s.reps).match(/\d+/)?.[0] || s.reps);
+    if(!(w > 0 && r > 0)) continue;
+    const e1rm = w * (1 + r / 30);
+    const prev = priorBest.get(b.exerciseId);
+    if(!prev || e1rm > prev.e1rm) priorBest.set(b.exerciseId, { e1rm });
+  }
+  const hits = [];
+  for(const b of session.blocks || []) for(const s of b.sets || []){
+    const w = Number(s.weightKg), r = Number(String(s.reps).match(/\d+/)?.[0] || s.reps);
+    if(!(w > 0 && r > 0)) continue;
+    const e1rm = w * (1 + r / 30);
+    const prev = priorBest.get(b.exerciseId)?.e1rm || 0;
+    if(e1rm > prev + 0.5) hits.push({ exerciseId: b.exerciseId, e1rm: Math.round(e1rm), weight: w, reps: r });
+  }
+  // dedupe to best per exercise
+  const best = new Map();
+  for(const h of hits){
+    const cur = best.get(h.exerciseId);
+    if(!cur || h.e1rm > cur.e1rm) best.set(h.exerciseId, h);
+  }
+  return [...best.values()].sort((a,b) => b.e1rm - a.e1rm);
+}
+
 // Helpers for history-derived stats
 export function totalVolumeKg(history){
   let total=0;

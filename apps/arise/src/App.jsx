@@ -98,7 +98,7 @@ export default function App(){
       {tab==='more' && <MoreView store={store} setStore={setStore} setTab={setTab} onboardingOpen={onboardingOpen} setOnboardingOpen={setOnboardingOpen} />}
 
       {activeSession && (
-        <SessionRunner session={activeSession} onSave={handleSaveSession} onCancel={()=> setActiveSession(null)} />
+        <SessionRunner session={activeSession} history={store.history || []} onSave={handleSaveSession} onCancel={()=> setActiveSession(null)} />
       )}
 
       <Onboarding

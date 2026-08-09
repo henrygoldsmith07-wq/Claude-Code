@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { __test } from "./anthropic";
+import { __test } from "./gemini";
 
 const { buildSystemPrompt, ASK_TOOL, CONCLUDE_TOOL, MODEL } = __test;
 
-describe("Reflect anthropic prompts — regression", () => {
+describe("Reflect prompts — regression", () => {
   it("uses the expected model", () => {
     expect(MODEL).toMatch(/sonnet/i);
   });
