@@ -178,6 +178,17 @@
       "Read(./.env.*)"
     ]
   },
+  "extraKnownMarketplaces": {
+    "last30days-skill": {
+      "source": {
+        "source": "github",
+        "repo": "mvanhorn/last30days-skill"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "last30days@last30days-skill": true
+  },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_FLOW_V3_ENABLED": "true",
