@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { summarizeSoloDebate } from "@/lib/anthropic";
+import { summarizeSoloDebate } from "@/lib/gemini";
 import { levelForPoints, updateStreak } from "@/lib/gamification";
 import { MIN_ROUNDS } from "@/lib/types";
 
