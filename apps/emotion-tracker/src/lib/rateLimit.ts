@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 // Lightweight, dependency-free per-client rate limiter (fixed window).
 //
 // It guards the paid API routes so a single visitor can't spam an endpoint and
-// run up the account owner's Anthropic bill. State lives in the server
+// run up the account owner's Gemini bill. State lives in the server
 // process, so on a single long-lived server this is enforced globally.
 //
 // NOTE: on multi-instance or serverless deployments each instance keeps its own

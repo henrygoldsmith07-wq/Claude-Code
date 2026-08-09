@@ -126,11 +126,12 @@ def main() -> int:
                  "will be moved or removed. Set DRY_RUN=false to go live.")
 
     engine: AIEngine | None = None
-    if config.anthropic_api_key:
+    if config.anthropic_api_key or config.openrouter_api_key:
         engine = AIEngine(config)
     else:
-        log.warning("ANTHROPIC_API_KEY not set — email intelligence disabled; "
-                    "only the storage janitor will run")
+        log.warning("neither ANTHROPIC_API_KEY nor OPENROUTER_API_KEY is set — "
+                    "email intelligence disabled; only the storage janitor "
+                    "will run")
 
     clients = build_mail_clients(config)
     if not clients:
