@@ -8,6 +8,7 @@ import EntryList from "@/components/EntryList";
 import ApiKeyBar from "@/components/ApiKeyBar";
 import NewEntryForm from "@/components/NewEntryForm";
 import ReflectionSession from "@/components/ReflectionSession";
+import InsightsView from "@/components/InsightsView";
 import Toast from "@/components/Toast";
 
 export default function Home() {
@@ -15,26 +16,33 @@ export default function Home() {
   const [apiKey, setApiKey] = useLocalStorage<string>("anthropicApiKey", "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
 
-  const { startEntry, appendMessage, completeEntry, deleteEntry } = useEntries(entries, setEntries);
+  const { startEntry, appendMessage, completeEntry, updateFollowUp, deleteEntry } = useEntries(
+    entries,
+    setEntries,
+  );
 
   const selectedEntry = entries.find((e) => e.id === selectedId) ?? null;
 
   function handleNew() {
     setSelectedId(null);
     setCreatingNew(true);
+    setShowInsights(false);
   }
 
   function handleStart(situation: string) {
     const entry = startEntry(situation);
     setSelectedId(entry.id);
     setCreatingNew(false);
+    setShowInsights(false);
   }
 
   function handleSelect(id: string) {
     setSelectedId(id);
     setCreatingNew(false);
+    setShowInsights(false);
   }
 
   function handleDelete(id: string) {
@@ -42,8 +50,14 @@ export default function Home() {
     if (selectedId === id) setSelectedId(null);
   }
 
+  function handleInsights() {
+    setSelectedId(null);
+    setCreatingNew(false);
+    setShowInsights(true);
+  }
+
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col bg-background">
       <ApiKeyBar apiKey={apiKey} onChange={setApiKey} />
       <div className="flex flex-1 overflow-hidden">
         <EntryList
@@ -52,27 +66,52 @@ export default function Home() {
           onSelect={handleSelect}
           onDelete={handleDelete}
           onNew={handleNew}
+          onInsights={handleInsights}
         />
         <div className="flex-1 overflow-hidden">
-          {selectedEntry && (
+          {showInsights && (
+            <InsightsView
+              entries={entries}
+              onBack={() => setShowInsights(false)}
+            />
+          )}
+          {!showInsights && selectedEntry && (
             <ReflectionSession
               key={selectedEntry.id}
               entry={selectedEntry}
               apiKey={apiKey}
               onAppendMessage={appendMessage}
               onCompleteEntry={completeEntry}
+              onUpdateFollowUp={updateFollowUp}
               onError={(message) => setToast({ message })}
             />
           )}
-          {!selectedEntry && creatingNew && <NewEntryForm onSubmit={handleStart} />}
-          {!selectedEntry && !creatingNew && (
-            <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-              Select a reflection, or start a new one.
+          {!showInsights && !selectedEntry && creatingNew && (
+            <NewEntryForm onSubmit={handleStart} />
+          )}
+          {!showInsights && !selectedEntry && !creatingNew && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center animate-fade-in">
+              <span className="text-4xl opacity-80">🪞</span>
+              <p className="text-sm font-medium text-foreground">
+                Select a reflection, or start a new one
+              </p>
+              <p className="max-w-xs text-xs text-muted">
+                Reflect helps you look past the first emotion and understand
+                what&apos;s actually going on before you act.
+              </p>
+              <button
+                onClick={handleNew}
+                className="mt-2 rounded-xl bg-accent px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover"
+              >
+                + New reflection
+              </button>
             </div>
           )}
         </div>
       </div>
-      {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
+      {toast && (
+        <Toast message={toast.message} onDismiss={() => setToast(null)} />
+      )}
     </div>
   );
 }

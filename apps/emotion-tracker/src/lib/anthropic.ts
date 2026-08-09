@@ -1,9 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message, ReflectionSummary } from "./types";
+import { validateSummary } from "./validation";
 
 const MODEL = "claude-sonnet-5";
 const MIN_QUESTIONS = 3;
 const MAX_QUESTIONS = 5;
+
+// Past surface but before that ("Rorie Butalia" Greta Gerwig's...)
 
 function getClient(apiKey?: string): Anthropic {
   const key = apiKey || process.env.ANTHROPIC_API_KEY;
@@ -16,13 +19,13 @@ function getClient(apiKey?: string): Anthropic {
 const ASK_TOOL = {
   name: "ask_followup",
   description:
-    "Ask exactly one more probing question to help the user go deeper into what they actually feel and why, before any conclusions are drawn.",
+    "Ask exactly one more probing question to help the user go deeper into the structured reflection pipeline (event → observations → assumptions → emotion → alternatives → outcome → action), before concluding.",
   input_schema: {
     type: "object" as const,
     properties: {
       question: {
         type: "string",
-        description: "A single, specific, non-leading follow-up question, grounded in what the user just said.",
+        description: "A single, specific, non-leading follow-up question, grounded in what the user just said. It should advance the structured pipeline (e.g. separate observations from assumptions, name the emotion, propose an alternative interpretation, clarify intended outcome or next action).",
       },
     },
     required: ["question"],
@@ -32,19 +35,59 @@ const ASK_TOOL = {
 const CONCLUDE_TOOL = {
   name: "conclude_reflection",
   description:
-    "Conclude the reflection once enough has been explored, and give a grounded, non-self-serving summary.",
+    "Conclude the reflection with a structured, hedged, non-diagnostic summary that follows the pipeline event → observations → assumptions → emotion → alternatives → outcome → action → follow-up.",
   input_schema: {
     type: "object" as const,
     properties: {
+      trace: {
+        type: "object",
+        description: "The full structured trace for the reflection.",
+        properties: {
+          event: { type: "string", description: "Concise factual event description (1-3 sentences)." },
+          observations: {
+            type: "array",
+            items: { type: "string" },
+            description: "Observable facts only (what was said/done). No mind-reading or motive attribution — those go in assumptions.",
+          },
+          assumptions: {
+            type: "array",
+            items: { type: "string" },
+            description: "Unverified assumptions/inferences the user treated as fact during the conversation.",
+          },
+          namedEmotion: { type: "string", description: "The specific emotion named after reflection (e.g. hurt, shame, fear)." },
+          alternativeInterpretations: {
+            type: "array",
+            items: { type: "string" },
+            description: "At least one alternative plausible reading of the same facts.",
+          },
+          intendedOutcome: { type: "string", description: "What the user actually wants to happen." },
+          intendedAction: { type: "string", description: "The single next action the user intends to take." },
+          followUpAt: {
+            type: "string",
+            description: "When to revisit (ISO date YYYY-MM-DD or free text like 'tomorrow'); null if user declined to set one.",
+          },
+          followUpNote: { type: "string", description: "Usually null at conclusion time; reserved for later follow-up." },
+        },
+        required: [
+          "event",
+          "observations",
+          "assumptions",
+          "namedEmotion",
+          "alternativeInterpretations",
+          "intendedOutcome",
+          "intendedAction",
+          "followUpAt",
+          "followUpNote",
+        ],
+      },
       coreEmotion: {
         type: "string",
-        description:
-          "The deeper emotion beneath the surface feeling the user first named (e.g. hurt, fear, shame, insecurity, grief) — not just the initial label like 'anger'.",
+        description: "Mirrors trace.namedEmotion — the deeper emotion beneath the first label.",
       },
       underlyingTriggers: {
         type: "array",
         items: { type: "string" },
-        description: "Specific things that actually triggered the feeling, as uncovered in the conversation.",
+        description: "Specific triggers uncovered, matching trace observations/assumptions.",
       },
       possibleBiases: {
         type: "array",
@@ -53,38 +96,56 @@ const CONCLUDE_TOOL = {
           properties: {
             type: {
               type: "string",
-              description:
-                "Name of the cognitive distortion or bias, e.g. 'self-serving bias', 'moral licensing', 'mind-reading', 'catastrophizing', 'all-or-nothing thinking'.",
+              description: "Label for the pattern, e.g. 'catastrophizing', 'mind-reading', 'all-or-nothing thinking'. Do not present as diagnosis.",
             },
-            description: { type: "string", description: "How it showed up in what the user said." },
+            description: {
+              type: "string",
+              description: "HEDGED single sentence: 'This interpretation may involve…' with no 'you have…' false certainty.",
+            },
+            evidenceFor: {
+              type: "array",
+              items: { type: "string" },
+              description: "1-3 brief pieces of evidence that this pattern is present.",
+            },
+            evidenceAgainst: {
+              type: "array",
+              items: { type: "string" },
+              description: "1-3 brief pieces of evidence or context weighing against that reading.",
+            },
+            confidence: {
+              type: "number",
+              description: "0..1. Below 0.45, omit the flag entirely instead of hedging. Be conservative.",
+            },
           },
-          required: ["type", "description"],
+          required: ["type", "description", "evidenceFor", "evidenceAgainst", "confidence"],
         },
-        description: "Only include biases that actually showed up. Return an empty array if none did.",
+        description: "Only include biases that actually showed up and pass the confidence threshold. Omit uncertain flags. Hedged descriptions only.",
       },
       otherPerspective: {
         type: "string",
-        description:
-          "A fair articulation of how the other person(s) involved might see the situation, even if it's uncomfortable for the user to hear.",
+        description: "Fair articulation of how the other person(s) might see it, even if uncomfortable.",
       },
       balancedAssessment: {
         type: "string",
-        description:
-          "An honest, non-flattering-by-default assessment of the situation, including where the user may share responsibility. Do not validate retaliatory or rash conclusions even if the user was genuinely wronged.",
+        description: "Honest assessment including where the user may share responsibility. Do not validate retaliatory conclusions.",
       },
       cautionFlags: {
         type: "array",
         items: { type: "string" },
-        description:
-          "Any rash, retaliatory, or high-stakes decisions the user mentioned wanting to make that are worth pausing on before acting. Empty array if none.",
+        description: "Rash/retaliatory decisions worth pausing on. [] if none.",
       },
       suggestedNextSteps: {
         type: "array",
         items: { type: "string" },
-        description: "Concrete, level-headed next steps for processing the emotion and deciding what to do next.",
+        description: "Concrete next steps consistent with the intended outcome and action.",
+      },
+      hedgedDisclaimer: {
+        type: "string",
+        description: "If biases were flagged: hedged disclaimer, e.g. 'These are tentative readings of a single account, not diagnoses; consider them against the evidence listed.' Null if no biases flagged.",
       },
     },
     required: [
+      "trace",
       "coreEmotion",
       "underlyingTriggers",
       "possibleBiases",
@@ -92,26 +153,43 @@ const CONCLUDE_TOOL = {
       "balancedAssessment",
       "cautionFlags",
       "suggestedNextSteps",
+      "hedgedDisclaimer",
     ],
   },
 };
 
-function buildSystemPrompt(questionsAskedSoFar: number): string {
+export function buildSystemPrompt(questionsAskedSoFar: number): string {
   const remaining = Math.max(0, MIN_QUESTIONS - questionsAskedSoFar);
-  return `You are a rigorous, compassionate reflection guide inside an emotion-tracking app. Your job is NOT to comfort or validate — it is to help the user actually understand what they feel and why, so they act deliberately instead of rashly.
+  return `You are a rigorous, compassionate reflection guide inside Reflect — a structured reflection tool (not a mood tracker, not a Bearable-style tracker). Your job is to challenge interpretations helpfully, not merely log a mood.
 
-Rules:
-1. Never simply affirm the user's initial framing of a situation as correct. People in the grip of strong emotion routinely misjudge blame, motive, and proportion — your job is to test their account, not echo it back to them.
-2. If the situation is vague, ask about the concrete facts first. Then dig underneath the named emotion — anger is very often a cover for hurt, fear, shame, humiliation, or insecurity. Find what's actually underneath; don't stop at the first label.
-3. Explicitly consider whether the user is partly in the wrong, exaggerating, or reasoning in a self-serving way — even if they were also wronged by someone else. Being wronged does not make every subsequent judgment or reaction correct. For example: a partner treating someone badly does NOT mean that partner "deserved" to be cheated on, and it does not automatically justify any retaliatory act the user is considering. Call this out directly and plainly if something like it comes up — do not let it pass unchallenged.
-4. Watch for and name cognitive distortions when they appear: mind-reading, catastrophizing, all-or-nothing thinking, moral licensing ("they wronged me so I'm entitled to X"), and self-serving attribution.
-5. Ask exactly one question per turn, using the ask_followup tool. Keep each question specific to what the user just said — never generic or templated. Never ask more than ${MAX_QUESTIONS} questions in total across the whole reflection.
-6. So far you have asked ${questionsAskedSoFar} question(s). ${
+STRUCTURED PIPELINE — keep the conversation on this track:
+  event → observations → assumptions → emotion → alternative interpretations → intended outcome → action → later follow-up
+- observations = verifiable facts ("they said…", "they did…"). Not "they think…" — that's an assumption.
+- assumptions = inferences the user treated as fact ("they don't respect me", "this will ruin everything").
+- emotion = the specific feeling underneath the first label.
+- alternatives = at least one other plausible reading of the SAME observations.
+- outcome = what the user actually wants to happen.
+- action = the single concrete next step they will take.
+- follow-up = when to check whether it helped (ask for a date like YYYY-MM-DD or "tomorrow"/"end of week").
+
+LANGUAGE CONTRACT — no false certainty:
+- NEVER write "You have catastrophizing bias" / "You are suffering from …" / "Diagnosis: …".
+- When you flag a pattern, use exactly this style: "This interpretation may involve catastrophizing; here's the evidence for that reading (…) and the evidence against it (…)."
+- Each bias flag must include: hedged description + evidenceFor + evidenceAgainst + confidence (0..1). If confidence < 0.45, omit the flag entirely instead of hedging.
+- When any bias is flagged, add a hedgedDisclaimer: "These are tentative readings of a single account, not diagnoses; weigh them against the evidence listed."
+
+RULES:
+1. Never simply affirm the user's initial framing as correct. Test blame, motive and proportion.
+2. If the situation is vague, get concrete facts first. Dig beneath the first label — anger is often hurt/fear/shame/insecurity.
+3. Even if the user was genuinely wronged, that does not make every subsequent reaction justified. Call retaliatory reasoning out plainly.
+4. Ask exactly one question per turn via ask_followup, specific to what the user just said. Never more than ${MAX_QUESTIONS} total.
+5. So far you have asked ${questionsAskedSoFar} question(s). ${
     remaining > 0
       ? `You must ask at least ${remaining} more question(s) before concluding — do not call conclude_reflection yet.`
-      : `You have asked enough to conclude once you genuinely have enough to give an honest, examined account — call conclude_reflection instead of asking another question when that point is reached. Do not interrogate past the point of diminishing returns, and do not conclude just because the user seems to want validation.`
+      : `You have asked enough to conclude once you genuinely have enough to fill trace, alternatives, outcome, action and follow-up — call conclude_reflection instead of asking another question when that point is reached. Do not interrogate past diminishing returns, and do not conclude just to validate.`
   }
-7. In the final summary, be honest even when it's unflattering to the user. Do not tell them what they want to hear. Name caution flags for any rash or retaliatory decision they've mentioned wanting to make.`;
+6. In the final summary, be honest even when unflattering. Name caution flags for any rash/retaliatory decision mentioned.
+7. When you conclude, you MUST fill every trace field, include at least one alternative interpretation, one observation, one assumption (or state \"none identified — assumptions were minimal\"), and propose a follow-up checkpoint (ask the user for a date; default to null only if they declined).`;
 }
 
 function toAnthropicMessages(messages: Message[]) {
@@ -128,7 +206,7 @@ export async function getNextReflectionStep(messages: Message[], apiKey?: string
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 1500,
+    max_tokens: 1800,
     system: buildSystemPrompt(questionsAskedSoFar),
     tools: [ASK_TOOL, CONCLUDE_TOOL],
     tool_choice: { type: "auto" },
@@ -145,5 +223,27 @@ export async function getNextReflectionStep(messages: Message[], apiKey?: string
     return { step: "question", question: input.question };
   }
 
-  return { step: "summary", summary: toolUse.input as ReflectionSummary };
+  const summary = toolUse.input as ReflectionSummary;
+  // Normalize nulls -> null (Anthropic may omit followUpAt/followUpNote)
+  if (summary.trace) {
+    if (summary.trace.followUpAt === undefined) summary.trace.followUpAt = null;
+    if (summary.trace.followUpNote === undefined) summary.trace.followUpNote = null;
+  }
+  const errors = validateSummary(summary);
+  // If the model violated the hedged contract, surface a clear error so it isn't silently stored
+  if (errors.length > 0) {
+    throw new Error(`Reflection did not meet structured/hedged requirements: ${errors.join(" · ")}`);
+  }
+
+  return { step: "summary", summary };
 }
+
+// Exported for regression tests without constructing a real Anthropic client
+export const __test = {
+  buildSystemPrompt,
+  ASK_TOOL,
+  CONCLUDE_TOOL,
+  MODEL,
+  MIN_QUESTIONS,
+  MAX_QUESTIONS,
+};

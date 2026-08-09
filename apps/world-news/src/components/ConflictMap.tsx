@@ -110,7 +110,7 @@ export default function ConflictMap({
       >
         <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-3">
           <div>
-            <p className="text-xs uppercase tracking-wide text-red-300">⚔ Active conflict</p>
+            <p className="text-xs uppercase tracking-wide text-danger">⚔ Active conflict</p>
             <h2 className="text-lg font-semibold tracking-tight">{conflict.label}</h2>
           </div>
           <button
@@ -123,7 +123,7 @@ export default function ConflictMap({
           </button>
         </div>
 
-        <div className="bg-[#0a1120] p-3">
+        <div className="bg-[var(--bg)] p-3">
           <svg
             viewBox={`0 0 ${W} ${H}`}
             className="h-auto w-full"

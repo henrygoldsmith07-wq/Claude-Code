@@ -1,0 +1,73 @@
+# Arise — Training, levelled up
+
+A game-like, offline-first training companion. Not a nutrition app.
+
+**Stack:** Vite + React + Tailwind v4 + `le-studio.css` design tokens. Local-first (`localStorage`), no backend, no account. PWA-ready.
+
+## What it does — in order
+
+1. **Wires `data.js`** — single source of truth: `EQUIPMENT` / `LOCATIONS` / `MUSCLES` / `LEVELS` / `EXERCISES` + `PROGRAMS`. Every exercise declares `equipment[]` and `substitution[]`; validation is runnable (`npm run lint:content`).
+2. **Exercise browser** — search + filters (muscle / equipment / level) plus an **Only my kit** toggle gated by onboarding. Always shows a substitution when kit is missing; never pretends a barbell lift is “recommended” to a bodyweight-only user.
+3. **Export / restore / import** — versioned JSON backup (`{ app:'arise', version, exportedAt, data }`). `Merge` de-dupes by session `id`; `Replace` overwrites. No cloud sync — the user owns the file.
+4. **Programs are scheduled training** — picking a program in **Train** creates dated sessions (`activeSchedule.sessions[]`) via `scheduleProgram()`. Today shows the session for today (or up next); progress is `done/total`.
+5. **Onboarding shapes recommendations** — goal + location + equipment + level/days. `recommendExercises()` and `availablePrograms()` are deterministic and re-sort visibly when onboarding changes (minimal kit → beginner-friendly first; location biases conditioning).
+6. **Resistance / load tracking** — every logged set is `{ reps, weightKg, rpe }`. Leave weight blank for bodyweight. Session volume (`kg`) is derived live; `SessionRunner` enforces reps-filled before save.
+7. **Attributes derive from history** — `deriveAttributes(history)` computes Strength / Endurance / Consistency / Technique from logged volume, loads (Epley 1RM), variety, cardio minutes, streak and logging discipline. Level is `avg/7`. Nothing derives from program labels.
+8. **PWA** — `manifest.webmanifest` + `sw.js` (cache-first navigations, stale-while-revalidate assets, same-origin only). Icons are neutral monochrome `A` (no franchise marks). Install → airplane mode → reload keeps Today / Exercises / schedule from cache.
+9. **Mobile tested (guide)** — see below. Touch targets ≥44px, safe-area insets, standalone display.
+10. **Accessibility** — landmarks (`header`/`main`/`nav` with `aria-label`), skip link, `aria-current="page"`, `aria-live="polite"` on result counts, `role="status"` on import messages, labelled inputs, visible `:focus-visible` ring from `le-studio.css`, `Esc` + overlay-click to dismiss dialogs, `prefers-reduced-motion` respected, OS theme respected.
+11. **No nutrition system** — intentionally out of scope. Adding one recreates Forq and distracts from the training/level-up proposition.
+12. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+
+## Run
+
+```bash
+cd apps/arise
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # → dist/
+npm test           # node:test (data / attributes / export)
+npm run lint:content
+npm run check      # lint:content && test
+```
+
+No env vars. Data is local — clear via **More → Clear local data** (or export first).
+
+## Data model (localStorage `arise.store.v1`)
+
+```js
+{
+  version: 1,
+  onboarding: { goal, equipment:[], location, level, daysPerWeek } | null,
+  activeSchedule: { programId, startDateISO, sessions:[{ id, dateISO, week, day, title, blocks, status }] } | null,
+  history: [{ id, dateISO, programId, week, day, title, blocks:[{ exerciseId, sets:[{reps,weightKg,rpe}] }], note?, savedAt }],
+  preferences: { units:'kg', theme: null } // null = follow OS
+}
+```
+
+## Test on a real phone (30s checklist)
+
+1. Open on phone (same Wi-Fi `vite --host` URL or preview deploy).
+2. **Add to Home Screen** — verify standalone display, monochrome icon, splash.
+3. **Airplane mode → reload** — Today + Exercises + schedule render from cache.
+4. Log a session with varied loads — Progress attributes + PRs update immediately and survive reload.
+5. **Export →** airplane off → **Import on a second device (Merge)** → history appears.
+6. **Keyboard-only:** Tab Today → Train → Exercises; focus ring visible everywhere, no trap.
+7. **VoiceOver / TalkBack:** headings, session rows and form fields announced; result counts live-polite.
+
+## Franchise note
+
+This app shares the Le Studio monochrome design system and has no franchise, hero or “academy” branding in code. Before any serious public/commercial release, do a full copy/brand sweep (name, screenshots, store copy, icons) — if anything was franchise-adjacent under an earlier codename, rename it first.
+
+## Project layout
+
+```
+src/lib/data.js        single source of truth + schedule helpers
+src/lib/attributes.js  history-derived attributes + level
+src/lib/store.js       localStorage + streak/volume helpers
+src/lib/export.js      versioned backup
+src/lib/schedule.js    today/next/progress + startProgram
+src/components/*       Today / Train+SessionRunner / Exercises / Progress / More + Onboarding + AppShell
+public/                manifest.webmanifest + sw.js + icons
+scripts/lint-content.mjs  validates exercises/programs
+```

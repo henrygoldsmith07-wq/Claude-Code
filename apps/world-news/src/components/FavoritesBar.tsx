@@ -19,7 +19,7 @@ export default function FavoritesBar() {
         <Link
           key={`c-${c.id}`}
           href={`/country/${c.id}`}
-          className="rounded-full border border-amber-400/50 bg-amber-400/10 px-3 py-1 text-xs text-amber-200 backdrop-blur transition-colors hover:border-amber-300"
+          className="rounded-full border border-review/50 bg-review/10 px-3 py-1 text-xs text-review backdrop-blur transition-colors hover:border-review"
         >
           {c.label}
         </Link>

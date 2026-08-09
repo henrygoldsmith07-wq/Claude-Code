@@ -22,7 +22,7 @@ export default function AuthForm() {
           onClick={() => setMode("sign-in")}
           aria-pressed={mode === "sign-in"}
           className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
-            mode === "sign-in" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-zinc-500"
+            mode === "sign-in" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-ink3"
           }`}
         >
           Sign in
@@ -32,7 +32,7 @@ export default function AuthForm() {
           onClick={() => setMode("sign-up")}
           aria-pressed={mode === "sign-up"}
           className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
-            mode === "sign-up" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-zinc-500"
+            mode === "sign-up" ? "border-[var(--accent)] text-[var(--foreground)]" : "border-transparent text-ink3"
           }`}
         >
           Create account

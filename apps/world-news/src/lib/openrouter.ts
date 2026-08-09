@@ -1,6 +1,7 @@
 import type { CountryNews, NewsPoint, TopicSummary } from "./gemini";
 import { TOPICS } from "./gemini";
 import { fetchScopeGeoNews } from "./gdelt";
+import { buildSourceMix, inferSourceAttribution, type StoryCluster } from "./storyModel";
 
 // OpenRouter as the news source: instead of asking an LLM to invent the news
 // (which would hallucinate), we fetch REAL geolocated articles from GDELT and
@@ -46,6 +47,71 @@ function normaliseTopics(raw: unknown): TopicSummary[] {
     }
   }
   return TOPICS.map((t) => byTopic.get(t)).filter((r): r is TopicSummary => Boolean(r));
+}
+
+// Minimal cluster from GDELT points (no LLM story detail; used as a fallback so
+// the repositioned UI still has stories even on the OpenRouter path).
+function clustersFromPoints(points: NewsPoint[]): StoryCluster[] {
+  // Tag-based clustering: points sharing a tag become one story.
+  const tagGroups = new Map<string, NewsPoint[]>();
+  const untagged: NewsPoint[] = [];
+  for (const p of points) {
+    if (p.tags.length === 0) untagged.push(p);
+    else {
+      const key = p.tags[0];
+      const g = tagGroups.get(key) ?? [];
+      g.push(p);
+      tagGroups.set(key, g);
+    }
+  }
+  const stories: StoryCluster[] = [];
+  let id = 0;
+  for (const [tag, group] of tagGroups) {
+    if (stories.length >= 6) break;
+    const head = group[0];
+    const attributions = group.slice(0, 4).map((g) => inferSourceAttribution(`https://gdelt.example/${id}`, g.headline));
+    stories.push({
+      id: `cluster-${tag}-${id++}`,
+      headline: head.headline,
+      topic: head.topic || "Politics",
+      summary: group.map((g) => g.headline).join(" · ").slice(0, 400),
+      keyPoints: group.slice(0, 3).map((g) => g.headline),
+      location: head.location ? { label: head.location, lat: head.lat, lng: head.lng, countryCode: head.countryCode || undefined } : undefined,
+      sources: attributions,
+      sourceMix: buildSourceMix(attributions),
+      primarySources: [],
+      timeline: [],
+      conflictingClaims: [],
+      widelyAgreedFacts: [],
+      uncertainty: ["Awaiting full source comparison (GDELT-based cluster)."],
+      corrections: [],
+      coverageGaps: ["GDELT clustering is heuristic; see Gemini refresh for full what/where/who/differ breakdown."],
+    });
+  }
+  // If still few clusters, add untagged topics
+  if (stories.length < 2 && untagged.length > 0) {
+    for (const p of untagged.slice(0, 2)) {
+      const a = inferSourceAttribution(`https://gdelt.example/untagged-${id}`, p.headline);
+      stories.push({
+        id: `cluster-untagged-${id++}`,
+        headline: p.headline,
+        topic: p.topic || "Politics",
+        summary: p.headline,
+        keyPoints: [],
+        location: p.location ? { label: p.location, lat: p.lat, lng: p.lng } : undefined,
+        sources: [a],
+        sourceMix: buildSourceMix([a]),
+        primarySources: [],
+        timeline: [],
+        conflictingClaims: [],
+        widelyAgreedFacts: [],
+        uncertainty: [],
+        corrections: [],
+        coverageGaps: [],
+      });
+    }
+  }
+  return stories.slice(0, 8);
 }
 
 // Ask the model to organise the real GDELT points into topics + tags. Returns
@@ -149,15 +215,25 @@ export async function summariseViaOpenRouter(
     .map((p) => (cc ? { ...p, countryCode: cc } : p))
     .slice(0, 40);
 
+  const gcSources = sources.length ? sources : finalPoints.slice(0, 8).map((p) => ({ url: `https://gdelt.example/${encodeURIComponent(p.headline)}`, title: p.headline }));
+  const stories = clustersFromPoints(finalPoints);
+  // Use real gc sources as the page sources; keep clusters' placeholder sources separate.
+
   return {
     country: label,
     code,
     generatedAt: new Date().toISOString(),
     topics: organised.topics,
-    sources,
+    sources: gcSources.slice(0, 24),
     points: finalPoints,
-    // Front-line geography can't be grounded from GDELT points, so war lines are
-    // left to the Gemini path; keep them empty here rather than invent them.
     conflicts: [],
+    stories,
+    meta: {
+      widelyAgreedFacts: [],
+      uncertainty: ["This is a GDELT-grounded clustering; the grounded Gemini refresh adds timeline, conflicting claims and coverage gaps."],
+      coverageGaps: ["Primary sources and perspective mix require the grounded refresh."],
+      corrections: [],
+      whatChangedSinceYesterday: null,
+    },
   };
 }

@@ -39,11 +39,16 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
       </div>
 
       <div>
-        <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Credible sources to consider</p>
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink3">Credible sources to consider</p>
         <ul className="flex flex-col gap-2">
           {topic.sources.map((source) => (
-            <li key={source.name} className="text-sm text-zinc-400">
-              <a href={source.homepage} target="_blank" rel="noreferrer" className="font-medium text-zinc-200 hover:underline">
+            <li key={source.name} className="text-sm text-ink3">
+              <a
+                href={source.homepage}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-ink hover:underline"
+              >
                 {source.name}
               </a>{" "}
               — {source.angle}
@@ -58,8 +63,8 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
         </Link>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-zinc-400">Pick your side, then debate the AI for at least 5 rounds.</p>
-          <div className="flex gap-2">
+          <p className="text-sm text-ink3">Pick your side, then debate the AI for at least 5 rounds.</p>
+          <div className="flex gap-2" role="group" aria-label="Choose side">
             <button
               type="button"
               onClick={() => setSide("for")}
@@ -81,14 +86,30 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
               Argue Against
             </button>
           </div>
-          <button type="button" onClick={startDebate} disabled={starting} className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40">
-            {starting ? "Starting…" : "Start solo debate"}
+          <button
+            type="button"
+            onClick={startDebate}
+            disabled={starting}
+            className="btn btn-primary px-4 py-2 text-sm disabled:opacity-40"
+          >
+            {starting ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-transparent" />
+                Starting…
+              </span>
+            ) : (
+              "Start solo debate"
+            )}
           </button>
-          {error && <p className="text-sm text-[var(--bad)]">{error}</p>}
+          {error && (
+            <p className="text-sm text-[var(--bad)]" role="alert">
+              {error}
+            </p>
+          )}
         </div>
       )}
 
-      <Link href="/pvp" className="text-center text-sm text-zinc-400 hover:text-[var(--foreground)]">
+      <Link href="/pvp" className="text-center text-sm text-ink3 hover:text-[var(--foreground)]">
         Or challenge another player on today&apos;s topic →
       </Link>
     </div>

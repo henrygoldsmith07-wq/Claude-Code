@@ -16,17 +16,17 @@ export default function Toast({ message, actionLabel, onAction, onDismiss }: Pro
   }, [message, onDismiss]);
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="elev-pop fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-line bg-surface px-4 py-2 text-sm text-ink">
       <span>{message}</span>
       {actionLabel && onAction && (
         <button
           onClick={onAction}
-          className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+          className="font-medium text-speak hover:underline"
         >
           {actionLabel}
         </button>
       )}
-      <button onClick={onDismiss} className="text-zinc-400 hover:text-zinc-600">
+      <button onClick={onDismiss} className="text-ink3 hover:text-ink">
         ✕
       </button>
     </div>

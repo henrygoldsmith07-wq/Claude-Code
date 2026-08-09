@@ -6,7 +6,7 @@ import { levelForPoints, updateStreak } from "@/lib/gamification";
 import { MIN_ROUNDS } from "@/lib/types";
 
 export async function POST(request: Request, { params }: { params: Promise<{ debateId: string }> }) {
-  const limited = checkRateLimit(request, { name: "solo-finish", limit: 10, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "solo-finish", limit: 10, windowMs: 60_000 });
   if (limited) return limited;
 
   const { debateId } = await params;

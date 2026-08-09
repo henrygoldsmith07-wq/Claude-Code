@@ -11,6 +11,15 @@ import FavoriteButton from "@/components/FavoriteButton";
 import TimeAgo from "@/components/TimeAgo";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import TimelineControl from "@/components/TimelineControl";
+import StoryClusterCard from "@/components/StoryClusterCard";
+import StorySourceSummary from "@/components/StorySourceSummary";
+import {
+  WhatChangedPanel,
+  AgreedFactsPanel,
+  UncertaintyPanel,
+  CoverageGapsPanel,
+  CorrectionsPanel,
+} from "@/components/NewsMetaPanels";
 
 // News is fetched live (with a short cache in getCountryNews), so never
 // prerender this at build time.
@@ -27,6 +36,9 @@ interface BackTarget {
   label: string;
 }
 
+const POSITIONING_SUB =
+  "Understand what happened, where it happened, who is reporting it and where accounts differ.";
+
 function Shell({
   title,
   back,
@@ -42,8 +54,26 @@ function Shell({
         {back.label}
       </Link>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
+      <p className="mt-1 text-sm text-muted">{POSITIONING_SUB}</p>
       <div className="mt-6">{children}</div>
     </main>
+  );
+}
+
+function StoryBlocks({ news, topicName }: { news: CountryNews; topicName: string | null }) {
+  const stories = topicName
+    ? (news.stories ?? []).filter((s) => s.topic === topicName)
+    : (news.stories ?? []);
+  if (stories.length === 0) return null;
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Stories · {stories.length} {topicName ? `in ${topicName}` : "cluster" + (stories.length === 1 ? "" : "s")}
+      </p>
+      {stories.map((s) => (
+        <StoryClusterCard key={s.id} story={s} />
+      ))}
+    </div>
   );
 }
 
@@ -99,13 +129,23 @@ export default async function CountryPage({
     const arcTopics = topicName
       ? archived.topics.filter((t) => t.topic === topicName)
       : archived.topics;
+    const arcStories = topicName
+      ? (archived.stories ?? []).filter((s) => s.topic === topicName)
+      : (archived.stories ?? []);
     return (
       <Shell title={name} back={back}>
         {timeline}
         <p className="mt-4 mb-4 text-xs text-muted">
           Archived snapshot · <TimeAgo iso={archived.generatedAt} prefix="generated " />
         </p>
-        {arcTopics.length === 0 ? (
+        {arcStories.length > 0 && (
+          <div className="mb-4 space-y-4">
+            {arcStories.map((s) => (
+              <StoryClusterCard key={s.id} story={s} />
+            ))}
+          </div>
+        )}
+        {arcTopics.length === 0 && arcStories.length === 0 ? (
           <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
             No news recorded for {name} on this date.
           </div>
@@ -115,6 +155,10 @@ export default async function CountryPage({
               <TopicSection key={topic.topic} topic={topic} />
             ))}
             <SourceList sources={archived.sources} />
+            {(archived.meta?.widelyAgreedFacts?.length ?? 0) > 0 && <AgreedFactsPanel news={archived} />}
+            {(archived.meta?.uncertainty?.length ?? 0) > 0 && <UncertaintyPanel news={archived} />}
+            <CoverageGapsPanel news={archived} />
+            <CorrectionsPanel news={archived} />
           </div>
         )}
       </Shell>
@@ -199,6 +243,7 @@ export default async function CountryPage({
           <span className="rounded-full border border-rule bg-panel/80 px-4 py-1.5 text-sm font-medium backdrop-blur">
             {news.country}
             {topicName ? ` · ${topicName}` : ""} · {shownPoints.length} news points
+            {(news.stories?.length ?? 0) > 0 ? ` · ${news.stories!.length} stories` : ""}
           </span>
         </div>
       </div>
@@ -228,18 +273,33 @@ export default async function CountryPage({
           <p className="mb-4 mt-4 text-sm font-medium text-foreground">{topicName}</p>
         )}
 
-        {shownTopics.length === 0 ? (
-          <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+        <WhatChangedPanel news={news} />
+
+        {(news.stories?.length ?? 0) > 0 && (
+          <div className="mt-4">
+            <StorySourceSummary news={news} />
+            <div className="mt-4">
+              <StoryBlocks news={news} topicName={topicName} />
+            </div>
+          </div>
+        )}
+
+        {shownTopics.length === 0 && (news.stories?.length ?? 0) === 0 ? (
+          <div className="mt-4 rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
             {topicName
               ? `No significant recent ${topicName.toLowerCase()} news surfaced for ${news.country}.`
               : `No significant recent news surfaced for ${news.country}. Try again later.`}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="mt-4 space-y-4">
             {shownTopics.map((topic) => (
               <TopicSection key={topic.topic} topic={topic} />
             ))}
             <SourceList sources={news.sources} />
+            <AgreedFactsPanel news={news} />
+            <UncertaintyPanel news={news} />
+            <CoverageGapsPanel news={news} />
+            <CorrectionsPanel news={news} />
           </div>
         )}
       </Shell>
