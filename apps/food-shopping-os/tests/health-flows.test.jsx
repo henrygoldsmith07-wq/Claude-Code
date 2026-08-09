@@ -6,12 +6,16 @@ const onboard = ({ cycle = false, stats = null } = {}) => {
   render(<App />);
   fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
   fireEvent.click(screen.getByText('Continue'));
+  // Age is asked on the context step now, because it decides whether the rest
+  // of setup is the adult app or the under-18 one.
+  if (stats) {
+    fireEvent.change(screen.getByLabelText(/^Your age/), { target: { value: String(stats.age) } });
+  }
   fireEvent.click(screen.getByText('Continue'));
   if (stats || cycle) fireEvent.click(screen.getByText('Personalise nutrition'));
   if (stats) {
     fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: String(stats.weightKg) } });
     fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: String(stats.heightCm) } });
-    fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: String(stats.age) } });
     fireEvent.click(screen.getByText(stats.sex));
   }
   // The cycle page is opt-in, so tests that need it ask for it the way a user would.
@@ -80,13 +84,13 @@ describe('what setup asks for, and why', () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
     fireEvent.click(screen.getByText('Continue'));
+    fireEvent.change(screen.getByLabelText(/^Your age/), { target: { value: '30' } });
     fireEvent.click(screen.getByText('Continue'));
     fireEvent.click(screen.getByText('Personalise nutrition'));
     // Nothing given yet, so it asks for the figure instead of inventing one.
     expect(screen.getByLabelText(/^Maintenance/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: '80' } });
     fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: '180' } });
-    fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: '30' } });
     // 10×80 + 6.25×180 − 5×30 = 1,775, − 78 for the unstated midpoint, ×1.375 lightly active
     expect(screen.getByText(/2,333 kcal/)).toBeTruthy();
     expect(screen.queryByLabelText(/^Maintenance/)).toBeNull();
@@ -96,11 +100,11 @@ describe('what setup asks for, and why', () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
     fireEvent.click(screen.getByText('Continue'));
+    fireEvent.change(screen.getByLabelText(/^Your age/), { target: { value: '30' } });
     fireEvent.click(screen.getByText('Continue'));
     fireEvent.click(screen.getByText('Personalise nutrition'));
     fireEvent.change(screen.getByLabelText(/^Your weight/), { target: { value: '80' } });
     fireEvent.change(screen.getByLabelText(/^Your height/), { target: { value: '180' } });
-    fireEvent.change(screen.getByLabelText(/^Age/), { target: { value: '30' } });
     expect(screen.getByText(/constants differ by\s+166 kcal/)).toBeTruthy();
     fireEvent.click(screen.getByText('Male'));
     expect(screen.getByText(/2,448 kcal/)).toBeTruthy();

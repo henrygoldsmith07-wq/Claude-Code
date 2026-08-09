@@ -9,13 +9,14 @@
 
 import { CATALOGUE, FOODS } from '../data/foods.js';
 import { NUTRIENT_KEYS } from '../data/nutrients.js';
-import { EMPTY, buildEntry, recipeAsFood, timeStamp, mealForTime } from './nutrition.js';
+import { EMPTY, buildEntry, nutrientNumber, nutrientValue, recipeAsFood, timeStamp, mealForTime } from './nutrition.js';
+
+export { recipeTextFromMarkup } from './recipe-markup.js';
 
 const norm = (str) => String(str || '').toLowerCase().trim();
 
 /* ---------- Search ---------- */
 
-/** Score a food against a query: name start > name contains > brand > tag. */
 const score = (food, q) => {
   const name = norm(food.name);
   const brand = norm(food.brand);
@@ -27,10 +28,6 @@ const score = (food, q) => {
   return 0;
 };
 
-/**
- * Rank the catalogue against a query. Every word must match something, so
- * "pret chicken" narrows instead of returning every chicken in the database.
- */
 export const searchFoods = (query, catalogue = CATALOGUE, limit = 40) => {
   const q = norm(query);
   if (!q) return catalogue.slice(0, limit);
@@ -60,10 +57,8 @@ export const lookupBarcode = (code, catalogue = CATALOGUE) => {
   return catalogue.find((f) => f.barcode === c) || null;
 };
 
-/** Barcodes the demo scanner can "see" through the camera. */
 export const SCANNABLE = FOODS.filter((f) => f.barcode);
 
-/** Deterministic pick so a given scan session resolves the same way twice. */
 export const scanAt = (n) => SCANNABLE[Math.abs(Math.trunc(n)) % SCANNABLE.length];
 
 /* ---------- Voice logging ---------- */
@@ -94,7 +89,6 @@ const MEAL_WORDS = {
   tea: 'dinner', supper: 'dinner', snack: 'snack', snacks: 'snack', snacking: 'snack',
 };
 
-/** Pull "for lunch" (etc.) out of the sentence, returning meal + the rest. */
 const extractMeal = (text) => {
   let meal = null;
   const cleaned = norm(text).replace(/\bfor\s+(breakfast|brunch|lunch|dinner|tea|supper|snacks?)\b/g, (_, word) => {
@@ -110,7 +104,6 @@ const splitChunks = (text) =>
     .map((c) => c.trim())
     .filter(Boolean);
 
-/** Parse one phrase → quantity, unit and the food words that remain. */
 export const parsePhrase = (phrase) => {
   const words = norm(phrase).replace(/[.!?]/g, '').split(/\s+/).filter(Boolean);
   let qty = null;
@@ -121,7 +114,6 @@ export const parsePhrase = (phrase) => {
   for (let i = 0; i < words.length; i += 1) {
     const w = words[i];
     const numeric = /^\d+(\.\d+)?$/.test(w) ? Number(w) : null;
-    // "300g" / "250ml" written without a space
     const glued = w.match(/^(\d+(?:\.\d+)?)(g|kg|ml|l|oz)$/);
 
     if (glued) {
@@ -143,10 +135,6 @@ export const parsePhrase = (phrase) => {
   return { qty: qty ?? 1, grams, portionWord, query: rest.join(' ').trim() };
 };
 
-/**
- * Turn a spoken sentence into draft log entries.
- * "two slices of toast and a banana for breakfast" → 2 matched entries.
- */
 export const parseVoiceLog = (text, catalogue = CATALOGUE, now = new Date()) => {
   const { meal: spokenMeal, text: body } = extractMeal(text);
   const meal = spokenMeal || mealForTime(now);
@@ -188,7 +176,6 @@ const hash = (str) => {
   return h;
 };
 
-/** Plausible plates, so the demo never "recognises" a nonsense combination. */
 const PLATES = [
   ['chicken-breast', 'white-rice', 'broccoli'],
   ['porridge-oats', 'banana', 'semi-skimmed-milk'],
@@ -200,10 +187,6 @@ const PLATES = [
   ['tofu', 'brown-rice', 'broccoli'],
 ];
 
-/**
- * Recognise a plate from a photo. Seeded by the file (name + size) so the same
- * picture always returns the same reading.
- */
 export const recognisePlate = (seed, catalogue = CATALOGUE, now = new Date()) => {
   const h = hash(seed);
   const plate = PLATES[h % PLATES.length];
@@ -211,7 +194,6 @@ export const recognisePlate = (seed, catalogue = CATALOGUE, now = new Date()) =>
   return plate.map((id, i) => {
     const food = foodById(id, catalogue) || foodById(id, CATALOGUE);
     const serving = food.servings[0];
-    // Vary the estimated portion a little, the way a real estimator would.
     const factor = [1, 0.85, 1.25][(h + i) % 3];
     const grams = Math.round(serving.grams * factor);
     return {
@@ -225,7 +207,6 @@ export const recognisePlate = (seed, catalogue = CATALOGUE, now = new Date()) =>
 
 /* ---------- Shelf recognition (pantry capture) ---------- */
 
-/** Groups of things that plausibly sit on a shelf together. */
 const SHELVES = [
   ['semi-skimmed-milk', 'greek-yogurt', 'cheddar', 'egg'],
   ['chickpeas', 'baked-beans', 'pasta', 'white-rice'],
@@ -237,19 +218,12 @@ const SHELVES = [
   ['blueberries', 'orange', 'sweet-potato', 'potato'],
 ];
 
-/** A rough amount to pre-fill, so a scanned shelf lands with sensible quantities. */
 const shelfQty = (food, n) => {
   if (food.unit === 'ml') return `${[500, 1000, 2000][n % 3]} ml`;
   const serving = food.servings[0]?.grams || 100;
   return serving >= 100 ? `${Math.round(serving * [2, 3, 4][n % 3])} g` : `${[2, 4, 6][n % 3]} × ${food.name.toLowerCase()}`;
 };
 
-/**
- * Read a shelf photo into pantry items. As with plate recognition, there is no
- * model in this offline build — the reading is derived from the image itself
- * (name and size) so the same photo always gives the same shelf, and every row
- * is editable before anything is saved.
- */
 export const recogniseShelf = (seed, catalogue = CATALOGUE) => {
   const h = hash(seed);
   const shelf = SHELVES[h % SHELVES.length];
@@ -269,59 +243,127 @@ export const recogniseShelf = (seed, catalogue = CATALOGUE) => {
 
 /* ---------- Recipe import ---------- */
 
-const QTY_LINE = /^\s*(?:[-*•]\s*)?(\d+(?:[.,]\d+)?|½|¼|¾)?\s*(kg|g|ml|l|tbsp|tsp|cups?|cloves?|tins?|cans?|handfuls?|slices?)?\s*(?:of\s+)?(.+?)\s*$/i;
+const QTY_LINE = /^\s*(?:[-*•]\s*)?(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?|½|¼|¾)?\s*((?:kg|g|ml|l|tbsp|tbs|tablespoons?|tsp|teaspoons?|cups?|cloves?|tins?|cans?|handfuls?|slices?|kilograms?|grams?|grammes?|litres?|liters?|millilitres?|milliliters?)\b)?\s*(?:of\s+)?(.+?)\s*$/i;
 const FRACTIONS = { '½': 0.5, '¼': 0.25, '¾': 0.75 };
+const UNIT_ALIASES = {
+  kilogram: 'kg', kilograms: 'kg', gram: 'g', grams: 'g', gramme: 'g', grammes: 'g',
+  litre: 'l', litres: 'l', liter: 'l', liters: 'l', millilitre: 'ml', millilitres: 'ml',
+  milliliter: 'ml', milliliters: 'ml', tablespoon: 'tbsp', tablespoons: 'tbsp', tbs: 'tbsp',
+  teaspoon: 'tsp', teaspoons: 'tsp',
+};
 const GRAMS_PER = { kg: 1000, g: 1, l: 1000, ml: 1, tbsp: 15, tsp: 5, cup: 240, cups: 240, clove: 5, cloves: 5, tin: 240, tins: 240, can: 240, cans: 240, handful: 30, handfuls: 30, slice: 36, slices: 36 };
 
-/** Parse one pasted ingredient line into a weight + a catalogue match. */
+const ingredientTokens = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/[^\p{L}\p{N}]+/gu, ' ')
+  .trim()
+  .split(/\s+/)
+  .filter(Boolean);
+
+const singularToken = (token) => {
+  if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith('s') && token.length > 3) return token.slice(0, -1);
+  return token;
+};
+
+const sameIngredientToken = (left, right) => left === right || singularToken(left) === singularToken(right);
+const PREPARATION_WORDS = new Set(['baked', 'boiled', 'canned', 'cooked', 'diced', 'dried', 'frozen', 'grilled', 'raw', 'roasted', 'sliced', 'steamed', 'tinned']);
+
+const matchIngredientFood = (name, catalogue) => {
+  const query = ingredientTokens(name);
+  if (!query.length) return null;
+  return catalogue
+    .map((food) => {
+      const foodTokens = ingredientTokens(food.name);
+      const overlap = foodTokens.filter((token) => query.some((part) => sameIngredientToken(part, token))).length;
+      if (!overlap) return null;
+      const coverage = overlap / Math.max(foodTokens.length, query.length);
+      const exact = foodTokens.length === query.length
+        && foodTokens.every((token, index) => sameIngredientToken(token, query[index]));
+      const queryMatchesAll = query.every((part) => foodTokens.some((token) => sameIngredientToken(part, token)));
+      const foodMatchesAll = foodTokens.every((token) => query.some((part) => sameIngredientToken(part, token)));
+      const extraWordsArePreparation = foodTokens
+        .filter((token) => !query.some((part) => sameIngredientToken(part, token)))
+        .every((token) => PREPARATION_WORDS.has(token));
+      if (!exact && !foodMatchesAll && !(queryMatchesAll && extraWordsArePreparation)) return null;
+      const exactTokenHits = foodTokens.filter((token) => query.includes(token)).length;
+      const staple = (food.tags || []).some((tag) => ['grain', 'dairy', 'veg', 'fruit', 'meat', 'fish', 'fat', 'tinned', 'bread', 'spread', 'drink', 'high-protein'].includes(tag));
+      const noisy = food.source === 'restaurant' || (food.tags || []).includes('eating out') || (food.tags || []).includes('treat');
+      return { food, exact, exactTokenHits, coverage, overlap, staple, noisy };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.exact) - Number(a.exact) || b.exactTokenHits - a.exactTokenHits
+      || Number(b.staple) - Number(a.staple) || Number(a.noisy) - Number(b.noisy)
+      || b.coverage - a.coverage || b.overlap - a.overlap
+      || a.food.name.localeCompare(b.food.name))[0]?.food || null;
+};
+
 export const parseIngredientLine = (line, catalogue = CATALOGUE) => {
   const m = String(line).match(QTY_LINE);
   if (!m) return null;
   const [, rawQty, rawUnit, rawName] = m;
   const name = rawName.replace(/\(.*?\)/g, '').replace(/,.*$/, '').trim();
   if (!name || name.length < 2) return null;
-  const qty = rawQty ? (FRACTIONS[rawQty] ?? Number(String(rawQty).replace(',', '.'))) : 1;
-  const unit = (rawUnit || '').toLowerCase();
-  const food = searchFoods(name, catalogue, 1)[0] || null;
+  const cleanQty = String(rawQty || '').replace(',', '.').replace(/\s+/g, '');
+  const slash = cleanQty.match(/^(\d+)\/(\d+)$/);
+  if (slash && Number(slash[2]) === 0) return null;
+  const qty = rawQty
+    ? (FRACTIONS[rawQty] ?? (slash ? Number(slash[1]) / Number(slash[2]) : Number(cleanQty)))
+    : 1;
+  if (!Number.isFinite(qty) || qty <= 0 || qty > 100000) return null;
+  const rawUnitKey = (rawUnit || '').toLowerCase();
+  const unit = UNIT_ALIASES[rawUnitKey] || rawUnitKey;
+  const food = matchIngredientFood(name, catalogue);
   const perUnit = GRAMS_PER[unit];
   const grams = perUnit ? qty * perUnit : (food?.servings?.[0]?.grams || 100) * qty;
   return { line: String(line).trim(), name, qty, unit, grams: Math.round(grams), food };
 };
 
-/**
- * Import a pasted recipe: title, servings and ingredient lines, with nutrition
- * estimated per serving from whatever ingredients we can match.
- */
+/** Sum only measured nutrient cells — never treat missing as zero. */
+const addMeasured = (acc, per100, grams) => {
+  const k = grams / 100;
+  for (const key of NUTRIENT_KEYS) {
+    const raw = per100?.[key];
+    const n = nutrientNumber(raw);
+    if (n === null || n === undefined) continue;
+    if (acc[key] === null || acc[key] === undefined) acc[key] = 0;
+    acc[key] += n * k;
+  }
+  return acc;
+};
+
 export const importRecipeText = (text, catalogue = CATALOGUE) => {
   const lines = String(text).split('\n').map((l) => l.trim()).filter(Boolean);
   if (!lines.length) return null;
   const title = lines[0].replace(/^#+\s*/, '').slice(0, 80);
   const servingsLine = lines.find((l) => /serves|servings|makes/i.test(l));
   const servings = Math.max(1, Number(servingsLine?.match(/(\d+)/)?.[1]) || 4);
+  const methodStart = lines.findIndex((l, index) => index > 0 && /^(method|steps?|instructions?|directions?)\b/i.test(l));
   const ingredientLines = lines
-    .slice(1)
-    .filter((l) => l !== servingsLine && !/^(method|steps?|instructions?|directions?)\b/i.test(l))
+    .slice(1, methodStart > 0 ? methodStart : lines.length)
+    .filter((l) => l !== servingsLine)
     .filter((l) => l.length < 90);
 
   const ingredients = ingredientLines.map((l) => parseIngredientLine(l, catalogue)).filter(Boolean);
   const matched = ingredients.filter((i) => i.food);
-  const total = matched.reduce((acc, i) => {
-    const k = i.grams / 100;
-    for (const key of NUTRIENT_KEYS) acc[key] += (i.food.per100[key] || 0) * k;
-    return acc;
-  }, { ...EMPTY });
+  const total = matched.reduce((acc, i) => addMeasured(acc, i.food.per100, i.grams), {});
 
   const grams = Math.max(1, matched.reduce((g, i) => g + i.grams, 0)) / servings;
+  const servingGrams = Math.max(1, Math.round(grams));
   const perServing = Object.fromEntries(
-    Object.entries(total).map(([k, v]) => [k, Math.round((v / servings) * 10) / 10]),
+    NUTRIENT_KEYS.map((key) => {
+      if (total[key] === undefined || total[key] === null) return [key, null];
+      return [key, Math.round((total[key] / servings) * 10) / 10];
+    }),
   );
+  if (perServing.kcal != null) perServing.kcal = Math.round(perServing.kcal);
 
   return {
     title,
     servings,
     ingredients,
     matchedCount: matched.length,
-    perServing: { ...perServing, kcal: Math.round(perServing.kcal) },
+    perServing,
     food: {
       id: `import--${Date.now().toString(36)}`,
       name: title,
@@ -330,24 +372,23 @@ export const importRecipeText = (text, catalogue = CATALOGUE) => {
       unit: 'g',
       source: 'custom',
       tags: ['imported'],
-      per100: Object.fromEntries(NUTRIENT_KEYS.map((key) => [
-        key,
-        key === 'kcal'
-          ? Math.round((perServing.kcal / grams) * 100)
-          : Math.round(((perServing[key] || 0) / grams) * 1000) / 10,
-      ])),
+      per100: Object.fromEntries(NUTRIENT_KEYS.map((key) => {
+        if (perServing[key] === null || perServing[key] === undefined) return [key, null];
+        return [
+          key,
+          key === 'kcal'
+            ? Math.round((perServing.kcal / servingGrams) * 100)
+            : Math.round((perServing[key] / servingGrams) * 1000) / 10,
+        ];
+      })),
       servings: [
-        { label: '1 serving', grams: Math.round(grams) },
-        { label: 'Half serving', grams: Math.round(grams / 2) },
+        { label: '1 serving', grams: servingGrams },
+        { label: 'Half serving', grams: Math.max(1, Math.round(servingGrams / 2)) },
       ],
     },
   };
 };
 
-/**
- * Validate a source URL. This local importer cannot reliably fetch
- * cross-origin recipe pages, so the caller pairs it with copied recipe text.
- */
 export const importRecipeUrl = (url) => {
   const clean = String(url).trim();
   if (!/^https?:\/\/.+\..+/.test(clean)) return null;
@@ -357,34 +398,31 @@ export const importRecipeUrl = (url) => {
 
 /* ---------- Recipes ---------- */
 
-/**
- * Recipe cards print calories and macros, never micronutrients — so estimate
- * the rest from the ingredient list, as a per-100 g concentration of the
- * finished dish.
- */
 export const estimateRecipeMicros = (recipe, catalogue = CATALOGUE) => {
   const parsed = (recipe.ingredients || [])
     .map((i) => parseIngredientLine(`${i.qty} ${i.name}`, catalogue))
     .filter((i) => i && i.food);
   const grams = parsed.reduce((g, i) => g + i.grams, 0);
   if (!grams) return null;
-  const totals = parsed.reduce((acc, i) => {
-    const k = i.grams / 100;
-    for (const key of NUTRIENT_KEYS) acc[key] += (i.food.per100[key] || 0) * k;
-    return acc;
-  }, { ...EMPTY });
+  const totals = parsed.reduce((acc, i) => addMeasured(acc, i.food.per100, i.grams), {});
   return Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => [key, Math.round((totals[key] / grams) * 100 * 100) / 100]),
+    NUTRIENT_KEYS.map((key) => {
+      if (totals[key] === undefined || totals[key] === null) return [key, null];
+      return [key, Math.round((totals[key] / grams) * 100 * 100) / 100];
+    }),
   );
 };
 
-/** A recipe as a loggable food, micronutrients included. */
 export const recipeFood = (recipe, catalogue = CATALOGUE) =>
   recipeAsFood(recipe, estimateRecipeMicros(recipe, catalogue));
 
 /* ---------- Custom foods ---------- */
 
-/** Validate + normalise the custom-food form at the boundary. */
+/**
+ * Validate + normalise the custom-food form at the boundary.
+ * Fields the user left blank stay null (unknown), never zero-filled.
+ * Explicit 0 means measured none.
+ */
 export const makeCustomFood = (draft) => {
   const name = String(draft.name || '').trim();
   const servingGrams = Number(draft.servingGrams);
@@ -396,15 +434,22 @@ export const makeCustomFood = (draft) => {
   if (rawKcal === '' || !(kcal >= 0)) errors.push('Calories must be a number');
   if (errors.length) return { errors, food: null };
 
-  const num = (v) => Math.max(0, Number(v) || 0);
   const k = 100 / servingGrams;
-  // Every tracked nutrient can be filled in from the packet; blanks stay 0.
-  const per100 = Object.fromEntries(NUTRIENT_KEYS.map((key) => [
-    key,
-    key === 'kcal'
-      ? Math.round(num(kcal) * k)
-      : Math.round(num(draft[key]) * k * 10) / 10,
-  ]));
+  const per100 = {};
+  for (const key of NUTRIENT_KEYS) {
+    if (key === 'kcal') {
+      per100.kcal = Math.round(kcal * k);
+      continue;
+    }
+    const raw = draft[key];
+    // Blank / undefined → unknown (null). Explicit 0 → measured zero.
+    if (raw === undefined || raw === null || raw === '') {
+      per100[key] = null;
+    } else {
+      const n = Number(raw);
+      per100[key] = Number.isFinite(n) ? Math.round(Math.max(0, n) * k * 10) / 10 : null;
+    }
+  }
   return {
     errors: [],
     food: {

@@ -112,15 +112,43 @@ describe('goal-led first entry', () => {
     fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Sam' } });
     fireEvent.click(screen.getByText('Continue'));
     fireEvent.click(screen.getByText('Continue'));
-    fireEvent.click(screen.getByText('Coconut Chickpea Curry').closest('button'));
-    fireEvent.click(screen.getByText('Teriyaki Salmon Bowls').closest('button'));
+    // Which six dishes are offered depends on what was said on the way here,
+    // so the flow takes the first two rather than naming any of them.
+    screen.getAllByText('Choose').slice(0, 2)
+      .forEach((label) => fireEvent.click(label.closest('button')));
     fireEvent.click(screen.getByText('Start using Forq'));
 
     expect(screen.getByText('Your first meals are ready')).toBeDefined();
     expect(screen.getByText(/2 dinners planned/)).toBeDefined();
     fireEvent.click(screen.getByText('Shop'));
-    expect(screen.getByText('Chickpeas (tins)')).toBeDefined();
-    expect(screen.getByText('Salmon fillets')).toBeDefined();
+    expect(screen.queryByText(/Nothing on the list yet/)).toBeNull();
+  });
+
+  it('offers six dinners that fit the pattern chosen a step earlier', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Vegan'));
+    fireEvent.click(screen.getByText('Continue'));
+
+    const offered = screen.getAllByRole('button', { name: /Choose$|Selected$/ });
+    expect(offered.length).toBe(6);
+    for (const option of offered) expect(option.textContent).toContain('Fits vegan');
+    // The rest of the book is gone, not greyed out and waiting to be tapped.
+    expect(screen.queryByText('Lemon Chicken Traybake')).toBeNull();
+  });
+
+  it('gives you a different six when you ask for different choices', () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('Continue'));
+    fireEvent.click(screen.getByText('Continue'));
+
+    const named = () => screen.getAllByRole('button', { name: /Choose$|Selected$/ })
+      .map((option) => option.textContent);
+    const first = named();
+    fireEvent.click(screen.getByText('Show me different choices'));
+    const second = named();
+    expect(second.length).toBe(6);
+    expect(second.some((option) => first.includes(option))).toBe(false);
   });
 
   it('uses the chosen goal for the first primary action', () => {

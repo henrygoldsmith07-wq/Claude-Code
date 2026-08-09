@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     template: "%s · World News Globe",
   },
   description:
-    "Impartial, AI-summarised world news. Spin the globe, pick a country, read what matters — split by topic and grounded in real sources.",
-  keywords: ["world news", "globe", "impartial", "AI", "Gemini", "geopolitics"],
+    "Understand what happened, where it happened, who is reporting it and where accounts differ. Story clusters, source mix by country and perspective, timeline, conflicting claims, widely agreed facts, uncertainty, corrections, what changed since yesterday and coverage gaps — grounded in real sources.",
+  keywords: ["world news", "globe", "source comparison", "Gemini", "geopolitics"],
 };
 
 export const viewport: Viewport = {

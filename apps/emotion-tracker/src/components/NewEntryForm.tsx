@@ -24,9 +24,9 @@ export default function NewEntryForm({ onSubmit }: Props) {
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">What happened?</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          Describe the situation and how it made you feel. Claude will ask a few
-          careful questions to help you see what's actually underneath —
-          before you decide what to do next.
+          Describe the specific event and your first read on it. Reflect will walk
+          through <span className="font-medium text-foreground">event → observations → assumptions → emotion → alternatives → outcome → action</span>,
+          and check back on you later — not just log a mood.
         </p>
       </div>
 
@@ -35,7 +35,7 @@ export default function NewEntryForm({ onSubmit }: Props) {
           value={situation}
           onChange={(e) => setSituation(e.target.value)}
           rows={7}
-          placeholder="What happened, and how did it make you feel?"
+          placeholder="What happened, who was there, what was said or done, and how did you interpret it at first?"
           className="resize-none rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted/60 focus:border-accent focus:ring-2 focus:ring-accent/20"
           autoFocus
         />
@@ -49,7 +49,7 @@ export default function NewEntryForm({ onSubmit }: Props) {
       </form>
 
       <p className="text-center text-xs text-muted/70 sm:text-left">
-        Private · stored only in this browser · no account needed
+        Private · stored only in this browser · no account needed · not a diagnosis
       </p>
     </div>
   );

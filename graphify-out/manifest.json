@@ -1,0 +1,4477 @@
+{
+  ".claude-flow/metrics/learning.json": {
+    "mtime": 1785394045.0871398,
+    "ast_hash": "2564cd5a752e340479d7d02e81005ff9",
+    "semantic_hash": "2564cd5a752e340479d7d02e81005ff9"
+  },
+  ".claude-flow/metrics/swarm-activity.json": {
+    "mtime": 1785394045.088655,
+    "ast_hash": "04941883d2fc7a18efc1872da4062132",
+    "semantic_hash": "04941883d2fc7a18efc1872da4062132"
+  },
+  ".claude-flow/metrics/v3-progress.json": {
+    "mtime": 1785394045.088655,
+    "ast_hash": "086ce8b1db38c3bec927b0619a8b489b",
+    "semantic_hash": "086ce8b1db38c3bec927b0619a8b489b"
+  },
+  ".claude-flow/security/audit-status.json": {
+    "mtime": 1785394045.088655,
+    "ast_hash": "73193eafbcf92554423c5fa88ab56591",
+    "semantic_hash": "73193eafbcf92554423c5fa88ab56591"
+  },
+  ".claude/helpers/adr-compliance.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "cc078b435ac77457a2319a96175a3695",
+    "semantic_hash": "cc078b435ac77457a2319a96175a3695"
+  },
+  ".claude/helpers/auto-commit.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "73d111164adc0063591135f103aa31a5",
+    "semantic_hash": "73d111164adc0063591135f103aa31a5"
+  },
+  ".claude/helpers/auto-memory-hook.mjs": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "deb32dc5ec7f4fcbc37b69bb4476be59",
+    "semantic_hash": "deb32dc5ec7f4fcbc37b69bb4476be59"
+  },
+  ".claude/helpers/checkpoint-manager.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "01a2b878cfdee2ce145d5ef1c51ef42c",
+    "semantic_hash": "01a2b878cfdee2ce145d5ef1c51ef42c"
+  },
+  ".claude/helpers/daemon-manager.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "b482aca36ac2ffccc086d94b51afc63e",
+    "semantic_hash": "b482aca36ac2ffccc086d94b51afc63e"
+  },
+  ".claude/helpers/ddd-tracker.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "3f8ea7fbf016e13acd19e99608ec024d",
+    "semantic_hash": "3f8ea7fbf016e13acd19e99608ec024d"
+  },
+  ".claude/helpers/github-safe.js": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "524ed91c53fb2bb1fbeb52a5e866a679",
+    "semantic_hash": "524ed91c53fb2bb1fbeb52a5e866a679"
+  },
+  ".claude/helpers/github-setup.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "978145423f66696c8339e852befb18e3",
+    "semantic_hash": "978145423f66696c8339e852befb18e3"
+  },
+  ".claude/helpers/guidance-hook.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "1914c82242278a0f109b50a0fb443286",
+    "semantic_hash": "1914c82242278a0f109b50a0fb443286"
+  },
+  ".claude/helpers/guidance-hooks.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "52685adf0dd2e228defc56973c856419",
+    "semantic_hash": "52685adf0dd2e228defc56973c856419"
+  },
+  ".claude/helpers/health-monitor.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "6e06ddf80036ba8e210fe84063552d02",
+    "semantic_hash": "6e06ddf80036ba8e210fe84063552d02"
+  },
+  ".claude/helpers/hook-handler.cjs": {
+    "mtime": 1785774019.4544835,
+    "ast_hash": "9afd452ae56766e4298b52790fc99de2",
+    "semantic_hash": "9afd452ae56766e4298b52790fc99de2"
+  },
+  ".claude/helpers/intelligence.cjs": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "0e26185b967e19c68ffb0000aea00c25",
+    "semantic_hash": "0e26185b967e19c68ffb0000aea00c25"
+  },
+  ".claude/helpers/learning-hooks.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "aadca2238656e124fe0980abb1df587b",
+    "semantic_hash": "aadca2238656e124fe0980abb1df587b"
+  },
+  ".claude/helpers/learning-optimizer.sh": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "15aea203ab2afa6bf7a592031e81dc1d",
+    "semantic_hash": "15aea203ab2afa6bf7a592031e81dc1d"
+  },
+  ".claude/helpers/learning-service.mjs": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "c12b13035c2c58b54ff5a9c810c353c1",
+    "semantic_hash": "c12b13035c2c58b54ff5a9c810c353c1"
+  },
+  ".claude/helpers/memory.js": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "8b809066a9c616dc0e32d7431050c96c",
+    "semantic_hash": "8b809066a9c616dc0e32d7431050c96c"
+  },
+  ".claude/helpers/metrics-db.mjs": {
+    "mtime": 1785394045.1361446,
+    "ast_hash": "16b9ed124c199758d7d1a42e611fcf7f",
+    "semantic_hash": "16b9ed124c199758d7d1a42e611fcf7f"
+  },
+  ".claude/helpers/pattern-consolidator.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "427c9fd1d7b8cd47e921b548a8911f99",
+    "semantic_hash": "427c9fd1d7b8cd47e921b548a8911f99"
+  },
+  ".claude/helpers/perf-worker.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "c1cb73aa19605cbc902035cc9a7e26da",
+    "semantic_hash": "c1cb73aa19605cbc902035cc9a7e26da"
+  },
+  ".claude/helpers/post-commit": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "5f7c9f9f0d3529e348adceca85fc0475",
+    "semantic_hash": "5f7c9f9f0d3529e348adceca85fc0475"
+  },
+  ".claude/helpers/pre-commit": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "f1ddac74525b96a3e0d2fa4f6b2a25dd",
+    "semantic_hash": "f1ddac74525b96a3e0d2fa4f6b2a25dd"
+  },
+  ".claude/helpers/quick-start.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "1e12f44d21e84ff55b049db69b63653f",
+    "semantic_hash": "1e12f44d21e84ff55b049db69b63653f"
+  },
+  ".claude/helpers/router.js": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "d57184af7161890049671443871a97da",
+    "semantic_hash": "d57184af7161890049671443871a97da"
+  },
+  ".claude/helpers/ruflo-hook.cjs": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "11febdf2bc82b77e213018f9180949c0",
+    "semantic_hash": "11febdf2bc82b77e213018f9180949c0"
+  },
+  ".claude/helpers/security-scanner.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "0a2a236ac65c3820d83371d793889c09",
+    "semantic_hash": "0a2a236ac65c3820d83371d793889c09"
+  },
+  ".claude/helpers/session.js": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "132df3ea21174948c554f216caa7e9f9",
+    "semantic_hash": "132df3ea21174948c554f216caa7e9f9"
+  },
+  ".claude/helpers/setup-mcp.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "f055545527a011dcd4121d16cd8315fe",
+    "semantic_hash": "f055545527a011dcd4121d16cd8315fe"
+  },
+  ".claude/helpers/standard-checkpoint-hooks.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "e01a72ccc3dea1c02e47b21049c55736",
+    "semantic_hash": "e01a72ccc3dea1c02e47b21049c55736"
+  },
+  ".claude/helpers/statusline-hook.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "bb1a99d42dfb256adb87b4516db27440",
+    "semantic_hash": "bb1a99d42dfb256adb87b4516db27440"
+  },
+  ".claude/helpers/statusline.cjs": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "3e01f595d2a4e473464d0063cc30c84f",
+    "semantic_hash": "3e01f595d2a4e473464d0063cc30c84f"
+  },
+  ".claude/helpers/statusline.js": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "42954cf29ea36af77568a7c16e61862e",
+    "semantic_hash": "42954cf29ea36af77568a7c16e61862e"
+  },
+  ".claude/helpers/swarm-comms.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "058ada90e90e577d57cb749e79ccddcb",
+    "semantic_hash": "058ada90e90e577d57cb749e79ccddcb"
+  },
+  ".claude/helpers/swarm-hooks.sh": {
+    "mtime": 1785394045.1391604,
+    "ast_hash": "426ed0c562e8d11428e2c9d1a587e955",
+    "semantic_hash": "426ed0c562e8d11428e2c9d1a587e955"
+  },
+  ".claude/helpers/swarm-monitor.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "218156c4203e3bc2eeb5ce0b65551530",
+    "semantic_hash": "218156c4203e3bc2eeb5ce0b65551530"
+  },
+  ".claude/helpers/sync-v3-metrics.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "6ba4c963679733b427dc4c3e6b1f77f7",
+    "semantic_hash": "6ba4c963679733b427dc4c3e6b1f77f7"
+  },
+  ".claude/helpers/update-v3-progress.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "740976403d12aeb54d3c51158155abf4",
+    "semantic_hash": "740976403d12aeb54d3c51158155abf4"
+  },
+  ".claude/helpers/v3-quick-status.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "4c69691d17288f86792d95df5020d416",
+    "semantic_hash": "4c69691d17288f86792d95df5020d416"
+  },
+  ".claude/helpers/v3.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "295ab3fdc1368dc30f138ed134f6d6bc",
+    "semantic_hash": "295ab3fdc1368dc30f138ed134f6d6bc"
+  },
+  ".claude/helpers/validate-v3-config.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "02a54392565e2d97901e13de7c4fcc6d",
+    "semantic_hash": "02a54392565e2d97901e13de7c4fcc6d"
+  },
+  ".claude/helpers/worker-manager.sh": {
+    "mtime": 1785394045.1431606,
+    "ast_hash": "bd355d51171e383cebc6eeb094e78d6c",
+    "semantic_hash": "bd355d51171e383cebc6eeb094e78d6c"
+  },
+  ".claude/settings.json": {
+    "mtime": 1785774019.4544835,
+    "ast_hash": "14daecf5d57c21570ceba1ff694a28c0",
+    "semantic_hash": "14daecf5d57c21570ceba1ff694a28c0"
+  },
+  ".claude/skills/diagnosing-bugs/scripts/hitl-loop.template.sh": {
+    "mtime": 1785394045.578274,
+    "ast_hash": "46a2a00761be2785e59661f0e3c11471",
+    "semantic_hash": "46a2a00761be2785e59661f0e3c11471"
+  },
+  ".mcp.json": {
+    "mtime": 1785394045.8940482,
+    "ast_hash": "1f8a8bf51c57438f3ba5a29d86c88753",
+    "semantic_hash": "1f8a8bf51c57438f3ba5a29d86c88753"
+  },
+  "apps/daily-debate/eslint.config.mjs": {
+    "mtime": 1785394045.8955271,
+    "ast_hash": "a28251ba62e169d583f4f218cc6ba5ef",
+    "semantic_hash": "a28251ba62e169d583f4f218cc6ba5ef"
+  },
+  "apps/daily-debate/middleware.ts": {
+    "mtime": 1785394045.8955271,
+    "ast_hash": "b43ef4e0d283d03d0aa47140bc698623",
+    "semantic_hash": "b43ef4e0d283d03d0aa47140bc698623"
+  },
+  "apps/daily-debate/next.config.ts": {
+    "mtime": 1785394045.8955271,
+    "ast_hash": "dca387a8f12e322d62f19ce0bd3bedc3",
+    "semantic_hash": "dca387a8f12e322d62f19ce0bd3bedc3"
+  },
+  "apps/daily-debate/package.json": {
+    "mtime": 1785394045.8955271,
+    "ast_hash": "127d537b6ad772ee9e07a1377289aacb",
+    "semantic_hash": "127d537b6ad772ee9e07a1377289aacb"
+  },
+  "apps/daily-debate/postcss.config.mjs": {
+    "mtime": 1785394045.8955271,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "apps/daily-debate/src/app/api/daily-topic/route.ts": {
+    "mtime": 1785394045.899405,
+    "ast_hash": "c102911d5d03ddc1eadcd8a71e09c9b7",
+    "semantic_hash": "c102911d5d03ddc1eadcd8a71e09c9b7"
+  },
+  "apps/daily-debate/src/app/api/pvp/[matchId]/turn/route.ts": {
+    "mtime": 1785394045.8999963,
+    "ast_hash": "0d667db0a1321e7095df35c8e16704da",
+    "semantic_hash": "0d667db0a1321e7095df35c8e16704da"
+  },
+  "apps/daily-debate/src/app/api/pvp/queue/route.ts": {
+    "mtime": 1785394045.8999963,
+    "ast_hash": "e2b41ede5c619e2529e1379a65556a10",
+    "semantic_hash": "e2b41ede5c619e2529e1379a65556a10"
+  },
+  "apps/daily-debate/src/app/api/solo/[debateId]/finish/route.ts": {
+    "mtime": 1785394045.9007554,
+    "ast_hash": "8c192a0ade63ed76c8297329590c1b56",
+    "semantic_hash": "8c192a0ade63ed76c8297329590c1b56"
+  },
+  "apps/daily-debate/src/app/api/solo/[debateId]/turn/route.ts": {
+    "mtime": 1785394045.9007554,
+    "ast_hash": "342b1cfb403e740cabdc4caa6828ce4b",
+    "semantic_hash": "342b1cfb403e740cabdc4caa6828ce4b"
+  },
+  "apps/daily-debate/src/app/api/solo/start/route.ts": {
+    "mtime": 1785394045.9007554,
+    "ast_hash": "4e4460bd1e5f97f05749ce84c61e685a",
+    "semantic_hash": "4e4460bd1e5f97f05749ce84c61e685a"
+  },
+  "apps/daily-debate/src/app/debate/[debateId]/page.tsx": {
+    "mtime": 1785394045.9023783,
+    "ast_hash": "94d36780cae829a5732fd0720c09f60d",
+    "semantic_hash": "94d36780cae829a5732fd0720c09f60d"
+  },
+  "apps/daily-debate/src/app/layout.tsx": {
+    "mtime": 1785394045.9023783,
+    "ast_hash": "a44e75dc716c8a8ccd2e628dcbd38c47",
+    "semantic_hash": "a44e75dc716c8a8ccd2e628dcbd38c47"
+  },
+  "apps/daily-debate/src/app/leaderboard/page.tsx": {
+    "mtime": 1785394045.9023783,
+    "ast_hash": "16ce8f607d55da500a2be4bfeb04521a",
+    "semantic_hash": "16ce8f607d55da500a2be4bfeb04521a"
+  },
+  "apps/daily-debate/src/app/login/AuthForm.tsx": {
+    "mtime": 1785394045.9023783,
+    "ast_hash": "7959f5b25b4a875bd4a33032ba0f2cad",
+    "semantic_hash": "7959f5b25b4a875bd4a33032ba0f2cad"
+  },
+  "apps/daily-debate/src/app/login/actions.ts": {
+    "mtime": 1785394045.9045475,
+    "ast_hash": "5764a71569135a2a0aa4bba6d21b93d4",
+    "semantic_hash": "5764a71569135a2a0aa4bba6d21b93d4"
+  },
+  "apps/daily-debate/src/app/login/page.tsx": {
+    "mtime": 1785394045.9045475,
+    "ast_hash": "35aa48c118de6dcca95b7d2ec018b634",
+    "semantic_hash": "35aa48c118de6dcca95b7d2ec018b634"
+  },
+  "apps/daily-debate/src/app/page.tsx": {
+    "mtime": 1785394045.9045475,
+    "ast_hash": "7256d86c0b4c14452af267dc86c3089d",
+    "semantic_hash": "7256d86c0b4c14452af267dc86c3089d"
+  },
+  "apps/daily-debate/src/app/pvp/[matchId]/page.tsx": {
+    "mtime": 1785394045.9054003,
+    "ast_hash": "f96395a5e601cb70b1c5efc5f352162f",
+    "semantic_hash": "f96395a5e601cb70b1c5efc5f352162f"
+  },
+  "apps/daily-debate/src/app/pvp/page.tsx": {
+    "mtime": 1785394045.9054003,
+    "ast_hash": "f08865498c6e002493af0ad17330872e",
+    "semantic_hash": "f08865498c6e002493af0ad17330872e"
+  },
+  "apps/daily-debate/src/components/AppHeader.tsx": {
+    "mtime": 1785394045.9054003,
+    "ast_hash": "fd169bccf77412cc6500774f7b4554c6",
+    "semantic_hash": "fd169bccf77412cc6500774f7b4554c6"
+  },
+  "apps/daily-debate/src/components/DebateRoom.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "fe2054baeddab05b5e9b9c16c6c19e68",
+    "semantic_hash": "fe2054baeddab05b5e9b9c16c6c19e68"
+  },
+  "apps/daily-debate/src/components/MessageComposer.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "b0a0685637343774734b252fb3b6c658",
+    "semantic_hash": "b0a0685637343774734b252fb3b6c658"
+  },
+  "apps/daily-debate/src/components/PvpLobby.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "71e4717c6400c466eb25bd241ddc7da2",
+    "semantic_hash": "71e4717c6400c466eb25bd241ddc7da2"
+  },
+  "apps/daily-debate/src/components/PvpRoom.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "8f8463272b24f4b8482940a5fa7f4e32",
+    "semantic_hash": "8f8463272b24f4b8482940a5fa7f4e32"
+  },
+  "apps/daily-debate/src/components/RatingBreakdown.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "54f297d215cc9e8fb312afaa8d5a2910",
+    "semantic_hash": "54f297d215cc9e8fb312afaa8d5a2910"
+  },
+  "apps/daily-debate/src/components/ScoreBadges.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "8571a5cc388e0bfd32ca784de92436d9",
+    "semantic_hash": "8571a5cc388e0bfd32ca784de92436d9"
+  },
+  "apps/daily-debate/src/components/TopicCard.tsx": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "cef52479854b5e478ed5c47df7e2e537",
+    "semantic_hash": "cef52479854b5e478ed5c47df7e2e537"
+  },
+  "apps/daily-debate/src/components/useSpeechRecognition.ts": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "c89a7e48ef47107991f2604d9d388aac",
+    "semantic_hash": "c89a7e48ef47107991f2604d9d388aac"
+  },
+  "apps/daily-debate/src/components/useSpeechSynthesis.ts": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "671d7e467c7c1ac8518ef0da05a35ac0",
+    "semantic_hash": "671d7e467c7c1ac8518ef0da05a35ac0"
+  },
+  "apps/daily-debate/src/lib/anthropic.ts": {
+    "mtime": 1785394045.90628,
+    "ast_hash": "a03907310a3662416393f1472f32d88c",
+    "semantic_hash": "a03907310a3662416393f1472f32d88c"
+  },
+  "apps/daily-debate/src/lib/dailyTopic.ts": {
+    "mtime": 1785394045.9087892,
+    "ast_hash": "9db339fe225648ea69590a305ce0fa68",
+    "semantic_hash": "9db339fe225648ea69590a305ce0fa68"
+  },
+  "apps/daily-debate/src/lib/gamification.ts": {
+    "mtime": 1785394045.9087892,
+    "ast_hash": "9265bd9a74aea28e68c3d6eafe7155ff",
+    "semantic_hash": "9265bd9a74aea28e68c3d6eafe7155ff"
+  },
+  "apps/daily-debate/src/lib/rateLimit.ts": {
+    "mtime": 1785394045.9087892,
+    "ast_hash": "d7b1b75ab228e5f54179aae7357469f0",
+    "semantic_hash": "d7b1b75ab228e5f54179aae7357469f0"
+  },
+  "apps/daily-debate/src/lib/ratings.ts": {
+    "mtime": 1785394045.9087892,
+    "ast_hash": "7fa24e24a76cc1ae894cd0ba75dcc375",
+    "semantic_hash": "7fa24e24a76cc1ae894cd0ba75dcc375"
+  },
+  "apps/daily-debate/src/lib/supabase/client.ts": {
+    "mtime": 1785394045.9087892,
+    "ast_hash": "dd6eec2e6ebbf4e416ead9838162db73",
+    "semantic_hash": "dd6eec2e6ebbf4e416ead9838162db73"
+  },
+  "apps/daily-debate/src/lib/supabase/database.types.ts": {
+    "mtime": 1785394045.9094813,
+    "ast_hash": "e3487fc2ff4cf1a3f6252bfb47863645",
+    "semantic_hash": "e3487fc2ff4cf1a3f6252bfb47863645"
+  },
+  "apps/daily-debate/src/lib/supabase/middleware.ts": {
+    "mtime": 1785394045.9094813,
+    "ast_hash": "3a1f8cbf5100c22db649c924f95c6fce",
+    "semantic_hash": "3a1f8cbf5100c22db649c924f95c6fce"
+  },
+  "apps/daily-debate/src/lib/supabase/server.ts": {
+    "mtime": 1785394045.9094813,
+    "ast_hash": "087ac863c05db7705845183ee32b71d7",
+    "semantic_hash": "087ac863c05db7705845183ee32b71d7"
+  },
+  "apps/daily-debate/src/lib/types.ts": {
+    "mtime": 1785394045.9094813,
+    "ast_hash": "74d3281639e84f4f13725839fc9e7dab",
+    "semantic_hash": "74d3281639e84f4f13725839fc9e7dab"
+  },
+  "apps/daily-debate/supabase/migrations/001_initial_schema.sql": {
+    "mtime": 1785394045.9098504,
+    "ast_hash": "1e2f15fb2d20832ccc6ab1de5ac202ca",
+    "semantic_hash": "1e2f15fb2d20832ccc6ab1de5ac202ca"
+  },
+  "apps/daily-debate/tsconfig.json": {
+    "mtime": 1785394045.9098504,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "apps/dictation-typer/config.example.json": {
+    "mtime": 1785394045.910595,
+    "ast_hash": "a3e0fec48864a550e62cd4c254d47b3d",
+    "semantic_hash": "a3e0fec48864a550e62cd4c254d47b3d"
+  },
+  "apps/dictation-typer/dictation/__init__.py": {
+    "mtime": 1785394045.910595,
+    "ast_hash": "92638c546b38b34d056532b690b60e3c",
+    "semantic_hash": "92638c546b38b34d056532b690b60e3c"
+  },
+  "apps/dictation-typer/dictation/app.py": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "31fccad62d3f20ffa11e7f9749aab91d",
+    "semantic_hash": "31fccad62d3f20ffa11e7f9749aab91d"
+  },
+  "apps/dictation-typer/dictation/config.py": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "26b52b40eb679575713395fce09f98ec",
+    "semantic_hash": "26b52b40eb679575713395fce09f98ec"
+  },
+  "apps/dictation-typer/dictation/inserter.py": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "dff41a3d8e3e72299554615b6e91f891",
+    "semantic_hash": "dff41a3d8e3e72299554615b6e91f891"
+  },
+  "apps/dictation-typer/dictation/recorder.py": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "b42ba13de4926b55a3914d9320061e80",
+    "semantic_hash": "b42ba13de4926b55a3914d9320061e80"
+  },
+  "apps/dictation-typer/dictation/transcriber.py": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "d755967318a6645bfd7669c34831b0e6",
+    "semantic_hash": "d755967318a6645bfd7669c34831b0e6"
+  },
+  "apps/dictation-typer/main.py": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "29f6b55bfe6eb4f1e526ec19bb07df85",
+    "semantic_hash": "29f6b55bfe6eb4f1e526ec19bb07df85"
+  },
+  "apps/emotion-tracker/eslint.config.mjs": {
+    "mtime": 1785394045.9127824,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "apps/emotion-tracker/next.config.ts": {
+    "mtime": 1785394045.9127824,
+    "ast_hash": "dca387a8f12e322d62f19ce0bd3bedc3",
+    "semantic_hash": "dca387a8f12e322d62f19ce0bd3bedc3"
+  },
+  "apps/emotion-tracker/package.json": {
+    "mtime": 1785394045.9127824,
+    "ast_hash": "c72edc9829c0f4bfce2bea2d2c005037",
+    "semantic_hash": "c72edc9829c0f4bfce2bea2d2c005037"
+  },
+  "apps/emotion-tracker/postcss.config.mjs": {
+    "mtime": 1785394045.9127824,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "apps/emotion-tracker/src/app/api/reflect/route.ts": {
+    "mtime": 1785394045.9153767,
+    "ast_hash": "2edd38c2f983748e3a5524370cdabbf8",
+    "semantic_hash": "2edd38c2f983748e3a5524370cdabbf8"
+  },
+  "apps/emotion-tracker/src/app/layout.tsx": {
+    "mtime": 1785394045.9153767,
+    "ast_hash": "ba2d45e14c68293fcb63128da20a404e",
+    "semantic_hash": "ba2d45e14c68293fcb63128da20a404e"
+  },
+  "apps/emotion-tracker/src/app/page.tsx": {
+    "mtime": 1785394045.9153767,
+    "ast_hash": "97072243bb87e41c7527673e3c2d530f",
+    "semantic_hash": "97072243bb87e41c7527673e3c2d530f"
+  },
+  "apps/emotion-tracker/src/components/ApiKeyBar.tsx": {
+    "mtime": 1785394045.9153767,
+    "ast_hash": "75c9ef3fd3205eac08eecd5c50027a79",
+    "semantic_hash": "75c9ef3fd3205eac08eecd5c50027a79"
+  },
+  "apps/emotion-tracker/src/components/EntryList.tsx": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "b6c44f49e78644d966f2d3364e7dbf53",
+    "semantic_hash": "b6c44f49e78644d966f2d3364e7dbf53"
+  },
+  "apps/emotion-tracker/src/components/InsightsView.tsx": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "5cbf7ab3f99bce2d757c283050bcfcd8",
+    "semantic_hash": "5cbf7ab3f99bce2d757c283050bcfcd8"
+  },
+  "apps/emotion-tracker/src/components/NewEntryForm.tsx": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "fce8606af74b3f4187240ad9b9cfc0b1",
+    "semantic_hash": "fce8606af74b3f4187240ad9b9cfc0b1"
+  },
+  "apps/emotion-tracker/src/components/ReflectionSession.tsx": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "88104fce8fcfadf8619e904fe91b382a",
+    "semantic_hash": "88104fce8fcfadf8619e904fe91b382a"
+  },
+  "apps/emotion-tracker/src/components/SummaryView.tsx": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "676da3a39529e6b501214bf8c33990ff",
+    "semantic_hash": "676da3a39529e6b501214bf8c33990ff"
+  },
+  "apps/emotion-tracker/src/components/Toast.tsx": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "3e7c1e9cd6802402d5380e029cb0b30c",
+    "semantic_hash": "3e7c1e9cd6802402d5380e029cb0b30c"
+  },
+  "apps/emotion-tracker/src/lib/anthropic.ts": {
+    "mtime": 1785394045.9174156,
+    "ast_hash": "8fba6138d1fd46d47620bb3545780312",
+    "semantic_hash": "8fba6138d1fd46d47620bb3545780312"
+  },
+  "apps/emotion-tracker/src/lib/rateLimit.ts": {
+    "mtime": 1785394045.9187348,
+    "ast_hash": "f4752d737872e3bd4325f26d5b98adce",
+    "semantic_hash": "f4752d737872e3bd4325f26d5b98adce"
+  },
+  "apps/emotion-tracker/src/lib/types.ts": {
+    "mtime": 1785394045.9187348,
+    "ast_hash": "f9175a1625f324b849c67edeebc7f1bc",
+    "semantic_hash": "f9175a1625f324b849c67edeebc7f1bc"
+  },
+  "apps/emotion-tracker/src/lib/useEntries.ts": {
+    "mtime": 1785394045.9187348,
+    "ast_hash": "fcd049c8a2dd233e281497c6685eab5f",
+    "semantic_hash": "fcd049c8a2dd233e281497c6685eab5f"
+  },
+  "apps/emotion-tracker/src/lib/useLocalStorage.ts": {
+    "mtime": 1785394045.9187348,
+    "ast_hash": "3d915a61264375bbad7fedd20e856acb",
+    "semantic_hash": "3d915a61264375bbad7fedd20e856acb"
+  },
+  "apps/emotion-tracker/tsconfig.json": {
+    "mtime": 1785394045.9187348,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "apps/food-shopping-os/next.config.mjs": {
+    "mtime": 1785394045.9197657,
+    "ast_hash": "dfa98d9486ba6963f01712f0a341b4a5",
+    "semantic_hash": "dfa98d9486ba6963f01712f0a341b4a5"
+  },
+  "apps/food-shopping-os/package.json": {
+    "mtime": 1785774019.4647965,
+    "ast_hash": "92bdcd8f7110e1289bc494818c3f5ede",
+    "semantic_hash": "92bdcd8f7110e1289bc494818c3f5ede"
+  },
+  "apps/food-shopping-os/playwright.config.js": {
+    "mtime": 1785394045.9197657,
+    "ast_hash": "1f53400adae2ac4e56976c13769db2f3",
+    "semantic_hash": "1f53400adae2ac4e56976c13769db2f3"
+  },
+  "apps/food-shopping-os/postcss.config.mjs": {
+    "mtime": 1785394045.9197657,
+    "ast_hash": "9a944fbda06979be39571bd9bd00b0d9",
+    "semantic_hash": "9a944fbda06979be39571bd9bd00b0d9"
+  },
+  "apps/food-shopping-os/public/sw.js": {
+    "mtime": 1785774019.4647965,
+    "ast_hash": "7ed6b36dfba12b7b97e7153f7d715189",
+    "semantic_hash": "7ed6b36dfba12b7b97e7153f7d715189"
+  },
+  "apps/food-shopping-os/scripts/check-database.mjs": {
+    "mtime": 1785774019.4647965,
+    "ast_hash": "35fc2fdd1fb27903d004b2d4e7c2dd35",
+    "semantic_hash": "35fc2fdd1fb27903d004b2d4e7c2dd35"
+  },
+  "apps/food-shopping-os/scripts/generate-icons.mjs": {
+    "mtime": 1785394045.9311604,
+    "ast_hash": "7f746414771054ee4f02db6250113f33",
+    "semantic_hash": "7f746414771054ee4f02db6250113f33"
+  },
+  "apps/food-shopping-os/scripts/migrate.mjs": {
+    "mtime": 1785774019.4647965,
+    "ast_hash": "e2862642b76f39e89fc6ae84686c229e",
+    "semantic_hash": "e2862642b76f39e89fc6ae84686c229e"
+  },
+  "apps/food-shopping-os/scripts/migrations/001-initial-backend.mjs": {
+    "mtime": 1785774019.4647965,
+    "ast_hash": "c68e91a136ffaf6336ee07e17c2ea7a0",
+    "semantic_hash": "c68e91a136ffaf6336ee07e17c2ea7a0"
+  },
+  "apps/food-shopping-os/scripts/migrations/002-analytics-idempotency.mjs": {
+    "mtime": 1785774019.4647965,
+    "ast_hash": "88aebfb97e148370b1983ffeb4ce5dcc",
+    "semantic_hash": "88aebfb97e148370b1983ffeb4ce5dcc"
+  },
+  "apps/food-shopping-os/src/App.jsx": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "9f14a9601b3e3efad6d1237ca52a2b06",
+    "semantic_hash": "9f14a9601b3e3efad6d1237ca52a2b06"
+  },
+  "apps/food-shopping-os/src/app/ClientRoot.jsx": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "ef1d5ebecbf98aea9ca1c3c36db77213",
+    "semantic_hash": "ef1d5ebecbf98aea9ca1c3c36db77213"
+  },
+  "apps/food-shopping-os/src/app/api/ai/route.js": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "1189272c6a31a4e6f78114d0c16482a2",
+    "semantic_hash": "1189272c6a31a4e6f78114d0c16482a2"
+  },
+  "apps/food-shopping-os/src/app/api/ai/usage/route.js": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "fee4adce7a11c666ee8bd7a30b028a19",
+    "semantic_hash": "fee4adce7a11c666ee8bd7a30b028a19"
+  },
+  "apps/food-shopping-os/src/app/api/analytics/route.js": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "a9c9122d95548eb2f12900b1833785be",
+    "semantic_hash": "a9c9122d95548eb2f12900b1833785be"
+  },
+  "apps/food-shopping-os/src/app/api/auth/[...nextauth]/route.js": {
+    "mtime": 1785394045.9361415,
+    "ast_hash": "e63f7ed4de2033981cc2cfa0455c5730",
+    "semantic_hash": "e63f7ed4de2033981cc2cfa0455c5730"
+  },
+  "apps/food-shopping-os/src/app/api/backend/status/route.js": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "a89a1f3c86564daee02d8d25629f8831",
+    "semantic_hash": "a89a1f3c86564daee02d8d25629f8831"
+  },
+  "apps/food-shopping-os/src/app/api/coach-shares/route.js": {
+    "mtime": 1785774019.4687965,
+    "ast_hash": "a374d166e9c22aef526323c09eec2736",
+    "semantic_hash": "a374d166e9c22aef526323c09eec2736"
+  },
+  "apps/food-shopping-os/src/app/api/coach/[token]/route.js": {
+    "mtime": 1785774019.471308,
+    "ast_hash": "4cdc17f867acfb74149b68adeaf4d2b6",
+    "semantic_hash": "4cdc17f867acfb74149b68adeaf4d2b6"
+  },
+  "apps/food-shopping-os/src/app/api/households/audit/route.js": {
+    "mtime": 1785774019.471308,
+    "ast_hash": "3b8a14cb979031a930b68747806fc42c",
+    "semantic_hash": "3b8a14cb979031a930b68747806fc42c"
+  },
+  "apps/food-shopping-os/src/app/api/households/invitations/route.js": {
+    "mtime": 1785774019.471308,
+    "ast_hash": "24930f3ecbef4a6af1c5627a993192f4",
+    "semantic_hash": "24930f3ecbef4a6af1c5627a993192f4"
+  },
+  "apps/food-shopping-os/src/app/api/households/route.js": {
+    "mtime": 1785774019.471308,
+    "ast_hash": "ff13c784b61412d4235a6f15a3e600a1",
+    "semantic_hash": "ff13c784b61412d4235a6f15a3e600a1"
+  },
+  "apps/food-shopping-os/src/app/api/integrations/calendar/events/route.js": {
+    "mtime": 1785774019.471308,
+    "ast_hash": "e9e33cd4acd8af5039d1f361ca129119",
+    "semantic_hash": "e9e33cd4acd8af5039d1f361ca129119"
+  },
+  "apps/food-shopping-os/src/app/api/integrations/prices/route.js": {
+    "mtime": 1785774019.471308,
+    "ast_hash": "8d580f09c46ff0fd8200f1bbbd50f591",
+    "semantic_hash": "8d580f09c46ff0fd8200f1bbbd50f591"
+  },
+  "apps/food-shopping-os/src/app/api/integrations/products/route.js": {
+    "mtime": 1785774019.4727964,
+    "ast_hash": "fdd1d9cd9345a5f0420e3d66b4127da1",
+    "semantic_hash": "fdd1d9cd9345a5f0420e3d66b4127da1"
+  },
+  "apps/food-shopping-os/src/app/api/jobs/reminders/route.js": {
+    "mtime": 1785774019.4727964,
+    "ast_hash": "9a9aa4f833c10893a6f5a4c7f1ea1ef6",
+    "semantic_hash": "9a9aa4f833c10893a6f5a4c7f1ea1ef6"
+  },
+  "apps/food-shopping-os/src/app/api/realtime/stream/route.js": {
+    "mtime": 1785774019.4727964,
+    "ast_hash": "ca14f48ec1d2dffb7a0f38d0f4f4e62c",
+    "semantic_hash": "ca14f48ec1d2dffb7a0f38d0f4f4e62c"
+  },
+  "apps/food-shopping-os/src/app/api/realtime/token/route.js": {
+    "mtime": 1785774019.4727964,
+    "ast_hash": "0bb0ea8e8670c8282ad60a80d03db6af",
+    "semantic_hash": "0bb0ea8e8670c8282ad60a80d03db6af"
+  },
+  "apps/food-shopping-os/src/app/api/sync/route.js": {
+    "mtime": 1785774019.4727964,
+    "ast_hash": "cf8a0a8e1f323cf285dccf267c284826",
+    "semantic_hash": "cf8a0a8e1f323cf285dccf267c284826"
+  },
+  "apps/food-shopping-os/src/app/api/uploads/receipt/route.js": {
+    "mtime": 1785774019.4727964,
+    "ast_hash": "cfbfa0d3c8be39537c31f637309fd907",
+    "semantic_hash": "cfbfa0d3c8be39537c31f637309fd907"
+  },
+  "apps/food-shopping-os/src/app/coach/[token]/page.jsx": {
+    "mtime": 1785774019.4756982,
+    "ast_hash": "c17c40e3ade8c612a55aaab7dfb220ab",
+    "semantic_hash": "c17c40e3ade8c612a55aaab7dfb220ab"
+  },
+  "apps/food-shopping-os/src/app/layout.jsx": {
+    "mtime": 1785394045.9419014,
+    "ast_hash": "ef537f79058f438f6b377fa96d821d2d",
+    "semantic_hash": "ef537f79058f438f6b377fa96d821d2d"
+  },
+  "apps/food-shopping-os/src/app/page.jsx": {
+    "mtime": 1785774019.4756982,
+    "ast_hash": "b30ec5f6bfc6e30a65560e3937e760e1",
+    "semantic_hash": "b30ec5f6bfc6e30a65560e3937e760e1"
+  },
+  "apps/food-shopping-os/src/components/AddFood.jsx": {
+    "mtime": 1785774019.4756982,
+    "ast_hash": "8c36c9b3b784af4d49d446e5108878ec",
+    "semantic_hash": "8c36c9b3b784af4d49d446e5108878ec"
+  },
+  "apps/food-shopping-os/src/components/AdvancedPanel.jsx": {
+    "mtime": 1785774019.4756982,
+    "ast_hash": "853273abaaf116293ed300df012c8b8b",
+    "semantic_hash": "853273abaaf116293ed300df012c8b8b"
+  },
+  "apps/food-shopping-os/src/components/AiAssistant.jsx": {
+    "mtime": 1785774019.4756982,
+    "ast_hash": "56e1f16143eddf5aed8f88ff85524336",
+    "semantic_hash": "56e1f16143eddf5aed8f88ff85524336"
+  },
+  "apps/food-shopping-os/src/components/AnalyticsPanel.jsx": {
+    "mtime": 1785774019.4756982,
+    "ast_hash": "412831fa8ed91267d7b880d23807088d",
+    "semantic_hash": "412831fa8ed91267d7b880d23807088d"
+  },
+  "apps/food-shopping-os/src/components/AppHeader.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "52ae722f920219183d6e626bed43dd1f",
+    "semantic_hash": "52ae722f920219183d6e626bed43dd1f"
+  },
+  "apps/food-shopping-os/src/components/BackendPanel.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "0f68cfe99b0c15fb9e81767f4c82c057",
+    "semantic_hash": "0f68cfe99b0c15fb9e81767f4c82c057"
+  },
+  "apps/food-shopping-os/src/components/BarcodeAdd.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "4e5d4743070d74815d1fa5894ace1461",
+    "semantic_hash": "4e5d4743070d74815d1fa5894ace1461"
+  },
+  "apps/food-shopping-os/src/components/BudgetPanel.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "89b2f88f51c3f26e06015ac8157cda5f",
+    "semantic_hash": "89b2f88f51c3f26e06015ac8157cda5f"
+  },
+  "apps/food-shopping-os/src/components/CalendarAvailability.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "4f54fb38cdaa641b24f07db16eea1fdb",
+    "semantic_hash": "4f54fb38cdaa641b24f07db16eea1fdb"
+  },
+  "apps/food-shopping-os/src/components/CloudSyncRow.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "fc3bff91f9a666cd08525172bfa51f38",
+    "semantic_hash": "fc3bff91f9a666cd08525172bfa51f38"
+  },
+  "apps/food-shopping-os/src/components/CoachAccess.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "033aecc756f0ef0fa56bb9d1b567b769",
+    "semantic_hash": "033aecc756f0ef0fa56bb9d1b567b769"
+  },
+  "apps/food-shopping-os/src/components/CookMode.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "5dbbf3dd1e84bebeada94b728fcae06b",
+    "semantic_hash": "5dbbf3dd1e84bebeada94b728fcae06b"
+  },
+  "apps/food-shopping-os/src/components/CopyMeal.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "0a78046fb835d51c9fd49484f5c120c3",
+    "semantic_hash": "0a78046fb835d51c9fd49484f5c120c3"
+  },
+  "apps/food-shopping-os/src/components/ErrorBoundary.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "ac94726e0273b4dfcb76841c7fc584a4",
+    "semantic_hash": "ac94726e0273b4dfcb76841c7fc584a4"
+  },
+  "apps/food-shopping-os/src/components/ExercisePanel.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "cf44935e09a293357beed27ae331971f",
+    "semantic_hash": "cf44935e09a293357beed27ae331971f"
+  },
+  "apps/food-shopping-os/src/components/FamilyPanel.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "334c6c8bc99590848d9c2883d0aed27f",
+    "semantic_hash": "334c6c8bc99590848d9c2883d0aed27f"
+  },
+  "apps/food-shopping-os/src/components/FoodDetail.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "cea142f7a1c17b0895bf0a86327e4ab6",
+    "semantic_hash": "cea142f7a1c17b0895bf0a86327e4ab6"
+  },
+  "apps/food-shopping-os/src/components/GlobalLauncher.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "f36f79d2bdb295f863f19af72760f3d7",
+    "semantic_hash": "f36f79d2bdb295f863f19af72760f3d7"
+  },
+  "apps/food-shopping-os/src/components/GoalsPanel.jsx": {
+    "mtime": 1785774019.4767966,
+    "ast_hash": "37c335530f9d9030594f4f269ba11c8f",
+    "semantic_hash": "37c335530f9d9030594f4f269ba11c8f"
+  },
+  "apps/food-shopping-os/src/components/GuidancePanel.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "bea313a9b34b14f6b35372db85e72b3b",
+    "semantic_hash": "bea313a9b34b14f6b35372db85e72b3b"
+  },
+  "apps/food-shopping-os/src/components/GuidancePreview.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "de13d190fcdc4a9482a4048a0990022d",
+    "semantic_hash": "de13d190fcdc4a9482a4048a0990022d"
+  },
+  "apps/food-shopping-os/src/components/HealthPanel.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "6d1653288e874b4c387193fdfae7835f",
+    "semantic_hash": "6d1653288e874b4c387193fdfae7835f"
+  },
+  "apps/food-shopping-os/src/components/HealthVaultPanel.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "19f511ec72b1928acc8630067a2a3643",
+    "semantic_hash": "19f511ec72b1928acc8630067a2a3643"
+  },
+  "apps/food-shopping-os/src/components/HomeTab.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "85ebf4e2887506c6c9a8cd2d1f075d6a",
+    "semantic_hash": "85ebf4e2887506c6c9a8cd2d1f075d6a"
+  },
+  "apps/food-shopping-os/src/components/HouseholdAudit.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "eab585cf442f9f21e492e867918f30a8",
+    "semantic_hash": "eab585cf442f9f21e492e867918f30a8"
+  },
+  "apps/food-shopping-os/src/components/LabelScan.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "5c7ead22d64f249816d1d6e81a3e55bd",
+    "semantic_hash": "5c7ead22d64f249816d1d6e81a3e55bd"
+  },
+  "apps/food-shopping-os/src/components/LogCapture.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "52afa25047fa422b018914096f02911f",
+    "semantic_hash": "52afa25047fa422b018914096f02911f"
+  },
+  "apps/food-shopping-os/src/components/LogTab.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "633862622bea7de7b5ac3e2b662108c7",
+    "semantic_hash": "633862622bea7de7b5ac3e2b662108c7"
+  },
+  "apps/food-shopping-os/src/components/MonthMealRow.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "7a86575d77e29778a2c296820a992445",
+    "semantic_hash": "7a86575d77e29778a2c296820a992445"
+  },
+  "apps/food-shopping-os/src/components/NutritionPanel.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "8b8417416cba776d4d156a077e681a03",
+    "semantic_hash": "8b8417416cba776d4d156a077e681a03"
+  },
+  "apps/food-shopping-os/src/components/OffersPanel.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "70319741f22978e0dc9287d6662bfae4",
+    "semantic_hash": "70319741f22978e0dc9287d6662bfae4"
+  },
+  "apps/food-shopping-os/src/components/Onboarding.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "f012899189552f43a3e01075d4bbc4ea",
+    "semantic_hash": "f012899189552f43a3e01075d4bbc4ea"
+  },
+  "apps/food-shopping-os/src/components/PantryCapture.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "3c5866a8dc5206f79c6a2127158c7567",
+    "semantic_hash": "3c5866a8dc5206f79c6a2127158c7567"
+  },
+  "apps/food-shopping-os/src/components/PantryShare.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "a075d484e559a49e161d6f653fc64fe9",
+    "semantic_hash": "a075d484e559a49e161d6f653fc64fe9"
+  },
+  "apps/food-shopping-os/src/components/PantryView.jsx": {
+    "mtime": 1785774019.4807966,
+    "ast_hash": "11180de53468e12a436c2129e374dc04",
+    "semantic_hash": "11180de53468e12a436c2129e374dc04"
+  },
+  "apps/food-shopping-os/src/components/PlanCalendar.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "85196a25fd2b25238ac52c533d0c3ffb",
+    "semantic_hash": "85196a25fd2b25238ac52c533d0c3ffb"
+  },
+  "apps/food-shopping-os/src/components/PlanGenerator.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "828e44085cbb50b0e3209bcf844e4e26",
+    "semantic_hash": "828e44085cbb50b0e3209bcf844e4e26"
+  },
+  "apps/food-shopping-os/src/components/PlanTab.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "daa5eef5365f424e6d736b33a33b13f3",
+    "semantic_hash": "daa5eef5365f424e6d736b33a33b13f3"
+  },
+  "apps/food-shopping-os/src/components/PreferencesPanel.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "b5460163237698387d08fa8208c1e716",
+    "semantic_hash": "b5460163237698387d08fa8208c1e716"
+  },
+  "apps/food-shopping-os/src/components/PriceCompare.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "b7338230e60a6c693bd6a136c7337023",
+    "semantic_hash": "b7338230e60a6c693bd6a136c7337023"
+  },
+  "apps/food-shopping-os/src/components/PrimaryAction.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "2cc4d4ddc20b0847bff7eae2ae9a8dde",
+    "semantic_hash": "2cc4d4ddc20b0847bff7eae2ae9a8dde"
+  },
+  "apps/food-shopping-os/src/components/PrivacyPanel.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "fd76f6e5f58ebf71aa09dc3acab5705e",
+    "semantic_hash": "fd76f6e5f58ebf71aa09dc3acab5705e"
+  },
+  "apps/food-shopping-os/src/components/ProfileTab.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "b225f04875ca6044cbf36471b83463ec",
+    "semantic_hash": "b225f04875ca6044cbf36471b83463ec"
+  },
+  "apps/food-shopping-os/src/components/QuestsPanel.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "7ce6a3a44be78dcf81cc3ee2de9ecfa2",
+    "semantic_hash": "7ce6a3a44be78dcf81cc3ee2de9ecfa2"
+  },
+  "apps/food-shopping-os/src/components/ReceiptScan.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "df590874e947872443431c37a290f123",
+    "semantic_hash": "df590874e947872443431c37a290f123"
+  },
+  "apps/food-shopping-os/src/components/RecipeDetail.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "419c341cad8c19d5adb20691430e4cdf",
+    "semantic_hash": "419c341cad8c19d5adb20691430e4cdf"
+  },
+  "apps/food-shopping-os/src/components/RecipeFilterSheet.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "afd737ed119ca99e01caed32230d78ec",
+    "semantic_hash": "afd737ed119ca99e01caed32230d78ec"
+  },
+  "apps/food-shopping-os/src/components/RecipeGenerator.jsx": {
+    "mtime": 1785774019.4847965,
+    "ast_hash": "1b2eb2cad9d942e8649898dd0f17a234",
+    "semantic_hash": "1b2eb2cad9d942e8649898dd0f17a234"
+  },
+  "apps/food-shopping-os/src/components/RecipeImport.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "99b544153142edaebb8601bac8f0765b",
+    "semantic_hash": "99b544153142edaebb8601bac8f0765b"
+  },
+  "apps/food-shopping-os/src/components/RecipeTools.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "7d8695e7bfe2f443effa2f21862dfab1",
+    "semantic_hash": "7d8695e7bfe2f443effa2f21862dfab1"
+  },
+  "apps/food-shopping-os/src/components/RecipesTab.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "a3f27cefc78e1510168834bd121e2523",
+    "semantic_hash": "a3f27cefc78e1510168834bd121e2523"
+  },
+  "apps/food-shopping-os/src/components/ReminderForm.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "c8680714ec648cc959352f52af6d96ca",
+    "semantic_hash": "c8680714ec648cc959352f52af6d96ca"
+  },
+  "apps/food-shopping-os/src/components/RemindersPanel.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "664cf647477be138dc74b274302e01a6",
+    "semantic_hash": "664cf647477be138dc74b274302e01a6"
+  },
+  "apps/food-shopping-os/src/components/ReportsPanel.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "b7ab5331b8f83bbeafb9a5b9298e05fb",
+    "semantic_hash": "b7ab5331b8f83bbeafb9a5b9298e05fb"
+  },
+  "apps/food-shopping-os/src/components/RestockSection.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "e51c07ec6471a3b79dbd37d65fd66d8c",
+    "semantic_hash": "e51c07ec6471a3b79dbd37d65fd66d8c"
+  },
+  "apps/food-shopping-os/src/components/ShopForms.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "8ba8e699f5e8da54b84f8a9e73272e16",
+    "semantic_hash": "8ba8e699f5e8da54b84f8a9e73272e16"
+  },
+  "apps/food-shopping-os/src/components/ShopTab.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "c95b815336a0e463629b2c5ac0cea4a7",
+    "semantic_hash": "c95b815336a0e463629b2c5ac0cea4a7"
+  },
+  "apps/food-shopping-os/src/components/ShoppingExport.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "d8a8d3d4e63492363615078496e71a17",
+    "semantic_hash": "d8a8d3d4e63492363615078496e71a17"
+  },
+  "apps/food-shopping-os/src/components/ShoppingListRow.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "307dd5707e75e53327deab4e8a434497",
+    "semantic_hash": "307dd5707e75e53327deab4e8a434497"
+  },
+  "apps/food-shopping-os/src/components/ShoppingProgress.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "aeb9ea913e5c0e16cee3b7ecb7dc26ee",
+    "semantic_hash": "aeb9ea913e5c0e16cee3b7ecb7dc26ee"
+  },
+  "apps/food-shopping-os/src/components/SmartFeaturesPanel.jsx": {
+    "mtime": 1785774019.4887965,
+    "ast_hash": "8d9d3ea1d5d11dee9c48c2c994c36ae8",
+    "semantic_hash": "8d9d3ea1d5d11dee9c48c2c994c36ae8"
+  },
+  "apps/food-shopping-os/src/components/StoreIntegrations.jsx": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "6bb0a39531a80bdc14ad7d5379dc3901",
+    "semantic_hash": "6bb0a39531a80bdc14ad7d5379dc3901"
+  },
+  "apps/food-shopping-os/src/components/TasteGame.jsx": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "ede977d8563d23a82108fe5dabeda026",
+    "semantic_hash": "ede977d8563d23a82108fe5dabeda026"
+  },
+  "apps/food-shopping-os/src/components/WaterGlasses.jsx": {
+    "mtime": 1785394045.9511604,
+    "ast_hash": "2eaa57e4d41110ee65c3f9b1c7001e5f",
+    "semantic_hash": "2eaa57e4d41110ee65c3f9b1c7001e5f"
+  },
+  "apps/food-shopping-os/src/components/WellbeingPanel.jsx": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "b298a5d7493fa7b51b071a380f8f5267",
+    "semantic_hash": "b298a5d7493fa7b51b071a380f8f5267"
+  },
+  "apps/food-shopping-os/src/components/YouthNotice.jsx": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "05f63aa7a79b68e02c2984bf06da976e",
+    "semantic_hash": "05f63aa7a79b68e02c2984bf06da976e"
+  },
+  "apps/food-shopping-os/src/components/icons.jsx": {
+    "mtime": 1785394045.9511604,
+    "ast_hash": "77743b73645ef6f32f827b300942c695",
+    "semantic_hash": "77743b73645ef6f32f827b300942c695"
+  },
+  "apps/food-shopping-os/src/components/recipe-icons.jsx": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "6864bd69f1e22bc3505e51e1111a7995",
+    "semantic_hash": "6864bd69f1e22bc3505e51e1111a7995"
+  },
+  "apps/food-shopping-os/src/components/ui.jsx": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "4239b0775dbdc7fc6adab43234872442",
+    "semantic_hash": "4239b0775dbdc7fc6adab43234872442"
+  },
+  "apps/food-shopping-os/src/data/analytics.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "de7913265052f654c8e7d2c663d2b34e",
+    "semantic_hash": "de7913265052f654c8e7d2c663d2b34e"
+  },
+  "apps/food-shopping-os/src/data/capabilities.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "789811b81ef6131b679302a2a835f9ab",
+    "semantic_hash": "789811b81ef6131b679302a2a835f9ab"
+  },
+  "apps/food-shopping-os/src/data/expanded-foods.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "ca0af1fe342311d615b7eedb58250ef1",
+    "semantic_hash": "ca0af1fe342311d615b7eedb58250ef1"
+  },
+  "apps/food-shopping-os/src/data/foods.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "a605437ec2a6a27b4a93322c2231f8ff",
+    "semantic_hash": "a605437ec2a6a27b4a93322c2231f8ff"
+  },
+  "apps/food-shopping-os/src/data/goals.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "3d9f8b9eff6f36eab997a3f3994a6a2c",
+    "semantic_hash": "3d9f8b9eff6f36eab997a3f3994a6a2c"
+  },
+  "apps/food-shopping-os/src/data/health.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "918e5b0300e5e3b52bb2a4de890fbd83",
+    "semantic_hash": "918e5b0300e5e3b52bb2a4de890fbd83"
+  },
+  "apps/food-shopping-os/src/data/log-seed.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "01d2654a6bc412749bdc2abad9e4624e",
+    "semantic_hash": "01d2654a6bc412749bdc2abad9e4624e"
+  },
+  "apps/food-shopping-os/src/data/micronutrients.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "564d8621defa45733a21469bfd12a55b",
+    "semantic_hash": "564d8621defa45733a21469bfd12a55b"
+  },
+  "apps/food-shopping-os/src/data/nutrients.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "62e1d63fb6fb83322a8cd90024be020b",
+    "semantic_hash": "62e1d63fb6fb83322a8cd90024be020b"
+  },
+  "apps/food-shopping-os/src/data/pantry.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "9ba77260b958516dd7d92307798afc78",
+    "semantic_hash": "9ba77260b958516dd7d92307798afc78"
+  },
+  "apps/food-shopping-os/src/data/plan.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "c1ff4e3ed8c3278901be04e229bcfb99",
+    "semantic_hash": "c1ff4e3ed8c3278901be04e229bcfb99"
+  },
+  "apps/food-shopping-os/src/data/preferences.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "80ec97829ed4f57905a5308846a062c5",
+    "semantic_hash": "80ec97829ed4f57905a5308846a062c5"
+  },
+  "apps/food-shopping-os/src/data/privacy.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "d05cfb51cc6335e3dbf4c845ae601a53",
+    "semantic_hash": "d05cfb51cc6335e3dbf4c845ae601a53"
+  },
+  "apps/food-shopping-os/src/data/quests.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "c77e1acd58f25cc85c667cf2e5aaa4da",
+    "semantic_hash": "c77e1acd58f25cc85c667cf2e5aaa4da"
+  },
+  "apps/food-shopping-os/src/data/recipe-gen.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "ee36c27127fec8205db8ac148cb0881c",
+    "semantic_hash": "ee36c27127fec8205db8ac148cb0881c"
+  },
+  "apps/food-shopping-os/src/data/recipe-images.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "e1b2254a496c098e860bfc2e15d3b496",
+    "semantic_hash": "e1b2254a496c098e860bfc2e15d3b496"
+  },
+  "apps/food-shopping-os/src/data/recipe-parts.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "c7d7516f1cca884e3acfcfba7de59b05",
+    "semantic_hash": "c7d7516f1cca884e3acfcfba7de59b05"
+  },
+  "apps/food-shopping-os/src/data/recipe-templates.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "3ee25f81f38657d2d29b66e388751688",
+    "semantic_hash": "3ee25f81f38657d2d29b66e388751688"
+  },
+  "apps/food-shopping-os/src/data/recipes.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "c53785d289c31da9e803e107bce1853a",
+    "semantic_hash": "c53785d289c31da9e803e107bce1853a"
+  },
+  "apps/food-shopping-os/src/data/reminders.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "cadb16aec6ef6da19ceb1ca6d09edf6a",
+    "semantic_hash": "cadb16aec6ef6da19ceb1ca6d09edf6a"
+  },
+  "apps/food-shopping-os/src/data/retailers.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "91dea63f0fd4276d762c0429c8dc4ba9",
+    "semantic_hash": "91dea63f0fd4276d762c0429c8dc4ba9"
+  },
+  "apps/food-shopping-os/src/data/seasons.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "8a0f6b456965d5fe034ba012c14052bd",
+    "semantic_hash": "8a0f6b456965d5fe034ba012c14052bd"
+  },
+  "apps/food-shopping-os/src/data/stores.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "2cf721110dc3791272b7090b67a38333",
+    "semantic_hash": "2cf721110dc3791272b7090b67a38333"
+  },
+  "apps/food-shopping-os/src/data/substitutions.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "d1ff888426b613c72c629b4a3c2dbf4a",
+    "semantic_hash": "d1ff888426b613c72c629b4a3c2dbf4a"
+  },
+  "apps/food-shopping-os/src/data/sustainability.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "d41a66861bd846fe64d16cfc37a7b1e8",
+    "semantic_hash": "d41a66861bd846fe64d16cfc37a7b1e8"
+  },
+  "apps/food-shopping-os/src/data/template-kit.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "a7ce5dfa35a3a8da0c6d20d7ad8fd5fc",
+    "semantic_hash": "a7ce5dfa35a3a8da0c6d20d7ad8fd5fc"
+  },
+  "apps/food-shopping-os/src/data/templates-breakfast.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "4537ffdf1ce69ca441f043be984cb778",
+    "semantic_hash": "4537ffdf1ce69ca441f043be984cb778"
+  },
+  "apps/food-shopping-os/src/data/templates-dinner.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "0b01a62812a5cf3c54e650a6a174d5a7",
+    "semantic_hash": "0b01a62812a5cf3c54e650a6a174d5a7"
+  },
+  "apps/food-shopping-os/src/data/templates-lunch.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "bf0f72f77af97da44cc34b804dcf6e1d",
+    "semantic_hash": "bf0f72f77af97da44cc34b804dcf6e1d"
+  },
+  "apps/food-shopping-os/src/data/workouts.js": {
+    "mtime": 1785394045.9565482,
+    "ast_hash": "0b4fcb09951c73ff804e154322473656",
+    "semantic_hash": "0b4fcb09951c73ff804e154322473656"
+  },
+  "apps/food-shopping-os/src/lib/advice.js": {
+    "mtime": 1785774019.4927967,
+    "ast_hash": "3483996a2806757a98cc81aeac3359b3",
+    "semantic_hash": "3483996a2806757a98cc81aeac3359b3"
+  },
+  "apps/food-shopping-os/src/lib/ai-assistant.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "2527ca5f29235c769c034e40ddd0bf40",
+    "semantic_hash": "2527ca5f29235c769c034e40ddd0bf40"
+  },
+  "apps/food-shopping-os/src/lib/analytics.js": {
+    "mtime": 1785394045.9627097,
+    "ast_hash": "d71eb875d69aa60943d75e3a70f0ddbb",
+    "semantic_hash": "d71eb875d69aa60943d75e3a70f0ddbb"
+  },
+  "apps/food-shopping-os/src/lib/calendar.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "70e326d1783c46500aa8654290b426fc",
+    "semantic_hash": "70e326d1783c46500aa8654290b426fc"
+  },
+  "apps/food-shopping-os/src/lib/cgm.js": {
+    "mtime": 1785394045.9627097,
+    "ast_hash": "c52e6f6244444798f4c09f928af3b543",
+    "semantic_hash": "c52e6f6244444798f4c09f928af3b543"
+  },
+  "apps/food-shopping-os/src/lib/cloud.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "08663cdc9963172b3036cf73804e1b30",
+    "semantic_hash": "08663cdc9963172b3036cf73804e1b30"
+  },
+  "apps/food-shopping-os/src/lib/coach-dashboard.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "b33798ae284b9f2d6599181d4e28d7d3",
+    "semantic_hash": "b33798ae284b9f2d6599181d4e28d7d3"
+  },
+  "apps/food-shopping-os/src/lib/coach.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "ab40db6a556d77320fdc134d1076464b",
+    "semantic_hash": "ab40db6a556d77320fdc134d1076464b"
+  },
+  "apps/food-shopping-os/src/lib/derive.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "2b63e5fd04c7c6051935f66e037b364c",
+    "semantic_hash": "2b63e5fd04c7c6051935f66e037b364c"
+  },
+  "apps/food-shopping-os/src/lib/exercise.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "76acaea6e8a2f40829908cd2c6c0e4d6",
+    "semantic_hash": "76acaea6e8a2f40829908cd2c6c0e4d6"
+  },
+  "apps/food-shopping-os/src/lib/fasting.js": {
+    "mtime": 1785394045.9627097,
+    "ast_hash": "6dbeae87d2239494dae387a00595df9b",
+    "semantic_hash": "6dbeae87d2239494dae387a00595df9b"
+  },
+  "apps/food-shopping-os/src/lib/food-loop.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "26ff7c51d9ff9d2eba4ddcd616de67e3",
+    "semantic_hash": "26ff7c51d9ff9d2eba4ddcd616de67e3"
+  },
+  "apps/food-shopping-os/src/lib/foodlog.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "591f0bee19ce33d12c75deee51eb347d",
+    "semantic_hash": "591f0bee19ce33d12c75deee51eb347d"
+  },
+  "apps/food-shopping-os/src/lib/footprint.js": {
+    "mtime": 1785394045.9627097,
+    "ast_hash": "fc5b79d542719af3170cdd77ea120e79",
+    "semantic_hash": "fc5b79d542719af3170cdd77ea120e79"
+  },
+  "apps/food-shopping-os/src/lib/global-search.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "9d6daa921fdd7df3ca440345f3d23610",
+    "semantic_hash": "9d6daa921fdd7df3ca440345f3d23610"
+  },
+  "apps/food-shopping-os/src/lib/goals.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "18bdaf06846ecb61472edf85fc406ddc",
+    "semantic_hash": "18bdaf06846ecb61472edf85fc406ddc"
+  },
+  "apps/food-shopping-os/src/lib/guidance.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "ca7ecc5da1d1eb389bb39d718d7f03ff",
+    "semantic_hash": "ca7ecc5da1d1eb389bb39d718d7f03ff"
+  },
+  "apps/food-shopping-os/src/lib/haptics.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "71d98b754c21a1039e72c722a8223008",
+    "semantic_hash": "71d98b754c21a1039e72c722a8223008"
+  },
+  "apps/food-shopping-os/src/lib/health-actions.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "1bae47fabd463cd8cd990312c698eda1",
+    "semantic_hash": "1bae47fabd463cd8cd990312c698eda1"
+  },
+  "apps/food-shopping-os/src/lib/health-vault.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "56bc9c17ca8df74dfe2d978185cda237",
+    "semantic_hash": "56bc9c17ca8df74dfe2d978185cda237"
+  },
+  "apps/food-shopping-os/src/lib/health.js": {
+    "mtime": 1785394045.9627097,
+    "ast_hash": "fc4cbd103dd3e2b1ff8be9777041798c",
+    "semantic_hash": "fc4cbd103dd3e2b1ff8be9777041798c"
+  },
+  "apps/food-shopping-os/src/lib/household-actions.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "f857330085c21dfc5a3668a2ddd2cd9d",
+    "semantic_hash": "f857330085c21dfc5a3668a2ddd2cd9d"
+  },
+  "apps/food-shopping-os/src/lib/household.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "33f74179283584fbaad6e1c8cb4dbd43",
+    "semantic_hash": "33f74179283584fbaad6e1c8cb4dbd43"
+  },
+  "apps/food-shopping-os/src/lib/kitchen.js": {
+    "mtime": 1785774019.4967966,
+    "ast_hash": "827e3f7cc66ea7043aaf6e5a3dfee876",
+    "semantic_hash": "827e3f7cc66ea7043aaf6e5a3dfee876"
+  },
+  "apps/food-shopping-os/src/lib/label.js": {
+    "mtime": 1785394045.9631605,
+    "ast_hash": "f08ca32fff0a646f8ea8844d582b89b6",
+    "semantic_hash": "f08ca32fff0a646f8ea8844d582b89b6"
+  },
+  "apps/food-shopping-os/src/lib/mealplan.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "ecbbd04a69d3a18d623cf9fe48ccf1b7",
+    "semantic_hash": "ecbbd04a69d3a18d623cf9fe48ccf1b7"
+  },
+  "apps/food-shopping-os/src/lib/micro-optimise.js": {
+    "mtime": 1785394045.9631605,
+    "ast_hash": "d0be60057105ee471839c67664580b8f",
+    "semantic_hash": "d0be60057105ee471839c67664580b8f"
+  },
+  "apps/food-shopping-os/src/lib/notify.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "de96c94bfc6e0fecd780b53612c90d8c",
+    "semantic_hash": "de96c94bfc6e0fecd780b53612c90d8c"
+  },
+  "apps/food-shopping-os/src/lib/nutrition.js": {
+    "mtime": 1785394045.9631605,
+    "ast_hash": "64704782c84c5576441f6082ef78c027",
+    "semantic_hash": "64704782c84c5576441f6082ef78c027"
+  },
+  "apps/food-shopping-os/src/lib/pantry-actions.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "cd33ac1704efaf0d6158757efc265620",
+    "semantic_hash": "cd33ac1704efaf0d6158757efc265620"
+  },
+  "apps/food-shopping-os/src/lib/photos.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "0019d17d0fe66f8658f98ad7575afeed",
+    "semantic_hash": "0019d17d0fe66f8658f98ad7575afeed"
+  },
+  "apps/food-shopping-os/src/lib/planner.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "bfbfcb1a677d3ff185a0b7cdc98484a7",
+    "semantic_hash": "bfbfcb1a677d3ff185a0b7cdc98484a7"
+  },
+  "apps/food-shopping-os/src/lib/preference-actions.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "3427ac96e985658d3a2395d9b8d99c10",
+    "semantic_hash": "3427ac96e985658d3a2395d9b8d99c10"
+  },
+  "apps/food-shopping-os/src/lib/preferences.js": {
+    "mtime": 1785394045.9631605,
+    "ast_hash": "ec1378c69fed15018f0b47493afd84e5",
+    "semantic_hash": "ec1378c69fed15018f0b47493afd84e5"
+  },
+  "apps/food-shopping-os/src/lib/prep-checklist.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "bfb0bbb6dd6ea1a66029acc2b80ed70e",
+    "semantic_hash": "bfb0bbb6dd6ea1a66029acc2b80ed70e"
+  },
+  "apps/food-shopping-os/src/lib/product-analytics.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "77278d9cf106631003ebb9e77282bda5",
+    "semantic_hash": "77278d9cf106631003ebb9e77282bda5"
+  },
+  "apps/food-shopping-os/src/lib/progress.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "37b38dcb47c7e2c332a46f3928f1aa09",
+    "semantic_hash": "37b38dcb47c7e2c332a46f3928f1aa09"
+  },
+  "apps/food-shopping-os/src/lib/receipt-actions.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "87f16e23b8aab556d5f4690a56c513c6",
+    "semantic_hash": "87f16e23b8aab556d5f4690a56c513c6"
+  },
+  "apps/food-shopping-os/src/lib/receipt.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "01a12507b1ee379a99a2e74b76d4fab8",
+    "semantic_hash": "01a12507b1ee379a99a2e74b76d4fab8"
+  },
+  "apps/food-shopping-os/src/lib/recipe-ai.js": {
+    "mtime": 1785394045.9631605,
+    "ast_hash": "08ce23fea30b6d04ae5e15133e20c201",
+    "semantic_hash": "08ce23fea30b6d04ae5e15133e20c201"
+  },
+  "apps/food-shopping-os/src/lib/recipe-markup.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "128a392930d85d052205d94b5aa4d3d2",
+    "semantic_hash": "128a392930d85d052205d94b5aa4d3d2"
+  },
+  "apps/food-shopping-os/src/lib/recipe-tools.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "f544be5ac369bde62f86217c06717727",
+    "semantic_hash": "f544be5ac369bde62f86217c06717727"
+  },
+  "apps/food-shopping-os/src/lib/reminder-actions.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "91dff856b0eae76faa525cdc59ce72fc",
+    "semantic_hash": "91dff856b0eae76faa525cdc59ce72fc"
+  },
+  "apps/food-shopping-os/src/lib/reminder-suggest.js": {
+    "mtime": 1785394045.9631605,
+    "ast_hash": "5d4d98a0d72346a6e26fc0b80622144c",
+    "semantic_hash": "5d4d98a0d72346a6e26fc0b80622144c"
+  },
+  "apps/food-shopping-os/src/lib/reminders.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "b17c10412bf3bcbc4038deed0e5ebcc0",
+    "semantic_hash": "b17c10412bf3bcbc4038deed0e5ebcc0"
+  },
+  "apps/food-shopping-os/src/lib/report-export.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "6c761a20118841240f58adce86bba2e9",
+    "semantic_hash": "6c761a20118841240f58adce86bba2e9"
+  },
+  "apps/food-shopping-os/src/lib/reports.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "24de48f09dbeca7a64200325d2f722f7",
+    "semantic_hash": "24de48f09dbeca7a64200325d2f722f7"
+  },
+  "apps/food-shopping-os/src/lib/setup.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "6674269d2cf7f3bf4a6c487d706d2a31",
+    "semantic_hash": "6674269d2cf7f3bf4a6c487d706d2a31"
+  },
+  "apps/food-shopping-os/src/lib/shopping-actions.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "a7cb8ba524d7d9e0466072072ba35d00",
+    "semantic_hash": "a7cb8ba524d7d9e0466072072ba35d00"
+  },
+  "apps/food-shopping-os/src/lib/shopping-session.js": {
+    "mtime": 1785774019.5007966,
+    "ast_hash": "06a47130b0e68d90ef86066937c34551",
+    "semantic_hash": "06a47130b0e68d90ef86066937c34551"
+  },
+  "apps/food-shopping-os/src/lib/shopping.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "bf4a92f95d10c35990fe6f78d0291a5e",
+    "semantic_hash": "bf4a92f95d10c35990fe6f78d0291a5e"
+  },
+  "apps/food-shopping-os/src/lib/smart-actions.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "b369fd2045f8aaee68acf54c2fc59d6e",
+    "semantic_hash": "b369fd2045f8aaee68acf54c2fc59d6e"
+  },
+  "apps/food-shopping-os/src/lib/smart-capture.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "c54a8e5a5c6c4566b1c416ec1f69ebd4",
+    "semantic_hash": "c54a8e5a5c6c4566b1c416ec1f69ebd4"
+  },
+  "apps/food-shopping-os/src/lib/smart.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "9b77023c891caa30262baab0b0117bd9",
+    "semantic_hash": "9b77023c891caa30262baab0b0117bd9"
+  },
+  "apps/food-shopping-os/src/lib/state.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "270ef52a6bff8d1dfd5135161aed822c",
+    "semantic_hash": "270ef52a6bff8d1dfd5135161aed822c"
+  },
+  "apps/food-shopping-os/src/lib/store-api.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "2e3a15c33910af8817d4d6e77d03a516",
+    "semantic_hash": "2e3a15c33910af8817d4d6e77d03a516"
+  },
+  "apps/food-shopping-os/src/lib/store-persistence.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "69a264f3399f81f680adf370d0d69790",
+    "semantic_hash": "69a264f3399f81f680adf370d0d69790"
+  },
+  "apps/food-shopping-os/src/lib/store.jsx": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "dec559719549abc11364d2a874cd4eee",
+    "semantic_hash": "dec559719549abc11364d2a874cd4eee"
+  },
+  "apps/food-shopping-os/src/lib/taste.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "976fc17ef145d5190808f44bceceeb5a",
+    "semantic_hash": "976fc17ef145d5190808f44bceceeb5a"
+  },
+  "apps/food-shopping-os/src/lib/units.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "08e11a2c2f4ec8943afb0d60a52d5c9e",
+    "semantic_hash": "08e11a2c2f4ec8943afb0d60a52d5c9e"
+  },
+  "apps/food-shopping-os/src/lib/utils.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "1016c3b8b837b6c966479ea646d93919",
+    "semantic_hash": "1016c3b8b837b6c966479ea646d93919"
+  },
+  "apps/food-shopping-os/src/lib/vault-actions.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "0b3066349eb5e376c30be38d63c890c6",
+    "semantic_hash": "0b3066349eb5e376c30be38d63c890c6"
+  },
+  "apps/food-shopping-os/src/lib/youth.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "a53e6801fa5a6c29ce5f48493e8a7057",
+    "semantic_hash": "a53e6801fa5a6c29ce5f48493e8a7057"
+  },
+  "apps/food-shopping-os/src/middleware.js": {
+    "mtime": 1785394045.9671605,
+    "ast_hash": "2c55af1d4205bc3f5bc7795337eb3e91",
+    "semantic_hash": "2c55af1d4205bc3f5bc7795337eb3e91"
+  },
+  "apps/food-shopping-os/src/server/ai-budget.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "609f405596947a2e37d5e9b76f85eea0",
+    "semantic_hash": "609f405596947a2e37d5e9b76f85eea0"
+  },
+  "apps/food-shopping-os/src/server/api.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "9509e1d7b0a89e3f62456e7d29bdc641",
+    "semantic_hash": "9509e1d7b0a89e3f62456e7d29bdc641"
+  },
+  "apps/food-shopping-os/src/server/audit.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "b00ffe9e49d9462be678fc25803b6dea",
+    "semantic_hash": "b00ffe9e49d9462be678fc25803b6dea"
+  },
+  "apps/food-shopping-os/src/server/auth-adapter.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "792c7abc0beda6c929bc168fc633e3b1",
+    "semantic_hash": "792c7abc0beda6c929bc168fc633e3b1"
+  },
+  "apps/food-shopping-os/src/server/auth.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "738db64bb3cc614d08cc64d478008cd3",
+    "semantic_hash": "738db64bb3cc614d08cc64d478008cd3"
+  },
+  "apps/food-shopping-os/src/server/calendar.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "dd00f5773f15c611c01ce2b8bff6e616",
+    "semantic_hash": "dd00f5773f15c611c01ce2b8bff6e616"
+  },
+  "apps/food-shopping-os/src/server/coach-shares.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "9b9d3c5563202b0a289d5e08e6e5a5c7",
+    "semantic_hash": "9b9d3c5563202b0a289d5e08e6e5a5c7"
+  },
+  "apps/food-shopping-os/src/server/database.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "abd87d3cafd51644ebeadd8a2ef95657",
+    "semantic_hash": "abd87d3cafd51644ebeadd8a2ef95657"
+  },
+  "apps/food-shopping-os/src/server/household-scope.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "05b2ab6b3e68e93ddb168ea31accea08",
+    "semantic_hash": "05b2ab6b3e68e93ddb168ea31accea08"
+  },
+  "apps/food-shopping-os/src/server/households.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "b4aca80fb15526673a2add752f1f1149",
+    "semantic_hash": "b4aca80fb15526673a2add752f1f1149"
+  },
+  "apps/food-shopping-os/src/server/realtime.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "3af042d89a59ce13f228eceb226a6be0",
+    "semantic_hash": "3af042d89a59ce13f228eceb226a6be0"
+  },
+  "apps/food-shopping-os/src/server/retailer-providers.js": {
+    "mtime": 1785774019.5047965,
+    "ast_hash": "b7850730b833f7f1073cbf410b44d77d",
+    "semantic_hash": "b7850730b833f7f1073cbf410b44d77d"
+  },
+  "apps/food-shopping-os/src/server/schemas.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "64b5f9bede2a214d512d07012670d9f0",
+    "semantic_hash": "64b5f9bede2a214d512d07012670d9f0"
+  },
+  "apps/food-shopping-os/tests/accessibility.test.jsx": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "7504632a25ccf56a6cb98962d3bc1528",
+    "semantic_hash": "7504632a25ccf56a6cb98962d3bc1528"
+  },
+  "apps/food-shopping-os/tests/advanced-flows.test.jsx": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "f7fc3108de225736f72280e7883b3071",
+    "semantic_hash": "f7fc3108de225736f72280e7883b3071"
+  },
+  "apps/food-shopping-os/tests/advanced.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "51177740f0d0c72232dd09b0e702f203",
+    "semantic_hash": "51177740f0d0c72232dd09b0e702f203"
+  },
+  "apps/food-shopping-os/tests/ai-assistant.test.js": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "3edbc513783324cd8a778b84b169fb6f",
+    "semantic_hash": "3edbc513783324cd8a778b84b169fb6f"
+  },
+  "apps/food-shopping-os/tests/ai-budget.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "24995b499d0479cd065830d2849760ea",
+    "semantic_hash": "24995b499d0479cd065830d2849760ea"
+  },
+  "apps/food-shopping-os/tests/analytics-flows.test.jsx": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "4c6f8d4b3cf02352e832aa69124f38e6",
+    "semantic_hash": "4c6f8d4b3cf02352e832aa69124f38e6"
+  },
+  "apps/food-shopping-os/tests/analytics.test.js": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "3de70091bbed5e15ed07f706dec01e24",
+    "semantic_hash": "3de70091bbed5e15ed07f706dec01e24"
+  },
+  "apps/food-shopping-os/tests/app.test.jsx": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "e49a5b80eda1a0c7e4bfd5a2b173368f",
+    "semantic_hash": "e49a5b80eda1a0c7e4bfd5a2b173368f"
+  },
+  "apps/food-shopping-os/tests/backend.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "99d7483c9dd605b30ddf08c395cc17d6",
+    "semantic_hash": "99d7483c9dd605b30ddf08c395cc17d6"
+  },
+  "apps/food-shopping-os/tests/cloud-sync.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "50b88a40105cc3685cf574a8450b51b5",
+    "semantic_hash": "50b88a40105cc3685cf574a8450b51b5"
+  },
+  "apps/food-shopping-os/tests/coach-dashboard.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "9dea7f7ac63f339b75beb8518f073010",
+    "semantic_hash": "9dea7f7ac63f339b75beb8518f073010"
+  },
+  "apps/food-shopping-os/tests/coach.test.js": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "8977f9af11ab10e24ef018e5c9b18f9c",
+    "semantic_hash": "8977f9af11ab10e24ef018e5c9b18f9c"
+  },
+  "apps/food-shopping-os/tests/collaboration.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "f8bd1c1e25003d6a18286645636c3f9b",
+    "semantic_hash": "f8bd1c1e25003d6a18286645636c3f9b"
+  },
+  "apps/food-shopping-os/tests/e2e/release.spec.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "469fb02b80c1a630f0be97f5a0eccb62",
+    "semantic_hash": "469fb02b80c1a630f0be97f5a0eccb62"
+  },
+  "apps/food-shopping-os/tests/e2e/type-resize.spec.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "c1e5aa5134841ed51afbbe063c22a067",
+    "semantic_hash": "c1e5aa5134841ed51afbbe063c22a067"
+  },
+  "apps/food-shopping-os/tests/exercise.test.js": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "43c60f4c39faa2c4303d4106c5d379ac",
+    "semantic_hash": "43c60f4c39faa2c4303d4106c5d379ac"
+  },
+  "apps/food-shopping-os/tests/food-loop.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "5455d8e6593672fdb5a2bae98d39995c",
+    "semantic_hash": "5455d8e6593672fdb5a2bae98d39995c"
+  },
+  "apps/food-shopping-os/tests/foodlog.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "f13579a3d585c901511d2945a4958b11",
+    "semantic_hash": "f13579a3d585c901511d2945a4958b11"
+  },
+  "apps/food-shopping-os/tests/goals.test.js": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "bc2bf395d7485dfa1fd3a2e41576cdbe",
+    "semantic_hash": "bc2bf395d7485dfa1fd3a2e41576cdbe"
+  },
+  "apps/food-shopping-os/tests/guidance-flows.test.jsx": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "bafb9fc38c7424438e893c430283438e",
+    "semantic_hash": "bafb9fc38c7424438e893c430283438e"
+  },
+  "apps/food-shopping-os/tests/guidance.test.js": {
+    "mtime": 1785774019.5087965,
+    "ast_hash": "5d2675675cc4f3d03acd379435b4e86b",
+    "semantic_hash": "5d2675675cc4f3d03acd379435b4e86b"
+  },
+  "apps/food-shopping-os/tests/health-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "37696daa2d19f64cbe2565cbf12a6601",
+    "semantic_hash": "37696daa2d19f64cbe2565cbf12a6601"
+  },
+  "apps/food-shopping-os/tests/health-nutrition-flows.test.jsx": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "caccf1d306dffc70f19d98484e8fe83c",
+    "semantic_hash": "caccf1d306dffc70f19d98484e8fe83c"
+  },
+  "apps/food-shopping-os/tests/health-vault.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "f5c740675bcd82d1c49e7990039acbe9",
+    "semantic_hash": "f5c740675bcd82d1c49e7990039acbe9"
+  },
+  "apps/food-shopping-os/tests/health.test.js": {
+    "mtime": 1785394045.973711,
+    "ast_hash": "cbc0248f9631f3c56073132c0ce5c17a",
+    "semantic_hash": "cbc0248f9631f3c56073132c0ce5c17a"
+  },
+  "apps/food-shopping-os/tests/household-deletion-route.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "14b5e42d476eb7940baf7095b4f5f323",
+    "semantic_hash": "14b5e42d476eb7940baf7095b4f5f323"
+  },
+  "apps/food-shopping-os/tests/household-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "b89667b8789991620abf98a76e3c6caf",
+    "semantic_hash": "b89667b8789991620abf98a76e3c6caf"
+  },
+  "apps/food-shopping-os/tests/household.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "d34f991a8fbc448e5bc9ac82c085a87c",
+    "semantic_hash": "d34f991a8fbc448e5bc9ac82c085a87c"
+  },
+  "apps/food-shopping-os/tests/invariants.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "b525131788abbcd21b9c3544e7a5cba5",
+    "semantic_hash": "b525131788abbcd21b9c3544e7a5cba5"
+  },
+  "apps/food-shopping-os/tests/kitchen-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "8dd928915b00319baf43ca0ce06e37a9",
+    "semantic_hash": "8dd928915b00319baf43ca0ce06e37a9"
+  },
+  "apps/food-shopping-os/tests/kitchen.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "986caaf2752682b4019df392ff8718cd",
+    "semantic_hash": "986caaf2752682b4019df392ff8718cd"
+  },
+  "apps/food-shopping-os/tests/logging.test.jsx": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "b792d14a39915fc49b1862d7aa493c24",
+    "semantic_hash": "b792d14a39915fc49b1862d7aa493c24"
+  },
+  "apps/food-shopping-os/tests/mealplan.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "49e60123ecf3b24eb1f93991fab48db1",
+    "semantic_hash": "49e60123ecf3b24eb1f93991fab48db1"
+  },
+  "apps/food-shopping-os/tests/micronutrients.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "c65192fb537e2278f965c0c968ffa0a4",
+    "semantic_hash": "c65192fb537e2278f965c0c968ffa0a4"
+  },
+  "apps/food-shopping-os/tests/notifications.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "cc0a9638e14642f98755a9ef33d94d1b",
+    "semantic_hash": "cc0a9638e14642f98755a9ef33d94d1b"
+  },
+  "apps/food-shopping-os/tests/nutrition.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "997f39429da63757e4de017aef526fe8",
+    "semantic_hash": "997f39429da63757e4de017aef526fe8"
+  },
+  "apps/food-shopping-os/tests/personalise-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "9e2b6145c357388c225e7beca6c7a05b",
+    "semantic_hash": "9e2b6145c357388c225e7beca6c7a05b"
+  },
+  "apps/food-shopping-os/tests/planner.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "9c197b1b5b48708e72f94083c58c5f24",
+    "semantic_hash": "9c197b1b5b48708e72f94083c58c5f24"
+  },
+  "apps/food-shopping-os/tests/planning.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "2136d351b70cc3d5601697c0f599b292",
+    "semantic_hash": "2136d351b70cc3d5601697c0f599b292"
+  },
+  "apps/food-shopping-os/tests/preferences.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "f411f6685e18dff8833866f141f96627",
+    "semantic_hash": "f411f6685e18dff8833866f141f96627"
+  },
+  "apps/food-shopping-os/tests/prep-checklist.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "c2225e16d3760525215bf94f961ea156",
+    "semantic_hash": "c2225e16d3760525215bf94f961ea156"
+  },
+  "apps/food-shopping-os/tests/privacy-copy.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "465c0ceb1919ce7ee1a77f1c0b9a0a8b",
+    "semantic_hash": "465c0ceb1919ce7ee1a77f1c0b9a0a8b"
+  },
+  "apps/food-shopping-os/tests/privacy-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "d109366802ab6ac7f6f6a6f59e20e670",
+    "semantic_hash": "d109366802ab6ac7f6f6a6f59e20e670"
+  },
+  "apps/food-shopping-os/tests/product-analytics.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "ff7ce2250c4d2a2ddd6f4c57509e11d6",
+    "semantic_hash": "ff7ce2250c4d2a2ddd6f4c57509e11d6"
+  },
+  "apps/food-shopping-os/tests/progress-flows.test.jsx": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "eb89bb260d849b4b6affb5b82e99c7d8",
+    "semantic_hash": "eb89bb260d849b4b6affb5b82e99c7d8"
+  },
+  "apps/food-shopping-os/tests/progress.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "8015c18b38cb0786ef6756e749510325",
+    "semantic_hash": "8015c18b38cb0786ef6756e749510325"
+  },
+  "apps/food-shopping-os/tests/recipe-ai.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "761deb8f8219b4a91e3bd60409b9c99b",
+    "semantic_hash": "761deb8f8219b4a91e3bd60409b9c99b"
+  },
+  "apps/food-shopping-os/tests/recipe-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "1147f2319980c4b69ceb91ddd542d413",
+    "semantic_hash": "1147f2319980c4b69ceb91ddd542d413"
+  },
+  "apps/food-shopping-os/tests/recipe-library-flows.test.jsx": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "584eec116456e9e4ddb4595fdddd8d59",
+    "semantic_hash": "584eec116456e9e4ddb4595fdddd8d59"
+  },
+  "apps/food-shopping-os/tests/recipe-tools.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "3496743c44770783c2ef45ee7aa436bf",
+    "semantic_hash": "3496743c44770783c2ef45ee7aa436bf"
+  },
+  "apps/food-shopping-os/tests/recipes.test.js": {
+    "mtime": 1785394045.9751604,
+    "ast_hash": "f00afb8713f76b1089bb360edaed10c7",
+    "semantic_hash": "f00afb8713f76b1089bb360edaed10c7"
+  },
+  "apps/food-shopping-os/tests/reminder-flows.test.jsx": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "ec8d4f84a7a0a297697e49aa25463171",
+    "semantic_hash": "ec8d4f84a7a0a297697e49aa25463171"
+  },
+  "apps/food-shopping-os/tests/reminders.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "50d4d57d1bf324deaf24b37b63d72d8c",
+    "semantic_hash": "50d4d57d1bf324deaf24b37b63d72d8c"
+  },
+  "apps/food-shopping-os/tests/reports.test.js": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "2fe5979ceebff268742fc7c52b308f30",
+    "semantic_hash": "2fe5979ceebff268742fc7c52b308f30"
+  },
+  "apps/food-shopping-os/tests/retailer-providers.test.js": {
+    "mtime": 1785774019.5127966,
+    "ast_hash": "83b3dc6f6834f05de43e37c087483375",
+    "semantic_hash": "83b3dc6f6834f05de43e37c087483375"
+  },
+  "apps/food-shopping-os/tests/retailers.test.js": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "e45d2ecbe8d4fe1a0fcf61176ec7cbf3",
+    "semantic_hash": "e45d2ecbe8d4fe1a0fcf61176ec7cbf3"
+  },
+  "apps/food-shopping-os/tests/setup-steps.test.js": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "06ed5bcefefbe0b9b3a899ba7e0b1892",
+    "semantic_hash": "06ed5bcefefbe0b9b3a899ba7e0b1892"
+  },
+  "apps/food-shopping-os/tests/setup.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "565d1d5f9b8610bf2c81ce88bb40c42e",
+    "semantic_hash": "565d1d5f9b8610bf2c81ce88bb40c42e"
+  },
+  "apps/food-shopping-os/tests/shopping-favourites.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "6f5edbae6ae0162b4700da0056712b6c",
+    "semantic_hash": "6f5edbae6ae0162b4700da0056712b6c"
+  },
+  "apps/food-shopping-os/tests/shopping-flows.test.jsx": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "5b066ea1c380b136742d1812e19c7c55",
+    "semantic_hash": "5b066ea1c380b136742d1812e19c7c55"
+  },
+  "apps/food-shopping-os/tests/shopping-share.test.jsx": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "3242d3cf1b858c69d9ae4926aca4e185",
+    "semantic_hash": "3242d3cf1b858c69d9ae4926aca4e185"
+  },
+  "apps/food-shopping-os/tests/shopping.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "29e01d8486a5963442045bd22b66eea0",
+    "semantic_hash": "29e01d8486a5963442045bd22b66eea0"
+  },
+  "apps/food-shopping-os/tests/smart-flows.test.jsx": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "7ceb7ddbb047e725f2a5236bd6964e50",
+    "semantic_hash": "7ceb7ddbb047e725f2a5236bd6964e50"
+  },
+  "apps/food-shopping-os/tests/smart.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "79ed8f3ce7876c41b2cccdc0ae207fe6",
+    "semantic_hash": "79ed8f3ce7876c41b2cccdc0ae207fe6"
+  },
+  "apps/food-shopping-os/tests/store-integration-flows.test.jsx": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "9ef51595d8f931a09d5f8ad319bebdc7",
+    "semantic_hash": "9ef51595d8f931a09d5f8ad319bebdc7"
+  },
+  "apps/food-shopping-os/tests/store.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "8878533a4a2a2ffb02ed9ebb017cc65a",
+    "semantic_hash": "8878533a4a2a2ffb02ed9ebb017cc65a"
+  },
+  "apps/food-shopping-os/tests/taste.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "8e137515a94dc9c596316ddc7d290282",
+    "semantic_hash": "8e137515a94dc9c596316ddc7d290282"
+  },
+  "apps/food-shopping-os/tests/typography.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "ec1590e48548be363cad893dbac69db8",
+    "semantic_hash": "ec1590e48548be363cad893dbac69db8"
+  },
+  "apps/food-shopping-os/tests/utils.test.js": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "a8f2dab9b5adf4d17af2f496467f0ccf",
+    "semantic_hash": "a8f2dab9b5adf4d17af2f496467f0ccf"
+  },
+  "apps/food-shopping-os/tests/ux-components.test.jsx": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "66b4d703669ee8055be99304953faf32",
+    "semantic_hash": "66b4d703669ee8055be99304953faf32"
+  },
+  "apps/food-shopping-os/tests/ux-flows.test.jsx": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "0e7a173c5b4a357672bf744d15c7fd58",
+    "semantic_hash": "0e7a173c5b4a357672bf744d15c7fd58"
+  },
+  "apps/food-shopping-os/tests/ux.test.js": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "8d45f884701ba441239ca84853e1007a",
+    "semantic_hash": "8d45f884701ba441239ca84853e1007a"
+  },
+  "apps/food-shopping-os/tests/youth-flows.test.jsx": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "8b5aa4262464b19233d3d596e061e64b",
+    "semantic_hash": "8b5aa4262464b19233d3d596e061e64b"
+  },
+  "apps/food-shopping-os/tests/youth.test.js": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "21ed9114eaec11bf776e602a9a40f966",
+    "semantic_hash": "21ed9114eaec11bf776e602a9a40f966"
+  },
+  "apps/food-shopping-os/vercel.json": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "9103ed9c3fdbff1f56904b307773fa95",
+    "semantic_hash": "9103ed9c3fdbff1f56904b307773fa95"
+  },
+  "apps/food-shopping-os/vite.config.js": {
+    "mtime": 1785394045.9791605,
+    "ast_hash": "38b03cf03ea2a3084b93d46e98ee85af",
+    "semantic_hash": "38b03cf03ea2a3084b93d46e98ee85af"
+  },
+  "apps/french-practice/package.json": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "6070c4f1363af5aeb9e1e4fe5489c590",
+    "semantic_hash": "6070c4f1363af5aeb9e1e4fe5489c590"
+  },
+  "apps/french-practice/public/sw.js": {
+    "mtime": 1785394045.9951606,
+    "ast_hash": "ddb14fc653983528651625b24cae14ea",
+    "semantic_hash": "ddb14fc653983528651625b24cae14ea"
+  },
+  "apps/french-practice/scripts/lint-content.mjs": {
+    "mtime": 1785774019.5167966,
+    "ast_hash": "fff033fe86ab051b2ba5b4baad7cf845",
+    "semantic_hash": "fff033fe86ab051b2ba5b4baad7cf845"
+  },
+  "apps/french-practice/src/App.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "5567f32f1a9d7f93462627b90cb43fcf",
+    "semantic_hash": "5567f32f1a9d7f93462627b90cb43fcf"
+  },
+  "apps/french-practice/src/components/AccentDrill.jsx": {
+    "mtime": 1785394045.999846,
+    "ast_hash": "6ba35c4c6b36e32d6e14b94df798345c",
+    "semantic_hash": "6ba35c4c6b36e32d6e14b94df798345c"
+  },
+  "apps/french-practice/src/components/AiHub.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "a60abb0dd1deec3ea5875119f1489887",
+    "semantic_hash": "a60abb0dd1deec3ea5875119f1489887"
+  },
+  "apps/french-practice/src/components/Analytics.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "55ec9cd289e28aadfa0f9f5fb2b1e3af",
+    "semantic_hash": "55ec9cd289e28aadfa0f9f5fb2b1e3af"
+  },
+  "apps/french-practice/src/components/AudioCourse.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "79e49f37c40962f356b16f8fbc9368c9",
+    "semantic_hash": "79e49f37c40962f356b16f8fbc9368c9"
+  },
+  "apps/french-practice/src/components/ChatArena.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "05e10c883ce6d0ffb9bf91847e27d37a",
+    "semantic_hash": "05e10c883ce6d0ffb9bf91847e27d37a"
+  },
+  "apps/french-practice/src/components/Culture.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "466e02742e603701df748927a21c6342",
+    "semantic_hash": "466e02742e603701df748927a21c6342"
+  },
+  "apps/french-practice/src/components/DailyChallenge.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "cb0fb5ca0b631432e3cd2e9b86f8fa5f",
+    "semantic_hash": "cb0fb5ca0b631432e3cd2e9b86f8fa5f"
+  },
+  "apps/french-practice/src/components/DevPanel.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "daf029277d512d255eba44060e53c2dd",
+    "semantic_hash": "daf029277d512d255eba44060e53c2dd"
+  },
+  "apps/french-practice/src/components/Dictation.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "ef76e2850e3844b8d212e5ccaa7bc08c",
+    "semantic_hash": "ef76e2850e3844b8d212e5ccaa7bc08c"
+  },
+  "apps/french-practice/src/components/FeedbackWidget.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "c30257793851e433ad5fcb3c09c92552",
+    "semantic_hash": "c30257793851e433ad5fcb3c09c92552"
+  },
+  "apps/french-practice/src/components/Focus.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "2b1bafbfc465c97e78fe0f7c0a1f48a1",
+    "semantic_hash": "2b1bafbfc465c97e78fe0f7c0a1f48a1"
+  },
+  "apps/french-practice/src/components/GlobalSearch.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "b8439f40d5a5bfd77a06decfbccc7a09",
+    "semantic_hash": "b8439f40d5a5bfd77a06decfbccc7a09"
+  },
+  "apps/french-practice/src/components/Grammar.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "7e222c8ad42c1798797b916487c08965",
+    "semantic_hash": "7e222c8ad42c1798797b916487c08965"
+  },
+  "apps/french-practice/src/components/GrammarExercises.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "d4c51c73826fdb3af2ca3037ed995b81",
+    "semantic_hash": "d4c51c73826fdb3af2ca3037ed995b81"
+  },
+  "apps/french-practice/src/components/HomeDashboard.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "f1f14a11db74d27ac1d7cb3657ac94b3",
+    "semantic_hash": "f1f14a11db74d27ac1d7cb3657ac94b3"
+  },
+  "apps/french-practice/src/components/KnowledgeStats.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "c27d4f4139dc47516113c494b97bd126",
+    "semantic_hash": "c27d4f4139dc47516113c494b97bd126"
+  },
+  "apps/french-practice/src/components/LearningPath.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "76ad33c142909c5aab414484a3c6bc85",
+    "semantic_hash": "76ad33c142909c5aab414484a3c6bc85"
+  },
+  "apps/french-practice/src/components/Listening.jsx": {
+    "mtime": 1785394046.000957,
+    "ast_hash": "850c38bce93ffc1e796718e2186952c7",
+    "semantic_hash": "850c38bce93ffc1e796718e2186952c7"
+  },
+  "apps/french-practice/src/components/Memory.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "15d4976283428a42c1ba7075b3f769b7",
+    "semantic_hash": "15d4976283428a42c1ba7075b3f769b7"
+  },
+  "apps/french-practice/src/components/NumberDash.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "8f9a40ff375611d4100969b2e48c9a9b",
+    "semantic_hash": "8f9a40ff375611d4100969b2e48c9a9b"
+  },
+  "apps/french-practice/src/components/Offline.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "77f6aa50dab0a9716b864718f8b56b25",
+    "semantic_hash": "77f6aa50dab0a9716b864718f8b56b25"
+  },
+  "apps/french-practice/src/components/Onboarding.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "b80c73897a8e9cd70a0220cf19019385",
+    "semantic_hash": "b80c73897a8e9cd70a0220cf19019385"
+  },
+  "apps/french-practice/src/components/PathSetup.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "06c9222b091407a84e184a24294c4b9b",
+    "semantic_hash": "06c9222b091407a84e184a24294c4b9b"
+  },
+  "apps/french-practice/src/components/Personalise.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "960f5e4f650dcdf915abf23257504da4",
+    "semantic_hash": "960f5e4f650dcdf915abf23257504da4"
+  },
+  "apps/french-practice/src/components/PhraseDrills.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "8afea6a6d6efc3f267fd7764d57e932c",
+    "semantic_hash": "8afea6a6d6efc3f267fd7764d57e932c"
+  },
+  "apps/french-practice/src/components/Profile.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "aae35d1e9148859b488f59f0489315ee",
+    "semantic_hash": "aae35d1e9148859b488f59f0489315ee"
+  },
+  "apps/french-practice/src/components/Pronunciation.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "6b2a16339097180aec424062c5ff6454",
+    "semantic_hash": "6b2a16339097180aec424062c5ff6454"
+  },
+  "apps/french-practice/src/components/Quiz.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "e90dc30289d92b3cc70229c52c503947",
+    "semantic_hash": "e90dc30289d92b3cc70229c52c503947"
+  },
+  "apps/french-practice/src/components/Reading.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "eb7b6298f031e0920e21dd71e0e29a6f",
+    "semantic_hash": "eb7b6298f031e0920e21dd71e0e29a6f"
+  },
+  "apps/french-practice/src/components/RealWorld.jsx": {
+    "mtime": 1785774019.5207965,
+    "ast_hash": "c5797c9b7b0426623e8d6bf57118c046",
+    "semantic_hash": "c5797c9b7b0426623e8d6bf57118c046"
+  },
+  "apps/french-practice/src/components/Reference.jsx": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "890f4b9f16bf3f025a2e190a4c769e5d",
+    "semantic_hash": "890f4b9f16bf3f025a2e190a4c769e5d"
+  },
+  "apps/french-practice/src/components/SessionDashboard.jsx": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "d1b1e5f873ad7d25371ec3daac7ed052",
+    "semantic_hash": "d1b1e5f873ad7d25371ec3daac7ed052"
+  },
+  "apps/french-practice/src/components/SettingsModal.jsx": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "c62036d773e9184ef474e567ffb4a7a3",
+    "semantic_hash": "c62036d773e9184ef474e567ffb4a7a3"
+  },
+  "apps/french-practice/src/components/Skills.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "2f28af894b2887cfbe3ecad89337e6c9",
+    "semantic_hash": "2f28af894b2887cfbe3ecad89337e6c9"
+  },
+  "apps/french-practice/src/components/Speaking.jsx": {
+    "mtime": 1785394046.0031605,
+    "ast_hash": "73479baca0bc072ba6c73abec49d2339",
+    "semantic_hash": "73479baca0bc072ba6c73abec49d2339"
+  },
+  "apps/french-practice/src/components/Stats.jsx": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "5b30780e9f7da276e4806ea09b70c052",
+    "semantic_hash": "5b30780e9f7da276e4806ea09b70c052"
+  },
+  "apps/french-practice/src/components/TranslateDrill.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "401fbb3016ef22ee30c9d2092e3b52b1",
+    "semantic_hash": "401fbb3016ef22ee30c9d2092e3b52b1"
+  },
+  "apps/french-practice/src/components/VocabCard.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "31650a94d7f0c4e884964c566dba1e39",
+    "semantic_hash": "31650a94d7f0c4e884964c566dba1e39"
+  },
+  "apps/french-practice/src/components/VocabQuiz.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "c9c2daa2f2e98110d2d88e3ba8b19a75",
+    "semantic_hash": "c9c2daa2f2e98110d2d88e3ba8b19a75"
+  },
+  "apps/french-practice/src/components/Vocabulary.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "cc5f847462f856e1be6df6312474a21c",
+    "semantic_hash": "cc5f847462f856e1be6df6312474a21c"
+  },
+  "apps/french-practice/src/components/Waveform.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "a6d64b925b6c04fb57bbadf9845d5b20",
+    "semantic_hash": "a6d64b925b6c04fb57bbadf9845d5b20"
+  },
+  "apps/french-practice/src/components/Writing.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "61da4f79f795ef24bc992e54db2d15a6",
+    "semantic_hash": "61da4f79f795ef24bc992e54db2d15a6"
+  },
+  "apps/french-practice/src/components/WritingStudio.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "78b3e3f892653d0ada2a2e182593e05b",
+    "semantic_hash": "78b3e3f892653d0ada2a2e182593e05b"
+  },
+  "apps/french-practice/src/components/charts.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "d7d3464edd9432eb02f9f6ccb9d1e0c5",
+    "semantic_hash": "d7d3464edd9432eb02f9f6ccb9d1e0c5"
+  },
+  "apps/french-practice/src/components/icons.jsx": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "803e5cc892879c99540433189185f0f3",
+    "semantic_hash": "803e5cc892879c99540433189185f0f3"
+  },
+  "apps/french-practice/src/components/ui.jsx": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "b1df38ff4c8d4c72b35979f9a912bd05",
+    "semantic_hash": "b1df38ff4c8d4c72b35979f9a912bd05"
+  },
+  "apps/french-practice/src/hooks/usePwaInstall.js": {
+    "mtime": 1785394046.0071604,
+    "ast_hash": "22ef2915c60aeb114fdeafa80f193f2d",
+    "semantic_hash": "22ef2915c60aeb114fdeafa80f193f2d"
+  },
+  "apps/french-practice/src/hooks/useRecorder.js": {
+    "mtime": 1785394046.0135067,
+    "ast_hash": "2b5189bfb6f8be70a5024e9d8c418da2",
+    "semantic_hash": "2b5189bfb6f8be70a5024e9d8c418da2"
+  },
+  "apps/french-practice/src/lib/account.js": {
+    "mtime": 1785394046.0135067,
+    "ast_hash": "9831fa7ca44ae99dae4f822661ff38d7",
+    "semantic_hash": "9831fa7ca44ae99dae4f822661ff38d7"
+  },
+  "apps/french-practice/src/lib/analytics.js": {
+    "mtime": 1785394046.014774,
+    "ast_hash": "9ff48748f32cee06994a00fd8a2772d3",
+    "semantic_hash": "9ff48748f32cee06994a00fd8a2772d3"
+  },
+  "apps/french-practice/src/lib/content/active.js": {
+    "mtime": 1785394046.014774,
+    "ast_hash": "c7baf210ae229e9fa1dc2abb122a0256",
+    "semantic_hash": "c7baf210ae229e9fa1dc2abb122a0256"
+  },
+  "apps/french-practice/src/lib/content/de.js": {
+    "mtime": 1785394046.0151381,
+    "ast_hash": "2390e43c7671d7bb8e8445f0c1fa2780",
+    "semantic_hash": "2390e43c7671d7bb8e8445f0c1fa2780"
+  },
+  "apps/french-practice/src/lib/content/es.js": {
+    "mtime": 1785394046.0151381,
+    "ast_hash": "1456da858969ec96f512df6fd84183a8",
+    "semantic_hash": "1456da858969ec96f512df6fd84183a8"
+  },
+  "apps/french-practice/src/lib/content/frequency-de.js": {
+    "mtime": 1785394046.0151381,
+    "ast_hash": "555e528772efa8586326bc72b0ef22a4",
+    "semantic_hash": "555e528772efa8586326bc72b0ef22a4"
+  },
+  "apps/french-practice/src/lib/content/frequency-es.js": {
+    "mtime": 1785394046.0151381,
+    "ast_hash": "a6f257377040cbc55eb2963894596bc6",
+    "semantic_hash": "a6f257377040cbc55eb2963894596bc6"
+  },
+  "apps/french-practice/src/lib/culture.js": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "9b72a97788f4f12e24306e596ea20383",
+    "semantic_hash": "9b72a97788f4f12e24306e596ea20383"
+  },
+  "apps/french-practice/src/lib/data.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "7fbed10d8b2b27b03cd4e7a3a22bdbcd",
+    "semantic_hash": "7fbed10d8b2b27b03cd4e7a3a22bdbcd"
+  },
+  "apps/french-practice/src/lib/drills.js": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "43b8378404201ec2fae6e6d10d2db742",
+    "semantic_hash": "43b8378404201ec2fae6e6d10d2db742"
+  },
+  "apps/french-practice/src/lib/focus.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "58ba814fd805d6a5bc491016523d0b1e",
+    "semantic_hash": "58ba814fd805d6a5bc491016523d0b1e"
+  },
+  "apps/french-practice/src/lib/frequency.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "ca02e380e08ed6425924108f14225dc4",
+    "semantic_hash": "ca02e380e08ed6425924108f14225dc4"
+  },
+  "apps/french-practice/src/lib/game.js": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "b0f19e69bcde2006bbfa79df2693b10d",
+    "semantic_hash": "b0f19e69bcde2006bbfa79df2693b10d"
+  },
+  "apps/french-practice/src/lib/grammar-extra.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "e9ffa41dd8652e6d8e000480ea596074",
+    "semantic_hash": "e9ffa41dd8652e6d8e000480ea596074"
+  },
+  "apps/french-practice/src/lib/grammar-more.js": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "30fef3d01f292e07571b9a4600fadee4",
+    "semantic_hash": "30fef3d01f292e07571b9a4600fadee4"
+  },
+  "apps/french-practice/src/lib/grammar.js": {
+    "mtime": 1785774019.5247965,
+    "ast_hash": "61fbec6e31f6544e58bfa6a06ae57037",
+    "semantic_hash": "61fbec6e31f6544e58bfa6a06ae57037"
+  },
+  "apps/french-practice/src/lib/groq.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "6a21af8d71cb409f1f847bcc0009ea1c",
+    "semantic_hash": "6a21af8d71cb409f1f847bcc0009ea1c"
+  },
+  "apps/french-practice/src/lib/i18n.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "0ba5fc5a20027d7f76997cc142375b80",
+    "semantic_hash": "0ba5fc5a20027d7f76997cc142375b80"
+  },
+  "apps/french-practice/src/lib/languages.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "d446ef4262adc4be438913843921bd28",
+    "semantic_hash": "d446ef4262adc4be438913843921bd28"
+  },
+  "apps/french-practice/src/lib/listening.js": {
+    "mtime": 1785394046.0151606,
+    "ast_hash": "3705811839d744362db4346720f2a4eb",
+    "semantic_hash": "3705811839d744362db4346720f2a4eb"
+  },
+  "apps/french-practice/src/lib/memory.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "c3d022e9c6be17502cb74a841d444de3",
+    "semantic_hash": "c3d022e9c6be17502cb74a841d444de3"
+  },
+  "apps/french-practice/src/lib/mocks.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "21f19303dbbb9cab756d70666e4312a1",
+    "semantic_hash": "21f19303dbbb9cab756d70666e4312a1"
+  },
+  "apps/french-practice/src/lib/path.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "ddb43161d004240d0af5f7b30893861b",
+    "semantic_hash": "ddb43161d004240d0af5f7b30893861b"
+  },
+  "apps/french-practice/src/lib/personalise.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "e0965cf3758148bab9bec85172d10401",
+    "semantic_hash": "e0965cf3758148bab9bec85172d10401"
+  },
+  "apps/french-practice/src/lib/phrasebook.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "25d27b631e1b28c72d7cdb0367a338c1",
+    "semantic_hash": "25d27b631e1b28c72d7cdb0367a338c1"
+  },
+  "apps/french-practice/src/lib/reading.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "b09668f8c6f95aff0c1ffb7f58f1e327",
+    "semantic_hash": "b09668f8c6f95aff0c1ffb7f58f1e327"
+  },
+  "apps/french-practice/src/lib/realworld.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "c6e48dc9488ed051b0372ccb90ed9717",
+    "semantic_hash": "c6e48dc9488ed051b0372ccb90ed9717"
+  },
+  "apps/french-practice/src/lib/reference.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "cbe90f6cb4cb1e0615301e48027cc5f8",
+    "semantic_hash": "cbe90f6cb4cb1e0615301e48027cc5f8"
+  },
+  "apps/french-practice/src/lib/roadmaps.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "c7944e715a4c9639e3881a63fe077124",
+    "semantic_hash": "c7944e715a4c9639e3881a63fe077124"
+  },
+  "apps/french-practice/src/lib/score.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "57d2f4d46a8a45ff3ae0cafea8c06e4b",
+    "semantic_hash": "57d2f4d46a8a45ff3ae0cafea8c06e4b"
+  },
+  "apps/french-practice/src/lib/sentences.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "5d409073da778cd207514f4768fe3665",
+    "semantic_hash": "5d409073da778cd207514f4768fe3665"
+  },
+  "apps/french-practice/src/lib/storage.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "2e25d59331731cdf5249df90a28ad03a",
+    "semantic_hash": "2e25d59331731cdf5249df90a28ad03a"
+  },
+  "apps/french-practice/src/lib/tts.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "b8ac8f1d15600279a2851cc0a109b499",
+    "semantic_hash": "b8ac8f1d15600279a2851cc0a109b499"
+  },
+  "apps/french-practice/src/lib/vocab-core.js": {
+    "mtime": 1785394046.0191605,
+    "ast_hash": "868182c7aedb54b6b102e019fd7270de",
+    "semantic_hash": "868182c7aedb54b6b102e019fd7270de"
+  },
+  "apps/french-practice/src/lib/vocab-extra.js": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "2e220dc59852e5d746f14256539162b5",
+    "semantic_hash": "2e220dc59852e5d746f14256539162b5"
+  },
+  "apps/french-practice/src/lib/vocab-frequency.js": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "5664b23dd324d7cb04441246eeb70a61",
+    "semantic_hash": "5664b23dd324d7cb04441246eeb70a61"
+  },
+  "apps/french-practice/src/lib/vocab.js": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "32a9ad3317452d5214e64a8bb030d3cb",
+    "semantic_hash": "32a9ad3317452d5214e64a8bb030d3cb"
+  },
+  "apps/french-practice/src/lib/wordOfDay.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "97527d4ff11d198752d6603c2cfb7e20",
+    "semantic_hash": "97527d4ff11d198752d6603c2cfb7e20"
+  },
+  "apps/french-practice/src/lib/writing.js": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "8e517e86f621ff909d635f7ffc1933da",
+    "semantic_hash": "8e517e86f621ff909d635f7ffc1933da"
+  },
+  "apps/french-practice/src/main.jsx": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "1f2beeb10998b917b2c9c20fa271cc80",
+    "semantic_hash": "1f2beeb10998b917b2c9c20fa271cc80"
+  },
+  "apps/french-practice/tests/culture.test.js": {
+    "mtime": 1785774019.5287967,
+    "ast_hash": "7353c535b8f1e7d387b904e2ce54a9ce",
+    "semantic_hash": "7353c535b8f1e7d387b904e2ce54a9ce"
+  },
+  "apps/french-practice/tests/drills.test.js": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "186613501897d3abb151fa5eaeb19e33",
+    "semantic_hash": "186613501897d3abb151fa5eaeb19e33"
+  },
+  "apps/french-practice/tests/grammar.test.js": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "456709717bf9bb263b48225195cc82e9",
+    "semantic_hash": "456709717bf9bb263b48225195cc82e9"
+  },
+  "apps/french-practice/tests/path-retake.test.js": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "eb02641ba4daca6a31fac5b8ecabe592",
+    "semantic_hash": "eb02641ba4daca6a31fac5b8ecabe592"
+  },
+  "apps/french-practice/tests/realworld.test.js": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "b867af8ffb68857b094817347d08a6ea",
+    "semantic_hash": "b867af8ffb68857b094817347d08a6ea"
+  },
+  "apps/french-practice/tests/score.test.js": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "897e9dd72f173ea4c03fb15a9637b771",
+    "semantic_hash": "897e9dd72f173ea4c03fb15a9637b771"
+  },
+  "apps/french-practice/tests/wordOfDay.test.js": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "4c12871e2a51d2f2087268732c7521c3",
+    "semantic_hash": "4c12871e2a51d2f2087268732c7521c3"
+  },
+  "apps/french-practice/vercel.json": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "b9a525402c00aadf4988e3f3d18de92a",
+    "semantic_hash": "b9a525402c00aadf4988e3f3d18de92a"
+  },
+  "apps/french-practice/vite.config.js": {
+    "mtime": 1785394046.0231605,
+    "ast_hash": "4ef7c7f5547496cb87251a87b28eca6c",
+    "semantic_hash": "4ef7c7f5547496cb87251a87b28eca6c"
+  },
+  "apps/le-studio-site/vercel.json": {
+    "mtime": 1785394046.0302815,
+    "ast_hash": "b5693670a4e44bbb47b9b965fbf3dddc",
+    "semantic_hash": "b5693670a4e44bbb47b9b965fbf3dddc"
+  },
+  "apps/meeting-recorder/desktop/main.js": {
+    "mtime": 1785394046.0328293,
+    "ast_hash": "950f215ac4a0432861d9d8a7c328b067",
+    "semantic_hash": "950f215ac4a0432861d9d8a7c328b067"
+  },
+  "apps/meeting-recorder/desktop/package.json": {
+    "mtime": 1785394046.0328293,
+    "ast_hash": "f97e468337abb61c6b3c1cd41406b263",
+    "semantic_hash": "f97e468337abb61c6b3c1cd41406b263"
+  },
+  "apps/meeting-recorder/desktop/preload.js": {
+    "mtime": 1785394046.0328293,
+    "ast_hash": "a4f180eccb8eac8e1c6a0058b76829c3",
+    "semantic_hash": "a4f180eccb8eac8e1c6a0058b76829c3"
+  },
+  "apps/meeting-recorder/desktop/renderer/renderer.js": {
+    "mtime": 1785394046.0338027,
+    "ast_hash": "4d9e934e16d630b593775fe85eb1f315",
+    "semantic_hash": "4d9e934e16d630b593775fe85eb1f315"
+  },
+  "apps/meeting-recorder/r2-cors.json": {
+    "mtime": 1785394046.0338027,
+    "ast_hash": "790b2032f61b92e60d6dbc9656ebb0e1",
+    "semantic_hash": "790b2032f61b92e60d6dbc9656ebb0e1"
+  },
+  "apps/meeting-recorder/web/next.config.mjs": {
+    "mtime": 1785394046.0344443,
+    "ast_hash": "eb07b362cd3b8a4e5b32c4ca5b927b70",
+    "semantic_hash": "eb07b362cd3b8a4e5b32c4ca5b927b70"
+  },
+  "apps/meeting-recorder/web/package.json": {
+    "mtime": 1785394046.0344443,
+    "ast_hash": "db7447fea9a13dc96cbc8496599e9594",
+    "semantic_hash": "db7447fea9a13dc96cbc8496599e9594"
+  },
+  "apps/meeting-recorder/web/postcss.config.mjs": {
+    "mtime": 1785394046.0344443,
+    "ast_hash": "d3fd1d29b05a09ff76b595a70e1e7d50",
+    "semantic_hash": "d3fd1d29b05a09ff76b595a70e1e7d50"
+  },
+  "apps/meeting-recorder/web/src/app/api/meetings/[id]/chat/route.ts": {
+    "mtime": 1785394046.037587,
+    "ast_hash": "80d2a5d4b1f1b17fb94559bee165db76",
+    "semantic_hash": "80d2a5d4b1f1b17fb94559bee165db76"
+  },
+  "apps/meeting-recorder/web/src/app/api/meetings/[id]/route.ts": {
+    "mtime": 1785394046.037587,
+    "ast_hash": "edde4197444b717c7a86304b2f466b74",
+    "semantic_hash": "edde4197444b717c7a86304b2f466b74"
+  },
+  "apps/meeting-recorder/web/src/app/api/meetings/[id]/transcribe/route.ts": {
+    "mtime": 1785394046.037587,
+    "ast_hash": "d2ac73a0401d556e00ab58a45459c568",
+    "semantic_hash": "d2ac73a0401d556e00ab58a45459c568"
+  },
+  "apps/meeting-recorder/web/src/app/api/meetings/route.ts": {
+    "mtime": 1785394046.037587,
+    "ast_hash": "fdbec16cc11fcd4bd8eef14f703492ac",
+    "semantic_hash": "fdbec16cc11fcd4bd8eef14f703492ac"
+  },
+  "apps/meeting-recorder/web/src/app/layout.tsx": {
+    "mtime": 1785394046.037587,
+    "ast_hash": "1bbb4a1b85e947ab337d9c0bcc683781",
+    "semantic_hash": "1bbb4a1b85e947ab337d9c0bcc683781"
+  },
+  "apps/meeting-recorder/web/src/app/meeting/[id]/page.tsx": {
+    "mtime": 1785394046.039949,
+    "ast_hash": "fba008fac6db1dde049c0d74873428f2",
+    "semantic_hash": "fba008fac6db1dde049c0d74873428f2"
+  },
+  "apps/meeting-recorder/web/src/app/page.tsx": {
+    "mtime": 1785394046.039949,
+    "ast_hash": "6d3492d056a15d9898d88acc3d7f570f",
+    "semantic_hash": "6d3492d056a15d9898d88acc3d7f570f"
+  },
+  "apps/meeting-recorder/web/src/app/share/[shareId]/page.tsx": {
+    "mtime": 1785394046.0403886,
+    "ast_hash": "c2628a22f939202d5c37072a2b182bcc",
+    "semantic_hash": "c2628a22f939202d5c37072a2b182bcc"
+  },
+  "apps/meeting-recorder/web/src/components/Dashboard.tsx": {
+    "mtime": 1785394046.0403886,
+    "ast_hash": "1dac8e1cd1e729793dfb46016b9af136",
+    "semantic_hash": "1dac8e1cd1e729793dfb46016b9af136"
+  },
+  "apps/meeting-recorder/web/src/components/MeetingView.tsx": {
+    "mtime": 1785394046.0408785,
+    "ast_hash": "41e5b0cc1c878cce423baa4e2c045261",
+    "semantic_hash": "41e5b0cc1c878cce423baa4e2c045261"
+  },
+  "apps/meeting-recorder/web/src/components/TimestampedText.tsx": {
+    "mtime": 1785394046.0408785,
+    "ast_hash": "47c0583bc7474022e8ea00a95708d789",
+    "semantic_hash": "47c0583bc7474022e8ea00a95708d789"
+  },
+  "apps/meeting-recorder/web/src/lib/anthropic.ts": {
+    "mtime": 1785394046.0408785,
+    "ast_hash": "d4a07500c3a9661d1c7e82377f141b75",
+    "semantic_hash": "d4a07500c3a9661d1c7e82377f141b75"
+  },
+  "apps/meeting-recorder/web/src/lib/auth.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "7cd167d3d5905aa0a920bc172d1e5f8b",
+    "semantic_hash": "7cd167d3d5905aa0a920bc172d1e5f8b"
+  },
+  "apps/meeting-recorder/web/src/lib/env.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "442cbf3f9f8362f9f827a9424d2a360d",
+    "semantic_hash": "442cbf3f9f8362f9f827a9424d2a360d"
+  },
+  "apps/meeting-recorder/web/src/lib/format.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "ae90e0844a43338b4924155d3cabfaab",
+    "semantic_hash": "ae90e0844a43338b4924155d3cabfaab"
+  },
+  "apps/meeting-recorder/web/src/lib/groq.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "0c9517444feaf5713c6ec2657ffc855c",
+    "semantic_hash": "0c9517444feaf5713c6ec2657ffc855c"
+  },
+  "apps/meeting-recorder/web/src/lib/load.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "a712144faac9ec55b2092ba30dbf3d48",
+    "semantic_hash": "a712144faac9ec55b2092ba30dbf3d48"
+  },
+  "apps/meeting-recorder/web/src/lib/mongodb.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "9c207b2073cafb686b2e69f99e5f68d9",
+    "semantic_hash": "9c207b2073cafb686b2e69f99e5f68d9"
+  },
+  "apps/meeting-recorder/web/src/lib/r2.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "2185d32f49b7a79e6615f3c9460dbe39",
+    "semantic_hash": "2185d32f49b7a79e6615f3c9460dbe39"
+  },
+  "apps/meeting-recorder/web/src/lib/serialize.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "ea59976d69465c0d49125918f84f2cc1",
+    "semantic_hash": "ea59976d69465c0d49125918f84f2cc1"
+  },
+  "apps/meeting-recorder/web/src/lib/types.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "52b9070f782507dc930f1a16c766ec8c",
+    "semantic_hash": "52b9070f782507dc930f1a16c766ec8c"
+  },
+  "apps/meeting-recorder/web/tailwind.config.ts": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "0b113d4e620a1e550ceb85b06e2c7d26",
+    "semantic_hash": "0b113d4e620a1e550ceb85b06e2c7d26"
+  },
+  "apps/meeting-recorder/web/tsconfig.json": {
+    "mtime": 1785394046.0416558,
+    "ast_hash": "e9fc1002f7ffba348ddfb2b0a875e9c5",
+    "semantic_hash": "e9fc1002f7ffba348ddfb2b0a875e9c5"
+  },
+  "apps/omni-life/middleware.ts": {
+    "mtime": 1785394046.0441327,
+    "ast_hash": "fdff744496f5c94a83132e4f62c2a9bd",
+    "semantic_hash": "fdff744496f5c94a83132e4f62c2a9bd"
+  },
+  "apps/omni-life/next.config.js": {
+    "mtime": 1785394046.0441327,
+    "ast_hash": "becda639ee406fe4601cdf6052d873e1",
+    "semantic_hash": "becda639ee406fe4601cdf6052d873e1"
+  },
+  "apps/omni-life/package.json": {
+    "mtime": 1785394046.0441327,
+    "ast_hash": "b9750a1b5c719b816fb0a30e24b7e540",
+    "semantic_hash": "b9750a1b5c719b816fb0a30e24b7e540"
+  },
+  "apps/omni-life/postcss.config.js": {
+    "mtime": 1785394046.0441327,
+    "ast_hash": "0540673a8b3113f0932eca1245c72ffc",
+    "semantic_hash": "0540673a8b3113f0932eca1245c72ffc"
+  },
+  "apps/omni-life/src/app/api/auth/callback/route.ts": {
+    "mtime": 1785394046.04833,
+    "ast_hash": "557dc237360cf496acf4febc460f774d",
+    "semantic_hash": "557dc237360cf496acf4febc460f774d"
+  },
+  "apps/omni-life/src/app/api/auth/google/route.ts": {
+    "mtime": 1785394046.04833,
+    "ast_hash": "a403717a3395980e75504473ae8255ee",
+    "semantic_hash": "a403717a3395980e75504473ae8255ee"
+  },
+  "apps/omni-life/src/app/api/auth/spotify/callback/route.ts": {
+    "mtime": 1785394046.0492356,
+    "ast_hash": "fd1c8f31c497b23fe15ba1b7aac8ed4b",
+    "semantic_hash": "fd1c8f31c497b23fe15ba1b7aac8ed4b"
+  },
+  "apps/omni-life/src/app/api/auth/spotify/route.ts": {
+    "mtime": 1785394046.0492356,
+    "ast_hash": "25e102e67e08e776241e2e9ab2020caf",
+    "semantic_hash": "25e102e67e08e776241e2e9ab2020caf"
+  },
+  "apps/omni-life/src/app/api/cron/continuous-optimization/route.ts": {
+    "mtime": 1785394046.0497694,
+    "ast_hash": "0da31eb5262a6c3b2fc4a930a8f116e9",
+    "semantic_hash": "0da31eb5262a6c3b2fc4a930a8f116e9"
+  },
+  "apps/omni-life/src/app/api/cron/evening-reflection/route.ts": {
+    "mtime": 1785394046.0497694,
+    "ast_hash": "8b2c9a2a722ce918aeec00e0c831bea7",
+    "semantic_hash": "8b2c9a2a722ce918aeec00e0c831bea7"
+  },
+  "apps/omni-life/src/app/api/cron/morning-alignment/route.ts": {
+    "mtime": 1785394046.0497694,
+    "ast_hash": "c364c58c3c39b43cc77d24c9f2a0b93a",
+    "semantic_hash": "c364c58c3c39b43cc77d24c9f2a0b93a"
+  },
+  "apps/omni-life/src/app/api/dashboard/route.ts": {
+    "mtime": 1785394046.0497694,
+    "ast_hash": "4eabc6abb40bfc02b6f8b14a1b543cd3",
+    "semantic_hash": "4eabc6abb40bfc02b6f8b14a1b543cd3"
+  },
+  "apps/omni-life/src/app/api/webhooks/stripe/route.ts": {
+    "mtime": 1785394046.051475,
+    "ast_hash": "66c1e44c1c624ec1fc1dd871cc3a0941",
+    "semantic_hash": "66c1e44c1c624ec1fc1dd871cc3a0941"
+  },
+  "apps/omni-life/src/app/api/webhooks/twilio/route.ts": {
+    "mtime": 1785394046.051475,
+    "ast_hash": "0444cd9397b1da3028c3ef7a69903787",
+    "semantic_hash": "0444cd9397b1da3028c3ef7a69903787"
+  },
+  "apps/omni-life/src/app/api/whatsapp/send/route.ts": {
+    "mtime": 1785394046.0521562,
+    "ast_hash": "5917329947c0d164d57cd919b1b69222",
+    "semantic_hash": "5917329947c0d164d57cd919b1b69222"
+  },
+  "apps/omni-life/src/app/layout.tsx": {
+    "mtime": 1785394046.0521562,
+    "ast_hash": "437a877108f17450a44588ee0836294b",
+    "semantic_hash": "437a877108f17450a44588ee0836294b"
+  },
+  "apps/omni-life/src/app/login/page.tsx": {
+    "mtime": 1785394046.0521562,
+    "ast_hash": "784b650bfdda698e54941f9a6ba25a32",
+    "semantic_hash": "784b650bfdda698e54941f9a6ba25a32"
+  },
+  "apps/omni-life/src/app/page.tsx": {
+    "mtime": 1785394046.0521562,
+    "ast_hash": "7898811c7d4a7dc6d39c3913b0549217",
+    "semantic_hash": "7898811c7d4a7dc6d39c3913b0549217"
+  },
+  "apps/omni-life/src/app/settings/page.tsx": {
+    "mtime": 1785394046.0521562,
+    "ast_hash": "bdf4eb8f96bfd85d5a62d8c59aa8bef3",
+    "semantic_hash": "bdf4eb8f96bfd85d5a62d8c59aa8bef3"
+  },
+  "apps/omni-life/src/components/auth/login-form.tsx": {
+    "mtime": 1785394046.0540042,
+    "ast_hash": "2850bcf49043838664bb79acb0a97aee",
+    "semantic_hash": "2850bcf49043838664bb79acb0a97aee"
+  },
+  "apps/omni-life/src/components/dashboard/automation-card.tsx": {
+    "mtime": 1785394046.0540042,
+    "ast_hash": "99f8d5c5a07c876d88d50248d5d7eb2b",
+    "semantic_hash": "99f8d5c5a07c876d88d50248d5d7eb2b"
+  },
+  "apps/omni-life/src/components/dashboard/calendar-card.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "8b7676f472ba1be6a0555a8be58ad0d5",
+    "semantic_hash": "8b7676f472ba1be6a0555a8be58ad0d5"
+  },
+  "apps/omni-life/src/components/dashboard/finance-card.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "6bd58ff58938830e7f90fdc84196830c",
+    "semantic_hash": "6bd58ff58938830e7f90fdc84196830c"
+  },
+  "apps/omni-life/src/components/dashboard/header.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "8fc72fc80df978d8b9bbe927282b4b2a",
+    "semantic_hash": "8fc72fc80df978d8b9bbe927282b4b2a"
+  },
+  "apps/omni-life/src/components/dashboard/health-card.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "8d120f8f3f0bf8f2ba80ecca8cd05c8d",
+    "semantic_hash": "8d120f8f3f0bf8f2ba80ecca8cd05c8d"
+  },
+  "apps/omni-life/src/components/dashboard/media-card.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "9688634fde756655abb17b8a337495cb",
+    "semantic_hash": "9688634fde756655abb17b8a337495cb"
+  },
+  "apps/omni-life/src/components/dashboard/overview.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "824d59f571ff9ad9f3c4abe5b3e146cf",
+    "semantic_hash": "824d59f571ff9ad9f3c4abe5b3e146cf"
+  },
+  "apps/omni-life/src/components/dashboard/productivity-score.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "c353dc768ffec8aea794cbcd74eda501",
+    "semantic_hash": "c353dc768ffec8aea794cbcd74eda501"
+  },
+  "apps/omni-life/src/components/dashboard/sidebar.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "2400806d441e0c4e7eb5d5ee57973cba",
+    "semantic_hash": "2400806d441e0c4e7eb5d5ee57973cba"
+  },
+  "apps/omni-life/src/components/dashboard/tasks-card.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "30f33b2f0e33e19a9de3a8fedb1c09ba",
+    "semantic_hash": "30f33b2f0e33e19a9de3a8fedb1c09ba"
+  },
+  "apps/omni-life/src/components/ui/button.tsx": {
+    "mtime": 1785394046.054721,
+    "ast_hash": "94c98966f3a1f4ddfaee2d9a9df33cbe",
+    "semantic_hash": "94c98966f3a1f4ddfaee2d9a9df33cbe"
+  },
+  "apps/omni-life/src/components/ui/card.tsx": {
+    "mtime": 1785394046.0568008,
+    "ast_hash": "ca1ead73192b479e32727b6aae129016",
+    "semantic_hash": "ca1ead73192b479e32727b6aae129016"
+  },
+  "apps/omni-life/src/components/ui/input.tsx": {
+    "mtime": 1785394046.0568008,
+    "ast_hash": "7651a6cee40b855f21093e822f0ca36c",
+    "semantic_hash": "7651a6cee40b855f21093e822f0ca36c"
+  },
+  "apps/omni-life/src/lib/encryption.ts": {
+    "mtime": 1785394046.0568008,
+    "ast_hash": "7f6d81dd22fd46f2c7273548fb97feaa",
+    "semantic_hash": "7f6d81dd22fd46f2c7273548fb97feaa"
+  },
+  "apps/omni-life/src/lib/llm/chatgpt.ts": {
+    "mtime": 1785394046.0572433,
+    "ast_hash": "998d11f466dd168c9fb44930dc4af51c",
+    "semantic_hash": "998d11f466dd168c9fb44930dc4af51c"
+  },
+  "apps/omni-life/src/lib/llm/claude.ts": {
+    "mtime": 1785394046.057601,
+    "ast_hash": "a469431d0e460b2dfede95df88e7913c",
+    "semantic_hash": "a469431d0e460b2dfede95df88e7913c"
+  },
+  "apps/omni-life/src/lib/llm/gemini.ts": {
+    "mtime": 1785394046.057601,
+    "ast_hash": "2530929db33b06dc8514419446569f9e",
+    "semantic_hash": "2530929db33b06dc8514419446569f9e"
+  },
+  "apps/omni-life/src/lib/llm/router.ts": {
+    "mtime": 1785394046.057601,
+    "ast_hash": "3930b21d00f7da31230f411bccb9bee4",
+    "semantic_hash": "3930b21d00f7da31230f411bccb9bee4"
+  },
+  "apps/omni-life/src/lib/services/calendar-sync.ts": {
+    "mtime": 1785394046.057601,
+    "ast_hash": "80950f202b8b83ecb7fb433f38eefb17",
+    "semantic_hash": "80950f202b8b83ecb7fb433f38eefb17"
+  },
+  "apps/omni-life/src/lib/services/google-fit.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "8fc4ea553c980191f01065fbd37051b2",
+    "semantic_hash": "8fc4ea553c980191f01065fbd37051b2"
+  },
+  "apps/omni-life/src/lib/services/google-workspace.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "d048d2b1382aaa7811621ae8daa9eb60",
+    "semantic_hash": "d048d2b1382aaa7811621ae8daa9eb60"
+  },
+  "apps/omni-life/src/lib/services/hevy.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "610f4b4c71dbb8d3909cc51e423fa045",
+    "semantic_hash": "610f4b4c71dbb8d3909cc51e423fa045"
+  },
+  "apps/omni-life/src/lib/services/openweather.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "50ed63205f2a410bf374b2651ead923f",
+    "semantic_hash": "50ed63205f2a410bf374b2651ead923f"
+  },
+  "apps/omni-life/src/lib/services/pocket-casts.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "234181b8a896e7b4b7e00f38ae54e907",
+    "semantic_hash": "234181b8a896e7b4b7e00f38ae54e907"
+  },
+  "apps/omni-life/src/lib/services/spotify.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "6396bd427afdd1496235f98c6f5262f9",
+    "semantic_hash": "6396bd427afdd1496235f98c6f5262f9"
+  },
+  "apps/omni-life/src/lib/services/stripe-service.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "1d2928cc88618ed27035f3882d1f0ca1",
+    "semantic_hash": "1d2928cc88618ed27035f3882d1f0ca1"
+  },
+  "apps/omni-life/src/lib/services/twilio.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "397b08f77d04df32e4ddda102dcff54a",
+    "semantic_hash": "397b08f77d04df32e4ddda102dcff54a"
+  },
+  "apps/omni-life/src/lib/services/upwork.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "28ff2c6c5bcef40081d85b0534924642",
+    "semantic_hash": "28ff2c6c5bcef40081d85b0534924642"
+  },
+  "apps/omni-life/src/lib/supabase/client.ts": {
+    "mtime": 1785394046.0584888,
+    "ast_hash": "3a87f0a54cc18b12429f180d525bd9ba",
+    "semantic_hash": "3a87f0a54cc18b12429f180d525bd9ba"
+  },
+  "apps/omni-life/src/lib/supabase/middleware.ts": {
+    "mtime": 1785394046.0604975,
+    "ast_hash": "4da28c304dbbd9d0ec392e7900d8fd14",
+    "semantic_hash": "4da28c304dbbd9d0ec392e7900d8fd14"
+  },
+  "apps/omni-life/src/lib/supabase/server.ts": {
+    "mtime": 1785394046.0604975,
+    "ast_hash": "313519005bd13038a2ff78e784a6669f",
+    "semantic_hash": "313519005bd13038a2ff78e784a6669f"
+  },
+  "apps/omni-life/src/lib/utils.ts": {
+    "mtime": 1785394046.0604975,
+    "ast_hash": "0dffae2da55d39a0ee6e5e59114e7dc7",
+    "semantic_hash": "0dffae2da55d39a0ee6e5e59114e7dc7"
+  },
+  "apps/omni-life/src/types/index.ts": {
+    "mtime": 1785394046.0604975,
+    "ast_hash": "2f45496919a4cf5b6a10fffb2a91d14c",
+    "semantic_hash": "2f45496919a4cf5b6a10fffb2a91d14c"
+  },
+  "apps/omni-life/src/types/supabase.ts": {
+    "mtime": 1785394046.0617776,
+    "ast_hash": "2954e35820935bc888bd839a296811c7",
+    "semantic_hash": "2954e35820935bc888bd839a296811c7"
+  },
+  "apps/omni-life/supabase/migrations/001_initial_schema.sql": {
+    "mtime": 1785394046.062141,
+    "ast_hash": "9608f6af6b9fbc902ce51a5171ae5873",
+    "semantic_hash": "9608f6af6b9fbc902ce51a5171ae5873"
+  },
+  "apps/omni-life/tsconfig.json": {
+    "mtime": 1785394046.062141,
+    "ast_hash": "35e77cd7ceedf9473ba72996785493fd",
+    "semantic_hash": "35e77cd7ceedf9473ba72996785493fd"
+  },
+  "apps/omni-life/vercel.json": {
+    "mtime": 1785394046.062141,
+    "ast_hash": "10d7c9f37a327d52a0df29da1c06b8d6",
+    "semantic_hash": "10d7c9f37a327d52a0df29da1c06b8d6"
+  },
+  "apps/podcast-repurposer/config/supabase/schema.sql": {
+    "mtime": 1785394046.0634615,
+    "ast_hash": "0ba95815e6697a7a9c1132cd7f519567",
+    "semantic_hash": "0ba95815e6697a7a9c1132cd7f519567"
+  },
+  "apps/podcast-repurposer/eslint.config.mjs": {
+    "mtime": 1785394046.0634615,
+    "ast_hash": "4d0037e08c049c0886a19c028eb57613",
+    "semantic_hash": "4d0037e08c049c0886a19c028eb57613"
+  },
+  "apps/podcast-repurposer/next.config.ts": {
+    "mtime": 1785394046.0634615,
+    "ast_hash": "9b77af189a21a7a64e4bd7a426f64176",
+    "semantic_hash": "9b77af189a21a7a64e4bd7a426f64176"
+  },
+  "apps/podcast-repurposer/package.json": {
+    "mtime": 1785394046.0634615,
+    "ast_hash": "57ec544c9008fdab19175d9cef1fd3eb",
+    "semantic_hash": "57ec544c9008fdab19175d9cef1fd3eb"
+  },
+  "apps/podcast-repurposer/postcss.config.mjs": {
+    "mtime": 1785394046.0634615,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "apps/podcast-repurposer/src/app/api/generate/route.ts": {
+    "mtime": 1785394046.067652,
+    "ast_hash": "27c6f232fd4a5df3b824ed1c98fcfd17",
+    "semantic_hash": "27c6f232fd4a5df3b824ed1c98fcfd17"
+  },
+  "apps/podcast-repurposer/src/app/layout.tsx": {
+    "mtime": 1785394046.067652,
+    "ast_hash": "ef37edd6dd55cbf88c14bb245ae54e83",
+    "semantic_hash": "ef37edd6dd55cbf88c14bb245ae54e83"
+  },
+  "apps/podcast-repurposer/src/app/page.tsx": {
+    "mtime": 1785394046.067652,
+    "ast_hash": "530c260941506b5162c653ba99f226bf",
+    "semantic_hash": "530c260941506b5162c653ba99f226bf"
+  },
+  "apps/podcast-repurposer/src/components/EpisodeForm.tsx": {
+    "mtime": 1785394046.067652,
+    "ast_hash": "b66712597c84d6ac210b767512766836",
+    "semantic_hash": "b66712597c84d6ac210b767512766836"
+  },
+  "apps/podcast-repurposer/src/lib/anthropic.ts": {
+    "mtime": 1785394046.067652,
+    "ast_hash": "6fed34c6a57c5a572fd623f1b652d3e7",
+    "semantic_hash": "6fed34c6a57c5a572fd623f1b652d3e7"
+  },
+  "apps/podcast-repurposer/src/lib/rateLimit.ts": {
+    "mtime": 1785394046.0697994,
+    "ast_hash": "e355dda933264759d7f94a48fd75aae1",
+    "semantic_hash": "e355dda933264759d7f94a48fd75aae1"
+  },
+  "apps/podcast-repurposer/src/lib/supabase.ts": {
+    "mtime": 1785394046.0697994,
+    "ast_hash": "2245210bc18e018cba46fe1d6935c14a",
+    "semantic_hash": "2245210bc18e018cba46fe1d6935c14a"
+  },
+  "apps/podcast-repurposer/src/lib/types.ts": {
+    "mtime": 1785394046.0697994,
+    "ast_hash": "f68091dcb71c6d53a837468476e876df",
+    "semantic_hash": "f68091dcb71c6d53a837468476e876df"
+  },
+  "apps/podcast-repurposer/tsconfig.json": {
+    "mtime": 1785394046.0697994,
+    "ast_hash": "5898be4ec4e5a3bfdd4416064f19c760",
+    "semantic_hash": "5898be4ec4e5a3bfdd4416064f19c760"
+  },
+  "apps/rtk/bin/rtk.js": {
+    "mtime": 1785394046.0708053,
+    "ast_hash": "4f2cb598a79f65f139af9266e39dcc4d",
+    "semantic_hash": "4f2cb598a79f65f139af9266e39dcc4d"
+  },
+  "apps/rtk/package.json": {
+    "mtime": 1785394046.0708053,
+    "ast_hash": "1728ea1962227ddf8f9260a570351b1e",
+    "semantic_hash": "1728ea1962227ddf8f9260a570351b1e"
+  },
+  "apps/rtk/src/cli.js": {
+    "mtime": 1785394046.0708053,
+    "ast_hash": "bf116da73c7d1800417fc9c7a6730f5c",
+    "semantic_hash": "bf116da73c7d1800417fc9c7a6730f5c"
+  },
+  "apps/rtk/src/filter.js": {
+    "mtime": 1785394046.0714798,
+    "ast_hash": "d4decd5d9b7a1502f4e426df1ee511ba",
+    "semantic_hash": "d4decd5d9b7a1502f4e426df1ee511ba"
+  },
+  "apps/rtk/src/init.js": {
+    "mtime": 1785394046.0714798,
+    "ast_hash": "40c07d73b7a7111483be7a646902eb3d",
+    "semantic_hash": "40c07d73b7a7111483be7a646902eb3d"
+  },
+  "apps/rtk/src/run.js": {
+    "mtime": 1785394046.0714798,
+    "ast_hash": "75beb18c340e62688394ccf5ca4f7387",
+    "semantic_hash": "75beb18c340e62688394ccf5ca4f7387"
+  },
+  "apps/rtk/src/stats.js": {
+    "mtime": 1785394046.0714798,
+    "ast_hash": "bbe908666c15f62ce0a6b00204bb94d6",
+    "semantic_hash": "bbe908666c15f62ce0a6b00204bb94d6"
+  },
+  "apps/rtk/src/truncate.js": {
+    "mtime": 1785394046.0714798,
+    "ast_hash": "69d101dd30ae9d1054e776a7d6b6a9e7",
+    "semantic_hash": "69d101dd30ae9d1054e776a7d6b6a9e7"
+  },
+  "apps/rtk/test/cli.test.js": {
+    "mtime": 1785394046.0714798,
+    "ast_hash": "fc04dba38d2dc97b3b99cfd4f9464b41",
+    "semantic_hash": "fc04dba38d2dc97b3b99cfd4f9464b41"
+  },
+  "apps/rtk/test/filter.test.js": {
+    "mtime": 1785394046.0728745,
+    "ast_hash": "791d4c85e97a943cb3accb1696b41968",
+    "semantic_hash": "791d4c85e97a943cb3accb1696b41968"
+  },
+  "apps/rtk/test/init.test.js": {
+    "mtime": 1785394046.0728745,
+    "ast_hash": "ba28361c26865dd69a4a3f5dd940b3ef",
+    "semantic_hash": "ba28361c26865dd69a4a3f5dd940b3ef"
+  },
+  "apps/rtk/test/stats.test.js": {
+    "mtime": 1785394046.0728745,
+    "ast_hash": "3152a83bcb59f1397a006c64d4f2bb72",
+    "semantic_hash": "3152a83bcb59f1397a006c64d4f2bb72"
+  },
+  "apps/rtk/test/truncate.test.js": {
+    "mtime": 1785394046.0728745,
+    "ast_hash": "95971a8dd26fce1a6af264457baed433",
+    "semantic_hash": "95971a8dd26fce1a6af264457baed433"
+  },
+  "apps/subscription-tracker/eslint.config.mjs": {
+    "mtime": 1785394046.0737681,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "apps/subscription-tracker/next.config.ts": {
+    "mtime": 1785394046.0737681,
+    "ast_hash": "dca387a8f12e322d62f19ce0bd3bedc3",
+    "semantic_hash": "dca387a8f12e322d62f19ce0bd3bedc3"
+  },
+  "apps/subscription-tracker/package.json": {
+    "mtime": 1785394046.0737681,
+    "ast_hash": "f35c1d2a5c1083de7ca6ff7d6e9efe9a",
+    "semantic_hash": "f35c1d2a5c1083de7ca6ff7d6e9efe9a"
+  },
+  "apps/subscription-tracker/postcss.config.mjs": {
+    "mtime": 1785394046.0751605,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "apps/subscription-tracker/src/app/api/insights/route.ts": {
+    "mtime": 1785394046.0785725,
+    "ast_hash": "6ef8daeecc23dd6429892e36e794429f",
+    "semantic_hash": "6ef8daeecc23dd6429892e36e794429f"
+  },
+  "apps/subscription-tracker/src/app/layout.tsx": {
+    "mtime": 1785394046.0785725,
+    "ast_hash": "98eb92097887c00f5ab676bee4c1bdc0",
+    "semantic_hash": "98eb92097887c00f5ab676bee4c1bdc0"
+  },
+  "apps/subscription-tracker/src/app/page.tsx": {
+    "mtime": 1785394046.0785725,
+    "ast_hash": "f7762ec8d757980c1acf31f9887e4cd7",
+    "semantic_hash": "f7762ec8d757980c1acf31f9887e4cd7"
+  },
+  "apps/subscription-tracker/src/components/BudgetsSection.tsx": {
+    "mtime": 1785394046.0785725,
+    "ast_hash": "1e771f73839905e59ee28c76ab2a2925",
+    "semantic_hash": "1e771f73839905e59ee28c76ab2a2925"
+  },
+  "apps/subscription-tracker/src/components/CategoryChart.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "3e9902c8326fc385bf159ac942683142",
+    "semantic_hash": "3e9902c8326fc385bf159ac942683142"
+  },
+  "apps/subscription-tracker/src/components/CategoryChips.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "1d1ae3e802d07da4e226b1e0e72c113e",
+    "semantic_hash": "1d1ae3e802d07da4e226b1e0e72c113e"
+  },
+  "apps/subscription-tracker/src/components/CategoryManager.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "a5b35b1a01740c15f3498e7563cf82b7",
+    "semantic_hash": "a5b35b1a01740c15f3498e7563cf82b7"
+  },
+  "apps/subscription-tracker/src/components/Dashboard.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "cf68bac6928875c7688bafca31805f6f",
+    "semantic_hash": "cf68bac6928875c7688bafca31805f6f"
+  },
+  "apps/subscription-tracker/src/components/InsightsPanel.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "574c306c45804c8394a8dda8ff0c5a09",
+    "semantic_hash": "574c306c45804c8394a8dda8ff0c5a09"
+  },
+  "apps/subscription-tracker/src/components/RefundsSection.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "82e532f6fcda2b19de8c4b787398da5b",
+    "semantic_hash": "82e532f6fcda2b19de8c4b787398da5b"
+  },
+  "apps/subscription-tracker/src/components/SettingsBar.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "e412e1b9298916a74c7ba216fddc5e99",
+    "semantic_hash": "e412e1b9298916a74c7ba216fddc5e99"
+  },
+  "apps/subscription-tracker/src/components/StatsOverview.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "863e1b58b15cf4599bcdfa5e67c3611f",
+    "semantic_hash": "863e1b58b15cf4599bcdfa5e67c3611f"
+  },
+  "apps/subscription-tracker/src/components/SubscriptionForm.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "21a0258739f7fa4ea1bcd015d534ea12",
+    "semantic_hash": "21a0258739f7fa4ea1bcd015d534ea12"
+  },
+  "apps/subscription-tracker/src/components/SubscriptionRow.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "2f66768d1f746e642427a0327898dc48",
+    "semantic_hash": "2f66768d1f746e642427a0327898dc48"
+  },
+  "apps/subscription-tracker/src/components/SubscriptionsList.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "c9b549c614f1a4c895e0a546ab71f51e",
+    "semantic_hash": "c9b549c614f1a4c895e0a546ab71f51e"
+  },
+  "apps/subscription-tracker/src/components/SummaryBanners.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "1d82aa9ddefb11e6ae8ef33ae4700397",
+    "semantic_hash": "1d82aa9ddefb11e6ae8ef33ae4700397"
+  },
+  "apps/subscription-tracker/src/components/Toast.tsx": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "babd0177b25ad784c7f67d291b1de483",
+    "semantic_hash": "babd0177b25ad784c7f67d291b1de483"
+  },
+  "apps/subscription-tracker/src/lib/anthropic.ts": {
+    "mtime": 1785394046.0808265,
+    "ast_hash": "0ef3852a23d494cd2fa68d6a469e50c5",
+    "semantic_hash": "0ef3852a23d494cd2fa68d6a469e50c5"
+  },
+  "apps/subscription-tracker/src/lib/backup.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "7a3c4f8e40dc5745d86c8d8bd0b49fc5",
+    "semantic_hash": "7a3c4f8e40dc5745d86c8d8bd0b49fc5"
+  },
+  "apps/subscription-tracker/src/lib/categories.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "4c6b7d0bf8c0594d5ac370ef44bfd138",
+    "semantic_hash": "4c6b7d0bf8c0594d5ac370ef44bfd138"
+  },
+  "apps/subscription-tracker/src/lib/csvExport.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "99135b233b37208886924f850dd46707",
+    "semantic_hash": "99135b233b37208886924f850dd46707"
+  },
+  "apps/subscription-tracker/src/lib/csvImport.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "143a43a11ca289e8baa3591ee9c4e117",
+    "semantic_hash": "143a43a11ca289e8baa3591ee9c4e117"
+  },
+  "apps/subscription-tracker/src/lib/currencies.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "3386bca2611a383776a05a2daddf7323",
+    "semantic_hash": "3386bca2611a383776a05a2daddf7323"
+  },
+  "apps/subscription-tracker/src/lib/icsExport.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "2ce474797f8a434669f3c9ee08623783",
+    "semantic_hash": "2ce474797f8a434669f3c9ee08623783"
+  },
+  "apps/subscription-tracker/src/lib/money.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "25048a44fcc2aa637f455be9182d3363",
+    "semantic_hash": "25048a44fcc2aa637f455be9182d3363"
+  },
+  "apps/subscription-tracker/src/lib/rateLimit.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "e355dda933264759d7f94a48fd75aae1",
+    "semantic_hash": "e355dda933264759d7f94a48fd75aae1"
+  },
+  "apps/subscription-tracker/src/lib/types.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "41620a5a20c742b7a77beb85202bb7c4",
+    "semantic_hash": "41620a5a20c742b7a77beb85202bb7c4"
+  },
+  "apps/subscription-tracker/src/lib/useCategories.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "a05edf48fc26304b8c631edbfd554ec1",
+    "semantic_hash": "a05edf48fc26304b8c631edbfd554ec1"
+  },
+  "apps/subscription-tracker/src/lib/useDashboardStats.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "f521ba7f2b265a3a6f03acdc2fbf75bf",
+    "semantic_hash": "f521ba7f2b265a3a6f03acdc2fbf75bf"
+  },
+  "apps/subscription-tracker/src/lib/useDataPortability.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "3fd113831d4f9201fe72650a9d043023",
+    "semantic_hash": "3fd113831d4f9201fe72650a9d043023"
+  },
+  "apps/subscription-tracker/src/lib/useLocalStorage.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "3d915a61264375bbad7fedd20e856acb",
+    "semantic_hash": "3d915a61264375bbad7fedd20e856acb"
+  },
+  "apps/subscription-tracker/src/lib/useSubscriptionActions.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "49717649ebdbd2bf3a90b85548f2b906",
+    "semantic_hash": "49717649ebdbd2bf3a90b85548f2b906"
+  },
+  "apps/subscription-tracker/src/lib/useTheme.ts": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "1abae5e258d7d69ff0859274225a0bc3",
+    "semantic_hash": "1abae5e258d7d69ff0859274225a0bc3"
+  },
+  "apps/subscription-tracker/tsconfig.json": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "apps/subscription-tracker/vercel.json": {
+    "mtime": 1785394046.0841906,
+    "ast_hash": "b9a525402c00aadf4988e3f3d18de92a",
+    "semantic_hash": "b9a525402c00aadf4988e3f3d18de92a"
+  },
+  "apps/wjec-study-app/eslint.config.mjs": {
+    "mtime": 1785394046.086697,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "apps/wjec-study-app/middleware.ts": {
+    "mtime": 1785394046.086697,
+    "ast_hash": "b43ef4e0d283d03d0aa47140bc698623",
+    "semantic_hash": "b43ef4e0d283d03d0aa47140bc698623"
+  },
+  "apps/wjec-study-app/next.config.ts": {
+    "mtime": 1785394046.086697,
+    "ast_hash": "dca387a8f12e322d62f19ce0bd3bedc3",
+    "semantic_hash": "dca387a8f12e322d62f19ce0bd3bedc3"
+  },
+  "apps/wjec-study-app/package.json": {
+    "mtime": 1785394046.0871603,
+    "ast_hash": "469a5b49ec774b61486b206b8f920889",
+    "semantic_hash": "469a5b49ec774b61486b206b8f920889"
+  },
+  "apps/wjec-study-app/postcss.config.mjs": {
+    "mtime": 1785394046.0871603,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "apps/wjec-study-app/src/app/api/generate-audio-script/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "f0b9d6f1d8e3133f2e745e58d9d65851",
+    "semantic_hash": "f0b9d6f1d8e3133f2e745e58d9d65851"
+  },
+  "apps/wjec-study-app/src/app/api/generate-cards/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "e5e9d2cd901d451250b48e559a82c436",
+    "semantic_hash": "e5e9d2cd901d451250b48e559a82c436"
+  },
+  "apps/wjec-study-app/src/app/api/generate-lesson/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "71f9a15b29f4f4336bebe18271d04236",
+    "semantic_hash": "71f9a15b29f4f4336bebe18271d04236"
+  },
+  "apps/wjec-study-app/src/app/api/generate-mindmap/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "74577a3b4ab9134b62806940f6ff2c5f",
+    "semantic_hash": "74577a3b4ab9134b62806940f6ff2c5f"
+  },
+  "apps/wjec-study-app/src/app/api/generate-practice-test/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "9fd4de5ee691b1c12fb6f6780596c54e",
+    "semantic_hash": "9fd4de5ee691b1c12fb6f6780596c54e"
+  },
+  "apps/wjec-study-app/src/app/api/generate-quiz/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "3143a2df65516dd309569eacb896a842",
+    "semantic_hash": "3143a2df65516dd309569eacb896a842"
+  },
+  "apps/wjec-study-app/src/app/api/ocr/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "7adcd59ab912e06acd9115128fb0096e",
+    "semantic_hash": "7adcd59ab912e06acd9115128fb0096e"
+  },
+  "apps/wjec-study-app/src/app/api/qa/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "803b89780618e8a2b3209ee20d83903f",
+    "semantic_hash": "803b89780618e8a2b3209ee20d83903f"
+  },
+  "apps/wjec-study-app/src/app/api/tts/route.ts": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "c227903ea13d38090d600fe4ad8538ef",
+    "semantic_hash": "c227903ea13d38090d600fe4ad8538ef"
+  },
+  "apps/wjec-study-app/src/app/layout.tsx": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "cd659ecac69fb0c6d5d4b2ce903c1181",
+    "semantic_hash": "cd659ecac69fb0c6d5d4b2ce903c1181"
+  },
+  "apps/wjec-study-app/src/app/loading.tsx": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "701a9444e80073fb8400407761ed37e5",
+    "semantic_hash": "701a9444e80073fb8400407761ed37e5"
+  },
+  "apps/wjec-study-app/src/app/login/AuthForm.tsx": {
+    "mtime": 1785394046.091926,
+    "ast_hash": "746dd7b0b28deef34ec9c7c8c2f7707f",
+    "semantic_hash": "746dd7b0b28deef34ec9c7c8c2f7707f"
+  },
+  "apps/wjec-study-app/src/app/login/actions.ts": {
+    "mtime": 1785394046.0961263,
+    "ast_hash": "5764a71569135a2a0aa4bba6d21b93d4",
+    "semantic_hash": "5764a71569135a2a0aa4bba6d21b93d4"
+  },
+  "apps/wjec-study-app/src/app/login/page.tsx": {
+    "mtime": 1785394046.0961263,
+    "ast_hash": "ae8d7202987ea22fe4bf3c7c080e7c3c",
+    "semantic_hash": "ae8d7202987ea22fe4bf3c7c080e7c3c"
+  },
+  "apps/wjec-study-app/src/app/page.tsx": {
+    "mtime": 1785394046.0961263,
+    "ast_hash": "f3746eea03d8b5c668b1e3246815c74d",
+    "semantic_hash": "f3746eea03d8b5c668b1e3246815c74d"
+  },
+  "apps/wjec-study-app/src/components/ApiKeyBar.tsx": {
+    "mtime": 1785394046.0961263,
+    "ast_hash": "cbf6c03c4c3ab75a1ba970a5815312ed",
+    "semantic_hash": "cbf6c03c4c3ab75a1ba970a5815312ed"
+  },
+  "apps/wjec-study-app/src/components/AudioOverviewPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "821e56f7dd306b65c2e51d470dd02a7c",
+    "semantic_hash": "821e56f7dd306b65c2e51d470dd02a7c"
+  },
+  "apps/wjec-study-app/src/components/Dashboard.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "34ae2932a7033ad8f6d3a5cc0c80cc6a",
+    "semantic_hash": "34ae2932a7033ad8f6d3a5cc0c80cc6a"
+  },
+  "apps/wjec-study-app/src/components/Flashcard.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "a3e03aa080701b66dac26fb3ce0c36d7",
+    "semantic_hash": "a3e03aa080701b66dac26fb3ce0c36d7"
+  },
+  "apps/wjec-study-app/src/components/FocusTimer.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "d62cb991b74e5b6865c223c75845f459",
+    "semantic_hash": "d62cb991b74e5b6865c223c75845f459"
+  },
+  "apps/wjec-study-app/src/components/GamificationPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "d989f498982fbf8e39d337f40da683a8",
+    "semantic_hash": "d989f498982fbf8e39d337f40da683a8"
+  },
+  "apps/wjec-study-app/src/components/Heatmap.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "7f1356abce1d2b6aaf109fb31e6a6c9d",
+    "semantic_hash": "7f1356abce1d2b6aaf109fb31e6a6c9d"
+  },
+  "apps/wjec-study-app/src/components/LessonSession.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "30dd24dcaed82e12e4fe783a3b3602f1",
+    "semantic_hash": "30dd24dcaed82e12e4fe783a3b3602f1"
+  },
+  "apps/wjec-study-app/src/components/MindMapPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "c5677fbaa9005e631986d6cb68f3ff51",
+    "semantic_hash": "c5677fbaa9005e631986d6cb68f3ff51"
+  },
+  "apps/wjec-study-app/src/components/NoteBank.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "af94630c04c8720a0ae97c204ddb557f",
+    "semantic_hash": "af94630c04c8720a0ae97c204ddb557f"
+  },
+  "apps/wjec-study-app/src/components/NotebookLinksPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "50672e42b7f454fd84ee4b10ead7921f",
+    "semantic_hash": "50672e42b7f454fd84ee4b10ead7921f"
+  },
+  "apps/wjec-study-app/src/components/PracticeTestPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "205647572f1c567b3d34c48240911598",
+    "semantic_hash": "205647572f1c567b3d34c48240911598"
+  },
+  "apps/wjec-study-app/src/components/PracticeTestSession.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "0c6a2513728ec3a11fffbcba955b4636",
+    "semantic_hash": "0c6a2513728ec3a11fffbcba955b4636"
+  },
+  "apps/wjec-study-app/src/components/QaPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "7857d33a6f7a0c61deeaf6f9a47711b4",
+    "semantic_hash": "7857d33a6f7a0c61deeaf6f9a47711b4"
+  },
+  "apps/wjec-study-app/src/components/QuizSession.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "dc0adb745853d9f3b6ed4c26977863d8",
+    "semantic_hash": "dc0adb745853d9f3b6ed4c26977863d8"
+  },
+  "apps/wjec-study-app/src/components/RevisionTrackerPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "628a35108e2396ece74e2a6bae3fd718",
+    "semantic_hash": "628a35108e2396ece74e2a6bae3fd718"
+  },
+  "apps/wjec-study-app/src/components/ShopPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "498d480102bbed59aaa012a95deab97d",
+    "semantic_hash": "498d480102bbed59aaa012a95deab97d"
+  },
+  "apps/wjec-study-app/src/components/SketchPad.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "9ad29847be7aaca2bee759b25f206f4a",
+    "semantic_hash": "9ad29847be7aaca2bee759b25f206f4a"
+  },
+  "apps/wjec-study-app/src/components/StudyApp.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "f25e8d59f8d258fc7ce96073b56410e7",
+    "semantic_hash": "f25e8d59f8d258fc7ce96073b56410e7"
+  },
+  "apps/wjec-study-app/src/components/StudyPlanPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "a7bb05fb9b40ed29e2829caf7211ff15",
+    "semantic_hash": "a7bb05fb9b40ed29e2829caf7211ff15"
+  },
+  "apps/wjec-study-app/src/components/StudyRoomPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "83871b126ac46093b77172c0f90c18b5",
+    "semantic_hash": "83871b126ac46093b77172c0f90c18b5"
+  },
+  "apps/wjec-study-app/src/components/StudySession.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "140e83943a5192839dc6959960535c4a",
+    "semantic_hash": "140e83943a5192839dc6959960535c4a"
+  },
+  "apps/wjec-study-app/src/components/TabBar.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "76483ad82afd93a60e892fc87afdfb80",
+    "semantic_hash": "76483ad82afd93a60e892fc87afdfb80"
+  },
+  "apps/wjec-study-app/src/components/TaskBoard.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "b88234fb62d36442d6f2bd356258db56",
+    "semantic_hash": "b88234fb62d36442d6f2bd356258db56"
+  },
+  "apps/wjec-study-app/src/components/TimeAnalyticsPanel.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "f0f2b772cc900f5f83b5be692bedc9b9",
+    "semantic_hash": "f0f2b772cc900f5f83b5be692bedc9b9"
+  },
+  "apps/wjec-study-app/src/components/TopicList.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "2ede48a4bd673cb56feff28e8d42d8f9",
+    "semantic_hash": "2ede48a4bd673cb56feff28e8d42d8f9"
+  },
+  "apps/wjec-study-app/src/components/TopicRow.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "f9f61c03d474948263757638be8df3f3",
+    "semantic_hash": "f9f61c03d474948263757638be8df3f3"
+  },
+  "apps/wjec-study-app/src/components/UserMenu.tsx": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "8f3af01b10f23e5f642e5f6941d3514d",
+    "semantic_hash": "8f3af01b10f23e5f642e5f6941d3514d"
+  },
+  "apps/wjec-study-app/src/lib/ambientSound.ts": {
+    "mtime": 1785394046.0968127,
+    "ast_hash": "1a6d609658a6991b36cc326feb63ba44",
+    "semantic_hash": "1a6d609658a6991b36cc326feb63ba44"
+  },
+  "apps/wjec-study-app/src/lib/anthropic.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "2682751ac4f379fca20419a56c309149",
+    "semantic_hash": "2682751ac4f379fca20419a56c309149"
+  },
+  "apps/wjec-study-app/src/lib/anthropicAssistant.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "1cd18340874066351d2d245ea4b5caaa",
+    "semantic_hash": "1cd18340874066351d2d245ea4b5caaa"
+  },
+  "apps/wjec-study-app/src/lib/concurrency.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "22f41eba750aae74f2042dc492cc58df",
+    "semantic_hash": "22f41eba750aae74f2042dc492cc58df"
+  },
+  "apps/wjec-study-app/src/lib/curriculum.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "f6d0e1d2af4d209ad18b7e404e85935b",
+    "semantic_hash": "f6d0e1d2af4d209ad18b7e404e85935b"
+  },
+  "apps/wjec-study-app/src/lib/elevenlabs.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "3b4df399e3b8b122a28a477da64733ec",
+    "semantic_hash": "3b4df399e3b8b122a28a477da64733ec"
+  },
+  "apps/wjec-study-app/src/lib/fsrs.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "e8dfe441fd4ef2138b06d0ebe0bea295",
+    "semantic_hash": "e8dfe441fd4ef2138b06d0ebe0bea295"
+  },
+  "apps/wjec-study-app/src/lib/gamification.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "5aaf8e5b2cebbcbb5ace3bb950891b0c",
+    "semantic_hash": "5aaf8e5b2cebbcbb5ace3bb950891b0c"
+  },
+  "apps/wjec-study-app/src/lib/rateLimit.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "e355dda933264759d7f94a48fd75aae1",
+    "semantic_hash": "e355dda933264759d7f94a48fd75aae1"
+  },
+  "apps/wjec-study-app/src/lib/scheduler.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "934c9e472135646de5ebffe6bd5ac2be",
+    "semantic_hash": "934c9e472135646de5ebffe6bd5ac2be"
+  },
+  "apps/wjec-study-app/src/lib/shop.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "baa7436b92bea4b2cc60ac8aad470669",
+    "semantic_hash": "baa7436b92bea4b2cc60ac8aad470669"
+  },
+  "apps/wjec-study-app/src/lib/stats.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "1978dfb7549d77fc3f02208618bcbd3d",
+    "semantic_hash": "1978dfb7549d77fc3f02208618bcbd3d"
+  },
+  "apps/wjec-study-app/src/lib/studyPlan.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "a45da119fcbc60f025de8d4918748700",
+    "semantic_hash": "a45da119fcbc60f025de8d4918748700"
+  },
+  "apps/wjec-study-app/src/lib/supabase/actions.ts": {
+    "mtime": 1785394046.1018183,
+    "ast_hash": "b0dbb86223c0f997361321f465f6190a",
+    "semantic_hash": "b0dbb86223c0f997361321f465f6190a"
+  },
+  "apps/wjec-study-app/src/lib/supabase/client.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "dd6eec2e6ebbf4e416ead9838162db73",
+    "semantic_hash": "dd6eec2e6ebbf4e416ead9838162db73"
+  },
+  "apps/wjec-study-app/src/lib/supabase/database.types.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "98da972c75d7064d82263be19cb62d26",
+    "semantic_hash": "98da972c75d7064d82263be19cb62d26"
+  },
+  "apps/wjec-study-app/src/lib/supabase/loadInitialData.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "ecd4a68c0f6750098403524bab14691e",
+    "semantic_hash": "ecd4a68c0f6750098403524bab14691e"
+  },
+  "apps/wjec-study-app/src/lib/supabase/middleware.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "26021f37d3fdf66e88ccb202a1f31011",
+    "semantic_hash": "26021f37d3fdf66e88ccb202a1f31011"
+  },
+  "apps/wjec-study-app/src/lib/supabase/server.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "ba334cb28e291ff6f3b6404f0c8a0d24",
+    "semantic_hash": "ba334cb28e291ff6f3b6404f0c8a0d24"
+  },
+  "apps/wjec-study-app/src/lib/timeLog.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "4455ee9fb1f9c3bdd4448c2f14b79c25",
+    "semantic_hash": "4455ee9fb1f9c3bdd4448c2f14b79c25"
+  },
+  "apps/wjec-study-app/src/lib/types.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "3ca83ed462e41cbce2d2b8791e924fb6",
+    "semantic_hash": "3ca83ed462e41cbce2d2b8791e924fb6"
+  },
+  "apps/wjec-study-app/src/lib/useAudioOverview.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "1e5d970a60d9561e8ead2f110a599ac1",
+    "semantic_hash": "1e5d970a60d9561e8ead2f110a599ac1"
+  },
+  "apps/wjec-study-app/src/lib/useLocalStorage.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "139f763e8059013f2a5ef8146044c8aa",
+    "semantic_hash": "139f763e8059013f2a5ef8146044c8aa"
+  },
+  "apps/wjec-study-app/src/lib/useNotes.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "80187ed756a96a2f54bfc593d73b3cbc",
+    "semantic_hash": "80187ed756a96a2f54bfc593d73b3cbc"
+  },
+  "apps/wjec-study-app/src/lib/useQaAssistant.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "115a8b153f1a4c68ffb153cc3c8445f1",
+    "semantic_hash": "115a8b153f1a4c68ffb153cc3c8445f1"
+  },
+  "apps/wjec-study-app/src/lib/useStudyData.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "88c897c2c6b50bb49357a9b50371e3f3",
+    "semantic_hash": "88c897c2c6b50bb49357a9b50371e3f3"
+  },
+  "apps/wjec-study-app/src/lib/useTasks.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "d61ec939093ae44db120bbfa2147e5b4",
+    "semantic_hash": "d61ec939093ae44db120bbfa2147e5b4"
+  },
+  "apps/wjec-study-app/src/lib/useTimeLog.ts": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "12d8cee107ebed8b070f764fe68ce720",
+    "semantic_hash": "12d8cee107ebed8b070f764fe68ce720"
+  },
+  "apps/wjec-study-app/tsconfig.json": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "apps/wjec-study-app/vercel.json": {
+    "mtime": 1785394046.104294,
+    "ast_hash": "b9a525402c00aadf4988e3f3d18de92a",
+    "semantic_hash": "b9a525402c00aadf4988e3f3d18de92a"
+  },
+  "apps/world-news/eslint.config.mjs": {
+    "mtime": 1785394046.1071737,
+    "ast_hash": "a28251ba62e169d583f4f218cc6ba5ef",
+    "semantic_hash": "a28251ba62e169d583f4f218cc6ba5ef"
+  },
+  "apps/world-news/next.config.ts": {
+    "mtime": 1785394046.1071737,
+    "ast_hash": "dca387a8f12e322d62f19ce0bd3bedc3",
+    "semantic_hash": "dca387a8f12e322d62f19ce0bd3bedc3"
+  },
+  "apps/world-news/package.json": {
+    "mtime": 1785394046.1071737,
+    "ast_hash": "593c293cbf002d6ab6c85e3c27fbbaab",
+    "semantic_hash": "593c293cbf002d6ab6c85e3c27fbbaab"
+  },
+  "apps/world-news/postcss.config.mjs": {
+    "mtime": 1785394046.1071737,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "apps/world-news/src/app/api/chat/route.ts": {
+    "mtime": 1785394046.1345396,
+    "ast_hash": "909442dc60038d82d19917c6bdbccdd6",
+    "semantic_hash": "909442dc60038d82d19917c6bdbccdd6"
+  },
+  "apps/world-news/src/app/api/country/[code]/route.ts": {
+    "mtime": 1785394046.1354609,
+    "ast_hash": "55b98f7a845e9322dfbd47769c303215",
+    "semantic_hash": "55b98f7a845e9322dfbd47769c303215"
+  },
+  "apps/world-news/src/app/api/cron/refresh/route.ts": {
+    "mtime": 1785394046.136103,
+    "ast_hash": "8dc678bd2313a84308603f60833c5eb2",
+    "semantic_hash": "8dc678bd2313a84308603f60833c5eb2"
+  },
+  "apps/world-news/src/app/api/podcast/route.ts": {
+    "mtime": 1785394046.136103,
+    "ast_hash": "68d7f90f1a7ce37b2a74ac5fd8eae99a",
+    "semantic_hash": "68d7f90f1a7ce37b2a74ac5fd8eae99a"
+  },
+  "apps/world-news/src/app/api/world/route.ts": {
+    "mtime": 1785394046.136103,
+    "ast_hash": "2300bd0122b7beded9abdb8b4b86b8d1",
+    "semantic_hash": "2300bd0122b7beded9abdb8b4b86b8d1"
+  },
+  "apps/world-news/src/app/api/world/stream/route.ts": {
+    "mtime": 1785394046.1368134,
+    "ast_hash": "7890de48ff265ef18ca3a7315c9a195e",
+    "semantic_hash": "7890de48ff265ef18ca3a7315c9a195e"
+  },
+  "apps/world-news/src/app/country/[code]/loading.tsx": {
+    "mtime": 1785394046.1372745,
+    "ast_hash": "715c63b680bef800f79b063abaebb139",
+    "semantic_hash": "715c63b680bef800f79b063abaebb139"
+  },
+  "apps/world-news/src/app/country/[code]/page.tsx": {
+    "mtime": 1785394046.1378996,
+    "ast_hash": "e1d1c2e164ed6fb7752a8a3839c7ad39",
+    "semantic_hash": "e1d1c2e164ed6fb7752a8a3839c7ad39"
+  },
+  "apps/world-news/src/app/feed/page.tsx": {
+    "mtime": 1785394046.1378996,
+    "ast_hash": "b4380eae6d7cb54e34a7ec9eaa3c4f9c",
+    "semantic_hash": "b4380eae6d7cb54e34a7ec9eaa3c4f9c"
+  },
+  "apps/world-news/src/app/layout.tsx": {
+    "mtime": 1785394046.1378996,
+    "ast_hash": "9b44ac6fa623068e63004b6f86152f80",
+    "semantic_hash": "9b44ac6fa623068e63004b6f86152f80"
+  },
+  "apps/world-news/src/app/page.tsx": {
+    "mtime": 1785394046.1378996,
+    "ast_hash": "cae3d60bfbb5cc5aabaa94979bef5e43",
+    "semantic_hash": "cae3d60bfbb5cc5aabaa94979bef5e43"
+  },
+  "apps/world-news/src/app/topic/[topic]/page.tsx": {
+    "mtime": 1785394046.139267,
+    "ast_hash": "b7c591275a6f31581ae2bb28913a71bf",
+    "semantic_hash": "b7c591275a6f31581ae2bb28913a71bf"
+  },
+  "apps/world-news/src/app/world/loading.tsx": {
+    "mtime": 1785394046.139267,
+    "ast_hash": "f029bb28cc937c622b2cbf41739f1cd6",
+    "semantic_hash": "f029bb28cc937c622b2cbf41739f1cd6"
+  },
+  "apps/world-news/src/app/world/page.tsx": {
+    "mtime": 1785394046.1395628,
+    "ast_hash": "5c5616045e0668a3678ad15da6e1547c",
+    "semantic_hash": "5c5616045e0668a3678ad15da6e1547c"
+  },
+  "apps/world-news/src/components/ConflictMap.tsx": {
+    "mtime": 1785394046.1395628,
+    "ast_hash": "c56e3ae178648cf561b0b46f3a1ffeaa",
+    "semantic_hash": "c56e3ae178648cf561b0b46f3a1ffeaa"
+  },
+  "apps/world-news/src/components/FavoriteButton.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "63ead5a11606a1913c0f1a45bfab8b04",
+    "semantic_hash": "63ead5a11606a1913c0f1a45bfab8b04"
+  },
+  "apps/world-news/src/components/FavoritesBar.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "92471e6ed2dfc6f05e6b59e7c71b643a",
+    "semantic_hash": "92471e6ed2dfc6f05e6b59e7c71b643a"
+  },
+  "apps/world-news/src/components/MapChat.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "87f05a1b184d05ed16bb0cf7b4c785f7",
+    "semantic_hash": "87f05a1b184d05ed16bb0cf7b4c785f7"
+  },
+  "apps/world-news/src/components/MyFeed.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "f38c39b56550cb9025f9bdb83cda6c67",
+    "semantic_hash": "f38c39b56550cb9025f9bdb83cda6c67"
+  },
+  "apps/world-news/src/components/NewsGlobe.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "cdb20ac1d37346b031b11a832876d3c4",
+    "semantic_hash": "cdb20ac1d37346b031b11a832876d3c4"
+  },
+  "apps/world-news/src/components/PodcastPlayer.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "1d0cbd2ddb03762663fe6e178c9dc54d",
+    "semantic_hash": "1d0cbd2ddb03762663fe6e178c9dc54d"
+  },
+  "apps/world-news/src/components/Sidebar.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "bb18a6e5a71a854672d80dcdff1f0ffe",
+    "semantic_hash": "bb18a6e5a71a854672d80dcdff1f0ffe"
+  },
+  "apps/world-news/src/components/SourceList.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "8198a2b80ba92b97d7ef316ecbaecede",
+    "semantic_hash": "8198a2b80ba92b97d7ef316ecbaecede"
+  },
+  "apps/world-news/src/components/TimeAgo.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "b12d07d862318af844ce41d2dd58e048",
+    "semantic_hash": "b12d07d862318af844ce41d2dd58e048"
+  },
+  "apps/world-news/src/components/TimelineControl.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "28d7d029804bae21adda12c22a8b6ca8",
+    "semantic_hash": "28d7d029804bae21adda12c22a8b6ca8"
+  },
+  "apps/world-news/src/components/TopicSection.tsx": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "63d666def17bb08d574ba60b1f6d0a47",
+    "semantic_hash": "63d666def17bb08d574ba60b1f6d0a47"
+  },
+  "apps/world-news/src/lib/countries.ts": {
+    "mtime": 1785394046.1404274,
+    "ast_hash": "b1ff8f6c775eef50c5d5540029e9dd1c",
+    "semantic_hash": "b1ff8f6c775eef50c5d5540029e9dd1c"
+  },
+  "apps/world-news/src/lib/gdelt.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "5c7294e461f6defa97c31c5238a04a5f",
+    "semantic_hash": "5c7294e461f6defa97c31c5238a04a5f"
+  },
+  "apps/world-news/src/lib/gemini.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "a85845ddbc9115c30243239e42883b50",
+    "semantic_hash": "a85845ddbc9115c30243239e42883b50"
+  },
+  "apps/world-news/src/lib/geo.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "188166c647b841fe6748ede031ecf0c2",
+    "semantic_hash": "188166c647b841fe6748ede031ecf0c2"
+  },
+  "apps/world-news/src/lib/groq.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "5403d912cc21767f7dbcab77fed96865",
+    "semantic_hash": "5403d912cc21767f7dbcab77fed96865"
+  },
+  "apps/world-news/src/lib/news.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "3bb18b0c5a829147f54390c82dddbcc8",
+    "semantic_hash": "3bb18b0c5a829147f54390c82dddbcc8"
+  },
+  "apps/world-news/src/lib/openrouter.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "ef2a242a15ad078e37405d13f03ac792",
+    "semantic_hash": "ef2a242a15ad078e37405d13f03ac792"
+  },
+  "apps/world-news/src/lib/overlays.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "2236c2593cf1888591a38a72fe4a39c7",
+    "semantic_hash": "2236c2593cf1888591a38a72fe4a39c7"
+  },
+  "apps/world-news/src/lib/podcast.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "ec53d6597effcab665539c98573c1a97",
+    "semantic_hash": "ec53d6597effcab665539c98573c1a97"
+  },
+  "apps/world-news/src/lib/snapshots.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "948cef70b4ec0c036ecbfafb4e6818bd",
+    "semantic_hash": "948cef70b4ec0c036ecbfafb4e6818bd"
+  },
+  "apps/world-news/src/lib/topicColors.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "33bf6a0c729aeb3a5be3fd11799779b0",
+    "semantic_hash": "33bf6a0c729aeb3a5be3fd11799779b0"
+  },
+  "apps/world-news/src/lib/topics.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "978358b64621f26bae6933a113916e35",
+    "semantic_hash": "978358b64621f26bae6933a113916e35"
+  },
+  "apps/world-news/src/lib/useFavorites.ts": {
+    "mtime": 1785394046.1433654,
+    "ast_hash": "5ca77275e945a204cbb9a696cc7df7b9",
+    "semantic_hash": "5ca77275e945a204cbb9a696cc7df7b9"
+  },
+  "apps/world-news/supabase/migrations/001_news_snapshots.sql": {
+    "mtime": 1785394046.1468253,
+    "ast_hash": "cc3ab93851e9aca8b2c1266bfcf5e779",
+    "semantic_hash": "cc3ab93851e9aca8b2c1266bfcf5e779"
+  },
+  "apps/world-news/tsconfig.json": {
+    "mtime": 1785394046.1468253,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "apps/world-news/vercel.json": {
+    "mtime": 1785394046.1468253,
+    "ast_hash": "a902b3d1e76765c018d020778fa92f3b",
+    "semantic_hash": "a902b3d1e76765c018d020778fa92f3b"
+  },
+  "execution/__init__.py": {
+    "mtime": 1785394046.1468253,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "execution/analyze_face_directions.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "8210c0aba2e56176499ba28c6e863a1e",
+    "semantic_hash": "8210c0aba2e56176499ba28c6e863a1e"
+  },
+  "execution/anymailfinder_client.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "aaa30c6848fb640efc5ce35e24483d01",
+    "semantic_hash": "aaa30c6848fb640efc5ce35e24483d01"
+  },
+  "execution/enrich_emails.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "023d125c83ffc5f0a1468849551bacad",
+    "semantic_hash": "023d125c83ffc5f0a1468849551bacad"
+  },
+  "execution/enrich_leads.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "e5d4e0dbc8ec100696ad7dd1d5286b79",
+    "semantic_hash": "e5d4e0dbc8ec100696ad7dd1d5286b79"
+  },
+  "execution/export_leads_to_sheets.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "5cf665409e20d4482d6cf8227bc256a3",
+    "semantic_hash": "5cf665409e20d4482d6cf8227bc256a3"
+  },
+  "execution/extract_invoice.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "00d57e61120e492ec8d08f4b2133997a",
+    "semantic_hash": "00d57e61120e492ec8d08f4b2133997a"
+  },
+  "execution/follow_up_nurture.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "597f331856738132cf7ddf765d39d36b",
+    "semantic_hash": "597f331856738132cf7ddf765d39d36b"
+  },
+  "execution/google_sheets_client.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "66bc54532ea121f86084b0e4a03459c4",
+    "semantic_hash": "66bc54532ea121f86084b0e4a03459c4"
+  },
+  "execution/inbox_cleaner.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "205d4d83417da4b90add5ce656aaf97c",
+    "semantic_hash": "205d4d83417da4b90add5ce656aaf97c"
+  },
+  "execution/instantly_create_campaigns.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "cb3732b3fdead15f91bab28f15ebdd80",
+    "semantic_hash": "cb3732b3fdead15f91bab28f15ebdd80"
+  },
+  "execution/recreate_thumbnails.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "cbfc07a0cdc3e3c6bb8ab438acb28775",
+    "semantic_hash": "cbfc07a0cdc3e3c6bb8ab438acb28775"
+  },
+  "execution/scrape_linkedin.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "251ce70d08a59a6b7228847d5bc4875f",
+    "semantic_hash": "251ce70d08a59a6b7228847d5bc4875f"
+  },
+  "execution/vayne_client.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "dd437d0cc29460d43a32781c3b8572a6",
+    "semantic_hash": "dd437d0cc29460d43a32781c3b8572a6"
+  },
+  "execution/wework_bulk_booking.py": {
+    "mtime": 1785394046.1479673,
+    "ast_hash": "24d67731f16419b039fb006b6799af5b",
+    "semantic_hash": "24d67731f16419b039fb006b6799af5b"
+  },
+  "packages/le-studio-tokens/check-tokens.mjs": {
+    "mtime": 1785774019.5326006,
+    "ast_hash": "4bb415fd36b4cea671df85c5ad2f7f27",
+    "semantic_hash": "4bb415fd36b4cea671df85c5ad2f7f27"
+  },
+  "packages/le-studio-tokens/package.json": {
+    "mtime": 1785774019.5326006,
+    "ast_hash": "3706db98ce31d6140a05793adf814141",
+    "semantic_hash": "3706db98ce31d6140a05793adf814141"
+  },
+  "scripts/sync-theme.sh": {
+    "mtime": 1785394046.1540499,
+    "ast_hash": "5bd736760b99d5e4a3bc1584c6eb7339",
+    "semantic_hash": "5bd736760b99d5e4a3bc1584c6eb7339"
+  },
+  "src/workspace_daemon/ai_engine.py": {
+    "mtime": 1785394046.1549814,
+    "ast_hash": "8cbfa1757cbefbbf50385490e52d36fb",
+    "semantic_hash": "8cbfa1757cbefbbf50385490e52d36fb"
+  },
+  "src/workspace_daemon/config.py": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "85a8b6d956be30c310df94b3c0a34889",
+    "semantic_hash": "85a8b6d956be30c310df94b3c0a34889"
+  },
+  "src/workspace_daemon/google_client.py": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "d0c97b649ef0420855ce7dd96b5ea750",
+    "semantic_hash": "d0c97b649ef0420855ce7dd96b5ea750"
+  },
+  "src/workspace_daemon/janitor.py": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "fb45dde295476d2a969d197a8f84a5cd",
+    "semantic_hash": "fb45dde295476d2a969d197a8f84a5cd"
+  },
+  "src/workspace_daemon/main.py": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "6c897f1dc9d75ed09a9c489436330488",
+    "semantic_hash": "6c897f1dc9d75ed09a9c489436330488"
+  },
+  "src/workspace_daemon/msft_client.py": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "d173601fc2b7d953d8108f1a0a0dee3f",
+    "semantic_hash": "d173601fc2b7d953d8108f1a0a0dee3f"
+  },
+  ".claude-flow/CAPABILITIES.md": {
+    "mtime": 1785394045.0871398,
+    "ast_hash": "8d2a4419121c17df775b973660543115",
+    "semantic_hash": "8d2a4419121c17df775b973660543115"
+  },
+  ".claude-flow/config.yaml": {
+    "mtime": 1785394045.0871398,
+    "ast_hash": "aeb84c50fbbbce66975355c934f32219",
+    "semantic_hash": "aeb84c50fbbbce66975355c934f32219"
+  },
+  ".claude/agents/browser/browser-agent.yaml": {
+    "mtime": 1785394045.0897336,
+    "ast_hash": "5da4ab156f955c81774e58378b59049b",
+    "semantic_hash": "5da4ab156f955c81774e58378b59049b"
+  },
+  ".claude/agents/core/planner.md": {
+    "mtime": 1785394045.0910194,
+    "ast_hash": "5f037212896d72c0a513bb6420b26f71",
+    "semantic_hash": "5f037212896d72c0a513bb6420b26f71"
+  },
+  ".claude/agents/swarm/adaptive-coordinator.md": {
+    "mtime": 1785394045.0945287,
+    "ast_hash": "0f7fbd93f9347c5113130b8cf8552483",
+    "semantic_hash": "0f7fbd93f9347c5113130b8cf8552483"
+  },
+  ".claude/agents/swarm/hierarchical-coordinator.md": {
+    "mtime": 1785394045.0967224,
+    "ast_hash": "0101ea80d665dd4fb33d0ab91ded625d",
+    "semantic_hash": "0101ea80d665dd4fb33d0ab91ded625d"
+  },
+  ".claude/agents/swarm/mesh-coordinator.md": {
+    "mtime": 1785394045.0967224,
+    "ast_hash": "7f1a1a5c91da262cb3c467d2cad73e7c",
+    "semantic_hash": "7f1a1a5c91da262cb3c467d2cad73e7c"
+  },
+  ".claude/agents/testing/production-validator.md": {
+    "mtime": 1785394045.0967224,
+    "ast_hash": "787e5ce9043268e3e467382bf3714f29",
+    "semantic_hash": "787e5ce9043268e3e467382bf3714f29"
+  },
+  ".claude/agents/testing/tdd-london-swarm.md": {
+    "mtime": 1785394045.098462,
+    "ast_hash": "56027f5b5d0d00afc52f19cbbc056d26",
+    "semantic_hash": "56027f5b5d0d00afc52f19cbbc056d26"
+  },
+  ".claude/helpers/README.md": {
+    "mtime": 1785394045.134549,
+    "ast_hash": "8234495992effd85ddabb306494c8d7d",
+    "semantic_hash": "8234495992effd85ddabb306494c8d7d"
+  },
+  ".claude/skills/add-new-resource/SKILL.md": {
+    "mtime": 1785774019.4544835,
+    "ast_hash": "c43b4d4e29249c85e2f7dd537234c172",
+    "semantic_hash": "c43b4d4e29249c85e2f7dd537234c172"
+  },
+  ".claude/skills/automerge/SKILL.md": {
+    "mtime": 1785774019.4544835,
+    "ast_hash": "d12c7e7944c7051b0d3ae1097d05b955",
+    "semantic_hash": "d12c7e7944c7051b0d3ae1097d05b955"
+  },
+  ".claude/skills/code-review/SKILL.md": {
+    "mtime": 1785774019.4544835,
+    "ast_hash": "697cd8021abf8f889c6081bcb2ff70a4",
+    "semantic_hash": "697cd8021abf8f889c6081bcb2ff70a4"
+  },
+  ".claude/skills/codebase-design/DEEPENING.md": {
+    "mtime": 1785394045.553976,
+    "ast_hash": "2e14795cf50abe04a6cb1d6cbb57d5f0",
+    "semantic_hash": "2e14795cf50abe04a6cb1d6cbb57d5f0"
+  },
+  ".claude/skills/codebase-design/DESIGN-IT-TWICE.md": {
+    "mtime": 1785394045.5570798,
+    "ast_hash": "8046cbefbdeeeea756399aa4c7a1852b",
+    "semantic_hash": "8046cbefbdeeeea756399aa4c7a1852b"
+  },
+  ".claude/skills/codebase-design/SKILL.md": {
+    "mtime": 1785774019.4544835,
+    "ast_hash": "75c2699bf6794c018684d9c8cc830b40",
+    "semantic_hash": "75c2699bf6794c018684d9c8cc830b40"
+  },
+  ".claude/skills/data-ingestion/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "4e5397e103dc8dc8fc748c77de55db08",
+    "semantic_hash": "4e5397e103dc8dc8fc748c77de55db08"
+  },
+  ".claude/skills/diagnosing-bugs/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "e1e0d5b3d265960da38f22fa96c3d2a6",
+    "semantic_hash": "e1e0d5b3d265960da38f22fa96c3d2a6"
+  },
+  ".claude/skills/domain-modeling/ADR-FORMAT.md": {
+    "mtime": 1785394045.578274,
+    "ast_hash": "bb327bab674f400796f64b6e2ef5850c",
+    "semantic_hash": "bb327bab674f400796f64b6e2ef5850c"
+  },
+  ".claude/skills/domain-modeling/CONTEXT-FORMAT.md": {
+    "mtime": 1785394045.5786622,
+    "ast_hash": "c2f41ffc931955b2b8d01322273d75fa",
+    "semantic_hash": "c2f41ffc931955b2b8d01322273d75fa"
+  },
+  ".claude/skills/domain-modeling/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "4a51de1d1b440a515884560bc500b5fc",
+    "semantic_hash": "4a51de1d1b440a515884560bc500b5fc"
+  },
+  ".claude/skills/grilling/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "d9bcd27bc7240e095b5673603a72e44a",
+    "semantic_hash": "d9bcd27bc7240e095b5673603a72e44a"
+  },
+  ".claude/skills/impeccable/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "7cbcac638546040961284c645724169b",
+    "semantic_hash": "7cbcac638546040961284c645724169b"
+  },
+  ".claude/skills/improve-codebase-architecture/HTML-REPORT.md": {
+    "mtime": 1785394045.5791605,
+    "ast_hash": "751df2fdf436e9539123d6ebc70c1e86",
+    "semantic_hash": "751df2fdf436e9539123d6ebc70c1e86"
+  },
+  ".claude/skills/improve-codebase-architecture/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "18c38e44524cdc1ab7eef33fa8ca26cc",
+    "semantic_hash": "18c38e44524cdc1ab7eef33fa8ca26cc"
+  },
+  ".claude/skills/improve-system/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "c8e834fe6a724de36a7a2eb5a04c4a91",
+    "semantic_hash": "c8e834fe6a724de36a7a2eb5a04c4a91"
+  },
+  ".claude/skills/karpathy-guidelines/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "dba1f0a777e70a906bd4c53087ca8d7c",
+    "semantic_hash": "dba1f0a777e70a906bd4c53087ca8d7c"
+  },
+  ".claude/skills/re-fresh/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "218bf30a67f5ff9b5c3dc03d4aec3929",
+    "semantic_hash": "218bf30a67f5ff9b5c3dc03d4aec3929"
+  },
+  ".claude/skills/research/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "e5ab5344cc29391c53025a6f1dbbeb34",
+    "semantic_hash": "e5ab5344cc29391c53025a6f1dbbeb34"
+  },
+  ".claude/skills/routines/SKILL.md": {
+    "mtime": 1785774019.4567966,
+    "ast_hash": "14d9026ca0813df6726490ab92daaa84",
+    "semantic_hash": "14d9026ca0813df6726490ab92daaa84"
+  },
+  ".claude/skills/sync-claude-sessions/SKILL.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "be8fb8be8485f8e56a4e010d89ba73b0",
+    "semantic_hash": "be8fb8be8485f8e56a4e010d89ba73b0"
+  },
+  ".claude/skills/sync-curated-content/SKILL.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "5c7b194b9da0041725b1d82fa636ed9f",
+    "semantic_hash": "5c7b194b9da0041725b1d82fa636ed9f"
+  },
+  ".claude/skills/sync-ecosystem-data/SKILL.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "4dc73906b3f9dc31d35454be7592bd24",
+    "semantic_hash": "4dc73906b3f9dc31d35454be7592bd24"
+  },
+  ".claude/skills/tdd/SKILL.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "fdbfe9897a2705fc7a4a3867eb4e9a90",
+    "semantic_hash": "fdbfe9897a2705fc7a4a3867eb4e9a90"
+  },
+  ".claude/skills/tdd/mocking.md": {
+    "mtime": 1785394045.7834437,
+    "ast_hash": "c5505e8da8f516c7dacebd01c58a4c2c",
+    "semantic_hash": "c5505e8da8f516c7dacebd01c58a4c2c"
+  },
+  ".claude/skills/tdd/tests.md": {
+    "mtime": 1785394045.7834437,
+    "ast_hash": "0a462499661825df11a0852c42382f10",
+    "semantic_hash": "0a462499661825df11a0852c42382f10"
+  },
+  ".github/workflows/food-shopping-os.yml": {
+    "mtime": 1785394045.8940482,
+    "ast_hash": "844328c09f44108024ad9b7600f70b1d",
+    "semantic_hash": "844328c09f44108024ad9b7600f70b1d"
+  },
+  "CLAUDE.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "4e8644dae47f0a4fbf5604e050b0515f",
+    "semantic_hash": "4e8644dae47f0a4fbf5604e050b0515f"
+  },
+  "README.md": {
+    "mtime": 1785394045.8940482,
+    "ast_hash": "89848541095e66ff93b77eee68b5bb81",
+    "semantic_hash": "89848541095e66ff93b77eee68b5bb81"
+  },
+  "apps/daily-debate/README.md": {
+    "mtime": 1785394045.8955271,
+    "ast_hash": "d3635bc7c002dc6fbff861617d3b75d9",
+    "semantic_hash": "d3635bc7c002dc6fbff861617d3b75d9"
+  },
+  "apps/dictation-typer/README.md": {
+    "mtime": 1785394045.910595,
+    "ast_hash": "3577a4b1fc3947afd2f79cebbbd3daba",
+    "semantic_hash": "3577a4b1fc3947afd2f79cebbbd3daba"
+  },
+  "apps/dictation-typer/requirements.txt": {
+    "mtime": 1785394045.9113145,
+    "ast_hash": "8bfae8e93a5f35f9ba77b8d3d9fdb049",
+    "semantic_hash": "8bfae8e93a5f35f9ba77b8d3d9fdb049"
+  },
+  "apps/emotion-tracker/README.md": {
+    "mtime": 1785394045.9127824,
+    "ast_hash": "1fbe112e582f1d9d2b04b54164674485",
+    "semantic_hash": "1fbe112e582f1d9d2b04b54164674485"
+  },
+  "apps/food-shopping-os/README.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "3bc3e87e9bc6cc89ae44bea0b09b7f0e",
+    "semantic_hash": "3bc3e87e9bc6cc89ae44bea0b09b7f0e"
+  },
+  "apps/food-shopping-os/a11y-report.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "b00559ea2ac8f6b7c073af5c84858521",
+    "semantic_hash": "b00559ea2ac8f6b7c073af5c84858521"
+  },
+  "apps/food-shopping-os/docs/IMAGE_ATTRIBUTIONS.md": {
+    "mtime": 1785774019.4607966,
+    "ast_hash": "cbea5999d5aee3a91c2ce757be21cf72",
+    "semantic_hash": "cbea5999d5aee3a91c2ce757be21cf72"
+  },
+  "apps/french-practice/README.md": {
+    "mtime": 1785394045.9862018,
+    "ast_hash": "fd6d704a94fc270faec13112c207a069",
+    "semantic_hash": "fd6d704a94fc270faec13112c207a069"
+  },
+  "apps/french-practice/index.html": {
+    "mtime": 1785394045.9862018,
+    "ast_hash": "8f903119740c60e05c7e4f4bd4d8f8b9",
+    "semantic_hash": "8f903119740c60e05c7e4f4bd4d8f8b9"
+  },
+  "apps/french-practice/public/audio/README.md": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "e820a7d5ae54667f2143583b87ebf5f3",
+    "semantic_hash": "e820a7d5ae54667f2143583b87ebf5f3"
+  },
+  "apps/french-practice/public/llms.txt": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "c7b64e2b7c460f49de1b58a0c3eaa41b",
+    "semantic_hash": "c7b64e2b7c460f49de1b58a0c3eaa41b"
+  },
+  "apps/french-practice/public/robots.txt": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "68551f39c4467a9191784ef771a748f7",
+    "semantic_hash": "68551f39c4467a9191784ef771a748f7"
+  },
+  "apps/le-studio-site/README.md": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "c69a2369c29e86f04cbb004b6d0ed7a0",
+    "semantic_hash": "c69a2369c29e86f04cbb004b6d0ed7a0"
+  },
+  "apps/le-studio-site/index.html": {
+    "mtime": 1785774019.5315838,
+    "ast_hash": "98800f798188f4d9f63f1d60e06b2d71",
+    "semantic_hash": "98800f798188f4d9f63f1d60e06b2d71"
+  },
+  "apps/meeting-recorder/README.md": {
+    "mtime": 1785394046.0302815,
+    "ast_hash": "9aa07a2006be0563b3a2f4a477832d31",
+    "semantic_hash": "9aa07a2006be0563b3a2f4a477832d31"
+  },
+  "apps/meeting-recorder/desktop/renderer/index.html": {
+    "mtime": 1785394046.0328293,
+    "ast_hash": "a7b4d733c3097a9cafe6ca5dad3a09b1",
+    "semantic_hash": "a7b4d733c3097a9cafe6ca5dad3a09b1"
+  },
+  "apps/omni-life/README.md": {
+    "mtime": 1785394046.0441327,
+    "ast_hash": "9d39a62e687fceb2c5264e50d6df4ca1",
+    "semantic_hash": "9d39a62e687fceb2c5264e50d6df4ca1"
+  },
+  "apps/podcast-repurposer/README.md": {
+    "mtime": 1785394046.0630543,
+    "ast_hash": "21c8d361cce98ba06cd966fd21757f4d",
+    "semantic_hash": "21c8d361cce98ba06cd966fd21757f4d"
+  },
+  "apps/rtk/README.md": {
+    "mtime": 1785394046.0697994,
+    "ast_hash": "084c2317cec1fc6cf4175e74c8d82375",
+    "semantic_hash": "084c2317cec1fc6cf4175e74c8d82375"
+  },
+  "apps/subscription-tracker/README.md": {
+    "mtime": 1785394046.0737681,
+    "ast_hash": "b553038a83a20fd2c68fd85c51660aaa",
+    "semantic_hash": "b553038a83a20fd2c68fd85c51660aaa"
+  },
+  "apps/wjec-study-app/README.md": {
+    "mtime": 1785394046.086697,
+    "ast_hash": "3bbc14d8101c19a6de9c0230b4cd2b80",
+    "semantic_hash": "3bbc14d8101c19a6de9c0230b4cd2b80"
+  },
+  "apps/world-news/README.md": {
+    "mtime": 1785394046.1071737,
+    "ast_hash": "e6049cdbf80bd2405c3847feb33c02f9",
+    "semantic_hash": "e6049cdbf80bd2405c3847feb33c02f9"
+  },
+  "docs/architecture/le-studio-adr-001-ecosystem.md": {
+    "mtime": 1785774019.5322206,
+    "ast_hash": "958c22346b2f890a27e731671f4be23f",
+    "semantic_hash": "958c22346b2f890a27e731671f4be23f"
+  },
+  "output/.improvement-log.md": {
+    "mtime": 1785394046.1520422,
+    "ast_hash": "dbc0015bb8caab1c01518f8122426b83",
+    "semantic_hash": "dbc0015bb8caab1c01518f8122426b83"
+  },
+  "output/review_2026-07-12.md": {
+    "mtime": 1785394046.1520422,
+    "ast_hash": "04fdb0044bfcf25d400c938efa82d096",
+    "semantic_hash": "04fdb0044bfcf25d400c938efa82d096"
+  },
+  "output/review_2026-07-21.md": {
+    "mtime": 1785394046.1520422,
+    "ast_hash": "3e4f3683147fe8f717a57173dcbb0e6b",
+    "semantic_hash": "3e4f3683147fe8f717a57173dcbb0e6b"
+  },
+  "packages/le-studio-tokens/README.md": {
+    "mtime": 1785774019.5322206,
+    "ast_hash": "64b8f8dcc4ba90d78764201fdbbe392e",
+    "semantic_hash": "64b8f8dcc4ba90d78764201fdbbe392e"
+  },
+  "raw/README.md": {
+    "mtime": 1785394046.1527328,
+    "ast_hash": "417101e13ad78e75be1202086f5ad641",
+    "semantic_hash": "417101e13ad78e75be1202086f5ad641"
+  },
+  "src/workspace_daemon/requirements.txt": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "ca5f85465173711e3341646abe68a5db",
+    "semantic_hash": "ca5f85465173711e3341646abe68a5db"
+  },
+  "wiki/core-training-document.md": {
+    "mtime": 1785394046.1553545,
+    "ast_hash": "4ac87fe1776c9119a92dbed0483c04ad",
+    "semantic_hash": "4ac87fe1776c9119a92dbed0483c04ad"
+  },
+  "wiki/index.md": {
+    "mtime": 1785394046.1569903,
+    "ast_hash": "232cd32ac50d335da896dc3857104714",
+    "semantic_hash": "232cd32ac50d335da896dc3857104714"
+  },
+  "apps/food-shopping-os/public/icon-192.png": {
+    "mtime": 1785394045.9197657,
+    "ast_hash": "af4cbcf0ceb175fa6c8ccbcd206b497d",
+    "semantic_hash": "af4cbcf0ceb175fa6c8ccbcd206b497d"
+  },
+  "apps/food-shopping-os/public/icon-512.png": {
+    "mtime": 1785394045.924018,
+    "ast_hash": "aef9c2b8f989b5aef4d5a22d042499e1",
+    "semantic_hash": "aef9c2b8f989b5aef4d5a22d042499e1"
+  },
+  "apps/food-shopping-os/public/icon.svg": {
+    "mtime": 1785394045.924018,
+    "ast_hash": "73cc49aab3525b499387a03e10b56dd3",
+    "semantic_hash": "73cc49aab3525b499387a03e10b56dd3"
+  },
+  "apps/french-practice/public/apple-touch-icon.png": {
+    "mtime": 1785394045.9862018,
+    "ast_hash": "bf30abf71fbd91d6829802fc57a22f61",
+    "semantic_hash": "bf30abf71fbd91d6829802fc57a22f61"
+  },
+  "apps/french-practice/public/icon-192.png": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "afbe678df19870330011d03e248561c2",
+    "semantic_hash": "afbe678df19870330011d03e248561c2"
+  },
+  "apps/french-practice/public/icon-512.png": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "3bb047f89c57edfd0924a9d50050770b",
+    "semantic_hash": "3bb047f89c57edfd0924a9d50050770b"
+  },
+  "apps/french-practice/public/icon.svg": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "190182a8494c2b0724a55ab48a62b8b0",
+    "semantic_hash": "190182a8494c2b0724a55ab48a62b8b0"
+  },
+  "apps/french-practice/public/screenshots/arena.png": {
+    "mtime": 1785394045.9879742,
+    "ast_hash": "8be38339a2a2f645d678db9aeef63340",
+    "semantic_hash": "8be38339a2a2f645d678db9aeef63340"
+  },
+  "apps/french-practice/public/screenshots/home.png": {
+    "mtime": 1785394045.9904938,
+    "ast_hash": "8333436eff7f653fa1179936128e39d9",
+    "semantic_hash": "8333436eff7f653fa1179936128e39d9"
+  },
+  "apps/french-practice/public/screenshots/vocab.png": {
+    "mtime": 1785394045.9904938,
+    "ast_hash": "1175b06bb386a8beb56477aa22619c14",
+    "semantic_hash": "1175b06bb386a8beb56477aa22619c14"
+  },
+  "apps/le-studio-site/icon-192.png": {
+    "mtime": 1785394046.0283515,
+    "ast_hash": "afbe678df19870330011d03e248561c2",
+    "semantic_hash": "afbe678df19870330011d03e248561c2"
+  },
+  "apps/le-studio-site/icon-512.png": {
+    "mtime": 1785394046.0283515,
+    "ast_hash": "3bb047f89c57edfd0924a9d50050770b",
+    "semantic_hash": "3bb047f89c57edfd0924a9d50050770b"
+  },
+  "apps/le-studio-site/icon.svg": {
+    "mtime": 1785394046.0283515,
+    "ast_hash": "190182a8494c2b0724a55ab48a62b8b0",
+    "semantic_hash": "190182a8494c2b0724a55ab48a62b8b0"
+  },
+  "apps/le-studio-site/screenshots/arena.png": {
+    "mtime": 1785394046.0283515,
+    "ast_hash": "8be38339a2a2f645d678db9aeef63340",
+    "semantic_hash": "8be38339a2a2f645d678db9aeef63340"
+  },
+  "apps/le-studio-site/screenshots/home.png": {
+    "mtime": 1785394046.0302815,
+    "ast_hash": "8333436eff7f653fa1179936128e39d9",
+    "semantic_hash": "8333436eff7f653fa1179936128e39d9"
+  },
+  "apps/le-studio-site/screenshots/vocab.png": {
+    "mtime": 1785394046.0302815,
+    "ast_hash": "1175b06bb386a8beb56477aa22619c14",
+    "semantic_hash": "1175b06bb386a8beb56477aa22619c14"
+  },
+  "apps/world-news/public/textures/earth-blue-marble.jpg": {
+    "mtime": 1785394046.1271605,
+    "ast_hash": "8ec81bb437b68fdb4bd46604ff698736",
+    "semantic_hash": "8ec81bb437b68fdb4bd46604ff698736"
+  },
+  "apps/world-news/public/textures/earth-topology.png": {
+    "mtime": 1785394046.1311605,
+    "ast_hash": "56e5c0687430c9eff705e6ffbd82ce31",
+    "semantic_hash": "56e5c0687430c9eff705e6ffbd82ce31"
+  }
+}

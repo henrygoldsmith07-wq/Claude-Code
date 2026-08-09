@@ -46,6 +46,7 @@
   --success: #197e46;
   --success-soft: #e4f5ec;
   --speak: #2a62d2;
+  --on-speak: #ffffff;
   --speak-soft: #e6eefb;
   --review: #a55a12;
   --review-soft: #fbeedd;
@@ -78,6 +79,7 @@
   --success: #37c47e;
   --success-soft: #16311f;
   --speak: #6fa0ff;
+  --on-speak: #0b0b0d;
   --speak-soft: #172236;
   --review: #f2933a;
   --review-soft: #33230f;
@@ -137,6 +139,7 @@
   --color-success: var(--success);
   --color-successsoft: var(--success-soft);
   --color-speak: var(--speak);
+  --color-onspeak: var(--on-speak);
   --color-speaksoft: var(--speak-soft);
   --color-review: var(--review);
   --color-reviewsoft: var(--review-soft);
@@ -326,3 +329,65 @@ button { -webkit-tap-highlight-color: transparent; }
 /* Long-list scroll & battery: skip layout/paint for off-screen rows.
    contain-intrinsic-size reserves height so the scrollbar stays stable. */
 .cv-list > * { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+
+/* Home's primary action has its own speaking colour and a compact mode
+   vocabulary, so the studio is scannable without abandoning its calm base. */
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  border-left: 4px solid var(--speak);
+  background: var(--surface);
+}
+.home-hero::after {
+  content: "";
+  position: absolute;
+  width: 132px;
+  height: 132px;
+  right: -70px;
+  top: -70px;
+  border: 1px solid var(--speak);
+  border-radius: 50%;
+  opacity: 0.2;
+  pointer-events: none;
+}
+.home-hero > * { position: relative; z-index: 1; }
+.home-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.home-brand-lockup .home-brand-copy { line-height: 1.1; }
+.home-mode-card {
+  position: relative;
+  display: flex;
+  min-height: 126px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0.875rem;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+.home-mode-card:hover { border-color: var(--mode-color); background: var(--mode-soft); }
+.home-mode-card:active { transform: scale(0.985); }
+.home-mode-card-speak { --mode-color: var(--speak); --mode-soft: var(--speak-soft); }
+.home-mode-card-review { --mode-color: var(--review); --mode-soft: var(--review-soft); }
+.home-mode-card-build { --mode-color: var(--success); --mode-soft: var(--success-soft); }
+.home-mode-icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: var(--mode-soft);
+  color: var(--mode-color);
+}
+.home-mode-arrow {
+  position: absolute;
+  right: 0.75rem;
+  top: 0.9rem;
+  color: var(--mode-color);
+}

@@ -1,8 +1,8 @@
-import { put } from '@vercel/blob';
+import { del, put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { ApiError, assertSameOrigin, handleApiError, rateLimit, requireUser } from '../../../../server/api.js';
 import { requireHousehold } from '../../../../server/households.js';
-import { getDatabase } from '../../../../server/mongodb.js';
+import { getDatabase } from '../../../../server/database.js';
 
 const MAX_SIZE = 8 * 1024 * 1024;
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -17,6 +17,7 @@ export async function POST(request) {
     }
     if (!process.env.BLOB_READ_WRITE_TOKEN) throw new ApiError(503, 'Receipt storage is not configured.');
     const { household } = await requireHousehold(user, request.headers.get('x-forq-household-id'));
+    const db = await getDatabase();
     const form = await request.formData();
     const file = form.get('file');
     if (!(file instanceof File) || !TYPES.has(file.type) || file.size > MAX_SIZE) {
@@ -27,8 +28,13 @@ export async function POST(request) {
       access: 'private',
       addRandomSuffix: false,
     });
+    const current = await db.collection('households').findOne({ _id: household._id });
+    if (!current || current.deletingAt) {
+      await del(blob.pathname, { token: process.env.BLOB_READ_WRITE_TOKEN });
+      throw new ApiError(410, 'Household deletion in progress.');
+    }
     const now = new Date();
-    const inserted = await (await getDatabase()).collection('uploads').insertOne({
+    const inserted = await db.collection('uploads').insertOne({
       householdId: household._id,
       userId: user.id,
       kind: 'receipt',
@@ -40,6 +46,12 @@ export async function POST(request) {
       createdAt: now,
       updatedAt: now,
     });
+    const after = await db.collection('households').findOne({ _id: household._id });
+    if (!after || after.deletingAt) {
+      await del(blob.pathname, { token: process.env.BLOB_READ_WRITE_TOKEN });
+      await db.collection('uploads').deleteOne({ _id: inserted.insertedId });
+      throw new ApiError(410, 'Household deletion in progress.');
+    }
     return NextResponse.json({ id: inserted.insertedId.toString(), status: 'queued' }, { status: 202 });
   } catch (error) {
     return handleApiError(error);

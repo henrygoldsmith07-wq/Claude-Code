@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { handleApiError, rateLimit, requireUser } from '../../../../server/api.js';
 import { requireHousehold } from '../../../../server/households.js';
-import { getDatabase } from '../../../../server/mongodb.js';
+import { getDatabase } from '../../../../server/database.js';
 
 export async function GET(request) {
   try {

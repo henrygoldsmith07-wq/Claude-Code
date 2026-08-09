@@ -104,7 +104,7 @@ describe('setting an allergy', () => {
     fireEvent.click(within(sheet).getByText('Milk'));
     fireEvent.click(within(sheet).getByLabelText('Close'));
     goTab('Recipes');
-    expect(screen.getByText(/hidden by your allergies and rules/)).toBeTruthy();
+    expect(screen.getByText(/hidden by your allergies, diets and rules/)).toBeTruthy();
   });
 
   it('keeps an intolerance visible rather than removing it', () => {

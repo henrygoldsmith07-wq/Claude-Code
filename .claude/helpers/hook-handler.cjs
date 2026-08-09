@@ -74,6 +74,16 @@ function runWithTimeout(fn, label) {
 }
 
 
+// ── Token budget ───────────────────────────────────────────────────────────
+// Hook stdout is injected verbatim into Claude's context. Success chatter
+// ("[OK] Command validated", routing boxes) is paid for on every single tool
+// call and every user prompt, and Claude does not act on it. Default to
+// silence-on-success; set CLAUDE_FLOW_HOOKS_VERBOSE=1 to restore the old
+// output when debugging the hooks themselves.
+const VERBOSE = process.env.CLAUDE_FLOW_HOOKS_VERBOSE === '1';
+const CONTEXT_CHAR_BUDGET = Number(process.env.CLAUDE_FLOW_CONTEXT_BUDGET || 800);
+function say(msg) { if (VERBOSE) console.log(msg); }
+
 // Get the command from argv
 const [,, command, ...args] = process.argv;
 
@@ -130,10 +140,11 @@ const handlers = {
     if (intelligence && intelligence.getContext) {
       try {
         const ctx = intelligence.getContext(prompt);
-        if (ctx) console.log(ctx);
+        // Cap injected context — this is prepended to every user prompt.
+        if (ctx) console.log(String(ctx).slice(0, CONTEXT_CHAR_BUDGET));
       } catch (e) { /* non-fatal */ }
     }
-    if (router && router.routeTask) {
+    if (VERBOSE && router && router.routeTask) {
       const result = router.routeTask(prompt);
       // Format output for Claude Code hook consumption — real data only
       const output = [
@@ -146,8 +157,6 @@ const handlers = {
         '+--------------------------------------------------------------+',
       ];
       console.log(output.join('\n'));
-    } else {
-      console.log('[INFO] Router not available, using default routing');
     }
   },
 
@@ -165,7 +174,7 @@ const handlers = {
         process.exit(1);
       }
     }
-    console.log('[OK] Command validated');
+    say('[OK] Command validated');
   },
 
   'post-edit': () => {
@@ -181,7 +190,7 @@ const handlers = {
         intelligence.recordEdit(file);
       } catch (e) { /* non-fatal */ }
     }
-    console.log('[OK] Edit recorded');
+    say('[OK] Edit recorded');
   },
 
   'session-restore': async () => {
@@ -194,6 +203,7 @@ const handlers = {
     } else {
       // Minimal session restore output
       const sessionId = `session-${Date.now()}`;
+      if (VERBOSE) {
       console.log(`[INFO] Restoring session: %SESSION_ID%`);
       console.log('');
       console.log(`[OK] Session restored from %SESSION_ID%`);
@@ -207,11 +217,12 @@ const handlers = {
       console.log('| Agents         |     0 |');
       console.log('| Memory Entries |     0 |');
       console.log('+----------------+-------+');
+      }
     }
     // Initialize intelligence graph after session restore (with timeout — #1530)
     if (intelligence && intelligence.init) {
       const initResult = await runWithTimeout(() => intelligence.init(), 'intelligence.init()');
-      if (initResult && initResult.nodes > 0) {
+      if (VERBOSE && initResult && initResult.nodes > 0) {
         console.log(`[INTELLIGENCE] Loaded ${initResult.nodes} patterns, ${initResult.edges} edges`);
       }
     }
@@ -221,14 +232,14 @@ const handlers = {
     // Consolidate intelligence before ending session (with timeout — #1530)
     if (intelligence && intelligence.consolidate) {
       const consResult = await runWithTimeout(() => intelligence.consolidate(), 'intelligence.consolidate()');
-      if (consResult && consResult.entries > 0) {
+      if (VERBOSE && consResult && consResult.entries > 0) {
         console.log(`[INTELLIGENCE] Consolidated: ${consResult.entries} entries, ${consResult.edges} edges${consResult.newEntries > 0 ? `, ${consResult.newEntries} new` : ''}, PageRank recomputed`);
       }
     }
     if (session && session.end) {
       session.end();
     } else {
-      console.log('[OK] Session ended');
+      say('[OK] Session ended');
     }
   },
 
@@ -239,9 +250,9 @@ const handlers = {
     // Route the task if router is available
     if (router && router.routeTask && prompt) {
       const result = router.routeTask(prompt);
-      console.log(`[INFO] Task routed to: ${result.agent} (confidence: ${result.confidence})`);
+      say(`[INFO] Task routed to: ${result.agent} (confidence: ${result.confidence})`);
     } else {
-      console.log('[OK] Task started');
+      say('[OK] Task started');
     }
   },
 
@@ -252,7 +263,7 @@ const handlers = {
         intelligence.feedback(true);
       } catch (e) { /* non-fatal */ }
     }
-    console.log('[OK] Task completed');
+    say('[OK] Task completed');
   },
 
   'stats': () => {
@@ -274,7 +285,7 @@ const handlers = {
     }
   } else if (command) {
     // Unknown command - pass through without error
-    console.log(`[OK] Hook: ${command}`);
+    say(`[OK] Hook: ${command}`);
   } else {
     console.log('Usage: hook-handler.cjs <route|pre-bash|post-edit|session-restore|session-end|pre-task|post-task|stats>');
   }

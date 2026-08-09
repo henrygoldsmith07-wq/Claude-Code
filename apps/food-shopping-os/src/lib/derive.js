@@ -13,7 +13,9 @@ import { dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import {
   groceryInflation, kitchenStats, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom,
 } from './kitchen.js';
-import { defaultWeeklyKcal, goalSummary, resolveMaintenance, weekProgress } from './goals.js';
+import {
+  defaultWeeklyKcal, goalSummary, resolveMaintenance, targetSafety, weekProgress,
+} from './goals.js';
 import { leftoverItems, leftoverPortions } from './mealplan.js';
 import { progressSummary } from './progress.js';
 import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
@@ -21,31 +23,63 @@ import { activityAdjustment, weekSummary } from './exercise.js';
 import {
   basketProjection, priceAlertMatches, restockSuggestions, wasteSummary,
 } from './shopping.js';
+import { couponVaultStats, couponsForList } from './coupons.js';
+import { derivePriceAnomalies, priceAnomalyForList } from './price-alerts.js';
 import { recentFoodsFrom } from './state.js';
-import { allowedByPrefs, prefsSummary, reach, recipeFit } from './preferences.js';
+import {
+  evaluateFoodSuitability,
+  filterBySuitability,
+  rankBySuitability,
+  suitabilityContextFrom,
+  suitabilityReach,
+  suitabilitySummary,
+} from './food-suitability.js';
 import { formatters } from './units.js';
+import {
+  cleanModes, hiddenModules, moduleOn, modesSummary, visibleTabs, visibleWidgets,
+} from './modes.js';
 import { DEFAULT_WIDGETS } from '../data/preferences.js';
 import { RECIPES } from '../data/recipes.js';
 import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
-import { DEFAULT_PERMISSIONS } from './household.js';
+import { DEFAULT_PERMISSIONS, permissionsForRole } from './household.js';
 import { buildTasteProfile } from './taste.js';
+import { YOUTH_COPY, youthPolicy } from './youth.js';
 
 export const deriveApp = (state) => {
   const activeMember = state.members.find((member) => member.id === state.activeMemberId) || null;
+  const youth = youthPolicy(state);
   const householdAccess = activeMember
-    ? { ...DEFAULT_PERMISSIONS, ...(activeMember.permissions || {}) }
+    ? { ...permissionsForRole(activeMember.role), ...(activeMember.permissions || {}) }
     : { ...DEFAULT_PERMISSIONS };
-  // The hard lines, gathered once so every surface filters the same way.
+
+  // One context object for every surface that asks "is this safe / preferred?".
+  const planDiets = [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])];
+  const suitabilityCtx = suitabilityContextFrom({
+    allergies: state.allergies,
+    intolerances: state.intolerances,
+    religious: state.religious,
+    diets: state.diets,
+    planDiets,
+    members: state.members,
+    cuisines: state.cuisines,
+    skill: state.skill,
+    timeBudget: state.timeBudget,
+    units: state.units,
+  });
+
+  // Legacy prefs bag kept for components that still read app.prefs.*
   const prefs = {
     allergies: state.allergies,
     intolerances: state.intolerances,
     religious: state.religious,
+    diets: state.diets,
     cuisines: state.cuisines,
     skill: state.skill,
     timeBudget: state.timeBudget,
     units: state.units,
   };
+
   const catalogue = [...CATALOGUE, ...state.customFoods];
   const recipeBook = [...RECIPES, ...state.myRecipes];
   const tasteProfile = buildTasteProfile(recipeBook, state.tasteRatings, state.favourites);
@@ -61,6 +95,7 @@ export const deriveApp = (state) => {
       ? 'regular'
       : 'established';
   const footprint = periodFootprint(state.log, { today: state.day });
+
   return {
     catalogue,
     entries,
@@ -76,8 +111,8 @@ export const deriveApp = (state) => {
     fatGoal: state.targets.fat,
     coverage: nutrientCoverage(entries),
     hydration: hydration(totals, glasses),
-    /* goals */
     maintenanceKcalResolved: resolveMaintenance(state),
+    targetSafety: targetSafety(state),
     goalSummary: goalSummary(state),
     weeklyKcalTarget: state.weeklyKcal || defaultWeeklyKcal(state.targets.kcal),
     week: weekProgress(state.log, {
@@ -87,18 +122,16 @@ export const deriveApp = (state) => {
     recentFoods: recentFoodsFrom(state.log, catalogue),
     entriesFor: (date) => state.log[date] || [],
     kcalFor: (date) => dayTotals(state.log[date] || []).kcal,
-    /* family — how many portions a meal has to stretch to, and everyone's diets */
     portions: state.members.length
       ? Math.round(state.members.reduce((n, m) => n + (Number(m.portions) || 1), 0) * 10) / 10
       : state.household || 1,
-    planDiets: [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])],
+    planDiets,
     activeMember,
-    childMode: activeMember?.role === 'child',
+    youth,
+    childMode: youth.on,
     householdAccess,
-    /* leftovers */
     leftovers: leftoverItems(state.pantry),
     leftoverPortions: leftoverPortions(state.pantry),
-    /* health and training, read back the same way as everything else */
     body_: bodySummary(state, state.day),
     vitalsSummary: vitalSummary(state.vitals),
     sleepSummary: sleepSummary(state.sleep, { today: state.day }),
@@ -106,11 +139,9 @@ export const deriveApp = (state) => {
     cycle: cycleSummary(state.cycles, state.day),
     training: weekSummary(state.workouts, state.day),
     activity: activityAdjustment(state, state.day),
-    /* the game layer — all counted from the records above, never banked */
     game: progress,
     xp: progress.xp,
     level: progress.level,
-    /* kitchen */
     streak: streakFrom(cookedDays, state.day),
     cookedToday: cookedDays.includes(state.day),
     cookedIds: state.cooked.map((c) => c.recipeId),
@@ -120,7 +151,10 @@ export const deriveApp = (state) => {
     inflation: groceryInflation(state.shops),
     savings: savingsSummary(state.shops),
     priceAlertStatus: priceAlertMatches(state.priceAlerts, state.shops),
-    /* shopping */
+    priceAnomalies: derivePriceAnomalies(state.shops, state.priceAlertConfig),
+    priceAnomaliesForList: priceAnomalyForList(state.shoppingList, state.shops, state.priceAlertConfig),
+    couponVault: couponVaultStats(state.coupons, state.day),
+    couponsForList: couponsForList(state.coupons, state.shoppingList, state.day),
     basket: basketProjection(state.shoppingList, {
       budget: state.weeklyBudget,
       spent: spentInWeek(state.shops, state.day),
@@ -131,20 +165,49 @@ export const deriveApp = (state) => {
     wasted: wasteSummary(state.waste),
     stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
     personaTier,
-    /* preferences: the filter every recipe surface shares, and the formatters
-       that decide how a number is written */
+
+    /* ---------- Central food suitability (every surface reads these) ---------- */
     prefs,
-    prefsSummary: prefsSummary(prefs),
-    /** Blocked recipes are removed here once, not remembered to be hidden later. */
-    safeRecipes: allowedByPrefs(recipeBook, prefs),
-    recipeReach: reach(recipeBook, prefs),
+    suitabilityCtx,
+    prefsSummary: suitabilitySummary(suitabilityCtx),
+    /** Blocked recipes removed once, not re-hidden later. */
+    safeRecipes: filterBySuitability(recipeBook, suitabilityCtx),
+    recipeReach: suitabilityReach(recipeBook, suitabilityCtx),
     tasteProfile,
-    fitFor: (recipe) => recipeFit(recipe, prefs),
+    /** Full structured result for one recipe or food. */
+    suitabilityFor: (item) => evaluateFoodSuitability(item, suitabilityCtx),
+    /** Legacy shape used by older components. */
+    fitFor: (recipe) => {
+      const s = evaluateFoodSuitability(recipe, suitabilityCtx);
+      return {
+        blocked: s.blockers.filter((b) => b.kind === 'allergy' || b.kind === 'religious' || b.kind === 'diet' || b.kind === 'household')
+          .map((b) => ({ id: b.code.split(':')[1] || b.code, label: b.label })),
+        flagged: s.warnings.filter((w) => w.kind === 'intolerance')
+          .map((w) => ({ id: w.code.split(':')[1] || w.code, label: w.label })),
+        tooLong: s.warnings.some((w) => w.code === 'time:over'),
+        tooFiddly: s.warnings.some((w) => w.code === 'skill:over'),
+        favouriteCuisine: s.preferences.some((p) => p.kind === 'preference' && p.code.startsWith('cuisine:')),
+        suitability: s,
+      };
+    },
+    rankRecipes: (list) => rankBySuitability(list, suitabilityCtx),
+    filterRecipesSafe: (list) => filterBySuitability(list, suitabilityCtx),
     fmt: formatters(prefs),
-    homeWidgets: state.widgets || DEFAULT_WIDGETS,
+    /* product modes: one answer to "is this module on", read by the tab bar,
+       Home and the settings panels alike. It filters screens, never records —
+       every total above is computed from all of state regardless of what is
+       currently on show. */
+    modes: cleanModes(state.modes),
+    modesSummary: modesSummary(state.modes),
+    moduleOn: (id) => moduleOn(id, state.modes),
+    visibleTabs: (tabs) => visibleTabs(state.modes, tabs),
+    hiddenModules: hiddenModules(state),
+    homeWidgets: visibleWidgets(state.widgets || DEFAULT_WIDGETS, state.modes),
     /* advanced surfaces, each derived from what you logged like everything else */
     footprint,
     footprintSwaps: swapIdeas(footprint),
-    fasting: fastingSummary(state.log, { today: state.day, plan: state.fastPlan }),
+    fasting: youth.fasting
+      ? fastingSummary(state.log, { today: state.day, plan: state.fastPlan })
+      : { ready: false, hidden: true, nights: 0, reason: YOUTH_COPY.fasting },
   };
 };

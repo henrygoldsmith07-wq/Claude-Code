@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>Le Studio Tokens</title>
+<link rel="stylesheet" href="./tokens.css"><link rel="stylesheet" href="./aliases.css">
+<style>body{font-family:system-ui;padding:24px;background:var(--ls-bg);color:var(--ls-ink)} .sw{width:48px;height:48px;border-radius:8px;border:1px solid var(--ls-line);display:inline-block;margin:4px} pre{background:var(--ls-surface);border:1px solid var(--ls-line);padding:12px;border-radius:8px;overflow:auto}
+</style><h1>Le Studio Tokens</h1><p>Palette from <code>tokens.css</code> / <code>tokens.json</code>.</p><div id="s"></div><pre id="p"></pre><script type="module">
+const t = await fetch("./tokens.json").then(r=>r.json()).catch(()=>null);
+if (t) { document.getElementById("p").textContent = JSON.stringify(t, null, 2); }
+const vars=["--ls-bg","--ls-surface","--ls-surface-2","--ls-line","--ls-ink","--ls-ink-2","--ls-ink-3","--ls-accent"];
+const s=document.getElementById("s"); for(const v of vars){ const d=document.createElement("div"); d.className="sw"; d.style.background=`var(${v})`; d.title=v; s.appendChild(d); }
+</script>

@@ -12,7 +12,7 @@ import { dayStamp, levelFrom } from './kitchen.js';
 import { searchFoods } from './foodlog.js';
 
 export const STORAGE_KEY = 'forq-state-v2';
-export const STATE_VERSION = 3;
+export const STATE_VERSION = 4;
 
 /* ---------- Pure helpers (exported for tests) ---------- */
 export const XP_PER_LEVEL = 160;
@@ -85,6 +85,11 @@ export const EMPTY_STATE = {
   body: { sex: 'unspecified', age: null, heightCm: null, weightKg: null, activity: 'light' },
   maintenanceKcal: 0, // typed in when body stats aren't given
   targetMode: 'auto', // 'auto' follows the goal; 'custom' is yours to set
+  // The questions asked before a restrictive goal, and the answers given:
+  // { control, preoccupied, 'unplanned-loss', 'advised-against', pregnancy } → yes | no
+  goalScreening: null,
+  // A deficit is proposed until it is agreed to: { signature, confirmedAt }
+  targetConfirmation: null,
   weeklyKcal: 0, // 0 = seven times the daily target
   /* budget & shopping */
   weeklyBudget: 0,
@@ -95,12 +100,15 @@ export const EMPTY_STATE = {
   members: [], // {id,name,portions,diets,role,permissions,notifications}
   chores: [],
   householdEvents: [],
-  shoppingList: [], // {id,name,emoji,aisle,qty,price,checked,note,priority,assigneeId}
+  shoppingList: [], // {id,name,emoji,aisle,store,qty,price,checked,note,priority,assigneeId}
+  favouriteShopping: [], // saved products {name,emoji,aisle,qty,price,note}
   shops: [], // recorded trips {id,date,store,total,items[]}
   aisleMemory: {}, // name → the aisle you filed it under
   storeRoutes: {}, // store → the aisle order you actually walked
   offers: [], // vouchers and deals you told it about
+  coupons: [], // coupon/rewards vault — manual + photo-OCR draft (no feed, never invented)
   priceAlerts: [], // item price targets checked against recorded shops
+  priceAlertConfig: { risePct: 15, bargainPct: 15, overrides: {} }, // receipt-only rise/bargain thresholds, 15% default, per-item tunable
   waste: [], // what you threw away, and what it cost
   /* kitchen */
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
@@ -121,6 +129,9 @@ export const EMPTY_STATE = {
   cycles: [], // {id, start, end, flow, symptoms[]}
   trackCycle: false, // asked at setup, and yours to change whenever
   healthVaultEnabled: false,
+  // Under-18 setup asks separately about what leaves the device; this is that
+  // answer, and null until it has actually been given.
+  youthConsent: null, // {acceptedAt, productInsights, healthSharing}
   photos: [], // {id, date, thumb, note} — small, capped, local-first and syncable
   /* exercise */
   workouts: [], // {id, date, type, minutes, intensity, kcal, ...}
@@ -139,6 +150,10 @@ export const EMPTY_STATE = {
   timeBudget: 'normal',
   units: {}, // only what you changed; the rest follow DEFAULT_UNITS
   widgets: null, // null = the default Home layout
+  // What you're here for: plan-shop · reduce-waste · consistency · nutrition ·
+  // household. Empty shows every module. Hiding one hides its screens only —
+  // nothing below this line is ever filtered by it.
+  modes: [],
   /* reminders — none until you make one */
   reminders: [], // {id, kind, label, times[], days[], on, snoozeUntil}
   placeReminders: [], // foreground-only geofences: {id,label,latitude,longitude,radius,on}

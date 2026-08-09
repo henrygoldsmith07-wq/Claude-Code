@@ -1,6 +1,6 @@
-import { ObjectId } from 'mongodb';
+import { randomBytes } from 'node:crypto';
 import { ApiError, objectId } from './api.js';
-import { getDatabase } from './mongodb.js';
+import { getDatabase } from './database.js';
 
 export async function ensurePersonalHousehold(user) {
   const db = await getDatabase();
@@ -18,6 +18,7 @@ export async function ensurePersonalHousehold(user) {
     },
     { upsert: true, returnDocument: 'after', includeResultMetadata: false },
   );
+  if (household.deletingAt) return household;
   await db.collection('memberships').updateOne(
     { householdId: household._id, userId: user.id },
     {
@@ -33,7 +34,7 @@ export async function ensurePersonalHousehold(user) {
   return household;
 }
 
-export async function requireHousehold(user, requestedId) {
+export async function requireHousehold(user, requestedId, { allowDeleting = false } = {}) {
   const db = await getDatabase();
   const household = requestedId
     ? await db.collection('households').findOne({ _id: objectId(requestedId, 'household') })
@@ -43,7 +44,15 @@ export async function requireHousehold(user, requestedId) {
     householdId: household._id,
     userId: user.id,
   });
-  if (!membership) throw new ApiError(403, 'You do not have access to this household.');
+  if (!membership) {
+    if (!(allowDeleting && household.deletingAt && String(household.ownerId) === String(user.id))) {
+      throw new ApiError(403, 'You do not have access to this household.');
+    }
+    return { household, membership: { role: 'owner', permissions: ['admin'] } };
+  }
+  if (household.deletingAt && !allowDeleting) {
+    throw new ApiError(410, 'Household deletion in progress.');
+  }
   return { household, membership };
 }
 
@@ -67,6 +76,9 @@ const HOUSEHOLD_CHILD_COLLECTIONS = [
   'notificationOutbox',
   'auditEvents',
   'aiUsage',
+  'realtimeEvents',
+  'analyticsDaily',
+  'analyticsEventReceipts',
 ];
 
 export async function deleteHouseholdData(db, householdId) {
@@ -78,4 +90,4 @@ export async function deleteHouseholdData(db, householdId) {
   return deleted;
 }
 
-export const newHouseholdId = () => new ObjectId();
+export const newHouseholdId = () => randomBytes(12).toString('hex');

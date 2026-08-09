@@ -18,6 +18,8 @@ export const PRIVACY_DISCLOSURE = [
       'Profile and household details; shopping, pantry, recipes and meal plans; spending and receipts.',
       'Food diary, nutrition targets and allergies. When you enable the health vault, body measurements, sleep, cycle, exercise, lab and glucose entries plus progress-photo thumbnails move into an encrypted local record.',
       'Browser storage is not encrypted. Anyone who can use this browser profile may be able to read it.',
+      'Optional product insights are kept as a short local queue until you enable them and sign in. They contain only coarse journey counts.',
+      'When the age you gave is under 18, Forq stores your answer to its separate consent question, keeps product insights off, and does not offer to include health records in a coach link.',
     ],
   },
   {
@@ -25,9 +27,11 @@ export const PRIVACY_DISCLOSURE = [
     title: 'Stored on Forq’s servers after sign-in',
     summary: 'Signing in opts the selected household into sync through Forq’s backend.',
     items: [
-      'MongoDB stores your sign-in identity, household membership and a complete synced copy of the household data listed above, including health data.',
+      'Upstash Redis stores your sign-in identity, household membership and a complete synced copy of the household data listed above, including health data.',
       'Sync metadata includes an opaque device ID, time zone, version and timestamps. Invitations, coach-share scopes, field-level audit events, queued reminders and temporary security rate-limit counters are also stored.',
-      'Receipt files you explicitly upload are stored privately in Vercel Blob; MongoDB stores their file metadata.',
+      'Short-lived live-update events are stored in Redis when the optional Ably provider is not configured, then expire automatically.',
+      'Receipt files you explicitly upload are stored privately in Vercel Blob; Upstash Redis stores their file metadata.',
+      'If you opt in to product insights, Forq stores daily counts for selected journey events in a separate household analytics record. It does not store food names, health values, recipe text or prices there.',
     ],
   },
   {
@@ -37,8 +41,10 @@ export const PRIVACY_DISCLOSURE = [
     items: [
       'OpenAI receives your prompt and the relevant context only when you run a server-backed AI action.',
       'Google, Apple or Microsoft receive sign-in requests. Google or Microsoft receive meal-event details when you add them to a calendar, and return event times when you ask Forq to find busy evenings.',
-      'Ably receives opaque household, user, device and sync-version identifiers for live update signals. A configured retailer data provider receives the retailer and product search terms you request.',
+      'Ably receives opaque household, user, device and sync-version identifiers for live update signals when configured. Otherwise, the same short-lived signal is held in your Upstash Redis household store.',
+      'When you choose barcode enrichment, Forq sends that barcode to Open Food Facts for product and nutrition data and to Open Prices for GBP observations. Forq labels those results as external observations and does not save them unless you add the returned product to your household.',
       'Anyone holding an active coach link can read only the sections selected when that link was created. Health is a separate opt-in scope; the link is read-only, expiring and revocable.',
+      'Optional product insights are sent only to Forqâ€™s own backend after sign-in. They are not sent to OpenAI, calendar providers or live-update services.',
     ],
   },
 ];

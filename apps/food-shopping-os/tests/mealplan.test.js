@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyEntries, batchGroups, clearDates, copyMealTo, coveredByLeftovers, daysInMonth,
   leftoverEntry, leftoverPortions, mealPlanIcs, monthDates, monthGrid, monthLabel, moveMeal,
-  planDishes, planEntries, planStats, shiftMonth, shiftWeek, shoppingForPlan,
+  planDishes, planEntries, planStats, shiftMonth, shiftWeek, shoppingForPlan, weekOffset,
 } from '../src/lib/mealplan.js';
 import { inMonth, monthOf, peakNow, seasonalHits, seasonScore } from '../src/data/seasons.js';
 import { weekDates } from '../src/lib/kitchen.js';
@@ -44,6 +44,11 @@ describe('the calendar', () => {
     expect(shiftMonth('2026-07-08', 1)).toBe('2026-08-01');
     expect(shiftMonth('2026-01-08', -1)).toBe('2025-12-01');
     expect(shiftMonth(shiftMonth('2026-07-08', 3), -3)).toBe('2026-07-01');
+  });
+
+  it('finds the week containing a focused date', () => {
+    expect(weekOffset('2026-08-02', '2026-08-03')).toBe(1);
+    expect(weekOffset('2026-08-03', '2026-08-02')).toBe(-1);
   });
 });
 

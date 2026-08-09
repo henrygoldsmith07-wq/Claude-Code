@@ -49,6 +49,28 @@ export const expiringSoon = (pantry = [], within = 3, today = dayStamp()) =>
 
 export const runningLow = (pantry = []) => pantry.filter((p) => p.low);
 
+/** How sure we are that this row is still in the kitchen. Defaults to definite for old rows. */
+export const PANTRY_CONFIDENCE = ["definite", "probable", "unknown"];
+export const AMOUNT_CONFIDENCE = ["exact", "approximate", "unknown"];
+export const pantryConfidence = (item) => {
+  const v = String(item?.confidence || "definite").toLowerCase();
+  return PANTRY_CONFIDENCE.includes(v) ? v : "definite";
+};
+export const amountConfidence = (item) => {
+  const v = String(item?.amountConfidence || (item?.qty ? "approximate" : "unknown")).toLowerCase();
+  return AMOUNT_CONFIDENCE.includes(v) ? v : "approximate";
+};
+export const pantryUncertaintyLabel = (item) => {
+  const c = pantryConfidence(item);
+  const a = amountConfidence(item);
+  if (c === "unknown") return "unknown — not counted in coverage";
+  if (c === "probable") return "probably have" + (a === "unknown" ? " · amount unknown" : a === "approximate" ? " · amount approx." : "");
+  if (item?.low) return "running low" + (a === "unknown" ? " · amount unknown" : "");
+  return "definitely have" + (a === "exact" ? " · amount known" : a === "unknown" ? " · amount unknown" : " · amount approx.");
+};
+// Exclude unknown-confidence rows from pantry-aware coverage so recommendations don't assume a perfect pantry
+
+
 export const leftovers = (pantry = []) => pantry.filter((p) => p.cat === 'Leftovers');
 
 const money = (value) => Math.round(value * 100) / 100;
@@ -81,10 +103,68 @@ export const pantryAnalytics = (pantry = [], today = dayStamp()) => ({
 const inventoryName = (value) => String(value || '')
   .trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ');
 
+const COUNTABLE_UNITS = new Set([
+  'tin', 'tins', 'can', 'cans', 'pack', 'packs', 'bag', 'bags', 'box', 'boxes',
+  'bottle', 'bottles', 'jar', 'jars', 'carton', 'cartons', 'loaf', 'loaves',
+  'piece', 'pieces', 'egg', 'eggs', 'unit', 'units', 'portion', 'portions',
+  'bunch', 'bunches', 'head', 'heads', 'bar', 'bars', 'tub', 'tubs', 'tray', 'trays',
+  'roll', 'rolls', 'slice', 'slices',
+]);
+
+const SINGULAR_UNIT = {
+  tins: 'tin', cans: 'can', packs: 'pack', bags: 'bag', boxes: 'box', bottles: 'bottle',
+  jars: 'jar', cartons: 'carton', loaves: 'loaf', pieces: 'piece', eggs: 'egg', units: 'unit',
+  portions: 'portion', bunches: 'bunch', heads: 'head', bars: 'bar', tubs: 'tub', trays: 'tray',
+  rolls: 'roll', slices: 'slice',
+};
+
+const parsePantryQuantity = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return { amount: 1, unit: '' };
+  const match = text.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?$/i);
+  if (!match || (match[2] && !COUNTABLE_UNITS.has(match[2].toLowerCase()))) return null;
+  const amount = Number(match[1]);
+  return Number.isFinite(amount) && amount > 0
+    ? { amount, unit: match[2]?.toLowerCase() || '' }
+    : null;
+};
+
+const pantryQuantityText = (amount, unit) => {
+  const number = Number.isInteger(amount) ? String(amount) : String(Number(amount.toFixed(2)));
+  if (!unit) return number;
+  return `${number} ${amount === 1 ? (SINGULAR_UNIT[unit] || unit) : unit}`;
+};
+
+/** Consume one safe, countable pantry unit; free-text amounts are used up whole. */
+export const decrementPantryItem = (item) => {
+  const source = item?.cat === 'Leftovers' && Number(item.portions) > 0
+    ? item.portions
+    : item?.qty;
+  const parsed = parsePantryQuantity(source);
+  if (!parsed || parsed.amount <= 1) return { remove: true };
+  const remaining = parsed.amount - 1;
+  const cost = Number(item.cost);
+  return {
+    remove: false,
+    item: {
+      ...item,
+      ...(item.cat === 'Leftovers' && Number(item.portions) > 0 ? { portions: remaining } : {}),
+      qty: pantryQuantityText(remaining, parsed.unit || (item.cat === 'Leftovers' ? 'portion' : '')),
+      ...(Number.isFinite(cost) ? { cost: money(cost * (remaining / parsed.amount)) } : {}),
+    },
+  };
+};
+
+export const pantryUseLabel = (item) => {
+  const source = item?.cat === 'Leftovers' && Number(item.portions) > 0 ? item.portions : item?.qty;
+  const parsed = parsePantryQuantity(source);
+  if (!parsed || parsed.amount <= 1) return 'Use up';
+  return item?.cat === 'Leftovers' ? 'Use one portion' : 'Use one';
+};
+
 /**
- * Remove stocked rows used by a completed recipe. A row is an inventory unit,
- * so matching consumes that row; quantities are deliberately not guessed from
- * free-text amounts such as "half a bag".
+ * Consume one stocked row per matching recipe ingredient. Countable quantities
+ * decrement safely; free-text amounts are removed rather than guessed.
  */
 export const consumePantryIngredients = (pantry = [], ingredients = []) => {
   const remaining = [...pantry];
@@ -97,7 +177,13 @@ export const consumePantryIngredients = (pantry = [], ingredients = []) => {
       return stocked === wanted
         || (Math.min(stocked.length, wanted.length) >= 4 && (stocked.includes(wanted) || wanted.includes(stocked)));
     });
-    if (index >= 0) used.push(...remaining.splice(index, 1));
+    if (index >= 0) {
+      const item = remaining[index];
+      const next = decrementPantryItem(item);
+      used.push(item);
+      if (next.remove) remaining.splice(index, 1);
+      else remaining[index] = next.item;
+    }
   });
   return { pantry: remaining, used };
 };
@@ -109,6 +195,8 @@ const decodeUtf8 = (value) => decodeURIComponent(escape(atob(value)));
 export const pantryShareCode = (pantry = []) =>
   `FORQ-PANTRY-1.${encodeUtf8(JSON.stringify(pantry.map((item) => ({
     name: String(item.name || '').trim(),
+    confidence: pantryConfidence(item),
+    amountConfidence: amountConfidence(item),
     emoji: item.emoji || '',
     qty: String(item.qty || ''),
     cost: Number(item.cost) || 0,
@@ -129,6 +217,7 @@ export const pantryFromShareCode = (code) => {
       ...item,
       name: item.name.trim().slice(0, 120),
       qty: String(item.qty || '').slice(0, 60),
+      confidence: String(item.confidence || 'definite').slice(0,20),
       cost: Math.max(0, Number(item.cost) || 0),
       expiry: /^\d{4}-\d{2}-\d{2}$/.test(item.expiry || '') ? item.expiry : null,
       low: Boolean(item.low),

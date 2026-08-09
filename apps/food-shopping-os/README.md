@@ -1,38 +1,11 @@
-# Forq
+# Forq — Food Shopping OS
 
-> **Plan meals, buy exactly what you need and waste less food.**
-
-That is the product. Nutrition, health, exercise and analytics **support** that
-promise — they are not competing primary products.
-
-## Primary loop
-
-1. **Plan meals** — decide what you will cook this week.  
-2. **Buy exactly what you need** — one shopping list from the plan, reduced by
-   pantry and leftovers.  
-3. **Waste less food** — use what is expiring, cook what you planned, record
-   waste honestly.
-
-Everything else is optional support:
-
-| Support | Role |
-|--------|------|
-| Recipes & cook mode | Make the plan cookable |
-| Pantry | Stop rebuying stock |
-| Budget / receipts | Keep “buy less” affordable |
-| Food diary / nutrition | Fit the plan to energy and macro targets |
-| Health / activity | Adjust targets — not a clinic or gym app |
-| Insights & footprint | Evidence on whether the loop is working |
-
-Full positioning: [`docs/PRODUCT.md`](./docs/PRODUCT.md) · source of truth in
-code: `src/data/product.js`.
-
----
-
-Mobile-first web app (Next.js + React + Tailwind), styled in the calm monochrome
-Le Studio design language (`apps/le-studio-site`): ink-on-neutral surfaces,
-border-first cards, black-on-white CTAs, monochrome stroke icons (lucide-react)
-— no emoji in the UI.
+One app for planning, shopping, cooking, nutrition, budgeting and reducing
+waste. Mobile-first PWA-style web app built with Next.js 15 + React 18 + Tailwind
+CSS 4, styled in the calm monochrome Le Studio design language (see
+`apps/le-studio-site`): ink-on-neutral surfaces, border-first cards,
+black-on-white CTAs, and monochrome stroke iconography (lucide-react)
+throughout — no emoji in the UI.
 
 **The app starts empty.** There is no demo user, no pretend pantry, no invented
 spending history and no pre-earned achievements. A first run asks for your
@@ -41,7 +14,7 @@ from what you actually log, buy, cook and plan. Backups can be exported and
 restored, including from first-run setup. Invalid saved data opens a recovery
 screen instead of being silently replaced. Forq is local-first by default:
 data starts in localStorage and no account is required. Signing in is an opt-in
-to MongoDB household sync. When a user chooses a server-backed AI action, Forq
+to Upstash Redis household sync. When a user chooses a server-backed AI action, Forq
 relays that prompt and its relevant context to OpenAI.
 
 The only data that ships with the app is reference material, not user data: a
@@ -52,14 +25,14 @@ tables and UK reference intakes.
 
 Forq runs on Next.js and keeps its local-first store. The backend is optional:
 without environment variables it stays local-only; with them it offers opt-in
-Auth.js accounts, MongoDB household sync, Ably change signals, private receipt
-uploads, calendar reads and writes, licensed retailer data and an AI relay to OpenAI.
+Auth.js accounts, Upstash Redis household sync, Ably or Redis live updates, private receipt
+uploads, calendar reads and writes, open product observations and an AI relay to OpenAI.
 
 1. Copy `.env.example` to `.env.local`.
-2. Create a MongoDB Atlas database and set `MONGODB_URI`.
+2. Create an Upstash Redis database and set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
 3. Generate `AUTH_SECRET` with at least 32 random bytes.
 4. Add Google, Apple and/or Microsoft OAuth credentials.
-5. Run `npm run db:migrate` to create the required unique, lookup and TTL indexes.
+5. Run `npm run db:migrate` to record the current data-store migration.
 6. Run `npm run dev`.
 
 `npm run db:check` verifies the connection and applied migrations. Production
@@ -69,36 +42,42 @@ the new application version receives traffic.
 The first sign-in copies existing on-device data to the user's personal
 household. Later writes use optimistic versions: a concurrent change returns a
 conflict and does not overwrite either copy. Open browser tabs update
-immediately, and private Ably channels push new household versions to subscribed
-clients with a one-minute poll as fallback. MongoDB remains the
-source of truth. Receipt images require
+immediately, and private Ably channels (or a Redis-backed stream when Ably is not
+configured) push new household versions to subscribed clients. Upstash Redis
+remains the source of truth. Receipt images require
 Vercel Blob. AI calls require an OpenAI key and run only on the server.
+Optional product insights are off until enabled under Privacy & data. They
+record only coarse daily counts for the plan, shop and cook journey, and are
+uploaded only for a signed-in household; they never include food names, health
+values, recipe text or prices.
 `AI_MONTHLY_TOKEN_LIMIT` sets the hard monthly allowance per household; it
-defaults to 250,000 reserved-and-used tokens.
+defaults to 250,000 reserved-and-used tokens. Signed-in users can see the
+current month’s used, reserved and remaining allowance under Account & sync;
+prompts and responses are not included in that usage record.
 
-Retailer results require a licensed provider implementing
-`GET /v1/products/search?retailer=&query=` at `RETAILER_API_BASE_URL`. Forq does
-not scrape or fabricate prices, offers or availability. Scheduled reminders use
-the authenticated `/api/jobs/reminders` endpoint and Vercel Cron. Trigger.dev
-can invoke the same endpoint once its current vulnerable SDK dependency chain
-is patched.
+Forq does not provide live supermarket prices, offers or availability. The
+retailer hub keeps your recorded receipt prices and saved offers, then links to
+the official retailer site so you can check today's basket, stock and delivery
+or collection options yourself.
+
+Barcode lookups can optionally use the public Open Food Facts API through the
+authenticated `/api/integrations/products` route. It returns product identity,
+ingredients, allergens, nutrition, labels and scores when the barcode is in
+that catalogue. `/api/integrations/prices` can query Open Prices for GBP
+observations by barcode or exact product name — the same route powers the
+Shop list's "Check community prices" action and the Prices dashboard. Open Prices is a community
+dataset: its observations can be old, incomplete or from a different shop, so
+Forq labels them as observed with the date and a staleness tag (fresh <7d · ageing 7–30d · old >30d) and never treats them as a live supermarket quote.
+Observed rows are fetched only after an explicit tap, cached 24h on device for a list of up to 12 items, and rate-limited at 120/h.
+Both lookups run only after an explicit user action and require a signed-in
+backend household.
+
+The UK supermarkets do not expose one common public third-party price API, and
+Forq does not configure or query undocumented consumer endpoints. Scheduled reminders use the authenticated
+`/api/jobs/reminders` endpoint and Vercel Cron. Trigger.dev can invoke the same
+endpoint once its current vulnerable SDK dependency chain is patched.
 
 ## Features
-
-Organised under the **primary loop** first, then **supporting** tools.
-
-### Primary — plan, shop, waste less
-
-- **Meal planner** — weekly and monthly slots; generator favours pantry stock
-  and season; leftovers first; calendar busy times can leave evenings free
-- **Shopping list** — generated from the plan, minus pantry and covered leftovers;
-  aisle organisation, prices and store links
-- **Pantry** — what you have, what is low, what is about to expire
-- **Waste tracking** — binning records cost at what you paid; repeat-waste insight
-- **Home dashboard** — today's planned meals, list snapshot, expiring food,
-  budget ring when you use one
-
-### Supporting — nutrition, health, insights (optional)
 
 - **First-run setup** — name, household size, weekly budget, how you eat, and
   what you're aiming at. It also asks for weight, height, age and sex, because
@@ -109,7 +88,25 @@ Organised under the **primary loop** first, then **supporting** tools.
   one for you. The
   weight you give starts your body series rather than sitting apart from it.
   Cycle tracking is a yes/no at setup, off by default, offered to everyone
-  rather than inferred from an answer. Every one of them is editable afterwards
+  rather than inferred from an answer. Every one of them is editable afterwards.
+  Age is asked on the context step rather than inside the optional nutrition
+  block, because it decides which app the rest of setup builds
+- **Under-18 mode** — automatic from that age, not a switch anyone has to find,
+  and on for a household child profile too. It sets targets at maintenance and
+  will not apply a weight-loss or body-recomposition multiplier; drops the
+  weekly calorie budget, so a bigger day is never a debt to pay back; hides
+  fasting and alcohol targets; reads caffeine against age and weight (EFSA's
+  3 mg/kg for children and adolescents) rather than the adult 400 mg; never
+  converts exercise into calories to eat back; stops scoring exact calorie
+  adherence in streaks, XP and challenges; shows no BMI band, because the NHS
+  reads child weight against age- and sex-specific centiles; and makes no body
+  prediction or comparison between people. What it says instead is balanced
+  meals, regular eating and variety, with a plain pointer to a parent or carer,
+  a GP, a school nurse or a registered dietitian for anything about weight,
+  growth or eating. Setup asks its own consent question before it will start,
+  product insights stay off, health never joins a coach link, and a child
+  profile's permissions start closed. This follows NICE NG246 on
+  age-appropriate dietary approaches for children and young people
 - **Goals & targets** — a body goal (weight loss · weight gain · maintenance ·
   muscle gain · body recomposition) sets the energy delta and protein
   priority; dietary patterns (keto · low-carb · high-protein · Mediterranean ·
@@ -119,9 +116,10 @@ Organised under the **primary loop** first, then **supporting** tools.
   hand the numbers over entirely, **daily calorie targets** drive the diary,
   and a **weekly target** reads the week as one budget — what you've eaten,
   what's left, and what that leaves per day
-- **Home extras** — optional cooking streak and XP, water, and suggestions
-  derived from your own kitchen (never generic marketing copy). Empty states
-  explain what each surface will do once you feed it
+- **Home dashboard** — today's planned meals, budget and calorie rings, water,
+  cooking streak and XP, pantry snapshot with what's about to go off, and
+  suggestions derived from your own kitchen (never generic marketing copy).
+  Empty states explain what each surface will do once you feed it
 - **Global interaction layer** — Ctrl/Cmd+K searches commands, foods, recipes,
   pantry and the shopping list together, with type filters and relevance or
   A–Z sorting. Q opens Quick add, Ctrl/Cmd+Z undoes the latest saved action,
@@ -181,7 +179,9 @@ Organised under the **primary loop** first, then **supporting** tools.
 - **Coach or trainer view** — household admins can issue a read-only 30-day
   link scoped to diary, nutrition, plan and separately opted-in health data.
   Links are revocable, access-counted and never grant household membership or
-  edit access
+  edit access. The shared page adds an aggregate 14-day pulse — averages,
+  target-hit rates, a daily calorie pattern and a suggested focus — without
+  displaying food names or raw diary entries
 - **Household audit trail** — synced mutations record the actor, version and
   changed top-level fields without copying sensitive values into the log
 - **Recipe scheduling** — any recipe page can put itself in the plan on a chosen
@@ -195,7 +195,7 @@ Organised under the **primary loop** first, then **supporting** tools.
   recorded, from the prices you typed in, always saying how many items each
   shop can actually price. Plus what you're about to overpay for, and a price
   history per item with where it was cheapest. Pack sizes in g, kg, ml or l
-  also show a normalised price per 100 g or 100 ml on the shopping row
+  also show a normalised price per 100 g or 100 ml on the shopping row. **Real prices** now also show as dated *Community observed* badges: your receipts stay primary, and a "Check community prices" action can fetch GBP Open Prices observations for the current list (explicit tap only, 120/h, 24h cache) or for a scanned barcode — each row is labelled with store, date and staleness and explicitly "not live"
 - **Budget tracking** — the basket against your week: what it comes to, what
   your offers take off, and what that leaves of the budget after what you've
   already spent — with unpriced items counted as unknown, never as free
@@ -207,9 +207,9 @@ Organised under the **primary loop** first, then **supporting** tools.
   duplicate ingredient merged into a single line that remembers every meal that
   wanted it, minus your pantry and minus what leftovers already cover
 - **UK retailer hub** — Tesco, Sainsbury's, Asda, Aldi, Lidl, Morrisons,
-  Waitrose, Ocado and Amazon Fresh. See recorded prices and saved offers, check
-  each item’s current price and availability on the official retailer page,
-  and open delivery or collection links. Aldi and Lidl are labelled as
+  Waitrose, Ocado and Amazon Fresh. See recorded prices and saved offers, then
+  open the official retailer page yourself for today's price, stock and
+  delivery or collection links. Aldi and Lidl are labelled as
   browse/in-store rather than being given a delivery button they do not support
 - **Store hand-off** — the list also exports as plain text in your aisle order,
   to paste into whichever app you use
@@ -340,9 +340,11 @@ Organised under the **primary loop** first, then **supporting** tools.
   target you set, the weekday most of your weigh-ins already land on, the days
   your workouts cluster on — and nothing is offered that your data can't
   support.
-  Sale alerts are checked against prices in shops you recorded; there is no
-  live retailer price feed. Restocks come from your repeat-buy history, expiry
-  alerts from dates you saved, and every preset can be edited or switched off.
+  Sale alerts are checked against prices in shops you recorded. Open Prices
+  observations remain explicitly community data, not live supermarket quotes.
+  Restocks come from your repeat-buy history,
+  expiry alerts from dates you saved, and every preset can be edited or switched
+  off.
   On **notifications**, the app is blunt about the platform: while Forq is open
   a due reminder becomes a real notification; while it's closed **it cannot**,
   because that needs a push server and there isn't one. So there's no
@@ -465,7 +467,7 @@ Organised under the **primary loop** first, then **supporting** tools.
 ```bash
 npm install
 npm run dev      # local dev server
-npm run build    # production build to dist/ (installable PWA with service worker)
+npm run build    # production build to .next/ (installable PWA with service worker)
 npm test         # vitest suite
 ```
 
@@ -483,6 +485,7 @@ src/
   lib/state.js         # what an install is: empty state + pure state helpers
   lib/store.jsx        # the provider: actions, the clock, persistence
   lib/derive.js        # every number the screens read, computed from state
+  lib/youth.js         # under-18 mode: one rule, and everything it decides
   lib/health-actions.js # the store's body/training actions, bounded on the way in
   lib/reminder-actions.js # the store's reminder actions, validated on the way in
   lib/reminders.js     # when one is due, what came due while you were away,
@@ -560,3 +563,18 @@ Charts use a monochrome ink ramp (every series is directly labeled, so identity
 never depends on colour); status colours (good/warn/danger) are muted and always
 paired with a label. All tokens live as CSS custom properties in `index.css`,
 with the accent defaulting to mono (ink) plus four restrained alternatives.
+
+## External product data
+
+Forq keeps the source visible for every external result:
+
+- **Open Food Facts** — barcode identity, ingredients, allergens, nutrition,
+  labels and product imagery. It is open catalogue data, not a supermarket
+  stock or price feed.
+- **Open Prices** — GBP price observations contributed by shoppers. A row can
+  be old, incomplete or from another location, so it is useful for context and
+  history rather than checkout decisions.
+
+Forq does not provide live supermarket prices or query undocumented retailer
+website endpoints. The official retailer links remain the authority for the
+current basket, stock, offers, delivery fees and slots.

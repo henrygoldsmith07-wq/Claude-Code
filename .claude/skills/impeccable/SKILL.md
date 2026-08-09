@@ -1,7 +1,7 @@
 ---
 name: impeccable
-description: Final quality pass that makes a change impeccable before it ships — verify it works, remove loose ends, and confirm it matches what was asked. Use when the user says "make it impeccable", "polish this", "final pass", "ship-ready", or right before committing/opening a PR on nontrivial work.
 license: MIT
+description: 'Final quality pass before shipping: verify it works, remove loose ends, confirm it matches the ask. Use for "make it impeccable", "polish this", "final pass", "ship-ready".'
 ---
 
 # Impeccable

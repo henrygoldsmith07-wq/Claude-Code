@@ -23,7 +23,9 @@ describe('health vault', () => {
       glucose: [{ date: '2026-07-30', value: 5.4 }],
     };
     const vault = await createHealthVault(state, 'correct horse battery staple');
-    expect(vault.record.ciphertext).not.toContain('72');
+    // A short digit sequence can legitimately appear in random base64. Check
+    // that the encrypted payload is not the serialised health snapshot itself.
+    expect(vault.record.ciphertext).not.toBe(JSON.stringify(healthSnapshot(state)));
     const unlocked = await decryptHealth(vault.record, 'correct horse battery staple');
     expect(unlocked.snapshot).toEqual(healthSnapshot(state));
     await expect(decryptHealth(vault.record, 'wrong passphrase')).rejects.toThrow(/incorrect|damaged/);

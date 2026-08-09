@@ -1,7 +1,7 @@
 ---
 name: add-new-resource
-description: Ingest a raw file into the knowledge base — copy it into /raw, evaluate its contents, and index it in /wiki. Use when the user hands over a document, transcript, export, or text dump and wants it added to the workspace knowledge base.
 argument-hint: [path to file or pasted content]
+description: 'Ingest a file into the knowledge base: copy into /raw, evaluate, index in /wiki. Use when handed a document, transcript, export, or text dump to add to the workspace.'
 ---
 
 # Add New Resource

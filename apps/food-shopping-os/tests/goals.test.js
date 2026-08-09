@@ -4,6 +4,7 @@ import {
   goalSummary, macroBreakdown, macroMismatch, maintenanceFrom, recipeAllowed, recipeConflicts,
   resolveMaintenance, targetsFor, weekProgress,
 } from '../src/lib/goals.js';
+import { agreedDeficit } from './helpers/target-safety.js';
 import { BODY_GOALS, DIET_PATTERNS, KCAL_PER_G } from '../src/data/goals.js';
 import { hardFilter } from '../src/lib/planner.js';
 import { RECIPES } from '../src/data/recipes.js';
@@ -114,7 +115,14 @@ describe('dietary patterns reshape the split', () => {
   });
 
   it('builds the full target set, micros included', () => {
-    const targets = targetsFor({ goal: 'lose', diets: ['mediterranean'], maintenanceKcal: 2400, body: { weightKg: 70 } });
+    // A deficit is only in force once the screen is clear and the target has
+    // been confirmed; see target-safety.test.js for what happens before that.
+    const targets = targetsFor(agreedDeficit({
+      goal: 'lose',
+      diets: ['mediterranean'],
+      maintenanceKcal: 2400,
+      body: { sex: 'male', age: 34, weightKg: 70 },
+    }));
     expect(targets.kcal).toBe(1920);
     expect(targets.fibre).toBe(35);
     expect(targets.iron).toBeGreaterThan(0); // reference intakes still there

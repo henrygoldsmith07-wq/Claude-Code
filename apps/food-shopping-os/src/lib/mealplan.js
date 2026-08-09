@@ -49,6 +49,8 @@ export const monthGrid = (stamp = dayStamp()) => {
 
 export const shiftWeek = (stamp = dayStamp(), n = 0) => addDays(weekStart(stamp), n * 7);
 
+export const weekOffset = (from = dayStamp(), to = dayStamp()) => Math.round((new Date(`${weekStart(to)}T12:00:00`) - new Date(`${weekStart(from)}T12:00:00`)) / 604800000);
+
 export const shiftMonth = (stamp = dayStamp(), n = 0) => {
   const d = new Date(`${monthStart(stamp)}T12:00:00`);
   return dayStamp(new Date(d.getFullYear(), d.getMonth() + n, 1, 12));

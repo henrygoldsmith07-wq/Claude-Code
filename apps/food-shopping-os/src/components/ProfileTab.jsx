@@ -7,6 +7,7 @@ import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { formatAmount } from '../data/nutrients.js';
 import { nutrientRows, snackSummary, timingInsight } from '../lib/nutrition.js';
+import { YOUTH_COPY } from '../lib/youth.js';
 import { badgeProgress, cuisineSplit, spendByMonth, weekDates } from '../lib/kitchen.js';
 import { gbp } from '../lib/utils.js';
 import NutritionPanel from './NutritionPanel.jsx';
@@ -19,6 +20,7 @@ import RemindersPanel from './RemindersPanel.jsx';
 import PreferencesPanel from './PreferencesPanel.jsx';
 import BackendPanel from './BackendPanel.jsx';
 import PrivacyPanel from './PrivacyPanel.jsx';
+import YouthNotice from './YouthNotice.jsx';
 import { Section, Card, Ring, Pill, Meter, Bars, Sheet, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 import { ACCENT_UNLOCKS } from '../data/quests.js';
@@ -111,6 +113,7 @@ export default function ProfileTab({ openGuidance }) {
           ))}
         </div>
       </div>
+      <YouthNotice />
 <Section title="Goals & targets" className="rise rise-1">
         <Card onClick={() => setGoalsOpen(true)}>
           <div className="flex items-center justify-between gap-3">
@@ -123,18 +126,28 @@ export default function ProfileTab({ openGuidance }) {
             </div>
             <Target size={18} className="shrink-0" style={{ color: 'var(--muted)' }} />
           </div>
+          {/* A week measured against a weekly allowance is the compensation
+              loop; under 18 the card says what the app does instead. */}
           <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
-            <div className="flex justify-between text-[0.75rem] font-bold mb-1">
-              <span>This week</span>
-              <span style={{ color: 'var(--muted)' }}>
-                {app.week.eaten.toLocaleString()} / {app.weeklyKcalTarget.toLocaleString()} kcal
-              </span>
-            </div>
-            <Meter value={app.week.eaten} max={app.weeklyKcalTarget} color={app.week.onTrack ? 'var(--accent)' : 'var(--warn)'} height={5} />
+            {app.youth.weeklyCompensation ? (
+              <>
+                <div className="flex justify-between text-[0.75rem] font-bold mb-1">
+                  <span>This week</span>
+                  <span style={{ color: 'var(--muted)' }}>
+                    {app.week.eaten.toLocaleString()} / {app.weeklyKcalTarget.toLocaleString()} kcal
+                  </span>
+                </div>
+                <Meter value={app.week.eaten} max={app.weeklyKcalTarget} color={app.week.onTrack ? 'var(--accent)' : 'var(--warn)'} height={5} />
+              </>
+            ) : (
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {YOUTH_COPY.weekly}
+              </p>
+            )}
           </div>
         </Card>
       </Section>
-<Section title="Household" className="rise rise-1">
+<Section title="Household" className="rise rise-1" hidden={!app.moduleOn('household')}>
         <Card onClick={() => setFamilyOpen(true)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -175,7 +188,7 @@ export default function ProfileTab({ openGuidance }) {
           </Card>
         </div>
       </Section>
-<Section title="Health & training" className="rise rise-1">
+<Section title="Health & training" className="rise rise-1" hidden={!app.moduleOn('health')}>
         <div className="grid grid-cols-2 gap-2.5">
           <Card onClick={() => setHealthOpen(true)}>
             <HeartPulse size={17} style={{ color: 'var(--muted)' }} />
@@ -211,7 +224,7 @@ export default function ProfileTab({ openGuidance }) {
           </div>
         </Card>
       </Section>
-<Section title="Nutrition today" className="rise rise-1">
+<Section title="Nutrition today" className="rise rise-1" hidden={!app.moduleOn('nutrition')}>
         <Card>
           <div className="flex items-center gap-5">
             <Ring value={app.kcalToday} max={app.kcalGoal} size={92} stroke={9} color="var(--series-2)"
@@ -274,7 +287,7 @@ export default function ProfileTab({ openGuidance }) {
           )}
         </Card>
       </Section>
-<Section title="Spending" className="rise rise-2">
+<Section title="Spending" className="rise rise-2" hidden={!app.moduleOn('waste')}>
         <Card className="space-y-3">
           <div className="flex items-end gap-3">
             <div className="flex-1">
@@ -300,7 +313,7 @@ export default function ProfileTab({ openGuidance }) {
         )}
       </Section>
 {cuisines.length > 0 && (
-        <Section title="What you cook" className="rise rise-3">
+        <Section title="What you cook" className="rise rise-3" hidden={!app.moduleOn('recipes')}>
           <Card>
             <div className="space-y-2.5">
               {cuisines.map((c, i) => (
@@ -316,7 +329,7 @@ export default function ProfileTab({ openGuidance }) {
           </Card>
         </Section>
       )}
-<Section title="Achievements" className="rise rise-3">
+<Section title="Achievements" className="rise rise-3" hidden={!app.moduleOn('progress')}>
         <Card onClick={() => setQuestsOpen(true)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

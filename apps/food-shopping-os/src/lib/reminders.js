@@ -7,7 +7,7 @@
  * clock at any moment, so it survives the app being closed, reopened, or left
  * open across midnight.
  *
- * A reminder is: {id, kind, label, times[], days[], on, snoozeUntil}. `days` is
+ * A reminder is: {id, kind, label, times[], days[], on, createdAt, snoozeUntil}. `days` is
  * Mon-first 0–6, matching the rest of the app.
  */
 
@@ -49,6 +49,12 @@ export const occursOn = (reminder, stamp) =>
 
 const stampOf = (now) => dayStamp(now);
 const minutesNow = (now) => now.getHours() * 60 + now.getMinutes();
+const createdAfterTime = (reminder, stamp, time) => {
+  const createdAt = Number(reminder?.createdAt);
+  if (!Number.isFinite(createdAt)) return false;
+  const created = new Date(createdAt);
+  return dayStamp(created) === stamp && minutesOf(time) <= minutesNow(created);
+};
 
 /** A stable key for one firing: this reminder, this day, this time. */
 export const slotKey = (reminder, stamp, time) => `${stamp}|${reminder.id}|${time}`;
@@ -85,6 +91,7 @@ export const dueNow = (reminders = [], { now = new Date(), done = {}, grace = GR
     for (const time of cleanTimes(reminder.times)) {
       const at = minutesOf(time);
       if (at > mins || mins - at > grace) continue;
+      if (createdAfterTime(reminder, stamp, time)) continue;
       if (done[slotKey(reminder, stamp, time)]) continue;
       out.push({ reminder, stamp, time, lateBy: mins - at });
     }
@@ -109,6 +116,7 @@ export const dueBetween = (reminders = [], from, to, done = {}) => {
       for (const time of cleanTimes(reminder.times)) {
         const at = new Date(`${stamp}T${time}:00`).getTime();
         if (at <= from || at > to) continue;
+        if (Number.isFinite(Number(reminder.createdAt)) && at <= Number(reminder.createdAt)) continue;
         if (done[slotKey(reminder, stamp, time)]) continue;
         out.push({ reminder, stamp, time, at });
       }

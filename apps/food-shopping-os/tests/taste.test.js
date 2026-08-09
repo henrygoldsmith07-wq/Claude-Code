@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { buildTasteDeck, buildTasteProfile, tasteScore } from '../src/lib/taste.js';
 import { buildPlan } from '../src/lib/planner.js';
-import { fallbackImage, imagePrompt, recipeImage, RECIPE_IMAGES } from '../src/data/recipe-images.js';
+import { recipeFallbackImage, recipeIconImage, recipeImage } from '../src/data/recipe-images.js';
 import { RECIPES } from '../src/data/recipes.js';
 
 const recipe = (id, cuisine, tags = []) => ({
@@ -56,34 +58,65 @@ describe('recipe taste matching', () => {
   });
 });
 
-describe('recipe imagery', () => {
-  it('gives every recipe its own picture rather than one of eight', () => {
-    const images = new Set(RECIPES.map((item) => recipeImage(item)));
-    expect(images.size).toBe(RECIPES.length);
+describe('recipe icons', () => {
+  it('renders a unique local SVG icon for every catalogue recipe', () => {
+    const icons = RECIPES.map(recipeIconImage);
+    expect(icons.every((src) => src.startsWith('data:image/svg+xml'))).toBe(true);
+    expect(new Set(icons).size).toBe(RECIPES.length);
   });
 
-  it('describes the actual dish in the prompt', () => {
-    const prompt = imagePrompt({
-      name: 'Teriyaki Salmon Bowls',
-      cuisine: 'Japanese',
-      meal: 'dinner',
-      ingredients: [{ name: 'Salmon fillet' }, { name: 'Rice' }, { name: 'Sesame oil' }],
-    });
+  it('uses minimal single-weight line artwork with hidden dish metadata', () => {
+    const source = decodeURIComponent(recipeIconImage({
+      id: 'lentil-soup',
+      name: 'Leeks & lentils soup',
+      meal: 'lunch',
+      ingredients: [{ name: 'Lentils' }, { name: 'Leeks' }],
+    }).split(',')[1]);
 
-    expect(prompt).toContain('Teriyaki Salmon Bowls');
-    expect(prompt).toContain('japanese dinner');
-    expect(prompt).toContain('made with salmon fillet, rice, sesame oil');
+    expect(source).toContain('data-family="SOUP"');
+    expect(source).toContain('stroke-width="16"');
+    expect((source.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length).toBeLessThanOrEqual(8);
+    expect(source).not.toContain('<linearGradient');
+    expect(source).toContain('<title>');
+    expect(source).toContain('lentils');
   });
 
-  it('resolves the same recipe to the same picture every time', () => {
-    const recipe = { id: 'r-1', name: 'Coconut Chickpea Curry' };
-    expect(recipeImage(recipe)).toBe(recipeImage({ ...recipe }));
+  it('matches the monochrome Le Studio light and dark surfaces', () => {
+    const item = { id: 'theme-soup', name: 'Leeks & lentils soup', meal: 'lunch' };
+    const light = decodeURIComponent(recipeIconImage(item, { theme: 'light' }).split(',')[1]);
+    const dark = decodeURIComponent(recipeIconImage(item, { theme: 'dark' }).split(',')[1]);
+
+    const isGrey = (hex) => hex.slice(1, 3) === hex.slice(3, 5) && hex.slice(3, 5) === hex.slice(5, 7);
+    expect(light).toContain('#F4F4F4');
+    expect(light).toContain('#131313');
+    expect(dark).toContain('#0B0B0B');
+    expect(dark).toContain('#F4F4F4');
+    expect((light.match(/#[0-9A-F]{6}/gi) || []).every(isGrey)).toBe(true);
+    expect((dark.match(/#[0-9A-F]{6}/gi) || []).every(isGrey)).toBe(true);
+    expect(light).not.toBe(dark);
   });
 
-  it('falls back to a bundled picture when there is nothing to generate from', () => {
-    const bundled = new Set(Object.values(RECIPE_IMAGES));
-    expect(bundled.has(recipeImage({ id: 'nameless' }))).toBe(true);
-    expect(bundled.has(fallbackImage({ id: 'mine', name: 'My own dish' }))).toBe(true);
-    expect(RECIPES.every((item) => bundled.has(fallbackImage(item)))).toBe(true);
+  it('keeps common dishes on distinct icon families', () => {
+    const family = (name, meal = 'dinner') => decodeURIComponent(
+      recipeIconImage({ name, meal }).split(',')[1],
+    );
+
+    expect(family('Leeks & lentils soup', 'lunch')).toContain('SOUP');
+    expect(family('Smoky Three-Bean Chilli')).toContain('CHILLI');
+    expect(family('Chicken breast Thai green curry')).toContain('CURRY');
+    expect(family('Eggs & spinach on wholemeal toast', 'breakfast')).toContain('EGGS ON TOAST');
+  });
+
+  it('does not reference a remote photo host or old photo cache', () => {
+    expect(RECIPES.every((item) => !/^https?:\/\//.test(recipeImage(item)))).toBe(true);
+    const serviceWorker = readFileSync(path.resolve(process.cwd(), 'public/sw.js'), 'utf8');
+    expect(serviceWorker).not.toContain('/recipe-images/');
+  });
+
+  it('uses the same icon for the compatibility aliases', () => {
+    const item = { id: 'r-1', name: 'Coconut Chickpea Curry', meal: 'dinner' };
+    expect(recipeImage(item)).toBe(recipeIconImage(item));
+    expect(recipeFallbackImage(item)).toBe(recipeIconImage(item));
+    expect(recipeImage(item)).toBe(recipeImage({ ...item }));
   });
 });

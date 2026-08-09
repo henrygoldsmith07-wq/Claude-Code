@@ -8,9 +8,11 @@ import { gbp, cx } from '../lib/utils.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { addDays } from '../lib/kitchen.js';
-import { applySwap, makeItFit, scaleRecipe } from '../lib/recipe-tools.js';
+import { applySwap, makeItFit, safeExternalUrl, scaleRecipe } from '../lib/recipe-tools.js';
+import { explainRecommendation } from '../lib/recommend.js';
 import { Card, Ring, Pill, FoodArt, Chip } from './ui.jsx';
 import { Glyph } from './icons.jsx';
+import RecommendationExplanation from './RecommendationExplanation.jsx';
 import CookMode from './CookMode.jsx';
 import {
   ConflictPills, NutritionBreakdown, ServingsControl, SharePanel, SwapPanel, VariantBanner,
@@ -27,10 +29,10 @@ const scheduleDays = (today) =>
     return { date, label };
   });
 
-export default function RecipeDetail({ recipe: original, onClose }) {
+export default function RecipeDetail({ recipe: original, onClose, goTab, startCooking = false }) {
   const app = useApp();
-  const [cooking, setCooking] = useState(false);
-  const [addedMissing, setAddedMissing] = useState(false);
+  const [cooking, setCooking] = useState(startCooking);
+  const [addedMissingKey, setAddedMissingKey] = useState('');
   const [scheduling, setScheduling] = useState(false);
   const [when, setWhen] = useState({ date: app.day, slot: original.meal || 'dinner' });
   const [scheduled, setScheduled] = useState(null);
@@ -42,6 +44,8 @@ export default function RecipeDetail({ recipe: original, onClose }) {
 
   const base = variant || original;
   const recipe = useMemo(() => scaleRecipe(base, servings), [base, servings]);
+  const videoUrl = safeExternalUrl(recipe.video);
+  const sourceUrl = safeExternalUrl(recipe.source);
   const fav = app.favourites.includes(recipe.id);
   const isMine = app.myRecipes.some((r) => r.id === original.id);
   const rating = app.recipeRatings[original.id] || 0;
@@ -51,6 +55,24 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   const has = (ing) => pantryNames.some((n) => n.includes(ing.name.toLowerCase()) || ing.name.toLowerCase().includes(n));
   const missing = recipe.ingredients.filter((i) => !has(i));
   const havePantry = recipe.ingredients.length - missing.length;
+  const missingKey = missing.map(({ name, qty }) => `${name}:${qty}`).join('|');
+  const addedMissing = Boolean(addedMissingKey && addedMissingKey === missingKey);
+  const canShop = app.householdAccess.shopping;
+  const detailExplanation = useMemo(() => {
+    const month = Number(String(app.day).slice(5, 7)) || new Date().getMonth() + 1;
+    const availability = {};
+    for (const b of app.calendarBusy || []) availability[b.date] = { busy: true, date: b.date, dayName: new Date(`${b.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) };
+    return explainRecommendation(recipe, {
+      pantry: app.pantry,
+      today: app.day,
+      date: when.date,
+      availability,
+      people: recipe.servings,
+      budget: 2.5,
+      month,
+      taste: app.tasteProfile,
+    });
+  }, [recipe, app.pantry, app.day, when.date, app.calendarBusy, app.tasteProfile]);
 
   const swap = ({ diet, ingredient, option }) => {
     setVariant((v) => (diet ? makeItFit(v || original, diet) : applySwap(v || original, ingredient, option)));
@@ -63,8 +85,19 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   };
 
   const addMissing = () => {
+    if (!canShop) return;
+    if (addedMissing) {
+      onClose?.();
+      goTab?.('shop');
+      return;
+    }
     app.addToList(itemsFromRecipes([recipe], app.pantry.map((p) => p.name)));
-    setAddedMissing(true);
+    setAddedMissingKey(missingKey);
+  };
+
+  const reviewPlan = () => {
+    onClose?.();
+    goTab?.('plan', { date: when.date });
   };
 
   if (cooking) {
@@ -74,16 +107,11 @@ export default function RecipeDetail({ recipe: original, onClose }) {
   return (
     <div className="pb-8">
       <div className="relative">
-        <FoodArt recipe={recipe} className="h-56 w-full" px={64} />
-        {/* The picture is generated from the recipe, not a photograph of the
-            dish you will make. Said plainly, where the picture is big enough
-            to be mistaken for one. */}
-        <p
-          className="absolute bottom-8 right-3 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
-          style={{ background: 'var(--card)', color: 'var(--muted)' }}
-        >
-          Illustration, not a photo of this dish
-        </p>
+        <FoodArt
+          recipe={recipe}
+          alt={`${recipe.name} recipe icon`}
+          className="h-56 w-full"
+        />
         <button
           onClick={onClose}
           aria-label="Close"
@@ -141,9 +169,13 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             </div>
           )}
           <div className="mt-2"><ConflictPills recipe={recipe} diets={app.planDiets} /></div>
-          {recipe.video && (
+          <Card className="mt-3 !p-3" style={{ background: 'var(--card-2)' }}>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Why this fits your kitchen tonight</p>
+            <RecommendationExplanation explanation={detailExplanation} compact />
+          </Card>
+          {videoUrl && (
             <a
-              href={recipe.video}
+              href={videoUrl}
               target="_blank"
               rel="noreferrer noopener"
               className="press mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-extrabold"
@@ -152,9 +184,9 @@ export default function RecipeDetail({ recipe: original, onClose }) {
               <ExternalLink size={14} /> Watch the original
             </a>
           )}
-          {recipe.source && !recipe.video && (
+          {sourceUrl && !videoUrl && (
             <a
-              href={recipe.source}
+              href={sourceUrl}
               target="_blank"
               rel="noreferrer noopener"
               className="press mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-extrabold"
@@ -299,15 +331,19 @@ export default function RecipeDetail({ recipe: original, onClose }) {
           {missing.length > 0 && (
             <button
               onClick={addMissing}
-              disabled={addedMissing}
+              disabled={!canShop}
               className="press mt-3 w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold border disabled:opacity-60"
-              style={addedMissing
+              style={!canShop
+                ? { borderColor: 'var(--line)', color: 'var(--muted)' }
+                : addedMissing
                 ? { borderColor: 'var(--good)', color: 'var(--good)' }
                 : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
             >
               <span className="inline-flex items-center gap-1.5">
-                {addedMissing
-                  ? <><Check size={14} strokeWidth={3} /> Added to your Shop list</>
+                {!canShop
+                  ? <>Shopping access required</>
+                  : addedMissing
+                  ? <><Check size={14} strokeWidth={3} /> Review shopping list</>
                   : <>Add {missing.length} missing to shopping list</>}
               </span>
             </button>
@@ -328,7 +364,16 @@ export default function RecipeDetail({ recipe: original, onClose }) {
             </span>
           </button>
           {scheduled && !scheduling && (
-            <p className="mt-2 text-[0.8125rem] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--good)' }}>Planned for {scheduled}.</p>
+              <button
+                onClick={reviewPlan}
+                className="press shrink-0 rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
+                style={{ borderColor: 'var(--line)', color: 'var(--accent)' }}
+              >
+                Review meal plan
+              </button>
+            </div>
           )}
           {scheduling && (
             <div className="mt-3 space-y-3">

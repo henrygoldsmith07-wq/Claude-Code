@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Check, Plus, Receipt } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Check, History, Plus, Receipt } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { recordProductEvent } from '../lib/product-analytics.js';
 import { gbp } from '../lib/utils.js';
 import { COMMON_STORES, checkedTotalOf, guessAisle } from '../data/stores.js';
+import { findShoppingDuplicate, quantitySuggestion } from '../lib/shopping.js';
 import { Card, Chip } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
 
@@ -14,14 +16,18 @@ import { NumberField } from './FoodDetail.jsx';
 /* ---------- Add an item ---------- */
 
 export function AddItem({ onAdd }) {
+  const app = useApp();
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [price, setPrice] = useState('');
   const [note, setNote] = useState('');
   const [priority, setPriority] = useState('normal');
+  const duplicate = findShoppingDuplicate(name, app.shoppingList);
+  const usualQuantity = quantitySuggestion(name, app.shops);
+  const amountInput = useRef(null);
 
   const submit = () => {
-    if (name.trim().length < 2) return;
+    if (name.trim().length < 2 || duplicate?.kind === 'exact') return;
     onAdd({ name: name.trim(), qty: qty.trim(), price: Number(price) || 0, note: note.trim(), priority, aisle: guessAisle(name) });
     setName(''); setQty(''); setPrice(''); setNote(''); setPriority('normal');
   };
@@ -37,10 +43,18 @@ export function AddItem({ onAdd }) {
         className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
+      {duplicate && (
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--warn)' }}>
+          {duplicate.kind === 'exact'
+            ? `Already on your list as “${duplicate.item.name}”. Edit that row instead of adding a duplicate.`
+            : `This looks like “${duplicate.item.name}” already on your list. Check the existing row before adding.`}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2.5">
         <label className="block">
           <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
           <input
+            ref={amountInput}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             placeholder="2, 500 g…"
@@ -51,6 +65,25 @@ export function AddItem({ onAdd }) {
         </label>
         <NumberField label="Price each" value={price} onChange={setPrice} suffix="£" step={0.5} />
       </div>
+      {usualQuantity && !qty.trim() && (
+        <button
+          type="button"
+          onClick={() => {
+            setQty(usualQuantity.qty);
+            amountInput.current?.focus();
+          }}
+          className="press w-full rounded-xl border px-3 py-2 text-left text-[0.75rem] font-bold"
+          style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+          aria-label={`Use usual quantity ${usualQuantity.qty}`}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <History size={13} /> Usually {usualQuantity.qty}
+            <span className="font-semibold" style={{ color: 'var(--faint)' }}>
+              · {usualQuantity.matches} previous shop{usualQuantity.matches === 1 ? '' : 's'}
+            </span>
+          </span>
+        </button>
+      )}
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
@@ -65,7 +98,7 @@ export function AddItem({ onAdd }) {
       </div>
       <button
         onClick={submit}
-        disabled={name.trim().length < 2}
+        disabled={name.trim().length < 2 || duplicate?.kind === 'exact'}
         className="press w-full rounded-2xl py-2.5 text-[0.84375rem] font-extrabold disabled:opacity-40"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
@@ -135,7 +168,11 @@ export function FinishShop({ items, store: initial, onDone }) {
       </button>
 
       <button
-        onClick={() => { app.recordShop({ store, total, toPantry }); onDone(); }}
+        onClick={() => {
+          app.recordShop({ store, total, toPantry, itemIds: items.map((item) => item.id) });
+          if (toPantry) recordProductEvent('pantry_reconciled', { count: items.filter((i) => i.checked).length });
+          onDone();
+        }}
         className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >

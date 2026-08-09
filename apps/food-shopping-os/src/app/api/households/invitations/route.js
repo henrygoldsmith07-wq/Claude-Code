@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { ApiError, assertSameOrigin, handleApiError, rateLimit, requireUser } from '../../../../server/api.js';
 import { requireHousehold } from '../../../../server/households.js';
-import { getDatabase } from '../../../../server/mongodb.js';
+import { getDatabase } from '../../../../server/database.js';
 import { invitationSchema } from '../../../../server/schemas.js';
 import { writeAuditEvent } from '../../../../server/audit.js';
 

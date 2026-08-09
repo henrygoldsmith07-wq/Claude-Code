@@ -6,7 +6,7 @@ import {
 import { writeAuditEvent } from '../../../server/audit.js';
 import { coachTokenHash } from '../../../server/coach-shares.js';
 import { requireHousehold } from '../../../server/households.js';
-import { getDatabase } from '../../../server/mongodb.js';
+import { getDatabase } from '../../../server/database.js';
 import { coachShareSchema } from '../../../server/schemas.js';
 
 const requireAdmin = (membership) => {

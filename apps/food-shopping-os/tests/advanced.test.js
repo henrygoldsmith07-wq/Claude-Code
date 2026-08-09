@@ -214,6 +214,7 @@ describe('reading a receipt', () => {
     'SEMI SKIMMED MILK 2L   £2.50',
     '2 x @ £1.25',
     'CHICKEN BREAST 650G    £5.49',
+    '0.482 kg @ £4.99/kg',
     'BROCCOLI               £2.41',
     'WHOLEMEAL BREAD        £1.15',
     'CLUBCARD SAVING       -£0.50',
@@ -231,6 +232,8 @@ describe('reading a receipt', () => {
     expect(result.items).toHaveLength(5);
     expect(result.items[0]).toEqual({ name: 'BANANAS LOOSE', price: 0.83, qty: 1 });
     expect(result.items.find((i) => i.name.includes('MILK')).price).toBe(2.5);
+    expect(result.items.find((i) => i.name.includes('MILK')).qty).toBe(2);
+    expect(result.items.find((i) => i.name.includes('CHICKEN')).qty).toBe(0.482);
   });
 
   it('knows the shop and the date', () => {

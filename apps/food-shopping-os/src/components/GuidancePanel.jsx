@@ -13,7 +13,7 @@ const AdvancedPanel = lazy(() => import('./AdvancedPanel.jsx'));
 const AiAssistant = lazy(() => import('./AiAssistant.jsx'));
 
 const Loading = () => (
-  <div role="status" className="px-5 py-12 text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+  <div className="px-5 py-12 text-center text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
     Opening your evidence…
   </div>
 );
@@ -121,7 +121,7 @@ export default function GuidancePanel({ initialView = 'next', onNavigate, onOpen
           </div>
           <Suspense fallback={<Loading />}>
             {toolMode === 'smart'
-              ? <SmartFeaturesPanel onOpenAssistant={() => setView('ask')} />
+              ? <SmartFeaturesPanel onOpenAssistant={() => setView('ask')} onNavigate={onNavigate} />
               : <AdvancedPanel />}
           </Suspense>
         </>

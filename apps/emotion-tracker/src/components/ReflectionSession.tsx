@@ -9,6 +9,7 @@ interface Props {
   apiKey: string;
   onAppendMessage: (id: string, message: Message) => void;
   onCompleteEntry: (id: string, summary: ReflectionSummary) => void;
+  onUpdateFollowUp?: (id: string, at: string | null, note: string | null) => void;
   onError: (message: string) => void;
 }
 
@@ -17,6 +18,7 @@ export default function ReflectionSession({
   apiKey,
   onAppendMessage,
   onCompleteEntry,
+  onUpdateFollowUp,
   onError,
 }: Props) {
   const [answer, setAnswer] = useState("");
@@ -109,7 +111,14 @@ export default function ReflectionSession({
 
           {entry.status === "complete" && entry.summary && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm animate-fade-in">
-              <SummaryView summary={entry.summary} />
+              <SummaryView
+                summary={entry.summary}
+                onFollowUp={
+                  onUpdateFollowUp
+                    ? (at, note) => onUpdateFollowUp(entry.id, at, note)
+                    : undefined
+                }
+              />
             </div>
           )}
 

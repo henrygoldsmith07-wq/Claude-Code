@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, CalendarDays, Check, Package, ShoppingCart, SlidersHorizontal,
   Upload, UtensilsCrossed,
@@ -6,14 +6,22 @@ import {
 import { useApp } from '../lib/store.jsx';
 import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { BODY_GOALS, DIET_PATTERNS, SEXES } from '../data/goals.js';
-import { computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
+import { bmr, computeTargets, maintenanceFrom, targetsFor } from '../lib/goals.js';
+import { assessTarget } from '../lib/target-safety.js';
+import {
+  isUnderEighteen, YOUTH_COPY, YOUTH_SIGNPOST, youthConsentRecord, youthGoal,
+} from '../lib/youth.js';
 import { byId } from '../data/recipes.js';
+import { MAX_STARTER_PICKS, starterOptions, starterSuitable } from '../lib/starter-recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { PRODUCT } from '../data/product.js';
 import { addDays } from '../lib/kitchen.js';
 import { haptic } from '../lib/haptics.js';
-import { Card, Chip, FoodArt, Stepper, Toggle } from './ui.jsx';
+import { recordProductEvent } from '../lib/product-analytics.js';
+import { Card, Chip, Stepper, Toggle } from './ui.jsx';
+import StarterPicker from './StarterPicker.jsx';
 import { NumberField } from './FoodDetail.jsx';
+import { TargetPreview } from './TargetSafety.jsx';
 
 const num = (value) => Math.max(0, Number(value) || 0) || null;
 
@@ -24,8 +32,6 @@ const ENTRY_GOALS = [
   { id: 'pantry', title: 'Use food I already have', text: 'Start from the kitchen so you waste less.', Icon: Package },
 ];
 
-const STARTER_RECIPE_IDS = ['chicken-traybake', 'chickpea-curry', 'salmon-teriyaki'];
-
 export default function Onboarding() {
   const app = useApp();
   const restoreRef = useRef(null);
@@ -34,6 +40,7 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [entryGoal, setEntryGoal] = useState('plan');
   const [starterRecipeIds, setStarterRecipeIds] = useState([]);
+  const [starterRound, setStarterRound] = useState(0);
   const [showPersonalisation, setShowPersonalisation] = useState(false);
   const [household, setHousehold] = useState(1);
   const [budget, setBudget] = useState('');
@@ -45,9 +52,29 @@ export default function Onboarding() {
   const [sex, setSex] = useState('unspecified');
   const [maintenance, setMaintenance] = useState('');
   const [trackCycle, setTrackCycle] = useState(false);
+  const [youthConsent, setYouthConsent] = useState(false);
 
   const toggleDiet = (id) =>
     setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+
+  /* What we can offer, worked out from what has been said so far: allergens and
+     religious rules remove a dish, dietary patterns remove a dish, and only
+     then does anything get ranked. Changing a pattern on the step before this
+     one changes what is on this one. */
+  const rules = useMemo(() => ({
+    diets,
+    members: app.members,
+    prefs: { allergies: app.allergies, religious: app.religious },
+  }), [diets, app.members, app.allergies, app.religious]);
+  const starters = useMemo(
+    () => starterOptions({ ...rules, round: starterRound }),
+    [rules, starterRound],
+  );
+
+  /* Go back, choose "vegan", and a chicken dish picked a moment ago is no
+     longer suitable — so it is no longer selected either. Choices made in an
+     earlier round of suggestions do survive. */
+  const picked = starterRecipeIds.filter((id) => starterSuitable(byId(id), rules));
 
   const body = {
     sex,
@@ -59,24 +86,43 @@ export default function Onboarding() {
   // With weight, height and age, the equation runs; without, we fall back to
   // whatever figure you typed, and with neither to the default.
   const estimated = maintenanceFrom(body);
+  /* The age is asked before anything is offered, so under-18 mode is on for the
+     rest of setup rather than applied afterwards. */
+  const youth = isUnderEighteen({ body });
+  const offeredGoals = youth ? BODY_GOALS.filter((g) => g.kcalFactor >= 1) : BODY_GOALS;
+  const chosenGoal = youth ? youthGoal(goal) : goal;
+
+  /* Setup runs the same safety assessment the app does, so the preview cannot
+     promise a target the app will then refuse to set. */
+  const safety = assessTarget({
+    goal: chosenGoal,
+    body,
+    maintenanceKcal: estimated || num(maintenance),
+    bmrKcal: bmr(body),
+    typedMaintenance: num(maintenance),
+  });
 
   /** Whatever we know: the estimate, a typed figure, or the default. */
   const preview = computeTargets({
-    goal,
+    goal: chosenGoal,
     diets,
     maintenanceKcal: estimated || num(maintenance),
     weightKg: body.weightKg,
+    sex: body.sex,
+    bmrKcal: bmr(body),
     fallbackKcal: DEFAULT_TARGETS.kcal,
+    youth,
+    safety,
   });
 
   const finish = () => {
-    const starterRecipes = starterRecipeIds.map(byId).filter(Boolean);
+    const starterRecipes = picked.map(byId).filter(Boolean);
     const starterPlan = Object.fromEntries(starterRecipes.map((recipe, index) => [
       addDays(app.day, index),
       { dinner: recipe.id },
     ]));
     const state = {
-      goal,
+      goal: chosenGoal,
       diets,
       body,
       maintenanceKcal: Math.max(0, Number(maintenance) || 0),
@@ -87,12 +133,19 @@ export default function Onboarding() {
       name: name.trim() || 'you',
       household,
       trackCycle,
+      // Under 18 the consent answer is stored as its own record; over 18 there
+      // is nothing extra to store and it stays null.
+      youthConsent: youth && youthConsent ? youthConsentRecord(app.day) : null,
       entryGoal,
-      starterRecipeIds,
+      starterRecipeIds: picked,
       plan: starterPlan,
       shoppingList: itemsFromRecipes(starterRecipes),
       weeklyBudget: Math.max(0, Number(budget) || 0),
       targets: targetsFor(state),
+    });
+    recordProductEvent('onboarding_completed', {
+      intent: entryGoal,
+      count: picked.length,
     });
     haptic();
   };
@@ -183,6 +236,23 @@ export default function Onboarding() {
 
         {step === 1 && (
           <>
+            <Card>
+              <NumberField label="Your age" value={age} onChange={setAge} suffix="yrs" step={1} />
+              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                Asked here rather than buried in the nutrition settings, because it decides how the
+                rest of the app behaves. Leave it blank and Forq stays as it is.
+              </p>
+              {youth && (
+                <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--accent)', background: 'var(--accent-soft)' }}>
+                  <p className="text-[0.8125rem] font-extrabold">Forq is set up for under-18s</p>
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    <li>{YOUTH_COPY.targets}</li>
+                    <li>{YOUTH_COPY.balance}</li>
+                    <li>Fasting, alcohol targets and weight predictions are not part of it.</li>
+                  </ul>
+                </div>
+              )}
+            </Card>
             <Card className="flex items-center justify-between">
               <div>
                 <p className="font-bold text-[0.875rem]">People you cook for</p>
@@ -220,49 +290,14 @@ export default function Onboarding() {
 
         {step === 2 && (
           <>
-            <fieldset>
-              <legend className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-                Choose up to three dinners
-              </legend>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {STARTER_RECIPE_IDS.map((id) => {
-                  const recipe = byId(id);
-                  const selected = starterRecipeIds.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setStarterRecipeIds((current) =>
-                        current.includes(id)
-                          ? current.filter((recipeId) => recipeId !== id)
-                          : current.length < 3 ? [...current, id] : current)}
-                      className="press overflow-hidden rounded-2xl border text-left"
-                      style={{
-                        background: 'var(--card)',
-                        borderColor: selected ? 'var(--accent)' : 'var(--line)',
-                        boxShadow: selected ? '0 0 0 1px var(--accent)' : 'none',
-                      }}
-                    >
-                      <FoodArt recipe={recipe} className="h-24 w-full" px={28} />
-                      <span className="block p-2.5">
-                        <span className="block text-[0.75rem] font-extrabold leading-tight">{recipe.name}</span>
-                        <span className="mt-1 block text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                          {recipe.time} min · £{recipe.costPerServing.toFixed(2)}/serving
-                        </span>
-                        <span className="mt-1.5 inline-flex items-center gap-1 text-[0.65625rem] font-extrabold" style={{ color: selected ? 'var(--accent)' : 'var(--faint)' }}>
-                          {selected && <Check size={11} strokeWidth={3} />}
-                          {selected ? 'Selected' : 'Choose'}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Optional. Choose nothing to start with an empty app.
-              </p>
-            </fieldset>
+            <StarterPicker
+              starters={starters}
+              picked={picked}
+              onToggle={(id) => setStarterRecipeIds((current) => (current.includes(id)
+                ? current.filter((recipeId) => recipeId !== id)
+                : picked.length < MAX_STARTER_PICKS ? [...current, id] : current))}
+              onMore={() => setStarterRound((round) => round + 1)}
+            />
 
             <button
               type="button"
@@ -285,20 +320,24 @@ export default function Onboarding() {
                 What are you aiming for?
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {BODY_GOALS.map((g) => (
-                  <Chip key={g.id} active={goal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
+                {offeredGoals.map((g) => (
+                  <Chip key={g.id} active={chosenGoal === g.id} onClick={() => setGoal(g.id)}>{g.label}</Chip>
                 ))}
               </div>
               <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {BODY_GOALS.find((g) => g.id === goal).blurb}
+                {BODY_GOALS.find((g) => g.id === chosenGoal).blurb}
               </p>
+              {youth && (
+                <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_COPY.goals}
+                </p>
+              )}
             </div>
 
             <Card className="space-y-2.5">
               <div className="grid grid-cols-2 gap-2.5">
                 <NumberField label="Your weight" value={weightKg} onChange={setWeightKg} suffix="kg" step={0.5} />
                 <NumberField label="Your height" value={heightCm} onChange={setHeightCm} suffix="cm" step={1} />
-                <NumberField label="Age" value={age} onChange={setAge} suffix="yrs" step={1} />
                 <div>
                   <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Sex</span>
                   <div className="mt-1 flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -340,29 +379,35 @@ export default function Onboarding() {
               </p>
             </Card>
 
-            <Card>
-              <p className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
-                That works out as
-              </p>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-[1.875rem] font-extrabold leading-none">{preview.kcal.toLocaleString()}</p>
-                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>kcal a day</p>
-                </div>
-                <div className="flex gap-4 text-right">
-                  {[['Protein', preview.protein], ['Carbs', preview.carbs], ['Fat', preview.fat]].map(([label, v]) => (
-                    <div key={label}>
-                      <p className="text-[0.9375rem] font-extrabold leading-none">{v}g</p>
-                      <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
+            <TargetPreview safety={safety} preview={preview} />
             <p className="text-[0.75rem] font-semibold px-1" style={{ color: 'var(--muted)' }}>
               Vitamins and minerals start at UK reference intakes. Everything here is editable later.
+              {' '}{safety.support[0]}
             </p>
               </>
+            )}
+
+            {/* A separate consent question, asked outside the optional block so
+                it cannot be skipped by leaving personalisation closed. */}
+            {youth && (
+              <Card className="space-y-2.5" style={{ borderColor: youthConsent ? 'var(--accent)' : 'var(--line)' }}>
+                <p className="font-extrabold text-[0.90625rem]">Before you start</p>
+                <p className="text-[0.78125rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_COPY.consent}
+                </p>
+                <ul className="list-disc space-y-1 pl-4 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <li>Your data stays in this browser unless you sign in.</li>
+                  <li>Anonymous product insights stay off, and cannot be turned on in this mode.</li>
+                  <li>{YOUTH_COPY.sharing}</li>
+                </ul>
+                <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+                  <p className="text-[0.8125rem] font-bold">I have read this and want to continue</p>
+                  <Toggle label="Accept the under-18 privacy terms" on={youthConsent} onChange={() => setYouthConsent(!youthConsent)} />
+                </div>
+                <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_SIGNPOST}
+                </p>
+              </Card>
             )}
           </>
         )}
@@ -380,7 +425,8 @@ export default function Onboarding() {
         )}
         <button
           onClick={() => (step === 2 ? finish() : setStep(step + 1))}
-          className="press flex-1 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
+          disabled={step === 2 && youth && !youthConsent}
+          className="press flex-1 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           <span className="inline-flex items-center gap-2">

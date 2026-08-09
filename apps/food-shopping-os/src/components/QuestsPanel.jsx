@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Flame, Lock, Sparkles, Target, Trophy } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { prettyDate } from '../lib/utils.js';
+import { cx, prettyDate } from '../lib/utils.js';
 import { badgeProgress } from '../lib/kitchen.js';
 import { XP_AWARDS } from '../data/quests.js';
 import { Card, Chip, Meter, Pill } from './ui.jsx';
@@ -47,6 +47,7 @@ export default function QuestsPanel() {
   const app = useApp();
   const [view, setView] = useState('today');
   const game = app.game;
+  const streakKeys = ['logging', 'cooking', 'onTarget'].filter((key) => game.streaks[key]);
   const badges = badgeProgress(app.stats);
   const earned = badges.filter((b) => b.earned);
 
@@ -73,8 +74,10 @@ export default function QuestsPanel() {
       </Card>
 
       {/* Streaks */}
-      <div className="grid grid-cols-3 gap-2.5">
-        {['logging', 'cooking', 'onTarget'].map((key) => {
+      {/* Under 18 there is no "days on target" streak: hitting a calorie number
+          exactly is not something this app scores. */}
+      <div className={cx('grid gap-2.5', streakKeys.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+        {streakKeys.map((key) => {
           const s = game.streaks[key];
           return (
             <Card key={key} className="!p-3 text-center">

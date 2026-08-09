@@ -10,7 +10,7 @@
  * because a blank day is a day you didn't record, not a day you ate nothing.
  */
 
-import { dayTotals, entryMacros, MEALS, nutrientCoverage } from './nutrition.js';
+import { dayTotals, entryNumbers, MEALS, nutrientCoverage } from './nutrition.js';
 import { addDays, dayStamp, weekDates } from './kitchen.js';
 import { HEADLINE_KEYS, NUTRIENTS, nutrientBy } from '../data/nutrients.js';
 import { series } from './health.js';
@@ -41,7 +41,7 @@ export const dailyReport = (state, stamp = state.day) => {
   const totals = dayTotals(entries);
   const byMeal = MEALS.map(({ key, label }) => {
     const rows = entries.filter((e) => e.meal === key);
-    const kcal = rows.reduce((sum, e) => sum + entryMacros(e).kcal, 0);
+    const kcal = rows.reduce((sum, e) => sum + (entryNumbers(e).kcal || 0), 0);
     return {
       key,
       label,
