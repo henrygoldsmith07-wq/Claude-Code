@@ -64,9 +64,11 @@ Barcode lookups can optionally use the public Open Food Facts API through the
 authenticated `/api/integrations/products` route. It returns product identity,
 ingredients, allergens, nutrition, labels and scores when the barcode is in
 that catalogue. `/api/integrations/prices` can query Open Prices for GBP
-observations by barcode or exact product name. Open Prices is a community
+observations by barcode or exact product name — the same route powers the
+Shop list's "Check community prices" action and the Prices dashboard. Open Prices is a community
 dataset: its observations can be old, incomplete or from a different shop, so
-Forq labels them as observed and never treats them as a live supermarket quote.
+Forq labels them as observed with the date and a staleness tag (fresh <7d · ageing 7–30d · old >30d) and never treats them as a live supermarket quote.
+Observed rows are fetched only after an explicit tap, cached 24h on device for a list of up to 12 items, and rate-limited at 120/h.
 Both lookups run only after an explicit user action and require a signed-in
 backend household.
 
@@ -193,7 +195,7 @@ endpoint once its current vulnerable SDK dependency chain is patched.
   recorded, from the prices you typed in, always saying how many items each
   shop can actually price. Plus what you're about to overpay for, and a price
   history per item with where it was cheapest. Pack sizes in g, kg, ml or l
-  also show a normalised price per 100 g or 100 ml on the shopping row
+  also show a normalised price per 100 g or 100 ml on the shopping row. **Real prices** now also show as dated *Community observed* badges: your receipts stay primary, and a "Check community prices" action can fetch GBP Open Prices observations for the current list (explicit tap only, 120/h, 24h cache) or for a scanned barcode — each row is labelled with store, date and staleness and explicitly "not live"
 - **Budget tracking** — the basket against your week: what it comes to, what
   your offers take off, and what that leaves of the budget after what you've
   already spent — with unpriced items counted as unknown, never as free

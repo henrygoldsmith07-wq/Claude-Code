@@ -9,10 +9,11 @@ export interface TopicSpec {
   summary: string;
   keyPoints: string[];
   commonErrors: string[];
-  specPoints?: SpecPoint[];
+  specPoints?: Array<SpecPoint | (Omit<SpecPoint, "id"> & { id?: string })>;
   aos?: AoCode[];
   source?: ContentSource;
   verification?: VerificationStatus;
+  reviewer?: string | null;
   lastChecked?: string | null;
 }
 
@@ -32,8 +33,21 @@ export function buildUnits(subjectId: Id, specs: UnitSpec[]): { units: Unit[]; t
     const unitId = `${subjectId}.${unitSpec.slug}`;
     units.push({ id: unitId, subjectId, title: unitSpec.title, order: unitIndex });
     for (const topicSpec of unitSpec.topics) {
+      const topicId = `${subjectId}.${topicSpec.slug}`;
+      const specPoints: SpecPoint[] | undefined = topicSpec.specPoints?.map((sp, i) => ({
+        // stable id when author omits it: topicId + index
+        id: (sp as SpecPoint).id ?? `${topicId}.sp-${String(i + 1).padStart(2, "0")}`,
+        ref: sp.ref,
+        text: sp.text,
+        aos: sp.aos,
+        source: (sp as SpecPoint).source ?? topicSpec.source ?? "authored",
+        verification: (sp as SpecPoint).verification ?? topicSpec.verification ?? "unverified",
+        reviewer: (sp as SpecPoint).reviewer ?? (topicSpec as unknown as { reviewer?: string }).reviewer ?? null,
+        lastChecked: (sp as SpecPoint).lastChecked ?? topicSpec.lastChecked ?? null,
+        specVersion: (sp as SpecPoint).specVersion ?? topicSpec.specVersion,
+      }));
       topics.push({
-        id: `${subjectId}.${topicSpec.slug}`,
+        id: topicId,
         subjectId,
         unitId,
         title: topicSpec.title,
@@ -44,10 +58,11 @@ export function buildUnits(subjectId: Id, specs: UnitSpec[]): { units: Unit[]; t
         summary: topicSpec.summary,
         keyPoints: topicSpec.keyPoints,
         commonErrors: topicSpec.commonErrors,
-        specPoints: topicSpec.specPoints,
+        specPoints,
         aos: topicSpec.aos,
         source: topicSpec.source ?? "authored",
         verification: topicSpec.verification ?? "unverified",
+        reviewer: (topicSpec as unknown as { reviewer?: string }).reviewer ?? null,
         lastChecked: topicSpec.lastChecked ?? null,
       });
     }

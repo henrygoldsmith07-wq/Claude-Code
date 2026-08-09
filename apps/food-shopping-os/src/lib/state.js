@@ -12,7 +12,7 @@ import { dayStamp, levelFrom } from './kitchen.js';
 import { searchFoods } from './foodlog.js';
 
 export const STORAGE_KEY = 'forq-state-v2';
-export const STATE_VERSION = 3;
+export const STATE_VERSION = 4;
 
 /* ---------- Pure helpers (exported for tests) ---------- */
 export const XP_PER_LEVEL = 160;
@@ -106,7 +106,9 @@ export const EMPTY_STATE = {
   aisleMemory: {}, // name → the aisle you filed it under
   storeRoutes: {}, // store → the aisle order you actually walked
   offers: [], // vouchers and deals you told it about
+  coupons: [], // coupon/rewards vault — manual + photo-OCR draft (no feed, never invented)
   priceAlerts: [], // item price targets checked against recorded shops
+  priceAlertConfig: { risePct: 15, bargainPct: 15, overrides: {} }, // receipt-only rise/bargain thresholds, 15% default, per-item tunable
   waste: [], // what you threw away, and what it cost
   /* kitchen */
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}

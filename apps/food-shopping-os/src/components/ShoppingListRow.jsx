@@ -5,10 +5,11 @@ import { AISLE_ORDER } from '../data/stores.js';
 import { cx } from '../lib/utils.js';
 import { haptic } from '../lib/haptics.js';
 import { shoppingNameKey, unitPrice } from '../lib/shopping.js';
+import { gbp } from '../lib/utils.js';
 import { Glyph } from './icons.jsx';
-import { Chip, GestureMenu } from './ui.jsx';
+import { Chip, GestureMenu, Pill } from './ui.jsx';
 
-export default function ShoppingListRow({ item, onAisle, onStore, storeOptions = [], dragging, setDragging }) {
+export default function ShoppingListRow({ item, onAisle, onStore, storeOptions = [], dragging, setDragging, observedPrice }) {
   const app = useApp();
   const [moving, setMoving] = useState(false);
   const comparablePrice = unitPrice(item);
@@ -69,6 +70,20 @@ export default function ShoppingListRow({ item, onAisle, onStore, storeOptions =
             <p className="text-[0.71875rem] font-extrabold" style={{ color: 'var(--accent)' }}>
               £{comparablePrice.value.toFixed(2)} / {comparablePrice.unit}
             </p>
+          )}
+          {observedPrice && !observedPrice.error && typeof observedPrice.price === 'number' && (
+            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[0.6875rem] font-semibold" style={{ color: observedPrice.staleness?.tone === 'danger' ? 'var(--muted)' : 'var(--muted)' }}>
+              <span className="inline-flex items-center gap-1">
+                {gbp(observedPrice.price, { always: true })} · {observedPrice.store || 'Shop not named'}
+              </span>
+              <Pill tone={observedPrice.staleness?.tone === 'good' ? 'good' : observedPrice.staleness?.tone === 'warn' ? 'warn' : observedPrice.staleness?.tone === 'danger' ? 'danger' : 'muted'}>
+                {observedPrice.staleness?.label || 'community observed'}
+              </Pill>
+              <span className="text-[0.625rem]" style={{ color: 'var(--faint)' }}>community observed — not live</span>
+            </p>
+          )}
+          {observedPrice?.error && (
+            <p className="mt-1 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{observedPrice.error}</p>
           )}
           {app.members.length > 0 && (
             <select

@@ -34,6 +34,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.1(a)", text: "use proof by deduction exhaustion and counter-example", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.1(b)", text: "construct proofs by contradiction including irrationality and infinity of primes", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.1(c)", text: "apply logical connectives implication converse contrapositive", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -58,6 +63,14 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.2(a)", text: "manipulate surds indices and rationalise denominators", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.2(b)", text: "solve quadratic equations with discriminant analysis", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.2(c)", text: "apply factor and remainder theorems and polynomial division", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.2(d)", text: "solve simultaneous equations including one non-linear", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.2(e)", text: "solve inequalities and interpret solution sets", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.2(f)", text: "sketch curves including transformations and modulus", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -82,6 +95,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.3(a)", text: "derive and use equation of a straight line and circle", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.3(b)", text: "find intersections of lines and circles", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.3(c)", text: "apply coordinate geometry to area and distance problems", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -106,6 +124,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.4(a)", text: "work with arithmetic and geometric sequences and series", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.4(b)", text: "apply binomial expansion including general term", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.4(c)", text: "model growth and decay with sequences", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -130,6 +153,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.5(a)", text: "apply sine and cosine rules including area formula", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.5(b)", text: "use trigonometric identities including double angle", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.5(c)", text: "solve trigonometric equations in degrees and radians", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.5(d)", text: "apply small angle approximations and harmonic form", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -154,6 +183,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.6(a)", text: "define exponential and logarithmic functions as inverses", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.6(b)", text: "apply laws of logarithms including change of base", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.6(c)", text: "solve exponential and logarithmic equations", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.6(d)", text: "model exponential growth and decay including half-life", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -178,6 +213,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.7(a)", text: "differentiate polynomials exponentials logs and trigonometric functions", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.7(b)", text: "apply chain product and quotient rules", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.7(c)", text: "find stationary points and determine maxima minima and points of inflection", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.7(d)", text: "apply differentiation to rates tangents normals and optimisation", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -202,6 +243,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.8(a)", text: "integrate polynomials exponentials and trigonometric functions", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.8(b)", text: "evaluate definite integrals including area under curve", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.8(c)", text: "apply integration by substitution and by parts", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.8(d)", text: "form and solve simple differential equations", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -226,6 +273,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.9(a)", text: "represent vectors in two and three dimensions including magnitude", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.9(b)", text: "perform vector addition subtraction and scalar multiplication", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.9(c)", text: "apply vectors to geometric problems", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -250,6 +302,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Pure 1.10(a)", text: "locate roots by change of sign and iteration", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.10(b)", text: "apply Newton-Raphson to find roots", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Pure 1.10(c)", text: "apply trapezium rule to approximate area", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],
@@ -280,6 +337,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Applied 1.1(a)", text: "define sampling methods including random stratified and quota", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.1(b)", text: "evaluate sampling methods for bias and representativeness", aos: ["AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.1(c)", text: "interpret large data sets including cleaning and interpolation", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -304,6 +366,11 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Applied 1.2(a)", text: "calculate probabilities using mutually exclusive and independent events", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.2(b)", text: "apply conditional probability including tree diagrams", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.2(c)", text: "use Venn diagrams for probability problems", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -328,6 +395,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Applied 1.3(a)", text: "use binomial distribution including cumulative probabilities", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.3(b)", text: "use normal distribution including standardisation and inverse", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.3(c)", text: "conduct hypothesis tests for binomial proportion", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 1.3(d)", text: "interpret significance levels and critical regions", aos: ["AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -352,6 +425,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Applied 2.1(a)", text: "apply constant acceleration equations in one and two dimensions", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 2.1(b)", text: "interpret displacement-time and velocity-time graphs", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 2.1(c)", text: "model projectile motion with independent components", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 2.1(d)", text: "use calculus to relate displacement velocity and acceleration", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -376,6 +455,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Applied 2.5(a)", text: "resolve forces and apply Newton laws including connected particles", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 2.5(b)", text: "apply friction including limiting friction F equals mu R", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 2.5(c)", text: "take moments for rigid bodies in equilibrium", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Applied 2.5(d)", text: "model motion with variable acceleration using calculus", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],

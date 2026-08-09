@@ -68,6 +68,11 @@ describe("content pipeline — coverage is measured", () => {
       expect(cov.topicsTotal).toBe(topics.length);
       expect(cov.coveragePercent).toBeGreaterThan(50);
       expect(cov.retrievalItems).toBeGreaterThan(cov.topicsTotal * 4);
+      // Statement-level: when specPoints exist, verify measurable statement coverage
+      if (cov.specPointsTotal > 0) {
+        expect(cov.statements.length).toBe(cov.specPointsTotal);
+        expect(cov.specPointsLearnable).toBeGreaterThan(0);
+      }
       expect(cov.examQuestions).toBeGreaterThan(0);
     }
   });
@@ -78,3 +83,79 @@ describe("content pipeline — coverage is measured", () => {
     expect(cov.coveragePercent).toBe(0);
   });
 });
+describe("statement-level provenance — all subjects", () => {
+  it("every subject has specPoints on every topic (no topic left as broad area only)", () => {
+    for (const subject of allSubjects()) {
+      const topics = topicsFor(subject.id);
+      for (const topic of topics) {
+        expect(topic.specPoints?.length, `${topic.id} must have specPoints`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("total statement counts meet the density floor", () => {
+    const mins: Record<string, number> = { "wjec-alevel-physics": 60, "wjec-alevel-chemistry": 60, "wjec-alevel-biology": 60, "wjec-alevel-maths": 40 };
+    for (const subject of allSubjects()) {
+      const total = topicsFor(subject.id).reduce((a, tp) => a + (tp.specPoints?.length ?? 0), 0);
+      expect(total, `${subject.id} total statements`).toBeGreaterThanOrEqual(mins[subject.id] ?? 40);
+    }
+  });
+
+  it("SPEC_MANIFEST.paperBreakdown is populated for every subject", () => {
+    for (const subject of allSubjects()) {
+      const spec = SPEC_MANIFEST.find((s) => s.subjectId === subject.id);
+      expect(spec?.paperBreakdown?.length, `${subject.id} missing paperBreakdown`).toBeGreaterThan(0);
+      for (const pb of spec!.paperBreakdown!) {
+        expect(pb.durationMinutes).toBeGreaterThan(0);
+        expect(pb.marks).toBeGreaterThan(0);
+        expect(pb.weight).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("every seed question maps to specPointIds with learningClaims", () => {
+    for (const q of seedQuestions) {
+      const hasMapping = (q.specPointIds?.length ?? 0) > 0 || q.parts.some((part) => (part.specPointIds?.length ?? 0) > 0);
+      expect(hasMapping, `${q.id} should map to at least one specPoint`).toBeTruthy();
+      for (const part of q.parts) if (part.specPointIds?.length) {
+        expect(part.learningClaims?.length, `${q.id} part ${part.id} needs learningClaims`).toBeGreaterThan(0);
+        expect(part.learningClaims!.length, `${q.id} part ${part.id} claims should align with markScheme length or subset`).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe("statement-level provenance", () => {
+  it("physics demonstrator has a specPoint stable id, ref, text, AO and verification per statement", () => {
+    const phys = topicsFor("wjec-alevel-physics");
+    expect(phys.length).toBeGreaterThan(0);
+    for (const topic of phys) {
+      expect(topic.specPoints?.length, `${topic.id} needs specPoints (demonstrator)`).toBeGreaterThan(0);
+      for (const sp of topic.specPoints!) {
+        expect(sp.id, `${topic.id} specPoint missing id`).toBeTruthy();
+        expect(sp.ref, `${sp.id} missing ref`).toBeTruthy();
+        expect(sp.text.length, `${sp.id} missing learning claim`).toBeGreaterThan(10);
+        expect(sp.aos?.length, `${sp.id} missing AO`).toBeGreaterThan(0);
+        expect(["unverified","checked","verified"], `${sp.id} bad verification`).toContain(sp.verification as string);
+      }
+    }
+  });
+
+  it("physics questions map parts to specPoints with learningClaims (mark-scheme alignment)", () => {
+    const qs = seedQuestions.filter(q => q.subjectId === "wjec-alevel-physics");
+    const withMapping = qs.filter(q => q.specPointIds?.length || q.parts.some(p => p.specPointIds?.length));
+    expect(withMapping.length, "at least some physics questions should map to specPoints").toBeGreaterThan(0);
+    for (const q of withMapping) for (const part of q.parts) if (part.specPointIds?.length) {
+      expect(part.learningClaims?.length, `${q.id} mapped part needs learningClaims`).toBeGreaterThan(0);
+    }
+  });
+
+  it("seed cards carry specPoint mapping and provenance when the topic has statements", () => {
+    const phys = topicsFor("wjec-alevel-physics").find(t => t.specPoints?.length);
+    if (!phys) return;
+    const cards = seedCardsForTopic(phys, "u");
+    const withSp = cards.filter(c => c.specPointIds?.length);
+    expect(withSp.length, "cards for a statement-bearing topic should map to specPoints").toBeGreaterThan(0);
+  });
+});
+

@@ -23,6 +23,8 @@ import { activityAdjustment, weekSummary } from './exercise.js';
 import {
   basketProjection, priceAlertMatches, restockSuggestions, wasteSummary,
 } from './shopping.js';
+import { couponVaultStats, couponsForList } from './coupons.js';
+import { derivePriceAnomalies, priceAnomalyForList } from './price-alerts.js';
 import { recentFoodsFrom } from './state.js';
 import {
   evaluateFoodSuitability,
@@ -149,6 +151,10 @@ export const deriveApp = (state) => {
     inflation: groceryInflation(state.shops),
     savings: savingsSummary(state.shops),
     priceAlertStatus: priceAlertMatches(state.priceAlerts, state.shops),
+    priceAnomalies: derivePriceAnomalies(state.shops, state.priceAlertConfig),
+    priceAnomaliesForList: priceAnomalyForList(state.shoppingList, state.shops, state.priceAlertConfig),
+    couponVault: couponVaultStats(state.coupons, state.day),
+    couponsForList: couponsForList(state.coupons, state.shoppingList, state.day),
     basket: basketProjection(state.shoppingList, {
       budget: state.weeklyBudget,
       spent: spentInWeek(state.shops, state.day),

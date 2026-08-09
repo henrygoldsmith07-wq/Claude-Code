@@ -49,8 +49,11 @@ export function makeCloze(sentence: string): { front: string; back: string } | n
 
 export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date()): Card[] {
   const cards: Card[] = [];
+  // map each keyPoint index -> nearest specPoint (1:1 when counts align) for honest provenance
+  const spIds = topic.specPoints?.map((sp) => sp.id) ?? [];
 
   topic.keyPoints.forEach((point, i) => {
+    const linkedSp = spIds.length === topic.keyPoints.length ? [spIds[i]] : spIds.length ? [spIds[Math.min(i, spIds.length - 1)]] : undefined;
     cards.push(
       createCard(
         {
@@ -62,10 +65,16 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
           back: point,
           kind: /[=+−×÷^√∫Δ]|\b\d/.test(point) ? "equation" : "basic",
           origin: "seed",
+          specPointIds: linkedSp,
+          source: topic.source ?? "authored",
+          verification: topic.verification,
+          reviewer: topic.reviewer ?? null,
+          lastChecked: topic.lastChecked ?? null,
+          specVersion: topic.specVersion,
           // Tags the browser can filter on from day one, without the student
           // having to tag 500 cards by hand.
           tags: ["seed", "key-point", topic.id.split(".").pop() ?? ""],
-        },
+        } as Parameters<typeof createCard>[0],
         now,
       ),
     );
@@ -86,6 +95,12 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
             clozeSource: point,
             kind: "cloze",
             origin: "seed",
+            specPointIds: linkedSp,
+            source: topic.source ?? "authored",
+            verification: topic.verification,
+            reviewer: topic.reviewer ?? null,
+            lastChecked: topic.lastChecked ?? null,
+            specVersion: topic.specVersion,
             tags: ["seed", "cloze", topic.id.split(".").pop() ?? ""],
           },
           now,

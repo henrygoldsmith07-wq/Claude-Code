@@ -97,7 +97,7 @@ export default function Home() {
               </p>
               <p className="max-w-xs text-xs text-muted">
                 Reflect helps you look past the first emotion and understand
-                what's actually going on before you act.
+                what&apos;s actually going on before you act.
               </p>
               <button
                 onClick={handleNew}

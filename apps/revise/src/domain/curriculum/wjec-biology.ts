@@ -33,6 +33,14 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.1(a)", text: "describe condensation and hydrolysis for biological polymers", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(b)", text: "compare structures and functions of monosaccharides disaccharides and polysaccharides", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(c)", text: "describe triglyceride and phospholipid structure and relate to function", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(d)", text: "explain primary through quaternary protein structure and bonding", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(e)", text: "describe DNA and RNA structure including base pairing", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(f)", text: "explain water properties hydrogen bonding and biological importance", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -57,6 +65,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.2(a)", text: "compare prokaryotic and eukaryotic cell structure", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.2(b)", text: "describe functions of membrane-bound organelles", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.2(c)", text: "calculate magnification and explain resolution of light and electron microscopy", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.2(d)", text: "describe levels of organisation from organelle to organism", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.2(e)", text: "explain cell fractionation and ultracentrifugation", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -81,6 +96,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.3(a)", text: "describe fluid mosaic model of membrane structure", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.3(b)", text: "explain diffusion facilitated diffusion and active transport", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.3(c)", text: "describe osmosis and water potential", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.3(d)", text: "explain factors affecting membrane permeability", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.3(e)", text: "interpret U-tube and visking tubing investigations", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -105,6 +127,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.4(a)", text: "describe enzyme structure including active site and specificity", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(b)", text: "explain induced fit and lock and key models", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(c)", text: "explain effects of temperature pH and substrate concentration on rate", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(d)", text: "distinguish competitive and non-competitive inhibition", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(e)", text: "interpret enzyme kinetics graphs including Vmax and Km", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -129,6 +158,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.5(a)", text: "describe DNA replication including semi-conservative mechanism", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(b)", text: "describe transcription and translation including role of mRNA tRNA and ribosomes", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(c)", text: "explain how mutations arise and their effects", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(d)", text: "describe cell cycle mitosis and meiosis", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(e)", text: "explain significance of crossing over and independent assortment", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],
@@ -159,6 +195,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.1(a)", text: "describe structure of mammalian gaseous exchange system", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(b)", text: "explain mechanism of ventilation including pressure changes", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(c)", text: "describe gas exchange at the alveoli including diffusion gradients", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(d)", text: "describe structure and function of insect tracheal system and fish gills", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(e)", text: "compare counter-current and concurrent exchange", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -183,6 +226,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.2(a)", text: "describe structure of mammalian heart including cardiac cycle", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(b)", text: "explain regulation of heart rate including ECG", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(c)", text: "describe structure and function of blood vessels and blood", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(d)", text: "explain tissue fluid formation and lymphatic return", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(e)", text: "describe transport of oxygen by haemoglobin including Bohr effect", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -207,6 +257,12 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.3(a)", text: "describe xylem and phloem structure and distribution", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(b)", text: "explain transpiration cohesion-tension and factors affecting rate", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(c)", text: "describe translocation including mass flow hypothesis", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(d)", text: "explain uptake of water and mineral ions", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -231,6 +287,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.4(a)", text: "define species biodiversity and genetic diversity", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(b)", text: "describe sampling techniques including quadrats and transects", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(c)", text: "calculate Simpson diversity index", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(d)", text: "explain natural selection including antibiotic resistance", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(e)", text: "describe classification systems and phylogeny", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],
@@ -261,6 +324,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.1(a)", text: "describe structure of mitochondria and the stages of respiration", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(b)", text: "explain glycolysis link reaction and Krebs cycle", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(c)", text: "describe oxidative phosphorylation including chemiosmosis", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(d)", text: "explain anaerobic respiration and its products", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(e)", text: "calculate respiratory quotient and efficiency", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -285,6 +355,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.2(a)", text: "describe chloroplast structure and photosynthetic pigments", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(b)", text: "explain light-dependent reactions including photolysis", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(c)", text: "explain Calvin cycle including carbon fixation", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(d)", text: "explain limiting factors of photosynthesis", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(e)", text: "interpret investigations into photosynthetic rate", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -309,6 +386,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.3(a)", text: "explain negative feedback and the role of receptors and effectors", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.3(b)", text: "describe control of blood glucose by insulin and glucagon", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.3(c)", text: "describe kidney structure including nephron and ultrafiltration", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.3(d)", text: "explain water balance including ADH and osmoregulation", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.3(e)", text: "describe nervous coordination including reflex arcs", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -333,6 +417,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.1(a)", text: "describe meiosis and genetic variation", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(b)", text: "perform monohybrid and dihybrid crosses including linkage", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(c)", text: "explain codominance sex linkage and epistasis", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(d)", text: "perform chi-squared tests for inheritance", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(e)", text: "explain Hardy Weinberg equilibrium and calculations", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -357,6 +448,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.4(a)", text: "describe energy flow through ecosystems including 10 percent rule", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(b)", text: "explain productivity including NPP and GPP", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(c)", text: "describe carbon and nitrogen cycles including microbial roles", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(d)", text: "describe succession from pioneer to climax community", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(e)", text: "interpret population sampling and mark-release-recapture", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],

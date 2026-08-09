@@ -3,7 +3,7 @@
 // and tested independently without LLM calls.
 
 import type { CountryNews } from "./gemini";
-import type { SourceAttribution, StoryCluster, NewsMeta } from "./storyModel";
+import type { SourceAttribution, StoryCluster } from "./storyModel";
 import { buildSourceMix, inferSourceAttribution } from "./storyModel";
 
 /** Build a readable SourceAttribution list from CountryNews sources (URL + title). */

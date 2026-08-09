@@ -379,7 +379,9 @@ export default function NewsGlobe({
 
   // While dots are popping in, hand the globe a fresh array each frame so it
   // re-evaluates the (time-based) radius and animates the pop.
+  // Timer-based pop animation — reading Date.now during render is intentional.
   const anyPopping = shownPoints.some(
+    // eslint-disable-next-line react-hooks/purity
     (p) => (p as TimedPoint)._appeared && Date.now() - (p as TimedPoint)._appeared! < POP_MS,
   );
   const pointsForGlobe = anyPopping ? [...shownPoints] : shownPoints;

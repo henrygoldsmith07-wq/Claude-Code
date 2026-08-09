@@ -33,6 +33,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.1(a)", text: "define proton number nucleon number isotope and relative atomic mass", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(b)", text: "calculate relative atomic mass from isotopic masses and abundances", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(c)", text: "describe mass spectrometry including molecular ion and fragmentation", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(d)", text: "write electron configurations using s p d notation and explain ionisation energy trends", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(e)", text: "explain exceptions to ionisation energy trends by sub-shell structure", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -57,6 +64,14 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.4(a)", text: "define the mole Avogadro constant and molar mass", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(b)", text: "perform calculations using n equals m over M and n equals c V", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(c)", text: "apply the ideal gas equation pV equals nRT with correct units", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(d)", text: "determine empirical and molecular formulae from composition data", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(e)", text: "calculate percentage yield atom economy and identify limiting reagent", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(f)", text: "perform titration calculations including appropriate significant figures", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -81,6 +96,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.5(a)", text: "describe ionic covalent dative covalent and metallic bonding", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(b)", text: "explain electronegativity polarity and bond polarity", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(c)", text: "rank intermolecular forces and link them to physical properties", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(d)", text: "predict molecular shapes and bond angles using VSEPR", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(e)", text: "explain how lattice structure determines melting point solubility and conductivity", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -105,6 +127,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.6(a)", text: "define enthalpy changes including formation combustion and neutralisation", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.6(b)", text: "construct and use enthalpy level diagrams and Hess cycles", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.6(c)", text: "calculate enthalpy changes using Hess law and bond enthalpies", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.6(d)", text: "explain why bond enthalpy calculations give approximate values", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.6(e)", text: "describe calorimetry experiments and their sources of error", aos: ["AO1","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -129,6 +158,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.7(a)", text: "define rate of reaction and describe methods to follow it", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.7(b)", text: "explain how concentration temperature and catalyst affect rate via collision theory", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.7(c)", text: "interpret Maxwell-Boltzmann distributions including effect of temperature", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.7(d)", text: "describe the role of activation energy and catalysis", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.7(e)", text: "deduce rate equations from experimental data", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -153,6 +189,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.1(a)", text: "describe dynamic equilibrium and Le Chatelier principle", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(b)", text: "predict the effect of concentration pressure and temperature on equilibrium position", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(c)", text: "write expressions for Kc and Kp and perform calculations", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(d)", text: "explain why catalysts do not affect equilibrium position", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(e)", text: "explain the compromise conditions in industrial processes", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -177,6 +220,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.2(a)", text: "define Bronsted-Lowry acids and bases and conjugate pairs", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(b)", text: "calculate pH for strong acids and bases", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(c)", text: "calculate pH for weak acids using Ka expression", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(d)", text: "describe buffer solutions and their action", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(e)", text: "interpret titration curves and select indicators", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -201,6 +251,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.3(a)", text: "assign oxidation numbers and identify oxidation and reduction", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(b)", text: "balance redox equations by half-equation method", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(c)", text: "describe standard electrode potentials and electrochemical cells", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(d)", text: "predict feasibility of redox reactions from electrode potentials", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(e)", text: "explain limitations of electrode potential predictions", aos: ["AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],
@@ -231,6 +288,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.1(a)", text: "describe trends in atomic radius ionisation energy and electronegativity across periods", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(b)", text: "explain trends in melting point and conductivity", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(c)", text: "describe reactions of Group 2 and Group 7 elements", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(d)", text: "explain thermal stability of Group 2 carbonates and nitrates", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(e)", text: "identify halide ions by silver nitrate test and ammonia solubility", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -255,6 +319,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.2(a)", text: "define transition metal and describe characteristic properties", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(b)", text: "explain variable oxidation states and catalytic activity", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(c)", text: "describe complex formation ligands and isomerism", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(d)", text: "explain colour and light absorption in terms of d-orbital splitting", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(e)", text: "interpret redox titrations involving manganate and thiosulfate", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -279,6 +350,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.1(a)", text: "apply IUPAC nomenclature to organic compounds", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(b)", text: "explain isomerism including structural stereoisomerism and E-Z", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(c)", text: "describe reaction mechanisms using curly arrows", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(d)", text: "predict products of organic reactions from reagents and conditions", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(e)", text: "evaluate hazards and atom economy of synthetic routes", aos: ["AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -303,6 +381,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.3(a)", text: "describe cracking and reforming in the petrochemical industry", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.3(b)", text: "explain electrophilic addition to alkenes including Markownikoff rule", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.3(c)", text: "describe electrophilic substitution in arenes", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.3(d)", text: "predict alkene reaction products under different conditions", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.3(e)", text: "explain relative stabilities of carbocations", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -327,6 +412,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.5(a)", text: "describe nucleophilic addition to carbonyl compounds", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.5(b)", text: "describe preparation and reactions of carboxylic acids and derivatives", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.5(c)", text: "explain nucleophilic substitution at carbonyl carbon", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.5(d)", text: "describe condensation polymerisation including polyesters and polyamides", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.5(e)", text: "plan synthetic routes including purification", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -351,6 +443,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.7(a)", text: "explain delocalisation and stability of benzene versus alkenes", aos: ["AO1","AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.7(b)", text: "describe electrophilic substitution of benzene including directing effects", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.7(c)", text: "describe preparation and reactions of amines", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.7(d)", text: "explain basicity trends in amines", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.7(e)", text: "describe diazonium chemistry and azo coupling", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -375,6 +474,13 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.11(a)", text: "interpret mass spectra including molecular ion and chlorine patterns", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.11(b)", text: "assign IR absorptions to functional groups", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.11(c)", text: "interpret proton and carbon-13 NMR including splitting and integration", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.11(d)", text: "combine spectroscopic data to determine structure", aos: ["AO2","AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.11(e)", text: "describe chromatographic separation principles", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],

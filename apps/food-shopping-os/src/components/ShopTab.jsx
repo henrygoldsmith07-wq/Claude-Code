@@ -8,7 +8,9 @@ import { Glyph } from './icons.jsx';
 import { gbp, cx, prettyDate } from '../lib/utils.js';
 import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
 import { basketProjection, groupForStore, parseVoiceShopping, shoppingNameKey } from '../lib/shopping.js';
+import { clearObservedPriceCache, fetchObservedForList } from '../lib/observed-prices.js';
 import { haptic } from '../lib/haptics.js';
+import { gbp as gbpFmt } from '../lib/utils.js';
 import ReceiptScan from './ReceiptScan.jsx';
 import {
   Section, Card, Empty, Meter, Chip, GestureMenu, Pill, Sheet,
@@ -40,6 +42,10 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
   const [dragging, setDragging] = useState(null);
   const [repeatedShopId, setRepeatedShopId] = useState('');
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  const [observedByKey, setObservedByKey] = useState(null); // { [shoppingNameKey]: observedPrice } | null
+  const [observedBusy, setObservedBusy] = useState(false);
+  const [observedError, setObservedError] = useState('');
+  const [observedMeta, setObservedMeta] = useState(null); // { checkedAt, fromCache, fetched }
   const shoppingMode = shoppingSession.active;
 
   useEffect(() => {
@@ -117,6 +123,21 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
     app.repeatLastShop();
     shoppingSession.start(lastShop?.store || '');
     setRepeatedShopId(lastShop?.id || '');
+  };
+
+  const checkObservedPrices = async () => {
+    if (!visibleList.length || observedBusy) return;
+    setObservedBusy(true);
+    setObservedError('');
+    try {
+      const result = await fetchObservedForList(visibleList);
+      setObservedByKey(result.byKey);
+      setObservedMeta({ checkedAt: result.checkedAt, fromCache: result.fromCache, fetched: result.fetched });
+    } catch (error) {
+      setObservedError(error.status === 401 ? 'Sign in to check community observations.' : error.status === 429 ? 'Too many checks — try again in a few minutes.' : (error.message || 'Community observations unavailable.'));
+    } finally {
+      setObservedBusy(false);
+    }
   };
 
   if (!app.householdAccess.shopping) {
@@ -349,6 +370,59 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
             </Section>
           )}
 
+          {visibleList.length > 0 && (
+            <Section className="rise rise-2">
+              <Card className="!p-3.5 space-y-2.5">
+                {(app.priceAnomalies.rises.length > 0 || app.priceAnomalies.bargains.length > 0) && (
+                  <div className="rounded-2xl border px-3 py-2.5" style={{ borderColor: app.priceAnomalies.rises.length ? 'var(--warn)' : 'var(--line)', background: 'var(--card-2)' }}>
+                    <p className="text-[0.6875rem] font-extrabold uppercase tracking-wide" style={{ color: app.priceAnomalies.rises.length ? 'var(--warn)' : 'var(--good)' }}>
+                      {app.priceAnomalies.rises.length > 0 && `${app.priceAnomalies.rises.length} price rise${app.priceAnomalies.rises.length === 1 ? '' : 's'} vs your receipts`}
+                      {app.priceAnomalies.rises.length > 0 && app.priceAnomalies.bargains.length > 0 ? ' · ' : ''}
+                      {app.priceAnomalies.bargains.length > 0 && `${app.priceAnomalies.bargains.length} bargain${app.priceAnomalies.bargains.length === 1 ? '' : 's'}`}
+                      <span className="font-semibold normal-case tracking-normal ml-1" style={{ color: 'var(--muted)' }}>· receipt-only · {app.priceAnomalies.config.risePct}/{app.priceAnomalies.config.bargainPct}%</span>
+                    </p>
+                    {(app.priceAnomaliesForList.length > 0) && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {app.priceAnomaliesForList.slice(0, 6).map(({ item, anomaly }) => (
+                          <span key={item.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[0.6875rem] font-bold" style={{ borderColor: anomaly.kind === 'rise' ? 'var(--danger)' : 'var(--good)', color: anomaly.kind === 'rise' ? 'var(--danger)' : 'var(--good)', background: 'var(--card)' }}>
+                            {anomaly.kind === 'rise' ? '↗' : '↘'} {item.name} {anomaly.pct > 0 ? `+${anomaly.pct}%` : `${anomaly.pct}%`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-1.5 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>Budget → thresholds are 15% by default and tunable per item.</p>
+                  </div>
+                )}
+                {app.couponVault.active > 0 && app.couponsForList.length > 0 && (
+                  <div className="rounded-2xl border px-3 py-2.5 flex items-center gap-2" style={{ borderColor: 'var(--good)', background: 'var(--card)' }}>
+                    <Pill tone="good">{app.couponsForList.length} coupon{app.couponsForList.length === 1 ? '' : 's'} match this list</Pill>
+                    <span className="text-[0.6875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>{app.couponsForList.slice(0, 2).map((h) => h.coupon.label).join(' · ')}{app.couponsForList.length > 2 ? ` +${app.couponsForList.length - 2}` : ''}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-[0.875rem]">Real prices</p>
+                    <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                      Your receipts are primary. Community observations are dated context — never a live quote.
+                    </p>
+                  </div>
+                  <button type="button" onClick={checkObservedPrices} disabled={observedBusy} className="press shrink-0 rounded-2xl px-3.5 py-2 text-[0.78125rem] font-extrabold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+                    {observedBusy ? 'Checking…' : observedByKey ? 'Check again' : 'Check community prices'}
+                  </button>
+                </div>
+                {observedError && <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--danger)' }}>{observedError}</p>}
+                {observedMeta && !observedError && (
+                  <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {Object.keys(observedByKey || {}).length} item{Object.keys(observedByKey || {}).length === 1 ? '' : 's'} with an observation{observedMeta.fromCache ? ` · ${observedMeta.fromCache} from 24h cache` : ''} · community observed, not live.
+                  </p>
+                )}
+                {observedByKey && (
+                  <button type="button" onClick={() => { clearObservedPriceCache(); setObservedByKey(null); setObservedMeta(null); setObservedError(''); }} className="press mt-2 rounded-full border px-3 py-1 text-[0.6875rem] font-bold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>Clear cached observations</button>
+                )}
+              </Card>
+            </Section>
+          )}
+
           {visibleList.length === 0 ? (
             <Section className="rise rise-2">
               <Card className="text-center py-10">
@@ -381,6 +455,7 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
                             storeOptions={storeChoices}
                             dragging={dragging}
                             setDragging={setDragging}
+                            observedPrice={observedByKey?.[shoppingNameKey(item.name)] || null}
                           />
                         ))}
                       </Card>

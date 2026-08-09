@@ -111,29 +111,41 @@ hard part and this repo enforces it.
 |-------|-------|--------|
 | **Board / spec** | `Subject.spec` + `SPEC_MANIFEST` | `wjec` · `A200QS` · version `2024-1.0` · `lastChecked` |
 | **Qualification** | `Subject.qualificationId` | `A Level` / `GCSE` / … |
-| **Unit / paper** | `Unit.id` + `Subject.papers` | weight, duration, calculator flag |
-| **Spec point** | `Topic.specRef` + `Topic.specPoints[]` | exact board ref + paraphrased text + `aos` |
+| **Unit / paper** | `Unit.id` + `Subject.papers` + `SPEC_MANIFEST.paperBreakdown?` | weight, duration, calculator flag, marks |
+| **Spec point** | `Topic.specPoints[]` (stable id) | board ref + learning claim + AO + source/verification/reviewer/lastChecked/specVersion |
 | **AO mapping** | `Topic.aos` / `QuestionPart.aos` | `AO1` `AO2` `AO3` |
 | **Source** | `Topic.source` / `Question.source` | `authored` / `licensed` / `generated` / … |
-| **Verification** | `Topic.verification` / `Question.verification` | `unverified` → `checked` → `verified` |
-| **Last checked** | `Topic.lastChecked` / `Question.lastChecked` | ISO date |
+| **Verification** | `Topic.verification` / `Question.verification` / `SpecPoint.verification` | `unverified` → `checked` → `verified` (statement-level) |
+| **Last checked** | `Topic.lastChecked` / `SpecPoint.lastChecked` / `Question.lastChecked` | ISO date |
+| **Reviewer** | `Topic.reviewer` / `SpecPoint.reviewer` / `Question.reviewer` | identity of checker |
 | **Spec version** | `Topic.specVersion` / `Question.specVersion` | `2024-1.0` |
 | **Coverage** | `src/domain/coverage.ts` | topics · spec points · retrieval items · exam questions, auto-measured |
 
 ```ts
-// Progress → Specification coverage (live from authored content):
-//  WJEC A-level Physics: 100% topic coverage · 11 topics · 78 retrieval items · 6 exam questions · Last checked: 2026-08-01
+// Progress → Specification coverage (live, statement-level):
+//  WJEC A-level Physics: 76 statements · 76 with cards · 9 parts mapped · Last checked: 2026-08-01
+//  Chemistry: 76 statements  ·  Biology: 70  ·  Maths: 55 — each specPoint = one stable id + ref + AO + provenance.
 ```
 
-Fine-grained `specPoints[]` are the next step: today every topic has a `specRef`
-("Unit 2.4") and board-level versioning; splitting those into discrete
-statements (one `ref` per phrase the spec actually makes) is what moves the
-headline from "topics covered" to the requested "189 statements verified". The
-plumbing is in place — see `src/domain/types.ts:SpecPoint` and the `specPoints?`
-field on `Topic` — and the validator already treats "no-spec-points" as a gap.
-Run `node scripts/validate-curriculum.mjs` in CI; it fails on missing
-provenance, unknown topic refs, or a coverage drop. `tests/coverage.test.ts`
-pins the contracts so a regression cannot land silently.
+`specPoints[]` is the competitive moat: each entry has a **stable id** (e.g.
+`wjec-alevel-physics.quantum.sp-01`), an **exact spec ref** (`Unit 1.1(a)`),
+a **learning claim** (paraphrased — never verbatim unless licensed), an **AO**,
+a **source** / **verification** / **reviewer** / **lastChecked** / **specVersion**,
+and measurable links from **cards** (`Card.specPointIds`) and **question parts**
+(`QuestionPart.specPointIds` + `learningClaims` aligned to the mark scheme).
+`src/domain/coverage.ts` reports it all: `specPointsTotal` /
+`specPointsVerified` / `specPointsLearnable` / `specPointsAssessable` /
+`statementCoverage` — statement by statement. `buildUnits()` auto-assigns stable
+ids when omitted and threads per-statement provenance from the topic. Cards
+auto-link to the nearest statement(s); all four subjects now have specPoints on
+every topic (Physics 76, Chemistry 76, Biology 70, Maths 55) with `paperBreakdown`
+for unit·duration·marks·weighting on every paper. Every seed question maps to
+statements with `learningClaims` (1:1 with markScheme) — the `no-spec-points`
+gaps in Progress now only fire on regressions. Run `node scripts/validate-curriculum.mjs`
+in CI — it now enforces that every subject has specPoints on every topic and that any `specPointIds` are paired with `learningClaims`. See
+`src/content/questions/physics.ts` for the first mapped questions and
+`tests/coverage.test.ts` for the statement-level contract (stable ids, AO,
+verification, card/question mapping).
 
 ## Adding a new exam board or subject
 
@@ -161,12 +173,21 @@ searchable. No other file changes. Add the subject to `src/domain/spec.ts:SPEC_M
 - [`docs/architecture.md`](docs/architecture.md) — data flow, sync, AI layer, testing
 - [`docs/revision-engine.md`](docs/revision-engine.md) — the algorithms and the evidence behind them
 
-## Content accuracy
+## Content accuracy — statement-level provenance
 
-Topic lists follow the broad content areas of each specification and are a
-study-planning guide, not a transcription of the official document. Grade
-boundaries are approximate and labelled as such in the UI. Always check the
-current WJEC specification for exact assessment objectives and weightings.
+Every examinable statement is modelled explicitly: one `specPoint` per claim the
+spec makes, with a stable id, an exact board ref (`Unit 1.1(a)`, `Pure 1.2(c)`),
+a learning claim (paraphrased — never verbatim unless licensed), an AO, and a
+provenance record (`source` / `verification` / `reviewer` / `lastChecked` /
+`specVersion`). Coverage on Progress is measured **per statement**: how many have
+retrieval cards, how many have an exam question (*which* parts test *which*
+statements), which are verified, and — per `SPEC_MANIFEST` — which unit/paper
+(duration, marks, weighting) each belongs to. The statement model covers all
+four subjects: 277 statements across 55 topics (≈76 Physics, 76 Chemistry, 70
+Biology, 55 Maths), each mapped to cards and exam questions with `learningClaims`
+aligned 1:1 with markScheme points. Topic lists and grade boundaries remain
+approximate and labelled as such; always check the current WJEC specification
+for exact assessment objectives and weightings.
 
 Recovery note: the deleted `apps/wjec-study-app` had **no** per-topic
 validation, provenance or coverage tooling — only bare topic titles — so

@@ -12,6 +12,8 @@ export interface PartSpec {
   scheme: string[];
   answer: string;
   aos?: AoCode[];
+  specPointIds?: string[];
+  learningClaims?: string[];
 }
 
 export interface QuestionSpec {
@@ -28,8 +30,10 @@ export interface QuestionSpec {
   source?: ContentSource;
   verification?: VerificationStatus;
   lastChecked?: string | null;
+  reviewer?: string | null;
   specVersion?: string;
   aos?: AoCode[];
+  specPointIds?: string[];
 }
 
 const SEED_CREATED_AT = "2025-01-01T00:00:00.000Z";
@@ -44,11 +48,15 @@ export function defineQuestion(spec: QuestionSpec): Question {
     markScheme: part.scheme,
     modelAnswer: part.answer,
     aos: part.aos,
+    specPointIds: (part as { specPointIds?: string[] }).specPointIds,
+    learningClaims: (part as { learningClaims?: string[] }).learningClaims,
   }));
 
   const aos =
     spec.aos ?? [...new Set(parts.flatMap((p) => p.aos ?? []))] as AoCode[];
 
+  // union of part ids when not given explicitly; deduped
+  const specPointIds = (spec as { specPointIds?: string[] }).specPointIds ?? [...new Set(parts.flatMap((p) => p.specPointIds ?? []))];
   return {
     id,
     subjectId: spec.subjectId,
@@ -64,9 +72,11 @@ export function defineQuestion(spec: QuestionSpec): Question {
     origin: "seed",
     source: spec.source ?? "authored",
     verification: spec.verification ?? "unverified",
+    reviewer: (spec as { reviewer?: string | null }).reviewer ?? null,
     lastChecked: spec.lastChecked ?? null,
     specVersion: spec.specVersion,
     aos: aos.length ? aos : undefined,
+    specPointIds: specPointIds.length ? specPointIds : undefined,
     createdAt: SEED_CREATED_AT,
   };
 }

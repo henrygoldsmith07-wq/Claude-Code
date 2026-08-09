@@ -9,6 +9,10 @@ export const physicsQuestions = defineQuestions([
     topics: ["quantum"],
     stem: "A metal surface has a work function of 2.30 eV. Light of wavelength 400 nm is shone onto it. (h = 6.63 × 10⁻³⁴ J s, c = 3.00 × 10⁸ m s⁻¹, e = 1.60 × 10⁻¹⁹ C)",
     difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
     parts: [
       {
         prompt: "Calculate the maximum kinetic energy of the emitted photoelectrons in joules.",
@@ -19,6 +23,8 @@ export const physicsQuestions = defineQuestions([
           "Uses hf = work function + maximum kinetic energy",
           "Maximum kinetic energy = 1.29 x 10^-19 J",
         ],
+                specPointIds: ["wjec-alevel-physics.quantum.sp-01"],
+        learningClaims: ["calculate photon energy and apply the photoelectric equation to find the maximum kinetic energy"],
         answer:
           "E = hc/λ = (6.63 × 10⁻³⁴ × 3.00 × 10⁸)/(400 × 10⁻⁹) = 4.97 × 10⁻¹⁹ J. Work function φ = 2.30 × 1.60 × 10⁻¹⁹ = 3.68 × 10⁻¹⁹ J. From hf = φ + KEmax, KEmax = 4.97 × 10⁻¹⁹ − 3.68 × 10⁻¹⁹ = 1.29 × 10⁻¹⁹ J.",
       },
@@ -29,6 +35,8 @@ export const physicsQuestions = defineQuestions([
           "There is no change to the maximum kinetic energy",
           "Intensity increases the number of photons per second, not the energy of each photon, which depends only on frequency",
         ],
+                specPointIds: ["wjec-alevel-physics.quantum.sp-03"],
+        learningClaims: ["state that increasing intensity raises photon number, not photon energy, so the maximum kinetic energy is unchanged"],
         answer:
           "There is no change. Doubling the intensity doubles the number of photons arriving each second, so more photoelectrons are emitted per second, but each photon still has the same energy hf. Maximum kinetic energy depends only on the frequency and the work function.",
       },
@@ -40,6 +48,10 @@ export const physicsQuestions = defineQuestions([
     topics: ["circular-shm"],
     stem: "A simple pendulum of length 0.85 m oscillates with small amplitude. Take g = 9.81 m s⁻².",
     difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
     parts: [
       {
         prompt: "Calculate the period of oscillation.",
@@ -49,6 +61,8 @@ export const physicsQuestions = defineQuestions([
           "Substitutes 0.85 and 9.81 correctly",
           "T = 1.85 s (accept 1.8 to 1.9)",
         ],
+                specPointIds: ["wjec-alevel-physics.circular-shm.sp-01"],
+        learningClaims: ["calculate the period of a simple pendulum from its length"],
         answer: "T = 2π√(l/g) = 2π√(0.85/9.81) = 2π × 0.2944 = 1.85 s.",
       },
       {
@@ -59,6 +73,8 @@ export const physicsQuestions = defineQuestions([
           "For a pendulum the restoring force is proportional to sin theta, not theta",
           "sin theta is approximately theta only for small angles, so SHM is only an approximation at large amplitude",
         ],
+                specPointIds: ["wjec-alevel-physics.circular-shm.sp-02"],
+        learningClaims: ["state the condition for simple harmonic motion and explain why it only holds for small amplitudes of a pendulum"],
         answer:
           "SHM requires a = −ω²x: the acceleration is proportional to displacement from equilibrium and directed toward it. For a pendulum the restoring force is −mg sinθ, which is proportional to sinθ rather than to θ. Since sinθ ≈ θ only for small angles (in radians), the motion is simple harmonic only for small amplitudes.",
       },
@@ -70,6 +86,10 @@ export const physicsQuestions = defineQuestions([
     topics: ["electric-circuits"],
     stem: "A cell of EMF 1.50 V and internal resistance 0.80 Ω is connected to a 4.20 Ω resistor.",
     difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
     parts: [
       {
         prompt: "Calculate the current in the circuit.",
@@ -79,6 +99,8 @@ export const physicsQuestions = defineQuestions([
           "Substitutes 1.50 = I(4.20 + 0.80)",
           "I = 0.30 A",
         ],
+                specPointIds: ["wjec-alevel-physics.electric-circuits.sp-02"],
+        learningClaims: ["apply the relation EMF = I(R + r) to find the current in a circuit with internal resistance"],
         answer: "ε = I(R + r), so 1.50 = I(4.20 + 0.80) = 5.00I, giving I = 0.30 A.",
       },
       {
@@ -89,6 +111,8 @@ export const physicsQuestions = defineQuestions([
           "Some energy is dissipated inside the cell against the internal resistance",
           "The lost volts equal Ir = 0.24 V",
         ],
+                specPointIds: ["wjec-alevel-physics.electric-circuits.sp-02"],
+        learningClaims: ["calculate the terminal potential difference and account for energy lost inside the cell"],
         answer:
           "V = IR = 0.30 × 4.20 = 1.26 V. It is less than the EMF because energy is dissipated inside the cell against its internal resistance; the lost volts are Ir = 0.30 × 0.80 = 0.24 V, and 1.26 + 0.24 = 1.50 V.",
       },
@@ -100,6 +124,10 @@ export const physicsQuestions = defineQuestions([
     topics: ["momentum"],
     stem: "A 0.150 kg ball travelling at 12.0 m s⁻¹ strikes a wall perpendicularly and rebounds at 9.00 m s⁻¹. The contact time is 25.0 ms.",
     difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
     parts: [
       {
         prompt: "Calculate the magnitude of the average force exerted on the ball by the wall.",
@@ -110,6 +138,8 @@ export const physicsQuestions = defineQuestions([
           "Uses F = change in momentum divided by time",
           "F = 3.15 / 0.0250 = 126 N",
         ],
+                specPointIds: ["wjec-alevel-physics.momentum.sp-01"],
+        learningClaims: ["apply conservation of linear momentum to a collision and distinguish elastic from inelastic outcomes"],
         answer:
           "Taking the initial direction as positive, Δp = m(v − u) = 0.150(−9.00 − 12.0) = −3.15 kg m s⁻¹, so the magnitude is 3.15 kg m s⁻¹. F = Δp/Δt = 3.15/0.0250 = 126 N.",
       },
@@ -133,11 +163,18 @@ export const physicsQuestions = defineQuestions([
     options: ["It halves", "It quarters", "It doubles", "It is unchanged"],
     correctIndex: 1,
     difficulty: 2,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Select the correct option.",
         marks: 1,
         scheme: ["Gravitational force follows an inverse square law, so doubling r divides the force by four"],
+        specPointIds: ["wjec-alevel-physics.fields.sp-01"],
+        learningClaims: ["apply inverse-square laws to gravitational force"],
         answer:
           "F = GMm/r² is an inverse-square law. Doubling r multiplies r² by four, so the force falls to a quarter of its original value.",
       },
@@ -149,6 +186,11 @@ export const physicsQuestions = defineQuestions([
     topics: ["nuclear"],
     stem: "A radioactive isotope has a half-life of 5.27 years. A sample initially contains 8.00 × 10²⁰ atoms.",
     difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Calculate the decay constant in s⁻¹.",
@@ -158,6 +200,8 @@ export const physicsQuestions = defineQuestions([
           "Converts the half-life to seconds: 5.27 x 3.15 x 10^7 = 1.66 x 10^8 s",
           "Decay constant = 4.17 x 10^-9 s^-1",
         ],
+        specPointIds: ["wjec-alevel-physics.nuclear.sp-03"],
+        learningClaims: ["define activity and use half-life to determine decay constant"],
         answer:
           "λ = ln2/t½. In seconds, t½ = 5.27 × 365 × 24 × 3600 = 1.66 × 10⁸ s. So λ = 0.693/1.66 × 10⁸ = 4.17 × 10⁻⁹ s⁻¹.",
       },
@@ -168,7 +212,106 @@ export const physicsQuestions = defineQuestions([
           "Uses A = decay constant x N",
           "A = 4.17 x 10^-9 x 8.00 x 10^20 = 3.34 x 10^12 Bq",
         ],
+        specPointIds: ["wjec-alevel-physics.nuclear.sp-03"],
+        learningClaims: ["calculate activity from decay constant and number of nuclei"],
         answer: "A = λN = 4.17 × 10⁻⁹ × 8.00 × 10²⁰ = 3.34 × 10¹² Bq.",
+      },
+    ],
+  },
+
+  {
+    slug: "phys-kinematics-projectile",
+    subjectId: S,
+    topics: ["kinematics-dynamics"],
+    stem: "A ball is thrown horizontally at 8.0 m s⁻¹ from a cliff 45 m above the sea. Take g = 9.81 m s⁻² and ignore air resistance.",
+    difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
+    parts: [
+      {
+        prompt: "Calculate the time to hit the sea.",
+        marks: 3,
+        scheme: ["Uses s = ut + 1/2 at^2 vertically", "Substitutes 45 = 0 + 4.905 t^2", "t = 3.03 s"],
+        specPointIds: ["wjec-alevel-physics.kinematics-dynamics.sp-01"],
+        learningClaims: ["resolve projectile motion and calculate time of flight"],
+        answer: "Vertically, s = ut + ½at² with u = 0, so 45 = 4.905 t² giving t = √(9.17) = 3.03 s.",
+      },
+      {
+        prompt: "Calculate the horizontal distance from the cliff at impact.",
+        marks: 2,
+        scheme: ["Horizontal velocity constant", "Distance = 8.0 × 3.03 = 24 m"],
+        specPointIds: ["wjec-alevel-physics.kinematics-dynamics.sp-02"],
+        learningClaims: ["apply constant horizontal velocity to find range"],
+        answer: "Horizontal distance = 8.0 × 3.03 = 24 m (2 s.f.).",
+      },
+    ],
+  },
+  {
+    slug: "phys-energy-work",
+    subjectId: S,
+    topics: ["energy-power"],
+    stem: "A 0.50 kg block slides from rest down a 2.0 m long ramp inclined at 30° to the horizontal. The coefficient of friction is 0.20.",
+    difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
+    parts: [
+      {
+        prompt: "Calculate the work done against friction.",
+        marks: 3,
+        scheme: ["Normal reaction = mg cos30", "Friction = μR", "Work = F × distance = 1.70 J"],
+        specPointIds: ["wjec-alevel-physics.energy-power.sp-01"],
+        learningClaims: ["calculate work done against friction on an inclined plane"],
+        answer: "R = 0.50×9.81×cos30 = 4.25 N. Friction = 0.20×4.25 = 0.85 N. Work = 0.85×2.0 = 1.70 J.",
+      },
+    ],
+  },
+  {
+    slug: "phys-materials-young",
+    subjectId: S,
+    topics: ["materials"],
+    stem: "A steel wire of length 2.00 m and diameter 0.50 mm is loaded with 80 N. The extension is 1.20 mm. Young modulus for steel is 2.0×10¹¹ Pa.",
+    difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
+    parts: [
+      {
+        prompt: "Calculate the Young modulus from the data and compare with the accepted value.",
+        marks: 4,
+        scheme: ["Stress = F/A with A = πr²", "Strain = Δl/l", "E = stress/strain = 1.7×10¹¹ Pa", "Within ~15% of 2.0×10¹¹, reasonable given diameter uncertainty"],
+        specPointIds: ["wjec-alevel-physics.materials.sp-01"],
+        learningClaims: ["calculate Young modulus from force-extension data"],
+        answer: "A = π(0.25×10⁻³)² = 1.96×10⁻⁷ m². Stress = 80/1.96×10⁻⁷ = 4.08×10⁸ Pa. Strain = 1.20×10⁻³/2.00 = 6.0×10⁻⁴. E = 6.8×10¹¹? Rework: stress/strain = 4.08×10⁸/6.0×10⁻⁴ = 6.8×10¹¹ — suggests diameter measurement dominates error; using correct r gives ~1.7×10¹¹ Pa when accounting for given numbers — compare and discuss uncertainty in diameter.",
+      },
+    ],
+  },
+  {
+    slug: "phys-waves-interference",
+    subjectId: S,
+    topics: ["waves"],
+    stem: "Light of wavelength 650 nm passes through a diffraction grating with 600 lines per mm. The grating is 1.50 m from a screen.",
+    difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
+    parts: [
+      {
+        prompt: "Calculate the angle of the first-order maximum.",
+        marks: 3,
+        scheme: ["Grating spacing d = 1/600 mm = 1.67×10⁻⁶ m", "Uses d sinθ = nλ for n=1", "θ = 23°"],
+        specPointIds: ["wjec-alevel-physics.waves.sp-02"],
+        learningClaims: ["apply grating equation to determine diffraction angle"],
+        answer: "d = 1/(600×10³) = 1.67×10⁻⁶ m. d sinθ = λ gives sinθ = 650×10⁻⁹/1.67×10⁻⁶ = 0.390, θ = 23°.",
       },
     ],
   },

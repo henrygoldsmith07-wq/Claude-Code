@@ -49,6 +49,28 @@ export const expiringSoon = (pantry = [], within = 3, today = dayStamp()) =>
 
 export const runningLow = (pantry = []) => pantry.filter((p) => p.low);
 
+/** How sure we are that this row is still in the kitchen. Defaults to definite for old rows. */
+export const PANTRY_CONFIDENCE = ["definite", "probable", "unknown"];
+export const AMOUNT_CONFIDENCE = ["exact", "approximate", "unknown"];
+export const pantryConfidence = (item) => {
+  const v = String(item?.confidence || "definite").toLowerCase();
+  return PANTRY_CONFIDENCE.includes(v) ? v : "definite";
+};
+export const amountConfidence = (item) => {
+  const v = String(item?.amountConfidence || (item?.qty ? "approximate" : "unknown")).toLowerCase();
+  return AMOUNT_CONFIDENCE.includes(v) ? v : "approximate";
+};
+export const pantryUncertaintyLabel = (item) => {
+  const c = pantryConfidence(item);
+  const a = amountConfidence(item);
+  if (c === "unknown") return "unknown — not counted in coverage";
+  if (c === "probable") return "probably have" + (a === "unknown" ? " · amount unknown" : a === "approximate" ? " · amount approx." : "");
+  if (item?.low) return "running low" + (a === "unknown" ? " · amount unknown" : "");
+  return "definitely have" + (a === "exact" ? " · amount known" : a === "unknown" ? " · amount unknown" : " · amount approx.");
+};
+// Exclude unknown-confidence rows from pantry-aware coverage so recommendations don't assume a perfect pantry
+
+
 export const leftovers = (pantry = []) => pantry.filter((p) => p.cat === 'Leftovers');
 
 const money = (value) => Math.round(value * 100) / 100;
@@ -173,6 +195,8 @@ const decodeUtf8 = (value) => decodeURIComponent(escape(atob(value)));
 export const pantryShareCode = (pantry = []) =>
   `FORQ-PANTRY-1.${encodeUtf8(JSON.stringify(pantry.map((item) => ({
     name: String(item.name || '').trim(),
+    confidence: pantryConfidence(item),
+    amountConfidence: amountConfidence(item),
     emoji: item.emoji || '',
     qty: String(item.qty || ''),
     cost: Number(item.cost) || 0,
@@ -193,6 +217,7 @@ export const pantryFromShareCode = (code) => {
       ...item,
       name: item.name.trim().slice(0, 120),
       qty: String(item.qty || '').slice(0, 60),
+      confidence: String(item.confidence || 'definite').slice(0,20),
       cost: Math.max(0, Number(item.cost) || 0),
       expiry: /^\d{4}-\d{2}-\d{2}$/.test(item.expiry || '') ? item.expiry : null,
       low: Boolean(item.low),

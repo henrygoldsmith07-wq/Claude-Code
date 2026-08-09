@@ -129,12 +129,14 @@ export function validateGraph(graph: ArgGraph): string[] {
 
 // Build a quick lookup: which claims are supported (have an evidence edge into them).
 export function claimSupportMap(graph: ArgGraph): Map<string, boolean> {
-  const supported = new Set(
-    graph.edges.filter((e) => e.relation === "supports").map((e) => e.from),
-  );
   // convention: evidence --supports--> claim, so the claim is `to`; adjust to handle both orientations stored by the judge
   const supportedClaims = new Set<string>();
-  for (const e of graph.edges) if (e.relation === "supports") supportedClaims.add(e.to), supportedClaims.add(e.from);
+  for (const e of graph.edges) {
+    if (e.relation === "supports") {
+      supportedClaims.add(e.to);
+      supportedClaims.add(e.from);
+    }
+  }
   const map = new Map<string, boolean>();
   for (const n of graph.nodes) if (n.kind === "claim") map.set(n.id, supportedClaims.has(n.id));
   // if the judge used unsupportedClaimIds, prefer that ground truth

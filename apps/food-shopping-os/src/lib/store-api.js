@@ -20,6 +20,8 @@ import { emojiFor, EMPTY_STATE, todayStamp, uid } from './state.js';
 import { parseBackup, serialiseBackup } from './store-persistence.js';
 import { vaultActions } from './vault-actions.js';
 import { receiptActions, shoppingActions } from './shopping-actions.js';
+import { normalisePriceAlertConfig } from './price-alerts.js';
+import { COUPON_KINDS, LOYALTY_PROGRAMMES, normaliseCoupon } from './coupons.js';
 export function useStoreApi({
   blockPersistence, cloudStatus, latest, setState, setStorageIssue, storageIssue,
   undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
@@ -351,6 +353,60 @@ export function useStoreApi({
         }),
       removePriceAlert: (id) =>
         set((s) => ({ priceAlerts: s.priceAlerts.filter((alert) => alert.id !== id) })),
+      setPriceAlertConfig: (patch) =>
+        set((s) => {
+          const next = normalisePriceAlertConfig({ ...s.priceAlertConfig, ...(patch || {}) });
+          return { priceAlertConfig: next };
+        }),
+      setPriceAlertOverride: (name, kind, pct) =>
+        set((s) => {
+          const key = String(name || '').trim().toLowerCase();
+          if (!key || !['rise', 'bargain'].includes(kind)) return {};
+          const n = Math.max(5, Math.min(50, Math.round(Number(pct) || 15)));
+          const overrides = { ...(s.priceAlertConfig?.overrides || {}) };
+          const existing = overrides[key] || {};
+          overrides[key] = { ...existing, [kind === 'rise' ? 'risePct' : 'bargainPct']: n };
+          return { priceAlertConfig: normalisePriceAlertConfig({ ...s.priceAlertConfig, overrides }) };
+        }),
+      clearPriceAlertOverride: (name, kind) =>
+        set((s) => {
+          const key = String(name || '').trim().toLowerCase();
+          const overrides = { ...(s.priceAlertConfig?.overrides || {}) };
+          if (!overrides[key]) return {};
+          const next = { ...overrides[key] };
+          if (kind === 'rise') delete next.risePct;
+          else if (kind === 'bargain') delete next.bargainPct;
+          else delete overrides[key];
+          if (kind && Object.keys(next).length) overrides[key] = next;
+          else if (!kind) delete overrides[key];
+          else delete overrides[key];
+          return { priceAlertConfig: normalisePriceAlertConfig({ ...s.priceAlertConfig, overrides }) };
+        }),
+      // Coupon vault — manual + photo OCR draft (no retailer feed)
+      addCoupon: (raw) =>
+        set((s) => {
+          const label = String(raw?.label || '').trim();
+          if (label.length < 2) return {};
+          const normalised = normaliseCoupon({ ...raw, id: raw?.id || uid('cp'), addedAt: s.day }, s.day);
+          if (!normalised.label) return {};
+          if (normalised.kind === 'money' || normalised.kind === 'percent' || normalised.kind === 'multibuy') {
+            if (!(Number(normalised.value) > 0)) return {};
+          }
+          const kindOk = COUPON_KINDS.some((k) => k.id === normalised.kind);
+          if (!kindOk) return {};
+          const progOk = !normalised.programme || LOYALTY_PROGRAMMES.some((p) => p.id === normalised.programme);
+          if (!progOk) return {};
+          return { coupons: [...(s.coupons || []), normalised] };
+        }),
+      updateCoupon: (id, patch) =>
+        set((s) => ({
+          coupons: (s.coupons || []).map((c) => (c.id === id ? normaliseCoupon({ ...c, ...patch, id }, s.day) : c)),
+        })),
+      removeCoupon: (id) => set((s) => ({ coupons: (s.coupons || []).filter((c) => c.id !== id) })),
+      toggleCouponUsed: (id) =>
+        set((s) => ({
+          coupons: (s.coupons || []).map((c) => c.id === id ? { ...c, used: !c.used, usedAt: !c.used ? s.day : null } : c),
+        })),
       binPantryItem: (id) =>
         set((s) => {
           const item = householdPermission(s, 'pantry') ? s.pantry.find((p) => p.id === id) : null;

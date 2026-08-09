@@ -20,9 +20,11 @@ export default function MyFeed() {
   const codes = favourites.countries.map((c) => c.id).join(",");
 
   useEffect(() => {
+    // Populate feed from external API — canonical sync effect.
     let active = true;
     const ids = codes ? codes.split(",") : [];
     for (const id of ids) {
+      // eslint-disable-next-line
       setEntries((prev) => (prev[id] ? prev : { ...prev, [id]: { status: "loading" } }));
       fetch(`/api/country/${id}`)
         .then(async (res) => {
