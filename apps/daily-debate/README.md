@@ -8,14 +8,14 @@ streaks make it a game.
 
 ## Stack
 
-Next.js (App Router) + Supabase (auth, Postgres, Realtime) + the Anthropic API.
+Next.js (App Router) + Supabase (auth, Postgres, Realtime) + the Gemini API.
 
 ## Features
 
 - **Daily topic** — a new debatable proposition is generated once per day
   (`getOrCreateTodayTopic`), grounded with 3-5 real, well-known institutions
   relevant to the topic (their homepage + what angle/data they're known for).
-  Claude does not have live web access in this app, so these are named
+  Gemini does not have live web access in this app, so these are named
   credible sources to go research yourself, not live-fetched citations.
 - **Solo debate vs AI** — pick a side, then go back and forth with an AI
   arguing the opposite side for a minimum of 5 rounds. Each response is
@@ -41,7 +41,7 @@ Next.js (App Router) + Supabase (auth, Postgres, Realtime) + the Anthropic API.
 
 1. Create a Supabase project and run `supabase/migrations/001_initial_schema.sql`.
 2. Copy `.env.example` to `.env.local` and fill in your Supabase project URL,
-   anon key, service role key, and an `ANTHROPIC_API_KEY`.
+   anon key, service role key, and a `GEMINI_API_KEY`.
 3. `npm install && npm run dev`.
 
 ## Argument graph & judging (why the winner won)

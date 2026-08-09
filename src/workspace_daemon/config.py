@@ -9,7 +9,11 @@ Core:
     DRY_RUN                 "true"/"false" — when true (the default), NO
                             destructive API call is executed; actions are
                             only logged.
-    ANTHROPIC_API_KEY       Claude API key used by ai_engine.
+    ANTHROPIC_API_KEY       Claude API key used by ai_engine (preferred).
+    OPENROUTER_API_KEY      Free alternative: OpenRouter key used when no
+                            Anthropic key is set (free-tier models).
+    OPENROUTER_MODEL        OpenRouter model id; defaults to the free
+                            meta-llama/llama-3.3-70b-instruct:free.
     RUN_INTERVAL_MINUTES    Delay between daemon cycles (default 30).
     ALERT_WEBHOOK_URL       Optional URL that receives a JSON POST when an
                             urgent email is detected.
@@ -73,6 +77,17 @@ class Config:
     )
     anthropic_api_key: str | None = field(
         default_factory=lambda: os.getenv("ANTHROPIC_API_KEY")
+    )
+    # Free-tier alternative backend: any OpenRouter model works; the default
+    # is a free one, so classification costs nothing beyond an OpenRouter
+    # account (https://openrouter.ai/keys).
+    openrouter_api_key: str | None = field(
+        default_factory=lambda: os.getenv("OPENROUTER_API_KEY")
+    )
+    openrouter_model: str = field(
+        default_factory=lambda: os.getenv(
+            "OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free"
+        )
     )
     alert_webhook_url: str | None = field(
         default_factory=lambda: os.getenv("ALERT_WEBHOOK_URL")

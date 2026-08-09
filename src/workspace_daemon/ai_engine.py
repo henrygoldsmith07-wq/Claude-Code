@@ -1,4 +1,4 @@
-"""Claude-powered email intelligence.
+"""AI-powered email intelligence.
 
 Classifies emails into a strict structured verdict used by the orchestrator:
 
@@ -7,8 +7,18 @@ Classifies emails into a strict structured verdict used by the orchestrator:
     SUMMARY  -> 1-2 sentence digest of legitimate mail
     CATEGORY -> routing label: Work | Personal | Receipts | Newsletters
 
-Structured output is enforced with the Messages API ``output_config.format``
-(JSON schema), so the response is guaranteed to be valid, parseable JSON.
+Two interchangeable backends, picked automatically from configuration:
+
+  * anthropic  — used when ANTHROPIC_API_KEY is set. Structured output is
+    enforced with the Messages API ``output_config.format`` (JSON schema),
+    so the response is guaranteed valid JSON.
+  * openrouter — free-tier fallback used when only OPENROUTER_API_KEY is
+    set. Talks to OpenRouter's chat-completions endpoint with a free model
+    (default meta-llama/llama-3.3-70b-instruct:free) and parses the JSON
+    defensively, since free models can't guarantee schema conformance.
+
+Either way a failed/unparseable classification returns None and the caller
+takes no action on that email (fail safe).
 """
 
 from __future__ import annotations
@@ -18,12 +28,14 @@ import logging
 from dataclasses import dataclass
 
 import anthropic
+import requests
 
 from config import Config
 
 log = logging.getLogger("ai_engine")
 
-MODEL = "claude-opus-4-8"
+ANTHROPIC_MODEL = "claude-opus-4-8"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Email bodies can be arbitrarily large; anything beyond this adds cost but
 # no classification signal. The truncation is logged, never silent.
@@ -50,6 +62,14 @@ Field rules:
 - category: exactly one of Work, Personal, Receipts, Newsletters.
   Receipts = purchase confirmations, invoices, billing statements.
   Newsletters = periodic digests, marketing, product announcements.
+"""
+
+# Appended for backends without server-enforced schemas.
+JSON_ONLY_SUFFIX = """
+Respond with ONLY a raw JSON object in exactly this shape:
+{"spam": true|false, "urgent": true|false, "summary": "...",
+ "category": "Work"|"Personal"|"Receipts"|"Newsletters"}
+No markdown fences, no explanation, no text before or after the JSON.
 """
 
 VERDICT_SCHEMA = {
@@ -88,9 +108,20 @@ class Verdict:
 
 class AIEngine:
     def __init__(self, config: Config):
-        if not config.anthropic_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set")
-        self.client = anthropic.Anthropic(api_key=config.anthropic_api_key)
+        self.config = config
+        if config.anthropic_api_key:
+            self.backend = "anthropic"
+            self.client = anthropic.Anthropic(api_key=config.anthropic_api_key)
+        elif config.openrouter_api_key:
+            self.backend = "openrouter"
+            self.client = None
+        else:
+            raise RuntimeError(
+                "set ANTHROPIC_API_KEY or OPENROUTER_API_KEY to enable "
+                "email intelligence"
+            )
+        model = ANTHROPIC_MODEL if self.backend == "anthropic" else config.openrouter_model
+        log.info("email intelligence backend: %s (%s)", self.backend, model)
 
     def classify_email(self, email: EmailMessage) -> Verdict | None:
         """Classify one email. Returns None when classification fails —
@@ -110,9 +141,38 @@ class AIEngine:
             f"{body}"
         )
 
+        if self.backend == "anthropic":
+            data = self._classify_anthropic(email.id, payload)
+        else:
+            data = self._classify_openrouter(email.id, payload)
+        if data is None:
+            return None
+
+        category = str(data.get("category", ""))
+        if category not in CATEGORIES:
+            log.info("email %s: unknown category %r, defaulting to Personal",
+                     email.id, category)
+            category = "Personal"
+        spam = data.get("spam") is True
+        verdict = Verdict(
+            spam=spam,
+            urgent=data.get("urgent") is True and not spam,
+            summary=str(data.get("summary", "")).strip(),
+            category=category,
+        )
+        log.info(
+            "verdict %s: spam=%s urgent=%s category=%s | %s",
+            email.id, verdict.spam, verdict.urgent, verdict.category, verdict.summary,
+        )
+        return verdict
+
+    # ------------------------------------------------------------------ #
+    # backend: Anthropic (schema-enforced structured output)
+    # ------------------------------------------------------------------ #
+    def _classify_anthropic(self, email_id: str, payload: str) -> dict | None:
         try:
             response = self.client.messages.create(
-                model=MODEL,
+                model=ANTHROPIC_MODEL,
                 max_tokens=1024,
                 system=[
                     {
@@ -128,38 +188,75 @@ class AIEngine:
                 messages=[{"role": "user", "content": payload}],
             )
         except anthropic.RateLimitError:
-            log.warning("rate limited while classifying %s; skipping", email.id)
+            log.warning("rate limited while classifying %s; skipping", email_id)
             return None
         except anthropic.APIStatusError as exc:
-            log.error("API error classifying %s: %s %s", email.id, exc.status_code, exc.message)
+            log.error("API error classifying %s: %s %s",
+                      email_id, exc.status_code, exc.message)
             return None
         except anthropic.APIConnectionError:
-            log.error("network error classifying %s; skipping", email.id)
+            log.error("network error classifying %s; skipping", email_id)
             return None
 
         if response.stop_reason == "refusal":
-            log.warning("classifier refused email %s; taking no action", email.id)
+            log.warning("classifier refused email %s; taking no action", email_id)
             return None
-
         text = next((b.text for b in response.content if b.type == "text"), None)
         if not text:
-            log.error("no text block in classification response for %s", email.id)
+            log.error("no text block in classification response for %s", email_id)
             return None
+        return _extract_json(email_id, text)
 
+    # ------------------------------------------------------------------ #
+    # backend: OpenRouter (free-tier models, defensive JSON parsing)
+    # ------------------------------------------------------------------ #
+    def _classify_openrouter(self, email_id: str, payload: str) -> dict | None:
         try:
-            data = json.loads(text)
-        except json.JSONDecodeError:
-            log.error("unparseable verdict for %s: %.200s", email.id, text)
+            resp = requests.post(
+                OPENROUTER_URL,
+                headers={"Authorization": f"Bearer {self.config.openrouter_api_key}"},
+                json={
+                    "model": self.config.openrouter_model,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT + JSON_ONLY_SUFFIX},
+                        {"role": "user", "content": payload},
+                    ],
+                    "temperature": 0,
+                    "max_tokens": 1024,
+                },
+                timeout=120,
+            )
+        except requests.RequestException:
+            log.error("network error classifying %s via OpenRouter; skipping", email_id)
             return None
+        if resp.status_code == 429:
+            log.warning("OpenRouter rate limited while classifying %s; skipping", email_id)
+            return None
+        if resp.status_code >= 400:
+            log.error("OpenRouter error classifying %s: %s %.200s",
+                      email_id, resp.status_code, resp.text)
+            return None
+        try:
+            text = resp.json()["choices"][0]["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError):
+            log.error("malformed OpenRouter response for %s", email_id)
+            return None
+        return _extract_json(email_id, text or "")
 
-        verdict = Verdict(
-            spam=bool(data["spam"]),
-            urgent=bool(data["urgent"]) and not bool(data["spam"]),
-            summary=str(data["summary"]).strip(),
-            category=str(data["category"]),
-        )
-        log.info(
-            "verdict %s: spam=%s urgent=%s category=%s | %s",
-            email.id, verdict.spam, verdict.urgent, verdict.category, verdict.summary,
-        )
-        return verdict
+
+def _extract_json(email_id: str, text: str) -> dict | None:
+    """Pull a JSON object out of a model response, tolerating markdown
+    fences and surrounding prose (free models add these despite prompts)."""
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        log.error("no JSON object in verdict for %s: %.200s", email_id, text)
+        return None
+    try:
+        data = json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        log.error("unparseable verdict for %s: %.200s", email_id, text)
+        return None
+    if not isinstance(data, dict):
+        log.error("verdict for %s is not an object: %.200s", email_id, text)
+        return None
+    return data

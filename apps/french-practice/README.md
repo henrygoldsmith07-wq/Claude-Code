@@ -219,10 +219,12 @@ validated against the `/models` endpoint before being stored. Or flip on
   day you hit your daily XP goal. Daily notifications already exist as the
   opt-in review reminders. (OS home-screen widgets and lock-screen reminders
   aren't included — a web PWA can't create those.)
-- **Onboarding** — a 14-step first-run wizard for new visitors: welcome,
-  name, why-you're-learning, CEFR level, daily goal, learning style,
-  favourite topics, lesson length, avatar, reminders opt-in, habit picks, AI
-  key / demo mode, a feature tour and a personalised sign-off — writing all
+- **Onboarding** — a 17-step first-run wizard for new visitors: welcome,
+  **languages to learn** (pick any of French, German and Spanish, and which
+  one to start in), name, why-you're-learning, CEFR level, practice rhythm,
+  daily goal, learning style, favourite topics, lesson length, avatar, habit
+  picks, reminders opt-in, streak explainer, AI key / demo mode, a feature
+  tour and a personalised sign-off — writing all
   of it (settings, preferences, avatar, habits, key) on the final step. It
   shows only for genuinely new users (no key, XP or sessions), sets a flag so
   it never nags again, has a Skip at every step, and can be replayed any time

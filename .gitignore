@@ -47,4 +47,9 @@ apps/*/.claude-flow/
 graphify-out/.graphify_*
 graphify-out/.needs_update
 graphify-out/cache/
-graphify-out/
+*.pyc
+# Runtime artifacts
+.claude-flow/
+# Secrets & local credentials — never commit these
+google_token.json
+msal_cache.bin

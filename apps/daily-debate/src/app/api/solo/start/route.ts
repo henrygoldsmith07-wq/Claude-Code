@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { debateOpening } from "@/lib/anthropic";
+import { debateOpening } from "@/lib/gemini";
 import type { DebateSide } from "@/lib/types";
 
 export async function POST(request: Request) {

@@ -14,6 +14,7 @@ import {
 import { byId } from '../data/recipes.js';
 import { MAX_STARTER_PICKS, starterOptions, starterSuitable } from '../lib/starter-recipes.js';
 import { itemsFromRecipes } from '../data/stores.js';
+import { PRODUCT } from '../data/product.js';
 import { addDays } from '../lib/kitchen.js';
 import { haptic } from '../lib/haptics.js';
 import { recordProductEvent } from '../lib/product-analytics.js';
@@ -24,10 +25,11 @@ import { TargetPreview } from './TargetSafety.jsx';
 
 const num = (value) => Math.max(0, Number(value) || 0) || null;
 
+/** Entry points map to the primary promise: plan → buy what you need → waste less */
 const ENTRY_GOALS = [
-  { id: 'plan', title: 'Plan my meals', text: 'Choose a few dishes and build your week.', Icon: CalendarDays },
-  { id: 'shop', title: 'Build a shopping list', text: 'Get one clear list, organised by aisle.', Icon: ShoppingCart },
-  { id: 'pantry', title: 'Use food I already have', text: 'Start with your kitchen and waste less.', Icon: Package },
+  { id: 'plan', title: 'Plan my meals', text: 'Decide what you will cook — the list comes from this.', Icon: CalendarDays },
+  { id: 'shop', title: 'Buy only what I need', text: 'One list from the plan, not a second inventory.', Icon: ShoppingCart },
+  { id: 'pantry', title: 'Use food I already have', text: 'Start from the kitchen so you waste less.', Icon: Package },
 ];
 
 export default function Onboarding() {
@@ -164,9 +166,17 @@ export default function Onboarding() {
           {step === 0 ? 'Welcome to Forq' : step === 1 ? 'A little context' : 'Your first win'}
         </h1>
         <p className="mt-1.5 text-[0.875rem] font-semibold" style={{ color: 'var(--muted)' }}>
-          {step === 0 && 'Choose what you want help with first. Nothing is filled in for you, and you can change direction at any time.'}
-          {step === 1 && 'Two useful details make portions and spending more accurate. Both are optional.'}
-          {step === 2 && 'Pick up to three recipes and Forq will turn them into meals and one shopping list.'}
+          {step === 0 && (
+            <>
+              <span className="block font-extrabold" style={{ color: 'var(--ink)' }}>{PRODUCT.promise}</span>
+              <span className="mt-1.5 block">
+                Start with the loop that matters: plan meals, shop from that plan, waste less.
+                Nutrition and health can wait — nothing is filled in for you.
+              </span>
+            </>
+          )}
+          {step === 1 && 'Optional details for portions and spending. Skip anything you do not need yet.'}
+          {step === 2 && 'Pick up to three recipes. Forq puts them on the plan and builds one shopping list.'}
         </p>
       </div>
 
