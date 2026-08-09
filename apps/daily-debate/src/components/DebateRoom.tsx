@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import MessageComposer from "./MessageComposer";
 import ScoreBadges from "./ScoreBadges";
+import { ArgGraphInline, TrackingGrid } from "./ArgGraphView";
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { MIN_ROUNDS, type DebateSummary, type InputMode, type SoloDebate, type SoloDebateTurn } from "@/lib/types";
 
@@ -102,46 +103,50 @@ export default function DebateRoom({
 
   if (result) {
     return (
-      <div className="surface-card flex flex-col gap-4 p-6">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-xl font-semibold">Debate complete — {result.totalScore} pts</h2>
-          <button
-            type="button"
-            onClick={copyResult}
-            className="btn btn-ghost shrink-0 px-3 py-1 text-xs"
-          >
-            {copied ? "Copied!" : "Copy summary"}
-          </button>
-        </div>
-        <p className="text-sm text-ink3">{result.summary.overallFeedback}</p>
-        {result.summary.strengths.length > 0 && (
-          <div>
-            <p className="text-xs uppercase tracking-wide text-ink3">Strengths</p>
-            <ul className="list-inside list-disc text-sm text-ink3">
-              {result.summary.strengths.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ul>
+      <div className="flex flex-col gap-5">
+        <div className="surface-card flex flex-col gap-4 p-6">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-xl font-semibold">Debate complete — {result.totalScore} pts</h2>
+            <button type="button" onClick={copyResult} className="btn btn-ghost shrink-0 px-3 py-1 text-xs">
+              {copied ? "Copied!" : "Copy summary"}
+            </button>
           </div>
-        )}
-        {result.summary.improvements.length > 0 && (
-          <div>
-            <p className="text-xs uppercase tracking-wide text-ink3">To improve</p>
-            <ul className="list-inside list-disc text-sm text-ink3">
-              {result.summary.improvements.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ul>
+          <p className="text-sm text-ink3">{result.summary.overallFeedback}</p>
+          {result.summary.strengths.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink3">Strengths</p>
+              <ul className="list-inside list-disc text-sm text-ink3">
+                {result.summary.strengths.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {result.summary.improvements.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink3">To improve</p>
+              <ul className="list-inside list-disc text-sm text-ink3">
+                {result.summary.improvements.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Link href="/" className="btn btn-primary px-4 py-2 text-sm">
+              Back to today
+            </Link>
+            <Link href="/leaderboard" className="btn btn-ghost px-4 py-2 text-sm">
+              View leaderboard
+            </Link>
           </div>
-        )}
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Link href="/" className="btn btn-primary px-4 py-2 text-sm">
-            Back to today
-          </Link>
-          <Link href="/leaderboard" className="btn btn-ghost px-4 py-2 text-sm">
-            View leaderboard
-          </Link>
         </div>
+        {result.summary.argGraph ? (
+          <div className="flex flex-col gap-4">
+            <ArgGraphInline graph={result.summary.argGraph} playerAName="You" playerBName="AI opponent" />
+            <TrackingGrid graph={result.summary.argGraph} />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -154,7 +159,7 @@ export default function DebateRoom({
       </div>
       <div className="flex items-center justify-between">
         <p className="text-sm text-ink3">
-          You're arguing <span className="text-[var(--foreground)]">{debate.side}</span> · AI argues {aiSide}
+          You&apos;re arguing <span className="text-[var(--foreground)]">{debate.side}</span> · AI argues {aiSide}
         </p>
         <p className="tabular text-sm text-ink3">
           Round {roundCount} {roundCount < MIN_ROUNDS && `· ${MIN_ROUNDS - roundCount + 1} to go`}
@@ -182,16 +187,16 @@ export default function DebateRoom({
             )}
           </div>
         ))}
-        {sending && (
-          <div className="text-sm text-ink3">AI is thinking…</div>
-        )}
+        {sending && <div className="text-sm text-ink3">AI is thinking…</div>}
       </div>
 
-      {error && <p className="text-sm text-[var(--bad)]" role="alert">{error}</p>}
-
-      {status === "active" && !pending?.user_message && (
-        <MessageComposer onSubmit={submitTurn} disabled={sending} />
+      {error && (
+        <p className="text-sm text-[var(--bad)]" role="alert">
+          {error}
+        </p>
       )}
+
+      {status === "active" && !pending?.user_message && <MessageComposer onSubmit={submitTurn} disabled={sending} />}
 
       {canFinish && status === "active" && (
         <button

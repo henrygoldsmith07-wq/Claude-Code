@@ -18,6 +18,30 @@ const command = ([id, title, subtitle]) => ({
   id: `command-${id}`, type: 'command', title, subtitle, target: id,
 });
 
+/**
+ * Which module a destination belongs to, so that search cannot offer a route
+ * into a screen the current product modes have taken off the bar. The records
+ * behind it are untouched — turn the module back on and they are all findable
+ * again.
+ */
+const MODULE_OF = {
+  plan: 'plan',
+  log: 'log',
+  shop: 'shop',
+  recipes: 'recipes',
+  pantry: 'pantry',
+  'add-food': 'log',
+  barcode: 'log',
+  food: 'log',
+  recipe: 'recipes',
+  shopping: 'shop',
+};
+
+const reachable = (app, key) => {
+  const module = MODULE_OF[key];
+  return !module || !app.moduleOn || app.moduleOn(module);
+};
+
 const resource = (type, item, subtitle) => ({
   id: `${type}-${item.id}`, type, title: item.name, subtitle, item,
 });
@@ -35,8 +59,8 @@ const score = (result, query) => {
 
 export const buildGlobalResults = (app = {}, text = '', { type = 'all', sort = 'relevance' } = {}) => {
   const query = normalise(text);
-  const commands = GLOBAL_COMMANDS.map(command);
-  if (query) {
+  const commands = GLOBAL_COMMANDS.filter(([id]) => reachable(app, id)).map(command);
+  if (query && reachable(app, 'add-food')) {
     commands.push({
       id: `command-add-query-${query}`,
       type: 'command',
@@ -54,7 +78,7 @@ export const buildGlobalResults = (app = {}, text = '', { type = 'all', sort = '
     ...recipes.map((item) => resource('recipe', item, 'Recipe')),
     ...(app.pantry || []).map((item) => resource('pantry', item, [item.location, item.cat].filter(Boolean).join(' · '))),
     ...(app.shoppingList || []).map((item) => resource('shopping', item, item.aisle || 'Shopping list')),
-  ];
+  ].filter((item) => reachable(app, item.type));
 
   let results = query
     ? [...commands, ...resources].map((result) => ({ ...result, score: score(result, query) })).filter((result) => result.score)

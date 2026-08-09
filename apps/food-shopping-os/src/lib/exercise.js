@@ -14,6 +14,7 @@
 
 import { WORKOUT_TYPES, workoutBy } from '../data/workouts.js';
 import { addDays, dayStamp, weekDates } from './kitchen.js';
+import { isUnderEighteen, YOUTH_COPY } from './youth.js';
 
 const round = (n) => Math.round(n);
 
@@ -108,6 +109,11 @@ export const activeStreak = (workouts = [], today = dayStamp()) => {
 export const activityAdjustment = (state, today = dayStamp()) => {
   const burned = round(burnedOn(state.workouts || [], today));
   const base = state.targets?.kcal || 0;
+  // Under 18 the choice isn't offered: turning training into calories to be
+  // eaten back is the "earn your food" framing, whatever the toggle says.
+  if (isUnderEighteen(state)) {
+    return { burned, counted: false, base, adjusted: base, note: YOUTH_COPY.exercise, youth: true };
+  }
   const on = Boolean(state.countExerciseKcal);
   return {
     burned,

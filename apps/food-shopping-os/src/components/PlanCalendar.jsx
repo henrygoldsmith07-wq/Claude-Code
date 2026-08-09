@@ -1,4 +1,4 @@
-import { GripVertical, Snowflake } from 'lucide-react';
+import { ChefHat, GripVertical, Snowflake } from 'lucide-react';
 import { gbp } from '../lib/utils.js';
 import { byId } from '../data/recipes.js';
 import { MEAL_SLOTS, WEEK_DAYS } from '../data/plan.js';
@@ -28,7 +28,7 @@ const dropProps = (target, onMove, setDragging, dragging) => ({
 
 export function WeekGrid({
   dates, plan, today, leftoverPortions, onPick, moving, onGrab, onMove, dragging, setDragging,
-  busyDates,
+  busyDates, onCook,
 }) {
   const busy = busyDates instanceof Set ? busyDates : new Set(busyDates || []);
   return (
@@ -101,6 +101,14 @@ export function WeekGrid({
                       style={{ color: 'var(--faint)' }}
                     >
                       <GripVertical size={13} />
+                    </button>
+                    <button
+                      onClick={() => onCook?.(recipe)}
+                      aria-label={`Cook ${recipe.name} now`}
+                      className="press mt-1 inline-flex items-center gap-1 text-[0.625rem] font-extrabold"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      <ChefHat size={11} /> Cook now
                     </button>
                   </div>
                 ) : (

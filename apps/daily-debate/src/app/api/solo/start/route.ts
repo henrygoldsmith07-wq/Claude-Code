@@ -5,7 +5,7 @@ import { debateOpening } from "@/lib/anthropic";
 import type { DebateSide } from "@/lib/types";
 
 export async function POST(request: Request) {
-  const limited = checkRateLimit(request, { name: "solo-start", limit: 10, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "solo-start", limit: 10, windowMs: 60_000 });
   if (limited) return limited;
 
   const supabase = await createClient();

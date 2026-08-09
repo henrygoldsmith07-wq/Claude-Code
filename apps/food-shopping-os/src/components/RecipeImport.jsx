@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookmarkPlus, Check, ClipboardPaste, Link2, ShoppingCart, Sparkles } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { importRecipeText } from '../lib/foodlog.js';
+import { importRecipeText, recipeTextFromMarkup } from '../lib/foodlog.js';
 import { isVideoLink, recipeFromImport } from '../lib/recipe-tools.js';
 import { buildEntry, mealForTime, timeStamp } from '../lib/nutrition.js';
 import { itemsFromRecipes } from '../data/stores.js';
@@ -36,13 +36,17 @@ export default function RecipeImport({ defaultMeal, onDone }) {
   const [listed, setListed] = useState(false);
   const [kept, setKept] = useState(false);
   const [link, setLink] = useState('');
+  const [importFormat, setImportFormat] = useState('');
 
   const run = () => {
     setError('');
     setSaved(false);
     setListed(false);
     setKept(false);
-    let out = importRecipeText(text, app.catalogue);
+    setImportFormat('');
+    const structured = recipeTextFromMarkup(text);
+    const importText = structured?.text || text;
+    let out = importRecipeText(importText, app.catalogue);
     if (mode === 'url' && !/^https?:\/\/.+\..+/.test(url.trim())) {
       setError('That doesn’t look like a recipe link.');
       setResult(null);
@@ -57,11 +61,16 @@ export default function RecipeImport({ defaultMeal, onDone }) {
       const domain = url.trim().replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
       out = { ...out, domain, url: url.trim() };
     }
+    if (structured) {
+      setText(importText);
+      setImportFormat(structured.format);
+    }
     setResult(out);
     setServings(1);
   };
 
   const log = () => {
+    if (!result?.matchedCount) return;
     const food = result.food;
     const grams = food.servings[0].grams * servings;
     app.logEntry(buildEntry(food, {
@@ -77,12 +86,13 @@ export default function RecipeImport({ defaultMeal, onDone }) {
   const macros = result
     ? Object.fromEntries(Object.entries(result.perServing).map(([k, v]) => [k, Math.round(v * servings * 10) / 10]))
     : null;
+  const canLog = Boolean(result?.matchedCount);
 
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2">
-        <Chip active={mode === 'paste'} onClick={() => { setMode('paste'); setResult(null); }}>Paste recipe</Chip>
-        <Chip active={mode === 'url'} onClick={() => { setMode('url'); setResult(null); }}>From a link</Chip>
+        <Chip active={mode === 'paste'} onClick={() => { setMode('paste'); setResult(null); setImportFormat(''); }}>Paste recipe</Chip>
+        <Chip active={mode === 'url'} onClick={() => { setMode('url'); setResult(null); setImportFormat(''); }}>From a link</Chip>
       </div>
 
       {mode === 'url' && (
@@ -102,7 +112,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
           </div>
           </label>
           <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            Copy the recipe text from that page below. Browser cross-origin rules stop Forq fetching most recipe sites directly. {PRIVACY_COPY.recipeImport}
+            Copy the recipe text below, or paste page source/Recipe JSON-LD when available. Forq parses it locally because browser cross-origin rules stop reliable direct fetching. {PRIVACY_COPY.recipeImport}
           </p>
         </>
       )}
@@ -143,14 +153,19 @@ export default function RecipeImport({ defaultMeal, onDone }) {
               {result.domain ? `From ${result.domain} · ` : ''}makes {result.servings} servings
               {result.matchedCount !== undefined && ` · ${result.matchedCount}/${result.ingredients.length} ingredients matched`}
             </p>
-            {mode === 'url' && (
+            {(mode === 'url' || importFormat) && (
               <p className="mt-1 text-[0.71875rem] font-semibold" style={{ color: 'var(--good)' }}>
-                Parsed from copied text · source link kept
+                {importFormat === 'schema.org'
+                  ? 'Structured recipe data parsed locally · source link kept'
+                  : 'Parsed from copied text · source link kept'}
               </p>
             )}
             <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
               <MacroSummary macros={macros} size="sm" />
             </div>
+            {result.matchedCount === 0 && (
+              <Pill tone="warn">Nothing matched the local food catalogue, so logging is paused. You can still save the recipe or shop its ingredients.</Pill>
+            )}
             <div className="mt-3 flex items-center justify-between">
               <span className="text-[0.78125rem] font-bold">Servings eaten</span>
               <Stepper value={servings} onChange={setServings} min={1} max={6} />
@@ -206,7 +221,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={() => { app.addCustomFood(result.food); setSaved(true); }}
-              disabled={saved}
+              disabled={saved || !canLog}
               className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
               style={{ borderColor: saved ? 'var(--good)' : 'var(--line)', color: saved ? 'var(--good)' : 'var(--ink)' }}
             >
@@ -232,10 +247,11 @@ export default function RecipeImport({ defaultMeal, onDone }) {
 
           <button
             onClick={log}
-            className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold"
+            disabled={!canLog}
+            className="press w-full rounded-2xl py-3.5 text-[0.9375rem] font-extrabold disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
-            Log {servings} serving{servings === 1 ? '' : 's'} · {macros.kcal} kcal
+            {canLog ? `Log ${servings} serving${servings === 1 ? '' : 's'} · ${macros.kcal} kcal` : 'Add a matched ingredient to log'}
           </button>
         </div>
       )}

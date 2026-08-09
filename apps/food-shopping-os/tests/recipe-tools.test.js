@@ -224,6 +224,14 @@ describe('keeping an imported recipe', () => {
     expect(bare.steps[0].text).toMatch(/no method came with this import/i);
   });
 
+  it('keeps the original line for unmatched ingredients instead of inventing grams', () => {
+    const kept = recipeFromImport({
+      ...parsed,
+      ingredients: [{ line: '1 unobtainium', name: 'unobtainium', grams: 100, food: null }],
+    });
+    expect(kept.ingredients[0]).toEqual({ name: 'unobtainium', qty: '1 unobtainium' });
+  });
+
   it('recognises a video link for what it is', () => {
     expect(isVideoLink('https://www.youtube.com/watch?v=abc')).toBe(true);
     expect(isVideoLink('https://youtu.be/abc')).toBe(true);
@@ -231,5 +239,17 @@ describe('keeping an imported recipe', () => {
     expect(recipeFromImport(parsed, { url: 'https://youtu.be/abc' }).video).toBe('https://youtu.be/abc');
     expect(recipeFromImport(parsed, { url: 'https://bbcgoodfood.com/x' }).video).toBeUndefined();
     expect(recipeFromImport(parsed, { url: 'https://bbcgoodfood.com/x' }).source).toBe('https://bbcgoodfood.com/x');
+  });
+
+  it('does not persist executable or non-web source URLs', () => {
+    expect(recipeFromImport(parsed, { url: 'javascript:alert(1)' }).source).toBeNull();
+    expect(recipeFromImport(parsed, { url: 'data:text/html,<script>alert(1)</script>' }).source).toBeNull();
+  });
+
+  it('sanitises source links received in share codes', () => {
+    const code = shareCode({ ...curry, source: 'javascript:alert(1)', video: 'data:text/html,bad' });
+    const { recipe } = parseShareCode(code);
+    expect(recipe.source).toBeNull();
+    expect(recipe.video).toBeUndefined();
   });
 });

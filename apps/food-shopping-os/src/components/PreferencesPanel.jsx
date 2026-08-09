@@ -1,61 +1,21 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Info, LayoutGrid, Ruler, ShieldAlert, Sparkles, Utensils } from 'lucide-react';
+import { ChevronDown, ChevronUp, Compass, Info, LayoutGrid, Ruler, ShieldAlert, Utensils } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import {
   ALLERGENS, CUISINES, INTOLERANCES, MATCH_CAVEAT, RELIGIOUS_DIETS, SKILL_LEVELS,
   TIME_BUDGETS, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
-import { PRODUCT_MODES } from '../data/productModes.js';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { Card, Chip, Meter, Pill, Toggle } from './ui.jsx';
+import ModesView from './ModesPanel.jsx';
 
 const VIEWS = [
-  ['mode', 'Mode', Sparkles],
+  ['focus', 'Focus', Compass],
   ['safety', 'Can’t eat', ShieldAlert],
   ['taste', 'Taste', Utensils],
   ['units', 'Units', Ruler],
   ['home', 'Home', LayoutGrid],
 ];
-
-function ModeView() {
-  const app = useApp();
-  return (
-    <>
-      <Card>
-        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-          Product mode
-        </p>
-        <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-          Changes dashboard widgets, nav order, guidance priority, notification presets and which
-          advanced tools show first. Nothing is deleted — switch to Everything for the full surface.
-        </p>
-      </Card>
-      <div className="grid gap-2.5">
-        {PRODUCT_MODES.map((mode) => {
-          const active = app.productMode === mode.id;
-          return (
-            <button
-              key={mode.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => app.setProductMode(mode.id)}
-              className="press w-full rounded-2xl border p-3.5 text-left"
-              style={{
-                background: active ? 'var(--accent-soft)' : 'var(--card)',
-                borderColor: active ? 'var(--accent)' : 'var(--line)',
-              }}
-            >
-              <span className="block text-[0.875rem] font-extrabold">{mode.label}</span>
-              <span className="mt-0.5 block text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {mode.blurb}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </>
-  );
-}
 
 const Caveat = () => (
   <p className="text-[0.75rem] font-semibold inline-flex items-start gap-1.5" style={{ color: 'var(--muted)' }}>
@@ -314,7 +274,7 @@ function HomeView() {
  * app ends up gently suggesting you eat a peanut.
  */
 export default function PreferencesPanel() {
-  const [view, setView] = useState('mode');
+  const [view, setView] = useState('safety');
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -324,7 +284,7 @@ export default function PreferencesPanel() {
           </Chip>
         ))}
       </div>
-      {view === 'mode' && <ModeView />}
+      {view === 'focus' && <ModesView />}
       {view === 'safety' && <SafetyView />}
       {view === 'taste' && <TasteView />}
       {view === 'units' && <UnitsView />}

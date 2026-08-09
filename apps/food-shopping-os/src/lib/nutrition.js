@@ -2,16 +2,32 @@
  * Pure nutrition maths for the food diary.
  *
  * A log entry is either weight-based (`per100` + `grams`, so portions rescale
- * exactly) or a flat quick-add (`nutrients` only). Everything else in the app
- * — rings, meal subtotals, remaining-for-the-day — is derived from these two
- * shapes, so there is a single source of truth for "what did I eat today".
+ * exactly) or a flat quick-add (`nutrients` only).
  *
- * All 24 tracked nutrients flow through the same scaling and summing, so
- * magnesium behaves exactly like calories: one number per 100 g, multiplied
- * by the portion.
+ * Nutrient fields are stored as NutrientValue objects so the app can tell:
+ *   - measured zero  ("this food contains none")
+ *   - missing data   ("this food has not been measured")
+ *   - unreported     ("this database does not report it")
+ *
+ * Plain numbers in older catalogue rows are still accepted and normalised on
+ * read. Missing / null is never coerced to 0 during scale or sum.
  */
 
 import { ALCOHOL_UNIT_G, GLASS_ML, NUTRIENTS, NUTRIENT_KEYS } from '../data/nutrients.js';
+import {
+  EMPTY, EMPTY_NUMBERS, asNutrientValue, entryMacros, entryNumbers, hasNutrientData,
+  isEstimatedCell, metaForSource, normalizePer100, numbersFromValues, nutrientNumber,
+  nutrientValue, round, scale, scaleValues,
+} from './nutrient-value.js';
+
+/* The NutrientValue model lives next door, but it stays part of this module's
+   surface: where a nutrient figure came from is inseparable from the maths
+   done on it, and every caller already imports these from here. */
+export {
+  EMPTY, EMPTY_NUMBERS, asNutrientValue, entryMacros, entryNumbers, hasNutrientData,
+  metaForSource, normalizePer100, numbersFromValues, nutrientNumber, nutrientValue, scale,
+  scaleValues,
+};
 
 export const MEALS = [
   { key: 'breakfast', label: 'Breakfast', from: 4, to: 10.5 },
@@ -26,42 +42,84 @@ export const mealLabel = (key) => MEALS.find((m) => m.key === key)?.label || 'Sn
 /** Everything tracked, energy and micronutrients alike. */
 export const MACROS = NUTRIENT_KEYS;
 
-const round = (v, dp = 2) => {
-  const f = 10 ** dp;
-  return Math.round(v * f) / f;
-};
-
-/** Scale a per-100 g/ml profile to an arbitrary weight — all 24 nutrients. */
-export const scale = (per100, grams) => {
-  const k = (Number(grams) || 0) / 100;
-  const out = {};
-  for (const key of NUTRIENT_KEYS) out[key] = round((per100[key] || 0) * k, key === 'transFat' ? 3 : 2);
-  out.kcal = Math.round((per100.kcal || 0) * k);
-  return out;
-};
-
-export const EMPTY = Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, 0]));
-
-/** Nutrients for one entry, whichever shape it has. */
-export const entryMacros = (entry) => {
-  if (!entry) return { ...EMPTY };
-  if (entry.per100) return scale(entry.per100, entry.grams);
-  return { ...EMPTY, ...(entry.nutrients || {}) };
-};
-
-export const sumMacros = (entries = []) =>
-  entries.reduce((acc, e) => {
-    const m = entryMacros(e);
-    for (const key of NUTRIENT_KEYS) acc[key] = round(acc[key] + (m[key] || 0));
-    acc.kcal = Math.round(acc.kcal);
-    return acc;
-  }, { ...EMPTY });
-
-/** Totals for a whole day, plus a per-meal breakdown. */
-export const dayTotals = (entries = []) => ({
-  ...sumMacros(entries),
-  byMeal: Object.fromEntries(MEAL_KEYS.map((k) => [k, sumMacros(entries.filter((e) => e.meal === k))])),
+const emptyDetail = () => ({
+  known: 0,
+  estimated: 0,
+  unknownCount: 0,
+  measuredCount: 0,
+  coverage: 0,
+  confidence: /** @type {NutrientConfidence} */ ('low'),
+  value: /** @type {number | null} */ (null),
 });
+
+/**
+ * Sum entries into daily totals.
+ * Flat keys hold known + estimated only. `detail[key]` has the full breakdown.
+ */
+export const sumMacros = (entries = []) => {
+  const detail = Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, emptyDetail()]));
+  const n = entries.length || 0;
+
+  for (const entry of entries) {
+    const macros = entryMacros(entry);
+    for (const key of NUTRIENT_KEYS) {
+      const cell = macros[key];
+      if (cell.value === null) {
+        detail[key].unknownCount += 1;
+      } else if (isEstimatedCell(cell)) {
+        detail[key].estimated += cell.value;
+        detail[key].measuredCount += 1;
+      } else {
+        detail[key].known += cell.value;
+        detail[key].measuredCount += 1;
+      }
+    }
+  }
+
+  const flat = {};
+  for (const key of NUTRIENT_KEYS) {
+    const d = detail[key];
+    d.known = key === 'kcal' ? Math.round(d.known) : round(d.known);
+    d.estimated = key === 'kcal' ? Math.round(d.estimated) : round(d.estimated);
+    const measured = d.known + d.estimated;
+    d.value = d.measuredCount > 0 ? measured : null;
+    d.coverage = n ? Math.round((d.measuredCount / n) * 100) : 100;
+    if (d.unknownCount === 0 && d.estimated === 0 && d.measuredCount > 0) d.confidence = 'high';
+    else if (d.measuredCount === 0) d.confidence = 'low';
+    else if (d.estimated !== 0 && d.known === 0) d.confidence = 'low';
+    else if (d.unknownCount > 0 || d.estimated !== 0) d.confidence = 'medium';
+    else d.confidence = 'high';
+
+    flat[key] = d.value === null ? 0 : d.value;
+  }
+
+  return { ...flat, detail };
+};
+
+/** Totals for a whole day, plus a per-meal breakdown and data-quality summary. */
+export const dayTotals = (entries = []) => {
+  const totals = sumMacros(entries);
+  const byMeal = Object.fromEntries(
+    MEAL_KEYS.map((k) => [k, sumMacros(entries.filter((e) => e.meal === k))]),
+  );
+
+  const energy = totals.detail?.kcal;
+  const knownAmount = energy?.known ?? 0;
+  const estimatedAmount = energy?.estimated ?? 0;
+  const withEnergy = entries.filter((e) => hasNutrientData(entryMacros(e).kcal)).length;
+  const dataQuality = {
+    knownAmount,
+    estimatedAmount,
+    unknownAmount: null,
+    unknownEntries: energy?.unknownCount ?? 0,
+    entryCount: entries.length,
+    coverage: entries.length ? Math.round((withEnergy / entries.length) * 100) : 100,
+    confidence: energy?.confidence || 'low',
+    measuredKcal: knownAmount + estimatedAmount,
+  };
+
+  return { ...totals, byMeal, dataQuality };
+};
 
 export const remaining = (totals, goals) => ({
   kcal: Math.round((goals.kcalGoal || 0) - (totals.kcal || 0)),
@@ -70,64 +128,91 @@ export const remaining = (totals, goals) => ({
   fat: round((goals.fatGoal || 0) - (totals.fat || 0), 1),
 });
 
-/* ---------- Full nutrient reporting ---------- */
-
-/**
- * Every tracked nutrient against its target, ready to render: goals read as
- * progress towards, limits read as headroom left.
- */
 export const nutrientRows = (totals, targets = {}, group) =>
   NUTRIENTS
     .filter((n) => !group || n.group === group)
     .map((n) => {
       const target = targets[n.key] ?? n.target;
-      const value = totals[n.key] || 0;
-      const pct = target ? Math.round((value / target) * 100) : 0;
-      const tone = n.kind === 'limit'
-        ? (pct > 100 ? 'danger' : pct >= 80 ? 'warn' : 'good')
-        : (pct >= 100 ? 'good' : pct >= 60 ? 'muted' : 'faint');
-      return { ...n, target, value, pct, tone };
+      const d = totals.detail?.[n.key];
+      const value = d ? d.value : (totals[n.key] ?? null);
+      const display = value === null || value === undefined ? 0 : value;
+      const pct = target && value !== null ? Math.round((display / target) * 100) : 0;
+      const tone = value === null
+        ? 'faint'
+        : n.kind === 'limit'
+          ? (pct > 100 ? 'danger' : pct >= 80 ? 'warn' : 'good')
+          : (pct >= 100 ? 'good' : pct >= 60 ? 'muted' : 'faint');
+      return {
+        ...n,
+        target,
+        value,
+        display,
+        pct,
+        tone,
+        known: d?.known ?? (value ?? 0),
+        estimated: d?.estimated ?? 0,
+        unknownCount: d?.unknownCount ?? 0,
+        coverage: d?.coverage ?? 100,
+        confidence: d?.confidence ?? 'high',
+        incomplete: (d?.unknownCount ?? 0) > 0 || value === null,
+      };
     });
 
-/* Energy macros are budgets, not deficiencies — being under them mid-afternoon
-   is normal, so they never show up as "running low". */
 const NOT_A_DEFICIENCY = new Set(['kcal', 'carbs', 'fat']);
 
-/** How much of the day is short on a goal, or over a limit. */
 export const nutrientAlerts = (totals, targets = {}) => {
   const rows = nutrientRows(totals, targets);
   return {
-    over: rows.filter((r) => r.kind === 'limit' && r.pct > 100),
-    low: rows.filter((r) => r.kind === 'goal' && !NOT_A_DEFICIENCY.has(r.key) && r.pct < 50),
-    hit: rows.filter((r) => r.kind === 'goal' && r.pct >= 100),
+    over: rows.filter((r) => r.kind === 'limit' && r.value !== null && r.pct > 100),
+    low: rows.filter((r) => r.kind === 'goal' && !NOT_A_DEFICIENCY.has(r.key) && r.value !== null && r.pct < 50),
+    hit: rows.filter((r) => r.kind === 'goal' && r.value !== null && r.pct >= 100),
+    incomplete: rows.filter((r) => r.incomplete),
   };
 };
 
-/**
- * Micronutrients only exist for entries logged against a real food, so say
- * plainly how much of the day's energy carries a full profile.
- */
 export const nutrientCoverage = (entries = []) => {
-  const total = sumMacros(entries).kcal;
-  if (!total) return { pct: 100, kcal: 0, total: 0 };
-  const covered = sumMacros(entries.filter((e) => e.per100 && e.per100.sodium !== undefined)).kcal;
-  return { pct: Math.round((covered / total) * 100), kcal: covered, total };
+  if (!entries.length) {
+    return {
+      pct: 100, kcal: 0, total: 0, knownAmount: 0, estimatedAmount: 0,
+      unknownAmount: null, confidence: 'high', coverage: 100,
+    };
+  }
+  const totals = sumMacros(entries);
+  const energy = totals.detail.kcal;
+  const total = energy.known + energy.estimated;
+  const measuredEntries = entries.filter((e) => hasNutrientData(entryMacros(e).kcal));
+  const fullProfile = entries.filter((e) => {
+    const m = entryMacros(e);
+    return hasNutrientData(m.kcal) && hasNutrientData(m.sodium);
+  });
+  const fullKcal = sumMacros(fullProfile).kcal;
+  return {
+    pct: total ? Math.round((fullKcal / total) * 100) : 0,
+    kcal: fullKcal,
+    total,
+    knownAmount: energy.known,
+    estimatedAmount: energy.estimated,
+    unknownAmount: null,
+    unknownEntries: entries.length - measuredEntries.length,
+    confidence: energy.confidence,
+    coverage: Math.round((measuredEntries.length / entries.length) * 100),
+  };
 };
 
-/** Glasses ticked off plus the water in everything logged. */
 export const hydration = (totals, glasses = 0) => {
   const fromDrinks = Math.round(totals.water || 0);
   const fromGlasses = glasses * GLASS_ML;
   return { fromDrinks, fromGlasses, total: fromDrinks + fromGlasses };
 };
 
-export const alcoholUnits = (grams = 0) => Math.round((grams / ALCOHOL_UNIT_G) * 10) / 10;
+export const alcoholUnits = (grams = 0) => {
+  const g = nutrientNumber(grams) ?? (typeof grams === 'number' ? grams : 0);
+  return Math.round((g / ALCOHOL_UNIT_G) * 10) / 10;
+};
 
-/** UK labels often show salt while the nutrient data stores sodium. */
 export const saltEquivalent = (sodiumMg = 0) =>
   Math.round(((Number(sodiumMg) || 0) * 2.5 / 1000) * 10) / 10;
 
-/** Which meal a log lands in when the clock decides. */
 export const mealForTime = (date = new Date()) => {
   const h = date.getHours() + date.getMinutes() / 60;
   for (const m of MEALS) {
@@ -147,10 +232,6 @@ const minutesOf = (hhmm) => {
 
 export const byTime = (a, b) => minutesOf(a.time) - minutesOf(b.time);
 
-/**
- * Meal-timing insight for a day: first and last bite, the eating window
- * between them, and how much of the day's energy landed after 8pm.
- */
 export const timingInsight = (entries = [], lateFrom = 20) => {
   if (!entries.length) return null;
   const sorted = [...entries].sort(byTime);
@@ -171,7 +252,6 @@ export const timingInsight = (entries = [], lateFrom = 20) => {
   };
 };
 
-/** Snack-only view: how many, how much, and when. */
 export const snackSummary = (entries = []) => {
   const snacks = entries.filter((e) => e.meal === 'snack');
   const totals = sumMacros(snacks);
@@ -185,10 +265,6 @@ export const snackSummary = (entries = []) => {
   };
 };
 
-/**
- * Portion choices for a food: its own serving sizes, a flat 100 g/ml, and
- * whatever weight the user has already dialled in.
- */
 export const servingOptions = (food, grams) => {
   const base = [...(food?.servings || [])];
   const unit = food?.unit || 'g';
@@ -201,7 +277,6 @@ export const servingOptions = (food, grams) => {
 
 export const defaultServing = (food) => food?.servings?.[0] || { label: '100 g', grams: 100 };
 
-/** Build a log entry from a catalogue food. */
 export const buildEntry = (food, { grams, meal, time, servingLabel, source, qty = 1 } = {}) => {
   const serving = defaultServing(food);
   const weight = grams ?? serving.grams * qty;
@@ -216,15 +291,24 @@ export const buildEntry = (food, { grams, meal, time, servingLabel, source, qty 
     grams: round(weight, 1),
     servingLabel: servingLabel ?? (qty === 1 ? serving.label : `${qty} × ${serving.label}`),
     per100: food.per100,
+    foodSource: food.source || 'generic',
     meal: meal || mealForTime(now),
     time: time || timeStamp(now),
     source: source || 'search',
   };
 };
 
-/** Quick-add: calories (and optional macros) with no food behind them. */
-export const buildQuickEntry = ({ kcal, protein = 0, carbs = 0, fat = 0, meal, time, label } = {}) => {
+export const buildQuickEntry = ({ kcal, protein, carbs, fat, meal, time, label } = {}) => {
   const now = new Date();
+  const cell = (v) => {
+    if (v === undefined || v === null || v === '') return nutrientValue(null, 'user', 'low');
+    return nutrientValue(Number(v), 'user', 'medium');
+  };
+  const nutrients = { ...EMPTY };
+  nutrients.kcal = cell(kcal);
+  if (protein !== undefined) nutrients.protein = cell(protein);
+  if (carbs !== undefined) nutrients.carbs = cell(carbs);
+  if (fat !== undefined) nutrients.fat = cell(fat);
   return {
     id: `q${now.getTime().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
     foodId: null,
@@ -235,20 +319,13 @@ export const buildQuickEntry = ({ kcal, protein = 0, carbs = 0, fat = 0, meal, t
     grams: null,
     servingLabel: 'Estimated',
     per100: null,
-    nutrients: {
-      ...EMPTY,
-      kcal: Math.round(Number(kcal) || 0),
-      protein: round(Number(protein) || 0, 1),
-      carbs: round(Number(carbs) || 0, 1),
-      fat: round(Number(fat) || 0, 1),
-    },
+    nutrients,
     meal: meal || mealForTime(now),
     time: time || timeStamp(now),
     source: 'quick',
   };
 };
 
-/** Copy entries onto another day/meal — new ids, kept portions. */
 export const copyEntries = (entries = [], { meal, time } = {}) =>
   entries.map((e, i) => ({
     ...e,
@@ -258,31 +335,37 @@ export const copyEntries = (entries = [], { meal, time } = {}) =>
     source: 'copy',
   }));
 
-/**
- * A recipe serving, logged like any other food. `micros` (estimated from the
- * ingredient list — see `estimateRecipeMicros`) fills in everything a recipe
- * card doesn't print.
- */
-export const recipeAsFood = (recipe, micros = null) => ({
-  id: `recipe--${recipe.id}`,
-  name: recipe.name,
-  brand: 'Recipe',
-  emoji: recipe.emoji,
-  unit: 'g',
-  source: 'recipe',
-  tags: recipe.tags || [],
-  per100: {
-    ...(micros || {}),
-    kcal: Math.round((recipe.kcal / 350) * 100),
-    protein: round((recipe.protein / 350) * 100, 1),
-    carbs: round((recipe.carbs / 350) * 100, 1),
-    fat: round((recipe.fat / 350) * 100, 1),
-    fibre: round(((recipe.fibre || 0) / 350) * 100, 1),
-  },
-  // A serving is modelled as 350 g of plated food so portions scale sensibly.
-  servings: [
-    { label: '1 serving', grams: 350 },
-    { label: 'Half serving', grams: 175 },
-    { label: '1½ servings', grams: 525 },
-  ],
-});
+export const recipeAsFood = (recipe, micros = null) => {
+  const per100 = {};
+  const macro = (v) => nutrientValue(v, 'estimated', 'medium');
+  per100.kcal = macro(Math.round((recipe.kcal / 350) * 100));
+  per100.protein = macro(round((recipe.protein / 350) * 100, 1));
+  per100.carbs = macro(round((recipe.carbs / 350) * 100, 1));
+  per100.fat = macro(round((recipe.fat / 350) * 100, 1));
+  per100.fibre = macro(round(((recipe.fibre || 0) / 350) * 100, 1));
+
+  for (const key of NUTRIENT_KEYS) {
+    if (per100[key]) continue;
+    if (micros && micros[key] !== undefined && micros[key] !== null) {
+      per100[key] = nutrientValue(micros[key], 'estimated', 'low');
+    } else {
+      per100[key] = nutrientValue(null, 'estimated', 'low');
+    }
+  }
+
+  return {
+    id: `recipe--${recipe.id}`,
+    name: recipe.name,
+    brand: 'Recipe',
+    emoji: recipe.emoji,
+    unit: 'g',
+    source: 'recipe',
+    tags: recipe.tags || [],
+    per100,
+    servings: [
+      { label: '1 serving', grams: 350 },
+      { label: 'Half serving', grams: 175 },
+      { label: '1½ servings', grams: 525 },
+    ],
+  };
+};

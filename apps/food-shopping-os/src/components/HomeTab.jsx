@@ -1,23 +1,25 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  AlarmClock, Camera, CheckCircle2, ChevronRight, FlaskConical, Layers, Mic, Package, Plus,
-  ScanBarcode, Search, SlidersHorizontal, X,
+  AlarmClock, Camera, CheckCircle2, ChevronRight, Layers, Mic, Package, Plus,
+  ScanBarcode, Search, SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { gbp, greeting, prettyDate } from '../lib/utils.js';
+import { gbp, greeting, prettyDate, expiryStatus } from '../lib/utils.js';
 import { byId, RECIPES } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
-import { DIET_PATTERNS } from '../data/goals.js';
 import {
   daysUntil, expiringSoon, leftovers, pantryValue, planForDay, runningLow,
 } from '../lib/kitchen.js';
+import { rankLeftovers } from '../lib/food-suitability.js';
+import { weeklyFoodLoop } from '../lib/food-loop.js';
 import { totalOf } from '../data/stores.js';
-import { Section, Card, Ring, Pill, Meter, FoodArt, Chip } from './ui.jsx';
+import { bestForSlot } from '../lib/recommend.js';
+import { Section, Card, Ring, Pill, Meter, FoodArt } from './ui.jsx';
 import GuidancePreview from './GuidancePreview.jsx';
 import WaterGlasses from './WaterGlasses.jsx';
 import { DueList } from './RemindersPanel.jsx';
 import { Glyph } from './icons.jsx';
-import { NumberField } from './FoodDetail.jsx';
+import RecommendationExplanation from './RecommendationExplanation.jsx';
 
 /** Capture routes that open straight into the diary's matching sheet. */
 const LOG_SHORTCUTS = [
@@ -28,66 +30,7 @@ const LOG_SHORTCUTS = [
   { id: 'copy', label: 'Copy meal', Icon: Layers },
 ];
 
-/** Soft stage-2: diets / budget after the user is already planning. */
-function UsefulSetupCard() {
-  const app = useApp();
-  const [budget, setBudget] = useState(app.weeklyBudget || '');
-  const [diets, setDiets] = useState(app.diets || []);
-  if (!app.usefulSetupPending) return null;
-
-  const toggleDiet = (id) =>
-    setDiets((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
-
-  const save = () => {
-    app.completeUsefulSetup({
-      diets,
-      weeklyBudget: Math.max(0, Number(budget) || 0),
-    });
-  };
-
-  return (
-    <Card className="mb-3 !p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-            Useful later
-          </p>
-          <p className="mt-0.5 text-[0.9375rem] font-extrabold">Diet & weekly budget</p>
-          <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            Optional — helps filter recipes and track spend. Skip anytime.
-          </p>
-        </div>
-        <button
-          type="button"
-          aria-label="Dismiss"
-          onClick={app.dismissUsefulSetup}
-          className="press p-1"
-          style={{ color: 'var(--muted)' }}
-        >
-          <X size={16} />
-        </button>
-      </div>
-      <div className="mt-3">
-        <NumberField label="Weekly food budget" value={budget} onChange={setBudget} suffix="£" step={5} />
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {DIET_PATTERNS.map((d) => (
-          <Chip key={d.id} active={diets.includes(d.id)} onClick={() => toggleDiet(d.id)}>{d.label}</Chip>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={save}
-        className="press mt-3 w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold"
-        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-      >
-        Save
-      </button>
-    </Card>
-  );
-}
-
-export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeekLoop, goTab, goLog }) {
+export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, goLog }) {
   const app = useApp();
   const [customising, setCustomising] = useState(false);
   const [dragging, setDragging] = useState(null);
@@ -97,14 +40,46 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeek
   const left = app.weeklyBudget - app.spentThisWeek;
   const recipeOfDay = RECIPES[new Date().getDate() % RECIPES.length];
   const listTotal = totalOf(app.shoppingList);
-  const leftoverItems = leftovers(app.pantry);
+  // Rank leftovers through the central engine so expired ones drop out and
+  // near-expiry ones surface first with consistent warnings.
+  const leftoverItems = rankLeftovers(leftovers(app.pantry), {
+    ...app.prefs,
+    today: app.day,
+    members: app.members || [],
+    diets: app.diets || app.prefs?.diets || [],
+  });
+  const foodLoop = weeklyFoodLoop(app);
+  const availability = useMemo(() => {
+    const map = {};
+    for (const entry of app.calendarBusy || []) {
+      const d = entry.date;
+      map[d] = { busy: true, date: d, dayName: new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) };
+    }
+    return map;
+  }, [app.calendarBusy]);
+  const pantryHero = useMemo(() => {
+    if (!app.pantry.length || !app.safeRecipes.length) return null;
+    const dinners = app.safeRecipes.filter((r) => r.meal === 'dinner');
+    if (!dinners.length) return null;
+    const month = Number(String(app.day).slice(5, 7)) || new Date().getMonth() + 1;
+    const ctx = {
+      pantry: app.pantry,
+      today: app.day,
+      date: app.day,
+      availability,
+      people: Math.max(1, Math.round(app.portions || 1)),
+      budget: app.weeklyBudget ? Math.min(4, Math.max(1, app.weeklyBudget / 7)) : 2.5,
+      month,
+      taste: app.tasteProfile,
+    };
+    return bestForSlot(dinners, ctx);
+  }, [app.pantry, app.safeRecipes, app.day, app.portions, app.weeklyBudget, app.tasteProfile, availability]);
   const runGuidanceAction = (item) => {
     const { action } = item;
     if (action.kind === 'view') openGuidance(action.target);
     else if (action.kind === 'pantry') openPantry();
     else if (action.kind === 'profile') goTab('profile');
     else if (action.kind === 'log') goLog('add');
-    else if (action.kind === 'weekLoop') openWeekLoop?.(action.target || 'plan');
     else goTab(action.target);
   };
 
@@ -113,37 +88,6 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeek
   const blocks = {
     setup: () => (
       <Section className="rise rise-1">
-        <UsefulSetupCard />
-        {!app.isDemoMode && (
-          <Card className="mb-3 !p-3.5" onClick={() => app.enterDemoMode()}>
-            <p className="font-extrabold text-[0.875rem] inline-flex items-center gap-1.5">
-              <FlaskConical size={15} style={{ color: 'var(--warn)' }} /> Try an example week
-            </p>
-            <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-              Temporary demonstration data. See plan → list → shop → pantry, then clear instantly. Never saved.
-            </p>
-          </Card>
-        )}
-        {openWeekLoop && (
-          <Card
-            onClick={() => openWeekLoop()}
-            className="mb-3 !p-4"
-            style={{ borderColor: 'var(--accent)' }}
-          >
-            <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
-              Perfect week loop
-            </p>
-            <p className="mt-1 text-[1.0625rem] font-extrabold tracking-tight">
-              Plan → list → shop → pantry → cook → leftovers
-            </p>
-            <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-              One guided flow. Each step hands straight to the next — no hunting between tabs.
-            </p>
-            <p className="mt-2 text-[0.8125rem] font-extrabold" style={{ color: 'var(--accent)' }}>
-              Start the week →
-            </p>
-          </Card>
-        )}
         <GuidancePreview onOpen={() => openGuidance('next')} onAction={runGuidanceAction} />
       </Section>
     ),
@@ -336,20 +280,30 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeek
     ),
     leftovers: () => (
       <>
-          {/* Leftovers, if any are tracked */}
+          {/* Leftovers ranked by the central engine — expired filtered out,
+              near-expiry shown first with explicit use-by warnings. */}
           {leftoverItems.length > 0 && (
             <Section title="Leftovers to use" className="rise rise-4">
               <div className="grid grid-cols-2 gap-3">
-                {leftoverItems.map((l) => (
-                  <Card key={l.id} className="!p-3">
-                    <p className="font-bold text-[0.875rem] flex items-center gap-1.5">
-                      <Glyph e={l.emoji} size={15} style={{ color: 'var(--muted)' }} /> {l.name}
-                    </p>
-                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                      {[l.qty, l.location].filter(Boolean).join(' · ')}
-                    </p>
-                  </Card>
-                ))}
+                {leftoverItems.map((l) => {
+                  const days = l.expiry ? daysUntil(l.expiry, app.day) : null;
+                  const st = days === null ? null : expiryStatus(days);
+                  return (
+                    <Card key={l.id} className="!p-3">
+                      <p className="font-bold text-[0.875rem] flex items-center gap-1.5">
+                        <Glyph e={l.emoji} size={15} style={{ color: 'var(--muted)' }} /> {l.name}
+                      </p>
+                      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                        {[l.qty, l.location].filter(Boolean).join(' · ')}
+                      </p>
+                      {st && (
+                        <div className="mt-1.5">
+                          <Pill tone={st.tone}>{st.label}</Pill>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             </Section>
           )}
@@ -404,6 +358,83 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, openWeek
 
   return (
     <div className="pb-6 space-y-6">
+      <section className="px-5 rise rise-1" aria-labelledby="food-loop-title">
+        <Card className="!p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p id="food-loop-title" className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                This week’s food loop
+              </p>
+              <p className="mt-1 text-[1rem] font-extrabold tracking-tight">
+                {foodLoop.next === 'plan' && 'Start with a plan'}
+                {foodLoop.next === 'shop' && 'Your list is ready'}
+                {foodLoop.next === 'cook' && 'Your next meal is waiting'}
+                {foodLoop.next === 'steady' && 'Keep the week moving'}
+              </p>
+            </div>
+            <Pill tone={foodLoop.steps.filter((step) => step.done).length === 3 ? 'good' : 'muted'}>
+              {foodLoop.steps.filter((step) => step.done).length}/3
+            </Pill>
+          </div>
+          {/* Three equal cells with words in them: at 200% text the cell is
+              narrower than the word, so the text has to be allowed to break
+              rather than run past the border. */}
+          <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Weekly plan, shop and cook progress">
+            {foodLoop.steps.map((step) => (
+              <div
+                key={step.id}
+                className="min-w-0 rounded-xl border px-2.5 py-2 text-center"
+                style={{
+                  borderColor: step.done ? 'var(--good)' : 'var(--line)',
+                  background: step.done ? 'color-mix(in srgb, var(--good) 8%, transparent)' : 'var(--card-2)',
+                }}
+              >
+                <p className="text-[0.75rem] font-extrabold [overflow-wrap:anywhere]">{step.done ? '✓ ' : ''}{step.label}</p>
+                <p className="text-[0.65625rem] font-semibold [overflow-wrap:anywhere]" style={{ color: 'var(--muted)' }}>
+                  {step.id === 'plan' ? `${foodLoop.plannedMeals} meal${foodLoop.plannedMeals === 1 ? '' : 's'}`
+                    : step.id === 'shop' ? `${foodLoop.shops} shop${foodLoop.shops === 1 ? '' : 's'}`
+                      : `${foodLoop.cookedMeals} cooked`}
+                </p>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => goTab(foodLoop.next === 'shop' ? 'shop' : 'plan')}
+            className="press mt-3 w-full rounded-xl px-3.5 py-2.5 text-[0.78125rem] font-extrabold"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          >
+            {foodLoop.next === 'plan' ? 'Plan this week'
+              : foodLoop.next === 'shop' ? 'Open shopping list'
+                : foodLoop.next === 'cook' ? 'Open today’s plan' : 'Review this week'}
+          </button>
+        </Card>
+      </section>
+
+      {pantryHero && (
+        <section className="px-5 rise rise-1" aria-label="Tonight's pantry pick">
+          <Card className="!p-0 overflow-hidden">
+            <div className="px-4 pt-3 pb-1 flex items-baseline justify-between">
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Tonight — from what you have</p>
+              <span className="text-[0.6875rem] font-bold" style={{ color: 'var(--accent)' }}>{pantryHero.explanation.coverage.pct}% in your kitchen</span>
+            </div>
+            <div role="button" tabIndex={0} onClick={() => openRecipe(pantryHero.recipe)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecipe(pantryHero.recipe); } }} className="press flex items-center gap-3 px-4 pb-3 pt-1 cursor-pointer">
+              <FoodArt recipe={pantryHero.recipe} className="h-14 w-14 rounded-xl shrink-0" px={26} />
+              <div className="min-w-0 flex-1">
+                <p className="font-extrabold text-[0.9375rem] truncate">{pantryHero.recipe.name}</p>
+                <p className="text-[0.75rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
+                  {pantryHero.recipe.cuisine} · {pantryHero.recipe.time} min · {gbp(pantryHero.recipe.costPerServing, { always: true })}/serving
+                </p>
+              </div>
+              <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
+            </div>
+            <div className="px-4 pb-4">
+              <RecommendationExplanation explanation={pantryHero.explanation} compact />
+            </div>
+          </Card>
+        </section>
+      )}
+
       {/* Budget + nutrition */}
       {(app.weeklyBudget > 0 || app.entries.length > 0) && (
       <div className="px-5 grid grid-cols-2 gap-3 rise rise-1">

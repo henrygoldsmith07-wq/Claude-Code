@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Camera, Check, Info, ReceiptText, TriangleAlert } from 'lucide-react';
+import { Camera, Check, Info, ReceiptText, TriangleAlert, X } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { parseReceipt } from '../lib/receipt.js';
 import { gbp } from '../lib/utils.js';
@@ -27,30 +27,65 @@ VISA CONTACTLESS      £12.38`;
  */
 export default function ReceiptScan({ onDone }) {
   const app = useApp();
+  const canEditPantry = app.householdAccess.pantry;
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
+  const [items, setItems] = useState([]);
   const [ocrStatus, setOcrStatus] = useState('');
   const fileRef = useRef(null);
   const support = captureSupport();
 
-  const read = () => setResult(parseReceipt(text));
+  const applyResult = (next) => {
+    setResult(next);
+    setItems(next.items || []);
+  };
+
+  const read = () => applyResult(parseReceipt(text));
   const scanPhoto = async (file) => {
     setOcrStatus('Reading receipt image…');
     setResult(null);
+    setItems([]);
     try {
       const recognised = await detectReceiptText(file);
       setText(recognised);
-      setResult(parseReceipt(recognised));
+      applyResult(parseReceipt(recognised));
       setOcrStatus('Receipt text recognised. Check the total before keeping it.');
     } catch (error) {
       setOcrStatus(error.message);
     }
   };
 
+  const updateItem = (index, field, value) => {
+    setItems((current) => current.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      if (field === 'name') return { ...item, name: value };
+      // Keep the draft as typed so decimal inputs do not lose a transient
+      // value such as `1.` before the user finishes entering it.
+      return { ...item, [field]: value };
+    }));
+  };
+
+  const removeItem = (index) => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+
+  const itemTotal = Math.round(items.reduce((sum, item) => sum + (Number(item.price) || 0), 0) * 100) / 100;
+  const hasPrintedTotal = result?.printedTotal !== null && result?.printedTotal !== undefined;
+  const hasBlankItem = items.some((item) => !String(item.name || '').trim());
+  const hasInvalidNumber = items.some((item) => {
+    const valid = (value) => String(value ?? '').trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+    return !valid(item.qty) || !valid(item.price);
+  });
+  const balanced = hasPrintedTotal
+    ? Math.abs(result.printedTotal - itemTotal) < 0.02
+    : result?.balanced;
+
   const addToPantry = () => {
-    for (const item of result.items) {
-      app.addPantryItem({ name: item.name, cat: 'Fresh', location: 'Cupboard', cost: item.price, store: result.store, qty: item.qty > 1 ? `${item.qty}` : '' });
-    }
+    if (!canEditPantry || hasBlankItem || hasInvalidNumber) return;
+    app.saveReceipt({
+      store: result.store,
+      date: result.date,
+      total: hasPrintedTotal ? result.printedTotal : itemTotal,
+      items,
+    });
     onDone?.();
   };
 
@@ -86,7 +121,7 @@ export default function ReceiptScan({ onDone }) {
         {ocrStatus && <p role="status" className="text-[0.75rem] font-semibold">{ocrStatus}</p>}
         <textarea
           value={text}
-          onChange={(e) => { setText(e.target.value); setResult(null); }}
+          onChange={(e) => { setText(e.target.value); setResult(null); setItems([]); setOcrStatus(''); }}
           rows={7}
           placeholder="Paste the receipt"
           aria-label="Receipt text"
@@ -95,7 +130,7 @@ export default function ReceiptScan({ onDone }) {
         />
         <div className="flex gap-2">
           <button
-            onClick={() => setText(SAMPLE)}
+            onClick={() => { setText(SAMPLE); setResult(null); setItems([]); setOcrStatus(''); }}
             className="press rounded-2xl border px-3 py-2 text-[0.78125rem] font-extrabold"
             style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
           >
@@ -113,33 +148,89 @@ export default function ReceiptScan({ onDone }) {
         {result?.error && <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--danger)' }}>{result.error}</p>}
       </Card>
 
-      {result?.items?.length > 0 && (
+      {result && items.length > 0 && (
         <>
           <Card>
             <div className="flex items-center justify-between">
               <p className="font-bold text-[0.875rem]">
-                {result.items.length} item{result.items.length === 1 ? '' : 's'}
+                {items.length} item{items.length === 1 ? '' : 's'}
                 {result.store && ` · ${result.store}`}
               </p>
-              {result.balanced === true && <Pill tone="good"><Check size={11} /> Adds up</Pill>}
-              {result.balanced === false && <Pill tone="warn"><TriangleAlert size={11} /> Check it</Pill>}
+              {balanced === true && <Pill tone="good"><Check size={11} /> Adds up</Pill>}
+              {balanced === false && <Pill tone="warn"><TriangleAlert size={11} /> Check it</Pill>}
             </div>
-            {result.printedTotal !== null && (
+            <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              Check the recognised lines, then edit or remove anything that is wrong before adding it. Saving also records this shop in your spending history.
+            </p>
+            {hasPrintedTotal && (
               <p className="mt-0.5 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                Items come to {gbp(result.itemTotal, { always: true })}; the receipt says{' '}
+                Items come to {gbp(itemTotal, { always: true })}; the receipt says{' '}
                 {gbp(result.printedTotal, { always: true })}.
-                {result.balanced ? ' That matches, so the parse is sound.' : ' They differ — something was misread, so check before you keep it.'}
+                {balanced ? ' That matches, so the parse is sound.' : ' They differ — something was misread, so check before you keep it.'}
               </p>
             )}
             <div className="mt-2 divide-y" style={{ borderColor: 'var(--line)' }}>
-              {result.items.map((item, i) => (
-                <div key={`${item.name}-${i}`} className="flex items-center justify-between py-1.5">
-                  <span className="text-[0.8125rem] font-semibold truncate">{item.qty > 1 ? `${item.qty} × ` : ''}{item.name}</span>
-                  <span className="text-[0.8125rem] font-bold shrink-0">{gbp(item.price, { always: true })}</span>
+              {items.map((item, i) => (
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.5rem_auto] items-end gap-2 py-2">
+                  <label className="min-w-0 text-[0.6875rem] font-bold" style={{ color: 'var(--muted)' }}>
+                    Item
+                    <input
+                      value={item.name}
+                      onChange={(event) => updateItem(i, 'name', event.target.value)}
+                      aria-label={`Receipt item ${i + 1} name`}
+                      className="mt-1 w-full min-w-0 rounded-xl border px-2 py-1.5 text-[0.8125rem] font-semibold outline-none"
+                      style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+                    />
+                  </label>
+                  <label className="text-[0.6875rem] font-bold" style={{ color: 'var(--muted)' }}>
+                    Qty
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={item.qty}
+                      onChange={(event) => updateItem(i, 'qty', event.target.value)}
+                      aria-label={`Receipt item ${i + 1} quantity`}
+                      className="mt-1 w-full rounded-xl border px-2 py-1.5 text-[0.8125rem] font-semibold outline-none"
+                      style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+                    />
+                  </label>
+                  <label className="text-[0.6875rem] font-bold" style={{ color: 'var(--muted)' }}>
+                    Price
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={item.price}
+                      onChange={(event) => updateItem(i, 'price', event.target.value)}
+                      aria-label={`Receipt item ${i + 1} price`}
+                      className="mt-1 w-full rounded-xl border px-2 py-1.5 text-[0.8125rem] font-semibold outline-none"
+                      style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(i)}
+                    aria-label={`Remove receipt item ${i + 1}: ${item.name}`}
+                    className="press mb-0.5 rounded-xl border p-2"
+                    style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               ))}
             </div>
           </Card>
+
+          {hasBlankItem && (
+            <p role="alert" className="text-[0.75rem] font-semibold" style={{ color: 'var(--danger)' }}>
+              Add a name to every line, or remove blank lines, before adding this receipt to the pantry.
+            </p>
+          )}
+
+          {hasInvalidNumber && (
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--danger)' }}>
+              Enter a non-negative quantity and price for every line before adding this receipt to the pantry.
+            </p>
+          )}
 
           {result.unread.length > 0 && (
             <Card className="!p-3">
@@ -156,12 +247,18 @@ export default function ReceiptScan({ onDone }) {
             </Card>
           )}
 
+          {!canEditPantry && (
+            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              Pantry editing is off for this profile. An adult can change this under household permissions.
+            </p>
+          )}
           <button
             onClick={addToPantry}
+            disabled={hasBlankItem || hasInvalidNumber || !canEditPantry}
             className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
-            Add {result.items.length} to the pantry
+            {canEditPantry ? `Add ${items.length} to the pantry` : 'Pantry permission required'}
           </button>
         </>
       )}

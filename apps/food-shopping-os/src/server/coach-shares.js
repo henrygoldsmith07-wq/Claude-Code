@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ApiError } from './api.js';
-import { getDatabase } from './mongodb.js';
+import { getDatabase } from './database.js';
 
 export const coachTokenHash = (token) => createHash('sha256').update(token).digest('hex');
 

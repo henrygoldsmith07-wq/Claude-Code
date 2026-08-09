@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ApiError, assertSameOrigin, handleApiError, rateLimit, requireUser } from '../../../server/api.js';
 import { requireHousehold } from '../../../server/households.js';
-import { getDatabase } from '../../../server/mongodb.js';
+import { getDatabase } from '../../../server/database.js';
 import { publishHousehold } from '../../../server/realtime.js';
 import { syncSchema } from '../../../server/schemas.js';
 import {

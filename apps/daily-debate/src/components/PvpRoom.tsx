@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import MessageComposer from "./MessageComposer";
+import { VerdictExplainPanel } from "./ArgGraphView";
 import type { InputMode, PvpMatch, PvpTurn } from "@/lib/types";
 
 export default function PvpRoom({
@@ -117,30 +118,26 @@ export default function PvpRoom({
           <p className="text-center text-sm text-ink3">Waiting for your opponent…</p>
         )
       ) : (
-        <div className="surface-card flex flex-col gap-3 p-6">
-          <h2 className="text-lg font-semibold">
-            {match.winner_id === null
-              ? "Tie!"
-              : match.winner_id === currentUserId
-                ? "You won! 🏆"
-                : "Your opponent won this one."}
-          </h2>
-          {verdict && (
-            <>
-              <p className="tabular text-sm text-ink3">
-                {playerAName}: {verdict.playerAScore}/100 · {playerBName}: {verdict.playerBScore}/100
-              </p>
-              <p className="text-sm text-ink3">{verdict.rationale}</p>
-            </>
-          )}
-          <div className="flex gap-3 pt-2">
-            <Link href="/pvp" className="btn btn-primary px-4 py-2 text-sm">
-              Find another match
-            </Link>
-            <Link href="/leaderboard" className="btn btn-ghost px-4 py-2 text-sm">
-              Leaderboard
-            </Link>
+        <div className="flex flex-col gap-4">
+          <div className="surface-card flex flex-col gap-3 p-6">
+            <h2 className="text-lg font-semibold">
+              {match.winner_id === null
+                ? "Tie!"
+                : match.winner_id === currentUserId
+                  ? "You won! 🏆"
+                  : "Your opponent won this one."}
+            </h2>
+            {!verdict && <p className="text-sm text-ink3">Awaiting judge verdict…</p>}
+            <div className="flex gap-3 pt-2">
+              <Link href="/pvp" className="btn btn-primary px-4 py-2 text-sm">
+                Find another match
+              </Link>
+              <Link href="/leaderboard" className="btn btn-ghost px-4 py-2 text-sm">
+                Leaderboard
+              </Link>
+            </div>
           </div>
+          {verdict && <VerdictExplainPanel verdict={verdict} playerAName={playerAName} playerBName={playerBName} />}
         </div>
       )}
     </div>

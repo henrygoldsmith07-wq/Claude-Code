@@ -51,13 +51,13 @@ export default function StoreIntegrations() {
                 <Store size={18} /> {selected.name}
               </p>
               <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {canDeliver ? 'Online grocery delivery' : 'Browse prices · shop in store'}
+                {canDeliver ? 'Online grocery delivery' : 'Browse products · shop in store'}
               </p>
             </div>
             <Pill tone={canDeliver ? 'good' : 'muted'}>{canDeliver ? 'delivery' : 'in store'}</Pill>
           </div>
           <p className="mt-3 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            Forq keeps your recorded prices and offers locally. Current prices, stock and slots are checked on {selected.name}.
+            Forq keeps the prices and offers you record locally. It does not provide or claim to provide live supermarket prices. Use the official retailer page for today’s basket, stock and delivery slots.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <ExternalButton href={selected.offersUrl}>View {selected.name} offers</ExternalButton>
@@ -76,7 +76,7 @@ export default function StoreIntegrations() {
             <PackageSearch size={28} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="font-bold">Your shopping list is empty</p>
             <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-              Add an item, then use its retailer link to check today’s price and availability.
+              Add an item, then open its official retailer link to confirm the product.
             </p>
           </Card>
         ) : (
@@ -91,22 +91,26 @@ export default function StoreIntegrations() {
               </p>
             </div>
             {basket.rows.map((row) => (
-              <div key={row.id || row.name} data-retailer-item className="flex items-center justify-between gap-3 p-3">
-                <div className="min-w-0">
-                  <p className="font-bold text-[0.84375rem] truncate">{row.name}</p>
-                  <p className="text-[0.71875rem] font-semibold" style={{ color: row.price === null ? 'var(--faint)' : 'var(--good)' }}>
-                    {row.price === null ? 'No recorded price' : `${gbp(row.price, { always: true })} recorded`}
-                  </p>
+              <div key={row.id || row.name} data-retailer-item className="p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-[0.84375rem] truncate">{row.name}</p>
+                    <p className="text-[0.71875rem] font-semibold" style={{ color: row.price === null ? 'var(--faint)' : 'var(--good)' }}>
+                      {row.price === null ? 'No recorded price' : `${gbp(row.price, { always: true })} recorded`}
+                    </p>
                 </div>
-                <a
-                  href={row.searchUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="press shrink-0 inline-flex items-center gap-1 text-[0.71875rem] font-bold"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Check price & availability <ExternalLink size={11} />
-                </a>
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <a
+                      href={row.searchUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="press inline-flex items-center gap-1 text-[0.71875rem] font-bold"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      Open retailer site <ExternalLink size={11} />
+                    </a>
+                  </div>
+                </div>
               </div>
             ))}
           </Card>

@@ -1,11 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cx, clamp } from '../lib/utils.js';
-import { fallbackImage, recipeImage } from '../data/recipe-images.js';
+import { recipeGlyphFor } from './recipe-icons.jsx';
 
 /* ---------- Layout ---------- */
 
-export const Section = ({ title, action, onAction, children, className }) => (
+/**
+ * `hidden` is how product modes take a section off a screen: the caller asks
+ * for it, the section renders nothing, and the data behind it is untouched.
+ */
+export const Section = ({ title, action, onAction, children, className, hidden }) => (hidden ? null : (
   <section className={cx('px-5', className)}>
     {title && (
       <div className="flex items-baseline justify-between mb-3">
@@ -19,7 +23,7 @@ export const Section = ({ title, action, onAction, children, className }) => (
     )}
     {children}
   </section>
-);
+));
 
 export const Card = ({ children, className, onClick, style, label }) => (
   <div
@@ -333,7 +337,8 @@ export const Sheet = ({ open, onClose, children, full = false, title }) => {
     }, 0);
     return () => {
       clearTimeout(timer);
-      previousFocus.current?.focus?.();
+      if (previousFocus.current?.isConnected) previousFocus.current.focus();
+      else document.getElementById('main')?.focus?.();
     };
   }, [open]);
   useEffect(() => {
@@ -462,31 +467,25 @@ export const Toggle = ({ on, onChange, label }) => (
   </button>
 );
 
-/**
- * A picture of the dish, generated from the recipe itself (see
- * `data/recipe-images.js`). It comes over the network, so a failed request —
- * offline, blocked, or the service having a bad day — falls back to the
- * bundled picture for that kind of food rather than an empty frame.
- */
+/** Use the same Lucide glyph system as every other product surface. */
 export const FoodArt = ({ recipe, className, alt = '' }) => {
-  const generated = recipeImage(recipe);
-  const [src, setSrc] = useState(generated);
-
-  useEffect(() => { setSrc(generated); }, [generated]);
+  const { family, Icon } = recipeGlyphFor(recipe);
 
   return (
     <div
       className={cx('relative flex items-center justify-center overflow-hidden', className)}
-      style={{ background: 'var(--card-2)' }}
+      style={{ background: 'var(--card-2)', color: 'var(--muted)' }}
+      data-recipe-family={family}
     >
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-        onError={() => setSrc(fallbackImage(recipe))}
-        className="h-full w-full object-cover"
-      />
+      <Icon
+        role={alt ? 'img' : undefined}
+        aria-hidden={alt ? undefined : 'true'}
+        focusable="false"
+        strokeWidth={1.8}
+        className="h-[42%] w-[42%] max-h-16 max-w-16"
+      >
+        {alt ? <title>{alt}</title> : null}
+      </Icon>
     </div>
   );
 };

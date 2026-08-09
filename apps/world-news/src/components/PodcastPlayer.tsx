@@ -47,6 +47,7 @@ export default function PodcastPlayer({ scope, code, title }: Props) {
   // Warm the voice list (some browsers populate it asynchronously).
   useEffect(() => {
     if (!supported) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("unsupported");
       return;
     }
@@ -84,6 +85,7 @@ export default function PodcastPlayer({ scope, code, title }: Props) {
     }
     utter.onend = () => {
       // Only advance if we're still meant to be playing (not stopped).
+      // eslint-disable-next-line
       if (window.speechSynthesis.speaking || idxRef.current === i) speakFrom(i + 1);
     };
     window.speechSynthesis.speak(utter);

@@ -19,6 +19,10 @@ const PrimaryButton = ({ children, onClick, disabled }) => (
   </button>
 );
 
+const StatusMessage = ({ children, className = '', style }) => (
+  <p role="status" className={className} style={style}>{children}</p>
+);
+
 /* ---------- Barcode ---------- */
 
 /**
@@ -94,7 +98,7 @@ export function BarcodeScanner({ defaultMeal, onPick, onCreateCustom }) {
           This browser has no native barcode detector. Type the number or choose a catalogue example below.
         </p>
       )}
-      {message && <p role="status" className="text-[0.75rem] font-semibold">{message}</p>}
+      {message && <StatusMessage className="text-[0.75rem] font-semibold">{message}</StatusMessage>}
 
       <label className="block">
         <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Or type the number</span>
@@ -272,7 +276,7 @@ export function PhotoRecognise({ defaultMeal, onDone }) {
           Try a sample plate
         </button>
       </div>
-      {message && <p role="status" className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{message}</p>}
+      {message && <StatusMessage className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{message}</StatusMessage>}
 
       {/* The shape of the answer, while the answer is being worked out — so
           the page doesn't jump the moment it lands. */}

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Card, GestureMenu, Sheet } from '../src/components/ui.jsx';
+import { Card, FoodArt, GestureMenu, Sheet } from '../src/components/ui.jsx';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -62,6 +62,15 @@ describe('gesture menus', () => {
 });
 
 describe('accessible shared surfaces', () => {
+  it('uses the shared Lucide system for recipe artwork', () => {
+    render(<FoodArt recipe={{ name: 'Leek soup', meal: 'lunch' }} alt="Leek soup recipe icon" />);
+    const artwork = screen.getByRole('img', { name: 'Leek soup recipe icon' });
+
+    expect(artwork.closest('[data-recipe-family]').dataset.recipeFamily).toBe('soup');
+    expect(artwork.classList.contains('lucide-soup')).toBe(true);
+    expect(artwork.closest('[data-recipe-family]').querySelector('img')).toBeNull();
+  });
+
   it('activates clickable cards with Enter and Space', () => {
     const onClick = vi.fn();
     render(<Card onClick={onClick}>Open pantry</Card>);

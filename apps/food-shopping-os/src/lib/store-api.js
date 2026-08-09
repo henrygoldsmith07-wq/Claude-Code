@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { CATALOGUE } from '../data/foods.js';
-import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import { guessAisle } from '../data/stores.js';
-import { aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks } from './shopping.js';
+import { aisleFor, applyOffers, mergeItems, rememberAisle, routeFromTicks, shoppingNameKey } from './shopping.js';
 import { buildEntry, copyEntries } from './nutrition.js';
 import { recipeFood } from './foodlog.js';
-import { targetsFor } from './goals.js';
+import { targetActions } from './target-actions.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { consumePantryIngredients } from './kitchen.js';
+import { pantryActions } from './pantry-actions.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
 import { advancedActions, preferenceActions } from './preference-actions.js';
@@ -19,7 +19,9 @@ import { moveBefore } from './utils.js';
 import { emojiFor, EMPTY_STATE, todayStamp, uid } from './state.js';
 import { parseBackup, serialiseBackup } from './store-persistence.js';
 import { vaultActions } from './vault-actions.js';
-import { applyProductMode, DEFAULT_PRODUCT_MODE } from '../data/productModes.js';
+import { receiptActions, shoppingActions } from './shopping-actions.js';
+import { normalisePriceAlertConfig } from './price-alerts.js';
+import { COUPON_KINDS, LOYALTY_PROGRAMMES, normaliseCoupon } from './coupons.js';
 export function useStoreApi({
   blockPersistence, cloudStatus, latest, setState, setStorageIssue, storageIssue,
   undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
@@ -42,6 +44,7 @@ export function useStoreApi({
         };
       });
     return {
+      ...shoppingActions(set), ...receiptActions(set),
       set,
       storageIssue,
       cloudStatus,
@@ -89,15 +92,11 @@ export function useStoreApi({
         setState({ ...EMPTY_STATE, day: todayStamp() });
       },
       finishOnboarding: (profile) =>
-        set((s) => {
-          const modeId = profile.productMode || DEFAULT_PRODUCT_MODE;
-          const withMode = applyProductMode(modeId, profile);
-          return {
-            ...withMode,
-            onboarded: true,
-            measurements: seedMeasurements(withMode.body, s.day, s.measurements),
-          };
-        }),
+        set((s) => ({
+          ...profile,
+          onboarded: true,
+          measurements: seedMeasurements(profile.body, s.day, s.measurements),
+        })),
       dismissSetupStep: (id) =>
         set((s) => ({
           dismissedSetupSteps: s.dismissedSetupSteps.includes(id)
@@ -105,16 +104,6 @@ export function useStoreApi({
             : [...s.dismissedSetupSteps, id],
         })),
       dismissWelcome: () => set({ welcomeDismissed: true }),
-      /** Soft stage-2 (diets / budget) — never blocks planning */
-      dismissUsefulSetup: () => set({ usefulSetupPending: false }),
-      completeUsefulSetup: ({ diets, weeklyBudget } = {}) =>
-        set((s) => ({
-          ...(Array.isArray(diets) ? { diets } : {}),
-          ...(weeklyBudget !== undefined
-            ? { weeklyBudget: Math.max(0, Number(weeklyBudget) || 0) }
-            : {}),
-          usefulSetupPending: false,
-        })),
       ...vaultActions({
         latest, set, setVaultUnlocked, undoHistory, vaultKey, vaultSalt, vaultWrites,
       }),
@@ -122,41 +111,7 @@ export function useStoreApi({
       setAccent: (accent) => set({ accent }),
       addWater: (d) => set((s) => ({ water: Math.max(0, Math.min(8, s.water + d)) })),
       addWaterMl: (ml) => set((s) => ({ waterExtraMl: Math.max(0, s.waterExtraMl + ml) })),
-      setTarget: (key, value) =>
-        set((s) => ({
-          targets: { ...s.targets, [key]: Math.max(0, Number(value) || 0) },
-          targetMode: ['kcal', 'protein', 'carbs', 'fat'].includes(key) ? 'custom' : s.targetMode,
-        })),
-      resetTargets: () => set((s) => ({ targets: targetsFor({ ...s, targets: DEFAULT_TARGETS }), targetMode: 'auto' })),
-      setGoal: (goal) =>
-        set((s) => {
-          const next = { ...s, goal };
-          return { goal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      toggleDiet: (id) =>
-        set((s) => {
-          const diets = s.diets.includes(id) ? s.diets.filter((d) => d !== id) : [...s.diets, id];
-          const next = { ...s, diets };
-          return { diets, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setBody: (patch) =>
-        set((s) => {
-          const body = { ...s.body, ...patch };
-          const next = { ...s, body };
-          return { body, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setMaintenance: (kcal) =>
-        set((s) => {
-          const maintenanceKcal = Math.max(0, Number(kcal) || 0);
-          const next = { ...s, maintenanceKcal };
-          return { maintenanceKcal, targets: s.targetMode === 'auto' ? targetsFor(next) : s.targets };
-        }),
-      setTargetMode: (targetMode) =>
-        set((s) => ({
-          targetMode,
-          targets: targetMode === 'auto' ? targetsFor(s) : s.targets,
-        })),
-      setWeeklyKcal: (kcal) => set({ weeklyKcal: Math.max(0, Number(kcal) || 0) }),
+      ...targetActions(set),
       saveRecipe: (recipe) =>
         set((s) => {
           if (!householdPermission(s, 'recipes')) return {};
@@ -275,7 +230,7 @@ export function useStoreApi({
       addToList: (items) =>
         set((s) => {
           if (!householdPermission(s, 'shopping')) return {};
-          const keyFor = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          const keyFor = shoppingNameKey;
           const have = new Set(s.shoppingList.map((i) => keyFor(i.name)));
           const quantities = new Map();
           [...s.shops].reverse().forEach((shop) => shop.items.forEach((item) => {
@@ -293,7 +248,6 @@ export function useStoreApi({
               priority: i.priority === 'high' ? 'high' : 'normal',
               emoji: i.emoji || emojiFor(i.name),
               ...i,
-              // What you filed it under last time wins over the name guess.
               aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
                 ? (i.aisle || guessAisle(i.name))
                 : aisleFor(i.name, s.aisleMemory),
@@ -304,10 +258,10 @@ export function useStoreApi({
         set((s) => {
           const last = s.shops.at(-1);
           if (!last?.items?.length) return {};
-          const have = new Set(s.shoppingList.map((i) => String(i.name).trim().toLowerCase()));
-          const items = last.items.filter((i) => i.name && !have.has(String(i.name).trim().toLowerCase()))
+          const have = new Set(s.shoppingList.map((i) => shoppingNameKey(i.name)));
+          const items = last.items.filter((i) => i.name && !have.has(shoppingNameKey(i.name)) && (have.add(shoppingNameKey(i.name)), true))
             .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0,
-              emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
+              store: last.store || '', emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
               note: '', priority: 'normal' }));
           return items.length ? { shoppingList: [...s.shoppingList, ...items] } : {};
         }),
@@ -335,9 +289,9 @@ export function useStoreApi({
             : i)),
         })),
       clearChecked: () => set((s) => ({ shoppingList: s.shoppingList.filter((i) => !i.checked) })),
-      recordShop: ({ store, total, toPantry = false, location = 'Cupboard' }) =>
+      recordShop: ({ store, total, toPantry = false, location = 'Cupboard', itemIds = null }) =>
         set((s) => {
-          const bought = s.shoppingList.filter((i) => i.checked);
+          const bought = s.shoppingList.filter((i) => i.checked && (!itemIds || itemIds.includes(i.id)));
           if (!bought.length) return {};
           const shopStore = store || 'Unnamed shop';
           const { saved } = applyOffers(bought, s.offers, { store: shopStore, today: s.day });
@@ -349,13 +303,12 @@ export function useStoreApi({
             saved,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
-          // The order you ticked things off is this shop's layout, learned.
           const route = routeFromTicks(bought);
           return {
             shops: [...s.shops, shop],
-            shoppingList: s.shoppingList.filter((i) => !i.checked),
+            shoppingList: s.shoppingList.filter((i) => !bought.some((item) => item.id === i.id)),
             storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
-            pantry: toPantry
+            pantry: toPantry && householdPermission(s, 'pantry')
               ? [...s.pantry, ...bought.map((i) => ({
                   id: uid('p'),
                   name: i.name,
@@ -400,9 +353,63 @@ export function useStoreApi({
         }),
       removePriceAlert: (id) =>
         set((s) => ({ priceAlerts: s.priceAlerts.filter((alert) => alert.id !== id) })),
+      setPriceAlertConfig: (patch) =>
+        set((s) => {
+          const next = normalisePriceAlertConfig({ ...s.priceAlertConfig, ...(patch || {}) });
+          return { priceAlertConfig: next };
+        }),
+      setPriceAlertOverride: (name, kind, pct) =>
+        set((s) => {
+          const key = String(name || '').trim().toLowerCase();
+          if (!key || !['rise', 'bargain'].includes(kind)) return {};
+          const n = Math.max(5, Math.min(50, Math.round(Number(pct) || 15)));
+          const overrides = { ...(s.priceAlertConfig?.overrides || {}) };
+          const existing = overrides[key] || {};
+          overrides[key] = { ...existing, [kind === 'rise' ? 'risePct' : 'bargainPct']: n };
+          return { priceAlertConfig: normalisePriceAlertConfig({ ...s.priceAlertConfig, overrides }) };
+        }),
+      clearPriceAlertOverride: (name, kind) =>
+        set((s) => {
+          const key = String(name || '').trim().toLowerCase();
+          const overrides = { ...(s.priceAlertConfig?.overrides || {}) };
+          if (!overrides[key]) return {};
+          const next = { ...overrides[key] };
+          if (kind === 'rise') delete next.risePct;
+          else if (kind === 'bargain') delete next.bargainPct;
+          else delete overrides[key];
+          if (kind && Object.keys(next).length) overrides[key] = next;
+          else if (!kind) delete overrides[key];
+          else delete overrides[key];
+          return { priceAlertConfig: normalisePriceAlertConfig({ ...s.priceAlertConfig, overrides }) };
+        }),
+      // Coupon vault — manual + photo OCR draft (no retailer feed)
+      addCoupon: (raw) =>
+        set((s) => {
+          const label = String(raw?.label || '').trim();
+          if (label.length < 2) return {};
+          const normalised = normaliseCoupon({ ...raw, id: raw?.id || uid('cp'), addedAt: s.day }, s.day);
+          if (!normalised.label) return {};
+          if (normalised.kind === 'money' || normalised.kind === 'percent' || normalised.kind === 'multibuy') {
+            if (!(Number(normalised.value) > 0)) return {};
+          }
+          const kindOk = COUPON_KINDS.some((k) => k.id === normalised.kind);
+          if (!kindOk) return {};
+          const progOk = !normalised.programme || LOYALTY_PROGRAMMES.some((p) => p.id === normalised.programme);
+          if (!progOk) return {};
+          return { coupons: [...(s.coupons || []), normalised] };
+        }),
+      updateCoupon: (id, patch) =>
+        set((s) => ({
+          coupons: (s.coupons || []).map((c) => (c.id === id ? normaliseCoupon({ ...c, ...patch, id }, s.day) : c)),
+        })),
+      removeCoupon: (id) => set((s) => ({ coupons: (s.coupons || []).filter((c) => c.id !== id) })),
+      toggleCouponUsed: (id) =>
+        set((s) => ({
+          coupons: (s.coupons || []).map((c) => c.id === id ? { ...c, used: !c.used, usedAt: !c.used ? s.day : null } : c),
+        })),
       binPantryItem: (id) =>
         set((s) => {
-          const item = s.pantry.find((p) => p.id === id);
+          const item = householdPermission(s, 'pantry') ? s.pantry.find((p) => p.id === id) : null;
           if (!item) return {};
           return {
             pantry: s.pantry.filter((p) => p.id !== id),
@@ -424,11 +431,11 @@ export function useStoreApi({
       applyPlanEntries: (entries) => set((s) => ({ plan: applyEntries(s.plan, entries) })),
       ...householdActions(set, uid),
       saveLeftovers: (recipe, portions) =>
-        set((s) => (portions > 0
+        set((s) => (householdPermission(s, 'pantry') && portions > 0
           ? { pantry: [...s.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, portions, s.day) }] }
           : {})),
       useLeftover: (id) =>
-        set((s) => ({
+        set((s) => (householdPermission(s, 'pantry') ? {
           pantry: s.pantry
             .map((p) => {
               if (p.id !== id) return p;
@@ -436,10 +443,10 @@ export function useStoreApi({
               return { ...p, portions, qty: `${portions} portion${portions === 1 ? '' : 's'}` };
             })
             .filter((p) => p.cat !== LEFTOVER_CAT || (Number(p.portions) || 0) > 0),
-        })),
+        } : {})),
       ...healthActions(set),
       ...reminderActions(set),
-      ...smartActions(set),
+      ...smartActions(set), ...pantryActions(set),
       ...preferenceActions(set),
       ...advancedActions(set, uid),
       logEntries: addEntries,
@@ -496,13 +503,13 @@ export function useStoreApi({
       completeRecipe: (recipe, { leftovers = 0 } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
-          const consumed = s.autoUsePantry
+          const consumed = householdPermission(s, 'pantry') && s.autoUsePantry
             ? consumePantryIngredients(s.pantry, recipe.ingredients)
             : { pantry: s.pantry };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
-            pantry: leftovers > 0
+            pantry: householdPermission(s, 'pantry') && leftovers > 0
               ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
               : consumed.pantry,
           };

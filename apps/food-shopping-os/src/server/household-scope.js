@@ -1,5 +1,6 @@
 const FIELD_PERMISSION = {
   shoppingList: 'shopping',
+  favouriteShopping: 'shopping',
   shops: 'shopping',
   aisleMemory: 'shopping',
   storeRoutes: 'shopping',
@@ -33,6 +34,7 @@ const FIELD_PERMISSION = {
 
 const EMPTY_BY_FIELD = {
   shoppingList: [],
+  favouriteShopping: [],
   shops: [],
   aisleMemory: {},
   storeRoutes: {},

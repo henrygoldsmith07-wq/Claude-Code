@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   addDays, badgeProgress, budgetWeeks, cuisineSplit, dayStamp, daysUntil, expiringSoon,
-  consumePantryIngredients, groceryInflation, kitchenStats, leftovers, pantryAnalytics,
+  consumePantryIngredients, decrementPantryItem, groceryInflation, kitchenStats, leftovers, pantryAnalytics,
   pantryFromShareCode, pantryShareCode, pantryValue, planCost, plannedMeals, priceHistory,
   recipesUsing, runningLow, savingsSummary, spendByMonth, spentInMonth, spentInWeek,
   streakFrom, weekDates, weekStart,
@@ -81,8 +81,19 @@ describe('pantry', () => {
     ];
     const ingredients = [{ name: 'Chicken thighs' }, { name: 'New potatoes' }, { name: 'Garlic' }];
     const result = consumePantryIngredients(stocked, ingredients);
-    expect(result.pantry.map((p) => p.name)).toEqual(['Milk']);
+    expect(result.pantry.map((p) => p.name)).toEqual(['Chicken thighs', 'Milk']);
+    expect(result.pantry[0].qty).toBe('7');
     expect(result.used.map((p) => p.name)).toEqual(['Chicken thighs', 'New potatoes']);
+  });
+
+  it('decrements countable stock and keeps free-text quantities honest', () => {
+    const next = decrementPantryItem({ id: 'p1', name: 'Beans', qty: '2 tins', cost: 3 });
+    expect(next.remove).toBe(false);
+    expect(next.item.qty).toBe('1 tin');
+    expect(next.item.cost).toBe(1.5);
+    expect(decrementPantryItem({ id: 'p2', name: 'Flour', qty: '500 g' })).toEqual({ remove: true });
+    expect(decrementPantryItem({ id: 'p3', name: 'Leftover curry', cat: 'Leftovers', portions: 2, qty: '2 portions' }).item)
+      .toMatchObject({ portions: 1, qty: '1 portion' });
   });
 
   it('round-trips a household pantry share code and rejects invalid input', () => {

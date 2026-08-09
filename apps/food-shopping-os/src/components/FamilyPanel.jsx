@@ -5,6 +5,7 @@ import {
 import { useApp } from '../lib/store.jsx';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { householdFromShareCode, householdShareCode } from '../lib/household.js';
+import { YOUTH_COPY } from '../lib/youth.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
 import CoachAccess from './CoachAccess.jsx';
 import HouseholdAudit from './HouseholdAudit.jsx';
@@ -54,7 +55,7 @@ function PeopleView() {
                 : `Just you · ${app.portions} portion${app.portions === 1 ? '' : 's'} a meal`}
             </p>
           </div>
-          {app.activeMember && <Pill tone="accent">{app.childMode ? 'child mode' : 'profile'}: {app.activeMember.name}</Pill>}
+          {app.activeMember && <Pill tone="accent">{app.childMode ? 'under-18 mode' : 'profile'}: {app.activeMember.name}</Pill>}
         </div>
         <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
           {app.planDiets.length ? `Plans avoid: ${app.planDiets.join(' · ')}.` : 'No shared dietary patterns set.'}
@@ -128,6 +129,11 @@ function PeopleView() {
 
             <div>
               <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Permissions</p>
+              {member.role === 'child' && (
+                <p className="mb-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {YOUTH_COPY.sharing}
+                </p>
+              )}
               <div className="space-y-2">
                 {PERMISSIONS.map(([key, label]) => (
                   <div key={key} className="flex items-center justify-between">
@@ -322,7 +328,7 @@ function SharingView() {
           Open tabs in this browser update live through browser storage events.
         </p>
         <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-          Signed-in households receive cross-device changes through a private realtime channel, with a one-minute fallback check.
+          Signed-in households receive cross-device changes through a private realtime channel. Ably is used when configured; otherwise Forq uses an expiring Redis-backed stream.
         </p>
       </Card>
 

@@ -220,15 +220,19 @@ export default function ExercisePanel() {
       </Card>
 
       <Card>
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="font-bold text-[0.875rem]">Count exercise calories</p>
-            <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-              Add today’s estimated burn to your target
-            </p>
+        {/* Eating training back is not offered under 18 — the toggle itself is
+            the "earn your food" idea, so it isn't there to turn on. */}
+        {app.youth.exerciseEatBack && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-bold text-[0.875rem]">Count exercise calories</p>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                Add today’s estimated burn to your target
+              </p>
+            </div>
+            <Toggle label="Count exercise calories" on={app.countExerciseKcal} onChange={() => app.setCountExerciseKcal(!app.countExerciseKcal)} />
           </div>
-          <Toggle label="Count exercise calories" on={app.countExerciseKcal} onChange={() => app.setCountExerciseKcal(!app.countExerciseKcal)} />
-        </div>
+        )}
         <div className="mt-3 rounded-2xl p-3" style={{ background: 'var(--card-2)' }}>
           <p className="text-[0.84375rem] font-bold">
             Today: {activity.base.toLocaleString()} kcal

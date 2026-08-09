@@ -16,8 +16,22 @@ import {
 import { addDays, budgetWeeks, dayStamp, spentInWeek, weekDates, weekStart } from './kitchen.js';
 import { dayTotals } from './nutrition.js';
 import { seasonScore, monthOf } from '../data/seasons.js';
+import { isUnderEighteen } from './youth.js';
 
 const clampPct = (n) => Math.max(0, Math.min(100, Math.round(n)));
+
+/**
+ * Under 18 the game layer stops rewarding exact calorie adherence: no XP for
+ * landing inside a target, no "days on target" streak, and the challenge that
+ * counts them drops out of the rotation. Everything else — cooking, logging,
+ * planning, shopping — still counts, because none of it is about a number.
+ */
+const scoresAdherence = (state) => !isUnderEighteen(state);
+
+const challengePool = (state) =>
+  (scoresAdherence(state)
+    ? WEEKLY_CHALLENGES
+    : WEEKLY_CHALLENGES.filter((challenge) => challenge.metric !== 'onTargetDaysThisWeek'));
 
 /* ---------- Streaks ---------- */
 
@@ -67,7 +81,9 @@ export const streaks = (state, today = dayStamp()) => {
   return {
     logging: build(loggedDates, 'Diary', 'days in a row with something logged'),
     cooking: build(cookedDates, 'Cooking', 'days in a row you cooked'),
-    onTarget: build(onTargetDates, 'On target', 'days inside your calorie target'),
+    onTarget: scoresAdherence(state)
+      ? build(onTargetDates, 'On target', 'days inside your calorie target')
+      : null,
   };
 };
 
@@ -81,7 +97,7 @@ const countPlanned = (plan = {}) => Object.values(plan).reduce((n, day) => n + O
  * is banked: undo something and its XP goes with it.
  */
 export const xpBreakdown = (state, today = dayStamp()) => {
-  const onTarget = streaks(state, today).onTarget.total;
+  const onTarget = streaks(state, today).onTarget?.total || 0;
   const done = completedIds(state, today);
   const rows = [
     { key: 'entry', label: 'Foods logged', count: countEntries(state.log) },
@@ -214,8 +230,9 @@ export const weekIndex = (today = dayStamp()) => {
  */
 export const weeklyChallenges = (state, today = dayStamp()) => {
   const metrics = questMetrics(state, today);
-  const start = (weekIndex(today) * 3) % WEEKLY_CHALLENGES.length;
-  const picked = Array.from({ length: 3 }, (_, i) => WEEKLY_CHALLENGES[(start + i) % WEEKLY_CHALLENGES.length]);
+  const pool = challengePool(state);
+  const start = (weekIndex(today) * 3) % pool.length;
+  const picked = Array.from({ length: 3 }, (_, i) => pool[(start + i) % pool.length]);
   const event = eventForMonth(monthOf(today));
   const all = event ? [...picked, event.challenge] : picked;
   return all.map((quest) => withProgress(quest, metrics));
@@ -242,8 +259,9 @@ const completedIds = (state, today = dayStamp()) => ({
 /** Challenge progress without the XP loop reading back into itself. */
 function weeklyChallengesRaw(state, today) {
   const metrics = questMetrics(state, today);
-  const start = (weekIndex(today) * 3) % WEEKLY_CHALLENGES.length;
-  return Array.from({ length: 3 }, (_, i) => withProgress(WEEKLY_CHALLENGES[(start + i) % WEEKLY_CHALLENGES.length], metrics));
+  const pool = challengePool(state);
+  const start = (weekIndex(today) * 3) % pool.length;
+  return Array.from({ length: 3 }, (_, i) => withProgress(pool[(start + i) % pool.length], metrics));
 }
 
 /* ---------- Achievements: the dated firsts and bests ---------- */

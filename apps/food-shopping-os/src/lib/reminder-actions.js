@@ -67,7 +67,7 @@ export const reminderActions = (set) => ({
     set((s) => {
       const room = Math.max(0, MAX_REMINDERS - s.reminders.length);
       const fresh = list.slice(0, room)
-        .map((suggested) => ({ id: uid('r'), snoozeUntil: 0, ...clean(suggested) }))
+        .map((suggested) => ({ id: uid('r'), createdAt: Date.now(), snoozeUntil: 0, ...clean(suggested) }))
         .filter((r) => r.times.length && r.days.length);
       return fresh.length ? { reminders: [...s.reminders, ...fresh] } : {};
     }),

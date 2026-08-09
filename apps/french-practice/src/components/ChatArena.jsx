@@ -3,7 +3,8 @@ import { langName } from '../lib/i18n';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { getScenarios } from '../lib/data';
-import { transcribe, evaluateTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
+import { transcribe, evaluateTurn, evaluateRedoTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
+import { scoreDelta, redoVerdict } from '../lib/redo';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
 import { getSrs, recordGrammarError } from '../lib/storage';
@@ -32,6 +33,9 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   const [hintLoading, setHintLoading] = useState(false);
   const [error, setError] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(readSessionBudget);
+  // Active redo: idx of the turn being retried. While set, the correction
+  // for that turn is hidden so the learner must recall it.
+  const [redoIdx, setRedoIdx] = useState(null);
   const scrollRef = useRef(null);
 
   // Honour Home's 5/10/15 min presets: countdown only, never auto-sends speech.
@@ -90,11 +94,47 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     setHintLevel(0);
     setError(null);
     setPhase('idle');
+    setRedoIdx(null);
   };
 
   const send = async (text) => {
     const userText = text.trim();
     if (!userText || phase === 'thinking') return;
+    // Redo path: re-evaluate the same turn with correction hidden
+    if (redoIdx != null) {
+      const idx = redoIdx;
+      const original = history[idx];
+      if (!original) { setRedoIdx(null); return; }
+      setDraft('');
+      setSpoken(null);
+      setPhase('thinking');
+      setError(null);
+      try {
+        const redoEval = await evaluateRedoTurn(apiKey, {
+          scenario,
+          historyBefore: history.slice(0, idx),
+          originalText: original.userText,
+          retryText: userText,
+          level,
+          mock: mockMode,
+        });
+        if (redoEval.grammar_topic) recordGrammarError(redoEval.grammar_topic);
+        const { deltas, deltaOverall } = scoreDelta(original.evaluation.scores, redoEval.scores);
+        const verdict = redoVerdict(deltaOverall);
+        const redo = { retryText: userText, evaluation: redoEval, deltas, deltaOverall, verdict, note: redoEval.redo_note };
+        setHistory((h) => h.map((t, i) => (i === idx ? { ...t, redo } : t)));
+        onTurn(redoEval.scores);
+        speak(redoEval.reply, { rate: ttsRate });
+      } catch (e) {
+        setError(friendlyError(e));
+        setDraft(userText);
+        setPhase('editing');
+        return;
+      }
+      setRedoIdx(null);
+      setPhase('idle');
+      return;
+    }
     setDraft('');
     setSpoken(null);
     setHint('');
@@ -203,15 +243,31 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         <div className="max-w-2xl mx-auto space-y-4">
         <p className="text-center text-[11px] text-ink3 max-w-sm mx-auto">{scenario.setup}</p>
         <AiBubble text={scenario.opener} translation={scenario.openerTranslation} ttsRate={ttsRate} />
+        {redoIdx != null && history[redoIdx] && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-ink" role="status">
+            <span className="font-bold">Redo mode</span> — correction hidden. Recall the fix from memory, then re-speak or re-type the same turn. We’ll compare the two attempts.
+          </div>
+        )}
         {history.map((turn, i) => (
           <div key={i} className="space-y-4">
-            <UserBubble turn={turn} onGrammarTip={onGrammarTip} apiKey={apiKey} mockMode={mockMode} level={level} />
+            <UserBubble
+              turn={turn}
+              idx={i}
+              redoActive={redoIdx === i}
+              onRedo={(idx) => { setRedoIdx(idx); setDraft(''); setSpoken(null); setError(null); setPhase('idle'); }}
+              onCancelRedo={() => setRedoIdx(null)}
+              onGrammarTip={onGrammarTip}
+              apiKey={apiKey}
+              mockMode={mockMode}
+              level={level}
+            />
             {turn.curveball && (
               <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
                 Curveball
               </p>
             )}
             <AiBubble text={turn.evaluation.reply} translation={turn.evaluation.translation} ttsRate={ttsRate} />
+            {turn.redo && <RedoCompare redo={turn.redo} before={turn.evaluation.scores} idx={i} />}
           </div>
         ))}
         {phase === 'thinking' && (
@@ -242,6 +298,12 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
       {/* composer */}
       <div className="border-t border-line bg-surface px-4 pt-3 pb-safe">
         <div className="max-w-2xl mx-auto">
+        {redoIdx != null && phase === 'idle' && !recorder.recording && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+            <span className="text-xs text-ink"><span className="font-bold">Retrying turn {redoIdx + 1}</span> — say it again without peeking.</span>
+            <button onClick={() => setRedoIdx(null)} className="text-xs font-semibold text-ink2 hover:text-ink min-h-8 px-2">Cancel redo</button>
+          </div>
+        )}
         {recorder.recording ? (
           <div className="space-y-2">
             <Waveform analyserRef={recorder.analyserRef} peakDb={recorder.peakDb} elapsed={recorder.elapsed} />
@@ -302,18 +364,18 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
             >
               <Lightbulb size={14} /> {hintLevel === 0 ? 'Hint' : `Hint ${Math.min(3, hintLevel + 1)}/3`}
             </button>
-            <div className="flex-1 flex items-center gap-2 bg-surface2 rounded-xl border border-line focus-within:border-ink px-3">
+            <div className={`flex-1 flex items-center gap-2 rounded-xl border px-3 ${redoIdx != null ? 'bg-amber-50 border-amber-300 focus-within:border-amber-400' : 'bg-surface2 border-line focus-within:border-ink'}`}>
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send(draft)}
-                placeholder={busy ? '…' : `Or type in ${langName()}…`}
+                placeholder={busy ? '…' : redoIdx != null ? `Redo turn ${redoIdx + 1} — type your improved ${langName()}…` : `Or type in ${langName()}…`}
                 disabled={busy}
                 className="flex-1 bg-transparent py-3 text-sm text-ink placeholder:text-ink3 focus:outline-none"
-                aria-label="Typed reply"
+                aria-label={redoIdx != null ? 'Retry reply' : 'Typed reply'}
               />
               {draft.trim() && (
-                <button onClick={() => send(draft)} disabled={busy} aria-label="Send" className="text-ink px-1 min-h-11 grid place-items-center"><ArrowRight size={16} /></button>
+                <button onClick={() => send(draft)} disabled={busy} aria-label={redoIdx != null ? 'Send retry' : 'Send'} className="text-ink px-1 min-h-11 grid place-items-center"><ArrowRight size={16} /></button>
               )}
             </div>
             <button
@@ -366,23 +428,33 @@ function AiBubble({ text, translation, ttsRate }) {
   );
 }
 
-function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
+function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip, apiKey, mockMode, level }) {
   const [expanded, setExpanded] = useState(false);
   const { evaluation } = turn;
+  const redoHidden = redoActive && !expanded; // correction collapsed while redo active
   return (
     <div className="flex flex-col items-end gap-1.5 bubble-in">
       <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%]">
-        <div className="bg-accent rounded-2xl rounded-br-md px-4 py-3 shadow-md shadow-black/15">
-          <p className="text-[15px] text-onaccent leading-relaxed" lang="fr">{turn.userText}</p>
+        <div className={`rounded-2xl rounded-br-md px-4 py-3 shadow-md shadow-black/15 ${turn.redo ? 'bg-ink text-bg' : 'bg-accent text-onaccent'}`}> 
+          <p className={`text-[15px] leading-relaxed ${turn.redo ? 'text-bg' : 'text-onaccent'}`} lang="fr">{turn.userText}</p>
         </div>
         <ScoreBadge value={evaluation.scores.overall} />
       </div>
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
-      >
-        {expanded ? 'Hide feedback' : 'Corrections & native version'}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
+        >
+          {expanded ? 'Hide feedback' : 'Corrections & native version'}
+        </button>
+        {!turn.redo && (
+          redoActive ? (
+            <button onClick={onCancelRedo} className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 min-h-8 px-2 rounded-lg bg-amber-50 border border-amber-200">Cancel redo</button>
+          ) : (
+            <button onClick={() => onRedo(idx)} className="text-[11px] font-semibold text-ink2 hover:text-ink min-h-8 px-2 rounded-lg border border-line bg-surface hover:border-ink3">Redo this turn →</button>
+          )
+        )}
+      </div>
       {expanded && (
         <div className="w-full sm:max-w-[85%] fade-in bg-surface2 border border-line rounded-2xl p-4 space-y-3 text-left">
           <div>
@@ -413,6 +485,36 @@ function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
           })()}
         </div>
       )}
+      {redoActive && !expanded && (
+        <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 w-full sm:max-w-[85%] text-left">
+          Correction hidden — redo the turn from memory. Open feedback only after you retry.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RedoCompare({ redo, before, idx }) {
+  const sign = (n) => (n > 0 ? `+${n}` : String(n));
+  const tone = redo.deltaOverall > 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : redo.deltaOverall < 0 ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-ink2 bg-surface2 border-line';
+  return (
+    <div className={`fade-in rounded-2xl border px-4 py-3 space-y-2 text-left sm:max-w-[85%] ml-auto w-full ${tone}`}> 
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider">Redo — turn {idx + 1}</h4>
+        <span className={`text-xs font-black tabular-nums ${redo.deltaOverall > 0 ? 'text-emerald-700' : redo.deltaOverall < 0 ? 'text-amber-700' : 'text-ink2'}`}>{sign(redo.deltaOverall)} overall</span>
+      </div>
+      <p className="text-xs leading-relaxed"><span className="font-semibold">Retry:</span> <span lang="fr">“{redo.retryText}”</span></p>
+      <p className="text-xs leading-relaxed italic">{redo.verdict}{redo.note ? ` — ${redo.note}` : ''}</p>
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {Object.entries(redo.deltas).map(([k, v]) => (
+          <span key={k} className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${v > 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : v < 0 ? 'bg-amber-100 border-amber-200 text-amber-800' : 'bg-surface border-line text-ink3'}`}>
+            {k} {sign(v)}
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2 text-[11px] text-ink2">
+        <span>Before {before.overall}</span><span aria-hidden="true">→</span><span className="font-bold text-ink">Retry {redo.evaluation.scores.overall}</span>
+      </div>
     </div>
   );
 }

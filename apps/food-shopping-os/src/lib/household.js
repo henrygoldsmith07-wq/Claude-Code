@@ -1,3 +1,5 @@
+import { YOUTH_PERMISSIONS } from './youth.js';
+
 const PREFIX = 'FORQ-HOUSEHOLD-1.';
 const encodeUtf8 = (value) => btoa(unescape(encodeURIComponent(value)));
 const decodeUtf8 = (value) => decodeURIComponent(escape(atob(value)));
@@ -11,20 +13,33 @@ export const DEFAULT_PERMISSIONS = {
   health: false,
 };
 
+/**
+ * A child profile starts stricter than an adult one: household spending stays
+ * with the adults until somebody grants it, and health records are never
+ * shared by default. Anything already set on the member is respected — this
+ * decides the starting point, not the answer.
+ */
+export const permissionsForRole = (role) => (role === 'child' ? YOUTH_PERMISSIONS : DEFAULT_PERMISSIONS);
+
 export const householdPermission = (state, permission) => {
   const member = (state.members || []).find((item) => item.id === state.activeMemberId);
-  return member ? (member.permissions?.[permission] ?? DEFAULT_PERMISSIONS[permission]) : true;
+  return member
+    ? (member.permissions?.[permission] ?? permissionsForRole(member.role)[permission])
+    : true;
 };
 
-const cleanMember = (member, index) => ({
-  id: id(member.id, `shared-member-${index + 1}`),
-  name: text(member.name, 60) || `Person ${index + 1}`,
-  role: member.role === 'child' ? 'child' : 'adult',
-  portions: Math.max(0.5, Math.min(4, Number(member.portions) || 1)),
-  diets: Array.isArray(member.diets) ? member.diets.slice(0, 20).map((diet) => text(diet, 40)).filter(Boolean) : [],
-  permissions: { ...DEFAULT_PERMISSIONS, ...(member.permissions || {}) },
-  notifications: member.notifications !== false,
-});
+const cleanMember = (member, index) => {
+  const role = member.role === 'child' ? 'child' : 'adult';
+  return {
+    id: id(member.id, `shared-member-${index + 1}`),
+    name: text(member.name, 60) || `Person ${index + 1}`,
+    role,
+    portions: Math.max(0.5, Math.min(4, Number(member.portions) || 1)),
+    diets: Array.isArray(member.diets) ? member.diets.slice(0, 20).map((diet) => text(diet, 40)).filter(Boolean) : [],
+    permissions: { ...permissionsForRole(role), ...(member.permissions || {}) },
+    notifications: member.notifications !== false,
+  };
+};
 
 const cleanPantry = (item, index) => ({
   ...item,

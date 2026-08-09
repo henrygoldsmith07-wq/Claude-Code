@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Info, RotateCcw, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { YOUTH_COPY } from '../lib/youth.js';
 import {
   alcoholUnits, nutrientAlerts, nutrientRows, saltEquivalent,
 } from '../lib/nutrition.js';
@@ -16,7 +17,7 @@ const TONE_COLOR = {
   faint: 'var(--series-3)',
 };
 
-/** One nutrient: what you've had, what you're aiming at, how far along. */
+/** One nutrient: measured amount, target, coverage — never pretends missing is zero. */
 const NutrientRow = ({ row, editing, onTarget }) => (
   <div className="py-2.5">
     <div className="flex items-baseline justify-between gap-2 mb-1.5">
@@ -43,12 +44,30 @@ const NutrientRow = ({ row, editing, onTarget }) => (
     </div>
     <div className="flex items-center gap-2">
       <div className="flex-1">
-        <Meter value={Math.min(row.value, row.target)} max={row.target} color={TONE_COLOR[row.tone]} height={5} />
+        <Meter
+          value={row.value === null ? 0 : Math.min(row.display, row.target)}
+          max={row.target}
+          color={TONE_COLOR[row.tone]}
+          height={5}
+        />
       </div>
       <span className="w-10 text-right text-[0.6875rem] font-bold tabular-nums" style={{ color: TONE_COLOR[row.tone] }}>
-        {row.pct}%
+        {row.value === null ? '—' : `${row.pct}%`}
       </span>
     </div>
+    {(row.estimated > 0 || row.unknownCount > 0) && (
+      <p className="mt-1 text-[0.65625rem] font-semibold" style={{ color: 'var(--faint)' }}>
+        {row.known > 0 && <>{formatAmount(row.key, row.known)} known</>}
+        {row.known > 0 && row.estimated > 0 && ' · '}
+        {row.estimated > 0 && <>{formatAmount(row.key, row.estimated)} estimated</>}
+        {(row.known > 0 || row.estimated > 0) && row.unknownCount > 0 && ' · '}
+        {row.unknownCount > 0 && (
+          <>{row.unknownCount} entr{row.unknownCount === 1 ? 'y' : 'ies'} unmeasured</>
+        )}
+        {' · '}
+        {row.confidence} confidence
+      </p>
+    )}
   </div>
 );
 
@@ -91,19 +110,21 @@ const WaterCard = () => {
 /**
  * The full nutrition picture for today: all 24 tracked nutrients against their
  * daily reference intakes, grouped, with every target editable.
+ * Missing nutrient data is shown as unknown — never as zero intake.
  */
 export default function NutritionPanel() {
   const app = useApp();
   const [editing, setEditing] = useState(false);
-  // Hydration counts the glasses tracker as well as the water in your food.
   const totals = { ...app.totals, water: app.hydration.total };
   const targets = app.targets;
-  const rows = nutrientRows(totals, targets);
+  const rows = nutrientRows(totals, targets)
+    .filter((row) => app.youth.alcohol || row.key !== 'alcohol');
   const alerts = nutrientAlerts(totals, targets);
   const kcal = rows.find((r) => r.key === 'kcal');
   const units = alcoholUnits(totals.alcohol);
   const salt = saltEquivalent(totals.sodium);
   const saltTarget = saltEquivalent(targets.sodium);
+  const quality = app.totals.dataQuality || app.coverage;
 
   return (
     <div className="px-5 pb-10 space-y-5">
@@ -121,7 +142,7 @@ export default function NutritionPanel() {
           />
           <div className="flex-1 space-y-1.5">
             <p className="text-[0.8125rem] font-bold">
-              {kcal.pct}% of your energy target
+              {kcal?.value === null ? 'No measured energy yet' : `${kcal.pct}% of your energy target`}
             </p>
             <div className="flex flex-wrap gap-1.5">
               <Pill tone="good"><Check size={11} strokeWidth={3} /> {alerts.hit.length} targets hit</Pill>
@@ -136,6 +157,38 @@ export default function NutritionPanel() {
           <p className="mt-3 pt-3 border-t text-[0.78125rem] font-semibold" style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}>
             {alerts.over.length > 0 && <>Over: {alerts.over.map((r) => r.label).join(', ')}. </>}
             {alerts.low.length > 0 && <>Short on: {alerts.low.slice(0, 4).map((r) => r.label).join(', ')}.</>}
+          </p>
+        )}
+      </Card>
+
+      {/* Data quality — known vs estimated vs unknown */}
+      <Card>
+        <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+          Nutrient data quality
+        </p>
+        <div className="mt-2.5 grid grid-cols-2 gap-2 text-[0.75rem] font-semibold">
+          <div>
+            <p style={{ color: 'var(--faint)' }}>Known amount</p>
+            <p className="font-bold">{(quality.knownAmount ?? 0).toLocaleString()} kcal</p>
+          </div>
+          <div>
+            <p style={{ color: 'var(--faint)' }}>Estimated amount</p>
+            <p className="font-bold">{(quality.estimatedAmount ?? 0).toLocaleString()} kcal</p>
+          </div>
+          <div>
+            <p style={{ color: 'var(--faint)' }}>Data coverage</p>
+            <p className="font-bold">{quality.coverage ?? app.coverage.pct}%</p>
+          </div>
+          <div>
+            <p style={{ color: 'var(--faint)' }}>Confidence</p>
+            <p className="font-bold capitalize">{quality.confidence || app.coverage.confidence || '—'}</p>
+          </div>
+        </div>
+        {(quality.unknownEntries > 0 || app.coverage.unknownEntries > 0) && (
+          <p className="mt-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            {quality.unknownEntries ?? app.coverage.unknownEntries} diary entr
+            {(quality.unknownEntries ?? app.coverage.unknownEntries) === 1 ? 'y has' : 'ies have'} no measured energy —
+            unknown amount is not counted as zero.
           </p>
         )}
       </Card>
@@ -162,8 +215,9 @@ export default function NutritionPanel() {
       <div className="flex items-start gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--line)' }}>
         <Info size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--faint)' }} />
         <p className="text-[0.71875rem] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>
-          Micronutrients are carried by {app.coverage.pct}% of today’s calories — quick-adds and
-          custom foods without a full profile contribute energy and macros only.
+          Micronutrients are carried by {app.coverage.pct}% of today’s measured calories.
+          Missing fields stay unknown — they are never treated as zero. Quick-adds only
+          contribute the macros you typed.
         </p>
       </div>
 
@@ -203,9 +257,14 @@ export default function NutritionPanel() {
                 onTarget={app.setTarget}
               />
             ))}
-            {group.id === 'other' && totals.alcohol > 0 && (
+            {group.id === 'other' && app.youth.alcohol && totals.alcohol > 0 && (
               <p className="pb-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {units} UK unit{units === 1 ? '' : 's'} today · guidance is under 14 a week.
+              </p>
+            )}
+            {group.id === 'other' && app.youth.on && (
+              <p className="pb-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {YOUTH_COPY.caffeine}
               </p>
             )}
           </Card>

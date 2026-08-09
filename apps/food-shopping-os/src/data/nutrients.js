@@ -68,10 +68,16 @@ export const GLASS_ML = 250;
 /** UK alcohol unit: 8 g of ethanol. */
 export const ALCOHOL_UNIT_G = 8;
 
+/**
+ * Format a nutrient amount for display.
+ * null / undefined means "not measured" — never shown as 0.
+ */
 export const formatAmount = (key, value) => {
   const n = nutrientBy[key];
+  if (value === null || value === undefined) return '—';
   if (!n) return String(value);
-  const v = Number(value) || 0;
+  const v = Number(value);
+  if (Number.isNaN(v)) return '—';
   const rounded = n.dp ? Math.round(v * 10 ** n.dp) / 10 ** n.dp : Math.round(v);
   return `${rounded.toLocaleString()}${n.unit === '%' ? '' : ' '}${n.unit}`;
 };

@@ -1,16 +1,9 @@
 ---
 version: 0.5.0
 name: re-fresh
-description: |
-  Start a clean Claude session with only the context the next task needs, instead of /compact.
-  Captures the goal of your next session, points to the right files (never copies them),
-  and outputs a self-contained prompt to paste into a fresh chat.
-  Use when: "re-fresh", "refresh context", "fresh start", "my chat got sloppy",
-  "start a new chat with context", "hand off this session", outputs degrading, drifting off task.
-  Three levels: lite (quick reset), full (default handoff), ultra (full briefing).
-  NOT for: summarizing in place (that's /compact), or saving permanent notes.
 argument-hint: "lite | full | ultra"
 allowed-tools: Read, Glob, Grep, Write
+description: 'Start a clean session carrying only the context the next task needs, instead of /compact. Use for "re-fresh", "refresh context", "fresh start", "hand off this session", or when output is drifting. Levels: lite | full | ultra.'
 ---
 
 # Re-fresh

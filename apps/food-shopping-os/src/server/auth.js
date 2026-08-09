@@ -1,9 +1,9 @@
-import { MongoDBAdapter } from '@next-auth/mongodb-adapter';
 import AppleProviderPackage from 'next-auth/providers/apple';
 import GoogleProviderPackage from 'next-auth/providers/google';
 import AzureADProviderPackage from 'next-auth/providers/azure-ad';
 import NextAuthPackage from 'next-auth';
-import { mongoClientPromise } from './mongodb.js';
+import { ForqAdapter } from './auth-adapter.js';
+import { databaseConfigured } from './database.js';
 
 const AppleProvider = AppleProviderPackage.default || AppleProviderPackage;
 const GoogleProvider = GoogleProviderPackage.default || GoogleProviderPackage;
@@ -42,7 +42,7 @@ if (process.env.AUTH_MICROSOFT_ID && process.env.AUTH_MICROSOFT_SECRET) {
 }
 
 export const authOptions = {
-  adapter: mongoClientPromise ? MongoDBAdapter(mongoClientPromise, { databaseName: process.env.MONGODB_DB || 'forq' }) : undefined,
+  adapter: databaseConfigured ? ForqAdapter() : undefined,
   providers,
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   callbacks: {

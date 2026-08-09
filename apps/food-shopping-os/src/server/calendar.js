@@ -1,5 +1,5 @@
-import { ApiError, objectId } from './api.js';
-import { getDatabase } from './mongodb.js';
+import { ApiError } from './api.js';
+import { getDatabase } from './database.js';
 
 const refreshGoogle = async (account) => {
   if (!account.refresh_token) throw new ApiError(409, 'Reconnect Google Calendar.');
@@ -38,7 +38,7 @@ const refreshMicrosoft = async (account) => {
 export async function calendarAccount(user, provider) {
   const db = await getDatabase();
   const account = await db.collection('accounts').findOne({
-    userId: objectId(user.id, 'user'),
+    userId: user.id,
     provider,
   });
   if (!account) throw new ApiError(409, 'Connect this calendar provider first.');

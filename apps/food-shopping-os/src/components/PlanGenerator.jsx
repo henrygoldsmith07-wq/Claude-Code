@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Check, ChevronRight, Info, Leaf, Package, ShoppingCart, Snowflake, Sparkles, Zap,
 } from 'lucide-react';
@@ -8,7 +8,10 @@ import { useApp } from '../lib/store.jsx';
 import { PLANNER_OCCASIONS, WEEK_DAYS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { monthOf, peakNow } from '../data/seasons.js';
+import { explainRecommendation } from '../lib/recommend.js';
 import { Card, Chip, Pill, Stepper, FoodArt } from './ui.jsx';
+import { recordProductEvent } from '../lib/product-analytics.js';
+import RecommendationExplanation from './RecommendationExplanation.jsx';
 
 const SCOPES = ['1 meal', 'A day', 'A week', 'A month'];
 
@@ -20,7 +23,7 @@ const SCOPES = ['1 meal', 'A day', 'A week', 'A month'];
  * lean towards what you already have and what's at its best right now. Applying
  * it writes real dates into the plan.
  */
-export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApplied }) {
+export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApplied, goTab }) {
   const app = useApp();
   const [scope, setScope] = useState('A week');
   const [people, setPeople] = useState(Math.max(1, Math.round(app.portions)));
@@ -31,18 +34,31 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const [usePantry, setUsePantry] = useState(true);
   const [seasonal, setSeasonal] = useState(true);
   const [leftoverFirst, setLeftoverFirst] = useState(app.leftovers.length > 0);
-  const [seed, setSeed] = useState(0);
+  const [seed, setSeed] = useState(() => (app.calendarBusy?.length ? Date.now() % 100000 : 0));
   const [generating, setGenerating] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
 
   const month = monthOf(app.day);
   const dates = scope === 'A month' ? monthDates : weekDates;
   const busyDates = new Set((app.calendarBusy || []).map((item) => item.date));
+  const busyInScope = [...busyDates].filter((date) => dates.includes(date)).length;
   const planDates = dates.filter((date) => !busyDates.has(date));
   const noOpenDates = ['A week', 'A month'].includes(scope) && planDates.length === 0;
   const pantryNames = app.pantry.map((p) => p.name);
   const ownRecipeIds = new Set(app.myRecipes.map((recipe) => recipe.id));
   const ownCandidates = app.safeRecipes.filter((recipe) => ownRecipeIds.has(recipe.id)).length;
+  const recipeKey = app.safeRecipes.map((recipe) => recipe.id).join(',');
+  const tasteKey = JSON.stringify(app.tasteProfile);
+  const leftoversKey = app.leftovers.map((item) => `${item.recipeId}:${item.portions}:${item.expiry || ''}`).join(',');
+  const generatorKey = [
+    scope, people, budget, occasion, quick, batch, usePantry, seasonal, leftoverFirst,
+    planDates.join(','), pantryNames.join(','), app.planDiets.join(','), app.goal, month,
+    recipeKey, tasteKey, leftoversKey,
+  ].join('|');
+
+  useEffect(() => {
+    setAddedToList(false);
+  }, [generatorKey]);
 
   const plan = useMemo(() => {
     if (!seed) return null;
@@ -73,12 +89,15 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
   const generate = () => {
     if (noOpenDates) return;
-    setGenerating(true);
     setAddedToList(false);
-    setTimeout(() => {
-      setSeed(Date.now() % 100000);
-      setGenerating(false);
-    }, 500);
+    setSeed(Date.now() % 100000);
+    setGenerating(false);
+    recordProductEvent('plan_generated', {
+      scope,
+      hasPantry: usePantry && pantryNames.length > 0,
+      seasonal,
+      leftoverFirst,
+    });
   };
 
   /** Turn the generated run into dated slots. */
@@ -93,10 +112,15 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
   const apply = () => {
     app.applyPlanEntries(entries.filter((e) => e.recipeId));
+    recordProductEvent('plan_accepted', { scope, mealCount: entries.filter((e) => e.recipeId).length });
     onApplied?.();
   };
 
   const addAllToList = () => {
+    if (addedToList) {
+      goTab?.('shop');
+      return;
+    }
     app.addToList(itemsFromRecipes([...new Set(generated)], pantryNames));
     setAddedToList(true);
   };
@@ -104,6 +128,23 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const cost = generated ? generated.reduce((s, r) => s + r.costPerServing * people, 0) : 0;
   const kcal = generated ? Math.round(generated.reduce((s, r) => s + r.kcal, 0) / generated.length) : 0;
   const distinct = generated ? new Set(generated.map((r) => r.id)).size : 0;
+  const planNotes = [
+    plan?.note,
+    generated && busyInScope > 0
+      ? `Leaving ${busyInScope} calendar-busy evening${busyInScope === 1 ? '' : 's'} empty.`
+      : null,
+  ].filter(Boolean);
+  const busyMap = useMemo(() => {
+    const m = {};
+    for (const b of app.calendarBusy || []) m[b.date] = { busy: true, date: b.date, dayName: new Date(`${b.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) };
+    return m;
+  }, [app.calendarBusy]);
+  const slotDates = useMemo(() => {
+    if (!generated) return [];
+    if (scope === 'A day') return Array(generated.length).fill(app.day);
+    if (scope === '1 meal') return [app.day];
+    return planDates;
+  }, [generated, scope, planDates, app.day]);
 
   const labelFor = (i) => {
     if (scope === 'A day') return ['Breakfast', 'Lunch', 'Dinner'][i];
@@ -200,7 +241,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             style={{ borderColor: 'var(--warn, #a55a12)', background: 'color-mix(in srgb, var(--warn, #a55a12) 8%, transparent)' }}
           >
             <p className="text-[0.75rem] font-extrabold" style={{ color: 'var(--warn, #a55a12)' }}>
-              {dates.length - planDates.length} busy evening{dates.length - planDates.length === 1 ? '' : 's'} (from calendar / ICS)
+              {busyInScope} busy evening{busyInScope === 1 ? '' : 's'} (from calendar / ICS)
             </p>
             <p className="text-[0.7rem] font-semibold mt-0.5" style={{ color: 'var(--muted)' }}>
               Generator fills {planDates.length} open night{planDates.length === 1 ? '' : 's'} only.
@@ -231,10 +272,10 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
 
       {generated && !generating && (
         <div className="mt-3 space-y-3">
-          {plan.note && (
+          {planNotes.length > 0 && (
             <Card className="!p-3 flex items-start gap-2" style={{ background: 'var(--card-2)' }}>
               <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
-              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{plan.note}</p>
+              <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{planNotes.join(' ')}</p>
             </Card>
           )}
           <Card className="!p-3 flex items-center justify-between">
@@ -252,22 +293,40 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             </div>
           </Card>
           <div className="space-y-2.5">
-            {generated.map((r, i) => (
-              <Card key={`${r.id}-${i}`} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
-                <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
-                    {labelFor(i)}
-                  </p>
-                  <p className="font-bold text-[0.9375rem] truncate">{r.name}</p>
-                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                    {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
-                  </p>
-                </div>
-                {usePantry && <PantryPill recipe={r} pantryNames={pantryNames} />}
-                <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
-              </Card>
-            ))}
+            {generated.map((r, i) => {
+              const date = slotDates[i] || app.day;
+              const ctx = {
+                pantry: app.pantry,
+                today: app.day,
+                date,
+                availability: busyMap,
+                people,
+                budget,
+                month,
+                taste: app.tasteProfile,
+              };
+              const explanation = explainRecommendation(r, ctx);
+              return (
+                <Card key={`${r.id}-${i}`} className="!p-0 overflow-hidden">
+                  <div onClick={() => openRecipe(r)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRecipe(r); } }} className="press flex items-center gap-3 p-3 cursor-pointer">
+                    <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
+                        {labelFor(i)}
+                      </p>
+                      <p className="font-bold text-[0.9375rem] truncate">{r.name}</p>
+                      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                        {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
+                      </p>
+                    </div>
+                    <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
+                  </div>
+                  <div className="px-3 pb-3">
+                    <RecommendationExplanation explanation={explanation} compact />
+                  </div>
+                </Card>
+              );
+            })}
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <button
@@ -279,12 +338,11 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             </button>
             <button
               onClick={addAllToList}
-              disabled={addedToList}
               className="press rounded-2xl border py-3 text-[0.84375rem] font-extrabold disabled:opacity-60"
               style={addedToList ? { borderColor: 'var(--good)', color: 'var(--good)' } : { borderColor: 'var(--line)' }}
             >
               <span className="inline-flex items-center gap-1.5">
-                <ShoppingCart size={15} /> {addedToList ? 'On your list' : 'Shop for it'}
+                <ShoppingCart size={15} /> {addedToList ? 'Review shopping list' : 'Shop for it'}
               </span>
             </button>
           </div>
@@ -294,11 +352,4 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   );
 }
 
-/** How much of a suggested dish your pantry already covers. */
-function PantryPill({ recipe, pantryNames }) {
-  const have = pantryNames.filter((n) =>
-    recipe.ingredients.some((i) => i.name.toLowerCase().includes(n.toLowerCase())
-      || n.toLowerCase().includes(i.name.toLowerCase()))).length;
-  if (!have) return null;
-  return <Pill tone="good">Have {have}</Pill>;
-}
+

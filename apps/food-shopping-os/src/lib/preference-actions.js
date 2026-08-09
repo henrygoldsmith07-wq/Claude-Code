@@ -10,13 +10,9 @@ import {
   allergenBy, CUISINES, DEFAULT_UNITS, DEFAULT_WIDGETS, intoleranceBy, religiousBy, skillBy,
   timeBudgetBy, UNIT_CHOICES, WIDGETS,
 } from '../data/preferences.js';
-import { applyProductMode, PRODUCT_MODE_IDS } from '../data/productModes.js';
-import {
-  ALL_ENABLED_TOOLS,
-  DEFAULT_ENABLED_TOOLS,
-  normaliseEnabledTools,
-  OPTIONAL_TOOL_IDS,
-} from '../data/optionalTools.js';
+import { MODE_IDS } from '../data/modes.js';
+import { cleanModes } from './modes.js';
+import { youthConsentRecord } from './youth.js';
 import { moveBefore } from './utils.js';
 
 const toggleIn = (list = [], id, valid) => {
@@ -27,6 +23,18 @@ const toggleIn = (list = [], id, valid) => {
 const unitKeys = Object.fromEntries(UNIT_CHOICES.map((c) => [c.key, c.options.map(([id]) => id)]));
 
 export const preferenceActions = (set) => ({
+  /**
+   * The under-18 consent answer, recorded rather than assumed. Passing null
+   * withdraws it, which puts the question back rather than quietly keeping an
+   * old yes on file.
+   */
+  setYouthConsent: (patch) =>
+    set((s) => ({
+      youthConsent: patch === null
+        ? null
+        : { ...youthConsentRecord(s.day), ...(s.youthConsent || {}), ...(patch || {}) },
+    })),
+
   /** An allergy is a hard line: adding one immediately removes recipes. */
   toggleAllergy: (id) => set((s) => ({ allergies: toggleIn(s.allergies, id, (x) => Boolean(allergenBy[x])) })),
   toggleIntolerance: (id) => set((s) => ({ intolerances: toggleIn(s.intolerances, id, (x) => Boolean(intoleranceBy[x])) })),
@@ -69,57 +77,13 @@ export const preferenceActions = (set) => ({
   resetWidgets: () => set({ widgets: null }),
 
   /**
-   * Change product mode after setup. Re-applies widgets and advanced-tool
-   * visibility for the new mode; does not wipe diary or plan data.
-   * Everything mode also enables all optional tools; other modes leave
-   * enabledTools alone so progressive disclosure is not wiped by a mode change.
+   * What you're using Forq for. This is a view setting and nothing more: it
+   * changes which modules are on screen, and no record is touched, moved or
+   * stopped being counted by it. Clearing it shows everything again.
    */
-  setProductMode: (modeId) =>
-    set((s) => {
-      if (!PRODUCT_MODE_IDS.includes(modeId)) return {};
-      const next = applyProductMode(modeId, {
-        entryGoal: undefined, // let mode set entryGoal
-      });
-      const patch = {
-        productMode: next.productMode,
-        entryGoal: next.entryGoal,
-        widgets: next.widgets,
-        advancedToolsVisible: next.advancedToolsVisible,
-      };
-      if (modeId === 'everything') {
-        patch.enabledTools = [...ALL_ENABLED_TOOLS];
-      }
-      return patch;
-    }),
-
-  /** Progressive disclosure — turn a secondary capability on or off. */
-  toggleOptionalTool: (id) =>
-    set((s) => {
-      if (!OPTIONAL_TOOL_IDS.includes(id)) return {};
-      const current = normaliseEnabledTools(s.enabledTools);
-      const turningOn = !current.includes(id);
-      const enabledTools = turningOn
-        ? [...current, id]
-        : current.filter((toolId) => toolId !== id);
-      if (id === 'cycle') {
-        return { enabledTools, trackCycle: turningOn };
-      }
-      return { enabledTools };
-    }),
-  setOptionalTool: (id, on) =>
-    set((s) => {
-      if (!OPTIONAL_TOOL_IDS.includes(id)) return {};
-      const current = normaliseEnabledTools(s.enabledTools);
-      const has = current.includes(id);
-      if (on && has) return {};
-      if (!on && !has) return {};
-      const enabledTools = on
-        ? [...current, id]
-        : current.filter((toolId) => toolId !== id);
-      if (id === 'cycle') return { enabledTools, trackCycle: Boolean(on) };
-      return { enabledTools };
-    }),
-  resetOptionalTools: () => set({ enabledTools: [...DEFAULT_ENABLED_TOOLS], trackCycle: false }),
+  toggleMode: (id) => set((s) => ({ modes: cleanModes(toggleIn(s.modes || [], id, (x) => MODE_IDS.includes(x))) })),
+  setModes: (list) => set({ modes: cleanModes(list) }),
+  clearModes: () => set({ modes: [] }),
 });
 
 /* ---------- Advanced: things measured or imported elsewhere ---------- */

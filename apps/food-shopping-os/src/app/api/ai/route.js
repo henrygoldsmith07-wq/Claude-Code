@@ -21,7 +21,7 @@ export async function POST(request) {
     if (!process.env.OPENAI_API_KEY) throw new ApiError(503, 'AI is not configured.');
     const { household } = await requireHousehold(user, request.headers.get('x-forq-household-id'));
     const input = aiRequestSchema.parse(await request.json());
-    reservation = await reserveAiBudget(household._id, tokenReservation(input));
+    reservation = await reserveAiBudget(household._id, tokenReservation(input, 1200, system.length));
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.responses.create({
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
@@ -38,7 +38,11 @@ export async function POST(request) {
     reservation = null;
     return NextResponse.json({ output: response.output_text });
   } catch (error) {
-    await releaseAiBudget(reservation);
+    try {
+      await releaseAiBudget(reservation);
+    } catch (releaseError) {
+      if (releaseError?.code !== 'HOUSEHOLD_DELETING') console.error('AI budget release failed', releaseError);
+    }
     return handleApiError(error);
   }
 }

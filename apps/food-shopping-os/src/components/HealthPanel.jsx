@@ -8,6 +8,7 @@ import { prettyDate } from '../lib/utils.js';
 import { MEASUREMENTS, MEDICAL_DISCLAIMER, VITALS } from '../data/health.js';
 import { PRIVACY_COPY } from '../data/privacy.js';
 import { series } from '../lib/health.js';
+import { YOUTH_COPY, YOUTH_SIGNPOST } from '../lib/youth.js';
 import { healthierSwaps } from '../lib/advice.js';
 import { shrinkImage, storageEstimate } from '../lib/photos.js';
 import { Card, Chip, Empty, Pill, Sparkline } from './ui.jsx';
@@ -143,7 +144,7 @@ function BodyView() {
         </Card>
       ) : (
         <>
-          {summary.bmi && (
+          {summary.bmi && app.youth.bodyComparisons && (
             <Card>
               <div className="flex items-center justify-between">
                 <div>
@@ -157,7 +158,17 @@ function BodyView() {
               </p>
             </Card>
           )}
-          {summary.needsHeight && (
+          {/* Adult BMI bands do not apply under 18: the NHS reads child weight
+              against age- and sex-specific centiles, which is a clinical
+              assessment rather than a number this app can band. */}
+          {!app.youth.bodyComparisons && (
+            <Card className="space-y-2">
+              <p className="font-extrabold text-[0.875rem]">No BMI band here</p>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{YOUTH_COPY.measurement}</p>
+              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{YOUTH_SIGNPOST}</p>
+            </Card>
+          )}
+          {summary.needsHeight && app.youth.bodyComparisons && (
             <Card className="!p-3">
               <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 Add your height under Goals and this page can work out your BMI.

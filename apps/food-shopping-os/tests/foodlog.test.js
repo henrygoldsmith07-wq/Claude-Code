@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   importRecipeText, importRecipeUrl, isBarcode, lookupBarcode, makeCustomFood,
   parseIngredientLine, parsePhrase, parseVoiceLog, recognisePlate, recogniseShelf, searchFoods,
+  recipeTextFromMarkup,
 } from '../src/lib/foodlog.js';
 import { CATALOGUE, FOODS, RESTAURANT_FOODS } from '../src/data/foods.js';
 import { EXPANDED_FOODS } from '../src/data/expanded-foods.js';
@@ -148,6 +149,24 @@ describe('recipe import', () => {
     expect(parseIngredientLine('2 tbsp peanut butter').grams).toBe(30);
   });
 
+  it('does not treat the first letter of an ingredient as its unit', () => {
+    expect(parseIngredientLine('1 lemon').name).toBe('lemon');
+    expect(parseIngredientLine('2 garlic cloves').name).toBe('garlic cloves');
+  });
+
+  it('supports ordinary recipe fractions and full unit names', () => {
+    expect(parseIngredientLine('1/2 cup oats')).toMatchObject({ qty: 0.5, unit: 'cup', grams: 120 });
+    expect(parseIngredientLine('2 tablespoons olive oil')).toMatchObject({ unit: 'tbsp', grams: 30 });
+    expect(parseIngredientLine('1 litre milk')).toMatchObject({ unit: 'l', grams: 1000 });
+    expect(parseIngredientLine('1/0 cup sugar')).toBeNull();
+  });
+
+  it('does not use a branded meal or drink as a broad ingredient match', () => {
+    expect(parseIngredientLine('1 litre water').food).toBeNull();
+    expect(parseIngredientLine('200g chicken').food).toBeNull();
+    expect(parseIngredientLine('½ tsp black pepper').food).toBeNull();
+  });
+
   it('estimates per-serving nutrition from pasted text', () => {
     const out = importRecipeText([
       'Peanut butter overnight oats',
@@ -164,6 +183,12 @@ describe('recipe import', () => {
     expect(out.food.servings[0].grams).toBeGreaterThan(0);
   });
 
+  it('keeps unknown ingredients explicit without creating a zero-weight food', () => {
+    const out = importRecipeText('Mystery bowl\nServes 4\n1 unobtainium');
+    expect(out.matchedCount).toBe(0);
+    expect(out.food.servings[0].grams).toBeGreaterThan(0);
+  });
+
   it('validates a source URL without pretending it fetched the recipe', () => {
     expect(importRecipeUrl('not a link')).toBeNull();
     expect(importRecipeUrl('https://bbcgoodfood.com/recipes/katsu')).toEqual({
@@ -171,6 +196,30 @@ describe('recipe import', () => {
       needsText: true,
       url: 'https://bbcgoodfood.com/recipes/katsu',
     });
+  });
+
+  it('converts schema.org recipe JSON-LD pasted from a page into local import text', () => {
+    const parsed = recipeTextFromMarkup(`<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Recipe',
+      name: 'Lemon herb chicken',
+      recipeYield: 'Serves 2',
+      recipeIngredient: ['250g chicken breast', '1 tbsp olive oil', '1 lemon'],
+      recipeInstructions: [{ '@type': 'HowToStep', text: 'Season the chicken, then cook until golden and cooked through.' }],
+    })}</script>`);
+    expect(parsed.format).toBe('schema.org');
+    expect(parsed.text).toContain('Lemon herb chicken');
+    expect(parsed.text).toContain('250g chicken breast');
+    expect(parsed.text).toContain('Season the chicken');
+    expect(importRecipeText(parsed.text).servings).toBe(2);
+  });
+
+  it('finds a Recipe nested in a JSON-LD graph and rejects unrelated markup', () => {
+    const parsed = recipeTextFromMarkup(JSON.stringify({
+      '@graph': [{ '@type': 'WebPage', mainEntity: { '@type': 'Recipe', name: 'Graph curry', recipeIngredient: ['1 banana'] } }],
+    }));
+    expect(parsed.name).toBe('Graph curry');
+    expect(recipeTextFromMarkup('<p>Just a normal recipe page</p>')).toBeNull();
   });
 });
 

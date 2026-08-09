@@ -3,6 +3,8 @@ import {
   Check, ExternalLink, Lightbulb, Mic, Pause, PartyPopper, Play, PlayCircle, Snowflake, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
+import { recordProductEvent } from '../lib/product-analytics.js';
+import { safeExternalUrl } from '../lib/recipe-tools.js';
 import { Card, Meter, Stepper } from './ui.jsx';
 
 /**
@@ -55,6 +57,7 @@ export default function CookMode({ recipe, onExit, onClose }) {
 
   const s = recipe.steps[step];
   const last = step === recipe.steps.length - 1;
+  const videoUrl = safeExternalUrl(recipe.video);
 
   useEffect(() => {
     if (finished) {
@@ -98,6 +101,7 @@ export default function CookMode({ recipe, onExit, onClose }) {
 
   const finish = () => {
     app.completeRecipe(recipe);
+    recordProductEvent('recipe_cooked');
     setAuto(false);
     setFinished(true);
   };
@@ -216,9 +220,9 @@ export default function CookMode({ recipe, onExit, onClose }) {
               >
                 <PlayCircle size={14} /> {auto ? `Hands-free · next in ${dwell}s` : 'Hands-free walkthrough'}
               </button>
-              {recipe.video && (
+              {videoUrl && (
                 <a
-                  href={recipe.video}
+                  href={videoUrl}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="press inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.78125rem] font-extrabold"

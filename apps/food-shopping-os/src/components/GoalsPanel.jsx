@@ -6,8 +6,11 @@ import {
 } from '../data/goals.js';
 import { defaultWeeklyKcal, macroBreakdown, macroMismatch, resolveMaintenance } from '../lib/goals.js';
 import { formatAmount } from '../data/nutrients.js';
+import { YOUTH_COPY, YOUTH_SIGNPOST } from '../lib/youth.js';
+import { MAX_DEFICIT_PCT } from '../lib/target-safety.js';
 import { Card, Chip, Meter, Pill, Section, Toggle } from './ui.jsx';
 import { NumberField } from './FoodDetail.jsx';
+import TargetSafetyCard from './TargetSafety.jsx';
 
 const MACRO_COLOR = {
   protein: 'var(--series-1)',
@@ -76,7 +79,12 @@ function MaintenanceCard() {
         say&rdquo; takes the midpoint rather than picking one for you.
       </p>
 
-      {app.hasTool('cycle') && (
+      {app.youth.on && (
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          {YOUTH_COPY.targets}
+        </p>
+      )}
+
       <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--line)' }}>
         <div className="min-w-0">
           <p className="font-bold text-[0.875rem]">Track your cycle</p>
@@ -88,7 +96,6 @@ function MaintenanceCard() {
         </div>
         <Toggle label="Track your cycle" on={app.trackCycle} onChange={() => app.setTrackCycle(!app.trackCycle)} />
       </div>
-      )}
     </Card>
   );
 }
@@ -99,6 +106,10 @@ function MacroCard() {
   const rows = macroBreakdown(app.targets);
   const mismatch = macroMismatch(app.targets);
   const custom = app.targetMode === 'custom';
+  // Nothing personal has been worked out, so the figures on screen are the
+  // reference ones. Saying so is the difference between a placeholder and a
+  // number somebody follows.
+  const generic = !custom && !app.targetSafety.personalised;
 
   return (
     <Card className="space-y-3">
@@ -106,7 +117,11 @@ function MacroCard() {
         <div>
           <p className="font-extrabold text-[0.9375rem]">Daily targets</p>
           <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-            {custom ? 'Yours — nothing recalculates them.' : 'Following your goal and patterns.'}
+            {custom
+              ? 'Yours — nothing recalculates them.'
+              : generic
+                ? 'General reference figures, not yours — Forq has not been given enough to work one out.'
+                : 'Following your goal and patterns.'}
           </p>
         </div>
         <button
@@ -205,19 +220,33 @@ function WeeklyCard() {
 export default function GoalsPanel() {
   const app = useApp();
   const [showWorking, setShowWorking] = useState(false);
-  const goal = BODY_GOALS.find((g) => g.id === app.goal) || BODY_GOALS[2];
+  // Under 18 a stored deficit goal is not the goal in force — the panel shows
+  // what the app is actually doing, which is maintenance.
+  const goal = BODY_GOALS.find((g) => g.id === app.goal && app.youth.goals.includes(g.id))
+    || BODY_GOALS.find((g) => g.id === 'maintain');
 
   return (
     <div className="px-5 pb-10 space-y-5">
       {/* Body goal */}
       <Section title="Your goal" className="!px-0">
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 mb-2.5">
-          {BODY_GOALS.map((g) => (
-            <Chip key={g.id} active={app.goal === g.id} onClick={() => app.setGoal(g.id)}>{g.label}</Chip>
+          {BODY_GOALS.filter((g) => app.youth.goals.includes(g.id)).map((g) => (
+            <Chip key={g.id} active={goal.id === g.id} onClick={() => app.setGoal(g.id)}>{g.label}</Chip>
           ))}
         </div>
         <Card className="!py-3">
           <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>{goal.blurb}</p>
+          {app.youth.on && (
+            <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {YOUTH_COPY.goals}
+            </p>
+          )}
+          {!app.youth.on && app.targetSafety.appliedGoal !== app.targetSafety.goal && (
+            <p className="mt-1.5 text-[0.75rem] font-semibold" style={{ color: 'var(--warn)' }}>
+              Chosen, but not in force: Forq is planning at maintenance until the checks below
+              are done.
+            </p>
+          )}
           <p className="mt-1.5 text-[0.75rem] font-bold">
             {Math.round((goal.kcalFactor - 1) * 100) === 0
               ? 'Energy: at maintenance'
@@ -253,8 +282,19 @@ export default function GoalsPanel() {
       </Section>
 
       <MaintenanceCard />
+      <TargetSafetyCard />
       <MacroCard />
-      <WeeklyCard />
+      {app.youth.weeklyCompensation ? <WeeklyCard /> : (
+        <Card className="space-y-2">
+          <p className="font-extrabold text-[0.9375rem]">No weekly calorie budget</p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            {YOUTH_COPY.weekly}
+          </p>
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            {YOUTH_COPY.balance}
+          </p>
+        </Card>
+      )}
 
       {/* Show the working */}
       <button
@@ -279,6 +319,12 @@ export default function GoalsPanel() {
             {' '}{app.targets.kcal.toLocaleString()} kcal a day.
           </p>
           <p>
+            <b style={{ color: 'var(--ink)' }}>2a.</b> Then the safety checks: a deficit is held
+            to {Math.round(MAX_DEFICIT_PCT * 100)}% of maintenance at most, the day is floored
+            at {app.targetSafety.floor.kcal.toLocaleString()} kcal for your body, and anything
+            unusual is said rather than absorbed.
+          </p>
+          <p>
             <b style={{ color: 'var(--ink)' }}>3.</b> Protein{app.body?.weightKg ? ` at ${goal.proteinPerKg} g per kg` : ` at ${Math.round(goal.proteinPct * 100)}% of energy`},
             fat takes {Math.round(goal.fatPct * 100)}%, carbohydrate fills what's left
             {app.diets.length ? ' — then your patterns cap or floor it.' : '.'}
@@ -290,6 +336,12 @@ export default function GoalsPanel() {
           <p className="pt-1" style={{ color: 'var(--faint)' }}>
             Estimates, not medical advice — every number above is editable.
           </p>
+        </Card>
+      )}
+
+      {app.youth.on && (
+        <Card className="!py-3">
+          <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>{YOUTH_SIGNPOST}</p>
         </Card>
       )}
 

@@ -19,7 +19,7 @@ export default function Home() {
   const [showInsights, setShowInsights] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
 
-  const { startEntry, appendMessage, completeEntry, deleteEntry } = useEntries(
+  const { startEntry, appendMessage, completeEntry, updateFollowUp, deleteEntry } = useEntries(
     entries,
     setEntries,
   );
@@ -82,6 +82,7 @@ export default function Home() {
               apiKey={apiKey}
               onAppendMessage={appendMessage}
               onCompleteEntry={completeEntry}
+              onUpdateFollowUp={updateFollowUp}
               onError={(message) => setToast({ message })}
             />
           )}
@@ -96,7 +97,7 @@ export default function Home() {
               </p>
               <p className="max-w-xs text-xs text-muted">
                 Reflect helps you look past the first emotion and understand
-                what's actually going on before you act.
+                what&apos;s actually going on before you act.
               </p>
               <button
                 onClick={handleNew}

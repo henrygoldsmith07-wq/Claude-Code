@@ -1,3 +1,5 @@
+import type { ArgGraph } from "./argGraph";
+
 export type DebateSide = "for" | "against";
 export type InputMode = "text" | "voice";
 
@@ -92,12 +94,19 @@ export interface PvpVerdict {
   playerAScore: number;
   playerBScore: number;
   rationale: string;
+  argGraph?: ArgGraph;
+  breakdown?: {
+    a: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number };
+    b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number };
+  };
+  decidingFactor?: string;
 }
 
 export interface DebateSummary {
   overallFeedback: string;
   strengths: string[];
   improvements: string[];
+  argGraph?: ArgGraph;
 }
 
 export const MIN_ROUNDS = 5;

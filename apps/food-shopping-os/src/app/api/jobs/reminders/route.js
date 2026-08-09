@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { handleApiError } from '../../../../server/api.js';
-import { getDatabase } from '../../../../server/mongodb.js';
+import { getDatabase } from '../../../../server/database.js';
 
 const validSecret = (request) => {
   const expected = process.env.CRON_SECRET || '';

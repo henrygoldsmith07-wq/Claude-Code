@@ -82,6 +82,57 @@ describe('the weekly planner', () => {
     expect(screen.getByText(/Tap any slot to plan a meal/)).toBeDefined();
   });
 
+  it('starts cooking a planned meal from the calendar', () => {
+    onboard();
+    openPlan();
+    planFirstDinner();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cook Coconut Chickpea Curry now' }));
+
+    expect(screen.getByText('Step 1')).toBeDefined();
+    expect(screen.getByText('Hands-free walkthrough')).toBeDefined();
+  });
+
+  it('hands planned ingredients straight to the shopping list', () => {
+    onboard();
+    openPlan();
+    planFirstDinner();
+
+    fireEvent.click(screen.getByText(/Send this week's ingredients to the list/));
+    fireEvent.click(screen.getByText('Review shopping list'));
+
+    expect(screen.getByText('Your list')).toBeDefined();
+    expect(screen.getByLabelText('Tick Chickpeas (tins)')).toBeDefined();
+  });
+
+  it('starts a fresh shopping hand-off when the plan range changes', () => {
+    onboard();
+    openPlan();
+    planFirstDinner();
+    fireEvent.click(screen.getByLabelText('Next week'));
+    planFirstDinner();
+    fireEvent.click(screen.getByText('Today'));
+    fireEvent.click(screen.getByText(/Send this week's ingredients to the list/));
+
+    fireEvent.click(screen.getByLabelText('Next week'));
+    expect(screen.getByText(/Send this week's ingredients to the list/)).toBeDefined();
+  });
+
+  it('takes a generated plan to the shopping list after adding it', () => {
+    onboard();
+    openPlan();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate a plan for me' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Shop for it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A month' }));
+    expect(screen.getByRole('button', { name: 'Shop for it' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Shop for it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review shopping list' }));
+
+    expect(screen.getByText('Your list')).toBeDefined();
+  });
+
   it('downloads the planned week for a calendar', () => {
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:calendar');
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
@@ -212,6 +263,23 @@ describe('the month view', () => {
     expect(screen.getByText(/1 meal planned/)).toBeDefined();
   });
 
+  it('starts a planned meal from the month day sheet', () => {
+    onboard();
+    openPlan();
+    fireEvent.click(screen.getByText('Month'));
+    fireEvent.click(screen.getByText('15'));
+    let sheet = [...document.querySelectorAll('[role="dialog"]')].pop();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Plan Dinner meal' }));
+    fireEvent.click(within(dialogFor('Plan a meal')).getByText('Coconut Chickpea Curry'));
+
+    fireEvent.click(screen.getByText('15'));
+    sheet = [...document.querySelectorAll('[role="dialog"]')].pop();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cook Coconut Chickpea Curry now' }));
+
+    expect(screen.getByText('Step 1')).toBeDefined();
+    expect(screen.getByText('Hands-free walkthrough')).toBeDefined();
+  });
+
   it('steps between months', () => {
     onboard();
     openPlan();
@@ -305,7 +373,7 @@ describe('scheduling a recipe from its page', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
-  it('puts it in the plan on the day you choose', () => {
+  it('puts it in the plan on the day you choose', async () => {
     onboard();
     fireEvent.click(screen.getByText('Recipes'));
     fireEvent.click(screen.getAllByText('Coconut Chickpea Curry')[0]);
@@ -316,10 +384,9 @@ describe('scheduling a recipe from its page', () => {
     fireEvent.click(within(card).getByText('Put it in the plan'));
     expect(screen.getByText(/Planned for lunch on/)).toBeDefined();
 
-    // And it is there on the day you chose.
-    fireEvent.click(screen.getByLabelText('Close'));
-    openPlan();
-    expect(screen.getByText(/1 meal planned/)).toBeDefined();
+    // The recipe page hands the new plan straight to the planner.
+    fireEvent.click(screen.getByRole('button', { name: 'Review meal plan' }));
+    await waitFor(() => expect(screen.getByText(/1 meal planned/)).toBeDefined());
   });
 });
 
