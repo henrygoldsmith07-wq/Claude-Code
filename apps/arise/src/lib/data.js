@@ -76,6 +76,14 @@ export const EXERCISES = [
   { id: 'kettlebell-swing', name: 'Kettlebell Swing', muscle: 'Full body', equipment: ['kettlebell'], level: 'Intermediate', cues: ['Hip hinge power','Arms guide, hips drive'], substitution: ['romanian-deadlift'] },
   { id: 'burpee', name: 'Burpee', muscle: 'Full body', equipment: ['bodyweight'], level: 'Intermediate', cues: ['Chest to floor','Jump or step up'], substitution: ['bodyweight-squat'] },
   { id: 'jump-rope', name: 'Jump Rope', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Light on toes','Elbows tucked'], substitution: ['brisk-walk'] },
+
+  // Added for broader muscle/equipment coverage
+  { id: 'incline-dumbbell-press', name: 'Incline Dumbbell Press', muscle: 'Chest', equipment: ['dumbbells','bench'], level: 'Intermediate', cues: ['Bench at 30°','Palms forward','Control stretch at bottom'], substitution: ['bench-press-dumbbell','push-up'] },
+  { id: 'face-pull', name: 'Face Pull', muscle: 'Shoulders', equipment: ['cable','bands'], level: 'Beginner', cues: ['Elbows high','Pull to forehead','Squeeze rear delts'], substitution: ['band-row','dumbbell-row'] },
+  { id: 'bulgarian-split-squat', name: 'Bulgarian Split Squat', muscle: 'Legs', equipment: ['bench','dumbbells'], level: 'Intermediate', cues: ['Front shin vertical','Back knee hovers','Torso tall'], substitution: ['lunge','goblet-squat'] },
+  { id: 'cable-row', name: 'Seated Cable Row', muscle: 'Back', equipment: ['cable'], level: 'Beginner', cues: ['Chest proud','Elbows to ribs','Squeeze shoulder blades'], substitution: ['band-row','dumbbell-row'] },
+  { id: 'leg-raise', name: 'Hanging Leg Raise', muscle: 'Core', equipment: ['pullup-bar'], level: 'Advanced', cues: ['Dead hang','Legs straight','Control down'], substitution: ['hanging-knee-raise','plank'] },
+  { id: 'farmer-carry', name: 'Farmer Carry', muscle: 'Full body', equipment: ['dumbbells'], level: 'Beginner', cues: ['Heavy pair','Shoulders packed','Walk tall'], substitution: ['plank','kettlebell-swing'] },
 ];
 
 export const EXERCISE_BY_ID = Object.fromEntries(EXERCISES.map(e => [e.id, e]));

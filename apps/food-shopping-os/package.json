@@ -10,7 +10,8 @@
     "test": "vitest run --maxWorkers=1",
     "test:e2e": "playwright test",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:check": "node scripts/check-database.mjs"
+    "db:check": "node scripts/check-database.mjs",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",

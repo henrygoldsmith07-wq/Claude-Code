@@ -2,6 +2,7 @@ import { DEFAULT_TARGETS } from '../data/nutrients.js';
 import {
   ACCENT_IDS, EMPTY_STATE, rolloverDay, STATE_VERSION, STORAGE_KEY,
 } from './state.js';
+import { normalisePriceAlertConfig } from './price-alerts.js';
 import { HEALTH_VAULT_KEY, withoutHealth } from './health-vault.js';
 import { permissionsForRole } from './household.js';
 
@@ -30,6 +31,11 @@ export const hydrate = (stored = {}) => {
     else if (isObject(fallback) && !isObject(state[key])) state[key] = { ...fallback };
   });
   if (!ACCENT_IDS.includes(state.accent)) state.accent = EMPTY_STATE.accent;
+  // v4: receipt-only rise/bargain + coupon vault
+  if (!Array.isArray(state.coupons)) state.coupons = [];
+  state.priceAlertConfig = normalisePriceAlertConfig(state.priceAlertConfig || {});
+  if (!Array.isArray(state.priceAlerts)) state.priceAlerts = [];
+  if (!Array.isArray(state.offers)) state.offers = [];
   return rolloverDay(state);
 };
 

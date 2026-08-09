@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { cx, gbp, expiryStatus } from '../lib/utils.js';
-import { daysUntil, expiringSoon, pantryAnalytics, pantryUseLabel, pantryValue } from '../lib/kitchen.js';
+import { daysUntil, expiringSoon, pantryAnalytics, pantryUseLabel, pantryUncertaintyLabel, pantryValue } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
 import { Card, Chip, Empty, GestureMenu, Pill, Section } from './ui.jsx';
@@ -16,6 +16,7 @@ import PantryShare from './PantryShare.jsx';
 
 const BLANK = {
   name: '', qty: '', cost: '', location: DEFAULT_LOCATION,
+  confidence: 'definite', amountConfidence: 'approximate',
   cat: DEFAULT_CATEGORY, store: '', expiry: '',
 };
 
@@ -28,7 +29,7 @@ function AddItemForm() {
   /** Stays open after saving — putting a shop away means several items in a row. */
   const save = () => {
     if (draft.name.trim().length < 2) return;
-    app.addPantryItem({ ...draft, name: draft.name.trim(), expiry: draft.expiry || null });
+    app.addPantryItem({ ...draft, name: draft.name.trim(), expiry: draft.expiry || null, confidence: draft.confidence, amountConfidence: draft.amountConfidence });
     setAdded(draft.name.trim());
     setDraft({ ...BLANK, location: draft.location, cat: draft.cat, store: draft.store });
   };
@@ -85,7 +86,17 @@ function AddItemForm() {
           <Chip key={l} active={draft.location === l} onClick={() => field('location')(l)}>{l}</Chip>
         ))}
       </div>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Stock confidence">
+        {[['definite','Definitely have'],['probable','Probably have'],['unknown','Unknown']].map(([id,label]) => (
+          <Chip key={id} active={draft.confidence === id} onClick={() => field('confidence')(id)}>{label}</Chip>
+        ))}
+      </div>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Amount confidence">
+        {[['exact','Amount known'],['approximate','Amount approx.'],['unknown','Amount unknown']].map(([id,label]) => (
+          <Chip key={id} active={draft.amountConfidence === id} onClick={() => field('amountConfidence')(id)}>{label}</Chip>
+        ))}
+      </div>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Category">
         {CATEGORIES.map((c) => (
           <Chip key={c} active={draft.cat === c} onClick={() => field('cat')(c)}>{c}</Chip>
         ))}
@@ -240,7 +251,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-[0.875rem] truncate">{item.name}</p>
                       <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                        {expiryStatus(days).label}{item.cost > 0 ? ` · ${gbp(item.cost, { always: true })}` : ''}
+                        {pantryUncertaintyLabel(item)}{days !== null ? ` · ${expiryStatus(days).label}` : ''}{item.cost > 0 ? ` · ${gbp(item.cost, { always: true })}` : ''}
                       </p>
                     </div>
                     <button

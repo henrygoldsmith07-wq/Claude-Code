@@ -110,7 +110,7 @@ export default function TopicCard({ topic, activeDebateId }: { topic: DailyTopic
       )}
 
       <Link href="/pvp" className="text-center text-sm text-ink3 hover:text-[var(--foreground)]">
-        Or challenge another player on today's topic →
+        Or challenge another player on today&apos;s topic →
       </Link>
     </div>
   );

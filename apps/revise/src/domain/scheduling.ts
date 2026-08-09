@@ -64,6 +64,12 @@ export interface NewCardInput {
   note?: string;
   tags?: string[];
   sourceMistakeId?: Id;
+  specPointIds?: Id[];
+  source?: Card["source"];
+  verification?: Card["verification"];
+  reviewer?: Card["reviewer"];
+  lastChecked?: Card["lastChecked"];
+  specVersion?: Card["specVersion"];
 }
 
 /** Tags are lower-cased, trimmed, de-duplicated and sorted so that filtering,
@@ -95,6 +101,12 @@ export function createCard(input: NewCardInput, now: Date = new Date()): Card {
     note: input.note,
     audioUrl: input.audioUrl,
     origin: input.origin ?? "manual",
+    specPointIds: input.specPointIds,
+    source: input.source,
+    verification: input.verification,
+    reviewer: input.reviewer,
+    lastChecked: input.lastChecked,
+    specVersion: input.specVersion,
     due: toDateOnly(empty.due),
     stability: empty.stability,
     difficulty: empty.difficulty,

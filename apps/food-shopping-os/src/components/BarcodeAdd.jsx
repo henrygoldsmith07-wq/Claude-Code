@@ -4,6 +4,7 @@ import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
 import { isBarcode, lookupBarcode, SCANNABLE } from '../lib/foodlog.js';
 import { captureSupport, detectBarcodeImage } from '../lib/smart-capture.js';
+import { observedStaleness } from '../lib/observed-prices.js';
 import { Card, Chip, Pill } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 
@@ -231,13 +232,20 @@ export default function BarcodeAdd({ onPick, action = 'Add' }) {
               <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
                 {online.prices.length} GBP price observation{online.prices.length === 1 ? '' : 's'} from Open Prices; these are community data, not a live supermarket quote.
               </p>
-              <ul className="mt-1 space-y-0.5 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {online.prices.slice(0, 3).map((price, index) => (
-                  <li key={`${price.id || price.store || 'price'}-${index}`}>
-                    {gbp(price.price, { always: true })} · {price.store || 'Shop not named'}{price.observedAt ? ` · ${price.observedAt}` : ''}
-                  </li>
-                ))}
+              <ul className="mt-1 space-y-1 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {online.prices.slice(0, 3).map((price, index) => {
+                  const stale = observedStaleness(price.observedAt);
+                  const tone = stale.tone === 'good' ? 'good' : stale.tone === 'warn' ? 'warn' : stale.tone === 'danger' ? 'danger' : 'muted';
+                  return (
+                    <li key={`${price.id || price.store || 'price'}-${index}`} className="flex flex-wrap items-center gap-1.5">
+                      <span>{gbp(price.price, { always: true })} · {price.store || 'Shop not named'}</span>
+                      <Pill tone={tone}>{stale.label}</Pill>
+                      <span className="text-[0.625rem]" style={{ color: 'var(--faint)' }}>{price.observedAt ? String(price.observedAt).slice(0, 10) : 'date unknown'}</span>
+                    </li>
+                  );
+                })}
               </ul>
+              <p className="mt-1 text-[0.625rem] font-semibold" style={{ color: 'var(--faint)' }}>Community observed — not a live quote. Old rows may be out of date.</p>
             </div>
           ) : online.priceStatus === 'unavailable' ? (
             <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>

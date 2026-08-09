@@ -24,7 +24,7 @@ export default function ExerciseBrowser({ availableEquipment }){
       <div className="rounded-2xl border border-line bg-surface p-3 space-y-3">
         <label className="block">
           <span className="text-[11px] font-bold uppercase tracking-widest text-ink3">Search</span>
-          <input value={q} onChange={e=> setQ(e.target.value)} placeholder="Push-up, squat, pull-up…" className="mt-1 w-full rounded-xl border border-line bg-surface2 px-3 py-2.5 text-sm focus:outline-none focus:border-ink" />
+          <input value={q} onChange={e=> setQ(e.target.value)} aria-label="Search exercises" placeholder="Push-up, squat, pull-up…" className="mt-1 w-full rounded-xl border border-line bg-surface2 px-3 py-2.5 text-sm focus:outline-none focus:border-ink" />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">

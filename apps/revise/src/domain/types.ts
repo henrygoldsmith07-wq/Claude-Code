@@ -63,12 +63,24 @@ export type VerificationStatus = "unverified" | "checked" | "verified";
 export type ContentSource = "authored" | "licensed" | "generated" | "past-paper" | "import";
 
 export interface SpecPoint {
+  /** Stable internal ID, e.g. "wjec-alevel-physics.kinematics-dynamics.sp-1". Never changes when text is clarified. */
+  id: Id;
   /** Exact spec reference as printed by the board, e.g. "Unit 1.1(a)" or "Pure 1.2.4". */
   ref: string;
-  /** Paraphrased statement — never verbatim spec text unless licensed. */
+  /** Paraphrased learning claim — what must be known — never verbatim spec text unless licensed. */
   text: string;
   /** Which assessment objectives this statement is examined under. */
   aos: AoCode[];
+  /** Provenance for this individual statement (falls back to topic source when absent). */
+  source?: ContentSource;
+  /** Verification state for this statement: draft→reviewed→verified (stored as unverified→checked→verified). */
+  verification?: VerificationStatus;
+  /** Who or what verified it — reviewer name, "authored", or licence citation. */
+  reviewer?: string | null;
+  /** When this statement was last checked. */
+  lastChecked?: IsoDate | null;
+  /** Spec version this statement was checked against. */
+  specVersion?: string;
 }
 
 export interface SubjectSpec {
@@ -108,6 +120,8 @@ export interface Topic {
   source?: ContentSource;
   /** How thoroughly this topic has been checked against the spec. */
   verification?: VerificationStatus;
+  /** Who verified it. */
+  reviewer?: string | null;
   /** When verification was last performed. */
   lastChecked?: IsoDate | null;
 }
@@ -138,6 +152,14 @@ export interface Card {
   /** Set when the card was minted from a specific mistake. */
   sourceMistakeId?: Id;
   origin: "seed" | "manual" | "ai" | "document" | "mistake" | "import";
+  /** Which spec statements this card directly supports (stable specPoint ids). */
+  specPointIds?: Id[];
+  /** Provenance for audit: where the card's claim comes from. */
+  source?: ContentSource;
+  verification?: VerificationStatus;
+  reviewer?: string | null;
+  lastChecked?: IsoDate | null;
+  specVersion?: string;
   /** Suspended cards never appear until explicitly unsuspended. */
   suspended?: boolean;
   /** Buried cards reappear on this date. Bury is a one-day snooze. */
@@ -180,6 +202,10 @@ export interface QuestionPart {
   modelAnswer: string;
   /** Which AOs this part examines. Empty means unclassified. */
   aos?: AoCode[];
+  /** Which spec statements this part tests (stable specPoint ids). */
+  specPointIds?: Id[];
+  /** Which learning claims earn the marks for this part (paraphrased, 1:1 with markScheme when present). */
+  learningClaims?: string[];
 }
 
 export interface Question {
@@ -200,12 +226,16 @@ export interface Question {
   source?: ContentSource;
   /** Verification state against the spec / mark scheme. */
   verification?: VerificationStatus;
+  /** Who verified it. */
+  reviewer?: string | null;
   /** When this question was last checked. */
   lastChecked?: IsoDate | null;
   /** Spec version this question was checked against. */
   specVersion?: string;
   /** Union of AOs across parts, for quick filtering. */
   aos?: AoCode[];
+  /** Which spec statements this question tests (union of parts; stable ids). */
+  specPointIds?: Id[];
   /** Set when extracted from an uploaded paper. */
   paperId?: Id;
   paperQuestionNumber?: string;

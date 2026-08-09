@@ -216,7 +216,6 @@ export async function summariseViaOpenRouter(
     .slice(0, 40);
 
   const gcSources = sources.length ? sources : finalPoints.slice(0, 8).map((p) => ({ url: `https://gdelt.example/${encodeURIComponent(p.headline)}`, title: p.headline }));
-  const storySources = gcSources.slice(0, 8).map((s) => inferSourceAttribution(s.url, s.title));
   const stories = clustersFromPoints(finalPoints);
   // Use real gc sources as the page sources; keep clusters' placeholder sources separate.
 

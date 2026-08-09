@@ -54,7 +54,7 @@ export default function EntryList({
           <div className="p-5 text-center">
             <p className="text-sm text-muted">No reflections yet</p>
             <p className="mt-1 text-xs text-muted/70">
-              Start one above to begin understanding what's underneath.
+              Start one above to begin understanding what&apos;s underneath.
             </p>
           </div>
         )}

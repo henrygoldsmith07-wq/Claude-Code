@@ -53,8 +53,32 @@ for (const t of topics) {
   if (!/verification/.test(text)) errors.push(`${t.file}: no verification metadata - run the migration`);
   if (!/specPoints|specVersion/.test(text)) errors.push(`${t.file}: no specPoints/specVersion - fine-grained coverage not modelled yet`);
   if (!/source:\s*"authored"/.test(text)) errors.push(`${t.file}: missing source tag`);
+  // Statement-level: every subject must have specPoints on every topic.
+  const spCount = (text.match(/specPoints\s*:\s*\[/g) || []).length;
+  const topicCount = t.topicCount || 1;
+  if (spCount < topicCount) errors.push(`${t.file}: every topic must have specPoints (${spCount}/${topicCount})`);
+  // Validate statement provenance shape: each specPoint must have ref/text/aos
+  const refs = [...text.matchAll(/ref:\s*"([^"]+)"/g)].length;
+  if (refs < spCount) errors.push(`${t.file}: specPoints with empty ref`);
+  // Questions: statement mapping
+  for (const file of ["physics.ts","chemistry.ts","biology.ts","maths.ts"] ) {
+    // lightweight: at least one question part maps to specPointIds when the subject has statements
+    try {
+      const qtext = readFileSync(join(ROOT, `src/content/questions/${file}`), "utf8");
+      if (spCount > 0 && !/specPointIds/.test(qtext)) errors.push(`src/content/questions/${file}: no question→specPoint mapping despite statements present`);
+      if (/specPointIds/.test(qtext) && !/learningClaims/.test(qtext)) errors.push(`src/content/questions/${file}: specPointIds present but missing learningClaims (mark-scheme alignment)`);
+    } catch { /* no question file */ }
+  }
 }
 
+// Enforce a minimum statement density per subject
+const minStatements = { "wjec-physics.ts": 60, "wjec-chemistry.ts": 60, "wjec-biology.ts": 60, "wjec-maths.ts": 40 };
+for (const t of topics) {
+  const text2 = readFileSync(join(ROOT, `src/domain/curriculum/${t.file}`), "utf8");
+  const refCount = (text2.match(/ref:\s*"Unit|ref:\s*"Pure|ref:\s*"Applied/g) || []).length;
+  const min = minStatements[t.file] ?? 40;
+  if (refCount < min) errors.push(`${t.file}: only ${refCount} specPoint statements — expected >=${min}`);
+}
 if (errors.length) {
   console.error("\nVALIDATION FAILED:");
   for (const e of errors) console.error("  -", e);

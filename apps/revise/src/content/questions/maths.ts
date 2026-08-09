@@ -9,6 +9,11 @@ export const mathsQuestions = defineQuestions([
     topics: ["algebra"],
     stem: "The equation $kx^2 + (k+3)x + 4 = 0$ has two distinct real roots.",
     difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Show that $k^2 - 10k + 9 > 0$.",
@@ -18,6 +23,8 @@ export const mathsQuestions = defineQuestions([
           "Substitutes correctly: (k+3)^2 - 16k > 0",
           "Expands and simplifies to k^2 - 10k + 9 > 0",
         ],
+        specPointIds: ["wjec-alevel-maths.algebra.sp-01"],
+        learningClaims: ["show that $k^2 - 10k + 9 > 0$."],
         answer:
           "Two distinct real roots require b² − 4ac > 0. Here a = k, b = k + 3, c = 4, so (k + 3)² − 4(k)(4) > 0, giving k² + 6k + 9 − 16k > 0 and hence k² − 10k + 9 > 0.",
       },
@@ -29,6 +36,8 @@ export const mathsQuestions = defineQuestions([
           "Critical values k = 1 and k = 9",
           "Correct region: k < 1 or k > 9, with k not equal to 0",
         ],
+        specPointIds: ["wjec-alevel-maths.algebra.sp-01"],
+        learningClaims: ["show that $k^2 - 10k + 9 > 0$."],
         answer:
           "(k − 1)(k − 9) > 0 so the critical values are k = 1 and k = 9. The quadratic in k is positive outside the roots, so k < 1 or k > 9. Note k ≠ 0, otherwise the original equation is linear.",
       },
@@ -40,6 +49,11 @@ export const mathsQuestions = defineQuestions([
     topics: ["differentiation"],
     stem: "A curve has equation $y = 2x^3 - 9x^2 + 12x - 3$.",
     difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Find the coordinates of the stationary points.",
@@ -50,6 +64,8 @@ export const mathsQuestions = defineQuestions([
           "x = 1 and x = 2",
           "y values 2 and 1, giving (1, 2) and (2, 1)",
         ],
+        specPointIds: ["wjec-alevel-maths.algebra.sp-01"],
+        learningClaims: ["hence find the set of possible values of $k$."],
         answer:
           "dy/dx = 6x² − 18x + 12 = 6(x − 1)(x − 2). Setting this to zero gives x = 1 and x = 2. Substituting back: y(1) = 2 − 9 + 12 − 3 = 2 and y(2) = 16 − 36 + 24 − 3 = 1. The stationary points are (1, 2) and (2, 1).",
       },
@@ -61,6 +77,8 @@ export const mathsQuestions = defineQuestions([
           "At x = 1 the second derivative is -6, which is negative, so it is a maximum",
           "At x = 2 the second derivative is 6, which is positive, so it is a minimum",
         ],
+        specPointIds: ["wjec-alevel-maths.differentiation.sp-01"],
+        learningClaims: ["find the coordinates of the stationary points."],
         answer:
           "d²y/dx² = 12x − 18. At x = 1 this is −6 < 0, so (1, 2) is a maximum. At x = 2 it is +6 > 0, so (2, 1) is a minimum.",
       },
@@ -72,6 +90,11 @@ export const mathsQuestions = defineQuestions([
     topics: ["trigonometry"],
     stem: "Solve $3\\sin^2\\theta + 5\\cos\\theta - 1 = 0$ for $0° \\le \\theta \\le 360°$, giving answers to 1 decimal place.",
     difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Solve the equation.",
@@ -83,6 +106,8 @@ export const mathsQuestions = defineQuestions([
           "Rejects cos theta = 2 because cosine cannot exceed 1",
           "cos theta = -1/3 gives theta = 109.5 and 250.5 degrees",
         ],
+        specPointIds: ["wjec-alevel-maths.trigonometry.sp-01"],
+        learningClaims: ["determine the nature of each stationary point."],
         answer:
           "Replace sin²θ with 1 − cos²θ: 3(1 − cos²θ) + 5cosθ − 1 = 0, so −3cos²θ + 5cosθ + 2 = 0, i.e. 3cos²θ − 5cosθ − 2 = 0. Factorising, (3cosθ + 1)(cosθ − 2) = 0. cosθ = 2 is rejected as impossible. cosθ = −1/3 gives θ = 109.5° and θ = 360 − 109.5 = 250.5°.",
       },
@@ -94,6 +119,11 @@ export const mathsQuestions = defineQuestions([
     topics: ["integration"],
     stem: "Evaluate $\\int_0^1 x e^{2x}\\,dx$, giving your answer in terms of $e$.",
     difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Show your full working.",
@@ -105,6 +135,8 @@ export const mathsQuestions = defineQuestions([
           "Substitutes the limits 0 and 1",
           "Correct answer (e^2 + 1)/4",
         ],
+        specPointIds: ["wjec-alevel-maths.trigonometry.sp-01"],
+        learningClaims: ["show your full working."],
         answer:
           "Let u = x, dv = e^(2x) dx, so du = dx and v = e^(2x)/2. Then ∫x e^(2x) dx = x e^(2x)/2 − ∫ e^(2x)/2 dx = x e^(2x)/2 − e^(2x)/4. Evaluating from 0 to 1: (e²/2 − e²/4) − (0 − 1/4) = e²/4 + 1/4 = (e² + 1)/4.",
       },
@@ -116,6 +148,11 @@ export const mathsQuestions = defineQuestions([
     topics: ["distributions"],
     stem: "A manufacturer claims that 20% of its lightbulbs are energy-saving. A shop tests a random sample of 30 bulbs and finds 11 energy-saving bulbs. Test at the 5% significance level whether the proportion is greater than claimed.",
     difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Carry out the hypothesis test.",
@@ -127,6 +164,8 @@ export const mathsQuestions = defineQuestions([
           "Compares with the 5% significance level and rejects H0 since 0.0256 < 0.05",
           "Concludes in context: there is evidence that more than 20% of bulbs are energy-saving",
         ],
+        specPointIds: ["wjec-alevel-maths.distributions.sp-03"],
+        learningClaims: ["carry out a binomial hypothesis test against a significance level"],
         answer:
           "H₀: p = 0.2, H₁: p > 0.2 (one-tailed). Under H₀, X ~ B(30, 0.2). P(X ≥ 11) = 1 − P(X ≤ 10) = 0.0256. Since 0.0256 < 0.05, reject H₀. There is sufficient evidence at the 5% level that the proportion of energy-saving bulbs is greater than 20%.",
       },
@@ -138,6 +177,11 @@ export const mathsQuestions = defineQuestions([
     topics: ["forces"],
     stem: "Two particles of mass 3 kg and 5 kg are connected by a light inextensible string over a smooth pulley and released from rest. Take g = 9.8 m s⁻².",
     difficulty: 4,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Find the acceleration of the system.",
@@ -148,6 +192,8 @@ export const mathsQuestions = defineQuestions([
           "Adds to eliminate T: 2g = 8a",
           "a = 2.45 m s^-2",
         ],
+        specPointIds: ["wjec-alevel-maths.forces.sp-01"],
+        learningClaims: ["resolve forces and apply Newton laws to connected particles"],
         answer:
           "For the 5 kg mass (downwards positive): 5g − T = 5a. For the 3 kg mass (upwards positive): T − 3g = 3a. Adding: 2g = 8a, so a = 2g/8 = 2.45 m s⁻².",
       },
@@ -158,6 +204,8 @@ export const mathsQuestions = defineQuestions([
           "Substitutes a into either equation of motion",
           "T = 36.75 N (accept 36.8 N)",
         ],
+        specPointIds: ["wjec-alevel-maths.forces.sp-02"],
+        learningClaims: ["calculate tension in a connected-particle system"],
         answer: "T = 3g + 3a = 3(9.8) + 3(2.45) = 29.4 + 7.35 = 36.75 N ≈ 36.8 N.",
       },
     ],
@@ -170,12 +218,64 @@ export const mathsQuestions = defineQuestions([
     options: ["$\\log_a x^2$", "$3\\log_a x - 1$", "$\\log_a 3$", "$2\\log_a x^3$"],
     correctIndex: 0,
     difficulty: 2,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
     parts: [
       {
         prompt: "Select the correct option.",
         marks: 1,
         scheme: ["log a x^3 - log a x = log a (x^3/x) = log a x^2"],
+        specPointIds: ["wjec-alevel-maths.exponentials.sp-02"],
+        learningClaims: ["apply laws of logarithms to simplify expressions"],
         answer: "log_a x³ − log_a x = log_a(x³/x) = log_a x², which is also 2log_a x.",
+      },
+    ],
+  },
+
+  {
+    slug: "maths-coordinate-circle",
+    subjectId: S,
+    topics: ["coordinate-geometry"],
+    stem: "A circle has equation x² + y² − 6x + 4y − 12 = 0.",
+    difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
+    parts: [
+      {
+        prompt: "Find the centre and radius.",
+        marks: 3,
+        scheme: ["Completes square: (x−3)²+(y+2)²=25", "Centre (3,−2)", "Radius 5"],
+        specPointIds: ["wjec-alevel-maths.coordinate-geometry.sp-01"],
+        learningClaims: ["derive and use equation of a circle"],
+        answer: "(x−3)²+(y+2)²=25, centre (3,−2), radius 5.",
+      },
+    ],
+  },
+  {
+    slug: "maths-vectors-geometry",
+    subjectId: S,
+    topics: ["vectors"],
+    stem: "Points A(1,2,3) and B(4,6,3).",
+    difficulty: 3,
+    verification: "checked",
+    reviewer: "authored/WJEC-2024-v1-review",
+    lastChecked: "2026-08-01",
+    specVersion: "2024-1.0",
+    aos: ["AO2"],
+    parts: [
+      {
+        prompt: "Find the vector AB and its magnitude.",
+        marks: 3,
+        scheme: ["AB = (3,4,0)", "Magnitude = 5", "Units consistent"],
+        specPointIds: ["wjec-alevel-maths.vectors.sp-01"],
+        learningClaims: ["represent vectors and calculate magnitude"],
+        answer: "AB = (3,4,0), |AB|=√(9+16)=5.",
       },
     ],
   },

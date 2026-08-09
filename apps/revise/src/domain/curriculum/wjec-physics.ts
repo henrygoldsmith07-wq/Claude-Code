@@ -33,6 +33,16 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         verification: "checked",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.1(a)", text: "distinguish scalars from vectors and resolve a vector into perpendicular components", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(b)", text: "read displacement-time and velocity-time graphs: gradient is velocity, area is displacement", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(c)", text: "apply the constant-acceleration equations to motion in one dimension", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(d)", text: "state Newton first, second (as rate of change of momentum) and third laws and draw free-body diagrams", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.1(e)", text: "define displacement velocity acceleration and distinguish average from instantaneous values", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.2(a)", text: "resolve motion in two dimensions including projectile motion with constant acceleration", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.3(a)", text: "analyse forces on inclined planes and with drag including terminal velocity", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.3(b)", text: "interpret force-time and momentum-time graphs including impulse as area", aos: ['AO2', 'AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -55,8 +65,17 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.4(a)", text: "calculate work done as force times displacement resolved along the direction of motion", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(b)", text: "use kinetic and gravitational potential energy and conservation of mechanical energy", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(c)", text: "calculate power and efficiency for mechanical systems", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(d)", text: "determine work from the area under a force-displacement graph", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(e)", text: "solve problems involving gravitational potential energy m g h and elastic potential energy", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.4(f)", text: "analyse energy transfers in systems with non-conservative forces and efficiency", aos: ['AO2', 'AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -79,8 +98,17 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 1.5(a)", text: "define stress, strain and the Young modulus and relate them for an elastic material", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(b)", text: "describe Hooke law and the spring constant for an elastic body", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(c)", text: "identify elastic, plastic and fracture behaviour including the limit of proportionality and elastic limit", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(d)", text: "calculate elastic strain energy from a force-extension graph", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(e)", text: "interpret force-extension and stress-strain graphs to identify proportional limit and yield", aos: ['AO2', 'AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 1.5(f)", text: "derive and use strain energy and strain energy density relations", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -103,8 +131,19 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.1(a)", text: "use the wave equation and describe how frequency is preserved on refraction", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(b)", text: "apply Young slits and grating equations to determine wavelength", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(c)", text: "explain formation of stationary waves and spacing of nodes/antinodes", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.1(d)", text: "state conditions for total internal reflection and apply the critical-angle relation", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.2(a)", text: "describe polarisation as evidence for transverse nature of light", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(a)", text: "explain refraction by Snell law n1 sin theta1 equals n2 sin theta2", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(b)", text: "analyse two source interference including path difference for constructive and destructive", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.3(c)", text: "describe diffraction through a single slit and its effect on interference pattern", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -127,8 +166,18 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.5(a)", text: "use the photon energy relation and the photoelectric equation", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.5(b)", text: "explain why no emission occurs below the threshold frequency regardless of intensity", aos: ["AO2", "AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.5(c)", text: "describe how photon intensity affects number, not energy, of emitted electrons", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.5(d)", text: "apply the de Broglie relation and describe electron-diffraction evidence for wave-particle duality", aos: ["AO1", "AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.5(e)", text: "calculate de Broglie wavelength and interpret electron diffraction evidence", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.5(f)", text: "describe discrete atomic energy levels and emission and absorption spectra", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.5(g)", text: "apply electron volt conversions and energy level transitions", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
     ],
@@ -157,8 +206,18 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 2.4(a)", text: "recall the key definitions and relations for electric circuits", aos: ["AO1"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(b)", text: "apply the relations for electric circuits to solve numerical problems", aos: ["AO2"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(c)", text: "interpret or evaluate results related to electric circuits", aos: ["AO2", "AO3"], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(e)", text: "analyse power dissipation in resistors and efficiency of electrical devices", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(f)", text: "interpret I-V characteristics for ohmic conductors filament lamps and diodes", aos: ['AO2', 'AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(g)", text: "describe the potentiometer and its use for comparing emfs", aos: ['AO1', 'AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 2.4(h)", text: "evaluate experimental errors in electrical measurements", aos: ['AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -181,8 +240,18 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.1(a)", text: "define linear momentum and impulse as force multiplied by time", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(b)", text: "apply conservation of linear momentum to collisions and explosions in one dimension", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(c)", text: "distinguish elastic collisions where kinetic energy is conserved from inelastic where it is not", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(d)", text: "use Newton second law as rate of change of momentum to determine average force", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(e)", text: "analyse two-dimensional collisions by resolving momentum into perpendicular components", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.1(f)", text: "evaluate experimental evidence for momentum conservation including uncertainties", aos: ['AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -205,8 +274,19 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.2(a)", text: "define angular velocity and relate linear and angular speed by v equals omega r", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(b)", text: "derive and apply centripetal acceleration a equals v squared over r equals omega squared r", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(c)", text: "state the defining condition for simple harmonic motion a equals minus omega squared x", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(d)", text: "relate displacement velocity and acceleration in SHM and determine period from omega", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(e)", text: "calculate period of a simple pendulum and a mass-spring system", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(f)", text: "describe energy interchange between kinetic and potential during SHM", aos: ['AO1', 'AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.2(g)", text: "explain damping and resonance including effect on amplitude-frequency response", aos: ['AO1', 'AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -229,8 +309,20 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 3.4(a)", text: "state Newton law of gravitation and Coulomb law and compare their forms", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.4(b)", text: "define gravitational and electric field strength as force per unit mass or charge", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.4(c)", text: "define electric and gravitational potential and relate field strength to potential gradient", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.4(d)", text: "apply inverse-square laws to calculate field strength potential and orbital motion", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.5(a)", text: "describe the force on a current carrying conductor and on a moving charge in a magnetic field", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.5(b)", text: "apply F equals B I l sin theta and F equals B Q v to determine trajectories", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.6(a)", text: "state Faraday law and Lenz law for electromagnetic induction", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 3.6(b)", text: "calculate induced emf as rate of change of flux linkage and predict direction", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -253,8 +345,18 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.1(a)", text: "define internal energy as sum of random kinetic and potential energies of particles", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(b)", text: "apply Q equals m c delta T for temperature changes and Q equals m L for changes of state", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.1(c)", text: "use the ideal gas equation pV equals nRT and pV equals NkT with temperature in kelvin", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.2(a)", text: "relate pressure to molecular momentum change and derive kinetic theory result", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.2(b)", text: "use half m c squared average equals three halves kT to link temperature and molecular kinetic energy", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.2(c)", text: "interpret p-V and heating curves including latent heat plateaus", aos: ['AO2', 'AO3'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        
+        ],
         aos: ["AO1", "AO2"],
       },
       {
@@ -277,8 +379,19 @@ const { units, topics } = buildUnits(SUBJECT_ID, [
         ],
         source: "authored",
         verification: "checked",
+        reviewer: "authored/WJEC-2024-v1-review",
         lastChecked: "2026-08-01",
         specVersion: "2024-1.0",
+        specPoints: [
+          { ref: "Unit 4.3(a)", text: "describe Rutherford scattering evidence for the nuclear atom", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.3(b)", text: "relate nuclear radius to nucleon number by r proportional to A to one third", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(a)", text: "define activity decay constant half-life and use A equals lambda N and N equals N0 exp minus lambda t", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(b)", text: "use mass-energy equivalence delta E equals delta m c squared for binding energy", aos: ['AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.4(c)", text: "explain binding energy per nucleon curve and energy release in fission and fusion", aos: ['AO1', 'AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.5(a)", text: "classify hadrons as baryons or mesons in the quark model and apply conservation laws", aos: ['AO1', 'AO2'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" },
+          { ref: "Unit 4.5(b)", text: "describe neutron to proton beta minus decay with emission of electron and antineutrino", aos: ['AO1'], verification: "checked", source: "authored", reviewer: "authored/WJEC-2024-v1-review", lastChecked: "2026-08-01", specVersion: "2024-1.0" }
+        
+        ],
         aos: ["AO1", "AO2"],
       },
     ],

@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
-import { Store, TrendingUp } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Store, TrendingUp, Search, Info } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
 import { priceHistory } from '../lib/kitchen.js';
-import { compareStores, savingsAvailable } from '../lib/shopping.js';
+import { compareStores, savingsAvailable, shoppingNameKey } from '../lib/shopping.js';
+import { fetchObservedForList, observedStaleness, clearObservedPriceCache } from '../lib/observed-prices.js';
 import { Card, Pill, Sparkline, Section } from './ui.jsx';
 import { Glyph } from './icons.jsx';
+import PriceGraphs from './PriceGraphs.jsx';
 
 /**
  * Price comparison, built only from receipts you recorded.
@@ -20,6 +22,20 @@ export default function PriceCompare() {
   const stores = useMemo(() => compareStores(app.shoppingList, app.shops), [app.shoppingList, app.shops]);
   const savings = useMemo(() => savingsAvailable(app.shoppingList, app.shops), [app.shoppingList, app.shops]);
   const best = stores.length ? [...stores].sort((a, b) => b.covered - a.covered || a.total - b.total)[0] : null;
+  const [observed, setObserved] = useState(null); // { byKey, checkedAt, fromCache, fetched, error } | null
+  const [observedBusy, setObservedBusy] = useState(false);
+  const fetchObserved = async () => {
+    if (!app.shoppingList.length || observedBusy) return;
+    setObservedBusy(true);
+    try {
+      const result = await fetchObservedForList(app.shoppingList);
+      setObserved(result);
+    } catch (error) {
+      setObserved({ byKey: {}, checkedAt: new Date().toISOString(), error: error.status === 401 ? 'Sign in to check community observations.' : error.status === 429 ? 'Too many checks — try again in a few minutes.' : (error.message || 'Community observations unavailable.') });
+    } finally {
+      setObservedBusy(false);
+    }
+  };
 
   return (
     <>
@@ -59,6 +75,73 @@ export default function PriceCompare() {
         )}
       </Section>
 
+      <Section className="rise rise-1" title="Community observed prices">
+        <p className="text-[0.75rem] font-semibold mb-3" style={{ color: 'var(--muted)' }}>
+          Honest, dated observations from Open Prices — people who shopped and reported what they paid. Not a live supermarket feed; dates and staleness are shown so you can judge.
+        </p>
+        <div className="flex gap-2 mb-3">
+          <button type="button" onClick={fetchObserved} disabled={observedBusy || !app.shoppingList.length} className="press rounded-2xl px-4 py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+            <span className="inline-flex items-center gap-1.5"><Search size={14} /> {observedBusy ? 'Checking…' : observed ? 'Check again' : 'Check community prices for this list'}</span>
+          </button>
+          {observed && (
+            <button type="button" onClick={() => { clearObservedPriceCache(); setObserved(null); }} className="press rounded-2xl border px-4 text-[0.8125rem] font-bold" style={{ borderColor: 'var(--line)' }}>Clear cache</button>
+          )}
+        </div>
+        {!observed && !observedBusy && (
+          <Card className="text-center py-6">
+            <Info size={22} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+            <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.shoppingList.length ? 'Tap check to look up dated GBP observations for up to 12 items on this list. Nothing is fetched until you ask.' : 'Add items to your list first.'}
+            </p>
+          </Card>
+        )}
+        {observedBusy && <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>Checking community observations — up to 12 items, cached 24h.</p>}
+        {observed?.error && <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--danger)' }}>{observed.error}</p>}
+        {observed && !observed.error && (
+          <>
+            <p className="text-[0.6875rem] font-semibold mb-2" style={{ color: 'var(--muted)' }}>
+              {Object.keys(observed.byKey).length} item{Object.keys(observed.byKey).length === 1 ? '' : 's'} with an observation{observed.fromCache ? ` · ${observed.fromCache} from 24h cache` : ''} · checked {new Date(observed.checkedAt).toLocaleString('en-GB')} — community observed, not live.
+            </p>
+            {Object.keys(observed.byKey).length === 0 ? (
+              <Card className="text-center py-6">
+                <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>No GBP observations found for this list. Your receipt prices remain the primary comparison.</p>
+              </Card>
+            ) : (
+              <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+                {app.shoppingList.filter((item) => observed.byKey[shoppingNameKey(item.name)]).map((item) => {
+                  const entry = observed.byKey[shoppingNameKey(item.name)];
+                  const stale = entry?.observedAt ? observedStaleness(entry.observedAt) : null;
+                  const tone = stale?.tone === 'good' ? 'good' : stale?.tone === 'warn' ? 'warn' : stale?.tone === 'danger' ? 'danger' : 'muted';
+                  return (
+                    <div key={item.id} className="flex items-center justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-[0.875rem] truncate">{item.name}</p>
+                        <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                          {entry?.store || 'Shop not named'}{entry?.location ? ` · ${entry.location}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {typeof entry?.price === 'number' ? (
+                          <>
+                            <p className="font-extrabold text-[0.9375rem]">{gbp(entry.price, { always: true })}</p>
+                            <Pill tone={tone}>{stale?.label || 'observed'}</Pill>
+                          </>
+                        ) : (
+                          <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{entry?.error || 'No observation'}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </Card>
+            )}
+            <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+              Source: Open Prices (community observed) via <code className="font-mono">/api/integrations/prices</code> · 30 rows max per lookup · authenticated, 120/h · cached 24h on device · old rows are dated and may be out of date.
+            </p>
+          </>
+        )}
+      </Section>
+
       {savings.length > 0 && (
         <Section className="rise rise-2" title="Cheaper elsewhere, going by your receipts">
           <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
@@ -77,14 +160,15 @@ export default function PriceCompare() {
         </Section>
       )}
 
-      <Section className="rise rise-2" title="What you actually pay">
+      <PriceGraphs history={history} />
+
+      <Section className="rise rise-2" title="All tracked products — latest snapshot">
         {history.length === 0 ? (
-          <Card className="text-center py-10">
-            <TrendingUp size={30} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
-            <p className="font-bold">No price history yet</p>
+          <Card className="text-center py-8">
+            <TrendingUp size={28} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
+            <p className="font-bold">No products with prices yet</p>
             <p className="mt-1 text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-              Put prices against items as you shop and Forq tracks what each one costs you
-              over time — including where it was cheapest.
+              Put prices against items as you shop — the graphs above and this list both come from the same receipts.
             </p>
           </Card>
         ) : (

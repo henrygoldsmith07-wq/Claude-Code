@@ -10,7 +10,7 @@
  * All factors are 0.7–1.6; no one factor dominates and a zero never hides a dish.
  */
 
-import { daysUntil, dayStamp } from './kitchen.js';
+import { daysUntil, dayStamp, pantryConfidence } from './kitchen.js';
 import { tasteScore } from './taste.js';
 import { seasonScore } from '../data/seasons.js';
 
@@ -39,7 +39,7 @@ export const pantryCoverage = (recipe, pantryNames = []) => {
 };
 
 export const expiringIngredients = (recipe, pantry = [], today = dayStamp(), within = 3) => {
-  const expiring = pantry.filter((p) => p.expiry && daysUntil(p.expiry, today) <= within && daysUntil(p.expiry, today) >= -1);
+  const expiring = pantry.filter((p) => pantryConfidence(p) !== 'unknown' && p.expiry && daysUntil(p.expiry, today) <= within && daysUntil(p.expiry, today) >= -1);
   if (!expiring.length) return [];
   const names = expiring.map((p) => normalize(p.name));
   // dedupe by normalized name: one chilli row covers every "chilli" ingredient line
