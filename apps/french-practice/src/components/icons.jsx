@@ -93,6 +93,9 @@ export const Check = (p) => (
 export const RefreshCw = (p) => (
   <Icon {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></Icon>
 );
+export const Shuffle = (p) => (
+  <Icon {...p}><path d="M18 4l3 3-3 3" /><path d="M18 20l3-3-3-3" /><path d="M3 7h3.5a5 5 0 0 1 4 2l5 6a5 5 0 0 0 4 2H21" /><path d="M3 17h3.5a5 5 0 0 0 4-2" /><path d="M15.5 9a5 5 0 0 1 4-2H21" /></Icon>
+);
 export const Share = (p) => (
   <Icon {...p}><path d="M12 2v13" /><path d="m16 6-4-4-4 4" /><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" /></Icon>
 );
@@ -256,7 +259,32 @@ export const SCENARIO_ICONS = {
   gym: Flame,
   fleuriste: Sparkles,
   noel: Sparkles,
+  // German and Spanish scenarios share id suffixes behind a `de-`/`es-`
+  // prefix (de-cafe, es-cafe, …); scenarioIcon() strips the prefix so both
+  // languages resolve against these.
+  cafe: Utensils,
+  directions: Map,
+  shopping: Basket,
+  smalltalk: MessageCircle,
+  doctor: Cross,
+  doctor2: Cross,
+  restaurant: Utensils,
+  clothes: Package,
+  phone: MessageCircle,
+  bank: Coins,
+  apartment: Home,
+  interview: Briefcase,
+  lost: Compass,
+  party: Sparkles,
+  complaint: MessageCircle,
+  weekend: Sun,
+  delivery: Package,
 };
+
+// Safe lookup for any scenario id in any target language. Never returns
+// undefined — rendering `undefined` as a component crashes the whole screen.
+export const scenarioIcon = (id) =>
+  SCENARIO_ICONS[id] || SCENARIO_ICONS[String(id).replace(/^[a-z]{2}-/, '')] || MessageCircle;
 
 // Per-topic icon lookup for the favourite-topic chips (Onboarding,
 // Personalise). Stroke icons inherit currentColor, so they invert cleanly

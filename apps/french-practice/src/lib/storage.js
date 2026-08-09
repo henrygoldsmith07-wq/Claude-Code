@@ -132,7 +132,12 @@ const DEFAULT_SETTINGS = {
   weeklyGoal: 150,
   smartReminders: false,
   name: '',
-  language: 'fr', // target language being learnt: fr | de | es
+  language: 'fr', // the language being studied right now: fr | de | es
+  // Every language the learner signed up for. Empty means "derive from
+  // `language`", which is what settings saved before multi-language look
+  // like — normaliseLanguages() does that, so upgrading never reassigns
+  // someone studying German to the French default.
+  languages: [],
   timezone: null, // IANA tz, detected at onboarding — frames reminder copy
   // accessibility preferences (applied as classes on <html>)
   reduceMotion: false,
