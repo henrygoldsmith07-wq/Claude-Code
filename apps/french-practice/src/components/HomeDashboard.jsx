@@ -1,472 +1,211 @@
-import { useState } from 'react';
-import { getStreak, getTodayXp, getLastReport, getSrs, getHabits, getNotebook, getWeekXp, getReviewLog, getGrammarProgress, getMetrics, getSettings, isGettingStartedDismissed, dismissGettingStarted, getTimeLog, getCoins, getChallengeState, getAchievements, getXp } from '../lib/storage';
-import { encouragement, dailyChallenges, leagueTier, weeklyLeague, ACHIEVEMENTS, levelFromXp } from '../lib/game';
-import { wordsLearned, fmtDuration } from '../lib/analytics';
-import { getPhrasebook } from '../lib/phrasebook';
+import { getStreak, getTodayXp, getSrs, getNotebook, getSettings, getSessions } from '../lib/storage';
 import { dueEntries, notebookAsEntries } from '../lib/memory';
-import LearningPath from './LearningPath';
 import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
-import { TrendChart } from './charts';
-import { SpeakButton } from './ui';
-import { Flame, Target, MessageCircle, Layers, Clock, ChevronRight, Volume, Play, Check, Coins, Trophy, scenarioIcon } from './icons';
-import { getSessions } from '../lib/storage';
-
-// Home: the daily loop. Answers "what should I do today?" — goal progress,
-// streak state, yesterday's personalized focus, and recommended next steps.
+import { getLanguage } from '../lib/languages';
+import { ArrowRight, Layers, MessageCircle, Play, Target, Mic, BookOpen, StudioMark } from './icons';
+import { SCENARIO_ICONS } from './icons';
 
 function suggestScenario(sessions) {
-  // Recommend the scenario practiced least recently (never-practiced first).
+  const scenarios = getScenarios();
+  if (!scenarios.length) return { id: 'open', title: 'Open conversation' };
   const lastSeen = {};
-  sessions.forEach((s, i) => { lastSeen[s.scenarioId] = i; });
-  const unseen = getScenarios().filter((s) => !(s.id in lastSeen));
-  if (unseen.length) return unseen[0];
-  return [...getScenarios()].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
+  sessions.forEach((session, index) => { lastSeen[session.scenarioId] = index; });
+  const unseen = scenarios.find((scenario) => !(scenario.id in lastSeen));
+  return unseen || [...scenarios].sort((a, b) => (lastSeen[a.id] ?? -1) - (lastSeen[b.id] ?? -1))[0];
 }
 
-export default function HomeDashboard({ dailyGoal, weeklyGoal, level, path, onStartLesson, onOpenSetup, onNavigate, onOpenRealWorld, onOpenPersonalise, onOpenOffline, onOpenAnalytics, onOpenReference, onOpenFocus, onOpenProfile, onPickScenario, lastActivity, onResume }) {
+export default function HomeDashboard({ dailyGoal = 30, level, onStartLesson, onNavigate, onPickScenario, lastActivity, onResume }) {
+  const settings = getSettings();
+  const language = getLanguage(settings.language);
   const streak = getStreak();
   const todayXp = getTodayXp();
-  const last = getLastReport();
   const dueCount = dueEntries([...allEntries(), ...notebookAsEntries(getNotebook())], getSrs()).length;
-  const habits = getHabits().slice(0, 3);
-  const sessions = getSessions();
-  const suggested = suggestScenario(sessions);
-  const SuggestedIcon = scenarioIcon(suggested.id);
+  const suggested = suggestScenario(getSessions());
+  const SuggestedIcon = SCENARIO_ICONS[suggested.id] || MessageCircle;
+  const goal = Math.max(1, dailyGoal);
+  const goalPct = Math.min(100, Math.round((todayXp / goal) * 100));
+  const goalDone = todayXp >= goal;
 
-  const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
-  const goalDone = todayXp >= dailyGoal;
-  const weekXp = getWeekXp();
-  const today = new Date().toISOString().slice(0, 10);
-  const cheer = encouragement({ goalPct, streak: streak.count, day: today });
-  const r = 30;
-  const circ = 2 * Math.PI * r;
-
-  // Greeting + a concrete "today's plan": four tasks, each ticking off from
-  // real activity, so the most important things are visible the instant the
-  // app opens.
-  const name = (getSettings().name || '').trim();
-  const hour = new Date().getHours();
-  const greeting = `Good ${hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'}${name ? `, ${name}` : ''}`;
-  const isToday = (ts) => String(ts || '').slice(0, 10) === today;
-  const plan = [
-    { key: 'review', tone: 'review', label: dueCount > 0 ? `Review ${dueCount} word${dueCount > 1 ? 's' : ''}` : 'Review your words',
-      done: (getReviewLog()[today] || 0) > 0, onClick: () => onNavigate('cards') },
-    { key: 'grammar', tone: 'accent', label: 'Complete a grammar lesson',
-      done: Object.values(getGrammarProgress()).some((g) => isToday(g.lastAt)), onClick: () => onNavigate('grammar') },
-    { key: 'roleplay', tone: 'speak', label: `Finish the ${suggested.title} roleplay`,
-      done: sessions.some((s) => isToday(s.date)), onClick: () => { onPickScenario(suggested); onNavigate('arena'); } },
-    { key: 'story', tone: 'accent', label: 'Read or listen to a story',
-      done: getMetrics().some((m) => (m.skill === 'reading' || m.skill === 'listening') && isToday(m.at)), onClick: () => onNavigate('skills') },
-  ];
-  const planDone = plan.filter((t) => t.done).length;
-  const dotTone = { review: 'text-review', speak: 'text-speak', accent: 'text-ink3' };
+  const startConversation = (minutes = 5) => {
+    try { sessionStorage.setItem('fp.sessionMins', String(minutes)); } catch { /* restricted */ }
+    onPickScenario(suggested);
+    onNavigate('arena');
+  };
 
   return (
-    <div className="h-full overflow-y-auto nice-scroll px-4 py-6">
-      <div className="max-w-lg mx-auto space-y-5">
-        {/* the single clearest next step, right at the top */}
-        {lastActivity && (
-          <button
-            onClick={() => onResume(lastActivity)}
-            className="w-full flex items-center gap-3 bg-accent text-onaccent rounded-2xl px-4 py-3.5 text-left hover:opacity-90 transition-opacity elev-card"
-          >
-            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-onaccent/15" aria-hidden="true"><Play size={15} /></span>
-            <span className="flex-1 min-w-0">
-              <span className="block text-[11px] font-bold uppercase tracking-wider opacity-70">Pick up where you left off</span>
-              <span className="block text-sm font-semibold truncate">{lastActivity.label}</span>
-            </span>
-            <ChevronRight size={16} className="shrink-0 opacity-70" />
-          </button>
-        )}
-
-        {/* learning path: today's lesson + roadmap */}
-        <LearningPath
-          path={path}
-          dueCount={dueCount}
-          onStartLesson={onStartLesson}
-          onOpenSetup={onOpenSetup}
-        />
-
-        {/* greeting + today's plan — everything important, up front */}
-        <section className="bg-surface border border-line rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="relative shrink-0" role="img" aria-label={`Daily goal: ${todayXp} of ${dailyGoal} XP`}>
-              <svg width="72" height="72">
-                <circle cx="36" cy="36" r={r} fill="none" stroke="var(--line)" strokeWidth="6" />
-                <circle
-                  cx="36" cy="36" r={r} fill="none"
-                  stroke={goalDone ? 'var(--success)' : 'var(--ink)'} strokeWidth="6" strokeLinecap="round"
-                  strokeDasharray={circ} strokeDashoffset={circ * (1 - goalPct / 100)}
-                  transform="rotate(-90 36 36)"
-                  style={{ transition: 'stroke-dashoffset 0.7s cubic-bezier(0.3, 0.8, 0.3, 1), stroke 0.4s ease' }}
-                />
-              </svg>
-              <div className="absolute inset-0 grid place-items-center">
-                {goalDone ? <Check size={22} className="text-success" /> : <Target size={20} className="text-ink3" />}
-              </div>
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-ink truncate">{greeting}</h2>
-              <p className="text-xs text-ink2 mt-0.5">
-                <span className="font-semibold text-ink tabular-nums">{todayXp}</span>/{dailyGoal} XP today
-              </p>
-              <p className="flex items-center gap-1.5 text-xs text-ink2 mt-1">
-                <Flame size={13} className={streak.count > 0 ? 'text-review' : 'text-ink3'} />
-                <span className="font-semibold text-ink tabular-nums">{streak.count}</span> day streak
-                <span className="text-ink3">· level {level}</span>
-              </p>
-            </div>
+    <div className="h-full overflow-y-auto nice-scroll">
+      <div className="max-w-[1020px] mx-auto px-[22px] py-6 space-y-10">
+        {/* Hero — mirrors le-studio-site .hero: centered, calm, no clutter */}
+        <section className="text-center pt-4 pb-2" aria-labelledby="today-hero-title">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-line text-[11px] font-semibold text-ink2">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" aria-hidden />
+            Le Studio · {language.name} · Today
+            {streak.count > 0 ? <span className="hidden sm:inline">· {streak.count}-day streak</span> : null}
           </div>
-
-          <div>
-            <div className="flex items-baseline justify-between mb-2">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Today’s focus</h3>
-              <span className="text-[11px] text-ink3 tabular-nums">{planDone}/{plan.length} done</span>
-            </div>
-            <div className="space-y-1.5">
-              {plan.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={t.onClick}
-                  className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 border text-left transition-colors ${
-                    t.done ? 'bg-successsoft border-line' : 'bg-surface2 border-line hover:border-ink3'
-                  }`}
-                >
-                  <span className={`w-5 h-5 shrink-0 grid place-items-center rounded-full border ${
-                    t.done ? 'bg-success border-success text-white' : `border-line ${dotTone[t.tone]}`
-                  }`}>
-                    {t.done ? <Check size={12} /> : <span className={`w-1.5 h-1.5 rounded-full ${t.tone === 'review' ? 'bg-review' : t.tone === 'speak' ? 'bg-speak' : 'bg-ink3'}`} />}
-                  </span>
-                  <span className={`flex-1 text-sm ${t.done ? 'text-ink3 line-through' : 'text-ink'}`}>{t.label}</span>
-                  {!t.done && <ChevronRight size={14} className="text-ink3 shrink-0" />}
-                </button>
-              ))}
-            </div>
+          <h2 id="today-hero-title" className="mt-5 text-[clamp(30px,6vw,52px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink text-balance">
+            {lastActivity ? (
+              <>Pick up<br />where you left off.</>
+            ) : (
+              <>Calm tools.<br /><span className="text-ink2">Honest practice.</span></>
+            )}
+          </h2>
+          <p className="mx-auto mt-4 max-w-[640px] text-[clamp(15px,2.4vw,19px)] leading-relaxed text-ink2">
+            {lastActivity
+              ? lastActivity.label
+              : <>Have a 5-minute <span lang={language.id} className="font-semibold text-ink">{language.name}</span> conversation now. Speak naturally, get one useful correction, leave with a phrase worth remembering.</>}
+          </p>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={lastActivity ? () => onResume(lastActivity) : () => startConversation(5)}
+              className="inline-flex items-center gap-2 bg-ink text-bg font-bold rounded-[14px] px-[26px] py-[13px] text-[15px] hover:opacity-85 hover:-translate-y-px transition"
+            >
+              {lastActivity ? <Play size={16} /> : <MessageCircle size={16} />}
+              {lastActivity ? 'Resume practice' : 'Start a 5-minute conversation'}
+            </button>
+            <button
+              type="button"
+              onClick={() => startConversation(5)}
+              className="inline-flex items-center gap-2 text-ink font-semibold px-5 py-3 text-[15px] hover:opacity-70 transition"
+            >
+              {lastActivity ? 'Start something new' : `Try ${suggested.title}`} <ArrowRight size={16} />
+            </button>
           </div>
-        </section>
-
-        {/* getting-started checklist for new users (auto-hides once done) */}
-        <GettingStarted path={path} onStartLesson={onStartLesson} onOpenSetup={onOpenSetup} onNavigate={onNavigate} />
-
-        {/* ── your progress today ── */}
-        {/* today at a glance — daily stats strip */}
-        <GlanceStats srs={getSrs()} sessions={sessions} />
-
-        {/* weekly goal + encouraging feedback */}
-        <section className="bg-surface border border-line rounded-2xl p-5 space-y-2.5">
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">This week</h3>
-            <span className="text-[11px] text-ink3 tabular-nums">{weekXp}/{weeklyGoal} XP</span>
-          </div>
-          <div className="h-2 rounded-full bg-surface2 overflow-hidden" role="img" aria-label={`Weekly goal: ${weekXp} of ${weeklyGoal} XP`}>
-            <div className={`h-full rounded-full bar-anim ${weekXp >= weeklyGoal ? 'bg-success' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round((weekXp / Math.max(1, weeklyGoal)) * 100))}%` }} />
-          </div>
-          <p className="text-xs text-ink2 leading-relaxed">{cheer}</p>
-        </section>
-
-        {/* daily challenge — surfaced from the profile's challenge set */}
-        <DailyChallengeCard onOpenProfile={onOpenProfile} />
-
-        {/* coach's note — personalized from the last session report */}
-        <section className="bg-surface2 border border-line rounded-2xl p-5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1.5">From your coach</h3>
-          {last ? (
-            <p className="text-sm text-ink leading-relaxed">{last.report.tomorrow_focus}</p>
+          {lastActivity ? (
+            <p className="mt-3 text-xs text-ink3">Or browse another scenario — your last session is still ready in Speak.</p>
           ) : (
-            <p className="text-sm text-ink2">
-              Finish your first conversation and your coach will set a personalized focus for
-              tomorrow — corrections, habits to break, and what to practice next.
-            </p>
+            <p className="mt-3 text-xs text-ink3">No account · Works offline · Voice or text</p>
           )}
         </section>
 
-        {/* more ways to practise — only the practice modes; everything else
-           (Reference, Analytics, Focus, Personalise, Offline, Real-world)
-           lives in the More sheet, so Home stays focused on doing. */}
-        <section className="space-y-2.5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">More ways to practise</h3>
-          <ActionCard
-            icon={SuggestedIcon || MessageCircle}
-            title={`Practice: ${suggested.title}`}
-            subtitle={sessions.length ? 'Your least-practiced scenario' : 'Start your first conversation'}
-            onClick={() => { onPickScenario(suggested); onNavigate('arena'); }}
-          />
-          <ActionCard
-            icon={Layers}
-            title={dueCount > 0 ? `Review ${dueCount} word${dueCount > 1 ? 's' : ''}` : 'Browse vocabulary packs'}
-            subtitle={dueCount > 0 ? 'Due now in your spaced-repetition queue' : 'Nothing due — everything is on schedule'}
-            badge={dueCount > 0 ? String(dueCount) : null}
-            onClick={() => onNavigate('cards')}
-          />
-          <ActionCard
-            icon={Volume}
-            title="Dictée"
-            subtitle="Train your ear — type what you hear"
-            onClick={() => onStartLesson({ type: 'dictation' })}
-          />
-          <ActionCard
-            icon={Clock}
-            title="Quick Fire"
-            subtitle="45 seconds of improv to build fluency"
-            onClick={() => onStartLesson({ type: 'quickfire' })}
-          />
-          <button
-            onClick={() => {
-              const rolls = [
-                () => { onPickScenario(getScenarios()[Math.floor(Math.random() * getScenarios().length)]); onNavigate('arena'); },
-                () => onNavigate('grammar'),
-                () => onStartLesson({ type: 'cards' }),
-                () => onNavigate('culture'),
-                () => onStartLesson({ type: 'dictation' }),
-                () => onStartLesson({ type: 'quickfire' }),
-              ];
-              rolls[Math.floor(Math.random() * rolls.length)]();
-            }}
-            className="w-full flex items-center gap-3 bg-surface border border-dashed border-line rounded-2xl px-4 py-3 text-left hover:border-ink3 transition-colors"
-          >
-            <span className="text-xl" aria-hidden="true">🎲</span>
-            <span className="flex-1">
-              <span className="block text-sm font-semibold text-ink">Surprise me</span>
-              <span className="block text-xs text-ink3">Jump into a random corner of the studio</span>
-            </span>
-            <ChevronRight size={16} className="text-ink3 shrink-0" />
-          </button>
+        {/* Stats — same calm grid as le-studio-site .stats */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label="Today at a glance">
+          <Stat value={todayXp} label="XP today" sub={`${goal - todayXp > 0 && !goalDone ? `${goal - todayXp} to goal` : goalDone ? 'Goal reached' : '—'}`} />
+          <Stat value={streak.count} label="day streak" sub={goalDone ? 'Keep it going' : 'Practice daily'} />
+          <Stat value={dueCount} label="words due" sub={dueCount ? 'Review queue' : 'All clear'} />
+          <Stat value={level || settings.level || '—'} label="your level" sub="CEFR · adaptive" />
         </section>
 
-        {/* ── discover: ambient, non-urgent ── */}
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink3 pt-1 -mb-1">Discover</h3>
+        {/* Today’s progress — thin bar like the site’s muted cards, but functional */}
+        <section className="bg-surface border border-line rounded-[20px] p-[22px]" aria-labelledby="today-progress-heading">
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <h3 id="today-progress-heading" className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink2">Today’s progress</h3>
+              <p className="mt-1 text-sm text-ink2"><span className="font-bold text-ink tabular-nums">{todayXp}</span> / {goal} XP · level {level || settings.level}</p>
+            </div>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${goalDone ? 'bg-success-soft border-success text-success' : 'bg-surface2 border-line text-ink3'}`}>{goalPct}%</span>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface2" role="progressbar" aria-valuenow={Math.min(todayXp, goal)} aria-valuemin={0} aria-valuemax={goal} aria-label={`Daily goal ${todayXp} of ${goal} XP`}>
+            <div className={`h-full rounded-full transition-all duration-500 ${goalDone ? 'bg-success' : 'bg-ink'}`} style={{ width: `${goalPct}%` }} />
+          </div>
+          <p className="mt-2 text-xs text-ink3">{goalDone ? 'Daily goal complete — anything more today is bonus.' : `${goal - todayXp} XP to reach today’s goal.`}</p>
+        </section>
 
-        {/* league standing + achievements, at a glance */}
-        <GamePreview onOpenProfile={onOpenProfile} />
+        {/* The studio, in three calm products — mirrors le-studio-site .products */}
+        <section aria-labelledby="today-studio-heading">
+          <h3 id="today-studio-heading" className="text-center text-[clamp(22px,4vw,30px)] font-bold tracking-[-0.02em] text-ink">The studio, in three</h3>
+          <p className="text-center text-ink2 mt-2 mb-5 text-sm">Speak, review, deepen — pick one, the rest waits.</p>
+          <div className="grid gap-3.5 sm:grid-cols-3">
+            <ProductCard
+              icon={SuggestedIcon}
+              title={suggested.title}
+              kicker="Speak · 5 min"
+              body="Voice roleplay with per-turn corrections. Order a bistro coffee or survive a job interview."
+              meta="No account · Voice or text"
+              cta={lastActivity ? 'Resume practice' : 'Start speaking'}
+              onClick={lastActivity ? () => onResume(lastActivity) : () => startConversation(5)}
+            />
+            <ProductCard
+              icon={Layers}
+              title={dueCount > 0 ? `${dueCount} words due` : 'Review vocabulary'}
+              kicker="Review · Spaced"
+              body={dueCount > 0 ? 'A short review now beats relearning later — most-forgotten first.' : 'Browse 520+ flashcards whenever you need a refresher.'}
+              meta="SM-2 · Frontier tier"
+              cta={dueCount > 0 ? 'Review now' : 'Open vocab'}
+              onClick={() => onNavigate('cards')}
+            />
+            <ProductCard
+              icon={Target}
+              title="Deepen the craft"
+              kicker="Learn · At leisure"
+              body="Grammar, dictée, reading and writing — all grouped under Learn when you have time."
+              meta="25 topics · 4 skills"
+              cta="Explore Learn"
+              onClick={() => onNavigate('grammar')}
+            />
+          </div>
+        </section>
 
-        {/* word + phrase of the day — deterministic by date, always fresh */}
-        <WordOfTheDay />
-        <PhraseOfTheDay />
-
-        {/* recurring mistakes accumulated across sessions */}
-        {habits.length > 0 && (
-          <section className="bg-surface border border-line rounded-2xl p-5">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Recurring habits</h3>
-            <ul className="space-y-2">
-              {habits.map((h) => (
-                <li key={h.key} className="flex items-start gap-2.5 text-[13px] text-ink leading-snug">
-                  {h.count > 1 && (
-                    <span className="shrink-0 mt-px px-1.5 py-0.5 rounded-md bg-surface2 text-ink2 text-[10px] font-semibold tabular-nums">
-                      ×{h.count}
-                    </span>
-                  )}
-                  <span className={h.count > 1 ? '' : 'text-ink2'}>{h.text}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-[11px] text-ink3 mt-2.5">
-              Collected from your session reports — repeat offenders rise to the top.
-            </p>
-          </section>
-        )}
-
-        {/* progress trend */}
-        {sessions.length >= 2 && (
-          <section className="bg-surface border border-line rounded-2xl p-5">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">
-              Progress (last {sessions.length} sessions)
-            </h3>
-            <TrendChart sessions={sessions} />
-          </section>
-        )}
+        {/* Explore when you have time — muted, secondary, like le-studio-site .grid */}
+        <section aria-labelledby="today-explore-heading" className="pb-2">
+          <h3 id="today-explore-heading" className="text-center text-[clamp(20px,3vw,26px)] font-bold tracking-[-0.02em]">Explore when you have time</h3>
+          <p className="text-center text-ink2 mt-1 text-sm">Useful next steps, kept out of today’s decision.</p>
+          <div className="grid gap-3.5 sm:grid-cols-3 mt-5">
+            <MiniCard
+              icon={Mic}
+              title="Dictée"
+              desc="Listen and type — ears first."
+              onClick={() => onStartLesson({ type: 'dictation' })}
+            />
+            <MiniCard
+              icon={BookOpen}
+              title="Reading"
+              desc="Stories, tap-to-translate."
+              onClick={() => onStartLesson({ type: 'reading' })}
+            />
+            <MiniCard
+              icon={StudioMark}
+              title="Your path"
+              desc="12 units · checkpoints · CEFR"
+              onClick={() => onNavigate('grammar')}
+            />
+          </div>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Installable PWA</span>
+            <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Works offline</span>
+            <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">No account required</span>
+            <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Private by architecture</span>
+          </div>
+        </section>
       </div>
     </div>
   );
 }
 
-function ActionCard({ icon: CardIcon, title, subtitle, badge, onClick }) {
+function Stat({ value, label, sub }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3.5 bg-surface border border-line rounded-2xl px-4 py-3.5 text-left hover:border-ink3 transition-colors"
-    >
-      <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-surface2 text-ink">
-        <CardIcon size={18} />
+    <div className="bg-surface border border-line rounded-2xl px-4 py-4 text-center">
+      <b className="block text-[26px] font-extrabold tracking-[-0.02em] leading-none tabular-nums">{value}</b>
+      <span className="block text-xs text-ink3 mt-1">{label}</span>
+      <span className="block text-[11px] text-ink3 mt-1">{sub}</span>
+    </div>
+  );
+}
+
+function ProductCard({ icon: Icon, kicker, title, body, meta, cta, onClick }) {
+  return (
+    <div className="bg-surface border border-line rounded-[20px] p-[22px] flex flex-col gap-2.5">
+      <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-ink2">
+        <span className="w-7 h-7 grid place-items-center rounded-full bg-surface2 border border-line text-ink"><Icon size={13} /></span>
+        {kicker}
       </span>
-      <span className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold text-ink truncate">{title}</span>
-        <span className="block text-xs text-ink3 truncate">{subtitle}</span>
-      </span>
-      {badge && (
-        <span className="shrink-0 min-w-6 h-6 px-1.5 grid place-items-center rounded-full bg-accent text-onaccent text-xs font-semibold">
-          {badge}
-        </span>
-      )}
-      <ChevronRight size={16} className="text-ink3 shrink-0" />
-    </button>
-  );
-}
-
-// Word of the day: a stable daily pick from the full vocabulary library.
-function WordOfTheDay() {
-  // Prefer cards that carry an example sentence, so the daily pick is rich
-  // rather than a bare frequency-list word pair.
-  const entries = allEntries().filter((x) => x.example && x.emoji);
-  const day = Math.floor(Date.now() / 86400000);
-  const e = entries[day % entries.length];
-  if (!e) return null;
-  return (
-    <section className="bg-surface border border-line rounded-2xl p-5">
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Word of the day</h3>
-      <div className="flex items-start gap-3">
-        <span className="text-2xl" role="img" aria-hidden="true">{e.emoji}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink" lang="fr">{e.fr} <span className="font-normal text-ink3">— {e.en}</span></p>
-          <p className="text-xs text-ink2 mt-1" lang="fr">{e.example}</p>
-          <p className="text-[11px] text-ink3 italic">{e.exampleEn}</p>
-        </div>
-        <SpeakButton text={e.fr} label="Listen" />
-      </div>
-    </section>
-  );
-}
-
-// Phrase of the day: a full, usable sentence from the situational phrasebook,
-// offset a few days from the word pick so the two never coincide.
-function PhraseOfTheDay() {
-  const all = getPhrasebook().flatMap((g) => g.phrases);
-  if (!all.length) return null;
-  const day = Math.floor(Date.now() / 86400000) + 3;
-  const p = all[day % all.length];
-  return (
-    <section className="bg-surface border border-line rounded-2xl p-5">
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-2">Phrase of the day</h3>
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink" lang="fr">{p.fr}</p>
-          <p className="text-xs text-ink3 mt-0.5">{p.en}</p>
-        </div>
-        <SpeakButton text={p.fr} label="Listen" />
-      </div>
-    </section>
-  );
-}
-
-// Today at a glance: the four numbers a learner checks daily.
-function GlanceStats({ srs, sessions }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const tiles = [
-    { icon: Clock, label: 'Time today', value: fmtDuration(getTimeLog()[today] || 0) },
-    { icon: Layers, label: 'Words learned', value: wordsLearned(srs) },
-    { icon: MessageCircle, label: 'Conversations', value: sessions.length },
-    { icon: Coins, label: 'Coins', value: getCoins() },
-  ];
-  return (
-    <section className="grid grid-cols-4 gap-2" aria-label="Today at a glance">
-      {tiles.map((t) => (
-        <div key={t.label} className="bg-surface border border-line rounded-2xl px-2 py-3 text-center">
-          <t.icon size={14} className="mx-auto text-ink3" />
-          <p className="text-base font-bold text-ink tabular-nums leading-none mt-1.5">{t.value}</p>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-ink3 mt-1 leading-tight">{t.label}</p>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-// Daily challenge preview: today's top open challenge with its progress, and a
-// count of how many of the three are done. Tapping opens the profile to claim.
-function DailyChallengeCard({ onOpenProfile }) {
-  const state = getChallengeState();
-  const todays = dailyChallenges(state.day);
-  const progressOf = (c) => (c.metric === 'xp' ? getTodayXp() : (state.counts[c.metric] || 0));
-  const done = todays.filter((c) => progressOf(c) >= c.target).length;
-  const active = todays.find((c) => progressOf(c) < c.target) || todays[0];
-  const prog = Math.min(active.target, progressOf(active));
-  const complete = prog >= active.target;
-  return (
-    <button
-      onClick={onOpenProfile}
-      className="w-full bg-surface border border-line rounded-2xl p-5 text-left space-y-2.5 hover:border-ink3 transition-colors"
-    >
-      <div className="flex items-baseline justify-between">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2 inline-flex items-center gap-1.5"><Target size={12} /> Daily challenge</h3>
-        <span className="text-[11px] text-ink3 tabular-nums">{done}/{todays.length} done</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <p className="flex-1 text-sm text-ink" lang="fr">{active.title}</p>
-        <span className="shrink-0 text-[11px] font-semibold text-ink2 tabular-nums inline-flex items-center gap-1">
-          +{active.coins} <Coins size={11} /> {complete ? '· claim' : `· ${prog}/${active.target}`}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-surface2 overflow-hidden">
-        <div className={`h-full rounded-full bar-anim ${complete ? 'bg-success' : 'bg-accent'}`} style={{ width: `${Math.round((prog / active.target) * 100)}%` }} />
-      </div>
-    </button>
-  );
-}
-
-// League + achievements at a glance, both tapping through to the profile.
-function GamePreview({ onOpenProfile }) {
-  const lvl = levelFromXp(getXp()).level;
-  const tier = leagueTier(lvl);
-  const now = new Date();
-  const dow = (now.getDay() + 6) % 7;
-  const weekProgress = (dow * 86400 + now.getHours() * 3600 + now.getMinutes() * 60) / (7 * 86400);
-  const weekKey = new Date(now.getTime() - dow * 86400000).toISOString().slice(0, 10);
-  const settings = getSettings();
-  const league = weeklyLeague(weekKey, getWeekXp(), weekProgress, tier.index, { name: settings.name || 'You', avatar: '🙂' });
-  const badges = Object.keys(getAchievements()).length;
-  const next = ACHIEVEMENTS.find((a) => !getAchievements()[a.id]);
-  return (
-    <section className="grid grid-cols-2 gap-2.5">
-      <button onClick={onOpenProfile} className="bg-surface border border-line rounded-2xl p-4 text-left hover:border-ink3 transition-colors">
-        <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink3 inline-flex items-center gap-1">{tier.emoji} {tier.name} league</h3>
-        <p className="text-lg font-bold text-ink tabular-nums leading-none mt-1.5">#{league.rank} <span className="text-xs font-normal text-ink3">of {league.count}</span></p>
-        <p className="text-[11px] text-ink3 mt-1">{league.rank === 1 ? 'Top of the league' : `${league.ahead ? `${league.ahead.xp - getWeekXp()} XP to climb` : 'Earn XP to climb'}`}</p>
+      <h4 className="text-[18px] font-bold tracking-[-0.02em] leading-tight">{title}</h4>
+      <p className="text-sm text-ink2 flex-1 leading-relaxed">{body}</p>
+      <p className="text-xs text-ink3 font-semibold">{meta}</p>
+      <button type="button" onClick={onClick} className="mt-1 inline-flex items-center justify-center bg-ink text-bg font-bold rounded-[14px] px-4 py-3 text-sm hover:opacity-90 transition">
+        {cta}
       </button>
-      <button onClick={onOpenProfile} className="bg-surface border border-line rounded-2xl p-4 text-left hover:border-ink3 transition-colors">
-        <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink3 inline-flex items-center gap-1"><Trophy size={11} /> Achievements</h3>
-        <p className="text-lg font-bold text-ink tabular-nums leading-none mt-1.5">{badges} <span className="text-xs font-normal text-ink3">/ {ACHIEVEMENTS.length}</span></p>
-        <p className="text-[11px] text-ink3 mt-1 truncate">{next ? `Next: ${next.title}` : 'All unlocked — bravo'}</p>
-      </button>
-    </section>
+    </div>
   );
 }
 
-// A live "first steps" checklist: each item checks off from real activity,
-// and the card disappears once everything's done (or when dismissed).
-function GettingStarted({ path, onStartLesson, onOpenSetup, onNavigate }) {
-  const [dismissed, setDismissed] = useState(isGettingStartedDismissed);
-  const reviews = Object.values(getReviewLog()).reduce((a, b) => a + b, 0);
-  const items = [
-    { done: getSessions().length > 0, label: 'Have your first conversation', go: () => onNavigate('arena') },
-    { done: Boolean(path), label: 'Start your learning path', go: onOpenSetup },
-    { done: reviews >= 5, label: 'Review 5 flashcards', go: () => onStartLesson({ type: 'cards' }) },
-  ];
-  const allDone = items.every((i) => i.done);
-  if (dismissed || allDone) return null;
+function MiniCard({ icon: Icon, title, desc, onClick }) {
   return (
-    <section className="bg-surface border border-line rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Getting started</h3>
-        <button
-          onClick={() => { dismissGettingStarted(); setDismissed(true); }}
-          className="text-[11px] text-ink3 hover:text-ink"
-        >
-          Dismiss
-        </button>
-      </div>
-      <div className="space-y-1.5">
-        {items.map((it) => (
-          <button key={it.label} onClick={it.done ? undefined : it.go} disabled={it.done}
-            className={`w-full flex items-center gap-2.5 text-left rounded-xl px-3 py-2 border transition-colors ${
-              it.done ? 'border-line bg-surface2 opacity-60' : 'border-line bg-surface hover:border-ink3'
-            }`}>
-            <span className={`w-5 h-5 shrink-0 grid place-items-center rounded-full border ${it.done ? 'bg-accent text-onaccent border-accent' : 'border-line text-ink3'}`}>
-              {it.done && <span className="text-[10px]">✓</span>}
-            </span>
-            <span className={`text-xs ${it.done ? 'text-ink3 line-through' : 'text-ink'}`}>{it.label}</span>
-            {!it.done && <ChevronRight size={13} className="ml-auto text-ink3" />}
-          </button>
-        ))}
-      </div>
-    </section>
+    <button type="button" onClick={onClick} className="bg-surface border border-line rounded-[18px] p-5 text-left hover:border-ink3 transition flex flex-col gap-1.5">
+      <span className="w-9 h-9 grid place-items-center rounded-xl bg-surface2 border border-line text-ink"><Icon size={16} /></span>
+      <span className="text-[15px] font-bold tracking-[-0.01em] flex items-center gap-1.5">{title} <ArrowRight size={13} className="text-ink3" /></span>
+      <span className="text-[13px] text-ink2 leading-snug">{desc}</span>
+    </button>
   );
 }

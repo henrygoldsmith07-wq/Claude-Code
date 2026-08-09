@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CONJUGATIONS, PERSONS, TENSES, MINIMAL_PAIRS, CLOZE_TESTS, getFrequencyWords, parseWordList,
 } from '../lib/reference';
@@ -7,13 +7,15 @@ import { allEntries } from '../lib/vocab';
 import { getNotebook, saveToNotebook } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { SpeakButton } from './ui';
-import { X, ChevronLeft, ChevronRight, Check, Play, Book, Volume, FileText, Plus, Layers, MessageCircle } from './icons';
+import PhraseDrills from './PhraseDrills';
+import { X, ChevronLeft, ChevronRight, Check, Play, Book, Volume, FileText, Plus, Layers, MessageCircle, Target } from './icons';
 
 // Reference & tools (full-screen): verb conjugation tables, a minimal-pairs
-// ear drill, cloze tests, and an offline dictionary / frequency list with
-// custom word-list import. All offline; TTS is on-device.
+// ear drill, cloze tests, phrase drills, and an offline dictionary / frequency
+// list with custom word-list import. All offline; TTS is on-device.
 
 const TOOLS = [
+  { id: 'drills', icon: Target, title: 'Phrase drills', blurb: 'Shadow, type, or flip real-world lines' },
   { id: 'phrasebook', icon: MessageCircle, title: 'Phrasebook', blurb: 'Essential phrases for real situations' },
   { id: 'conjugation', icon: Layers, title: 'Verb conjugations', blurb: 'Full tables for key verbs, with IPA' },
   { id: 'pairs', icon: Volume, title: 'Minimal pairs', blurb: 'Train your ear on tricky sound contrasts' },
@@ -21,12 +23,17 @@ const TOOLS = [
   { id: 'dict', icon: Book, title: 'Dictionary & frequency', blurb: 'Search words, see IPA, import your own' },
 ];
 
-export default function Reference({ open, onClose, onImported }) {
-  const [tool, setTool] = useState(null);
+export default function Reference({ open, onClose, onImported, onXp, initialTool = null }) {
+  const [tool, setTool] = useState(initialTool);
+
+  useEffect(() => {
+    if (open) setTool(initialTool || null);
+  }, [open, initialTool]);
 
   if (!open) return null;
 
   const body = () => {
+    if (tool === 'drills') return <PhraseDrills onXp={onXp} onBack={() => setTool(null)} />;
     if (tool === 'phrasebook') return <Phrasebook />;
     if (tool === 'conjugation') return <Conjugations />;
     if (tool === 'pairs') return <MinimalPairs />;
@@ -66,7 +73,7 @@ export default function Reference({ open, onClose, onImported }) {
           </button>
         ) : <span className="w-10" aria-hidden="true" />}
         <h2 className="flex-1 text-center text-sm font-semibold text-ink">
-          {tool ? TOOLS.find((t) => t.id === tool).title : 'Reference & tools'}
+          {tool ? (TOOLS.find((t) => t.id === tool)?.title || 'Reference') : 'Reference & tools'}
         </h2>
         <button onClick={() => { stopSpeaking(); onClose(); }} aria-label="Close reference" className="w-10 h-10 grid place-items-center rounded-full text-ink2 hover:bg-surface2 hover:text-ink">
           <X size={18} />

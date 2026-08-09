@@ -78,6 +78,8 @@ export const ACHIEVEMENTS = [
   { id: 'grammairien', emoji: '📐', title: 'Grammairien', desc: 'Master a grammar topic (80+)', coins: 25, check: (s) => s.grammarMastered >= 1 },
   { id: 'lexicographe', emoji: '📔', title: 'Lexicographe', desc: 'Save 20 words to your notebook', coins: 25, check: (s) => s.notebook >= 20 },
   { id: 'collectionneur', emoji: '🖼️', title: 'Collectionneur', desc: 'Own 5 collectibles', coins: 50, check: (s) => s.collectibles >= 5 },
+  { id: 'repetiteur', emoji: '🎤', title: 'Répétiteur', desc: 'Complete 5 phrase drills', coins: 30, check: (s) => (s.drills || 0) >= 5 },
+  { id: 'surligneur', emoji: '⭐', title: 'Surligneur', desc: 'Star 10 survival lines', coins: 20, check: (s) => (s.starred || 0) >= 10 },
 ];
 
 // ---- daily challenges (3 per day, deterministic pick) ----
@@ -91,6 +93,10 @@ const CHALLENGE_POOL = [
   { id: 'dictation-1', metric: 'dictation', target: 1, title: "L'oreille fine", desc: 'Complete a dictée sentence', coins: 10, xp: 5 },
   { id: 'quickfire-1', metric: 'quickfire', target: 1, title: 'Sans filet', desc: 'Do a Quick Fire improv', coins: 12, xp: 6 },
   { id: 'cards-5', metric: 'cards', target: 5, title: 'Cinq sur cinq', desc: 'Review 5 flashcards', coins: 8, xp: 4 },
+  { id: 'drill-1', metric: 'drill', target: 1, title: 'Sur le terrain', desc: 'Finish a phrase drill', coins: 12, xp: 6 },
+  { id: 'drill-2', metric: 'drill', target: 2, title: 'Répétition générale', desc: 'Complete 2 phrase drills', coins: 18, xp: 10 },
+  { id: 'grammar-1', metric: 'grammar', target: 1, title: 'Grammaire du jour', desc: 'Finish a grammar quiz', coins: 12, xp: 6 },
+  { id: 'culture-1', metric: 'culture', target: 1, title: 'Culture minute', desc: 'Complete a culture quiz', coins: 10, xp: 5 },
 ];
 
 export function dailyChallenges(dayStr) {

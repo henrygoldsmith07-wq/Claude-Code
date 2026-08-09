@@ -9,8 +9,10 @@ import { dotColor } from "@/lib/topicColors";
 import { densifyPath } from "@/lib/geo";
 import ConflictMap from "@/components/ConflictMap";
 import MapChat from "@/components/MapChat";
+import NewsFeed from "@/components/NewsFeed";
 import { useFavourites, type PinItem } from "@/lib/useFavorites";
 import { TODAY_IN_HISTORY, MARKET_MARKERS, type OverlayMarker } from "@/lib/overlays";
+import { fetchEarthquakes, type LiveEvent } from "@/lib/liveEvents";
 
 // react-globe.gl touches `window` on import, so it must never load during SSR.
 const Globe = dynamic(() => import("react-globe.gl"), {
@@ -130,6 +132,8 @@ export default function NewsGlobe({
   // Overlay & pin UI state
   const [showHistory, setShowHistory] = useState(false);
   const [showMarkets, setShowMarkets] = useState(false);
+  const [showEarthquakes, setShowEarthquakes] = useState(false);
+  const [earthquakes, setEarthquakes] = useState<LiveEvent[]>([]);
   const [pinMode, setPinMode] = useState(false);
   const { pins, addPin, removePin } = useFavourites();
 
@@ -208,6 +212,18 @@ export default function NewsGlobe({
     es.onerror = () => es.close();
     return () => es.close();
   }, [worldPoints]);
+
+  // Load recent earthquakes when the overlay is enabled (USGS public feed).
+  useEffect(() => {
+    if (!showEarthquakes) return;
+    let active = true;
+    fetchEarthquakes().then((events) => {
+      if (active) setEarthquakes(events);
+    });
+    return () => {
+      active = false;
+    };
+  }, [showEarthquakes]);
 
   // While any dot is still popping in, re-render each frame so the pop animates.
   useEffect(() => {
@@ -363,7 +379,9 @@ export default function NewsGlobe({
 
   // While dots are popping in, hand the globe a fresh array each frame so it
   // re-evaluates the (time-based) radius and animates the pop.
+  // Timer-based pop animation — reading Date.now during render is intentional.
   const anyPopping = shownPoints.some(
+    // eslint-disable-next-line react-hooks/purity
     (p) => (p as TimedPoint)._appeared && Date.now() - (p as TimedPoint)._appeared! < POP_MS,
   );
   const pointsForGlobe = anyPopping ? [...shownPoints] : shownPoints;
@@ -457,6 +475,22 @@ export default function NewsGlobe({
     ...(showMarkets ? MARKET_MARKERS : []),
   ];
 
+  // Earthquake markers (as extra points when the overlay is on).
+  const quakePoints = showEarthquakes
+    ? earthquakes.map((e) => ({
+        lat: e.lat,
+        lng: e.lng,
+        headline: e.label,
+        location: e.detail,
+        topic: "Earthquake",
+        countryCode: "",
+        tags: ["earthquake", "live"],
+        _quake: true as const,
+        _mag: e.magnitude,
+        _color: e.color,
+      }))
+    : [];
+
   // Pin markers for the globe (rendered as extra points).
   const pinPoints = pins.map((p) => ({
     lat: p.lat,
@@ -494,6 +528,17 @@ export default function NewsGlobe({
           }`}
         >
           Markets
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowEarthquakes((v) => !v)}
+          className={`rounded-lg border px-2.5 py-1 text-xs backdrop-blur ${
+            showEarthquakes
+              ? "border-orange-400/60 bg-orange-400/15 text-orange-200"
+              : "border-rule bg-panel/90 text-muted hover:border-accent"
+          }`}
+        >
+          Earthquakes {showEarthquakes && earthquakes.length > 0 ? `(${earthquakes.length})` : ""}
         </button>
         <button
           type="button"
@@ -604,18 +649,19 @@ export default function NewsGlobe({
           onPolygonHover={handleHover}
           onPolygonClick={navigate}
           polygonsTransitionDuration={200}
-          pointsData={[...pointsForGlobe, ...pinPoints]}
+          pointsData={[...pointsForGlobe, ...pinPoints, ...quakePoints]}
           pointLat={(d: object) => (d as NewsPoint).lat}
           pointLng={(d: object) => (d as NewsPoint).lng}
           pointColor={(d: object) => {
             if ((d as { _pin?: boolean })._pin) return "#a78bfa";
+            if ((d as { _quake?: boolean })._quake) return (d as { _color?: string })._color || "#f97316";
             const rel = relationOf(d as NewsPoint);
             if (rel === "related") return "#ffffff";
             if (rel === "dim") return "rgba(147,197,253,0.22)";
             return dotColor((d as NewsPoint).topic);
           }}
           pointAltitude={(d: object) =>
-            (d as { _pin?: boolean })._pin
+            (d as { _pin?: boolean })._pin || (d as { _quake?: boolean })._quake
               ? 0.08
               : relationOf(d as NewsPoint) === "related"
                 ? 0.06
@@ -623,6 +669,10 @@ export default function NewsGlobe({
           }
           pointRadius={(d: object) => {
             if ((d as { _pin?: boolean })._pin) return 0.7;
+            if ((d as { _quake?: boolean })._quake) {
+              const mag = (d as { _mag?: number })._mag ?? 3;
+              return 0.4 + Math.min(1.2, mag * 0.15);
+            }
             const p = d as TimedPoint;
             const rel = relationOf(p);
             const base = rel === "related" ? 0.62 : rel === "local" ? 0.55 : 0.45;
@@ -635,6 +685,9 @@ export default function NewsGlobe({
           pointLabel={(d: object) => {
             if ((d as { _pin?: boolean })._pin) {
               return `<div style="font:600 12px sans-serif;color:#ddd6fe;background:#0e131fee;padding:5px 8px;border-radius:6px;border:1px solid #5b21b6">📌 ${(d as NewsPoint).headline}</div>`;
+            }
+            if ((d as { _quake?: boolean })._quake) {
+              return `<div style="font:600 12px sans-serif;color:#fed7aa;background:#0e131fee;padding:5px 8px;border-radius:6px;border:1px solid #c2410c">🌍 ${(d as NewsPoint).headline}<div style="color:#9ca3af;font-weight:400;margin-top:2px">${(d as NewsPoint).location}</div></div>`;
             }
             const p = d as NewsPoint;
             const tags = p.tags?.length
@@ -676,6 +729,16 @@ export default function NewsGlobe({
               color: m.color,
               count: 3,
             })),
+            ...(showEarthquakes
+              ? earthquakes
+                  .filter((e) => (e.magnitude ?? 0) >= 4.5)
+                  .map((e) => ({
+                    lat: e.lat,
+                    lng: e.lng,
+                    color: e.color,
+                    count: Math.round((e.magnitude ?? 4) * 1.5),
+                  }))
+              : []),
           ]}
           ringLat={(d: object) => (d as { lat: number }).lat}
           ringLng={(d: object) => (d as { lng: number }).lng}
@@ -708,6 +771,16 @@ export default function NewsGlobe({
           onClose={() => setOpenConflict(null)}
         />
       )}
+
+      {/* Scrolling Newsfeed of viewport-scoped stories */}
+      <NewsFeed
+        points={shownPoints}
+        onSelect={(p) => {
+          if (globeRef.current) {
+            globeRef.current.pointOfView({ lat: p.lat, lng: p.lng, altitude: 1.2 }, 800);
+          }
+        }}
+      />
 
       {/* Marco-style map-aware chat */}
       <MapChat

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Spinner } from './ui';
-import { Check, X as XIcon } from './icons';
+import { X as XIcon } from './icons';
 import { validateKey } from '../lib/groq';
 import { setApiKey, clearApiKey } from '../lib/storage';
-import { LANGUAGE_LIST, getLanguage, normaliseLanguages } from '../lib/languages';
+import { LANGUAGE_LIST } from '../lib/languages';
+import { getQuota, formatQuota } from '../lib/quota';
+import { getRelayConfig } from '../lib/relay';
 
 // Captures + validates the Groq API key before committing it to localStorage.
 
@@ -11,17 +13,6 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
   const [draft, setDraft] = useState('');
   const [state, setState] = useState('idle'); // idle | checking | ok | bad
   const [message, setMessage] = useState('');
-
-  // Settings saved before multi-language existed carry only `language`.
-  const { languages: learning, language: active } = normaliseLanguages(settings.languages, settings.language || 'fr');
-
-  // Dropping the language being studied hands that role to the next one, so
-  // the studio is never pointed at a language the learner has left.
-  const toggleLearning = (id) => {
-    const wanted = learning.includes(id) ? learning.filter((x) => x !== id) : [...learning, id];
-    if (!wanted.length) return; // one language is the floor — never zero
-    onSettingsChange({ ...settings, ...normaliseLanguages(wanted, active) });
-  };
 
   const save = async () => {
     const key = draft.trim();
@@ -70,8 +61,10 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         </div>
 
         <section className="space-y-2">
+          <RelayBanner />
+          <QuotaStrip />
           <label htmlFor="groq-key" className="text-sm font-semibold text-ink">
-            Groq API Key
+            Live AI key <span className="font-normal text-ink3">(optional)</span>
           </label>
           {apiKey ? (
             <div className="flex items-center justify-between gap-3 bg-surface2 rounded-xl px-4 py-3">
@@ -107,6 +100,9 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
                 </button>
               </div>
               <p className="text-[11px] text-ink3">
+                Demo mode works without a key. Add one only when you want live AI responses.
+              </p>
+              <p className="text-[11px] text-ink3">
                 Create a free key at console.groq.com — it is checked against the
                 <code className="mx-1 text-ink2">/models</code> endpoint before being saved.
               </p>
@@ -120,55 +116,28 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
 
         <section className="space-y-3 pt-2 border-t border-line">
           <div>
-            <span className="block text-sm text-ink mb-2">Languages I'm learning</span>
-            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Languages I'm learning">
+            <span className="block text-sm text-ink mb-2">Language to learn</span>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Target language">
               {LANGUAGE_LIST.map((l) => {
-                const on = learning.includes(l.id);
+                const on = (settings.language || 'fr') === l.id;
                 return (
                   <button
                     key={l.id}
-                    aria-pressed={on}
-                    onClick={() => toggleLearning(l.id)}
-                    className={`relative flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition-colors ${
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => onSettingsChange({ ...settings, language: l.id })}
+                    className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 transition-colors ${
                       on ? 'bg-surface2 border-ink' : 'bg-surface border-line hover:border-ink3'
                     }`}
                   >
-                    {on && <Check size={13} className="absolute top-1.5 right-1.5 text-ink" aria-hidden="true" />}
                     <span className="text-2xl" aria-hidden="true">{l.flag}</span>
                     <span className={`text-xs font-semibold ${on ? 'text-ink' : 'text-ink2'}`}>{l.nativeName}</span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[11px] text-ink3 mt-1.5">
-              Sign up for as many as you like — you study one at a time, and dropping one keeps its progress.
-            </p>
+            <p className="text-[11px] text-ink3 mt-1.5">Switches the whole studio — conversations, flashcards, speech and the AI tutor.</p>
           </div>
-          {learning.length > 1 && (
-            <div>
-              <span className="block text-sm text-ink mb-2">Studying right now</span>
-              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Language being studied">
-                {learning.map((id) => {
-                  const l = getLanguage(id);
-                  const on = active === id;
-                  return (
-                    <button
-                      key={id}
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => onSettingsChange({ ...settings, language: id })}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold border transition-colors ${
-                        on ? 'bg-accent text-onaccent border-accent' : 'bg-surface text-ink2 border-line hover:border-ink3'
-                      }`}
-                    >
-                      <span aria-hidden="true">{l.flag}</span> {l.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[11px] text-ink3 mt-1.5">Switches the whole studio — conversations, flashcards, speech and the AI tutor.</p>
-            </div>
-          )}
           <div className="flex items-center justify-between gap-4 min-h-11">
             <span>
               <span className="block text-sm text-ink">My level (CEFR)</span>
@@ -298,6 +267,39 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         </section>
       </div>
     </Modal>
+  );
+}
+
+function RelayBanner() {
+  const cfg = getRelayConfig();
+  return (
+    <div className={`rounded-xl border px-3.5 py-3 text-xs leading-relaxed ${cfg.enabled ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+      <span className="font-bold">{cfg.enabled ? 'Server relay active' : 'Direct key mode'}</span>
+      <span className="block mt-1 text-[11px] leading-relaxed opacity-90">{cfg.note}</span>
+      {!cfg.enabled && (
+        <span className="block mt-1.5 text-[11px] font-mono bg-white/60 rounded-lg px-2 py-1 border border-black/5">
+          For a public launch, set VITE_GROQ_RELAY_URL=/api/groq and VITE_GROQ_DAILY_LIMIT. Key then lives on the server only — see <code>server/relay.js</code>.
+        </span>
+      )}
+    </div>
+  );
+}
+
+function QuotaStrip() {
+  const [q, setQ] = useState(getQuota());
+  useEffect(() => {
+    const id = setInterval(() => setQ(getQuota()), 2000);
+    return () => clearInterval(id);
+  }, []);
+  const pct = q.limit ? Math.round((q.count / q.limit) * 100) : 0;
+  return (
+    <div className="rounded-xl border border-line bg-surface2 px-3.5 py-2.5 flex items-center gap-3">
+      <span className="text-[11px] font-bold text-ink2 whitespace-nowrap">Daily AI quota</span>
+      <div className="flex-1 h-1.5 rounded-full bg-surface overflow-hidden">
+        <div className={`h-full transition-all ${pct > 85 ? 'bg-amber-500' : 'bg-ink'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+      <span className="text-[11px] font-semibold text-ink tabular-nums whitespace-nowrap">{formatQuota()}</span>
+    </div>
   );
 }
 

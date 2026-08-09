@@ -51,6 +51,8 @@ export function useFavourites() {
   const [favourites, setFavourites] = useState<Favourites>(EMPTY);
 
   useEffect(() => {
+    // Sync from external store (localStorage) — the canonical pattern for this hook.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFavourites(read());
     const sync = () => setFavourites(read());
     window.addEventListener(EVENT, sync);

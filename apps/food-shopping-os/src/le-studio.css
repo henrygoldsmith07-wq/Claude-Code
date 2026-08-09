@@ -1,6 +1,7 @@
 /* ============================================================================
    Le Studio design system — the single source of truth for every app's theme.
    Canonical origin: apps/french-practice (the Le Studio app itself).
+   Machine-readable twin: packages/le-studio-tokens (--ls-* tokens).
 
    DO NOT EDIT the copies inside apps/. Each app carries a generated
    src/le-studio.css; edit this file and run scripts/sync-theme.sh to
@@ -315,7 +316,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .skip-link {
   position: absolute; left: 8px; top: -48px; z-index: 100;
   background: var(--accent); color: var(--on-accent);
-  padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
+  padding: 8px 14px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;
   transition: top 0.15s ease-out;
 }
 .skip-link:focus { top: 8px; }

@@ -1,6 +1,6 @@
 ---
 name: sync-ecosystem-data
-description: Pull workspace signals — meeting transcripts, email threads, calendar and document activity — into /raw/ecosystem and index them in /wiki. Use when syncing ecosystem data or as part of /data-ingestion.
+description: 'Pull meeting transcripts, email threads, and calendar activity into /raw/ecosystem and index in /wiki. Use when syncing ecosystem data or as part of /data-ingestion.'
 ---
 
 # Sync Ecosystem Data

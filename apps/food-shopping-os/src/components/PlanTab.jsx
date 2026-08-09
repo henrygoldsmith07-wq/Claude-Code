@@ -1,247 +1,488 @@
-import { useMemo, useState } from 'react';
-import { Check, ChevronRight, Info, ShoppingCart, Snowflake, Sparkles, Zap } from 'lucide-react';
-import { gbp } from '../lib/utils.js';
-import { buildPlan } from '../lib/planner.js';
-import { useApp } from '../lib/store.jsx';
-import { Glyph } from './icons.jsx';
-import { byId } from '../data/recipes.js';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  DEFAULT_PLAN, WEEK_DAYS, PLANNER_GOALS, PLANNER_DIETS, PLANNER_SCOPES, PLANNER_OCCASIONS,
-  PREP_BATCH, PREP_DEFAULT_DONE,
-} from '../data/plan.js';
-import { itemsFromRecipes } from '../data/stores.js';
-import { Section, Card, Chip, Pill, Stepper, FoodArt, Meter } from './ui.jsx';
+  CalendarDays, CalendarPlus, Check, ChevronLeft, ChevronRight, ClipboardList, Info, Move, ShoppingCart, Snowflake,
+  Sparkles, X,
+} from 'lucide-react';
+import { gbp } from '../lib/utils.js';
+import { useApp } from '../lib/store.jsx';
+import { byId } from '../data/recipes.js';
+import { MEAL_SLOTS } from '../data/plan.js';
+import { weekDates } from '../lib/kitchen.js';
+import {
+  batchGroups, coveredByLeftovers, monthDates, monthGrid, monthLabel, planStats,
+  mealPlanIcs, shiftMonth, shiftWeek, shoppingForPlan, weekOffset,
+} from '../lib/mealplan.js';
+import { prepChecklist, prepProgress } from '../lib/prep-checklist.js';
+import { downloadFile } from '../lib/notify.js';
+import { filterByDiet } from '../lib/goals.js';
+import { monthOf, seasonalHits } from '../data/seasons.js';
+import { tasteScore } from '../lib/taste.js';
+import { Section, Card, Chip, Pill, Sheet, FoodArt } from './ui.jsx';
+import { MonthGrid, WeekGrid } from './PlanCalendar.jsx';
+import PlanGenerator from './PlanGenerator.jsx';
+import PrimaryAction from './PrimaryAction.jsx';
+import CalendarAvailability from './CalendarAvailability.jsx';
+import MonthMealRow from './MonthMealRow.jsx';
 
-export default function PlanTab({ openRecipe }) {
+const dayLabel = (date) =>
+  new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+
+/**
+ * Pick a recipe for one slot. Defaults to dishes for that meal — breakfasts for
+ * a breakfast slot — filtered by everyone's dietary patterns, favourites first,
+ * with what's in season and what your pantry covers called out.
+ */
+function RecipePicker({ slot, onPick, onClear, hasMeal }) {
   const app = useApp();
-  const [scope, setScope] = useState('A week');
-  const [people, setPeople] = useState(2);
-  const [budget, setBudget] = useState(2.5);
-  const [goal, setGoal] = useState('Balanced');
-  const [diet, setDiet] = useState('None');
-  const [occasion, setOccasion] = useState('Everyday');
-  const [quick, setQuick] = useState(false);
-  const [seed, setSeed] = useState(0);
-  const [generating, setGenerating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [anyMeal, setAnyMeal] = useState(false);
+  const [inSeason, setInSeason] = useState(false);
+  const month = monthOf(app.day);
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const pool = anyMeal || q ? app.safeRecipes : app.safeRecipes.filter((recipe) => recipe.meal === slot);
+    const matched = q
+      ? pool.filter((r) => r.name.toLowerCase().includes(q)
+        || String(r.cuisine || '').toLowerCase().includes(q)
+        || (r.ingredients || []).some((i) => String(i.name || i).toLowerCase().includes(q)))
+      : pool;
+    const allowed = filterByDiet(matched, app.planDiets);
+    const seasonal = inSeason ? allowed.filter((r) => seasonalHits(r, month).length > 0) : allowed;
+    return seasonal
+      .sort((a, b) => (
+        Number(app.favourites.includes(b.id)) - Number(app.favourites.includes(a.id))
+        || tasteScore(b, app.tasteProfile) - tasteScore(a, app.tasteProfile)
+      ));
+  }, [query, anyMeal, inSeason, slot, month, app.safeRecipes, app.favourites, app.planDiets, app.tasteProfile]);
+  return (
+    <div className="px-5 pb-10 space-y-3">
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={`Search ${app.safeRecipes.length} recipes…`}
+        aria-label="Search recipes"
+        className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
+        style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+      />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          {list.length} {anyMeal || query ? 'recipes' : `${slot} recipes`}
+          {app.planDiets.length ? ' that fit your diet' : ''}
+        </p>
+        <div className="flex gap-2">
+          <Chip active={inSeason} onClick={() => setInSeason((v) => !v)}>In season</Chip>
+          <Chip active={!anyMeal} onClick={() => setAnyMeal((v) => !v)}>{`Just ${slot}`}</Chip>
+        </div>
+      </div>
+      {hasMeal && (
+        <button
+          onClick={onClear}
+          className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
+          style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+        >
+          <span className="inline-flex items-center gap-1.5"><X size={14} /> Clear this slot</span>
+        </button>
+      )}
+      <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+        {list.slice(0, 120).map((r) => {
+          const seasonal = seasonalHits(r, month);
+          const portions = app.leftoverPortions.get(r.id) || 0;
+          return (
+            <button
+              key={r.id}
+              onClick={() => onPick(r.id)}
+              className="press flex w-full items-center gap-3 p-3 text-left"
+              style={{ borderColor: 'var(--line)' }}
+            >
+              <FoodArt recipe={r} className="h-11 w-11 shrink-0 rounded-xl" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold text-[0.875rem] truncate">{r.name}</span>
+                <span className="block text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {r.time} min · {gbp(r.costPerServing, { always: true })}/serving · {r.protein}g protein
+                </span>
+              </span>
+              {portions > 0 && <Pill tone="good">{portions} in fridge</Pill>}
+              {!portions && seasonal.length > 1 && <Pill tone="accent">In season</Pill>}
+              {app.favourites.includes(r.id) && <Pill tone="accent">Favourite</Pill>}
+            </button>
+          );
+        })}
+      </Card>
+    </div>
+  );
+}
+export default function PlanTab({ openRecipe, goTab, focusDate }) {
+  const app = useApp();
+  const [view, setView] = useState('week');
+  const [offset, setOffset] = useState(0); // weeks or months from today
+  const [picking, setPicking] = useState(null); // {date, slot}
+  const [openDay, setOpenDay] = useState(null); // month view → a day's slots
+  const [moving, setMoving] = useState(null); // meal picked up by tap
+  const [dragging, setDragging] = useState(null); // meal picked up by drag
+  const [showGenerator, setShowGenerator] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState('');
+  const [prepDone, setPrepDone] = useState([]);
+  useEffect(() => { if (focusDate) { setView('week'); setOffset(weekOffset(app.day, focusDate)); } }, [focusDate, app.day]);
 
-  const plan = useMemo(() => {
-    if (!seed) return null;
-    return buildPlan({ scope, diet, goal, budget, maxTime: quick ? 30 : null, occasion, people }, seed);
-  }, [seed, scope, diet, goal, budget, quick, occasion, people]);
-  const generated = plan?.meals ?? null;
+  const anchorWeek = shiftWeek(app.day, offset);
+  const anchorMonth = shiftMonth(app.day, offset);
+  const week = useMemo(() => weekDates(anchorWeek), [anchorWeek]);
+  const month = useMemo(() => monthDates(anchorMonth), [anchorMonth]);
+  const cells = useMemo(() => monthGrid(anchorMonth), [anchorMonth]);
+  const dates = view === 'week' ? week : month;
 
-  const generate = () => {
-    setGenerating(true);
-    setAddedToList(false);
-    setTimeout(() => {
-      setSeed(Date.now() % 100000);
-      setGenerating(false);
-    }, 700);
+  const stats = planStats(app.plan, dates, { people: app.portions });
+  const covered = coveredByLeftovers(app.plan, dates, app.pantry);
+  const batches = batchGroups(app.plan, dates, { people: app.portions });
+  const thisWeekDates = useMemo(() => weekDates(app.day), [app.day]);
+  const prepSteps = useMemo(() => prepChecklist(app.plan, dates), [app.plan, dates]);
+  const prep = prepProgress(prepSteps, prepDone);
+  const rangeLabel = view === 'week'
+    ? (offset === 0 ? 'This week' : `Week of ${Number(anchorWeek.slice(8, 10))} ${new Date(`${anchorWeek}T12:00:00`).toLocaleDateString('en-GB', { month: 'short' })}`)
+    : monthLabel(anchorMonth);
+
+  const move = (from, to) => {
+    app.moveMealSlot(from, to);
+    setMoving(null);
+    setDragging(null);
   };
-
-  const addAllToList = () => {
-    app.addToList(itemsFromRecipes([...new Set(generated)]));
+  const clearRangeStatus = () => { setAddedToList(false); setCalendarStatus(''); };
+  const sendToList = () => {
+    if (addedToList) {
+      goTab?.('shop');
+      return;
+    }
+    app.addToList(shoppingForPlan(app.plan, dates, { pantry: app.pantry }));
     setAddedToList(true);
   };
 
-  const prepDone = new Set([...PREP_DEFAULT_DONE, ...app.cooked]);
-  const prepCount = PREP_BATCH.filter((p) => prepDone.has(p.id)).length;
-
-  const genCost = generated ? generated.reduce((s, r) => s + r.costPerServing * people, 0) : 0;
-  const genKcal = generated ? Math.round(generated.reduce((s, r) => s + r.kcal, 0) / generated.length) : 0;
-  const genProtein = generated ? Math.round(generated.reduce((s, r) => s + r.protein, 0) / generated.length) : 0;
+  const exportCalendar = () => {
+    const { text, events } = mealPlanIcs(app.plan, dates, {
+      calendarName: `Forq · ${rangeLabel}`,
+    });
+    const downloaded = downloadFile(
+      `forq-meals-${dates[0]}-${dates.at(-1)}.ics`,
+      text,
+    );
+    setCalendarStatus(downloaded
+      ? `${events} meal${events === 1 ? '' : 's'} exported.`
+      : 'Calendar export is unavailable in this browser.');
+  };
 
   return (
     <div className="pb-6 space-y-6">
-      <div className="hero-gradient px-5 pt-14 pb-3">
-        <h1 className="text-[26px] font-extrabold tracking-tight rise">Meal planner</h1>
-        <p className="text-[13.5px] font-semibold rise rise-1" style={{ color: 'var(--muted)' }}>
-          Tell the AI your constraints — it builds the plan and the shopping list.
+      <div className="hero-gradient px-5 pt-1 pb-3">
+        <p className="text-[0.84375rem] font-semibold rise rise-1" style={{ color: 'var(--muted)' }}>
+          {stats.meals
+            ? `${stats.meals} meal${stats.meals === 1 ? '' : 's'} planned · about ${gbp(stats.cost, { always: true })} for ${app.portions} ${view === 'week' ? 'this week' : 'this month'}`
+            : 'Tap any slot to plan a meal, or let the generator fill the week.'}
         </p>
       </div>
 
-      {/* Generator */}
       <Section className="rise rise-1">
-        <Card className="space-y-4">
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Generate</p>
-            <div className="flex gap-2">
-              {PLANNER_SCOPES.map((s) => (
-                <Chip key={s} active={scope === s} onClick={() => setScope(s)}>{s}</Chip>
-              ))}
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex gap-2">
+            <Chip active={view === 'week'} onClick={() => { setView('week'); setOffset(0); clearRangeStatus(); }}>Week</Chip>
+            <Chip active={view === 'month'} onClick={() => { setView('month'); setOffset(0); clearRangeStatus(); }}>Month</Chip>
           </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>People</p>
-              <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>incl. picky eaters</p>
-            </div>
-            <Stepper value={people} onChange={setPeople} />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { setOffset((o) => o - 1); clearRangeStatus(); }}
+              aria-label={view === 'week' ? 'Previous week' : 'Previous month'}
+              className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <button
+              onClick={() => { setOffset(0); clearRangeStatus(); }}
+              className="tap press shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.78125rem] font-extrabold"
+              style={{ background: offset ? 'var(--card-2)' : 'transparent', color: offset ? 'var(--ink)' : 'var(--faint)' }}
+            >
+              {offset ? 'Today' : rangeLabel}
+            </button>
+            <button
+              onClick={() => { setOffset((o) => o + 1); clearRangeStatus(); }}
+              aria-label={view === 'week' ? 'Next week' : 'Next month'}
+              className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              <ChevronRight size={15} />
+            </button>
           </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Budget per serving</p>
-              <p className="text-[14px] font-extrabold" style={{ color: 'var(--accent)' }}>{gbp(budget, { always: true })}</p>
-            </div>
-            <input
-              type="range" min="1" max="4" step="0.25" value={budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
-              className="w-full accent-[var(--accent)]"
-              aria-label="Budget per serving"
-            />
-          </div>
-
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Goal</p>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-              {PLANNER_GOALS.map((s) => <Chip key={s} active={goal === s} onClick={() => setGoal(s)}>{s}</Chip>)}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Diet & allergies</p>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-              {PLANNER_DIETS.map((s) => <Chip key={s} active={diet === s} onClick={() => setDiet(s)}>{s}</Chip>)}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>Occasion</p>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-              {PLANNER_OCCASIONS.map((s) => <Chip key={s} active={occasion === s} onClick={() => setOccasion(s)}>{s}</Chip>)}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] font-bold flex items-center gap-1.5"><Zap size={14} /> 30 minutes or less</p>
-            <Chip active={quick} onClick={() => setQuick(!quick)}>{quick ? 'On' : 'Off'}</Chip>
-          </div>
-
-          <button
-            onClick={generate}
-            disabled={generating}
-            className="press w-full rounded-2xl py-3.5 text-[15px] font-extrabold"
-            style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: generating ? 0.7 : 1 }}
-          >
-            <span className="inline-flex items-center gap-2">
-              {!generating && <Sparkles size={16} />}
-              {generating ? 'Thinking…' : seed ? 'Regenerate plan' : 'Generate plan'}
-            </span>
-          </button>
-        </Card>
-      </Section>
-
-      {/* Generating skeleton */}
-      {generating && (
-        <Section title="Your plan">
-          <div className="space-y-2.5">
-            {[0, 1, 2].map((i) => <div key={i} className="skeleton h-[72px] rounded-2xl" />)}
-          </div>
-        </Section>
-      )}
-
-      {/* Generated result */}
-      {generated && !generating && (
-        <Section title={`Your ${scope.toLowerCase()} · ${occasion.toLowerCase()}`} className="rise">
-          {plan.note && (
-            <Card className="!p-3 mb-3 flex items-start gap-2" style={{ background: 'var(--card-2)' }}>
-              <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
-              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>{plan.note}</p>
-            </Card>
-          )}
-          <Card className="!p-3 mb-3 flex items-center justify-between">
-            <div>
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Estimated cost</p>
-              <p className="text-[18px] font-extrabold">{gbp(genCost, { always: true })} <span className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>for {people}</span></p>
-            </div>
-            <div className="text-right">
-              <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Avg per meal</p>
-              <p className="text-[14px] font-bold">{genKcal} kcal · {genProtein}g protein</p>
-            </div>
+        </div>
+        {offset !== 0 && (
+          <p className="mb-2 text-[0.78125rem] font-bold" style={{ color: 'var(--muted)' }}>{rangeLabel}</p>
+        )}
+        {moving && (
+          <Card className="!p-3 mb-2.5 flex items-center justify-between gap-2" style={{ borderColor: 'var(--accent)' }}>
+            <p className="text-[0.78125rem] font-bold inline-flex items-center gap-1.5">
+              <Move size={14} style={{ color: 'var(--accent)' }} />
+              Moving {byId((app.plan[moving.date] || {})[moving.slot])?.name} — tap where it goes
+            </p>
+            <button onClick={() => setMoving(null)} className="press text-[0.78125rem] font-extrabold" style={{ color: 'var(--muted)' }}>
+              Cancel
+            </button>
           </Card>
-          <div className="space-y-2.5">
-            {generated.map((r, i) => (
-              <Card key={`${r.id}-${i}`} onClick={() => openRecipe(r)} className="flex items-center gap-3 !p-3">
-                <FoodArt recipe={r} className="h-14 w-14 rounded-xl shrink-0" px={26} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
-                    {scope === 'A week' ? WEEK_DAYS[i] : scope === 'A day' ? ['Breakfast', 'Lunch', 'Dinner'][i] : 'Suggested'}
-                  </p>
-                  <p className="font-bold text-[15px] truncate">{r.name}</p>
-                  <p className="text-[12px] font-semibold" style={{ color: 'var(--muted)' }}>
-                    {r.time} min · {gbp(r.costPerServing, { always: true })}/serving · {r.protein}g protein
-                  </p>
-                </div>
-                <ChevronRight size={16} style={{ color: 'var(--faint)' }} />
-              </Card>
+        )}
+        {view === 'week' ? (
+          <WeekGrid
+            dates={week}
+            plan={app.plan}
+            today={app.day}
+            leftoverPortions={app.leftoverPortions}
+            onPick={setPicking}
+            moving={moving}
+            onGrab={setMoving}
+            onMove={move}
+            dragging={dragging}
+            setDragging={setDragging}
+            busyDates={(app.calendarBusy || []).map((b) => b.date)}
+            onCook={(recipe) => { setMoving(null); setDragging(null); openRecipe?.(recipe, { startCooking: true }); }}
+          />
+        ) : (
+          <MonthGrid
+            cells={cells}
+            plan={app.plan}
+            today={app.day}
+            onOpenDay={setOpenDay}
+            moving={moving}
+            onMove={move}
+            dragging={dragging}
+            setDragging={setDragging}
+          />
+        )}
+
+        <CalendarAvailability dates={dates} />
+        {prepSteps.length > 0 && (
+          <Section className="mt-4 rise" title="Prep checklist">
+            <Card className="!p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[0.75rem] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+                  <ClipboardList size={14} /> {prep.complete}/{prep.total} done · {prep.pct}%
+                </p>
+                {prep.complete > 0 && (
+                  <button
+                    type="button"
+                    className="text-[0.7rem] font-extrabold"
+                    style={{ color: 'var(--muted)' }}
+                    onClick={() => setPrepDone([])}
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <ul className="space-y-1.5">
+                {prepSteps.map((step) => {
+                  const done = prepDone.includes(step.id);
+                  return (
+                    <li key={step.id}>
+                      <button
+                        type="button"
+                        onClick={() => setPrepDone((ids) => (
+                          done ? ids.filter((id) => id !== step.id) : [...ids, step.id]
+                        ))}
+                        className="press flex w-full items-start gap-2 rounded-xl border px-2.5 py-2 text-left"
+                        style={{
+                          borderColor: done ? 'var(--good)' : 'var(--line)',
+                          background: done ? 'color-mix(in srgb, var(--good) 8%, transparent)' : 'var(--card-2)',
+                        }}
+                      >
+                        <span
+                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
+                          style={{ borderColor: done ? 'var(--good)' : 'var(--line)', color: 'var(--good)' }}
+                        >
+                          {done ? <Check size={12} strokeWidth={3} /> : null}
+                        </span>
+                        <span className="min-w-0">
+                          <span className={`block text-[0.8125rem] font-bold ${done ? 'line-through' : ''}`} style={{ color: done ? 'var(--muted)' : 'var(--ink)' }}>
+                            {step.label}
+                          </span>
+                          {step.detail && (
+                            <span className="block text-[0.7rem] font-semibold" style={{ color: 'var(--faint)' }}>{step.detail}</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          </Section>
+        )}
+        {stats.meals > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[
+              ['Meals', stats.meals],
+              ['Cost', gbp(stats.cost, { always: true })],
+              ['Kcal/day', stats.kcalPerDay || '—'],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl py-2 text-center" style={{ background: 'var(--card-2)' }}>
+                <p className="text-[0.9375rem] font-extrabold">{value}</p>
+                <p className="text-[0.65625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>{label}</p>
+              </div>
             ))}
           </div>
-          <button
-            className="press mt-3 w-full rounded-2xl py-3 text-[14px] font-extrabold border disabled:opacity-60"
-            style={addedToList
-              ? { borderColor: 'var(--good)', color: 'var(--good)' }
-              : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            onClick={addAllToList}
-            disabled={addedToList}
-          >
-            <span className="inline-flex items-center gap-2">
-              {addedToList
-                ? <><Check size={15} strokeWidth={3} /> Missing ingredients added to Shop</>
-                : <><ShoppingCart size={15} /> Add all ingredients to shopping list</>}
-            </span>
-          </button>
+        )}
+        {stats.meals > 0 && (
+          <div className="mt-3 space-y-2">
+            <button
+              onClick={sendToList}
+              className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
+              style={addedToList
+                ? { borderColor: 'var(--good)', color: 'var(--good)' }
+                : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <ShoppingCart size={15} />
+                {addedToList
+                  ? 'Review shopping list'
+                  : view === 'week'
+                    ? "Send this week's ingredients to the list"
+                    : "Send this month's ingredients to the list"}
+              </span>
+            </button>
+            <button
+              onClick={exportCalendar}
+              aria-label={`Add ${view} to calendar`}
+              className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <CalendarPlus size={15} /> Export {view} to calendar (.ics)
+              </span>
+            </button>
+            {calendarStatus && (
+              <p role="status" className="text-center text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {calendarStatus}
+              </p>
+            )}
+            <button
+              onClick={() => { app.clearPlanWeek(dates); setAddedToList(false); }}
+              className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              Clear {view === 'week' ? 'week' : 'month'}
+            </button>
+          </div>
+        )}
+      </Section>
+      {app.leftovers.length > 0 && (
+        <Section title="Leftovers" className="rise rise-2">
+          <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+            {app.leftovers.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 p-3">
+                <Snowflake size={16} style={{ color: 'var(--muted)' }} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[0.875rem] truncate">{item.name}</p>
+                  <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {item.portions} portion{item.portions === 1 ? '' : 's'} · best by {item.expiry}
+                  </p>
+                </div>
+                <button
+                  onClick={() => app.useLeftover(item.id)}
+                  className="press rounded-full border px-3 py-1.5 text-[0.75rem] font-extrabold"
+                  style={{ borderColor: 'var(--line)' }}
+                >
+                  Ate one
+                </button>
+              </div>
+            ))}
+          </Card>
+          {covered.length > 0 && (
+            <p className="mt-2 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {covered.length} planned meal{covered.length === 1 ? '' : 's'} already covered — the shopping list skips {covered.length === 1 ? 'it' : 'them'}.
+            </p>
+          )}
         </Section>
       )}
-
-      {/* This week grid */}
-      <Section title="This week" className="rise rise-2">
-        <div className="space-y-2.5">
-          {WEEK_DAYS.map((day) => {
-            const slots = DEFAULT_PLAN[day];
-            const meals = ['breakfast', 'lunch', 'dinner'].map((k) => (slots[k] ? byId(slots[k]) : null));
-            const dayCost = meals.reduce((s, r) => s + (r ? r.costPerServing : 0), 0);
-            return (
-              <Card key={day} className="!p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-extrabold text-[14px]">{day}</p>
-                  <Pill tone="muted">{gbp(dayCost, { always: true })}/person</Pill>
+      {batches.length > 0 && (
+        <Section title="Batch cooking" className="rise rise-2">
+          <Card className="space-y-3">
+            {batches.map(({ recipe, cookOn, covers, portions, batches: n, saves }) => (
+              <div key={recipe.id} className="flex items-start gap-3">
+                <FoodArt recipe={recipe} className="h-11 w-11 shrink-0 rounded-xl" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[0.875rem]">{recipe.name}</p>
+                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    Cook {n > 1 ? `${n} batches ` : ''}on {dayLabel(cookOn)} — {portions} portions, covering {covers.length} more meal{covers.length === 1 ? '' : 's'}.
+                  </p>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {meals.map((r, i) =>
-                    r ? (
-                      <button key={i} onClick={() => openRecipe(r)} className="press rounded-xl p-2 text-left" style={{ background: 'var(--card-2)' }}>
-                        <Glyph e={r.emoji} size={18} style={{ color: 'var(--muted)' }} />
-                        <p className="mt-1 text-[11px] font-bold leading-tight line-clamp-2">{r.name}</p>
-                      </button>
-                    ) : (
-                      <div key={i} className="rounded-xl p-2 flex items-center justify-center text-[11px] font-semibold" style={{ background: 'var(--card-2)', color: 'var(--faint)' }}>
-                        Leftovers
-                      </div>
-                    )
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                <Pill tone="good">saves ~{saves} min</Pill>
+              </div>
+            ))}
+          </Card>
+        </Section>
+      )}
+      <Section className="rise rise-2">
+        <button
+          onClick={() => setShowGenerator((v) => !v)}
+          className="press w-full rounded-2xl border py-3 text-[0.875rem] font-extrabold"
+          style={showGenerator ? { borderColor: 'var(--line)' } : { borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          <span className="inline-flex items-center gap-2">
+            {showGenerator ? <><X size={15} /> Close generator</> : <><Sparkles size={15} /> Generate a plan for me</>}
+          </span>
+        </button>
       </Section>
-
-      {/* Meal prep progress */}
-      <Section title="Meal prep progress" className="rise rise-3">
-        <Card>
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-bold text-[14px] flex items-center gap-1.5"><Snowflake size={14} /> Sunday batch session</p>
-            <Pill tone="accent">{prepCount} of {PREP_BATCH.length} done</Pill>
+      {showGenerator && (
+        <Section className="rise">
+          <PlanGenerator
+            weekDates={view === 'week' ? week : thisWeekDates}
+            monthDates={month}
+            openRecipe={openRecipe}
+            goTab={goTab}
+            onApplied={() => { setShowGenerator(false); setAddedToList(false); }}
+          />
+        </Section>
+      )}
+      <Sheet open={!!picking} onClose={() => setPicking(null)} title="Plan a meal">
+        {picking && (
+          <RecipePicker
+            slot={picking.slot}
+            hasMeal={!!(app.plan[picking.date] || {})[picking.slot]}
+            onPick={(id) => { app.setPlanSlot(picking.date, picking.slot, id); setPicking(null); setAddedToList(false); }}
+            onClear={() => { app.setPlanSlot(picking.date, picking.slot, null); setPicking(null); }}
+          />
+        )}
+      </Sheet>
+      <Sheet open={!!openDay} onClose={() => setOpenDay(null)} title={openDay ? dayLabel(openDay) : ''}>
+        {openDay && (
+          <div className="px-5 pb-10 space-y-2.5">
+            {MEAL_SLOTS.map(({ key, label }) => (
+              <MonthMealRow
+                key={key}
+                label={label}
+                recipe={byId((app.plan[openDay] || {})[key])}
+                onEdit={() => { setPicking({ date: openDay, slot: key }); setOpenDay(null); }}
+                onCook={(recipe) => { setOpenDay(null); setMoving(null); setDragging(null); openRecipe?.(recipe, { startCooking: true }); }}
+              />
+            ))}
+            <p className="pt-1 text-[0.78125rem] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+              <Info size={13} /> Drag a meal in the week view to move it, or use its grip to pick it up.
+            </p>
           </div>
-          <Meter value={prepCount} max={PREP_BATCH.length} />
-          <p className="mt-2 text-[12.5px] font-semibold" style={{ color: 'var(--muted)' }}>
-            {PREP_BATCH.map((p) => `${p.name}${prepDone.has(p.id) ? ' ✓' : ''}`).join(' · ')}
-          </p>
-        </Card>
-      </Section>
+        )}
+      </Sheet>
+      {view === 'month' && !stats.meals && (
+        <Section className="rise">
+          <Card className="flex items-center gap-3 !p-3">
+            <CalendarDays size={18} style={{ color: 'var(--muted)' }} />
+            <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              Nothing planned this month yet — tap a day to fill it, or generate a month in one go.
+            </p>
+          </Card>
+        </Section>
+      )}
+      {stats.meals === 0
+        ? <PrimaryAction label={`Fill this ${view} for me`} onClick={() => setShowGenerator(true)} />
+        : <PrimaryAction
+            label={addedToList ? 'Added to your shopping list' : `Shop for this ${view}`}
+            hint={addedToList ? undefined : `${stats.meals} meal${stats.meals === 1 ? '' : 's'}`}
+            onClick={sendToList}
+          />}
     </div>
   );
 }

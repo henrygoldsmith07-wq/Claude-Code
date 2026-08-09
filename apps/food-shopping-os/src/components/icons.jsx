@@ -1,6 +1,6 @@
 import {
   Baby, Banana, Bean, Banknote, Cake, CalendarDays, Camera, Carrot, ChefHat, Cherry,
-  Citrus, CloudRain, Container, CreditCard, Croissant, Droplet, Droplets, Drumstick,
+  Citrus, CloudRain, Container, Croissant, Droplet, Droplets, Drumstick,
   Dumbbell, Egg, EggFried, Fish, Flame, Globe, Grape, Heart, IceCreamCone, LeafyGreen,
   Mic, Milk, Nut, Package, Recycle, Salad, Sandwich, Scale, ShoppingCart, Snowflake,
   Soup, SprayCan, Sprout, Square, Trophy, Utensils, UtensilsCrossed, Watch, Wheat, Wine,

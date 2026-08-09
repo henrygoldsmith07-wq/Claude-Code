@@ -3,229 +3,93 @@
 ## Rules
 
 - Do what has been asked; nothing more, nothing less
-- NEVER create files unless absolutely necessary — prefer editing existing files
+- NEVER create files unless necessary — prefer editing existing files
 - NEVER create documentation files unless explicitly requested
 - NEVER save working files or tests to root — use `/src`, `/tests`, `/docs`, `/config`, `/scripts`
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
-- NEVER add a `Co-Authored-By` trailer to user commits unless this project's `.claude/settings.json` has `attribution.commit` set (#2078). The Claude Code Bash tool may suggest one in its default commit-message template — ignore it. `Co-Authored-By` is semantic authorship attribution under git/GitHub convention; the tool is the facilitator, not a co-author.
-- Keep files under 500 lines
-- Validate input at system boundaries
+- NEVER add a `Co-Authored-By` trailer unless `.claude/settings.json` sets `attribution.commit` (#2078). The Bash tool's default commit template suggests one — ignore it.
+- Keep files under 500 lines; validate input at system boundaries
+- ALWAYS run tests and verify the build before committing (`npm run build && npm test`)
 
-## Self-Improving System (Knowledge Base)
+## Token Discipline
 
-The workspace maintains a learning loop: data flows into `/raw`, gets indexed
-in `/wiki`, and the improvement loop turns it into workspace upgrades.
+This file, every skill description, and every byte a hook prints is re-sent on
+*every* request. Measured on a real session: the fixed preamble was 56% of all
+input, and output was 0.8% of total spend. Turn count is the multiplier.
 
-### Directory Contract
+- `Grep`/`Glob` to locate, then `Read` with `offset`/`limit`. Never `cat` a
+  large file to inspect it.
+- Pipe noisy output through `head`/`wc`/`--quiet`. Never dump full build, test,
+  or install logs when the summary line is what matters.
+- Batch independent tool calls into one message — each extra turn re-reads the
+  whole context before anyone says anything.
+- Don't re-read a file you just edited; the edit tools fail loudly.
+- Spawn a subagent only when its work would otherwise flood this context. Each
+  spawn re-derives context from cold.
+- Hooks are silent on success (`CLAUDE_FLOW_HOOKS_VERBOSE=1` to debug).
+- Memory search and agent routing are opt-in, not per-task rituals.
+- Before adding a skill, agent, hook, or MCP connector, price its description
+  against how often it fires — installed means billed on every request.
+- Unsubscribe from PR activity once CI is green; bot deploy comments were the
+  single largest conversation-side cost measured.
+- `/re-fresh` into a fresh session beats carrying a long one — context grew
+  2.5x across one session for the same work.
+
+## Knowledge Base
+
+Data flows into `/raw`, is indexed in `/wiki`, and `/improve-system` turns it
+into workspace upgrades.
 
 | Path | Purpose | Rules |
 |------|---------|-------|
-| `raw/` | Unstructured resources (session digests, meeting logs, exports, text dumps) | Append-only; never edit in place; naming `YYYY-MM-DD_<source>_<topic>.md` |
-| `raw/sessions/`, `raw/ecosystem/`, `raw/curated/` | Pipeline landing zones | Written only by the sync skills; each tracks a `.last-sync` timestamp |
-| `wiki/` | Table of contents indexing `/raw` (`wiki/index.md`) plus topic pages | Read this FIRST to map project metadata — never bulk-parse `/raw`; every raw file must have an index row |
-| `output/` | Improvement-loop artifacts | Review files `review_YYYY-MM-DD.md` (sign-off checklists) and hidden log `.improvement-log.md` (auto-applied changes) |
+| `raw/` | Session digests, meeting logs, exports, dumps | Append-only; never edit in place; `YYYY-MM-DD_<source>_<topic>.md` |
+| `raw/sessions/`, `raw/ecosystem/`, `raw/curated/` | Pipeline landing zones | Written only by the sync skills; each tracks `.last-sync` |
+| `wiki/` | Index of `/raw` (`wiki/index.md`) + topic pages | Read FIRST — never bulk-parse `/raw`; every raw file needs an index row |
+| `output/` | Improvement-loop artifacts | `review_YYYY-MM-DD.md` sign-offs; hidden `.improvement-log.md` |
 
-`raw/`, `wiki/`, and `output/` are the sanctioned exceptions to the
-"no working files in root" rule above.
+These three are the sanctioned exceptions to the "no working files in root" rule.
 
-### Skills
+**Routines** (cloud, fresh session per run, shared branch `knowledge-base-updates`
+off `main`): `/data-ingestion` Tue & Fri 00:00 UK (`0 23 * * 1,4` UTC);
+`/improve-system` an hour later (`0 0 * * 2,5` UTC). Cron is UTC so both shift
+an hour in GMT. Notifications off — results surface only via the draft PR.
 
-| Skill | Role |
-|-------|------|
-| `/add-new-resource` | Manually ingest one file: copy to `/raw`, evaluate, index in `/wiki` |
-| `/sync-claude-sessions` | Digest local CLI session history → `raw/sessions/` |
-| `/sync-ecosystem-data` | Pull meeting/email/calendar signals → `raw/ecosystem/` |
-| `/sync-curated-content` | Extract claims from the `+newsletter` Gmail alias → `raw/curated/` |
-| `/data-ingestion` | Master orchestration: runs all three syncs, reconciles the wiki |
-| `/improve-system` | Improvement loop: auto-applies low-risk hygiene, writes sign-off proposals to `output/review_[date].md` |
-
-### Routines (cloud Routines, fresh session per run)
-
-- **Data Ingestion**: `/data-ingestion` — Tuesday & Friday 00:00 UK time
-  (cron `0 23 * * 1,4` UTC)
-- **System Improvements**: `/improve-system` — Tuesday & Friday 01:00 UK time
-  (cron `0 0 * * 2,5` UTC), one hour after ingestion
-- Cron is UTC, so both shift an hour later in UK winter (GMT); notifications
-  are off — results surface only via the "Knowledge base updates" PR
-
-Both routines work on the shared branch `knowledge-base-updates` (created from
-`main` if absent, checked out if it exists) so the afternoon improvement run
-sees the morning's ingested data. They commit and push to that branch and keep
-a single draft PR open; merge it periodically to fold knowledge into `main`.
-
-### Loop Hygiene
-
-- After any long, highly successful session, run `/improve-system` immediately
-  ("compress feedback loops") — don't wait for the routine
-- `/improve-system` may auto-apply only low-risk data hygiene; anything
-  touching `.claude/` or this file requires a `[ ] Approve` sign-off in the
-  review file
-- Prefer deleting or fixing a failing skill over whiteboarding a perfect one
-
-## Agent Comms (SendMessage-First Coordination)
-
-Named agents coordinate via `SendMessage`, not polling or shared state.
-
-```
-Lead (you) ←→ architect ←→ developer ←→ tester ←→ reviewer
-              (named agents message each other directly)
-```
-
-### Spawning a Coordinated Team
-
-```javascript
-// ALL agents in ONE message, each knows WHO to message next
-Agent({ prompt: "Research the codebase. SendMessage findings to 'architect'.",
-  subagent_type: "researcher", name: "researcher", run_in_background: true })
-Agent({ prompt: "Wait for 'researcher'. Design solution. SendMessage to 'coder'.",
-  subagent_type: "system-architect", name: "architect", run_in_background: true })
-Agent({ prompt: "Wait for 'architect'. Implement it. SendMessage to 'tester'.",
-  subagent_type: "coder", name: "coder", run_in_background: true })
-Agent({ prompt: "Wait for 'coder'. Write tests. SendMessage results to 'reviewer'.",
-  subagent_type: "tester", name: "tester", run_in_background: true })
-Agent({ prompt: "Wait for 'tester'. Review code quality and security.",
-  subagent_type: "reviewer", name: "reviewer", run_in_background: true })
-
-// Kick off the pipeline
-SendMessage({ to: "researcher", summary: "Start", message: "[task context]" })
-```
-
-### Patterns
-
-| Pattern | Flow | Use When |
-|---------|------|----------|
-| **Pipeline** | A → B → C → D | Sequential dependencies (feature dev) |
-| **Fan-out** | Lead → A, B, C → Lead | Independent parallel work (research) |
-| **Supervisor** | Lead ↔ workers | Ongoing coordination (complex refactor) |
-
-### Rules
-
-- ALWAYS name agents — `name: "role"` makes them addressable
-- ALWAYS include comms instructions in prompts — who to message, what to send
-- Spawn ALL agents in ONE message with `run_in_background: true`
-- After spawning: STOP, tell user what's running, wait for results
-- NEVER poll status — agents message back or complete automatically
-
-## Swarm & Routing
-
-### Config
-- **Topology**: hierarchical-mesh (anti-drift)
-- **Max Agents**: 15
-- **Memory**: hybrid
-- **HNSW**: Enabled
-- **Neural**: Enabled
-
-```bash
-npx @claude-flow/cli@latest swarm init --topology hierarchical --max-agents 8 --strategy specialized
-```
-
-### Agent Routing
-
-| Task | Agents | Topology |
-|------|--------|----------|
-| Bug Fix | researcher, coder, tester | hierarchical |
-| Feature | architect, coder, tester, reviewer | hierarchical |
-| Refactor | architect, coder, reviewer | hierarchical |
-| Performance | perf-engineer, coder | hierarchical |
-| Security | security-architect, auditor | hierarchical |
-
-### When to Swarm
-- **YES**: 3+ files, new features, cross-module refactoring, API changes, security, performance
-- **NO**: single file edits, 1-2 line fixes, docs updates, config changes, questions
-
-### 3-Tier Model Routing
-
-| Tier | Handler | Use Cases |
-|------|---------|-----------|
-| 1 | Agent Booster (WASM) | Simple transforms — skip LLM, use Edit directly |
-| 2 | Haiku | Simple tasks, low complexity |
-| 3 | Sonnet/Opus | Architecture, security, complex reasoning |
-
-## Memory & Learning
-
-### Before Any Task
-```bash
-npx @claude-flow/cli@latest memory search --query "[task keywords]" --namespace patterns
-npx @claude-flow/cli@latest hooks route --task "[task description]"
-```
-
-### After Success
-```bash
-npx @claude-flow/cli@latest memory store --namespace patterns --key "[name]" --value "[what worked]"
-npx @claude-flow/cli@latest hooks post-task --task-id "[id]" --success true --store-results true
-```
-
-### MCP Tools (use `ToolSearch("keyword")` to discover)
-
-| Category | Key Tools |
-|----------|-----------|
-| **Memory** | `memory_store`, `memory_search`, `memory_search_unified` |
-| **Bridge** | `memory_import_claude`, `memory_bridge_status` |
-| **Swarm** | `swarm_init`, `swarm_status`, `swarm_health` |
-| **Agents** | `agent_spawn`, `agent_list`, `agent_status` |
-| **Hooks** | `hooks_route`, `hooks_post-task`, `hooks_worker-dispatch` |
-| **Security** | `aidefence_scan`, `aidefence_is_safe`, `aidefence_has_pii` |
-| **Hive-Mind** | `hive-mind_init`, `hive-mind_consensus`, `hive-mind_spawn` |
-
-### Background Workers
-
-| Worker | When |
-|--------|------|
-| `audit` | After security changes |
-| `optimize` | After performance work |
-| `testgaps` | After adding features |
-| `map` | Every 5+ file changes |
-| `document` | After API changes |
-
-```bash
-npx @claude-flow/cli@latest hooks worker dispatch --trigger audit
-```
+`/improve-system` may auto-apply only low-risk data hygiene; anything touching
+`.claude/` or this file needs a `[ ] Approve` sign-off in the review file.
+Prefer deleting or fixing a failing skill over whiteboarding a perfect one.
 
 ## Agents
 
-**Core**: `coder`, `reviewer`, `tester`, `planner`, `researcher`
-**Architecture**: `system-architect`, `backend-dev`, `mobile-dev`
-**Security**: `security-architect`, `security-auditor`
-**Performance**: `performance-engineer`, `perf-analyzer`
-**Coordination**: `hierarchical-coordinator`, `mesh-coordinator`, `adaptive-coordinator`
-**GitHub**: `pr-manager`, `code-review-swarm`, `issue-tracker`, `release-manager`
+Named agents coordinate via `SendMessage`, not polling. Spawn the whole team in
+ONE message — each `Agent({...})` gets `name: "<role>"`, `run_in_background: true`,
+and a prompt naming who to wait for and who to message next. Kick off with one
+`SendMessage`, then STOP: say what's running and wait. NEVER poll status.
 
-Any string works as a custom agent type.
+Swarm for 3+ files, new features, cross-module refactors, API changes, security,
+performance. Don't swarm single-file edits, small fixes, docs, config, or
+questions — coordination overhead exceeds the work.
 
-## Build & Test
+Any string works as a `subagent_type`. Defined here: `planner`,
+`hierarchical-coordinator`, `mesh-coordinator`, `adaptive-coordinator`,
+`production-validator`, `tdd-london-swarm`.
 
-- ALWAYS run tests after code changes
-- ALWAYS verify build succeeds before committing
+## Ruflo CLI
 
-```bash
-npm run build && npm test
-```
+`npx @claude-flow/cli@latest <command>` — `init`, `swarm`, `memory`, `hooks`,
+`doctor --fix`, `security scan`. Use `--help` rather than guessing. MCP
+coordination tools are discoverable via `ToolSearch("keyword")`.
 
-## CLI Quick Reference
+> The background `daemon` is **expensive** — its interval workers each spawn a
+> headless `claude` session, burning tokens continuously. Start it only if you
+> want those sweeps (self-stops after 12h; `daemon status --all` to audit).
 
-```bash
-npx @claude-flow/cli@latest init --wizard           # Setup
-npx @claude-flow/cli@latest swarm init --v3-mode     # Start swarm
-npx @claude-flow/cli@latest memory search --query "" # Vector search
-npx @claude-flow/cli@latest hooks route --task ""    # Route to agent
-npx @claude-flow/cli@latest doctor --fix             # Diagnostics
-npx @claude-flow/cli@latest security scan            # Security scan
-npx @claude-flow/cli@latest performance benchmark    # Benchmarks
-```
+## graphify
 
-26 commands, 140+ subcommands. Use `--help` on any command for details.
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
-## Setup
-
-```bash
-claude mcp add claude-flow -- npx -y ruflo@latest mcp start
-npx ruflo@latest doctor --fix
-```
-
-> The background `daemon` is optional. It runs interval workers that each spawn
-> a headless `claude` session, so it consumes tokens continuously. Start it only
-> if you want those sweeps: `npx ruflo@latest daemon start` (self-stops after 12h
-> by default; `--ttl 0` to disable, `daemon status --all` to audit running daemons).
-
-**Agent tool** handles execution (agents, files, code, git). **MCP tools** handle coordination (swarm, memory, hooks). **CLI** is the same via Bash.
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

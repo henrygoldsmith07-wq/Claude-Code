@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal } from './ui';
-import { GOALS, PLACEMENT_QUESTIONS, CEFR_LEVELS, createPath } from '../lib/path';
+import { GOALS, PLACEMENT_QUESTIONS, CEFR_LEVELS, createPath, getPath, retakePlacement } from '../lib/path';
 import { Plane, GraduationCap, Briefcase, MessageCircle, Check, X } from './icons';
 
 const GOAL_ICONS = { travel: Plane, school: GraduationCap, business: Briefcase, fluency: MessageCircle };
@@ -51,7 +51,10 @@ export default function PathSetup({ open, onClose, onCreated }) {
   const close = () => { reset(); onClose(); };
 
   const finish = (cefr) => {
-    const path = createPath(goal, cefr);
+    const existing = getPath();
+    const path = existing
+      ? retakePlacement(goal, cefr, existing)
+      : createPath(goal, cefr);
     onCreated(path);
     reset();
   };

@@ -33,9 +33,24 @@ export function useEntries(entries: Entry[], setEntries: SetEntries) {
     );
   }
 
+  function updateFollowUp(id: string, at: string | null, note: string | null) {
+    setEntries((current) =>
+      current.map((e) => {
+        if (e.id !== id || !e.summary) return e;
+        return {
+          ...e,
+          summary: {
+            ...e.summary,
+            trace: { ...e.summary.trace, followUpAt: at, followUpNote: note },
+          },
+        };
+      }),
+    );
+  }
+
   function deleteEntry(id: string) {
     setEntries((current) => current.filter((e) => e.id !== id));
   }
 
-  return { startEntry, appendMessage, completeEntry, deleteEntry };
+  return { startEntry, appendMessage, completeEntry, updateFollowUp, deleteEntry };
 }

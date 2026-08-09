@@ -1,6 +1,6 @@
 ---
 name: data-ingestion
-description: Master orchestration for the knowledge-base pipelines — runs sync-claude-sessions, sync-ecosystem-data, and sync-curated-content in succession, then reconciles the wiki index. Use for the scheduled data-ingestion routine or when the user says "ingest data" / "run the pipelines".
+description: 'Master orchestration for the knowledge-base pipelines — runs the three syncs, then reconciles the wiki index. Use for the scheduled routine or "ingest data" / "run the pipelines".'
 ---
 
 # Data Ingestion (Master Orchestration)

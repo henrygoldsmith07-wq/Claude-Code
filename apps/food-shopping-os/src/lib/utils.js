@@ -10,11 +10,24 @@ export const cx = (...parts) => parts.filter(Boolean).join(' ');
 
 export const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
+/** Move one identified row directly before another without losing either. */
+export const moveBefore = (list = [], id, beforeId, key = (item) => item.id) => {
+  const from = list.findIndex((item) => key(item) === id);
+  const to = list.findIndex((item) => key(item) === beforeId);
+  if (from < 0 || to < 0 || from === to) return list;
+  const moved = [...list];
+  const [item] = moved.splice(from, 1);
+  moved.splice(from < to ? to - 1 : to, 0, item);
+  return moved;
+};
+
 export const todayName = () =>
   new Date().toLocaleDateString('en-GB', { weekday: 'long' });
 
-export const prettyDate = () =>
-  new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+/** "Monday 27 July" — today by default, or any 'YYYY-MM-DD' stamp. */
+export const prettyDate = (stamp) =>
+  (stamp ? new Date(`${stamp}T12:00:00`) : new Date())
+    .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
 export const greeting = () => {
   const h = new Date().getHours();

@@ -3,18 +3,26 @@ import { langName } from '../lib/i18n';
 import useRecorder from '../hooks/useRecorder';
 import Waveform from './Waveform';
 import { getScenarios } from '../lib/data';
-import { transcribe, evaluateTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
+import { transcribe, evaluateTurn, evaluateRedoTurn, getHint, explainMistake, friendlyError } from '../lib/groq';
+import { scoreDelta, redoVerdict } from '../lib/redo';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
 import { getSrs, recordGrammarError } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
-import { ArrowRight, Book, Grid, Lightbulb, Mic, RefreshCw, Sparkles, Square, Volume, scenarioIcon } from './icons';
-import ScenarioPicker from './ScenarioPicker';
+import { ArrowRight, Book, Lightbulb, Mic, Square, SCENARIO_ICONS } from './icons';
 import { getGrammarTopic } from '../lib/grammar';
 
 const CURVEBALL_TURN = 3; // the surprise lands on the learner's 3rd turn
+
+function readSessionBudget() {
+  try {
+    const m = +sessionStorage.getItem('fp.sessionMins');
+    if (m === 5 || m === 10 || m === 15) return m * 60;
+  } catch { /* ignore */ }
+  return null;
+}
 
 export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate, onTurn, onGrammarTip, history, setHistory, scenario, setScenario, onEndSession }) {
   const [phase, setPhase] = useState('idle'); // idle | transcribing | editing | thinking
@@ -24,8 +32,23 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   const [hint, setHint] = useState('');
   const [hintLoading, setHintLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(readSessionBudget);
+  // Active redo: idx of the turn being retried. While set, the correction
+  // for that turn is hidden so the learner must recall it.
+  const [redoIdx, setRedoIdx] = useState(null);
   const scrollRef = useRef(null);
+
+  // Honour Home's 5/10/15 min presets: countdown only, never auto-sends speech.
+  useEffect(() => {
+    if (secondsLeft == null) return undefined;
+    if (secondsLeft <= 0) {
+      try { sessionStorage.removeItem('fp.sessionMins'); } catch { /* ignore */ }
+      onEndSession?.();
+      return undefined;
+    }
+    const id = setInterval(() => setSecondsLeft((s) => (s == null ? s : s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [secondsLeft, onEndSession]);
 
   const recorder = useRecorder({
     onComplete: async (blob, durationMs) => {
@@ -71,11 +94,47 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     setHintLevel(0);
     setError(null);
     setPhase('idle');
+    setRedoIdx(null);
   };
 
   const send = async (text) => {
     const userText = text.trim();
     if (!userText || phase === 'thinking') return;
+    // Redo path: re-evaluate the same turn with correction hidden
+    if (redoIdx != null) {
+      const idx = redoIdx;
+      const original = history[idx];
+      if (!original) { setRedoIdx(null); return; }
+      setDraft('');
+      setSpoken(null);
+      setPhase('thinking');
+      setError(null);
+      try {
+        const redoEval = await evaluateRedoTurn(apiKey, {
+          scenario,
+          historyBefore: history.slice(0, idx),
+          originalText: original.userText,
+          retryText: userText,
+          level,
+          mock: mockMode,
+        });
+        if (redoEval.grammar_topic) recordGrammarError(redoEval.grammar_topic);
+        const { deltas, deltaOverall } = scoreDelta(original.evaluation.scores, redoEval.scores);
+        const verdict = redoVerdict(deltaOverall);
+        const redo = { retryText: userText, evaluation: redoEval, deltas, deltaOverall, verdict, note: redoEval.redo_note };
+        setHistory((h) => h.map((t, i) => (i === idx ? { ...t, redo } : t)));
+        onTurn(redoEval.scores);
+        speak(redoEval.reply, { rate: ttsRate });
+      } catch (e) {
+        setError(friendlyError(e));
+        setDraft(userText);
+        setPhase('editing');
+        return;
+      }
+      setRedoIdx(null);
+      setPhase('idle');
+      return;
+    }
     setDraft('');
     setSpoken(null);
     setHint('');
@@ -123,74 +182,92 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   };
 
   const busy = phase === 'transcribing' || phase === 'thinking';
-  const ScenarioIcon = scenarioIcon(scenario.id);
-  const target = activeLanguage();
 
   return (
     <div className="flex flex-col h-full">
-      {/* scenario context bar — what you're in, and how to change it */}
-      <div className="border-b border-line bg-surface px-3 py-2.5 space-y-2">
-        <div className="flex items-start gap-2.5">
-          <span
-            className="w-9 h-9 shrink-0 grid place-items-center rounded-xl bg-surface2 border border-line text-ink"
-            aria-hidden="true"
-          >
-            <ScenarioIcon size={17} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-ink truncate">{scenario.title}</h2>
-            <p className="text-[11px] text-ink2 leading-snug line-clamp-2">{scenario.setup}</p>
-          </div>
-          <button
-            onClick={() => setPickerOpen(true)}
-            className="btn btn-secondary shrink-0 min-h-9 px-3 rounded-xl text-xs"
-            title="Browse every roleplay"
-          >
-            <Grid size={13} /> Change
-          </button>
+      {/* scenario card rail */}
+      <div className="border-b border-line bg-surface px-3 pt-2.5 pb-2 space-y-1.5">
+        <div className="snap-rail flex gap-2 overflow-x-auto" role="group" aria-label="Choose a scenario">
+          {getScenarios().map((s) => {
+            const active = s.id === scenario.id;
+            const ScenarioIcon = SCENARIO_ICONS[s.id];
+            return (
+              <button
+                key={s.id}
+                onClick={() => changeScenario(s.id)}
+                aria-pressed={active}
+                className={`shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-left transition-colors ${
+                  active
+                    ? 'border-ink bg-surface shadow-sm'
+                    : 'border-line bg-surface hover:border-ink3'
+                }`}
+              >
+                <ScenarioIcon size={16} className={active ? 'text-ink' : 'text-ink3'} />
+                <span className={`text-xs font-semibold whitespace-nowrap ${active ? 'text-ink' : 'text-ink2'}`}>
+                  {s.title}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+        <div className="flex items-center justify-between pr-1 gap-2">
           <button
             onClick={() => { setReversed((v) => !v); setHistory([]); setHint(''); setHintLevel(0); setPhase('idle'); }}
             aria-pressed={reversed}
             title="Swap roles: you play the professional, the AI plays the customer"
-            className={`inline-flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
               reversed ? 'border-ink bg-surface2 text-ink' : 'border-line text-ink3 hover:text-ink2'
             }`}
           >
-            <RefreshCw size={12} /> {reversed ? 'You serve' : 'Swap roles'}
+            🔄 {reversed ? 'Roles swapped — you serve' : 'Swap roles'}
           </button>
-          <div className="flex items-center gap-2 ml-auto">
-            <RateSlider rate={ttsRate} onChange={onTtsRate} />
-            {history.length > 0 && (
-              <button
-                onClick={onEndSession}
-                className="btn btn-secondary shrink-0 min-h-8 px-2.5 rounded-lg text-[11px] whitespace-nowrap"
+          <div className="flex items-center gap-2">
+            {secondsLeft != null && (
+              <span
+                className={`tabular-nums text-[11px] font-bold px-2 py-1 rounded-lg border ${
+                  secondsLeft <= 60 ? 'border-ink text-ink bg-surface2' : 'border-line text-ink3'
+                }`}
+                title="Session timer from Home preset"
+                aria-live="polite"
               >
-                End session
-              </button>
+                {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
+              </span>
             )}
+            <RateSlider rate={ttsRate} onChange={onTtsRate} />
           </div>
         </div>
       </div>
 
-      <ScenarioPicker
-        open={pickerOpen}
-        activeId={scenario.id}
-        onPick={changeScenario}
-        onClose={() => setPickerOpen(false)}
-      />
-
       {/* transcript */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto nice-scroll px-4 py-4">
-        <div className="max-w-2xl mx-auto space-y-4" role="log" aria-live="polite" aria-busy={phase === 'thinking'}>
+        <div className="max-w-2xl mx-auto space-y-4">
+        <p className="text-center text-[11px] text-ink3 max-w-sm mx-auto">{scenario.setup}</p>
         <AiBubble text={scenario.opener} translation={scenario.openerTranslation} ttsRate={ttsRate} />
-        {history.length === 0 && <HowItWorks language={target.name} />}
+        {redoIdx != null && history[redoIdx] && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-ink" role="status">
+            <span className="font-bold">Redo mode</span> — correction hidden. Recall the fix from memory, then re-speak or re-type the same turn. We’ll compare the two attempts.
+          </div>
+        )}
         {history.map((turn, i) => (
           <div key={i} className="space-y-4">
-            <UserBubble turn={turn} onGrammarTip={onGrammarTip} apiKey={apiKey} mockMode={mockMode} level={level} />
-            {turn.curveball && <CurveballDivider />}
+            <UserBubble
+              turn={turn}
+              idx={i}
+              redoActive={redoIdx === i}
+              onRedo={(idx) => { setRedoIdx(idx); setDraft(''); setSpoken(null); setError(null); setPhase('idle'); }}
+              onCancelRedo={() => setRedoIdx(null)}
+              onGrammarTip={onGrammarTip}
+              apiKey={apiKey}
+              mockMode={mockMode}
+              level={level}
+            />
+            {turn.curveball && (
+              <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
+                Curveball
+              </p>
+            )}
             <AiBubble text={turn.evaluation.reply} translation={turn.evaluation.translation} ttsRate={ttsRate} />
+            {turn.redo && <RedoCompare redo={turn.redo} before={turn.evaluation.scores} idx={i} />}
           </div>
         ))}
         {phase === 'thinking' && (
@@ -202,7 +279,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
           </div>
         )}
         {error && (
-          <p role="alert" className="fade-in text-xs text-danger bg-dangersoft border border-danger/40 rounded-xl px-3 py-2">
+          <p role="alert" className="text-xs text-ink bg-surface2 border border-line rounded-xl px-3 py-2">
             {error}
           </p>
         )}
@@ -218,23 +295,22 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         </div>
       )}
 
-      {/* heads-up: the scenario throws its curveball at the learner next turn */}
-      {history.length === CURVEBALL_TURN - 1 && !busy && (
-        <p className="fade-in mx-4 mb-2 flex items-center justify-center gap-1.5 text-[11px] text-ink3">
-          <Sparkles size={12} /> Brace yourself — this turn comes with a curveball.
-        </p>
-      )}
-
       {/* composer */}
       <div className="border-t border-line bg-surface px-4 pt-3 pb-safe">
         <div className="max-w-2xl mx-auto">
+        {redoIdx != null && phase === 'idle' && !recorder.recording && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+            <span className="text-xs text-ink"><span className="font-bold">Retrying turn {redoIdx + 1}</span> — say it again without peeking.</span>
+            <button onClick={() => setRedoIdx(null)} className="text-xs font-semibold text-ink2 hover:text-ink min-h-8 px-2">Cancel redo</button>
+          </div>
+        )}
         {recorder.recording ? (
           <div className="space-y-2">
             <Waveform analyserRef={recorder.analyserRef} peakDb={recorder.peakDb} elapsed={recorder.elapsed} />
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={recorder.cancel}
-                className="min-h-11 w-20 rounded-xl text-sm text-ink2 hover:text-ink"
+                className="min-h-11 px-4 rounded-xl text-sm text-ink2 hover:text-ink"
               >
                 Cancel
               </button>
@@ -245,9 +321,8 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
               >
                 <Square size={20} />
               </button>
-              <span className="w-20" aria-hidden="true" />
+              <span className="text-[11px] text-ink3 w-20">3.5 s of silence auto-sends</span>
             </div>
-            <p className="text-center text-[11px] text-ink3">3.5 s of silence sends it automatically</p>
           </div>
         ) : phase === 'editing' ? (
           <div className="space-y-2 fade-in">
@@ -264,7 +339,6 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
               onChange={(e) => setDraft(e.target.value)}
               rows={2}
               autoFocus
-              lang={target.id}
               className="w-full bg-surface2 border border-line rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-ink resize-none"
               aria-label="Transcription to review"
             />
@@ -290,37 +364,31 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
             >
               <Lightbulb size={14} /> {hintLevel === 0 ? 'Hint' : `Hint ${Math.min(3, hintLevel + 1)}/3`}
             </button>
-            <div className="flex-1 min-w-0 flex items-center gap-1 bg-surface2 rounded-xl border border-line focus-within:border-ink px-3">
+            <div className={`flex-1 flex items-center gap-2 rounded-xl border px-3 ${redoIdx != null ? 'bg-amber-50 border-amber-300 focus-within:border-amber-400' : 'bg-surface2 border-line focus-within:border-ink'}`}>
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send(draft)}
-                placeholder={busy ? '…' : `Or type in ${langName()}…`}
+                placeholder={busy ? '…' : redoIdx != null ? `Redo turn ${redoIdx + 1} — type your improved ${langName()}…` : `Or type in ${langName()}…`}
                 disabled={busy}
-                lang={target.id}
-                className="flex-1 min-w-0 bg-transparent py-3 text-sm text-ink placeholder:text-ink3 focus:outline-none"
-                aria-label="Typed reply"
+                className="flex-1 bg-transparent py-3 text-sm text-ink placeholder:text-ink3 focus:outline-none"
+                aria-label={redoIdx != null ? 'Retry reply' : 'Typed reply'}
               />
               {draft.trim() && (
-                <button onClick={() => send(draft)} disabled={busy} aria-label="Send" className="text-ink px-1 min-h-11 grid place-items-center shrink-0"><ArrowRight size={16} /></button>
+                <button onClick={() => send(draft)} disabled={busy} aria-label={redoIdx != null ? 'Send retry' : 'Send'} className="text-ink px-1 min-h-11 grid place-items-center"><ArrowRight size={16} /></button>
               )}
             </div>
             <button
               onClick={recorder.start}
               disabled={busy}
               aria-label="Record my reply"
-              title="Record my reply"
-              className="btn btn-primary w-12 h-12 shrink-0 rounded-full p-0"
+              className="btn btn-primary w-14 h-14 rounded-full"
             >
-              {phase === 'transcribing' ? <span className="w-5 h-5 rounded-full border-2 border-onaccent border-t-transparent animate-spin" /> : <Mic size={20} />}
+              {phase === 'transcribing' ? <span className="w-5 h-5 rounded-full border-2 border-onaccent border-t-transparent animate-spin" /> : <Mic size={22} />}
             </button>
           </div>
         )}
-        {recorder.error && (
-          <p role="alert" className="mt-2 text-[11px] text-danger bg-dangersoft border border-danger/40 rounded-lg px-2.5 py-1.5">
-            {recorder.error}
-          </p>
-        )}
+        {recorder.error && <p role="alert" className="text-[11px] text-ink mt-2">{recorder.error}</p>}
         </div>
       </div>
     </div>
@@ -333,45 +401,8 @@ function Avatar() {
       className="w-9 h-9 shrink-0 rounded-full bg-surface2 border border-line grid place-items-center mb-1 text-[10px] font-semibold tracking-widest text-ink2"
       aria-hidden="true"
     >
-      {activeLanguage().id.toUpperCase()}
+      FR
     </span>
-  );
-}
-
-// Marks the scripted twist so the jump in the conversation reads as designed
-// rather than as the model losing the thread.
-function CurveballDivider() {
-  return (
-    <div className="flex items-center gap-2.5 fade-in" role="separator" aria-label="Curveball">
-      <span className="h-px flex-1 bg-line" />
-      <span className="pill text-[10px] uppercase tracking-wider text-ink">
-        <Sparkles size={11} /> Curveball
-      </span>
-      <span className="h-px flex-1 bg-line" />
-    </div>
-  );
-}
-
-// Shown until the first reply lands: the transcript is otherwise a wall of
-// empty space, and nothing on screen says what the three controls below do.
-function HowItWorks({ language }) {
-  const steps = [
-    [Mic, <>Tap the mic and answer out loud — you can fix the transcription before it sends.</>],
-    [Lightbulb, <>Stuck? <span className="font-semibold">Hint</span> opens up in three steps, from vocabulary to a full sentence.</>],
-    [Volume, <>Every reply can be replayed or translated, and each of yours gets corrections and a native version.</>],
-  ];
-  return (
-    <div className="fade-in rounded-xl border border-line bg-surface2 px-3.5 py-3 space-y-2">
-      <p className="text-xs font-semibold text-ink">Your turn — reply in {language}</p>
-      <ul className="space-y-1.5">
-        {steps.map(([StepIcon, text], i) => (
-          <li key={i} className="flex items-start gap-2 text-[11px] text-ink2 leading-snug">
-            <StepIcon size={13} className="mt-0.5 text-ink3" />
-            <span>{text}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 
@@ -381,7 +412,7 @@ function AiBubble({ text, translation, ttsRate }) {
     <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%] bubble-in">
       <Avatar />
       <div className="bg-surface2 rounded-2xl rounded-bl-md px-4 py-3 space-y-2">
-        <p className="text-[15px] text-ink leading-relaxed" lang={activeLanguage().id}>{text}</p>
+        <p className="text-[15px] text-ink leading-relaxed" lang="fr">{text}</p>
         {showTranslation && <p className="text-xs text-ink2 italic border-t border-line pt-2">{translation}</p>}
         <div className="flex items-center gap-2">
           <SpeakButton text={text} rate={ttsRate} label="Replay" />
@@ -397,23 +428,33 @@ function AiBubble({ text, translation, ttsRate }) {
   );
 }
 
-function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
+function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip, apiKey, mockMode, level }) {
   const [expanded, setExpanded] = useState(false);
   const { evaluation } = turn;
+  const redoHidden = redoActive && !expanded; // correction collapsed while redo active
   return (
     <div className="flex flex-col items-end gap-1.5 bubble-in">
       <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%]">
-        <div className="bg-accent rounded-2xl rounded-br-md px-4 py-3 shadow-md shadow-black/15">
-          <p className="text-[15px] text-onaccent leading-relaxed" lang={activeLanguage().id}>{turn.userText}</p>
+        <div className={`rounded-2xl rounded-br-md px-4 py-3 shadow-md shadow-black/15 ${turn.redo ? 'bg-ink text-bg' : 'bg-accent text-onaccent'}`}> 
+          <p className={`text-[15px] leading-relaxed ${turn.redo ? 'text-bg' : 'text-onaccent'}`} lang="fr">{turn.userText}</p>
         </div>
         <ScoreBadge value={evaluation.scores.overall} />
       </div>
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
-      >
-        {expanded ? 'Hide feedback' : 'Corrections & native version'}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
+        >
+          {expanded ? 'Hide feedback' : 'Corrections & native version'}
+        </button>
+        {!turn.redo && (
+          redoActive ? (
+            <button onClick={onCancelRedo} className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 min-h-8 px-2 rounded-lg bg-amber-50 border border-amber-200">Cancel redo</button>
+          ) : (
+            <button onClick={() => onRedo(idx)} className="text-[11px] font-semibold text-ink2 hover:text-ink min-h-8 px-2 rounded-lg border border-line bg-surface hover:border-ink3">Redo this turn →</button>
+          )
+        )}
+      </div>
       {expanded && (
         <div className="w-full sm:max-w-[85%] fade-in bg-surface2 border border-line rounded-2xl p-4 space-y-3 text-left">
           <div>
@@ -423,7 +464,7 @@ function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
           </div>
           <div>
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink mb-1">Like a native</h4>
-            <p className="text-[13px] text-ink italic" lang={activeLanguage().id}>{evaluation.native_alternative}</p>
+            <p className="text-[13px] text-ink italic" lang="fr">{evaluation.native_alternative}</p>
             <SpeakButton text={evaluation.native_alternative} slow label="Listen" />
           </div>
           {(() => {
@@ -436,7 +477,6 @@ function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
                 <Book size={14} className="text-ink2 shrink-0" />
                 <span className="flex-1 text-xs text-ink">
                   <span className="font-semibold">Grammar tip:</span> this looks like{' '}
-                  {/* the grammar library is French-only, whatever the target language */}
                   <span lang="fr" className="font-semibold">{tipTopic.title}</span> — review the lesson
                 </span>
                 <ArrowRight size={13} className="text-ink3 shrink-0" />
@@ -445,6 +485,36 @@ function UserBubble({ turn, onGrammarTip, apiKey, mockMode, level }) {
           })()}
         </div>
       )}
+      {redoActive && !expanded && (
+        <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 w-full sm:max-w-[85%] text-left">
+          Correction hidden — redo the turn from memory. Open feedback only after you retry.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RedoCompare({ redo, before, idx }) {
+  const sign = (n) => (n > 0 ? `+${n}` : String(n));
+  const tone = redo.deltaOverall > 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : redo.deltaOverall < 0 ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-ink2 bg-surface2 border-line';
+  return (
+    <div className={`fade-in rounded-2xl border px-4 py-3 space-y-2 text-left sm:max-w-[85%] ml-auto w-full ${tone}`}> 
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider">Redo — turn {idx + 1}</h4>
+        <span className={`text-xs font-black tabular-nums ${redo.deltaOverall > 0 ? 'text-emerald-700' : redo.deltaOverall < 0 ? 'text-amber-700' : 'text-ink2'}`}>{sign(redo.deltaOverall)} overall</span>
+      </div>
+      <p className="text-xs leading-relaxed"><span className="font-semibold">Retry:</span> <span lang="fr">“{redo.retryText}”</span></p>
+      <p className="text-xs leading-relaxed italic">{redo.verdict}{redo.note ? ` — ${redo.note}` : ''}</p>
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {Object.entries(redo.deltas).map(([k, v]) => (
+          <span key={k} className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${v > 0 ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : v < 0 ? 'bg-amber-100 border-amber-200 text-amber-800' : 'bg-surface border-line text-ink3'}`}>
+            {k} {sign(v)}
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2 text-[11px] text-ink2">
+        <span>Before {before.overall}</span><span aria-hidden="true">→</span><span className="font-bold text-ink">Retry {redo.evaluation.scores.overall}</span>
+      </div>
     </div>
   );
 }

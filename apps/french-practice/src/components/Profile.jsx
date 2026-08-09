@@ -6,7 +6,7 @@ import {
   getChallengeState, claimChallenge, getTodayXp,
   getAvatar, setAvatar, getOwnedAvatars, ownAvatar,
   getCollectibles, awardCollectible, getEventXp,
-  getWeekXp, getSettings,
+  getWeekXp, getSettings, getMetrics, getStarredLines,
 } from '../lib/storage';
 import {
   levelFromXp, AVATARS, ACHIEVEMENTS, dailyChallenges, COLLECTIBLES,
@@ -141,6 +141,8 @@ function buildStats() {
     grammarMastered: Object.values(getGrammarProgress()).filter((g) => g.best >= 80).length,
     notebook: getNotebook().length,
     collectibles: Object.keys(getCollectibles()).length,
+    drills: getMetrics().filter((m) => m.skill === 'drill').length,
+    starred: getStarredLines().length,
   };
 }
 

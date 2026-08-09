@@ -1,22 +1,32 @@
 /**
- * Recipe catalogue. Hero art is emoji on a neutral tile so the app is fully
- * offline/self-contained.
+ * The recipe book.
+ *
+ * A handful of signature dishes are written out in full below; the rest of the
+ * library is composed from real ingredients by `recipe-gen.js`, so every
+ * dish's calories, macros, cost and scores are computed from what is actually
+ * in it. There are no ratings: nothing here has been cooked by anyone but you,
+ * so dishes are judged on time, cost, protein and their health/planet scores.
+ *
+ * Hero art is an emoji key rendered as a monochrome icon, so the app stays
+ * fully offline and self-contained.
  */
-export const RECIPES = [
+import { generateRecipes } from './recipe-gen.js';
+
+const SIGNATURE = [
   {
     id: 'chicken-traybake', name: 'Lemon Chicken Traybake', emoji: '🍗',
     cuisine: 'British', tags: ['high-protein', 'one-pot', 'family', 'budget'],
     time: 45, prep: 10, difficulty: 'Easy', costPerServing: 1.85, servings: 4,
-    kcal: 520, protein: 42, carbs: 38, fat: 21, fibre: 6, rating: 4.8,
+    kcal: 520, protein: 42, carbs: 38, fat: 21, fibre: 6,
     healthScore: 82, envScore: 68, proteinScore: 92,
     ingredients: [
-      { name: 'Chicken thighs', qty: '8', pantry: true },
-      { name: 'New potatoes', qty: '600g', pantry: true },
-      { name: 'Lemon', qty: '1', pantry: false },
-      { name: 'Red onion', qty: '2', pantry: true },
-      { name: 'Garlic', qty: '4 cloves', pantry: true },
-      { name: 'Olive oil', qty: '2 tbsp', pantry: true },
-      { name: 'Oregano', qty: '1 tsp', pantry: true },
+      { name: 'Chicken thighs', qty: '8' },
+      { name: 'New potatoes', qty: '600g' },
+      { name: 'Lemon', qty: '1' },
+      { name: 'Red onion', qty: '2' },
+      { name: 'Garlic', qty: '4 cloves' },
+      { name: 'Olive oil', qty: '2 tbsp' },
+      { name: 'Oregano', qty: '1 tsp' },
     ],
     steps: [
       { text: 'Heat the oven to 200°C fan. Halve the potatoes and quarter the onions.' },
@@ -30,16 +40,16 @@ export const RECIPES = [
     id: 'chickpea-curry', name: 'Coconut Chickpea Curry', emoji: '🍛',
     cuisine: 'Indian', tags: ['vegan', 'budget', 'one-pot', 'quick', 'freezer'],
     time: 25, prep: 5, difficulty: 'Easy', costPerServing: 1.1, servings: 4,
-    kcal: 430, protein: 14, carbs: 48, fat: 19, fibre: 11, rating: 4.7,
+    kcal: 430, protein: 14, carbs: 48, fat: 19, fibre: 11,
     healthScore: 88, envScore: 94, proteinScore: 55,
     ingredients: [
-      { name: 'Chickpeas (tins)', qty: '2', pantry: true },
-      { name: 'Coconut milk', qty: '1 tin', pantry: true },
-      { name: 'Chopped tomatoes', qty: '1 tin', pantry: true },
-      { name: 'Onion', qty: '1', pantry: true },
-      { name: 'Curry paste', qty: '3 tbsp', pantry: true },
-      { name: 'Spinach', qty: '150g', pantry: false },
-      { name: 'Rice', qty: '300g', pantry: true },
+      { name: 'Chickpeas (tins)', qty: '2' },
+      { name: 'Coconut milk', qty: '1 tin' },
+      { name: 'Chopped tomatoes', qty: '1 tin' },
+      { name: 'Onion', qty: '1' },
+      { name: 'Curry paste', qty: '3 tbsp' },
+      { name: 'Spinach', qty: '150g' },
+      { name: 'Rice', qty: '300g' },
     ],
     steps: [
       { text: 'Soften the diced onion in a splash of oil over medium heat.', timerMins: 5 },
@@ -53,16 +63,16 @@ export const RECIPES = [
     id: 'salmon-teriyaki', name: 'Teriyaki Salmon Bowls', emoji: '🍣',
     cuisine: 'Japanese', tags: ['high-protein', 'quick', 'healthy', 'date-night'],
     time: 20, prep: 8, difficulty: 'Medium', costPerServing: 3.4, servings: 2,
-    kcal: 560, protein: 38, carbs: 52, fat: 22, fibre: 5, rating: 4.9,
+    kcal: 560, protein: 38, carbs: 52, fat: 22, fibre: 5,
     healthScore: 90, envScore: 61, proteinScore: 88,
     ingredients: [
-      { name: 'Salmon fillets', qty: '2', pantry: false },
-      { name: 'Sushi rice', qty: '200g', pantry: true },
-      { name: 'Soy sauce', qty: '3 tbsp', pantry: true },
-      { name: 'Honey', qty: '1 tbsp', pantry: true },
-      { name: 'Ginger', qty: 'thumb', pantry: false },
-      { name: 'Broccoli', qty: '1 head', pantry: true },
-      { name: 'Sesame seeds', qty: '1 tsp', pantry: true },
+      { name: 'Salmon fillets', qty: '2' },
+      { name: 'Sushi rice', qty: '200g' },
+      { name: 'Soy sauce', qty: '3 tbsp' },
+      { name: 'Honey', qty: '1 tbsp' },
+      { name: 'Ginger', qty: 'thumb' },
+      { name: 'Broccoli', qty: '1 head' },
+      { name: 'Sesame seeds', qty: '1 tsp' },
     ],
     steps: [
       { text: 'Rinse and cook the rice; steam the broccoli over the same pan.', timerMins: 12 },
@@ -76,16 +86,16 @@ export const RECIPES = [
     id: 'veg-chilli', name: 'Smoky Three-Bean Chilli', emoji: '🌶️',
     cuisine: 'Mexican', tags: ['vegan', 'budget', 'batch', 'freezer', 'family'],
     time: 40, prep: 10, difficulty: 'Easy', costPerServing: 0.95, servings: 6,
-    kcal: 380, protein: 17, carbs: 55, fat: 8, fibre: 15, rating: 4.6,
+    kcal: 380, protein: 17, carbs: 55, fat: 8, fibre: 15,
     healthScore: 91, envScore: 96, proteinScore: 60,
     ingredients: [
-      { name: 'Mixed beans (tins)', qty: '3', pantry: true },
-      { name: 'Chopped tomatoes', qty: '2 tins', pantry: true },
-      { name: 'Onion', qty: '2', pantry: true },
-      { name: 'Smoked paprika', qty: '2 tsp', pantry: true },
-      { name: 'Cumin', qty: '2 tsp', pantry: true },
-      { name: 'Peppers', qty: '2', pantry: false },
-      { name: 'Dark chocolate', qty: '2 squares', pantry: true },
+      { name: 'Mixed beans (tins)', qty: '3' },
+      { name: 'Chopped tomatoes', qty: '2 tins' },
+      { name: 'Onion', qty: '2' },
+      { name: 'Smoked paprika', qty: '2 tsp' },
+      { name: 'Cumin', qty: '2 tsp' },
+      { name: 'Peppers', qty: '2' },
+      { name: 'Dark chocolate', qty: '2 squares' },
     ],
     steps: [
       { text: 'Sweat the onions and peppers until soft.', timerMins: 8 },
@@ -98,15 +108,15 @@ export const RECIPES = [
     id: 'overnight-oats', name: 'Berry Overnight Oats', emoji: '🫐',
     cuisine: 'British', tags: ['breakfast', 'meal-prep', 'healthy', 'quick', 'budget'],
     time: 5, prep: 5, difficulty: 'Easy', costPerServing: 0.7, servings: 1,
-    kcal: 340, protein: 15, carbs: 48, fat: 9, fibre: 8, rating: 4.5,
+    kcal: 340, protein: 15, carbs: 48, fat: 9, fibre: 8,
     healthScore: 89, envScore: 90, proteinScore: 58,
     ingredients: [
-      { name: 'Oats', qty: '50g', pantry: true },
-      { name: 'Greek yogurt', qty: '100g', pantry: true },
-      { name: 'Milk', qty: '100ml', pantry: true },
-      { name: 'Frozen berries', qty: '80g', pantry: true },
-      { name: 'Honey', qty: '1 tsp', pantry: true },
-      { name: 'Chia seeds', qty: '1 tsp', pantry: true },
+      { name: 'Oats', qty: '50g' },
+      { name: 'Greek yogurt', qty: '100g' },
+      { name: 'Milk', qty: '100ml' },
+      { name: 'Frozen berries', qty: '80g' },
+      { name: 'Honey', qty: '1 tsp' },
+      { name: 'Chia seeds', qty: '1 tsp' },
     ],
     steps: [
       { text: 'Stir oats, chia, milk and yogurt together in a jar.' },
@@ -118,16 +128,16 @@ export const RECIPES = [
     id: 'airfryer-fajitas', name: 'Air Fryer Chicken Fajitas', emoji: '🌮',
     cuisine: 'Mexican', tags: ['air-fryer', 'quick', 'family', 'high-protein'],
     time: 18, prep: 8, difficulty: 'Easy', costPerServing: 2.1, servings: 4,
-    kcal: 480, protein: 36, carbs: 44, fat: 16, fibre: 7, rating: 4.7,
+    kcal: 480, protein: 36, carbs: 44, fat: 16, fibre: 7,
     healthScore: 78, envScore: 70, proteinScore: 84,
     ingredients: [
-      { name: 'Chicken breast', qty: '500g', pantry: false },
-      { name: 'Peppers', qty: '3', pantry: false },
-      { name: 'Red onion', qty: '1', pantry: true },
-      { name: 'Fajita seasoning', qty: '2 tbsp', pantry: true },
-      { name: 'Tortillas', qty: '8', pantry: true },
-      { name: 'Soured cream', qty: '150ml', pantry: false },
-      { name: 'Lime', qty: '1', pantry: false },
+      { name: 'Chicken breast', qty: '500g' },
+      { name: 'Peppers', qty: '3' },
+      { name: 'Red onion', qty: '1' },
+      { name: 'Fajita seasoning', qty: '2 tbsp' },
+      { name: 'Tortillas', qty: '8' },
+      { name: 'Soured cream', qty: '150ml' },
+      { name: 'Lime', qty: '1' },
     ],
     steps: [
       { text: 'Slice chicken, peppers and onion; toss with seasoning and a little oil.' },
@@ -140,16 +150,16 @@ export const RECIPES = [
     id: 'mushroom-risotto', name: 'Garlic Mushroom Risotto', emoji: '🍄',
     cuisine: 'Italian', tags: ['vegetarian', 'comfort', 'date-night', 'one-pot'],
     time: 35, prep: 10, difficulty: 'Medium', costPerServing: 1.6, servings: 3,
-    kcal: 510, protein: 13, carbs: 68, fat: 18, fibre: 4, rating: 4.6,
+    kcal: 510, protein: 13, carbs: 68, fat: 18, fibre: 4,
     healthScore: 72, envScore: 85, proteinScore: 40,
     ingredients: [
-      { name: 'Arborio rice', qty: '250g', pantry: true },
-      { name: 'Chestnut mushrooms', qty: '300g', pantry: false },
-      { name: 'Vegetable stock', qty: '1L', pantry: true },
-      { name: 'White onion', qty: '1', pantry: true },
-      { name: 'Garlic', qty: '3 cloves', pantry: true },
-      { name: 'Parmesan', qty: '40g', pantry: true },
-      { name: 'Butter', qty: '25g', pantry: true },
+      { name: 'Arborio rice', qty: '250g' },
+      { name: 'Chestnut mushrooms', qty: '300g' },
+      { name: 'Vegetable stock', qty: '1L' },
+      { name: 'White onion', qty: '1' },
+      { name: 'Garlic', qty: '3 cloves' },
+      { name: 'Parmesan', qty: '40g' },
+      { name: 'Butter', qty: '25g' },
     ],
     steps: [
       { text: 'Fry mushrooms hard in butter until golden; set aside.', timerMins: 6 },
@@ -162,16 +172,16 @@ export const RECIPES = [
     id: 'slowcooker-ragu', name: 'Slow Cooker Beef Ragù', emoji: '🍝',
     cuisine: 'Italian', tags: ['slow-cooker', 'batch', 'family', 'comfort', 'freezer'],
     time: 480, prep: 15, difficulty: 'Easy', costPerServing: 2.3, servings: 6,
-    kcal: 590, protein: 34, carbs: 62, fat: 22, fibre: 6, rating: 4.9,
+    kcal: 590, protein: 34, carbs: 62, fat: 22, fibre: 6,
     healthScore: 70, envScore: 48, proteinScore: 80,
     ingredients: [
-      { name: 'Beef shin', qty: '800g', pantry: false },
-      { name: 'Passata', qty: '700g', pantry: true },
-      { name: 'Carrots', qty: '2', pantry: true },
-      { name: 'Celery', qty: '2 sticks', pantry: false },
-      { name: 'Red wine', qty: '150ml', pantry: true },
-      { name: 'Pappardelle', qty: '500g', pantry: true },
-      { name: 'Bay leaves', qty: '2', pantry: true },
+      { name: 'Beef shin', qty: '800g' },
+      { name: 'Passata', qty: '700g' },
+      { name: 'Carrots', qty: '2' },
+      { name: 'Celery', qty: '2 sticks' },
+      { name: 'Red wine', qty: '150ml' },
+      { name: 'Pappardelle', qty: '500g' },
+      { name: 'Bay leaves', qty: '2' },
     ],
     steps: [
       { text: 'Brown the beef in batches; deglaze the pan with the wine.' },
@@ -184,15 +194,15 @@ export const RECIPES = [
     id: 'halloumi-grain', name: 'Halloumi Grain Bowl', emoji: '🥗',
     cuisine: 'Mediterranean', tags: ['vegetarian', 'healthy', 'quick', 'lunch'],
     time: 15, prep: 5, difficulty: 'Easy', costPerServing: 2.0, servings: 2,
-    kcal: 470, protein: 21, carbs: 45, fat: 24, fibre: 9, rating: 4.4,
+    kcal: 470, protein: 21, carbs: 45, fat: 24, fibre: 9,
     healthScore: 84, envScore: 76, proteinScore: 62,
     ingredients: [
-      { name: 'Halloumi', qty: '200g', pantry: false },
-      { name: 'Mixed grains pouch', qty: '250g', pantry: true },
-      { name: 'Cucumber', qty: '1/2', pantry: false },
-      { name: 'Cherry tomatoes', qty: '150g', pantry: true },
-      { name: 'Hummus', qty: '3 tbsp', pantry: false },
-      { name: 'Lemon', qty: '1/2', pantry: false },
+      { name: 'Halloumi', qty: '200g' },
+      { name: 'Mixed grains pouch', qty: '250g' },
+      { name: 'Cucumber', qty: '1/2' },
+      { name: 'Cherry tomatoes', qty: '150g' },
+      { name: 'Hummus', qty: '3 tbsp' },
+      { name: 'Lemon', qty: '1/2' },
     ],
     steps: [
       { text: 'Griddle halloumi slices until striped and squeaky.', timerMins: 4 },
@@ -204,15 +214,15 @@ export const RECIPES = [
     id: 'tofu-stirfry', name: 'Crispy Tofu Stir-fry', emoji: '🥡',
     cuisine: 'Chinese', tags: ['vegan', 'quick', 'healthy', 'high-protein'],
     time: 20, prep: 10, difficulty: 'Medium', costPerServing: 1.5, servings: 2,
-    kcal: 410, protein: 24, carbs: 42, fat: 15, fibre: 8, rating: 4.5,
+    kcal: 410, protein: 24, carbs: 42, fat: 15, fibre: 8,
     healthScore: 87, envScore: 92, proteinScore: 70,
     ingredients: [
-      { name: 'Firm tofu', qty: '280g', pantry: false },
-      { name: 'Cornflour', qty: '2 tbsp', pantry: true },
-      { name: 'Stir-fry veg', qty: '320g', pantry: false },
-      { name: 'Noodles', qty: '2 nests', pantry: true },
-      { name: 'Soy sauce', qty: '3 tbsp', pantry: true },
-      { name: 'Sriracha', qty: '1 tbsp', pantry: true },
+      { name: 'Firm tofu', qty: '280g' },
+      { name: 'Cornflour', qty: '2 tbsp' },
+      { name: 'Stir-fry veg', qty: '320g' },
+      { name: 'Noodles', qty: '2 nests' },
+      { name: 'Soy sauce', qty: '3 tbsp' },
+      { name: 'Sriracha', qty: '1 tbsp' },
     ],
     steps: [
       { text: 'Press, cube and toss tofu in cornflour; fry until crisp.', timerMins: 8 },
@@ -224,15 +234,15 @@ export const RECIPES = [
     id: 'shakshuka', name: 'One-Pan Shakshuka', emoji: '🍳',
     cuisine: 'Mediterranean', tags: ['vegetarian', 'breakfast', 'budget', 'one-pot', 'quick'],
     time: 22, prep: 5, difficulty: 'Easy', costPerServing: 1.2, servings: 2,
-    kcal: 360, protein: 18, carbs: 24, fat: 20, fibre: 6, rating: 4.6,
+    kcal: 360, protein: 18, carbs: 24, fat: 20, fibre: 6,
     healthScore: 85, envScore: 88, proteinScore: 64,
     ingredients: [
-      { name: 'Eggs', qty: '4', pantry: true },
-      { name: 'Chopped tomatoes', qty: '1 tin', pantry: true },
-      { name: 'Red pepper', qty: '1', pantry: false },
-      { name: 'Onion', qty: '1', pantry: true },
-      { name: 'Cumin', qty: '1 tsp', pantry: true },
-      { name: 'Crusty bread', qty: '1/2 loaf', pantry: true },
+      { name: 'Eggs', qty: '4' },
+      { name: 'Chopped tomatoes', qty: '1 tin' },
+      { name: 'Red pepper', qty: '1' },
+      { name: 'Onion', qty: '1' },
+      { name: 'Cumin', qty: '1 tsp' },
+      { name: 'Crusty bread', qty: '1/2 loaf' },
     ],
     steps: [
       { text: 'Soften onion and pepper with the cumin.', timerMins: 6 },
@@ -245,15 +255,15 @@ export const RECIPES = [
     id: 'katsu-curry', name: 'Crispy Katsu Curry', emoji: '🍱',
     cuisine: 'Japanese', tags: ['family', 'comfort', 'trending'],
     time: 40, prep: 15, difficulty: 'Medium', costPerServing: 2.4, servings: 4,
-    kcal: 640, protein: 33, carbs: 72, fat: 24, fibre: 5, rating: 4.8,
+    kcal: 640, protein: 33, carbs: 72, fat: 24, fibre: 5,
     healthScore: 65, envScore: 66, proteinScore: 74,
     ingredients: [
-      { name: 'Chicken breast', qty: '4', pantry: false },
-      { name: 'Panko breadcrumbs', qty: '100g', pantry: true },
-      { name: 'Eggs', qty: '2', pantry: true },
-      { name: 'Curry roux block', qty: '1/2 pack', pantry: true },
-      { name: 'Carrot', qty: '1', pantry: true },
-      { name: 'Rice', qty: '300g', pantry: true },
+      { name: 'Chicken breast', qty: '4' },
+      { name: 'Panko breadcrumbs', qty: '100g' },
+      { name: 'Eggs', qty: '2' },
+      { name: 'Curry roux block', qty: '1/2 pack' },
+      { name: 'Carrot', qty: '1' },
+      { name: 'Rice', qty: '300g' },
     ],
     steps: [
       { text: 'Butterfly the chicken; coat in flour, egg, then panko.' },
@@ -266,14 +276,14 @@ export const RECIPES = [
     id: 'protein-pancakes', name: 'Banana Protein Pancakes', emoji: '🥞',
     cuisine: 'American', tags: ['breakfast', 'high-protein', 'quick', 'healthy'],
     time: 15, prep: 5, difficulty: 'Easy', costPerServing: 1.0, servings: 2,
-    kcal: 390, protein: 28, carbs: 46, fat: 10, fibre: 4, rating: 4.3,
+    kcal: 390, protein: 28, carbs: 46, fat: 10, fibre: 4,
     healthScore: 80, envScore: 86, proteinScore: 78,
     ingredients: [
-      { name: 'Banana', qty: '2', pantry: true },
-      { name: 'Eggs', qty: '2', pantry: true },
-      { name: 'Oats', qty: '60g', pantry: true },
-      { name: 'Protein powder', qty: '1 scoop', pantry: true },
-      { name: 'Greek yogurt', qty: 'to serve', pantry: true },
+      { name: 'Banana', qty: '2' },
+      { name: 'Eggs', qty: '2' },
+      { name: 'Oats', qty: '60g' },
+      { name: 'Protein powder', qty: '1 scoop' },
+      { name: 'Greek yogurt', qty: 'to serve' },
     ],
     steps: [
       { text: 'Blitz banana, eggs, oats and protein into a batter.' },
@@ -283,16 +293,46 @@ export const RECIPES = [
   },
 ];
 
-export const byId = (id) => RECIPES.find((r) => r.id === id);
+/** Which meal a signature dish belongs to, read off its tags. */
+const mealOf = (r) =>
+  (r.tags.includes('breakfast') && 'breakfast')
+  || (r.tags.includes('lunch') && 'lunch')
+  || 'dinner';
+
+export const RECIPES = [
+  ...SIGNATURE.map((r) => ({ ...r, meal: mealOf(r), signature: true })),
+  ...generateRecipes(),
+];
+
+/**
+ * Recipes you added — generated, imported or shared with you — live in app
+ * state, not here. The store hands them over so that anything looking a recipe
+ * up by id (the plan, the shopping list, the cook history) finds yours too.
+ */
+let mine = [];
+export const setMyRecipes = (list = []) => { mine = list; };
+export const myRecipes = () => mine;
+
+/** Every dish available right now: the book plus whatever you added. */
+export const allRecipes = () => (mine.length ? [...RECIPES, ...mine] : RECIPES);
+
+export const byId = (id) => RECIPES.find((r) => r.id === id) || mine.find((r) => r.id === id);
+
+/** Recipes for one slot of the day. */
+export const forMeal = (meal) => (meal ? allRecipes().filter((r) => r.meal === meal) : allRecipes());
 
 export const DISCOVER_FILTERS = [
-  'Trending', 'Healthy', 'Budget', 'Quick', 'Air fryer', 'Slow cooker', 'One pot',
-  'High protein', 'Vegan', 'Vegetarian', 'Comfort food', 'Italian', 'Indian',
-  'Mexican', 'Japanese', 'Mediterranean', 'British', 'Breakfast',
+  'Breakfast', 'Lunch', 'Dinner', 'Quick', 'Budget', 'High protein', 'Healthy',
+  'Light', 'One pot', 'Batch cook', 'Vegan', 'Vegetarian', 'Comfort food',
+  'Italian', 'Indian', 'Mexican', 'Japanese', 'Mediterranean', 'British', 'Chinese',
 ];
 
 const FILTER_MAP = {
-  Trending: (r) => r.rating >= 4.7 || r.tags.includes('trending'),
+  Breakfast: (r) => r.meal === 'breakfast',
+  Lunch: (r) => r.meal === 'lunch',
+  Dinner: (r) => r.meal === 'dinner',
+  Light: (r) => r.kcal <= 450,
+  'Batch cook': (r) => r.tags.includes('batch') || r.tags.includes('freezer'),
   Healthy: (r) => r.healthScore >= 84,
   Budget: (r) => r.costPerServing <= 1.5,
   Quick: (r) => r.time <= 25,
@@ -303,11 +343,10 @@ const FILTER_MAP = {
   Vegan: (r) => r.tags.includes('vegan'),
   Vegetarian: (r) => r.tags.includes('vegetarian') || r.tags.includes('vegan'),
   'Comfort food': (r) => r.tags.includes('comfort'),
-  Breakfast: (r) => r.tags.includes('breakfast'),
 };
 
-export const filterRecipes = (filter) => {
-  if (!filter) return RECIPES;
+export const filterRecipes = (filter, pool = allRecipes()) => {
+  if (!filter) return pool;
   const fn = FILTER_MAP[filter] || ((r) => r.cuisine === filter);
-  return RECIPES.filter(fn);
+  return pool.filter(fn);
 };
