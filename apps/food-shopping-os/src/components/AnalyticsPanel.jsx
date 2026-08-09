@@ -8,6 +8,7 @@ import {
   shoppingAnalytics, wasteAnalytics,
 } from '../lib/analytics.js';
 import { gbp } from '../lib/utils.js';
+import { ANALYTICS_VIEW_TOOL } from '../data/optionalTools.js';
 import { Bars, Card, Chip, Meter, Pill } from './ui.jsx';
 
 const VIEWS = [
@@ -333,7 +334,12 @@ function ReportsView({ month, year }) {
 
 export default function AnalyticsPanel() {
   const app = useApp();
+  const views = VIEWS.filter(([key]) => {
+    const toolId = ANALYTICS_VIEW_TOOL[key];
+    return !toolId || app.hasTool(toolId);
+  });
   const [view, setView] = useState('spend');
+  const active = views.some(([key]) => key === view) ? view : (views[0]?.[0] || 'spend');
   const shopping = shoppingAnalytics(app, app.day);
   const nutrition = nutritionAnalytics(app, { days: 30, today: app.day });
   const pantry = pantryDashboard(app, app.day);
@@ -345,19 +351,19 @@ export default function AnalyticsPanel() {
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {VIEWS.map(([key, label, Icon]) => (
-          <Chip key={key} active={view === key} onClick={() => setView(key)}>
+        {views.map(([key, label, Icon]) => (
+          <Chip key={key} active={active === key} onClick={() => setView(key)}>
             <span className="inline-flex items-center gap-1.5"><Icon size={13} /> {label}</span>
           </Chip>
         ))}
       </div>
-      {view === 'spend' && <SpendingView report={shopping} />}
-      {view === 'nutrition' && <NutritionView report={nutrition} />}
-      {view === 'pantry' && <PantryDashboard report={pantry} />}
-      {view === 'waste' && <WasteView report={waste} />}
-      {view === 'habits' && <HabitsView report={shopping} />}
-      {view === 'impact' && <ImpactView report={carbon} />}
-      {view === 'reports' && <ReportsView month={month} year={year} />}
+      {active === 'spend' && <SpendingView report={shopping} />}
+      {active === 'nutrition' && <NutritionView report={nutrition} />}
+      {active === 'pantry' && <PantryDashboard report={pantry} />}
+      {active === 'waste' && <WasteView report={waste} />}
+      {active === 'habits' && <HabitsView report={shopping} />}
+      {active === 'impact' && <ImpactView report={carbon} />}
+      {active === 'reports' && <ReportsView month={month} year={year} />}
     </div>
   );
 }

@@ -411,7 +411,7 @@ export default function HealthPanel() {
   }
   // The cycle page is there because you asked for it, not because of anything
   // the app decided about you.
-  const views = VIEWS.filter(([key]) => key !== 'cycle' || app.trackCycle);
+  const views = VIEWS.filter(([key]) => key !== 'cycle' || (app.trackCycle && app.hasTool('cycle')));
   return (
     <div className="px-5 pb-10 space-y-4">
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -427,7 +427,7 @@ export default function HealthPanel() {
       {view === 'swaps' && <HealthySwapsView />}
       {view === 'vitals' && <VitalsView />}
       {view === 'rest' && <RestView />}
-      {view === 'cycle' && app.trackCycle && <CycleView />}
+      {view === 'cycle' && app.trackCycle && app.hasTool('cycle') && <CycleView />}
     </div>
   );
 }

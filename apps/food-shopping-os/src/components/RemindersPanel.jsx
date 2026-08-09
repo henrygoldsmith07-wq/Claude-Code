@@ -115,7 +115,7 @@ function SuggestionsCard() {
 
 function NotificationPresetsCard() {
   const app = useApp();
-  const presets = notificationPresets(app.reminders);
+  const presets = notificationPresets(app.reminders, app.productMode);
   if (!presets.length) return null;
 
   return (

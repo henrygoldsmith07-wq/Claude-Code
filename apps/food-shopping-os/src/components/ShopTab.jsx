@@ -326,8 +326,8 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
               >
                 <span className="inline-flex items-center gap-1.5"><Mic size={14} /> Voice</span>
               </button>
-              {/* A receipt is about a shop you already did, so it doesn't belong
-                  behind a list that has to be full first. */}
+              {/* Receipt capture is an optional tool — manual shop entry always works. */}
+              {app.hasTool('receipt') && (
               <button
                 onClick={() => setSheet('receipt')}
                 className="press col-span-2 rounded-2xl border py-2.5 text-[0.78125rem] font-extrabold"
@@ -335,6 +335,7 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
               >
                 <span className="inline-flex items-center gap-1.5"><Receipt size={14} /> Read a receipt</span>
               </button>
+              )}
             </div>
             {adding && <AddItem onAdd={(item) => app.addToList({ ...item, store })} />}
             {voiceStatus && <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>{voiceStatus}</p>}
