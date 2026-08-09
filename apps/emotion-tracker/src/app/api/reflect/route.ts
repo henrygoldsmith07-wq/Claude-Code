@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getNextReflectionStep } from "@/lib/anthropic";
+import { getNextReflectionStep } from "@/lib/gemini";
 import { checkRateLimit } from "@/lib/rateLimit";
 import type { Message } from "@/lib/types";
 
@@ -9,7 +9,7 @@ const MAX_MESSAGES = 40;
 const MAX_MESSAGE_LENGTH = 8000;
 
 export async function POST(request: Request) {
-  // Calls the paid Anthropic API — rate limit per client so it can't be
+  // Calls the paid Gemini API — rate limit per client so it can't be
   // spammed to run up the account owner's bill.
   const limited = checkRateLimit(request, { name: "reflect", limit: 20, windowMs: 60_000 });
   if (limited) return limited;
