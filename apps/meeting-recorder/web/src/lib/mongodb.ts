@@ -42,7 +42,14 @@ export interface MeetingDoc {
   summary: string | null;
   error: string | null;
   chat: { role: "user" | "assistant"; content: string; createdAt: Date }[];
+  // 9+ additions — all optional for backward compat
+  templateId?: string | null;
+  recurringKey?: string | null;
+  insights?: { decisions: { id: string; text: string; evidence: { segmentIndex: number; start: number; text: string }[] }[]; actions: { id: string; text: string; owner: string | null; evidence: { segmentIndex: number; start: number; text: string }[] }[] } | null;
+  speakers?: Record<string,string> | null;
+  retentionDays?: number | null;
 }
+
 
 let indexesEnsured = false;
 

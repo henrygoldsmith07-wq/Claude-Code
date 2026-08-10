@@ -144,6 +144,7 @@
       <label>Screen / window</label>
       <select id="sources"></select>
 
+      <div class="row"><button class="ghost" id="testMic" style="padding:6px 10px;font-size:12px">Test microphone</button><span id="micResult" style="font-size:12px;opacity:.7"></span></div>
       <div class="row">
         <input type="checkbox" id="mic" checked />
         <label for="mic" style="margin: 0">Capture microphone</label>
@@ -161,6 +162,7 @@
       <button class="stop" id="stop" disabled>■ Stop &amp; upload</button>
     </div>
     <div id="status"></div>
+    <p style="margin:8px 0 0;font-size:11px;opacity:.45;text-align:center">● Recording — ensure participants have consented</p>
 
     <script src="renderer.js"></script>
   </body>

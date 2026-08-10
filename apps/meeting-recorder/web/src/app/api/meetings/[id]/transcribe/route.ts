@@ -4,6 +4,7 @@ import { getMeetings } from "@/lib/mongodb";
 import { getObjectBytes } from "@/lib/r2";
 import { transcribe } from "@/lib/groq";
 import { summarize } from "@/lib/anthropic";
+import { extractInsightsHeuristic } from "@/lib/insights";
 import { toMeeting } from "@/lib/serialize";
 import { isAuthorized } from "@/lib/auth";
 
@@ -37,6 +38,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const filename = doc.r2Key.split("/").pop() || "recording.webm";
     const transcript = await transcribe(bytes, filename, doc.mimeType);
 
+    // Insights are heuristic-only here — no extra LLM call; owner linkage stays evidence-bound.
+    const insights = extractInsightsHeuristic(transcript);
     // Summary is best-effort — a transcript with no summary is still useful.
     let summary: string | null = null;
     try {
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const updated = await col.findOneAndUpdate(
       { _id },
-      { $set: { transcript, summary, status: "ready", error: null, updatedAt: new Date() } },
+      { $set: { transcript, summary, insights, status: "ready", error: null, updatedAt: new Date() } },
       { returnDocument: "after" }
     );
     return NextResponse.json({ meeting: updated ? toMeeting(updated) : null });

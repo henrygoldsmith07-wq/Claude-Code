@@ -1,4 +1,7 @@
 const { app, BrowserWindow, ipcMain, desktopCapturer, session } = require("electron");
+let autoUpdater = null;
+try { autoUpdater = require("electron-updater").autoUpdater; } catch {}
+
 const path = require("path");
 const fs = require("fs");
 
@@ -63,6 +66,7 @@ app.whenReady().then(() => {
   );
 
   createWindow();
+  if (autoUpdater) { try { autoUpdater.checkForUpdatesAndNotify().catch(()=>{}); } catch {} }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

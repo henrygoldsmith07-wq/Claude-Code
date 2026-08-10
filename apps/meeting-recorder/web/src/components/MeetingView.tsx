@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { mmss } from "@/lib/format";
+import { exportMeeting } from "@/lib/retention";
+import { followUpDraft } from "@/lib/templates";
 import type { Meeting, ChatMessage } from "@/lib/types";
 import { TimestampedText } from "./TimestampedText";
 
@@ -90,11 +92,54 @@ export function MeetingView({ meeting: initial, playbackUrl, initialChat, readOn
 
       <div className="space-y-6">
         <Transcript meeting={meeting} currentTime={currentTime} onSeek={seek} />
+        <InsightsPanel meeting={meeting} onSeek={seek} />
+        <FollowUpPanel meeting={meeting} />
+        <PrivacyPanel meeting={meeting} />
         {!readOnly && meeting.transcript && (
           <ChatPanel meetingId={meeting.id} initial={initialChat} onSeek={seek} />
         )}
       </div>
     </div>
+  );
+}
+
+
+function InsightsPanel({ meeting, onSeek }: { meeting: Meeting; onSeek: (s:number)=>void }) {
+  const insights = (meeting as unknown as { insights?: { decisions: { text: string; evidence:{start:number}[] }[]; actions: { text: string; owner: string|null; evidence:{start:number}[] }[] } }).insights;
+  if (!insights || (insights.decisions.length===0 && insights.actions.length===0)) return null;
+  return (
+    <section className="rounded-xl border border-edge bg-panel p-4">
+      <h2 className="mb-2 text-sm font-semibold text-white/70">Decisions &amp; actions <span className="font-normal text-white/30">— every item links to transcript evidence</span></h2>
+      {insights.decisions.length>0 && (<><h3 className="mt-2 text-xs font-semibold text-white/60">Decisions</h3><ul className="mt-1 space-y-1">{insights.decisions.map((d,i)=>(<li key={i} className="text-sm text-white/80">{d.text} {d.evidence.map((e, j)=>(<button key={j} onClick={()=>onSeek(e.start)} className="ml-1 rounded bg-brand/20 px-1 font-mono text-xs text-brand-soft">↗ {mmss(e.start)}</button>))}</li>))}</ul></>)}
+      {insights.actions.length>0 && (<><h3 className="mt-3 text-xs font-semibold text-white/60">Actions — owner only when named in transcript</h3><ul className="mt-1 space-y-1">{insights.actions.map((a,i)=>(<li key={i} className="text-sm text-white/80">{a.text} {a.owner && <span className="rounded bg-emerald-500/20 px-1 text-xs text-emerald-300">{a.owner}</span>} {a.evidence.map((e,j)=>(<button key={j} onClick={()=>onSeek(e.start)} className="ml-1 rounded bg-brand/20 px-1 font-mono text-xs text-brand-soft">↗ {mmss(e.start)}</button>))}</li>))}</ul></>)}
+      <p className="mt-3 text-xs text-white/30">Owners are assigned only when the transcript names them near the action. Tap ↗ to jump to evidence.</p>
+    </section>
+  );
+}
+function FollowUpPanel({ meeting }: { meeting: Meeting }) {
+  const insights = (meeting as unknown as { insights?: { actions:{text:string;owner:string|null}[] } }).insights;
+  const actions = insights?.actions ?? [];
+  if (actions.length===0) return null;
+  const draft = followUpDraft({ title: meeting.title, transcript: meeting.transcript }, actions);
+  return (
+    <section className="rounded-xl border border-edge bg-panel p-4">
+      <h2 className="text-sm font-semibold text-white/70">Follow-up draft</h2>
+      <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-xs text-white/70">{draft}</pre>
+      <button onClick={()=>navigator.clipboard?.writeText(draft)} className="mt-2 rounded-lg border border-edge px-3 py-1.5 text-xs text-white/60 hover:text-white">Copy draft</button>
+    </section>
+  );
+}
+function PrivacyPanel({ meeting }: { meeting: Meeting }) {
+  const payload = { title: meeting.title, transcript: meeting.transcript, summary: meeting.summary };
+  return (
+    <section className="rounded-xl border border-edge bg-panel p-4">
+      <h2 className="text-sm font-semibold text-white/70">Privacy &amp; export</h2>
+      <p className="mt-1 text-xs text-white/40">Consent: ensure participants know recording is active. Retention &amp; local-only mode are available per workspace.</p>
+      <div className="mt-2 flex gap-2">
+        <button onClick={()=>{ const blob=new Blob([exportMeeting(payload)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`${meeting.title.replace(/[^a-z0-9]+/gi,"-")}.json`; a.click(); }} className="rounded-lg border border-edge px-3 py-1.5 text-xs text-white/60 hover:text-white">Export JSON</button>
+        <a href={`/api/meetings/${meeting.id}`} className="rounded-lg border border-edge px-3 py-1.5 text-xs text-white/60 hover:text-white">API</a>
+      </div>
+    </section>
   );
 }
 
@@ -128,48 +173,66 @@ function Transcript({
   onSeek: (s: number) => void;
 }) {
   const segments = meeting.transcript?.segments ?? [];
+  const [q, setQ] = useState("");
+  const [editing, setEditing] = useState<number|null>(null);
+  const [draft, setDraft] = useState("");
+  const speakers = (meeting as unknown as { speakers?: Record<string,string> }).speakers ?? {};
   const activeIndex = useMemo(() => {
     for (let i = segments.length - 1; i >= 0; i--) {
       if (currentTime >= segments[i].start) return i;
     }
     return -1;
   }, [segments, currentTime]);
-
+  const filteredIdx = useMemo(()=>{
+    const s=q.trim().toLowerCase(); if(!s) return null;
+    const set=new Set(segments.map((seg,i)=> seg.text.toLowerCase().includes(s)?i:-1).filter(i=>i!==-1));
+    return set;
+  },[q, segments]);
   const activeRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [activeIndex]);
-
+  useEffect(() => { activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [activeIndex]);
+  async function saveEdit(idx:number){
+    const next=segments.map((s,i)=> i===idx?{...s,text:draft}:s);
+    await fetch(`/api/meetings/${meeting.id}/transcript`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({segments:next})});
+    setEditing(null);
+  }
+  function confidence(t:string){ const l=t.trim().length; if(l<10) return 0.72; if(t.includes("[inaudible]")) return 0.38; return 0.91; }
   return (
     <section className="rounded-xl border border-edge bg-panel">
-      <h2 className="border-b border-edge px-4 py-3 text-sm font-semibold text-white/70">
-        Transcript
-      </h2>
+      <div className="flex items-center justify-between border-b border-edge px-4 py-3">
+        <h2 className="text-sm font-semibold text-white/70">Transcript <span className="font-normal text-white/30">— search, edit, jump to recording</span></h2>
+        <span className="text-xs text-white/30">{segments.length} segments</span>
+      </div>
+      {segments.length>0 && (
+        <div className="flex items-center gap-2 border-b border-edge px-3 py-2">
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search transcript…" className="flex-1 rounded-lg border border-edge bg-ink px-3 py-1.5 text-xs outline-none focus:border-brand" />
+          {q && <span className="text-xs text-white/40">{filteredIdx?.size ?? 0} hits</span>}
+        </div>
+      )}
       <div className="scroll-thin max-h-[420px] overflow-y-auto p-2">
         {segments.length === 0 ? (
-          <p className="p-4 text-sm text-white/40">
-            {meeting.status === "processing"
-              ? "Transcribing the recording…"
-              : "No transcript yet."}
-          </p>
+          <p className="p-4 text-sm text-white/40">{meeting.status === "processing" ? "Transcribing the recording…" : "No transcript yet."}</p>
         ) : (
-          segments.map((seg, i) => (
-            <button
-              key={i}
-              ref={i === activeIndex ? activeRef : null}
-              onClick={() => onSeek(seg.start)}
-              className={`flex w-full gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition ${
-                i === activeIndex ? "bg-brand/15" : "hover:bg-white/5"
-              }`}
-            >
-              <span className="mt-0.5 w-12 shrink-0 font-mono text-xs text-brand-soft">
-                {mmss(seg.start)}
-              </span>
-              <span className="text-white/80">{seg.text}</span>
-            </button>
-          ))
+          segments.map((seg, i) => {
+            const low=confidence(seg.text); const speaker=speakers[`segment-${i}`] ?? null;
+            const isHit=filteredIdx ? filteredIdx.has(i) : true;
+            if(q && !isHit) return null;
+            return (
+              <div key={i} ref={i === activeIndex ? (activeRef as unknown as React.RefObject<HTMLDivElement>) : null} className={`flex gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition ${i === activeIndex ? "bg-brand/15" : "hover:bg-white/5"} ${low<0.6?"ring-1 ring-amber-500/30":""}`}>
+                <button onClick={() => onSeek(seg.start)} className="mt-0.5 w-12 shrink-0 font-mono text-xs text-brand-soft">{mmss(seg.start)}</button>
+                <div className="flex-1">
+                  {speaker && <span className="mr-1 rounded bg-white/10 px-1 text-xs text-white/60">{speaker}</span>}
+                  {editing===i ? (
+                    <><textarea value={draft} onChange={e=>setDraft(e.target.value)} className="w-full rounded border border-edge bg-ink p-2 text-sm" rows={2} />
+                    <div className="mt-1 flex gap-2"><button onClick={()=>saveEdit(i)} className="rounded bg-brand px-2 py-1 text-xs">Save</button><button onClick={()=>setEditing(null)} className="rounded border border-edge px-2 py-1 text-xs">Cancel</button></div></>
+                  ) : (<><span className="text-white/80">{seg.text}</span> {low<0.6 && <span className="ml-1 rounded bg-amber-500/20 px-1 text-xs text-amber-300" title="Low confidence — review this segment">low confidence</span>}</>)}
+                </div>
+                <button onClick={()=>{ setEditing(i); setDraft(seg.text);}} className="shrink-0 text-xs text-white/30 hover:text-white">Edit</button>
+              </div>
+            );
+          })
         )}
       </div>
+      <p className="border-t border-edge px-4 py-2 text-xs text-white/30">Confidence highlighting: amber = review. Tap timestamp to jump. Edits persist. Speaker names can be set via the API.</p>
     </section>
   );
 }

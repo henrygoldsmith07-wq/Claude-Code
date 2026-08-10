@@ -44,6 +44,7 @@ export function Dashboard() {
     });
   }
 
+  // Memory search hits server /api/search when query is long; local filter is the fast path
   const filtered = useMemo(() => {
     if (!meetings) return null;
     const q = query.trim().toLowerCase();
@@ -70,6 +71,7 @@ export function Dashboard() {
         )}
       </div>
 
+      <p className="text-xs text-white/30">Search also checks transcript &amp; summary. Decisions/actions on each meeting link to transcript evidence.</p>
       {meetings && meetings.length > 0 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input

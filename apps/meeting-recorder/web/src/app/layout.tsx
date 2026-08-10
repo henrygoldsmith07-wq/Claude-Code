@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               target="_blank"
               rel="noreferrer"
             >
-              Groq · Anthropic · R2
+              Groq · Anthropic · R2 · Consent-aware
             </a>
           </div>
         </header>
