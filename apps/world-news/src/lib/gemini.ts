@@ -6,6 +6,7 @@ import {
   type Perspective,
   type SourceAttribution,
   type StoryCluster,
+  type TimelineEvent,
 } from "./storyModel";
 
 // gemini-2.0-flash reliably returns grounded JSON with Google Search and has a
@@ -143,27 +144,42 @@ function getApiKeys(): string[] {
 // "Understand what happened, where it happened, who is reporting it and where accounts differ."
 // ---------------------------------------------------------------------------
 
+function editorialGuardrails(): string {
+  return `HARD RULES — never violate:
+- NEVER invent causality. Only describe causes if a source explicitly states a cause. Use temporal sequencing ("then", "after") not causal ("because", "led to", "triggered") unless an official/investigation attributes the cause. Timeline = observed sequence, not explanation.
+- Distinguish reported facts from interpretation: every factual sentence must be traceable to a listed source URL. Interpretive synthesis must be phrased as interpretation ("analysts interpret…", "coverage frames this as…") and kept separate from widelyAgreedFacts.
+- Grounding: every story source URL must be a real URL found via Google Search — never invent URLs. If you cannot ground a claim, list it under uncertainty or omit it.
+- Provenance: each story must be verifiable via live links; keyPoints should map to a source chunk when possible.`;
+}
+
 function sharedStoryInstructions(): string {
-  return `For story clustering, return 3–6 STORIES (not one per topic) — each story is a distinct event/narrative that may span multiple sources. For each story provide:
-- id (slug, e.g. \"election-ruling\"), headline (concise), topic (one of ${TOPICS.join(", ")}), summary (2–4 neutral sentences), keyPoints (2–4 bullets), location {label, lat, lng, countryCode} when the story is geolocatable.
-- sources: 3–8 attributions for that story, each {url, title, publisher, countryCode (ISO2), perspective (left|center-left|center|center-right|right|unknown), isPrimary (true for .gov/.int/official statements/primary docs, otherwise false/omitted)}. Sources should be grounded URLs from Google Search — never invent URLs.
-- primarySources: subset of sources that are primary (official docs, statements, transcripts, data releases).
-- timeline: 2–6 dated events [{date: \"YYYY-MM-DD\" or precise label, label: \"what happened\"}] in chronological order.
-- conflictingClaims: where outlets disagree, 1–3 items [{claim, attributedTo: [\"outlet/person\"], counterClaim, counterAttributedTo: [\"…\"], context?: \"one sentence\"}]. If no conflict, [].
-- widelyAgreedFacts: 2–4 facts every credible source agrees on.
+  return `For story clustering, return 3–6 STORIES (not one per topic) — each story is a distinct real-world EVENT (not just an article). An event evolves: multiple articles over time describe the same event merging into one story with a timeline and update history.
+For each story provide:
+- id (slug, e.g. "election-ruling"), headline (concise, event-centric), topic (one of ${TOPICS.join(", ")}), summary (2–4 neutral sentences — factual sentences attributed, interpretive sentences flagged; see guardrails), keyPoints (2–4 bullets, each live-linkable to a source).
+- location {label, lat, lng, countryCode} when geolocatable; if the event spans multiple countries, set countryCode to the primary and list others in coverageGaps — multi-country handling.
+- sources: 3–8 attributions, each {url, title, publisher, countryCode (ISO2), perspective (left|center-left|center|center-right|right|unknown), isPrimary (true for .gov/.int/official statements/primary docs), sourceKind (newsroom|wire|official|expert|document|unknown), confidence (high|medium|low that this URL supports the story)} — mix wire, newsroom, official and expert when available for diversity.
+- primarySources: subset that are primary (official docs, statements, transcripts, data releases).
+- timeline: 2–6 dated events [{date: "YYYY-MM-DD" or precise label, label: "what happened", kind: "reported"|"correction"|"update"}] in strict chronological order; see causality rule.
+- conflictingClaims: where outlets disagree, 1–3 items [{claim, attributedTo: ["outlet/person"], counterClaim, counterAttributedTo: ["…"], disagreementDimension: "e.g. casualty count / who initiated / legal authority", context?: "one sentence"}]. If no conflict, [].
+- widelyAgreedFacts: 2–4 facts every credible source agrees on (with supporting source implied).
 - uncertainty: 1–3 things still unknown or disputed.
-- corrections: [] unless a major outlet has issued a correction; then [{date, note}].
-- coverageGaps: 1–3 gaps — what reporting is thin, missing, or inaccessible (e.g. no access to region, only one country's press).`;
+- corrections: [] unless a major outlet issued a correction; then [{date, note}] — track update history transparently.
+- coverageGaps: 1–3 gaps — what is thin, missing, or inaccessible (e.g. undercovered region, only one country's press, thin non-English coverage).
+- historicalContext: 0–2 short strings of prior related events (e.g. "EU AI Act passed 2024") to show continuity.
+- significance: editorial significance 0..100 (not popularity) — weight corroboration breadth, cross-border coverage, primary sources and recency; plus significanceReasons: 2–3 short reasons why scored that way.
+- methodology: {provenanceNote: "one sentence on how claims were sourced/verified", coverageScore: 0..100 heuristic}
+${editorialGuardrails()}`;
 }
 
 function sharedMetaInstructions(): string {
-  return `Also return page-level meta:
+  return `Also return page-level meta (all required):
 {
-  \"widelyAgreedFacts\": [\"fact every outlet agrees on\"], // 2–4
-  \"uncertainty\": [\"what is still unknown\"], // 1–3
-  \"coverageGaps\": [\"what we cannot verify or where coverage is thin\"], // 1–3
-  \"corrections\": [{\"date\":\"YYYY-MM-DD\",\"note\":\"what was corrected\"}], // usually []
-  \"whatChangedSinceYesterday\": \"1–2 sentence summary of what actually changed since yesterday, or null if unknown\" // or null
+  "widelyAgreedFacts": ["fact every outlet agrees on"], // 2–4 — reported, grounded facts only
+  "uncertainty": ["what is still unknown"], // 1–3
+  "coverageGaps": ["what we cannot verify or where coverage is thin"], // 1–3 — call out Anglophone bias and sparse regions
+  "corrections": [{"date":"YYYY-MM-DD","note":"what was corrected"}], // usually [] — update history when present
+  "whatChangedSinceYesterday": "1–2 sentence summary of what actually changed since yesterday, or null if unknown", // null when no prior snapshot; be specific: new casualties, new ruling, new strike, etc.
+  "provenanceNote": "one sentence: how this page's claims were sourced/verified and that timelines are observed sequences not causal explanations"
 }`;
 }
 
@@ -376,11 +392,8 @@ function normaliseSourceAttribution(raw: unknown, groundingUrls: Set<string>): S
   const r = raw as Record<string, unknown>;
   if (!r || typeof r.url !== "string" || !r.url.trim()) return null;
   const url = r.url.trim();
-  // Prefer grounded URLs; allow model guess only when grounding is empty (e.g. cached).
-  // Still require a plausible http(s) URL.
   if (!/^https?:\/\/.+/i.test(url)) return null;
   const title = typeof r.title === "string" && r.title.trim() ? r.title.trim() : url;
-  // Infer fallback when model omits publisher/country/perspective
   const inferred = inferSourceAttribution(url, title);
   const publisher =
     typeof r.publisher === "string" && r.publisher.trim() ? r.publisher.trim() : inferred.publisher;
@@ -390,9 +403,15 @@ function normaliseSourceAttribution(raw: unknown, groundingUrls: Set<string>): S
       : inferred.countryCode;
   const perspective = normalisePerspective(r.perspective ?? inferred.perspective);
   const isPrimary = r.isPrimary === true || inferred.isPrimary === true ? true : undefined;
-  // Soft grounding check: allow anything that looks like http, but de-duplicate later.
+  const validKinds = new Set(["newsroom","wire","official","expert","document","unknown"]);
+  const rawKind = typeof r.sourceKind === "string" ? r.sourceKind.trim().toLowerCase() : "";
+  const sourceKind = validKinds.has(rawKind) ? (rawKind as SourceAttribution["sourceKind"]) : inferred.sourceKind;
+  const validConf = new Set(["high","medium","low"]);
+  const rawConf = typeof r.confidence === "string" ? r.confidence.trim().toLowerCase() : "";
+  const confidence = validConf.has(rawConf) ? (rawConf as SourceAttribution["confidence"]) : undefined;
+  const publishedAt = typeof r.publishedAt === "string" && r.publishedAt.trim() ? r.publishedAt.trim().slice(0, 48) : undefined;
   void groundingUrls;
-  return { url, title, publisher, countryCode, perspective, isPrimary };
+  return { url, title, publisher, countryCode, perspective, isPrimary, sourceKind, confidence, publishedAt };
 }
 
 function dedupeAttributions(list: SourceAttribution[]): SourceAttribution[] {
@@ -477,6 +496,7 @@ export function normaliseStories(
           .map((e) => ({
             date: typeof e.date === "string" ? e.date.trim() : "",
             label: (e.label as string).trim(),
+            kind: (["reported","correction","update"] as const).includes((e.kind as string) as "reported") ? (e.kind as TimelineEvent["kind"]) : undefined,
           }))
           .slice(0, 8)
       : [];
@@ -500,6 +520,7 @@ export function normaliseStories(
             counterAttributedTo: Array.isArray(c.counterAttributedTo)
               ? (c.counterAttributedTo as unknown[]).filter((x): x is string => typeof x === "string" && Boolean(x.trim())).map((x) => x.trim()).slice(0, 4)
               : [],
+            disagreementDimension: typeof c.disagreementDimension === "string" && (c.disagreementDimension as string).trim() ? (c.disagreementDimension as string).trim().slice(0, 120) : undefined,
             context: typeof c.context === "string" ? c.context.trim() : undefined,
           }))
           .slice(0, 4)
@@ -524,6 +545,18 @@ export function normaliseStories(
     const coverageGaps = Array.isArray(r.coverageGaps)
       ? (r.coverageGaps as unknown[]).filter((x): x is string => typeof x === "string" && Boolean(x.trim())).map((x) => x.trim()).slice(0, 4)
       : [];
+    const historicalContext = Array.isArray(r.historicalContext)
+      ? (r.historicalContext as unknown[]).filter((x): x is string => typeof x === "string" && Boolean(x.trim())).map((x) => (x as string).trim().slice(0, 300)).slice(0, 3)
+      : [];
+    const significance = typeof r.significance === "number" && Number.isFinite(r.significance) ? Math.max(0, Math.min(100, Math.round(r.significance as number))) : undefined;
+    const significanceReasons = Array.isArray(r.significanceReasons)
+      ? (r.significanceReasons as unknown[]).filter((x): x is string => typeof x === "string" && Boolean(x.trim())).map((x) => (x as string).trim().slice(0, 160)).slice(0, 4)
+      : undefined;
+    const rawMeth = r.methodology as Record<string, unknown> | undefined;
+    const methodology = rawMeth && (typeof rawMeth.provenanceNote === "string" || typeof rawMeth.coverageScore === "number") ? {
+      provenanceNote: typeof rawMeth.provenanceNote === "string" ? (rawMeth.provenanceNote as string).trim().slice(0, 300) : undefined,
+      coverageScore: typeof rawMeth.coverageScore === "number" && Number.isFinite(rawMeth.coverageScore) ? Math.max(0, Math.min(100, Math.round(rawMeth.coverageScore as number))) : undefined,
+    } : undefined;
 
     out.push({
       id,
@@ -541,6 +574,10 @@ export function normaliseStories(
       uncertainty,
       corrections,
       coverageGaps,
+      historicalContext: historicalContext.length ? historicalContext : undefined,
+      significance,
+      significanceReasons,
+      methodology,
     });
     if (out.length >= 8) break;
   }
@@ -578,7 +615,8 @@ function normaliseMeta(raw: unknown): NewsMeta {
     typeof r.whatChangedSinceYesterday === "string" && r.whatChangedSinceYesterday.trim()
       ? r.whatChangedSinceYesterday.trim().slice(0, 600)
       : null;
-  return { widelyAgreedFacts, uncertainty, coverageGaps, corrections, whatChangedSinceYesterday };
+  const provenanceNote = typeof r.provenanceNote === "string" && r.provenanceNote.trim() ? r.provenanceNote.trim().slice(0, 400) : null;
+  return { widelyAgreedFacts, uncertainty, coverageGaps, corrections, whatChangedSinceYesterday, provenanceNote };
 }
 
 interface GroundingChunk {

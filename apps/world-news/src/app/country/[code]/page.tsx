@@ -12,7 +12,13 @@ import TimeAgo from "@/components/TimeAgo";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import TimelineControl from "@/components/TimelineControl";
 import StoryClusterCard from "@/components/StoryClusterCard";
+import StoriesView from "@/components/StoriesView";
 import StorySourceSummary from "@/components/StorySourceSummary";
+import CoverageBiasPanel from "@/components/CoverageBiasPanel";
+import GeopoliticsPanel from "@/components/GeopoliticsPanel";
+import LiteNewsList from "@/components/LiteNewsList";
+import LocationVerifyBadge from "@/components/LocationVerifyBadge";
+import MethodologyPanel from "@/components/MethodologyPanel";
 import {
   WhatChangedPanel,
   AgreedFactsPanel,
@@ -68,11 +74,9 @@ function StoryBlocks({ news, topicName }: { news: CountryNews; topicName: string
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-        Stories · {stories.length} {topicName ? `in ${topicName}` : "cluster" + (stories.length === 1 ? "" : "s")}
+        Stories · {stories.length} {topicName ? `in ${topicName}` : "cluster" + (stories.length === 1 ? "" : "s")} · ranked by significance
       </p>
-      {stories.map((s) => (
-        <StoryClusterCard key={s.id} story={s} />
-      ))}
+      <StoriesView stories={stories} />
     </div>
   );
 }
@@ -82,13 +86,14 @@ export default async function CountryPage({
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams?: Promise<{ topic?: string; date?: string }>;
+  searchParams?: Promise<{ topic?: string; date?: string; lite?: string }>;
 }) {
   const { code } = await params;
   const sp = searchParams ? await searchParams : {};
   const topicSlug = typeof sp.topic === "string" ? sp.topic : undefined;
   const topicName = topicSlug ? getTopicBySlug(topicSlug) : null;
   const dateParam = typeof sp.date === "string" ? sp.date : undefined;
+  const liteMode = sp.lite === "1";
 
   // When a topic filter is active, the back link returns to that topic's globe.
   const back: BackTarget = topicName
@@ -155,10 +160,13 @@ export default async function CountryPage({
               <TopicSection key={topic.topic} topic={topic} />
             ))}
             <SourceList sources={archived.sources} />
+            <LocationVerifyBadge news={archived} />
             {(archived.meta?.widelyAgreedFacts?.length ?? 0) > 0 && <AgreedFactsPanel news={archived} />}
             {(archived.meta?.uncertainty?.length ?? 0) > 0 && <UncertaintyPanel news={archived} />}
             <CoverageGapsPanel news={archived} />
             <CorrectionsPanel news={archived} />
+            <GeopoliticsPanel code={code} />
+            <MethodologyPanel provenanceNote={archived.meta?.provenanceNote} />
           </div>
         )}
       </Shell>
@@ -229,30 +237,57 @@ export default async function CountryPage({
 
   return (
     <>
-      {/* Map: zoomed to the country with a dot at each news location. */}
-      <div className="relative h-[52vh] min-h-[320px] w-full border-b border-rule">
-        <NewsGlobe
-          focusCode={code}
-          topicSlug={topicSlug}
-          points={shownPoints}
-          arcs={news.conflicts}
-          showArcs={showArcs}
-          autoRotate={false}
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 p-4 text-center">
-          <span className="rounded-full border border-rule bg-panel/80 px-4 py-1.5 text-sm font-medium backdrop-blur">
-            {news.country}
-            {topicName ? ` · ${topicName}` : ""} · {shownPoints.length} news points
-            {(news.stories?.length ?? 0) > 0 ? ` · ${news.stories!.length} stories` : ""}
-          </span>
+      {/* Lite mode: skip the heavy globe for low-bandwidth/mobile. */}
+      {liteMode ? (
+        <div className="mx-auto w-full max-w-2xl px-6 pt-6">
+          <Link
+            href={`/country/${code.toLowerCase()}${topicSlug ? `?topic=${topicSlug}` : ""}`}
+            className="rounded-full border border-rule bg-panel px-3 py-1.5 text-xs hover:border-accent"
+          >
+            ← Back to globe view
+          </Link>
         </div>
-      </div>
+      ) : (
+        <div className="relative h-[52vh] min-h-[320px] w-full border-b border-rule">
+          <NewsGlobe
+            focusCode={code}
+            topicSlug={topicSlug}
+            points={shownPoints}
+            arcs={news.conflicts}
+            showArcs={showArcs}
+            autoRotate={false}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 p-4 text-center">
+            <span className="rounded-full border border-rule bg-panel/80 px-4 py-1.5 text-sm font-medium backdrop-blur">
+              {news.country}
+              {topicName ? ` · ${topicName}` : ""} · {shownPoints.length} news points
+              {(news.stories?.length ?? 0) > 0 ? ` · ${news.stories!.length} stories` : ""}
+            </span>
+          </div>
+        </div>
+      )}
 
       <Shell title={news.country} back={back}>
         <div className="-mt-4 mb-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-muted">
+          <div className="flex items-center gap-2 text-xs text-muted">
             <TimeAgo iso={news.generatedAt} />
-          </p>
+            {(() => {
+              const base = `/country/${code.toLowerCase()}`;
+              const qs = new URLSearchParams();
+              if (topicSlug) qs.set("topic", topicSlug);
+              if (!liteMode) qs.set("lite", "1");
+              const href = qs.toString() ? `${base}?${qs.toString()}` : base;
+              // When already in lite mode, link back without lite param
+              const liteHref = liteMode
+                ? topicSlug ? `${base}?topic=${topicSlug}` : base
+                : href;
+              return (
+                <Link href={liteHref} className="rounded-full border border-rule bg-panel px-2.5 py-1 text-xs hover:border-accent">
+                  {liteMode ? "Globe view" : "Lite mode"}
+                </Link>
+              );
+            })()}
+          </div>
           <div className="flex items-center gap-3">
             {topicName && (
               <Link href={`/country/${code}`} className="text-xs text-accent hover:underline">
@@ -274,33 +309,45 @@ export default async function CountryPage({
         )}
 
         <WhatChangedPanel news={news} />
+        <CoverageBiasPanel news={news} />
+        <LocationVerifyBadge news={news} />
+        <GeopoliticsPanel code={code} />
 
-        {(news.stories?.length ?? 0) > 0 && (
+        {liteMode ? (
           <div className="mt-4">
-            <StorySourceSummary news={news} />
-            <div className="mt-4">
-              <StoryBlocks news={news} topicName={topicName} />
-            </div>
-          </div>
-        )}
-
-        {shownTopics.length === 0 && (news.stories?.length ?? 0) === 0 ? (
-          <div className="mt-4 rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
-            {topicName
-              ? `No significant recent ${topicName.toLowerCase()} news surfaced for ${news.country}.`
-              : `No significant recent news surfaced for ${news.country}. Try again later.`}
+            <LiteNewsList news={{ ...news, stories: topicName ? (news.stories ?? []).filter((s) => s.topic === topicName) : news.stories, points: shownPoints } as CountryNews} />
           </div>
         ) : (
-          <div className="mt-4 space-y-4">
-            {shownTopics.map((topic) => (
-              <TopicSection key={topic.topic} topic={topic} />
-            ))}
-            <SourceList sources={news.sources} />
-            <AgreedFactsPanel news={news} />
-            <UncertaintyPanel news={news} />
-            <CoverageGapsPanel news={news} />
-            <CorrectionsPanel news={news} />
-          </div>
+          <>
+            {(news.stories?.length ?? 0) > 0 && (
+              <div className="mt-4">
+                <StorySourceSummary news={news} />
+                <div className="mt-4">
+                  <StoryBlocks news={news} topicName={topicName} />
+                </div>
+              </div>
+            )}
+
+            {shownTopics.length === 0 && (news.stories?.length ?? 0) === 0 ? (
+              <div className="mt-4 rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
+                {topicName
+                  ? `No significant recent ${topicName.toLowerCase()} news surfaced for ${news.country}.`
+                  : `No significant recent news surfaced for ${news.country}. Try again later.`}
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {shownTopics.map((topic) => (
+                  <TopicSection key={topic.topic} topic={topic} />
+                ))}
+                <SourceList sources={news.sources} />
+                <AgreedFactsPanel news={news} />
+                <UncertaintyPanel news={news} />
+                <CoverageGapsPanel news={news} />
+                <CorrectionsPanel news={news} />
+                <MethodologyPanel provenanceNote={news.meta?.provenanceNote} />
+              </div>
+            )}
+          </>
         )}
       </Shell>
     </>

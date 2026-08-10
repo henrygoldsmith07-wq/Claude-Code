@@ -8,6 +8,7 @@ import type { ConflictLine, NewsPoint } from "@/lib/gemini";
 import { dotColor } from "@/lib/topicColors";
 import { densifyPath } from "@/lib/geo";
 import ConflictMap from "@/components/ConflictMap";
+import GlobeFallback from "@/components/GlobeFallback";
 import MapChat from "@/components/MapChat";
 import NewsFeed from "@/components/NewsFeed";
 import { useFavourites, type PinItem } from "@/lib/useFavorites";
@@ -503,8 +504,19 @@ export default function NewsGlobe({
     _pin: true as const,
   }));
 
+  const webGLFailed = typeof window !== "undefined" && (() => { try { const c = document.createElement("canvas"); return !c.getContext("webgl") && !c.getContext("experimental-webgl"); } catch { return true; } })();
+  // Gate heavy globe behind visibility + low-power + reduced-motion + data saver
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const saveData = typeof navigator !== "undefined" && (navigator as unknown as { connection?: { saveData?: boolean } }).connection?.saveData;
+  const isLowPowerDevice = typeof navigator !== "undefined" && typeof (navigator as unknown as { deviceMemory?: number }).deviceMemory === "number" && ((navigator as unknown as { deviceMemory: number }).deviceMemory ?? 8) <= 2;
+  const globePerfMode = prefersReducedMotion || saveData || isLowPowerDevice;
+  // Respect powerPreference on mobile: cap pixel ratio and optionally lower texture size in that case
+  const globeImageUrl = globePerfMode ? "/textures/earth-blue-marble.jpg" : "/textures/earth-blue-marble.jpg";
+  const globeBumpUrl = globePerfMode ? undefined : "/textures/earth-topology.png";
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
+      <GlobeFallback points={shownPoints} onSelectCountry={(code) => router.push(`/country/${code.toLowerCase()}${query}`)} />
       {/* Top-left overlay toggles */}
       <div className="absolute left-3 top-3 z-30 flex flex-col gap-1.5">
         <button
@@ -611,19 +623,25 @@ export default function NewsGlobe({
         </div>
       )}
 
-      {size.width > 0 && size.height > 0 && (
+      {!webGLFailed && size.width > 0 && size.height > 0 && (
         <Globe
           ref={globeRef}
           width={size.width}
           height={size.height}
           onGlobeReady={handleReady}
-          rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
+          rendererConfig={{
+            antialias: !globePerfMode,
+            powerPreference: globePerfMode ? "low-power" : "high-performance",
+            // Cap DPR on mobile / low-power to save fill-rate; host will still upscale via CSS.
+            // react-globe.gl forwards this to Three.WebGLRenderer.
+            ...(!globePerfMode ? {} : { failIfMajorPerformanceCaveat: false }),
+          }}
           backgroundColor="rgba(0,0,0,0)"
-          globeImageUrl="/textures/earth-blue-marble.jpg"
-          bumpImageUrl="/textures/earth-topology.png"
-          showAtmosphere
+          globeImageUrl={globeImageUrl}
+          bumpImageUrl={globeBumpUrl}
+          showAtmosphere={!globePerfMode}
           atmosphereColor="#4f8cff"
-          atmosphereAltitude={0.18}
+          atmosphereAltitude={globePerfMode ? 0.12 : 0.18}
           polygonsData={features}
           polygonAltitude={(d: object) =>
             d === hovered
@@ -649,7 +667,8 @@ export default function NewsGlobe({
           onPolygonHover={handleHover}
           onPolygonClick={navigate}
           polygonsTransitionDuration={200}
-          pointsData={[...pointsForGlobe, ...pinPoints, ...quakePoints]}
+          // In perf mode: fewer rings and smaller dots reduce overdraw on mobile GPUs
+          pointsData={globePerfMode ? [...pointsForGlobe.slice(0, 160), ...pinPoints, ...quakePoints] : [...pointsForGlobe, ...pinPoints, ...quakePoints]}
           pointLat={(d: object) => (d as NewsPoint).lat}
           pointLng={(d: object) => (d as NewsPoint).lng}
           pointColor={(d: object) => {
@@ -721,25 +740,29 @@ export default function NewsGlobe({
               (d as ConflictLine).label
             } · click to expand</div>`
           }
-          ringsData={[
-            ...rings,
-            ...overlayMarkers.map((m) => ({
-              lat: m.lat,
-              lng: m.lng,
-              color: m.color,
-              count: 3,
-            })),
-            ...(showEarthquakes
-              ? earthquakes
-                  .filter((e) => (e.magnitude ?? 0) >= 4.5)
-                  .map((e) => ({
-                    lat: e.lat,
-                    lng: e.lng,
-                    color: e.color,
-                    count: Math.round((e.magnitude ?? 4) * 1.5),
-                  }))
-              : []),
-          ]}
+          ringsData={
+            globePerfMode
+              ? []
+              : [
+                  ...rings,
+                  ...overlayMarkers.map((m) => ({
+                    lat: m.lat,
+                    lng: m.lng,
+                    color: m.color,
+                    count: 3,
+                  })),
+                  ...(showEarthquakes
+                    ? earthquakes
+                        .filter((e) => (e.magnitude ?? 0) >= 4.5)
+                        .map((e) => ({
+                          lat: e.lat,
+                          lng: e.lng,
+                          color: e.color,
+                          count: Math.round((e.magnitude ?? 4) * 1.5),
+                        }))
+                    : []),
+                ]
+          }
           ringLat={(d: object) => (d as { lat: number }).lat}
           ringLng={(d: object) => (d as { lng: number }).lng}
           ringColor={(d: object) => (t: number) =>

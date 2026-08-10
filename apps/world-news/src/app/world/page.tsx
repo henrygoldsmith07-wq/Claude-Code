@@ -7,7 +7,12 @@ import TimeAgo from "@/components/TimeAgo";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import TimelineControl from "@/components/TimelineControl";
 import StoryClusterCard from "@/components/StoryClusterCard";
+import StoriesView from "@/components/StoriesView";
 import StorySourceSummary from "@/components/StorySourceSummary";
+import CoverageBiasPanel from "@/components/CoverageBiasPanel";
+import LiteNewsList from "@/components/LiteNewsList";
+import LocationVerifyBadge from "@/components/LocationVerifyBadge";
+import MethodologyPanel from "@/components/MethodologyPanel";
 import {
   WhatChangedPanel,
   AgreedFactsPanel,
@@ -43,10 +48,11 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default async function WorldPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ date?: string }>;
+  searchParams?: Promise<{ date?: string; lite?: string }>;
 }) {
   const sp = searchParams ? await searchParams : {};
   const dateParam = typeof sp.date === "string" ? sp.date : undefined;
+  const liteMode = sp.lite === "1";
 
   const archiveDates = await getWorldArchiveDates().catch(() => []);
   const timeline = (
@@ -68,21 +74,24 @@ export default async function WorldPage({
             <p className="text-xs text-muted">
               Archived snapshot · <TimeAgo iso={archived.generatedAt} prefix="generated " />
             </p>
-            {(archived.stories ?? []).length > 0 && (
-              <div className="space-y-4">
-                {archived.stories!.map((s) => (
-                  <StoryClusterCard key={s.id} story={s} />
-                ))}
-              </div>
+            {liteMode ? (
+              <LiteNewsList news={archived} />
+            ) : (
+              (archived.stories ?? []).length > 0 && (
+                <StoriesView stories={archived.stories!} />
+              )
             )}
             {archived.topics.map((topic) => (
               <TopicSection key={topic.topic} topic={topic} />
             ))}
             <SourceList sources={archived.sources} />
+            <LocationVerifyBadge news={archived} />
+            <CoverageBiasPanel news={archived} />
             <AgreedFactsPanel news={archived} />
             <UncertaintyPanel news={archived} />
             <CoverageGapsPanel news={archived} />
             <CorrectionsPanel news={archived} />
+            <MethodologyPanel provenanceNote={archived.meta?.provenanceNote} />
           </div>
         )}
       </Shell>
@@ -142,13 +151,28 @@ export default async function WorldPage({
 
   return (
     <Shell>
-      <p className="-mt-4 mb-4 text-xs text-muted">
+      <div className="-mt-4 mb-4 flex items-center justify-between gap-2 text-xs text-muted">
         <TimeAgo iso={news.generatedAt} />
-      </p>
+        <Link
+          href={liteMode ? "/world" : "/world?lite=1"}
+          className="rounded-full border border-rule bg-panel px-2.5 py-1 text-xs hover:border-accent"
+        >
+          {liteMode ? "Globe view" : "Lite mode (low-bandwidth)"}
+        </Link>
+      </div>
 
       {news.topics.length === 0 && (news.stories?.length ?? 0) === 0 ? (
         <div className="rounded-xl border border-rule bg-panel p-5 text-sm text-muted">
           No significant news surfaced right now. Try again later.
+        </div>
+      ) : liteMode ? (
+        <div className="space-y-4">
+          <PodcastPlayer scope="world" title="Around the World" />
+          {archiveDates.length >= 2 && timeline}
+          <WhatChangedPanel news={news} />
+          <LiteNewsList news={news} />
+          <SourceList sources={news.sources} />
+          <MethodologyPanel provenanceNote={news.meta?.provenanceNote} />
         </div>
       ) : (
         <div className="space-y-4">
@@ -158,11 +182,9 @@ export default async function WorldPage({
           {(news.stories?.length ?? 0) > 0 && (
             <>
               <StorySourceSummary news={news} />
-              <div className="space-y-4">
-                {news.stories!.map((s) => (
-                  <StoryClusterCard key={s.id} story={s} />
-                ))}
-              </div>
+              <CoverageBiasPanel news={news} />
+              <LocationVerifyBadge news={news} />
+              <StoriesView stories={news.stories!} />
             </>
           )}
           {news.topics.map((topic) => (
@@ -173,6 +195,7 @@ export default async function WorldPage({
           <UncertaintyPanel news={news} />
           <CoverageGapsPanel news={news} />
           <CorrectionsPanel news={news} />
+          <MethodologyPanel provenanceNote={news.meta?.provenanceNote} />
         </div>
       )}
     </Shell>

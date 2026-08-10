@@ -62,6 +62,7 @@ export interface SourceMix {
 export interface TimelineEvent {
   date: string; // YYYY-MM-DD or free-text date
   label: string;
+  kind?: "reported" | "correction" | "update";
 }
 
 export interface ConflictingClaim {
@@ -97,6 +98,10 @@ export interface StoryCluster {
   uncertainty: string[];
   corrections: StoryCorrection[];
   coverageGaps: string[];
+  // Continuity & significance (distinguish from popularity)
+  historicalContext?: string[]; // 0–2 prior related events
+  significance?: number; // 0..100 editorial significance
+  significanceReasons?: string[];
   // Methodology (computed or model-provided): how the story was assembled.
   methodology?: {
     provenanceNote?: string; // one sentence: how claims were sourced/verified
