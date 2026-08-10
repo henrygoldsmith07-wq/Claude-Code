@@ -13,6 +13,8 @@ const els = {
   timer: $("timer"),
   record: $("record"),
   stop: $("stop"),
+  testMic: $("testMic"),
+  micResult: $("micResult"),
   status: $("status"),
 };
 
@@ -26,6 +28,7 @@ let state = {
   mimeType: "video/webm",
 };
 
+function consentBanner(){ return "<span style=\"font-size:12px;opacity:.6\">● Recording — ensure participants consented</span>"; }
 function setStatus(msg, kind = "") {
   els.status.textContent = msg;
   els.status.className = kind;
@@ -52,7 +55,14 @@ async function init() {
     els.sources.appendChild(opt);
   }
   if (sources.length === 0) setStatus("No screens found to capture.", "err");
+  try{ if(localStorage.getItem("mr_pending")) setStatus("Previous recording did not finish uploading — please record again. Local buffer was cleared.", "err"); }catch{}
+  try{ if(localStorage.getItem("mr_pending")) localStorage.removeItem("mr_pending"); }catch{}
 }
+
+async function testMic(){ try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(tr=>tr.stop()); setStatus("Microphone OK", "ok"); }catch(e){ setStatus("Mic test failed: "+(e.message||e), "err"); } }
+// Expose for a future Test Mic button: window.testMic = testMic;
+try{ window.testMic = testMic; }catch{}
+const testMicBtn = els.testMic; if(testMicBtn){ testMicBtn.addEventListener("click", async ()=>{ const btn=testMicBtn; btn.disabled=true; try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(x=>x.stop()); if(els.micResult) els.micResult.textContent="Microphone OK ✓"; }catch(e){ if(els.micResult) els.micResult.textContent="Mic failed: "+(e.message||e); } finally{ btn.disabled=false; } }); }
 
 els.saveSettings.addEventListener("click", async () => {
   await recorder.saveSettings({
@@ -136,6 +146,7 @@ els.record.addEventListener("click", async () => {
     state.recorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) state.chunks.push(e.data);
     };
+    try{ localStorage.setItem("mr_pending","1"); }catch{}
     state.recorder.onstop = onRecordingStopped;
     state.recorder.start(1000);
 
@@ -175,6 +186,7 @@ function cleanup() {
 async function onRecordingStopped() {
   const durationSec = Math.round((Date.now() - state.startedAt) / 1000);
   const blob = new Blob(state.chunks, { type: state.mimeType });
+  try{ const ab=await blob.slice(0,4).arrayBuffer(); const b=new Uint8Array(ab); const isWebm=b[0]===0x1A&&b[1]===0x45&&b[2]===0xDF&&b[3]===0xA3; if(!isWebm && blob.size>5000) throw new Error("Recording appears truncated or corrupted — header mismatch."); }catch(e){ if(e.message && e.message.includes("header mismatch")) { setStatus(e.message, "err"); return; } }
   cleanup();
 
   const appUrl = (els.appUrl.value || "http://localhost:3000").trim().replace(/\/$/, "");
@@ -197,14 +209,14 @@ async function onRecordingStopped() {
     const { meeting, upload } = await createRes.json();
 
     setStatus(`Uploading ${(blob.size / 1024 / 1024).toFixed(1)}MB…`);
-    const putRes = await fetch(upload.url, {
+    let putRes=null; for(let attempt=0; attempt<3; attempt++){ try{ putRes = await fetch(upload.url, {
       method: upload.method,
       headers: upload.headers,
       body: blob,
-    });
-    if (!putRes.ok) {
+    }); if (putRes && putRes.ok) break; }catch(e){ putRes=null; } if(attempt<2 && (!putRes || !putRes.ok)) { await new Promise(r=>setTimeout(r, 900*(attempt+1))); } }
+    if (!putRes || !putRes.ok) {
       throw new Error(
-        `Upload failed (${putRes.status}). Check the R2 bucket CORS policy — see the README.`
+        `Upload failed (${putRes?putRes.status:"no response"}). Check the R2 bucket CORS policy — see the README.`
       );
     }
 
@@ -220,6 +232,7 @@ async function onRecordingStopped() {
       headers,
     }).catch(() => {});
 
+    try{ localStorage.removeItem("mr_pending"); }catch{}
     const link = `${appUrl}/meeting/${meeting.id}`;
     setStatus("Uploaded. Transcribing on the server…", "ok");
     els.status.innerHTML = `Uploaded. Transcribing… <a href="${link}" target="_blank">Open in dashboard →</a>`;
