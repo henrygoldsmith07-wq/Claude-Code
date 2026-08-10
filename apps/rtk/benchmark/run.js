@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { PARSERS } = require('../src/parsers');
 const f = require('./fixtures');
+const d = require('./datasets');
 
 function statsFor({ label, parserName, output, exitCode, criticalNeedles }) {
   const actual = PARSERS[parserName];
@@ -30,6 +31,12 @@ function run({ writeJson = false } = {}) {
     { label: 'Next build pass', parserName: 'nextBuild', output: f.nextBuildPassFixture(), exitCode: 0, criticalNeedles: ['Compiled successfully', 'Build completed'] },
     { label: 'Generic failure', parserName: 'generic', output: f.genericFailFixture(), exitCode: 1, criticalNeedles: ['Error:', '1 failed'] },
     { label: 'Truncate (2k-line verbose log)', parserName: 'generic', output: Array.from({ length: 2000 }, (_, i) => `line ${i} — some verbose output that would bloat context`).join('\n'), exitCode: 0, criticalNeedles: [] },
+    // Representative datasets (GitHub, logs, JSON, search, CLI, diff, stack)
+    { label: 'GitHub Actions log (failure)', parserName: 'generic', output: d.githubActionsLog({ jobs: 3 }), exitCode: 1, criticalNeedles: ['exit code 1', 'action.js:42:10'] },
+    { label: 'Search results JSON (120 hits)', parserName: 'generic', output: d.jsonSearchResults({ hits: 120 }), exitCode: 0, criticalNeedles: [] },
+    { label: 'CLI verbose (2k lines)', parserName: 'generic', output: d.cliVerboseLog({ lines: 2000 }), exitCode: 0, criticalNeedles: [] },
+    { label: 'Diff (4 files)', parserName: 'generic', output: d.diffLog({ files: 4 }), exitCode: 1, criticalNeedles: ['diff --git', 'const x'] },
+    { label: 'Stack trace', parserName: 'vitest', output: d.stackLog(), exitCode: 1, criticalNeedles: ['Error: boom', 'app.ts:42:10'] },
   ];
 
   const rows = cases.map((c) => statsFor(c));
@@ -47,9 +54,10 @@ function run({ writeJson = false } = {}) {
     md.push(mdRow([r.label, r.parser, String(r.rawChars), String(r.emittedChars), `${r.reductionPct}%`, String(r.rawLines), String(r.emittedLines), crit]));
   }
   md.push('');
-  md.push('> Fixtures are deterministic synthetic logs shaped like real tool output (see `benchmark/fixtures.js`).');
+  md.push('> Fixtures are deterministic synthetic logs shaped like real tool output (see `benchmark/fixtures.js`, `datasets.js`).');
   md.push('> Reduction = `1 − emitted/raw`. Critical retained checks that every failure/error/total line the developer needs is still present.');
   md.push('> `tsc pass` raw is near-empty (tsc prints nothing on success); rtk collapses it to one line — the negative % reflects that the shell wrapper dominates.');
+  md.push('> Representative datasets: GitHub Actions, JSON/search results, CLI verbose, diff, and stack traces demonstrate structural filtering at scale.');
 
   const jsonPayload = { generatedAt: new Date().toISOString(), rows };
   if (writeJson) {
