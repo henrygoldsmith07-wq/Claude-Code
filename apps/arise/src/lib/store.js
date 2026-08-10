@@ -12,9 +12,10 @@ export function loadStore(){
   try{
     const raw = localStorage.getItem(KEY);
     if(!raw) return structuredClone(DEFAULT);
-    const j = JSON.parse(raw);
+    let j = JSON.parse(raw);
     // migrations: keep simple — if version missing, reset schedule but keep onboarding.
-    if(!j.version) return { ...structuredClone(DEFAULT), onboarding: j.onboarding || null };
+    j = runMigrations(j);
+    if(!j.history) j.history=[];
     return { ...structuredClone(DEFAULT), ...j };
   }catch{ return structuredClone(DEFAULT); }
 }
@@ -24,6 +25,23 @@ export function saveStore(s){
 }
 
 export function clearStore(){ try{ localStorage.removeItem(KEY);}catch{} }
+
+export function runMigrations(raw){
+  // versioned migrations; keep history intact when adding fields.
+  let j=raw;
+  if(!j.version || j.version < 1) j = { ...j, version: 1 };
+  if(j.version === 1){
+    // v1 -> v2: add preferences.syncEnabled default false + normalize history blocks
+    if(!j.preferences) j.preferences={ units:'kg', theme:null, syncEnabled:false };
+    else if(j.preferences.syncEnabled==null) j.preferences={ ...j.preferences, syncEnabled:false };
+    j.version = 2;
+  }
+  if(j.version === 2){
+    // v2 preserves history; readiness will live in preferences or a light readiness.log key later
+    j.version = 2;
+  }
+  return j;
+}
 
 // Hevy-style helpers ported from the standalone Life OS fitness module
 // (vendor/life-os-scrape) — previous-session lookup and PR helpers.

@@ -2,7 +2,7 @@
 
 A game-like, offline-first training companion. Not a nutrition app.
 
-**Stack:** Vite + React + Tailwind v4 + `le-studio.css` design tokens. Local-first (`localStorage`), no backend, no account. PWA-ready.
+**Stack:** Vite + React + Tailwind v4 + `le-studio.css` design tokens. Local-first (`localStorage`), no backend, no account. PWA-ready. **Progression engine** in `progression.js` + `substitutions.js`, **analytics** in `analytics.js`, **session generator** in `sessionGenerator.js`.
 
 ## What it does — in order
 
@@ -17,8 +17,9 @@ A game-like, offline-first training companion. Not a nutrition app.
 9. **Mobile tested (guide)** — see below. Touch targets ≥44px, safe-area insets, standalone display.
 10. **Accessibility** — landmarks (`header`/`main`/`nav` with `aria-label`), skip link, `aria-current="page"`, `aria-live="polite"` on result counts, `role="status"` on import messages, labelled inputs, visible `:focus-visible` ring from `le-studio.css`, `Esc` + overlay-click to dismiss dialogs, `prefers-reduced-motion` respected, OS theme respected.
 11. **No nutrition system** — intentionally out of scope. Adding one recreates Forq and distracts from the training/level-up proposition.
-12. **SessionRunner extras ported from Life OS:** auto rest timer (tap Rest to start a countdown per `restSec`, with vibrate on finish), **previous session comparison** (“Last: 20kg×8 on 2026-02-01” per exercise via `store.lastExerciseSets`), and a **post-workout summary** in Progress (last session volume/sets/exercises + note). Life OS's eval-based Web Worker was **not** ported — intentionally replaced with safe helpers.
-13. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+12. **Progression engine (`progression.js`) —** `recommendNext()` (conservative double-progression: reps then load, bodyweight-aware, RIR-aware), `isPlateau`/`shouldDeload` (3-flat sessions + RPE/volume signals, conservative 40% deload), `rirFromRpe`/Epley 1RM as single source of truth, `isMeaningfulPR` (>2% filter), `strengthTrend` + `readinessScore` (sleep/soreness/motivation → 0..100). Every adjustment explains why.
+13. **SessionRunner extras ported from Life OS:** auto rest timer (tap Rest to start a countdown per `restSec`, with vibrate on finish), **previous session comparison (“Last: 20kg×8 on 2026-02-01” per exercise via `store.lastExerciseSets`), and a **post-workout summary** in Progress (last session volume/sets/exercises + note). Life OS's eval-based Web Worker was **not** ported — intentionally replaced with safe helpers.
+14. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
 
 ## Consolidation
 
@@ -37,7 +38,7 @@ npm test           # node:test (data / attributes / export / store)
 npm run verify     # lint:content && type-check && test && build  (also in CI)
 ```
 
-No env vars. Data is local — clear via **More → Clear local data** (or export first).
+No env vars. Data is local — clear via **More → Clear local data** (or export first). Cross-device sync is an optional `sync.js` layer (`syncUp`/`syncDown` + pluggable `pull/push`) — offline-first preserved, sync is Merge/Replace over export JSON.
 
 ## Data model (localStorage `arise.store.v1`)
 
@@ -47,7 +48,7 @@ No env vars. Data is local — clear via **More → Clear local data** (or expor
   onboarding: { goal, equipment:[], location, level, daysPerWeek } | null,
   activeSchedule: { programId, startDateISO, sessions:[{ id, dateISO, week, day, title, blocks, status }] } | null,
   history: [{ id, dateISO, programId, week, day, title, blocks:[{ exerciseId, sets:[{reps,weightKg,rpe}] }], note?, savedAt }],
-  preferences: { units:'kg', theme: null } // null = follow OS
+  preferences: { units:'kg', theme: null, syncEnabled: false } // null = follow OS; sync optional, offline-first
 }
 ```
 
@@ -73,7 +74,12 @@ src/lib/attributes.js  history-derived attributes + level
 src/lib/store.js       localStorage + streak/volume + lastExerciseSets / prsHitBySession
 src/lib/export.js      versioned backup
 src/lib/schedule.js    today/next/progress + startProgram
-src/components/*       Today / Train+SessionRunner(rest timer+previous session) / Exercises / Progress(summary) / More + Onboarding + AppShell
+src/lib/progression.js progression + plateau/deload + RIR/RPE + bodyweight/unilateral + readiness
+src/lib/substitutions.js pattern/muscle/equipment/difficulty scoring + rankedSubstitutions
+src/lib/analytics.js   weekly volume + frequency + strength series + actionable advice
+src/lib/sessionGenerator.js equipment-aware, history-aware session builder + superset hints
+src/lib/sync.js        optional cross-device sync (pluggable pull/push, offline-first)
+src/components/*       Today / Train+SessionRunner(warmups/supersets/notes→next load) / Exercises / Progress(volume spark + advice) / More + Onboarding + AppShell
 public/                manifest.webmanifest + sw.js + icons
 scripts/lint-content.mjs  validates exercises/programs
 tsconfig.json + jsconfig.json  real type-check (noEmit)
