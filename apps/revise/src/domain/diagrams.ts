@@ -120,6 +120,15 @@ export function diagramScore(round: DiagramRound): { placed: number; total: numb
   return { placed, total: round.spec.hotspots.length, accuracy: attempts ? placed / attempts : 0 };
 }
 
+export function normaliseMath(input: string): string {
+  // Normalise handwriting/ocr maths: unicode symbols, whitespace and common lookalikes
+  return input
+    .replace(/[–—]/g, "-")
+    .replace(/×/g, "*").replace(/÷/g, "/")
+    .replace(/−/g, "-").replace(/[²³]/g, (m)=> m==="²" ? "^2" : "^3")
+    .replace(/\s+/g, " ").trim();
+}
+
 function normalise(label: string): string {
   return label.trim().toLowerCase().replace(/\s+/g, " ");
 }

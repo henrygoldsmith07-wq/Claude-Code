@@ -9,7 +9,7 @@ const ROOT = join(import.meta.dirname, "..");
 
 function parseTopics() {
   const dir = join(ROOT, "src/domain/curriculum");
-  const files = readdirSync(dir).filter((f) => f.startsWith("wjec-") && f.endsWith(".ts"));
+  const files = readdirSync(dir).filter((f) => (f.startsWith("wjec-") || f.startsWith("aqa-")) && f.endsWith(".ts"));
   const all = [];
   for (const file of files) {
     const text = readFileSync(join(dir, file), "utf8");
@@ -72,7 +72,7 @@ for (const t of topics) {
 }
 
 // Enforce a minimum statement density per subject
-const minStatements = { "wjec-physics.ts": 60, "wjec-chemistry.ts": 60, "wjec-biology.ts": 60, "wjec-maths.ts": 40 };
+const minStatements = { "wjec-physics.ts": 60, "wjec-chemistry.ts": 60, "wjec-biology.ts": 60, "wjec-maths.ts": 40, "aqa-physics.ts": 60, "aqa-chemistry.ts": 60, "aqa-biology.ts": 60, "aqa-maths.ts": 40 };
 for (const t of topics) {
   const text2 = readFileSync(join(ROOT, `src/domain/curriculum/${t.file}`), "utf8");
   const refCount = (text2.match(/ref:\s*"Unit|ref:\s*"Pure|ref:\s*"Applied/g) || []).length;

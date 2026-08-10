@@ -60,27 +60,87 @@ activity instead of remediation, which is a different thing to do.
 
 ## 3. Recommendation
 
-`src/domain/recommender.ts`
+`src/domain/recommender.ts` — technical documentation for the recommendation engine.
 
-Every candidate is scored on one scale so they can be compared directly, then
-multiplied by exam urgency:
+### Inputs & outputs
 
-| Candidate | Base score | Rationale |
-|-----------|-----------|-----------|
-| Due flashcards | 55 + 30·min(1, due/30) + min(15, overdue) | Decayed memory is the cheapest thing to fix, and it is the only time-sensitive activity. |
-| Mistake repair (≥3 open) | 50 + min(25, 2·count) | Marks the student has already proved they can lose. |
-| Weak-topic practice | 30 + 45·(1 − mastery) | Where revision converts into marks fastest. |
-| First-pass learn | 26 + 2·(6 − difficulty) | Coverage matters, but not more than repairing what is broken. |
-| Timed paper | 24 + 30·avg mastery | Only once the subject is broadly solid or the exam is within three weeks. |
-| Today's plan | +12 to a match | The student's own commitment breaks ties. |
+`RecommendInput` takes the homework the engine needs — `topics`, `mastery`,
+`cards`, `mistakes`, `exams`, `plan`, `sessionLengthMinutes`, `subjectIds`,
+plus optional `marksPerHour` (expected exam marks per hour per topic), an
+`outcomeHistory` of `(predicted, actual)` pairs, and
+`adaptiveDifficultyOffset` per topic. It returns `Recommendation[]` sorted
+descending by `score`, with a first-class `RecommendationExplanation` so the
+UI never invents a number the engine didn't compute (`recoverableMarks`,
+`marksPerHour`, `lastEvidencePercent`, `daysSinceRetrieval`, `daysToExam`,
+`paperLabel`, and the five factor values).
 
-Exam urgency is `1 + min(1, 30/(days + 15))` — smooth, rising to ~2.0 in the
-final fortnight. A step function would make the whole plan lurch the moment a
-threshold was crossed.
+### Score
 
-Saturation matters: 30 due cards is already "a lot", and 300 is not ten times
-worse. Without the cap a backlog would drown out every other activity forever,
-which is exactly how a student ends up doing nothing but flashcards.
+Every candidate is scored on one scale so they can be compared directly:
+
+```
+score = (examGain / minutes) × urgency × weakness × forgetting × uncertainty
+        × examProximity × adaptiveDifficulty  × displayScale
+```
+
+`examGain` is *expected exam marks* the activity recovers or protects (not raw
+cards/topics), so the score reads as weighted marks per minute.
+
+| Candidate | examGain | Rationale |
+|-----------|----------|-----------|
+| Due flashcards | `count × (0.28 + (1 − retention)×0.35)` | Decayed memory is the cheapest thing to fix; value rises as retention falls. |
+| Mistake repair (≥3 open) | `marksLost × 0.7` | Marks the student has already proved they can lose. |
+| Weak-topic practice | `marksPerHour × block/60` or `(1 − mastery)×8` | Where revision converts into marks fastest. |
+| First-pass learn | `2.2 + (6 − difficulty)×0.25` | Coverage matters, but not more than repairing what is broken. |
+| Timed paper | `(1 − avgMastery)×9 + nearExamBonus` | Only once broadly solid or exam ≤ 21 days. |
+| Today's plan | additive +12 to a match | The student's own commitment breaks ties. |
+
+`scoreFromGain` does `marksPerMinute(gain, minutes) × factors × 60` so a
+5-mark gain in 18 min reads ~0.28 and is comparable across candidates.
+
+### The five bounded factors (each 0.7–2.0)
+
+- **urgency** `examUrgency(days)` — `1 + min(1, 30/(days+15))`, 1.0 far out → 2.0 on exam day.
+- **weakness** `weaknessFactor(mastery)` — `1 + (1 − mastery)×0.8`, 1.0→1.8.
+- **forgetting** `forgettingFactor(retention, daysSince)` — `1 + (1 − retention)×0.6` or days-based.
+- **uncertainty** `uncertaintyFactor(cards, attempts)` — thin evidence boosts exploration 1.4→1.0.
+- **examProximity / adaptiveDifficulty** are *additional* bounded multipliers:
+  - `examProximityMultiplier(days, mpm)` 1.0–1.45: inside 21 days efficiency dominates; the final week scales to 1.45.
+  - `adaptiveDifficultyFactor(topic, row, offset)` 0.85–1.15: high rolling accuracy nudges harder stretch, low accuracy drops a level.
+
+No single factor can dominate: all are bounded and multiplied, and every
+monotone property is pinned by `recommender.benchmark.test.ts` (urgency,
+weakness, forgetting, uncertainty) and `recommender.factors.test.ts`.
+
+### Optimises marks per minute and exam proximity
+
+`marksPerMinute(marks, minutes)` is the first-class optimiser — the engine
+ranks by *what earns a grade fastest*, not by volume. `examProximityMultiplier`
+ensures breadth matters far from the exam and efficiency dominates near it.
+
+### Adaptive difficulty
+
+`adaptiveDifficultyFactor` uses rolling `accuracy` (and an optional external
+offset) to drift the score ±10% toward the right stretch. It never overrides
+weakness/urgency/forgetting.
+
+### Validated against learning outcomes — synthetic now, real later
+
+- `syntheticOutcomePairs(seed, n, subjectId, topicIds)` — deterministic
+  synthetic `(predicted, actual)` history so CI can run without real papers.
+- `benchmarkRecommendationQuality(pairs)` — reports `{ n, mae, bias,
+  correlation, hitRate }` against those later timed-paper outcomes; `hitRate`
+is the share within ±5 marks. The real integration replaces synthetic pairs
+  with observed `(simulatePaper.predictedMarks, laterPaper.actualMarks)`.
+- The 400-scenario benchmark harness (`recommender.benchmark.test.ts`) asserts
+  total ordering, no duplicate keys, explanation present, and monotonicity of
+every factor across a seeded synthetic population.
+
+### Recommendation-quality benchmark (synthetic)
+
+Run via `recommender.benchmark.test.ts` (400 deterministic learner states) or
+`tests/recommender.benchmark.test.ts`'s outcome checks; the next step is wiring
+`outcomeHistory` from `simulatePaper` → later paper actuals.
 
 ## 4. Planning
 
@@ -125,7 +185,7 @@ overlap against the mark scheme — generous about wording, strict about content
 It cannot judge reasoning, which is exactly why AI marking exists and why every
 rubric-marked answer is labelled as rubric-marked in the UI.
 
-## 6. Grade prediction
+## 6. Grade prediction & confidence calibration
 
 `src/domain/grades.ts`
 
@@ -134,6 +194,7 @@ trust    = min(1, attempts / 10)
 blended  = measured accuracy · trust + topic coverage · (1 − trust)
 percent  = blended · 92 + 4
 range    = ± (6 + 12 · (1 − trust)) percentage points
+confidence = trust·0.75·horizonPenalty + min(1, topics/12)·0.25
 ```
 
 Mastery is not a mark — a student at 100% topic mastery does not score 100% —
@@ -144,6 +205,21 @@ predicted letter carries far more certainty than the data supports.
 **Headroom** is the actionable output: how many percentage points the whole
 subject would gain if this one topic were taken to full mastery. That answers
 "what do I do next", which a predicted grade on its own never does.
+
+### Confidence calibration — honest curves, not raw confidence
+
+- `calibrationReport(pairs)` — Brier score (mean squared error), ECE
+  (expected calibration error, weighted bucket gap), per-bucket
+  `meanPredicted` vs `meanActual`, and `bias`. Well-calibrated is ECE < 0.08.
+- `confidenceCalibration({ subject, mastery, attempts, exams, today, laterOutcomes })`
+  — thin wrapper that treats each later timed paper's predicted/actual as a
+  probability for the bucket check.
+- `syntheticCalibrationOutcomes(seed, n)` — deterministic synthetic outcomes
+  for benchmarking without real papers; replace with real
+  `(predictGrade.percent/100, laterPaperPercent/100)` once live.
+- Validated in `tests/grade-calibration.test.ts` (synthetic longitudinal
+histories; `simulatePaper` + `calibrateFromHistory` composizione; confidence
+  grows and band narrows as evidence accumulates).
 
 ## Mistake loop
 

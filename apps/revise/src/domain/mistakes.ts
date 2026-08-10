@@ -172,3 +172,18 @@ export function mistakePatterns(mistakes: Mistake[]): MistakePattern[] {
     }))
     .sort((a, b) => b.count - a.count);
 }
+// --- auto-loop: mistake -> next-session wiring ---------------------------------
+
+/**
+ * Derive a lightweight next-up queue from open mistakes so the app can
+ * automatically surface the highest-value mistake cards without the student
+ * having to curate a manual session. Returns up to maxCards cardIds in
+ * priority order (most marks-lost first, then most recent).
+ */
+export function nextMistakeLoop(mistakes: Mistake[], maxCards = 12): Id[] {
+  const open = mistakes.filter((m) => !m.resolved && m.cardId);
+  if (!open.length) return [];
+  open.sort((a, b) => (b.marksLost - a.marksLost) || b.createdAt.localeCompare(a.createdAt));
+  return open.slice(0, maxCards).map((m) => m.cardId as Id);
+}
+

@@ -19,7 +19,8 @@ import type { Attempt, StreakState, TopicMastery } from "@/domain/types";
 describe("curriculum registry", () => {
   it("registers the four seeded WJEC A-level subjects", () => {
     const names = allSubjects().map((s) => s.name).sort();
-    expect(names).toEqual(["Biology", "Chemistry", "Mathematics", "Physics"]);
+    expect(names.filter((n,i,a)=>a.indexOf(n)===i).sort()).toEqual(["Biology", "Chemistry", "Mathematics", "Physics"]);
+    expect(allSubjects().length).toBeGreaterThanOrEqual(4);
   });
 
   it("gives every subject units, topics and paper weightings", () => {

@@ -324,7 +324,7 @@ export async function ocr(image: string, mediaType: string, hint: "handwriting" 
 
   const instruction =
     hint === "handwriting"
-      ? "This is a photograph of a student's handwritten exam answer. Transcribe it exactly, preserving part labels, line breaks and working."
+      ? "This is a photograph of a student's handwritten exam answer. Transcribe it exactly, preserving part labels, line breaks, working and any mathematics as LaTeX ($...$) where legible."
       : hint === "printed"
         ? "This is a scan of a printed exam paper. Transcribe the text exactly, preserving question numbering and mark allocations."
         : "Transcribe all text in this image exactly, preserving structure.";

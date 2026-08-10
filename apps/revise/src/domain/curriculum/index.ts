@@ -6,6 +6,7 @@ import { registerBoard, registerQualification } from "./registry";
 // registry's lookup functions, long after this module has finished evaluating.
 registerBoard({ id: "wjec", name: "WJEC", country: "United Kingdom" });
 registerBoard({ id: "eduqas", name: "Eduqas", country: "United Kingdom" });
+registerBoard({ id: "aqa", name: "AQA", country: "United Kingdom" });
 
 registerQualification({
   id: "wjec-alevel",
@@ -15,11 +16,23 @@ registerQualification({
   grades: ["A*", "A", "B", "C", "D", "E", "U"],
 });
 
+registerQualification({
+  id: "aqa-alevel",
+  boardId: "aqa",
+  name: "AQA A Level",
+  level: "A Level",
+  grades: ["A*", "A", "B", "C", "D", "E", "U"],
+});
+
 // Importing for side effects registers each subject into the registry.
 import "./wjec-maths";
 import "./wjec-biology";
 import "./wjec-chemistry";
 import "./wjec-physics";
+import "./aqa-biology";
+import "./aqa-chemistry";
+import "./aqa-physics";
+import "./aqa-maths";
 
 export * from "./registry";
 export { A_LEVEL_BOUNDARIES } from "./helpers";

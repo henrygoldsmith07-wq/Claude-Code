@@ -27,6 +27,10 @@ export interface PlanInput {
   availability: Availability[];
   sessionLengthMinutes: number;
   subjectIds: Id[];
+  /** Hard cap on minutes per day (fatigue guard). When absent, availability is the cap. */
+  dailyMinutesCap?: number;
+  /** Max consecutive heavy days before a throttle (0 = disabled). */
+  fatigueThresholdDays?: number;
   /** Minutes from midnight the study day starts at. */
   dayStartMinute?: number;
   horizonDays?: number;
@@ -60,8 +64,22 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
   for (let dayOffset = 0; dayOffset < horizon; dayOffset++) {
     const date = toDateOnly(new Date(new Date(`${today}T00:00:00Z`).getTime() + dayOffset * 86_400_000));
     const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-    const minutes = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+    let minutes = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+    if (input.dailyMinutesCap != null) minutes = Math.min(minutes, input.dailyMinutesCap);
     if (minutes < 10) continue;
+
+    // Fatigue: if the previous N days were heavy, throttle today by 40% so the plan is recoverable.
+    const fatigueN = input.fatigueThresholdDays ?? 0;
+    if (fatigueN > 0 && dayOffset >= fatigueN) {
+      let heavyStreak = 0;
+      for (let k = dayOffset - fatigueN; k < dayOffset; k++) {
+        const d = toDateOnly(new Date(new Date(`${today}T00:00:00Z`).getTime() + k * 86_400_000));
+        const wk = new Date(`${d}T00:00:00Z`).getUTCDay();
+        const m = Math.min(input.availability.find((a) => a.weekday === wk)?.minutes ?? 0, input.dailyMinutesCap ?? 9999);
+        if (m >= 90) heavyStreak++;
+      }
+      if (heavyStreak >= fatigueN) minutes = Math.max(10, Math.round(minutes * 0.6));
+    }
 
     const blocks = Math.max(1, Math.floor(minutes / blockLength));
     let cursor = input.dayStartMinute ?? DEFAULT_DAY_START;

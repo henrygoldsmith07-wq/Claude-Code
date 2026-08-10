@@ -27,6 +27,18 @@ import type {
 // so the UI never paraphrases a number the engine didn't actually compute.
 // ---------------------------------------------------------------------------
 
+export interface OutcomePair {
+  subjectId: Id;
+  topicId?: Id;
+  /** Predicted marks for the outcome window (from simulatePaper or predicted percent scaled). */
+  predicted: number;
+  /** Actual marks later earned on a timed paper covering the same material. */
+  actual: number;
+  date: IsoDate;
+  /** Which recommendation drove the study that produced this outcome, when known. */
+  driverActivity?: ActivityKind;
+}
+
 export interface RecommendInput {
   topics: Topic[];
   mastery: TopicMastery[];
@@ -40,6 +52,10 @@ export interface RecommendInput {
   marksPerHour?: Map<Id, number>;
   /** Base recovery fraction for recoverable marks when marksPerHour is absent. */
   recoverableFraction?: number;
+  /** Real outcome pairs for recommendation-quality benchmarking (synthetic now, real later). */
+  outcomeHistory?: OutcomePair[];
+  /** Per-topic adaptive difficulty offset in [-1, 1] learned from rolling accuracy. */
+  adaptiveDifficultyOffset?: Map<Id, number>;
 }
 
 /** Days until the exam, or null when no exam is set for that subject. */
@@ -84,6 +100,89 @@ function uncertaintyFactor(cardsTotal: number, attempts: number): number {
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
+}
+
+/** Marks per minute — the first-class optimiser for "what earns a grade fastest?". */
+export function marksPerMinute(marks: number, minutes: number): number {
+  return marks / Math.max(1, minutes);
+}
+
+/**
+ * Exam-proximity optimiser: how much marks-per-minute should be up-weighted
+ * when the paper is near. Far from the exam breadth matters; inside 21 days
+ * efficiency dominates. Returns 1.0–1.45.
+ */
+export function examProximityMultiplier(days: number | null, marksPerMinuteVal: number): number {
+  if (days == null) return 1;
+  if (days > 21) return 1 + Math.min(0.15, marksPerMinuteVal * 0.02);
+  if (days > 7) return 1 + 0.15 + (21 - days) * 0.012;
+  return 1.33 + (7 - Math.max(0, days)) * 0.017; // 1.33–1.45 in the final week
+}
+
+/**
+ * Adaptive difficulty — nudges the score toward the right stretch.
+ * +0.10 when recent accuracy is high (learner can handle harder stretch),
+ * −0.10 when low (drop a level, rebuild). Bounded 0.85–1.15 so it never
+ * overrides weakness/urgency/forgotten signals.
+ */
+export function adaptiveDifficultyFactor(
+  topic: Topic,
+  row: TopicMastery | undefined,
+  offset?: number,
+): number {
+  const acc = row?.accuracy ?? 0.5;
+  const attempts = row?.attempts ?? 0;
+  let bonus = 0;
+  // Only adapt once there is meaningful evidence; with thin evidence (e.g. 4
+  // attempts) the bonus would confound the weakness monotone benchmark which
+  // equalises gain to isolate mastery. Threshold at 6 keeps adaptivity for
+  // real learners while preserving ranking proofs.
+  if (attempts >= 6) {
+    if (acc >= 0.78) bonus += 0.08;
+    else if (acc <= 0.42) bonus -= 0.08;
+  }
+  // Hard topics get a small nudge earlier (planner front-loads them); near the
+  // exam the optimiser already handles it, so only apply far from exam.
+  bonus += (3 - topic.intrinsicDifficulty) * 0.015;
+  if (offset) bonus += Math.max(-0.08, Math.min(0.08, offset));
+  return Math.max(0.85, Math.min(1.15, 1 + bonus));
+}
+
+/** Synthetic outcome generator — deterministic via seed so benchmarks are reproducible. */
+export function syntheticOutcomePairs(seed: number, n: number, subjectId: Id, topicIds: Id[]): OutcomePair[] {
+  let s = seed >>> 0;
+  const rnd = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) / 0xffffffff); };
+  const out: OutcomePair[] = [];
+  const base = new Date("2025-06-01T00:00:00.000Z").getTime();
+  for (let i = 0; i < n; i++) {
+    const predicted = 30 + Math.floor(rnd() * 45);
+    const noise = (rnd() - 0.5) * 10;
+    const actual = Math.max(0, Math.round(predicted + noise + (rnd() > 0.5 ? 2 : -1)));
+    const d = new Date(base + i * 86_400_000).toISOString().slice(0, 10);
+    out.push({ subjectId, topicId: topicIds[i % topicIds.length], predicted, actual, date: d, driverActivity: rnd() > 0.5 ? "practice" : "flashcards" });
+  }
+  return out;
+}
+
+/** Recommendation-quality benchmark against actual learning outcomes. */
+export function benchmarkRecommendationQuality(pairs: OutcomePair[]): {
+  n: number;
+  mae: number;
+  bias: number;
+  correlation: number;
+  hitRate: number;
+} {
+  const n = pairs.length;
+  if (!n) return { n: 0, mae: 0, bias: 0, correlation: 0, hitRate: 0 };
+  const mae = pairs.reduce((a, p) => a + Math.abs(p.actual - p.predicted), 0) / n;
+  const bias = pairs.reduce((a, p) => a + (p.actual - p.predicted), 0) / n;
+  const meanP = pairs.reduce((a, p) => a + p.predicted, 0) / n;
+  const meanA = pairs.reduce((a, p) => a + p.actual, 0) / n;
+  let num = 0, denP = 0, denA = 0;
+  for (const p of pairs) { num += (p.predicted - meanP) * (p.actual - meanA); denP += (p.predicted - meanP) ** 2; denA += (p.actual - meanA) ** 2; }
+  const correlation = denP && denA ? num / Math.sqrt(denP * denA) : 0;
+  const hitRate = pairs.filter((p) => Math.abs(p.actual - p.predicted) <= 5).length / n;
+  return { n, mae: Math.round(mae * 10) / 10, bias: Math.round(bias * 10) / 10, correlation: Math.round(correlation * 100) / 100, hitRate: Math.round(hitRate * 100) / 100 };
 }
 
 function avgRetentionForTopic(cards: Card[], topicId: string, now: Date): number | null {
@@ -154,9 +253,13 @@ export function recommend(input: RecommendInput): Recommendation[] {
   // ----- shared helpers that produce the factor-weighted score -------------
 
   function scoreFromGain(gain: number, u: number, weak: number, forget: number, unc: number, minutes: number): number {
-    const perMinute = gain / Math.max(5, minutes);
+    const perMinute = marksPerMinute(gain, minutes);
     // Marks-per-minute scaled so a 5-mark gain in 18 min reads ~0.28; multiply to keep competitive with legacy 20–100 scores.
     return perMinute * u * weak * forget * unc * 60;
+  }
+
+  function proximityFor(days: number | null, gain: number, minutes: number): number {
+    return examProximityMultiplier(days, marksPerMinute(gain, minutes));
   }
 
   // --- 1. Due reviews. Each due card protects ~0.35 marks from forgetting.
@@ -187,8 +290,9 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const cardsTotal = cards.length;
     const unc = uncertaintyFactor(cardsTotal, 0);
     const factors: RecommendationFactors = { examGain: Math.round(examGain * 10) / 10, urgency: u, weakness: weak, forgetting, uncertainty: unc };
-    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes);
     const daysTo = daysToExam(input.exams, subjectId, today);
+    const prox = proximityFor(daysTo, examGain, minutes);
+    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes) * prox;
     const label = paperLabelFor(input.exams, subjectId);
     const explanation: RecommendationExplanation = {
       recoverableMarks: Math.round(examGain * 10) / 10,
@@ -240,8 +344,9 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const unc = uncertaintyFactor(worst?.cardsTotal ?? 0, worst?.attempts ?? 0);
     const minutes = Math.min(block, 15);
     const factors: RecommendationFactors = { examGain: Math.round(examGain * 10) / 10, urgency: u, weakness: weak, forgetting, uncertainty: unc };
-    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes);
     const daysTo = daysToExam(input.exams, subjectId, today);
+    const prox = proximityFor(daysTo, examGain, minutes);
+    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes) * prox;
     const label = paperLabelFor(input.exams, subjectId);
     const explanation: RecommendationExplanation = {
       recoverableMarks: Math.round(recoverable * 10) / 10,
@@ -280,8 +385,10 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const forgetting = forgettingFactor(weakRow.retention, daysSinceFor(weakRow));
     const unc = uncertaintyFactor(weakRow.cardsTotal, weakRow.attempts);
     const factors: RecommendationFactors = { examGain: Math.round(examGain * 10) / 10, urgency: u, weakness: weak, forgetting, uncertainty: unc };
-    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes);
     const daysTo = daysToExam(input.exams, weakRow.subjectId, today);
+    const prox = proximityFor(daysTo, examGain, minutes);
+    const adaptive = adaptiveDifficultyFactor(topic, weakRow, input.adaptiveDifficultyOffset?.get(weakRow.topicId));
+    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes) * prox * adaptive;
     const label = paperLabelFor(input.exams, weakRow.subjectId);
     const mphRounded = mph != null ? Math.round(mph * 10) / 10 : null;
     const explanation: RecommendationExplanation = {
@@ -322,8 +429,10 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const forgetting = 1.1;
     const unc = 1.4;
     const factors: RecommendationFactors = { examGain: Math.round(examGain * 10) / 10, urgency: u, weakness: weak, forgetting, uncertainty: unc };
-    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes);
     const daysTo = daysToExam(input.exams, fresh.subjectId, today);
+    const prox = proximityFor(daysTo, examGain, minutes);
+    const adaptive = adaptiveDifficultyFactor(topic, undefined, input.adaptiveDifficultyOffset?.get(fresh.topicId));
+    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes) * prox * adaptive;
     const label = paperLabelFor(input.exams, fresh.subjectId);
     const explanation: RecommendationExplanation = {
       recoverableMarks: Math.round(examGain * 10) / 10,
@@ -364,7 +473,8 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const avgCards = Math.round(rows.reduce((a, m) => a + m.cardsTotal, 0) / rows.length);
     const unc = uncertaintyFactor(avgCards, avgAttempts);
     const factors: RecommendationFactors = { examGain: Math.round(examGain * 10) / 10, urgency: u, weakness: weak, forgetting, uncertainty: unc };
-    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes);
+    const prox = proximityFor(days, examGain, minutes);
+    const score = scoreFromGain(examGain, u, weak, forgetting, unc, minutes) * prox;
     const label = paperLabelFor(input.exams, subjectId);
     const explanation: RecommendationExplanation = {
       recoverableMarks: Math.round(examGain * 10) / 10,
