@@ -2,7 +2,8 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 
-// Minimal ambient shape for the (non-standard, Chrome-only) Web Speech API —
+// Minimal ambient shape for the (non-standard, Chrome-only) Web Speech API
+// Safari/Firefox: no SpeechRecognition — composer shows dictation + paste + keyboard path instead. —
 // not part of TypeScript's DOM lib.
 interface SpeechRecognitionResultLike {
   transcript: string;
