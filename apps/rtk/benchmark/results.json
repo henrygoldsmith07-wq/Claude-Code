@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-09T12:17:15.213Z",
+  "generatedAt": "2026-08-10T19:44:34.082Z",
   "rows": [
     {
       "label": "Vitest pass (200 tests)",
@@ -109,6 +109,70 @@
       "emittedLines": 1,
       "criticalRetained": true,
       "criticalNeedles": []
+    },
+    {
+      "label": "GitHub Actions log (failure)",
+      "parser": "generic",
+      "rawChars": 1968,
+      "emittedChars": 89,
+      "reductionPct": 95,
+      "rawLines": 35,
+      "emittedLines": 3,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "exit code 1",
+        "action.js:42:10"
+      ]
+    },
+    {
+      "label": "Search results JSON (120 hits)",
+      "parser": "generic",
+      "rawChars": 68217,
+      "emittedChars": 32,
+      "reductionPct": 100,
+      "rawLines": 1928,
+      "emittedLines": 1,
+      "criticalRetained": true,
+      "criticalNeedles": []
+    },
+    {
+      "label": "CLI verbose (2k lines)",
+      "parser": "generic",
+      "rawChars": 106419,
+      "emittedChars": 32,
+      "reductionPct": 100,
+      "rawLines": 2000,
+      "emittedLines": 1,
+      "criticalRetained": true,
+      "criticalNeedles": []
+    },
+    {
+      "label": "Diff (4 files)",
+      "parser": "generic",
+      "rawChars": 5575,
+      "emittedChars": 599,
+      "reductionPct": 89,
+      "rawLines": 176,
+      "emittedLines": 24,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "diff --git",
+        "const x"
+      ]
+    },
+    {
+      "label": "Stack trace",
+      "parser": "vitest",
+      "rawChars": 182,
+      "emittedChars": 182,
+      "reductionPct": 0,
+      "rawLines": 6,
+      "emittedLines": 6,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "Error: boom",
+        "app.ts:42:10"
+      ]
     }
   ]
 }

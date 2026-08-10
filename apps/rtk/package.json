@@ -1,7 +1,7 @@
 {
   "name": "rtk",
   "version": "0.2.0",
-  "description": "Cut tool-call tokens by filtering noisy command output to what an LLM agent actually needs \u2014 with per-tool parsers, redaction, and evidence",
+  "description": "Cut tool-call tokens by filtering noisy command output to what an LLM agent actually needs — per-tool parsers, structural compression, and preservation guarantees",
   "license": "MIT",
   "author": "henrygoldsmith07-wq",
   "repository": {
@@ -18,7 +18,9 @@
     "typescript",
     "nextjs",
     "filter",
-    "claude-code"
+    "claude-code",
+    "codex",
+    "agent"
   ],
   "bin": {
     "rtk": "./bin/rtk.js"
@@ -33,9 +35,11 @@
     "test": "node --test",
     "benchmark": "node benchmark/run.js",
     "benchmark:write": "node benchmark/run.js --write",
-    "prepublishOnly": "npm test && node benchmark/run.js",
+    "benchmark:agent": "node benchmark/agent-solve.js",
+    "benchmark:retention": "node benchmark/retention.js",
+    "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/agent-solve.js",
     "type-check": "tsc --noEmit",
-    "verify": "npm run type-check && npm test && node benchmark/run.js"
+    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/agent-solve.js && npm pack --dry-run"
   },
   "engines": {
     "node": ">=18"

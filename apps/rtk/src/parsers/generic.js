@@ -6,7 +6,7 @@
  */
 
 const SUMMARY_RE = /\b\d+\s*(passed|passing|tests?\s+passed|failed|failing)\b/i;
-const FAILURE_RE = /FAIL|Error|✗|✖|×|AssertionError|Expected:|Received:|❯|●\s|TIMEOUT|Timeout|not to be|toBe\(|toEqual\(|^[\s]*at\s.+:\d+:\d+/;
+const FAILURE_RE = /FAIL|Error|✗|✖|×|AssertionError|Expected:|Received:|❯|●\s|TIMEOUT|Timeout|not to be|toBe\(|toEqual\(|^[\s]*at\s.+:\d+:\d+|diff --git|^@@|^[+-]/;
 const TOTALS_RE = /Test Files|Tests\s+\d|Suites:|Snapshots:|Time:/;
 const MAX_LINES = 40;
 
@@ -26,7 +26,9 @@ function filter(output, exitCode) {
   }
   const matched = lines.filter((l) => FAILURE_RE.test(l)).slice(0, MAX_LINES);
   const totals = lines.filter((l) => TOTALS_RE.test(l) && !matched.includes(l));
-  const kept = [...matched, ...totals];
+  // Ensure diff headers are kept even when capped by MAX_LINES
+  const diffHeaders = lines.filter((l) => /^diff --git|^@@|^--- |^\+\+\+ /.test(l) && !matched.includes(l)).slice(0, 12);
+  const kept = [...matched, ...totals, ...diffHeaders];
   const emitted = kept.length ? kept.join('\n') : lines.slice(-15).join('\n');
   return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };
 }
