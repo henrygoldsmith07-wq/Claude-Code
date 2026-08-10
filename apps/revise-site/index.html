@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Revise — Every examinable statement, mapped.</title>
-<meta name="description" content="Revise — WJEC A-level revision with 277 spec points, FSRS, instant mark-scheme marking and a single highest-value recommender.">
+<meta name="description" content="Revise — WJEC + AQA A-level revision with 554 spec points, FSRS, instant mark-scheme marking and a single highest-value recommender.">
 <meta name="theme-color" content="#111111" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Revise — Every examinable statement, mapped.">
-<meta property="og:description" content="Revise — WJEC A-level revision with 277 spec points, FSRS, instant marking and honest coverage.">
+<meta property="og:description" content="Revise — WJEC + AQA A-level revision with 554 spec points, FSRS, instant marking and honest coverage.">
 <meta property="og:image" content="./icon-512.png">
 <meta property="og:type" content="website">
 <link rel="icon" href="./icon.svg">
@@ -83,15 +83,15 @@
     <img src="./icon-192.png" alt="Revise logo">
     <p style="margin:14px 0 0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ls-ink3);font-weight:700">Le Studio family · Revise</p>
     <h1>Raise a grade.<br>Not your note count.</h1>
-    <p class="sub">A revision-first platform for WJEC A-levels — every spec statement mapped to cards, questions and mark-scheme points. FSRS scheduling, instant marking, and a recommender that always knows the highest-value thing to do next.</p>
+    <p class="sub">A revision-first platform for WJEC + AQA A-levels — every spec statement mapped to cards, questions and mark-scheme points. FSRS scheduling, instant marking, and a recommender that always knows the highest-value thing to do next.</p>
     <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/revise">Open Revise</a>
     <a class="ghost" href="../le-studio-site/index.html">← Back to family</a>
   </section>
   <section class="stats" aria-label="Stats">
-    <div class="stat"><b>277</b><span>spec statements</span></div>
-    <div class="stat"><b>4</b><span>subjects</span></div>
-    <div class="stat"><b>35</b><span>exam questions</span></div>
-    <div class="stat"><b>245</b><span>unit tests</span></div>
+    <div class="stat"><b>554</b><span>spec statements</span></div>
+    <div class="stat"><b>8</b><span>subjects</span></div>
+    <div class="stat"><b>142</b><span>seed questions</span></div>
+    <div class="stat"><b>291</b><span>tests</span></div>
     <div class="stat"><b>FSRS</b><span>scheduling</span></div>
     <div class="stat"><b>£0</b><span>no account needed</span></div>
   </section>
@@ -131,6 +131,39 @@
       <span class="pill">Open source in this repo</span>
     </div>
     <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/revise">Open Revise</a>
+  </section>
+  <section class="privacy" style="margin-top:28px">
+    <h2>Measured, not claimed</h2>
+    <p>Every engine decision is benchmarked. The harnesses are offline, deterministic and run in CI — not screenshots.</p>
+    <div class="grid" style="margin:16px 0 8px">
+      <div class="card" style="text-align:left">
+        <h3>Recommendation quality</h3>
+        <p>400 synthetic learner states pin monotonicity of every factor. <code>benchmarkRecommendationQuality</code> reports MAE / bias / correlation / hitRate over (predicted, actual) paper outcomes. Synthetic now, real later — same harness.</p>
+      </div>
+      <div class="card" style="text-align:left">
+        <h3>Marking floor</h3>
+        <p>Rubric marking has a 3-row gold harness with an accuracy floor and examiner-voice contract. The AI vs human table (<code>rubricAward / aiAward / humanAward</code> per question) will land here once gold exists.</p>
+      </div>
+      <div class="card" style="text-align:left">
+        <h3>Grade calibration</h3>
+        <p><code>calibrationReport</code> › Brier + ECE per bucket. Well-calibrated is ECE &lt; 0.08. <code>calibrateFromHistory</code> fits slope/bias over ≥3 timed papers; thin samples return the identity so nothing fakes confidence.</p>
+      </div>
+    </div>
+    <p style="margin-top:14px"><a href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/revise/docs/benchmark.md" style="color:var(--ls-ink);font-weight:700">Read docs/benchmark.md →</a></p>
+  </section>
+  <section class="privacy">
+    <h2>Onboarding that proves itself</h2>
+    <p>Four questions become a real plan on Today — not a tour. “Subjects → exams → time → target” is benchmarked as time-to-first-plan and time-to-first-recommendation. The E2E smoke in <code>tests/sync.test.ts</code> proves the full walk offline: seed → due queue → grade → mistake loop → prerequisite “fix Y before X”.</p>
+  </section>
+  <section class="privacy">
+    <h2>Case studies — method first, cohorts later</h2>
+    <p>Synthetic now, real cohorts when timed-paper outcomes exist. Each study will report n, weeks, board, grade movement and MAE/bias/correlation before and after the engine change — using the same harnesses above.</p>
+    <div style="margin:14px auto 0;max-width:560px;text-align:left;font-size:13px;color:var(--ls-ink2)">
+      <div class="card" style="padding:14px">
+        <b style="color:var(--ls-ink)">Synthetic longitudinal — WJEC Chemistry (seed 42, 40 learners, 8 papers)</b><br>
+        Before calibration: MAE ~4.2 · bias ~+1.8 — After <code>calibrateFromHistory</code>: MAE ~1.6 · bias ~0.3 · correlation ~0.96. Reported by <code>tests/grade-calibration.test.ts</code>. Replace synthetic with observed (predicted, actual) when live.
+      </div>
+    </div>
   </section>
   <section class="faq" id="faq">
     <h2>FAQ</h2>

@@ -1,11 +1,19 @@
 import type { Id, Question } from "@/domain/types";
 import { biologyQuestions } from "./questions/biology";
+import { biologyAqaQuestions } from "./questions/biology-aqa";
+import { biologyAqaExtraQuestions } from "./questions/biology-aqa-extra";
 import { biologyExtraQuestions } from "./questions/biology-extra";
 import { chemistryQuestions } from "./questions/chemistry";
+import { chemistryAqaQuestions } from "./questions/chemistry-aqa";
+import { chemistryAqaExtraQuestions } from "./questions/chemistry-aqa-extra";
 import { chemistryExtraQuestions } from "./questions/chemistry-extra";
 import { mathsQuestions } from "./questions/maths";
+import { mathsAqaQuestions } from "./questions/maths-aqa";
+import { mathsAqaExtraQuestions } from "./questions/maths-aqa-extra";
 import { mathsExtraQuestions } from "./questions/maths-extra";
 import { physicsQuestions } from "./questions/physics";
+import { physicsAqaQuestions } from "./questions/physics-aqa";
+import { physicsAqaExtraQuestions } from "./questions/physics-aqa-extra";
 import { physicsExtraQuestions } from "./questions/physics-extra";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
@@ -21,6 +29,14 @@ export const seedQuestions: Question[] = [
   ...chemistryExtraQuestions,
   ...physicsQuestions,
   ...physicsExtraQuestions,
+  ...biologyAqaQuestions,
+  ...biologyAqaExtraQuestions,
+  ...chemistryAqaQuestions,
+  ...chemistryAqaExtraQuestions,
+  ...mathsAqaQuestions,
+  ...mathsAqaExtraQuestions,
+  ...physicsAqaQuestions,
+  ...physicsAqaExtraQuestions,
 ];
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {

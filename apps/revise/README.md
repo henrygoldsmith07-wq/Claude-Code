@@ -17,7 +17,7 @@ changing nothing else.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 220 unit tests over the revision engine
+npm test             # 291 tests (23 files) — see docs/benchmark.md for outcome benchmarks
 npm run build        # production build
 ```
 
@@ -183,7 +183,7 @@ provenance record (`source` / `verification` / `reviewer` / `lastChecked` /
 retrieval cards, how many have an exam question (*which* parts test *which*
 statements), which are verified, and — per `SPEC_MANIFEST` — which unit/paper
 (duration, marks, weighting) each belongs to. The statement model covers all
-four subjects: 277 statements across 55 topics (≈76 Physics, 76 Chemistry, 70
+eight subjects (WJEC + AQA): 554 statements across 110 topics (per board ≈76 Physics, 76 Chemistry, 70
 Biology, 55 Maths), each mapped to cards and exam questions with `learningClaims`
 aligned 1:1 with markScheme points. Topic lists and grade boundaries remain
 approximate and labelled as such; always check the current WJEC specification
