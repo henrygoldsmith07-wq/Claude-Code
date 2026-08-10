@@ -71,9 +71,29 @@ Until invariance is measured on the real judge, Elo/rank/social expansion stays 
 - **Rate limiting** is now Supabase-backed (`supabase/migrations/002_rate_limits.sql`): `rate_limits(key, count, reset_at)` is shared across all serverless instances with a local in-memory fallback for tests/local dev without credentials. Before serious public use (PvP expansion) run both migrations. See `src/lib/rateLimit.ts` (`checkRateLimit` is now async — callers `await` it).
 - **Tests:** `npm test` (`vitest run`) / `npm run test:watch`. Now 22 tests across `argGraph` (grounded evidence), `benchmarks` (invariance + grounding), `rateLimit`, and `gamification`.
 
+## Trust, bias & benchmark suite (9.5)
+
+New pure modules in `src/lib/` — all offline, all in `npm test` without credentials:
+
+- **Citation verification** (`citationVerifier.ts`) — allowlist of ~25 real institutions (Nature/Reuters/AP/Pew/NREL/Lazard/NIST…), `verifyCitation`/`verifyGraphCitations` flags `hallucination` / `unknown_source` / `bad_url` / `missing_homepage`, root-homepage-only rule, tiered `sourceQualityScore` (1=peer-reviewed → 3=unknown) and `graphSourceQuality`. Live homepage reachability is a future async check; offline allowlist catches fake-institution hallucination.
+- **User-attached evidence** (`evidence.ts`) — `UserEvidence { url, title?, excerpt? }`, `validateUserEvidence` (https + length) and `inferSourceFromUrl` (e.g. nature.com → Nature) so debaters can bring their own sources; future: surface to judge prompt + server-side fetch verify.
+- **Judge invariance** (`judgeInvariance.ts`) — transforms: `swapLabels` (position bias), `stripNames` (name/identity bias), `inflateVerbosity` (verbosity bias), `addConfidenceHedge` (confidence bias), `injectFakeSource` (hallucination probe), plus `checkLabelInvariance` mock. Real-model double: call the live judge twice over the same `TRANSCRIPTS` fixture with `swapLabels` and assert winner stability in a future `*.e2e.ts`.
+- **Human corpus** (`humanCorpus.ts`) — tiny `HUMAN_CORPUS` (2 labelled debates, rater ids + rationale), `agreementRate` (pairwise), `judgeVsHumanAgreement`, toy `calibrationCurve`, and `splitQuality(graph)` that separates argument (evidence+rebuttal density) from writing (fallacy penalty) so confident-but-thin writing cannot inflate scores.
+- **Heuristic enrichers** (`argHeuristics.ts`) — `detectRepetition` (Jaccard ≥0.72, same owner), `rebuttalCoverage` / `rebuttalAddressesTargets`, `fallacyHints` (lexicon over text). Intended to complement the judge and make the graph auditable/editable (nodes filterable offline).
+- **Drills & weakness** (`drills.ts`) — `drillsFor` (ground a claim / close dropped / fix fallacy / weigh impact) and `weaknessProfile` + `topWeakness` across recent graphs for targeted practice and repeated personal weakness cards.
+- **Competitive** (`competitive.ts`) — `eloGate({ invarianceOk, humanAgreement })` (70% human threshold), Elo math (`kFactor`, `expectedScore`, `eloDelta`), and `pickOpponent` (FIFO while gate closed, Elo-bucketed within 150 when open). Tournaments/challenges stay gated.
+- **Moderation & anti-cheat** (`moderation.ts`) — `moderateMessage` (harassment/spam/caps/injection) + `isBlocked`, `repeatScore`, `isSuspiciousLength`. Real PvP abuse (multi-account, voting rings) lives in future Supabase functions; this catches cheap tricks.
+- **Transcripts & async** (`transcript.ts`) — `transcriptForReplay` (ordered), `isOverdue` (per-turn clock), `DEFAULT_ASYNC` (24h/turn, 7d total) scaffold for replayable + asynchronous debates.
+- **Retention** (`retention.ts`) — `dailyQuests`, `weeklyTarget`, `comebackCopy`, `onboardingChecklist` so retention does not rely purely on streaks.
+- **Speech fallbacks** — `useSpeechRecognition` already degrades to typing; now documented for Safari/Firefox, with dictation + paste as alternatives (Web Speech API is Chrome-family only).
+
+Tests: `src/lib/dailyDebate95.test.ts` (24 tests) covering all of the above.
+
+Live-model note: run the real Gemini/Anthropic judge twice per fixture with each transform and report `positionBias`, `nameBias`, `verbosityBias`, `confidenceBias`, `hallucinationRate` — keep fixtures in `benchmark.fixtures.ts` reusable and add a `scripts/judge-invariance-e2e.mjs` once an API key is provisioned.
+
 ## Known limitations / TODO before wider PvP
 
-- **Matchmaking is still FIFO on `pvp_queue` — no Elo/skill pairing until invariance is green.** This is intentional per the task brief: judge invariance is the milestone before ranked play.
+- **Elo/ranking stays gated by `eloGate`** (invariance + ≥70% human agreement) — matchmaking is FIFO until green. Tournament/challenge modes stay behind the same gate.
 - Consider a periodic `cleanup_rate_limits()` (or Supabase cron) to prune expired windows.
-- Live-model judge invariance (real Gemini calls, label-swap + paraphrase) still needs an `*.e2e.ts` suite with an API key — fixtures in `benchmark.fixtures.ts` are ready for it.
-- Evidence strength and fallacy tagging currently rely on the judge model's judgment; grounded citations make this auditable but a second heuristic pass would tighten it further.
+- Live-model judge invariance e2e (real Gemini calls) still needs an API key — fixtures + `judgeInvariance` transforms are ready for it.
+- Article-level citation verification (fetch the URL and check the excerpt) is a future server action; the offline allowlist is the floor.
