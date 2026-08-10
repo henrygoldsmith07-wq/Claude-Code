@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dictation-typer"
+version = "0.8.5"
+description = "Hold a hotkey, speak — transcript typed into the focused window. Groq Whisper + offline fallback."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "dictation-typer" }]
+dependencies = [
+  "sounddevice>=0.4.6",
+  "soundfile>=0.12.1",
+  "numpy>=1.24",
+  "requests>=2.31",
+  "pynput>=1.7.6",
+  "pyperclip>=1.8.2",
+]
+optional-dependencies = { offline = ["faster-whisper>=1.0"], profiles = ["psutil>=5.9"] }
+
+[project.scripts]
+dictation-typer = "dictation.app:main"
+dictation-benchmark = "dictation.benchmark:main"
+
+[project.urls]
+Homepage = "https://github.com/henrygoldsmith07-wq/Claude-Code"
+
+[tool.setuptools.packages.find]
+include = ["dictation"]
+
+[tool.setuptools.package-data]
+dictation = ["py.typed"]

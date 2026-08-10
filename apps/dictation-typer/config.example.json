@@ -4,5 +4,27 @@
   "insert_method": "paste",
   "sample_rate": 16000,
   "beep": true,
-  "min_seconds": 0.3
+  "min_seconds": 0.3,
+  "microphone": "",
+  "language": "",
+  "punctuation_commands": true,
+  "formatting_commands": true,
+  "correction_hotkey": "ctrl+alt+c",
+  "coding_hotkey": "ctrl+alt+k",
+  "vocabulary": [],
+  "custom_names": [],
+  "coding_mode": false,
+  "privacy_mode": false,
+  "offline_model": "",
+  "provider": "groq",
+  "retry_attempts": 2,
+  "retry_queue": true,
+  "app_profiles": {
+    "vscode": { "match": ["Code", "VS Code"], "coding_mode": true, "language": "en" },
+    "slack": { "match": ["Slack"], "language": "en" }
+  },
+  "active_profile": "default",
+  "auto_update": false,
+  "audible_status": true,
+  "visual_status": true
 }
