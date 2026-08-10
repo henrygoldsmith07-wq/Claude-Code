@@ -1,0 +1,1 @@
+# E2E scaffold\n\n- **a11y**: axe-core check on Today/Train/Exercises\n- **perf**: Lighthouse budgets (LCP < 2.5s, JS < 200kB)\n- Run with `npx playwright test` once Playwright is added.\n

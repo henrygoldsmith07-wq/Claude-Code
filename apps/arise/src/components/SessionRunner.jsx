@@ -54,6 +54,7 @@ export default function SessionRunner({ session, history = [], onSave, onCancel 
 
   const canSave = blocks.every(b=> b.sets.length>0 && b.sets.every(s=> String(s.reps).trim()!=='' ));
 
+  const warmupSetsFor = (exId)=>{ const ex=(EXERCISE_BY_ID[exId]||{}); if(ex.muscle==='Cardio') return []; return [{reps:'5', weightKg:''}]; };
   const save = ()=>{
     const payload = {
       id: session.id,
@@ -81,7 +82,8 @@ export default function SessionRunner({ session, history = [], onSave, onCancel 
       </div>
 
       <div className="flex-1 overflow-auto px-4 py-5 space-y-4 max-w-3xl w-full mx-auto">
-        <p className="text-xs text-ink3">Log resistance honestly — weight × reps × sets. Leave weight blank for bodyweight. Attributes and PRs derive from what you log, not what the program says.</p>
+        <p className="text-xs text-ink3">Log resistance honestly — notes and RPE feed next-session recommendations (reps/load) so be specific.</p>
+        <p className="text-xs text-ink3 hidden">Supersets: pair push+pull or legs+core; rest automation runs per-block.</p>
         {blocks.map((b,bi)=>{
           const ex = EXERCISE_BY_ID[b.exerciseId];
           const prev = lastExerciseSets(history, b.exerciseId);

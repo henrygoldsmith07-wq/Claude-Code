@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { deriveAttributes, levelFromAttributes } from '../lib/attributes.js';
 import { totalVolumeKg, streakDays } from '../lib/store.js';
 import { EXERCISE_BY_ID } from '../lib/data.js';
+import { weeklyVolume, frequencyByMuscleSync, strengthSeries, actionAdvice } from '../lib/analytics.js';
+import { isMeaningfulPR, readinessScore } from '../lib/progression.js';
 
 export default function ProgressView({ store }){
   const attrs = useMemo(()=> deriveAttributes(store.history), [store.history]);
@@ -42,6 +44,21 @@ export default function ProgressView({ store }){
           </div>
         ))}
       </div>
+
+      {(() => {
+        const wv = weeklyVolume(history); const freq = frequencyByMuscleSync(history, EXERCISE_BY_ID); const advice = actionAdvice({ weeklyVolume: wv, freq });
+        return (
+          <section className="rounded-2xl border border-line bg-surface p-4">
+            <h3 className="text-sm font-bold">Weekly volume</h3>
+            {!wv.length ? <p className="text-xs text-ink3 mt-2">Log a couple sessions — then trends appear.</p> : (
+              <div className="mt-2 flex items-end gap-1 h-14">
+                {wv.slice(-8).map(w=>{ const max=Math.max(...wv.map(x=>x.vol),1); const h=Math.max(4, Math.round(w.vol/max*48)); return <div key={w.week} title={`${w.week}: ${w.vol} kg`} className="flex-1 rounded bg-ink" style={{height:`${h}px`}} />; })}
+              </div>
+            )}
+            <p className="text-xs text-ink3 mt-2">→ {advice}</p>
+          </section>
+        );
+      })()}
 
       <section className="rounded-2xl border border-line bg-surface p-4">
         <h3 className="text-sm font-bold">Personal records — best estimated 1RM (Epley)</h3>
