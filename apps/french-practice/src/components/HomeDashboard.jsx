@@ -1,9 +1,10 @@
-import { getStreak, getTodayXp, getSrs, getNotebook, getSettings, getSessions } from '../lib/storage';
-import { dueEntries, notebookAsEntries } from '../lib/memory';
+import { getStreak, getTodayXp, getSrs, getNotebook, getSettings, getSessions, getHabits, getGrammarProgress } from '../lib/storage';
+import { dueEntries, notebookAsEntries, weakEntries } from '../lib/memory';
 import { getScenarios } from '../lib/data';
 import { allEntries } from '../lib/vocab';
 import { getLanguage } from '../lib/languages';
 import { ArrowRight, Layers, MessageCircle, Play, Target, Mic, BookOpen, StudioMark } from './icons';
+import { weaknessAnalysis, dailyRecommendations } from '../lib/personalise';
 import { SCENARIO_ICONS } from './icons';
 
 function suggestScenario(sessions) {
@@ -22,6 +23,7 @@ export default function HomeDashboard({ dailyGoal = 30, level, onStartLesson, on
   const todayXp = getTodayXp();
   const dueCount = dueEntries([...allEntries(), ...notebookAsEntries(getNotebook())], getSrs()).length;
   const suggested = suggestScenario(getSessions());
+  const todayRecs = (()=>{ try{ const srs=getSrs(); const habits=getHabits(); const grammar=getGrammarProgress(); const weak=weakEntries([...allEntries(), ...notebookAsEntries(getNotebook())], srs); const areas=weaknessAnalysis({ habits, grammarProgress: grammar, sessions: getSessions(), weakWordCount: weak.length, dueCount }); return dailyRecommendations({ prefs: { learningStyle: 'balanced', lessonLength: 'medium' }, weaknesses: areas, dueCount, suggestedScenario: suggested }).slice(0,2); }catch{ return []; }})();
   const SuggestedIcon = SCENARIO_ICONS[suggested.id] || MessageCircle;
   const goal = Math.max(1, dailyGoal);
   const goalPct = Math.min(100, Math.round((todayXp / goal) * 100));
@@ -161,6 +163,7 @@ export default function HomeDashboard({ dailyGoal = 30, level, onStartLesson, on
               onClick={() => onNavigate('grammar')}
             />
           </div>
+          {todayRecs.length>0 && (<div className="mt-6 grid gap-2 sm:grid-cols-2"><p className="sm:col-span-2 text-center text-xs text-ink3">Today picks for you</p>{todayRecs.map(r=>(<div key={r.type} className="bg-surface border border-line rounded-xl px-4 py-3 flex items-center justify-between"><span className="text-sm font-semibold">{r.title}</span><span className="text-xs text-ink3">{r.subtitle}</span></div>))}</div>)}
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Installable PWA</span>
             <span className="inline-block bg-surface border border-line rounded-full px-3.5 py-1.5 text-xs font-semibold text-ink2">Works offline</span>

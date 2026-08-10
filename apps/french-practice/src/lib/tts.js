@@ -57,6 +57,7 @@ export function speak(text, { rate = 1, onEnd } = {}) {
   window.speechSynthesis.speak(utterance);
 }
 
+export function ttsFallback(text){ return text; } // placeholder for downloadable/offline audio pack
 export function stopSpeaking() {
   if (ttsSupported()) window.speechSynthesis.cancel();
 }

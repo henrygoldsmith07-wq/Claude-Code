@@ -238,6 +238,7 @@ export function speechMetrics(heard, durationMs, langId = 'fr') {
 }
 
 // Human time from seconds: "2h 5m", "40m", "—".
+export function pronunciationCalibration(scores){ if(!scores.length) return null; const avg = scores.reduce((a,b)=>a+b,0)/scores.length; const variance = scores.reduce((a,b)=>a+(b-avg)**2,0)/scores.length; return { avg: Math.round(avg), variance: Math.round(variance), calibrated: variance<300 }; }
 export function fmtDuration(seconds) {
   if (!seconds) return '—';
   const m = Math.round(seconds / 60);
