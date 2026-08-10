@@ -145,6 +145,7 @@ const DEFAULT_SETTINGS = {
   largeText: false,
   dyslexiaFont: false,
   highContrast: false,
+  examBoard: null, // null | gcse-aqa | gcse-edexcel | a-level-aqa | delf-b1 | delf-b2
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
@@ -324,6 +325,29 @@ export const getHabits = () => read(KEYS.habits, []);
 // and preferences, plus the mistakes and weak grammar areas the app has
 // actually observed, so replies are personal and context-aware rather than
 // generic. Everything here is already stored locally.
+// ---- explicit learner model (7.9 → 9+) ----
+// Aggregates vocab recall, grammar, pronunciation, hesitation, sentence patterns
+// into one inspectable snapshot. All pure, offline.
+export function getLearnerModel() {
+  const srs = getSrs();
+  const habits = getHabits();
+  const grammar = getGrammarProgress();
+  const metrics = getMetrics();
+  const xpLog = getXpLog();
+  const notebook = getNotebook();
+  const sessions = getSessions();
+  // vocab recall buckets from memory helpers
+  const vocabRecall = {
+      strong: Object.values(srs).filter(s=> (s.interval||0)>=7).length,
+      fading: Object.values(srs).filter(s=> (s.interval||0)>=1 && (s.interval||0)<7).length,
+      atRisk: Object.values(srs).filter(s=> s.lastRating==='again').length,
+      fresh: Object.values(srs).filter(s=> !s.lastReviewed).length,
+    };
+  const errHist = getGrammarErrors();
+  const pronun = metrics.filter(m=> m.skill==='pronunciation').slice(-20);
+  const avgPronun = pronun.length ? Math.round(pronun.reduce((a,b)=>a+b.score,0)/pronun.length) : null;
+  return { srsSize: Object.keys(srs).length, vocabRecall, habits: habits.slice(0,5), grammar, errHist, pronunciation: { avg: avgPronun, n: pronun.length }, sessions: sessions.length, notebook: notebook.length, xpLogDays: Object.keys(xpLog).length };
+}
 export function getLearnerBrief() {
   const mistakes = getHabits().filter((h) => (h.count || 0) > 1).slice(0, 3).map((h) => h.text);
   const weakGrammar = Object.entries(getGrammarErrors())
