@@ -20,17 +20,22 @@ function explainLines(lines, rules) {
 function formatExplain(explained) {
   const kept = explained.filter((e) => e.kept).length;
   const dropped = explained.length - kept;
+  const hasScore = explained.some(e => e.score != null);
+  const header = hasScore
+    ? '  K score  #  reason                              line (truncated to 120 chars)'
+    : '  K  #  reason                              line (truncated to 140 chars)';
   const lines = [
-    `rtk --explain — per-line retention trace (${kept} kept / ${dropped} dropped / ${explained.length} total)`,
-    '  K  #  reason                              line (truncated to 140 chars)',
+    `rtk --explain — per-line retention trace (${kept} kept / ${dropped} dropped / ${explained.length} total)${hasScore ? ' — score = semantic priority (100=error, 0=noise)' : ''}`,
+    header,
     '  ────────────────────────────────────────────────────────────────────────────',
   ];
   for (const e of explained) {
     const k = e.kept ? '✓' : '·';
     const num = String(e.i).padStart(4, ' ');
     const reason = (e.reason || '').padEnd(30, ' ').slice(0, 30);
-    const preview = e.line.slice(0, 140);
-    lines.push(`  ${k} ${num}  ${reason}  ${preview}`);
+    const score = hasScore ? String(e.score != null ? e.score : '-').padStart(3, ' ') + ' ' : '';
+    const preview = e.line.slice(0, hasScore ? 120 : 140);
+    lines.push(`  ${k} ${score}${num}  ${reason}  ${preview}`);
   }
   return lines.join('\n');
 }

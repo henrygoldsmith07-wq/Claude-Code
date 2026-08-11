@@ -1,0 +1,808 @@
+{
+  "query": "example search",
+  "total": 50,
+  "hits": [
+    {
+      "id": "hit-0",
+      "score": 1,
+      "title": "Result 0 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/0",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-1",
+      "score": 0.995,
+      "title": "Result 1 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/1",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-2",
+      "score": 0.99,
+      "title": "Result 2 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/2",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-3",
+      "score": 0.985,
+      "title": "Result 3 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/3",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-4",
+      "score": 0.98,
+      "title": "Result 4 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/4",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-5",
+      "score": 0.975,
+      "title": "Result 5 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/5",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-6",
+      "score": 0.97,
+      "title": "Result 6 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/6",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-7",
+      "score": 0.965,
+      "title": "Result 7 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/7",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-8",
+      "score": 0.96,
+      "title": "Result 8 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/8",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-9",
+      "score": 0.955,
+      "title": "Result 9 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/9",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-10",
+      "score": 0.95,
+      "title": "Result 10 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/10",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-11",
+      "score": 0.945,
+      "title": "Result 11 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/11",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-12",
+      "score": 0.94,
+      "title": "Result 12 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/12",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-13",
+      "score": 0.935,
+      "title": "Result 13 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/13",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-14",
+      "score": 0.93,
+      "title": "Result 14 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/14",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-15",
+      "score": 0.925,
+      "title": "Result 15 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/15",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-16",
+      "score": 0.92,
+      "title": "Result 16 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/16",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-17",
+      "score": 0.915,
+      "title": "Result 17 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/17",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-18",
+      "score": 0.91,
+      "title": "Result 18 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/18",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-19",
+      "score": 0.905,
+      "title": "Result 19 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/19",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-20",
+      "score": 0.9,
+      "title": "Result 20 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/20",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-21",
+      "score": 0.895,
+      "title": "Result 21 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/21",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-22",
+      "score": 0.89,
+      "title": "Result 22 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/22",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-23",
+      "score": 0.885,
+      "title": "Result 23 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/23",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-24",
+      "score": 0.88,
+      "title": "Result 24 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/24",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-25",
+      "score": 0.875,
+      "title": "Result 25 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/25",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-26",
+      "score": 0.87,
+      "title": "Result 26 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/26",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-27",
+      "score": 0.865,
+      "title": "Result 27 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/27",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-28",
+      "score": 0.86,
+      "title": "Result 28 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/28",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-29",
+      "score": 0.855,
+      "title": "Result 29 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/29",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-30",
+      "score": 0.85,
+      "title": "Result 30 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/30",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-31",
+      "score": 0.845,
+      "title": "Result 31 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/31",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-32",
+      "score": 0.84,
+      "title": "Result 32 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/32",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-33",
+      "score": 0.835,
+      "title": "Result 33 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/33",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-34",
+      "score": 0.83,
+      "title": "Result 34 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/34",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-35",
+      "score": 0.825,
+      "title": "Result 35 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/35",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-36",
+      "score": 0.82,
+      "title": "Result 36 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/36",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-37",
+      "score": 0.815,
+      "title": "Result 37 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/37",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-38",
+      "score": 0.81,
+      "title": "Result 38 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/38",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-39",
+      "score": 0.805,
+      "title": "Result 39 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/39",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-40",
+      "score": 0.8,
+      "title": "Result 40 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/40",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-41",
+      "score": 0.795,
+      "title": "Result 41 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/41",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-42",
+      "score": 0.79,
+      "title": "Result 42 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/42",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-43",
+      "score": 0.785,
+      "title": "Result 43 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/43",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-44",
+      "score": 0.78,
+      "title": "Result 44 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/44",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-45",
+      "score": 0.775,
+      "title": "Result 45 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/45",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-46",
+      "score": 0.77,
+      "title": "Result 46 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/46",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-47",
+      "score": 0.765,
+      "title": "Result 47 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/47",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-48",
+      "score": 0.76,
+      "title": "Result 48 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/48",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    },
+    {
+      "id": "hit-49",
+      "score": 0.755,
+      "title": "Result 49 — lorem ipsum dolor sit amet consectetur",
+      "snippet": "A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context A long snippet that would bloat context ",
+      "url": "https://example.com/p/49",
+      "meta": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "empty": "",
+        "extra": null
+      }
+    }
+  ],
+  "facets": {},
+  "tookMs": 42
+}

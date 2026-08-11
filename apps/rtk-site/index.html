@@ -82,21 +82,22 @@
   <section class="stats" aria-label="Stats">
     <div class="stat"><b>99.9%</b><span>Vitest spam cut</span></div>
     <div class="stat"><b>100%</b><span>critical retained</span></div>
-    <div class="stat"><b>4</b><span>parsers</span></div>
+    <div class="stat"><b>20</b><span>parsers · 15+ tools</span></div>
     <div class="stat"><b>--json</b><span>structured</span></div>
   </section>
   <section class="grid" id="features" style="margin-top:8px">
-    <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Per-tool parsers</h3><p>vitest/jest, tsc, next build, plus generic truncate — auto-selected from argv.</p><pre>rtk err npm test
-rtk err npx tsc --noEmit</pre></div>
+    <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Per-tool parsers</h3><p>20 parsers — vitest/jest, tsc, next, eslint, pytest/ruff/mypy, cargo, go test, gradle/maven, docker, k8s, terraform, npm/yarn/pnpm, git, GHA + generic. Auto-selected from argv + output sniffing.</p><pre>rtk err npm test
+rtk err npx tsc --noEmit
+cat build.log | rtk err --stdin</pre></div>
     <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a4 4 0 0 1 4 4v2H8V7a4 4 0 0 1 4-4Z"/><path d="M5 11h14v7a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-7Z"/></svg>Retention guarantee</h3><p>Deterministic fixtures; benchmark asserts 100% critical lines; CI fails otherwise.</p></div>
     <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>Redaction on</h3><p>api_key/bearer/ghp_*/npm_*/AKIA*/slack/stripe — on by default, --no-redact to disable.</p></div>
     <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l3-6 3 4 3-8"/></svg>Explain mode</h3><p>Why each line was kept or dropped — plus --explain --json for tooling.</p></div>
-    <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h6"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>Gain</h3><p>rtk gain counts raw vs emitted chars, tokens saved (~chars/4) and per-command breakdown.</p></div>
+    <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h6"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>Gain</h3><p>rtk gain + --stats --json report tokenizer-accurate tokens (o200k_base) + $ saved per model and per-command.</p></div>
     <div class="card"><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M8 8h8M7 12h10M9 16h6"/></svg>Raw logs</h3><p>.rtk/raw/&lt;timestamp&gt;__&lt;cmd&gt;.log — never truncated, always the ground truth.</p></div>
   </section>
   <section class="privacy" style="margin-top:28px">
     <h2>Evidence, then tool</h2>
-    <p>benchmark/results.md is generated and committed. npm run benchmark reproduces the table and asserts 100% critical retention.</p>
+    <p>benchmark/results.md + retention.md + agent-solve.md are generated and committed. <code>npm run verify</code> reproduces the full table (tokens, cost, latency) and asserts 100% critical retention — see <a href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/rtk/benchmark">benchmark/</a> dashboard.</p>
     <div><span class="pill">Node CLI</span><span class="pill">npm link</span><span class="pill">CLAUDE.md init</span><span class="pill">MIT</span></div>
     <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/rtk">Open RTK</a>
   </section>

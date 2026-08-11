@@ -53,3 +53,8 @@ graphify-out/cache/
 # Secrets & local credentials — never commit these
 google_token.json
 msal_cache.bin
+
+# RTK benchmark corpus — real tool logs used as fixture evidence (exception to *.log)
+!apps/rtk/benchmark/corpus/*.log
+!apps/rtk/benchmark/corpus/*.json
+!apps/rtk/benchmark/corpus/*.xml

@@ -1,7 +1,7 @@
 {
   "name": "rtk",
-  "version": "0.2.0",
-  "description": "Cut tool-call tokens by filtering noisy command output to what an LLM agent actually needs — per-tool parsers, structural compression, and preservation guarantees",
+  "version": "0.3.0",
+  "description": "Cut tool-call tokens by filtering noisy command output — per-tool parsers (15+ tools), structural compression (JSON/NDJSON/diff/stack/JUnit/SARIF/GHA), tokenizer-accurate tokens, preservation guarantees",
   "license": "MIT",
   "author": "henrygoldsmith07-wq",
   "repository": {
@@ -20,7 +20,11 @@
     "filter",
     "claude-code",
     "codex",
-    "agent"
+    "agent",
+    "eslint",
+    "pytest",
+    "cargo",
+    "tiktoken"
   ],
   "bin": {
     "rtk": "./bin/rtk.js"
@@ -36,16 +40,22 @@
     "benchmark": "node benchmark/run.js",
     "benchmark:write": "node benchmark/run.js --write",
     "benchmark:agent": "node benchmark/agent-solve.js",
+    "benchmark:live": "node benchmark/agent-live.js",
     "benchmark:retention": "node benchmark/retention.js",
-    "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/agent-solve.js",
+    "benchmark:perf": "node benchmark/perf.js",
+    "benchmark:corpus": "node benchmark/corpus-builder.js",
+    "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js",
     "type-check": "tsc --noEmit",
-    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/agent-solve.js && npm pack --dry-run"
+    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/agent-live.js && npm pack --dry-run"
   },
   "engines": {
     "node": ">=18"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "js-tiktoken": "1.0.20"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

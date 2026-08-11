@@ -7,7 +7,7 @@ A small CLI that filters noisy command output to what an LLM agent (or a human) 
 Deterministic synthetic fixtures shaped like real tool output (`benchmark/fixtures.js` + `benchmark/datasets.js`). `npm run benchmark` reproduces this table and `benchmark/results.json`; CI fails if any critical line is lost.
 
 | Command | Parser | Raw chars | Emitted chars | Reduction | Critical retained |
-| --- | --- | --- | --- | --- | --- |
+| --- | --- | ---: | ---: | ---: | --- |
 | Vitest pass (200 tests) | vitest | 61,210 | 76 | 99.9% | ✓ 100% |
 | Vitest failure (2 fails) | vitest | 57,281 | 491 | 99% | ✓ 100% |
 | tsc failure (4 errors) | tsc | 522 | 522 | 0%* | ✓ 100% |
@@ -18,15 +18,18 @@ Deterministic synthetic fixtures shaped like real tool output (`benchmark/fixtur
 | Search JSON (120 hits) | structural | ~45,000 | ~4,000 | ~91% | ✓ 100% |
 | Diff (4 files) | structural | ~1,800 | ~600 | ~67% | ✓ 100% |
 
-\* `tsc pass` prints nothing on success (raw ≈ shell wrapper); rtk collapses it to one `✓` line. `tsc failure` has no passing noise to strip — 0% reduction and 100% retention is the correct outcome. Full table with line counts: `benchmark/results.md` (generated, committed as evidence artifact). Representative datasets (GitHub, logs, JSON, search, CLI, diff, stack) live in `benchmark/datasets.js`.
+\* `tsc pass` prints nothing on success (raw ≈ shell wrapper); rtk collapses it to one `✓` line. `tsc failure` has no passing noise to strip — 0% reduction and 100% retention is the correct outcome. Full table with line counts + tokenizer tokens + cost + latency: `benchmark/results.md` (generated, committed as evidence artifact). Representative datasets (GitHub, logs, JSON, search, CLI, diff, stack, NDJSON, JUnit, SARIF, ANSI, Unicode) live in `benchmark/datasets.js`; large corpus in `benchmark/corpus/`.
 
 Reproduce:
 
 ```bash
-npm run benchmark        # prints table, asserts 100% critical retention
-npm run benchmark:write  # also writes benchmark/results.md + results.json
-node benchmark/agent-solve.js   # raw vs RTK fixability (no LLM calls)
-node benchmark/retention.js     # retention on real corpus + synthetic tsc
+npm run benchmark            # 34-case evidence table with tokenizer tokens + cost + latency
+npm run benchmark:write      # also writes benchmark/results.md + results.json
+node benchmark/agent-solve.js   # raw vs RTK fixability (no LLM calls, tokenizer-accurate)
+node benchmark/agent-live.js    # live LLM task-success raw vs RTK (skips gracefully when no keys)
+node benchmark/retention.js     # retention on real corpus/ + synthetic tsc
+node benchmark/perf.js          # latency p50/p95 + memory + very-large output
+node benchmark/agent-live.js --providers openai --corpus 20   # live with OpenAI (add key)
 ```
 
 ## Before / After
@@ -108,8 +111,8 @@ echo "$output" | rtk --stdin
 rtk gain
 rtk gain --json
 
-# per-tool parsers (auto-selected from argv; stdin sniffs output shape)
-#   vitest/jest → vitest parser, tsc → tsc parser, next build → next parser, else → generic
+# per-tool parsers (auto-selected from argv + output sniffing; 15+ tools)
+#   vitest/jest/eslint, tsc, next, pytest/ruff/mypy, cargo, go test, gradle/maven, docker, k8s, terraform, pm (npm/yarn/pnpm), git, GHA → specific parser, else → generic
 rtk err npx tsc --noEmit
 rtk err npm run build   # next build when next is in the command
 
@@ -118,7 +121,7 @@ rtk err --level=conservative npm test
 rtk err --aggressive npm test
 # also: .rtk/config.json { "aggressiveness": "balanced" } or env RTK_AGGRESSIVENESS
 
-# structured output for CI / tool calls (+ --stats for line counts and tokens saved)
+# structured output for CI / tool calls (+ --stats for tokenizer tokens + cost + latency)
 rtk err --json --stats npm test
 # → {"parser":"vitest","exitCode":1,"rawChars":57281,"emittedChars":491,"reductionPct":99,"rawLines":1173,"emittedLines":15,"tokensSaved":14197,"output":"…","redacted":false,"rawLog":null}
 
@@ -144,7 +147,7 @@ rtk init                 # creates .rtk/ + .rtk/config.json + appends to ./CLAUD
 rtk version / rtk --help
 ```
 
-`rtk err` inspects the exit code; `rtk <command>` truncates long stdout/stderr to head/tail (configurable via `.rtk/config.json` `truncate`). Every invocation logs raw vs. emitted sizes to `.rtk/stats.json` (nearest ancestor `.rtk/` or cwd); `rtk gain` reports totals, efficiency bar, tokens saved (~chars/4), and per-command breakdown.
+`rtk err` inspects the exit code; `rtk <command>` truncates long stdout/stderr to head/tail (configurable via `.rtk/config.json` `truncate`). Every invocation logs raw vs. emitted sizes to `.rtk/stats.json` (tokenizer-accurate when js-tiktoken installed) (nearest ancestor `.rtk/` or cwd); `rtk gain` reports totals, efficiency bar, tokens saved (~chars/4), and per-command breakdown.
 
 Raw logs live in `.rtk/raw/` and are never emitted to the agent — they’re the ground truth for debugging. Exit codes are always passed through unchanged so `set -e` and CI behave identically.
 
@@ -179,13 +182,14 @@ Requires Node ≥ 18. No dependencies. Cross-platform (Windows/macOS/Linux); `bi
 
 ## Compatibility
 
-See [COMPATIBILITY.md](./COMPATIBILITY.md). CI tests Node 18 / 20 / 22 (`.github/workflows/rtk.yml`) — type-check + `npm test` + `benchmark/run.js` + `benchmark/retention.js` + `benchmark/agent-solve.js` + `npm pack --dry-run`.
+See [COMPATIBILITY.md](./COMPATIBILITY.md). CI tests Node 18 / 20 / 22 (`.github/workflows/rtk.yml`) — type-check + `npm test` + `benchmark/run.js` + `benchmark/retention.js` + `benchmark/agent-solve.js` + `benchmark/agent-live.js` + `benchmark/perf.js` + `npm pack --dry-run`.
 
 ## Development
 
 ```bash
-npm test              # node --test (includes regression, redaction, fuzz, adversarial)
-npm run benchmark     # assert parsers + evidence table (CI runs this)
+npm test                  # node --test (regression + structural + tokenizer + fuzz + adversarial)
+npm run benchmark         # 34-case evidence table with tokens + cost + latency; asserts 100% retention
+node benchmark/agent-live.js --help  # live LLM task-success (needs OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY)
 ```
 
 ## Integrations
