@@ -1,12 +1,35 @@
 {
-  "generatedAt": "2026-08-09T12:17:15.248Z",
+  "generatedAt": "2026-08-11T09:07:20.141Z",
   "rows": [
+    {
+      "label": "corpus/ansi.log",
+      "parser": "vitest",
+      "rawChars": 113,
+      "emittedChars": 113,
+      "reductionPct": 0,
+      "criticalNeedles": [],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/diff-4files.log",
+      "parser": "generic",
+      "rawChars": 5575,
+      "emittedChars": 599,
+      "reductionPct": 89,
+      "criticalNeedles": [
+        "diff --git",
+        "const x"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
     {
       "label": "corpus/generic-fail.log",
       "parser": "vitest",
-      "rawChars": 46,
-      "emittedChars": 37,
-      "reductionPct": 20,
+      "rawChars": 85,
+      "emittedChars": 65,
+      "reductionPct": 24,
       "criticalNeedles": [
         "Error:",
         "1 failed"
@@ -15,44 +38,79 @@
       "missing": []
     },
     {
-      "label": "corpus/node-test-fail.log",
-      "parser": "vitest",
-      "rawChars": 785,
-      "emittedChars": 318,
-      "reductionPct": 59,
+      "label": "corpus/gha-fail.log",
+      "parser": "gha",
+      "rawChars": 1968,
+      "emittedChars": 75,
+      "reductionPct": 96,
       "criticalNeedles": [
-        "AssertionError",
-        "fail.test.js",
-        "expected: 2"
+        "Error:",
+        "exit code"
       ],
       "criticalRetained": true,
       "missing": []
     },
     {
-      "label": "corpus/npm-test-pass.log",
+      "label": "corpus/json-search.log",
       "parser": "vitest",
-      "rawChars": 2794,
-      "emittedChars": 402,
-      "reductionPct": 86,
+      "rawChars": 28434,
+      "emittedChars": 31,
+      "reductionPct": 100,
       "criticalNeedles": [],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/ndjson.log",
+      "parser": "vitest",
+      "rawChars": 3114,
+      "emittedChars": 31,
+      "reductionPct": 99,
+      "criticalNeedles": [],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/next-fail.log",
+      "parser": "vitest",
+      "rawChars": 236,
+      "emittedChars": 100,
+      "reductionPct": 58,
+      "criticalNeedles": [
+        "Failed to compile"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/stack.log",
+      "parser": "vitest",
+      "rawChars": 182,
+      "emittedChars": 182,
+      "reductionPct": 0,
+      "criticalNeedles": [
+        "Error: boom"
+      ],
       "criticalRetained": true,
       "missing": []
     },
     {
       "label": "corpus/tsc-fail.log",
       "parser": "tsc",
-      "rawChars": 544,
-      "emittedChars": 38,
-      "reductionPct": 93,
-      "criticalNeedles": [],
+      "rawChars": 522,
+      "emittedChars": 522,
+      "reductionPct": 0,
+      "criticalNeedles": [
+        "error TS2322"
+      ],
       "criticalRetained": true,
       "missing": []
     },
     {
-      "label": "corpus/tsc-pass.log",
-      "parser": "tsc",
-      "rawChars": 0,
-      "emittedChars": 38,
+      "label": "corpus/unicode.log",
+      "parser": "vitest",
+      "rawChars": 73,
+      "emittedChars": 73,
       "reductionPct": 0,
       "criticalNeedles": [],
       "criticalRetained": true,
@@ -61,13 +119,23 @@
     {
       "label": "corpus/vitest-fail.log",
       "parser": "vitest",
-      "rawChars": 3504,
-      "emittedChars": 870,
-      "reductionPct": 75,
+      "rawChars": 37523,
+      "emittedChars": 491,
+      "reductionPct": 99,
       "criticalNeedles": [
-        "ERR_TEST_FAILURE",
-        "fail"
+        "FAIL",
+        "AssertionError"
       ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/vitest-pass.log",
+      "parser": "vitest",
+      "rawChars": 40613,
+      "emittedChars": 76,
+      "reductionPct": 100,
+      "criticalNeedles": [],
       "criticalRetained": true,
       "missing": []
     },

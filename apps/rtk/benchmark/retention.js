@@ -19,13 +19,17 @@ const { PARSERS, pickParser } = require('../src/parsers');
 const { spawnSync } = require('child_process');
 
 function criticalNeedlesFor(logName, exitCode) {
-  // Needles must be what a fixing agent actually needs: error kind + file:line + expected/actual or code.
-  // They must also be present in RTK's emitted output (not just raw), otherwise the benchmark correctly fails.
   const map = {
     'node-test-fail': ['AssertionError', 'fail.test.js', 'expected: 2'],
-    'npm-test-pass':  [], // pass: retention N/A, reduction must be high on the noise
+    'npm-test-pass':  [],
     'generic-fail':   ['Error:', '1 failed'],
-    'vitest-fail':    ['ERR_TEST_FAILURE', 'fail'],
+    'vitest-fail':    ['FAIL', 'AssertionError'],
+    'eslint': [],
+    'gha-fail': ['Error:', 'exit code'],
+    'diff-4files': ['diff --git', 'const x'],
+    'stack': ['Error: boom'],
+    'tsc-fail': ['error TS2322'],
+    'next-fail': ['Failed to compile'],
   };
   return map[logName] ?? [];
 }
@@ -39,13 +43,14 @@ function corpusCases() {
       const full = path.join(dir, f);
       const output = fs.readFileSync(full, 'utf8');
       const label = path.basename(f, '.log');
-      // Heuristic exit code: non-empty fail markers imply failure
-      const looksFailed = /FAIL|AssertionError|not ok |Error\s*\[|error TS\d+/i.test(output);
+      // Heuristic exit code: diagnostic outputs (diff, junit, sarif, stack) are always "failure" for retention; otherwise sniff markers
+      const isDiagnostic = /diff --git|^@@/m.test(output) || /<testsuite|<failure/i.test(output) || /"sarif"|"runs"/.test(output) || /Error: boom/.test(output);
+      const looksFailed = isDiagnostic || /FAIL|AssertionError|not ok |Error\s*\[|error TS\d+/i.test(output);
       const exitCode = looksFailed ? 1 : 0;
       const needles = criticalNeedlesFor(label, exitCode).filter(Boolean);
-      // Pick parser from a synthetic argv; real consumers use pickParser on the command
-      const argv = label.includes('tsc') ? ['tsc','--noEmit'] : ['npm','test'];
-      const parser = pickParser(argv);
+      // Pick parser by sniffing the corpus output (mirrors CLI --stdin sniffing)
+      const argv = label.includes('tsc') ? ['tsc','--noEmit'] : label.includes('gha') ? ['gha'] : label.includes('diff') ? ['git','diff'] : label.includes('stack') ? ['npm','test'] : ['npm','test'];
+      const parser = pickParser(argv, output);
       return { label: `corpus/${f}`, parser, output, exitCode, criticalNeedles: needles };
     });
 }

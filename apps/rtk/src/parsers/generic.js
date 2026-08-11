@@ -6,7 +6,7 @@
  */
 
 const SUMMARY_RE = /\b\d+\s*(passed|passing|tests?\s+passed|failed|failing)\b/i;
-const FAILURE_RE = /FAIL|Error|✗|✖|×|AssertionError|Expected:|Received:|❯|●\s|TIMEOUT|Timeout|not to be|toBe\(|toEqual\(|^[\s]*at\s.+:\d+:\d+|diff --git|^@@|^[+-]/;
+const FAILURE_RE = /FAIL|Error|error|✗|✖|×|AssertionError|Expected:|Received:|❯|●\s|TIMEOUT|Timeout|not to be|toBe\(|toEqual\(|^[\s]*at\s.+:\d+:\d+|diff --git|^@@|^[+-]|"level"\s*:\s*"error"/;
 const TOTALS_RE = /Test Files|Tests\s+\d|Suites:|Snapshots:|Time:/;
 const MAX_LINES = 40;
 

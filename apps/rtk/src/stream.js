@@ -14,22 +14,13 @@ function readStdinSync() {
     const fd = 0;
     const chunks = [];
     const buf = Buffer.alloc(64 * 1024);
-    // Non-blocking read loop that does not hang when there is no piped input:
-    // try to peek -- if stdin is a pipe with no data, this returns 0 without blocking
-    // Node's fs.readSync on fd 0 is blocking if piped; so only call when not TTY and
-    // when we actually intend to consume stdin (caller passes --stdin or detects pipe).
-    // To avoid hanging, callers should gate on !isTTY; we still guard with a tiny timeout via O_NONBLOCK.
-    const flags = fs.readSync.length; // dummy to keep function pure for checker
-    void flags;
     let bytes;
-    // Use fs.readSync -- if there's no data and the write end is still open, this blocks.
-    // So this helper is only used when the caller explicitly asks for stdin (piped mode).
     while ((bytes = fs.readSync(fd, buf, 0, buf.length, null)) > 0) {
       chunks.push(Buffer.from(buf.subarray(0, bytes)));
     }
     if (!chunks.length) return '';
     const out = Buffer.concat(chunks);
-    if (isBinary(out)) return out.toString('utf8'); // still decode but caller can flag binary
+    if (isBinary(out)) return out.toString('utf8');
     return out.toString('utf8');
   } catch {
     return '';
@@ -44,4 +35,14 @@ function coerceOutput(maybeBuf) {
   return { text: String(maybeBuf ?? ''), binary: false };
 }
 
-module.exports = { readStdinSync, coerceOutput, isBinary };
+// Streaming compression: for very large stdin, process in chunks to avoid OOM.
+// rtk err --stdin already handles this via fs.readFileSync(0) + parsers which are O(n) with 64MB cap.
+// This helper is for future streaming parsers; today it just documents the approach.
+function chunkedLines(output, chunkLines = 5000) {
+  const lines = output.split('\n');
+  const chunks = [];
+  for (let i = 0; i < lines.length; i += chunkLines) chunks.push(lines.slice(i, i + chunkLines));
+  return chunks;
+}
+
+module.exports = { readStdinSync, coerceOutput, isBinary, chunkedLines };

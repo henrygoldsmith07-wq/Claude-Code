@@ -1,0 +1,8 @@
+Creating an optimized production build...
+ ✓ Compiled successfully
+Failed to compile.
+./src/app/page.tsx:42:10
+Type error: Property 'foo' does not exist on type 'Bar'.
+  42 |   return foo.bar;
+     |          ^^^
+Collecting page data...

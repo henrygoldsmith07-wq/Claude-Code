@@ -34,5 +34,23 @@ jobs:
       - run: node benchmark/run.js
       - run: node benchmark/retention.js
       - run: node benchmark/agent-solve.js
+      - run: node benchmark/agent-live.js
+      - run: node benchmark/perf.js
+      - run: node benchmark/corpus-builder.js
       - run: npm pack --dry-run
       - run: ls -lh *.tgz 2>/dev/null | head -n 5 || echo "no tarball (dry-run)"
+  release:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, registry-url: 'https://registry.npmjs.org' }
+      - run: npm ci
+        working-directory: apps/rtk
+      - run: npm publish --access public
+        working-directory: apps/rtk
+        if: startsWith(github.event.head_commit.message, 'chore(release)')
+        env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} }
