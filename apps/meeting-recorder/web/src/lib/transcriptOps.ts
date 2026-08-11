@@ -1,4 +1,4 @@
-/** Searchable / editable transcript helpers + integrity. */
+/** Searchable / editable transcript helpers + integrity + alignment. */
 import type { Transcript, TranscriptSegment } from "./types";
 
 export function searchTranscript(transcript: Transcript, query: string): TranscriptSegment[] {
@@ -27,7 +27,21 @@ export function recordingIntegrityCheck(bytes: Uint8Array, expectedMime: string)
   if (bytes.byteLength < 1024) return { ok: false, reason: "file too small — truncated?" };
   const header = bytes.slice(0, 4);
   const isWebm = header[0]===0x1A && header[1]===0x45 && header[2]===0xDF && header[3]===0xA3;
-  const isMp4 = bytes.slice(4,8).toString()==="ftyp";
   if (expectedMime.includes("webm") && !isWebm && bytes.byteLength> 5000) return { ok: false, reason: "webm header mismatch — may be corrupted" };
   return { ok: true };
+}
+
+/** Alignment: segment index at time t (audio ↔ transcript). */
+export function segmentAtTime(segments: TranscriptSegment[], t: number): number {
+  for (let i=segments.length-1;i>=0;i--) if (t >= segments[i].start) return i;
+  return -1;
+}
+
+/** Word timings within a segment (uniform split — refined when provider returns word timings). */
+export function wordsInSegment(seg: TranscriptSegment): { word: string; start: number; end: number }[] {
+  const words = seg.text.split(/\s+/).filter(Boolean);
+  if (words.length===0) return [];
+  const dur = Math.max(0.2, seg.end - seg.start);
+  const per = dur / words.length;
+  return words.map((w,i)=>({ word: w, start: seg.start + i*per, end: seg.start + (i+1)*per }));
 }

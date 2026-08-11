@@ -1,11 +1,13 @@
 /** Meeting templates + recurring continuity: what changed since last meeting, carryover. */
-export type MeetingTemplate = { id: string; name: string; agenda: string[]; defaultTitle?: string };
+export type MeetingTemplate = { id: string; name: string; agenda: string[]; defaultTitle?: string; description?: string };
 export const TEMPLATES: MeetingTemplate[] = [
-  { id: "standup", name: "Standup", agenda: ["Yesterday", "Today", "Blockers"] },
-  { id: "1-1", name: "1:1", agenda: ["Wins", "Challenges", "Growth", "Actions"] },
+  { id: "standup", name: "Standup", agenda: ["Yesterday", "Today", "Blockers"], description: "Daily sync" },
+  { id: "1-1", name: "1:1", agenda: ["Wins", "Challenges", "Growth", "Actions"], description: "Manager/report" },
   { id: "planning", name: "Planning", agenda: ["Goal", "Scope", "Risks", "Actions & owners"] },
   { id: "retro", name: "Retro", agenda: ["Went well", "Didn't", "Change next time", "Actions"] },
   { id: "client", name: "Client", agenda: ["Context", "Needs", "Decisions", "Next steps"] },
+  { id: "sales", name: "Sales", agenda: ["Discovery", "Needs", "Proposal", "Next steps & owner"] },
+  { id: "allhands", name: "All-hands", agenda: ["Highlights", "Metrics", "Q&A", "Actions"] },
 ];
 
 export function continuity(recurringKey: string | null, meetings: { shareId: string; title: string; createdAt: string }[]): { previousId: string | null } {
