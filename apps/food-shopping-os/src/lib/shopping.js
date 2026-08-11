@@ -8,7 +8,8 @@
  */
 
 import { AISLE_ORDER, guessAisle } from '../data/stores.js';
-import { priceHistory } from './kitchen.js';
+import { dayStamp, priceHistory } from './kitchen.js';
+import { mergeQtys } from './pantry.js';
 
 const key = (name) => String(name || '').trim().toLowerCase();
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -363,11 +364,9 @@ export const restockSuggestions = (shops = [], pantry = [], list = [], limit = 6
     pantry
       .filter((row) => {
         const c = String(row.confidence || "definite").toLowerCase();
-        const a = String(row.amountConfidence || (row.qty ? "approximate" : "unknown")).toLowerCase();
         if (c === "unknown") return false;
         if (row.low) return false;
-        if (c === "probable") return true;
-        if (a === "unknown") return false;
+        // Probable counts; definite counts even when the amount wasn't recorded.
         return true;
       })
       .map((p) => key(p.name)),
@@ -390,6 +389,92 @@ export const restockSuggestions = (shops = [], pantry = [], list = [], limit = 6
     .slice(0, limit);
 };
 
+/* ---------- Recurring staples ---------- */
+
+/**
+ * Staples you buy on a rhythm, read off your own shop history. An item counts
+ * as a staple when bought at least three times; its cadence is the average gap
+ * between the most recent three purchases. `dueNow` means you're at or past
+ * the cadence and it isn't in the pantry or on the list.
+ */
+export const recurringStaples = (shops = [], pantry = [], list = [], { today = '' } = {}) => {
+  const purchases = new Map(); // key -> [{date}]
+  for (const shop of [...shops].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const item of shop.items || []) {
+      const k = key(item.name);
+      if (!k) continue;
+      if (!purchases.has(k)) purchases.set(k, { name: item.name, emoji: item.emoji, dates: [] });
+      purchases.get(k).dates.push(shop.date);
+    }
+  }
+  const have = new Set([
+    ...pantry.map((p) => key(p.name)),
+    ...list.map((i) => key(i.name)),
+  ]);
+  const gapDays = (dates) => {
+    const recent = dates.slice(-3);
+    if (recent.length < 2) return null;
+    const gaps = recent.slice(1).map((date, i) =>
+      Math.round((new Date(`${date}T12:00:00`) - new Date(`${recent[i]}T12:00:00`)) / 86400000));
+    return Math.max(1, Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length));
+  };
+  const todayKey = today || (typeof dayStamp === 'function' ? dayStamp() : '');
+  const out = [];
+  for (const row of purchases.values()) {
+    if (row.dates.length < 3 || have.has(key(row.name))) continue;
+    const last = row.dates[row.dates.length - 1];
+    const cadence = gapDays(row.dates);
+    if (cadence === null) continue;
+    const since = todayKey
+      ? Math.round((new Date(`${todayKey}T12:00:00`) - new Date(`${last}T12:00:00`)) / 86400000)
+      : null;
+    out.push({
+      name: row.name,
+      emoji: row.emoji,
+      times: row.dates.length,
+      lastBought: last,
+      cadence,
+      since: since ?? null,
+      dueNow: since !== null && since >= cadence * 0.8,
+    });
+  }
+  return out.sort((a, b) => Number(b.dueNow) - Number(a.dueNow) || (a.since ?? 0) - (b.since ?? 0));
+};
+
+/* ---------- Honest deals ---------- */
+
+/**
+ * Whether an offer can be trusted against a basket. A multibuy that needs
+ * three items to save is only a saving when at least three matching items are
+ * on the list — otherwise it reports the gap, never an invented discount.
+ */
+export const dealQuality = (offer, items = [], { today = '' } = {}) => {
+  if (offer?.expiry && today && offer.expiry < today) {
+    return { honest: false, note: 'This offer has expired.' };
+  }
+  const matching = items.filter((i) => {
+    const term = key(offer?.match || offer?.label);
+    return term ? key(i.name).includes(term) : false;
+  });
+  if (offer?.kind === 'multibuy') {
+    const group = Math.max(2, Number(offer?.value) || 3);
+    const needed = group - (matching.length % group || group);
+    if (matching.length < group) {
+      return {
+        honest: false,
+        note: `${matching.length} item${matching.length === 1 ? '' : 's'} on the list — this deal needs ${group} to save. Add ${group - matching.length} more.`,
+      };
+    }
+    return {
+      honest: true,
+      note: matching.length >= group
+        ? `You'll get ${Math.floor(matching.length / group)} free (${Math.floor(matching.length / group) === 1 ? 'cheapest' : 'cheapest each group of'} ${group}).`
+        : `Add ${needed} more for the ${group} for ${group - 1} deal.`,
+    };
+  }
+  return matching.length ? { honest: true, note: '' } : { honest: false, note: 'Nothing on the list matches this offer yet.' };
+};
+
 /* ---------- Meals to shopping ---------- */
 
 /**
@@ -406,7 +491,9 @@ export const mergeItems = (items = []) => {
       continue;
     }
     if (item.fromRecipe && !found.forRecipes.includes(item.fromRecipe)) found.forRecipes.push(item.fromRecipe);
-    found.qty = [found.qty, item.qty].filter(Boolean).join(' + ');
+    // Sum quantities when they're on the same scale ("600 g" + "400 g" →
+    // "1 kg"); otherwise keep them visible as separate amounts.
+    found.qty = mergeQtys(found.qty, item.qty);
   }
   return [...merged.values()].map((item) => ({
     ...item,

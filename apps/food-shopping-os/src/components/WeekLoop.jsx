@@ -5,8 +5,8 @@ import {
 import { useApp } from '../lib/store.jsx';
 import { byId } from '../data/recipes.js';
 import { WEEK_LOOP_PROMISE, WEEK_LOOP_STEPS } from '../data/weekLoop.js';
-import { weekDates } from '../lib/kitchen.js';
-import { planEntries } from '../lib/mealplan.js';
+import { expiringSoon, weekDates } from '../lib/kitchen.js';
+import { planEntries, planVariety } from '../lib/mealplan.js';
 import {
   nextWeekLoopStep,
   pantryCheckForPlan,
@@ -36,10 +36,21 @@ export default function WeekLoop({ onClose, onCook, initialStep }) {
   const step = WEEK_LOOP_STEPS.find((s) => s.id === stepId) || WEEK_LOOP_STEPS[0];
   const stepIndex = WEEK_LOOP_STEPS.findIndex((s) => s.id === stepId);
   const dates = snap.dates;
-  const dinnerRecipes = useMemo(
-    () => app.safeRecipes.filter((r) => r.meal === 'dinner' || !r.meal).slice(0, 40),
-    [app.safeRecipes],
+  // Dishes that use something going off are offered first — the pantry's
+  // urgency is the week's plan.
+  const expiringNames = useMemo(
+    () => expiringSoon(app.pantry, 3, app.day).map((p) => p.name.toLowerCase()),
+    [app.pantry, app.day],
   );
+  const dinnerRecipes = useMemo(() => {
+    const pool = app.safeRecipes.filter((r) => r.meal === 'dinner' || !r.meal);
+    const hitCount = (r) => (r.ingredients || []).filter((i) => {
+      const name = String(i.name || i).toLowerCase();
+      return expiringNames.some((n) => name.includes(n) || n.includes(name));
+    }).length;
+    return [...pool].sort((a, b) => hitCount(b) - hitCount(a)).slice(0, 40);
+  }, [app.safeRecipes, expiringNames]);
+  const variety = useMemo(() => planVariety(app.plan, dates), [app.plan, dates]);
 
   const goNext = () => {
     const n = nextWeekLoopStep(stepId);
@@ -57,6 +68,11 @@ export default function WeekLoop({ onClose, onCook, initialStep }) {
       setStatus('');
     }
   };
+
+  const usesExpiring = (r) => (r.ingredients || []).some((i) => {
+    const name = String(i.name || i).toLowerCase();
+    return expiringNames.some((n) => name.includes(n) || n.includes(name));
+  });
 
   const setDinner = (date, recipeId) => {
     app.setPlanSlot(date, 'dinner', recipeId);
@@ -158,7 +174,15 @@ export default function WeekLoop({ onClose, onCook, initialStep }) {
                 {snap.leftovers?.length
                   ? ` · ${snap.leftovers.length} leftover dish${snap.leftovers.length === 1 ? '' : 'es'} in the fridge`
                   : ''}
+                {expiringNames.length
+                  ? ` · ${expiringNames.length} item${expiringNames.length === 1 ? '' : 's'} going off soon`
+                  : ''}
               </p>
+              {variety.repeatedDishes.length > 0 && (
+                <p className="mt-1 text-[0.71875rem] font-semibold" style={{ color: 'var(--warn, #a55a12)' }}>
+                  {variety.repeatedDishes[0].name} is on {variety.repeatedDishes[0].times} nights — vary it if you're tired of repeats.
+                </p>
+              )}
             </Card>
             <div className="space-y-2">
               {dates.map((date) => {
@@ -182,6 +206,7 @@ export default function WeekLoop({ onClose, onCook, initialStep }) {
                         <span className="min-w-0 flex-1">
                           <span className="block text-[0.875rem] font-extrabold truncate">{recipe.name}</span>
                           {leftoverHit && <Pill tone="good">Uses fridge leftover</Pill>}
+                          {usesExpiring(recipe) && <Pill tone="warn">Uses something going off</Pill>}
                         </span>
                       </>
                     ) : (
@@ -211,6 +236,7 @@ export default function WeekLoop({ onClose, onCook, initialStep }) {
                           {r.time} min · {gbp(r.costPerServing, { always: true })}/serving
                         </span>
                       </span>
+                      {usesExpiring(r) && <Pill tone="warn">Going off soon</Pill>}
                       {portions > 0 && <Pill tone="good">{portions} left</Pill>}
                     </button>
                   );

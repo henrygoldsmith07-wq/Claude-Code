@@ -12,6 +12,7 @@ import { byId } from '../data/recipes.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays, dayStamp, pantryAvailability, pantryTruthForNeed, weekStart } from './kitchen.js';
+import { canonicalName } from './aliases.js';
 
 export const SLOT_KEYS = MEAL_SLOTS.map((s) => s.key);
 
@@ -258,6 +259,39 @@ export const coveredByLeftovers = (plan = {}, dates = [], pantry = []) => {
   return covered;
 };
 
+/* ---------- Variety ---------- */
+
+/**
+ * What repeats in a planned range — same dish, same cuisine, or the same
+ * ingredient carrying the load. Presented as a fact, not a judgement, so the
+ * plan screen can say "three chilli nights this week" without pretending.
+ */
+export const planVariety = (plan = {}, dates = []) => {
+  const entries = planEntries(plan, dates);
+  const dishes = new Map();
+  const cuisines = new Map();
+  const ingredients = new Map();
+  for (const entry of entries) {
+    const id = entry.recipe.id;
+    dishes.set(id, (dishes.get(id) || 0) + 1);
+    if (entry.recipe.cuisine) cuisines.set(entry.recipe.cuisine, (cuisines.get(entry.recipe.cuisine) || 0) + 1);
+    for (const line of entry.recipe.ingredients || []) {
+      const key = canonicalName(line.name);
+      ingredients.set(key, (ingredients.get(key) || 0) + 1);
+    }
+  }
+  return {
+    meals: entries.length,
+    repeatedDishes: [...dishes.entries()].filter(([, n]) => n > 1).map(([id, n]) => ({ id, name: byId(id)?.name || id, times: n })),
+    repeatedCuisines: [...cuisines.entries()].filter(([, n]) => n > 1).map(([name, times]) => ({ name, times })),
+    heavyIngredients: [...ingredients.entries()]
+      .filter(([, n]) => n > 1)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, times]) => ({ name, times })),
+  };
+};
+
 /* ---------- Batch cooking ---------- */
 
 /**
@@ -298,17 +332,19 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
     recipes.push(entry.recipe);
   }
   // pantry truth: only confirmed_sufficient + probably_available count as have
-  // running_low / unknown / confirmed_insufficient still need shopping
+  // running_low / unknown / confirmed_insufficient still need shopping.
+  // Names are resolved through the alias table so "Chopped tomatoes (tins)"
+  // and "tin tomatoes" are recognised as the same thing.
   const sufficientNames = pantry
     .filter((item) => {
       const avail = pantryAvailability(item);
       return avail === "confirmed_sufficient" || avail === "probably_available";
     })
-    .map((p) => p.name);
+    .map((p) => canonicalName(p.name));
   // quantity-aware pass: if an ingredient needs e.g. "500 g" but pantry has "100 g", treat as insufficient
   const byName = new Map();
   for (const item of pantry) {
-    const k = String(item.name || "").toLowerCase().trim();
+    const k = canonicalName(item.name);
     if (!k) continue;
     if (!byName.has(k)) byName.set(k, []);
     byName.get(k).push(item);
@@ -317,14 +353,14 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
   const raw = itemsFromRecipes(filteredRecipes, sufficientNames);
   // Second pass: re-add ingredients where qty is known insufficient
   const needByKey = new Map();
-  for (const r of filteredRecipes) for (const ing of r.ingredients) needByKey.set(String(ing.name).toLowerCase(), ing.qty || "");
+  for (const r of filteredRecipes) for (const ing of r.ingredients) needByKey.set(canonicalName(ing.name), ing.qty || "");
   const insufficientKeys = new Set();
   for (const [key, needQty] of needByKey.entries()) {
     const candidates = byName.get(key) || [];
     if (!candidates.length) continue;
     // if any candidate is sufficient for this need, keep it covered
     const anySufficient = candidates.some((c) => pantryTruthForNeed(c, needQty) === "confirmed_sufficient" || pantryTruthForNeed(c, needQty) === "probably_available");
-    if (!anySufficient && sufficientNames.some((n) => String(n).toLowerCase() === key)) {
+    if (!anySufficient && sufficientNames.includes(key)) {
       // was considered sufficient by name, but qty shows insufficient -> needs shopping
       insufficientKeys.add(key);
     }
@@ -333,7 +369,7 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
   const rawKeys = new Set(raw.map((i) => String(i.name).toLowerCase()));
   for (const r of filteredRecipes) {
     for (const ing of r.ingredients) {
-      const k = String(ing.name).toLowerCase();
+      const k = canonicalName(ing.name);
       if (!insufficientKeys.has(k)) continue;
       if (rawKeys.has(k)) continue;
       raw.push({

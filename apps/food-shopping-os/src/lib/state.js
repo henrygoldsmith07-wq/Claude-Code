@@ -121,6 +121,7 @@ export const EMPTY_STATE = {
   storeRoutes: {}, // store → the aisle order you actually walked
   offers: [], // vouchers and deals you told it about
   coupons: [], // coupon/rewards vault — manual + photo-OCR draft (no feed, never invented)
+  aliasMemory: {}, // scan/pantry corrections: 'tomatos' → 'tomatoes' — makes entity resolution learn
   priceAlerts: [], // item price targets checked against recorded shops
   priceAlertConfig: { risePct: 15, bargainPct: 15, overrides: {} }, // receipt-only rise/bargain thresholds, 15% default, per-item tunable
   waste: [], // what you threw away, and what it cost
@@ -160,6 +161,7 @@ export const EMPTY_STATE = {
   intolerances: [], // soft: flagged, because the amount is the point
   religious: [], // hard: rules you keep
   cuisines: [], // the ones you'd rather cook
+  equipment: [], // owned appliances: air-fryer, slow-cooker — recipes needing kit you don't own are skipped
   skill: 'confident',
   timeBudget: 'normal',
   units: {}, // only what you changed; the rest follow DEFAULT_UNITS

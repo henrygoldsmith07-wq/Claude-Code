@@ -6,6 +6,18 @@ const event = (state, uid, message, kind = 'household') => ({
   }].slice(-50),
 });
 
+const toggleList = (member, field, value) => {
+  const list = Array.isArray(member[field]) ? member[field] : [];
+  const clean = String(value || '').trim().toLowerCase();
+  if (!clean) return member;
+  return {
+    ...member,
+    [field]: list.includes(clean)
+      ? list.filter((item) => item !== clean)
+      : [...list, clean],
+  };
+};
+
 export const householdActions = (set, uid) => ({
   setHouseholdName: (householdName) => set({ householdName: String(householdName || '').trim().slice(0, 60) }),
   setActiveMember: (activeMemberId) =>
@@ -43,6 +55,21 @@ export const householdActions = (set, uid) => ({
         ? { ...member, diets: member.diets.includes(diet) ? member.diets.filter((item) => item !== diet) : [...member.diets, diet] }
         : member)),
     })),
+  toggleMemberAllergy: (id, value) => set((state) => ({ members: state.members.map((member) => (
+    member.id === id
+      ? toggleList(member, 'allergies', value)
+      : member
+  )) })),
+  toggleMemberIntolerance: (id, value) => set((state) => ({ members: state.members.map((member) => (
+    member.id === id
+      ? toggleList(member, 'intolerances', value)
+      : member
+  )) })),
+  toggleMemberDislike: (id, value) => set((state) => ({ members: state.members.map((member) => (
+    member.id === id
+      ? toggleList(member, 'dislikes', value)
+      : member
+  )) })),
   toggleMemberPermission: (id, permission) =>
     set((state) => ({
       members: state.members.map((member) => (member.id === id

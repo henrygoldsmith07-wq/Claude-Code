@@ -9,6 +9,7 @@
 
 import { RECIPES } from '../data/recipes.js';
 import { BADGES } from '../data/plan.js';
+import { canonicalName, sameIngredient } from './aliases.js';
 
 export const dayStamp = (date = new Date()) => {
   const d = new Date(date);
@@ -78,7 +79,10 @@ export const pantryAvailability = (item) => {
   if (c === "unknown") return "unknown";
   if (item?.low) return "running_low";
   if (c === "probable") return "probably_available";
-  if (a === "unknown") return "unknown";
+  // Definitely have it; the amount just isn't recorded. That still counts as
+  // having it — the amount-aware pass downgrades to confirmed_insufficient
+  // only when both sides are countable and the pantry is short.
+  if (a === "unknown") return "confirmed_sufficient";
   return "confirmed_sufficient";
 };
 
@@ -149,6 +153,103 @@ export const pantryUncertaintyLabel = (item) => {
 
 
 export const leftovers = (pantry = []) => pantry.filter((p) => p.cat === 'Leftovers');
+
+/* ---------- Freshness: bought / opened / frozen ---------- */
+
+/** Days since an item was bought (null when no date was recorded). */
+export const daysSince = (stamp, today = dayStamp()) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(stamp || '') ? Math.max(0, Math.round((new Date(`${today}T12:00:00`) - new Date(`${stamp}T12:00:00`)) / DAY_MS)) : null;
+
+/** How long an item has been open — the clock that matters for freshness. */
+export const openAge = (item, today = dayStamp()) => daysSince(item?.openedDate, today);
+
+export const purchaseAge = (item, today = dayStamp()) => daysSince(item?.purchaseDate || item?.addedAt, today);
+
+/**
+ * How long an item stays good once opened, per category — an everyday rule of
+ * thumb (milk ~5 days, opened sauce ~3 weeks), stated as such, never as a
+ * hard food-safety claim.
+ */
+export const OPENED_DAYS = {
+  'Dairy & eggs': 5,
+  Fresh: 4,
+  Meat: 2,
+  Fish: 2,
+  'Tins & jars': 21,
+  'Sauces & oils': 21,
+  'Baking & dry': 60,
+  Leftovers: 3,
+  Drinks: 7,
+  'Herbs & spices': 90,
+};
+
+export const OPENED_LABEL = {
+  'Dairy & eggs': '5 days',
+  Fresh: '4 days',
+  Meat: '2 days',
+  Fish: '2 days',
+  'Tins & jars': '3 weeks',
+  'Sauces & oils': '3 weeks',
+  'Baking & dry': '2 months',
+  Leftovers: '3 days',
+  Drinks: '1 week',
+  'Herbs & spices': '3 months',
+};
+
+/** How long frozen food keeps its quality, per category. */
+export const FROZEN_DAYS = {
+  Meat: 90,
+  Fish: 90,
+  Fresh: 120,
+  Bread: 60,
+  'Tins & jars': null, // not frozen
+  'Baking & dry': 180,
+  Leftovers: 60,
+  'Dairy & eggs': 60,
+  Drinks: 90,
+  'Herbs & spices': 180,
+};
+
+export const freezerDays = (item, today = dayStamp()) =>
+  item?.location === 'Freezer' ? daysSince(item?.purchaseDate || item?.addedAt, today) : null;
+
+/**
+ * An honest freshness read for one row: what we know, and whether it says
+ * "fine", "getting old" or "past it". Never a food-safety claim — a date the
+ * user didn't record is reported as unknown, not assumed.
+ */
+export const freshnessOf = (item, today = dayStamp()) => {
+  const frozen = freezerDays(item, today);
+  if (frozen !== null) {
+    const limit = FROZEN_DAYS[item?.cat] ?? 90;
+    if (limit === null) return { kind: 'not-frozen', label: 'Not usually frozen — move to the fridge.' };
+    const left = limit - frozen;
+    return {
+      kind: left < 0 ? 'past' : left <= 14 ? 'soon' : 'fine',
+      label: left < 0
+        ? `Frozen ${frozen} days — past the ${OPENED_LABEL[item?.cat] || '3 months'} rule of thumb.`
+        : `Frozen ${frozen} days · about ${left} days of quality left.`,
+    };
+  }
+  const opened = openAge(item, today);
+  if (opened !== null) {
+    const limit = OPENED_DAYS[item?.cat] ?? 7;
+    const left = limit - opened;
+    return {
+      kind: left < 0 ? 'past' : left <= 1 ? 'soon' : 'fine',
+      label: left < 0
+        ? `Opened ${opened} days ago — past the ~${OPENED_LABEL[item?.cat] || '1 week'} rule of thumb.`
+        : opened === 0
+          ? 'Opened today.'
+          : `Opened ${opened} days ago · about ${left} day${left === 1 ? '' : 's'} left.`,
+    };
+  }
+  const bought = purchaseAge(item, today);
+  if (bought === null) return { kind: 'unknown', label: 'No date recorded.' };
+  return bought === 0
+    ? { kind: 'fine', label: 'Bought today.' }
+    : { kind: 'fine', label: `Bought ${bought} day${bought === 1 ? '' : 's'} ago.` };
+};
 
 const money = (value) => Math.round(value * 100) / 100;
 
@@ -243,15 +344,15 @@ export const pantryUseLabel = (item) => {
  * Consume one stocked row per matching recipe ingredient. Countable quantities
  * decrement safely; free-text amounts are removed rather than guessed.
  */
-export const consumePantryIngredients = (pantry = [], ingredients = []) => {
+export const consumePantryIngredients = (pantry = [], ingredients = [], { learnedAliases = {} } = {}) => {
   const remaining = [...pantry];
   const used = [];
   ingredients.forEach((ingredient) => {
-    const wanted = inventoryName(ingredient.name);
+    const wanted = canonicalName(ingredient.name, learnedAliases);
     if (!wanted) return;
     const index = remaining.findIndex((item) => {
-      const stocked = inventoryName(item.name);
-      return stocked === wanted
+      const stocked = canonicalName(item.name, learnedAliases);
+      return sameIngredient(stocked, wanted, learnedAliases)
         || (Math.min(stocked.length, wanted.length) >= 4 && (stocked.includes(wanted) || wanted.includes(stocked)));
     });
     if (index >= 0) {
@@ -395,6 +496,10 @@ export const priceHistory = (shops = []) => {
         change: previous === null ? null : Math.round((latest - previous) * 100) / 100,
         best,
         bestStore: entry.points.find((p) => p.price === best)?.store || null,
+        // Provenance: the date and store behind the latest figure, so a price
+        // always carries its own timestamp rather than a bare number.
+        latestDate: entry.points[entry.points.length - 1]?.date || null,
+        latestStore: entry.points[entry.points.length - 1]?.store || null,
         times: prices.length,
       };
     })

@@ -2,13 +2,12 @@
  * Progress and list helpers for the guided week loop.
  */
 
-import { weekDates } from './kitchen.js';
-import {
-  coveredByLeftovers,
+import { weekDates } from './kitchen.js';import { coveredByLeftovers,
   planEntries,
   planStats,
   shoppingForPlan,
 } from './mealplan.js';
+import { canonicalName } from './aliases.js';
 import { compareStores, groupForStore, savingsAvailable } from './shopping.js';
 import { WEEK_LOOP_STEPS } from '../data/weekLoop.js';
 
@@ -59,14 +58,12 @@ export const pantryCheckForPlan = (app, dates = weekDates(app.day)) => {
     (app.pantry || [])
       .filter((row) => {
         const c = String(row.confidence || "definite").toLowerCase();
-        const a = String(row.amountConfidence || (row.qty ? "approximate" : "unknown")).toLowerCase();
         if (c === "unknown") return false;
         if (row.low) return false;
-        if (c === "probable") return true;
-        if (a === "unknown") return false;
+        // Probable counts; definite counts even when the amount wasn't recorded.
         return true;
       })
-      .map((p) => String(p.name || '').toLowerCase()),
+      .map((p) => canonicalName(p.name, app.aliasMemory)),
   );
   const covered = need.filter((i) => sufficientNames.has(String(i.name).toLowerCase()));
   const missing = shoppingForPlan(app.plan || {}, dates, { pantry: app.pantry || [] });

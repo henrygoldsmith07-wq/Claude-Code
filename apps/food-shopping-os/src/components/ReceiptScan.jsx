@@ -37,7 +37,9 @@ export default function ReceiptScan({ onDone }) {
 
   const applyResult = (next) => {
     setResult(next);
-    setItems(next.items || []);
+    // Remember what OCR suggested so an edit can be taught back to entity
+    // resolution: "tomatos → tomatoes" makes every later scan/plan smarter.
+    setItems((next.items || []).map((item) => ({ ...item, original: item.name })));
   };
 
   const read = () => applyResult(parseReceipt(text));
@@ -80,11 +82,16 @@ export default function ReceiptScan({ onDone }) {
 
   const addToPantry = () => {
     if (!canEditPantry || hasBlankItem || hasInvalidNumber) return;
+    for (const item of items) {
+      const from = String(item.original || '').trim();
+      const to = String(item.name || '').trim();
+      if (from && to && from !== to) app.learnCorrection({ from, to });
+    }
     app.saveReceipt({
       store: result.store,
       date: result.date,
       total: hasPrintedTotal ? result.printedTotal : itemTotal,
-      items,
+      items: items.map(({ original, ...rest }) => rest),
     });
     onDone?.();
   };

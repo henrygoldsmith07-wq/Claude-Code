@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { DIET_PATTERNS } from '../data/goals.js';
+import { ALLERGENS, INTOLERANCES } from '../data/preferences.js';
 import { householdFromShareCode, householdShareCode } from '../lib/household.js';
 import { YOUTH_COPY } from '../lib/youth.js';
 import { Card, Chip, Pill, Stepper } from './ui.jsx';
@@ -170,6 +171,28 @@ function PeopleView() {
                 ))}
               </div>
             </div>
+
+            <AllergenSection
+              title="Allergies"
+              note="A hard line — recipes naming these are never offered to anyone in the household."
+              options={ALLERGENS}
+              selected={member.allergies || []}
+              onToggle={(value) => app.toggleMemberAllergy(member.id, value)}
+            />
+
+            <AllergenSection
+              title="Intolerances"
+              note="Dose-dependent — recipes flag these and rank down rather than disappearing."
+              options={INTOLERANCES}
+              selected={member.intolerances || []}
+              onToggle={(value) => app.toggleMemberIntolerance(member.id, value)}
+            />
+
+            <DislikeSection
+              member={member}
+              onAdd={(value) => app.toggleMemberDislike(member.id, value)}
+              onRemove={(value) => app.toggleMemberDislike(member.id, value)}
+            />
           </Card>
         );
       })}
@@ -198,6 +221,70 @@ function PeopleView() {
         </div>
       </Card>
     </>
+  );
+}
+
+function AllergenSection({ title, note, options, selected, onToggle }) {
+  return (
+    <div>
+      <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--faint)' }}>{title}</p>
+      <p className="mb-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{note}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <Chip
+            key={option.id}
+            active={selected.includes(option.id)}
+            onClick={() => onToggle(option.id)}
+          >
+            {option.label}
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DislikeSection({ member, onAdd, onRemove }) {
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    const value = draft.trim().toLowerCase();
+    if (!value || (member.dislikes || []).includes(value)) return;
+    onAdd(value);
+    setDraft('');
+  };
+  return (
+    <div>
+      <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--faint)' }}>Dislikes</p>
+      <p className="mb-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+        Things {member.name} doesn’t enjoy — dishes get ranked down, not removed.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {(member.dislikes || []).map((value) => (
+          <Chip key={value} active onClick={() => onRemove(value)}>
+            {value} ✕
+          </Chip>
+        ))}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => event.key === 'Enter' && add()}
+          placeholder="e.g. mushrooms"
+          aria-label={`Dislike for ${member.name}`}
+          className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-[0.8125rem] font-semibold outline-none"
+          style={{ background: 'var(--card-2)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+        />
+        <button
+          onClick={add}
+          disabled={!draft.trim()}
+          className="press rounded-xl px-3 py-2 text-[0.75rem] font-extrabold disabled:opacity-40"
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+        >
+          Add
+        </button>
+      </div>
+    </div>
   );
 }
 

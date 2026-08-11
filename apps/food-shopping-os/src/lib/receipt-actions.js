@@ -37,6 +37,7 @@ export const receiptActions = (set) => ({
           emoji: item.emoji || emojiFor(item.name),
           low: false,
           addedAt: state.day,
+          purchaseDate: shop.date,
           name: item.name,
           cat: 'Fresh',
           location: 'Cupboard',

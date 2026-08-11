@@ -183,7 +183,51 @@ export const makeItFit = (recipe, diet) =>
 export const suitabilityAfterSwap = (recipe, context = {}) =>
   evaluateFoodSuitability(recipe, suitabilityContextFrom(context));
 
+/* ---------- Dislikes → substitutions ---------- */
+
+/**
+ * If a dish contains something a household member dislikes, offer the
+ * substitute the app already knows — the same table that makes a dish vegan
+ * makes it "without the thing nobody will eat". Only swaps with a `why` are
+ * offered; a dislike is never silently removed.
+ */
+export const dislikeSwapsFor = (recipe, dislikes = []) => {
+  const terms = dislikes.map((d) => String(d).trim().toLowerCase()).filter(Boolean);
+  if (!terms.length || !recipe?.ingredients?.length) return [];
+  return recipe.ingredients
+    .map((line) => {
+      const name = String(line.name || '').trim();
+      const disliked = terms.find((term) => name.toLowerCase().includes(term));
+      if (!disliked) return null;
+      const options = substitutesFor(name);
+      return options.length ? { ingredient: name, disliked, options } : null;
+    })
+    .filter(Boolean);
+};
+
 /* ---------- Nutrition ---------- */
+
+/**
+ * How much the app can trust a dish's nutrition. A catalogue or label figure
+ * is 'label'; one computed from matched ingredients is 'estimated' with the
+ * matched share; a recipe with no ingredient match at all is 'unknown'.
+ */
+export const nutritionConfidence = (recipe) => {
+  if (!recipe) return { kind: 'unknown', label: 'Unknown — no nutrition recorded.' };
+  const matched = recipe.ingredients && recipe.ingredients.length
+    ? Math.round((recipe.ingredients.filter((i) => partByName(i.name)).length / recipe.ingredients.length) * 100)
+    : 0;
+  if (recipe.signature || recipe.per100 || recipe.nutritionSource === 'label') {
+    return { kind: 'label', label: 'From the recipe book / label — a stated figure, not an estimate.' };
+  }
+  if (matched >= 70) {
+    return { kind: 'estimated', label: `Estimated from ingredients (${matched}% matched to food tables).` };
+  }
+  if (matched > 0) {
+    return { kind: 'estimated', label: `Roughly estimated — only ${matched}% of ingredients matched food tables.` };
+  }
+  return { kind: 'unknown', label: 'Unknown — no ingredient nutrition was matched.' };
+};
 
 export const macroSplit = ({ protein = 0, carbs = 0, fat = 0 }) => {
   const parts = {
@@ -278,7 +322,7 @@ export const safeExternalUrl = (value) => {
   }
 };
 
-export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
+export const recipeFromImport = (result, { text = '', url = '', provenance = {} } = {}) => {
   const known = new Set((result.ingredients || []).map((i) => (i.line || '').trim()));
   const source = safeExternalUrl(url);
   const steps = String(text)
@@ -289,6 +333,13 @@ export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
 
   const per = result.perServing || {};
   const servings = Math.max(1, Number(result.servings) || 1);
+  const importedAt = new Date().toISOString();
+  const unread = Array.isArray(result.unread) ? result.unread.slice(0, 30).map(String) : [];
+  // Honest about what the import actually captured: a recipe with no method
+  // line, or ingredient lines it couldn't parse, is 'partial', never full.
+  const confidence = steps.length > 0 && (result.ingredients || []).length > 0 && !unread.length
+    ? 'full'
+    : 'partial';
   return {
     id: `mine-${slug(result.title)}`,
     name: result.title,
@@ -319,6 +370,16 @@ export const recipeFromImport = (result, { text = '', url = '' } = {}) => {
     source: source || null,
     video: isVideoLink(source) ? source : undefined,
     imported: true,
+    importedAt,
+    confidence,
+    unread,
+    // Where the import came from, when it was published and who wrote it —
+    // read off the page's own schema.org data, never invented.
+    provenance: {
+      author: provenance.author || null,
+      datePublished: provenance.datePublished || null,
+      yield: provenance.yield || null,
+    },
   };
 };
 

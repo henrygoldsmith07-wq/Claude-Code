@@ -198,6 +198,7 @@ export default function PriceCompare() {
                   {p.times === 1
                     ? 'Bought once — buy it again to see a trend.'
                     : `Bought ${p.times} times · cheapest ${gbp(p.best, { always: true })}${p.bestStore ? ` at ${p.bestStore}` : ''}`}
+                  {p.latestDate && ` · last paid ${p.latestDate}${p.latestStore ? ` at ${p.latestStore}` : ''}`}
                 </p>
               </Card>
             ))}
