@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const limited = checkRateLimit(request, { name: "reflect", limit: 20, windowMs: 60_000 });
   if (limited) return limited;
 
-  let body: { messages?: Message[]; apiKey?: string };
+  let body: { messages?: Message[]; apiKey?: string; entries?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -46,7 +46,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await getNextReflectionStep(messages, body.apiKey);
+    const entries = Array.isArray(body.entries) ? (body.entries as { id: string; coreEmotion: string | null; triggers: string[] }[]).slice(0, 8) : undefined;
+    // map lightweight entries hint into Entry-shaped objects for prompt diversity (no content leakage)
+    const entryHints = entries?.map((e) => ({
+      id: e.id,
+      createdAt: new Date().toISOString(),
+      title: "",
+      messages: [],
+      status: "complete" as const,
+      summary: e.coreEmotion || e.triggers.length ? {
+        trace: { event: "", observations: [], assumptions: [], namedEmotion: e.coreEmotion ?? "", alternativeInterpretations: [], intendedOutcome: "", intendedAction: "", predictedOutcome: "", followUpAt: null, followUpNote: null },
+        coreEmotion: e.coreEmotion ?? "",
+        underlyingTriggers: e.triggers,
+        possibleBiases: [],
+        otherPerspective: "", balancedAssessment: "", cautionFlags: [], suggestedNextSteps: [], hedgedDisclaimer: null,
+      } : null,
+    }));
+    const result = await getNextReflectionStep(messages, body.apiKey, { entries: entryHints as unknown as import("@/lib/types").Entry[] });
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reflection step failed";

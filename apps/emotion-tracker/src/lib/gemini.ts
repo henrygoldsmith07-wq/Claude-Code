@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Message, ReflectionSummary } from "./types";
+import type { Entry, Message, ReflectionSummary } from "./types";
 import { validateSummary } from "./validation";
+import { diverseQuestionHint, personalAdaptationHint } from "./promptDiversity";
 
 const MODEL = "claude-sonnet-5";
 const MIN_QUESTIONS = 3;
@@ -162,9 +163,16 @@ const CONCLUDE_TOOL = {
   },
 };
 
-export function buildSystemPrompt(questionsAskedSoFar: number): string {
+export function buildSystemPrompt(questionsAskedSoFar: number, opts?: { history?: Message[]; entries?: Entry[] }): string {
   const remaining = Math.max(0, MIN_QUESTIONS - questionsAskedSoFar);
+  const diversityHint = opts?.history ? diverseQuestionHint(opts.history) : null;
+  const personalHint = opts?.entries ? personalAdaptationHint(opts.entries) : null;
+  const antiRepetition = diversityHint
+    ? `\nPROMPT DIVERSITY — avoid repeating yourself: your next question should probe "${diversityHint}" (rephrase naturally, grounded in what the user just said; do not copy verbatim). Vary phrasing across turns.`
+    : "\nPROMPT DIVERSITY — vary your phrasing turn to turn; don't ask the same question twice.";
+  const personalSection = personalHint ? `\nPERSONAL ADAPTATION (hedged, tentative): ${personalHint}` : "";
   return `You are a rigorous, compassionate reflection guide inside Reflect — a structured reflection tool (not a mood tracker, not a Bearable-style tracker). Your job is to challenge interpretations helpfully, not merely log a mood.
+${antiRepetition}${personalSection}
 
 STRUCTURED PIPELINE — keep the conversation on this track:
   event → observations → assumptions → emotion → alternative interpretations → intended outcome → action → predicted outcome → later follow-up
@@ -205,20 +213,24 @@ export type ReflectStep =
   | { step: "question"; question: string }
   | { step: "summary"; summary: ReflectionSummary };
 
-export async function getNextReflectionStep(messages: Message[], apiKey?: string): Promise<ReflectStep> {
+export async function getNextReflectionStep(
+  messages: Message[],
+  apiKey?: string,
+  opts?: { entries?: Entry[] },
+): Promise<ReflectStep> {
   const anthropic = getClient(apiKey);
   const questionsAskedSoFar = messages.filter((m) => m.role === "assistant").length;
 
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1800,
-    system: buildSystemPrompt(questionsAskedSoFar),
+    system: buildSystemPrompt(questionsAskedSoFar, { history: messages, entries: opts?.entries }),
     tools: [ASK_TOOL, CONCLUDE_TOOL],
     tool_choice: { type: "auto" },
     messages: toAnthropicMessages(messages),
   });
 
-  const toolUse = response.content.find((block) => block.type === "tool_use");
+  const toolUse = response.content.find((block: { type: string }) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
     throw new Error("Claude did not return a structured response");
   }
