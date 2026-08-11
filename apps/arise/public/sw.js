@@ -1,7 +1,7 @@
 // Minimal offline shell: cache the app shell on install, serve cache-first for navigations.
-// Keep it small and safe — no opaque caching of external APIs.
+// PWA lifecycle: versioned cache, skipWaiting + controllerchange, offline-first preserved.
 
-const CACHE = 'arise-v1';
+const CACHE = 'arise-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -18,10 +18,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // Only handle same-origin
   if (url.origin !== location.origin) return;
-
-  // Navigation: cache-first, fallback to network, then cache index.html
   if (req.mode === 'navigate') {
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
@@ -32,8 +29,6 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-
-  // Assets: stale-while-revalidate
   e.respondWith(
     caches.match(req).then((hit) => {
       const fetchPromise = fetch(req).then((res) => {
@@ -48,4 +43,7 @@ self.addEventListener('fetch', (e) => {
   );
 });
 
-self.addEventListener('message', (e)=>{ if(e.data==='SKIP_WAITING') self.skipWaiting(); });
+self.addEventListener('message', (e)=>{
+  if(e.data==='SKIP_WAITING') self.skipWaiting();
+  if(e.data && e.data.type==='GET_VERSION') e.ports?.[0]?.postMessage({ version: CACHE });
+});

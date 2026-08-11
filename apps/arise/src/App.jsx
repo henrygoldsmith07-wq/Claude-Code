@@ -9,12 +9,15 @@ import SessionRunner from './components/SessionRunner.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import { loadStore, saveStore } from './lib/store.js';
 import { recommendExercises } from './lib/data.js';
+import { recordEvent } from './lib/telemetry.js';
+import { pushToPulse } from './lib/pulse.js';
 
 export default function App(){
   const [store,setStoreState]=useState(()=> loadStore());
   const [tab,setTab]=useState('today');
   const [activeSession,setActiveSession]=useState(null);
   const [onboardingOpen,setOnboardingOpen]=useState(()=> !loadStore().onboarding);
+  const [updateReady,setUpdateReady]=useState(false);
 
   const setStore = (next)=>{
     setStoreState(next);
@@ -25,11 +28,38 @@ export default function App(){
     saveStore(store);
   },[store]);
 
-  // theme: null follows OS
   useEffect(()=>{
     const isDark = store.preferences?.theme ? store.preferences.theme==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.classList.toggle('dark', isDark);
   },[store.preferences?.theme]);
+
+  // PWA lifecycle: listen for SW update
+  useEffect(()=>{
+    if(!('serviceWorker' in navigator)) return;
+    let reg;
+    navigator.serviceWorker.getRegistration().then(r=> { reg=r; });
+    const onControllerChange = ()=> window.location.reload();
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    // Check for waiting SW on load
+    navigator.serviceWorker.getRegistration().then(r=>{
+      if(r?.waiting) setUpdateReady(true);
+      if(r) r.addEventListener('updatefound', ()=>{
+        const nw = r.installing;
+        if(nw) nw.addEventListener('statechange', ()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) setUpdateReady(true); });
+      });
+    });
+    return ()=> navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+  },[]);
+
+  // Global error telemetry (privacy-gated, local only)
+  useEffect(()=>{
+    const onError = (e)=>{
+      try { recordEvent('error', { message: String(e.message||e.error||e), at: new Date().toISOString() }); } catch {}
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', (e)=> onError(e.reason||e));
+    return ()=> { window.removeEventListener('error', onError); window.removeEventListener('unhandledrejection', onError); };
+  },[]);
 
   const recs = useMemo(()=>{
     if(!store.onboarding) return [];
@@ -43,10 +73,10 @@ export default function App(){
 
   const handleStartSession = (session)=>{
     setActiveSession(session);
+    try { recordEvent('session:start', { sessionId: session.id, title: session.title }); } catch {}
   };
 
   const handleSaveSession = (payload)=>{
-    // Append to history and mark schedule done
     let next = { ...store };
     const hist = [...(next.history||[]), payload];
     let activeSchedule = next.activeSchedule;
@@ -57,10 +87,36 @@ export default function App(){
     setStore(next);
     setActiveSession(null);
     setTab('progress');
+    try { recordEvent('session:complete', { sessionId: payload.id, blocks: payload.blocks.length }); } catch {}
+    // Pulse push if enabled and adapter present (adapter injected via window.__PULSE_ADAPTER__ for now)
+    try {
+      const adapter = typeof window !== 'undefined' ? window.__PULSE_ADAPTER__ : null;
+      if(next.preferences?.pulseEnabled && adapter) pushToPulse(payload, hist, adapter);
+    } catch {}
+  };
+  const handleCancelSession = ()=>{
+    if(activeSession) try { recordEvent('session:abandon', { sessionId: activeSession.id }); } catch {}
+    setActiveSession(null);
+  };
+
+  const applyUpdate = ()=>{
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistration().then(r=>{
+        if(r?.waiting) r.waiting.postMessage('SKIP_WAITING');
+        else window.location.reload();
+      });
+    }
   };
 
   return (
     <AppShell tab={tab} setTab={setTab} storeVersion={store.version}>
+      {updateReady && (
+        <div className="mx-4 mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 flex items-center gap-2 text-xs">
+          <span className="font-bold">Update available</span>
+          <span className="text-ink3">New version cached — reload to apply.</span>
+          <button onClick={applyUpdate} className="ml-auto btn btn-primary min-h-8 rounded-xl px-3 text-xs">Update</button>
+        </div>
+      )}
       {tab==='today' && (
         <TodayView
           store={store}
@@ -98,7 +154,7 @@ export default function App(){
       {tab==='more' && <MoreView store={store} setStore={setStore} setTab={setTab} onboardingOpen={onboardingOpen} setOnboardingOpen={setOnboardingOpen} />}
 
       {activeSession && (
-        <SessionRunner session={activeSession} history={store.history || []} onSave={handleSaveSession} onCancel={()=> setActiveSession(null)} />
+        <SessionRunner session={activeSession} history={store.history || []} onSave={handleSaveSession} onCancel={handleCancelSession} />
       )}
 
       <Onboarding
