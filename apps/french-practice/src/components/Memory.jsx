@@ -129,6 +129,7 @@ export default function Memory({ onBack, onOpenDeck, onXp }) {
           <Heatmap log={log} />
         </div>
 
+        <FsrsLegend />
         {/* the learning science behind it all */}
         <TheScience />
       </div>
@@ -140,7 +141,7 @@ export default function Memory({ onBack, onOpenDeck, onXp }) {
 // review system is built on, so learners trust (and lean into) the approach.
 function TheScience() {
   const points = [
-    ['Spaced repetition (SM-2)', 'Cards return on an expanding schedule tuned to your ease rating — the SuperMemo/Anki method, the most studied way to retain more in less time.'],
+    ['Spaced repetition (FSRS 4.5)', 'Evidence-based scheduler (Stability, Difficulty, Retrievability) — now with separate receptive/productive queues; falls back to SM-2 for legacy cards.'],
     ['Retrieval practice', 'You recall before you check. Effortful retrieval — not re-reading — is what builds durable memory (the “testing effect”).'],
     ['Desirable difficulty', 'The queue serves each card just as it nears the forgetting threshold, where one review does the most work.'],
     ['Interleaving', 'Due words are mixed across packs rather than blocked by topic, which improves discrimination and transfer.'],
@@ -225,6 +226,7 @@ function MistakeReview({ habits, onChange, onXp }) {
   );
 }
 
+function FsrsLegend(){ return (<div className="bg-surface border border-line rounded-2xl p-4 space-y-2"><h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">FSRS recall</h3><p className="text-[11px] text-ink3 leading-snug">FSRS predicts <em>R = e^(ln 0.9 · t / S)</em> recall from Stability S. Productive (EN→FR) unlocks after 2 good receptive reviews so production is tested once recognition is stable. Old SM-2 cards migrate on next rating.</p></div>); }
 function Heatmap({ log }) {
   const grid = useMemo(() => heatmapWeeks(log, 15), [log]);
   const shades = [

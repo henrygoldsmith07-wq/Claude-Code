@@ -44,7 +44,7 @@ const shuffle = (arr) => {
 
 const MODES = ['choice', 'produce', 'listen'];
 
-export default function VocabQuiz({ deck, library, title, onRate, onXp, onActivity, onBack }) {
+export default function VocabQuiz({ deck, library, title, onRate, onXp, onActivity, onBack, cardMode='receptive' }) {
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState(null); // null | 'right' | 'wrong'
@@ -103,7 +103,7 @@ export default function VocabQuiz({ deck, library, title, onRate, onXp, onActivi
     if (result) return; // already answered
     setResult(correct ? 'right' : 'wrong');
     setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
-    rateCard(entry.id, correct ? 'good' : 'again');
+    rateCard(entry.id, correct ? 'good' : 'again', { mode: cardMode });
     onRate?.();
     onActivity?.({ type: 'cards', rating: correct ? 'good' : 'again' });
     if (correct) onXp?.(5);

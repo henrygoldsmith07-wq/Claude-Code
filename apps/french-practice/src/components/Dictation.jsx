@@ -1,14 +1,20 @@
 import { useMemo, useState } from 'react';
 import { randomPoolSentence as randomSentence, toWords, diffWords } from '../lib/sentences';
-import { recordSkillScore } from '../lib/storage';
+import { recordSkillScore, getSrs } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { Play, Volume, RefreshCw, Check } from './icons';
+import { dictationSpeed, diacriticStrict, levelForSrs, DICTATION_LEVELS } from '../lib/dictationProgression';
+import { allEntries } from '../lib/vocab';
 
 // Dictée: pure listening drill. The app speaks a French sentence the learner
 // cannot see; they type what they heard and get a word-level diff + accuracy
 // score. Everything runs locally (TTS + diff) — no API calls.
 
 export default function Dictation({ ttsRate, onXp, onActivity }) {
+  const level = (()=>{ try{ return levelForSrs(getSrs(), allEntries()); }catch{ return 1; } })();
+  const lvlMeta = DICTATION_LEVELS.find(l=> l.id===level) || DICTATION_LEVELS[0];
+  const speed = dictationSpeed(level);
+  const strict = diacriticStrict(level);
   const [sentence, setSentence] = useState(() => randomSentence());
   const [input, setInput] = useState('');
   const [played, setPlayed] = useState(false);
@@ -18,7 +24,8 @@ export default function Dictation({ ttsRate, onXp, onActivity }) {
 
   const play = (slow) => {
     stopSpeaking();
-    speak(sentence.text, { rate: slow ? Math.min(ttsRate, 0.75) : ttsRate });
+    const rate = slow ? Math.min(ttsRate, 0.75) : Math.min(ttsRate, speed);
+    speak(sentence.text, { rate });
     setPlayed(true);
   };
 
@@ -57,7 +64,7 @@ export default function Dictation({ ttsRate, onXp, onActivity }) {
         <div>
           <h2 className="text-lg font-semibold text-ink">Dictée</h2>
           <p className="text-xs text-ink2 mt-1">
-            Listen to the French sentence, then type exactly what you heard. Accents count.
+            Level {level} — {lvlMeta.label}: {lvlMeta.hint} · {strict ? 'accents strict' : 'accents lenient'} · {speed}×
           </p>
         </div>
 

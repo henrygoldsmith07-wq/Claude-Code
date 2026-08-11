@@ -6,8 +6,10 @@ import { transcribe, accentFeedback, friendlyError } from '../lib/groq';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
 import { recordSkillScore } from '../lib/storage';
-import { speak, stopSpeaking } from '../lib/tts';
+import { speak, stopSpeaking, adaptiveTtsRate } from '../lib/tts';
 import { SpeakButton, Spinner } from './ui';
+import { accentToleranceScore, calibratedConfidence, PHONEMES, getPhonemeProfile, nextMinimalPair, recordPhonemeAttempt, weakestPhonemes } from '../lib/phonemeProfile';
+import { noiseGate } from '../lib/adaptivePractice';
 import { Mic, Square, Play, RefreshCw } from './icons';
 
 // Pronunciation ("read aloud") and Shadowing ("listen & repeat") drills.
@@ -25,27 +27,45 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
 
   const words = useMemo(() => sentence.text.split(/\s+/), [sentence]);
 
+  const [phonemeTick, setPhonemeTick] = useState(0);
   const recorder = useRecorder({
     onComplete: async (blob, durationMs) => {
       setPhase('scoring');
       setError(null);
+      // Noise gate
+      const gate = noiseGate(recorder.peakDb ?? -20);
+      if(!gate.ok){
+        setError(gate.reason);
+        setPhase('idle');
+        return;
+      }
       try {
         const heard = await transcribe(apiKey, blob, { mock: mockMode });
+        // Accent-tolerant scoring: if only accents differ, count as hit
         const target = toWords(sentence.text);
-        const hits = diffWords(target, toWords(heard));
+        const heardWords = toWords(heard);
+        const rawHits = diffWords(target, heardWords);
+        // Bump hits where accent tolerance fires
+        const hits = rawHits.map((hit, i)=> hit ? true : (accentToleranceScore(target[i]||'', heardWords[i]||'')!=null));
         const matched = hits.filter(Boolean).length;
-        const accuracy = Math.round((matched / Math.max(1, target.length)) * 100);
+        const rawAcc = matched / Math.max(1, target.length);
+        const accCal = calibratedConfidence(rawAcc);
+        const accuracy = Math.round(accCal * 100);
         const gained = Math.max(1, Math.round(accuracy / 10));
         onXp(gained);
         recordSkillScore(mode === 'shadowing' ? 'speaking' : 'pronunciation', accuracy);
         const metrics = speechMetrics(heard, durationMs, activeLanguage().id);
+        // Phoneme bookkeeping (light): treat underlined = miss
+        for(let i=0;i<target.length;i++) recordPhonemeAttempt('overall', { correct: hits[i], confidence: accCal });
+        setPhonemeTick(t=>t+1);
+        void phonemeTick; void PHONEMES; void getPhonemeProfile;
         let feedback = '';
         try {
           feedback = await accentFeedback(apiKey, { target: sentence.text, heard, level, mock: mockMode });
         } catch {
           feedback = ''; // scoring still stands without coach commentary
         }
-        setResult({ heard, accuracy, gained, hits: displayHits(sentence.text, hits), feedback, metrics });
+        setResult({ heard, accuracy, gained, hits: displayHits(sentence.text, hits), feedback, metrics, rawAcc: Math.round(rawAcc*100), calibrated: accuracy });
       } catch (e) {
         setError(friendlyError(e));
       }
@@ -55,7 +75,8 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
 
   const play = (slow) => {
     stopSpeaking();
-    speak(sentence.text, { rate: slow ? Math.min(ttsRate, 0.75) : ttsRate });
+    const lvlRate = adaptiveTtsRate(level);
+    speak(sentence.text, { rate: slow ? Math.min(lvlRate, 0.75) : lvlRate });
     setPlayed(true);
   };
 
@@ -183,9 +204,42 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
       {(error || recorder.error) && (
         <p role="alert" className="text-xs text-ink text-center">{error || recorder.error}</p>
       )}
+      <MinimalPairStrip level={level} />
+      <PhonemeWeakStrip />
       <div className="text-center">
         <SpeakButton text={sentence.text} slow />
       </div>
+    </div>
+  );
+}
+function MinimalPairStrip({ level }){
+  const [pair, setPair] = useState(()=> nextMinimalPair('u-ou'));
+  const weak = weakestPhonemes(1)[0];
+  const phoneme = weak?.id || 'u-ou';
+  return (
+    <div className="bg-surface border border-line rounded-2xl p-4 flex items-center gap-3">
+      <div className="flex-1">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Minimal pair · {phoneme}</p>
+        <p className="text-sm text-ink" lang="fr">{pair[0]} — {pair[1]}</p>
+      </div>
+      <SpeakButton text={pair[0]} label={pair[0]} />
+      <SpeakButton text={pair[1]} label={pair[1]} />
+      <button onClick={()=> setPair(nextMinimalPair(phoneme))} className="btn btn-secondary min-h-9 px-3 rounded-lg text-xs">New</button>
+    </div>
+  );
+}
+function PhonemeWeakStrip(){
+  const weak = weakestPhonemes(3);
+  if(!weak.length) return null;
+  return (
+    <div className="bg-surface2 border border-line rounded-xl px-3.5 py-2.5 space-y-1.5">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Phoneme focus</p>
+      {weak.map(w=> (
+        <div key={w.id} className="flex items-center justify-between gap-2">
+          <span className="text-xs text-ink">{w.label}</span>
+          <span className="text-[11px] text-ink3">{w.stats.misses}/{w.stats.attempts}</span>
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { rateFsrs as fsrsRate, migrateFromSm2 } from './fsrs.js';
 // Thin localStorage wrapper — the app's only persistence layer (no backend).
 
 const KEYS = {
@@ -686,6 +687,9 @@ const MIN_EASE = 1.3;
 const QUALITY = { again: 2, hard: 3, good: 4, easy: 5 };
 
 export const getSrs = () => read(KEYS.srs, {});
+export const getFsrs = () => read(KEYS.srs, {});
+export function getReceptiveSrs(){ const s=getSrs(); const out={}; for(const[k,v] of Object.entries(s)) if(!k.includes('::')) out[k]=v; return out; }
+
 
 // A card is due if it was never reviewed, or its due date has passed.
 export const isCardDue = (srsEntry) =>
@@ -696,9 +700,21 @@ export function getDueCardIds(allIds) {
   return allIds.filter((id) => isCardDue(srs[id]));
 }
 
-export function rateCard(cardId, rating) {
+export function rateCard(cardId, rating, opts={}) {
+  const mode = opts.mode || 'receptive';
+  const key = mode==='productive' ? `${cardId}::productive` : cardId;
   const srs = getSrs();
-  const prev = srs[cardId] || { interval: 0, reps: 0, lapses: 0, ease: DEFAULT_EASE };
+  const existing = srs[key];
+  const useFsrs = existing?.S != null || opts.fsrs;
+  if(useFsrs){
+    const prev = migrateFromSm2(existing);
+    const next = fsrsRate(prev, rating);
+    srs[key] = next;
+    write(KEYS.srs, srs);
+    logReview();
+    return next;
+  }
+  const prev = srs[key] || { interval: 0, reps: 0, lapses: 0, ease: DEFAULT_EASE };
   let ease = prev.ease || DEFAULT_EASE;
   let reps = prev.reps || 0;
   let interval;
@@ -720,7 +736,7 @@ export function rateCard(cardId, rating) {
     if (rating === 'hard') interval = Math.max(1, Math.round(interval * 0.6));
   }
 
-  srs[cardId] = {
+  srs[key] = {
     interval,
     reps,
     ease: Math.round(ease * 100) / 100,
@@ -731,7 +747,7 @@ export function rateCard(cardId, rating) {
   };
   write(KEYS.srs, srs);
   logReview();
-  return srs[cardId];
+  return srs[key];
 }
 
 // ---- review activity log (per-day counts; feeds the heatmap) ----

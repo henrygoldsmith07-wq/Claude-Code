@@ -9,6 +9,8 @@ import VocabCard from './VocabCard';
 import VocabQuiz from './VocabQuiz';
 import Memory from './Memory';
 import { weakEntries, notebookAsEntries, reviewOrder, dueEntries, frontierTier, isEntryDue } from '../lib/memory';
+import { fsrsRetention, isProductiveUnlocked } from '../lib/fsrs';
+import { activeVocabTarget, controlledNewVocab } from '../lib/adaptivePractice';
 import { SpeakButton } from './ui';
 import { ChevronLeft, ChevronRight, Layers, Book, Plus, Trash, BarChart, Clock, Search, Target } from './icons';
 
@@ -271,6 +273,7 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
   const [index, setIndex] = useState(0);
   const [savedTick, setSavedTick] = useState(0);
   const [study, setStudy] = useState('cards'); // cards | quiz
+  const [cardMode, setCardMode] = useState('receptive'); // receptive | productive — FSRS dual-mastery
 
   // Virtual packs: 'review' = every due card (packs + notebook), 'weak' =
   // high-lapse stumblers, 'notebook' = the learner's custom flashcards.
@@ -325,17 +328,22 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
         onXp={onXp}
         onActivity={onActivity}
         onBack={() => setStudy('cards')}
+        cardMode={cardMode}
       />
     );
   }
 
   const entry = deck[Math.min(index, deck.length - 1)];
-  const cardSrs = srs[entry.id];
+  const receptiveKey = entry.id;
+  const productiveKey = `${entry.id}::productive`;
+  const cardSrs = cardMode === 'productive' ? (srs[productiveKey] || null) : srs[receptiveKey];
   void savedTick;
   const saved = isInNotebook(entry.id);
+  const productiveReady = isProductiveUnlocked(srs, entry.id);
+  const retention = cardSrs ? fsrsRetention(cardSrs) : null;
 
   const rate = (rating) => {
-    rateCard(entry.id, rating);
+    rateCard(entry.id, rating, { mode: cardMode, fsrs: Boolean(cardSrs?.S != null) });
     onRated();
     onActivity?.({ type: 'cards', rating });
     setTimeout(() => setIndex((i) => (i + 1) % deck.length), 250);
@@ -389,10 +397,26 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
             <Target size={12} /> Quiz
           </button>
         </div>
+        <div className="flex gap-1 p-1 bg-surface border border-line rounded-full" role="tablist" aria-label="Card direction">
+          {['receptive','productive'].map(m=> (
+            <button key={m} role="tab" aria-selected={cardMode===m} disabled={m==='productive' && !productiveReady}
+              onClick={()=> setCardMode(m)}
+              title={m==='productive' && !productiveReady ? 'Unlocks after 2 successful receptive reviews' : undefined}
+              className={`flex-1 py-1 rounded-full text-[11px] font-semibold ${cardMode===m ? 'bg-ink text-bg' : 'text-ink3'} ${m==='productive' && !productiveReady ? 'opacity-40' : ''}`}>
+              {m==='receptive' ? 'FR→EN' : 'EN→FR'}
+            </button>
+          ))}
+        </div>
+        {retention!=null && (
+          <p className="text-[11px] text-ink3 text-center">Predicted recall: {Math.round(retention*100)}% · {cardMode} · {cardSrs.D!=null ? `D${cardSrs.D} S${cardSrs.S}d` : `ease ${cardSrs.ease}`}</p>
+        )}
+        {cardMode==='productive' && !productiveReady && (
+          <p className="text-[11px] text-ink3 text-center">Produce mode unlocks after 2 good receptive reviews.</p>
+        )}
 
         <VocabCard
-          key={entry.id}
-          entry={entry}
+          key={`${entry.id}::${cardMode}`}
+          entry={cardMode==='productive' ? { ...entry, fr: entry.en, en: entry.fr } : entry}
           cardDue={isCardDue(cardSrs)}
           saved={saved}
           onRate={rate}
