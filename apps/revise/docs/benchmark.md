@@ -2,6 +2,13 @@
 
 Revise owns its claims with numbers. This doc records the harnesses, the invariants and the honest limits.
 
+> **Live ledger:** the same harnesses run in the browser at [/benchmarks](/benchmarks) —
+> `syntheticOutcomePairs` → `benchmarkRecommendationQuality` and
+> `syntheticCalibrationOutcomes` → `calibrationReport`, with seed/n controls,
+> so the page can never drift from the code. The [/case-study](/case-study) narrates
+> the 6-engine design and links back here. See `src/app/benchmarks/page.tsx`.
+
+
 ## Recommendation quality (synthetic → real)
 
 *Source:* `src/domain/recommender.ts` — `syntheticOutcomePairs`, `benchmarkRecommendationQuality`; `tests/recommender.benchmark.test.ts`.
@@ -35,25 +42,37 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 *Source:* `scripts/validate-curriculum.mjs`, `src/domain/content-review.ts`, `tests/coverage.test.ts`.
 
 - Every topic has `specPoints` on every unit; every `specPointIds` is paired with `learningClaims`; stale topics (>365d) and unverified statements are surfaced by `regressionReport`.
-- CI gate: `node scripts/validate-curriculum.mjs` — 110 topics / 142 questions today.
+- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 142 questions today (8 boards×levels, tree-shakable modules).
+- Visual regression: `e2e/visual.spec.ts` guards the Today shell (2% tolerance, `e2e/__screenshots__/`); update with `--update-snapshots`.
+
 
 ## Offline & sync invariants
 
-*Source:* `src/data/sync.ts`, `tests/sync.test.ts`.
+*Source:* `src/data/sync.ts`, `tests/sync.test.ts`, `e2e/offline.spec.ts`.
 
 - IndexedDB is the source of truth; Supabase is a replica drained via an outbox.
-- Outbox batches per entity; last-write-wins per row on `updatedAt`; FSRS state resolves to the later review row. E2E smoke in `tests/sync.test.ts` covers onboarding → seed → due queue → grade → mistake loop without a browser; full Playwright offline harness lives in `e2e/`.
+- Outbox batches per entity; last-write-wins per row on `updatedAt`; FSRS state resolves to the later review row.
+- E2E smoke in `tests/sync.test.ts` covers onboarding → seed → due queue → grade → mistake loop without a browser; full Playwright offline harness in `e2e/offline.spec.ts` covers the same walk with a browser plus offline banner + keyboard (skip-link) + search overlay. CI runs it conditionally (see `.github/workflows/revise.yml`); the node smoke remains the gate when Playwright is not installed.
+
+## Public ledger & portability
+
+*Source:* `src/app/benchmarks/page.tsx` (`/benchmarks`), `src/app/case-study/page.tsx` (`/case-study`), `src/components/AppShell.tsx`, `src/domain/portability.ts`, `tests/phase8-public.test.ts`.
+
+- `/benchmarks` recomputes the recommendation-quality + calibration reports live from CI's deterministic harnesses; real `(predicted, actual)` replaces synthetic with no page change.
+- `/case-study` is a static narrative (scoring, FSRS, mastery, marking, mistake loop, grades) with the reproduce block so a reader can verify locally.
+- `Settings → Data` offers `buildPortabilitySnapshot` (GDPR Art. 20, single JSON, scheduling intact) and `deletionPreview` + `privacyDisclosure` (Art. 17, local-only privacy). Pinned by 8 tests.
 
 ## Performance & security floors
 
-*Source:* `tests/perf.test.ts`, `tests/security.test.ts`, `next.config.ts`.
+*Source:* `tests/perf.test.ts`, `tests/security.test.ts`, `next.config.ts`, `public/sw.js`.
 
-- Perf budgets: curriculum modules and domain files are size-capped; curriculum validation < 1.5s.
+- Perf budgets: curriculum modules (≤100k) and domain files (≤120k) are size-capped; curriculum validation < 1.5s; build artifact < 80MB.
+- Lighthouse/PWA fences: `next.config.ts` pins `/_next/static` immutable, `/api/*` no-store, `/sw.js` no-cache; `public/sw.js` precaches the app shell and never caches `/api/*`.
 - Security: RLS enabled on every user-owned table (`with check user_id = auth.uid()`), plus `updated_at` trigger and hostile-import clamping (`deck-io`).
 
 ## Case studies (synthetic now, real cohorts later)
 
-The product ships with synthetic longitudinal histories. Once timetabled-paper → later-paper outcomes exist, this section will carry:
+The product ships with synthetic longitudinal histories *and* a live ledger that makes them checkable at `/benchmarks`. Once timetabled-paper → later-paper outcomes exist, this section (and that page) will carry:
 
 - Cohort: n, weeks, board, grade movement, MAE/bias/correlation before and after each engine change.
-- The method will be the same harnesses above; numbers will be from observed `(predicted, actual)` rather than synthetic.
+- The method will be the same harnesses above; numbers will be from observed `(predicted, actual)` rather than synthetic — same functions, real pairs.

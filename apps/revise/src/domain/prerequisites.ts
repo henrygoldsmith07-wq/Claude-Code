@@ -97,6 +97,81 @@ export function dependencyReport(input: { topics: Topic[]; mastery: TopicMastery
   return out;
 }
 
+/** Data-driven prerequisite inference — real usage only, gated on sample size.
+ *
+ *  When enough attempts exist, downstream topics that consistently underperform
+ *  while a candidate prerequisite is also weak surface as a suggested edge.
+ *  Curated edges always win; inferred edges are suggestions for review, not
+ *  auto-inserted into the graph.
+ */
+export interface InferredEdge extends PrerequisiteEdge {
+  confidence: "low" | "medium" | "high";
+  evidence: number;
+  downstreamSuccessWhenPrereqWeak: number | null;
+  downstreamSuccessWhenPrereqOk: number | null;
+  gap: number | null;
+}
+
+export function inferPrerequisiteEdges(input: {
+  topics: Topic[];
+  mastery: TopicMastery[];
+  attemptsByTopic?: Map<Id, import("./types").Attempt[]>;
+  minAttempts?: number;
+}): InferredEdge[] {
+  const minAttempts = input.minAttempts ?? 5;
+  const masteryById = new Map(input.mastery.map((m) => [m.topicId, m.mastery]));
+  const attemptsByTopic = input.attemptsByTopic;
+  // Candidate pairs: every ordered topic pair within the same subject that is not already an edge
+  const subjectBuckets = new Map<Id, Topic[]>();
+  for (const t of input.topics) {
+    const list = subjectBuckets.get(t.subjectId) ?? [];
+    list.push(t);
+    subjectBuckets.set(t.subjectId, list);
+  }
+  const existing = new Set(EDGES.map((e) => `${e.topicId}<-${e.prerequisiteId}`));
+  const out: InferredEdge[] = [];
+  for (const [, bucket] of subjectBuckets) {
+    for (const downstream of bucket) {
+      for (const prereq of bucket) {
+        if (downstream.id === prereq.id) continue;
+        const key = `${downstream.id}<-${prereq.id}`;
+        if (existing.has(key)) continue;
+        const dMastery = masteryById.get(downstream.id);
+        const pMastery = masteryById.get(prereq.id);
+        if (dMastery == null || pMastery == null) continue;
+        // Need enough attempts on downstream to measure
+        const dAtts = attemptsByTopic?.get(downstream.id) ?? [];
+        if (dAtts.length < minAttempts) continue;
+        // Heuristic: downstream weak + prereq weak much more often than downstream weak + prereq ok
+        // gap is negative when prereq is weaker than downstream (prereq - downstream)
+        const gap = pMastery - dMastery;
+        // Only surface when prereq is materially weaker than downstream
+        if (pMastery >= 0.55) continue;
+        if (dMastery >= 0.6) continue; // downstream not weak → no block
+        if (gap > -0.08) continue; // prereq not meaningfully weaker
+        const downstreamSuccessWhenPrereqWeak = dMastery;
+        const downstreamSuccessWhenPrereqOk = null; // not enough stratification without per-attempt time series
+        const evidence = dAtts.length;
+        const confidence: InferredEdge["confidence"] = evidence >= 10 && gap < -0.18 ? "high" : evidence >= 7 ? "medium" : "low";
+        out.push({
+          topicId: downstream.id,
+          prerequisiteId: prereq.id,
+          reason: `Data suggests ${prereq.title} is a prerequisite for ${downstream.title} — downstream is weak (${Math.round(dMastery * 100)}%) while the prerequisite is weaker (${Math.round(pMastery * 100)}%).`,
+          confidence,
+          evidence,
+          downstreamSuccessWhenPrereqWeak,
+          downstreamSuccessWhenPrereqOk,
+          gap: Math.round(gap * 1000) / 1000,
+        });
+      }
+    }
+  }
+  // Most negative gap first (strongest block)
+  out.sort((a, b) => (a.gap ?? 0) - (b.gap ?? 0));
+  // Cap to top 12 so review stays focused
+  return out.slice(0, 12);
+}
+
 /**
  * Pick the highest-leverage prerequisite to fix first among weak topics that
  * are blocked. Returns null when no blocked weak topic exists.

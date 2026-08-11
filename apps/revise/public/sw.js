@@ -4,8 +4,30 @@
 // only job is making sure the app itself loads with no network. Bump
 // CACHE_VERSION to invalidate previously cached shells.
 
-const CACHE_VERSION = "revise-v1";
-const APP_SHELL = ["/", "/review", "/practice", "/planner", "/progress", "/library", "/manifest.webmanifest", "/icon.svg"];
+const CACHE_VERSION = "revise-v2";
+// Precaches every App Router shell so the whole app loads offline.
+// Keep this in sync with src/app/*/page.tsx — tests/perf.test.ts fails when a
+// route is missing, and scripts/validate-curriculum.mjs also reports drift.
+const APP_SHELL = [
+  "/",
+  "/benchmarks",
+  "/cards",
+  "/case-study",
+  "/generate",
+  "/library",
+  "/papers",
+  "/planner",
+  "/practice",
+  "/progress",
+  "/review",
+  "/settings",
+  "/shared",
+  "/study",
+  "/tutor",
+  "/manifest.webmanifest",
+  "/icon.svg",
+  "/icon-maskable.svg",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

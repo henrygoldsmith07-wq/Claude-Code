@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { aiStatus } from "@/ai/client";
 import { allSubjects, subjectLabel } from "@/domain/curriculum";
+import { buildPortabilitySnapshot, deletionPreview, portabilityFilename, privacyDisclosure } from "@/domain/portability";
 import { clearAll } from "@/data/db";
 import { getSupabase, isSupabaseConfigured } from "@/data/supabase";
 import { useStore } from "@/state/store";
 import { Button, Field, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
+import Link from "next/link";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -210,25 +212,20 @@ export default function SettingsPage() {
 
       <Account />
 
+      <DataControls />
+
       <section>
-        <SectionHeading title="Data" hint="Everything is stored on this device first." />
-        <Panel className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => exportData(store)}>Export my data</Button>
-            <Button
-              onClick={async () => {
-                if (!confirm("Erase every card, attempt, mistake and plan on this device? This cannot be undone.")) return;
-                await clearAll();
-                location.reload();
-              }}
-            >
-              Erase local data
-            </Button>
-          </div>
-          <p className="text-[11px] text-ink3">
-            {isSupabaseConfigured
-              ? "Erasing local data does not delete anything already synced to your account."
-              : "Sync is not configured, so this device holds the only copy — export before erasing."}
+        <SectionHeading title="Privacy" hint="What leaves this device, and what never does." />
+        <Panel>
+          <ul className="text-xs text-ink2 space-y-1 list-disc list-inside">
+            {privacyDisclosure(isSupabaseConfigured).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-ink3 mt-3">
+            More: <Link className="underline" href="/benchmarks">Benchmarks</Link> ·{" "}
+            <Link className="underline" href="/case-study">Case study</Link> ·{" "}
+            <a className="underline" href="/docs/benchmark.md">Benchmark docs</a>
           </p>
         </Panel>
       </section>
@@ -314,7 +311,76 @@ function Account() {
   );
 }
 
-function exportData(store: ReturnType<typeof useStore>) {
+function DataControls() {
+  const store = useStore();
+  const filename = portabilityFilename(store.userId);
+  const preview = deletionPreview(
+    [
+      { store: "cards", count: store.cards.length },
+      { store: "reviewLogs", count: store.reviewLogs.length },
+      { store: "attempts", count: store.attempts.length },
+      { store: "mistakes", count: store.mistakes.length },
+      { store: "plannedSessions", count: store.plannedSessions.length },
+      { store: "examDates", count: store.examDates.length },
+      { store: "papers", count: store.papers.length },
+      { store: "questions", count: store.questions.length },
+    ],
+    store.cards.filter((c) => c.origin === "manual" || c.origin === "mistake").length,
+  );
+
+  return (
+    <section>
+      <SectionHeading title="Data" hint="Portable, private, and yours to delete." />
+      <Panel className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => exportDataPortable(store, filename)}>Export portable snapshot</Button>
+          <Button onClick={() => exportDataLegacy(store)}>Export legacy JSON</Button>
+          <Button
+            onClick={async () => {
+              const ok = confirm(`${preview.warning}\n\nErase every row on this device? This cannot be undone.`);
+              if (!ok) return;
+              await clearAll();
+              location.reload();
+            }}
+          >
+            Erase local data
+          </Button>
+        </div>
+        <p className="text-[11px] text-ink3">Portable snapshot: {filename} — single-file, machine-readable, GDPR Art. 20 portable.</p>
+        <p className="text-[11px] text-ink3">{preview.warning}</p>
+        <p className="text-[11px] text-ink3">
+          {isSupabaseConfigured
+            ? "Erasing local data does not delete rows already synced to your account — use your account provider to delete server data."
+            : "Sync is not configured, so this device holds the only copy — export before erasing."}
+        </p>
+      </Panel>
+    </section>
+  );
+}
+
+function exportDataPortable(store: ReturnType<typeof useStore>, filename: string) {
+  const snap = buildPortabilitySnapshot({
+    userId: store.userId,
+    displayName: store.settings.displayName,
+    cards: store.cards,
+    attempts: store.attempts,
+    reviewLogs: store.reviewLogs,
+    mistakes: store.mistakes,
+    plannedSessions: store.plannedSessions,
+    examDates: store.examDates,
+    settings: store.settings,
+    streak: store.streak,
+  });
+  const blob = new Blob([JSON.stringify(snap, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportDataLegacy(store: ReturnType<typeof useStore>) {
   const payload = {
     exportedAt: new Date().toISOString(),
     settings: store.settings,

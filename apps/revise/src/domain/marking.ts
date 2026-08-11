@@ -48,23 +48,103 @@ export function pointCoverage(point: string, answer: string): number {
   return hits / wanted.length;
 }
 
-/** Numbers in the answer that also appear in the mark scheme earn credit. */
+/** Normalise a numeric string: strip thousands separators and keep a single canonical decimal form. */
+function parseScalar(raw: string): number | null {
+  const n = Number(raw.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Extract every number-like token from free text, including fractions and simple exponents. */
+function extractNumbers(text: string): Array<{ raw: string; value: number | null; denom?: number }> {
+  const out: Array<{ raw: string; value: number | null; denom?: number }> = [];
+  // Fractions first so 1/2 is not read as two scalars.
+  for (const m of text.matchAll(/(-?\d+(?:,\d{3})*(?:\.\d+)?)\s*\/\s*(-?\d+(?:,\d{3})*(?:\.\d+)?)/g)) {
+    const num = parseScalar(m[1]);
+    const den = parseScalar(m[2]);
+    const val = num != null && den != null && den !== 0 ? num / den : null;
+    out.push({ raw: m[0], value: val });
+  }
+  // Remaining scalars (skip those already consumed inside a fraction)
+  const fractionSpans = [...text.matchAll(/-?\d+(?:,\d{3})*(?:\.\d+)?\s*\/\s*-?\d+(?:,\d{3})*(?:\.\d+)?/g)].map((m)=> [m.index!, m[0].length] as const);
+  const isInsideFraction = (i: number) => fractionSpans.some(([s,l])=> i >= s && i < s + l);
+  for (const m of text.matchAll(/-?\d+(?:,\d{3})*(?:\.\d+)?(?:e[+-]?\d+)?/gi)) {
+    if (isInsideFraction(m.index!)) continue;
+    out.push({ raw: m[0], value: parseScalar(m[0]) });
+  }
+  // Powers written as 2^3 or 2²/³ — normalise to numeric exponent where possible
+  for (const m of text.matchAll(/(\d+)\s*\^\s*(-?\d+(?:\.\d+)?)/g)) {
+    const base = parseScalar(m[1]); const exp = parseScalar(m[2]);
+    if (base != null && exp != null) out.push({ raw: m[0], value: Math.pow(base, exp) });
+  }
+  return out;
+}
+
+/** Tolerance for numeric equivalence: absolute for |expected|<1, relative otherwise. */
+function numbersClose(a: number, b: number, relEps = 0.01, absEps = 0.005): boolean {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  const scale = Math.max(1, Math.abs(a), Math.abs(b));
+  return Math.abs(a - b) <= Math.max(absEps, relEps * scale);
+}
+
+/** True when the answer contains a number equivalent to any number in the mark scheme. */
 function numericMatch(point: string, answer: string): boolean {
-  const nums = point.match(/-?\d+(?:\.\d+)?/g);
-  if (!nums?.length) return false;
-  return nums.some((n) => answer.includes(n));
+  const wanted = extractNumbers(point);
+  if (!wanted.length) return false;
+  const given = extractNumbers(answer);
+  if (!given.length) return false;
+  // Also accept unicode fractions like ½ ¼ ¾
+  const unicodeFrac: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1/3, "⅔": 2/3 };
+  for (const ch of Object.keys(unicodeFrac)) if (answer.includes(ch)) given.push({ raw: ch, value: unicodeFrac[ch] });
+  for (const ch of Object.keys(unicodeFrac)) if (point.includes(ch)) wanted.push({ raw: ch, value: unicodeFrac[ch] });
+  for (const w of wanted) {
+    if (w.value == null) continue;
+    for (const g of given) {
+      if (g.value == null) continue;
+      if (numbersClose(w.value, g.value)) return true;
+      // Exact raw string match as a fallback (covers trailing zeros, etc.)
+      if (w.raw === g.raw) return true;
+    }
+  }
+  return false;
+}
+
+export function numericEquivalent(expected: string, actual: string, eps = 0.01): boolean {
+  return numericMatch(expected, actual);
 }
 
 const CREDIT_THRESHOLD = 0.5;
 
-export function markPart(part: QuestionPart, answer: string): MarkedPart {
+export interface PartialCreditCalibration {
+  /** Per-point threshold override keyed by scheme point text (lower = more generous). */
+  thresholds?: Record<string, number>;
+  /** When true, require both keyword coverage and numeric match for calculation points. */
+  strictNumericPoints?: boolean;
+}
+
+/** Evaluate whether a mark-scheme point looks like a calculation/numeric point. */
+function isNumericPoint(point: string): boolean {
+  return /\d/.test(point) && /\b(answer|calculate|value|concentration|mol|J\b|kJ|m s|Pa|N\b)/i.test(point);
+}
+
+export function perPointThreshold(point: string, calibration?: PartialCreditCalibration): number {
+  if (calibration?.thresholds?.[point] != null) return calibration.thresholds[point]!;
+  if (isNumericPoint(point)) return 0.45;
+  return CREDIT_THRESHOLD;
+}
+
+export function markPart(part: QuestionPart, answer: string, calibration?: PartialCreditCalibration): MarkedPart {
   const trimmed = (answer ?? "").trim();
   const credited: string[] = [];
   const missed: string[] = [];
 
   for (const point of part.markScheme) {
-    const covered = pointCoverage(point, trimmed) >= CREDIT_THRESHOLD || numericMatch(point, trimmed);
-    (covered ? credited : missed).push(point);
+    const thresh = perPointThreshold(point, calibration);
+    const cov = pointCoverage(point, trimmed);
+    const num = numericMatch(point, trimmed);
+    const numeric = isNumericPoint(point);
+    const strict = Boolean(calibration?.strictNumericPoints && numeric);
+    const ok = strict ? (num && cov >= thresh) : numeric ? (num || cov >= thresh) : (cov >= thresh || num);
+    (ok ? credited : missed).push(point);
   }
 
   // Mark-scheme points map onto marks proportionally: a 3-mark part with 4
@@ -114,11 +194,11 @@ export interface RubricResult {
   feedback: string;
 }
 
-export function markQuestion(question: Question, answers: Record<string, string>): RubricResult {
+export function markQuestion(question: Question, answers: Record<string, string>, calibration?: PartialCreditCalibration): RubricResult {
   const marked =
     question.kind === "mcq"
       ? [markMcq(question, Number(answers[question.parts[0]?.id ?? question.id] ?? -1))]
-      : question.parts.map((part) => markPart(part, answers[part.id] ?? ""));
+      : question.parts.map((part) => markPart(part, answers[part.id] ?? "", calibration));
 
   const awarded = marked.reduce((a, m) => a + m.awarded, 0);
   const max = marked.reduce((a, m) => a + m.max, 0);

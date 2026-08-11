@@ -50,11 +50,59 @@ const MISCONCEPTION_RE: Array<{ tag: import("./types").MisconceptionTag; re: Reg
   { tag: "graph-reading", re: /graph|gradient|intercept|area under/i },
   { tag: "method-skipped", re: /method|working|step/i },
   { tag: "terminology", re: /terminolog|term|define/i },
+  { tag: "rearrangement", re: /rearrang|subject of|transpose/i },
+  { tag: "substitution-slips", re: /substitut|into the equation|plug in/i },
+  { tag: "conceptual", re: /concept|misconception|principle|because.*not/i },
 ];
 function detectMisconception(missed: string[]): import("./types").MisconceptionTag {
   const hay = missed.join(" ");
   for (const { tag, re } of MISCONCEPTION_RE) if (re.test(hay)) return tag;
   return "other";
+}
+
+export interface WorkingStep {
+  text: string;
+  expects?: string;
+  marks?: number;
+}
+
+/**
+ * Multi-step working analysis: locate the first step where the student's
+ * working diverges from the expected mark-scheme progression. Offline heuristic
+ * — compares textual overlap step-by-step; AI path (src/ai/tasks.ts) upgrades
+ * it with symbolic checking when a provider is present.
+ */
+export function firstErrorStep(working: string[], expectedSteps: string[]): { index: number | null; reason: string } {
+  if (!working.length || !expectedSteps.length) return { index: null, reason: "No working provided" };
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9+\-×÷^/=²³\. ]/g, " ").replace(/\s+/g, " ").trim();
+  for (let i = 0; i < expectedSteps.length; i++) {
+    const exp = expectedSteps[i];
+    const got = working[i] ?? "";
+    if (!got.trim()) return { index: i, reason: `Step ${i + 1} missing: expected "${exp.slice(0, 80)}"` };
+    const expTokens = new Set(norm(exp).split(/\s+/).filter(Boolean));
+    const gotTokens = new Set(norm(got).split(/\s+/).filter(Boolean));
+    let overlap = 0;
+    for (const t of expTokens) if (gotTokens.has(t)) overlap++;
+    const cov = expTokens.size ? overlap / expTokens.size : 0;
+    if (cov < 0.35) return { index: i, reason: `Step ${i + 1} diverges: "${got.slice(0, 80)}" does not match expected "${exp.slice(0, 80)}"` };
+  }
+  return { index: null, reason: "No divergence detected in provided steps" };
+}
+
+export function remediationFor(mistake: Pick<Mistake, "misconception" | "ao" | "command" | "category" | "topicId">): string {
+  const bits: string[] = [];
+  if (mistake.misconception && mistake.misconception !== "other") bits.push(`Misconception: ${mistake.misconception}.`);
+  if (mistake.ao) bits.push(`AO: ${mistake.ao}.`);
+  if (mistake.command && mistake.command !== "other") bits.push(`Command: "${mistake.command}" — answer the verb directly.`);
+  const categoryAdvice: Record<string, string> = {
+    arithmetic: "Check units and significant figures on the final line.",
+    method: "Write the method first, then substitute numbers.",
+    interpretation: "Annotate the graph/data before calculating.",
+    communication: "Use the exact technical term from the spec point.",
+    recall: "Revisit the flashcard for this statement today.",
+  };
+  if (mistake.category in categoryAdvice) bits.push(categoryAdvice[mistake.category]);
+  return bits.join(" ") || "Revisit the topic summary and retry a similar question.";
 }
 function timingFor(attempt: Attempt, partId: string, marks: number): Mistake["timing"] {
   if (!attempt.elapsedMs || !attempt.marked.length) return "unknown";

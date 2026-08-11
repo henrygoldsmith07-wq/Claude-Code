@@ -1,6 +1,8 @@
 import type { Id, Question, Topic, VerificationStatus } from "./types";
 import { allTopics } from "@/domain/curriculum";
 import type { SubjectCoverage } from "./coverage";
+import type { ModerationEntry } from "./moderation";
+import { entriesWithProvenanceGaps } from "./moderation";
 
 // ---------------------------------------------------------------------------
 // Teacher / content-review tooling + curriculum regression checks.
@@ -73,5 +75,29 @@ export function teacherSummary(input: { subjectLabel: string; coverage: SubjectC
   if (input.report.ok) lines.push("Regression: green — no flags.");
   else lines.push(`Regression: ${input.report.flags.length} flags (${input.report.staleCount} stale, ${input.report.unmappedQuestions.length} unmapped).`);
   for (const f of input.report.flags.slice(0,5)) lines.push(`- [${f.kind}] ${f.detail}`);
+  return lines;
+}
+
+/** Teacher summary that also surfaces moderation queue + provenance gaps. */
+export function teacherSummaryWithModeration(input: {
+  subjectLabel: string;
+  coverage: SubjectCoverage;
+  report: RegressionReport;
+  moderationEntries?: ModerationEntry[];
+}): string[] {
+  const lines = teacherSummary(input);
+  const entries = input.moderationEntries;
+  if (!entries?.length) return lines;
+  const pending = entries.filter((e) => e.status === "pending_review").length;
+  const drafts = entries.filter((e) => e.status === "draft").length;
+  const gaps = entriesWithProvenanceGaps(entries).length;
+  if (pending || drafts || gaps) {
+    lines.push(`Moderation: ${pending} pending, ${drafts} drafts${gaps ? `, ${gaps} with provenance gaps` : ""}.`);
+    for (const g of entriesWithProvenanceGaps(entries).slice(0, 3)) {
+      lines.push(`- [provenance] ${g.entry.contentKind} ${g.entry.contentId} v${g.entry.version}: ${g.check.issues[0] ?? "missing provenance"}`);
+    }
+  } else {
+    lines.push("Moderation: all clear — queue empty, provenance complete.");
+  }
   return lines;
 }

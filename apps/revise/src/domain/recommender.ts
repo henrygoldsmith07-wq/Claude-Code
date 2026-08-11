@@ -56,6 +56,14 @@ export interface RecommendInput {
   outcomeHistory?: OutcomePair[];
   /** Per-topic adaptive difficulty offset in [-1, 1] learned from rolling accuracy. */
   adaptiveDifficultyOffset?: Map<Id, number>;
+  /** Historical per-topic marks-gained-per-hour derived from actual outcomes (overrides marksPerHour when both present). */
+  historicalGain?: Map<Id, number>;
+  /** Cross-topic total recommendations already issued — drives ε/exploration decay (default 0). */
+  totalRecommendationsIssued?: number;
+  /** When true, surface an extra exploration candidate among tied topics (default false in deterministic rank). */
+  enableExploration?: boolean;
+  /** RNG for exploration jitter — inject for deterministic tests (default Math.random). */
+  rng?: () => number;
 }
 
 /** Days until the exam, or null when no exam is set for that subject. */
@@ -545,7 +553,54 @@ export function recommend(input: RecommendInput): Recommendation[] {
     if (match) match.score += 4;
   }
 
+  // --- Phase 4 overlays: historical gain, exploration, tie-awareness ----
+  applyPhase4Overlays({ out, input, today });
+
   return dedupe(out).sort((a, b) => b.score - a.score);
+}
+
+/** Phase 4 overlays: historical gain, exploration, tie annotation. Separated so rank invariants remain testable. */
+function applyPhase4Overlays(input: { out: Recommendation[]; input: RecommendInput; today: IsoDate }): void {
+  const { out, input: recInput } = input;
+  const rng = recInput.rng ?? Math.random;
+  const totalIssued = recInput.totalRecommendationsIssued ?? 0;
+  // Historical gain: override recoverable/examGain for practice recs where we have real mph
+  if (recInput.historicalGain && recInput.historicalGain.size > 0) {
+    for (const r of out) {
+      if (r.activity !== "practice" || !r.topicId) continue;
+      const histMph = recInput.historicalGain.get(r.topicId);
+      if (histMph == null) continue;
+      // Only apply when the topic has not already been tuned via marksPerHour (historical is the override)
+      // hist is marks-per-hour; convert back to block gain
+      const histRecoverable = histMph * (r.minutes / 60);
+      r.explanation!.marksPerHour = Math.round(histMph * 10) / 10;
+      r.explanation!.recoverableMarks = Math.round(histRecoverable * 10) / 10;
+      r.explanation!.factors.examGain = Math.round(histRecoverable * 10) / 10;
+      // Small adaptive nudge toward historically rewarding topics (capped)
+      if (histMph > 2) r.score *= 1.04;
+      else if (histMph < 0) r.score *= 0.96;
+    }
+  }
+  // Exploration: ε-greedy and UCB bonus for practice/learn (gated by flag so deterministic tests stay deterministic)
+  if (recInput.enableExploration) {
+    const totalEvidence = out.reduce((a, r) => {
+      const row = recInput.mastery.find((m) => m.topicId === r.topicId);
+      return a + (row ? row.cardsTotal + row.attempts * 2 : 0);
+    }, 0);
+    const eps = Math.max(0.04, 0.14 * Math.exp(-totalIssued / 120));
+    for (const r of out) {
+      if (r.activity !== "practice" && r.activity !== "learn") continue;
+      const row = r.topicId ? recInput.mastery.find((m) => m.topicId === r.topicId) : undefined;
+      const evidence = row ? row.cardsTotal + row.attempts * 2 : 0;
+      const bonus = Math.min(0.9, Math.sqrt(Math.log(Math.max(2, totalEvidence || 8)) / Math.max(1, evidence)) * 0.45);
+      const mult = Math.min(1.14, 1 + bonus * 0.22);
+      // ε-greedy: with prob ε, give this thin-evidence topic an extra jitter
+      if (evidence < 6) {
+        if (rng() < eps) r.score *= mult;
+        else r.score *= 1 + bonus * 0.08; // small persistent UCB even when not sampled
+      }
+    }
+  }
 }
 
 /** Keep the strongest candidate per activity+subject+topic triple. */

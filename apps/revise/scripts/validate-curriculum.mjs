@@ -9,7 +9,7 @@ const ROOT = join(import.meta.dirname, "..");
 
 function parseTopics() {
   const dir = join(ROOT, "src/domain/curriculum");
-  const files = readdirSync(dir).filter((f) => (f.startsWith("wjec-") || f.startsWith("aqa-")) && f.endsWith(".ts"));
+  const files = readdirSync(dir).filter((f) => f !== "helpers.ts" && f !== "index.ts" && f !== "registry.ts" && f.endsWith(".ts"));
   const all = [];
   for (const file of files) {
     const text = readFileSync(join(dir, file), "utf8");
@@ -45,7 +45,7 @@ console.log(`  total topics: ${totalTopics}`);
 console.log(`  seed questions: ${q.total}  (${q.withVerification} with verification tag)`);
 
 const errors = [];
-if (totalTopics < 50) errors.push(`too few topics: ${totalTopics} - expected >=50 across four subjects`);
+if (totalTopics < 200) errors.push(`too few topics: ${totalTopics} - expected >=200 across boards/levels (WJEC+AQA+Edexcel+OCR x GCSE/A-level)`);
 if (q.total < 20) errors.push(`too few questions: ${q.total} - seed bank looks pruned`);
 
 for (const t of topics) {
@@ -71,8 +71,24 @@ for (const t of topics) {
   }
 }
 
+// Stale-check enforcement: any lastChecked older than 365 days is a warning (not yet a fail; CI surfaces it)
+const stale = [];
+for (const topic of topics) {
+  const textS = readFileSync(join(ROOT, `src/domain/curriculum/${topic.file}`), "utf8");
+  for (const m of textS.matchAll(/lastChecked:\s*"(\d{4}-\d{2}-\d{2})"/g)) {
+    const d = m[1];
+    const days = Math.round((Date.now() - new Date(d).getTime())/86_400_000);
+    if (days > 365) stale.push(`${topic.file}: lastChecked ${d} is ${days}d old (>365d)`);
+  }
+}
+if (stale.length) {
+  console.warn("\nSTALE CONTENT (>365d since lastChecked):");
+  for (const s of stale.slice(0, 12)) console.warn("  !", s);
+  if (stale.length > 12) console.warn(`  ... and ${stale.length - 12} more`);
+}
+
 // Enforce a minimum statement density per subject
-const minStatements = { "wjec-physics.ts": 60, "wjec-chemistry.ts": 60, "wjec-biology.ts": 60, "wjec-maths.ts": 40, "aqa-physics.ts": 60, "aqa-chemistry.ts": 60, "aqa-biology.ts": 60, "aqa-maths.ts": 40 };
+const minStatements = { "wjec-physics.ts": 60, "wjec-chemistry.ts": 60, "wjec-biology.ts": 60, "wjec-maths.ts": 40, "aqa-physics.ts": 60, "aqa-chemistry.ts": 60, "aqa-biology.ts": 60, "aqa-maths.ts": 40, "edexcel-physics.ts": 60, "edexcel-chemistry.ts": 60, "edexcel-biology.ts": 60, "edexcel-maths.ts": 40, "ocr-physics.ts": 60, "ocr-chemistry.ts": 60, "ocr-biology.ts": 60, "ocr-maths.ts": 40 };
 for (const t of topics) {
   const text2 = readFileSync(join(ROOT, `src/domain/curriculum/${t.file}`), "utf8");
   const refCount = (text2.match(/ref:\s*"Unit|ref:\s*"Pure|ref:\s*"Applied/g) || []).length;

@@ -15,6 +15,7 @@
 
 import {
   ArrowLeft,
+  BarChart3,
   BookOpen,
   Calendar,
   Camera,
@@ -27,6 +28,7 @@ import {
   Flame,
   LayoutGrid,
   Layers,
+  Library,
   Mic,
   Shapes,
   Share2,
@@ -74,6 +76,8 @@ export const SettingsIcon = Settings;
 export const ModesIcon = Shapes;
 /** One-click generation from notes. */
 export const GenerateIcon = Sparkle;
+export const BenchmarkIcon = BarChart3;
+export const CaseStudyIcon = Library;
 export const ShareIcon = Share2;
 export const AudioIcon = Volume2;
 export const AudioOffIcon = VolumeX;

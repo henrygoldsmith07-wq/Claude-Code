@@ -17,10 +17,10 @@ import { search } from "@/domain/search";
 import type { Attempt, StreakState, TopicMastery } from "@/domain/types";
 
 describe("curriculum registry", () => {
-  it("registers the four seeded WJEC A-level subjects", () => {
+  it("registers the four core subjects across boards (WJEC/AQA/Edexcel/OCR × A-level + GCSE)", () => {
     const names = allSubjects().map((s) => s.name).sort();
     expect(names.filter((n,i,a)=>a.indexOf(n)===i).sort()).toEqual(["Biology", "Chemistry", "Mathematics", "Physics"]);
-    expect(allSubjects().length).toBeGreaterThanOrEqual(4);
+    expect(allSubjects().length).toBeGreaterThanOrEqual(8);
   });
 
   it("gives every subject units, topics and paper weightings", () => {
@@ -89,10 +89,14 @@ describe("seed cards", () => {
 });
 
 describe("seed question bank", () => {
-  it("ships questions for all four subjects", () => {
-    for (const subject of allSubjects()) {
-      expect(seedQuestionsForSubject(subject.id).length).toBeGreaterThan(0);
+  it("ships questions for the original WJEC/AQA A-level subjects (Edexcel/OCR/GCSE question banks land with licensed sourcing)", () => {
+    const required = allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel"));
+    for (const subject of required) {
+      expect(seedQuestionsForSubject(subject.id).length, `${subject.id} should have seed questions`).toBeGreaterThan(0);
     }
+    // New boards/GCSE ship curriculum first; questions follow when licensed sources are added.
+    // Guard that we did not regress the overall bank.
+    expect(seedQuestions.length).toBeGreaterThanOrEqual(100);
   });
 
   it("keeps every question well-formed and self-consistent", () => {

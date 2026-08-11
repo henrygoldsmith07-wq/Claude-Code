@@ -33,6 +33,9 @@ export const viewport: Viewport = {
 const THEME_BOOTSTRAP = `(function(){try{var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var s=localStorage.getItem('revise.theme');if(s==='dark'||(s!=='light'&&d)){document.documentElement.classList.add('dark');document.documentElement.dataset.theme='dark';}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Locale is read from localStorage on the client (AppShell hydrates it);
+  // the html lang stays en-GB for the SSR shell. A future step can make this
+  // dynamic via a cookie + middleware when i18n leaves scaffolding.
   return (
     <html lang="en-GB" suppressHydrationWarning>
       <head>

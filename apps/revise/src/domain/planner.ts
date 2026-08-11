@@ -293,3 +293,199 @@ export function formatTime(minuteOfDay: number): string {
 export function planForDate(plan: PlannedSession[], date: IsoDate): PlannedSession[] {
   return plan.filter((s) => s.date === date).sort((a, b) => a.startMinute - b.startMinute);
 }
+
+// ---------------------------------------------------------------------------
+// Plan realism & diminishing returns (Phase 5)
+// ---------------------------------------------------------------------------
+
+export interface PlanRealismIssue {
+  severity: "warning" | "blocking";
+  message: string;
+  remedy?: string;
+}
+
+export interface PlanRealismReport {
+  feasible: boolean;
+  issues: PlanRealismIssue[];
+  /** 0–1: planned minutes / available minutes over horizon. >1 is impossible. */
+  utilisation: number;
+  totalPlannedMinutes: number;
+  totalAvailableMinutes: number;
+  /** Longest single day in the plan. */
+  peakDayMinutes: number;
+  /** Suggested remedy when infeasible, or null. */
+  suggestion: string | null;
+}
+
+/**
+ * Diminishing returns: the nth minute of a continuous block is worth less than
+ * the first. Curve is piecewise so it is explainable in the UI.
+ *
+ * - 0–25 min: 100% (fresh attention)
+ * - 25–50 min: 75%
+ * - 50–90 min: 55%
+ * - 90+ min: 35%  (fatigue, context switching)
+ *
+ * Returns an effective-minutes value — multiply by nominal marks/hour.
+ */
+export function effectiveMinutes(minutes: number): number {
+  if (minutes <= 0) return 0;
+  let eff = 0;
+  const segments: Array<{ cap: number; factor: number }> = [
+    { cap: 25, factor: 1 },
+    { cap: 25, factor: 0.75 },
+    { cap: 40, factor: 0.55 },
+    { cap: Infinity, factor: 0.35 },
+  ];
+  let remaining = minutes;
+  for (const seg of segments) {
+    const take = Math.min(remaining, seg.cap);
+    eff += take * seg.factor;
+    remaining -= take;
+    if (remaining <= 0) break;
+  }
+  return Math.round(eff * 10) / 10;
+}
+
+export function diminishingReturnsFactor(minutes: number): number {
+  if (minutes <= 0) return 1;
+  return Math.round((effectiveMinutes(minutes) / minutes) * 100) / 100;
+}
+
+/**
+ * Pre-flight realism check. Call before (or after) buildPlan to surface
+ * "this can never work in the hours you have" rather than silently producing
+ * an under-filled timetable.
+ */
+export function assessPlanRealism(input: PlanInput, plan: PlannedSession[]): PlanRealismReport {
+  const today = toDateOnly(input.now ?? new Date());
+  const horizon = input.horizonDays ?? DEFAULT_HORIZON;
+  const start = new Date(`${today}T00:00:00Z`);
+  let totalAvailable = 0;
+  for (let i = 0; i < horizon; i++) {
+    const d = toDateOnly(new Date(start.getTime() + i * 86_400_000));
+    const weekday = new Date(`${d}T00:00:00Z`).getUTCDay();
+    let m = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+    if (input.dailyMinutesCap != null) m = Math.min(m, input.dailyMinutesCap);
+    totalAvailable += m;
+  }
+  const totalPlanned = plan.filter((p) => p.status === "pending" && p.date >= today).reduce((a, p) => a + p.minutes, 0);
+  const utilisation = totalAvailable ? totalPlanned / totalAvailable : (totalPlanned > 0 ? Infinity : 0);
+
+  const byDate = new Map<IsoDate, number>();
+  for (const p of plan) if (p.status === "pending" && p.date >= today) byDate.set(p.date, (byDate.get(p.date) ?? 0) + p.minutes);
+  const peakDayMinutes = Math.max(0, ...byDate.values());
+
+  const issues: PlanRealismIssue[] = [];
+  if (!Number.isFinite(utilisation) || utilisation > 1.05) {
+    issues.push({
+      severity: "blocking",
+      message: `Plan needs ${totalPlanned} min but only ${totalAvailable} min are available in the next ${horizon} days (${Math.round(utilisation * 100)}% load).`,
+      remedy: "Add availability, extend the horizon, or shorten sessions.",
+    });
+  } else if (utilisation > 0.88) {
+    issues.push({
+      severity: "warning",
+      message: `Plan is at ${Math.round(utilisation * 100)}% of available time — one missed day will cascade.`,
+      remedy: "Leave 10–15% buffer for missed sessions.",
+    });
+  }
+  if (peakDayMinutes > 180) {
+    issues.push({
+      severity: "warning",
+      message: `Peak day has ${peakDayMinutes} min (~${(peakDayMinutes / 60).toFixed(1)}h) — diminishing returns above 90 min and fatigue risk.`,
+      remedy: "Cap daily minutes or split long blocks.",
+    });
+  }
+  if (input.sessionLengthMinutes > 90) {
+    issues.push({
+      severity: "warning",
+      message: `Sessions of ${input.sessionLengthMinutes} min are inefficient — effective learning is ~${Math.round(effectiveMinutes(input.sessionLengthMinutes))} min.`,
+      remedy: "Use 25–50 min blocks with breaks.",
+    });
+  }
+  const zeroDays = (() => {
+    let z = 0;
+    for (let i = 0; i < horizon; i++) {
+      const d = toDateOnly(new Date(start.getTime() + i * 86_400_000));
+      const weekday = new Date(`${d}T00:00:00Z`).getUTCDay();
+      let m = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+      if (input.dailyMinutesCap != null) m = Math.min(m, input.dailyMinutesCap);
+      if (m < 10) z++;
+    }
+    return z;
+  })();
+  if (zeroDays >= Math.floor(horizon * 0.6)) {
+    issues.push({
+      severity: "blocking",
+      message: `Only ${horizon - zeroDays}/${horizon} days have time available — not enough to cover ${input.subjectIds.length} subjects.`,
+      remedy: "Add at least 2–3 study days per week.",
+    });
+  }
+
+  const feasible = !issues.some((i) => i.severity === "blocking");
+  const suggestion = !feasible
+    ? (issues.find((i) => i.remedy)?.remedy ?? null)
+    : (issues[0]?.remedy ?? null);
+
+  return { feasible, issues, utilisation: Math.round(utilisation * 1000) / 1000, totalPlannedMinutes: totalPlanned, totalAvailableMinutes: totalAvailable, peakDayMinutes, suggestion };
+}
+
+/**
+ * Prioritised recovery: re-queues missed work ordered by urgency × deficit
+ * so exam-near weak topics jump the queue. Falls back to oldest-first when
+ * mastery/exam data are absent, preserving the existing behaviour.
+ */
+export function rescheduleMissedPrioritised(
+  plan: PlannedSession[],
+  today: IsoDate,
+  dailyBlockCap: number,
+  mastery: TopicMastery[] = [],
+  exams: ExamDate[] = [],
+  idFactory: () => string = () => crypto.randomUUID(),
+): PlannedSession[] {
+  const masteryByTopic = new Map(mastery.map((m) => [m.topicId, m.mastery]));
+  const stale = plan.map((s) => ({ ...s })).filter((s) => s.date < today && s.status === "pending");
+  if (!stale.length) return plan.map((s) => ({ ...s }));
+
+  // Rank stale sessions: lower mastery + closer exam = higher priority.
+  const urgencyFor = (subjectId: Id, date: IsoDate) => examUrgency(daysToExam(exams, subjectId, date));
+  stale.sort((a, b) => {
+    const ma = a.topicId ? (masteryByTopic.get(a.topicId) ?? 0.5) : 0.5;
+    const mb = b.topicId ? (masteryByTopic.get(b.topicId) ?? 0.5) : 0.5;
+    const scoreA = (1 - ma) * urgencyFor(a.subjectId, today);
+    const scoreB = (1 - mb) * urgencyFor(b.subjectId, today);
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return a.date.localeCompare(b.date);
+  });
+
+  const out = plan.map((s) => ({ ...s }));
+  // Mark originals missed
+  for (const s of stale) {
+    const orig = out.find((x) => x.id === s.id);
+    if (orig) orig.status = "missed";
+  }
+
+  const countByDate = new Map<IsoDate, number>();
+  for (const s of out) if (s.date >= today) countByDate.set(s.date, (countByDate.get(s.date) ?? 0) + 1);
+
+  for (const session of stale) {
+    let target = today;
+    for (let i = 0; i < 14; i++) {
+      const candidate = toDateOnly(new Date(new Date(`${today}T00:00:00Z`).getTime() + i * 86_400_000));
+      if ((countByDate.get(candidate) ?? 0) < dailyBlockCap) { target = candidate; break; }
+    }
+    countByDate.set(target, (countByDate.get(target) ?? 0) + 1);
+    const lastOfDay = out.filter((s) => s.date === target).sort((a, b) => a.startMinute - b.startMinute).pop();
+    out.push({
+      ...session,
+      id: idFactory(),
+      date: target,
+      startMinute: lastOfDay ? lastOfDay.startMinute + lastOfDay.minutes + 5 : DEFAULT_DAY_START,
+      status: "pending",
+      reason: `Rescheduled from ${session.date}. ${session.reason}`.trim(),
+    });
+  }
+
+  return out.sort((a, b) => (a.date === b.date ? a.startMinute - b.startMinute : a.date < b.date ? -1 : 1));
+}

@@ -66,6 +66,7 @@ export interface NewCardInput {
   sourceMistakeId?: Id;
   specPointIds?: Id[];
   source?: Card["source"];
+  licensedSource?: Card["licensedSource"];
   verification?: Card["verification"];
   reviewer?: Card["reviewer"];
   lastChecked?: Card["lastChecked"];
@@ -103,6 +104,7 @@ export function createCard(input: NewCardInput, now: Date = new Date()): Card {
     origin: input.origin ?? "manual",
     specPointIds: input.specPointIds,
     source: input.source,
+    licensedSource: input.licensedSource,
     verification: input.verification,
     reviewer: input.reviewer,
     lastChecked: input.lastChecked,

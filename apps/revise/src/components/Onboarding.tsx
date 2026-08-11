@@ -77,14 +77,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const canContinue = step === 1 ? subjectIds.length > 0 : true;
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-bg overflow-y-auto" role="dialog" aria-modal="true" aria-label="Onboarding">
       <div className="min-h-full flex items-center justify-center p-4">
-        <div className="w-full max-w-lg space-y-4 app-enter">
+        <div className="w-full max-w-lg space-y-4 app-enter motion-safe:app-enter">
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2" aria-live="polite">
               Step {step + 1} of {steps.length} · {steps[step]}
             </p>
-            <ProgressBar value={(step + 1) / steps.length} />
+            <ProgressBar value={(step + 1) / steps.length} label={`Step ${step + 1} of ${steps.length}`} />
           </div>
 
           {step === 0 ? (
@@ -101,6 +101,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   placeholder="Student"
                   className="field"
                   autoFocus
+                  autoComplete="nickname"
+                  aria-label="What should we call you?"
                 />
               </Field>
             </Panel>
@@ -167,6 +169,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     value={exams[id] ?? ""}
                     onChange={(e) => setExams({ ...exams, [id]: e.target.value })}
                     className="field"
+                    aria-label={`${subjects.find((s) => s.id === id)?.name ?? id} exam date`}
                   />
                 </Field>
               ))}
@@ -176,6 +179,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     <button
                       key={grade}
                       onClick={() => setTarget(grade)}
+                      aria-pressed={target === grade}
+                      aria-label={`Target grade ${grade}`}
                       className={cx(
                         "flex-1 py-2.5 rounded-[8px] border text-sm font-semibold transition-colors",
                         target === grade ? "bg-accent text-onaccent border-transparent" : "border-line text-ink2",
@@ -249,7 +254,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             )}
           </div>
 
-          <button onClick={onDone} className="w-full text-center text-xs text-ink3 hover:text-ink py-2">
+          <button onClick={onDone} className="w-full text-center text-xs text-ink3 hover:text-ink py-2" aria-label="Skip onboarding">
             Skip — I will set this up later
           </button>
         </div>

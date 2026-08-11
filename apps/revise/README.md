@@ -7,17 +7,18 @@ highest-value thing you should do next.
 Open the app → get a recommended task → complete it → get marked instantly →
 progress updates → next task.
 
-Ships with WJEC A-level **Mathematics, Biology, Chemistry and Physics** as real,
-authored revision content. The architecture is board-agnostic: adding AQA
-A-level Economics or Edexcel GCSE Maths means adding one curriculum module and
-changing nothing else.
+Ships with **32 subjects across WJEC / AQA / Edexcel / OCR × A-level / GCSE** —
+**440 topics, 142 seed questions**, every topic with `specPoints` and provenance —
+as real, authored revision content. The architecture is board-agnostic: adding
+a new board or qualification means adding one curriculum module and changing
+nothing else.
 
 ## Running it
 
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 291 tests (23 files) — see docs/benchmark.md for outcome benchmarks
+npm test             # 412 tests (29 files) — see docs/benchmark.md and /benchmarks for outcome benchmarks
 npm run build        # production build
 ```
 
@@ -55,14 +56,18 @@ optional Supabase and AI provider settings.
 ```
 src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   types.ts         The board-agnostic domain model
-  curriculum/      Registry + WJEC A-level maths, biology, chemistry, physics
+  curriculum/      Registry + 32 WJEC/AQA/Edexcel/OCR × A-level/GCSE subjects (440 topics)
   scheduling.ts    FSRS wrapper: grading, queues, forgetting curve
   mastery.ts       Topic mastery with explicit evidence weighting
-  recommender.ts   "What should I do right now?"
-  planner.ts       Adaptive timetable + missed-session recovery
+  recommender.ts   "What should I do right now?" (+ recommender-enhancements: cold-start, ties, exploration, gain)
+  planner.ts       Adaptive timetable + missed-session recovery (realism + diminishing returns)
   marking.ts       Offline rubric marking against mark schemes
   mistakes.ts      Dropped mark → classified mistake → flashcard
-  grades.ts        Grade prediction with confidence bands
+  grades.ts        Grade prediction with confidence bands + calibration
+  retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
+  fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
+  moderation.ts / sync-conflicts.ts / portability.ts  Platform: review, sync, GDPR portability
+  i18n.ts / onboarding.ts  Localisation scaffolding + funnel measurement
   gamification.ts  Streaks, XP, achievements
   search.ts        Local search across topics, cards and questions
   browser.ts       The card browser's query language and sorting
@@ -79,9 +84,9 @@ src/data/        IndexedDB primary store, repository, outbox sync to Supabase
 src/ai/          Provider abstraction, prompts, schemas, offline fallbacks
 src/state/       One store; all derived numbers recomputed, never cached
 src/components/  Le Studio UI primitives, question runner, answer input
-src/app/         Next.js App Router pages
+src/app/         Next.js App Router pages (incl. /benchmarks live ledger + /case-study)
 supabase/        Postgres schema with row-level security
-docs/            Architecture and product notes
+docs/            Architecture, revision engine, benchmarks
 ```
 
 Three decisions shape everything else:
@@ -170,8 +175,9 @@ searchable. No other file changes. Add the subject to `src/domain/spec.ts:SPEC_M
 
 ## Docs
 
-- [`docs/architecture.md`](docs/architecture.md) — data flow, sync, AI layer, testing
+- [`docs/architecture.md`](docs/architecture.md) — data flow, sync, AI layer, quality gates
 - [`docs/revision-engine.md`](docs/revision-engine.md) — the algorithms and the evidence behind them
+- [`docs/benchmark.md`](docs/benchmark.md) — harnesses + the live ledger at [/benchmarks](/benchmarks) + [/case-study](/case-study)
 
 ## Content accuracy — statement-level provenance
 
@@ -182,12 +188,12 @@ provenance record (`source` / `verification` / `reviewer` / `lastChecked` /
 `specVersion`). Coverage on Progress is measured **per statement**: how many have
 retrieval cards, how many have an exam question (*which* parts test *which*
 statements), which are verified, and — per `SPEC_MANIFEST` — which unit/paper
-(duration, marks, weighting) each belongs to. The statement model covers all
-eight subjects (WJEC + AQA): 554 statements across 110 topics (per board ≈76 Physics, 76 Chemistry, 70
-Biology, 55 Maths), each mapped to cards and exam questions with `learningClaims`
-aligned 1:1 with markScheme points. Topic lists and grade boundaries remain
-approximate and labelled as such; always check the current WJEC specification
-for exact assessment objectives and weightings.
+(duration, marks, weighting) each belongs to. The statement model now covers all **32 subjects (WJEC/AQA/Edexcel/OCR × A-level/GCSE): 440 topics,
+142 seed questions**, every topic with `specPoints` and every seed question part
+mapped with `specPointIds + learningClaims` aligned 1:1 with mark-scheme points.
+Topic lists and grade boundaries remain approximate and labelled as such; always
+check the current board specification for exact assessment objectives and
+weightings.
 
 Recovery note: the deleted `apps/wjec-study-app` had **no** per-topic
 validation, provenance or coverage tooling — only bare topic titles — so
