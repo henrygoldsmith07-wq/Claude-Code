@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { judgePvpMatch } from "@/lib/gemini";
 import { levelForPoints, updateStreak } from "@/lib/gamification";
-import type { InputMode } from "@/lib/types";
+import type { InputMode, PvpVerdict } from "@/lib/types";
 
 async function awardPoints(userId: string, points: number) {
   const service = createServiceClient();
@@ -93,15 +92,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
 
   let verdict;
   try {
-    verdict = await judgePvpMatch({
-      topicTitle: topic?.title ?? "the topic",
-      topicPrompt: topic?.prompt ?? "",
-      playerASide: match.player_a_side as "for" | "against",
-      transcript,
-    });
+    const hasGemini = !!process.env.GEMINI_API_KEY;
+    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    if (hasGemini && hasAnthropic) {
+      const { liveEnsembleJudge } = await import("@/lib/ensembleJudge");
+      const ensemble = await liveEnsembleJudge({
+        topicTitle: topic?.title ?? "the topic",
+        topicPrompt: topic?.prompt ?? "",
+        playerASide: match.player_a_side as "for" | "against",
+        transcript,
+      });
+      verdict = {
+        winner: ensemble.winner,
+        playerAScore: ensemble.playerAScore,
+        playerBScore: ensemble.playerBScore,
+        rationale: ensemble.rationale,
+        decidingFactor: ensemble.decidingFactor,
+        breakdown: (ensemble.judges[0] as unknown as { breakdown?: PvpVerdict["breakdown"] })?.breakdown,
+        argGraph: ensemble.argGraph,
+      } satisfies PvpVerdict;
+    } else if (hasGemini) {
+      const { judgePvpMatch } = await import("@/lib/gemini");
+      verdict = await judgePvpMatch({ topicTitle: topic?.title ?? "the topic", topicPrompt: topic?.prompt ?? "", playerASide: match.player_a_side as "for" | "against", transcript });
+    } else if (hasAnthropic) {
+      const { judgePvpMatch } = await import("@/lib/anthropic");
+      verdict = await judgePvpMatch({ topicTitle: topic?.title ?? "the topic", topicPrompt: topic?.prompt ?? "", playerASide: match.player_a_side as "for" | "against", transcript });
+    } else {
+      throw new Error("No judge configured (set GEMINI_API_KEY or ANTHROPIC_API_KEY).");
+    }
   } catch (error) {
     console.error("Failed to judge PvP match:", error);
-    verdict = { winner: "tie" as const, playerAScore: 0, playerBScore: 0, rationale: "Judging failed; scored as a tie." };
+    verdict = { winner: "tie" as const, playerAScore: 0, playerBScore: 0, rationale: "Judging failed; scored as a tie." } as PvpVerdict;
   }
 
   const winnerId = verdict.winner === "a" ? match.player_a : verdict.winner === "b" ? match.player_b : null;

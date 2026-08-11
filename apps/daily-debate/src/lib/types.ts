@@ -101,6 +101,8 @@ export interface PvpVerdict {
   };
   decidingFactor?: string;
 }
+// Alias: the judge modules export PvpJudgeResult; app code uses PvpVerdict. Keep both names.
+export type PvpJudgeResult = PvpVerdict;
 
 export interface DebateSummary {
   overallFeedback: string;

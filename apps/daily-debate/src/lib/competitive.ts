@@ -1,5 +1,7 @@
 // Competitive play: Elo gated behind judge reliability.
 // Until judge invariance is proven, Elo is not shown and not used for matchmaking.
+// After the gate opens (see tournament.ts / seasonalLeaderboard), ranked matchmaking,
+// tournaments, and seasonal boards are enabled — only if participation supports them.
 
 export interface EloGate { reliable: boolean; reason?: string; }
 export function eloGate({ invarianceOk, humanAgreement }: { invarianceOk: boolean; humanAgreement: number }): EloGate {

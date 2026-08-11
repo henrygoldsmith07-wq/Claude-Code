@@ -27,6 +27,9 @@ export default async function AppHeader() {
         <Link href="/leaderboard" className="hover:text-[var(--foreground)]">
           Leaderboard
         </Link>
+        <Link href="/benchmark" className="hover:text-[var(--foreground)]">
+          Benchmark
+        </Link>
       </nav>
       <div className="flex items-center gap-3 text-sm sm:gap-4">
         {profile && (

@@ -37,7 +37,8 @@ function subscribeNoop() {
   return () => {};
 }
 
-export function useSpeechRecognition() {
+export function useSpeechRecognition(opts?: { lang?: string }) {
+  const lang = opts?.lang ?? "en-US";
   const supported = useSyncExternalStore(
     subscribeNoop,
     () => getSpeechRecognitionCtor() !== null,
@@ -45,36 +46,54 @@ export function useSpeechRecognition() {
   );
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [interim, setInterim] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const start = useCallback(() => {
     const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) return;
-
+    if (!Ctor) {
+      setError("Speech recognition not supported in this browser — try Chrome/Edge, or type your response.");
+      return;
+    }
+    setError(null);
     const recognition = new Ctor();
-    recognition.lang = "en-US";
+    recognition.lang = lang;
     recognition.interimResults = true;
     recognition.continuous = true;
     recognition.onresult = (event) => {
       let combined = "";
+      let interimText = "";
       for (let i = 0; i < event.results.length; i += 1) {
-        combined += event.results[i][0].transcript;
+        const r = event.results[i] as unknown as { isFinal?: boolean } & ArrayLike<SpeechRecognitionResultLike>;
+        const text = (r[0] as SpeechRecognitionResultLike)?.transcript ?? "";
+        if (r.isFinal) combined += text + " ";
+        else interimText += text;
       }
-      setTranscript(combined);
+      if (combined) setTranscript((prev) => (prev ? prev + " " : "") + combined.trim());
+      setInterim(interimText);
     };
     recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
-
+    recognition.onerror = () => {
+      setError("Mic error — check permissions and try again, or type.");
+      setListening(false);
+    };
     recognitionRef.current = recognition;
     setTranscript("");
+    setInterim("");
     setListening(true);
-    recognition.start();
-  }, []);
+    try {
+      recognition.start();
+    } catch {
+      setError("Could not start microphone — check permissions.");
+      setListening(false);
+    }
+  }, [lang]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop();
     setListening(false);
   }, []);
 
-  return { supported, listening, transcript, start, stop, resetTranscript: () => setTranscript("") };
+  return { supported, listening, transcript, interim, error, start, stop, resetTranscript: () => { setTranscript(""); setInterim(""); setError(null); } };
 }
