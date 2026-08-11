@@ -48,6 +48,9 @@ function SourceKindBadge({ kind }: { kind?: string }) {
   return <span className={`rounded border px-1 py-0.5 text-[10px] ${map[kind] ?? "border-rule bg-panel-soft text-muted"}`}>{kind}</span>;
 }
 
+import ClaimProvenance from "./ClaimProvenance";
+import { WhyThisMatters, WhatRemainsUnknown } from "./WhyWhatPanels";
+
 export default function StoryClusterCard({ story }: { story: StoryCluster }) {
   const mix = story.sourceMix;
   const significance = typeof story.significance === "number" ? story.significance : null;
@@ -267,6 +270,12 @@ export default function StoryClusterCard({ story }: { story: StoryCluster }) {
           </ul>
         </div>
       )}
+
+      <div className="mt-3 space-y-3">
+        <WhyThisMatters story={story} />
+        <ClaimProvenance story={story} />
+        <WhatRemainsUnknown story={story} />
+      </div>
 
       {story.coverageGaps.length > 0 && (
         <p className="mt-3 rounded-lg border border-dashed border-rule bg-panel-soft p-2.5 text-xs text-muted">

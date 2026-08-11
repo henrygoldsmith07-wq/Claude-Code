@@ -61,3 +61,17 @@ export const SAMPLE_CASES: BenchmarkCase[] = [
     expectedGroups: [["b1","b2"]],
   },
 ];
+
+// Extended dataset + helpers are in ./benchmarkDataset (import there to avoid cycles). Helpers re-exported lazily:
+export async function allCases() {
+  const { EXTENDED_CASES } = await import("./benchmarkDataset");
+  return [...SAMPLE_CASES, ...EXTENDED_CASES];
+}
+export async function evaluateAll(threshold = 0.42) {
+  const cases = await allCases();
+  const results = cases.map(c=> evaluateBenchmark(c, threshold));
+  const mp = results.reduce((s,r)=>s+r.precision,0)/ (results.length||1);
+  const mr = results.reduce((s,r)=>s+r.recall,0)/(results.length||1);
+  const mf = results.reduce((s,r)=>s+r.f1,0)/(results.length||1);
+  return { results, macro: { precision: Math.round(mp*100)/100, recall: Math.round(mr*100)/100, f1: Math.round(mf*100)/100 } };
+}
