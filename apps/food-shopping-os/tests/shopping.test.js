@@ -280,8 +280,25 @@ describe('meals to shopping', () => {
       { name: 'Rice', qty: '180 g', fromRecipe: 'Stir-fry' },
     ]);
     expect(merged).toHaveLength(2);
-    expect(merged[0].qty).toBe('300 g + 150 g');
+    expect(merged[0].qty).toBe('450 g');
     expect(merged[0].fromRecipe).toBe('2 meals');
     expect(merged[1].fromRecipe).toBe('Stir-fry');
+  });
+
+  it('keeps mass and volume separate rather than summing them', async () => {
+    const { mergeQtys, qtySuffices } = await import('../src/lib/pantry.js');
+    expect(mergeQtys('100 g', '100 ml')).toBe('100 g + 100 ml');
+    expect(mergeQtys('200 ml', '300 ml')).toBe('500 ml');
+    expect(qtySuffices('100 g', '100 ml')).toBeNull();
+    expect(qtySuffices('500 g', '300 g')).toBe(true);
+    expect(qtySuffices('100 ml', '200 ml')).toBe(false);
+  });
+
+  it('parses mixed fractions for countable items', async () => {
+    const { parseQtyAmount } = await import('../src/lib/pantry.js');
+    expect(parseQtyAmount('½ lemon')?.amount).toBeCloseTo(0.5, 5);
+    expect(parseQtyAmount('1 ½ lemons')?.amount).toBeCloseTo(1.5, 5);
+    expect(parseQtyAmount('1½ lemons')?.amount).toBeCloseTo(1.5, 5);
+    expect(parseQtyAmount('2.5 tins')?.amount).toBeCloseTo(1000, 5); // 2.5 * 400g normalised
   });
 });

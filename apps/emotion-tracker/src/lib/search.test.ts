@@ -61,6 +61,12 @@ describe("semanticSearch", () => {
   it("returns [] on empty query", () => {
     expect(semanticSearch([entry()], "")).toEqual([]);
   });
+  it("caps large corpora and still returns hits", () => {
+    const many = Array.from({ length: 600 }, (_, i) => entry({ id: `e-${i}`, title: i === 42 ? "Manager feedback duplicate" : `Noise ${i}` }));
+    const hits = semanticSearch(many, "manager feedback");
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.length).toBeLessThanOrEqual(20);
+  });
 });
 
 describe("allTopics + relationships", () => {

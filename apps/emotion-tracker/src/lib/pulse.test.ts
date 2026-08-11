@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { reflectSnapshot } from "./pulse";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { reflectSnapshot, PULSE_EVENT, PULSE_OPT_IN_KEY } from "./pulse";
 import type { Entry } from "./types";
 
 function entry(overrides: Partial<Entry> = {}): Entry {
@@ -41,7 +41,60 @@ describe("reflectSnapshot", () => {
     expect(s.totalReflections).toBe(2);
     expect(s.completed).toBe(2);
     expect(s.summary).toBeTruthy();
-    // Snapshot should not contain raw assumption text in a structured field — only via summary string
     expect(JSON.stringify(s)).not.toMatch(/they think/i);
+  });
+
+  it("tracks unresolved due count dated correctly", () => {
+    const past = entry({ id: "e-past", summary: { ...entry().summary!, trace: { ...entry().summary!.trace, followUpAt: "2020-01-01" } } });
+    const future = entry({ id: "e-future", summary: { ...entry().summary!, trace: { ...entry().summary!.trace, followUpAt: "2099-01-01" } } });
+    const s = reflectSnapshot([past, future], new Date("2026-01-02T12:00:00.000Z"));
+    expect(s.unresolvedDue).toBe(1);
+  });
+});
+
+describe("pulse opt-in gating", () => {
+  beforeEach(() => {
+    try { (globalThis as unknown as { window?: { localStorage?: { clear(): void } } }).window?.localStorage?.clear(); } catch { /* noop */ }
+    vi.unstubAllGlobals();
+  });
+
+  it("emits snapshot via CustomEvent when window is available", async () => {
+    const target = new EventTarget();
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      clear: () => store.clear(),
+    };
+    const win = target as unknown as Window & { localStorage: typeof storage };
+    (win as unknown as Record<string, unknown>).localStorage = storage;
+    vi.stubGlobal("window", win);
+    const spy = vi.fn();
+    win.addEventListener(PULSE_EVENT, spy as EventListener);
+    const { emitPulse } = await import("./pulse");
+    emitPulse([entry()]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    win.removeEventListener(PULSE_EVENT, spy as EventListener);
+    vi.unstubAllGlobals();
+  });
+
+  it("isPulseOptIn and setPulseOptIn round-trip via window.localStorage", async () => {
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      clear: () => store.clear(),
+    };
+    vi.stubGlobal("window", { localStorage: storage } as unknown as Window & typeof globalThis);
+    const { isPulseOptIn, setPulseOptIn } = await import("./pulse");
+    setPulseOptIn(true);
+    expect(isPulseOptIn()).toBe(true);
+    expect(storage.getItem(PULSE_OPT_IN_KEY)).toBe("1");
+    setPulseOptIn(false);
+    expect(isPulseOptIn()).toBe(false);
+    expect(storage.getItem(PULSE_OPT_IN_KEY)).toBeNull();
+    vi.unstubAllGlobals();
   });
 });

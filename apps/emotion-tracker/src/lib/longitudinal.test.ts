@@ -169,4 +169,24 @@ describe("weekly/monthly + summary", () => {
     const m = monthlyReviews([e]);
     expect(m[0].period).toBe("2026-02");
   });
+
+  it("weeklyReviews uses ISO weeks across year boundary", () => {
+    // Dec 29 2025 (Mon) and Jan 1 2026 (Thu) are same ISO week 2026-W01
+    const a = entry({ createdAt: "2025-12-29T12:00:00.000Z" });
+    const b = entry({ createdAt: "2026-01-01T12:00:00.000Z" });
+    const c = entry({ createdAt: "2026-01-05T12:00:00.000Z" }); // next Mon → W02
+    const weeks = weeklyReviews([a, b, c]);
+    const w01 = weeks.find((w) => w.period === "2026-W01");
+    const w02 = weeks.find((w) => w.period === "2026-W02");
+    expect(w01?.entries.map((e) => e.id)).toEqual(expect.arrayContaining([a.id, b.id]));
+    expect(w02?.entries.map((e) => e.id)).toContain(c.id);
+    expect(w01?.entries.map((e) => e.id)).not.toContain(c.id);
+  });
+
+  it("monthlyReviews parses ISO strings without relying on slice alone", () => {
+    const e = entry({ createdAt: "2026-03-31T23:59:59.000Z" });
+    expect(monthlyReviews([e])[0].period).toBe("2026-03");
+    const off = entry({ createdAt: "2026-12-01T00:00:00.000Z" });
+    expect(monthlyReviews([off])[0].period).toBe("2026-12");
+  });
 });

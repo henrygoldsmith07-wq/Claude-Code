@@ -282,14 +282,27 @@ export interface PeriodReview {
   unresolved: number;
 }
 
+function isoWeekKey(dateInput: string | Date): string {
+  const d = new Date(dateInput);
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (utc.getUTCDay() + 6) % 7;
+  utc.setUTCDate(utc.getUTCDate() - dayNum + 3);
+  const isoYear = utc.getUTCFullYear();
+  const firstThursday = new Date(Date.UTC(isoYear, 0, 4));
+  const week = 1 + Math.round((utc.getTime() - firstThursday.getTime()) / 604800000);
+  return `${isoYear}-W${String(week).padStart(2, "0")}`;
+}
+
+function monthKey(dateInput: string): string {
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return dateInput.slice(0, 7);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export function weeklyReviews(entries: Entry[]): PeriodReview[] {
   const byWeek = new Map<string, Entry[]>();
   for (const e of entries.filter((x) => x.summary)) {
-    const d = new Date(e.createdAt);
-    const year = d.getFullYear();
-    const jan1 = new Date(year, 0, 1);
-    const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
-    const key = `${year}-W${String(week).padStart(2, "0")}`;
+    const key = isoWeekKey(e.createdAt);
     const arr = byWeek.get(key) || [];
     arr.push(e);
     byWeek.set(key, arr);
@@ -311,7 +324,7 @@ export function weeklyReviews(entries: Entry[]): PeriodReview[] {
 export function monthlyReviews(entries: Entry[]): PeriodReview[] {
   const byMonth = new Map<string, Entry[]>();
   for (const e of entries.filter((x) => x.summary)) {
-    const key = e.createdAt.slice(0, 7);
+    const key = monthKey(e.createdAt);
     const arr = byMonth.get(key) || [];
     arr.push(e);
     byMonth.set(key, arr);

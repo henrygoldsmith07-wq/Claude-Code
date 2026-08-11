@@ -19,7 +19,7 @@ type Step = (typeof PIPELINE_STEPS)[number];
 export function coveredSteps(messages: { role: string; content: string }[]): Set<Step> {
   const text = messages.map((m) => m.content.toLowerCase()).join(" \n");
   const s = new Set<Step>();
-  if (/observ|what (was said|happened|did)|fact/i.test(text)) s.add("observations");
+  if (/\bobserv|what (was said|happened|did)|\bfacts?\b/i.test(text)) s.add("observations");
   if (/assum|infer|treating as fact|what are you assuming/i.test(text)) s.add("assumptions");
   if (/emotion|feel|naming|hurt|shame|fear/i.test(text)) s.add("emotion");
   if (/alternative|another way|other reading|other perspective/i.test(text)) s.add("alternatives");
@@ -88,20 +88,34 @@ export function personalAdaptationHint(entries: Entry[]): string | null {
   const completed = entries.filter((e) => e.summary);
   if (completed.length < 3) return null;
 
-  // most common trigger
+  // most common trigger — normalised so "Work" and "work" count together
+  const trigDisplay = new Map<string, string>();
   const trig = new Map<string, number>();
-  for (const e of completed) for (const t of e.summary!.underlyingTriggers) trig.set(t, (trig.get(t) ?? 0) + 1);
+  for (const e of completed) for (const t of e.summary!.underlyingTriggers) {
+    const k = t.trim().toLowerCase();
+    if (!k) continue;
+    trig.set(k, (trig.get(k) ?? 0) + 1);
+    if (!trigDisplay.has(k)) trigDisplay.set(k, t);
+  }
   const top = [...trig.entries()].sort((a, b) => b[1] - a[1])[0];
   if (top && top[1] >= 3) {
-    return `Pattern note (tentative, not a diagnosis): "${top[0]}" has come up ${top[1]}× recently — consider whether it explains this situation or whether this time is different. Hold the pattern lightly; check the evidence for and against.`;
+    const label = trigDisplay.get(top[0]) ?? top[0];
+    return `Pattern note (tentative, not a diagnosis): "${label}" has come up ${top[1]}× recently — consider whether it explains this situation or whether this time is different. Hold the pattern lightly; check the evidence for and against.`;
   }
 
-  // most frequent hedged bias type flagged before
+  // most frequent hedged bias type flagged before — normalised
+  const biasDisplay = new Map<string, string>();
   const biases = new Map<string, number>();
-  for (const e of completed) for (const b of e.summary!.possibleBiases) biases.set(b.type, (biases.get(b.type) ?? 0) + 1);
+  for (const e of completed) for (const b of e.summary!.possibleBiases) {
+    const k = b.type.trim().toLowerCase();
+    if (!k) continue;
+    biases.set(k, (biases.get(k) ?? 0) + 1);
+    if (!biasDisplay.has(k)) biasDisplay.set(k, b.type);
+  }
   const topBias = [...biases.entries()].sort((a, b) => b[1] - a[1])[0];
   if (topBias && topBias[1] >= 2) {
-    return `You've explored "${topBias[0]}" before — only flag it again if the evidence this time actually fits (evidence for vs against, confidence ≥ 0.45; otherwise omit).`;
+    const label = biasDisplay.get(topBias[0]) ?? topBias[0];
+    return `You've explored "${label}" before — only flag it again if the evidence this time actually fits (evidence for vs against, confidence ≥ 0.45; otherwise omit).`;
   }
   return null;
 }

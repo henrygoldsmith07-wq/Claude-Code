@@ -106,11 +106,23 @@ export const parseQtyAmount = (qty) => {
     return { amount, unit: 'count', countUnit: singular, raw: text };
   }
 
-  // "½ lemon", "3 cloves" handled by count regex above for cloves; fractions for count units
+  // "½ lemon" — single unicode fraction
   const fraction = text.match(/^([½¼¾⅓⅔])\s*([a-z]+)$/);
   if (fraction && COUNT_UNITS.includes(fraction[2])) {
     const singular = SINGULAR[fraction[2]] || fraction[2];
     return { amount: FRACTIONS[fraction[1]], unit: 'count', countUnit: singular, raw: text };
+  }
+
+  // "1 ½ lemons" / "1½ lemons" — mixed integer + unicode fraction
+  const mixedSpaced = text.match(/^(\d+(?:\.\d+)?)\s+([½¼¾⅓⅔])\s+([a-z]+)$/);
+  if (mixedSpaced && COUNT_UNITS.includes(mixedSpaced[3])) {
+    const singular = SINGULAR[mixedSpaced[3]] || mixedSpaced[3];
+    return { amount: Number(mixedSpaced[1]) + FRACTIONS[mixedSpaced[2]], unit: 'count', countUnit: singular, raw: text };
+  }
+  const mixedAttached = text.match(/^(\d+)([½¼¾⅓⅔])\s+([a-z]+)$/);
+  if (mixedAttached && COUNT_UNITS.includes(mixedAttached[3])) {
+    const singular = SINGULAR[mixedAttached[3]] || mixedAttached[3];
+    return { amount: Number(mixedAttached[1]) + FRACTIONS[mixedAttached[2]], unit: 'count', countUnit: singular, raw: text };
   }
 
   // "1" — a bare count
@@ -120,13 +132,10 @@ export const parseQtyAmount = (qty) => {
   return null;
 };
 
-/** Both quantities on the same scale, or null. */
+/** Both quantities on the same scale, or null — mass (g) and volume (ml) never mix. */
 const sameScale = (a, b) => {
   if (!a || !b) return null;
   if (a.unit === b.unit) return { unit: a.unit, amount: a.amount + b.amount };
-  if ((a.unit === 'g' || a.unit === 'ml') && (b.unit === 'g' || b.unit === 'ml')) {
-    return { unit: a.unit, amount: a.amount + b.amount * (a.unit === 'g' ? (b.unit === 'g' ? 1 : 1) : (b.unit === 'g' ? 1 : 1)) };
-  }
   return null;
 };
 
@@ -136,6 +145,14 @@ const formatGrams = (amount) => {
   if (g >= 1000) return `${Math.round((g / 1000) * 100) / 100} kg`;
   if (Number.isInteger(g)) return `${g} g`;
   return `${g} g`;
+};
+
+const formatMillilitres = (amount) => {
+  const ml = Math.round(amount * 100) / 100;
+  if (ml >= 1000 && Number.isInteger(ml / 1000)) return `${ml / 1000} l`;
+  if (ml >= 1000) return `${Math.round((ml / 1000) * 100) / 100} l`;
+  if (Number.isInteger(ml)) return `${ml} ml`;
+  return `${ml} ml`;
 };
 
 /**
@@ -157,7 +174,8 @@ export const mergeQtys = (qtyA, qtyB) => {
   const scaled = sameScale(pa, pb);
   if (scaled) {
     if (scaled.unit === 'g') return formatGrams(scaled.amount);
-    return `${Math.round(scaled.amount * 10) / 10} ml`;
+    if (scaled.unit === 'ml') return formatMillilitres(scaled.amount);
+    return `${scaled.amount} ${scaled.unit}`;
   }
   return `${a} + ${b}`;
 };

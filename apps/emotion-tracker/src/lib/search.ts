@@ -41,6 +41,7 @@ export function searchEntries(entries: Entry[], q: string): Entry[] {
 // ── lightweight semantic search (TF-IDF + cosine over sparse vectors) ─
 // No model dependency — runs entirely locally, so "local-only mode" stays local.
 // Rank by TF-IDF cosine between query and entry document.
+// Caps + token-set caching so it stays fast even with many entries.
 
 function buildDoc(e: Entry): string {
   return [
@@ -71,14 +72,22 @@ export interface SemanticHit {
 export function semanticSearch(entries: Entry[], q: string, topK = 20): SemanticHit[] {
   const qTokens = toks(q);
   if (qTokens.length === 0 || entries.length === 0) return [];
-  const docs = entries.map(buildDoc);
-  const allTokens = new Set<string>([...qTokens, ...docs.flatMap((d) => toks(d))]);
+  // Cap: beyond ~200 entries, shard or require more specific query
+  const capped = entries.length > 500 ? entries.slice(0, 500) : entries;
+  const docs = capped.map(buildDoc);
+  // Cache token arrays + sets per doc to avoid recomputing toks N× per df scan
+  const docTokens: string[][] = docs.map((d) => toks(d));
+  const docSets: Set<string>[] = docTokens.map((arr) => new Set(arr));
+  const qSet = new Set(qTokens);
+  const allTokens = new Set<string>([...qSet, ...docTokens.flat().filter((_, i) => i < 2000)]);
+  // Include remaining unique tokens beyond first 2000 via sets
+  for (const s of docSets) for (const t of s) allTokens.add(t);
   // doc frequency
   const df = new Map<string, number>();
   for (const t of allTokens) {
     let c = 0;
-    if (qTokens.includes(t)) c++;
-    for (const d of docs) if (toks(d).includes(t)) c++;
+    if (qSet.has(t)) c++;
+    for (const s of docSets) if (s.has(t)) c++;
     df.set(t, c);
   }
   const N = docs.length + 1;
@@ -92,10 +101,10 @@ export function semanticSearch(entries: Entry[], q: string, topK = 20): Semantic
   const qNorm = Math.sqrt([...qVec.values()].reduce((s, v) => s + v * v, 0)) || 1;
 
   const hits: SemanticHit[] = [];
-  for (let i = 0; i < entries.length; i++) {
-    const dTokens = toks(docs[i]);
-    if (dTokens.length === 0) continue;
-    const dTf = tf(dTokens);
+  for (let i = 0; i < capped.length; i++) {
+    const dTok = docTokens[i];
+    if (dTok.length === 0) continue;
+    const dTf = tf(dTok);
     const dVec = new Map<string, number>();
     for (const [t, v] of dTf) dVec.set(t, v * idf(t));
     let dot = 0;
@@ -105,7 +114,7 @@ export function semanticSearch(entries: Entry[], q: string, topK = 20): Semantic
     }
     const dNorm = Math.sqrt([...dVec.values()].reduce((s, v) => s + v * v, 0)) || 1;
     const score = dot / (qNorm * dNorm);
-    if (score > 0.02) hits.push({ entry: entries[i], score });
+    if (score > 0.02) hits.push({ entry: capped[i], score });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, topK);
 }
