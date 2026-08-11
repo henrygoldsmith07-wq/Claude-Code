@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { ArgGraph, ArgNode } from "@/lib/argGraph";
 import type { PvpVerdict } from "@/lib/types";
+import { applyGraphEdits, type GraphEdit } from "@/lib/graphEnrichers";
+import { validateGraph } from "@/lib/argGraph";
 
 const KIND_LABEL: Record<ArgNode["kind"], string> = {
   claim: "Claim",
@@ -82,9 +85,31 @@ function Breakdown({ label, data, winner }: { label: string; data: { claims: num
   );
 }
 
-export function ArgGraphInline({ graph, playerAName, playerBName }: { graph: ArgGraph; playerAName: string; playerBName: string }) {
+export function ArgGraphInline({
+  graph,
+  playerAName,
+  playerBName,
+  editable,
+  onGraphChange,
+}: {
+  graph: ArgGraph;
+  playerAName: string;
+  playerBName: string;
+  editable?: boolean;
+  onGraphChange?: (g: ArgGraph, audit: string[]) => void;
+}) {
   const nameFor = (owner: ArgNode["owner"]) => (owner === "a" ? playerAName : owner === "b" ? playerBName : "AI");
   const byRound = nodesByRound(graph.nodes);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  function commitEdit(nodeId: string) {
+    const { graph: next, audit } = applyGraphEdits(graph, [{ op: "patchNode", nodeId, patch: { text: editText.trim() || graph.nodes.find((n) => n.id === nodeId)?.text } }]);
+    const errs = validateGraph(next);
+    if (errs.length) return; // keep invalid edits from propagating
+    onGraphChange?.(next, audit);
+    setEditId(null);
+  }
 
   return (
     <div className="surface-card p-4 flex flex-col gap-4">
@@ -99,8 +124,19 @@ export function ArgGraphInline({ graph, playerAName, playerBName }: { graph: Arg
                   <span className="shrink-0 text-xs font-medium tabular text-ink3 mt-0.5">
                     {n.id} · {KIND_LABEL[n.kind]}
                   </span>
-                  <span className="flex-1">{n.text}</span>
+                  {editable && editId === n.id ? (
+                    <span className="flex flex-1 gap-2">
+                      <input value={editText} onChange={(e) => setEditText(e.target.value)} className="min-w-0 flex-1 rounded border border-[var(--rule)] bg-transparent px-2 py-1 text-sm" aria-label={`Edit ${n.id}`} />
+                      <button type="button" onClick={() => commitEdit(n.id)} className="btn btn-primary px-2 py-1 text-xs">Save</button>
+                      <button type="button" onClick={() => setEditId(null)} className="btn btn-ghost px-2 py-1 text-xs">Cancel</button>
+                    </span>
+                  ) : (
+                    <span className="flex-1">{n.text}</span>
+                  )}
                   <span className="shrink-0 text-xs text-ink3">{nameFor(n.owner)}</span>
+                  {editable && editId !== n.id ? (
+                    <button type="button" onClick={() => { setEditId(n.id); setEditText(n.text); }} className="shrink-0 text-xs text-ink3 underline">Edit</button>
+                  ) : null}
                   {n.evidenceStrength ? <span className="shrink-0 text-xs tabular text-ink3">[{n.evidenceStrength}]</span> : null}
                   {n.kind === "evidence" && n.citations?.length ? (
                     <span className="shrink-0 text-xs tabular text-ink3" title={n.citations.map((c) => `${c.sourceName}${c.homepage ? ` — ${c.homepage}` : ""}${c.excerpt ? `: ${c.excerpt}` : ""}`).join(" | ")}>

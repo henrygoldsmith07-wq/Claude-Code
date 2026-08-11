@@ -87,6 +87,41 @@ export type RateLimitRow = {
   reset_at: string;
 };
 
+export type BenchmarkCorpusRow = {
+  id: string;
+  transcript: string;
+  human_winner: string;
+  rater_verdicts: unknown;
+  rater_ids: string[];
+  human_rationale: string;
+  topic: string | null;
+  is_synthetic: boolean;
+  created_at: string;
+};
+
+export type MatchAppealRow = {
+  id: string;
+  match_id: string;
+  filed_by: string;
+  reason: string;
+  note: string;
+  status: string;
+  corrected_winner: string | null;
+  resolution_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+};
+
+export type ReportRow = {
+  id: string;
+  target_user_id: string;
+  match_id: string | null;
+  filed_by: string;
+  reason: string;
+  note: string;
+  created_at: string;
+};
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export type Database = {
@@ -103,6 +138,9 @@ export type Database = {
       pvp_matches: TableDef<PvpMatchRow>;
       pvp_turns: TableDef<PvpTurnRow>;
       rate_limits: TableDef<RateLimitRow>;
+      benchmark_corpus: TableDef<BenchmarkCorpusRow>;
+      match_appeals: TableDef<MatchAppealRow>;
+      reports: TableDef<ReportRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

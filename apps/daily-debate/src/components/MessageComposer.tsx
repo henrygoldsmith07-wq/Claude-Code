@@ -15,12 +15,11 @@ export default function MessageComposer({
 }) {
   const [text, setText] = useState("");
   const [usedVoice, setUsedVoice] = useState(false);
-  const { supported, listening, transcript, start, stop } = useSpeechRecognition();
+  const { supported, listening, transcript, interim, error: speechError, start, stop } = useSpeechRecognition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // While listening, the textarea mirrors the live transcript directly
-  // instead of syncing it into state via an effect.
-  const displayValue = listening ? transcript : text;
+  // While listening, the textarea mirrors the live transcript (final + interim)
+  const displayValue = listening ? (transcript + (interim ? ` ${interim}` : "")).trimStart() : text;
 
   useEffect(() => {
     if (!disabled && !listening) {
@@ -70,21 +69,24 @@ export default function MessageComposer({
         className="w-full resize-none rounded-lg border border-[var(--rule)] bg-transparent px-3 py-2 text-sm disabled:opacity-50"
       />
       <div className="flex items-center justify-between gap-2">
-        {supported ? (
-          <button
-            type="button"
-            onClick={toggleListening}
-            disabled={disabled}
-            aria-pressed={listening}
-            className={`btn px-3 py-1.5 text-xs disabled:opacity-40 ${
-              listening ? "border border-[var(--bad)] text-[var(--bad)]" : "btn-ghost"
-            }`}
-          >
-            {listening ? "● Listening… tap to stop" : "🎙️ Speak instead"}
-          </button>
-        ) : (
-          <span className="text-xs text-ink2">Voice input not supported in this browser.</span>
-        )}
+        <div className="flex flex-col gap-1">
+          {supported ? (
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={disabled}
+              aria-pressed={listening}
+              aria-label={listening ? "Stop listening" : "Start voice input"}
+              className={`btn px-3 py-1.5 text-xs disabled:opacity-40 ${listening ? "border border-[var(--bad)] text-[var(--bad)]" : "btn-ghost"}`}
+            >
+              {listening ? "● Listening… tap to stop" : "🎙️ Speak instead"}
+            </button>
+          ) : (
+            <span className="text-xs text-ink2">Voice: Chrome/Edge only — type or paste on Safari/Firefox.</span>
+          )}
+          {speechError ? <span className="text-xs text-[var(--bad)]" role="alert">{speechError}</span> : null}
+          {listening && interim ? <span className="text-xs italic text-ink3" aria-live="polite">{interim}</span> : null}
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-ink2 tabular">
             {displayValue.trim().length > 0 ? `${displayValue.trim().length} chars` : ""}
