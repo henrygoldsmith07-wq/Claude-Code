@@ -7,7 +7,10 @@ import { useApp } from '../lib/store.jsx';
 import { Glyph } from './icons.jsx';
 import { gbp, cx, prettyDate } from '../lib/utils.js';
 import { AISLE_ORDER, COMMON_STORES, checkedTotalOf } from '../data/stores.js';
-import { basketProjection, groupForStore, parseVoiceShopping, shoppingNameKey } from '../lib/shopping.js';
+import {
+  basketProjection, dealQuality, groupForStore, parseVoiceShopping, recurringStaples, shoppingNameKey,
+} from '../lib/shopping.js';
+import { AISLE_ORDER as ALL_AISLES } from '../data/stores.js';
 import { clearObservedPriceCache, fetchObservedForList } from '../lib/observed-prices.js';
 import { haptic } from '../lib/haptics.js';
 import { gbp as gbpFmt } from '../lib/utils.js';
@@ -41,6 +44,8 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
   const [voiceStatus, setVoiceStatus] = useState('');
   const [dragging, setDragging] = useState(null);
   const [repeatedShopId, setRepeatedShopId] = useState('');
+  const [routeEditor, setRouteEditor] = useState(false);
+  const [routeOrder, setRouteOrder] = useState([]);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   const [observedByKey, setObservedByKey] = useState(null); // { [shoppingNameKey]: observedPrice } | null
   const [observedBusy, setObservedBusy] = useState(false);
@@ -92,6 +97,36 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
   const ticked = visibleList.filter((i) => i.checked).length;
   const checkedTotal = checkedTotalOf(visibleList);
   const known = store && app.storeRoutes[store];
+  const staples = useMemo(
+    () => recurringStaples(app.shops, app.pantry, list, { today: app.day }),
+    [app.shops, app.pantry, list, app.day],
+  );
+  const staplesDue = staples.filter((s) => s.dueNow);
+  // Honest offers: a multibuy that can't fire on this list says so instead of
+  // printing a saving nobody can get.
+  const honestOffers = useMemo(
+    () => app.offers.map((offer) => ({ offer, quality: dealQuality(offer, visibleList, { today: app.day }) })),
+    [app.offers, visibleList, app.day],
+  );
+  const openRouteEditor = () => {
+    setRouteOrder(known || ALL_AISLES);
+    setRouteEditor(true);
+  };
+  const saveRoute = () => {
+    if (store) {
+      app.setStoreRoute(store, routeOrder);
+      setRouteEditor(false);
+    }
+  };
+  const moveAisle = (index, dir) => {
+    setRouteOrder((order) => {
+      const target = index + dir;
+      if (target < 0 || target >= order.length) return order;
+      const next = [...order];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
 
   const asText = () => {
     const lines = grouped.map(([aisle, items]) =>
@@ -282,9 +317,19 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
               {store && (
                 <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
                   {known
-                    ? `Aisles in the order you walked ${store} last time: ${known.join(' → ')}. Everything else follows the usual order.`
+                    ? `Aisles in the order you walked ${store} last time: ${known.join(' → ')}.`
                     : `No route for ${store} yet — tick items off in the order you find them and it'll remember.`}
                 </p>
+              )}
+              {store && known && (
+                <button
+                  type="button"
+                  onClick={openRouteEditor}
+                  className="press mt-1.5 rounded-full border px-3 py-1.5 text-[0.71875rem] font-extrabold"
+                  style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+                >
+                  <span className="inline-flex items-center gap-1.5"><MapPin size={12} /> Edit this store's route</span>
+                </button>
               )}
               {store && (
                 <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
@@ -356,6 +401,33 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
           )}
 
           <RestockSection items={app.restock} store={store} />
+
+          {staplesDue.length > 0 && (
+            <Section className="rise rise-2" title="Due — you buy these on a rhythm">
+              <p className="text-[0.75rem] font-semibold mb-2.5" style={{ color: 'var(--muted)' }}>
+                Read off your own shop history — how often you actually restock, not a guess.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {staplesDue.slice(0, 8).map((staple) => (
+                  <Chip
+                    key={staple.name}
+                    onClick={() => app.addToList({ name: staple.name, emoji: staple.emoji, qty: '', store })}>
+                    <span className="inline-flex items-center gap-1.5">
+                      {staple.emoji} {staple.name}
+                      <span className="text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+                        {staple.since} days · every ~{staple.cadence}
+                      </span>
+                    </span>
+                  </Chip>
+                ))}
+              </div>
+              {staples.length > staplesDue.length && (
+                <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+                  {staples.length - staplesDue.length} more tracked staple{staples.length - staplesDue.length === 1 ? '' : 's'} not due yet.
+                </p>
+              )}
+            </Section>
+          )}
 
           {app.favouriteShopping.length > 0 && (
             <Section className="rise rise-2" title="Favourites">
@@ -522,7 +594,66 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
         />
       </Sheet>
       <Sheet open={sheet === 'offers'} onClose={() => setSheet(null)} title="Offers you have">
-        <OffersPanel />
+        <div className="px-5 pb-10 space-y-3">
+          <OffersPanel />
+          {honestOffers.filter((row) => !row.quality.honest && row.offer.kind === 'multibuy').length > 0 && (
+            <Card className="!p-3 space-y-2" style={{ background: 'var(--card-2)' }}>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>
+                Deals that can't fire on this list
+              </p>
+              {honestOffers.filter((row) => !row.quality.honest && row.offer.kind === 'multibuy').map(({ offer, quality }) => (
+                <p key={offer.id} className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {offer.label}: {quality.note}
+                </p>
+              ))}
+            </Card>
+          )}
+        </div>
+      </Sheet>
+      <Sheet open={routeEditor} onClose={() => setRouteEditor(false)} title={`Route for ${store || 'this shop'}`}>
+        <div className="px-5 pb-10 space-y-2">
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Move aisles into the order you walk them. This replaces the learned route for {store}.
+          </p>
+          {routeOrder.map((aisle, index) => (
+            <Card key={aisle} className="!p-3 flex items-center justify-between gap-2">
+              <span className="text-[0.8125rem] font-extrabold truncate">
+                <span className="mr-2 text-[0.6875rem] font-bold" style={{ color: 'var(--faint)' }}>{index + 1}</span>
+                {aisle}
+              </span>
+              <span className="flex gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() => moveAisle(index, -1)}
+                  aria-label={`Move ${aisle} up`}
+                  className="press flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-30"
+                  style={{ borderColor: 'var(--line)' }}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  disabled={index === routeOrder.length - 1}
+                  onClick={() => moveAisle(index, 1)}
+                  aria-label={`Move ${aisle} down`}
+                  className="press flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-30"
+                  style={{ borderColor: 'var(--line)' }}
+                >
+                  ↓
+                </button>
+              </span>
+            </Card>
+          ))}
+          <button
+            type="button"
+            onClick={saveRoute}
+            className="press w-full rounded-2xl py-3 text-[0.875rem] font-extrabold"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          >
+            Save route for {store}
+          </button>
+        </div>
       </Sheet>
       <Sheet open={sheet === 'scan'} onClose={() => setSheet(null)} title="Scan onto the list">
         <div className="px-5 pb-10">

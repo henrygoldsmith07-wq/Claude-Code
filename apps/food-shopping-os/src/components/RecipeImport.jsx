@@ -47,6 +47,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
     const structured = recipeTextFromMarkup(text);
     const importText = structured?.text || text;
     let out = importRecipeText(importText, app.catalogue);
+    const provenance = structured?.provenance || null;
     if (mode === 'url' && !/^https?:\/\/.+\..+/.test(url.trim())) {
       setError('That doesn’t look like a recipe link.');
       setResult(null);
@@ -201,7 +202,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
             </p>
             <button
               onClick={() => {
-                app.saveRecipe(recipeFromImport(result, { text, url: mode === 'url' ? url : link }));
+                app.saveRecipe(recipeFromImport(result, { text, url: mode === 'url' ? url : link, provenance }));
                 setKept(true);
               }}
               disabled={kept}
@@ -231,7 +232,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
             </button>
               <button
                 onClick={() => {
-                  const imported = recipeFromImport(result, { text, url: mode === 'url' ? url : link });
+                  const imported = recipeFromImport(result, { text, url: mode === 'url' ? url : link, provenance });
                   app.addToList(itemsFromRecipes([imported]));
                   setListed(true);
                 }}

@@ -7,6 +7,7 @@ import { recipeFood } from './foodlog.js';
 import { targetActions } from './target-actions.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { consumePantryIngredients } from './kitchen.js';
+import { canonicalName, learnAlias } from './aliases.js';
 import { pantryActions } from './pantry-actions.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
@@ -206,6 +207,9 @@ export function useStoreApi({
             low: false,
             addedAt: s.day,
             ...item,
+            // The day it went into the cupboard is the purchase day when no
+            // other date was given — freshness reads off it.
+            purchaseDate: item.purchaseDate || s.day,
             cost: Number(item.cost) || 0,
           }],
         } : {})),
@@ -303,6 +307,7 @@ export function useStoreApi({
             saved,
             items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
           };
+          const purchaseDate = s.day;
           const route = routeFromTicks(bought);
           return {
             shops: [...s.shops, shop],
@@ -321,6 +326,7 @@ export function useStoreApi({
                   expiry: null,
                   low: false,
                   addedAt: s.day,
+                  purchaseDate,
                 }))]
               : s.pantry,
           };
@@ -358,6 +364,33 @@ export function useStoreApi({
           const next = normalisePriceAlertConfig({ ...s.priceAlertConfig, ...(patch || {}) });
           return { priceAlertConfig: next };
         }),
+      /* ---- Kitchen intelligence (Forq 10) ---- */
+      setStoreRoute: (store, order) =>
+        set((s) => {
+          const cleanStore = String(store || '').trim();
+          if (!cleanStore) return {};
+          const cleaned = (Array.isArray(order) ? order : [])
+            .map((aisle) => String(aisle || '').trim())
+            .filter(Boolean);
+          if (!cleaned.length) return {};
+          return { storeRoutes: { ...(s.storeRoutes || {}), [cleanStore]: cleaned } };
+        }),
+      clearStoreRoute: (store) =>
+        set((s) => {
+          const routes = { ...(s.storeRoutes || {}) };
+          if (!routes[store]) return {};
+          delete routes[store];
+          return { storeRoutes: routes };
+        }),
+      /** A scan/typo correction: 'tomatos' → 'tomatoes'. Teaches entity resolution. */
+      learnCorrection: ({ from, to }) =>
+        set((s) => {
+          const next = learnAlias(s.aliasMemory || {}, from, to);
+          if (next === s.aliasMemory) return {};
+          return { aliasMemory: next };
+        }),
+      /** Alias-aware pantry consumption for one recipe's ingredient line. */
+      canonicalName: (name) => canonicalName(name, latest.current.aliasMemory),
       setPriceAlertOverride: (name, kind, pct) =>
         set((s) => {
           const key = String(name || '').trim().toLowerCase();
@@ -504,7 +537,7 @@ export function useStoreApi({
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           const consumed = householdPermission(s, 'pantry') && s.autoUsePantry
-            ? consumePantryIngredients(s.pantry, recipe.ingredients)
+            ? consumePantryIngredients(s.pantry, recipe.ingredients, { learnedAliases: s.aliasMemory })
             : { pantry: s.pantry };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],

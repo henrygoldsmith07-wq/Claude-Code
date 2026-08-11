@@ -29,7 +29,8 @@ export default function PantryCapture({ onDone }) {
     setMessage('');
     setTimeout(() => {
       const read = recogniseShelf(seed, app.catalogue);
-      setItems(read);
+      // Keep what the recogniser said so an edit can be taught back.
+      setItems(read.map((item) => ({ ...item, original: item.name })));
       setLocation(read[0]?.location || 'Fridge');
       setBusy(false);
     }, 1200);
@@ -47,6 +48,9 @@ export default function PantryCapture({ onDone }) {
 
   const save = () => {
     for (const item of items) {
+      const from = String(item.original || '').trim();
+      const to = String(item.name || '').trim();
+      if (from && to && from !== to) app.learnCorrection({ from, to });
       app.addPantryItem({
         name: item.name,
         emoji: item.emoji,

@@ -4,7 +4,10 @@ import {
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { cx, gbp, expiryStatus } from '../lib/utils.js';
-import { daysUntil, expiringSoon, pantryAnalytics, pantryAvailability, pantryTruthLabel, pantryTruthTone, pantryUseLabel, pantryUncertaintyLabel, pantryValue } from '../lib/kitchen.js';
+import {
+  daysUntil, expiringSoon, freshnessOf, pantryAnalytics, pantryAvailability,
+  pantryTruthLabel, pantryTruthTone, pantryUseLabel, pantryUncertaintyLabel, pantryValue,
+} from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
 import { CATEGORIES, DEFAULT_CATEGORY, DEFAULT_LOCATION, LOCATIONS } from '../data/pantry.js';
 import { Card, Chip, Empty, GestureMenu, Pill, Section } from './ui.jsx';
@@ -395,16 +398,24 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
             {items.map((p) => {
               const days = p.expiry ? daysUntil(p.expiry, app.day) : null;
               const st = days === null ? null : expiryStatus(days); const useLabel = pantryUseLabel(p);
+              const fresh = freshnessOf(p, app.day);
+              const menuActions = [
+                { label: p.low ? 'Mark stocked' : 'Mark running low', onClick: () => app.togglePantryLow(p.id) },
+                { label: useLabel, onClick: () => app.usePantryItem(p.id) },
+                { label: p.openedDate ? 'Opened — reset opened date' : 'Mark opened today', onClick: () => app.updatePantryItem(p.id, { openedDate: p.openedDate ? null : app.day }) },
+                { label: 'Add to shopping list', onClick: () => app.addToList({ name: p.name, emoji: p.emoji, qty: p.qty }) },
+                { label: 'Remove', tone: 'danger', onClick: () => app.removePantryItem(p.id) },
+              ];
+              if (p.location === 'Freezer') {
+                menuActions.splice(3, 0, { label: 'Move to fridge (thaw)', onClick: () => app.updatePantryItem(p.id, { location: 'Fridge' }) });
+              } else if (p.cat !== 'Leftovers') {
+                menuActions.splice(3, 0, { label: 'Move to freezer', onClick: () => app.updatePantryItem(p.id, { location: 'Freezer' }) });
+              }
               return (
                 <GestureMenu
                   key={p.id}
                   label={p.name}
-                  actions={[
-                    { label: p.low ? 'Mark stocked' : 'Mark running low', onClick: () => app.togglePantryLow(p.id) },
-                    { label: useLabel, onClick: () => app.usePantryItem(p.id) },
-                    { label: 'Add to shopping list', onClick: () => app.addToList({ name: p.name, emoji: p.emoji, qty: p.qty }) },
-                    { label: 'Remove', tone: 'danger', onClick: () => app.removePantryItem(p.id) },
-                  ]}
+                  actions={menuActions}
                   onSwipeLeft={() => app.removePantryItem(p.id)}
                   onSwipeRight={() => app.togglePantryLow(p.id)}
                 >
@@ -414,6 +425,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
                     <p className="font-bold text-[0.875rem] truncate">{p.name}</p>
                     <p className="text-[0.71875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
                       {[p.qty, p.location, p.store].filter(Boolean).join(' · ') || p.cat}
+                      {fresh.kind !== 'unknown' && ` · ${fresh.label}`}
                     </p>
                   </div>
                   <div className="text-right shrink-0">

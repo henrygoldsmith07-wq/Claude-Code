@@ -13,6 +13,7 @@ import { distanceMetres } from './lib/smart.js';
 import { downloadFile, showNotification } from './lib/notify.js';
 import { haptic } from './lib/haptics.js';
 import { flushProductEvents, recordProductEvent } from './lib/product-analytics.js';
+import { pulseForq } from './lib/pulse.js';
 
 const testScreens = globalThis.__FORQ_TEST_SCREENS__ || {};
 const deferred = (testComponent, loader) => testComponent || lazy(loader);
@@ -183,6 +184,7 @@ function Shell() {
   const noticeTimer = useRef(null);
   const completedGoals = useRef(null);
   const analyticsOpened = useRef(false);
+  const pulseTimer = useRef(null);
   // Which logging sheet the diary should open with, when arriving from Home.
   const [logIntent, setLogIntent] = useState(null);
 
@@ -233,6 +235,16 @@ function Shell() {
     else if (id === 'assistant') { setGuidanceView('ask'); setGuidanceOpen(true); }
     else if (id === 'undo') undo();
   };
+
+  // Pulse: hand the host app a snapshot of the kitchen at most once a second.
+  // The snapshot is numbers with dates/context, never live state — the host
+  // cannot reach into Forq, it only hears what's happened here.
+  useEffect(() => {
+    if (!app.onboarded) return undefined;
+    clearTimeout(pulseTimer.current);
+    pulseTimer.current = setTimeout(() => pulseForq(app), 600);
+    return () => clearTimeout(pulseTimer.current);
+  });
 
   useEffect(() => {
     if (!app.onboarded) return undefined;

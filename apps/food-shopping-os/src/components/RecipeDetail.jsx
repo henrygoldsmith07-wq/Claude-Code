@@ -8,7 +8,9 @@ import { gbp, cx } from '../lib/utils.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { MEAL_SLOTS } from '../data/plan.js';
 import { addDays } from '../lib/kitchen.js';
-import { applySwap, makeItFit, safeExternalUrl, scaleRecipe } from '../lib/recipe-tools.js';
+import {
+  applySwap, dislikeSwapsFor, makeItFit, nutritionConfidence, safeExternalUrl, scaleRecipe,
+} from '../lib/recipe-tools.js';
 import { explainRecommendation } from '../lib/recommend.js';
 import { Card, Ring, Pill, FoodArt, Chip } from './ui.jsx';
 import { Glyph } from './icons.jsx';
@@ -49,6 +51,8 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
   const fav = app.favourites.includes(recipe.id);
   const isMine = app.myRecipes.some((r) => r.id === original.id);
   const rating = app.recipeRatings[original.id] || 0;
+  const nutrition = nutritionConfidence(recipe);
+  const dislikeSwaps = useMemo(() => dislikeSwapsFor(base, app.prefs?.dislikes || []), [base, app.prefs?.dislikes]);
 
   // What you have is read from your actual pantry, by name.
   const pantryNames = app.pantry.map((p) => p.name.toLowerCase());
@@ -195,6 +199,15 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
               <ExternalLink size={14} /> Open original recipe
             </a>
           )}
+          {isMine && (recipe.imported || recipe.source) && (
+            <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+              Imported {recipe.importedAt ? new Date(recipe.importedAt).toLocaleDateString('en-GB') : ''}
+              {recipe.confidence === 'partial' ? ' · parsed partially — check ingredients and method' : ' · parsed from the source'}
+              {recipe.provenance?.author ? ` · by ${recipe.provenance.author}` : ''}
+              {recipe.provenance?.datePublished ? ` · published ${recipe.provenance.datePublished}` : ''}
+              {recipe.unread?.length ? ` · ${recipe.unread.length} line${recipe.unread.length === 1 ? '' : 's'} unread` : ''}
+            </p>
+          )}
           {isMine && (
             <button
               onClick={() => { app.removeRecipe(original.id); onClose(); }}
@@ -280,6 +293,9 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
             <Ring value={recipe.carbs} max={90} size={68} color="var(--series-3)" label={`${recipe.carbs}g`} sub="carbs" />
             <Ring value={recipe.fat} max={40} size={68} color="var(--accent)" label={`${recipe.fat}g`} sub="fat" />
           </div>
+          <p className="mt-3 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+            {nutrition.label}
+          </p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             {[
               ['Health', recipe.healthScore, '💚'],
@@ -349,6 +365,29 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
             </button>
           )}
         </Card>
+
+        {dislikeSwaps.length > 0 && app.prefs?.dislikes?.length > 0 && (
+          <Card className="rise rise-2" style={{ borderColor: 'var(--warn)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--warn)' }}>
+              Someone in the house won't eat
+            </p>
+            <div className="mt-2 space-y-2">
+              {dislikeSwaps.map(({ ingredient, options }) => (
+                <div key={ingredient} className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[0.8125rem] font-bold">{ingredient}</span>
+                  <button
+                    type="button"
+                    onClick={() => setVariant((v) => applySwap(v || original, ingredient, options[0]))}
+                    className="press rounded-full border px-3 py-1.5 text-[0.71875rem] font-extrabold"
+                    style={{ borderColor: 'var(--line)', color: 'var(--accent)' }}
+                  >
+                    Swap for {options[0].name}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <SwapPanel recipe={base} onSwap={swap} />
 

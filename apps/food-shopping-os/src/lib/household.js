@@ -36,6 +36,9 @@ const cleanMember = (member, index) => {
     role,
     portions: Math.max(0.5, Math.min(4, Number(member.portions) || 1)),
     diets: Array.isArray(member.diets) ? member.diets.slice(0, 20).map((diet) => text(diet, 40)).filter(Boolean) : [],
+    allergies: Array.isArray(member.allergies) ? member.allergies.slice(0, 30).map((item) => text(item, 60)).filter(Boolean) : [],
+    intolerances: Array.isArray(member.intolerances) ? member.intolerances.slice(0, 30).map((item) => text(item, 60)).filter(Boolean) : [],
+    dislikes: Array.isArray(member.dislikes) ? member.dislikes.slice(0, 30).map((item) => text(item, 60)).filter(Boolean) : [],
     permissions: { ...permissionsForRole(role), ...(member.permissions || {}) },
     notifications: member.notifications !== false,
   };

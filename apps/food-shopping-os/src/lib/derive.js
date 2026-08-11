@@ -21,7 +21,7 @@ import { progressSummary } from './progress.js';
 import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
 import { activityAdjustment, weekSummary } from './exercise.js';
 import {
-  basketProjection, priceAlertMatches, restockSuggestions, wasteSummary,
+  basketProjection, priceAlertMatches, restockSuggestions, recurringStaples, wasteSummary,
 } from './shopping.js';
 import { couponVaultStats, couponsForList } from './coupons.js';
 import { derivePriceAnomalies, priceAnomalyForList } from './price-alerts.js';
@@ -57,9 +57,15 @@ export const deriveApp = (state) => {
 
   // One context object for every surface that asks "is this safe / preferred?".
   const planDiets = [...new Set([...state.diets, ...state.members.flatMap((m) => m.diets || [])])];
+  // One person's allergen is everyone's hard line: a recipe naming it is never
+  // offered, no matter who's logged in. Dislikes stay per-member and only move
+  // a dish down the ranking, never off the list.
+  const memberAllergies = [...new Set(state.members.flatMap((m) => m.allergies || []))];
+  const memberIntolerances = [...new Set(state.members.flatMap((m) => m.intolerances || []))];
+  const memberDislikes = [...new Set(state.members.flatMap((m) => m.dislikes || []))];
   const suitabilityCtx = suitabilityContextFrom({
-    allergies: state.allergies,
-    intolerances: state.intolerances,
+    allergies: [...new Set([...state.allergies, ...memberAllergies])],
+    intolerances: [...new Set([...state.intolerances, ...memberIntolerances])],
     religious: state.religious,
     diets: state.diets,
     planDiets,
@@ -68,6 +74,7 @@ export const deriveApp = (state) => {
     skill: state.skill,
     timeBudget: state.timeBudget,
     units: state.units,
+    dislikes: memberDislikes,
   });
 
   // Legacy prefs bag kept for components that still read app.prefs.*
@@ -80,6 +87,7 @@ export const deriveApp = (state) => {
     skill: state.skill,
     timeBudget: state.timeBudget,
     units: state.units,
+    dislikes: memberDislikes,
   };
 
   const catalogue = [...CATALOGUE, ...state.customFoods];
@@ -170,6 +178,7 @@ export const deriveApp = (state) => {
       today: state.day,
     }),
     restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
+    staples: recurringStaples(state.shops, state.pantry, state.shoppingList, { today: state.day }),
     wasted: wasteSummary(state.waste),
     stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
     personaTier,

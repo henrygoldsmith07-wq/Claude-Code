@@ -3,11 +3,12 @@ import {
   Check, ChevronRight, Info, Leaf, Package, ShoppingCart, Snowflake, Sparkles, Zap,
 } from 'lucide-react';
 import { gbp } from '../lib/utils.js';
-import { buildPlan, scopeMeals } from '../lib/planner.js';
+import { buildPlan, EQUIPMENT_TAGS, scopeMeals } from '../lib/planner.js';
 import { useApp } from '../lib/store.jsx';
 import { PLANNER_OCCASIONS, WEEK_DAYS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { monthOf, peakNow } from '../data/seasons.js';
+import { expiringSoon } from '../lib/kitchen.js';
 import { explainRecommendation } from '../lib/recommend.js';
 import { Card, Chip, Pill, Stepper, FoodArt } from './ui.jsx';
 import { recordProductEvent } from '../lib/product-analytics.js';
@@ -34,6 +35,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const [usePantry, setUsePantry] = useState(true);
   const [seasonal, setSeasonal] = useState(true);
   const [leftoverFirst, setLeftoverFirst] = useState(app.leftovers.length > 0);
+  const [variety, setVariety] = useState(true);
   const [seed, setSeed] = useState(() => (app.calendarBusy?.length ? Date.now() % 100000 : 0));
   const [generating, setGenerating] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
@@ -45,14 +47,15 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const planDates = dates.filter((date) => !busyDates.has(date));
   const noOpenDates = ['A week', 'A month'].includes(scope) && planDates.length === 0;
   const pantryNames = app.pantry.map((p) => p.name);
+  const expiringNames = expiringSoon(app.pantry, 3, app.day).map((p) => p.name);
   const ownRecipeIds = new Set(app.myRecipes.map((recipe) => recipe.id));
   const ownCandidates = app.safeRecipes.filter((recipe) => ownRecipeIds.has(recipe.id)).length;
   const recipeKey = app.safeRecipes.map((recipe) => recipe.id).join(',');
   const tasteKey = JSON.stringify(app.tasteProfile);
   const leftoversKey = app.leftovers.map((item) => `${item.recipeId}:${item.portions}:${item.expiry || ''}`).join(',');
   const generatorKey = [
-    scope, people, budget, occasion, quick, batch, usePantry, seasonal, leftoverFirst,
-    planDates.join(','), pantryNames.join(','), app.planDiets.join(','), app.goal, month,
+    scope, people, budget, occasion, quick, batch, usePantry, seasonal, leftoverFirst, variety,
+    planDates.join(','), pantryNames.join(','), (app.equipment || []).join(','), app.planDiets.join(','), app.goal, month,
     recipeKey, tasteKey, leftoversKey,
   ].join('|');
 
@@ -78,12 +81,15 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         recipes: app.safeRecipes,
         taste: app.tasteProfile,
         leftovers: leftoverFirst ? app.leftovers : [],
+        equipment: (app.equipment || []).length ? app.equipment : null,
+        expiry: usePantry ? expiringNames : [],
+        variety,
       },
       seed,
     );
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, occasion, people, batch, usePantry, seasonal, leftoverFirst, app.leftovers, month, planDates.length]);
+  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, occasion, people, batch, usePantry, seasonal, leftoverFirst, variety, app.leftovers, month, planDates.length, (app.equipment || []).join(',')]);
 
   const generated = plan?.meals ?? null;
 
@@ -222,6 +228,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             { on: usePantry, set: setUsePantry, icon: <Package size={14} />, label: 'Use what I already have' },
             { on: seasonal, set: setSeasonal, icon: <Leaf size={14} />, label: 'Favour what’s in season' },
             { on: leftoverFirst, set: setLeftoverFirst, icon: <Snowflake size={14} />, label: 'Use fridge leftovers before cooking again' },
+            { on: variety, set: setVariety, icon: <Sparkles size={14} />, label: 'Vary it up — avoid repeats where it can' },
           ].map(({ on, set, icon, label }) => (
             <div key={label} className="flex items-center justify-between gap-3">
               <p className="text-[0.8125rem] font-bold flex items-center gap-1.5">{icon} {label}</p>
@@ -229,6 +236,35 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             </div>
           ))}
         </div>
+
+        <div>
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--faint)' }}>
+            My kit
+          </p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+            {EQUIPMENT_TAGS.map((tag) => {
+              const owned = (app.equipment || []).includes(tag);
+              return (
+                <Chip key={tag} active={owned} onClick={() => {
+                  const next = owned
+                    ? (app.equipment || []).filter((t) => t !== tag)
+                    : [...(app.equipment || []), tag];
+                  app.set({ equipment: next });
+                }}>
+                  {owned ? `✓ ${tag}` : tag}
+                </Chip>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[0.7rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Recipes that need kit you don't own are left out. Untagged dishes always fit.
+          </p>
+        </div>
+        {expiringNames.length > 0 && usePantry && (
+          <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--warn, #a55a12)' }}>
+            {expiringNames.slice(0, 4).join(', ')}{expiringNames.length > 4 ? '…' : ''} — going off soon; the generator will favour dishes that use them.
+          </p>
+        )}
 
         {seasonal && (
           <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>

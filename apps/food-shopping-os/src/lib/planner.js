@@ -3,6 +3,58 @@ import { recipeAllowed } from './goals.js';
 import { seasonScore } from '../data/seasons.js';
 import { seededPick } from './utils.js';
 import { tasteScore } from './taste.js';
+import { canonicalName } from './aliases.js';
+
+/* ---------- Equipment ---------- */
+
+/** Appliance tags a dish needs beyond a normal hob/oven kitchen. */
+export const EQUIPMENT_TAGS = ['air-fryer', 'slow-cooker'];
+
+export const equipmentTags = (recipe) => (recipe?.tags || []).filter((tag) => EQUIPMENT_TAGS.includes(tag));
+
+/**
+ * A dish is cookable when it needs no special kit, or every appliance it names
+ * is in the owned set. Never assumed — an untagged dish always fits.
+ */
+export const equipmentOk = (recipe, owned = []) => {
+  if (!recipe) return false;
+  const needed = equipmentTags(recipe);
+  if (!needed.length) return true;
+  return needed.every((tag) => owned.includes(tag));
+};
+
+/* ---------- Variety ---------- */
+
+/**
+ * A plan that avoids repeating dishes and ingredients where the pool allows,
+ * then only wraps once everything has been used. Seeded so the same request
+ * with the same seed still produces the same plan.
+ */
+export const varietyMeals = (pool, count, seed) => {
+  const out = [];
+  const usedIds = new Set();
+  const usedIng = new Set();
+  const remaining = [...pool];
+  for (let i = 0; i < remaining.length; i += 1) {
+    const j = (i + seed * 7) % remaining.length;
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
+  const keyOf = (r) => canonicalName(r.name);
+  while (out.length < count && remaining.length) {
+    const fresh = remaining.findIndex((r) => {
+      if (usedIds.has(keyOf(r))) return false;
+      const ings = (r.ingredients || []).map((i) => String(i.name || i).toLowerCase());
+      return ings.filter((ing) => usedIng.has(ing)).length === 0;
+    });
+    const pick = fresh >= 0 ? remaining.splice(fresh, 1)[0] : remaining.shift();
+    if (!pick) break;
+    usedIds.add(keyOf(pick));
+    (pick.ingredients || []).forEach((i) => usedIng.add(String(i.name || i).toLowerCase()));
+    out.push(pick);
+  }
+  while (out.length < count) out.push(pool[out.length % pool.length]);
+  return out;
+};
 
 /**
  * Plan generation. Hard constraints (your dietary patterns, budget, time and
@@ -13,13 +65,14 @@ import { tasteScore } from './taste.js';
  * Dietary exclusions are the same rules the rest of the app uses — one
  * definition of what "vegan" or "gluten-free" means, in `data/goals.js`.
  */
-export const hardFilter = (recipes, { diets = [], goal = 'maintain', budget = 4, maxTime = null } = {}) =>
+export const hardFilter = (recipes, { diets = [], goal = 'maintain', budget = 4, maxTime = null, equipment = null } = {}) =>
   recipes.filter((r) => {
     if (!recipeAllowed(r, diets)) return false;
     if ((goal === 'muscle' || goal === 'recomp') && r.protein < 20) return false;
     if (goal === 'lose' && r.kcal > 520) return false;
     if (r.costPerServing > budget) return false;
     if (maxTime && r.time > maxTime) return false;
+    if (equipment && !equipmentOk(r, equipment)) return false;
     return true;
   });
 
@@ -73,7 +126,7 @@ export function buildPlan(
   {
     scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
     pantry = [], month = null, batch = false, days = null, recipes = RECIPES, taste = null,
-    leftovers = [],
+    leftovers = [], equipment = null, expiry = [], variety = false,
   },
   seed,
 ) {
@@ -88,6 +141,8 @@ export function buildPlan(
       taste?.rated ? (r) => tasteScore(r, taste) > 0 : null,
       people >= 4 ? (r) => r.servings >= 4 : null,
       pantry.length ? (r) => pantryHits(r, pantry) >= 2 : null,
+      // Dishes that use something about to go off are worth cooking first.
+      expiry.length ? (r) => pantryHits(r, expiry) >= 1 : null,
       month ? (r) => seasonScore(r, month) >= 1 : null,
     ].filter(Boolean);
     let out = pool;
@@ -107,7 +162,7 @@ export function buildPlan(
     let relaxedDay = false;
     const picks = slots.map((meal, i) => {
       const forSlot = recipes.filter((r) => r.meal === meal);
-      const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime });
+      const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime, equipment });
       if (!mealPool.length) relaxedDay = true;
       const pool = mealPool.length ? narrow(mealPool, 1) : forSlot;
       return seededPick(pool, 1, seed + i * 17)[0];
@@ -121,8 +176,12 @@ export function buildPlan(
   }
 
   const dinners = recipes.filter((r) => r.meal === 'dinner');
-  let pool = hardFilter(dinners, { diets, goal, budget, maxTime });
+  let pool = hardFilter(dinners, { diets, goal, budget, maxTime, equipment });
   let relaxed = false;
+  if (pool.length === 0) {
+    pool = hardFilter(dinners, { diets, goal, budget, maxTime });
+    relaxed = true;
+  }
   if (pool.length === 0) {
     pool = dinners;
     relaxed = true;
@@ -173,12 +232,16 @@ export function buildPlan(
   pool = narrow(pool, count);
 
   const unique = seededPick(pool, Math.min(count, pool.length), seed);
-  const meals = Array.from({ length: count }, (_, i) => unique[i % unique.length]);
+  const meals = variety
+    ? varietyMeals(pool, count, seed)
+    : Array.from({ length: count }, (_, i) => unique[i % unique.length]);
 
   const note = relaxed
     ? 'Nothing matched every filter — showing the closest fits instead.'
     : unique.length < count
       ? `Only ${unique.length} recipe${unique.length === 1 ? '' : 's'} match your filters, so the plan repeats them.`
-      : null;
+      : variety && new Set(meals.map((m) => m.id)).size < count
+        ? 'Variety on: dishes repeat only once the kitchen runs out of distinct options.'
+        : null;
   return { meals, note };
 }

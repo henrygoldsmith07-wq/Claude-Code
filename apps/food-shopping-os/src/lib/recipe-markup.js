@@ -84,5 +84,13 @@ export const recipeTextFromMarkup = (markup) => {
     text: [title, yieldText, ...ingredients, ...(instructions.length ? ['Method', ...instructions] : '')]
       .filter(Boolean)
       .join('\n'),
+    // Provenance read off the page's own structured data, so the import keeps
+    // who wrote it and when it was published — the two facts that let a user
+    // judge whether the recipe is current and from a source they trust.
+    provenance: {
+      author: cleanRecipeMarkup(asList(recipe.author)[0]?.name || asList(recipe.author)[0] || '').slice(0, 80) || null,
+      datePublished: /^\d{4}(-\d{2})?(-\d{2})?$/.test(String(recipe.datePublished || '')) ? String(recipe.datePublished) : null,
+      yield: yieldText || null,
+    },
   };
 };
