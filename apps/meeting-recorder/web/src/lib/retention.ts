@@ -23,3 +23,21 @@ export function localOnlyNotice(mode: PrivacyMode): string | null {
 export function exportMeeting(m: { title: string; transcript: { text: string; segments: { start: number; text: string }[] } | null; summary: string | null }): string {
   return JSON.stringify(m, null, 2);
 }
+
+export function exportMarkdown(m: { title: string; transcript: { text: string; segments: { start: number; text: string }[] } | null; summary: string | null }): string {
+  const lines = [`# ${m.title}`, ""];
+  if (m.summary) { lines.push(m.summary, ""); }
+  if (m.transcript) {
+    lines.push("## Transcript", "");
+    for (const s of m.transcript.segments) lines.push(`[${Math.floor(s.start)}s] ${s.text}`);
+  }
+  return lines.join("\n");
+}
+
+export function shouldAutoDelete(createdAt: string, policy: RetentionPolicy): boolean {
+  return policy.autoDelete && isExpired(createdAt, policy);
+}
+
+export function expiredMeetings(meetings: { createdAt: string }[], policy: RetentionPolicy): number {
+  return meetings.filter((m)=> isExpired(m.createdAt, policy)).length;
+}

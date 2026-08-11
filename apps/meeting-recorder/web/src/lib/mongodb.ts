@@ -38,6 +38,7 @@ export interface MeetingDoc {
     language?: string;
     text: string;
     segments: { start: number; end: number; text: string }[];
+    words?: { word: string; start: number; end: number; confidence: number }[];
   } | null;
   summary: string | null;
   error: string | null;
@@ -45,9 +46,13 @@ export interface MeetingDoc {
   // 9+ additions — all optional for backward compat
   templateId?: string | null;
   recurringKey?: string | null;
-  insights?: { decisions: { id: string; text: string; evidence: { segmentIndex: number; start: number; text: string }[] }[]; actions: { id: string; text: string; owner: string | null; evidence: { segmentIndex: number; start: number; text: string }[] }[] } | null;
+  insights?: { decisions: { id: string; text: string; evidence: { segmentIndex: number; start: number; text: string }[]; claimTimestamp?: string | null }[]; actions: { id: string; text: string; owner: string | null; ownerEvidence: { segmentIndex: number; start: number; text: string } | null; evidence: { segmentIndex: number; start: number; text: string }[]; due?: { raw: string; normalized: string | null; evidence: { segmentIndex: number; start: number; text: string } } | null; dueHint?: string | null; claimTimestamp?: string | null }[]; generatedAt?: string } | null;
   speakers?: Record<string,string> | null;
+  speakerEnrolment?: { id: string; name: string; sampleText?: string }[] | null;
+  transcriptHistory?: { at: string; segmentIndex: number; before: string; after: string }[] | null;
   retentionDays?: number | null;
+  workspaceId?: string | null;
+  collections?: string[] | null;
 }
 
 
@@ -57,10 +62,11 @@ export async function getMeetings(): Promise<Collection<MeetingDoc>> {
   const db = await getDb();
   const col = db.collection<MeetingDoc>("meetings");
   if (!indexesEnsured) {
-    // shareId lookups on the public route; createdAt for dashboard ordering.
     await Promise.all([
       col.createIndex({ shareId: 1 }, { unique: true }),
       col.createIndex({ createdAt: -1 }),
+      col.createIndex({ recurringKey: 1 }),
+      col.createIndex({ workspaceId: 1 }),
     ]);
     indexesEnsured = true;
   }

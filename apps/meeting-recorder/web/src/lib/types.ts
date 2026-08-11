@@ -6,18 +6,23 @@ export type MeetingStatus =
   | "ready"
   | "error";
 
+export interface TranscriptWord { word: string; start: number; end: number; confidence: number; }
+
 export interface TranscriptSegment {
   /** seconds from start */
   start: number;
   /** seconds from start */
   end: number;
   text: string;
+  words?: TranscriptWord[];
+  confidence?: number;
 }
 
 export interface Transcript {
   language?: string;
   text: string;
   segments: TranscriptSegment[];
+  words?: TranscriptWord[];
 }
 
 export interface ChatMessage {

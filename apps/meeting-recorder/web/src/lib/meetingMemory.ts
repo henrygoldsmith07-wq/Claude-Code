@@ -1,4 +1,4 @@
-/** Searchable meeting memory + cost controls + provider fallback. */
+/** Searchable meeting memory + cost controls + provider fallback + semantic hooks. */
 import type { Meeting } from "./types";
 
 export function searchMeetings(meetings: Meeting[], query: string): Meeting[] {
@@ -14,13 +14,12 @@ export function searchMeetings(meetings: Meeting[], query: string): Meeting[] {
 export interface CostEstimate { minutes: number; groqCents: number; anthropicCents: number; }
 export function estimateCost(durationSec: number, transcriptChars: number): CostEstimate {
   const minutes = Math.ceil(durationSec/60);
-  // Rough: Groq Whisper ~0.5c/min, Anthropic ~1c/1k chars
   return { minutes, groqCents: Math.round(minutes*0.5), anthropicCents: Math.round(transcriptChars/1000) };
 }
 
-export type Provider = "groq" | "fallback";
+export type Provider = "groq" | "chunked-groq" | "offline" | "fallback";
 export function pickTranscriptionProvider(sizeBytes: number, maxBytes: number): Provider {
-  if (sizeBytes > maxBytes) return "fallback"; // chunk or local
+  if (sizeBytes > maxBytes) return "chunked-groq";
   return "groq";
 }
 
@@ -34,4 +33,14 @@ export function hallucinationRate(insights: { text: string }[], transcriptText: 
     if (!low.includes(snippet)) bad++;
   }
   return bad/insights.length;
+}
+
+/** Lightweight semantic ranking (overlaps with lib/semanticSearch — kept for compat). */
+export function rankedMeetings(meetings: Meeting[], query: string): Meeting[] {
+  const q = query.trim().toLowerCase(); if (!q) return meetings;
+  return [...meetings].sort((a,b)=>{
+    const sa = (a.title + " " + (a.transcript?.text ?? "")).toLowerCase().includes(q) ? 1 : 0;
+    const sb = (b.title + " " + (b.transcript?.text ?? "")).toLowerCase().includes(q) ? 1 : 0;
+    return sb - sa;
+  });
 }
