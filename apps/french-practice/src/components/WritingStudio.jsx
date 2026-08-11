@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { WRITING_PROMPTS, ESSAY_PROMPTS, randomFrom } from '../lib/writing';
 import { writingFeedback, friendlyError } from '../lib/groq';
 import { recordSkillScore } from '../lib/storage';
+import { addErrorNotebook } from '../lib/errorNotebook';
+import { explainCorrection } from '../lib/writing';
 import { Markdown, Spinner } from './ui';
 import { Check, RefreshCw } from './icons';
 
@@ -29,6 +31,14 @@ export default function WritingStudio({ depth, apiKey, mockMode, level, onXp }) 
       const r = await writingFeedback(apiKey, { text: text.trim(), prompt: prompt.fr, level, depth, mock: mockMode });
       onXp(Math.max(2, Math.round((r.scores.overall || 50) / 10)));
       recordSkillScore('writing', r.scores.overall || 50);
+      // Seed error notebook from corrections (each line becomes a retype task)
+      try{
+        const lines = String(r.corrections||'').split(/\n+/).slice(0,5);
+        for(const line of lines){
+          const m = line.match(/(.+?)\s*[→\-–]\s*(.+)/);
+          if(m) addErrorNotebook({ original: m[1].replace(/^[^a-zA-ZÀ-ÿ]+/,''), corrected: m[2].trim(), why: explainCorrection(m[1], m[2]) });
+        }
+      }catch{}
       setReview(r);
     } catch (e) {
       setError(friendlyError(e));

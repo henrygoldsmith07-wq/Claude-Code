@@ -6,12 +6,16 @@ import Dictation from './Dictation';
 import AudioCourse from './AudioCourse';
 import NumberDash from './NumberDash';
 import { Volume, Play, Square, ChevronLeft, ChevronRight, Check, X, RefreshCw } from './icons';
+import { getSrs } from '../lib/storage';
+import { allEntries } from '../lib/vocab';
+import { listeningDifficulty } from '../lib/adaptivePractice';
 
 // Listening hub: TTS-narrated tracks (mini-podcasts, dialogues, news,
 // scenes) with listen-first transcripts, per-line highlighting, variable
 // speed, and comprehension quizzes — plus the Dictée drill.
 
 export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivity }) {
+  const adaptive = (()=>{ try{ return listeningDifficulty(getSrs(), allEntries()); }catch{ return null; } })();
   if (mode === 'dictation') {
     return (
       <Shell title="Dictée" onBack={() => onModeChange(null)}>
@@ -49,6 +53,7 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
           <p className="text-xs text-ink2 mt-1">
             Train your ear: audio first, transcript after. Adjustable speed on everything.
           </p>
+          {adaptive && <p className="text-[11px] text-ink3 mt-1">Suggested: {adaptive.cefr} · {adaptive.speed.toFixed(2)}× · level {adaptive.level}</p>}
         </div>
 
         <button
@@ -138,7 +143,8 @@ function Shell({ title, onBack, children }) {
 }
 
 function TrackPlayer({ track, baseRate, onXp, onActivity }) {
-  const [rate, setRate] = useState(baseRate);
+  const adaptive = (()=>{ try{ return listeningDifficulty(getSrs(), allEntries()); }catch{ return null; } })();
+  const [rate, setRate] = useState(adaptive?.speed || baseRate);
   const [playing, setPlaying] = useState(false);
   const [currentLine, setCurrentLine] = useState(-1);
   const [listened, setListened] = useState(false);

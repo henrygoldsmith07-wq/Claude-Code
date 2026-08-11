@@ -8,6 +8,10 @@ import { getGrammarErrors } from '../lib/storage';
 import { getGrammarTopic } from '../lib/grammar';
 import { getWeaknessMemory, getWeaknessSummary } from '../lib/storage';
 import { levelFromXp } from '../lib/game';
+import { errorNotebookStats } from '../lib/errorNotebook';
+import { retentionPredictionVsActual, speakingImprovement } from '../lib/learnerValidation';
+import { benchmarkExam, SAMPLE_SCRIPTS } from '../lib/examBenchmark';
+import { allEntries as vocabAllEntries } from '../lib/vocab';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
   skillBreakdown, skillScore, retentionRate, wordsLearned, periodReport, fmtDuration,
@@ -135,6 +139,9 @@ export default function Analytics({ open, onClose }) {
             </div>
           </section>
 
+          <LearnerValidation />
+          <ErrorNotebookStats />
+          <ExamBenchmark />
           {/* period reports */}
           <WeaknessMemory />
           <ErrorCategories />
@@ -377,6 +384,38 @@ function Heatmap({ log }) {
   );
 }
 
+function LearnerValidation(){
+  const srs = (()=>{ try{ return getSrs(); }catch{ return {}; } })();
+  const entries = (()=>{ try{ return vocabAllEntries(); }catch{ return []; } })();
+  const retention = retentionPredictionVsActual(srs, entries.slice(0,40));
+  const speaking = (()=>{ try{ return speakingImprovement([]); }catch{ return { slope:null }; } })();
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-4 space-y-2">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Learner validation</h3>
+      <p className="text-xs text-ink2">Retention prediction: {retention.accuracy==null ? '—' : `${Math.round(retention.accuracy*100)}%`} (n={retention.n}) · Speaking slope: {speaking.slope==null ? '—' : `${speaking.slope}/day`}</p>
+      <p className="text-[11px] text-ink3">Predicted vs actual recall on due cards; slope from recent speaking scores.</p>
+    </section>
+  );
+}
+function ErrorNotebookStats(){
+  const st = (()=>{ try{ return errorNotebookStats(); }catch{ return { total:0, pending:0, recurrences:0 }; } })();
+  if(!st.total) return null;
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-4">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Error notebook</h3>
+      <p className="text-xs text-ink2">{st.total} corrections · {st.pending} pending retype · {st.recurrences} recurrences</p>
+    </section>
+  );
+}
+function ExamBenchmark(){
+  const b = benchmarkExam(SAMPLE_SCRIPTS);
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-4">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Examiner benchmark</h3>
+      <p className="text-xs text-ink2">Agreement {b.accuracy==null?'—': Math.round(b.accuracy*100)+'%'} · κ {b.kappa==null?'—': b.kappa} (n={b.n}) — align app scores to examiner grades</p>
+    </section>
+  );
+}
 // Which grammar areas trip you up in real conversation — counted from the
 // Arena's per-turn mistake classification.
 function ErrorCategories() {

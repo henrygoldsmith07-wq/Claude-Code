@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { READING_TEXTS } from '../lib/reading';
 import { LISTENING_TRACKS } from '../lib/listening';
-import { exportProgress, importProgress, getSyncId, getLastBackup, getSettings } from '../lib/storage';
+import { exportProgress, importProgress, getSyncId, getLastBackup, getSettings, getSrs } from '../lib/storage';
+import { allEntries } from '../lib/vocab';
+import { buildOfflinePack, offlinePackSize, offlinePackSummary } from '../lib/offlinePack';
 import { makeSyncCode, restoreSyncCode } from '../lib/account';
 import { X, Check, Download, Upload, BookOpen, Volume, RefreshCw, Copy, Key } from './icons';
 
@@ -117,6 +119,9 @@ export default function Offline({ open, onClose, pwa }) {
   const account = getSettings().name?.trim();
   const lastBackup = getLastBackup();
   const stories = READING_TEXTS.filter((t) => Array.isArray(t.paragraphs) && t.paragraphs.length);
+  const pack = (()=>{ try{
+    return buildOfflinePack({ vocab: allEntries().slice(0,60), sentences: LISTENING_TRACKS.slice(0,6).flatMap(t=> t.lines||[]).slice(0,30), grammar: [], fsrsDue: Object.keys(getSrs()).slice(0,40).map(id=> ({ id })), phonemes: [], exams: [] });
+  }catch{ return null; } })();
 
   return (
     <div className="fixed inset-0 z-50 bg-bg flex flex-col" role="dialog" aria-modal="true" aria-label="Offline">
@@ -152,6 +157,13 @@ export default function Offline({ open, onClose, pwa }) {
             )}
           </section>
 
+          {pack && (
+            <section className="bg-surface border border-line rounded-2xl p-4 space-y-2">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Offline pack v{pack.version}</h3>
+              <p className="text-xs text-ink2">{offlinePackSummary(pack).vocab} words · {pack.fsrsDue.length} due · {offlinePackSummary(pack).sentences} lines · ~{Math.round(offlinePackSize(pack)/1024)} kB</p>
+              <p className="text-[11px] text-ink3">Install the app, then your review queue works with no network (TTS is on-device).</p>
+            </section>
+          )}
           {/* status */}
           <section className="bg-surface border border-line rounded-2xl p-5 space-y-3">
             <div className="flex items-center gap-3">

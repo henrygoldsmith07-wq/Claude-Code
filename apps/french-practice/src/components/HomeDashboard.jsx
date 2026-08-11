@@ -123,7 +123,7 @@ export default function HomeDashboard({ dailyGoal = 30, level, onStartLesson, on
               title={dueCount > 0 ? `${dueCount} words due` : 'Review vocabulary'}
               kicker="Review · Spaced"
               body={dueCount > 0 ? 'A short review now beats relearning later — most-forgotten first.' : 'Browse 520+ flashcards whenever you need a refresher.'}
-              meta="SM-2 · Frontier tier"
+              meta="FSRS · Receptive/Productive"
               cta={dueCount > 0 ? 'Review now' : 'Open vocab'}
               onClick={() => onNavigate('cards')}
             />

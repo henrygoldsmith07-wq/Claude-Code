@@ -3,6 +3,8 @@ import { GRAMMAR_TOPICS, getGrammarTopic, grammarTopicOfDay, grammarStatsByCefr 
 import { getGrammarProgress, recordGrammarQuiz, bumpChallengeMetric } from '../lib/storage';
 import { Drill, SentenceBuilder, Quiz } from './GrammarExercises';
 import { Markdown, SpeakButton } from './ui';
+import { ERROR_CATEGORIES, categoryForTopic, categoriesForErrors } from '../lib/errorTaxonomy';
+import { getGrammarErrors } from '../lib/storage';
 import { ChevronLeft, ChevronRight, Book, CheckCircle, Search, Target } from './icons';
 
 // Accent- and case-insensitive haystack match, so «etre» finds «être».
@@ -91,6 +93,7 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
               style={{ width: `${Math.round((masteredCount / Math.max(1, GRAMMAR_TOPICS.length)) * 100)}%` }}
             />
           </div>
+          <ErrorTaxonomyStrip />
           <p className="text-[10px] text-ink3 mt-2 tabular-nums">
             {CEFR_ORDER.filter((c) => byCefr[c]).map((c) => `${c}: ${byCefr[c]}`).join(' · ')}
           </p>
@@ -189,6 +192,21 @@ export default function Grammar({ focusTopicId, onFocusConsumed, onXp, onActivit
   );
 }
 
+function ErrorTaxonomyStrip(){
+  const cats = categoriesForErrors(getGrammarErrors()).slice(0,4);
+  if(!cats.length) return null;
+  return (
+    <div className="mt-3 bg-surface border border-line rounded-xl p-3 space-y-1.5 text-left max-w-md mx-auto">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Weakest error categories</p>
+      {cats.map(c=> (
+        <div key={c.id} className="flex items-center justify-between gap-2">
+          <span className="text-xs text-ink">{c.label}</span>
+          <span className="text-[11px] text-ink3">{c.count} · {c.cue}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 function TopicLesson({ topic, best, onBack, onQuizFinish }) {
   const [step, setStep] = useState('learn');
 

@@ -7,6 +7,8 @@ import WritingStudio from './WritingStudio';
 import AccentDrill from './AccentDrill';
 import TranslateDrill from './TranslateDrill';
 import { SpeakButton, Spinner } from './ui';
+import { getErrorNotebook, markCorrectedByLearner } from '../lib/errorNotebook';
+import { explainCorrection } from '../lib/writing';
 import { Pencil, Check, X, RefreshCw, ChevronLeft, ChevronRight, MessageCircle, BookOpen, Clock } from './icons';
 
 // Writing hub: typing drill (accent-exact), sentence completion, free
@@ -66,7 +68,7 @@ export default function Writing({ apiKey, mockMode, level, onXp }) {
         </div>
         {mode === 'accents' && <AccentDrill onXp={onXp} />}
         {mode === 'translate' && <TranslateDrill onXp={onXp} />}
-        {mode === 'typing' && <TypingDrill onXp={onXp} />}
+        {mode === 'typing' && <><TypingDrill onXp={onXp} /><div className="pt-4"><ErrorNotebookCard /></div></>}
         {mode === 'completion' && <Completion apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
         {mode === 'free' && <WritingStudio depth="quick" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
         {mode === 'essay' && <WritingStudio depth="essay" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
@@ -75,6 +77,29 @@ export default function Writing({ apiKey, mockMode, level, onXp }) {
   );
 }
 
+function ErrorNotebookCard(){
+  const [tick, setTick]=useState(0);
+  const items = getErrorNotebook().slice(0,5);
+  const [typed, setTyped]=useState({});
+  if(!items.length) return <p className="text-[11px] text-ink3">Error notebook empty — corrections with explanations appear here.</p>;
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink3">Error notebook — retype to clear</p>
+      {items.map(e=> (
+        <div key={e.id} className="bg-surface border border-line rounded-xl p-3 space-y-1">
+          <p className="text-xs text-ink2">“{e.original}” → <span className="font-semibold text-ink">{e.corrected}</span></p>
+          <p className="text-[11px] text-ink3">{e.why || explainCorrection(e.original, e.corrected)}</p>
+          <div className="flex gap-2">
+            <input value={typed[e.id]||''} onChange={ev=> setTyped(s=> ({...s, [e.id]: ev.target.value}))} placeholder="Retype the correction…" lang="fr" className="flex-1 bg-surface2 border border-line rounded-lg px-2 py-1.5 text-xs" />
+            <button onClick={()=> { if(markCorrectedByLearner(e.id, typed[e.id])) setTick(t=>t+1); }} className="btn btn-secondary min-h-8 px-3 rounded-lg text-xs">Check</button>
+          </div>
+          {e.correctedByLearner && <p className="text-[11px] text-ink">✓ Corrected by you.</p>}
+          {void tick}
+        </div>
+      ))}
+    </div>
+  );
+}
 // Copy the sentence exactly. Case-insensitive, but accents and every word
 // must match — the drill that finally teaches é vs è vs ê.
 function TypingDrill({ onXp }) {
