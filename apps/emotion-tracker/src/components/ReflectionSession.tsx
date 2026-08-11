@@ -6,6 +6,7 @@ import SummaryView from "./SummaryView";
 
 interface Props {
   entry: Entry;
+  entries?: Entry[];
   apiKey: string;
   onAppendMessage: (id: string, message: Message) => void;
   onCompleteEntry: (id: string, summary: ReflectionSummary) => void;
@@ -17,6 +18,7 @@ interface Props {
 
 export default function ReflectionSession({
   entry,
+  entries,
   apiKey,
   onAppendMessage,
   onCompleteEntry,
@@ -45,12 +47,20 @@ export default function ReflectionSession({
     requestedForRef.current = requestKey;
 
     setLoading(true);
+    // Local-only mode: skip the API entirely
+    if (typeof window !== "undefined" && window.localStorage.getItem("reflectLocalOnly") === "1") {
+      setLoading(false);
+      requestedForRef.current = null;
+      onError("Local-only mode is on — turn it off in Privacy to use guided reflection, or complete the trace manually from the summary.");
+      return;
+    }
     fetch("/api/reflect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: entry.messages,
         apiKey: apiKey || undefined,
+        entries: entries ? entries.slice(0, 5).map((e) => ({ id: e.id, coreEmotion: e.summary?.coreEmotion ?? null, triggers: e.summary?.underlyingTriggers ?? [] })) : undefined,
       }),
     })
       .then(async (res) => {

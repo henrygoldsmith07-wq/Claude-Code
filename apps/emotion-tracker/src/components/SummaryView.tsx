@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { LongitudinalReview, ReflectionSummary } from "@/lib/types";
+import { evidenceLinksFor } from "@/lib/longitudinal";
+import { uncertaintySentence } from "@/lib/promptDiversity";
 
 function Section({
   title,
@@ -60,6 +62,7 @@ export default function SummaryView({
   const hasFollowUp = Boolean(trace?.followUpAt || trace?.followUpNote);
   const review = longitudinalReview ?? null;
   const predicted = (trace as unknown as { predictedOutcome?: string })?.predictedOutcome ?? null;
+  const evidenceLinks = useMemo(() => evidenceLinksFor({ id: "tmp", createdAt: new Date().toISOString(), title: "", messages: [], status: "complete", summary } as unknown as import("@/lib/types").Entry), [summary]);
 
   // form state for the full loop
   const [draftAction, setDraftAction] = useState(review?.actualActionTaken ?? "");
@@ -176,6 +179,7 @@ export default function SummaryView({
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-foreground">{b.description}</p>
+                  <p className="mt-1 text-xs italic text-muted">{uncertaintySentence(b.confidence)}</p>
                   {b.evidenceFor.length > 0 && (
                     <div className="mt-2">
                       <p className="text-xs font-medium text-muted">Evidence for this reading</p>
@@ -205,6 +209,21 @@ export default function SummaryView({
               {summary.hedgedDisclaimer}
             </p>
           )}
+        </div>
+      )}
+      {evidenceLinks.length > 0 && evidenceLinks.some((l) => l.linkedAssumptions.length > 0 || l.linkedAlternatives.length > 0) && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted">Evidence-linked observations</h3>
+          <p className="mt-1 text-xs text-muted">Which facts support which assumptions or alternatives.</p>
+          <div className="mt-2 flex flex-col gap-2">
+            {evidenceLinks.filter((l) => l.linkedAssumptions.length || l.linkedAlternatives.length).slice(0, 4).map((l, i) => (
+              <div key={i} className="rounded-lg border border-border bg-background px-3 py-2 text-xs">
+                <p className="text-sm font-medium">“{l.observation.slice(0, 90)}”</p>
+                {l.linkedAssumptions.length > 0 && <p className="mt-1 text-muted">→ assumption: {l.linkedAssumptions[0].slice(0, 80)}</p>}
+                {l.linkedAlternatives.length > 0 && <p className="text-muted">→ also fits: {l.linkedAlternatives[0].slice(0, 80)}</p>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
