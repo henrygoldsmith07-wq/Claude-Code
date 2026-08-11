@@ -62,7 +62,18 @@ To enable: create a Supabase project, run the migration in
 - `src/lib/storyModel.ts` / `src/lib/storyAnalysis.ts` — typed model for stories and pure helpers for source mix, perspective mapping, headline overlap and "what changed" diffing.
 - `src/lib/news.ts` — caches each country's summary (`getCountryNews`).
 - `src/app/country/[code]/page.tsx` and `src/app/world/page.tsx` — render story clusters + topics + meta panels (widely agreed, uncertainty, coverage gaps, corrections, what changed).
-- `/api/country/<code>` returns the same data as JSON.
+- `/api/country/<code>` returns the same data as JSON. `/benchmark` is the public clustering/summarisation benchmark.
+
+## New in 10.0
+
+- **Clustering benchmark** — real evaluation dataset (`src/lib/benchmarkDataset.ts` — 5 extended cases + 2 base = 7), macro P/R/F1 at `/benchmark`, syndicated dedup (`dedup.ts`) and original-vs-rewrite scoring, event persistence with merge/split corrections (`eventStore.ts`).
+- **Multilingual** — GDELT `sourcelang` per-language fetch (`fetchScopeGeoNewsForLang`, `fetchMultilingualScope`), multilingual topic queries, `translation.ts` (Gemini cached) and `sourcing.ts` diversity report.
+- **Provenance** — claim-level provenance (`provenance.ts`: `provenanceForStory`, `timelineConfidence`, `disputedFacts`, `splitStoryContent`, `whatChangedSince`), evidence-linked summaries, disputed-fact cards, `Why this matters / What changed / What remains unknown` panels.
+- **Knowledge graphs** — entity / country / event graphs (`knowledgeGraph.ts`) derived from stories.
+- **Personalisation without bubbles** — explicit diversity guards (`personalisation.ts`), saved topics + browser notifications (`notifications.ts`, `SavedTopics.tsx`), `DiversityNudge` and filter-bubble warnings.
+- **Coverage compare** — country \u00d7 publisher matrix (`coverageMatrix.ts`, `CoverageCompare.tsx`) and gap detection.
+- **Geo** — Nominatim geocoding with confidence (`geocode.ts`: `geocode`, `locationConfidence`, `regionalLabel`, `mapCluster`), multi-location/regional events, map clustering.
+- **Search & a11y** — `SearchStories.tsx` and `StoryScreenReader.tsx` (role=feed), keyboard nav (`/` to search), `GlobeFallback` / `LiteNewsList` / `?lite=1` for low-bandwidth and offline (`offline.ts` cache helpers).
 
 ## Positioning
 

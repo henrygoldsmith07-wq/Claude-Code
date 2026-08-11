@@ -13,6 +13,15 @@ import CoverageBiasPanel from "@/components/CoverageBiasPanel";
 import LiteNewsList from "@/components/LiteNewsList";
 import LocationVerifyBadge from "@/components/LocationVerifyBadge";
 import MethodologyPanel from "@/components/MethodologyPanel";
+import SearchStories from "@/components/SearchStories";
+import StoryScreenReader from "@/components/StoryScreenReader";
+import DiversityNudge from "@/components/DiversityNudge";
+import KnowledgeGraphPanel from "@/components/KnowledgeGraphPanel";
+import CoverageCompare from "@/components/CoverageCompare";
+import SavedTopics from "@/components/SavedTopics";
+import { buildEntityGraph, buildCountryGraph, buildEventGraph } from "@/lib/knowledgeGraph";
+import { buildCoverageMatrix, detectGaps } from "@/lib/coverageMatrix";
+import { TOPICS } from "@/lib/gemini";
 import {
   WhatChangedPanel,
   AgreedFactsPanel,
@@ -184,7 +193,15 @@ export default async function WorldPage({
               <StorySourceSummary news={news} />
               <CoverageBiasPanel news={news} />
               <LocationVerifyBadge news={news} />
+              <DiversityNudge mix={news.stories![0]?.sourceMix ?? { total: 0, byCountry: [], byPerspective: [], byKind: [], primaryCount: 0, perspectiveEntropy: 0, kindDistinctCount: 0 }} />
+              <SearchStories stories={news.stories!} />
               <StoriesView stories={news.stories!} />
+              <StoryScreenReader stories={news.stories!} />
+              <KnowledgeGraphPanel entity={buildEntityGraph([news])} country={buildCountryGraph([news])} event={buildEventGraph([news])} />
+              <CoverageCompare matrix={buildCoverageMatrix([news])} />
+              {detectGaps([news], [...TOPICS]).length>0 && <p className="text-xs text-muted">Gaps: {detectGaps([news], [...TOPICS]).map(g=>`${g.key} — ${g.reason}`).join(" · ")}</p>}
+              <SavedTopics />
+              <p className="text-xs text-muted"><a href="/benchmark" className="text-accent hover:underline">Public benchmark</a> · <a href="/?lite=1" className="text-accent hover:underline">Lite / offline-ready</a> · Keyboard: Tab through stories, / to search</p>
             </>
           )}
           {news.topics.map((topic) => (

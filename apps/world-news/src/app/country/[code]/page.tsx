@@ -19,6 +19,12 @@ import GeopoliticsPanel from "@/components/GeopoliticsPanel";
 import LiteNewsList from "@/components/LiteNewsList";
 import LocationVerifyBadge from "@/components/LocationVerifyBadge";
 import MethodologyPanel from "@/components/MethodologyPanel";
+import SearchStories from "@/components/SearchStories";
+import StoryScreenReader from "@/components/StoryScreenReader";
+import DiversityNudge from "@/components/DiversityNudge";
+import SavedTopics from "@/components/SavedTopics";
+import CoverageCompare from "@/components/CoverageCompare";
+import { buildCoverageMatrix } from "@/lib/coverageMatrix";
 import {
   WhatChangedPanel,
   AgreedFactsPanel,
@@ -312,7 +318,9 @@ export default async function CountryPage({
         <CoverageBiasPanel news={news} />
         <LocationVerifyBadge news={news} />
         <GeopoliticsPanel code={code} />
-
+        {(news.stories?.length ?? 0) > 0 && <DiversityNudge mix={news.stories![0].sourceMix} countryCode={code} />}
+        {(news.stories?.length ?? 0) > 0 && <SearchStories stories={(news.stories ?? []).filter(s=> !topicName || s.topic===topicName)} />}
+        {(news.stories?.length ?? 0) > 0 && <SavedTopics />}
         {liteMode ? (
           <div className="mt-4">
             <LiteNewsList news={{ ...news, stories: topicName ? (news.stories ?? []).filter((s) => s.topic === topicName) : news.stories, points: shownPoints } as CountryNews} />
@@ -325,6 +333,9 @@ export default async function CountryPage({
                 <div className="mt-4">
                   <StoryBlocks news={news} topicName={topicName} />
                 </div>
+                <div className="mt-4"><StoryScreenReader stories={(news.stories ?? []).filter(s=> !topicName || s.topic===topicName)} /></div>
+                <div className="mt-4"><CoverageCompare matrix={buildCoverageMatrix([news])} /></div>
+                <p className="mt-3 text-xs text-muted"><a href="/benchmark" className="text-accent hover:underline">Public benchmark</a> · Keyboard: Tab / / to search · Lite mode is globe-free</p>
               </div>
             )}
 

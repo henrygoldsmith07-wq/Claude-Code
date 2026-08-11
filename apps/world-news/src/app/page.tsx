@@ -1,6 +1,7 @@
 import NewsGlobe from "@/components/NewsGlobe";
 import Sidebar from "@/components/Sidebar";
 import { TOPIC_LINKS } from "@/lib/topics";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -37,13 +38,15 @@ export default async function HomePage({
         <NewsGlobe worldPoints searchable />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center gap-2 px-4">
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex flex-wrap justify-center gap-2 px-4">
         <span className="rounded-full border border-rule bg-panel/80 px-3 py-1 text-xs text-muted backdrop-blur">
           Hover to highlight · click a country · Ctrl/⌘+B sidebar
         </span>
         <a href="/?lite=1" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">
           Lite mode
         </a>
+        <Link href="/benchmark" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">Benchmark</Link>
+        <Link href="/world" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">World news</Link>
       </div>
     </main>
   );

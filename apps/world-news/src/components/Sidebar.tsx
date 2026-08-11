@@ -95,6 +95,13 @@ export default function Sidebar({
             ★ My feed
           </Link>
 
+          <Link
+            href="/benchmark"
+            className="mt-2 block rounded-lg border border-rule bg-panel px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent hover:text-accent"
+          >
+            📊 Clustering benchmark (P/R/F1)
+          </Link>
+
           {/* Topics */}
           <div className="mt-6">
             <p className="mb-2 text-xs uppercase tracking-wide text-muted">Topics</p>
