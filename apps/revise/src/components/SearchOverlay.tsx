@@ -42,7 +42,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
       aria-modal="true"
       aria-label="Search"
     >
-      <div className="card elev-pop w-full max-w-xl overflow-hidden fade-in" onClick={(e) => e.stopPropagation()}>
+      <div className="card elev-pop w-full max-w-xl overflow-hidden fade-in motion-safe:fade-in" onClick={(e) => e.stopPropagation()}>
         <input
           ref={inputRef}
           value={query}
@@ -61,11 +61,18 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
           placeholder="Search topics, cards and questions…"
           className="w-full bg-transparent px-4 py-3.5 text-sm outline-none border-b border-line"
           aria-label="Search query"
+          aria-controls="search-results"
+          aria-activedescendant={results[cursor] ? `search-result-${results[cursor].id}` : undefined}
+          autoComplete="off"
+          spellCheck={false}
         />
-        <ul className="max-h-[60vh] overflow-y-auto nice-scroll cv-list">
+        <ul id="search-results" className="max-h-[60vh] overflow-y-auto nice-scroll cv-list" role="listbox" aria-label="Search results">
           {results.map((result, i) => (
             <li key={`${result.kind}:${result.id}`}>
               <button
+                id={`search-result-${result.id}`}
+                role="option"
+                aria-selected={i === cursor}
                 onClick={() => open(result)}
                 onMouseEnter={() => setCursor(i)}
                 className={cx(
@@ -84,7 +91,9 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
             </li>
           ))}
           {query.length >= 2 && !results.length ? (
-            <li className="px-4 py-6 text-center text-sm text-ink3">Nothing matches “{query}”.</li>
+            <li className="px-4 py-6 text-center text-sm text-ink3" role="status" aria-live="polite">
+              Nothing matches “{query}”.
+            </li>
           ) : null}
           {query.length < 2 ? (
             <li className="px-4 py-5">

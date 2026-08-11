@@ -22,6 +22,8 @@ import {
   SettingsIcon,
   TodayIcon,
   TutorIcon,
+  BenchmarkIcon,
+  CaseStudyIcon,
 } from "./icons";
 import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
@@ -43,6 +45,8 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
   { href: "/papers", label: "Past papers", Icon: PapersIcon },
   { href: "/library", label: "Library", Icon: LibraryIcon },
   { href: "/tutor", label: "Tutor", Icon: TutorIcon },
+  { href: "/benchmarks", label: "Benchmarks", Icon: BenchmarkIcon },
+  { href: "/case-study", label: "Case study", Icon: CaseStudyIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
@@ -115,8 +119,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
 
-      {/* Desktop rail */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-56 flex-col border-r border-line bg-surface z-20">
+      {/* Desktop rail — landmark + label so screen readers name it, not just "navigation" */}
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-56 flex-col border-r border-line bg-surface z-20" aria-label="Primary">
         <div className="px-4 py-5">
           <p className="text-sm font-semibold tracking-tight">Revise</p>
           <p className="text-[11px] text-ink3 mt-0.5">{settings.displayName}</p>
@@ -155,8 +159,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile top bar */}
-      <header className="lg:hidden sticky top-0 z-20 bg-surface border-b border-line">
+      {/* Mobile top bar — banner landmark for SR rotor */}
+      <header className="lg:hidden sticky top-0 z-20 bg-surface border-b border-line" role="banner">
         <div className="flex items-center justify-between px-4 h-14">
           <div>
             <p className="text-sm font-semibold tracking-tight">Revise</p>
@@ -174,7 +178,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         {!syncStatus.online ? (
-          <p className="px-4 py-1.5 text-[11px] bg-reviewsoft text-review font-medium flex items-center gap-1.5">
+          <p
+            className="px-4 py-1.5 text-[11px] bg-reviewsoft text-review font-medium flex items-center gap-1.5"
+            role="status"
+            aria-live="polite"
+          >
             <OfflineIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0" />
             Offline — everything still works and will sync when you reconnect.
           </p>
@@ -185,7 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-5 sm:py-7 app-enter">{children}</div>
       </main>
 
-      {/* Mobile bottom bar */}
+      {/* Mobile bottom bar — duplicate Main landmark for thumb reach; same aria-label as desktop rail */}
       <nav
         className="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line elev-nav pb-safe"
         aria-label="Main"

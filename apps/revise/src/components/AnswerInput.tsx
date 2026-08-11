@@ -117,6 +117,9 @@ export function AnswerInput({
 
   return (
     <div>
+      <label htmlFor={id} className="sr-only">
+        Your answer
+      </label>
       <textarea
         id={id}
         value={value}
@@ -124,6 +127,7 @@ export function AnswerInput({
         rows={rows}
         placeholder={placeholder ?? "Write your answer as you would in the exam…"}
         className="field nice-scroll resize-y font-normal"
+        aria-label={id ? undefined : "Your answer"}
       />
       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
         <Button
@@ -157,6 +161,7 @@ export function AnswerInput({
           accept="image/*"
           capture="environment"
           className="sr-only"
+          aria-label="Upload photo of handwritten working"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void onPhoto(file);
@@ -169,7 +174,11 @@ export function AnswerInput({
           </span>
         ) : null}
       </div>
-      {status ? <p className="text-[11px] text-ink3 mt-1">{status}</p> : null}
+      {status ? (
+        <p className="text-[11px] text-ink3 mt-1" role="status" aria-live="polite">
+          {status}
+        </p>
+      ) : null}
     </div>
   );
 }

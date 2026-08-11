@@ -53,6 +53,10 @@ lives:
   measured true retention.
 - `custom-study.ts` assembles a hand-built session from a spec.
 - `deck-io.ts` validates and materialises imported decks.
+- `i18n.ts` — locale detection, dictionary lookup and `t()` interpolation for the localisation scaffolding (en-GB core, cy/fr ready; no runtime dep).
+- `onboarding.ts` — funnel measurement: completion/drop-off, time-to-activation and `isActivated` derived from real review/attempt/session signals (local-only, no PII shipped).
+- `retention-analytics.ts`, `fsrs-tuning.ts`, `mastery-uncertainty.ts`, `knowledge-tracing.ts`, `recommender-enhancements.ts`, `sync-conflicts.ts`, `portability.ts`, `moderation.ts` — Phase 3–6 learning-science and platform hardening (covered in `docs/revision-engine.md`).
+- `src/app/benchmarks` + `src/app/case-study` — live ledger and case-study routes that compute from the same harnesses as CI (Phase 8).
 
 ### `src/content` — authored revision material
 
@@ -117,6 +121,8 @@ construction instead of by cache invalidation, which is the class of bug that
 would otherwise show a stale predicted grade next to fresh marks.
 
 ### `src/components` and `src/app`
+
+`playwright.config.ts` + `e2e/offline.spec.ts` + `e2e/visual.spec.ts` form the offline-first E2E harness: build → start → Chromium by default (Firefox/WebKit via `PLAYWRIGHT_ALL_BROWSERS=1`), visual snapshots at `e2e/__screenshots__/` (see `e2e/README.md` for the process contract). CI runs it only when `@playwright/test` is installed, otherwise the node smoke in `tests/sync.test.ts` is the gate (`.github/workflows/revise.yml`).
 
 The Le Studio design system (`src/app/le-studio.css`) carries all colour through
 CSS custom properties that flip themselves for dark mode, so components carry no
@@ -197,9 +203,28 @@ dropped rather than failing.
 The service worker precaches the app shell (stale-while-revalidate for
 navigations) and never caches `/api/*` — a stale explanation is worse than none.
 
+## Quality gates (Phase 7)
+
+Beyond unit tests, Revise now pins these so regressions are caught before review:
+
+- **E2E offline walk** (`playwright.config.ts`, `e2e/offline.spec.ts`): onboarding → seed → due queue → grade → mistake loop *with a browser*, plus offline banner, skip-link focus and search overlay (button + ⌘K). Mirrors the node smoke in `tests/sync.test.ts` so `verify` stays green browserless.
+- **Visual regression** (`e2e/visual.spec.ts`): one deterministic Today-shell snapshot at 2% tolerance, stored at `e2e/__screenshots__/`; update via `--update-snapshots` and review the diff in PR. Contract in `e2e/README.md`.
+- **Perf budgets** (`tests/perf.test.ts`, `next.config.ts`, `public/sw.js`): curriculum modules ≤100k / domain ≤120k, validation < 1.5s, build artifact < 80MB, `_next/static` immutable + `/api` no-store + SW app-shell precache.
+- **WCAG structural pass**: skip-link, Main/Primary/banner landmarks, offline live region, combobox/listbox/option + `aria-activedescendant`, `AnswerInput` label + live status, `Onboarding` dialog + `aria-pressed`, `.sr-only` helper (`globals.css`), `prefers-reduced-motion` + `.reduce-motion` guard and `:focus-visible` ring (`le-studio.css`). Pinned in `tests/a11y.test.ts` (9 tests).
+- **Localisation scaffolding** (`src/domain/i18n.ts`): `detectLocale` + `t()` + per-locale dictionaries (en-GB core, cy/fr ready), key-set parity checked (`missingKeys`/`extraKeys`), date/number formatting via `Intl` with ISO fallback.
+- **Onboarding funnel** (`src/domain/onboarding.ts`): `OnboardingProgress` → `completionRate`/`dropOffStep`, `deriveActivation` → `timeToActivationMs` + `isActivated`, aggregate `summariseFunnel`. Wired as local-only domain helpers so the UI can emit real completion/activation data without shipping PII.
+
+## Public benchmarks & case study (Phase 8)
+
+The harnesses above are also published live so the numbers cannot drift from the code:
+
+- **Benchmarks page** (`src/app/benchmarks/page.tsx`, route `/benchmarks`) — live ledger that recomputes `benchmarkRecommendationQuality` + `calibrationReport` in the browser from the same deterministic synthetic harnesses CI runs (`syntheticOutcomePairs`, `syntheticCalibrationOutcomes`). Seed/n controls, provenance row, and the 40-row outcome table; real `(predicted, actual)` pairs drop in with no page change once provider-marked gold exists.
+- **Case study** (`src/app/case-study/page.tsx`, route `/case-study`) — the 6-engine narrative (scoring, FSRS, mastery, marking, mistake loop, grades) with a reproduce block; links back to `/benchmarks` and `docs/benchmark.md`.
+- **Navigation + data controls** — `AppShell` exposes `/benchmarks` + `/case-study` with `BenchmarkIcon`/`CaseStudyIcon`; `Settings → Data` wires `buildPortabilitySnapshot` / `deletionPreview` / `privacyDisclosure` for GDPR Art. 20/17 portability and local-only privacy. Pinned in `tests/phase8-public.test.ts` (8 tests).
+
 ## Testing
 
-220 unit tests over the engine, in `tests/`. They target behaviour that would be
+412 unit tests over the engine, in `tests/` (29 files). They target behaviour that would be
 a real defect if it broke, not implementation shape:
 
 - **scheduling** — grade ordering, lapse counting, immutability, decay curve

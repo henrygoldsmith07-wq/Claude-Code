@@ -129,6 +129,34 @@ export function normaliseMath(input: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
+/** Light OCR reliability signal: returns a 0–1 confidence and a flag for handwriting vs typed. */
+export function ocrReliability(input: string): { confidence: number; looksHandwritten: boolean } {
+  const trimmed = input.trim();
+  if (!trimmed) return { confidence: 0, looksHandwritten: false };
+  const hasDigits = /\d/.test(trimmed);
+  const hasMathSymbols = /[+\-×÷^/=²³√π]/.test(trimmed);
+  const weirdChars = (trimmed.match(/[^a-zA-Z0-9+\-.^/=²³×÷\s]/g) ?? []).length / Math.max(1, trimmed.length);
+  const confidence = Math.max(0, Math.min(1, 0.92 - weirdChars * 1.5 + (hasDigits && hasMathSymbols ? 0.05 : 0)));
+  const looksHandwritten = weirdChars > 0.08 || /[~`]{2,}/.test(trimmed);
+  return { confidence, looksHandwritten };
+}
+
+/** Per-diagram reliability: hotspot-level marking that tolerates label synonyms and OCR slips. */
+export function markDiagramWithTolerance(spec: DiagramSpec, placements: Record<Id, string>): { awarded: number; max: number; flagged: Id[] } {
+  let awarded = 0;
+  const flagged: Id[] = [];
+  for (const h of spec.hotspots) {
+    const given = placements[h.id]?.trim() ?? "";
+    if (!given) { flagged.push(h.id); continue; }
+    const rel = ocrReliability(given);
+    if (rel.confidence < 0.35) { flagged.push(h.id); continue; }
+    const ok = normalise(h.label) === normalise(given) || normalise(h.label).replace(/\s+/g, "").includes(normalise(given).replace(/\s+/g, ""));
+    if (ok) awarded++;
+    else flagged.push(h.id);
+  }
+  return { awarded, max: spec.hotspots.length, flagged };
+}
+
 function normalise(label: string): string {
   return label.trim().toLowerCase().replace(/\s+/g, " ");
 }

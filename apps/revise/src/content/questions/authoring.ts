@@ -1,4 +1,4 @@
-import type { AoCode, ContentSource, Id, Question, QuestionKind, QuestionPart, VerificationStatus } from "@/domain/types";
+import type { AoCode, ContentSource, Id, LicensedSource, Question, QuestionKind, QuestionPart, VerificationStatus } from "@/domain/types";
 
 // Compact authoring format for the seed question bank. Ids are deterministic
 // (`seed-q:<slug>`) so re-seeding never duplicates a question or orphans the
@@ -28,6 +28,7 @@ export interface QuestionSpec {
   calculator?: boolean;
   parts: PartSpec[];
   source?: ContentSource;
+  licensedSource?: LicensedSource | null;
   verification?: VerificationStatus;
   lastChecked?: string | null;
   reviewer?: string | null;
@@ -71,6 +72,7 @@ export function defineQuestion(spec: QuestionSpec): Question {
     difficulty: spec.difficulty ?? 3,
     origin: "seed",
     source: spec.source ?? "authored",
+    licensedSource: spec.licensedSource ?? null,
     verification: spec.verification ?? "unverified",
     reviewer: (spec as { reviewer?: string | null }).reviewer ?? null,
     lastChecked: spec.lastChecked ?? null,

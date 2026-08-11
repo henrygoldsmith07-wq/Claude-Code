@@ -62,6 +62,15 @@ export type AoCode = "AO1" | "AO2" | "AO3";
 export type VerificationStatus = "unverified" | "checked" | "verified";
 export type ContentSource = "authored" | "licensed" | "generated" | "past-paper" | "import";
 
+/** Cite a licensed source when provenance is "licensed". Paraphrased claims stay compliant without verbatim text. */
+export interface LicensedSource {
+  /** Human citation, e.g. "Edexcel GCE Mathematics spec 9MA0, §2.1 (2024)" */
+  citation: string;
+  licence?: string;
+  url?: string;
+  accessedAt?: IsoDate;
+}
+
 export interface SpecPoint {
   /** Stable internal ID, e.g. "wjec-alevel-physics.kinematics-dynamics.sp-1". Never changes when text is clarified. */
   id: Id;
@@ -73,6 +82,8 @@ export interface SpecPoint {
   aos: AoCode[];
   /** Provenance for this individual statement (falls back to topic source when absent). */
   source?: ContentSource;
+  /** When source is licensed, the citation that makes it auditable. */
+  licensedSource?: LicensedSource | null;
   /** Verification state for this statement: draft→reviewed→verified (stored as unverified→checked→verified). */
   verification?: VerificationStatus;
   /** Who or what verified it — reviewer name, "authored", or licence citation. */
@@ -118,6 +129,7 @@ export interface Topic {
   aos?: AoCode[];
   /** Provenance: who wrote this content and under what licence. */
   source?: ContentSource;
+  licensedSource?: LicensedSource | null;
   /** How thoroughly this topic has been checked against the spec. */
   verification?: VerificationStatus;
   /** Who verified it. */
@@ -156,6 +168,7 @@ export interface Card {
   specPointIds?: Id[];
   /** Provenance for audit: where the card's claim comes from. */
   source?: ContentSource;
+  licensedSource?: LicensedSource | null;
   verification?: VerificationStatus;
   reviewer?: string | null;
   lastChecked?: IsoDate | null;
@@ -224,6 +237,7 @@ export interface Question {
   origin: "seed" | "ai" | "past-paper";
   /** Provenance for display and filtering. */
   source?: ContentSource;
+  licensedSource?: LicensedSource | null;
   /** Verification state against the spec / mark scheme. */
   verification?: VerificationStatus;
   /** Who verified it. */

@@ -12,3 +12,17 @@
    can size to its content or make room for a leading icon. */
 .field-inline { width: auto; }
 .field-search { padding-left: 2.25rem; }
+
+/* Screen-reader only — visible to assistive tech, not sighted users. Used for
+   form labels that would otherwise be visual-only placeholders. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

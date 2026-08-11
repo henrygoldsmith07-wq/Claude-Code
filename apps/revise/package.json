@@ -15,7 +15,8 @@
     "predev": "node scripts/copy-pdf-worker.mjs",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
     "type-check": "tsc --noEmit",
-    "test:e2e": "echo 'No E2E suite configured \u2014 wire Playwright and replace this hook'"
+    "test:e2e": "playwright test --reporter=list",
+    "test:e2e:ci": "playwright test --reporter=github,html"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
