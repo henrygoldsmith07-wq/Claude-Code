@@ -1,0 +1,46 @@
+name: Rapport
+
+on:
+  push:
+    paths:
+      - "apps/rapport/**"
+      - ".github/workflows/rapport.yml"
+  pull_request:
+    paths:
+      - "apps/rapport/**"
+      - ".github/workflows/rapport.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/rapport
+    env:
+      # The product must work with no model configured, and CI proves it.
+      AI_PROVIDER: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/rapport/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+      - name: Playwright E2E (Chromium + mobile)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e -- --reporter=github,html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rapport-playwright-report
+          path: |
+            apps/rapport/playwright-report
+            apps/rapport/test-results
+          if-no-files-found: ignore
