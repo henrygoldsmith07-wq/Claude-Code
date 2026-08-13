@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 4173",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "lint:check": "eslint .",
@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test --reporter=list",
     "test:e2e:ci": "playwright test --reporter=github",
-    "bench": "vitest run tests/performance.test.ts",
+    "bench": "vitest run tests/e2e.test.ts",
     "verify": "npm run lint:check && npm run type-check && npm test && npm run build"
   },
   "dependencies": {
