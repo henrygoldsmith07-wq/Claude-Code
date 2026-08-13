@@ -217,7 +217,7 @@ function Transcript({ meeting, currentTime, onSeek }: { meeting: Meeting; curren
                   {speaker && <span className="mr-1 rounded bg-white/10 px-1 text-xs text-white/60">{speaker}</span>}
                   {editing===i ? (
                     <><textarea value={draft} onChange={e=>setDraft(e.target.value)} className="w-full rounded border border-edge bg-ink p-2 text-sm" rows={2} aria-label="Edit segment" />
-                    <div className="mt-1 flex gap-2"><button onClick={()=>saveEdit(i)} className="rounded bg-brand px-2 py-1 text-xs">Save</button><button onClick={()=>setEditing(null)} className="rounded border border-edge px-2 py-1 text-xs">Cancel</button></div></>
+                    <div className="mt-1 flex gap-2"><button onClick={()=>saveEdit(i)} className="rounded bg-brand px-2 py-1 text-xs text-onaccent">Save</button><button onClick={()=>setEditing(null)} className="rounded border border-edge px-2 py-1 text-xs">Cancel</button></div></>
                   ) : (<><span className="text-white/80">{seg.text}</span> {seg.words && seg.words.length>0 && <span className="ml-1 text-xs text-white/30">{seg.words.length} words</span>} {low<0.6 && <span className="ml-1 rounded bg-amber-500/20 px-1 text-xs text-amber-300" title="Low confidence — review this segment">low confidence</span>}</>)}
                 </div>
                 <button onClick={()=>{ setEditing(i); setDraft(seg.text);}} className="shrink-0 text-xs text-white/30 hover:text-white" aria-label={`Edit segment ${i+1}`}>Edit</button>

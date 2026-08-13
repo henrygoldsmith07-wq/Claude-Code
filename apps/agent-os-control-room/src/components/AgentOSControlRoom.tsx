@@ -424,7 +424,7 @@ function NotebookLibraryView({
         <button
           type="button"
           onClick={onOpenConnectModal}
-          className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500"
+          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-onaccent transition-colors hover:opacity-90"
         >
           <Cable className="h-4 w-4" />
           Connect New Notebook via MCP Bridge
@@ -546,7 +546,7 @@ function ConnectNotebookModal({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+              className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-onaccent hover:opacity-90"
             >
               <Plus className="h-4 w-4" />
               Connect via Bridge
@@ -591,7 +591,7 @@ function AssetGenerateCard({
         <button
           type="button"
           onClick={onGenerate}
-          className="mt-1 rounded-lg bg-violet-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-violet-500"
+          className="mt-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-onaccent transition-colors hover:opacity-90"
         >
           Generate
         </button>

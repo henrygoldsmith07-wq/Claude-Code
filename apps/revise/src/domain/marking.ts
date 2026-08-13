@@ -1,3 +1,4 @@
+import { symbolicMatch } from "./maths-equivalence";
 import type { MarkedPart, Question, QuestionPart } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -141,9 +142,23 @@ export function markPart(part: QuestionPart, answer: string, calibration?: Parti
     const thresh = perPointThreshold(point, calibration);
     const cov = pointCoverage(point, trimmed);
     const num = numericMatch(point, trimmed);
+    // Symbolic layer: when both the point and the answer contain a parseable
+    // algebra expression, accept equivalent forms (`(x+2)(x-3)` for `x^2 - x - 6`)
+    // and reject a pure expression that differs, even if a stray digit matches.
+    // Unknown (unparseable/prose) never hurts: it falls through to the rubric.
+    const sym = symbolicMatch(trimmed, point);
     const numeric = isNumericPoint(point);
     const strict = Boolean(calibration?.strictNumericPoints && numeric);
-    const ok = strict ? (num && cov >= thresh) : numeric ? (num || cov >= thresh) : (cov >= thresh || num);
+    const ok =
+      sym === "equivalent"
+        ? true
+        : sym === "not-equivalent"
+          ? false
+          : strict
+            ? (num && cov >= thresh)
+            : numeric
+              ? (num || cov >= thresh)
+              : (cov >= thresh || num);
     (ok ? credited : missed).push(point);
   }
 

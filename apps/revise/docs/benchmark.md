@@ -21,10 +21,13 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 ## Marking — rubric floor + AI vs human
 
-*Source:* `src/domain/marking.ts`, `tests/marking.test.ts`, `tests/marking.benchmark.test.ts`.
+*Source:* `src/domain/marking.ts`, `src/domain/maths-equivalence.ts`, `src/domain/working-analysis.ts`, `src/domain/remediation.ts`, `tests/marking.test.ts`, `tests/marking.benchmark.test.ts`.
 
 - Rubric: keyword + lemma overlap ≥50% per mark-scheme point or numeric match; 3-word cap, proportional award, strict about content, generous about wording.
-- Benchmark harness: 3-row synthetic gold set (4 marks / 0 marks / 1 mark) with `accuracy` floor and examiner-voice feedback contract.
+- Symbolic layer (`maths-equivalence.ts`): when both the scheme point and the student's *final* expression parse as single-variable polynomials, equivalent forms credit (`(x+2)(x-3)` ↔ `x^2 - x - 6`) and a wrong pure expression is rejected even when it shares digits with the scheme. Unparseable or prose-embedded points fall through to the rubric unchanged.
+- Working analysis (`working-analysis.ts`): splits the response into steps and reports the first step that diverges from the model working — an examiner's marginal note, available offline.
+- Remediation (`remediation.ts`): matches missed points + first incorrect step against the topic's authored `commonErrors` and produces a targeted action (restudy the named key point, fix the specific slip, retry).
+- Benchmark harness: 12-row human-labelled gold set (teacher per-part awards; chemistry + maths) with `exact-match accuracy` and `per-part MAE` floors — today exact-match ≥ 0.5 and MAE ≤ 0.8. The same rows will carry `aiAward` columns once provider marking exists.
 - Real AI vs human will be reported here as a table keyed by `questionId` once provider-marked gold exists: rows `(rubricAward, aiAward, humanAward)` and aggregate `rubricVsHuman MAE` vs `aiVsHuman MAE`.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.
 
@@ -39,9 +42,10 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 ## Curriculum regression
 
-*Source:* `scripts/validate-curriculum.mjs`, `src/domain/content-review.ts`, `tests/coverage.test.ts`.
+*Source:* `scripts/validate-curriculum.mjs`, `src/domain/content-review.ts`, `src/domain/curriculum-diff.ts`, `tests/coverage.test.ts`.
 
 - Every topic has `specPoints` on every unit; every `specPointIds` is paired with `learningClaims`; stale topics (>365d) and unverified statements are surfaced by `regressionReport`.
+- Spec-change diff tooling (`curriculum-diff.ts`): diff two snapshots of a subject's topics (old spec version vs new) and get added/removed/reworded spec points, key-point and common-error changes, plus the questions pinned to affected points — so a board revision is triaged instead of re-read. `recordedSpecVersionChanges` lists subjects whose manifest history spans multiple spec versions.
 - CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 142 questions today (8 boards×levels, tree-shakable modules).
 - Visual regression: `e2e/visual.spec.ts` guards the Today shell (2% tolerance, `e2e/__screenshots__/`); update with `--update-snapshots`.
 

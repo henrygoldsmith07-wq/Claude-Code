@@ -14,7 +14,7 @@ export function CollectionsPanel({ meetings, collections, onCreate }: { meetings
       <div className="mt-3 flex gap-2">
         <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Collection name" className="flex-1 rounded border border-edge bg-ink px-2 py-1.5 text-sm" />
         <input value={topic} onChange={(e)=>setTopic(e.target.value)} placeholder="Topic (optional)" className="flex-1 rounded border border-edge bg-ink px-2 py-1.5 text-sm" />
-        <button onClick={()=>{ if(!name.trim()) return; onCreate(createCollection(name.trim(), meetings.slice(0,3).map((m)=>m.id), topic.trim()||undefined)); setName(""); setTopic(""); }} className="rounded bg-brand px-3 py-1.5 text-xs font-medium text-white">Create</button>
+        <button onClick={()=>{ if(!name.trim()) return; onCreate(createCollection(name.trim(), meetings.slice(0,3).map((m)=>m.id), topic.trim()||undefined)); setName(""); setTopic(""); }} className="rounded bg-brand px-3 py-1.5 text-xs font-medium text-onaccent">Create</button>
       </div>
       <ul className="mt-3 space-y-1">
         {collections.map((c)=>(

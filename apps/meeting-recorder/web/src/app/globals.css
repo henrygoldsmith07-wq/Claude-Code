@@ -1,23 +1,38 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "./le-studio.css";
 
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+/* Alias old meeting names so existing markup inherits the shared palette without rewiring every component.
+   Old ink was the near-black page canvas; here it maps to --bg (the darkest shared surface), and the old
+   brand-soft light-violet text maps to --speak (the shared "conversation" accent) so it stays legible in
+   both themes. Prefer the shared names (bg-surface, text-ink3, text-speak…) in new code. */
 :root {
-  color-scheme: dark;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --panel: var(--surface);
+  --edge: var(--line);
+  --brand: var(--accent);
+  --brand-soft: var(--speak);
 }
 
-html,
-body {
-  background: #0b0d12;
-  color: #e6e8ee;
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-panel: var(--surface);
+  --color-edge: var(--line);
+  --color-brand: var(--accent);
+  --color-brand-soft: var(--speak);
+  --color-ink: var(--bg);
+  --font-sans: var(--font-inter);
 }
 
-/* Thin scrollbars for transcript/chat panels */
+/* Thin scrollbars for transcript/chat panels — now on the shared line colour */
 .scroll-thin::-webkit-scrollbar {
   width: 8px;
 }
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: #2a3040;
+  background: var(--line);
   border-radius: 8px;
 }
 .scroll-thin::-webkit-scrollbar-track {
