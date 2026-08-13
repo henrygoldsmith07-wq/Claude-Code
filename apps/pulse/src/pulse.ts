@@ -1,0 +1,311 @@
+/**
+ * Pulse — the engine façade.
+ *
+ * Wires the core loop together:
+ *   COLLECT -> NORMALISE -> VALIDATE -> ANALYSE -> DISCOVER -> HYPOTHESISE
+ *   -> EXPERIMENT -> RECOMMEND -> MEASURE -> LEARN
+ *
+ * This is the only stateful object in the system. Everything it calls is a
+ * pure function over events, which is why the whole analytic stack can be
+ * tested without constructing one.
+ */
+
+import type { PulseEvent, SourceId } from "./events/schema.js";
+import { MemoryEventStore, type PersistenceAdapter } from "./events/store.js";
+import { localDate } from "./events/time.js";
+import { SyncEngine, type SyncOptions, type SyncReport } from "./connectors/sync.js";
+import type { Connector } from "./connectors/types.js";
+import { ConsentRegistry } from "./privacy/consent.js";
+import { createDefaultRegistry } from "./metrics/catalogue.js";
+import type { MetricRegistry } from "./metrics/registry.js";
+import { scoreAll, type QualityContext, type SourceQuality } from "./quality/score.js";
+import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
+import type { Finding } from "./discovery/finding.js";
+import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
+import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
+import { analyseExperiment, type ExperimentResult } from "./experiments/analysis.js";
+import { rankRecommendations, type Recommendation } from "./recommendations/rank.js";
+import { FeedbackStore } from "./recommendations/feedback.js";
+import { buildTimeline, type Timeline, type TimelineOptions } from "./timeseries/timeline.js";
+import { buildWeeklyBrief, type WeeklyBrief } from "./reports/brief.js";
+import { buildKnowledgeGraph, type KnowledgeGraph } from "./knowledge/graph.js";
+import { ask, type Answer, type AskContext } from "./ask/answer.js";
+import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
+
+export interface PulseOptions {
+  timezone?: string;
+  adapter?: PersistenceAdapter;
+  registry?: MetricRegistry;
+  now?: () => number;
+  /** Expected weekly cadence per source, used by the quality scorer. */
+  expectedCadence?: Record<string, number>;
+}
+
+export class Pulse {
+  readonly store: MemoryEventStore;
+  readonly consent: ConsentRegistry;
+  readonly registry: MetricRegistry;
+  readonly feedback: FeedbackStore;
+  readonly hypotheses: HypothesisTracker;
+  readonly timezone: string;
+
+  private readonly connectors = new Map<SourceId, Connector>();
+  private readonly syncEngine: SyncEngine;
+  private readonly syncReports = new Map<SourceId, SyncReport>();
+  private readonly designs = new Map<string, ExperimentDesign>();
+  private readonly experimentResults = new Map<string, ExperimentResult>();
+  private readonly now: () => number;
+  private readonly expectedCadence: Record<string, number>;
+  private cachedFindings: Finding[] = [];
+
+  constructor(options: PulseOptions = {}) {
+    this.timezone = options.timezone ?? "UTC";
+    this.now = options.now ?? Date.now;
+    this.store = new MemoryEventStore(options.adapter);
+    this.consent = new ConsentRegistry(this.now);
+    this.registry = options.registry ?? createDefaultRegistry();
+    this.feedback = new FeedbackStore(this.now);
+    this.hypotheses = new HypothesisTracker(this.now);
+    this.syncEngine = new SyncEngine(this.store, this.consent);
+    this.expectedCadence = options.expectedCadence ?? {};
+  }
+
+  async load(): Promise<void> {
+    await this.store.load();
+  }
+
+  // --- COLLECT ----------------------------------------------------------
+
+  registerConnector(connector: Connector): this {
+    this.connectors.set(connector.id, connector);
+    return this;
+  }
+
+  listConnectors(): Connector[] {
+    return [...this.connectors.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  }
+
+  requireConnector(id: SourceId): Connector {
+    const connector = this.connectors.get(id);
+    if (!connector) throw new Error(`No connector registered for "${id}"`);
+    return connector;
+  }
+
+  /** Grants consent for a single source. */
+  connect(id: SourceId, options: { scopes?: string[]; allowAiProcessing?: boolean } = {}): void {
+    this.consent.grant(this.requireConnector(id), options);
+  }
+
+  /** Bulk connect. Sources requiring explicit permission are returned, not enabled. */
+  connectAll(): { granted: SourceId[]; skipped: SourceId[] } {
+    return this.consent.grantAll(this.listConnectors());
+  }
+
+  async sync(id: SourceId, options: Partial<SyncOptions> = {}): Promise<SyncReport> {
+    const report = await this.syncEngine.sync(this.requireConnector(id), {
+      timezone: this.timezone,
+      now: this.now,
+      ...options,
+    });
+    this.syncReports.set(id, report);
+    return report;
+  }
+
+  async syncAll(options: Partial<SyncOptions> = {}): Promise<SyncReport[]> {
+    const reports: SyncReport[] = [];
+    for (const connector of this.listConnectors()) {
+      if (!this.consent.isGranted(connector.id)) continue;
+      reports.push(await this.sync(connector.id, options));
+    }
+    return reports;
+  }
+
+  async backfill(id: SourceId, fromDate: string): Promise<SyncReport> {
+    const report = await this.syncEngine.backfill(this.requireConnector(id), fromDate, {
+      timezone: this.timezone,
+      now: this.now,
+    });
+    this.syncReports.set(id, report);
+    return report;
+  }
+
+  events(options: { includeSensitive?: boolean } = {}): PulseEvent[] {
+    return this.store.query({ includeSensitive: options.includeSensitive ?? false });
+  }
+
+  // --- VALIDATE ---------------------------------------------------------
+
+  quality(): SourceQuality[] {
+    const context: QualityContext = {
+      nowMs: this.now(),
+      timezone: this.timezone,
+      definitions: this.registry.list(),
+    };
+    const perSource = new Map<SourceId, Partial<QualityContext>>();
+    for (const [source, report] of this.syncReports) {
+      perSource.set(source, {
+        syncReport: report,
+        ...(this.expectedCadence[String(source)] !== undefined
+          ? { expectedEventsPerWeek: this.expectedCadence[String(source)] }
+          : {}),
+      });
+    }
+    return scoreAll(this.store.all(), context, perSource);
+  }
+
+  // --- ANALYSE / DISCOVER -----------------------------------------------
+
+  timeline(options: TimelineOptions = {}): Timeline {
+    return buildTimeline(this.store.all(), options);
+  }
+
+  discover(options: { includeSensitive?: boolean; limit?: number; fdrLevel?: number } = {}): DiscoveryReport {
+    const report = discoverRelationships(this.events({ includeSensitive: options.includeSensitive ?? false }), {
+      registry: this.registry,
+      qualities: this.quality(),
+      now: this.now,
+      ...(options.limit !== undefined ? { limit: options.limit } : {}),
+      ...(options.fdrLevel !== undefined ? { fdrLevel: options.fdrLevel } : {}),
+    });
+    this.cachedFindings = report.findings;
+    return report;
+  }
+
+  findings(): Finding[] {
+    return this.cachedFindings;
+  }
+
+  // --- HYPOTHESISE / EXPERIMENT -----------------------------------------
+
+  /** Turns every experiment-worthy finding into a tracked hypothesis. */
+  proposeHypotheses(): Hypothesis[] {
+    const proposed: Hypothesis[] = [];
+    for (const finding of this.cachedFindings) {
+      const hypothesis = this.hypotheses.proposeFromFinding(finding);
+      if (hypothesis) proposed.push(hypothesis);
+    }
+    return proposed;
+  }
+
+  designExperiment(hypothesisId: string, options: Omit<DesignOptions, "now">): ExperimentDesign {
+    const hypothesis = this.hypotheses.get(hypothesisId);
+    if (!hypothesis) throw new Error(`Unknown hypothesis: ${hypothesisId}`);
+    const design = designExperiment(hypothesis, { ...options, now: this.now });
+    this.designs.set(design.id, design);
+    this.hypotheses.linkExperiment(hypothesisId, design.id);
+    if (hypothesis.status === "proposed") {
+      this.hypotheses.transition(hypothesisId, "testing", `Experiment ${design.id} designed`);
+    }
+    return design;
+  }
+
+  getDesign(id: string): ExperimentDesign | undefined {
+    return this.designs.get(id);
+  }
+
+  listDesigns(): ExperimentDesign[] {
+    return [...this.designs.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  /** MEASURE: analyses a run and moves its hypothesis to a terminal state. */
+  analyseExperiment(designId: string): ExperimentResult {
+    const design = this.designs.get(designId);
+    if (!design) throw new Error(`Unknown experiment: ${designId}`);
+    const hypothesis = this.hypotheses.get(design.hypothesisId);
+
+    const qualities = this.quality();
+    const result = analyseExperiment(design, this.store.all(), {
+      registry: this.registry,
+      predictedEffect: hypothesis?.predictedEffect ?? 0.4,
+      dataQuality: qualities.length ? Math.min(...qualities.map((quality) => quality.score)) : 0.8,
+      now: this.now,
+    });
+    this.experimentResults.set(designId, result);
+
+    if (hypothesis && hypothesis.status === "testing") {
+      const next =
+        result.verdict === "supported" ? "supported" : result.verdict === "refuted" ? "refuted" : "inconclusive";
+      this.hypotheses.transition(hypothesis.id, next, result.summary);
+    }
+    return result;
+  }
+
+  experimentResultsList(): ExperimentResult[] {
+    return [...this.experimentResults.values()].sort((a, b) => a.analysedAt.localeCompare(b.analysedAt));
+  }
+
+  // --- RECOMMEND --------------------------------------------------------
+
+  recommendations(limit?: number): Recommendation[] {
+    return rankRecommendations(this.cachedFindings, this.experimentResultsList(), {
+      registry: this.registry,
+      feedback: this.feedback,
+      now: this.now,
+      today: localDate(this.now(), this.timezone),
+      ...(limit !== undefined ? { limit } : {}),
+    });
+  }
+
+  // --- LEARN ------------------------------------------------------------
+
+  knowledgeGraph(): KnowledgeGraph {
+    return buildKnowledgeGraph({
+      definitions: this.registry.list(),
+      findings: this.cachedFindings,
+      hypotheses: this.hypotheses.list(),
+      experiments: this.experimentResultsList(),
+    });
+  }
+
+  weeklyBrief(weekOf?: string): WeeklyBrief {
+    return buildWeeklyBrief({
+      registry: this.registry,
+      weekOf: weekOf ?? localDate(this.now(), this.timezone),
+      events: this.store.all(),
+      findings: this.cachedFindings,
+      recommendations: this.recommendations(),
+      experiments: this.experimentResultsList(),
+      qualities: this.quality(),
+      now: this.now,
+    });
+  }
+
+  ask(question: string): Answer {
+    const context: AskContext = {
+      events: this.events(),
+      registry: this.registry,
+      findings: this.cachedFindings,
+      recommendations: this.recommendations(),
+      hypotheses: this.hypotheses.list(),
+      today: localDate(this.now(), this.timezone),
+      weeklyBriefHeadline: this.weeklyBrief().headline,
+    };
+    return ask(question, context);
+  }
+
+  // --- PRIVACY ----------------------------------------------------------
+
+  export(options: { includeSensitive?: boolean } = {}): PulseExport {
+    return buildExport(this.store, this.consent, {
+      ...options,
+      now: this.now,
+      findings: this.cachedFindings,
+      hypotheses: this.hypotheses.list(),
+      experimentDesigns: this.listDesigns(),
+      experimentResults: this.experimentResultsList(),
+      feedback: this.feedback.list(),
+    });
+  }
+
+  /** Revokes consent, deletes the data, and drops any findings that relied on it. */
+  async forgetSource(source: SourceId): Promise<DeletionReport> {
+    const report = await deleteSource(this.store, this.consent, source, {
+      findings: this.cachedFindings,
+      hypotheses: this.hypotheses.list(),
+    }, this.now);
+    const invalidated = new Set(report.invalidatedFindings);
+    this.cachedFindings = this.cachedFindings.filter((finding) => !invalidated.has(finding.id));
+    this.syncReports.delete(source);
+    return report;
+  }
+}
