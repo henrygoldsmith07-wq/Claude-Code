@@ -83,18 +83,71 @@ export function bestSupersets(blocks, byId){
   return pairs.slice(0, 2).map(p=> [p.a, p.b]);
 }
 
-// Fatigue-aware ordering: heavy compounds first, isolation/core last, push/pull alternated
-export function fatigueAwareOrder(blocks, byId){
+// ── Fatigue-aware exercise ordering ────────────────────────────────────
+// Better than a static sort: heavy compounds and weak-point muscles still get
+// placed early (fresh), but a greedy step avoids stacking exercises that share
+// a muscle or movement family back-to-back (e.g. two Chest pushes in a row),
+// and cardio is always pushed to the end.
+
+const FAMILIES = { push: new Set(['Chest','Shoulders','Arms']), pull: new Set(['Back','Arms']), legs: new Set(['Legs','Glutes']) };
+
+// Muscle/family overlap between two exercises (0..1): same exercise 1, same
+// muscle 1, same push/pull/legs family 0.6, unrelated 0.
+export function muscleOverlap(aId, bId, byId){
+  if(!aId || !bId) return 0;
+  if(aId===bId) return 1;
+  const a = byId?.[aId], b = byId?.[bId];
+  if(!a || !b) return 0;
+  if(a.muscle === b.muscle) return 1;
+  const fam = m=> FAMILIES.push.has(m) ? 'push' : FAMILIES.pull.has(m) ? 'pull' : FAMILIES.legs.has(m) ? 'legs' : null;
+  const fa = fam(a.muscle), fb = fam(b.muscle);
+  return (fa && fa===fb) ? 0.6 : 0;
+}
+
+// How early an exercise should be placed: heavy compounds first, weak-point
+// muscles (priority) while fresh, unilateral before fatigue bites, isolation/
+// core late, cardio last.
+export function exercisePriorityScore(b, byId, priorityMuscles=[]){
+  if(!b) return 0;
+  const ex = byId?.[b.exerciseId];
+  let s = 0;
+  if(/squat|deadlift|bench|barbell|press|pull-up/.test(b.exerciseId||'')) s += 8;
+  if(ex?.muscle==='Legs' || ex?.muscle==='Back') s += 3;
+  if(ex?.muscle==='Cardio') s -= 20;
+  if(ex?.unilateral || b.unilateral) s += 1;
+  if(/isolation|raise|curl|plank|dead-bug|dip/.test(b.exerciseId||'')) s -= 3;
+  if(priorityMuscles.includes(ex?.muscle)) s += 6;
+  return s;
+}
+
+// Muscles trained least often (excluding Cardio) — train these while fresh.
+export function weakPointMuscles(history, byId, count=2){
+  const counts = {};
+  for(const h of history||[]) for(const b of h.blocks||[]){
+    const m = byId?.[b.exerciseId]?.muscle;
+    if(!m || m==='Cardio') continue;
+    counts[m] = (counts[m]||0) + 1;
+  }
+  return Object.entries(counts).sort((a,b)=> a[1]-b[1]).slice(0, count).map(([m])=> m);
+}
+
+export function fatigueAwareOrder(blocks, byId, opts={}){
   if(!blocks || blocks.length<=2) return blocks;
-  const score = (b)=>{
-    const ex = byId?.[b.exerciseId];
-    if(!ex) return 0;
-    let s=0;
-    if(/squat|deadlift|bench|barbell/.test(b.exerciseId)) s+=10;
-    if(ex.muscle==='Legs' || ex.muscle==='Back') s+=4;
-    if(ex.muscle==='Core' || ex.muscle==='Arms') s-=5;
-    if(ex.muscle==='Cardio') s-=10;
-    return s;
-  };
-  return [...blocks].sort((a,b)=> score(b)-score(a));
+  const priority = opts.priorityMuscles || [];
+  const remaining = [...blocks];
+  // start with the highest-priority exercise
+  remaining.sort((a,b)=> exercisePriorityScore(b, byId, priority) - exercisePriorityScore(a, byId, priority));
+  const ordered = [remaining.shift()];
+  // greedy: each step picks the remaining exercise that maximises priority minus
+  // fatigue overlap with the one just placed (weighted so adjacency matters)
+  while(remaining.length){
+    const last = ordered[ordered.length-1];
+    let bestIdx = 0, best = -Infinity;
+    for(let i=0;i<remaining.length;i++){
+      const v = exercisePriorityScore(remaining[i], byId, priority) - muscleOverlap(last.exerciseId, remaining[i].exerciseId, byId)*12;
+      if(v > best){ best = v; bestIdx = i; }
+    }
+    ordered.push(remaining.splice(bestIdx,1)[0]);
+  }
+  return ordered;
 }

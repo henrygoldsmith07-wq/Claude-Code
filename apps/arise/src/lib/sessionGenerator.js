@@ -3,7 +3,7 @@
 import { EXERCISES, EXERCISE_BY_ID } from "./data.js";
 import { recommendNext, personalisedRate } from "./progression.js";
 import { rankedSubstitutions } from "./substitutions.js";
-import { warmupSets, recommendedRest, predictSessionDuration, bestSupersets, fatigueAwareOrder } from "./warmup.js";
+import { warmupSets, recommendedRest, predictSessionDuration, bestSupersets, fatigueAwareOrder, weakPointMuscles } from "./warmup.js";
 
 export function generateSession({ goal="general", availableEquipment=[], history=[], length=5, includeWarmup=true }){
   const has = new Set(availableEquipment);
@@ -49,8 +49,10 @@ export function generateSession({ goal="general", availableEquipment=[], history
       supportsAssisted: !!ex.supportsAssisted,
     };
   });
-  // Fatigue-aware ordering
-  blocks = fatigueAwareOrder(blocks, EXERCISE_BY_ID);
+  // Fatigue-aware ordering: heavy compounds first, least-trained muscles early
+  // while fresh, same-muscle/family exercises kept apart, cardio last.
+  const weak = weakPointMuscles(history, EXERCISE_BY_ID);
+  blocks = fatigueAwareOrder(blocks, EXERCISE_BY_ID, { priorityMuscles: weak });
   // Superset scoring (best compatible pairs)
   const supersets = bestSupersets(blocks, EXERCISE_BY_ID);
   const estimatedDurationMin = predictSessionDuration(blocks.map(b=> ({ sets: b.sets, restSec: b.restSec, warmups: b.warmups })));

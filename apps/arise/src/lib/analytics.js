@@ -92,6 +92,74 @@ export function volumeDistribution(history, byId){
   return { totalSets, byMuscle: dist };
 }
 
+// Goal-priority muscles for balance judgement — a relative ordering, not a
+// prescription of absolute set counts. Used to spot lopsided volume.
+const GOAL_PRIORITY = {
+  strength: ['Legs','Back','Chest','Shoulders','Glutes'],
+  muscle: ['Chest','Back','Legs','Glutes','Shoulders','Arms'],
+  endurance: ['Cardio','Full body','Legs','Core'],
+  'fat-loss': ['Full body','Cardio','Legs','Core'],
+  general: ['Chest','Back','Legs','Glutes','Shoulders','Arms','Core'],
+};
+
+// Volume balance: per-muscle weekly sets vs an even share across the goal's
+// priority muscles. Under/over verdicts are *relative* — a priority muscle at
+// half its expected share is under-trained regardless of absolute numbers — so
+// the advice stays honest even when landmarks differ between people.
+export function volumeBalanceAdvice(history, byId, { goal = 'general', weeks = 4 } = {}){
+  const priority = GOAL_PRIORITY[goal] || GOAL_PRIORITY.general;
+  // weekly sets per muscle over the last N Monday-weeks
+  const byMuscleWeek = {};
+  const weekSet = new Set();
+  for(const h of history||[]){
+    const key = weekKey(new Date(h.dateISO + 'T00:00:00'));
+    weekSet.add(key);
+    for(const b of h.blocks||[]){
+      const m = byId?.[b.exerciseId]?.muscle;
+      if(!m) continue;
+      const k = m + '|' + key;
+      byMuscleWeek[k] = (byMuscleWeek[k]||0) + (b.sets||[]).length;
+    }
+  }
+  const window = [...weekSet].sort().slice(-weeks);
+  if(window.length < 2) return { goal, weeks: window.length, entries: [], advice: 'Log a couple of weeks — volume balance needs a baseline.', n: 0 };
+  const perMuscle = {};
+  for(const [k, sets] of Object.entries(byMuscleWeek)){
+    const idx = k.lastIndexOf('|');
+    const m = k.slice(0, idx), w = k.slice(idx+1);
+    if(!window.includes(w)) continue;
+    (perMuscle[m] = perMuscle[m] || []).push(sets);
+  }
+  const entries = priority.map((muscle, rank)=> {
+    const weekly = perMuscle[muscle] || [];
+    const avg = weekly.length ? weekly.reduce((a,b)=>a+b,0)/weekly.length : 0;
+    return { muscle, rank, avgWeeklySets: Math.round(avg*10)/10, weeks: weekly.length };
+  });
+  const total = entries.reduce((a,e)=> a + e.avgWeeklySets, 0);
+  if(!total) return { goal, weeks: window.length, entries, advice: 'No resistance volume logged yet — log some sets to judge balance.', n: 0 };
+  const expected = 1/priority.length;
+  const verdicts = entries.map(e=> {
+    const share = total ? e.avgWeeklySets/total : 0;
+    let verdict = 'balanced';
+    if(e.avgWeeklySets === 0) verdict = 'under';
+    else if(share < expected*0.5) verdict = 'under';
+    else if(share > expected*1.6) verdict = 'over';
+    return { ...e, share: Math.round(share*100), expectedPct: Math.round(expected*100), verdict };
+  });
+  const under = verdicts.filter(v=> v.verdict==='under');
+  const over = verdicts.filter(v=> v.verdict==='over');
+  let advice;
+  if(!under.length && !over.length) advice = `Volume looks balanced across your ${goal} priorities — keep progressing load or reps where RIR ≥2.`;
+  else {
+    const worstUnder = under.sort((a,b)=> a.share - b.share)[0];
+    const worstOver = over.sort((a,b)=> b.share - a.share)[0];
+    if(worstUnder && worstOver) advice = `${worstUnder.muscle} is getting only ${worstUnder.avgWeeklySets} sets/week (${worstUnder.share}% of volume) while ${worstOver.muscle} dominates — swap a ${worstOver.muscle} block for ${worstUnder.muscle} work.`;
+    else if(worstUnder) advice = `${worstUnder.muscle} is getting only ${worstUnder.avgWeeklySets} sets/week — add one ${worstUnder.muscle} session for balance.`;
+    else advice = `${worstOver.muscle} is ${worstOver.share}% of your volume — trim a ${worstOver.muscle} block and reinvest the time elsewhere.`;
+  }
+  return { goal, weeks: window.length, entries: verdicts, advice, n: window.length };
+}
+
 export function strengthSeriesWithConfidence(history, exerciseId){
   const pts = strengthSeries(history, exerciseId);
   if(pts.length < 3) return { pts, slope: 0, confidence: 'low', n: pts.length };

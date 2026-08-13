@@ -15,3 +15,8 @@ validators recover that planted structure. Deterministic — rerun any time with
 | Set progression (recommendSets) | 3 sets — Not at the top of 8–12 yet — keep building reps before adding sets. |
 | ROM progression (romProgression) | Already at full ROM — progress load or reps instead. |
 | Training age (trainingAgeInfo) | intermediate, 7.3 months, rate multiplier 1 |
+| Template instantiation (instantiateTemplate) | 8 sessions, 8 swaps for a no-barbell kit, all blocks doable |
+| Template recommendation (recommendTemplate) | barbell strength profile → tpl-strength; bodyweight beginner → tpl-anywhere |
+| Volume balance (volumeBalanceAdvice) | Back verdict under in a legs+chest-only block — Back is getting only 0 sets/week (0% of volume) while Legs dominates — swap a Legs block for Back work. |
+| Fatigue-aware ordering (fatigueAwareOrder) | bodyweight-squat → bench-press-dumbbell → dumbbell-row → push-up → plank → run-easy |
+| Weak-point priority (weakPointMuscles) | Chest, Legs trained while fresh |

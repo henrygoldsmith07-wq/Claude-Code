@@ -90,12 +90,24 @@ export const EXERCISES = [
 
 export const EXERCISE_BY_ID = Object.fromEntries(EXERCISES.map(e => [e.id, e]));
 
-// Programme templates — reusable blueprints that can be instantiated with different start dates / tweaks
+// Programme templates — reusable blueprints that can be instantiated with different start dates / tweaks.
+// level/goal/daysPerWeek drive template recommendation; version drives template versioning.
 export const PROGRAM_TEMPLATES = [
-  { id: 'tpl-starter', programId: 'starter-3x', name: 'Starter Template', description: '3× full-body, minimal kit — good default for most users.' },
-  { id: 'tpl-strength', programId: 'strength-4x', name: 'Strength Template', description: 'Upper/lower 4×, heavier compounds first.' },
-  { id: 'tpl-anywhere', programId: 'move-anywhere', name: 'Anywhere Template', description: 'Bodyweight + bands only.' },
+  { id: 'tpl-starter', programId: 'starter-3x', name: 'Starter Template', description: '3× full-body, minimal kit — good default for most users.', level: 'Beginner', goal: 'general', daysPerWeek: 3, version: 1 },
+  { id: 'tpl-strength', programId: 'strength-4x', name: 'Strength Template', description: 'Upper/lower 4×, heavier compounds first.', level: 'Intermediate', goal: 'strength', daysPerWeek: 4, version: 1 },
+  { id: 'tpl-anywhere', programId: 'move-anywhere', name: 'Anywhere Template', description: 'Bodyweight + bands only.', level: 'Beginner', goal: 'endurance', daysPerWeek: 3, version: 1 },
 ];
+
+// Template version history (append-only). Program-level versions live in PROGRAM_VERSION_HISTORY.
+export const TEMPLATE_VERSION_HISTORY = [
+  { templateId: 'tpl-starter', version: 1, date: '2026-08-13', changes: 'Template engine: equipment-aware instantiation with substitution, profile-based recommendation.' },
+  { templateId: 'tpl-strength', version: 1, date: '2026-08-13', changes: 'Template engine: equipment-aware instantiation with substitution, profile-based recommendation.' },
+  { templateId: 'tpl-anywhere', version: 1, date: '2026-08-13', changes: 'Template engine: equipment-aware instantiation with substitution, profile-based recommendation.' },
+];
+
+export function templateHistory(templateId){
+  return TEMPLATE_VERSION_HISTORY.filter(h=> h.templateId===templateId).sort((a,b)=> a.version - b.version);
+}
 
 export function searchExercises({ q = '', muscle = '', equipment = '', level = '', availableEquipment = null }) {
   const qq = q.trim().toLowerCase();
@@ -415,6 +427,11 @@ export function validateContent(){
     for(const w of p.weeks) for(const wk of w.workouts) for(const b of wk.blocks){
       if(!EXERCISE_BY_ID[b.exerciseId]) errors.push(`Program ${p.id} references unknown exercise ${b.exerciseId}`);
     }
+  }
+  for(const t of PROGRAM_TEMPLATES){
+    if(!PROGRAM_BY_ID[t.programId]) errors.push(`Template ${t.id} references unknown program ${t.programId}`);
+    if(!LEVELS.includes(t.level)) errors.push(`Template ${t.id} has unknown level ${t.level}`);
+    if(!GOALS.some(g=> g.id===t.goal)) errors.push(`Template ${t.id} has unknown goal ${t.goal}`);
   }
   return errors;
 }

@@ -2,7 +2,7 @@
 
 A game-like, offline-first training companion. Not a nutrition app.
 
-**Stack:** Vite + React + Tailwind v4 + `le-studio.css` design tokens. Local-first (`localStorage`), no backend, no account. PWA-ready. **Progression engine** in `progression.js` + `substitutions.js`, **analytics** in `analytics.js`, **session generator** in `sessionGenerator.js`.
+**Stack:** Vite + React + Tailwind v4 + `le-studio.css` design tokens. Local-first (`localStorage`), no backend, no account. PWA-ready. **Progression engine** in `progression.js` + `substitutions.js`, **template engine** in `templates.js`, **analytics** in `analytics.js`, **session generator** in `sessionGenerator.js` (fatigue-aware ordering in `warmup.js`).
 
 ## What it does — in order
 
@@ -19,7 +19,10 @@ A game-like, offline-first training companion. Not a nutrition app.
 11. **No nutrition system** — intentionally out of scope. Adding one recreates Forq and distracts from the training/level-up proposition.
 12. **Progression engine (`progression.js`) —** `recommendNext()` (conservative double-progression: reps then load, bodyweight-aware, RIR-aware), `isPlateau`/`shouldDeload` (3-flat sessions + RPE/volume signals, conservative 40% deload), `rirFromRpe`/Epley 1RM as single source of truth, `isMeaningfulPR` (>2% filter), `strengthTrend` + `readinessScore` (sleep/soreness/motivation → 0..100). Every adjustment explains why.
 13. **SessionRunner extras ported from Life OS:** auto rest timer (tap Rest to start a countdown per `restSec`, with vibrate on finish), **previous session comparison (“Last: 20kg×8 on 2026-02-01” per exercise via `store.lastExerciseSets`), and a **post-workout summary** in Progress (last session volume/sets/exercises + note). Life OS's eval-based Web Worker was **not** ported — intentionally replaced with safe helpers.
-14. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+14. **Programme template engine (`templates.js`)** — templates are versioned blueprints over programs. `instantiateTemplate()` turns one into a dated schedule and **honestly swaps any exercise the user's kit can't do** (bodyweight is always available; swaps are logged and explained). `recommendTemplate()` scores templates by equipment fit (dominant), level/goal match, and days-per-week; `templateVersionInfo()` reports template + linked-program changelogs.
+15. **Volume balance advice (`analytics.js`)** — `volumeBalanceAdvice()` compares each goal-priority muscle's weekly sets against an even share and flags under/over-trained muscles *relatively* (rough context, not a prescription), with a concrete rebalance suggestion.
+16. **Better fatigue-aware ordering (`warmup.js`)** — `fatigueAwareOrder()` is now greedy: heavy compounds first, **least-trained muscles early while fresh** (`weakPointMuscles()` from history), same-muscle/family exercises kept apart (`muscleOverlap()`), cardio last. `sessionGenerator` uses it automatically.
+17. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
 
 ## Consolidation
 
@@ -70,14 +73,16 @@ This app shares the Le Studio monochrome design system and has no franchise, her
 ## Project layout
 
 ```
-src/lib/data.js        single source of truth + schedule helpers
+src/lib/data.js        single source of truth + schedule helpers + programme/template versioning
 src/lib/attributes.js  history-derived attributes + level
 src/lib/store.js       localStorage + streak/volume + lastExerciseSets / prsHitBySession
 src/lib/export.js      versioned backup
 src/lib/schedule.js    today/next/progress + startProgram
 src/lib/progression.js progression + plateau/deload + RIR/RPE + bodyweight/unilateral + readiness
 src/lib/substitutions.js pattern/muscle/equipment/difficulty scoring + rankedSubstitutions
-src/lib/analytics.js   weekly volume + frequency + strength series + actionable advice
+src/lib/templates.js   template engine: equipment-honest instantiation + profile recommendation + versions
+src/lib/analytics.js   weekly volume + frequency + strength series + volume-balance advice + actionable advice
+src/lib/warmup.js      warm-ups + rest/duration + supersets + fatigue-aware ordering + weak points
 src/lib/sessionGenerator.js equipment-aware, history-aware session builder + superset hints
 src/lib/sync.js        optional cross-device sync (pluggable pull/push, offline-first)
 src/components/*       Today / Train+SessionRunner(warmups/supersets/notes→next load) / Exercises / Progress(volume spark + advice) / More + Onboarding + AppShell

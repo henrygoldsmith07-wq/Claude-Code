@@ -14,8 +14,11 @@ import { fileURLToPath } from "node:url";
 import { validateProgression, recommendSets, romProgression, trainingAgeInfo } from "../src/lib/progression.js";
 import {
   readinessPerformanceCorrelation, deloadOutcomes, mesocycleComparison,
-  recommendationFollowThrough,
+  recommendationFollowThrough, volumeBalanceAdvice,
 } from "../src/lib/analytics.js";
+import { instantiateTemplate, recommendTemplate } from "../src/lib/templates.js";
+import { fatigueAwareOrder, muscleOverlap, weakPointMuscles } from "../src/lib/warmup.js";
+import { EXERCISE_BY_ID, exerciseAvailable } from "../src/lib/data.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -100,6 +103,45 @@ const setAdvice = recommendSets(history, "bench-press-dumbbell");
 const romAdvice = romProgression(history, "barbell-squat");
 const age = trainingAgeInfo(history);
 
+// ── Planning & ordering (deterministic fixtures — no RNG, so the simulation
+//    above keeps its exact stream) ──────────────────────────────────────
+// Programme templates: instantiate the strength template for a user whose kit
+// has no barbell or kettlebell; every block must end up doable.
+const tplKit = ["bodyweight","dumbbells","bench","pullup-bar","bands"];
+const tpl = instantiateTemplate({ templateId: "tpl-strength", startDateISO: "2026-08-17", availableEquipment: tplKit });
+const tplDoable = tpl.sessions.length > 0 && tpl.substitutions.length >= 2 &&
+  tpl.sessions.every(s=> s.blocks.every(b=> exerciseAvailable(b.exerciseId, [...tplKit, "bodyweight"])));
+const recStrength = recommendTemplate({ goal: "strength", level: "Intermediate", availableEquipment: ["barbell","dumbbells","bench","pullup-bar"], daysPerWeek: 4 }).top;
+const recAnywhere = recommendTemplate({ goal: "general", level: "Beginner", availableEquipment: ["bodyweight"], daysPerWeek: 3 }).top;
+
+// Volume balance: 3 weeks of legs + chest only — Back must be flagged under.
+const balHistory = [];
+for(let w=0; w<3; w++){
+  for(const day of [5, 7]){
+    balHistory.push({
+      dateISO: `2026-0${1+w}-${String(day).padStart(2,"0")}`,
+      blocks: [
+        { exerciseId: "bench-press-dumbbell", sets: [{reps:"8",weightKg:"20"},{reps:"8",weightKg:"20"},{reps:"8",weightKg:"20"}] },
+        { exerciseId: "bodyweight-squat", sets: [{reps:"12",weightKg:""},{reps:"12",weightKg:""},{reps:"12",weightKg:""}] },
+      ],
+    });
+  }
+}
+const bal = volumeBalanceAdvice(balHistory, EXERCISE_BY_ID, { goal: "strength" });
+const backVerdict = bal.entries.find(e=> e.muscle==="Back")?.verdict;
+
+// Fatigue-aware ordering: two Chest exercises + squat + row + plank + cardio.
+const ordBlocks = [
+  { exerciseId: "bodyweight-squat" }, { exerciseId: "bench-press-dumbbell" }, { exerciseId: "push-up" },
+  { exerciseId: "dumbbell-row" }, { exerciseId: "plank" }, { exerciseId: "run-easy" },
+];
+const plainOrder = fatigueAwareOrder(ordBlocks, EXERCISE_BY_ID);
+const weakOrder = fatigueAwareOrder(ordBlocks, EXERCISE_BY_ID, { priorityMuscles: ["Back"] });
+const noAdjacentOverlap = plainOrder.every((b,i)=> i===0 || muscleOverlap(plainOrder[i-1].exerciseId, b.exerciseId, EXERCISE_BY_ID) < 1);
+const cardioLast = plainOrder[plainOrder.length-1].exerciseId === "run-easy";
+const weakEarly = weakOrder.findIndex(b=> b.exerciseId==="dumbbell-row") < weakOrder.findIndex(b=> b.exerciseId==="bench-press-dumbbell");
+const weakPoint = weakPointMuscles(balHistory, EXERCISE_BY_ID);
+
 const checks = [
   { name: "recommendation hit-rate on 18 weeks of data", pass: vp.n >= 100 && vp.hitRate >= 0.4, detail: `n=${vp.n}, hitRate=${vp.hitRate}, MAE ${vp.meanAbsErrorKg}kg/${vp.meanAbsErrorReps}reps` },
   { name: "readiness correlates with session effort", pass: rpc.n >= 30 && rpc.rRPE < -0.2, detail: `n=${rpc.n}, r(RPE)=${rpc.rRPE}` },
@@ -109,6 +151,11 @@ const checks = [
   { name: "set progression stays conservative", pass: setAdvice.sets >= 3 && setAdvice.sets <= 5, detail: `sets=${setAdvice.sets} (${setAdvice.reason})` },
   { name: "ROM progression resolves to full depth", pass: romAdvice.supported && (romAdvice.next === null), detail: romAdvice.reason },
   { name: "training age derived from history", pass: ["novice","intermediate"].includes(age.phase), detail: `${age.phase} (${age.months} months, multiplier ${age.multiplier})` },
+  { name: "template instantiation swaps missing equipment", pass: tplDoable, detail: `${tpl.sessions.length} sessions, ${tpl.substitutions.length} honest swaps, all blocks doable with kit` },
+  { name: "template recommendation matches the profile", pass: recStrength?.id === "tpl-strength" && recAnywhere?.id === "tpl-anywhere", detail: `barbell strength profile → ${recStrength?.id}; bodyweight beginner → ${recAnywhere?.id}` },
+  { name: "volume balance flags a neglected priority muscle", pass: backVerdict === "under" && /Back/.test(bal.advice), detail: `Back verdict=${backVerdict}, advice: ${bal.advice}` },
+  { name: "fatigue-aware ordering separates same-family work, cardio last", pass: noAdjacentOverlap && cardioLast, detail: `order: ${plainOrder.map(b=>b.exerciseId).join(" → ")}` },
+  { name: "weak-point muscles trained while fresh", pass: weakEarly && weakPoint.includes("Legs"), detail: `weak points from history: ${weakPoint.join(", ")}; row placed before bench: ${weakEarly}` },
 ];
 
 const failures = checks.filter(c=> !c.pass);
@@ -137,6 +184,11 @@ if(process.argv.includes("--write")){
     `| Set progression (recommendSets) | ${setAdvice.sets} sets — ${setAdvice.reason} |`,
     `| ROM progression (romProgression) | ${romAdvice.reason} |`,
     `| Training age (trainingAgeInfo) | ${age.phase}, ${age.months} months, rate multiplier ${age.multiplier} |`,
+    `| Template instantiation (instantiateTemplate) | ${tpl.sessions.length} sessions, ${tpl.substitutions.length} swaps for a no-barbell kit, all blocks doable |`,
+    `| Template recommendation (recommendTemplate) | barbell strength profile → ${recStrength?.id}; bodyweight beginner → ${recAnywhere?.id} |`,
+    `| Volume balance (volumeBalanceAdvice) | Back verdict ${backVerdict} in a legs+chest-only block — ${bal.advice} |`,
+    `| Fatigue-aware ordering (fatigueAwareOrder) | ${plainOrder.map(b=>b.exerciseId).join(" → ")} |`,
+    `| Weak-point priority (weakPointMuscles) | ${weakPoint.join(", ")} trained while fresh |`,
     "",
   ];
   fs.writeFileSync(path.join(__dirname, "results.md"), lines.join("\n"));
