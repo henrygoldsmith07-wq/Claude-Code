@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dedupeArticles, originalityForCluster } from "./dedup";
+import { dedupeArticles, originalityFor } from "./dedup";
 import { linkEvents, nextStatus, mergeEvents, splitEvent } from "./eventStore";
 import { provenanceForStory, timelineConfidence, whatChangedSince } from "./provenance";
 import { buildCoverageMatrix, detectGaps } from "./coverageMatrix";
@@ -36,8 +36,8 @@ describe("dedup", () => {
   });
   it("originality labels wire+earliest as original", () => {
     const members = [{ id:"m1", title:"Gov unveils AI institute", publisher:"gov.uk", url:"https://gov.uk/x", tags:[], publishedAt:"2025-01-01T00:00:00Z" }, { id:"m2", title:"UK launches AI safety institute to test models", publisher:"theguardian.com", url:"https://theguardian.com/y", tags:[], publishedAt:"2025-01-01T01:00:00Z" }] as never;
-    const m = originalityForCluster(members);
-    expect(m.get("m1")).toBe("original");
+    const m = originalityFor(members);
+    expect(m.find((v) => v.id === "m1")!.originality).toBe("original");
   });
 });
 
