@@ -1,0 +1,851 @@
+<title>Ruflo Portfolio Audit</title>
+<style>
+  :root {
+    --paper:   #EDEFEC;
+    --surface: #FAFBF9;
+    --sunk:    #E3E6E1;
+    --ink:     #15181A;
+    --muted:   #616A6B;
+    --faint:   #8A9291;
+    --rule:    #D0D5CF;
+    --rule-hi: #B4BCB5;
+    --accent:  #10475E;
+    --accent-soft: #DCE7EC;
+    --pass:    #2E6B47;
+    --pass-bg: #DCE9DF;
+    --warn:    #92600F;
+    --warn-bg: #F0E4CC;
+    --fail:    #992E23;
+    --fail-bg: #F2DCD9;
+    --shadow:  0 1px 0 rgba(21,24,26,.05), 0 1px 3px rgba(21,24,26,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:   #131719;
+      --surface: #1A2023;
+      --sunk:    #0E1214;
+      --ink:     #E7ECE9;
+      --muted:   #98A2A2;
+      --faint:   #737D7D;
+      --rule:    #2B3437;
+      --rule-hi: #3C4649;
+      --accent:  #79B6D3;
+      --accent-soft: #1D3038;
+      --pass:    #79C295;
+      --pass-bg: #1B2E23;
+      --warn:    #D8AC5C;
+      --warn-bg: #322715;
+      --fail:    #E28A80;
+      --fail-bg: #351D1B;
+      --shadow:  0 1px 0 rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:   #131719;
+    --surface: #1A2023;
+    --sunk:    #0E1214;
+    --ink:     #E7ECE9;
+    --muted:   #98A2A2;
+    --faint:   #737D7D;
+    --rule:    #2B3437;
+    --rule-hi: #3C4649;
+    --accent:  #79B6D3;
+    --accent-soft: #1D3038;
+    --pass:    #79C295;
+    --pass-bg: #1B2E23;
+    --warn:    #D8AC5C;
+    --warn-bg: #322715;
+    --fail:    #E28A80;
+    --fail-bg: #351D1B;
+    --shadow:  0 1px 0 rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Source Serif 4", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 100px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .measure { max-width: 68ch; }
+
+  code, .mono, th, .chip, .stat-n, .eyebrow, .sev, .num {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- masthead ---------- */
+  header.mast {
+    border-bottom: 2px solid var(--ink);
+    padding: 64px 0 22px;
+    margin-bottom: 0;
+  }
+  .kicker {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(2.5rem, 6.5vw, 4rem);
+    line-height: 1.02;
+    letter-spacing: -.022em;
+    font-weight: 600;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 1.16rem;
+    color: var(--muted);
+    margin: 0 0 26px;
+    max-width: 62ch;
+  }
+  .byline {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+  }
+
+  /* ---------- stat strip ---------- */
+  .strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 60px;
+  }
+  .stat { background: var(--paper); padding: 20px 4px 22px; }
+  .stat-n {
+    display: block;
+    font-size: 1.85rem;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: -.03em;
+    margin-bottom: 8px;
+  }
+  .stat-l {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    line-height: 1.4;
+    display: block;
+  }
+  .stat.is-fail .stat-n { color: var(--fail); }
+  .stat.is-pass .stat-n { color: var(--pass); }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 76px; scroll-margin-top: 20px; }
+  .eyebrow {
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 12px;
+  }
+  h2 {
+    font-size: clamp(1.65rem, 3.4vw, 2.1rem);
+    line-height: 1.14;
+    letter-spacing: -.018em;
+    font-weight: 600;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 1.16rem;
+    font-weight: 600;
+    letter-spacing: -.008em;
+    margin: 36px 0 10px;
+    text-wrap: balance;
+  }
+  p { margin: 0 0 16px; }
+  .lede { font-size: 1.05rem; color: var(--muted); margin-bottom: 34px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ---------- tables ---------- */
+  .scroller { overflow-x: auto; margin: 0 0 12px; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th {
+    text-align: left;
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--faint);
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--rule-hi);
+    white-space: nowrap;
+    background: var(--sunk);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.n { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  td.name { font-weight: 600; white-space: nowrap; }
+  .caption { font-size: 12.5px; color: var(--faint); margin: 0 0 30px; max-width: 70ch; }
+
+  /* ---------- chips ---------- */
+  .chip {
+    display: inline-block;
+    font-size: 10.5px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+  .c-pass { color: var(--pass); background: var(--pass-bg); }
+  .c-warn { color: var(--warn); background: var(--warn-bg); }
+  .c-fail { color: var(--fail); background: var(--fail-bg); }
+  .c-none { color: var(--faint); background: transparent; }
+
+  /* ---------- scorecards ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 16px 16px 14px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-name { font-weight: 600; font-size: 1.02rem; letter-spacing: -.01em; }
+  .card-score {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.28rem;
+    font-weight: 500;
+    letter-spacing: -.03em;
+  }
+  .card-score span { font-size: .72em; color: var(--faint); }
+  .meter { height: 4px; background: var(--sunk); position: relative; overflow: hidden; }
+  .meter i { display: block; height: 100%; }
+  .m-hi i { background: var(--pass); }
+  .m-mid i { background: var(--warn); }
+  .m-lo i { background: var(--fail); }
+  .card-stack { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; color: var(--faint); letter-spacing: .04em; text-transform: uppercase; }
+  .card-note { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+  .card-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; padding-top: 3px; }
+
+  /* ---------- findings ---------- */
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--rule-hi);
+    padding: 20px 22px 18px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .finding.s1 { border-top-color: var(--fail); }
+  .finding.s2 { border-top-color: var(--warn); }
+  .finding.s3 { border-top-color: var(--accent); }
+  .f-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 9px; }
+  .sev {
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+  }
+  .s1 .sev { color: var(--fail); background: var(--fail-bg); }
+  .s2 .sev { color: var(--warn); background: var(--warn-bg); }
+  .s3 .sev { color: var(--accent); background: var(--accent-soft); }
+  .f-where { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--faint); }
+  .finding h4 { font-size: 1.14rem; font-weight: 600; margin: 0 0 12px; letter-spacing: -.012em; text-wrap: balance; }
+  .finding p { margin: 0 0 12px; font-size: 15.5px; }
+  .finding p:last-child { margin-bottom: 0; }
+  .fix { border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 14px; font-size: 14.5px; color: var(--muted); }
+  .fix strong { color: var(--ink); font-weight: 600; }
+
+  pre {
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.62;
+    margin: 0 0 14px;
+    color: var(--ink);
+  }
+  pre .cm { color: var(--faint); }
+  pre .bad { color: var(--fail); }
+  pre .ok { color: var(--pass); }
+  p code, li code, td code {
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    padding: .5px 4px;
+    font-size: .855em;
+  }
+
+  ul, ol { margin: 0 0 16px; padding-left: 1.2em; }
+  li { margin-bottom: 7px; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 16px 18px;
+    margin: 0 0 24px;
+    font-size: 15.5px;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  hr.div { border: 0; border-top: 1px solid var(--rule); margin: 0 0 56px; }
+
+  footer {
+    border-top: 2px solid var(--ink);
+    padding-top: 20px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--faint);
+    line-height: 1.75;
+  }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; padding: 0 16px 70px; }
+    header.mast { padding-top: 42px; }
+    .finding { padding: 16px 15px 14px; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Independent code audit &middot; 13 August 2026</p>
+  <h1>Ruflo Portfolio Audit</h1>
+  <p class="standfirst">Every public repository under <code>henrygoldsmith07-wq</code>, evaluated by cloning it, installing it, and running its own test suites, builds, linters and security audits — then comparing what ran against what the code and docs claim.</p>
+  <div class="byline">
+    <span>3 repositories</span>
+    <span>16 projects</span>
+    <span>185,824 LOC</span>
+    <span>1,504 tracked files</span>
+    <span>Jul 3 – Aug 13, 2026</span>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="stat is-pass"><span class="stat-n">1,847</span><span class="stat-l">Tests passed</span></div>
+  <div class="stat is-fail"><span class="stat-n">29</span><span class="stat-l">Tests failed</span></div>
+  <div class="stat is-pass"><span class="stat-n">5/5</span><span class="stat-l">Next builds green</span></div>
+  <div class="stat is-fail"><span class="stat-n">3</span><span class="stat-l">Pipelines that<br>cannot pass</span></div>
+  <div class="stat is-fail"><span class="stat-n">2</span><span class="stat-l">Data exposure<br>findings</span></div>
+  <div class="stat"><span class="stat-n">4/13</span><span class="stat-l">Apps with no<br>tests or CI</span></div>
+</div>
+
+<section>
+  <span class="eyebrow">The short version</span>
+  <h2>A portfolio with real engineering in it, undermined by unenforced quality gates</h2>
+  <div class="measure">
+    <p>The strongest work here is genuinely strong. Revise runs 412 passing tests and gets Supabase row-level security exactly right, including the <code>with check</code> clause most people forget. Forq ships a real Content-Security-Policy with per-request nonces. Daily Debate authenticates and rate-limits every API route it exposes. No secret has ever been committed to any of the three repositories — every model API key is server-side only. That is not beginner work.</p>
+
+    <p>The problem is not capability, it is <em>enforcement</em>. Four of the thirteen apps have no tests and no CI at all, and those four are exactly where both serious security findings live. Three CI pipelines are configured in a way that means they can never pass — one has been failing on all 14 runs because of a YAML syntax error, one type-checks a codebase containing zero TypeScript files, and one cannot install because its lockfile is stale. The repository even ships its own smoke test that currently fails; it is not wired into CI, so nothing acts on it.</p>
+
+    <p>The gap between the best and worst project in this portfolio is wider than the gap between this portfolio and a professional one. Closing it is mostly a matter of applying the standards already demonstrated in Revise and Forq to the four apps that never received them.</p>
+  </div>
+</section>
+
+<hr class="div">
+
+<section>
+  <span class="eyebrow">Method</span>
+  <h2>What was actually executed</h2>
+  <p class="lede measure">Claims in a README are not evidence. Everything below was run in a clean container against a fresh clone. This table is the audit's credibility anchor — every finding that follows traces back to a row in it.</p>
+
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr><th>Check</th><th>Scope</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="name">Unit + integration tests</td><td>8 suites installed &amp; run</td><td><span class="chip c-pass">1,847 pass</span> <span class="chip c-fail">29 fail</span> — all failures in Forq</td></tr>
+        <tr><td class="name">Production builds</td><td>Revise, Forq, World News, Daily&nbsp;Debate, Rapport</td><td><span class="chip c-pass">5 / 5 green</span></td></tr>
+        <tr><td class="name">Lockfile integrity</td><td><code>npm ci --dry-run</code>, 11 apps</td><td><span class="chip c-fail">1 broken</span> — Reflect cannot clean-install</td></tr>
+        <tr><td class="name">Dependency audit</td><td><code>npm audit</code>, 8 apps</td><td><span class="chip c-warn">17 high</span> across 5 apps, all with fixes available</td></tr>
+        <tr><td class="name">Secret scanning</td><td>All tracked files, 3 repos</td><td><span class="chip c-pass">clean</span> — 1 regex hit, a redaction test fixture</td></tr>
+        <tr><td class="name">API route auth review</td><td>42 routes across 6 apps</td><td><span class="chip c-fail">4 unauthenticated</span> in Meeting Recorder</td></tr>
+        <tr><td class="name">Row-level security review</td><td>7 SQL schemas, 25 tables</td><td><span class="chip c-fail">1 wide open</span> (Noticed) · <span class="chip c-pass">Revise correct</span></td></tr>
+        <tr><td class="name">CI history</td><td>30 most recent workflow runs</td><td><span class="chip c-fail">23 failures</span> — 14 of them the same parse error</td></tr>
+        <tr><td class="name">Repo self-checks</td><td><code>scripts/smoke.mjs</code></td><td><span class="chip c-fail">2 failures</span>, 1 of which is a false positive</td></tr>
+        <tr><td class="name">Standalone repo verify</td><td>arise-fitness: test, lint, format, build</td><td><span class="chip c-pass">4 / 4 green</span></td></tr>
+        <tr><td class="name">Standalone repo verify</td><td>henry-builds: <code>npm run build</code></td><td><span class="chip c-fail">exit 2</span> — 3 TypeScript errors</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">Node 22.22.2, npm 10.9.7. Test totals are the sum of passing assertions across Arise (42), RTK (43), Le&nbsp;Studio&nbsp;French (31), Revise (412), World&nbsp;News (41), Daily&nbsp;Debate (72), Rapport (221), Forq (985) and arise-fitness (29). Reflect could not be installed and so could not be tested.</p>
+</section>
+
+<hr class="div">
+
+<section>
+  <span class="eyebrow">Scorecard</span>
+  <h2>All sixteen projects, ranked</h2>
+  <p class="lede measure">Scored on four axes weighted equally: verified correctness (does it build and do its tests pass), security posture, engineering hygiene (tests, CI, dependency health), and documentation honesty.</p>
+
+  <h3>Repositories</h3>
+  <div class="cards" style="margin-bottom:34px">
+    <div class="card">
+      <div class="card-top"><span class="card-name">arise-fitness</span><span class="card-score">8.5<span>/10</span></span></div>
+      <div class="meter m-hi"><i style="width:85%"></i></div>
+      <div class="card-stack">standalone &middot; vanilla js &middot; 51 commits</div>
+      <p class="card-note">The most professionally finished repository of the three. Conventional commits, changelog, contributing/security/conduct policies, issue and PR templates, release workflow. Everything green.</p>
+      <div class="card-chips"><span class="chip c-pass">29 tests</span><span class="chip c-pass">lint</span><span class="chip c-pass">format</span><span class="chip c-pass">build</span></div>
+    </div>
+    <div class="card">
+      <div class="card-top"><span class="card-name">Claude-Code</span><span class="card-score">7.0<span>/10</span></span></div>
+      <div class="meter m-mid"><i style="width:70%"></i></div>
+      <div class="card-stack">monorepo &middot; 13 apps &middot; 243 commits</div>
+      <p class="card-note">Enormous surface area and genuinely sophisticated in places, but quality is wildly uneven between apps and the automation meant to keep it honest is not enforced.</p>
+      <div class="card-chips"><span class="chip c-warn">9/13 apps in CI</span><span class="chip c-fail">smoke fails</span><span class="chip c-pass">no secrets</span></div>
+    </div>
+    <div class="card">
+      <div class="card-top"><span class="card-name">henry-builds</span><span class="card-score">4.0<span>/10</span></span></div>
+      <div class="meter m-lo"><i style="width:40%"></i></div>
+      <div class="card-stack">portfolio site &middot; vite + convex &middot; 8 commits</div>
+      <p class="card-note">The public shop window, and the weakest artifact. Build fails, package is still named <code>vite-template</code>, README is the untouched scaffold's agent instructions.</p>
+      <div class="card-chips"><span class="chip c-fail">build fails</span><span class="chip c-none">0 tests</span><span class="chip c-fail">scaffold docs</span></div>
+    </div>
+  </div>
+
+  <h3>Applications inside the monorepo</h3>
+  <div class="cards">
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Revise</span><span class="card-score">8.5<span>/10</span></span></div>
+      <div class="meter m-hi"><i style="width:85%"></i></div>
+      <div class="card-stack">next.js + supabase + fsrs &middot; 38.9k loc</div>
+      <p class="card-note">The reference implementation for the rest of the portfolio. Correct RLS on all 10 tables with <code>with check</code> guards, 412 tests across 29 files, clean build.</p>
+      <div class="card-chips"><span class="chip c-pass">412 tests</span><span class="chip c-pass">build</span><span class="chip c-pass">RLS correct</span><span class="chip c-warn">3 high CVEs</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Daily Debate</span><span class="card-score">8.0<span>/10</span></span></div>
+      <div class="meter m-hi"><i style="width:80%"></i></div>
+      <div class="card-stack">next.js + supabase + gemini &middot; 6.6k loc</div>
+      <p class="card-note">Best API discipline in the portfolio: all 6 routes authenticate, 5 rate-limit. 7 tables with RLS. Small, tight, and finished.</p>
+      <div class="card-chips"><span class="chip c-pass">72 tests</span><span class="chip c-pass">build</span><span class="chip c-pass">auth 6/6</span><span class="chip c-warn">5 high CVEs</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Rapport</span><span class="card-score">8.0<span>/10</span></span></div>
+      <div class="meter m-hi"><i style="width:80%"></i></div>
+      <div class="card-stack">next.js, local-first &middot; 13.7k loc</div>
+      <p class="card-note">Highest test discipline of any recent app — 221 tests on something still marked <em>incubating</em>. Degrades gracefully with no AI provider configured.</p>
+      <div class="card-chips"><span class="chip c-pass">221 tests</span><span class="chip c-pass">build</span><span class="chip c-pass">CI green</span><span class="chip c-warn">3 high CVEs</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Arise</span><span class="card-score">7.5<span>/10</span></span></div>
+      <div class="meter m-hi"><i style="width:75%"></i></div>
+      <div class="card-stack">vite + react &middot; 2.9k loc</div>
+      <p class="card-note">Lean and honest. A real progression engine (double-progression, RIR-aware deloads, meaningful-PR filtering) rather than a gamification veneer. Zero dependency vulnerabilities.</p>
+      <div class="card-chips"><span class="chip c-pass">42 tests</span><span class="chip c-pass">CI green</span><span class="chip c-pass">audit clean</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Forq</span><span class="card-score">7.0<span>/10</span></span></div>
+      <div class="meter m-mid"><i style="width:70%"></i></div>
+      <div class="card-stack">next.js, local-first &middot; 41.8k loc</div>
+      <p class="card-note">Best security posture and best test ratio (31%) in the portfolio — and simultaneously the most broken pipeline. 29 failing tests, plus a type-check step that can never pass.</p>
+      <div class="card-chips"><span class="chip c-fail">29 fail</span><span class="chip c-pass">985 pass</span><span class="chip c-pass">CSP + nonce</span><span class="chip c-fail">CI impossible</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">World News</span><span class="card-score">7.0<span>/10</span></span></div>
+      <div class="meter m-mid"><i style="width:70%"></i></div>
+      <div class="card-stack">next.js + gemini/gdelt &middot; 9.1k loc</div>
+      <p class="card-note">Builds clean and all tests pass, but coverage is thin (5%) for an app doing story clustering, and one streaming route has neither auth nor rate limiting on a paid model call.</p>
+      <div class="card-chips"><span class="chip c-pass">41 tests</span><span class="chip c-pass">build</span><span class="chip c-warn">1 open AI route</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">RTK</span><span class="card-score">6.5<span>/10</span></span></div>
+      <div class="meter m-mid"><i style="width:65%"></i></div>
+      <div class="card-stack">node cli &middot; 3.2k loc</div>
+      <p class="card-note">Good code with a completely non-functional release pipeline. 43 passing tests and six benchmark harnesses that CI has never once executed, targeting an npm name someone else owns.</p>
+      <div class="card-chips"><span class="chip c-pass">43 tests</span><span class="chip c-fail">CI 0/14 runs</span><span class="chip c-fail">name taken</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Le Studio French</span><span class="card-score">6.0<span>/10</span></span></div>
+      <div class="meter m-mid"><i style="width:60%"></i></div>
+      <div class="card-stack">vite + react, local-first &middot; 26.3k loc</div>
+      <p class="card-note">Third-largest app, thinnest coverage: 315 test lines against 26,331 source lines. Much of the bulk is frequency-list content, but the adaptive logic that needs testing largely isn't.</p>
+      <div class="card-chips"><span class="chip c-pass">31 tests</span><span class="chip c-warn">1% coverage</span><span class="chip c-pass">CI green</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Reflect</span><span class="card-score">5.0<span>/10</span></span></div>
+      <div class="meter m-lo"><i style="width:50%"></i></div>
+      <div class="card-stack">next.js + gemini &middot; 4.2k loc</div>
+      <p class="card-note">683 lines of tests that nobody can run: the lockfile is out of sync with <code>package.json</code>, so <code>npm ci</code> fails and <code>main</code> has been red since 11 August.</p>
+      <div class="card-chips"><span class="chip c-fail">cannot install</span><span class="chip c-fail">main red</span><span class="chip c-pass">auth + rate limit</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Dictation Typer</span><span class="card-score">4.0<span>/10</span></span></div>
+      <div class="meter m-lo"><i style="width:40%"></i></div>
+      <div class="card-stack">python + groq whisper &middot; 1.4k loc</div>
+      <p class="card-note">The best-documented app with no tests — a 198-line README covering a codebase with zero automated verification and no CI workflow of any kind.</p>
+      <div class="card-chips"><span class="chip c-none">0 tests</span><span class="chip c-fail">no CI</span><span class="chip c-pass">good docs</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Noticed</span><span class="card-score">3.5<span>/10</span></span></div>
+      <div class="meter m-lo"><i style="width:35%"></i></div>
+      <div class="card-stack">next.js + supabase realtime &middot; 931 loc</div>
+      <p class="card-note">Small and neat, but every RLS policy is <code>using (true)</code>, and the household codes the design relies on being secret are themselves publicly listable.</p>
+      <div class="card-chips"><span class="chip c-fail">RLS open</span><span class="chip c-none">0 tests</span><span class="chip c-fail">no CI</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Meeting Recorder</span><span class="card-score">3.0<span>/10</span></span></div>
+      <div class="meter m-lo"><i style="width:30%"></i></div>
+      <div class="card-stack">electron + next.js + r2 &middot; 3.0k loc</div>
+      <p class="card-note">Handles the most sensitive data in the portfolio with the least protection around it. Four unauthenticated routes, auth that fails open, and a self-attested security review that misses all of it.</p>
+      <div class="card-chips"><span class="chip c-fail">4 open routes</span><span class="chip c-fail">fail-open auth</span><span class="chip c-none">0 tests</span><span class="chip c-fail">no CI</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><span class="card-name">Agent OS Control Room</span><span class="card-score">3.0<span>/10</span></span></div>
+      <div class="meter m-lo"><i style="width:30%"></i></div>
+      <div class="card-stack">next.js &middot; 1.2k loc</div>
+      <p class="card-note">Marked <em>active</em> in the registry but has no README, no tests, no CI, and 94% of its code sits in a single 1,152-line component. The weakest entry claiming production status.</p>
+      <div class="card-chips"><span class="chip c-fail">no README</span><span class="chip c-none">0 tests</span><span class="chip c-fail">no CI</span><span class="chip c-warn">1,152-line file</span></div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="div">
+
+<section>
+  <span class="eyebrow">Findings</span>
+  <h2>Ranked by severity</h2>
+  <p class="lede measure">Two findings expose real data. Five break pipelines in ways that mean a quality gate you believe is running is not running. The rest is hygiene.</p>
+
+  <div class="finding s1">
+    <div class="f-head"><span class="sev">Critical 01</span><span class="f-where">apps/meeting-recorder/web/src/app/api/</span></div>
+    <h4>Meeting transcripts are readable and searchable by anyone who can reach the deployment</h4>
+    <p><code>GET /api/search</code> takes a query string, runs a regex against every meeting's title, summary and full transcript text in MongoDB, and returns up to 100 complete meeting documents. It performs no authentication of any kind. An empty query returns the 100 most recent meetings outright.</p>
+<pre><span class="cm">// src/app/api/search/route.ts — the entire handler</span>
+export async function GET(req: NextRequest) {
+  const q = (req.nextUrl.searchParams.get("q") || "").trim();
+  const col = await getMeetings();
+  <span class="cm">// no isAuthorized(req), no session, no ownership filter</span>
+  const docs = await col.find(filter).sort({ createdAt: -1 }).limit(100).toArray();
+  return NextResponse.json({ meetings: docs.map(toMeeting), ... });
+}</pre>
+    <p>Three further routes are equally unprotected: <code>GET /api/meetings/[id]/transcript</code>, <code>GET /api/benchmarks</code>, and <code>POST /api/meetings/[id]/chat</code> — the last of which reads the transcript <em>and</em> calls the Anthropic API on every request, making it an uncapped billing channel as well as a disclosure one.</p>
+    <p>Compounding this, the shared-secret helper that guards the four routes which <em>are</em> protected fails open:</p>
+<pre><span class="cm">// src/lib/auth.ts</span>
+export function isAuthorized(req: NextRequest): boolean {
+  const expected = optional("DESKTOP_API_KEY");
+  <span class="bad">if (!expected) return true;</span> <span class="cm">// open in local dev when unset</span>
+  return req.headers.get("x-api-key") === expected;
+}</pre>
+    <p>A missing environment variable in a production deploy therefore silently disables authentication on the remaining routes rather than failing the deploy. And <code>src/lib/securityReview.ts</code> — a static object presented as an audit record — asserts <em>"Desktop uploads require x-api-key === DESKTOP_API_KEY; share page is readOnly; transcript PATCH is authenticated"</em>, which describes only the protected half and creates false confidence about the rest.</p>
+    <div class="fix"><strong>Fix:</strong> Add an ownership or workspace filter plus a session check to <code>search</code>, <code>transcript</code>, <code>chat</code> and <code>benchmarks</code>. Change <code>isAuthorized</code> to return <code>false</code> when <code>DESKTOP_API_KEY</code> is unset and gate the local-dev exception behind an explicit <code>NODE_ENV !== "production"</code> check. Delete <code>securityReview.ts</code> or regenerate it from the routes rather than by hand — a hand-written security attestation that drifts is worse than none.</div>
+  </div>
+
+  <div class="finding s1">
+    <div class="f-head"><span class="sev">Critical 02</span><span class="f-where">apps/mental-load-tracker/supabase/schema.sql</span></div>
+    <h4>Noticed's row-level security grants every anon-key holder full access to every household</h4>
+    <p>All three policies are unconditional, and the anon key ships in the browser bundle by design:</p>
+<pre>create policy "Anyone with the anon key can read households"
+  on households for select <span class="bad">using (true);</span>
+
+create policy "Anyone with the anon key can manage items"
+  on items <span class="bad">for all</span>
+  <span class="bad">using (true)</span>
+  <span class="bad">with check (true);</span></pre>
+    <p>The schema comment argues this is acceptable because <em>"access control relies on the code/household id being hard to guess"</em>. That defence does not hold: the first policy permits <code>select * from households</code>, which returns every join code in the table. Guessing is unnecessary — the codes are enumerable in one query. From there, <code>for all using (true)</code> on <code>items</code> permits reading, editing and deleting any household's entries.</p>
+    <p>The comment's closing advice — <em>"Do not store sensitive data in this app"</em> — is also in tension with the product, which exists to record domestic labour disputes between two partners.</p>
+    <div class="fix"><strong>Fix:</strong> The pattern you want already exists in this repo. Revise scopes every policy to <code>auth.uid()</code> with a matching <code>with check</code>; port that. If account-free join codes are a deliberate product decision, then at minimum drop the <code>select</code> policy on <code>households</code> so codes cannot be listed, scope <code>items</code> policies to a <code>household_id</code> supplied through a signed claim rather than <code>true</code>, and move writes behind a server route holding the service-role key.</div>
+  </div>
+
+  <div class="finding s2">
+    <div class="f-head"><span class="sev">High 03</span><span class="f-where">.github/workflows/rtk.yml:56</span></div>
+    <h4>RTK's CI has never run — the workflow file has never parsed</h4>
+    <p>Every RTK run in the recent history failed, 14 out of 14, and none of them produced a single job. The cause is a YAML flow-mapping error on the last line of the file:</p>
+<pre>        env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }<span class="bad">}</span> }
+<span class="cm">                                                       ↑ closes the flow mapping early</span>
+
+$ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/rtk.yml'))"
+<span class="bad">ParserError: while parsing a flow mapping, line 56, column 14
+expected ',' or '}', but got '{'</span></pre>
+    <p>Inside <code>{ }</code>, YAML treats <code>}</code> as a structural terminator, so the closing braces of the <code>${{ … }}</code> expression end the mapping. GitHub rejects the file before scheduling anything — which is why the runs are titled <code>.github/workflows/rtk.yml</code> rather than <code>RTK</code>, the giveaway that the <code>name:</code> key was never read.</p>
+    <p>The practical cost: the three-version Node matrix, the type-check, the 43 tests, all six benchmark harnesses and <code>npm pack --dry-run</code> have never gated a single commit. RTK is the app whose entire value proposition is measured token reduction, and its measurement harness has never run in CI.</p>
+    <div class="fix"><strong>Fix:</strong> Quote the expression — <code>env: { NODE_AUTH_TOKEN: "${{ secrets.NPM_TOKEN }}" }</code> — or expand to block style. Then add a workflow-lint step (<code>actionlint</code>) so the next syntax error fails loudly instead of silently.</div>
+  </div>
+
+  <div class="finding s2">
+    <div class="f-head"><span class="sev">High 04</span><span class="f-where">apps/rtk/package.json</span></div>
+    <h4>RTK's release job publishes to an npm package name that belongs to someone else</h4>
+    <p>The workflow's <code>release</code> job runs <code>npm publish --access public</code> for a package declared as <code>"name": "rtk"</code>. That name is taken:</p>
+<pre>$ npm view rtk name version repository.url maintainers
+name         = 'rtk'
+version      = <span class="bad">'4.2.0'</span>
+repository   = 'git+https://github.com/cliffano/rtk.git'
+maintainers  = <span class="bad">'cliffano &lt;cliffano@gmail.com&gt;'</span></pre>
+    <p>The publish would fail with a 403 even if the workflow parsed. Two independent blockers sit in front of the same shipping path, which is how a release pipeline stays broken without anyone noticing — the first failure masks the second.</p>
+    <div class="fix"><strong>Fix:</strong> Rename to a scoped package — <code>@henrygoldsmith/rtk</code> is available and needs no permission — and keep <code>publishConfig.access: "public"</code>. Update the <code>bin</code> entry and the README install instructions to match.</div>
+  </div>
+
+  <div class="finding s2">
+    <div class="f-head"><span class="sev">High 05</span><span class="f-where">apps/food-shopping-os</span></div>
+    <h4>Forq's type-check gate cannot pass, because Forq contains no TypeScript</h4>
+    <p><code>package.json</code> defines <code>"type-check": "tsc --noEmit"</code>, and that script sits in both the local <code>verify</code> chain and the CI workflow. But the app is 209 <code>.js</code> and 109 <code>.jsx</code> files with <strong>zero</strong> <code>.ts</code> or <code>.tsx</code> files and no <code>tsconfig.json</code> anywhere:</p>
+<pre>$ find . -name '*.ts' -o -name '*.tsx' | grep -v node_modules
+<span class="cm">(no output)</span>
+
+$ ls tsconfig*
+<span class="bad">ls: cannot access 'tsconfig*': No such file or directory</span>
+
+$ npx tsc --noEmit
+Version 6.0.2
+tsc: The TypeScript Compiler
+COMMON COMMANDS ...          <span class="bad">← prints usage, exits 1</span></pre>
+    <p>With no config and no input files, <code>tsc</code> prints its help text and exits non-zero. Forq's CI has therefore been red on every run since the step was added, for a reason that has nothing to do with Forq's code.</p>
+    <div class="fix"><strong>Fix:</strong> Remove the step — it is checking a language the app doesn't use. If you want equivalent safety in plain JavaScript, add a <code>jsconfig.json</code> with <code>checkJs: true</code> and run <code>tsc --noEmit -p jsconfig.json</code>, which will find real bugs in 41.8k lines of untyped code.</div>
+  </div>
+
+  <div class="finding s2">
+    <div class="f-head"><span class="sev">High 06</span><span class="f-where">apps/food-shopping-os/tests</span></div>
+    <h4>29 Forq tests fail, including a plain reference error</h4>
+    <p>Forq has the portfolio's best test-to-source ratio at 31%, and 985 of its 1,014 tests pass. But 12 of 85 test files are red:</p>
+<pre>❯ tests/advanced-flows.test.jsx      (23 tests | <span class="bad">10 failed</span>)
+❯ tests/health-flows.test.jsx        (22 tests | <span class="bad"> 4 failed</span>)
+❯ tests/progress-flows.test.jsx      ( 8 tests | <span class="bad"> 4 failed</span>)
+❯ tests/shopping-flows.test.jsx      (25 tests | <span class="bad"> 3 failed</span>)
+   … 8 more files
+<span class="bad">ReferenceError: provenance is not defined</span>
+
+Test Files  <span class="bad">12 failed</span> | 73 passed (85)
+     Tests  <span class="bad">29 failed</span> | 985 passed (1014)</pre>
+    <p><code>ReferenceError: provenance is not defined</code> is not a flaky-test problem or an assertion drift — it is an undefined identifier reaching runtime, which points at an incomplete refactor rather than a stale expectation.</p>
+    <div class="fix"><strong>Fix:</strong> Start with the reference error, which is likely a single missing import or destructure and may resolve several of the 29. Because CI is already red for the unrelated type-check reason above, these failures had no way to surface — fix finding 05 first so this one stays visible.</div>
+  </div>
+
+  <div class="finding s2">
+    <div class="f-head"><span class="sev">High 07</span><span class="f-where">apps/emotion-tracker/package-lock.json</span></div>
+    <h4>Reflect cannot be cleanly installed, so its 683 lines of tests are unrunnable</h4>
+    <p>Of 11 lockfiles checked, exactly one is out of sync — and it takes <code>main</code> down with it:</p>
+<pre>$ npm ci
+npm error `npm ci` can only install packages when your package.json and
+npm error package-lock.json are in sync.
+npm error <span class="bad">Invalid: lock file's @anthropic-ai/sdk@0.110.0 does not satisfy @anthropic-ai/sdk@0.116.0</span>
+npm error <span class="bad">Missing: @google/genai@2.17.0 from lock file</span>
+npm error Missing: google-auth-library@10.9.1, protobufjs@7.6.5, … (18 more)</pre>
+    <p>Dependencies were changed — a Gemini SDK added, the Anthropic SDK bumped — without regenerating the lockfile. Since <code>npm ci</code> is the first step of the workflow, nothing downstream runs: not the tests, not the build. The <code>main</code> branch has been red since 11 August.</p>
+    <div class="fix"><strong>Fix:</strong> <code>npm install</code> in <code>apps/emotion-tracker</code>, commit the regenerated lockfile, confirm the 683 lines of tests still pass. Consider a repo-wide pre-commit check that runs <code>npm ci --dry-run</code> on any app whose <code>package.json</code> changed.</div>
+  </div>
+
+  <div class="finding s3">
+    <div class="f-head"><span class="sev">Medium 08</span><span class="f-where">henry-builds</span></div>
+    <h4>The portfolio site does not build — and its git history shows this was already known</h4>
+    <p><code>npm run build</code> is <code>tsc -b &amp;&amp; vite build</code>. The <code>vite build</code> half succeeds; the <code>tsc -b</code> half does not, so the whole command fails:</p>
+<pre>$ npm run build; echo "exit: $?"
+src/convex/auth/emailOtp.ts(6,3):  <span class="bad">error TS2353</span>: 'id' does not exist in type
+                                   'EmailUserConfig&lt;GenericDataModel&gt; &amp; …'
+src/convex/auth/emailOtp.ts(18,47): <span class="bad">error TS7031</span>: Binding element 'email' implicitly has an 'any' type
+src/convex/auth/emailOtp.ts(18,54): <span class="bad">error TS7031</span>: Binding element 'token' implicitly has an 'any' type
+<span class="bad">exit: 2</span></pre>
+    <p>Vercel runs <code>npm run build</code>, so this blocks deployment — and the repository contains a commit titled <em>"Freebuff: I tried to deploy on vercel and it didnt work"</em>, meaning the symptom was hit and the cause never resolved.</p>
+    <p>Three related issues sit alongside it. The package is still named <code>vite-template</code>. The README is still the Vly scaffold's instruction sheet — <em>"This project is set up already and running on a cloud environment"</em> — rather than anything about the portfolio. And of 53 installed shadcn components, 36 are never imported, contributing to a 551 KB main bundle for what is a static site with three custom components; a Convex auth backend and a <code>/dashboard</code> route ship with it despite the portfolio never using them.</p>
+    <div class="fix"><strong>Fix:</strong> Type the two destructured parameters and drop the unsupported <code>id</code> property, or exclude <code>src/convex</code> from the build's tsconfig if it is unused. Then rename the package, write a real README, and delete the 36 unused components and the auth surface. This is the first thing anyone evaluating you will open.</div>
+  </div>
+
+  <div class="finding s3">
+    <div class="f-head"><span class="sev">Medium 09</span><span class="f-where">5 apps</span></div>
+    <h4>Seventeen high-severity dependency advisories, every one with a fix available</h4>
+    <div class="scroller" style="margin-bottom:14px">
+      <table>
+        <thead><tr><th>App</th><th class="n">High</th><th>Advisories</th></tr></thead>
+        <tbody>
+          <tr><td class="name">World News</td><td class="n">5</td><td>next (middleware bypass), postcss (XSS), sharp/libvips, js-yaml, brace-expansion</td></tr>
+          <tr><td class="name">Daily Debate</td><td class="n">5</td><td>next (middleware bypass), postcss (XSS), sharp/libvips, js-yaml, brace-expansion</td></tr>
+          <tr><td class="name">Revise</td><td class="n">3</td><td>next (middleware bypass), postcss (XSS), sharp/libvips</td></tr>
+          <tr><td class="name">Rapport</td><td class="n">3</td><td>next (middleware bypass), postcss (XSS), sharp/libvips</td></tr>
+          <tr><td class="name">Le Studio French</td><td class="n">1</td><td>nanoid (infinite loop on zero size)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The Next.js advisory deserves attention beyond a version bump: it is a middleware/proxy bypass, and Daily Debate uses middleware for its authentication redirect. The exposure is bounded — the actual data protection is Supabase RLS, which is correctly configured there, so a bypass reveals page shells rather than records — but it is the difference between two layers of defence and one.</p>
+    <p>Forq, notably, audits clean. It is also the only app whose workflow runs <code>npm audit --audit-level=high</code>, which is not a coincidence.</p>
+    <div class="fix"><strong>Fix:</strong> <code>npm audit fix</code> in each of the five, then add Forq's audit step to every workflow. A Dependabot config at the repo root would keep this from recurring across thirteen apps.</div>
+  </div>
+
+  <div class="finding s3">
+    <div class="f-head"><span class="sev">Medium 10</span><span class="f-where">scripts/ · .github/workflows/</span></div>
+    <h4>The repository's own quality scripts fail, and nothing runs them</h4>
+    <p><code>scripts/smoke.mjs</code> exists precisely to catch drift. It currently reports two failures, and no workflow invokes it:</p>
+<pre>$ node scripts/smoke.mjs
+<span class="bad">FAIL</span> node scripts/validate-registry.mjs
+  auxiliary[0] id=genetic-health: path does not exist: apps/genetic-health
+<span class="bad">FAIL</span> node scripts/check-links.mjs
+  BROKEN apps/revise/README.md -> /benchmarks
+  BROKEN apps/revise/README.md -> /case-study
+<span class="ok">OK</span>   node apps/revise/scripts/validate-curriculum.mjs
+<span class="ok">OK</span>   node apps/arise/scripts/lint-content.mjs
+<span class="ok">OK</span>   node apps/french-practice/scripts/lint-content.mjs
+smoke: 2 failure(s)</pre>
+    <p>The first is a true positive: <code>apps/genetic-health</code> was deleted on 9 August but is still listed in <code>apps/registry.json</code> and named in the root README. <code>validate-registry.mjs</code> is well written and exits 1 correctly — it simply has no caller.</p>
+    <p>The second is a <em>false</em> positive, and that matters more. <code>check-links.mjs</code> validates every markdown link as a filesystem path:</p>
+<pre><span class="cm">// scripts/check-links.mjs</span>
+const target = path.resolve(base, href);
+if (!existsSync(target)) { console.error(`BROKEN ${file} -> ${href}`); }</pre>
+    <p>For a root-relative Next.js route like <code>/benchmarks</code>, <code>path.resolve</code> discards the base and returns the filesystem root <code>/benchmarks</code>, which of course does not exist. Both routes are real — <code>apps/revise/src/app/benchmarks/page.tsx</code> and <code>src/app/case-study/</code> are present. A checker that reports failures nobody can act on is exactly why the suite ends up unwired.</p>
+    <div class="fix"><strong>Fix:</strong> Skip hrefs starting with <code>/</code> in <code>check-links.mjs</code>, or resolve them against the app root and check for a matching route directory. Delete the <code>genetic-health</code> registry entry and its README mention. Then add a lightweight <code>repo-hygiene</code> workflow that runs <code>node scripts/smoke.mjs</code> on every push — it takes seconds and is the single highest-leverage CI addition available here.</div>
+  </div>
+
+  <div class="finding s3">
+    <div class="f-head"><span class="sev">Medium 11</span><span class="f-where">apps/</span></div>
+    <h4>Four apps have no tests and no CI — and they are where both critical findings landed</h4>
+    <div class="scroller" style="margin-bottom:14px">
+      <table>
+        <thead><tr><th>App</th><th class="n">Src LOC</th><th class="n">Test LOC</th><th>CI</th><th>Registry status</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Agent OS Control Room</td><td class="n">1,230</td><td class="n">0</td><td><span class="chip c-fail">none</span></td><td>active</td></tr>
+          <tr><td class="name">Dictation Typer</td><td class="n">1,427</td><td class="n">0</td><td><span class="chip c-fail">none</span></td><td>active</td></tr>
+          <tr><td class="name">Meeting Recorder</td><td class="n">2,998</td><td class="n">0</td><td><span class="chip c-fail">none</span></td><td>active</td></tr>
+          <tr><td class="name">Noticed</td><td class="n">931</td><td class="n">0</td><td><span class="chip c-fail">none</span></td><td>active</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The correlation is not incidental. Nine apps have a workflow; those nine also have tests. The four without either are the four where nothing has ever forced a second look — and Meeting Recorder and Noticed, the two carrying the critical findings above, are both on this list. All four are marked <code>active</code> in <code>registry.json</code>, whose own definition of active is <em>"Shipped product; listed on the family hub and in README; <strong>has CI and an owner</strong>."</em></p>
+    <p>Agent OS Control Room is the most exposed of the four: no README at all, and 1,152 of its 1,230 lines in a single component file.</p>
+    <div class="fix"><strong>Fix:</strong> Either give each of the four a workflow — even just install, lint and build — or move them to <code>incubating</code> in the registry so the lifecycle label stops overstating them. The registry already encodes the right standard; the entries just don't meet it.</div>
+  </div>
+
+  <div class="finding s3">
+    <div class="f-head"><span class="sev">Medium 12</span><span class="f-where">raw/ · wiki/ · output/ · CLAUDE.md</span></div>
+    <h4>The knowledge-base pipeline is fully documented and entirely empty</h4>
+    <p><code>CLAUDE.md</code> devotes a substantial always-loaded section to a data pipeline: <code>raw/</code> for append-only ingestion, <code>wiki/</code> as its index, <code>output/</code> for improvement-loop artifacts, plus two scheduled routines running Tuesday and Friday. Four skills implement it. The actual state:</p>
+<pre>$ find raw -type f
+raw/README.md
+raw/sessions/.gitkeep
+raw/ecosystem/.gitkeep      <span class="cm">← three placeholder files</span>
+raw/curated/.gitkeep
+
+$ grep -c "^|" wiki/index.md
+10                          <span class="cm">← table headers only, zero data rows</span>
+
+$ ls output/
+review_2026-07-12.md
+review_2026-07-21.md        <span class="cm">← newest artifact is 23 days old</span></pre>
+    <p>Twice-weekly routines have produced nothing since 21 July, while the instructions describing them are re-sent on every request. That cost is real and is called out by <code>CLAUDE.md</code> itself, which observes that the fixed preamble was measured at 56% of all input tokens.</p>
+    <div class="fix"><strong>Fix:</strong> Decide one way or the other. If the pipeline is wanted, find out why the routines produce nothing — most likely the sync skills cannot reach their sources from a cloud session. If it is not, delete the section, the four skills and the routines. Carrying documentation for machinery that does not run is the most expensive kind of dead code in this setup, because you pay for it on every single request.</div>
+  </div>
+
+  <div class="finding s3">
+    <div class="f-head"><span class="sev">Low 13</span><span class="f-where">repo-wide</span></div>
+    <h4>Forty-seven files exceed the 500-line limit set in CLAUDE.md</h4>
+    <p>Your own rules say <em>"Keep files under 500 lines"</em>. The worst offenders:</p>
+    <ul>
+      <li><code>apps/agent-os-control-room/src/components/AgentOSControlRoom.tsx</code> — 1,152 lines, the entire app</li>
+      <li><code>apps/rapport/src/domain/skills.ts</code> — 1,150 lines</li>
+      <li><code>.claude/helpers/learning-service.mjs</code> — 1,144 lines</li>
+      <li><code>apps/french-practice/src/lib/storage.js</code> — 870 lines</li>
+      <li><code>apps/world-news/src/components/NewsGlobe.tsx</code> — 818 lines</li>
+    </ul>
+    <p>A fair share are content or data files where length is inherent — the frequency lists in Le Studio, for instance. The component files are the ones worth splitting, and the Control Room file is the one where the rule is doing real work: a single 1,152-line component with no tests is untestable in practice, not just in principle.</p>
+    <div class="fix"><strong>Fix:</strong> Don't chase all 47. Split the Control Room component, and add an ESLint <code>max-lines</code> warning so new files don't join the list.</div>
+  </div>
+</section>
+
+<hr class="div">
+
+<section>
+  <span class="eyebrow">Credit where due</span>
+  <h2>What is genuinely well built</h2>
+  <p class="lede measure">An audit that only lists faults misrepresents the work. These are things this portfolio does better than most codebases of comparable age.</p>
+
+  <h3>Secrets discipline is flawless across all three repositories</h3>
+  <p class="measure">A full scan of every tracked file for AWS keys, GitHub tokens, Anthropic keys, OpenAI keys and JWTs returned exactly one hit — a synthetic string inside <code>apps/rtk/test/regression.test.js</code>, which is the fixture for RTK's own redaction feature. Nine <code>.env.example</code> files are committed and not a single real <code>.env</code>. More importantly, the split is right: <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>GROQ_API_KEY</code>, <code>OPENAI_API_KEY</code> and every service-role key are server-side only, and the sole browser-exposed credentials are Supabase anon keys, which are designed to be public. That mistake — a model API key behind a <code>NEXT_PUBLIC_</code> prefix — is extremely common, and it is nowhere in these 185,000 lines.</p>
+
+  <h3>Revise's row-level security is textbook</h3>
+  <p class="measure">Rather than hand-writing ten near-identical policies and getting one wrong, the schema loops:</p>
+<pre>foreach target in array array['cards','review_logs','questions','attempts',
+                              'mistakes','papers','planned_sessions',
+                              'exam_dates','user_settings','streaks']
+loop
+  execute format('alter table public.%I enable row level security', target);
+  execute format(
+    'create policy %I on public.%I for all to authenticated
+     <span class="ok">using (user_id = auth.uid())</span>
+     <span class="ok">with check (user_id = auth.uid())</span>', target || '_owner', target);
+end loop;</pre>
+  <p class="measure">The <code>with check</code> clause is the part almost everyone omits, and omitting it lets a client rewrite <code>user_id</code> to another account's id on insert or update. The schema comment says so explicitly. Ten tables, no drift, no gaps.</p>
+
+  <h3>Forq's Content-Security-Policy is stricter than most production apps ship</h3>
+  <p class="measure">A per-request nonce with <code>strict-dynamic</code>, plus <code>object-src 'none'</code>, <code>frame-ancestors 'none'</code>, <code>base-uri 'self'</code> and <code>form-action 'self'</code> — generated in middleware and set on both the request and response headers. No <code>unsafe-inline</code> on scripts. Forq is also the only app that gates CI on <code>npm audit --audit-level=high</code> and the only one running Playwright end-to-end tests in CI, and it is the only app with zero dependency vulnerabilities. Those facts are connected.</p>
+
+  <h3>Daily Debate's API surface is fully covered</h3>
+  <p class="measure">All six routes authenticate; five of six rate-limit; the schema has RLS on all seven tables with eleven policies. For an app that spends money on model calls per request, that is the right shape, and it is the standard the other AI-calling apps should be held to.</p>
+
+  <h3>arise-fitness is a properly finished open-source repository</h3>
+  <p class="measure">Conventional commit messages, a maintained <code>CHANGELOG.md</code>, <code>CONTRIBUTING</code> / <code>SECURITY</code> / <code>CODE_OF_CONDUCT</code>, three issue templates and a PR template, a release workflow with generated notes, and a build that produces both a directory and an 80.7 KB single-file standalone. Tests, lint, format check and build all pass on a clean clone. It is also the only repository in the portfolio where the git history reads as deliberate work rather than a transcript of prompts — worth noting, because commit messages are part of what a reviewer judges.</p>
+</section>
+
+<hr class="div">
+
+<section>
+  <span class="eyebrow">Recommendations</span>
+  <h2>What to do, in order</h2>
+  <p class="lede measure">Sequenced by consequence-per-hour. The first four are short; together they resolve both critical findings and un-break three pipelines.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th class="n">#</th><th>Action</th><th>Where</th><th>Effort</th><th>Resolves</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td>Add auth + ownership filters to the four open routes; make <code>isAuthorized</code> fail closed</td><td class="name">Meeting Recorder</td><td>2–3 h</td><td>Critical 01</td></tr>
+        <tr><td class="n">2</td><td>Replace <code>using (true)</code> policies with scoped ones; stop <code>households</code> being listable</td><td class="name">Noticed</td><td>1–2 h</td><td>Critical 02</td></tr>
+        <tr><td class="n">3</td><td>Quote the <code>NPM_TOKEN</code> expression; add <code>actionlint</code> to CI</td><td class="name">RTK</td><td>10 min</td><td>High 03</td></tr>
+        <tr><td class="n">4</td><td>Drop the <code>tsc --noEmit</code> step; regenerate the stale lockfile</td><td class="name">Forq · Reflect</td><td>20 min</td><td>High 05, 07</td></tr>
+        <tr><td class="n">5</td><td>Fix <code>ReferenceError: provenance is not defined</code>, then the remaining failures</td><td class="name">Forq</td><td>2–4 h</td><td>High 06</td></tr>
+        <tr><td class="n">6</td><td>Fix the three TS errors, rename the package, write a real README</td><td class="name">henry-builds</td><td>1–2 h</td><td>Medium 08</td></tr>
+        <tr><td class="n">7</td><td>Add a <code>repo-hygiene</code> workflow running <code>scripts/smoke.mjs</code>; fix the <code>check-links</code> false positive; drop the <code>genetic-health</code> entry</td><td class="name">monorepo</td><td>45 min</td><td>Medium 10</td></tr>
+        <tr><td class="n">8</td><td><code>npm audit fix</code> across five apps; add the audit step to every workflow; add Dependabot</td><td class="name">monorepo</td><td>1 h</td><td>Medium 09</td></tr>
+        <tr><td class="n">9</td><td>Give the four untested apps a minimal workflow, or downgrade them to <code>incubating</code></td><td class="name">4 apps</td><td>2–3 h</td><td>Medium 11</td></tr>
+        <tr><td class="n">10</td><td>Rename <code>rtk</code> to a scoped package before the release path is unblocked</td><td class="name">RTK</td><td>15 min</td><td>High 04</td></tr>
+        <tr><td class="n">11</td><td>Either repair the ingestion routines or delete the pipeline and its always-loaded docs</td><td class="name">workspace</td><td>1 h</td><td>Medium 12</td></tr>
+        <tr><td class="n">12</td><td>Split the 1,152-line Control Room component; add an ESLint <code>max-lines</code> warning</td><td class="name">Agent OS · repo</td><td>2 h</td><td>Low 13</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout" style="margin-top:30px">
+    <p><strong>The pattern underneath all of this.</strong> Every quality practice this portfolio needs already exists somewhere inside it. Correct RLS is in Revise. A strict CSP and an audit gate are in Forq. Full route authentication is in Daily Debate. Release discipline and a changelog are in arise-fitness. Nothing above asks you to learn a new technique — it asks you to apply your own best work uniformly, and to make CI enforce it so the next gap fails loudly instead of sitting unnoticed for a month.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Audit performed 13 August 2026 against <code>henrygoldsmith07-wq/Claude-Code</code> @ <code>29bd8e3</code>, <code>henrygoldsmith07-wq/arise-fitness</code> @ <code>ed25e00</code>, and <code>henrygoldsmith07-wq/henry-builds</code> @ <code>658ee4c</code>. Node 22.22.2 · npm 10.9.7 · Linux x86_64.<br>
+  All results reproduced from clean clones. Test suites, builds, linters, formatters, dependency audits and lockfile checks were executed rather than inferred; CI history was read from the GitHub Actions API. Findings marked from static review only — route authentication coverage and SQL policy review — are labelled as such in the body.</p>
+</footer>
+
+</div>
