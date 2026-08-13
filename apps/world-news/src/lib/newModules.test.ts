@@ -4,8 +4,8 @@ import { linkEvents, nextStatus, mergeEvents, splitEvent } from "./eventStore";
 import { provenanceForStory, timelineConfidence, whatChangedSince } from "./provenance";
 import { buildCoverageMatrix, detectGaps } from "./coverageMatrix";
 import { buildEntityGraph, buildCountryGraph, buildEventGraph } from "./knowledgeGraph";
-import { filterByPrefs, diversityGuard, isFilterBubble } from "./personalisation";
-import { meaningfulChanges, shouldNotify } from "./notifications";
+import { filterByPrefs, diversityGuard, isFilterBubble, DEFAULT_PREFS } from "./personalisation";
+import { notificationsFor, shouldNotify } from "./notifications";
 import { locationConfidence, regionalLabel, mapCluster } from "./geocode";
 import { diversityReport } from "./sourcing";
 import type { StoryCluster } from "./storyModel";
@@ -44,8 +44,10 @@ describe("dedup", () => {
 describe("eventStore", () => {
   it("links by headline similarity", () => {
     const prev: StoredEvent[] = [{ id:"e1", headline:"Storm batters French coast", topic:"Science & Health", summary:"", articleIds:["a1"], timeline:[], contradictions:[], widelyAgreedFacts:[], uncertainty:[], provenance:{note:"",groundingRate:1,liveLinkedClaims:0}, significance:50, significanceReasons:[], firstSeen:"2025-01-01", lastUpdated:"2025-01-01", status:"developing", corrections:[] } as unknown as StoredEvent];
-    const map = linkEvents(prev, [{ headline:"Storm batters French Atlantic coast", topic:"Science & Health", id:"n1" }]);
+    const { map, candidates } = linkEvents(prev, [{ headline:"Storm batters French Atlantic coast", topic:"Science & Health", id:"n1" }]);
     expect(map.get("n1")).toBe("e1");
+    // Linking must be explainable, not just correct.
+    expect(candidates[0].reasons.length).toBeGreaterThan(0);
   });
   it("nextStatus respects contested/correction", () => {
     expect(nextStatus("developing",{hasCorrection:true,daysSinceFirstSeen:1,isContested:false,isResolvedKeyword:false})).toBe("contested");
@@ -55,8 +57,11 @@ describe("eventStore", () => {
     const b: StoredEvent = { ...a, id:"b", headline:"B", articleIds:["2"] } as unknown as StoredEvent;
     const { merged } = mergeEvents(a,b);
     expect(merged.articleIds.length).toBe(2);
-    const { a: aa, b: bb } = splitEvent(merged, "A2","B2");
-    expect(aa.id).toBe("a"); expect(bb.id).not.toBe("a");
+    const { kept, created } = splitEvent(merged, "B2", ["2"]);
+    expect(kept.id).toBe("a");
+    expect(kept.articleIds).toEqual(["1"]);
+    expect(created.articleIds).toEqual(["2"]);
+    expect(created.id).not.toBe("a");
   });
 });
 
@@ -100,9 +105,9 @@ describe("knowledgeGraph", () => {
 describe("personalisation & notifications", () => {
   it("filters by prefs and detects bubbles", () => {
     const s = [mkStory({ topic:"Politics" }), mkStory({ id:"s2", topic:"Sport" })];
-    const f = filterByPrefs(s, { regions:[], topics:["Politics"], minPerspectives:1, maxSameCountryShare:0.6 });
+    const f = filterByPrefs(s, { ...DEFAULT_PREFS, topics:["Politics"], minPerspectives:1 });
     expect(f.length).toBe(1);
-    const guard = diversityGuard([mkStory(), mkStory(), mkStory()], { regions:[], topics:[], minPerspectives:2, maxSameCountryShare:0.5 });
+    const guard = diversityGuard([mkStory(), mkStory(), mkStory()], { ...DEFAULT_PREFS, maxSameCountryShare:0.5 });
     expect(guard.passed).toBe(false);
     expect(isFilterBubble([mkStory(),mkStory(),mkStory(),mkStory(),mkStory()]).bubble).toBe(true);
   });
@@ -110,9 +115,11 @@ describe("personalisation & notifications", () => {
     const base: Record<string, unknown> = { country:"X", code:"xx", generatedAt:new Date().toISOString(), topics:[], sources:[], points:[], conflicts:[], stories:[mkStory()], meta:{widelyAgreedFacts:[], uncertainty:[], coverageGaps:[], corrections:[], whatChangedSinceYesterday:null} };
     const prev = base as never;
     const next = { ...base, stories:[{...mkStory(), corrections:[{date:"2025-01-02",note:"Fixed figure"}]}] } as never;
-    const changes = meaningfulChanges(prev, next);
-    expect(changes.length).toBeGreaterThan(0);
-    expect(shouldNotify(changes)).toBe(true);
+    const decision = notificationsFor(prev, next);
+    // A correction is the one change that always clears the interruption bar.
+    expect(decision.send.length + decision.hold.length).toBeGreaterThan(0);
+    expect(shouldNotify(decision)).toBe(true);
+    expect(decision.send[0].kind).toBe("correction");
   });
 });
 

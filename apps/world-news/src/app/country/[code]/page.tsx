@@ -318,7 +318,7 @@ export default async function CountryPage({
         <CoverageBiasPanel news={news} />
         <LocationVerifyBadge news={news} />
         <GeopoliticsPanel code={code} />
-        {(news.stories?.length ?? 0) > 0 && <DiversityNudge mix={news.stories![0].sourceMix} countryCode={code} />}
+        {(news.stories?.length ?? 0) > 0 && <DiversityNudge sources={news.stories![0].sources} countryCode={code} />}
         {(news.stories?.length ?? 0) > 0 && <SearchStories stories={(news.stories ?? []).filter(s=> !topicName || s.topic===topicName)} />}
         {(news.stories?.length ?? 0) > 0 && <SavedTopics />}
         {liteMode ? (

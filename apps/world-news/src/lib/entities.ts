@@ -301,6 +301,18 @@ export function extractEntities(text: string): ExtractedEntities {
  * casualty counts, vote splits, scorelines). Two reports of the same event
  * usually agree on these; two different events in the same topic rarely do.
  */
+/**
+ * Number words, so "twelve injured" and "12 injured" are the same assertion.
+ * Stops at twenty plus the round tens — beyond that news uses digits.
+ */
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+  thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  hundred: 100, thousand: 1000,
+};
+
 export function extractNumerics(text: string): string[] {
   const out = new Set<string>();
   const t = foldDiacritics(text).toLowerCase().replace(/,(?=\d{3}\b)/g, "");
@@ -319,6 +331,12 @@ export function extractNumerics(text: string): string[] {
   // that). Excluding digits adjacent to a decimal point stops "3.25" being
   // read as a count of 25.
   for (const m of t.matchAll(/(?<![\d.])(\d{2,6})(?![\d.])/g)) out.add(`n${m[1]}`);
+  // Spelled-out counts, normalised into the same space as the digit form so
+  // "twelve injured" and "12 injured" agree and "three" and "seven" conflict.
+  for (const m of t.matchAll(/\b([a-z]+)\b/g)) {
+    const v = NUMBER_WORDS[m[1]];
+    if (v !== undefined && v >= 2) out.add(`n${v}`);
+  }
   return [...out];
 }
 

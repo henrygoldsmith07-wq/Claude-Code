@@ -193,7 +193,7 @@ export default async function WorldPage({
               <StorySourceSummary news={news} />
               <CoverageBiasPanel news={news} />
               <LocationVerifyBadge news={news} />
-              <DiversityNudge mix={news.stories![0]?.sourceMix ?? { total: 0, byCountry: [], byPerspective: [], byKind: [], primaryCount: 0, perspectiveEntropy: 0, kindDistinctCount: 0 }} />
+              <DiversityNudge sources={news.stories![0]?.sources ?? []} />
               <SearchStories stories={news.stories!} />
               <StoriesView stories={news.stories!} />
               <StoryScreenReader stories={news.stories!} />
