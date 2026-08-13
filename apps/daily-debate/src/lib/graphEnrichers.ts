@@ -7,8 +7,9 @@ import type { ArgGraph, ArgNode, Fallacy, DroppedArgument, Concession, Contradic
 // ---------------------------------------------------------------------------
 // Fallacy classifier (lexicon → scored classifier, auditable)
 // We keep a transparent rule-based classifier that is cheap, debuggable, and
-// evaluated against a labeled mini-corpus in dailyDebate95.test.ts. A future
-// model-backed classifier can sit behind the same interface.
+// evaluated against a labeled mini-corpus in fallacyBenchmark.ts (precision/
+// recall/F1, surfaced on the benchmark page). A future model-backed classifier
+// can sit behind the same interface.
 // ---------------------------------------------------------------------------
 
 type FallacyLabel = Exclude<Fallacy, "none">;

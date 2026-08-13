@@ -77,6 +77,29 @@ When a prompt changes:
 3. if the response shape changed, update the zod schema and the JSON hint
    together; the tests check they stay in step.
 
+## Validation harnesses (offline, deterministic)
+
+Beyond the model-contract suites, four domain-level harnesses answer questions
+the product's claims stand on. All are pure functions over synthetic data and
+run in CI with no provider:
+
+- **Inter-rater agreement** (`src/domain/agreement.ts`) — Cohen's kappa,
+  Fleiss' kappa, Krippendorff's alpha and continuous-score disagreement over
+  a human-labelled evaluation set. This is the number that says whether the
+  behaviour scores would survive an independent rater.
+- **Recommender ablation + baselines** (`src/domain/recommender-benchmark.ts`)
+  — removes each factor in turn to measure how much it actually moves the top
+  pick, and compares the adaptive engine against random, round-robin and
+  weakest-skill on planted profiles with an overdue-target/just-practised-trap
+  split.
+- **Mastery calibration** (`src/domain/mastery-calibration.ts`) — bins
+  predicted mastery against realised next-attempt performance (ECE, Brier,
+  1-σ coverage) and validates the real-world-vs-simulation evidence weighting
+  by folding the same synthetic log under the shipped and equal weights.
+- **Diminishing returns** (`src/domain/diminishing-returns.ts`) — detects
+  when per-attempt gains on a skill have collapsed, so over-practising is
+  caught by the evidence rather than by asking the user to remember.
+
 ## Failure handling
 
 | Failure | Outcome |

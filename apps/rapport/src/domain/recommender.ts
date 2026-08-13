@@ -62,7 +62,13 @@ interface FactorValue {
   note: string;
 }
 
-export function recommend(input: RecommendationInput, limit = 5): Recommendation[] {
+export function recommend(
+  input: RecommendationInput,
+  limit = 5,
+  /** Override individual factor weights. Used by the ablation benchmark; merges over WEIGHTS. */
+  weightsOverride?: Partial<Record<RecommendationFactor, number>>,
+): Recommendation[] {
+  const weights: Record<RecommendationFactor, number> = { ...WEIGHTS, ...weightsOverride };
   const { states, goals, preference, focusHistory, now } = input;
   const today = todayIso(new Date(now));
   const byId = new Map(states.map((state) => [state.skillId, state]));
@@ -186,7 +192,7 @@ export function recommend(input: RecommendationInput, limit = 5): Recommendation
       note: fatigue > 0 ? "Focused on this several times this week already" : "Not over-practised",
     });
 
-    let score = factors.reduce((sum, factor) => sum + WEIGHTS[factor.key] * factor.value, 0);
+    let score = factors.reduce((sum, factor) => sum + weights[factor.key] * factor.value, 0);
 
     // A fresh user correction is respected: if they just told us they are fine
     // at this, stop putting it top of the list for a while.
@@ -195,7 +201,7 @@ export function recommend(input: RecommendationInput, limit = 5): Recommendation
     return {
       skillId: skill.id,
       score,
-      factors: factors.map((factor) => ({ ...factor, weight: WEIGHTS[factor.key] })),
+      factors: factors.map((factor) => ({ ...factor, weight: weights[factor.key] })),
       reason: explain(factors, skill.name),
       suggested: suggestStep(state, schedule.suggestedMode),
     };

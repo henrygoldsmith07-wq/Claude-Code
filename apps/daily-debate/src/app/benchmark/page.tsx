@@ -1,5 +1,6 @@
 import AppHeader from "@/components/AppHeader";
 import { HUMAN_CORPUS, corpusStats, ratingMatrix, fleissKappa, syntheticCorpus } from "@/lib/humanCorpus";
+import { evaluateFallacyDetection, FALLACY_BENCHMARK_CASES } from "@/lib/fallacyBenchmark";
 import { runAllProbesOffline } from "@/lib/judgeInvariance";
 import { TRANSCRIPTS } from "@/lib/benchmark.fixtures";
 
@@ -12,6 +13,8 @@ export default function BenchmarkPage() {
   const probes = runAllProbesOffline(TRANSCRIPTS.map((t) => t.transcript));
   const mat = ratingMatrix(syn.slice(0, 40));
   const kappaHint = fleissKappa(mat);
+  const fallacyReport = evaluateFallacyDetection(FALLACY_BENCHMARK_CASES);
+  const cohenMean = statsReal.byRaterPair.length ? statsReal.byRaterPair.reduce((a, p) => a + p.cohenKappa, 0) / statsReal.byRaterPair.length : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -36,6 +39,7 @@ export default function BenchmarkPage() {
             <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
               <p className="font-medium">Real corpus (offline)</p>
               <p className="tabular text-ink3">n={statsReal.n} · Fleiss κ={statsReal.fleissKappa.toFixed(3)} · α={statsReal.krippendorffAlpha.toFixed(3)}</p>
+              <p className="tabular text-ink3">Cohen κ (mean pairwise)={cohenMean === null ? "—" : cohenMean.toFixed(3)}</p>
               <p className="tabular text-ink3">Labels: a={statsReal.labelDist.a} b={statsReal.labelDist.b} tie={statsReal.labelDist.tie}</p>
             </div>
             <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
@@ -98,6 +102,46 @@ export default function BenchmarkPage() {
             (auto-detected), concessions, contradictions, burden shifts, and argument evolution across rounds; the UI lets you patch the graph and keeps an
             audit trail (<code className="text-xs">graphEnrichers.applyGraphEdits</code>).
           </p>
+        </section>
+
+        <section className="surface-card p-5">
+          <h2 className="text-sm font-semibold">Fallacy detector (offline evaluation)</h2>
+          <p className="mt-1 text-xs text-ink3">
+            Precision / recall / F1 over the {fallacyReport.cases}-case labelled set — one honest known false positive ({fallacyReport.falsePositiveRate.toFixed(2)} FPR on
+            clean text: a genuine request for evidence reads as whataboutism). A rule change that catches more at the cost of crying wolf fails here.
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+            <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
+              <p className="font-medium">Macro-F1</p>
+              <p className="tabular text-ink3">{fallacyReport.macroF1.toFixed(3)}</p>
+            </div>
+            <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
+              <p className="font-medium">Exact accuracy</p>
+              <p className="tabular text-ink3">{fallacyReport.accuracy.toFixed(3)}</p>
+            </div>
+            <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
+              <p className="font-medium">FPR (clean text)</p>
+              <p className="tabular text-ink3">{fallacyReport.falsePositiveRate.toFixed(3)}</p>
+            </div>
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-ink3">
+                <tr><th className="pb-2 font-medium">Label</th><th className="pb-2">P</th><th className="pb-2">R</th><th className="pb-2">F1</th><th className="pb-2">TP/FP/FN</th></tr>
+              </thead>
+              <tbody className="tabular">
+                {fallacyReport.perLabel.map((m) => (
+                  <tr key={m.label} className="border-t border-[var(--rule)]">
+                    <td className="py-2 pr-2">{m.label}</td>
+                    <td className="py-2">{m.precision.toFixed(2)}</td>
+                    <td className="py-2">{m.recall.toFixed(2)}</td>
+                    <td className="py-2">{m.f1.toFixed(2)}</td>
+                    <td className="py-2 text-ink3">{m.tp}/{m.fp}/{m.fn}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="surface-card p-5">
