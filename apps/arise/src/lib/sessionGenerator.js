@@ -30,7 +30,7 @@ export function generateSession({ goal="general", availableEquipment=[], history
     const rec = recommendNext({ exerciseId: ex.id, history, targetReps: "8–12" });
     const sets = setsForProgression(ex.progression || 'hypertrophy', rec);
     const reps = rec.reps || "8";
-    const loadHint = rec.load != null && rec.load>0 ? `${rec.load}kg` : (rec.load===null? "bodyweight": "as prescribed");
+    const loadHint = rec.load != null && rec.load>0 ? `${rec.load}kg` : rec.assistKg != null && rec.assistKg>0 ? `${rec.assistKg}kg assist` : (rec.load===null? "bodyweight": "as prescribed");
     const isUnilateral = ex.unilateral || /lunge|split|single|bulgarian/i.test(ex.id);
     // Rest: use helper, fallback to 90
     const restSec = ex.muscle==="Cardio"?0: (recommendedRest({ exerciseId: ex.id, load: rec.load, rpe: null, setIndex: 0, totalSets: sets }) || 90);

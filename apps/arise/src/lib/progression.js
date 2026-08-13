@@ -44,6 +44,32 @@ export function personalisedRate(history, exerciseId){
   return { weeklyLoadPct: Math.round(weeklyLoadPct*1000)/1000, weeklyRepGain: Math.round(weeklyRepGain*10)/10, n: logs.length, spanDays: Math.round(spanDays) };
 }
 
+// Training age: months since the user's first logged session. Personalises cold-start
+// progression rates — novices adapt faster, advanced lifters slower (rate-limiting factor
+// shifts from adaptation to recovery/technique).
+export function trainingAgeMonths(history){
+  if(!history || !history.length) return 0;
+  const dates = history.map(h=> Date.parse(h.dateISO)).filter(Number.isFinite).sort((a,b)=> a-b);
+  if(!dates.length) return 0;
+  return Math.max(0, (Date.now() - dates[0]) / (30.44 * 86400000));
+}
+export function trainingPhase(months){
+  if(months <= 0) return 'unknown';
+  if(months < 6) return 'novice';
+  if(months < 18) return 'intermediate';
+  return 'advanced';
+}
+export function ageRateMultiplier(months){
+  if(months <= 0) return 1;
+  if(months < 6) return 1.5;   // novice — newbie adaptation
+  if(months < 18) return 1.0;  // intermediate
+  return 0.5;                  // advanced — slower, technique-bound
+}
+export function trainingAgeInfo(history){
+  const months = trainingAgeMonths(history);
+  return { months: Math.round(months*10)/10, phase: trainingPhase(months), multiplier: ageRateMultiplier(months) };
+}
+
 // Longitudinal validation: how well would recommendNext have predicted the next logged set?
 // Returns { n, meanAbsErrorKg, meanAbsErrorReps, hitRate }
 export function validateProgression(history){
@@ -89,7 +115,7 @@ export function recommendNext({ exerciseId, history, targetReps = "8–12", cons
   const logs = logsFor(history, exerciseId).slice(-6);
   if(!logs.length) {
     const strat = strategy || strategyForExercise(exerciseId);
-    return { load: null, reps: parseLow(targetReps), reason: "No history — use program prescription.", strategy: strat };
+    return { load: null, reps: parseLow(targetReps), reason: "No history — use program prescription.", strategy: strat, trainingAge: trainingAgeInfo(history) };
   }
   const last = logs[logs.length-1];
   const reps = last.reps, load = last.weightKg || 0;
@@ -97,19 +123,30 @@ export function recommendNext({ exerciseId, history, targetReps = "8–12", cons
   const strat = strategy || strategyForExercise(exerciseId);
   const sCfg = PROGRESSION_STRATEGY[strat] || PROGRESSION_STRATEGY.hypertrophy;
   const prate = personalisedRate(history, exerciseId);
+  const trainingAge = trainingAgeInfo(history);
   // Plateau v2 check (real vs noise) — if true, hold
   const plat = isPlateauV2(logs);
-  if(plat.isPlateau) return { load, reps, reason: plat.reason, plateau: plat, strategy: strat, personalised: prate };
+  if(plat.isPlateau) return { load, reps, reason: plat.reason, plateau: plat, strategy: strat, personalised: prate, trainingAge };
   // also keep original 3-session plateau as conservative fallback
-  if(!plat.isPlateau && isPlateau(logs)) return { load, reps, reason: "Plateau — hold load, consider deload.", plateau: plat, strategy: strat, personalised: prate };
+  if(!plat.isPlateau && isPlateau(logs)) return { load, reps, reason: "Plateau — hold load, consider deload.", plateau: plat, strategy: strat, personalised: prate, trainingAge };
 
+  // Assisted progression (e.g. pull-up with band/assist): add reps first, then REDUCE assist.
+  const assist = last.assistedKg != null && last.assistedKg !== '' ? Number(last.assistedKg) : null;
+  if(assist != null && assist > 0){
+    if(reps < hi) return { load: null, reps: reps + 1, assistKg: assist, reason: `Assisted — add a rep (${reps}→${reps+1}) before cutting assist.`, strategy: strat, personalised: prate, trainingAge };
+    const nextAssist = Math.max(0, snapLoad(assist - 2.5));
+    return { load: null, reps: lo, assistKg: nextAssist, reason: nextAssist===0 ? `Top of ${lo}–${hi} at ${assist}kg assist — drop the assist, you're ready.` : `Top of ${lo}–${hi} — reduce assist ${assist}→${nextAssist}kg.`, strategy: strat, personalised: prate, trainingAge };
+  }
   if(load === 0 && isBodyweight(exerciseId)){
-    if(reps < hi) return { load: null, reps: reps + 1, reason: `Bodyweight: add a rep (${reps}→${reps+1}).`, strategy: strat, personalised: prate };
-    return { load: null, reps, reason: "Top of range — try harder variant (decline/weighted/tempo).", strategy: strat, personalised: prate, suggestWeighted: true };
+    if(reps < hi) return { load: null, reps: reps + 1, reason: `Bodyweight: add a rep (${reps}→${reps+1}).`, strategy: strat, personalised: prate, trainingAge };
+    return { load: null, reps, reason: "Top of range — try harder variant (decline/weighted/tempo).", strategy: strat, personalised: prate, suggestWeighted: true, trainingAge };
   }
   const rpe = last.rpe != null && String(last.rpe).trim()!=='' ? Number(last.rpe) : null;
   const rir = rpe !== null && Number.isFinite(rpe) ? Math.max(0, 10 - rpe) : 2;
-  const incPct = prate ? Math.max(0.015, Math.min(0.06, prate.weeklyLoadPct || sCfg.incPct)) : sCfg.incPct;
+  // Personalised rate when learned; otherwise strategy base rate scaled by training age.
+  const incPct = prate
+    ? Math.max(0.015, Math.min(0.06, prate.weeklyLoadPct || sCfg.incPct))
+    : Math.max(0.01, Math.min(0.06, sCfg.incPct * trainingAge.multiplier));
 
   // Strategy-aware
   if(sCfg.prefer === 'load' && load>0){
@@ -118,16 +155,61 @@ export function recommendNext({ exerciseId, history, targetReps = "8–12", cons
     }
   }
   if(sCfg.prefer === 'reps'){
-    if(reps < hi) return { load, reps: Math.min(hi, reps+1), reason: `Endurance — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate };
+    if(reps < hi) return { load, reps: Math.min(hi, reps+1), reason: `Endurance — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge };
   }
   // Double progression (default for hypertrophy, and fallback)
   if(reps < hi) {
-    if(rir >= 2) return { load, reps: Math.min(hi, reps + 1), reason: `Room at RPE ${rpe ?? "/"} — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate };
+    if(rir >= 2) return { load, reps: Math.min(hi, reps + 1), reason: `Room at RPE ${rpe ?? "/"} — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge };
     const nextLoad = snapLoad(load * (1 + incPct));
-    return { load: nextLoad, reps: lo, reason: `Close to failure (RIR ~${rir}) — add a little load, reset to ${lo} reps.`, strategy: strat, personalised: prate };
+    return { load: nextLoad, reps: lo, reason: `Close to failure (RIR ~${rir}) — add a little load, reset to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge };
   }
   const nextLoad = snapLoad(load > 0 ? load * (conservative ? (1 + incPct) : (1 + incPct*1.6)) : 0);
-  return { load: nextLoad || load, reps: lo, reason: `Hit top of ${lo}–${hi} — nudge load, back to ${lo} reps.`, strategy: strat, personalised: prate };
+  return { load: nextLoad || load, reps: lo, reason: `Hit top of ${lo}–${hi} — nudge load, back to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge };
+}
+
+// Set progression: add a set only after 2 consecutive sessions at the top of the rep
+// range with room at the end (RIR ≥2). Conservative cap so volume never balloons.
+export function recommendSets(history, exerciseId, { targetReps = '8–12', maxSets = 5 } = {}){
+  const logs = logsFor(history, exerciseId).slice(-4);
+  const current = lastSessionSetCount(history, exerciseId);
+  if(!logs.length) return { sets: 3, reason: 'No history — start with 3 sets.', add: false };
+  const [lo, hi] = parseRange(targetReps);
+  if(logs.length < 2) return { sets: current, reason: 'Log another session before judging set count.', add: false };
+  const recent = logs.slice(-2);
+  const atTop = recent.every(l=> l.reps >= hi);
+  const room = recent.every(l=> l.rpe == null || String(l.rpe).trim()==='' || Number(l.rpe) <= 8);
+  if(atTop && room && current < maxSets) return { sets: current + 1, reason: `Two sessions at top of ${lo}–${hi} with reps in tank — add a set (${current}→${current+1}).`, add: true };
+  if(atTop) return { sets: current, reason: current >= maxSets ? `At ${maxSets} sets — cap reached; progress load or reps instead.` : 'At top of rep range but RPE was high — hold sets, add load first.', add: false };
+  return { sets: current, reason: `Not at the top of ${lo}–${hi} yet — keep building reps before adding sets.`, add: false };
+}
+
+// ROM progression: depth ladders for squat/hinge/push families. Nudge deeper only when
+// reps have been at the top of the range for 2 sessions at the current depth.
+const ROM_LADDERS = {
+  squat: ['partial', 'parallel', 'full'],
+  hinge: ['partial', 'full'],
+  push: ['partial', 'full'],
+};
+function romLadderFor(exerciseId){
+  if(/squat|split|lunge/.test(exerciseId||'')) return ROM_LADDERS.squat;
+  if(/deadlift|rdl|hinge|swing/.test(exerciseId||'')) return ROM_LADDERS.hinge;
+  if(/push-up|press|dip/.test(exerciseId||'')) return ROM_LADDERS.push;
+  return null;
+}
+export function romProgression(history, exerciseId, { targetReps = '8–12' } = {}){
+  const ladder = romLadderFor(exerciseId);
+  if(!ladder) return { supported: false, next: null, reason: 'No ROM ladder defined for this exercise — progress load/reps instead.' };
+  const logs = logsFor(history, exerciseId).slice(-2);
+  const withRom = logs.filter(l=> l.rom != null && String(l.rom).trim()!=='');
+  if(!withRom.length) return { supported: true, next: null, reason: 'Log depth (partial / parallel / full) to get ROM advice.' };
+  const [lo, hi] = parseRange(targetReps);
+  const cur = String(withRom[withRom.length-1].rom).toLowerCase();
+  const idx = ladder.indexOf(cur);
+  if(idx === -1) return { supported: true, next: null, reason: `Unrecognised depth "${withRom[withRom.length-1].rom}" — use ${ladder.join(' / ')}.` };
+  if(idx === ladder.length - 1) return { supported: true, next: null, reason: 'Already at full ROM — progress load or reps instead.' };
+  if(logs.length < 2 || !logs.slice(-2).every(l=> l.reps >= hi)) return { supported: true, next: null, reason: `Hit ${lo}–${hi} reps at ${cur} depth first, then aim deeper.` };
+  const next = ladder[idx+1];
+  return { supported: true, next, reason: `Reps at top of ${lo}–${hi} at ${cur} depth — aim for ${next} next session.` };
 }
 
 // Plateau: last 3 sessions no meaningful e1RM gain (<1%) and >=3 sessions (kept for backwards compat)
@@ -269,6 +351,13 @@ export function sideImbalance(sets){
 }
 
 // Helpers
+function lastSessionSetCount(history, exerciseId){
+  for(let i = (history||[]).length - 1; i >= 0; i--){
+    const b = (history[i].blocks||[]).find(b=> b.exerciseId===exerciseId);
+    if(b?.sets?.length) return b.sets.length;
+  }
+  return 3;
+}
 function logsFor(history, exerciseId){
   const out=[];
   for(const h of history||[]) for(const b of h.blocks||[]) if(b.exerciseId===exerciseId) for(const s of b.sets||[]){

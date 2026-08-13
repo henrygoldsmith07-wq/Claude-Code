@@ -34,7 +34,8 @@ npm run dev        # http://localhost:5173
 npm run build      # → dist/
 npm run lint:content
 npm run type-check # tsc --noEmit (jsconfig.json, src + scripts)
-npm test           # node:test (data / attributes / export / store)
+npm test           # node:test (data / attributes / export / store / validation)
+npm run benchmark  # seeded progression-validation harness → benchmark/results.md (also in CI)
 npm run verify     # lint:content && type-check && test && build  (also in CI)
 ```
 
