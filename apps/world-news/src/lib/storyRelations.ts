@@ -116,6 +116,7 @@ export const RELATION_LABEL: Record<RelationKind, string> = {
 // ---------------------------------------------------------------------------
 
 export type ChangeKind =
+  | "summary-rewritten"
   | "new-claim"
   | "figure-revised"
   | "claim-dropped"
@@ -216,6 +217,13 @@ export function whatChanged(prev: StoryCluster | null, next: StoryCluster): Stor
     if (!nextSet.has(normalise(s))) {
       changes.push({ kind: "claim-dropped", text: `No longer reported: ${s}`, weight: 55 });
     }
+  }
+
+  // A rewritten summary with identical claims is a rewording. Worth detecting
+  // so callers asking "did anything change" get a truthful answer, weighted low
+  // so it never becomes a notification.
+  if (normalise(prev.summary ?? "") !== normalise(next.summary ?? "")) {
+    changes.push({ kind: "summary-rewritten", text: "The summary was rewritten; the underlying claims are unchanged.", weight: 20 });
   }
 
   const timelineGrowth = (next.timeline ?? []).length - (prev.timeline ?? []).length;

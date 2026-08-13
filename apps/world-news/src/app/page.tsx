@@ -22,9 +22,9 @@ export default async function HomePage({
         <div className="mt-10 space-y-4">
           <h1 className="text-2xl font-semibold tracking-tight">World News — Lite</h1>
           <p className="text-sm text-muted">Low-bandwidth list. No globe, no WebGL — stories ranked by significance.</p>
-          <a href="/?" className="inline-block rounded-full border border-rule bg-panel px-3 py-1 text-xs hover:border-accent">
+          <Link href="/?" className="inline-block rounded-full border border-rule bg-panel px-3 py-1 text-xs hover:border-accent">
             Globe view →
-          </a>
+          </Link>
           {news ? <LiteNewsList news={news} /> : <p className="text-sm text-muted">News unavailable right now.</p>}
         </div>
       </main>
@@ -42,9 +42,9 @@ export default async function HomePage({
         <span className="rounded-full border border-rule bg-panel/80 px-3 py-1 text-xs text-muted backdrop-blur">
           Hover to highlight · click a country · Ctrl/⌘+B sidebar
         </span>
-        <a href="/?lite=1" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">
+        <Link href="/?lite=1" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">
           Lite mode
-        </a>
+        </Link>
         <Link href="/benchmark" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">Benchmark</Link>
         <Link href="/world" className="pointer-events-auto rounded-full border border-rule bg-panel/90 px-3 py-1 text-xs hover:border-accent">World news</Link>
       </div>

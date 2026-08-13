@@ -6,7 +6,7 @@ export interface Graph { nodes: { id: string; label: string; kind: string; weigh
 
 import type { CountryNews } from "./gemini";
 
-function topN<T>(entries: Map<string, number>, n: number): [string, number][] {
+function topN(entries: Map<string, number>, n: number): [string, number][] {
   return [...entries.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n);
 }
 

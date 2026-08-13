@@ -46,6 +46,7 @@ const KIND_BASE: Record<ChangeKind, { kind: NotificationKind; base: number } | n
   "dispute-resolved": { kind: "dispute", base: 66 },
   "new-claim": { kind: "major-development", base: 58 },
   "claim-dropped": null,
+  "summary-rewritten": null,
   "status-change": { kind: "major-development", base: 60 },
   "timeline-extended": null,
 };

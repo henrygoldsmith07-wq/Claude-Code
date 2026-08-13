@@ -1,21 +1,43 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { TOPICS } from "@/lib/gemini";
 import { loadSavedTopics, saveSavedTopics } from "@/lib/notifications";
 
+// Browser-only values read through useSyncExternalStore rather than an effect:
+// setting state inside an effect renders once with the wrong value and then
+// again with the right one, which is a visible flash on the topic chips.
+const subscribeStorage = (cb: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", cb);
+  return () => window.removeEventListener("storage", cb);
+};
+
 export default function SavedTopics() {
-  const [saved, setSaved] = useState<string[]>([]);
-  const [notify, setNotify] = useState(false);
-  useEffect(()=> setSaved(loadSavedTopics()), []);
-  useEffect(()=> { if (typeof Notification !== "undefined") setNotify(Notification.permission === "granted"); }, []);
+  const [override, setOverride] = useState<string[] | null>(null);
+  const stored = useSyncExternalStore(
+    subscribeStorage,
+    () => localStorage.getItem("world-news-saved-topics") ?? "[]",
+    () => "[]",
+  );
+  const saved = override ?? (() => { try { return loadSavedTopics(); } catch { return []; } })();
+  void stored;
+
+  const notify = useSyncExternalStore(
+    () => () => {},
+    () => (typeof Notification !== "undefined" && Notification.permission === "granted" ? "on" : "off"),
+    () => "off",
+  ) === "on";
+  const [notifyOverride, setNotifyOverride] = useState<boolean | null>(null);
+  const notifyOn = notifyOverride ?? notify;
+
   const toggle = (t: string) => {
     const next = saved.includes(t) ? saved.filter(x=>x!==t) : [...saved, t];
-    setSaved(next); saveSavedTopics(next);
+    setOverride(next); saveSavedTopics(next);
   };
   const askNotify = async () => {
     if (typeof Notification === "undefined") return;
     const p = await Notification.requestPermission();
-    setNotify(p === "granted");
+    setNotifyOverride(p === "granted");
   };
   return (
     <div className="rounded-xl border border-rule bg-panel p-4">
@@ -27,7 +49,7 @@ export default function SavedTopics() {
         ))}
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" onClick={askNotify} className="rounded-full border border-rule bg-panel-soft px-3 py-1 text-xs hover:border-accent">{notify?"Notifications on":"Enable notifications"}</button>
+        <button type="button" onClick={askNotify} className="rounded-full border border-rule bg-panel-soft px-3 py-1 text-xs hover:border-accent">{notifyOn?"Notifications on":"Enable notifications"}</button>
         <span className="text-[11px] text-muted">Browser notifications for meaningful changes to saved topics.</span>
       </div>
     </div>

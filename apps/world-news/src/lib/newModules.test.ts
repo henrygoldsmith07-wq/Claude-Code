@@ -67,9 +67,22 @@ describe("eventStore", () => {
 
 describe("provenance", () => {
   it("maps keyPoints to sources", () => {
-    const s = mkStory();
-    const claims = provenanceForStory(s);
-    expect(claims.length).toBe(2); expect(claims[0].sourceUrls.length).toBeGreaterThan(0);
+    // A claim only gets a citation when a source actually supports it. The
+    // fixture's sources say nothing about "KP1", so no URL is the right answer —
+    // the previous implementation cited source[i % n] regardless.
+    const unsupported = provenanceForStory(mkStory());
+    expect(unsupported).toHaveLength(2);
+    expect(unsupported[0].sourceUrls).toHaveLength(0);
+    expect(unsupported[0].confidence).toBe("low");
+
+    const supported = provenanceForStory(mkStory({
+      keyPoints: ["The ceasefire was extended for two weeks"],
+      sources: [
+        { url: "https://reuters.com/a", title: "Ceasefire extended for two weeks", publisher: "reuters.com" },
+        { url: "https://apnews.com/b", title: "Ceasefire extended by two weeks, mediators say", publisher: "apnews.com" },
+      ],
+    }));
+    expect(supported[0].sourceUrls.length).toBeGreaterThan(0);
   });
   it("timeline confidence scales with sources", () => {
     const s = mkStory({ timeline: [{date:"2025-01-01",label:"A"},{date:"2025-01-02",label:"B"},{date:"2025-01-03",label:"C"},{date:"2025-01-04",label:"D"}]});
@@ -78,8 +91,11 @@ describe("provenance", () => {
   });
   it("whatChangedSince detects change", () => {
     const a = mkStory({ summary:"Old" }); const b = mkStory({ summary:"New summary improved" });
-    const { changed } = whatChangedSince(a,b);
+    const { changed, summary } = whatChangedSince(a,b);
     expect(changed).toBe(true);
+    expect(summary).toMatch(/rewritten/);
+    // An identical story reports no change at all.
+    expect(whatChangedSince(a, mkStory({ summary:"Old" })).changed).toBe(false);
   });
 });
 
