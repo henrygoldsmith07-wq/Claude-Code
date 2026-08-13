@@ -1,0 +1,19 @@
+  1) tests/login.spec.ts:18:5 › login with valid credentials
+
+    Error: expect(received).toEqual(expected)
+
+    - Expected  - 2
+    + Received  + 1
+
+    - "redirected": false,
+    - "token": "abc",
+    + "redirected": true,
+
+    Expected: {"redirected": false, "token": "abc"}
+    Received: {"redirected": true}
+
+       at tests/login.spec.ts:20:15
+
+    attachment: screenshot.png (image/png)
+
+  2 failed, 18 passed, 0 skipped (21 tests, 3.4s)

@@ -33,8 +33,10 @@ function statsFor({ label, parserName, output, exitCode, criticalNeedles }) {
 
 function mdRow(cells) { return `| ${cells.join(' | ')} |`; }
 
-function run({ writeJson = false } = {}) {
-  const cases = [
+// Shared case list — also consumed by benchmark/families.js so every harness
+// scores the same evidence set (single source of truth).
+function buildCases() {
+  return [
     { label: 'Vitest pass (200 tests)', parserName: 'vitest', output: f.vitestPassFixture({ lines: 1200 }), exitCode: 0, criticalNeedles: ['200 passed', 'Duration'] },
     { label: 'Vitest failure (2 fails)', parserName: 'vitest', output: f.vitestFailFixture({ lines: 1200, fails: 2 }), exitCode: 1, criticalNeedles: ['FAIL', 'AssertionError', 'Expected:', 'Duration', '1 failed'] },
     { label: 'tsc pass (clean)', parserName: 'tsc', output: f.tscPassFixture(), exitCode: 0, criticalNeedles: [] },
@@ -68,7 +70,13 @@ function run({ writeJson = false } = {}) {
     { label: 'ANSI escapes', parserName: 'vitest', output: '\u001b[31mFAIL\u001b[0m src/app.test.ts > boom\n\u001b[31mAssertionError: expected 1 to equal 2\u001b[0m\n  at \u001b[33msrc/app.ts:10:5\u001b[0m', exitCode: 1, criticalNeedles: ['FAIL', 'AssertionError'] },
     { label: 'Unicode + emoji', parserName: 'generic', output: 'Error: boom 💥 at src/ünicode.ts:10:5\nTests  1 failed — café naïve résumé', exitCode: 1, criticalNeedles: ['Error: boom', '1 failed'] },
     { label: 'Nested JSON', parserName: 'generic', output: JSON.stringify({a:{b:{c:{d:{e:'deep error', empty:null, x:''}}, arr:Array.from({length:40},(_,i)=>i)}}}), exitCode: 1, criticalNeedles: ['deep error'] },
+    { label: 'CRLF vitest failure', parserName: 'vitest', output: ['FAIL src/a.test.ts > b', 'AssertionError: expected 1 to equal 2', 'Tests  1 failed'].join('\r\n'), exitCode: 1, criticalNeedles: ['FAIL', 'AssertionError', '1 failed'] },
+    { label: 'Truncated mid-error (no trailing newline)', parserName: 'vitest', output: 'FAIL src/a.test.ts > b\nAssertionError: expected 1 to eq', exitCode: 1, criticalNeedles: ['FAIL', 'AssertionError'] },
   ];
+}
+
+function run({ writeJson = false } = {}) {
+  const cases = buildCases();
 
   const rows = cases.map((c) => statsFor(c));
 
@@ -119,4 +127,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { run };
+module.exports = { run, buildCases };

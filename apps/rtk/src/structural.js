@@ -67,10 +67,12 @@ function compressJson(output) {
     return v;
   }
   const pruned = prune(parsed);
+  const compact = JSON.stringify(pruned);
+  if (compact.length >= JSON.stringify(parsed).length) return null;
   const pretty = JSON.stringify(pruned, null, 2);
-  const didWork = JSON.stringify(pruned).length < JSON.stringify(parsed).length;
-  if (!didWork && pretty.length >= trimmed.length * 0.95) return null;
-  return pretty;
+  // Deep nesting makes 2-space indent bloat quadratically; keep the pruned
+  // compact form when pretty-printing would be meaningfully larger (memory).
+  return pretty.length > compact.length * 1.5 ? compact : pretty;
 }
 
 // NDJSON: many JSON lines (e.g. jsonl logs). Compress per-line.

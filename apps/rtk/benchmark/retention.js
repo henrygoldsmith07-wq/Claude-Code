@@ -30,6 +30,14 @@ function criticalNeedlesFor(logName, exitCode) {
     'stack': ['Error: boom'],
     'tsc-fail': ['error TS2322'],
     'next-fail': ['Failed to compile'],
+    'npm-ci-fail': ['ERESOLVE', 'react@'],
+    'cargo-build-fail': ['error[E0308]', 'src/main.rs:10:5'],
+    'playwright-fail': ['toEqual', 'Expected:', 'Received:'],
+    'eslint-scan': ['F401', '5 problems'],
+    'gha-real-fail': ['Process completed with exit code', 'src/app.ts'],
+    'pytest-traceback': ['AssertionError', 'test_billing.py:8', '1 failed'],
+    'ansi': ['FAIL', 'AssertionError'],
+    'unicode': ['Error: boom', '1 failed'],
   };
   return map[logName] ?? [];
 }
@@ -45,11 +53,21 @@ function corpusCases() {
       const label = path.basename(f, '.log');
       // Heuristic exit code: diagnostic outputs (diff, junit, sarif, stack) are always "failure" for retention; otherwise sniff markers
       const isDiagnostic = /diff --git|^@@/m.test(output) || /<testsuite|<failure/i.test(output) || /"sarif"|"runs"/.test(output) || /Error: boom/.test(output);
-      const looksFailed = isDiagnostic || /FAIL|AssertionError|not ok |Error\s*\[|error TS\d+/i.test(output);
+      const looksFailed = isDiagnostic || /FAIL|AssertionError|not ok |Error\s*\[|error TS\d+|ERR!|\berror\b|Traceback|Process completed with exit code|\b✖\b/i.test(output);
       const exitCode = looksFailed ? 1 : 0;
       const needles = criticalNeedlesFor(label, exitCode).filter(Boolean);
       // Pick parser by sniffing the corpus output (mirrors CLI --stdin sniffing)
-      const argv = label.includes('tsc') ? ['tsc','--noEmit'] : label.includes('gha') ? ['gha'] : label.includes('diff') ? ['git','diff'] : label.includes('stack') ? ['npm','test'] : ['npm','test'];
+      const argv =
+        label.includes('tsc') ? ['tsc','--noEmit']
+        : label.includes('gha') ? ['gha']
+        : label.includes('diff') ? ['git','diff']
+        : label.includes('stack') ? ['npm','test']
+        : label.includes('npm-ci') ? ['npm','ci']
+        : label.includes('cargo') ? ['cargo','build']
+        : label.includes('playwright') ? ['npx','playwright','test']
+        : label.includes('eslint') ? ['npx','eslint','.']
+        : label.includes('pytest') ? ['pytest']
+        : ['npm','test'];
       const parser = pickParser(argv, output);
       return { label: `corpus/${f}`, parser, output, exitCode, criticalNeedles: needles };
     });

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-11T09:07:19.443Z",
+  "generatedAt": "2026-08-13T15:08:57.699Z",
   "tokenizer": "o200k_base",
   "rows": [
     {
@@ -21,7 +21,7 @@
         "Duration"
       ],
       "missing": [],
-      "latencyMs": 0.4364789999999985
+      "latencyMs": 0.443009
     },
     {
       "label": "Vitest failure (2 fails)",
@@ -45,7 +45,7 @@
         "1 failed"
       ],
       "missing": [],
-      "latencyMs": 0.909108999999944
+      "latencyMs": 0.9360960000000205
     },
     {
       "label": "tsc pass (clean)",
@@ -63,7 +63,7 @@
       "criticalRetained": true,
       "criticalNeedles": [],
       "missing": [],
-      "latencyMs": 0.11543000000006032
+      "latencyMs": 0.13089899999999943
     },
     {
       "label": "tsc failure (4 errors)",
@@ -84,7 +84,7 @@
         "Found 4 errors"
       ],
       "missing": [],
-      "latencyMs": 0.16352999999992335
+      "latencyMs": 0.16378999999994903
     },
     {
       "label": "Next build failure",
@@ -105,7 +105,7 @@
         "Type error"
       ],
       "missing": [],
-      "latencyMs": 0.38489900000001853
+      "latencyMs": 0.380849000000012
     },
     {
       "label": "Next build pass",
@@ -126,7 +126,7 @@
         "Build completed"
       ],
       "missing": [],
-      "latencyMs": 0.12800000000004275
+      "latencyMs": 0.13111900000001242
     },
     {
       "label": "Generic failure",
@@ -147,7 +147,7 @@
         "1 failed"
       ],
       "missing": [],
-      "latencyMs": 0.30350000000009913
+      "latencyMs": 0.2990589999999429
     },
     {
       "label": "ESLint errors",
@@ -168,7 +168,7 @@
         "E501"
       ],
       "missing": [],
-      "latencyMs": 0.11933999999996558
+      "latencyMs": 0.13490899999999328
     },
     {
       "label": "Pytest failure",
@@ -189,7 +189,7 @@
         "assert 1 == 2"
       ],
       "missing": [],
-      "latencyMs": 0.22117000000002918
+      "latencyMs": 0.22232000000008156
     },
     {
       "label": "Ruff",
@@ -210,7 +210,7 @@
         "Found 2 errors"
       ],
       "missing": [],
-      "latencyMs": 0.13945999999998548
+      "latencyMs": 0.13384999999993852
     },
     {
       "label": "mypy",
@@ -231,7 +231,7 @@
         "Found 1 error"
       ],
       "missing": [],
-      "latencyMs": 0.10977900000000318
+      "latencyMs": 0.11338000000000648
     },
     {
       "label": "Cargo error",
@@ -252,7 +252,7 @@
         "src/main.rs:10:5"
       ],
       "missing": [],
-      "latencyMs": 0.20940999999993437
+      "latencyMs": 0.18032000000005155
     },
     {
       "label": "Go test FAIL",
@@ -273,7 +273,7 @@
         "foo_test.go:10"
       ],
       "missing": [],
-      "latencyMs": 0.1782100000000355
+      "latencyMs": 0.17132900000001428
     },
     {
       "label": "Maven BUILD FAILURE",
@@ -295,7 +295,7 @@
         "Failures: 1"
       ],
       "missing": [],
-      "latencyMs": 0.14904999999998836
+      "latencyMs": 0.14009999999996126
     },
     {
       "label": "Gradle BUILD FAILED",
@@ -316,7 +316,7 @@
         "BUILD FAILED"
       ],
       "missing": [],
-      "latencyMs": 0.16713000000004286
+      "latencyMs": 0.5211479999999256
     },
     {
       "label": "Docker ERROR",
@@ -336,7 +336,7 @@
         "ERROR: failed to solve"
       ],
       "missing": [],
-      "latencyMs": 0.12186999999994441
+      "latencyMs": 0.47502799999995204
     },
     {
       "label": "K8s CrashLoop",
@@ -356,7 +356,7 @@
         "CrashLoopBackOff"
       ],
       "missing": [],
-      "latencyMs": 0.15480000000002292
+      "latencyMs": 0.3566390000000865
     },
     {
       "label": "Terraform Error",
@@ -377,7 +377,7 @@
         "main.tf line 10"
       ],
       "missing": [],
-      "latencyMs": 0.12454999999999927
+      "latencyMs": 0.2746590000000424
     },
     {
       "label": "npm ERR!",
@@ -397,7 +397,7 @@
         "npm ERR!"
       ],
       "missing": [],
-      "latencyMs": 0.13025900000002366
+      "latencyMs": 0.287509
     },
     {
       "label": "Git CONFLICT",
@@ -418,28 +418,28 @@
         "Merge conflict"
       ],
       "missing": [],
-      "latencyMs": 0.21618999999998323
+      "latencyMs": 0.41618800000003375
     },
     {
       "label": "GHA annotation",
       "parser": "gha",
       "rawChars": 109,
-      "emittedChars": 81,
-      "reductionPct": 26,
+      "emittedChars": 96,
+      "reductionPct": 12,
       "rawTokens": 32,
-      "emittedTokens": 23,
-      "tokenReductionPct": 28,
-      "tokensSaved": 9,
-      "costSaved": 0.0000225,
+      "emittedTokens": 28,
+      "tokenReductionPct": 13,
+      "tokensSaved": 4,
+      "costSaved": 0.00001,
       "rawLines": 4,
-      "emittedLines": 2,
+      "emittedLines": 3,
       "criticalRetained": true,
       "criticalNeedles": [
         "::error",
         "exit code 1"
       ],
       "missing": [],
-      "latencyMs": 0.24126000000001113
+      "latencyMs": 0.46559799999999996
     },
     {
       "label": "Truncate (2k-line verbose log)",
@@ -457,7 +457,7 @@
       "criticalRetained": true,
       "criticalNeedles": [],
       "missing": [],
-      "latencyMs": 2.0612080000000788
+      "latencyMs": 0.44989799999996194
     },
     {
       "label": "GitHub Actions log (failure)",
@@ -478,7 +478,7 @@
         "action.js:42:10"
       ],
       "missing": [],
-      "latencyMs": 0.1753400000000056
+      "latencyMs": 0.18998899999996866
     },
     {
       "label": "Search results JSON (120 hits)",
@@ -496,7 +496,7 @@
       "criticalRetained": true,
       "criticalNeedles": [],
       "missing": [],
-      "latencyMs": 0.29678899999998976
+      "latencyMs": 0.28240900000002966
     },
     {
       "label": "CLI verbose (2k lines)",
@@ -514,7 +514,7 @@
       "criticalRetained": true,
       "criticalNeedles": [],
       "missing": [],
-      "latencyMs": 0.20889899999997397
+      "latencyMs": 0.2278600000000779
     },
     {
       "label": "Diff (4 files)",
@@ -535,7 +535,7 @@
         "const x"
       ],
       "missing": [],
-      "latencyMs": 0.06583999999998014
+      "latencyMs": 0.07580899999993562
     },
     {
       "label": "Stack trace",
@@ -556,7 +556,7 @@
         "app.ts:42:10"
       ],
       "missing": [],
-      "latencyMs": 0.21085999999991145
+      "latencyMs": 0.19327899999996134
     },
     {
       "label": "NDJSON logs",
@@ -576,7 +576,7 @@
         "boom"
       ],
       "missing": [],
-      "latencyMs": 0.017650000000003274
+      "latencyMs": 0.01713999999992666
     },
     {
       "label": "JUnit XML",
@@ -597,7 +597,7 @@
         "boom"
       ],
       "missing": [],
-      "latencyMs": 0.00668000000007396
+      "latencyMs": 0.007290000000011787
     },
     {
       "label": "SARIF",
@@ -617,7 +617,7 @@
         "boom"
       ],
       "missing": [],
-      "latencyMs": 0.00418000000001939
+      "latencyMs": 0.004580000000032669
     },
     {
       "label": "ANSI escapes",
@@ -638,7 +638,7 @@
         "AssertionError"
       ],
       "missing": [],
-      "latencyMs": 0.010010000000079344
+      "latencyMs": 0.009430000000065775
     },
     {
       "label": "Unicode + emoji",
@@ -659,7 +659,7 @@
         "1 failed"
       ],
       "missing": [],
-      "latencyMs": 0.014480000000048676
+      "latencyMs": 0.01607000000001335
     },
     {
       "label": "Nested JSON",
@@ -679,7 +679,50 @@
         "deep error"
       ],
       "missing": [],
-      "latencyMs": 0.008570000000077016
+      "latencyMs": 0.014949999999998909
+    },
+    {
+      "label": "CRLF vitest failure",
+      "parser": "vitest",
+      "rawChars": 78,
+      "emittedChars": 78,
+      "reductionPct": 0,
+      "rawTokens": 24,
+      "emittedTokens": 24,
+      "tokenReductionPct": 0,
+      "tokensSaved": 0,
+      "costSaved": 0,
+      "rawLines": 3,
+      "emittedLines": 3,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "FAIL",
+        "AssertionError",
+        "1 failed"
+      ],
+      "missing": [],
+      "latencyMs": 0.0044100000000071304
+    },
+    {
+      "label": "Truncated mid-error (no trailing newline)",
+      "parser": "vitest",
+      "rawChars": 55,
+      "emittedChars": 55,
+      "reductionPct": 0,
+      "rawTokens": 16,
+      "emittedTokens": 16,
+      "tokenReductionPct": 0,
+      "tokensSaved": 0,
+      "costSaved": 0,
+      "rawLines": 2,
+      "emittedLines": 2,
+      "criticalRetained": true,
+      "criticalNeedles": [
+        "FAIL",
+        "AssertionError"
+      ],
+      "missing": [],
+      "latencyMs": 0.004889999999932115
     }
   ]
 }

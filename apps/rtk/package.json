@@ -44,9 +44,11 @@
     "benchmark:retention": "node benchmark/retention.js",
     "benchmark:perf": "node benchmark/perf.js",
     "benchmark:corpus": "node benchmark/corpus-builder.js",
-    "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js",
+    "benchmark:families": "node benchmark/families.js",
+    "benchmark:detection": "node benchmark/detection.js",
+    "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/families.js && node benchmark/detection.js && node benchmark/agent-solve.js && node benchmark/retention.js",
     "type-check": "tsc --noEmit",
-    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/agent-live.js && npm pack --dry-run"
+    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/families.js && node benchmark/detection.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/agent-live.js && npm pack --dry-run"
   },
   "engines": {
     "node": ">=18"

@@ -31,7 +31,7 @@ function pickParser(argv, output) {
   // argv-based (fast path, no output needed)
   if (/(^|\s)tsc(\s|$)/.test(joined) || (joined.includes('typescript') && joined.includes('tsc'))) return PARSERS.tsc;
   if (joined.includes('next build')) return PARSERS.nextBuild;
-  if (joined.includes('vitest')) return PARSERS.vitest;
+  if (joined.includes('vitest') || joined.includes('bun test') || joined.includes('bun run test')) return PARSERS.vitest;
   if (joined.includes('jest') && !joined.includes('eslint')) return PARSERS.jest;
   if (joined.includes('eslint')) return PARSERS.eslint;
   if (joined.includes('ruff')) return PARSERS.ruff;
@@ -44,8 +44,8 @@ function pickParser(argv, output) {
   if (joined.includes('docker build') || joined.includes('docker ')) return PARSERS.docker;
   if (joined.includes('kubectl') || joined.includes('k8s') || joined.includes('helm')) return PARSERS.k8s;
   if (joined.includes('terraform')) return PARSERS.terraform;
-  if (joined.includes('npm install') || joined.includes('npm ci') || joined.includes('yarn') || joined.includes('pnpm') || joined.includes('bun install')) return PARSERS.pm;
-  if (joined.includes('npm test') || joined.includes('npm run test')) return PARSERS.vitest;
+  if (joined.includes('npm install') || joined.includes('npm ci') || joined.includes('yarn install') || joined.includes('yarn add') || joined.includes('pnpm install') || joined.includes('pnpm add') || joined.includes('pnpm ci') || joined.includes('bun install')) return PARSERS.pm;
+  if (joined.includes('npm test') || joined.includes('npm run test') || joined.includes('yarn test') || joined.includes('yarn run test') || joined.includes('pnpm test') || joined.includes('pnpm run test')) return PARSERS.vitest;
   // Output sniffing (when caller has output and argv was generic)
   if (output) {
     const out = String(output);
@@ -65,7 +65,8 @@ function pickParser(argv, output) {
         return PARSERS.mypy;
       }
     }
-    if (/\b[A-Z]\d{3}\b.*:\d+:\d+/i.test(out)) return PARSERS.ruff;
+    // Ruff rule codes: after file:line:col (`src/a.py:10:5: E501 ...`) or before (`E501 ... at src/a.py:10:5`).
+    if (/:\d+:\d+:\s*[A-Z]\d{3}\b|\b[A-Z]\d{3}\b.*:\d+:\d+/i.test(out)) return PARSERS.ruff;
     if (/on .*\.tf line \d+/i.test(out) || /Apply complete!/i.test(out)) return PARSERS.terraform;
     if (/ERR!|Cannot resolve dependency/i.test(out)) return PARSERS.pm;
     if (/CrashLoopBackOff|ImagePullBackOff|Error from server/i.test(out)) return PARSERS.k8s;

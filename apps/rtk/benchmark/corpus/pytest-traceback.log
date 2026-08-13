@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+collected 10 items
+
+tests/test_billing.py ....F.....
+
+_______________________________ test_billing_calc ________________________________
+
+    def test_billing_calc():
+>       assert calc(100, 3) == 310
+E       assert 300 == 310
+E        +  where 300 = calc(100, 3)
+
+tests/test_billing.py:8: AssertionError
+
+=========================== short test summary info ============================
+FAILED tests/test_billing.py::test_billing_calc - AssertionError: assert 300 == 310
+========================= 1 failed, 9 passed in 0.42s ==========================

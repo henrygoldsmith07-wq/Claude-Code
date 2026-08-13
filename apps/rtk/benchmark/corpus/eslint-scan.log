@@ -1,0 +1,9 @@
+/src/app.ts:10:5  error  F401  unused variable / line too long / forbidden any  eslint
+/src/lib/util.ts:11:6  error  E501  unused variable / line too long / forbidden any  eslint
+/src/components/Button.tsx:12:7  error  N2023  unused variable / line too long / forbidden any  eslint
+/src/pages/index.tsx:13:8  error  S101  unused variable / line too long / forbidden any  eslint
+/src/server.ts:14:9  error  R105  unused variable / line too long / forbidden any  eslint
+
+✖ 5 problems (5 errors, 0 warnings)
+
+  5 errors and 0 warnings potentially fixable with the `--fix` option.

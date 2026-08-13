@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-11T09:07:20.141Z",
+  "generatedAt": "2026-08-13T15:09:00.551Z",
   "rows": [
     {
       "label": "corpus/ansi.log",
@@ -7,7 +7,23 @@
       "rawChars": 113,
       "emittedChars": 113,
       "reductionPct": 0,
-      "criticalNeedles": [],
+      "criticalNeedles": [
+        "FAIL",
+        "AssertionError"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/cargo-build-fail.log",
+      "parser": "cargo",
+      "rawChars": 596,
+      "emittedChars": 178,
+      "reductionPct": 70,
+      "criticalNeedles": [
+        "error[E0308]",
+        "src/main.rs:10:5"
+      ],
       "criticalRetained": true,
       "missing": []
     },
@@ -20,6 +36,19 @@
       "criticalNeedles": [
         "diff --git",
         "const x"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/eslint-scan.log",
+      "parser": "eslint",
+      "rawChars": 576,
+      "emittedChars": 574,
+      "reductionPct": 0,
+      "criticalNeedles": [
+        "F401",
+        "5 problems"
       ],
       "criticalRetained": true,
       "missing": []
@@ -41,11 +70,24 @@
       "label": "corpus/gha-fail.log",
       "parser": "gha",
       "rawChars": 1968,
-      "emittedChars": 75,
-      "reductionPct": 96,
+      "emittedChars": 162,
+      "reductionPct": 92,
       "criticalNeedles": [
         "Error:",
         "exit code"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/gha-real-fail.log",
+      "parser": "gha",
+      "rawChars": 397,
+      "emittedChars": 315,
+      "reductionPct": 21,
+      "criticalNeedles": [
+        "Process completed with exit code",
+        "src/app.ts"
       ],
       "criticalRetained": true,
       "missing": []
@@ -64,8 +106,8 @@
       "label": "corpus/ndjson.log",
       "parser": "vitest",
       "rawChars": 3114,
-      "emittedChars": 31,
-      "reductionPct": 99,
+      "emittedChars": 55,
+      "reductionPct": 98,
       "criticalNeedles": [],
       "criticalRetained": true,
       "missing": []
@@ -78,6 +120,47 @@
       "reductionPct": 58,
       "criticalNeedles": [
         "Failed to compile"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/npm-ci-fail.log",
+      "parser": "pm",
+      "rawChars": 869,
+      "emittedChars": 829,
+      "reductionPct": 5,
+      "criticalNeedles": [
+        "ERESOLVE",
+        "react@"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/playwright-fail.log",
+      "parser": "generic",
+      "rawChars": 444,
+      "emittedChars": 168,
+      "reductionPct": 62,
+      "criticalNeedles": [
+        "toEqual",
+        "Expected:",
+        "Received:"
+      ],
+      "criticalRetained": true,
+      "missing": []
+    },
+    {
+      "label": "corpus/pytest-traceback.log",
+      "parser": "pytest",
+      "rawChars": 633,
+      "emittedChars": 230,
+      "reductionPct": 64,
+      "criticalNeedles": [
+        "AssertionError",
+        "test_billing.py:8",
+        "1 failed"
       ],
       "criticalRetained": true,
       "missing": []
@@ -112,7 +195,10 @@
       "rawChars": 73,
       "emittedChars": 73,
       "reductionPct": 0,
-      "criticalNeedles": [],
+      "criticalNeedles": [
+        "Error: boom",
+        "1 failed"
+      ],
       "criticalRetained": true,
       "missing": []
     },

@@ -1,0 +1,10 @@
+Run npm run lint
+  npm run lint
+  shell: /usr/bin/bash -e {0}
+  env:
+    CI: true
+  npx eslint .
+::error file=/src/app.ts,line=10,endLine=10,title=ESLint::F401 `os` imported but unused
+::error file=/src/lib/util.ts,line=42,endLine=42,title=ESLint::E501 Line too long
+Error: Process completed with exit code 1.
+  at cleanup (/home/runner/work/_actions/actions/setup-node/v4/dist/setup/index.js:4:5)

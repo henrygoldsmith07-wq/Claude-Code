@@ -32,6 +32,8 @@ jobs:
       - run: npm run type-check
       - run: npm test
       - run: node benchmark/run.js
+      - run: node benchmark/families.js
+      - run: node benchmark/detection.js
       - run: node benchmark/retention.js
       - run: node benchmark/agent-solve.js
       - run: node benchmark/agent-live.js

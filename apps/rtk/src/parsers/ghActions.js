@@ -2,7 +2,8 @@
 const name = 'gha';
 const MAX_LINES = 60;
 const rules = [
-  { re: /::error::|::warning::/i, keep: true, reason: 'gha: annotation' },
+  // Both bare `::error::` and annotated `::error file=...,line=10::` (real GHA log format)
+  { re: /::(?:error|warning|notice)(?:\s[^:]*)?::/i, keep: true, reason: 'gha: annotation' },
   { re: /Error:.*exit code|Process completed with exit code/i, keep: true, reason: 'gha: process failed' },
   { re: /##\[error\]/i, keep: true, reason: 'gha: azure error' },
   { re: /at\s+.*:\d+:\d+/i, keep: true, reason: 'gha: stack' },
@@ -15,10 +16,10 @@ function filter(output, exitCode, opts={}) {
     const emitted = summary.length ? summary.join('\n') : `✓ actions — passed (${lines.length} lines suppressed)`;
     return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };
   }
-  const kept = lines.filter(l => /::error::|::warning::|Error:.*exit code|##\[error\]|at\s+.*:\d+:\d+/i.test(l)).slice(0,maxLines);
+  const kept = lines.filter(l => /::(?:error|warning|notice)(?:\s[^:]*)?::|Error:.*exit code|##\[error\]|at\s+.*:\d+:\d+/i.test(l)).slice(0,maxLines);
   // Also keep failed job marker context (1 line before error)
   const extra = [];
-  for (let i=0;i<lines.length;i++) if (/::error::|##\[error\]|Error:.*exit code/i.test(lines[i]) && i>0) extra.push(lines[i-1]);
+  for (let i=0;i<lines.length;i++) if (/::(?:error|warning|notice)(?:\s[^:]*)?::|##\[error\]|Error:.*exit code/i.test(lines[i]) && i>0) extra.push(lines[i-1]);
   const merged = [...new Set([...kept, ...extra.slice(0,10)])].sort((a,b)=>lines.indexOf(a)-lines.indexOf(b));
   const emitted = (merged.length?merged:lines.slice(-Math.min(30,maxLines))).join('\n');
   return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };

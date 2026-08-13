@@ -1,0 +1,1521 @@
+{
+  "generatedAt": "2026-08-13T15:09:00.444Z",
+  "cases": 35,
+  "families": [
+    {
+      "id": "o200k",
+      "encoding": "o200k_base",
+      "label": "GPT-4o / GPT-4.1 / o1 family",
+      "model": "gpt-4o",
+      "rawTokens": 117086,
+      "emittedTokens": 1664,
+      "tokensSaved": 115427,
+      "costSaved": 0.28856750000000003,
+      "reductionPct": 99,
+      "costPer1kRuns": 288.56750000000005,
+      "price": "gpt-4o @ $2.5/1M input"
+    },
+    {
+      "id": "cl100k",
+      "encoding": "cl100k_base",
+      "label": "GPT-4 / GPT-3.5 family",
+      "model": "gpt-4",
+      "rawTokens": 117084,
+      "emittedTokens": 1647,
+      "tokensSaved": 115442,
+      "costSaved": 3.46326,
+      "reductionPct": 99,
+      "costPer1kRuns": 3463.26,
+      "price": "gpt-4 @ $30/1M input"
+    },
+    {
+      "id": "p50k",
+      "encoding": "p50k_base",
+      "label": "Codex / code models",
+      "model": "code-davinci-002",
+      "rawTokens": 127765,
+      "emittedTokens": 1867,
+      "tokensSaved": 125903,
+      "costSaved": 0.015108359999999998,
+      "reductionPct": 99,
+      "costPer1kRuns": 15.108359999999998,
+      "price": "code-davinci-002 @ $0.12/1M input"
+    },
+    {
+      "id": "r50k",
+      "encoding": "r50k_base",
+      "label": "GPT-3 / text-davinci family",
+      "model": "text-davinci-003",
+      "rawTokens": 137486,
+      "emittedTokens": 1941,
+      "tokensSaved": 135550,
+      "costSaved": 0.2711,
+      "reductionPct": 99,
+      "costPer1kRuns": 271.1,
+      "price": "text-davinci-003 @ $2/1M input"
+    },
+    {
+      "id": "gpt2",
+      "encoding": "gpt2",
+      "label": "GPT-2 base",
+      "model": "gpt-3.5-turbo",
+      "rawTokens": 137486,
+      "emittedTokens": 1941,
+      "tokensSaved": 135550,
+      "costSaved": 0.067775,
+      "reductionPct": 99,
+      "costPer1kRuns": 67.775,
+      "price": "gpt-3.5-turbo @ $0.5/1M input"
+    }
+  ],
+  "stability": {
+    "reductions": [
+      99,
+      99,
+      99,
+      99,
+      99
+    ],
+    "spreadPct": 0,
+    "minPct": 99,
+    "maxPct": 99,
+    "avgPct": 99
+  },
+  "rows": [
+    {
+      "label": "Vitest pass (200 tests)",
+      "parser": "vitest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 22966,
+          "emittedTokens": 26,
+          "tokensSaved": 22940,
+          "reductionPct": 100,
+          "costSaved": 0.057350000000000005
+        },
+        "cl100k": {
+          "rawTokens": 22966,
+          "emittedTokens": 26,
+          "tokensSaved": 22940,
+          "reductionPct": 100,
+          "costSaved": 0.6882
+        },
+        "p50k": {
+          "rawTokens": 27045,
+          "emittedTokens": 25,
+          "tokensSaved": 27020,
+          "reductionPct": 100,
+          "costSaved": 0.0032424
+        },
+        "r50k": {
+          "rawTokens": 27050,
+          "emittedTokens": 30,
+          "tokensSaved": 27020,
+          "reductionPct": 100,
+          "costSaved": 0.05404
+        },
+        "gpt2": {
+          "rawTokens": 27050,
+          "emittedTokens": 30,
+          "tokensSaved": 27020,
+          "reductionPct": 100,
+          "costSaved": 0.01351
+        }
+      }
+    },
+    {
+      "label": "Vitest failure (2 fails)",
+      "parser": "vitest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 20012,
+          "emittedTokens": 168,
+          "tokensSaved": 19844,
+          "reductionPct": 99,
+          "costSaved": 0.04961
+        },
+        "cl100k": {
+          "rawTokens": 20012,
+          "emittedTokens": 168,
+          "tokensSaved": 19844,
+          "reductionPct": 99,
+          "costSaved": 0.59532
+        },
+        "p50k": {
+          "rawTokens": 25148,
+          "emittedTokens": 183,
+          "tokensSaved": 24965,
+          "reductionPct": 99,
+          "costSaved": 0.0029958
+        },
+        "r50k": {
+          "rawTokens": 25155,
+          "emittedTokens": 190,
+          "tokensSaved": 24965,
+          "reductionPct": 99,
+          "costSaved": 0.049929999999999995
+        },
+        "gpt2": {
+          "rawTokens": 25155,
+          "emittedTokens": 190,
+          "tokensSaved": 24965,
+          "reductionPct": 99,
+          "costSaved": 0.012482499999999999
+        }
+      }
+    },
+    {
+      "label": "tsc pass (clean)",
+      "parser": "tsc",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 6,
+          "emittedTokens": 11,
+          "tokensSaved": 0,
+          "reductionPct": -83,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 7,
+          "emittedTokens": 12,
+          "tokensSaved": 0,
+          "reductionPct": -71,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 7,
+          "emittedTokens": 12,
+          "tokensSaved": 0,
+          "reductionPct": -71,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 7,
+          "emittedTokens": 12,
+          "tokensSaved": 0,
+          "reductionPct": -71,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 7,
+          "emittedTokens": 12,
+          "tokensSaved": 0,
+          "reductionPct": -71,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "tsc failure (4 errors)",
+      "parser": "tsc",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 169,
+          "emittedTokens": 169,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 165,
+          "emittedTokens": 165,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 187,
+          "emittedTokens": 187,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 187,
+          "emittedTokens": 187,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 187,
+          "emittedTokens": 187,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Next build failure",
+      "parser": "nextBuild",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 61,
+          "emittedTokens": 46,
+          "tokensSaved": 15,
+          "reductionPct": 25,
+          "costSaved": 0.000037500000000000003
+        },
+        "cl100k": {
+          "rawTokens": 60,
+          "emittedTokens": 45,
+          "tokensSaved": 15,
+          "reductionPct": 25,
+          "costSaved": 0.00045
+        },
+        "p50k": {
+          "rawTokens": 69,
+          "emittedTokens": 53,
+          "tokensSaved": 16,
+          "reductionPct": 23,
+          "costSaved": 0.00000192
+        },
+        "r50k": {
+          "rawTokens": 81,
+          "emittedTokens": 53,
+          "tokensSaved": 28,
+          "reductionPct": 35,
+          "costSaved": 0.000056
+        },
+        "gpt2": {
+          "rawTokens": 81,
+          "emittedTokens": 53,
+          "tokensSaved": 28,
+          "reductionPct": 35,
+          "costSaved": 0.000014
+        }
+      }
+    },
+    {
+      "label": "Next build pass",
+      "parser": "nextBuild",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 81,
+          "emittedTokens": 59,
+          "tokensSaved": 22,
+          "reductionPct": 27,
+          "costSaved": 0.000055
+        },
+        "cl100k": {
+          "rawTokens": 79,
+          "emittedTokens": 58,
+          "tokensSaved": 21,
+          "reductionPct": 27,
+          "costSaved": 0.00063
+        },
+        "p50k": {
+          "rawTokens": 89,
+          "emittedTokens": 66,
+          "tokensSaved": 23,
+          "reductionPct": 26,
+          "costSaved": 0.00000276
+        },
+        "r50k": {
+          "rawTokens": 182,
+          "emittedTokens": 125,
+          "tokensSaved": 57,
+          "reductionPct": 31,
+          "costSaved": 0.00011399999999999999
+        },
+        "gpt2": {
+          "rawTokens": 182,
+          "emittedTokens": 125,
+          "tokensSaved": 57,
+          "reductionPct": 31,
+          "costSaved": 0.000028499999999999998
+        }
+      }
+    },
+    {
+      "label": "Generic failure",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 33,
+          "emittedTokens": 23,
+          "tokensSaved": 10,
+          "reductionPct": 30,
+          "costSaved": 0.000025
+        },
+        "cl100k": {
+          "rawTokens": 33,
+          "emittedTokens": 23,
+          "tokensSaved": 10,
+          "reductionPct": 30,
+          "costSaved": 0.00030000000000000003
+        },
+        "p50k": {
+          "rawTokens": 31,
+          "emittedTokens": 23,
+          "tokensSaved": 8,
+          "reductionPct": 26,
+          "costSaved": 9.6e-7
+        },
+        "r50k": {
+          "rawTokens": 31,
+          "emittedTokens": 23,
+          "tokensSaved": 8,
+          "reductionPct": 26,
+          "costSaved": 0.000016
+        },
+        "gpt2": {
+          "rawTokens": 31,
+          "emittedTokens": 23,
+          "tokensSaved": 8,
+          "reductionPct": 26,
+          "costSaved": 0.000004
+        }
+      }
+    },
+    {
+      "label": "ESLint errors",
+      "parser": "eslint",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 51,
+          "emittedTokens": 51,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 51,
+          "emittedTokens": 51,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 55,
+          "emittedTokens": 55,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 55,
+          "emittedTokens": 55,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 55,
+          "emittedTokens": 55,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Pytest failure",
+      "parser": "pytest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 57,
+          "emittedTokens": 57,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 56,
+          "emittedTokens": 56,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 60,
+          "emittedTokens": 60,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 61,
+          "emittedTokens": 61,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 61,
+          "emittedTokens": 61,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Ruff",
+      "parser": "ruff",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 36,
+          "emittedTokens": 36,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 36,
+          "emittedTokens": 36,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 39,
+          "emittedTokens": 39,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 39,
+          "emittedTokens": 39,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 39,
+          "emittedTokens": 39,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "mypy",
+      "parser": "mypy",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 28,
+          "emittedTokens": 20,
+          "tokensSaved": 8,
+          "reductionPct": 29,
+          "costSaved": 0.00002
+        },
+        "cl100k": {
+          "rawTokens": 28,
+          "emittedTokens": 20,
+          "tokensSaved": 8,
+          "reductionPct": 29,
+          "costSaved": 0.00024
+        },
+        "p50k": {
+          "rawTokens": 29,
+          "emittedTokens": 20,
+          "tokensSaved": 9,
+          "reductionPct": 31,
+          "costSaved": 0.0000010799999999999998
+        },
+        "r50k": {
+          "rawTokens": 29,
+          "emittedTokens": 20,
+          "tokensSaved": 9,
+          "reductionPct": 31,
+          "costSaved": 0.000018
+        },
+        "gpt2": {
+          "rawTokens": 29,
+          "emittedTokens": 20,
+          "tokensSaved": 9,
+          "reductionPct": 31,
+          "costSaved": 0.0000045
+        }
+      }
+    },
+    {
+      "label": "Cargo error",
+      "parser": "cargo",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 45,
+          "emittedTokens": 22,
+          "tokensSaved": 23,
+          "reductionPct": 51,
+          "costSaved": 0.0000575
+        },
+        "cl100k": {
+          "rawTokens": 45,
+          "emittedTokens": 22,
+          "tokensSaved": 23,
+          "reductionPct": 51,
+          "costSaved": 0.00069
+        },
+        "p50k": {
+          "rawTokens": 50,
+          "emittedTokens": 25,
+          "tokensSaved": 25,
+          "reductionPct": 50,
+          "costSaved": 0.0000029999999999999997
+        },
+        "r50k": {
+          "rawTokens": 51,
+          "emittedTokens": 25,
+          "tokensSaved": 26,
+          "reductionPct": 51,
+          "costSaved": 0.000052
+        },
+        "gpt2": {
+          "rawTokens": 51,
+          "emittedTokens": 25,
+          "tokensSaved": 26,
+          "reductionPct": 51,
+          "costSaved": 0.000013
+        }
+      }
+    },
+    {
+      "label": "Go test FAIL",
+      "parser": "gotest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 36,
+          "emittedTokens": 36,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 36,
+          "emittedTokens": 36,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 43,
+          "emittedTokens": 43,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Maven BUILD FAILURE",
+      "parser": "maven",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 41,
+          "emittedTokens": 41,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 41,
+          "emittedTokens": 41,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Gradle BUILD FAILED",
+      "parser": "gradle",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 36,
+          "emittedTokens": 36,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 36,
+          "emittedTokens": 36,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 45,
+          "emittedTokens": 45,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Docker ERROR",
+      "parser": "docker",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 29,
+          "emittedTokens": 29,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 29,
+          "emittedTokens": 29,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 31,
+          "emittedTokens": 31,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 31,
+          "emittedTokens": 31,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 31,
+          "emittedTokens": 31,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "K8s CrashLoop",
+      "parser": "k8s",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 30,
+          "emittedTokens": 23,
+          "tokensSaved": 7,
+          "reductionPct": 23,
+          "costSaved": 0.000017500000000000002
+        },
+        "cl100k": {
+          "rawTokens": 30,
+          "emittedTokens": 23,
+          "tokensSaved": 7,
+          "reductionPct": 23,
+          "costSaved": 0.00021
+        },
+        "p50k": {
+          "rawTokens": 32,
+          "emittedTokens": 23,
+          "tokensSaved": 9,
+          "reductionPct": 28,
+          "costSaved": 0.0000010799999999999998
+        },
+        "r50k": {
+          "rawTokens": 32,
+          "emittedTokens": 23,
+          "tokensSaved": 9,
+          "reductionPct": 28,
+          "costSaved": 0.000018
+        },
+        "gpt2": {
+          "rawTokens": 32,
+          "emittedTokens": 23,
+          "tokensSaved": 9,
+          "reductionPct": 28,
+          "costSaved": 0.0000045
+        }
+      }
+    },
+    {
+      "label": "Terraform Error",
+      "parser": "terraform",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 21,
+          "emittedTokens": 21,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 21,
+          "emittedTokens": 21,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 22,
+          "emittedTokens": 22,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 22,
+          "emittedTokens": 22,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 22,
+          "emittedTokens": 22,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "npm ERR!",
+      "parser": "pm",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 20,
+          "emittedTokens": 20,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 20,
+          "emittedTokens": 20,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 23,
+          "emittedTokens": 23,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 23,
+          "emittedTokens": 23,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 23,
+          "emittedTokens": 23,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Git CONFLICT",
+      "parser": "git",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 26,
+          "emittedTokens": 26,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 27,
+          "emittedTokens": 27,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 33,
+          "emittedTokens": 33,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 33,
+          "emittedTokens": 33,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 33,
+          "emittedTokens": 33,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "GHA annotation",
+      "parser": "gha",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 32,
+          "emittedTokens": 28,
+          "tokensSaved": 4,
+          "reductionPct": 13,
+          "costSaved": 0.00001
+        },
+        "cl100k": {
+          "rawTokens": 32,
+          "emittedTokens": 28,
+          "tokensSaved": 4,
+          "reductionPct": 13,
+          "costSaved": 0.00012
+        },
+        "p50k": {
+          "rawTokens": 35,
+          "emittedTokens": 30,
+          "tokensSaved": 5,
+          "reductionPct": 14,
+          "costSaved": 6e-7
+        },
+        "r50k": {
+          "rawTokens": 35,
+          "emittedTokens": 30,
+          "tokensSaved": 5,
+          "reductionPct": 14,
+          "costSaved": 0.000009999999999999999
+        },
+        "gpt2": {
+          "rawTokens": 35,
+          "emittedTokens": 30,
+          "tokensSaved": 5,
+          "reductionPct": 14,
+          "costSaved": 0.0000024999999999999998
+        }
+      }
+    },
+    {
+      "label": "Truncate (2k-line verbose log)",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 26999,
+          "emittedTokens": 8,
+          "tokensSaved": 26991,
+          "reductionPct": 100,
+          "costSaved": 0.06747750000000001
+        },
+        "cl100k": {
+          "rawTokens": 26999,
+          "emittedTokens": 9,
+          "tokensSaved": 26990,
+          "reductionPct": 100,
+          "costSaved": 0.8097
+        },
+        "p50k": {
+          "rawTokens": 27359,
+          "emittedTokens": 8,
+          "tokensSaved": 27351,
+          "reductionPct": 100,
+          "costSaved": 0.00328212
+        },
+        "r50k": {
+          "rawTokens": 27359,
+          "emittedTokens": 8,
+          "tokensSaved": 27351,
+          "reductionPct": 100,
+          "costSaved": 0.054702
+        },
+        "gpt2": {
+          "rawTokens": 27359,
+          "emittedTokens": 8,
+          "tokensSaved": 27351,
+          "reductionPct": 100,
+          "costSaved": 0.0136755
+        }
+      }
+    },
+    {
+      "label": "GitHub Actions log (failure)",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 699,
+          "emittedTokens": 30,
+          "tokensSaved": 669,
+          "reductionPct": 96,
+          "costSaved": 0.0016725000000000002
+        },
+        "cl100k": {
+          "rawTokens": 699,
+          "emittedTokens": 30,
+          "tokensSaved": 669,
+          "reductionPct": 96,
+          "costSaved": 0.02007
+        },
+        "p50k": {
+          "rawTokens": 725,
+          "emittedTokens": 32,
+          "tokensSaved": 693,
+          "reductionPct": 96,
+          "costSaved": 0.00008316
+        },
+        "r50k": {
+          "rawTokens": 725,
+          "emittedTokens": 32,
+          "tokensSaved": 693,
+          "reductionPct": 96,
+          "costSaved": 0.0013859999999999999
+        },
+        "gpt2": {
+          "rawTokens": 725,
+          "emittedTokens": 32,
+          "tokensSaved": 693,
+          "reductionPct": 96,
+          "costSaved": 0.00034649999999999997
+        }
+      }
+    },
+    {
+      "label": "Search results JSON (120 hits)",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 17077,
+          "emittedTokens": 8,
+          "tokensSaved": 17069,
+          "reductionPct": 100,
+          "costSaved": 0.0426725
+        },
+        "cl100k": {
+          "rawTokens": 17076,
+          "emittedTokens": 9,
+          "tokensSaved": 17067,
+          "reductionPct": 100,
+          "costSaved": 0.51201
+        },
+        "p50k": {
+          "rawTokens": 20213,
+          "emittedTokens": 9,
+          "tokensSaved": 20204,
+          "reductionPct": 100,
+          "costSaved": 0.0024244799999999997
+        },
+        "r50k": {
+          "rawTokens": 29813,
+          "emittedTokens": 9,
+          "tokensSaved": 29804,
+          "reductionPct": 100,
+          "costSaved": 0.059607999999999994
+        },
+        "gpt2": {
+          "rawTokens": 29813,
+          "emittedTokens": 9,
+          "tokensSaved": 29804,
+          "reductionPct": 100,
+          "costSaved": 0.014901999999999999
+        }
+      }
+    },
+    {
+      "label": "CLI verbose (2k lines)",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 26079,
+          "emittedTokens": 8,
+          "tokensSaved": 26071,
+          "reductionPct": 100,
+          "costSaved": 0.0651775
+        },
+        "cl100k": {
+          "rawTokens": 26099,
+          "emittedTokens": 9,
+          "tokensSaved": 26090,
+          "reductionPct": 100,
+          "costSaved": 0.7827000000000001
+        },
+        "p50k": {
+          "rawTokens": 23980,
+          "emittedTokens": 8,
+          "tokensSaved": 23972,
+          "reductionPct": 100,
+          "costSaved": 0.0028766399999999998
+        },
+        "r50k": {
+          "rawTokens": 23980,
+          "emittedTokens": 8,
+          "tokensSaved": 23972,
+          "reductionPct": 100,
+          "costSaved": 0.047944
+        },
+        "gpt2": {
+          "rawTokens": 23980,
+          "emittedTokens": 8,
+          "tokensSaved": 23972,
+          "reductionPct": 100,
+          "costSaved": 0.011986
+        }
+      }
+    },
+    {
+      "label": "Diff (4 files)",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 1451,
+          "emittedTokens": 236,
+          "tokensSaved": 1215,
+          "reductionPct": 84,
+          "costSaved": 0.0030375000000000003
+        },
+        "cl100k": {
+          "rawTokens": 1447,
+          "emittedTokens": 232,
+          "tokensSaved": 1215,
+          "reductionPct": 84,
+          "costSaved": 0.03645
+        },
+        "p50k": {
+          "rawTokens": 1351,
+          "emittedTokens": 287,
+          "tokensSaved": 1064,
+          "reductionPct": 79,
+          "costSaved": 0.00012768
+        },
+        "r50k": {
+          "rawTokens": 1351,
+          "emittedTokens": 287,
+          "tokensSaved": 1064,
+          "reductionPct": 79,
+          "costSaved": 0.002128
+        },
+        "gpt2": {
+          "rawTokens": 1351,
+          "emittedTokens": 287,
+          "tokensSaved": 1064,
+          "reductionPct": 79,
+          "costSaved": 0.000532
+        }
+      }
+    },
+    {
+      "label": "Stack trace",
+      "parser": "vitest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 67,
+          "emittedTokens": 67,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 66,
+          "emittedTokens": 66,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 86,
+          "emittedTokens": 86,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 86,
+          "emittedTokens": 86,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 86,
+          "emittedTokens": 86,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "NDJSON logs",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 558,
+          "emittedTokens": 19,
+          "tokensSaved": 539,
+          "reductionPct": 97,
+          "costSaved": 0.0013475000000000002
+        },
+        "cl100k": {
+          "rawTokens": 558,
+          "emittedTokens": 19,
+          "tokensSaved": 539,
+          "reductionPct": 97,
+          "costSaved": 0.01617
+        },
+        "p50k": {
+          "rawTokens": 561,
+          "emittedTokens": 22,
+          "tokensSaved": 539,
+          "reductionPct": 96,
+          "costSaved": 0.00006468
+        },
+        "r50k": {
+          "rawTokens": 561,
+          "emittedTokens": 22,
+          "tokensSaved": 539,
+          "reductionPct": 96,
+          "costSaved": 0.001078
+        },
+        "gpt2": {
+          "rawTokens": 561,
+          "emittedTokens": 22,
+          "tokensSaved": 539,
+          "reductionPct": 96,
+          "costSaved": 0.0002695
+        }
+      }
+    },
+    {
+      "label": "JUnit XML",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 60,
+          "emittedTokens": 60,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 59,
+          "emittedTokens": 59,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 70,
+          "emittedTokens": 70,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 70,
+          "emittedTokens": 70,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 70,
+          "emittedTokens": 70,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "SARIF",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 54,
+          "emittedTokens": 54,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 50,
+          "emittedTokens": 50,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 57,
+          "emittedTokens": 57,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 57,
+          "emittedTokens": 57,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 57,
+          "emittedTokens": 57,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "ANSI escapes",
+      "parser": "vitest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 53,
+          "emittedTokens": 53,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 47,
+          "emittedTokens": 47,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 59,
+          "emittedTokens": 59,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 59,
+          "emittedTokens": 59,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 59,
+          "emittedTokens": 59,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Unicode + emoji",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 26,
+          "emittedTokens": 26,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 29,
+          "emittedTokens": 29,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 30,
+          "emittedTokens": 30,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 30,
+          "emittedTokens": 30,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 30,
+          "emittedTokens": 30,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Nested JSON",
+      "parser": "generic",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 107,
+          "emittedTokens": 107,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 105,
+          "emittedTokens": 105,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 105,
+          "emittedTokens": 105,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 105,
+          "emittedTokens": 105,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 105,
+          "emittedTokens": 105,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "CRLF vitest failure",
+      "parser": "vitest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 24,
+          "emittedTokens": 24,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 24,
+          "emittedTokens": 24,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 30,
+          "emittedTokens": 30,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 30,
+          "emittedTokens": 30,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 30,
+          "emittedTokens": 30,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    },
+    {
+      "label": "Truncated mid-error (no trailing newline)",
+      "parser": "vitest",
+      "perFamily": {
+        "o200k": {
+          "rawTokens": 16,
+          "emittedTokens": 16,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "cl100k": {
+          "rawTokens": 16,
+          "emittedTokens": 16,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "p50k": {
+          "rawTokens": 21,
+          "emittedTokens": 21,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "r50k": {
+          "rawTokens": 21,
+          "emittedTokens": 21,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        },
+        "gpt2": {
+          "rawTokens": 21,
+          "emittedTokens": 21,
+          "tokensSaved": 0,
+          "reductionPct": 0,
+          "costSaved": 0
+        }
+      }
+    }
+  ]
+}
