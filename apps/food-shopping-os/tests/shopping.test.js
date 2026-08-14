@@ -285,6 +285,39 @@ describe('meals to shopping', () => {
     expect(merged[1].fromRecipe).toBe('Stir-fry');
   });
 
+  it('consolidates two names for one ingredient into a single row', () => {
+    // Two recipes, two spellings, one tin aisle. The list used to carry both.
+    const merged = mergeItems([
+      { name: 'Chopped tomatoes', qty: '400 g', fromRecipe: 'Chilli' },
+      { name: 'Tinned tomatoes', qty: '1 tin', fromRecipe: 'Ragu' },
+    ]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].qty).toBe('800 g');
+    expect(merged[0].name).toBe('Chopped tomatoes');
+    expect(merged[0].alsoKnownAs).toEqual(['Tinned tomatoes']);
+    expect(merged[0].fromRecipe).toBe('2 meals');
+  });
+
+  it('consolidates on a correction the household taught it', () => {
+    const merged = mergeItems(
+      [
+        { name: 'Chicken breast', qty: '300 g', fromRecipe: 'Traybake' },
+        { name: 'Chicken fillets', qty: '200 g', fromRecipe: 'Stir-fry' },
+      ],
+      { learnedAliases: { 'chicken fillets': 'chicken breast' } },
+    );
+    expect(merged).toHaveLength(1);
+    expect(merged[0].qty).toBe('500 g');
+  });
+
+  it('will not merge two different foods that merely read alike', () => {
+    const merged = mergeItems([
+      { name: 'Coconut milk', qty: '1 tin' },
+      { name: 'Semi-skimmed milk', qty: '500 ml' },
+    ]);
+    expect(merged).toHaveLength(2);
+  });
+
   it('keeps mass and volume separate rather than summing them', async () => {
     const { mergeQtys, qtySuffices } = await import('../src/lib/pantry.js');
     expect(mergeQtys('100 g', '100 ml')).toBe('100 g + 100 ml');

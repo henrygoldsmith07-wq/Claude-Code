@@ -114,6 +114,23 @@ describe('closed loop (plan → shop → cook → leftovers → next plan)', () 
     expect(list.some((row) => canonicalName(row.name) === canonicalName('Chicken thighs'))).toBe(true);
   });
 
+  it("adds up a week's need for one ingredient across every dish", () => {
+    // Two curries, 300 g of rice each. 300 g in the cupboard covers one of
+    // them, not both — the list used to keep only the last recipe's amount and
+    // call the week covered.
+    const plan = { [DAY]: { dinner: 'chickpea-curry' }, [addDays(DAY, 1)]: { dinner: 'katsu-curry' } };
+    const dates = [DAY, addDays(DAY, 1)];
+    const short = shoppingForPlan(plan, dates, {
+      pantry: [{ name: 'Rice', qty: '300 g', cat: 'Baking & dry' }],
+    });
+    expect(short.some((row) => canonicalName(row.name) === canonicalName('Rice'))).toBe(true);
+
+    const enough = shoppingForPlan(plan, dates, {
+      pantry: [{ name: 'Rice', qty: '1 kg', cat: 'Baking & dry' }],
+    });
+    expect(enough.some((row) => canonicalName(row.name) === canonicalName('Rice'))).toBe(false);
+  });
+
   it('consumes pantry stock when the dish is cooked', () => {
     const recipe = byId(dinner);
     const pantry = [

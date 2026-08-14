@@ -13,6 +13,7 @@ import { MEAL_SLOTS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays, dayStamp, pantryAvailability, pantryTruthForNeed, weekStart } from './kitchen.js';
 import { canonicalName } from './aliases.js';
+import { mergeQtys } from './pantry.js';
 
 export const SLOT_KEYS = MEAL_SLOTS.map((s) => s.key);
 
@@ -351,9 +352,17 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
   }
   const filteredRecipes = recipes; // itemsFromRecipes handles name-level de-dupe; quantity refinement happens per-ingredient below
   const raw = itemsFromRecipes(filteredRecipes, sufficientNames);
-  // Second pass: re-add ingredients where qty is known insufficient
+  // Second pass: re-add ingredients where qty is known insufficient.
+  // The week's need for an ingredient is every recipe's need added together.
+  // Keeping only the last recipe's amount — which is what this did — meant two
+  // dinners each wanting 400 g of tomatoes were covered by a single 400 g tin.
   const needByKey = new Map();
-  for (const r of filteredRecipes) for (const ing of r.ingredients) needByKey.set(canonicalName(ing.name), ing.qty || "");
+  for (const r of filteredRecipes) {
+    for (const ing of r.ingredients) {
+      const k = canonicalName(ing.name);
+      needByKey.set(k, mergeQtys(needByKey.get(k) || "", ing.qty || "", { ingredient: k }));
+    }
+  }
   const insufficientKeys = new Set();
   for (const [key, needQty] of needByKey.entries()) {
     const candidates = byName.get(key) || [];
