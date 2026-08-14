@@ -80,6 +80,58 @@ Received: 9000
 # rtk err --stdin: 600 chars — ... 14 unchanged lines omitted ... around each change
 ```
 
+## What the evidence does *not* yet show
+
+The reduction table above is real and reproducible. The claim RTK wants to make
+is stronger than reduction — *"50–90% fewer tool-result tokens with
+statistically equivalent task success"* — and the second half is not currently
+supported. `npm run benchmark:evidence` says so in detail; the short version:
+
+**"No significant difference" is not equivalence.** The agent benchmark reports
+raw and RTK scoring identically and asserts "RTK must not lose success vs raw".
+That is a comparison of two counts. Upgrading it to a significance test and
+reading p > 0.05 as equivalence would be the classic error: a non-significant
+result is also what a sample this size produces when the arms *do* differ.
+
+Equivalence has to be tested directly, against a margin fixed in advance (TOST,
+`src/equivalence.js`). Run against the current fixtures:
+
+```
+Difference (RTK − raw): 0.0 points, 90% CI -60.0 to 60.0
+Equivalence (TOST, ±5 points): NOT demonstrated
+  No case differed between arms, but 5 pairs only bound the difference at
+  ±60.0 points, which is wider than the ±5-point margin. More cases needed.
+```
+
+A perfect score on every case bounds the true difference at ±60 points. About
+**248 paired cases** are needed for a ±5-point margin at 80% power — which is
+why the corpus target is 1000, not 100.
+
+Two further gaps the current benchmarks cannot see:
+
+- **Retries.** A filter that removes the line an agent needed does not fail
+  silently; the agent re-runs the command unfiltered and pays for another turn.
+  `src/verdict.js` counts that and reports the *net* effect, because an 86%
+  reduction that causes retries on one call in eight is a net token **loss**
+  while still reporting 86%.
+- **Fixtures measure fixtures.** The generated cases were written by the same
+  person as the parsers, so the parsers meet exactly the shapes they were built
+  for. Real output has interleaved stderr, carriage-return progress bars, stacks
+  from transitive dependencies and buffers truncated mid-token.
+
+`src/corpus.js` defines the real agent-task and CI corpora with the provenance
+that makes each entry checkable. Both ship **empty**, and
+`corpusEligibility()` refuses to let the synthetic set be reported as either —
+gating on coverage as well as size, since 1000 cases from one repo and one test
+runner would satisfy the sample-size maths and still say nothing about anything
+else.
+
+`headlineVerdict()` emits the claim only when the reduction is in the claimed
+band, retries did not increase, equivalence is demonstrated, and the corpus is
+real. Today it refuses, and prints why. That refusal is checked into
+`benchmark/evidence.md` next to the good numbers rather than left to be
+inferred.
+
 ## Preservation guarantees
 
 On failure (`exitCode != 0`), rtk **never drops**:
