@@ -18,6 +18,10 @@ import {
 } from "../src/lib/analytics.js";
 import { instantiateTemplate, recommendTemplate } from "../src/lib/templates.js";
 import { fatigueAwareOrder, muscleOverlap, weakPointMuscles } from "../src/lib/warmup.js";
+import {
+  noteSignals, sessionQuality, badSessionRatio, plateauAttribution,
+  deloadReadinessAssessment, scanPRs,
+} from "../src/lib/sessionQuality.js";
 import { EXERCISE_BY_ID, exerciseAvailable } from "../src/lib/data.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -142,6 +146,48 @@ const cardioLast = plainOrder[plainOrder.length-1].exerciseId === "run-easy";
 const weakEarly = weakOrder.findIndex(b=> b.exerciseId==="dumbbell-row") < weakOrder.findIndex(b=> b.exerciseId==="bench-press-dumbbell");
 const weakPoint = weakPointMuscles(balHistory, EXERCISE_BY_ID);
 
+// ── Session quality & recovery (explicit deterministic fixtures — the main
+//    simulator's RNG stream stays untouched) ────────────────────────────
+const mkSess = (dateISO, exerciseId, sets, extra={}) => ({ dateISO, blocks:[{ exerciseId, sets }], ...extra });
+
+// Genuine plateau: 4 flat squat sessions, consistent RPE, good readiness.
+const genuineHist = ["2026-06-01","2026-06-05","2026-06-09","2026-06-13"].map((d,i)=>
+  mkSess(d, "barbell-squat", [{ reps:"8", weightKg:"40", rpe: i%2 ? "8" : "7" }]));
+const genuineReadiness = genuineHist.map(h=> ({ dateISO: h.dateISO, score: 72 }));
+const genuineAttribution = plateauAttribution(genuineHist, "barbell-squat", { readinessLog: genuineReadiness });
+
+// Fatigue-driven flatness: 4 flat bench sessions, last two low-readiness + RPE 10.
+const badHist = [
+  mkSess("2026-06-01", "bench-press-dumbbell", [{ reps:"8", weightKg:"20", rpe:"7" }]),
+  mkSess("2026-06-05", "bench-press-dumbbell", [{ reps:"8", weightKg:"20", rpe:"8" }]),
+  mkSess("2026-06-09", "bench-press-dumbbell", [{ reps:"8", weightKg:"20", rpe:"10" }], { note:"sore and tired" }),
+  mkSess("2026-06-13", "bench-press-dumbbell", [{ reps:"8", weightKg:"20", rpe:"10" }], { note:"struggled" }),
+];
+const badReadiness = [{ dateISO:"2026-06-01", score: 75 }, { dateISO:"2026-06-05", score: 70 }, { dateISO:"2026-06-09", score: 20 }, { dateISO:"2026-06-13", score: 22 }];
+const badAttribution = plateauAttribution(badHist, "bench-press-dumbbell", { readinessLog: badReadiness });
+const roughRatio = badSessionRatio(badHist, { readinessLog: badReadiness });
+
+// Deload assessment: one-day readiness dip alone must NOT trigger; a sustained
+// low trend plus high RPE and a plateau must.
+const dipAssessment = deloadReadinessAssessment({ readinessHistory: [80, 75, 25], recentRpes: [], logs: [] });
+const sustainedAssessment = deloadReadinessAssessment({
+  readinessHistory: [30, 28, 25], recentRpes: ["9","10"],
+  logs: [{ reps:8, weightKg:40, rpe:"9" },{ reps:8, weightKg:40, rpe:"9" },{ reps:8, weightKg:40, rpe:"9" },{ reps:8, weightKg:40, rpe:"9" }],
+});
+
+// PR scan: a genuine PR, a technique-changed PR, and a sub-2% jitter record.
+const prHist = [
+  mkSess("2026-06-01", "bench-press-dumbbell", [{ reps:"8", weightKg:"20" }]),
+  mkSess("2026-06-08", "bench-press-dumbbell", [{ reps:"8", weightKg:"22" }], { note:"great session" }),
+  mkSess("2026-06-15", "bench-press-dumbbell", [{ reps:"8", weightKg:"23" }], { note:"reduced ROM for depth" }),
+  mkSess("2026-06-22", "bench-press-dumbbell", [{ reps:"8", weightKg:"23.1" }]),
+];
+const prScan = scanPRs(prHist, { readinessLog: [] });
+const noteNeg = noteSignals("tough session, sore and tired");
+const noteTech = noteSignals("reduced ROM to keep form");
+const goodSession = sessionQuality(mkSess("2026-06-05", "barbell-squat", [{ reps:"8", weightKg:"40", rpe:"6" }], { note:"great, felt fresh" }), { readinessLog: [{ dateISO:"2026-06-05", score: 80 }] });
+const badSession = sessionQuality(mkSess("2026-06-09", "barbell-squat", [{ reps:"8", weightKg:"40", rpe:"10" }], { note:"struggled" }), { readinessLog: [{ dateISO:"2026-06-09", score: 20 }] });
+
 const checks = [
   { name: "recommendation hit-rate on 18 weeks of data", pass: vp.n >= 100 && vp.hitRate >= 0.4, detail: `n=${vp.n}, hitRate=${vp.hitRate}, MAE ${vp.meanAbsErrorKg}kg/${vp.meanAbsErrorReps}reps` },
   { name: "readiness correlates with session effort", pass: rpc.n >= 30 && rpc.rRPE < -0.2, detail: `n=${rpc.n}, r(RPE)=${rpc.rRPE}` },
@@ -156,6 +202,12 @@ const checks = [
   { name: "volume balance flags a neglected priority muscle", pass: backVerdict === "under" && /Back/.test(bal.advice), detail: `Back verdict=${backVerdict}, advice: ${bal.advice}` },
   { name: "fatigue-aware ordering separates same-family work, cardio last", pass: noAdjacentOverlap && cardioLast, detail: `order: ${plainOrder.map(b=>b.exerciseId).join(" → ")}` },
   { name: "weak-point muscles trained while fresh", pass: weakEarly && weakPoint.includes("Legs"), detail: `weak points from history: ${weakPoint.join(", ")}; row placed before bench: ${weakEarly}` },
+  { name: "note signals extracted from workout notes", pass: noteNeg.sentiment < 0 && noteTech.techniqueChange, detail: `negative note → ${noteNeg.tags.join(", ")}; technique note flagged: ${noteTech.techniqueChange}` },
+  { name: "session quality separates bad from good sessions", pass: badSession.quality === "bad" && goodSession.quality === "good", detail: `bad → ${badSession.quality} (${badSession.reasons.join("; ")}); good → ${goodSession.quality}` },
+  { name: "bad-session ratio flags a rough patch", pass: roughRatio.ratio >= 0.5, detail: `${roughRatio.bad}/${roughRatio.total} recent sessions bad (ratio ${roughRatio.ratio})` },
+  { name: "plateau attribution separates fatigue from genuine plateau", pass: genuineAttribution.kind === "genuine" && badAttribution.kind === "bad-sessions", detail: `good-readiness flat stretch → ${genuineAttribution.kind}; low-readiness flat stretch → ${badAttribution.kind}` },
+  { name: "deload assessment ignores one-day readiness dips", pass: !dipAssessment.yes && dipAssessment.oneDayDip && sustainedAssessment.yes, detail: `single-day dip → deload ${dipAssessment.yes} (${dipAssessment.reason}); sustained low + high RPE + plateau → deload ${sustainedAssessment.yes}` },
+  { name: "PR scan flags technique-changed and jitter records", pass: prScan.n === 3 && prScan.flagged === 2 && prScan.prs[0].meaningful && !prScan.prs[1].meaningful, detail: `${prScan.flagged}/${prScan.n} not like-for-like — ${prScan.prs.map(p=> p.exerciseId + " " + p.e1rm + "kg meaningful=" + p.meaningful).join(", ")}` },
 ];
 
 const failures = checks.filter(c=> !c.pass);
@@ -189,6 +241,12 @@ if(process.argv.includes("--write")){
     `| Volume balance (volumeBalanceAdvice) | Back verdict ${backVerdict} in a legs+chest-only block — ${bal.advice} |`,
     `| Fatigue-aware ordering (fatigueAwareOrder) | ${plainOrder.map(b=>b.exerciseId).join(" → ")} |`,
     `| Weak-point priority (weakPointMuscles) | ${weakPoint.join(", ")} trained while fresh |`,
+    `| Note signals (noteSignals) | negative note → ${noteNeg.tags.join(", ")}; technique change detected: ${noteTech.techniqueChange} |`,
+    `| Session quality (sessionQuality) | bad session → ${badSession.quality}; good session → ${goodSession.quality} |`,
+    `| Bad-session ratio (badSessionRatio) | ${roughRatio.bad}/${roughRatio.total} sessions bad in the rough patch (${roughRatio.ratio}) |`,
+    `| Plateau attribution (plateauAttribution) | good-readiness flat stretch → ${genuineAttribution.kind}; low-readiness flat stretch → ${badAttribution.kind} |`,
+    `| Deload assessment (deloadReadinessAssessment) | one-day dip → deload ${dipAssessment.yes} (${dipAssessment.reason}); sustained → deload ${sustainedAssessment.yes} |`,
+    `| PR scan (scanPRs) | ${prScan.flagged}/${prScan.n} records not like-for-like (technique change / jitter) |`,
     "",
   ];
   fs.writeFileSync(path.join(__dirname, "results.md"), lines.join("\n"));

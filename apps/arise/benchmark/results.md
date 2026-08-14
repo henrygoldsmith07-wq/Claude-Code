@@ -20,3 +20,9 @@ validators recover that planted structure. Deterministic — rerun any time with
 | Volume balance (volumeBalanceAdvice) | Back verdict under in a legs+chest-only block — Back is getting only 0 sets/week (0% of volume) while Legs dominates — swap a Legs block for Back work. |
 | Fatigue-aware ordering (fatigueAwareOrder) | bodyweight-squat → bench-press-dumbbell → dumbbell-row → push-up → plank → run-easy |
 | Weak-point priority (weakPointMuscles) | Chest, Legs trained while fresh |
+| Note signals (noteSignals) | negative note → negative:soreness, negative:fatigue; technique change detected: true |
+| Session quality (sessionQuality) | bad session → bad; good session → good |
+| Bad-session ratio (badSessionRatio) | 2/4 sessions bad in the rough patch (0.5) |
+| Plateau attribution (plateauAttribution) | good-readiness flat stretch → genuine; low-readiness flat stretch → bad-sessions |
+| Deload assessment (deloadReadinessAssessment) | one-day dip → deload false (One-day readiness dip only — no deload; re-check after recovery.); sustained → deload true |
+| PR scan (scanPRs) | 2/3 records not like-for-like (technique change / jitter) |
