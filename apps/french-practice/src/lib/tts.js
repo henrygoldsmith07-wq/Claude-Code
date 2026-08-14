@@ -2,7 +2,7 @@
 // language and speaks with a configurable rate. The active language is set
 // once from settings (setSpeechLanguage) so call sites don't each pass it.
 
-import { getLanguage, DEFAULT_LANG } from './languages';
+import { getLanguage, DEFAULT_LANG } from './languages.js';
 
 let active = getLanguage(DEFAULT_LANG);
 let cachedVoice = null;

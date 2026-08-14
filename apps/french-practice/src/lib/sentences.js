@@ -2,9 +2,9 @@
 // (listening), Pronunciation (read-aloud) and Shadowing (listen & repeat)
 // drills. Drawn from flashcard examples, scenario openers and vocab packs.
 
-import { FLASHCARDS, getScenarios } from './data';
-import { allEntries } from './vocab';
-import { contentLang } from './content/active';
+import { FLASHCARDS, getScenarios } from './data.js';
+import { allEntries } from './vocab.js';
+import { contentLang } from './content/active.js';
 
 // Built per call so the pool follows the active target language. The French
 // filler deck only applies to French; other languages draw from their own

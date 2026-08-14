@@ -1,5 +1,5 @@
-import { getLanguage } from './languages';
-import { contentLang } from './content/active';
+import { getLanguage } from './languages.js';
+import { contentLang } from './content/active.js';
 
 // Gamification (single-player only): levels, achievements, coins, daily
 // challenges, avatars, collectibles and seasonal events. Everything is

@@ -2,10 +2,10 @@
 // speech engine and the AI prompt layer at the chosen target language so a
 // single call flips French → German → Spanish everywhere.
 
-import { setContentLanguage, contentLang } from './content/active';
-import { setSpeechLanguage } from './tts';
-import { setLanguage as setAiLanguage } from './groq';
-import { getLanguage } from './languages';
+import { setContentLanguage, contentLang } from './content/active.js';
+import { setSpeechLanguage } from './tts.js';
+import { setLanguage as setAiLanguage } from './groq.js';
+import { getLanguage } from './languages.js';
 
 // The active target-language config, for UI copy ("Speak German out loud…").
 export const activeLanguage = () => getLanguage(contentLang());

@@ -3,7 +3,18 @@
 // Pure, deterministic, offline. Migrates SM-2 cards (ease/interval/reps).
 
 const DAY = 86400000;
-const FSRS_W = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
+
+/**
+ * The published FSRS-4.5 defaults. They were fitted on general-purpose review
+ * logs, not specifically on language learning, which is why `fsrsValidation.js`
+ * can score them against this learner's own reviews and fit alternatives.
+ * Every function here takes the weights as an argument so a candidate set can
+ * be replayed without touching the live scheduler.
+ */
+export const DEFAULT_W = Object.freeze([
+  0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61,
+]);
+const FSRS_W = DEFAULT_W;
 const DEFAULT_D = 5; // 1..10
 const DEFAULT_S = 1; // days
 
@@ -20,29 +31,28 @@ const clampD = (d) => Math.max(1, Math.min(10, d));
  * every card started at a flat S=1 whatever the learner answered, so a word
  * recalled instantly and a word missed completely were scheduled identically.
  */
-export function initialStability(rating){
-  return Math.max(0.1, FSRS_W[rating - 1] ?? DEFAULT_S);
+export function initialStability(rating, w = FSRS_W){
+  return Math.max(0.1, w[rating - 1] ?? DEFAULT_S);
 }
 
 /** Initial difficulty: D0(G) = w[4] - w[5]*(G-3). Missing it first time = harder. */
-export function initialDifficulty(rating){
-  return clampD(FSRS_W[4] - FSRS_W[5] * (rating - 3));
+export function initialDifficulty(rating, w = FSRS_W){
+  return clampD(w[4] - w[5] * (rating - 3));
 }
 
-function nextDifficulty(d, rating){
+export function nextDifficulty(d, rating, w = FSRS_W){
   // rating 1..4 (again/hard/good/easy)
   // FSRS: ΔD = -w[5]·(G-3). The sign matters and was inverted here: forgetting
   // a card marked it *easier* and finding one easy marked it *harder*. Because
   // stability growth scales with (11-D), that handed the cards a learner kept
   // failing the longest intervals of all.
-  let nd = d - FSRS_W[5] * (rating - 3);
-  if(rating===1) nd += FSRS_W[6];       // a lapse costs a little extra
-  else if(rating===4) nd -= FSRS_W[7];  // an easy answer earns a little extra
+  let nd = d - w[5] * (rating - 3);
+  if(rating===1) nd += w[6];       // a lapse costs a little extra
+  else if(rating===4) nd -= w[7];  // an easy answer earns a little extra
   return clampD(nd);
 }
 
-function nextStability(s, d, r, rating){
-  const w = FSRS_W;
+export function nextStability(s, d, r, rating, w = FSRS_W){
   if(rating===1){
     return Math.max(0.1, w[11] * Math.pow(d, -w[12]) * (Math.pow(s+1, w[13]) -1) * Math.exp((1-r)*w[14]));
   }
