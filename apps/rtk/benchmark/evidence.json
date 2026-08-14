@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-08-14T17:40:57.630Z",
+  "equivalence": {
+    "n": 5,
+    "a": 5,
+    "b": 0,
+    "c": 0,
+    "d": 0,
+    "discordant": 0,
+    "difference": 0,
+    "lower": -0.6,
+    "upper": 0.6,
+    "equivalent": false,
+    "margin": 0.05,
+    "alpha": 0.05,
+    "p": 1,
+    "reason": "No case differed between arms, but 5 pairs only bound the difference at ±60.0 points, which is wider than the ±5-point margin. More cases needed.",
+    "note": "Not demonstrated. No case differed between arms, but 5 pairs only bound the difference at ±60.0 points, which is wider than the ±5-point margin. More cases needed."
+  },
+  "difference": {
+    "p": 1,
+    "note": "No discordant pairs — no evidence of a difference either way."
+  },
+  "verdict": {
+    "supported": false,
+    "blockers": [
+      "The corpus is synthetic. Reduction on generated fixtures is not evidence about real tool output.",
+      "Task-success equivalence is not demonstrated. No case differed between arms, but 5 pairs only bound the difference at ±60.0 points, which is wider than the ±5-point margin. More cases needed."
+    ]
+  },
+  "economics": {
+    "grossSaved": 14214,
+    "grossPct": 0.9755662319835278,
+    "extraRetries": 0,
+    "retryCostTokens": 3314,
+    "retryCost": 0,
+    "net": 14214,
+    "netPct": 0.9755662319835278,
+    "profitable": true,
+    "note": "Saved 14.2k tokens with no additional retries."
+  },
+  "requiredPairs": {
+    "pairs": 248,
+    "margin": 0.05,
+    "alpha": 0.05,
+    "power": 0.8,
+    "discordance": 0.1,
+    "note": "About 248 paired cases are needed to show equivalence within ±5 points at 80% power, assuming the arms disagree on 10% of cases."
+  }
+}

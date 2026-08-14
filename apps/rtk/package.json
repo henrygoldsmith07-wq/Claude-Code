@@ -1,7 +1,7 @@
 {
   "name": "rtk",
   "version": "0.3.0",
-  "description": "Cut tool-call tokens by filtering noisy command output — per-tool parsers (15+ tools), structural compression (JSON/NDJSON/diff/stack/JUnit/SARIF/GHA), tokenizer-accurate tokens, preservation guarantees",
+  "description": "Cut tool-call tokens by filtering noisy command output \u2014 per-tool parsers (15+ tools), structural compression (JSON/NDJSON/diff/stack/JUnit/SARIF/GHA), tokenizer-accurate tokens, preservation guarantees",
   "license": "MIT",
   "author": "henrygoldsmith07-wq",
   "repository": {
@@ -46,7 +46,8 @@
     "benchmark:corpus": "node benchmark/corpus-builder.js",
     "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js",
     "type-check": "tsc --noEmit",
-    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/agent-live.js && npm pack --dry-run"
+    "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/agent-live.js && node benchmark/evidence.js && npm pack --dry-run",
+    "benchmark:evidence": "node benchmark/evidence.js"
   },
   "engines": {
     "node": ">=18"
