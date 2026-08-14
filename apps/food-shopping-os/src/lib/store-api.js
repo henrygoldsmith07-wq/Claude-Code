@@ -536,8 +536,13 @@ export function useStoreApi({
       completeRecipe: (recipe, { leftovers = 0 } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
+          // Cooking a 4-serving dish for a household of 2 uses half of it.
           const consumed = householdPermission(s, 'pantry') && s.autoUsePantry
-            ? consumePantryIngredients(s.pantry, recipe.ingredients, { learnedAliases: s.aliasMemory })
+            ? consumePantryIngredients(s.pantry, recipe.ingredients, {
+              learnedAliases: s.aliasMemory,
+              servings: Math.max(1, Math.round(s.portions || 0)) + Math.max(0, Number(leftovers) || 0),
+              recipeServings: recipe.servings,
+            })
             : { pantry: s.pantry };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],

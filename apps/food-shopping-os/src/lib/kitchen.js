@@ -10,6 +10,9 @@
 import { RECIPES } from '../data/recipes.js';
 import { BADGES } from '../data/plan.js';
 import { canonicalName, sameIngredient } from './aliases.js';
+import {
+  formatQuantity, parseQuantity, scaleQuantity, subtractQuantities, sufficientFor,
+} from './measure.js';
 
 export const dayStamp = (date = new Date()) => {
   const d = new Date(date);
@@ -86,38 +89,24 @@ export const pantryAvailability = (item) => {
   return "confirmed_sufficient";
 };
 
-const _parseAvailQty = (value) => {
-  const text = String(value || "").trim().toLowerCase();
-  if (!text) return null;
-  const m = text.match(/^(\d+(?:\.\d+)?)\s*(kg|g|ml|l|tin|tins|can|cans|pack|packs|bag|bags|box|boxes|bottle|bottles|jar|jars|portion|portions|egg|eggs|unit|units)?$/);
-  if (!m) return null;
-  const amount = Number(m[1]);
-  if (!Number.isFinite(amount)) return null;
-  let unit = (m[2] || "").toLowerCase();
-  if (unit === "tins") unit = "tin";
-  if (unit === "cans") unit = "can";
-  if (unit === "packs") unit = "pack";
-  if (unit === "bags") unit = "bag";
-  if (unit === "boxes") unit = "box";
-  if (unit === "bottles") unit = "bottle";
-  if (unit === "jars") unit = "jar";
-  if (unit === "portions") unit = "portion";
-  if (unit === "eggs") unit = "egg";
-  if (unit === "units") unit = "unit";
-  return { amount, unit };
-};
-
+/**
+ * Is what we have enough for what a recipe asks?
+ *
+ * The comparison runs through the shared measurement engine, so a pantry row
+ * saying "1 tin" and a recipe asking for "400 g" are now recognised as the same
+ * amount instead of being written off as incomparable. The ingredient name is
+ * passed through because it is what makes a tin of coconut milk 400 ml rather
+ * than 400 g. When the two genuinely cannot be put on one scale the answer
+ * stays at the name-level truth rather than becoming a guess.
+ */
 export const pantryTruthForNeed = (item, needQty) => {
   const base = pantryAvailability(item);
   if (base !== "confirmed_sufficient") return base;
   if (!needQty) return base;
-  const have = _parseAvailQty(item?.qty);
-  const need = _parseAvailQty(needQty);
-  if (!have || !need) return base;
-  // Only compare when units match (or both empty/countable). Different mass/volume units are not comparable here.
-  if (have.unit !== need.unit) return base;
-  if (have.amount < need.amount) return "confirmed_insufficient";
-  return "confirmed_sufficient";
+  const ingredient = canonicalName(item?.name);
+  const enough = sufficientFor(item?.qty, needQty, { ingredient });
+  if (enough === null) return base;
+  return enough ? "confirmed_sufficient" : "confirmed_insufficient";
 };
 
 export const isPantrySufficient = (item, needQty) => {
@@ -281,89 +270,169 @@ export const pantryAnalytics = (pantry = [], today = dayStamp()) => ({
 const inventoryName = (value) => String(value || '')
   .trim().toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ');
 
-const COUNTABLE_UNITS = new Set([
-  'tin', 'tins', 'can', 'cans', 'pack', 'packs', 'bag', 'bags', 'box', 'boxes',
-  'bottle', 'bottles', 'jar', 'jars', 'carton', 'cartons', 'loaf', 'loaves',
-  'piece', 'pieces', 'egg', 'eggs', 'unit', 'units', 'portion', 'portions',
-  'bunch', 'bunches', 'head', 'heads', 'bar', 'bars', 'tub', 'tubs', 'tray', 'trays',
-  'roll', 'rolls', 'slice', 'slices',
-]);
-
-const SINGULAR_UNIT = {
-  tins: 'tin', cans: 'can', packs: 'pack', bags: 'bag', boxes: 'box', bottles: 'bottle',
-  jars: 'jar', cartons: 'carton', loaves: 'loaf', pieces: 'piece', eggs: 'egg', units: 'unit',
-  portions: 'portion', bunches: 'bunch', heads: 'head', bars: 'bar', tubs: 'tub', trays: 'tray',
-  rolls: 'roll', slices: 'slice',
+/** The quantity a pantry row represents, leftovers counted in portions. */
+const pantryQty = (item) => {
+  const ingredient = canonicalName(item?.name);
+  if (item?.cat === 'Leftovers' && Number(item.portions) > 0) {
+    return parseQuantity(`${item.portions} portions`, { ingredient });
+  }
+  return parseQuantity(item?.qty, { ingredient });
 };
 
-const parsePantryQuantity = (value) => {
-  const text = String(value || '').trim();
-  if (!text) return { amount: 1, unit: '' };
-  const match = text.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?$/i);
-  if (!match || (match[2] && !COUNTABLE_UNITS.has(match[2].toLowerCase()))) return null;
-  const amount = Number(match[1]);
-  return Number.isFinite(amount) && amount > 0
-    ? { amount, unit: match[2]?.toLowerCase() || '' }
-    : null;
+/** A row rewritten to hold `next`, with its cost scaled to what is left. */
+const restock = (item, previous, next) => {
+  const cost = Number(item.cost);
+  const share = previous.amount > 0 ? next.amount / previous.amount : 0;
+  return {
+    ...item,
+    ...(item.cat === 'Leftovers' && Number(item.portions) > 0
+      ? { portions: Math.round(next.amount * 100) / 100 }
+      : {}),
+    qty: formatQuantity(next),
+    ...(Number.isFinite(cost) ? { cost: money(cost * share) } : {}),
+  };
 };
 
-const pantryQuantityText = (amount, unit) => {
-  const number = Number.isInteger(amount) ? String(amount) : String(Number(amount.toFixed(2)));
-  if (!unit) return number;
-  return `${number} ${amount === 1 ? (SINGULAR_UNIT[unit] || unit) : unit}`;
+/**
+ * "Use one" as a person means it: one tin off a row of two tins, one portion
+ * off a stack of leftovers. A row measured straight in grams has no "one" to
+ * take — 500 g of flour is used up, not reduced to 499 g — so it is removed,
+ * which is what the pantry has always done with a free-text amount.
+ */
+const oneUnitOff = (item) => {
+  const parsed = pantryQty(item);
+  if (!parsed) return null;
+  // A package row: count the packages, not the grams inside them.
+  const packages = parsed.count ? parsed.count.amount : (parsed.dim === 'count' ? parsed.amount : null);
+  if (packages === null || packages <= 1) return null;
+  const unit = parsed.count ? parsed.count.unit : parsed.unit;
+  const left = Math.round((packages - 1) * 100) / 100;
+  return {
+    text: formatQuantity({ amount: left, dim: 'count', unit }),
+    share: left / packages,
+    portions: left,
+  };
 };
 
 /** Consume one safe, countable pantry unit; free-text amounts are used up whole. */
 export const decrementPantryItem = (item) => {
-  const source = item?.cat === 'Leftovers' && Number(item.portions) > 0
-    ? item.portions
-    : item?.qty;
-  const parsed = parsePantryQuantity(source);
-  if (!parsed || parsed.amount <= 1) return { remove: true };
-  const remaining = parsed.amount - 1;
+  const next = oneUnitOff(item);
+  if (!next) return { remove: true };
   const cost = Number(item.cost);
   return {
     remove: false,
     item: {
       ...item,
-      ...(item.cat === 'Leftovers' && Number(item.portions) > 0 ? { portions: remaining } : {}),
-      qty: pantryQuantityText(remaining, parsed.unit || (item.cat === 'Leftovers' ? 'portion' : '')),
-      ...(Number.isFinite(cost) ? { cost: money(cost * (remaining / parsed.amount)) } : {}),
+      ...(item?.cat === 'Leftovers' && Number(item.portions) > 0 ? { portions: next.portions } : {}),
+      qty: next.text,
+      ...(Number.isFinite(cost) ? { cost: money(cost * next.share) } : {}),
     },
   };
 };
 
 export const pantryUseLabel = (item) => {
-  const source = item?.cat === 'Leftovers' && Number(item.portions) > 0 ? item.portions : item?.qty;
-  const parsed = parsePantryQuantity(source);
-  if (!parsed || parsed.amount <= 1) return 'Use up';
+  if (!oneUnitOff(item)) return 'Use up';
   return item?.cat === 'Leftovers' ? 'Use one portion' : 'Use one';
 };
 
+const matchesIngredient = (item, wanted, learnedAliases) => {
+  const stocked = canonicalName(item?.name, learnedAliases);
+  return sameIngredient(stocked, wanted, learnedAliases)
+    || (Math.min(stocked.length, wanted.length) >= 4
+      && (stocked.includes(wanted) || wanted.includes(stocked)));
+};
+
 /**
- * Consume one stocked row per matching recipe ingredient. Countable quantities
- * decrement safely; free-text amounts are removed rather than guessed.
+ * Cooking a dish takes what the dish actually used.
+ *
+ * The old behaviour spent exactly one unit per ingredient, whatever the recipe
+ * said: cook a traybake calling for eight thighs and the pantry would still
+ * claim seven were in the fridge. Now the amount a recipe asks for is measured
+ * against the amount on the shelf and the difference is what comes off — across
+ * several rows if need be, oldest date first so the thing nearest its end gets
+ * used before the fresh one.
+ *
+ * Three honesty rules survive from the old version:
+ *  - a row whose quantity cannot be read is used up whole rather than guessed
+ *    at, and reported in `assumed` so the UI can say so;
+ *  - running short is recorded in `shortfalls`, not silently rounded away —
+ *    that is what tells you the pantry was wrong before you cooked;
+ *  - `restore` carries the pantry exactly as it was, so undoing a cook is one
+ *    action rather than a reconstruction.
+ *
+ * `servings` scales the recipe: cooking 6 portions of a 4-portion dish takes
+ * 1.5x the ingredients.
  */
-export const consumePantryIngredients = (pantry = [], ingredients = [], { learnedAliases = {} } = {}) => {
+export const consumePantryIngredients = (pantry = [], ingredients = [], {
+  learnedAliases = {}, servings = null, recipeServings = null, today = dayStamp(),
+} = {}) => {
   const remaining = [...pantry];
   const used = [];
+  const shortfalls = [];
+  const assumed = [];
+  const factor = servings > 0 && recipeServings > 0 ? servings / recipeServings : 1;
+
   ingredients.forEach((ingredient) => {
     const wanted = canonicalName(ingredient.name, learnedAliases);
     if (!wanted) return;
-    const index = remaining.findIndex((item) => {
-      const stocked = canonicalName(item.name, learnedAliases);
-      return sameIngredient(stocked, wanted, learnedAliases)
-        || (Math.min(stocked.length, wanted.length) >= 4 && (stocked.includes(wanted) || wanted.includes(stocked)));
-    });
-    if (index >= 0) {
-      const item = remaining[index];
-      const next = decrementPantryItem(item);
-      used.push(item);
-      if (next.remove) remaining.splice(index, 1);
-      else remaining[index] = next.item;
+    // Oldest date first: cooking should empty the carton that is about to turn.
+    const candidates = remaining
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => matchesIngredient(item, wanted, learnedAliases))
+      .sort((a, b) => String(a.item.expiry || '9999-12-31').localeCompare(String(b.item.expiry || '9999-12-31')));
+    if (!candidates.length) return;
+
+    const base = parseQuantity(ingredient.qty, { ingredient: wanted });
+    let need = base ? scaleQuantity(base, factor) : null;
+
+    for (const { item } of candidates) {
+      if (need && need.amount <= 0) break;
+      const have = pantryQty(item);
+      const position = remaining.indexOf(item);
+      if (position < 0) continue;
+
+      // The recipe never said how much. Spend one unit — the smallest change
+      // that is still true — rather than clearing the row on an assumption.
+      if (!need) {
+        const next = decrementPantryItem(item);
+        used.push(item);
+        assumed.push({ name: item.name, reason: 'recipe does not say how much' });
+        if (next.remove) remaining.splice(position, 1);
+        else remaining[position] = next.item;
+        break;
+      }
+
+      // The pantry row is unreadable free text. Use it up rather than imply a
+      // measurement we do not have.
+      if (!have) {
+        used.push(item);
+        assumed.push({ name: item.name, reason: 'pantry amount not readable' });
+        remaining.splice(position, 1);
+        continue;
+      }
+
+      const left = subtractQuantities(have, need, { ingredient: wanted });
+      if (!left) {
+        // Mass against volume with no density to bridge them. Use the row whole
+        // rather than pretend the scales meet.
+        used.push(item);
+        assumed.push({ name: item.name, reason: 'amounts are on different scales' });
+        remaining.splice(position, 1);
+        break;
+      }
+
+      used.push({ ...item, usedQty: formatQuantity({ ...need, amount: Math.min(need.amount, have.amount) }) });
+      if (left.amount <= 0) remaining.splice(position, 1);
+      else remaining[position] = restock(item, have, left);
+      need = { ...need, amount: left.shortfall || 0 };
+    }
+
+    if (need && need.amount > 0) {
+      shortfalls.push({ name: ingredient.name, short: formatQuantity(need), needed: ingredient.qty });
     }
   });
-  return { pantry: remaining, used };
+
+  return { pantry: remaining, used, shortfalls, assumed, restore: pantry, at: today };
 };
 
 const encodeUtf8 = (value) => btoa(unescape(encodeURIComponent(value)));
