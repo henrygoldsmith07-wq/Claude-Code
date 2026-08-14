@@ -6,10 +6,11 @@ import SourceList from "@/components/SourceList";
 import TimeAgo from "@/components/TimeAgo";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import TimelineControl from "@/components/TimelineControl";
-import StoryClusterCard from "@/components/StoryClusterCard";
 import StoriesView from "@/components/StoriesView";
 import StorySourceSummary from "@/components/StorySourceSummary";
 import CoverageBiasPanel from "@/components/CoverageBiasPanel";
+import StoryAnalysisPanel from "@/components/StoryAnalysisPanel";
+import { analysePage } from "@/lib/storyPipeline";
 import LiteNewsList from "@/components/LiteNewsList";
 import LocationVerifyBadge from "@/components/LocationVerifyBadge";
 import MethodologyPanel from "@/components/MethodologyPanel";
@@ -191,9 +192,10 @@ export default async function WorldPage({
           {(news.stories?.length ?? 0) > 0 && (
             <>
               <StorySourceSummary news={news} />
+              <StoryAnalysisPanel analysis={analysePage(news)} />
               <CoverageBiasPanel news={news} />
               <LocationVerifyBadge news={news} />
-              <DiversityNudge mix={news.stories![0]?.sourceMix ?? { total: 0, byCountry: [], byPerspective: [], byKind: [], primaryCount: 0, perspectiveEntropy: 0, kindDistinctCount: 0 }} />
+              <DiversityNudge sources={news.stories![0]?.sources ?? []} />
               <SearchStories stories={news.stories!} />
               <StoriesView stories={news.stories!} />
               <StoryScreenReader stories={news.stories!} />
@@ -201,7 +203,7 @@ export default async function WorldPage({
               <CoverageCompare matrix={buildCoverageMatrix([news])} />
               {detectGaps([news], [...TOPICS]).length>0 && <p className="text-xs text-muted">Gaps: {detectGaps([news], [...TOPICS]).map(g=>`${g.key} — ${g.reason}`).join(" · ")}</p>}
               <SavedTopics />
-              <p className="text-xs text-muted"><a href="/benchmark" className="text-accent hover:underline">Public benchmark</a> · <a href="/?lite=1" className="text-accent hover:underline">Lite / offline-ready</a> · Keyboard: Tab through stories, / to search</p>
+              <p className="text-xs text-muted"><Link href="/benchmark" className="text-accent hover:underline">Public benchmark</Link> · <Link href="/?lite=1" className="text-accent hover:underline">Lite / offline-ready</Link> · Keyboard: Tab through stories, / to search</p>
             </>
           )}
           {news.topics.map((topic) => (

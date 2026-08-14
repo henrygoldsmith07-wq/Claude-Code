@@ -2,6 +2,7 @@
 // No extra key — uses GEMINI_API_KEY when present; otherwise identity (no-op).
 
 import { GoogleGenAI } from "@google/genai";
+import { checkTranslation, type TranslationCheck } from "./translationQuality";
 
 function getKey(): string | null {
   const list = [
@@ -59,6 +60,36 @@ export async function translateBatch(texts: string[], target: LangCode = "en"): 
   const out: string[] = [];
   for (const t of texts) out.push(await translate(t, target));
   return out;
+}
+
+export interface CheckedTranslation {
+  /** The text to display — the translation when it passed, the source when it did not. */
+  text: string;
+  /** True when `text` is the translation rather than the untouched source. */
+  translated: boolean;
+  check: TranslationCheck;
+}
+
+/**
+ * Translate and verify before returning.
+ *
+ * A translation that dropped a casualty figure or an actor's name is not a
+ * degraded translation, it is a different claim — so a failing check falls back
+ * to the source text rather than showing the reader something we cannot stand
+ * behind. The check travels with the result so the UI can caption why.
+ */
+export async function translateChecked(text: string, target: LangCode = "en"): Promise<CheckedTranslation> {
+  const out = await translate(text, target);
+  const check = checkTranslation(text, out, target);
+  // `translate` returns the source verbatim when unconfigured or on error;
+  // that is a no-op, not a failed translation, so report it as untranslated.
+  const attempted = out !== text;
+  if (!attempted) {
+    return { text, translated: false, check };
+  }
+  return check.usable
+    ? { text: out, translated: true, check }
+    : { text, translated: false, check };
 }
 
 export function translateConfigured(): boolean { return Boolean(getKey()); }

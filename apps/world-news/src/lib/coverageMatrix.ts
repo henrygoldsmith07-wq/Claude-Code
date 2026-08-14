@@ -2,7 +2,6 @@
 // Produces a country × publication matrix + gap list.
 
 import type { CountryNews } from "./gemini";
-import type { SourceAttribution } from "./storyModel";
 
 export interface CoverageCell { count: number; headlines: string[]; }
 export type CoverageMatrix = Map<string, Map<string, CoverageCell>>; // country -> publisher -> cell

@@ -41,19 +41,29 @@ export default function ClaimProvenance({ story }: { story: StoryCluster }) {
           <ul className="mt-2 space-y-2 text-sm">
             {disputed.map((d,i)=> (
               <li key={i} className="rounded border border-rule bg-panel p-2">
-                <p><span className="font-medium">Claim</span> — {d.claim} <span className="text-xs text-muted">({d.attributedTo.join(", ") || "—"})</span></p>
-                <p className="mt-1"><span className="font-medium">Counter</span> — {d.counterClaim} <span className="text-xs text-muted">({d.counterAttributedTo.join(", ") || "—"})</span></p>
-                <p className="mt-1 text-xs text-amber-300/80">Status: {d.status}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-amber-300/80">Accounts differ on {d.dimension}</p>
+                {/* Both sides get identical structure — presenting one as the
+                    story and the other as a footnote is the failure mode. */}
+                {d.sides.map((side, k) => (
+                  <p key={k} className={k === 0 ? "mt-1.5" : "mt-1"}>
+                    {side.claim}{" "}
+                    <span className="text-xs text-muted">
+                      ({side.attributedTo.join(", ") || "unattributed"} · {side.corroboration.independent} independent)
+                    </span>
+                  </p>
+                ))}
+                <p className="mt-1 text-xs text-amber-300/80">{d.summary}</p>
               </li>
             ))}
           </ul>
         </div>
       )}
-      {(split.facts.length>0||split.claims.length>0||split.analysis.length>0) && (
-        <div className="grid gap-2 sm:grid-cols-3 text-xs">
+      {(split.facts.length>0||split.claims.length>0||split.analysis.length>0||split.predictions.length>0) && (
+        <div className="grid gap-2 sm:grid-cols-2 text-xs lg:grid-cols-4">
           {split.facts.length>0 && <div className="rounded border border-success/30 bg-success/5 p-2"><p className="font-semibold text-success">Confirmed</p><ul className="mt-1 list-disc pl-4 text-muted">{split.facts.slice(0,3).map((f,i)=><li key={i}>{f}</li>)}</ul></div>}
-          {split.claims.length>0 && <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2"><p className="font-semibold text-amber-300">Claims</p><ul className="mt-1 list-disc pl-4 text-muted">{split.claims.slice(0,3).map((f,i)=><li key={i}>{f}</li>)}</ul></div>}
-          {split.analysis.length>0 && <div className="rounded border border-rule bg-panel-soft p-2"><p className="font-semibold text-muted">Analysis</p><ul className="mt-1 list-disc pl-4 text-muted">{split.analysis.slice(0,3).map((f,i)=><li key={i}>{f}</li>)}</ul></div>}
+          {split.claims.length>0 && <div className="rounded border border-amber-500/30 bg-amber-500/5 p-2"><p className="font-semibold text-amber-300">Attributed / unverified</p><ul className="mt-1 list-disc pl-4 text-muted">{split.claims.slice(0,3).map((f,i)=><li key={i}>{f}</li>)}</ul></div>}
+          {split.analysis.length>0 && <div className="rounded border border-rule bg-panel-soft p-2"><p className="font-semibold text-muted">Interpretation</p><ul className="mt-1 list-disc pl-4 text-muted">{split.analysis.slice(0,3).map((f,i)=><li key={i}>{f}</li>)}</ul></div>}
+          {split.predictions.length>0 && <div className="rounded border border-rule bg-panel-soft p-2"><p className="font-semibold text-muted">Forward-looking</p><ul className="mt-1 list-disc pl-4 text-muted">{split.predictions.slice(0,3).map((f,i)=><li key={i}>{f}</li>)}</ul></div>}
         </div>
       )}
     </div>
