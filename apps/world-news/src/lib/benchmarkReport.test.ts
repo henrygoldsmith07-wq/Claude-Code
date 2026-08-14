@@ -7,7 +7,10 @@
 // improvement lands.
 import { describe, it, expect } from "vitest";
 import { evaluateGold, evaluateScale, sweepThreshold, bestThreshold } from "./benchmark";
-import { goldStats, LABELLING_GUIDELINES } from "./benchmarkGold";
+import { goldStats, LABELLING_GUIDELINES, SET_USAGE } from "./benchmarkGold";
+import { benchmarkEligibility, corpusStats } from "./corpus";
+import { claimBenchmarkEligibility } from "./claimVerification";
+import { CLAIM_VERIFICATION_SET, CLUSTERING_CORPUS, CORPUS_TARGETS } from "./corpusData";
 
 const pad = (s: string | number, n: number) => String(s).padEnd(n);
 const num = (n: number) => n.toFixed(2);
@@ -23,10 +26,11 @@ function table(title: string, rows: { slice: string; precision: number; recall: 
 describe("clustering benchmark — human gold set", () => {
   const report = evaluateGold();
 
-  it("prints the labelled-set report", () => {
+  it("prints the synthetic dev-set report", () => {
     const s = goldStats();
     console.log(
-      `\n  Human-labelled gold set: ${s.events} events + ${s.singletons} labelled singletons = ${s.articles} articles` +
+      `\n  SYNTHETIC dev set (regression guard — NOT a benchmark): ${s.events} events + ${s.singletons} singletons = ${s.articles} fixtures` +
+      `\n  ${SET_USAGE}` +
       `\n  across ${s.topics} topics and ${s.regions} regions. Guidelines: ${LABELLING_GUIDELINES.length} rules.` +
       `\n  Overall @${report.threshold}: P=${num(report.overall.precision)} R=${num(report.overall.recall)} F1=${num(report.overall.f1)}` +
       ` | B³ P=${num(report.overall.bcubed.precision)} R=${num(report.overall.bcubed.recall)} F1=${num(report.overall.bcubed.f1)}` +
@@ -44,6 +48,31 @@ describe("clustering benchmark — human gold set", () => {
       for (const m of report.worstMerges) console.log(`    ${pad(m.cluster, 46)}${m.events.length} events, ${m.size} articles`);
     }
     expect(goldStats().articles).toBeGreaterThan(200);
+  });
+
+  // The synthetic numbers above are printed next to the real corpus state on
+  // purpose. A reader of this output should never have to work out which of
+  // the two the figures came from.
+  it("prints the real corpus state alongside, and refuses to score it", () => {
+    const stats = corpusStats(CLUSTERING_CORPUS);
+    const clustering = benchmarkEligibility(CLUSTERING_CORPUS, CORPUS_TARGETS.clusteringArticles);
+    const claims = claimBenchmarkEligibility(CLAIM_VERIFICATION_SET, CORPUS_TARGETS.claimCitations);
+
+    console.log(
+      `\n  Human-labelled corpus (the actual benchmark): ${stats.summary}` +
+      `\n  Reportable as a clustering benchmark: ${clustering.eligible ? "yes" : "no"}` +
+      clustering.reasons.map((r) => `\n    - ${r}`).join("") +
+      `\n  Reportable as a claim-verification benchmark: ${claims.eligible ? "yes" : "no"}` +
+      claims.reasons.map((r) => `\n    - ${r}`).join("") +
+      `\n  Targets: ${CORPUS_TARGETS.clusteringArticles} labelled articles, ` +
+      `${CORPUS_TARGETS.claimCitations} judged citations, κ ≥ ${CORPUS_TARGETS.minKappa}.`,
+    );
+
+    // Until real labels exist this must stay false. When it flips, the guard
+    // below fails and forces the reporting above to be revisited deliberately
+    // rather than a real benchmark appearing unannounced.
+    expect(clustering.eligible).toBe(false);
+    expect(claims.eligible).toBe(false);
   });
 
   it("holds precision and recall on the labelled set", () => {

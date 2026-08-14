@@ -49,6 +49,7 @@ function SourceKindBadge({ kind }: { kind?: string }) {
 }
 
 import ClaimProvenance from "./ClaimProvenance";
+import SourceProvenancePanel from "./SourceProvenancePanel";
 import { WhyThisMatters, WhatRemainsUnknown } from "./WhyWhatPanels";
 
 export default function StoryClusterCard({ story }: { story: StoryCluster }) {
@@ -273,6 +274,7 @@ export default function StoryClusterCard({ story }: { story: StoryCluster }) {
 
       <div className="mt-3 space-y-3">
         <WhyThisMatters story={story} />
+        <SourceProvenancePanel story={story} />
         <ClaimProvenance story={story} />
         <WhatRemainsUnknown story={story} />
       </div>

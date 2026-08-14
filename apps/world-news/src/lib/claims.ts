@@ -181,23 +181,24 @@ function contentStems(text: string, minLength = 5): string[] {
 }
 
 /**
- * Count the sources that actually support one claim.
+ * The sources that actually support one claim.
  *
  * A source supports a claim when their texts share the claim's distinctive
  * content — entities plus rare content words. This is deliberately strict:
  * being in the same cluster means covering the same event, not asserting the
  * same thing, and conflating the two is how "8 sources confirm" ends up
  * attached to a detail only one of them reported.
+ *
+ * Exported as the sources rather than only their count, because callers that
+ * trace a claim back to its originating reports need the sources themselves,
+ * and a second implementation of "supports" would let two panels disagree
+ * about which sources back the same sentence.
  */
-export function corroborationFor(
-  claim: string,
-  sources: SourceAttribution[],
-  ownerOf?: (publisher: string) => string | undefined,
-): CorroborationCount {
+export function supportersFor(claim: string, sources: SourceAttribution[]): SourceAttribution[] {
   const claimEnt = new Set(extractEntities(claim).ids);
   const claimWords = new Set(contentStems(claim));
 
-  const supporters = sources.filter((s) => {
+  return sources.filter((s) => {
     const text = `${s.title ?? ""}`;
     const ents = new Set(extractEntities(text).ids);
     let sharedEnt = 0;
@@ -208,6 +209,15 @@ export function corroborationFor(
     // Either a shared named actor plus a content word, or several content words.
     return (sharedEnt >= 1 && sharedWords >= 1) || sharedWords >= 3;
   });
+}
+
+/** Count and characterise the sources supporting one claim. */
+export function corroborationFor(
+  claim: string,
+  sources: SourceAttribution[],
+  ownerOf?: (publisher: string) => string | undefined,
+): CorroborationCount {
+  const supporters = supportersFor(claim, sources);
 
   const groups = independenceGroups(supporters, ownerOf);
   const hasPrimary = supporters.some((s) => s.isPrimary || isOfficialHost(s.url));
