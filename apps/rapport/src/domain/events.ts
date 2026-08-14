@@ -202,4 +202,7 @@ export function eventsBetween(events: DomainEvent[], fromIso: IsoInstant, toIso:
  * compares it against the stamp on the cached projection and recomputes when
  * they differ, so upgrades do not need a migration.
  */
-export const SCORING_MODEL_VERSION = 3;
+// 4: added the multi-party behaviours (inclusion, floorEntry). Existing skill
+// states were produced by a model that could not score them, so the projection
+// is recomputed rather than left to mix two scales in one history.
+export const SCORING_MODEL_VERSION = 4;

@@ -6,6 +6,7 @@ import type {
   SimulationScenario,
   SimulationTurn,
 } from "./types";
+import { namesAddressed } from "./addressing";
 
 // ---------------------------------------------------------------------------
 // The character engine.
@@ -117,6 +118,19 @@ export interface CharacterMemory {
   learnedAboutUser: string[];
   /** 0-1 how engaged the character currently is. Moves in response to the user. */
   engagement: number;
+  /**
+   * What the *other* characters have said in front of this one.
+   *
+   * In a group, people can refer to each other — "like Sam was saying" — and a
+   * character who cannot do that gives away that they are a separate bot that
+   * happens to share a room. Kept per-character rather than globally because
+   * someone who joined late genuinely did not hear the earlier part.
+   */
+  heardFromOthers: { characterId: Id; gist: string }[];
+  /** Times the user has addressed this character by name. */
+  timesAddressed: number;
+  /** User turns since this character was last addressed; drives being left out. */
+  turnsSinceAddressed: number;
 }
 
 export function newMemory(character: SimulatedCharacter): CharacterMemory {
@@ -126,6 +140,9 @@ export function newMemory(character: SimulatedCharacter): CharacterMemory {
     coveredTopics: [],
     learnedAboutUser: [],
     engagement: 0.5,
+    heardFromOthers: [],
+    timesAddressed: 0,
+    turnsSinceAddressed: 0,
   };
 }
 
@@ -155,7 +172,12 @@ export interface TurnPlan {
  * character up, three questions in a row closes them down. This is the feedback
  * loop that makes the simulation feel like a conversation rather than a form.
  */
-export function updateEngagement(memory: CharacterMemory, userTurn: string, previousCharacterTurn: string | null): CharacterMemory {
+export function updateEngagement(
+  memory: CharacterMemory,
+  userTurn: string,
+  previousCharacterTurn: string | null,
+  context: EngagementContext = {},
+): CharacterMemory {
   const lower = userTurn.toLowerCase();
   let delta = 0;
 
@@ -169,6 +191,32 @@ export function updateEngagement(memory: CharacterMemory, userTurn: string, prev
   if (userTurn.trim().split(/\s+/).length <= 3) delta -= 0.06;
   if ((userTurn.match(/\?/g) ?? []).length >= 2) delta -= 0.05;
 
+  // In a group, a turn aimed at somebody else is not a turn aimed at you.
+  //
+  // The one-to-one version applied the full engagement change to every
+  // character, which quietly made attention free: the user could talk only to
+  // Alex all session and Sam would warm up exactly as much. Being ignored has
+  // to cost something or "include the quiet one" is advice with no mechanism
+  // behind it.
+  const inGroup = context.groupSize !== undefined && context.groupSize > 1;
+  const addressedSomeone = context.addressedAnyone ?? false;
+  const addressed = context.addressed ?? true;
+  let timesAddressed = memory.timesAddressed;
+  let turnsSinceAddressed = memory.turnsSinceAddressed;
+
+  if (inGroup) {
+    if (addressed) {
+      timesAddressed += 1;
+      turnsSinceAddressed = 0;
+    } else {
+      turnsSinceAddressed += 1;
+      // A turn aimed at a named someone else lands as being passed over;
+      // a turn addressed to the room still counts, just for less.
+      delta = addressedSomeone ? delta * 0.15 - 0.05 : delta * 0.5;
+      if (turnsSinceAddressed >= 4) delta -= 0.04;
+    }
+  }
+
   const learned = /\b(i|i'm|im|i've|ive|my)\b/i.test(userTurn) && userTurn.split(/\s+/).length > 6
     ? [...memory.learnedAboutUser, condense(userTurn)]
     : memory.learnedAboutUser;
@@ -177,7 +225,19 @@ export function updateEngagement(memory: CharacterMemory, userTurn: string, prev
     ...memory,
     engagement: Math.min(1, Math.max(0, memory.engagement + delta)),
     learnedAboutUser: learned.slice(-6),
+    timesAddressed,
+    turnsSinceAddressed,
   };
+}
+
+/** How a user turn relates to this particular character. Absent means one-to-one. */
+export interface EngagementContext {
+  /** Whether this user turn addressed this character. */
+  addressed?: boolean;
+  /** Whether the turn named anyone at all — being passed over stings more than a general remark. */
+  addressedAnyone?: boolean;
+  /** Characters in the scenario. 1 or undefined restores the one-to-one behaviour exactly. */
+  groupSize?: number;
 }
 
 function sharedWords(a: string, b: string): number {
@@ -367,20 +427,41 @@ export function rebuildMemory(simulation: Simulation): Map<Id, CharacterMemory> 
   const turns = [...simulation.turns].sort((a, b) => a.index - b.index);
   let lastCharacterTurn: SimulationTurn | null = null;
 
+  const groupSize = simulation.scenario.characters.length;
+
   for (const turn of turns) {
     if (turn.speaker === "character" && turn.characterId) {
-      const memory = memories.get(turn.characterId);
+      const speakerId = turn.characterId;
+      const memory = memories.get(speakerId);
       if (memory) {
-        memories.set(turn.characterId, {
+        memories.set(speakerId, {
           ...memory,
-          statedFacts: [...memory.statedFacts, ...factsIn(turn.text, simulation.scenario, turn.characterId)],
+          statedFacts: [...memory.statedFacts, ...factsIn(turn.text, simulation.scenario, speakerId)],
           coveredTopics: [...memory.coveredTopics, ...(keyPhrase(turn.text) ? [keyPhrase(turn.text) as string] : [])],
+        });
+      }
+      // Everyone else in the room heard it.
+      for (const [id, other] of memories) {
+        if (id === speakerId) continue;
+        memories.set(id, {
+          ...other,
+          heardFromOthers: [...other.heardFromOthers, { characterId: speakerId, gist: condense(turn.text) }].slice(-8),
         });
       }
       lastCharacterTurn = turn;
     } else if (turn.speaker === "user") {
+      const named = namesAddressed(turn.text, simulation.scenario);
       for (const [id, memory] of memories) {
-        memories.set(id, updateEngagement(memory, turn.text, lastCharacterTurn?.text ?? null));
+        memories.set(
+          id,
+          updateEngagement(memory, turn.text, lastCharacterTurn?.text ?? null, {
+            // With nobody named, a turn in a group is addressed to the room:
+            // treat it as reaching whoever spoke last rather than nobody.
+            addressed: named.length > 0 ? named.includes(id) : lastCharacterTurn?.characterId === id,
+            addressedAnyone: named.length > 0,
+            groupSize,
+          }),
+        );
       }
     }
   }
