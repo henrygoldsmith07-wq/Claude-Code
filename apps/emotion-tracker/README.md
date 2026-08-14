@@ -51,13 +51,16 @@ From **Insights** in the sidebar: completed count, streak, 14-day chart, most co
 - **Action tracking** — `actionFollowThrough()` measures how many reviewed reflections actually logged their action.
 - **Insights link to evidence** — `summaryInsights()` returns every pattern/contradiction/calibration/unresolved item with its supporting `entryIds`; weekly/monthly reviews carry the same linked `patterns`, `contradictions` and `actionsOutstanding`.
 - **Users can correct the model** — `src/lib/corrections.ts`: rejecting an inferred pattern stores a stable key, and `withoutDismissed()` filters it out of summaries, insights and reviews forever (no resurfacing).
-- **Sharper detectors** — recurring-assumption grouping is stem-aware and stopword-aware; contradiction detection now catches always-vs-never oppositions and labels same-trigger emotion shifts as possible change.
+- **Sharper detectors** — recurring-assumption grouping is stem-aware and stopword-aware (shared tokenisation with search, so the pattern engine and search agree); contradiction detection now catches always-vs-never oppositions and labels same-trigger emotion shifts as possible change.
+- **Search that agrees with the detectors** — `semanticSearch` ranks with stem-aware TF-IDF over a *weighted* document (title/emotion/trigger outrank buried message text), returns which fields matched per hit, and keeps the exact-phrase boost. Runs fully locally, so local-only mode stays local.
+- **Safe restore/import** — `src/lib/importExport.ts` is the trust boundary for imports: encrypted vault exports are rejected (they must be decrypted with the passphrase), malformed JSON/rows are skipped with warnings, ids are deduped (first wins), and imports are capped. Nothing imported can silently wipe the vault.
+- **Validated on realistic longitudinal data** — the benchmark now includes `runRealisticLongitudinalBenchmark()`: a multi-month corpus with paraphrased recurrences, a near-duplicate decoy that must NOT group, unrelated noise, a planted contradiction and a recurring emotion pattern — precision and recall checked together, not just clean planted fixtures.
 
 ## Privacy boundaries (tested)
 
 `src/lib/privacy.ts` states the contract in code: `localOnlyAudit()` inventories what runs locally vs the single network call (the current reflection's messages, only with a key present); `containsVerbatimEntryText()` proves Pulse snapshots and API entry hints never carry entry content. `crypto.ts` adds `verifyPassphrase()` (check the key before restoring) and `rekeyVault()` (change the passphrase without losing the vault). `emitPulseGuarded()` in `pulse.ts` enforces explicit opt-in at the API level — no opt-in, no dispatch.
 
-The longitudinal engine is benchmarked deterministically (`runLongitudinalBenchmark()` in `src/lib/benchmark.ts`): planted recurring patterns, contradictions, calibration improvement and resurfacing priority are all recovered, and a rejected pattern never resurfaces.
+The longitudinal engine is benchmarked deterministically (`runLongitudinalBenchmark()` in `src/lib/benchmark.ts`): planted recurring patterns, contradictions, calibration improvement and resurfacing priority are all recovered, and a rejected pattern never resurfaces. `runRealisticLongitudinalBenchmark()` adds a noisy multi-month corpus to catch precision regressions (decoy and noise entries must stay out of planted groups).
 
 ## Setup
 

@@ -73,6 +73,23 @@ describe("semanticSearch", () => {
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.length).toBeLessThanOrEqual(20);
   });
+  it("matches stem variants (ignoring ↔ ignore) — same tokeniser as the pattern engine", () => {
+    const a = entry({ title: "They keep ignoring my messages", summary: { ...entry().summary!, coreEmotion: "hurt" } });
+    const b = entry({ title: "Sunny picnic joy", summary: { ...entry().summary!, coreEmotion: "joy" } });
+    const hits = semanticSearch([b, a], "ignore my messages");
+    expect(hits[0]?.entry.id).toBe(a.id);
+  });
+  it("weighs title/emotion matches above buried message matches", () => {
+    const buried = entry({ id: "buried", title: "Random walk", messages: [{ role: "user", content: "manager feedback about handover detail" }] });
+    const titled = entry({ id: "titled", title: "Manager feedback about handover" });
+    const hits = semanticSearch([buried, titled], "manager feedback");
+    expect(hits[0]?.entry.id).toBe("titled");
+  });
+  it("reports which weighted fields matched", () => {
+    const a = entry({ id: "field-a", title: "Manager feedback shame", summary: { ...entry().summary!, coreEmotion: "shame" } });
+    const hits = semanticSearch([a], "manager");
+    expect(hits[0]?.matched).toContain("title");
+  });
 });
 
 describe("allTopics + relationships", () => {

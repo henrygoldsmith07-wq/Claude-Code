@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultBenchmarkCases, runBenchmark, runBenchmarkCase, runLongitudinalBenchmark } from "./benchmark";
+import { defaultBenchmarkCases, runBenchmark, runBenchmarkCase, runLongitudinalBenchmark, runRealisticLongitudinalBenchmark } from "./benchmark";
 
 describe("benchmark harness", () => {
   it("valid hedged case passes", () => {
@@ -38,6 +38,15 @@ describe("longitudinal benchmark", () => {
     const checks = runLongitudinalBenchmark();
     const failed = checks.filter((c) => !c.pass);
     expect(checks.length).toBe(6);
+    expect(failed).toEqual([]);
+  });
+});
+
+describe("realistic longitudinal benchmark", () => {
+  it("pattern detection survives real-world noise with precision", () => {
+    const checks = runRealisticLongitudinalBenchmark();
+    const failed = checks.filter((c) => !c.pass);
+    expect(checks.length).toBe(5);
     expect(failed).toEqual([]);
   });
 });

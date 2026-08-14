@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { Entry } from "@/lib/types";
 import { encryptJson, decryptJson, passphraseStrength, type EncryptedBlob } from "@/lib/crypto";
 import { isPulseOptIn, setPulseOptIn, emitPulse } from "@/lib/pulse";
+import { parseImport } from "@/lib/importExport";
 
 const VAULT_KEY = "reflectVault";
 const ENTRIES_KEY = "reflectEntries";
@@ -77,18 +78,15 @@ export default function PrivacyBar({
   function handleImport(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result));
-        // Encrypted blob vs plain array
-        if (parsed && parsed.v === 1 && parsed.ct) {
-          alert("This looks like an encrypted export — use Decrypt vault with its passphrase, or decrypt offline and import the plaintext JSON.");
-          return;
-        }
-        if (!Array.isArray(parsed)) throw new Error("Expected an array of reflections");
-        setEntries(parsed as Entry[]);
-      } catch (e) {
-        alert(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
+      const text = String(reader.result ?? "");
+      const result = parseImport(text);
+      if (!result.ok) {
+        alert(`Import failed: ${result.error}`);
+        return;
       }
+      setEntries(result.entries);
+      const warning = result.warnings.length > 0 ? ` ${result.warnings.join(" ")}` : "";
+      alert(`Imported ${result.entries.length} reflection${result.entries.length === 1 ? "" : "s"}.${warning}`);
     };
     reader.readAsText(file);
   }

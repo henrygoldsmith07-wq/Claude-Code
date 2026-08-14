@@ -168,6 +168,69 @@ export function runLongitudinalBenchmark(): LongitudinalCheck[] {
   ];
 }
 
+// ── Realistic longitudinal benchmark ───────────────────────────────────
+// Validates pattern detection on a *realistic* multi-month corpus, not just
+// clean planted fixtures: paraphrased recurrences, a near-duplicate decoy that
+// must NOT group (precision), unrelated noise that must not form groups, a
+// planted contradiction, and a recurring emotion pattern — all mixed in time.
+
+export function runRealisticLongitudinalBenchmark(): LongitudinalCheck[] {
+  // Planted recurrence: same assumption, four natural phrasings across months.
+  const recurringIds = ["real-r1", "real-r2", "real-r3", "real-r4"];
+  const recurring = [
+    benchEntry("real-r1", "2025-10-06", { trace: { assumptions: ["they keep ignoring my messages at work"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-r2", "2025-11-12", { trace: { assumptions: ["they are ignoring my messages again"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-r3", "2025-12-03", { trace: { assumptions: ["they ignored my messages yesterday"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-r4", "2026-01-15", { trace: { assumptions: ["my messages keep being ignored at the office"] } as ReflectionSummary["trace"] }),
+  ];
+  // Decoy: shares the "ignoring/messages" stems with the planted group but
+  // means something different — must stay out of the group.
+  const decoy = benchEntry("real-decoy", "2025-11-20", { trace: { assumptions: ["I keep ignoring my alarm clock"] } as ReflectionSummary["trace"] });
+  // Unrelated noise — each assumption unique; none may form a group.
+  const noise = [
+    benchEntry("real-n1", "2025-10-09", { trace: { assumptions: ["the weather is getting colder every week"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-n2", "2025-10-22", { trace: { assumptions: ["traffic was worse than usual this morning"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-n3", "2025-11-05", { trace: { assumptions: ["the meeting ran over by ten minutes"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-n4", "2025-11-30", { trace: { assumptions: ["my laptop battery drains too quickly"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-n5", "2025-12-18", { trace: { assumptions: ["the restaurant was fully booked"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-n6", "2026-01-08", { trace: { assumptions: ["the train was delayed again"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-n7", "2026-01-22", { trace: { assumptions: ["the wifi keeps dropping during calls"] } as ReflectionSummary["trace"] }),
+  ];
+  // Planted contradiction: always-vs-never on the same subject.
+  const contrad = [
+    benchEntry("real-c1", "2025-10-15", { trace: { assumptions: ["my boss will never promote me"] } as ReflectionSummary["trace"] }),
+    benchEntry("real-c2", "2025-11-08", { trace: { assumptions: ["my boss will always promote me"] } as ReflectionSummary["trace"] }),
+  ];
+  // Planted emotion pattern: frustration across several entries.
+  const emotion = [
+    benchEntry("real-e1", "2025-10-12", { coreEmotion: "frustration" }),
+    benchEntry("real-e2", "2025-12-01", { coreEmotion: "frustration" }),
+    benchEntry("real-e3", "2026-01-18", { coreEmotion: "frustration" }),
+  ];
+
+  const all = [...recurring, decoy, ...noise, ...contrad, ...emotion];
+  const groups = detectRecurringAssumptions(all);
+  const top = groups[0];
+  const contras = detectContradictions(all);
+  const patterns = detectRecurringPatterns(all);
+
+  const groupMemberIds = top?.members.map((m) => m.entryId) ?? [];
+  const recoveredAll = recurringIds.every((id) => groupMemberIds.includes(id));
+  const groupHasDecoy = groupMemberIds.includes("real-decoy");
+  // Noise precision: no group may be formed purely from noise members.
+  const noiseOnlyGroup = groups.some((g) => g.members.length >= 2 && g.members.every((m) => m.entryId.startsWith("real-n")));
+  const contradictionFound = contras.some((c) => [c.entryA, c.entryB].sort().join() === ["real-c1", "real-c2"].sort().join());
+  const frustrationPattern = patterns.find((p) => p.kind === "emotion" && p.label === "frustration");
+
+  return [
+    { name: "paraphrased recurrence recovered (count 4)", pass: !!top && top.count === 4 && recoveredAll, detail: `group count ${top?.count ?? 0} · members ${groupMemberIds.join(", ") || "none"}` },
+    { name: "near-duplicate decoy kept out (precision)", pass: !groupHasDecoy, detail: groupHasDecoy ? "decoy merged into the recurring group" : "decoy stayed separate" },
+    { name: "no group formed from unrelated noise", pass: !noiseOnlyGroup, detail: `${groups.length} group(s) total` },
+    { name: "contradiction found between always-vs-never", pass: contradictionFound, detail: contras.map((c) => c.reason).join("; ") || "none" },
+    { name: "recurring emotion pattern recovered despite noise", pass: !!frustrationPattern && frustrationPattern.count >= 3, detail: frustrationPattern ? `${frustrationPattern.label}×${frustrationPattern.count}` : "not found" },
+  ];
+}
+
 // A small default suite the app can run without any LLM
 export function defaultBenchmarkCases(): BenchmarkCase[] {
   const validTrace = {

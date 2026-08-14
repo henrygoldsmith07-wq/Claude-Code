@@ -1,12 +1,5 @@
 import type { Entry } from "./types";
-
-// ── token helpers ──────────────────────────────────────────────────────
-function norm(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-function toks(s: string): string[] {
-  return norm(s).split(" ").filter((t) => t.length >= 2);
-}
+import { norm, toks, simTokens } from "./tokens";
 
 // ── plain text search ──────────────────────────────────────────────────
 export function searchEntries(entries: Entry[], q: string): Entry[] {
@@ -38,22 +31,53 @@ export function searchEntries(entries: Entry[], q: string): Entry[] {
   });
 }
 
-// ── lightweight semantic search (TF-IDF + cosine over sparse vectors) ─
+// ── lightweight semantic search ───────────────────────────────────────
 // No model dependency — runs entirely locally, so "local-only mode" stays local.
-// Rank by TF-IDF cosine between query and entry document.
-// Caps + token-set caching so it stays fast even with many entries.
+// Ranking: stem-aware TF-IDF cosine over a *weighted* document. Field weights
+// make a title/emotion/trigger match worth more than a buried message match;
+// stemming ("ignoring" ↔ "ignore") is the same tokenisation the longitudinal
+// detectors use, so search agrees with the pattern engine.
+// Caps + token-set caching keep it fast even with many entries.
 
-function buildDoc(e: Entry): string {
-  return [
-    e.title,
-    e.summary?.trace.event ?? "",
-    ...(e.summary?.trace.observations ?? []),
-    ...(e.summary?.trace.assumptions ?? []),
-    ...(e.summary?.trace.alternativeInterpretations ?? []),
-    e.summary?.trace.namedEmotion ?? "",
-    e.summary?.coreEmotion ?? "",
-    ...(e.summary?.underlyingTriggers ?? []),
-  ].join(" ");
+const FIELD_WEIGHTS: [string, number][] = [
+  // title and emotion are the strongest signals
+  ["title", 3],
+  ["emotion", 3],
+  ["trigger", 2],
+  ["event", 2],
+  ["assumption", 2],
+  ["alternative", 1],
+  ["observation", 1],
+  ["other", 1],
+  ["outcome", 1],
+  ["note", 1],
+  ["message", 1],
+];
+
+function buildWeightedDoc(e: Entry): string {
+  const t = e.summary?.trace;
+  const fields: Record<string, string> = {
+    title: e.title,
+    emotion: [e.summary?.coreEmotion ?? "", t?.namedEmotion ?? ""].join(" "),
+    trigger: (e.summary?.underlyingTriggers ?? []).join(" "),
+    event: t?.event ?? "",
+    assumption: (t?.assumptions ?? []).join(" "),
+    alternative: (t?.alternativeInterpretations ?? []).join(" "),
+    observation: (t?.observations ?? []).join(" "),
+    other: [e.summary?.otherPerspective ?? "", e.summary?.balancedAssessment ?? ""].join(" "),
+    outcome: [e.longitudinalReview?.actualOutcome ?? "", e.longitudinalReview?.calibrationNote ?? ""].join(" "),
+    note: e.summary?.suggestedNextSteps?.join(" ") ?? "",
+    message: e.messages.map((m) => m.content).join(" "),
+  };
+  // Repeat higher-weight fields so TF naturally reflects importance without a
+  // separate scoring pass.
+  const parts: string[] = [];
+  for (const [key, w] of FIELD_WEIGHTS) {
+    const text = fields[key];
+    if (!text) continue;
+    for (let i = 0; i < w; i++) parts.push(text);
+  }
+  return parts.join(" ");
 }
 
 function tf(tokens: string[]): Map<string, number> {
@@ -67,21 +91,20 @@ function tf(tokens: string[]): Map<string, number> {
 export interface SemanticHit {
   entry: Entry;
   score: number; // 0..1 cosine
+  matched: string[]; // which weighted fields contributed tokens
 }
 
 export function semanticSearch(entries: Entry[], q: string, topK = 20): SemanticHit[] {
-  const qTokens = toks(q);
+  const qTokens = simTokens(q); // stemmed, stopword-free — "ignoring" hits "ignore"
   const qPhrase = norm(q);
   if (qTokens.length === 0 || entries.length === 0) return [];
-  // Cap: beyond ~200 entries, shard or require more specific query
+  // Cap: beyond ~500 entries, shard or require more specific query
   const capped = entries.length > 500 ? entries.slice(0, 500) : entries;
-  const docs = capped.map(buildDoc);
-  // Cache token arrays + sets per doc to avoid recomputing toks N× per df scan
-  const docTokens: string[][] = docs.map((d) => toks(d));
+  const docs = capped.map(buildWeightedDoc);
+  const docTokens: string[][] = docs.map((d) => simTokens(d));
   const docSets: Set<string>[] = docTokens.map((arr) => new Set(arr));
   const qSet = new Set(qTokens);
-  const allTokens = new Set<string>([...qSet, ...docTokens.flat().filter((_, i) => i < 2000)]);
-  // Include remaining unique tokens beyond first 2000 via sets
+  const allTokens = new Set<string>(qSet);
   for (const s of docSets) for (const t of s) allTokens.add(t);
   // doc frequency
   const df = new Map<string, number>();
@@ -119,9 +142,37 @@ export function semanticSearch(entries: Entry[], q: string, topK = 20): Semantic
     // stronger match than token overlap alone.
     const doc = docs[i];
     if (qPhrase.length >= 4 && norm(doc).includes(qPhrase)) score = Math.min(1, score * 1.5 + 0.05);
-    if (score > 0.02) hits.push({ entry: capped[i], score });
+    if (score > 0.02) {
+      // which weighted fields actually matched query tokens (for explanations)
+      const matched: string[] = [];
+      for (const [key] of FIELD_WEIGHTS) {
+        const fieldTokens = simTokens(fieldsOf(capped[i], key));
+        if (fieldTokens.some((t) => qSet.has(t))) matched.push(key);
+      }
+      if (matched.length === 0) matched.push("content");
+      hits.push({ entry: capped[i], score, matched });
+    }
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, topK);
+}
+
+// field extraction helper for the "matched" explanation (same weights as above)
+function fieldsOf(e: Entry, key: string): string {
+  const t = e.summary?.trace;
+  switch (key) {
+    case "title": return e.title;
+    case "emotion": return [e.summary?.coreEmotion ?? "", t?.namedEmotion ?? ""].join(" ");
+    case "trigger": return (e.summary?.underlyingTriggers ?? []).join(" ");
+    case "event": return t?.event ?? "";
+    case "assumption": return (t?.assumptions ?? []).join(" ");
+    case "alternative": return (t?.alternativeInterpretations ?? []).join(" ");
+    case "observation": return (t?.observations ?? []).join(" ");
+    case "other": return [e.summary?.otherPerspective ?? "", e.summary?.balancedAssessment ?? ""].join(" ");
+    case "outcome": return [e.longitudinalReview?.actualOutcome ?? "", e.longitudinalReview?.calibrationNote ?? ""].join(" ");
+    case "note": return e.summary?.suggestedNextSteps?.join(" ") ?? "";
+    case "message": return e.messages.map((m) => m.content).join(" ");
+    default: return "";
+  }
 }
 
 // ── tags / topics derived locally (no LLM) ────────────────────────────
