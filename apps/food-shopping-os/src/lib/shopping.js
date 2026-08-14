@@ -10,6 +10,8 @@
 import { AISLE_ORDER, guessAisle } from '../data/stores.js';
 import { dayStamp, priceHistory } from './kitchen.js';
 import { mergeQtys } from './pantry.js';
+import { entityKey } from './aliases.js';
+import { compareUnitPrices, unitPriceOf } from './measure.js';
 
 const key = (name) => String(name || '').trim().toLowerCase();
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -54,24 +56,26 @@ export const parseVoiceShopping = (text) => {
   return { items: chunks, heard: body };
 };
 
-export const unitPrice = (item = {}) => {
-  const price = Number(item.price);
-  if (!(price > 0)) return null;
-  const text = String(item.qty || '').toLowerCase().replace(',', '.');
-  const packed = text.match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\b/);
-  const plain = text.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\b/);
-  if (!packed && !plain) return null;
-  const count = packed ? Number(packed[1]) : 1;
-  const amount = Number(packed ? packed[2] : plain[1]);
-  const unit = packed ? packed[3] : plain[2];
-  const baseAmount = count * amount * (unit === 'kg' || unit === 'l' ? 1000 : 1);
-  if (!(baseAmount > 0)) return null;
-  const isVolume = unit === 'ml' || unit === 'l';
-  return {
-    value: Math.round((price / baseAmount) * 100 * 100) / 100,
-    unit: isVolume ? '100ml' : '100g',
-  };
-};
+/**
+ * What a row costs per 100 g, per 100 ml or per item — the number that says
+ * whether the big box is actually cheaper.
+ *
+ * The reading comes from the shared measurement engine, so this now works for
+ * the sizes a real shelf uses: "1 litre" and "1l" give the same answer, "6 x
+ * 125 g" divides properly, and a size that had to lean on a generic package
+ * average comes back marked approximate rather than posing as a measurement.
+ */
+export const unitPrice = (item = {}) =>
+  unitPriceOf(item.price, item.qty, { ingredient: entityKey(item.name) });
+
+/**
+ * Rank sizes of the same product by what they really cost. Rows that cannot be
+ * put on one scale are returned separately instead of being dropped from a
+ * "best value" claim, and a best that is only a hair cheaper reports its margin
+ * so the UI can decline to make a fuss about 1p.
+ */
+export const compareSizes = (rows = []) =>
+  compareUnitPrices(rows.map((row) => ({ ...row, ingredient: entityKey(row.name) })));
 
 export const shoppingNameKey = (name) => {
   const raw = String(name || '').toLowerCase().trim().replace(/\s+/g, ' ');
@@ -480,20 +484,39 @@ export const dealQuality = (offer, items = [], { today = '' } = {}) => {
 /**
  * Merge duplicate ingredient lines into one item, keeping every dish that
  * wanted it — one "Chicken breast" on the list, not four.
+ *
+ * Grouping runs on the canonical ingredient, not the literal string, so the
+ * recipe that asks for "chopped tomatoes" and the one that asks for "tin
+ * tomatoes" produce one row of 800 g rather than two rows the shopper has to
+ * reconcile in the aisle. The name shown is the first one written, because that
+ * is the wording the household recognises; `alsoKnownAs` keeps the other
+ * spellings so the row can explain what it absorbed.
+ *
+ * `learnedAliases` threads through the corrections the household has taught,
+ * so a pairing the curated table never knew about still consolidates.
  */
-export const mergeItems = (items = []) => {
+export const mergeItems = (items = [], { learnedAliases = {} } = {}) => {
   const merged = new Map();
   for (const item of items) {
-    const k = key(item.name);
+    const k = entityKey(item.name, learnedAliases) || key(item.name);
     const found = merged.get(k);
     if (!found) {
-      merged.set(k, { ...item, forRecipes: item.fromRecipe ? [item.fromRecipe] : [] });
+      merged.set(k, {
+        ...item,
+        forRecipes: item.fromRecipe ? [item.fromRecipe] : [],
+        alsoKnownAs: [],
+      });
       continue;
     }
     if (item.fromRecipe && !found.forRecipes.includes(item.fromRecipe)) found.forRecipes.push(item.fromRecipe);
+    if (key(item.name) !== key(found.name) && !found.alsoKnownAs.includes(item.name)) {
+      found.alsoKnownAs.push(item.name);
+    }
     // Sum quantities when they're on the same scale ("600 g" + "400 g" →
-    // "1 kg"); otherwise keep them visible as separate amounts.
-    found.qty = mergeQtys(found.qty, item.qty);
+    // "1 kg"); otherwise keep them visible as separate amounts. The canonical
+    // name goes in so "2 tins" of one thing and "400 g" of the same thing add
+    // up instead of sitting side by side as incomparable text.
+    found.qty = mergeQtys(found.qty, item.qty, { ingredient: k });
   }
   return [...merged.values()].map((item) => ({
     ...item,

@@ -160,13 +160,13 @@ export const CLOZE_TESTS = [
 // its own data modules (one per language) so it can grow to real dictionary
 // scale. `getFrequencyWords()` follows the active target language, so the
 // offline dictionary shows German/Spanish words for those learners.
-import { FREQUENCY_WORDS_BY_LANG } from './vocab-frequency';
-import { contentLang } from './content/active';
+import { FREQUENCY_WORDS_BY_LANG } from './vocab-frequency.js';
+import { contentLang } from './content/active.js';
 
 export const getFrequencyWords = () => FREQUENCY_WORDS_BY_LANG[contentLang()] || FREQUENCY_WORDS_BY_LANG.fr;
 
 // Back-compat alias: the French list (kept so older imports don't break).
-export { FREQUENCY_WORDS } from './frequency';
+export { FREQUENCY_WORDS } from './frequency.js';
 
 // Parse a pasted custom word list — accepts "fr, en", "fr - en", "fr : en"
 // or tab-separated, one per line. Returns [{ fr, en }].

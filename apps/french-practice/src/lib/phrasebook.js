@@ -3,7 +3,7 @@
 // follows the active content language so the tool switches with the app.
 // Each phrase: { fr: target-language text, en: English }.
 
-import { contentLang } from './content/active';
+import { contentLang } from './content/active.js';
 
 const p = (fr, en) => ({ fr, en });
 

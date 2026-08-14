@@ -15,6 +15,8 @@ import StoryClusterCard from "@/components/StoryClusterCard";
 import StoriesView from "@/components/StoriesView";
 import StorySourceSummary from "@/components/StorySourceSummary";
 import CoverageBiasPanel from "@/components/CoverageBiasPanel";
+import StoryAnalysisPanel from "@/components/StoryAnalysisPanel";
+import { analysePage } from "@/lib/storyPipeline";
 import GeopoliticsPanel from "@/components/GeopoliticsPanel";
 import LiteNewsList from "@/components/LiteNewsList";
 import LocationVerifyBadge from "@/components/LocationVerifyBadge";
@@ -316,9 +318,10 @@ export default async function CountryPage({
 
         <WhatChangedPanel news={news} />
         <CoverageBiasPanel news={news} />
+        <StoryAnalysisPanel analysis={analysePage(news)} />
         <LocationVerifyBadge news={news} />
         <GeopoliticsPanel code={code} />
-        {(news.stories?.length ?? 0) > 0 && <DiversityNudge mix={news.stories![0].sourceMix} countryCode={code} />}
+        {(news.stories?.length ?? 0) > 0 && <DiversityNudge sources={news.stories![0].sources} countryCode={code} />}
         {(news.stories?.length ?? 0) > 0 && <SearchStories stories={(news.stories ?? []).filter(s=> !topicName || s.topic===topicName)} />}
         {(news.stories?.length ?? 0) > 0 && <SavedTopics />}
         {liteMode ? (

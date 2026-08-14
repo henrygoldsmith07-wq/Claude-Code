@@ -1,15 +1,28 @@
-// Memory model for the revision hub. Retention follows an exponential
-// forgetting curve R(t) = e^(-t/S): S (stability, in days) grows with each
-// successful review — we approximate it with the card's SRS interval.
+// Memory model for the revision hub.
+//
+// There is one forgetting curve in this app and it is the scheduler's:
+// R(t) = 0.9^(t/S), where stability S is *defined* as the days until recall
+// falls to 90%. This module used to run a different one — R(t) = e^(-t/S),
+// with S approximated by the SM-2 interval — so the hub and the scheduler
+// disagreed about the same card. A card with S=10 reviewed 5 days ago read as
+// 95% recall to the scheduler and 61% here, which is the difference between
+// "strong" and "fading" on the revision screen.
+
+import { retrievability } from './fsrs.js';
 
 const DAY = 86400000;
 
-// Predicted recall probability right now (0..1), or null if never reviewed.
+/**
+ * Predicted recall probability right now (0..1), or null if never reviewed.
+ * Prefers the card's FSRS stability; a legacy SM-2 row falls back to its
+ * interval, which SM-2 also targets at roughly 90% recall, so both go through
+ * the same curve.
+ */
 export function retentionNow(srsEntry, now = Date.now()) {
   if (!srsEntry || !srsEntry.lastReviewed) return null;
   const days = Math.max(0, (now - new Date(srsEntry.lastReviewed).getTime()) / DAY);
-  const stability = Math.max(0.5, srsEntry.interval || 0);
-  return Math.exp(-days / stability);
+  const stability = Math.max(0.5, srsEntry.S || srsEntry.interval || 0);
+  return retrievability(stability, days);
 }
 
 // Bucket every tracked card by how well it's being remembered.
@@ -38,11 +51,12 @@ export function weakEntries(entries, srs) {
 }
 
 // Points for an SVG forgetting curve: R(t) over `days` days for stability S.
+// Same curve the scheduler uses, so the drawing matches the percentages.
 export function curvePoints(stability, days = 14, width = 100, height = 100) {
   const pts = [];
   for (let i = 0; i <= 40; i++) {
     const t = (i / 40) * days;
-    const r = Math.exp(-t / stability);
+    const r = retrievability(stability, t);
     pts.push(`${((t / days) * width).toFixed(1)},${((1 - r) * height).toFixed(1)}`);
   }
   return pts.join(' ');

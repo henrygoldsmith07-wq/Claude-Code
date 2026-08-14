@@ -6,11 +6,11 @@ import {
   mockWritingFeedback, mockCompletion, mockTutorReply, mockTranslation,
   mockExercises, mockLesson, mockExplanation, mockCharacterReply, mockStory,
   mockSnapVocab,
-} from './mocks';
+} from './mocks.js';
 
-import { getLanguage, DEFAULT_LANG } from './languages';
-import { consume, getRemaining } from './quota';
-import { relayEnabled } from './relay';
+import { getLanguage, DEFAULT_LANG } from './languages.js';
+import { consume, getRemaining } from './quota.js';
+import { relayEnabled } from './relay.js';
 
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';

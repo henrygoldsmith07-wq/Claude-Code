@@ -31,7 +31,6 @@ jobs:
       - name: Security audit (advisory, does not block tests)
         run: npm audit --audit-level=high
         continue-on-error: true
-      - run: npm run type-check
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium

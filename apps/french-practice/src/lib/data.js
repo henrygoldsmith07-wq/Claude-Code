@@ -4,9 +4,9 @@
 // practice material itself (openers, hints' French phrases, topics,
 // examples) stays in French. aiRole/curveball are model-facing prompts.
 
-import { DE_SCENARIOS } from './content/de';
-import { ES_SCENARIOS } from './content/es';
-import { contentLang } from './content/active';
+import { DE_SCENARIOS } from './content/de.js';
+import { ES_SCENARIOS } from './content/es.js';
+import { contentLang } from './content/active.js';
 
 const FR_SCENARIOS = [
   {

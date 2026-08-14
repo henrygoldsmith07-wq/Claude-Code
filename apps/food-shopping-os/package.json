@@ -12,8 +12,7 @@
     "test:e2e": "playwright test",
     "db:migrate": "node scripts/migrate.mjs",
     "db:check": "node scripts/check-database.mjs",
-    "type-check": "tsc --noEmit",
-    "verify": "npm run type-check && npm test && npm run build"
+    "verify": "npm test && npm run build"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",

@@ -130,6 +130,18 @@
    "description": "Shared board for the invisible labor of running a household — capture what you notice, compare side-by-side weekly."
   },
   {
+   "id": "pulse",
+   "path": "apps/pulse",
+   "site": null,
+   "name": "Pulse",
+   "lifecycle": "incubating",
+   "kind": "product",
+   "stack": "Vite + React + TypeScript (framework-free analytics core)",
+   "owner": "apps/pulse/README.md",
+   "workflow": ".github/workflows/pulse.yml",
+   "description": "Privacy-first personal analytics and experimentation engine: universal event schema, connector SDK, evidence-graded relationship discovery, personal experiments and recommendations across the ecosystem."
+  },
+  {
    "id": "rapport",
    "path": "apps/rapport",
    "name": "Rapport",

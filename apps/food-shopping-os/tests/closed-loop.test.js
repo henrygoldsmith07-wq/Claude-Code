@@ -114,18 +114,75 @@ describe('closed loop (plan → shop → cook → leftovers → next plan)', () 
     expect(list.some((row) => canonicalName(row.name) === canonicalName('Chicken thighs'))).toBe(true);
   });
 
+  it("adds up a week's need for one ingredient across every dish", () => {
+    // Two curries, 300 g of rice each. 300 g in the cupboard covers one of
+    // them, not both — the list used to keep only the last recipe's amount and
+    // call the week covered.
+    const plan = { [DAY]: { dinner: 'chickpea-curry' }, [addDays(DAY, 1)]: { dinner: 'katsu-curry' } };
+    const dates = [DAY, addDays(DAY, 1)];
+    const short = shoppingForPlan(plan, dates, {
+      pantry: [{ name: 'Rice', qty: '300 g', cat: 'Baking & dry' }],
+    });
+    expect(short.some((row) => canonicalName(row.name) === canonicalName('Rice'))).toBe(true);
+
+    const enough = shoppingForPlan(plan, dates, {
+      pantry: [{ name: 'Rice', qty: '1 kg', cat: 'Baking & dry' }],
+    });
+    expect(enough.some((row) => canonicalName(row.name) === canonicalName('Rice'))).toBe(false);
+  });
+
   it('consumes pantry stock when the dish is cooked', () => {
     const recipe = byId(dinner);
     const pantry = [
       { name: 'Chicken thighs', qty: '8', cat: 'Meat', location: 'Fridge' },
       { name: 'New potatoes', qty: '600g', cat: 'Produce', location: 'Fridge' },
     ];
-    const { pantry: after, used } = consumePantryIngredients(pantry, recipe.ingredients);
+    const { pantry: after, used, shortfalls } = consumePantryIngredients(pantry, recipe.ingredients);
     expect(used.length).toBeGreaterThanOrEqual(2);
-    // One cook spends one unit per ingredient — 8 thighs → 7, 600 g potatoes removed.
-    const thighs = after.find((item) => canonicalName(item.name) === canonicalName('Chicken thighs'));
-    expect(thighs?.qty).toBe('7');
+    // A cook spends what the recipe actually called for. The traybake wants all
+    // 8 thighs and all 600 g of potatoes, so both rows are gone — the old
+    // behaviour took one thigh and left the pantry claiming seven were still in
+    // the fridge.
+    expect(after.some((item) => canonicalName(item.name) === canonicalName('Chicken thighs'))).toBe(false);
     expect(after.some((item) => canonicalName(item.name) === canonicalName('New potatoes'))).toBe(false);
+    expect(shortfalls.map((row) => canonicalName(row.name))).not.toContain(canonicalName('Chicken thighs'));
+  });
+
+  it('takes only what the recipe needs, and leaves the rest', () => {
+    const recipe = byId(dinner); // 8 thighs, 600 g new potatoes
+    const pantry = [
+      { name: 'Chicken thighs', qty: '10', cat: 'Meat', location: 'Fridge' },
+      { name: 'New potatoes', qty: '1 kg', cat: 'Produce', location: 'Fridge' },
+    ];
+    const { pantry: after } = consumePantryIngredients(pantry, recipe.ingredients);
+    expect(after.find((i) => canonicalName(i.name) === canonicalName('Chicken thighs'))?.qty).toBe('2');
+    expect(after.find((i) => canonicalName(i.name) === canonicalName('New potatoes'))?.qty).toBe('400 g');
+  });
+
+  it('says what it ran short of instead of quietly cooking anyway', () => {
+    const recipe = byId(dinner);
+    const pantry = [{ name: 'Chicken thighs', qty: '3', cat: 'Meat', location: 'Fridge' }];
+    const { pantry: after, shortfalls } = consumePantryIngredients(pantry, recipe.ingredients);
+    expect(after.some((i) => canonicalName(i.name) === canonicalName('Chicken thighs'))).toBe(false);
+    const short = shortfalls.find((row) => canonicalName(row.name) === canonicalName('Chicken thighs'));
+    expect(short?.short).toBe('5');
+  });
+
+  it('restores the pantry exactly as it was when a cook is undone', () => {
+    const pantry = [{ name: 'Chicken thighs', qty: '8', cat: 'Meat', location: 'Fridge' }];
+    const result = consumePantryIngredients(pantry, byId(dinner).ingredients);
+    expect(result.pantry).not.toEqual(pantry);
+    expect(result.restore).toEqual(pantry);
+  });
+
+  it('empties the carton nearest its date before the fresh one', () => {
+    const pantry = [
+      { name: 'New potatoes', qty: '400 g', expiry: addDays(DAY, 9) },
+      { name: 'New potatoes', qty: '400 g', expiry: addDays(DAY, 2) },
+    ];
+    const { pantry: after } = consumePantryIngredients(pantry, [{ name: 'New potatoes', qty: '400g' }]);
+    expect(after).toHaveLength(1);
+    expect(after[0].expiry).toBe(addDays(DAY, 9));
   });
 
   it('leaves leftovers in the pantry with a use-by date', () => {

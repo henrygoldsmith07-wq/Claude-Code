@@ -1,24 +1,45 @@
 // Longitudinal validation: does the learner model predict real improvement?
 // Hold-out retention + speaking trend checks — pure, offline, deterministic.
 
-import { fsrsRetention } from './fsrs';
-import { heatmapWeeks } from './memory';
+import { heatmapWeeks } from './memory.js';
+import {
+  MIN_SAMPLES, brierScore, calibrationError, highConfidenceGap, logLoss, samplesFrom,
+} from './fsrsValidation.js';
 
-export function retentionPredictionVsActual(srs, entries, now=Date.now()){
-  // For cards reviewed last week, compare predicted retention (FSRS) to whether they were recalled (reps>=2 and not 'again')
-  let correct=0, total=0;
-  for(const e of entries){
-    const s = srs[e.id] || srs[`${e.id}::receptive`];
-    if(!s || !s.lastReviewed) continue;
-    const pred = fsrsRetention(s, now);
-    if(pred==null) continue;
-    const recalled = (s.reps||0)>=2 && s.lastRating!=='again';
-    const bucket = pred >= 0.6 ? 1 : 0;
-    const actual = recalled ? 1 : 0;
-    if(bucket===actual) correct++;
-    total++;
+/**
+ * Does the model's prediction match what actually happened?
+ *
+ * The previous version could not answer that. It compared the retention
+ * predicted *now* against whether the card was *currently* in good standing
+ * (`reps>=2 && lastRating!=='again'`) — a card's present state, not the outcome
+ * of any particular review. Since a card in good standing also tends to have
+ * high predicted retention, the two sides moved together and the score came out
+ * high whatever the model did. It also ignored the entries passed to it and,
+ * despite the comment, applied no time window at all.
+ *
+ * Each stored review carries the prediction made *before* the learner answered
+ * and the answer itself, so a real comparison is available. `accuracy` is kept
+ * for the existing callers, now measured against genuine outcomes, alongside
+ * the scoring rules that say something accuracy alone cannot.
+ */
+export function retentionPredictionVsActual(srs, _entries, now=Date.now()){
+  void now;
+  const samples = samplesFrom(srs);
+  if(samples.length < MIN_SAMPLES){
+    return { accuracy: null, n: samples.length, needed: MIN_SAMPLES - samples.length };
   }
-  return total ? { accuracy: Math.round(correct/total*100)/100, n: total } : { accuracy: null, n: 0 };
+  const hits = samples.filter((s)=> (s.predicted >= 0.5 ? 1 : 0) === s.recalled).length;
+  const atScheduled = highConfidenceGap(samples);
+  return {
+    accuracy: Math.round(hits/samples.length*100)/100,
+    n: samples.length,
+    logLoss: logLoss(samples),
+    brier: brierScore(samples),
+    calibrationError: calibrationError(samples),
+    // Positive means recall beats the promise; negative means the schedule is
+    // stretching cards further than they hold.
+    atScheduledRetention: atScheduled.gap,
+  };
 }
 
 export function speakingImprovement(metrics, windowDays=30, now=new Date()){

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { dedupeArticles, originalityForCluster } from "./dedup";
+import { dedupeArticles, originalityFor } from "./dedup";
 import { linkEvents, nextStatus, mergeEvents, splitEvent } from "./eventStore";
 import { provenanceForStory, timelineConfidence, whatChangedSince } from "./provenance";
 import { buildCoverageMatrix, detectGaps } from "./coverageMatrix";
 import { buildEntityGraph, buildCountryGraph, buildEventGraph } from "./knowledgeGraph";
-import { filterByPrefs, diversityGuard, isFilterBubble } from "./personalisation";
-import { meaningfulChanges, shouldNotify } from "./notifications";
+import { filterByPrefs, diversityGuard, isFilterBubble, DEFAULT_PREFS } from "./personalisation";
+import { notificationsFor, shouldNotify } from "./notifications";
 import { locationConfidence, regionalLabel, mapCluster } from "./geocode";
 import { diversityReport } from "./sourcing";
 import type { StoryCluster } from "./storyModel";
@@ -36,16 +36,18 @@ describe("dedup", () => {
   });
   it("originality labels wire+earliest as original", () => {
     const members = [{ id:"m1", title:"Gov unveils AI institute", publisher:"gov.uk", url:"https://gov.uk/x", tags:[], publishedAt:"2025-01-01T00:00:00Z" }, { id:"m2", title:"UK launches AI safety institute to test models", publisher:"theguardian.com", url:"https://theguardian.com/y", tags:[], publishedAt:"2025-01-01T01:00:00Z" }] as never;
-    const m = originalityForCluster(members);
-    expect(m.get("m1")).toBe("original");
+    const m = originalityFor(members);
+    expect(m.find((v) => v.id === "m1")!.originality).toBe("original");
   });
 });
 
 describe("eventStore", () => {
   it("links by headline similarity", () => {
     const prev: StoredEvent[] = [{ id:"e1", headline:"Storm batters French coast", topic:"Science & Health", summary:"", articleIds:["a1"], timeline:[], contradictions:[], widelyAgreedFacts:[], uncertainty:[], provenance:{note:"",groundingRate:1,liveLinkedClaims:0}, significance:50, significanceReasons:[], firstSeen:"2025-01-01", lastUpdated:"2025-01-01", status:"developing", corrections:[] } as unknown as StoredEvent];
-    const map = linkEvents(prev, [{ headline:"Storm batters French Atlantic coast", topic:"Science & Health", id:"n1" }]);
+    const { map, candidates } = linkEvents(prev, [{ headline:"Storm batters French Atlantic coast", topic:"Science & Health", id:"n1" }]);
     expect(map.get("n1")).toBe("e1");
+    // Linking must be explainable, not just correct.
+    expect(candidates[0].reasons.length).toBeGreaterThan(0);
   });
   it("nextStatus respects contested/correction", () => {
     expect(nextStatus("developing",{hasCorrection:true,daysSinceFirstSeen:1,isContested:false,isResolvedKeyword:false})).toBe("contested");
@@ -55,16 +57,32 @@ describe("eventStore", () => {
     const b: StoredEvent = { ...a, id:"b", headline:"B", articleIds:["2"] } as unknown as StoredEvent;
     const { merged } = mergeEvents(a,b);
     expect(merged.articleIds.length).toBe(2);
-    const { a: aa, b: bb } = splitEvent(merged, "A2","B2");
-    expect(aa.id).toBe("a"); expect(bb.id).not.toBe("a");
+    const { kept, created } = splitEvent(merged, "B2", ["2"]);
+    expect(kept.id).toBe("a");
+    expect(kept.articleIds).toEqual(["1"]);
+    expect(created.articleIds).toEqual(["2"]);
+    expect(created.id).not.toBe("a");
   });
 });
 
 describe("provenance", () => {
   it("maps keyPoints to sources", () => {
-    const s = mkStory();
-    const claims = provenanceForStory(s);
-    expect(claims.length).toBe(2); expect(claims[0].sourceUrls.length).toBeGreaterThan(0);
+    // A claim only gets a citation when a source actually supports it. The
+    // fixture's sources say nothing about "KP1", so no URL is the right answer —
+    // the previous implementation cited source[i % n] regardless.
+    const unsupported = provenanceForStory(mkStory());
+    expect(unsupported).toHaveLength(2);
+    expect(unsupported[0].sourceUrls).toHaveLength(0);
+    expect(unsupported[0].confidence).toBe("low");
+
+    const supported = provenanceForStory(mkStory({
+      keyPoints: ["The ceasefire was extended for two weeks"],
+      sources: [
+        { url: "https://reuters.com/a", title: "Ceasefire extended for two weeks", publisher: "reuters.com" },
+        { url: "https://apnews.com/b", title: "Ceasefire extended by two weeks, mediators say", publisher: "apnews.com" },
+      ],
+    }));
+    expect(supported[0].sourceUrls.length).toBeGreaterThan(0);
   });
   it("timeline confidence scales with sources", () => {
     const s = mkStory({ timeline: [{date:"2025-01-01",label:"A"},{date:"2025-01-02",label:"B"},{date:"2025-01-03",label:"C"},{date:"2025-01-04",label:"D"}]});
@@ -73,8 +91,11 @@ describe("provenance", () => {
   });
   it("whatChangedSince detects change", () => {
     const a = mkStory({ summary:"Old" }); const b = mkStory({ summary:"New summary improved" });
-    const { changed } = whatChangedSince(a,b);
+    const { changed, summary } = whatChangedSince(a,b);
     expect(changed).toBe(true);
+    expect(summary).toMatch(/rewritten/);
+    // An identical story reports no change at all.
+    expect(whatChangedSince(a, mkStory({ summary:"Old" })).changed).toBe(false);
   });
 });
 
@@ -100,9 +121,9 @@ describe("knowledgeGraph", () => {
 describe("personalisation & notifications", () => {
   it("filters by prefs and detects bubbles", () => {
     const s = [mkStory({ topic:"Politics" }), mkStory({ id:"s2", topic:"Sport" })];
-    const f = filterByPrefs(s, { regions:[], topics:["Politics"], minPerspectives:1, maxSameCountryShare:0.6 });
+    const f = filterByPrefs(s, { ...DEFAULT_PREFS, topics:["Politics"], minPerspectives:1 });
     expect(f.length).toBe(1);
-    const guard = diversityGuard([mkStory(), mkStory(), mkStory()], { regions:[], topics:[], minPerspectives:2, maxSameCountryShare:0.5 });
+    const guard = diversityGuard([mkStory(), mkStory(), mkStory()], { ...DEFAULT_PREFS, maxSameCountryShare:0.5 });
     expect(guard.passed).toBe(false);
     expect(isFilterBubble([mkStory(),mkStory(),mkStory(),mkStory(),mkStory()]).bubble).toBe(true);
   });
@@ -110,9 +131,11 @@ describe("personalisation & notifications", () => {
     const base: Record<string, unknown> = { country:"X", code:"xx", generatedAt:new Date().toISOString(), topics:[], sources:[], points:[], conflicts:[], stories:[mkStory()], meta:{widelyAgreedFacts:[], uncertainty:[], coverageGaps:[], corrections:[], whatChangedSinceYesterday:null} };
     const prev = base as never;
     const next = { ...base, stories:[{...mkStory(), corrections:[{date:"2025-01-02",note:"Fixed figure"}]}] } as never;
-    const changes = meaningfulChanges(prev, next);
-    expect(changes.length).toBeGreaterThan(0);
-    expect(shouldNotify(changes)).toBe(true);
+    const decision = notificationsFor(prev, next);
+    // A correction is the one change that always clears the interruption bar.
+    expect(decision.send.length + decision.hold.length).toBeGreaterThan(0);
+    expect(shouldNotify(decision)).toBe(true);
+    expect(decision.send[0].kind).toBe("correction");
   });
 });
 
