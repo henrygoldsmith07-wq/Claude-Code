@@ -5,7 +5,7 @@ import {
 import { coachSnapshot } from '../src/server/coach-shares.js';
 import { busyFromIcs, busyMealDates, parseIcsEvents } from '../src/lib/calendar.js';
 import { buildPlan } from '../src/lib/planner.js';
-import { unitPrice } from '../src/lib/shopping.js';
+import { compareSizes, unitPrice } from '../src/lib/shopping.js';
 
 const recipes = [
   {
@@ -122,8 +122,35 @@ describe('leftover-first seasonal budget planning', () => {
 
 describe('unit prices', () => {
   it('normalises packs to a shelf-comparable price', () => {
-    expect(unitPrice({ price: 3, qty: '2 x 500g' })).toEqual({ value: 0.3, unit: '100g' });
-    expect(unitPrice({ price: 1.5, qty: '1 litre' })).toBeNull();
-    expect(unitPrice({ price: 1.5, qty: '1l' })).toEqual({ value: 0.15, unit: '100ml' });
+    expect(unitPrice({ price: 3, qty: '2 x 500g' })).toMatchObject({ value: 0.3, unit: '100g' });
+    // "1 litre" and "1l" are the same shelf. They used to disagree: the spelled
+    // out unit fell through the regex and priced at nothing at all.
+    expect(unitPrice({ price: 1.5, qty: '1 litre' })).toMatchObject({ value: 0.15, unit: '100ml' });
+    expect(unitPrice({ price: 1.5, qty: '1l' })).toMatchObject({ value: 0.15, unit: '100ml' });
+  });
+
+  it('says when a per-unit price leans on a package average', () => {
+    // A stated weight is a measurement…
+    expect(unitPrice({ name: 'Chopped tomatoes', price: 1, qty: '400 g' }).confidence).toBe('exact');
+    // …and so is a tin of something we know the tin size of.
+    expect(unitPrice({ name: 'Chopped tomatoes', price: 1, qty: '1 tin' }).confidence).toBe('exact');
+    // A generic jar is an average, and must not pose as a measurement.
+    expect(unitPrice({ name: 'Pickled walnuts', price: 3, qty: '1 jar' }).confidence).toBe('approximate');
+  });
+
+  it('ranks sizes of one product and refuses to rank incomparable ones', () => {
+    const ranked = compareSizes([
+      { name: 'Pasta', price: 1.2, qty: '500 g' },
+      { name: 'Pasta', price: 2, qty: '1 kg' },
+    ]);
+    expect(ranked.best.qty).toBe('1 kg');
+    expect(ranked.margin).toBeGreaterThan(0);
+
+    const mixed = compareSizes([
+      { name: 'Eggs', price: 2, qty: '6' },
+      { name: 'Eggs', price: 3, qty: '500 g' },
+    ]);
+    expect(mixed.mixedScales).toBe(true);
+    expect(mixed.best).toBeNull();
   });
 });
