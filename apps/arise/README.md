@@ -21,6 +21,11 @@ A game-like, offline-first training companion. Not a nutrition app.
 13. **SessionRunner extras ported from Life OS:** auto rest timer (tap Rest to start a countdown per `restSec`, with vibrate on finish), **previous session comparison (“Last: 20kg×8 on 2026-02-01” per exercise via `store.lastExerciseSets`), and a **post-workout summary** in Progress (last session volume/sets/exercises + note). Life OS's eval-based Web Worker was **not** ported — intentionally replaced with safe helpers.
 14. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
 
+## Roadmap
+
+Planned improvements — prioritised, with the PWA/local-first constraints that
+gate each one — are in [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md).
+
 ## Consolidation
 
 Arise is the canonical training app. `vendor/life-os-scrape` is an **archived, read-only mirror** of the old standalone Life OS production build (scraped 2026-07-03) and is no longer developed. Its strongest fitness practices have been ported into Arise — see `vendor/life-os-scrape/README.md` for the porting log — and its one known engineering issue (`eval()` in the analytics Web Worker) is documented there and **not** carried forward (Arise uses safe in-thread helpers).
