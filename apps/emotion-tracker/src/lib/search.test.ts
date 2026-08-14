@@ -58,6 +58,12 @@ describe("semanticSearch", () => {
     const hits = semanticSearch([b, a], "manager feedback shame");
     expect(hits[0]?.entry.id).toBe(a.id);
   });
+  it("boosts exact-phrase matches above token overlap", () => {
+    const phrase = entry({ title: "Manager said needs more detail in handover" });
+    const partial = entry({ title: "handover detail needs" });
+    const hits = semanticSearch([partial, phrase], "needs more detail in handover");
+    expect(hits[0]?.entry.id).toBe(phrase.id);
+  });
   it("returns [] on empty query", () => {
     expect(semanticSearch([entry()], "")).toEqual([]);
   });

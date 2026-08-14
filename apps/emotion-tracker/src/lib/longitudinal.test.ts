@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { Entry, ReflectionSummary, StructuredTrace } from "./types";
 import {
+  actionFollowThrough,
   calibrationFor,
+  decisionImprovement,
   detectContradictions,
   detectRecurringAssumptions,
   detectRecurringPatterns,
@@ -9,7 +11,11 @@ import {
   evidenceLinksFor,
   longitudinalSummary,
   monthlyReviews,
+  predictionAccuracy,
   predictionAccuracySeries,
+  resurfacingQueue,
+  suggestFollowUp,
+  summaryInsights,
   unresolvedEntries,
   weeklyReviews,
 } from "./longitudinal";
@@ -82,6 +88,13 @@ describe("recurring assumptions", () => {
     expect(groups.length).toBe(1);
     expect(groups[0].count).toBe(2);
   });
+  it("groups stem-variants of the same assumption", () => {
+    const a = entry({ summary: summary({}, { assumptions: ["they are ignoring my messages"] }) });
+    const b = entry({ summary: summary({}, { assumptions: ["they ignore my messages again"] }) });
+    const groups = detectRecurringAssumptions([a, b]);
+    expect(groups.length).toBe(1);
+    expect(groups[0].count).toBe(2);
+  });
   it("does not group dissimilar", () => {
     const a = entry({ summary: summary({}, { assumptions: ["they hate me"] }) });
     const b = entry({ summary: summary({}, { assumptions: ["the weather is nice"] }) });
@@ -99,6 +112,18 @@ describe("recurring patterns", () => {
 });
 
 describe("contradictions", () => {
+  it("detects always-vs-never opposition on a similar subject", () => {
+    const a = entry({ summary: summary({}, { assumptions: ["they will never help me"] }) });
+    const b = entry({ summary: summary({}, { assumptions: ["they will always help me"] }) });
+    const c = detectContradictions([a, b]);
+    expect(c.length).toBe(1);
+  });
+  it("labels same-trigger emotion shifts as possible change", () => {
+    const a = entry({ summary: summary({ coreEmotion: "shame" }, { assumptions: [] }) });
+    const b = entry({ summary: summary({ coreEmotion: "calm" }, { assumptions: [] }) });
+    const c = detectContradictions([a, b]);
+    expect(c.some((x) => x.reason.includes("emotion shifted"))).toBe(true);
+  });
   it("detects negation-ish opposing assumptions", () => {
     const a = entry({ summary: summary({}, { assumptions: ["they will not help me ever"] }) });
     const b = entry({ summary: summary({}, { assumptions: ["they will help me"] }) });
@@ -127,6 +152,130 @@ describe("due / unresolved", () => {
     const open = entry({ summary: summary({}, { followUpAt: "2020-01-01" }) });
     expect(unresolvedEntries([reviewed, open]).map((e) => e.id)).not.toContain(reviewed.id);
     expect(unresolvedEntries([reviewed, open]).map((e) => e.id)).toContain(open.id);
+  });
+});
+
+describe("predictionAccuracy", () => {
+  it("quantifies verdict percentages", () => {
+    const entries = [
+      entry({ longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: "supported", calibrationNote: null, reviewedAt: new Date().toISOString() } }),
+      entry({ longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: "unsupported", calibrationNote: null, reviewedAt: new Date().toISOString() } }),
+      entry({ longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: "unsupported", calibrationNote: null, reviewedAt: new Date().toISOString() } }),
+      entry({ longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: "partial", calibrationNote: null, reviewedAt: new Date().toISOString() } }),
+    ];
+    const a = predictionAccuracy(entries);
+    expect(a.n).toBe(4);
+    expect(a.supportedPct).toBe(25);
+    expect(a.unsupportedPct).toBe(50);
+    expect(a.partialPct).toBe(25);
+  });
+  it("is null before any reviews", () => {
+    const a = predictionAccuracy([entry()]);
+    expect(a.n).toBe(0);
+    expect(a.supportedPct).toBeNull();
+  });
+});
+
+describe("resurfacing queue", () => {
+  it("ranks oldest overdue with no logged action first", () => {
+    const old = entry({ summary: summary({}, { followUpAt: "2025-01-01" }) });
+    const fresh = entry({ summary: summary({}, { followUpAt: "2026-01-20" }) });
+    const q = resurfacingQueue([fresh, old], new Date("2026-01-26T12:00:00.000Z"));
+    expect(q[0].entry.id).toBe(old.id);
+    expect(q[0].reason).toMatch(/overdue/);
+  });
+});
+
+describe("follow-up timing", () => {
+  it("suggests sooner re-check after an unsupported verdict", () => {
+    const e = entry({ longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: "unsupported", calibrationNote: null, reviewedAt: new Date().toISOString() } });
+    const s = suggestFollowUp(e, new Date("2026-01-26T12:00:00.000Z"));
+    expect(s.dueInDays).toBe(3);
+  });
+  it("lets supported verdicts wait longer", () => {
+    const e = entry({ longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: "supported", calibrationNote: null, reviewedAt: new Date().toISOString() } });
+    expect(suggestFollowUp(e, new Date("2026-01-26T12:00:00.000Z")).dueInDays).toBe(14);
+  });
+  it("closes the loop sooner when the action was never logged", () => {
+    const e = entry({ longitudinalReview: { actualActionTaken: null, actualOutcome: "o", assumptionVerdict: "supported", calibrationNote: null, reviewedAt: new Date().toISOString() } });
+    expect(suggestFollowUp(e, new Date("2026-01-26T12:00:00.000Z")).dueInDays).toBe(5);
+  });
+});
+
+describe("action follow-through", () => {
+  it("tracks whether reviewed reflections logged an action", () => {
+    const withAction = entry({ longitudinalReview: { actualActionTaken: "asked", actualOutcome: "o", assumptionVerdict: "supported", calibrationNote: null, reviewedAt: new Date().toISOString() } });
+    const noAction = entry({ longitudinalReview: { actualActionTaken: null, actualOutcome: "o", assumptionVerdict: "unsupported", calibrationNote: null, reviewedAt: new Date().toISOString() } });
+    const a = actionFollowThrough([withAction, noAction]);
+    expect(a.tracked).toBe(2);
+    expect(a.actionLogged).toBe(1);
+    expect(a.actionLoggedPct).toBe(50);
+  });
+});
+
+describe("decision improvement", () => {
+  it("detects unsupported-rate drop across reviewed reflections", () => {
+    const mk = (i: number, verdict: "supported" | "unsupported") => entry({
+      createdAt: `2026-0${Math.floor(i / 2) + 1}-${String((i % 2) * 10 + 5).padStart(2, "0")}T12:00:00.000Z`,
+      longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: verdict, calibrationNote: null, reviewedAt: new Date().toISOString() },
+    });
+    const entries = [mk(0, "unsupported"), mk(1, "unsupported"), mk(2, "unsupported"), mk(3, "supported"), mk(4, "supported"), mk(5, "supported")];
+    const d = decisionImprovement(entries);
+    expect(d.improved).toBe(true);
+    expect(d.before).toBe(100);
+    expect(d.after).toBe(0);
+  });
+  it("needs at least 4 reviewed reflections", () => {
+    expect(decisionImprovement([entry()]).improved).toBe(false);
+  });
+});
+
+describe("summary insights", () => {
+  it("every insight carries supporting entry ids", () => {
+    const e1 = entry({ id: "a", summary: summary({ coreEmotion: "shame" }) });
+    const e2 = entry({ id: "b", summary: summary({ coreEmotion: "shame" }) });
+    const insights = summaryInsights([e1, e2]);
+    expect(insights.length).toBeGreaterThan(0);
+    for (const i of insights) {
+      expect(i.entryIds.length).toBeGreaterThan(0);
+    }
+    const emo = insights.find((i) => i.title === "shame");
+    expect(emo?.entryIds).toEqual(expect.arrayContaining(["a", "b"]));
+  });
+  it("respects corrections", () => {
+    const e1 = entry({ id: "a", summary: summary({ coreEmotion: "shame" }) });
+    const e2 = entry({ id: "b", summary: summary({ coreEmotion: "shame" }) });
+    const dismissed = [{ key: "pattern:emotion:shame", kind: "pattern" as const, rejectedAt: "2026-01-01" }];
+    expect(summaryInsights([e1, e2], dismissed).some((i) => i.title === "shame")).toBe(false);
+  });
+});
+
+describe("weekly review enrichment", () => {
+  it("period reviews link patterns, contradictions and actions", () => {
+    const e1 = entry({ createdAt: "2026-01-05T12:00:00.000Z", summary: summary({ coreEmotion: "shame" }) });
+    const e2 = entry({ createdAt: "2026-01-07T12:00:00.000Z", summary: summary({ coreEmotion: "shame" }) });
+    const w = weeklyReviews([e1, e2])[0];
+    expect(w.patterns?.some((p) => p.label === "shame")).toBe(true);
+    expect(Array.isArray(w.contradictions)).toBe(true);
+    expect(typeof w.actionsOutstanding).toBe("number");
+  });
+});
+
+describe("longitudinal summary respects corrections", () => {
+  it("omits dismissed patterns from the narrative", () => {
+    const a = entry({ summary: summary({ coreEmotion: "shame" }) });
+    const b = entry({ summary: summary({ coreEmotion: "shame" }) });
+    const dismissed = [{ key: "pattern:emotion:shame", kind: "pattern" as const, rejectedAt: "2026-01-01" }];
+    expect(longitudinalSummary([a, b], dismissed)).not.toMatch(/shame/);
+  });
+  it("mentions calibration improvement when present", () => {
+    const mk = (i: number, verdict: "supported" | "unsupported") => entry({
+      createdAt: `2026-0${Math.floor(i / 2) + 1}-${String((i % 2) * 10 + 5).padStart(2, "0")}T12:00:00.000Z`,
+      summary: summary({}, { predictedOutcome: "p" }),
+      longitudinalReview: { actualActionTaken: "a", actualOutcome: "o", assumptionVerdict: verdict, calibrationNote: null, reviewedAt: new Date().toISOString() },
+    });
+    const entries = [mk(0, "unsupported"), mk(1, "unsupported"), mk(2, "unsupported"), mk(3, "supported"), mk(4, "supported"), mk(5, "supported")];
+    expect(longitudinalSummary(entries)).toMatch(/improving over time/);
   });
 });
 

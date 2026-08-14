@@ -41,6 +41,24 @@ This is validated in code (`src/lib/validation.ts`); the model is rejected if it
 
 From **Insights** in the sidebar: completed count, streak, 14-day chart, most common core emotions, and the patterns flagged most often. Computed client-side from `localStorage`.
 
+## Longitudinal engine — calibration, not just counting
+
+`src/lib/longitudinal.ts` turns the follow-up loop into measurable learning:
+
+- **Quantified accuracy** — `predictionAccuracy()` reports supported/unsupported/partial percentages across reviewed predictions; `predictionAccuracySeries()` orders them over time.
+- **Decision improvement** — `decisionImprovement()` splits reviewed reflections chronologically and measures whether the unsupported-assumption rate drops in the second half (reflection tracking reality better).
+- **Prioritised resurfacing** — `resurfacingQueue()` ranks open follow-ups by days-overdue + whether the intended action was ever logged; `suggestFollowUp()` picks the re-check interval from the verdict (unsupported → 3d, supported → 14d, missing action → sooner).
+- **Action tracking** — `actionFollowThrough()` measures how many reviewed reflections actually logged their action.
+- **Insights link to evidence** — `summaryInsights()` returns every pattern/contradiction/calibration/unresolved item with its supporting `entryIds`; weekly/monthly reviews carry the same linked `patterns`, `contradictions` and `actionsOutstanding`.
+- **Users can correct the model** — `src/lib/corrections.ts`: rejecting an inferred pattern stores a stable key, and `withoutDismissed()` filters it out of summaries, insights and reviews forever (no resurfacing).
+- **Sharper detectors** — recurring-assumption grouping is stem-aware and stopword-aware; contradiction detection now catches always-vs-never oppositions and labels same-trigger emotion shifts as possible change.
+
+## Privacy boundaries (tested)
+
+`src/lib/privacy.ts` states the contract in code: `localOnlyAudit()` inventories what runs locally vs the single network call (the current reflection's messages, only with a key present); `containsVerbatimEntryText()` proves Pulse snapshots and API entry hints never carry entry content. `crypto.ts` adds `verifyPassphrase()` (check the key before restoring) and `rekeyVault()` (change the passphrase without losing the vault). `emitPulseGuarded()` in `pulse.ts` enforces explicit opt-in at the API level — no opt-in, no dispatch.
+
+The longitudinal engine is benchmarked deterministically (`runLongitudinalBenchmark()` in `src/lib/benchmark.ts`): planted recurring patterns, contradictions, calibration improvement and resurfacing priority are all recovered, and a rejected pattern never resurfaces.
+
 ## Setup
 
 ```bash

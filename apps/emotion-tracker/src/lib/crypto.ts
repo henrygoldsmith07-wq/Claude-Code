@@ -56,6 +56,21 @@ export async function decryptJson<T>(passphrase: string, blob: EncryptedBlob): P
   return JSON.parse(dec(new Uint8Array(ptBuf))) as T;
 }
 
+// ── key UX: verify before restoring, and re-key without losing the vault ─
+export async function verifyPassphrase(passphrase: string, blob: EncryptedBlob): Promise<boolean> {
+  try {
+    await decryptJson(passphrase, blob);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function rekeyVault(passphrase: string, newPassphrase: string, blob: EncryptedBlob): Promise<EncryptedBlob> {
+  const value = await decryptJson(passphrase, blob);
+  return encryptJson(newPassphrase, value);
+}
+
 // ── passphrase strength hint (local, no zxcvbn dep) ───────────────────
 export function passphraseStrength(p: string): { score: 0 | 1 | 2 | 3; label: string } {
   if (p.length < 8) return { score: 0, label: "too short" };

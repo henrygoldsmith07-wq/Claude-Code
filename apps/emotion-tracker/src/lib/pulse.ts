@@ -39,6 +39,14 @@ export function emitPulse(entries: Entry[]): void {
   window.dispatchEvent(new CustomEvent(PULSE_EVENT, { detail: snapshot }));
 }
 
+// Explicit-consent enforcement at the API level: nothing is emitted unless the
+// user opted in. Returns whether a snapshot was actually dispatched.
+export function emitPulseGuarded(entries: Entry[]): boolean {
+  if (!isPulseOptIn()) return false;
+  emitPulse(entries);
+  return true;
+}
+
 // LocalStorage key that gates Pulse — off by default, explicit opt-in
 export const PULSE_OPT_IN_KEY = "reflectPulseOptIn";
 

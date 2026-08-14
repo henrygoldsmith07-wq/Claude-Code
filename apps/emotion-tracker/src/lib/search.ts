@@ -71,6 +71,7 @@ export interface SemanticHit {
 
 export function semanticSearch(entries: Entry[], q: string, topK = 20): SemanticHit[] {
   const qTokens = toks(q);
+  const qPhrase = norm(q);
   if (qTokens.length === 0 || entries.length === 0) return [];
   // Cap: beyond ~200 entries, shard or require more specific query
   const capped = entries.length > 500 ? entries.slice(0, 500) : entries;
@@ -113,7 +114,11 @@ export function semanticSearch(entries: Entry[], q: string, topK = 20): Semantic
       if (dv) dot += qv * dv;
     }
     const dNorm = Math.sqrt([...dVec.values()].reduce((s, v) => s + v * v, 0)) || 1;
-    const score = dot / (qNorm * dNorm);
+    let score = dot / (qNorm * dNorm);
+    // Exact-phrase boost: a document containing the query verbatim is a much
+    // stronger match than token overlap alone.
+    const doc = docs[i];
+    if (qPhrase.length >= 4 && norm(doc).includes(qPhrase)) score = Math.min(1, score * 1.5 + 0.05);
     if (score > 0.02) hits.push({ entry: capped[i], score });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, topK);

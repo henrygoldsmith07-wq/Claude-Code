@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultBenchmarkCases, runBenchmark, runBenchmarkCase } from "./benchmark";
+import { defaultBenchmarkCases, runBenchmark, runBenchmarkCase, runLongitudinalBenchmark } from "./benchmark";
 
 describe("benchmark harness", () => {
   it("valid hedged case passes", () => {
@@ -30,5 +30,14 @@ describe("benchmark harness", () => {
     // First and third should pass
     expect(passed).toBeGreaterThanOrEqual(2);
     void failed;
+  });
+});
+
+describe("longitudinal benchmark", () => {
+  it("all planted structure is recovered", () => {
+    const checks = runLongitudinalBenchmark();
+    const failed = checks.filter((c) => !c.pass);
+    expect(checks.length).toBe(6);
+    expect(failed).toEqual([]);
   });
 });

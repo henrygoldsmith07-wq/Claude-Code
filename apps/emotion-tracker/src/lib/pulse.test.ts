@@ -79,6 +79,32 @@ describe("pulse opt-in gating", () => {
     vi.unstubAllGlobals();
   });
 
+  it("emitPulseGuarded is a no-op without explicit opt-in", async () => {
+    const target = new EventTarget();
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      clear: () => store.clear(),
+    };
+    const win = target as unknown as Window & { localStorage: typeof storage };
+    (win as unknown as Record<string, unknown>).localStorage = storage;
+    vi.stubGlobal("window", win);
+    const spy = vi.fn();
+    win.addEventListener(PULSE_EVENT, spy as EventListener);
+    const { emitPulseGuarded, setPulseOptIn } = await import("./pulse");
+    // No opt-in → nothing dispatches.
+    expect(emitPulseGuarded([entry()])).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+    // Opt-in → snapshot dispatches once.
+    setPulseOptIn(true);
+    expect(emitPulseGuarded([entry()])).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+    win.removeEventListener(PULSE_EVENT, spy as EventListener);
+    vi.unstubAllGlobals();
+  });
+
   it("isPulseOptIn and setPulseOptIn round-trip via window.localStorage", async () => {
     const store = new Map<string, string>();
     const storage = {

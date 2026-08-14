@@ -1,4 +1,6 @@
 import type { Entry, LongitudinalReview } from "./types";
+import { withoutDismissed, annotatePatterns, annotateAssumptionGroups } from "./corrections";
+import type { Correction, AnnotatedPattern } from "./corrections";
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -7,6 +9,39 @@ function norm(s: string): string {
 }
 function tokens(s: string): Set<string> {
   return new Set(norm(s).split(" ").filter((t) => t.length >= 3));
+}
+
+// Stem-lite + stopword removal for *similarity* grouping only (norm() stays
+// untouched so negation detection and display text are unaffected). This makes
+// recurring-assumption detection group "they keep ignoring my messages" with
+// "they are ignoring my messages again" — same stem, same meaning.
+const STOPWORDS = new Set([
+  "they", "them", "their", "the", "and", "that", "this", "with", "will", "not", "are", "was", "were",
+  "have", "has", "had", "for", "but", "its", "you", "your", "there", "then", "just", "like",
+  "about", "into", "from", "would", "could", "should", "because", "again", "still", "always", "never",
+]);
+function stemLite(w: string): string {
+  if (w.length <= 4) return w;
+  if (w.endsWith("ing")) return w.slice(0, -3);
+  if (w.endsWith("ed")) return w.slice(0, -2);
+  if (w.endsWith("ies")) return w.slice(0, -3) + "y";
+  if (w.endsWith("es")) return w.slice(0, -2);
+  if (w.endsWith("s")) return w.slice(0, -1);
+  // strip a final "e" so "ignoring"→"ignor" matches "ignore"→"ignor"
+  if (w.endsWith("e")) return w.slice(0, -1);
+  return w;
+}
+function simTokens(s: string): string[] {
+  return norm(s).split(" ").map(stemLite).filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+}
+function assumptionSim(a: string, b: string): number {
+  const ta = new Set(simTokens(a));
+  const tb = new Set(simTokens(b));
+  if (ta.size === 0 || tb.size === 0) return jaccard(a, b);
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  const union = ta.size + tb.size - inter;
+  return union === 0 ? 0 : inter / union;
 }
 function jaccard(a: string, b: string): number {
   const ta = tokens(a);
@@ -48,7 +83,7 @@ export function detectRecurringAssumptions(entries: Entry[], threshold = 0.4): R
     used.add(i);
     for (let j = i + 1; j < all.length; j++) {
       if (used.has(j)) continue;
-      const sim = jaccard(all[i].assumption, all[j].assumption);
+      const sim = assumptionSim(all[i].assumption, all[j].assumption);
       const sub =
         norm(all[i].assumption).includes(norm(all[j].assumption)) ||
         norm(all[j].assumption).includes(norm(all[i].assumption));
@@ -147,20 +182,29 @@ export function detectContradictions(entries: Entry[]): Contradiction[] {
           if (
             (na.includes("not") !== nb.includes("not") && jaccard(aa, bb) >= 0.45) ||
             (na.includes("always") && nb.includes("sometimes") && jaccard(aa, bb) >= 0.35) ||
-            (na.includes("never") && nb.includes("sometimes") && jaccard(aa, bb) >= 0.35)
+            (na.includes("never") && nb.includes("sometimes") && jaccard(aa, bb) >= 0.35) ||
+            (na.includes("always") && nb.includes("never") && jaccard(aa, bb) >= 0.35) ||
+            (na.includes("never") && nb.includes("always") && jaccard(aa, bb) >= 0.35)
           ) {
             out.push({ entryA: a.id, entryB: b.id, reason: "Opposing assumptions about a similar situation", assumptions: [aa, bb] });
           }
         }
       }
-      // also: same trigger, opposite emotion
+      // also: same trigger, opposite emotion (valence-shift wording if the
+      // emotion moved between a negative and a positive pole)
       const emoA = norm(a.summary!.coreEmotion);
       const emoB = norm(b.summary!.coreEmotion);
       if (emoA && emoB && emoA !== emoB) {
         const trigA = a.summary!.underlyingTriggers.map(norm);
         const trigB = b.summary!.underlyingTriggers.map(norm);
         if (trigA.some((t) => trigB.includes(t))) {
-          out.push({ entryA: a.id, entryB: b.id, reason: `Same trigger (“${a.summary!.underlyingTriggers[0]}”) but different emotion: ${emoA} vs ${emoB}`, assumptions: [emoA, emoB] });
+          const shifted =
+            (NEGATIVE_EMOTIONS.has(emoA) && POSITIVE_EMOTIONS.has(emoB)) ||
+            (NEGATIVE_EMOTIONS.has(emoB) && POSITIVE_EMOTIONS.has(emoA));
+          const reason = shifted
+            ? `Same trigger (“${a.summary!.underlyingTriggers[0]}”) but emotion shifted between ${emoA} and ${emoB} — possible change worth noting`
+            : `Same trigger (“${a.summary!.underlyingTriggers[0]}”) but different emotion: ${emoA} vs ${emoB}`;
+          out.push({ entryA: a.id, entryB: b.id, reason, assumptions: [emoA, emoB] });
         }
       }
     }
@@ -280,6 +324,11 @@ export interface PeriodReview {
   topAssumption: string | null;
   calibration: Calibration;
   unresolved: number;
+  // review-quality extras: the patterns, contradictions and actions surfaced
+  // in this period, each linked to its supporting entries
+  patterns?: AnnotatedPattern[];
+  contradictions?: Contradiction[];
+  actionsOutstanding?: number;
 }
 
 function isoWeekKey(dateInput: string | Date): string {
@@ -307,18 +356,7 @@ export function weeklyReviews(entries: Entry[]): PeriodReview[] {
     arr.push(e);
     byWeek.set(key, arr);
   }
-  return [...byWeek.entries()].map(([period, list]) => {
-    const assumptions = list.flatMap((e) => e.summary!.trace.assumptions);
-    const topAssumption = assumptions.length ? assumptions.sort((a, b) => b.length - a.length)[0] : null;
-    return {
-      period,
-      entries: list,
-      emotions: [...new Set(list.map((e) => e.summary!.coreEmotion))],
-      topAssumption,
-      calibration: calibrationFor(list),
-      unresolved: unresolvedEntries(list).length,
-    };
-  }).sort((a, b) => a.period.localeCompare(b.period));
+  return [...byWeek.entries()].map(([period, list]) => enrichPeriodReview(period, list)).sort((a, b) => a.period.localeCompare(b.period));
 }
 
 export function monthlyReviews(entries: Entry[]): PeriodReview[] {
@@ -329,28 +367,221 @@ export function monthlyReviews(entries: Entry[]): PeriodReview[] {
     arr.push(e);
     byMonth.set(key, arr);
   }
-  return [...byMonth.entries()].map(([period, list]) => {
-    const assumptions = list.flatMap((e) => e.summary!.trace.assumptions);
-    const topAssumption = assumptions.length ? assumptions.sort((a, b) => b.length - a.length)[0] : null;
-    return {
-      period,
-      entries: list,
-      emotions: [...new Set(list.map((e) => e.summary!.coreEmotion))],
-      topAssumption,
-      calibration: calibrationFor(list),
-      unresolved: unresolvedEntries(list).length,
-    };
-  }).sort((a, b) => a.period.localeCompare(b.period));
+  return [...byMonth.entries()].map(([period, list]) => enrichPeriodReview(period, list)).sort((a, b) => a.period.localeCompare(b.period));
 }
 
-export function longitudinalSummary(entries: Entry[]): string {
+// Shared period-review enrichment: patterns + contradictions + outstanding
+// actions, each insight still linked to the entries that produced it.
+function enrichPeriodReview(period: string, list: Entry[]): PeriodReview {
+  const assumptions = list.flatMap((e) => e.summary!.trace.assumptions);
+  const topAssumption = assumptions.length ? assumptions.sort((a, b) => b.length - a.length)[0] : null;
+  return {
+    period,
+    entries: list,
+    emotions: [...new Set(list.map((e) => e.summary!.coreEmotion))],
+    topAssumption,
+    calibration: calibrationFor(list),
+    unresolved: unresolvedEntries(list).length,
+    patterns: annotatePatterns(detectRecurringPatterns(list)),
+    contradictions: detectContradictions(list),
+    actionsOutstanding: list.filter((e) => !e.longitudinalReview?.actualActionTaken && e.status === "complete").length,
+  };
+}
+
+const NEGATIVE_EMOTIONS = new Set(["anger","frustration","shame","anxiety","fear","sadness","guilt","jealousy","hurt","embarrassment","disappointment","overwhelmed","insecure","resentment"]);
+const POSITIVE_EMOTIONS = new Set(["joy","calm","pride","gratitude","hope","relief","contentment","satisfaction","excitement","peace","confidence"]);
+
+// ── quantified prediction accuracy ────────────────────────────────────
+
+export interface PredictionAccuracy {
+  n: number;
+  supportedPct: number | null;
+  unsupportedPct: number | null;
+  partialPct: number | null;
+  unclearPct: number | null;
+  note: string;
+}
+
+export function predictionAccuracy(entries: Entry[]): PredictionAccuracy {
+  const c = calibrationFor(entries);
+  if (c.totalReviewed === 0) {
+    return { n: 0, supportedPct: null, unsupportedPct: null, partialPct: null, unclearPct: null, note: "No reviewed predictions yet — complete a few follow-ups to quantify accuracy." };
+  }
+  const pct = (n: number) => Math.round((n / c.totalReviewed) * 100);
+  return {
+    n: c.totalReviewed,
+    supportedPct: pct(c.supported),
+    unsupportedPct: pct(c.unsupported),
+    partialPct: pct(c.partial),
+    unclearPct: pct(c.unclear),
+    note: `Supported ${pct(c.supported)}% of reviewed predictions (unsupported ${pct(c.unsupported)}%, partial ${pct(c.partial)}%).`,
+  };
+}
+
+// ── unresolved resurfacing (prioritised) ───────────────────────────────
+
+export interface ResurfaceItem {
+  entry: Entry;
+  daysOverdue: number;
+  score: number;
+  reason: string;
+}
+
+// Rank open follow-ups: oldest overdue first, then those where no action was
+// ever logged, then ones with no follow-up date at all (sitting in limbo).
+export function resurfacingQueue(entries: Entry[], now = new Date(), topK = 8): ResurfaceItem[] {
+  const open = unresolvedEntries(entries, now);
+  const t = new Date(now); t.setHours(0, 0, 0, 0);
+  return open
+    .map((e) => {
+      const d = parseDate(e.summary!.trace.followUpAt);
+      const daysOverdue = d !== null ? Math.max(0, Math.round((t.getTime() - new Date(d).getTime()) / 86400000)) : 0;
+      const parts: string[] = [];
+      let score = daysOverdue;
+      if (d !== null) parts.push(`${daysOverdue}d overdue`);
+      else { score += 3; parts.push("no follow-up date set"); }
+      if (!e.longitudinalReview?.actualActionTaken) { score += 5; parts.push("action never logged"); }
+      if (e.longitudinalReview?.assumptionVerdict === "unclear") { score += 2; parts.push("reviewed unclear"); }
+      return { entry: e, daysOverdue, score, reason: parts.join(" · ") };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
+// ── follow-up timing (verdict-aware) ───────────────────────────────────
+
+export interface FollowUpSuggestion {
+  dueInDays: number;
+  followUpAt: string; // ISO date
+  reason: string;
+}
+
+// Better follow-up timing: unsupported assumptions need a short re-check (3d),
+// supported ones can wait (14d); if the intended action was never logged, check
+// back sooner — the loop hasn't closed.
+export function suggestFollowUp(entry: Entry, now = new Date()): FollowUpSuggestion {
+  const verdict = entry.longitudinalReview?.assumptionVerdict ?? null;
+  let dueInDays = 7;
+  let reason: string;
+  if (verdict === "unsupported") { dueInDays = 3; reason = "Assumption was unsupported — check in 3 days to see if the new reading holds."; }
+  else if (verdict === "partial") { dueInDays = 7; reason = "Partially supported — a week lets the pattern clarify."; }
+  else if (verdict === "supported") { dueInDays = 14; reason = "Supported — a fortnight before re-checking keeps review cost low."; }
+  else if (verdict === "unclear") { dueInDays = 7; reason = "Outcome unclear — check in a week with a sharper question."; }
+  else if (entry.longitudinalReview) { dueInDays = 7; reason = "Reviewed but unresolved — check back in a week."; }
+  else { dueInDays = 5; reason = "Fresh reflection — a 5-day check-in keeps momentum."; }
+  if (!entry.longitudinalReview?.actualActionTaken) {
+    dueInDays = Math.min(dueInDays, 5);
+    reason += " Action wasn't logged — checking sooner closes the loop.";
+  }
+  const date = new Date(now);
+  date.setDate(date.getDate() + dueInDays);
+  return { dueInDays, followUpAt: date.toISOString().slice(0, 10), reason };
+}
+
+// ── action tracking ────────────────────────────────────────────────────
+
+export interface ActionFollowThrough {
+  tracked: number;
+  actionLogged: number;
+  completed: number;
+  actionLoggedPct: number | null;
+  completedPct: number | null;
+}
+
+export function actionFollowThrough(entries: Entry[]): ActionFollowThrough {
+  const reviewed = entries.filter((e) => e.longitudinalReview);
+  const actionLogged = reviewed.filter((e) => e.longitudinalReview?.actualActionTaken && String(e.longitudinalReview.actualActionTaken).trim());
+  const completed = actionLogged.filter((e) => e.longitudinalReview?.assumptionVerdict && e.longitudinalReview.assumptionVerdict !== "unclear");
+  return {
+    tracked: reviewed.length,
+    actionLogged: actionLogged.length,
+    completed: completed.length,
+    actionLoggedPct: reviewed.length ? Math.round((actionLogged.length / reviewed.length) * 100) : null,
+    completedPct: reviewed.length ? Math.round((completed.length / reviewed.length) * 100) : null,
+  };
+}
+
+// ── does reflection improve later decisions? ───────────────────────────
+// Split reviewed reflections chronologically; if the unsupported-assumption
+// rate drops in the second half, the loop is working (predictions track
+// reality better over time).
+export function decisionImprovement(entries: Entry[]): {
+  n: number;
+  before: number | null;
+  after: number | null;
+  improved: boolean;
+  note: string;
+} {
+  const withReview = entries.filter((e) => e.summary && e.longitudinalReview?.assumptionVerdict);
+  if (withReview.length < 4) {
+    return { n: withReview.length, before: null, after: null, improved: false, note: "Need 4+ reviewed reflections to compare before/after calibration." };
+  }
+  const sorted = withReview.slice().sort((a, b) => (parseDate(a.createdAt) || 0) - (parseDate(b.createdAt) || 0));
+  const half = Math.ceil(sorted.length / 2);
+  const unsupportedRate = (list: Entry[]) => {
+    const u = list.filter((e) => e.longitudinalReview!.assumptionVerdict === "unsupported").length;
+    return list.length ? Math.round((u / list.length) * 100) : null;
+  };
+  const before = unsupportedRate(sorted.slice(0, half));
+  const after = unsupportedRate(sorted.slice(half));
+  const improved = before !== null && after !== null && after < before;
+  return {
+    n: sorted.length,
+    before,
+    after,
+    improved,
+    note: improved
+      ? `Unsupported assumptions dropped from ${before}% → ${after}% — reflection is tracking reality better over time.`
+      : `Unsupported-rate ${before}% → ${after}% — no clear improvement yet.`,
+  };
+}
+
+// ── structured insights, every one linked to its supporting entries ────
+
+export interface Insight {
+  kind: "pattern" | "contradiction" | "calibration" | "unresolved";
+  key: string;
+  title: string;
+  detail: string;
+  entryIds: string[]; // every insight must cite the entries it came from
+}
+
+export function summaryInsights(entries: Entry[], corrections: Correction[] = []): Insight[] {
+  const out: Insight[] = [];
+  for (const p of withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections)) {
+    out.push({ kind: "pattern", key: p.key, title: p.label, detail: `${p.kind} recurring across ${p.count} reflections`, entryIds: p.entryIds });
+  }
+  for (const g of withoutDismissed(annotateAssumptionGroups(detectRecurringAssumptions(entries).slice(0, 3)), corrections)) {
+    out.push({ kind: "pattern", key: g.key, title: g.representative.slice(0, 64), detail: `Recurring assumption ×${g.count}`, entryIds: g.members.map((m) => m.entryId) });
+  }
+  for (const c of detectContradictions(entries).slice(0, 3)) {
+    out.push({ kind: "contradiction", key: `contradiction:${c.entryA}:${c.entryB}`, title: c.reason, detail: c.reason, entryIds: [c.entryA, c.entryB] });
+  }
+  const cal = calibrationFor(entries);
+  if (cal.totalReviewed >= 1) {
+    out.push({
+      kind: "calibration", key: "calibration",
+      title: `${cal.supported} supported / ${cal.unsupported} unsupported predictions`,
+      detail: `Insight score ${cal.calibrationScore}% — unsupported readings are where the model learned.`,
+      entryIds: entries.filter((e) => e.longitudinalReview?.assumptionVerdict).map((e) => e.id),
+    });
+  }
+  for (const r of resurfacingQueue(entries).slice(0, 3)) {
+    out.push({ kind: "unresolved", key: `unresolved:${r.entry.id}`, title: r.reason, detail: `Follow-up overdue — ${r.entry.title}`, entryIds: [r.entry.id] });
+  }
+  return out;
+}
+
+export function longitudinalSummary(entries: Entry[], corrections: Correction[] = []): string {
   const total = entries.filter((e) => e.summary).length;
   if (total === 0) return "No completed reflections yet — complete a few to see longitudinal patterns.";
   const cal = calibrationFor(entries);
-  const recurring = detectRecurringAssumptions(entries);
-  const patterns = detectRecurringPatterns(entries);
+  const recurring = withoutDismissed(annotateAssumptionGroups(detectRecurringAssumptions(entries)), corrections);
+  const patterns = withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections);
   const unresolved = unresolvedEntries(entries);
   const contras = detectContradictions(entries);
+  const improvement = decisionImprovement(entries);
+  const actions = actionFollowThrough(entries);
   const parts: string[] = [];
   parts.push(`${total} reflection${total === 1 ? "" : "s"} · ${cal.totalReviewed} reviewed.`);
   if (cal.totalReviewed > 0) parts.push(`Calibration: ${cal.unsupported} unsupported / ${cal.supported} supported${cal.calibrationScore !== null ? ` · insight score ${cal.calibrationScore}%` : ""}.`);
@@ -358,5 +589,7 @@ export function longitudinalSummary(entries: Entry[]): string {
   if (patterns.length) parts.push(`Common pattern: ${patterns[0].label} ×${patterns[0].count}.`);
   if (contras.length) parts.push(`${contras.length} possible contradiction${contras.length === 1 ? "" : "s"} detected.`);
   if (unresolved.length) parts.push(`${unresolved.length} unresolved follow-up${unresolved.length === 1 ? "" : "s"} due.`);
+  if (improvement.improved) parts.push(`Calibration improving over time (unsupported ${improvement.before}% → ${improvement.after}%).`);
+  if (actions.actionLoggedPct != null && actions.actionLoggedPct < 50) parts.push(`Only ${actions.actionLoggedPct}% of reviewed reflections logged an action — tracking actions closes the loop.`);
   return parts.join(" ");
 }
