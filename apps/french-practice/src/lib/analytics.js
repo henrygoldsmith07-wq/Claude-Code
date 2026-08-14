@@ -3,7 +3,7 @@
 // breakdown, weekly/monthly reports and heatmap-ready series. Pure and
 // deterministic — no network.
 
-import { retentionNow } from './memory';
+import { retentionNow } from './memory.js';
 
 const dayStamp = (d) => new Date(d).toISOString().slice(0, 10);
 const avg = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null);

@@ -343,7 +343,7 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
   const retention = cardSrs ? fsrsRetention(cardSrs) : null;
 
   const rate = (rating) => {
-    rateCard(entry.id, rating, { mode: cardMode, fsrs: Boolean(cardSrs?.S != null) });
+    rateCard(entry.id, rating, { mode: cardMode });
     onRated();
     onActivity?.({ type: 'cards', rating });
     setTimeout(() => setIndex((i) => (i + 1) % deck.length), 250);

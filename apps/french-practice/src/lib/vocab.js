@@ -3,13 +3,13 @@
 // collocations, register/region notes. The filler-word deck folds in as a
 // pack (same ids, so existing SRS history carries over).
 
-import { FLASHCARDS } from './data';
-import { EXTRA_VOCAB_PACKS } from './vocab-extra';
-import { CORE_VOCAB_PACKS } from './vocab-core';
-import { FREQUENCY_PACKS, FREQUENCY_PACKS_DE, FREQUENCY_PACKS_ES } from './vocab-frequency';
-import { DE_VOCAB_PACKS } from './content/de';
-import { ES_VOCAB_PACKS } from './content/es';
-import { contentLang } from './content/active';
+import { FLASHCARDS } from './data.js';
+import { EXTRA_VOCAB_PACKS } from './vocab-extra.js';
+import { CORE_VOCAB_PACKS } from './vocab-core.js';
+import { FREQUENCY_PACKS, FREQUENCY_PACKS_DE, FREQUENCY_PACKS_ES } from './vocab-frequency.js';
+import { DE_VOCAB_PACKS } from './content/de.js';
+import { ES_VOCAB_PACKS } from './content/es.js';
+import { contentLang } from './content/active.js';
 
 // freq: 1 = top 100 words, 2 = top 500, 3 = top 1000, 4 = top 5000, 5 = rare/niche
 export const FREQ_LABELS = { 1: 'Top 100', 2: 'Top 500', 3: 'Top 1000', 4: 'Top 5000', 5: 'Niche' };

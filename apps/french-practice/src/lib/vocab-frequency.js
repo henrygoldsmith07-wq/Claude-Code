@@ -7,9 +7,9 @@
 // cards — without hand-writing thousands more card literals: the packs are
 // built from the dictionary at module load.
 
-import { FREQUENCY_WORDS } from './frequency';
-import { FREQUENCY_WORDS_DE } from './content/frequency-de';
-import { FREQUENCY_WORDS_ES } from './content/frequency-es';
+import { FREQUENCY_WORDS } from './frequency.js';
+import { FREQUENCY_WORDS_DE } from './content/frequency-de.js';
+import { FREQUENCY_WORDS_ES } from './content/frequency-es.js';
 
 // Map a coarse frequency band (rank 1–10) onto the card's freq label bucket
 // (FREQ_LABELS in vocab.js: 1 Top 100 · 2 Top 500 · 3 Top 1000 · 4 Top 5000 · 5 Niche).

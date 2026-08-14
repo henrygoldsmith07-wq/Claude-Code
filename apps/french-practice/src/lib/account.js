@@ -7,7 +7,7 @@
 // a plain, base64-wrapped backup. Either way the private API key is never
 // included (exportProgress omits it).
 
-import { exportProgress, importProgress, markBackup } from './storage';
+import { exportProgress, importProgress, markBackup } from './storage.js';
 
 const PREFIX = 'LS1:'; // identifies a Le Studio sync code
 const PBKDF2_ROUNDS = 150000;
