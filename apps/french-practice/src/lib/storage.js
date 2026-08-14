@@ -705,7 +705,13 @@ export function rateCard(cardId, rating, opts={}) {
   const key = mode==='productive' ? `${cardId}::productive` : cardId;
   const srs = getSrs();
   const existing = srs[key];
-  const useFsrs = existing?.S != null || opts.fsrs;
+  // FSRS is the scheduler. It used to be gated on `existing?.S != null` — a
+  // condition only an FSRS card could satisfy — with every call site passing
+  // that same condition back in as `opts.fsrs`. Nothing ever set S for the
+  // first time, so the branch was unreachable and every card in the app was
+  // silently scheduled by the SM-2 fallback below. Legacy SM-2 rows convert on
+  // their next review via migrateFromSm2.
+  const useFsrs = opts.fsrs !== false;
   if(useFsrs){
     const prev = migrateFromSm2(existing);
     const next = fsrsRate(prev, rating);

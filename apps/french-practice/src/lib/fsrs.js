@@ -12,13 +12,33 @@ export function retrievability(stability, days){
   return Math.exp(Math.log(0.9) * days / stability);
 }
 
+const clampD = (d) => Math.max(1, Math.min(10, d));
+
+/**
+ * Initial stability, in days, for the first review of a card: FSRS keeps one
+ * weight per grade (w[0..3] = again/hard/good/easy). These were dead before —
+ * every card started at a flat S=1 whatever the learner answered, so a word
+ * recalled instantly and a word missed completely were scheduled identically.
+ */
+export function initialStability(rating){
+  return Math.max(0.1, FSRS_W[rating - 1] ?? DEFAULT_S);
+}
+
+/** Initial difficulty: D0(G) = w[4] - w[5]*(G-3). Missing it first time = harder. */
+export function initialDifficulty(rating){
+  return clampD(FSRS_W[4] - FSRS_W[5] * (rating - 3));
+}
+
 function nextDifficulty(d, rating){
   // rating 1..4 (again/hard/good/easy)
-  const delta = FSRS_W[5] * (rating - 3);
-  let nd = d + delta;
-  if(rating===1) nd += FSRS_W[6];
-  else if(rating===4) nd -= FSRS_W[7];
-  return Math.max(1, Math.min(10, nd));
+  // FSRS: ΔD = -w[5]·(G-3). The sign matters and was inverted here: forgetting
+  // a card marked it *easier* and finding one easy marked it *harder*. Because
+  // stability growth scales with (11-D), that handed the cards a learner kept
+  // failing the longest intervals of all.
+  let nd = d - FSRS_W[5] * (rating - 3);
+  if(rating===1) nd += FSRS_W[6];       // a lapse costs a little extra
+  else if(rating===4) nd -= FSRS_W[7];  // an easy answer earns a little extra
+  return clampD(nd);
 }
 
 function nextStability(s, d, r, rating){
@@ -62,18 +82,25 @@ export function rateFsrs(entry, rating, now = Date.now()){
   const D = prev.D || DEFAULT_D;
   const days = prev.lastReviewed ? Math.max(0, (now - new Date(prev.lastReviewed).getTime())/DAY) : 0;
   const retr = retrievability(S, days);
+  const first = !prev.lastReviewed;
   let nS, nD, intervalDays;
-  if(r===1){
+  if(first){
+    // A card's very first answer sets its starting point rather than updating
+    // one, which is what the per-grade weights are for.
+    nD = initialDifficulty(r);
+    nS = initialStability(r);
+    intervalDays = r===1 ? 0 : Math.max(1, Math.round(nS));
+  } else if(r===1){
     nD = nextDifficulty(D, 1);
     nS = Math.max(0.1, nextStability(S, D, retr, 1));
     intervalDays = 0;
   } else {
     nD = nextDifficulty(D, r);
     nS = nextStability(S, D, retr, r);
-    if((prev.reps||0)===0) intervalDays = r===2 ? 1 : r===3 ? 3 : 4;
-    else if((prev.reps||0)===1) intervalDays = r===2 ? 2 : r===3 ? 6 : 8;
-    else intervalDays = Math.max(1, Math.round(nS));
-    if(r===2) intervalDays = Math.max(1, Math.round(intervalDays * 0.6));
+    // Stability is defined as the days until recall falls to 90%, so it *is*
+    // the interval. The old code shrank a "hard" interval by a further 0.6 on
+    // top of w[15], charging the same penalty twice.
+    intervalDays = Math.max(1, Math.round(nS));
   }
   const next = {
     S: Math.round(nS*100)/100,
