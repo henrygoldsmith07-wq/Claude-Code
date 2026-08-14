@@ -7,6 +7,8 @@ import { useStore } from "@/state/store";
 import { nowIso, useNow } from "@/state/clock";
 import { getSkill } from "@/domain/skills";
 import { newMemory, planTurn, seededRng, shouldEnd, updateEngagement } from "@/domain/simulator";
+import { floorSnapshot, maxConsecutiveCharacterTurns, nextSpeaker } from "@/domain/floor";
+import { namesAddressed } from "@/domain/addressing";
 import type { CharacterMemory } from "@/domain/simulator";
 import { analyseTurn, feedbackFor, wordsFromTranscript } from "@/domain/voice";
 import type {
@@ -101,6 +103,22 @@ export function SimulationRunner({
     transcriptEnd.current?.scrollIntoView({ block: "nearest" });
   }, [turns.length]);
 
+  /** The in-progress simulation, so the floor engine and the evaluator see the same object. */
+  const asSimulation = useCallback(
+    (turnList: SimulationTurn[]): Simulation => ({
+      id: simulationId,
+      userId: "local",
+      scenarioId: scenario.id,
+      scenario,
+      mode: voiceMetrics.length > 0 ? "voice" : "text",
+      startedAt: turnList[0]?.createdAt ?? nowIso(),
+      deliveredDifficulty: difficulty,
+      assistLevel,
+      turns: turnList,
+    }),
+    [assistLevel, difficulty, scenario, simulationId, voiceMetrics.length],
+  );
+
   const skill = getSkill(scenario.skillIds[0] ?? "");
   const hints = HINTS[scenario.skillIds[0] ?? ""] ?? HINTS.default ?? [];
   const visibleHints = assistLevel === "full" ? hints : assistLevel === "partial" ? hints.slice(0, 1) : [];
@@ -125,91 +143,128 @@ export function SimulationRunner({
       if (voice) setVoiceMetrics((current) => [...current, voice]);
 
       const lastCharacter = [...turns].reverse().find((turn) => turn.speaker === "character");
-      const memory = updateEngagement(
-        memories.current.get(character.id) ?? newMemory(character),
-        userTurn.text,
-        lastCharacter?.text ?? null,
-      );
-      memories.current.set(character.id, memory);
 
-      const plan = planTurn(character, memory, withUser.length, difficulty, rng);
-
-      let reply = "";
-      try {
-        const response = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            request: {
-              task: "simulate-turn",
-              character: {
-                name: character.name,
-                style: character.style,
-                role: character.role,
-                background: character.background,
-                interests: character.interests,
-              },
-              scenarioContext: scenario.context,
-              plan,
-              transcript: withUser.slice(-12).map((turn) => ({ speaker: turn.speaker, text: turn.text })),
-            },
+      // Everyone's engagement moves, but not equally: a turn aimed at one
+      // person is not aimed at the others. With one character this reduces
+      // exactly to the previous behaviour.
+      const named = namesAddressed(userTurn.text, scenario);
+      const groupSize = scenario.characters.length;
+      for (const item of scenario.characters) {
+        const previous = memories.current.get(item.id) ?? newMemory(item);
+        memories.current.set(
+          item.id,
+          updateEngagement(previous, userTurn.text, lastCharacter?.text ?? null, {
+            addressed: named.length > 0 ? named.includes(item.id) : lastCharacter?.characterId === item.id,
+            addressedAnyone: named.length > 0,
+            groupSize,
           }),
-        });
-        const payload = (await response.json()) as {
-          data?: { reply?: string; newFact?: string };
-          source?: string;
-          note?: string;
-        };
-        reply = payload.data?.reply ?? "";
-        if (payload.note) setAiNote(payload.note);
-        if (payload.data?.newFact) {
-          memories.current.set(character.id, {
-            ...memory,
-            statedFacts: [...memory.statedFacts, payload.data.newFact],
-          });
-        }
-      } catch {
-        reply = "";
-        setAiNote("Offline — using the built-in character engine.");
+        );
       }
 
-      if (!reply) reply = "Mm.";
+      // The group may take several turns before the floor comes back. This is
+      // the loop that makes a group conversation a group conversation: who
+      // speaks is decided by the floor engine, not by "the first character".
+      let working = withUser;
+      const budget = maxConsecutiveCharacterTurns(difficulty);
 
-      const characterTurn: SimulationTurn = {
-        id: `${simulationId}.${withUser.length}`,
-        simulationId,
-        index: withUser.length,
-        speaker: "character",
-        characterId: character.id,
-        text: reply,
-        createdAt: nowIso(),
-      };
-      setTurns([...withUser, characterTurn]);
+      for (let taken = 0; taken < budget; taken += 1) {
+        const snapshot = floorSnapshot(asSimulation(working));
+        const next = nextSpeaker(scenario, memories.current, snapshot, difficulty, rng);
+        if (next.speaker === "user") break;
+        const speaker = scenario.characters.find((item) => item.id === next.speaker);
+        if (!speaker) break;
+
+        const memory = memories.current.get(speaker.id) ?? newMemory(speaker);
+        const plan = planTurn(speaker, memory, working.length, difficulty, rng);
+
+        let reply = "";
+        try {
+          const response = await fetch("/api/ai", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              request: {
+                task: "simulate-turn",
+                character: {
+                  name: speaker.name,
+                  style: speaker.style,
+                  role: speaker.role,
+                  background: speaker.background,
+                  interests: speaker.interests,
+                },
+                scenarioContext:
+                  groupSize > 1
+                    ? `${scenario.context} Also present: ${scenario.characters
+                        .filter((item) => item.id !== speaker.id)
+                        .map((item) => `${item.name} (${item.role})`)
+                        .join(", ")}.`
+                    : scenario.context,
+                plan,
+                // Character lines are prefixed with the speaker's name in a
+                // group. Without it the model sees an undifferentiated wall of
+                // "character" turns and cannot tell who said what, which is
+                // exactly what makes a group read as one person with mood
+                // swings. Prefixing keeps the request schema unchanged.
+                transcript: working.slice(-12).map((turn) => ({
+                  speaker: turn.speaker,
+                  text:
+                    groupSize > 1 && turn.speaker === "character"
+                      ? `${scenario.characters.find((item) => item.id === turn.characterId)?.name ?? "Someone"}: ${turn.text}`
+                      : turn.text,
+                })),
+              },
+            }),
+          });
+          const payload = (await response.json()) as {
+            data?: { reply?: string; newFact?: string };
+            source?: string;
+            note?: string;
+          };
+          reply = payload.data?.reply ?? "";
+          if (payload.note) setAiNote(payload.note);
+          if (payload.data?.newFact) {
+            memories.current.set(speaker.id, {
+              ...memory,
+              statedFacts: [...memory.statedFacts, payload.data.newFact],
+            });
+          }
+        } catch {
+          reply = "";
+          setAiNote("Offline — using the built-in character engine.");
+        }
+
+        if (!reply) reply = "Mm.";
+
+        const characterTurn: SimulationTurn = {
+          id: `${simulationId}.${working.length}`,
+          simulationId,
+          index: working.length,
+          speaker: "character",
+          characterId: speaker.id,
+          text: reply,
+          createdAt: nowIso(),
+        };
+        working = [...working, characterTurn];
+        setTurns(working);
+      }
+
       setBusy(false);
     },
-    [busy, character, difficulty, rng, scenario.context, simulationId, turns],
+    [asSimulation, busy, character, difficulty, rng, scenario, simulationId, turns],
   );
 
   const finish = useCallback(async () => {
     if (!character) return;
     setBusy(true);
     const simulation: Simulation = {
-      id: simulationId,
-      userId: "local",
-      scenarioId: scenario.id,
-      scenario,
-      mode: voiceMetrics.length > 0 ? "voice" : "text",
-      startedAt: turns[0]?.createdAt ?? nowIso(),
+      ...asSimulation(turns),
       endedAt: nowIso(),
-      deliveredDifficulty: difficulty,
-      assistLevel,
-      turns,
     };
     const result = await store.saveSimulation(simulation);
     setEvaluation(result);
     setEnded(true);
     setBusy(false);
-  }, [assistLevel, character, difficulty, scenario, simulationId, store, turns, voiceMetrics.length]);
+  }, [asSimulation, character, store, turns]);
 
   // Voice input. Optional, opt-in, and used only for pace/filler/pause
   // measurement — the audio itself is never stored or transmitted.

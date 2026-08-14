@@ -1,4 +1,7 @@
-import { BEHAVIOUR_KEYS } from "./types";
+import { BEHAVIOUR_KEYS, MULTI_PARTY_BEHAVIOURS } from "./types";
+import { addressee, namesAddressed } from "./addressing";
+import { participation } from "./floor";
+import { summariseInterruptions } from "./interruption";
 import type {
   BehaviourKey,
   BehaviourScore,
@@ -172,6 +175,19 @@ export interface TranscriptFeatures {
   fillers: number;
   averageReplyWords: number;
   longestReplyWords: number;
+  // --- Group only. Zero and meaningless in a one-to-one transcript. ---
+  /** Characters in the scenario. 1 means the multi-party behaviours do not apply. */
+  characterCount: number;
+  /** Characters the user addressed by name at least once. */
+  charactersAddressed: number;
+  /** How evenly the user spread named attention, 0-1. */
+  attentionBalance: number;
+  /** Characters who never spoke and were never brought in by the user. */
+  leftOut: number;
+  /** Times the user took the floor uninvited. */
+  selfSelections: number;
+  /** Stretches where the group held the floor and the user could have come in. */
+  entryOpportunities: number;
 }
 
 export function extractFeatures(simulation: Simulation): TranscriptFeatures {
@@ -288,6 +304,65 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
     fillers,
     averageReplyWords: replyLengths.length ? replyLengths.reduce((a, b) => a + b, 0) / replyLengths.length : 0,
     longestReplyWords: replyLengths.length ? Math.max(...replyLengths) : 0,
+    ...groupFeatures(simulation),
+  };
+}
+
+/**
+ * The countable parts of a group conversation.
+ *
+ * Everything here is derived from names in the transcript and from who spoke
+ * when, because that is all a transcript honestly contains. Attention in a real
+ * room is mostly gaze, and none of it reaches this data — so "you looked at one
+ * person the whole time" is not a claim this evaluator is entitled to make, and
+ * it does not make it.
+ */
+function groupFeatures(simulation: Simulation): Pick<
+  TranscriptFeatures,
+  "characterCount" | "charactersAddressed" | "attentionBalance" | "leftOut" | "selfSelections" | "entryOpportunities"
+> {
+  const characters = simulation.scenario.characters;
+  const summary = participation(simulation);
+  const interruptions = summariseInterruptions(simulation);
+  const spoke = new Set(
+    simulation.turns.filter((t) => t.speaker === "character" && t.characterId).map((t) => t.characterId as Id),
+  );
+  const addressed = new Set(
+    simulation.turns
+      .filter((t) => t.speaker === "user")
+      .flatMap((t) => namesAddressed(t.text, simulation.scenario)),
+  );
+
+  // A stretch where the group held the floor and did *not* hand it over.
+  //
+  // The obvious version — count every run of two or more character turns — is
+  // wrong, and wrong in the direction that blames the user: if the group talks
+  // twice and then asks the user a direct question, they were invited, and
+  // answering is not a failure to break in. Only runs that end without an
+  // invitation actually tested whether the user could take a turn.
+  const ordered = [...simulation.turns].sort((a, b) => a.index - b.index);
+  let entryOpportunities = 0;
+  let run: SimulationTurn[] = [];
+  const closeRun = () => {
+    const last = run[run.length - 1];
+    if (run.length >= 2 && last && addressee(last.text, simulation.scenario, false) !== "user") {
+      entryOpportunities += 1;
+    }
+    run = [];
+  };
+  for (const turn of ordered) {
+    if (turn.speaker === "character") run.push(turn);
+    else closeRun();
+  }
+  closeRun();
+
+  return {
+    characterCount: characters.length,
+    charactersAddressed: addressed.size,
+    attentionBalance: summary.attentionBalance,
+    leftOut: characters.filter((c) => !spoke.has(c.id) && !addressed.has(c.id)).length,
+    selfSelections: interruptions.selfSelections,
+    entryOpportunities,
   };
 }
 
@@ -324,6 +399,8 @@ const RELIABILITY_MIN_TURNS: Record<BehaviourKey, number> = {
   topicTransitions: 4,
   questionQuality: 2,
   contribution: 2,
+  inclusion: 3,
+  floorEntry: 3,
 };
 
 function clamp01(value: number): number {
@@ -464,6 +541,48 @@ function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures): BehaviourScor
         share > 0.78 || share < 0.18 ? 1 : 0,
       );
     }
+    case "inclusion": {
+      // Only reachable for group scenarios; scoreTranscript filters it out
+      // otherwise. Guarded anyway so a direct call cannot invent a score.
+      if (f.characterCount <= 1) return build(key, 0, "Not a group conversation", false);
+      if (f.charactersAddressed === 0) {
+        return build(
+          key,
+          0.05,
+          `You did not bring in any of the ${f.characterCount} others by name`,
+          reliable,
+          1,
+        );
+      }
+      const reach = f.charactersAddressed / f.characterCount;
+      // Reach matters more than evenness: naming three people unevenly beats
+      // naming one person perfectly evenly.
+      const score = reach * 0.65 + f.attentionBalance * 0.35;
+      return build(
+        key,
+        clamp01(score),
+        `You brought in ${f.charactersAddressed} of ${f.characterCount} by name` +
+          (f.leftOut > 0 ? `; ${f.leftOut} never spoke and were never asked` : ""),
+        reliable,
+        f.leftOut > 0 ? 0.8 : 0,
+      );
+    }
+    case "floorEntry": {
+      if (f.characterCount <= 1) return build(key, 0, "Not a group conversation", false);
+      if (f.entryOpportunities === 0) {
+        // The group always handed the floor over, so nothing was demonstrated
+        // either way. Unreliable rather than a low score.
+        return build(key, 0.5, "The group never talked among themselves long enough to require breaking in", false);
+      }
+      const taken = Math.min(f.selfSelections, f.entryOpportunities);
+      return build(
+        key,
+        clamp01(taken / f.entryOpportunities),
+        `You came in unprompted ${taken} of ${f.entryOpportunities} time(s) the group had the floor`,
+        reliable,
+        taken === 0 ? 0 : 0,
+      );
+    }
     default:
       return build(key, 0, "", false);
   }
@@ -482,7 +601,13 @@ function gaussianFit(value: number, ideal: number, tolerance: number): number {
 export function scoreTranscript(simulation: Simulation): BehaviourScore[] {
   const features = extractFeatures(simulation);
   const focus = new Set(simulation.scenario.evaluationCriteria);
-  return BEHAVIOUR_KEYS.filter((key) => focus.size === 0 || focus.has(key)).map((key) => scoreBehaviour(key, features));
+  const multiParty = simulation.scenario.characters.length > 1;
+  return BEHAVIOUR_KEYS.filter((key) => {
+    // A one-to-one conversation cannot display a group behaviour, so it does
+    // not get to produce evidence about one — in either direction.
+    if (!multiParty && MULTI_PARTY_BEHAVIOURS.includes(key)) return false;
+    return focus.size === 0 || focus.has(key);
+  }).map((key) => scoreBehaviour(key, features));
 }
 
 /** Overall performance for the mastery engine: reliable scores only, or null. */
@@ -495,6 +620,20 @@ export function performanceFrom(scores: BehaviourScore[]): { performance: number
 }
 
 const PRINCIPLES: Record<BehaviourKey, { principle: string; example: string; exerciseKind: Exercise["kind"]; prompt: string; criteria: string[] }> = {
+  inclusion: {
+    principle: "In a group, the quiet person is not being quiet at you. Use their name and ask them something specific — a general 'what does everyone think?' reliably reaches nobody.",
+    example: "Three people are talking and one has not spoken. \"Sam, you were on that project last year — did it work then?\"",
+    exerciseKind: "rewrite",
+    prompt: "Two colleagues have been talking for a few minutes and a third has said nothing. Write one line that brings the third person in, using their name and something specific to them.",
+    criteria: ["Uses the person's name", "Asks about something specific rather than 'any thoughts?'", "Does not put them on the spot to justify their silence"],
+  },
+  floorEntry: {
+    principle: "In a group nobody hands you the floor. Waiting for a gap that is obviously yours will mean not speaking. Come in on the end of someone's point, not in the silence after it.",
+    example: "Rather than waiting: \"Can I pick up on that — the same thing happened to us in March.\"",
+    exerciseKind: "rewrite",
+    prompt: "Two people have been talking for three turns and have not looked at you. Write one line that gets you into the conversation without changing the subject.",
+    criteria: ["Connects to what was just said", "Does not apologise for speaking", "Adds something rather than only agreeing"],
+  },
   relevance: {
     principle: "Reply to the last thing they said before adding anything new. The material for your next line is almost always already in their sentence.",
     example: "They mention a delayed move. Rather than a new topic, something like: \"What's holding it up?\"",
