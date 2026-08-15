@@ -1,0 +1,38 @@
+name: Deploy config
+
+# Every Vercel project here points at a subdirectory via its Root Directory
+# setting and reads the vercel.json found there. This job checks that contract
+# holds for every app, so a project cannot be left relying on dashboard-only
+# settings that nobody can review in a diff.
+
+on:
+  push:
+    paths:
+      - "vercel.json"
+      - "apps/*/vercel.json"
+      - "apps/*/package.json"
+      - "apps/registry.json"
+      - "scripts/check-deploy-config.mjs"
+      - ".github/workflows/deploy-config.yml"
+  pull_request:
+    paths:
+      - "vercel.json"
+      - "apps/*/vercel.json"
+      - "apps/*/package.json"
+      - "apps/registry.json"
+      - "scripts/check-deploy-config.mjs"
+      - ".github/workflows/deploy-config.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-deploy-config.mjs
