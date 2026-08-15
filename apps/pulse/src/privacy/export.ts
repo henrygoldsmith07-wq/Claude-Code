@@ -19,6 +19,8 @@ import type { Hypothesis } from "../hypotheses/tracker.js";
 import type { ExperimentDesign } from "../experiments/design.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
 import type { FeedbackEntry } from "../recommendations/feedback.js";
+import type { ReplicationRecord } from "../discovery/replication.js";
+import type { RecommendationValue } from "../recommendations/value.js";
 
 export const EXPORT_FORMAT_VERSION = 1;
 
@@ -37,6 +39,8 @@ export interface PulseExport {
   experimentDesigns: ExperimentDesign[];
   experimentResults: ExperimentResult[];
   feedback: FeedbackEntry[];
+  replication: ReplicationRecord[];
+  recommendationValue: RecommendationValue[];
 }
 
 export interface ExportOptions {
@@ -50,6 +54,8 @@ export interface ExportOptions {
   experimentDesigns?: readonly ExperimentDesign[];
   experimentResults?: readonly ExperimentResult[];
   feedback?: readonly FeedbackEntry[];
+  replication?: readonly ReplicationRecord[];
+  recommendationValue?: readonly RecommendationValue[];
 }
 
 export function buildExport(
@@ -100,6 +106,8 @@ export function buildExport(
     experimentDesigns: [...experimentDesigns],
     experimentResults: [...(options.experimentResults ?? [])],
     feedback: [...(options.feedback ?? [])],
+    replication: [...(options.replication ?? [])],
+    recommendationValue: [...(options.recommendationValue ?? [])],
   };
 }
 

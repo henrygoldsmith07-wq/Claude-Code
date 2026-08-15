@@ -23,6 +23,7 @@ import type { ReviseRecord } from "../connectors/revise.js";
 import type { AriseRecord } from "../connectors/arise.js";
 import type { FrenchRecord } from "../connectors/french.js";
 import type { ForqRecord } from "../connectors/forq.js";
+import type { WearableDailyRecord } from "../connectors/wearable.js";
 
 export type GroundTruthKind = "true-effect" | "null-effect" | "confounded";
 
@@ -34,6 +35,8 @@ export interface GroundTruthRelationship {
   outcomeMetricId: string;
   /** Behaviour metric, where the relationship has one. */
   exposureMetricId?: string;
+  /** Which finding shape the effect rides on, e.g. "exposure-window" or "lagged-correlation". */
+  matchTag?: string;
   /** Absolute change planted, in the outcome's own units. Zero for nulls. */
   plantedEffect: number;
   /**
@@ -53,6 +56,7 @@ export interface SyntheticUser {
   arise: AriseRecord[];
   french: FrenchRecord[];
   forq: ForqRecord[];
+  wearable: WearableDailyRecord[];
   groundTruth: GroundTruthRelationship[];
 }
 
@@ -71,6 +75,8 @@ export interface SyntheticOptions {
   workoutProbability?: number;
   /** Include the confounded French/recall relationship. */
   includeConfounded?: boolean;
+  /** Absolute accuracy gain per hour of sleep above the ~7h baseline. */
+  sleepAccuracyBoost?: number;
 }
 
 const BASE_ACCURACY = 0.62;
@@ -96,13 +102,20 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
   const noise = options.accuracyNoise ?? 0.12;
   const workoutProbability = options.workoutProbability ?? 0.5;
   const includeConfounded = options.includeConfounded ?? true;
+  // Off by default so existing benchmarks keep their known sensitivity/specificity
+  // profile; the longitudinal benchmark opts in when it wants the wearable signal.
+  const sleepAccuracyBoost = options.sleepAccuracyBoost ?? 0;
 
   const rng = createRng(seed);
+  // Wearable draws use their own stream so adding them never shifts the
+  // study/exercise data — existing benchmarks keep their known results.
+  const wearableRng = createRng(`${seed}:wearable`);
 
   const revise: ReviseRecord[] = [];
   const arise: AriseRecord[] = [];
   const french: FrenchRecord[] = [];
   const forq: ForqRecord[] = [];
+  const wearable: WearableDailyRecord[] = [];
 
   for (let dayIndex = 0; dayIndex < days; dayIndex += 1) {
     const date = addDays(startDate, dayIndex);
@@ -155,6 +168,21 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
       });
     }
 
+    // --- wearable physiology --------------------------------------------
+    const sleepMinutes = Math.round(clampRange(normalDeviate(wearableRng, 420, 50), 180, 600));
+    wearable.push({
+      kind: "daily",
+      id: `wr-${dayIndex}`,
+      dateISO: date,
+      at: instantAt(dayStartMs, 480),
+      steps: Math.round(clampRange(normalDeviate(wearableRng, 8200, 3200), 0, 60000)),
+      activeMinutes: Math.round(clampRange(normalDeviate(wearableRng, 38, 22), 0, 500)),
+      restingHeartRateBpm: Math.round(clampRange(normalDeviate(wearableRng, 58, 6), 30, 120)),
+      hrvMs: Math.round(clampRange(normalDeviate(wearableRng, 52, 16), 5, 300)),
+      sleepDurationMinutes: sleepMinutes,
+      timezone,
+    });
+
     // --- study sessions --------------------------------------------------
     const sessionCount = isWeekend ? (rng.next() < 0.55 ? 1 : 2) : rng.next() < 0.35 ? 1 : rng.next() < 0.8 ? 2 : 3;
     for (let s = 0; s < sessionCount; s += 1) {
@@ -167,6 +195,8 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
         workoutMinutes !== null && minutes > workoutMinutes && minutes - workoutMinutes <= 240;
       if (withinExerciseWindow) accuracy += exerciseBoost;
       if (minutes >= 720 && minutes < 1080) accuracy += afternoonBoost;
+      // Longer sleep → sharper sessions (the planted wearable effect).
+      if (sleepAccuracyBoost > 0) accuracy += sleepAccuracyBoost * ((sleepMinutes - 420) / 60);
       // Evening sharpness — the *real* cause behind the French/recall pattern.
       const eveningSharpness = includeConfounded && minutes >= 1080 && minutes < 1320 ? 0.05 : 0;
       accuracy += eveningSharpness;
@@ -260,13 +290,17 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
     arise,
     french,
     forq,
+    wearable,
     groundTruth: [
       {
         id: "exercise-then-study",
         kind: "true-effect",
         description: "Study within 4 hours after exercise is more accurate.",
+        // Exposure-window discovery reports one representative metric per event
+        // type; for workouts that representative is effort (mean RPE).
         outcomeMetricId: "study.accuracy",
-        exposureMetricId: "exercise.volume",
+        exposureMetricId: "exercise.effort",
+        matchTag: "exposure-window",
         plantedEffect: exerciseBoost,
       },
       {
@@ -274,7 +308,38 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
         kind: "true-effect",
         description: "Afternoon study (12:00-18:00) is more accurate.",
         outcomeMetricId: "study.accuracy",
+        matchTag: "time-of-day",
         plantedEffect: afternoonBoost,
+      },
+      {
+        id: "exercise-then-study-recall",
+        kind: "true-effect",
+        description: "Study within 4 hours after exercise also lifts flashcard recall grade.",
+        // Flashcard reviews inherit the sitting's quality (see the review loop
+        // below), so the planted exercise effect shows up in recall grade too.
+        // Declaring it keeps the benchmark from scoring a correct finding on
+        // `study.recall_grade` as a false positive.
+        outcomeMetricId: "study.recall_grade",
+        exposureMetricId: "exercise.effort",
+        matchTag: "exposure-window",
+        plantedEffect: exerciseBoost,
+      },
+      {
+        id: "afternoon-study-recall",
+        kind: "true-effect",
+        description: "Afternoon study also lifts flashcard recall grade.",
+        outcomeMetricId: "study.recall_grade",
+        matchTag: "time-of-day",
+        plantedEffect: afternoonBoost,
+      },
+      {
+        id: "sleep-accuracy",
+        kind: "true-effect",
+        description: "Longer sleep relates to higher study accuracy.",
+        outcomeMetricId: "study.accuracy",
+        exposureMetricId: "wellbeing.sleep_duration",
+        matchTag: "lagged-correlation",
+        plantedEffect: sleepAccuracyBoost,
       },
       ...(includeConfounded
         ? [
@@ -284,6 +349,7 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
               description: "French speaking appears to improve French recall, but both merely happen in the evening.",
               outcomeMetricId: "language.recall_accuracy",
               exposureMetricId: "language.speaking_minutes",
+              matchTag: "lagged-correlation",
               plantedEffect: 0,
               actualCause: "Evening time-of-day sharpness",
             },
@@ -295,6 +361,7 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
         description: "Meal plan adherence has no relationship with study accuracy.",
         outcomeMetricId: "study.accuracy",
         exposureMetricId: "wellbeing.plan_adherence",
+        matchTag: "lagged-correlation",
         plantedEffect: 0,
       },
       {
@@ -303,6 +370,7 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
         description: "How much you lift has no relationship with study accuracy.",
         outcomeMetricId: "study.accuracy",
         exposureMetricId: "exercise.volume",
+        matchTag: "lagged-correlation",
         plantedEffect: 0,
       },
     ],
@@ -321,6 +389,7 @@ export function generateNullUser(options: SyntheticOptions = {}): SyntheticUser 
     seed: options.seed ?? "pulse-null-user",
     exerciseAccuracyBoost: 0,
     afternoonAccuracyBoost: 0,
+    sleepAccuracyBoost: 0,
     includeConfounded: false,
   });
   return {

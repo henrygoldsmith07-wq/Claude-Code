@@ -62,10 +62,22 @@ export interface StatisticalTestRef {
   correctionMethod?: string;
 }
 
+/**
+ * Where a claim sits on the path from first notice to established knowledge.
+ *
+ *   new                    — seen once, not yet confirmed
+ *   replicated             — the same association showed up again in fresh data
+ *   failed-to-replicate    — a controlled experiment did not reproduce it
+ *   experimentally-supported — a controlled experiment you ran supported it
+ */
+export type ReplicationStatus = "new" | "replicated" | "failed-to-replicate" | "experimentally-supported";
+
 export interface Finding {
   id: string;
   createdAt: string;
   evidenceClass: EvidenceClass;
+  /** Replication/verification status. Populated by the replication ledger; defaults to "new". */
+  replicationStatus?: ReplicationStatus;
   /** Short headline, e.g. "Study accuracy is higher after exercise". */
   title: string;
   /** Full sentence with the numbers in it. Generated deterministically. */

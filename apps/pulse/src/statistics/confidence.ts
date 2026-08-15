@@ -146,6 +146,48 @@ export function confidenceWeight(level: ConfidenceLevel): number {
   }
 }
 
+export interface UncertaintySummary {
+  /** Short, honest label for the grade. */
+  label: string;
+  tone: "confident" | "provisional" | "unsure";
+  /** One sentence that makes the uncertainty legible rather than frustrating. */
+  sentence: string;
+}
+
+/**
+ * "We don't know yet" is a feature, not a bug. This turns a confidence grade
+ * into the plain sentence the UI shows next to it, so low confidence reads as
+ * "more data will settle this" instead of "we failed to measure".
+ */
+export function uncertaintySummary(assessment: ConfidenceAssessment): UncertaintySummary {
+  switch (assessment.level) {
+    case "high":
+      return {
+        label: "We are fairly confident",
+        tone: "confident",
+        sentence: "The evidence is strong enough that this is unlikely to move much as more data arrives.",
+      };
+    case "moderate":
+      return {
+        label: "We are moderately confident",
+        tone: "provisional",
+        sentence: "This is worth acting on, but expect the estimate to move as more data arrives.",
+      };
+    case "low":
+      return {
+        label: "We are not sure yet",
+        tone: "unsure",
+        sentence: "The signal is real enough to notice but too thin to rely on — collect more data first.",
+      };
+    default:
+      return {
+        label: "We do not know yet",
+        tone: "unsure",
+        sentence: "There is not enough evidence to separate a real effect from noise. That is an honest answer, not a failure.",
+      };
+  }
+}
+
 /**
  * The causality disclaimer that must accompany any non-experimental claim.
  * Centralised so it cannot be forgotten in one surface and present in another.

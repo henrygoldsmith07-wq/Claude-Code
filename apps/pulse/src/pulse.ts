@@ -20,12 +20,15 @@ import { createDefaultRegistry } from "./metrics/catalogue.js";
 import type { MetricRegistry } from "./metrics/registry.js";
 import { scoreAll, type QualityContext, type SourceQuality } from "./quality/score.js";
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
+import { ReplicationLedger } from "./discovery/replication.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
 import { analyseExperiment, type ExperimentResult } from "./experiments/analysis.js";
+import { buildCalendar, type ExperimentCalendar } from "./experiments/calendar.js";
 import { rankRecommendations, type Recommendation } from "./recommendations/rank.js";
 import { FeedbackStore } from "./recommendations/feedback.js";
+import { RecommendationValueTracker } from "./recommendations/value.js";
 import { buildTimeline, type Timeline, type TimelineOptions } from "./timeseries/timeline.js";
 import { buildWeeklyBrief, type WeeklyBrief } from "./reports/brief.js";
 import { buildKnowledgeGraph, type KnowledgeGraph } from "./knowledge/graph.js";
@@ -47,6 +50,8 @@ export class Pulse {
   readonly registry: MetricRegistry;
   readonly feedback: FeedbackStore;
   readonly hypotheses: HypothesisTracker;
+  readonly replication: ReplicationLedger;
+  readonly value: RecommendationValueTracker;
   readonly timezone: string;
 
   private readonly connectors = new Map<SourceId, Connector>();
@@ -66,6 +71,8 @@ export class Pulse {
     this.registry = options.registry ?? createDefaultRegistry();
     this.feedback = new FeedbackStore(this.now);
     this.hypotheses = new HypothesisTracker(this.now);
+    this.replication = new ReplicationLedger(this.now);
+    this.value = new RecommendationValueTracker(this.now);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
@@ -167,6 +174,7 @@ export class Pulse {
       ...(options.limit !== undefined ? { limit: options.limit } : {}),
       ...(options.fdrLevel !== undefined ? { fdrLevel: options.fdrLevel } : {}),
     });
+    report.findings = this.replication.annotate(report.findings);
     this.cachedFindings = report.findings;
     return report;
   }
@@ -227,6 +235,10 @@ export class Pulse {
         result.verdict === "supported" ? "supported" : result.verdict === "refuted" ? "refuted" : "inconclusive";
       this.hypotheses.transition(hypothesis.id, next, result.summary);
     }
+    // The experiment's verdict advances the origin finding's replication status.
+    if (hypothesis?.originFindingId) {
+      this.replication.recordExperimentResult(hypothesis.originFindingId, result.verdict);
+    }
     return result;
   }
 
@@ -237,13 +249,39 @@ export class Pulse {
   // --- RECOMMEND --------------------------------------------------------
 
   recommendations(limit?: number): Recommendation[] {
-    return rankRecommendations(this.cachedFindings, this.experimentResultsList(), {
+    const ranked = rankRecommendations(this.cachedFindings, this.experimentResultsList(), {
       registry: this.registry,
       feedback: this.feedback,
       now: this.now,
       today: localDate(this.now(), this.timezone),
       ...(limit !== undefined ? { limit } : {}),
     });
+    for (const recommendation of ranked) this.value.recommended(recommendation.id);
+    return ranked;
+  }
+
+  // --- RECOMMENDATION VALUE ----------------------------------------------
+
+  recommendationFunnel() {
+    return this.value.funnel();
+  }
+
+  acceptRecommendation(id: string): void {
+    this.value.accepted(id);
+  }
+
+  followRecommendation(id: string): void {
+    this.value.followed(id);
+  }
+
+  recordRecommendationOutcome(id: string, helped: boolean): void {
+    this.value.recordOutcome(id, helped);
+  }
+
+  // --- EXPERIMENT CALENDAR -------------------------------------------------
+
+  calendar(): ExperimentCalendar {
+    return buildCalendar(this.listDesigns(), this.experimentResultsList(), localDate(this.now(), this.timezone));
   }
 
   // --- LEARN ------------------------------------------------------------
@@ -294,6 +332,8 @@ export class Pulse {
       experimentDesigns: this.listDesigns(),
       experimentResults: this.experimentResultsList(),
       feedback: this.feedback.list(),
+      replication: this.replication.list(),
+      recommendationValue: this.value.list(),
     });
   }
 
@@ -305,6 +345,7 @@ export class Pulse {
     }, this.now);
     const invalidated = new Set(report.invalidatedFindings);
     this.cachedFindings = this.cachedFindings.filter((finding) => !invalidated.has(finding.id));
+    this.replication.prune(new Set(this.cachedFindings.map((finding) => finding.id)));
     this.syncReports.delete(source);
     return report;
   }

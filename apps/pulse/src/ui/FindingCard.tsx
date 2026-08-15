@@ -12,8 +12,8 @@
  * none", and those mean very different things.
  */
 
-import type { Finding } from "../discovery/finding.js";
-import type { ConfidenceLevel } from "../statistics/confidence.js";
+import type { Finding, ReplicationStatus } from "../discovery/finding.js";
+import { uncertaintySummary, type ConfidenceLevel } from "../statistics/confidence.js";
 
 const EVIDENCE_LABEL: Record<Finding["evidenceClass"], string> = {
   observation: "Observation",
@@ -29,6 +29,13 @@ const CONFIDENCE_LABEL: Record<ConfidenceLevel, string> = {
   high: "High",
 };
 
+const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
+  new: "New",
+  replicated: "Replicated",
+  "failed-to-replicate": "Failed to replicate",
+  "experimentally-supported": "Experimentally supported",
+};
+
 export interface FindingCardProps {
   finding: Finding;
   onFeedback?: (findingId: string, verdict: "useful" | "not-useful" | "already-knew") => void;
@@ -38,6 +45,8 @@ export interface FindingCardProps {
 export function FindingCard({ finding, onFeedback, onDesignExperiment }: FindingCardProps): React.JSX.Element {
   const uncontrolled = finding.confounders.filter((confounder) => confounder.status === "uncontrolled");
   const headingId = `finding-title-${finding.id}`;
+  const replicationStatus = finding.replicationStatus ?? "new";
+  const uncertainty = uncertaintySummary(finding.confidence);
 
   return (
     <article className="card finding" aria-labelledby={headingId}>
@@ -46,12 +55,17 @@ export function FindingCard({ finding, onFeedback, onDesignExperiment }: Finding
         <span className={`pill pill--confidence-${finding.confidence.level}`}>
           Confidence: {CONFIDENCE_LABEL[finding.confidence.level]}
         </span>
+        <span className={`pill pill--replication-${replicationStatus}`}>{REPLICATION_LABEL[replicationStatus]}</span>
       </header>
 
       <h3 id={headingId} className="finding__title">
         {finding.title}
       </h3>
       <p className="finding__statement">{finding.statement}</p>
+
+      <p className={`finding__uncertainty finding__uncertainty--${uncertainty.tone}`}>
+        <strong>{uncertainty.label}.</strong> {uncertainty.sentence}
+      </p>
 
       <p className="finding__caveat" role="note">
         {finding.causalityNote}

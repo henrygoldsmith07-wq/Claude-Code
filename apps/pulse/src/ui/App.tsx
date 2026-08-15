@@ -42,6 +42,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const discovery = useMemo(() => pulse.discover(), [pulse, revision]);
   const brief = useMemo(() => pulse.weeklyBrief(), [pulse, revision]);
   const recommendations = useMemo(() => pulse.recommendations(5), [pulse, revision]);
+  const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision]);
   const quality = useMemo(() => pulse.quality(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
@@ -52,6 +53,14 @@ export function App({ pulse }: AppProps): React.JSX.Element {
       refresh();
     },
     [discovery.findings, pulse, refresh],
+  );
+
+  const onRecommendationOutcome = useCallback(
+    (recommendationId: string, helped: boolean) => {
+      pulse.recordRecommendationOutcome(recommendationId, helped);
+      refresh();
+    },
+    [pulse, refresh],
   );
 
   const onDesignExperiment = useCallback(
@@ -70,7 +79,10 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   return (
     <div className="app">
       <header className="app__header">
-        <h1>Pulse</h1>
+        <div className="app__brand">
+          <img src="/logo.svg" alt="" width={28} height={28} className="app__logo" aria-hidden="true" />
+          <h1>Pulse</h1>
+        </div>
         <p className="app__tagline">Evidence about you, with its working shown.</p>
       </header>
 
@@ -125,6 +137,10 @@ export function App({ pulse }: AppProps): React.JSX.Element {
             )}
 
             <h2>Worth doing next</h2>
+            <p className="muted">
+              Recommendation value: {funnel.recommended} shown · {funnel.accepted} accepted · {funnel.followed} followed ·{" "}
+              {funnel.measured} measured ({funnel.helped} helped, {funnel.didNotHelp} did not)
+            </p>
             {recommendations.length === 0 ? (
               <p className="empty">No recommendation is justified by the evidence available.</p>
             ) : (
@@ -162,6 +178,14 @@ export function App({ pulse }: AppProps): React.JSX.Element {
                         </ul>
                       </details>
                     ) : null}
+                    <div className="actions">
+                      <button type="button" onClick={() => onRecommendationOutcome(recommendation.id, true)}>
+                        It helped
+                      </button>
+                      <button type="button" onClick={() => onRecommendationOutcome(recommendation.id, false)}>
+                        It didn't help
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ol>
@@ -227,12 +251,48 @@ function ExperimentsPanel({
   /* eslint-disable react-hooks/exhaustive-deps */
   const designs = useMemo(() => pulse.listDesigns(), [pulse, revision]);
   const results = useMemo(() => pulse.experimentResultsList(), [pulse, revision]);
+  const calendar = useMemo(() => pulse.calendar(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
   const resultById = new Map(results.map((result) => [result.experimentId, result]));
 
   return (
     <section role="tabpanel" id="panel-experiments" aria-labelledby="tab-experiments" tabIndex={-1}>
       <h2>Personal experiments</h2>
+      {calendar.entries.length > 0 ? (
+        <div className="card">
+          <p>
+            <strong>{calendar.summary.active}</strong> active · <strong>{calendar.summary.upcoming}</strong> upcoming ·{" "}
+            <strong>{calendar.summary.completed}</strong> awaiting analysis · <strong>{calendar.summary.analysed}</strong>{" "}
+            analysed
+            {calendar.nextAnalysisDate ? <> — next analysis {calendar.nextAnalysisDate}</> : null}
+          </p>
+          {calendar.active.some((entry) => entry.todayCondition) ? (
+            <ul>
+              {calendar.active
+                .filter((entry) => entry.todayCondition)
+                .map((entry) => (
+                  <li key={entry.design.id}>
+                    <strong>Today:</strong> {entry.design.title} —{" "}
+                    {entry.todayCondition === "A" ? entry.design.conditionA.label : entry.design.conditionB.label}:{" "}
+                    {entry.todayInstruction}
+                  </li>
+                ))}
+            </ul>
+          ) : null}
+          {calendar.schedule.length > 0 ? (
+            <details>
+              <summary>Upcoming schedule ({calendar.schedule.length} assignments)</summary>
+              <ul>
+                {calendar.schedule.map((assignment) => (
+                  <li key={`${assignment.date}-${assignment.experimentId}`}>
+                    {assignment.date}: {assignment.title} — condition {assignment.condition}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
       {designs.length === 0 ? (
         <p className="empty">
           No experiments yet. Pulse proposes one when an association is strong enough and the behaviour is something you

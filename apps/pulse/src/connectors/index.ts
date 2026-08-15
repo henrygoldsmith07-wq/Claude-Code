@@ -15,3 +15,5 @@ export { createReflectConnector, mapReflectRecord } from "./reflect.js";
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
 export { createRapportConnector, mapRapportRecord } from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";
+export { createWearableConnector, mapWearableRecord } from "./wearable.js";
+export type { WearableDailyRecord } from "./wearable.js";

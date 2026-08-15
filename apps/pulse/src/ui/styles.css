@@ -55,6 +55,16 @@ body {
   letter-spacing: -0.01em;
 }
 
+.app__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.app__logo {
+  border-radius: 8px;
+}
+
 .app__tagline {
   margin: 0.25rem 0 1.25rem;
   color: var(--muted);
@@ -151,9 +161,48 @@ h4 {
   color: var(--warn);
 }
 
+.pill--replication-new {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.pill--replication-replicated {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill--replication-failed-to-replicate {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.pill--replication-experimentally-supported {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
 .finding__statement {
   font-size: 1.02rem;
   margin: 0 0 0.6rem;
+}
+
+.finding__uncertainty {
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+  margin: 0 0 0.9rem;
+  padding-left: 0.7rem;
+}
+
+.finding__uncertainty--confident {
+  border-left-color: var(--ok);
+}
+
+.finding__uncertainty--provisional {
+  border-left-color: var(--accent);
+}
+
+.finding__uncertainty--unsure {
+  border-left-color: var(--warn);
 }
 
 .finding__caveat {

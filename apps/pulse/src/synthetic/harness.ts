@@ -12,6 +12,7 @@ import { createAriseConnector, type AriseRecord } from "../connectors/arise.js";
 import { createFrenchConnector, type FrenchRecord } from "../connectors/french.js";
 import { createForqConnector, type ForqRecord } from "../connectors/forq.js";
 import { createReflectConnector, type ReflectRecord } from "../connectors/reflect.js";
+import { createWearableConnector } from "../connectors/wearable.js";
 import { addDays, localDayStart } from "../events/time.js";
 import { generateSyntheticUser, type SyntheticOptions, type SyntheticUser } from "./generator.js";
 import { createRng, normalDeviate } from "../statistics/random.js";
@@ -19,6 +20,8 @@ import { createRng, normalDeviate } from "../statistics/random.js";
 export interface HarnessOptions extends SyntheticOptions {
   /** Connect the sensitive Reflect source too. Off by default, as in the product. */
   includeReflect?: boolean;
+  /** Connect the wearable source. Off by default so existing tests stay small. */
+  includeWearable?: boolean;
   /** Fixed clock. Defaults to the day after the user's last generated day. */
   nowMs?: number;
 }
@@ -89,6 +92,11 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
   pulse.registerConnector(createAriseConnector(createArrayReader(user.arise, timestampOfArise)));
   pulse.registerConnector(createFrenchConnector(createArrayReader(user.french, timestampOfFrench)));
   pulse.registerConnector(createForqConnector(createArrayReader(user.forq, timestampOfForq)));
+  if (options.includeWearable) {
+    pulse.registerConnector(
+      createWearableConnector(createArrayReader(user.wearable, (record) => record.at ?? `${record.dateISO}T12:00:00.000Z`)),
+    );
+  }
 
   const reflectEntries = options.includeReflect ? generateReflectEntries(user) : [];
   pulse.registerConnector(
@@ -102,6 +110,7 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
     await pulse.backfill(source, user.startDate);
   }
   if (options.includeReflect) await pulse.backfill("reflect", user.startDate);
+  if (options.includeWearable) await pulse.backfill("wearable", user.startDate);
 
   return { pulse, user, nowMs };
 }
