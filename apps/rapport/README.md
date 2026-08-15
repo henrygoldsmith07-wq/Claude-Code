@@ -116,6 +116,64 @@ so the guarantee in `voice.ts` that nothing here can infer accent, pitch or
 emotion is unaffected. In text mode overlap does not exist and the summary says
 so rather than reporting zero.
 
+## Persona goals
+
+Characters had a style, a memory and an engagement level. What they did not have
+was a *want*, and that absence is why the harder scenarios were thinner than
+their titles. "Raising a problem with two people who disagree" described a
+disagreement in its context paragraph and then ran a conversation in which
+nobody was defending anything: the user could say the perfect thing or nothing
+at all, and the room ended up in the same place.
+
+A goal (`goals.ts`) gives a character something they are trying to get out of
+the conversation, how hard they push for it, and what would move them.
+
+| Module | What it adds |
+|---|---|
+| `goals.ts` | The want, the concession, cue matching, conflict detection and the debrief report. |
+| `simulator.ts` | `press-goal` and `concede` turns, and goal progress in character memory. |
+| `floor.ts` | An unmet goal bids louder, and two opposed characters answer each other. |
+
+Four decisions worth knowing about:
+
+- **Not every goal can be won.** A goal with no `movedBy` is a fixed position,
+  and no amount of skill will shift it. A library in which everyone comes round
+  to the right words would teach a comfortable lie about difficult
+  conversations, and the fixed ones train the more common thing: recognising it
+  and handling it well anyway. The debrief says so explicitly, because a user
+  who spent a session failing to move someone deserves to know the position was
+  fixed rather than conclude they handled it badly.
+- **Concessions are matched lexically, here, with no model involved.** That is a
+  deliberate limit rather than an approximation of something better: the user is
+  told exactly which words moved someone, and a match they can read and disagree
+  with is worth more than a model's private opinion about whether they were
+  sufficiently empathetic. All of a phrasing's significant words must appear —
+  substring matching is too brittle for "the pressure around that deadline", and
+  a single shared word is far too loose.
+- **Goal outcomes are evidence, not a score.** Whether someone concedes depends
+  on how the scenario was written — how many cues, how findable — at least as
+  much as on how well the user handled it. Feeding that into the mastery model
+  would put scenario design into the user's skill estimate and make easy
+  scenarios look like progress, so `SCORING_MODEL_VERSION` is untouched and the
+  behaviour scores stay computed from the transcript exactly as before.
+- **Difficulty changes insistence, not winnability.** A harder setting means
+  someone who lobbies for their point more often. What has to be said to move
+  them is written into the scenario and does not slide, because the same
+  conversation should not mean different things at different levels.
+
+Conflicting goals are what make a disagreement happen in the room rather than in
+the context paragraph. Two characters with opposed goals bid to answer *each
+other*, so the argument runs whether or not the user joins it and their job is
+to get into it — bounded, as before, by `maxConsecutiveCharacterTurns`, because
+an argument the user cannot interrupt is a cutscene rather than practice. Once
+either side is satisfied the room stops re-staging it; a user who brokered a
+compromise should not watch the same two people keep fighting about it.
+
+Three scenarios were added that only work because someone wants something:
+`sc.competing-needs` (two people who need opposite things from you),
+`sc.chairing` and `sc.delegating`. The existing difficult-conversation
+characters were given positions to hold.
+
 ## Donated transcripts
 
 The evaluator has never been checked against a human judgement of a real
@@ -173,6 +231,7 @@ security allowing access only to its owner.
 | `tests/analytics` | Insight thresholds, hedging, experiments, progress metrics, voice. |
 | `tests/safety` | Manipulation, unsafe practice, distress, feedback language. |
 | `tests/content` | Every lesson, challenge and scenario, checked as content. |
+| `tests/goals` | Cue matching, conceding, fixed positions, conflict on the floor, outcome reporting. |
 | `tests/persistence` | IndexedDB, export/import round-trip, retention, deletion. |
 | `tests/ai-eval` | Benchmark calibration, prompt contracts, schema rejection. |
 | `tests/a11y` | Focus, labels, landmarks, dark-mode tokens, copy contracts. |

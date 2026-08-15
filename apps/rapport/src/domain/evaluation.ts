@@ -2,6 +2,8 @@ import { BEHAVIOUR_KEYS, MULTI_PARTY_BEHAVIOURS } from "./types";
 import { addressee, namesAddressed } from "./addressing";
 import { participation } from "./floor";
 import { summariseInterruptions } from "./interruption";
+import { describeOutcome, goalOutcomes } from "./goals";
+import { rebuildMemory } from "./simulator";
 import type {
   BehaviourKey,
   BehaviourScore,
@@ -788,6 +790,7 @@ export function evaluateSimulation(simulation: Simulation, evaluationId: Id, now
   const behaviour: BehaviourKey = improvement?.key ?? "followUpQuality";
   const spec = principleFor(behaviour);
   const difficulty = Math.min(5, Math.max(1, Math.round(simulation.deliveredDifficulty))) as 1 | 2 | 3 | 4 | 5;
+  const outcomes = summariseGoals(simulation) ?? [];
 
   return {
     id: evaluationId,
@@ -802,7 +805,34 @@ export function evaluateSimulation(simulation: Simulation, evaluationId: Id, now
       exampleAlternative: spec.example,
     },
     nextExercise: exerciseFor(behaviour, focusSkill, evaluationId, difficulty),
+    ...(outcomes.length > 0 ? { goalOutcomes: outcomes } : {}),
     source: "deterministic",
     createdAt: now,
   };
+}
+
+/**
+ * What each character wanted, and whether the user shifted them.
+ *
+ * Reported alongside the behaviour scores rather than folded into them. Whether
+ * someone concedes is a property of how the scenario was written — how many
+ * cues it asks for, how findable they are — at least as much as of how well the
+ * user handled it. Scoring it would push scenario design into the mastery
+ * estimate and make easy scenarios look like progress.
+ *
+ * The wants are revealed whether or not the user found them. A debrief that
+ * withholds what the other person was after in order to preserve the puzzle is
+ * optimising for the puzzle.
+ */
+function summariseGoals(simulation: Simulation): SimulationEvaluation["goalOutcomes"] {
+  const characters = simulation.scenario.characters;
+  if (!characters.some((character) => character.goal)) return [];
+  const memories = rebuildMemory(simulation);
+  return goalOutcomes(characters, (id) => memories.get(id)?.goalState).map((outcome) => ({
+    characterName: outcome.characterName,
+    want: outcome.want,
+    moved: outcome.moved,
+    movable: outcome.movable,
+    summary: describeOutcome(outcome),
+  }));
 }

@@ -223,6 +223,60 @@ export const COMMUNICATION_STYLES = [
 ] as const;
 export type CommunicationStyle = (typeof COMMUNICATION_STYLES)[number];
 
+/**
+ * One thing the user could say that would meet part of a character's need.
+ *
+ * Phrasings are alternatives: any of them counts. They are matched lexically
+ * (see `goals.ts`), so they must be things a person would plausibly say rather
+ * than keywords chosen for the matcher's convenience.
+ */
+export interface GoalCue {
+  id: string;
+  /** What meeting this cue amounts to, for the debrief: "acknowledged the deadline". */
+  label: string;
+  phrasings: string[];
+}
+
+export interface GoalConcession {
+  cues: GoalCue[];
+  /** How many distinct cues must be met before the character moves. */
+  required: number;
+  /** The observable change once they move. Shown in the debrief. */
+  concession: string;
+}
+
+/**
+ * What a character is trying to get out of this conversation.
+ *
+ * The `movedBy` being optional is the point: a goal without it is a fixed
+ * position that no amount of skill will shift, which is both extremely common
+ * in real life and absent from every practice tool that models persuasion as a
+ * puzzle with a solution.
+ */
+export interface CharacterGoal {
+  id: Id;
+  /** Phrased as an object of "wanted…", e.g. "the deadline moved". */
+  want: string;
+  /** 0-1. How hard they steer the conversation back to it. */
+  intensity: number;
+  /** Absent for a fixed position. */
+  movedBy?: GoalConcession;
+  /** Goal ids held by other characters that this one is opposed to. */
+  conflictsWith?: Id[];
+}
+
+/** Per-conversation progress against a goal. Rebuilt from the transcript, never stored. */
+export interface CharacterGoalState {
+  goalId: Id;
+  /** Cue ids the user has met, in order. */
+  cuesMet: string[];
+  satisfied: boolean;
+  /** True only on the turn the character moves, so the concession is said once. */
+  justConceded: boolean;
+  /** Turns spent pushing the goal. */
+  pushes: number;
+}
+
 export interface SimulatedCharacter {
   id: Id;
   name: string;
@@ -237,6 +291,11 @@ export interface SimulatedCharacter {
   openness: number;
   /** 0-1. How much they reciprocate questions. Low = the user must not rely on being asked. */
   reciprocity: number;
+  /**
+   * What they want out of this conversation. Optional: most of the library is
+   * about getting a conversation to work at all, where nobody needs an agenda.
+   */
+  goal?: CharacterGoal;
 }
 
 export interface SimulationScenario {
@@ -333,6 +392,16 @@ export interface BehaviourScore {
   severity?: number;
 }
 
+/** One character's goal as it ended up, phrased for the debrief. */
+export interface GoalOutcomeSummary {
+  characterName: string;
+  want: string;
+  moved: boolean;
+  movable: boolean;
+  /** The full sentence shown to the user. */
+  summary: string;
+}
+
 export interface SimulationEvaluation {
   id: Id;
   simulationId: Id;
@@ -350,6 +419,13 @@ export interface SimulationEvaluation {
   };
   /** Generated from the weakness above. */
   nextExercise: Exercise;
+  /**
+   * What each character wanted and whether the user moved them.
+   *
+   * Evidence, not a score — see `goalOutcomes` in `goals.ts` for why this stays
+   * out of the mastery model. Empty for scenarios whose characters have no goal.
+   */
+  goalOutcomes?: GoalOutcomeSummary[];
   /** How this evaluation was produced. Always shown in the UI. */
   source: "deterministic" | "ai-assisted";
   promptVersion?: string;

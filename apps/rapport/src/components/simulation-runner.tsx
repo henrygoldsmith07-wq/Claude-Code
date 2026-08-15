@@ -6,7 +6,7 @@ import { Badge, Button, Card, Evidence, Hedged, SourceNote, TextArea } from "@/c
 import { useStore } from "@/state/store";
 import { nowIso, useNow } from "@/state/clock";
 import { getSkill } from "@/domain/skills";
-import { newMemory, planTurn, seededRng, shouldEnd, updateEngagement } from "@/domain/simulator";
+import { applyPlan, newMemory, planTurn, seededRng, shouldEnd, updateEngagement } from "@/domain/simulator";
 import { floorSnapshot, maxConsecutiveCharacterTurns, nextSpeaker } from "@/domain/floor";
 import { namesAddressed } from "@/domain/addressing";
 import type { CharacterMemory } from "@/domain/simulator";
@@ -157,6 +157,9 @@ export function SimulationRunner({
             addressed: named.length > 0 ? named.includes(item.id) : lastCharacter?.characterId === item.id,
             addressedAnyone: named.length > 0,
             groupSize,
+            // Goal progress is measured against what the user just said, so it
+            // has to be advanced here rather than when the character replies.
+            ...(item.goal ? { goal: item.goal } : {}),
           }),
         );
       }
@@ -176,6 +179,8 @@ export function SimulationRunner({
 
         const memory = memories.current.get(speaker.id) ?? newMemory(speaker);
         const plan = planTurn(speaker, memory, working.length, difficulty, rng);
+        // Counts the push, or marks a concession as delivered so it is said once.
+        memories.current.set(speaker.id, applyPlan(memory, plan));
 
         let reply = "";
         try {

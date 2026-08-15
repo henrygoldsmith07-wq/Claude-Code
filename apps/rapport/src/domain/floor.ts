@@ -1,6 +1,7 @@
 import type { Id, Simulation, SimulationScenario, SimulatedCharacter } from "./types";
 import { STYLE_PROFILES, type CharacterMemory } from "./simulator";
 import { addressee, namesAddressed, type Participant } from "./addressing";
+import { goalPressure, inLiveConflict, liveConflicts } from "./goals";
 
 export { addressee, namesAddressed };
 export type { Participant };
@@ -119,6 +120,7 @@ export function bidsFor(
   difficulty: number,
 ): FloorBid[] {
   const hardness = (difficulty - 1) / 4;
+  const conflicts = liveConflicts(scenario.characters, (id) => memories.get(id)?.goalState);
 
   return scenario.characters.map((character) => {
     const profile = STYLE_PROFILES[character.style];
@@ -159,6 +161,32 @@ export function bidsFor(
     // Harder settings favour the dominant voices, which is what makes getting
     // a word in genuinely difficult rather than merely slower.
     weight *= 1 + hardness * (profile.replyLength > 24 ? 0.5 : -0.25);
+
+    // Someone with an unmet agenda takes the floor more, and two people in a
+    // live disagreement take it from each other.
+    //
+    // This is what turns "a discussion where two people disagree" from a
+    // context paragraph into something happening in the room: the argument runs
+    // whether or not the user joins, and the user's job is to get into it. The
+    // effect is bounded because `maxConsecutiveCharacterTurns` still caps how
+    // long the group can go without the user — an argument the user cannot
+    // interrupt is a cutscene, not practice.
+    const pressure = goalPressure(character.goal, memory?.goalState);
+    if (pressure > 0) {
+      weight *= 1 + pressure * 0.8;
+      reasons.push("has a point to make");
+      if (inLiveConflict(character.id, conflicts) && snapshot.lastSpeaker !== character.id) {
+        const opponentJustSpoke = conflicts.some(
+          (conflict) =>
+            (conflict.a === character.id && conflict.b === snapshot.lastSpeaker) ||
+            (conflict.b === character.id && conflict.a === snapshot.lastSpeaker),
+        );
+        if (opponentJustSpoke) {
+          weight *= 2.2;
+          reasons.push("answering back");
+        }
+      }
+    }
 
     return { characterId: character.id, weight: Math.max(0.01, weight), reasons: reasons.slice(0, 3) };
   });

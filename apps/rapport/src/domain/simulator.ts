@@ -1,4 +1,6 @@
 import type {
+  CharacterGoal,
+  CharacterGoalState,
   CommunicationStyle,
   Id,
   SimulatedCharacter,
@@ -7,6 +9,7 @@ import type {
   SimulationTurn,
 } from "./types";
 import { namesAddressed } from "./addressing";
+import { advanceGoal, countPush, goalPressure, newGoalState } from "./goals";
 
 // ---------------------------------------------------------------------------
 // The character engine.
@@ -131,6 +134,8 @@ export interface CharacterMemory {
   timesAddressed: number;
   /** User turns since this character was last addressed; drives being left out. */
   turnsSinceAddressed: number;
+  /** Progress against this character's goal. Absent when they have none. */
+  goalState?: CharacterGoalState;
 }
 
 export function newMemory(character: SimulatedCharacter): CharacterMemory {
@@ -143,6 +148,7 @@ export function newMemory(character: SimulatedCharacter): CharacterMemory {
     heardFromOthers: [],
     timesAddressed: 0,
     turnsSinceAddressed: 0,
+    ...(character.goal ? { goalState: newGoalState(character.goal) } : {}),
   };
 }
 
@@ -153,7 +159,11 @@ export type TurnIntent =
   | "ask-back"
   | "deflect"
   | "change-topic"
-  | "wind-down";
+  | "wind-down"
+  /** Steer back to what they came here for. */
+  | "press-goal"
+  /** Acknowledge that the user has met the need, and move. Happens once. */
+  | "concede";
 
 export interface TurnPlan {
   intent: TurnIntent;
@@ -165,6 +175,10 @@ export interface TurnPlan {
   callback?: string;
   /** Difficulty actually being delivered this turn, 1-5. */
   difficulty: number;
+  /** What the character is pressing for or conceding on, for the AI path and the fallback. */
+  goalWant?: string;
+  /** The concession text, set only on the turn they move. */
+  concession?: string;
 }
 
 /**
@@ -221,12 +235,22 @@ export function updateEngagement(
     ? [...memory.learnedAboutUser, condense(userTurn)]
     : memory.learnedAboutUser;
 
+  // Being heard about the thing you actually came here about is worth more than
+  // any amount of good conversational technique aimed elsewhere.
+  const goalState = memory.goalState && context.goal
+    ? advanceGoal(memory.goalState, context.goal, userTurn)
+    : memory.goalState;
+  if (goalState && memory.goalState && goalState.cuesMet.length > memory.goalState.cuesMet.length) {
+    delta += goalState.satisfied ? 0.2 : 0.1;
+  }
+
   return {
     ...memory,
     engagement: Math.min(1, Math.max(0, memory.engagement + delta)),
     learnedAboutUser: learned.slice(-6),
     timesAddressed,
     turnsSinceAddressed,
+    ...(goalState ? { goalState } : {}),
   };
 }
 
@@ -238,6 +262,8 @@ export interface EngagementContext {
   addressedAnyone?: boolean;
   /** Characters in the scenario. 1 or undefined restores the one-to-one behaviour exactly. */
   groupSize?: number;
+  /** This character's goal, when they have one. Required for goal progress to advance. */
+  goal?: CharacterGoal;
 }
 
 function sharedWords(a: string, b: string): number {
@@ -290,8 +316,43 @@ export function planTurn(
     ? memory.learnedAboutUser[memory.learnedAboutUser.length - 1]
     : undefined;
 
+  // A goal outranks the ordinary style-driven choice, in both directions.
+  //
+  // Conceding comes first and unconditionally: a character who has just been
+  // given what they wanted and answers with small talk reads as not having
+  // heard it, which would undo the one moment in the conversation the user
+  // worked for. Pressing then competes on pressure, so an intense unmet goal
+  // dominates while a mild one surfaces occasionally.
+  const goal = character.goal;
+  const goalState = memory.goalState;
+  if (goalState?.justConceded && goal?.movedBy) {
+    return {
+      intent: "concede",
+      targetWords: Math.max(8, Math.round(profile.replyLength * 0.9)),
+      callback,
+      difficulty,
+      goalWant: goal.want,
+      concession: goal.movedBy.concession,
+    };
+  }
+
+  const pressure = goalPressure(goal, goalState);
+  // Winding down never overrides an unmet goal: someone with an unresolved
+  // agenda does not decide the conversation is over.
+  const windingDown = turnIndex >= 12 || (memory.engagement < 0.2 && turnIndex > 6);
+
   let intent: TurnIntent;
-  if (turnIndex >= 12 || (memory.engagement < 0.2 && turnIndex > 6)) intent = "wind-down";
+  if (goal && pressure > 0 && (roll < pressure * 0.6 || (windingDown && pressure > 0.3))) {
+    return {
+      intent: "press-goal",
+      targetWords: Math.max(8, Math.round(profile.replyLength * 1.1)),
+      callback,
+      difficulty,
+      goalWant: goal.want,
+    };
+  }
+
+  if (windingDown) intent = "wind-down";
   else if (roll < asksBack) intent = "ask-back";
   else if (roll < asksBack + volunteering && unusedFacts.length > 0) intent = "volunteer";
   else if (roll < asksBack + volunteering + profile.disruption * hardness) intent = "change-topic";
@@ -311,6 +372,22 @@ export function planTurn(
     callback,
     difficulty,
   };
+}
+
+/**
+ * Folds the effect of a planned turn back into the character's memory.
+ *
+ * Only goal bookkeeping lives here: a press has to be counted so impatience
+ * decays, and a concession has to be marked as delivered so it is said exactly
+ * once. Callers that ignore this still get a working conversation — the
+ * character simply keeps pressing — so forgetting it degrades rather than
+ * breaks.
+ */
+export function applyPlan(memory: CharacterMemory, plan: TurnPlan): CharacterMemory {
+  if (!memory.goalState) return memory;
+  if (plan.intent === "press-goal") return { ...memory, goalState: countPush(memory.goalState) };
+  if (plan.intent === "concede") return { ...memory, goalState: { ...memory.goalState, justConceded: false } };
+  return memory;
 }
 
 /**
@@ -366,6 +443,29 @@ export function composeReply(
   const topic = lastUserTurn ? keyPhrase(lastUserTurn) : null;
 
   switch (plan.intent) {
+    case "press-goal": {
+      // Deliberately repetitive in shape. Someone lobbying for the same thing
+      // for the fourth time does sound like this, and the user needs to notice
+      // that the conversation keeps returning to a point they have not
+      // addressed — that noticing is the skill.
+      const want = plan.goalWant ?? "this sorted";
+      const opener = pick([
+        `Look, I still need ${want}.`,
+        `Coming back to it though — ${want}.`,
+        `I hear you, but ${want} is the bit I care about.`,
+      ]);
+      const fallback = `I still need ${want}.`;
+      return topic ? `${opener ?? fallback} The ${topic} part doesn't change that.` : (opener ?? fallback);
+    }
+    case "concede": {
+      const want = plan.goalWant ?? "what I was after";
+      const opener = pick([
+        `Alright — that's what I needed to hear.`,
+        `Okay. That actually deals with it.`,
+        `Right, fair enough.`,
+      ]);
+      return `${opener} ${plan.concession ?? `I can live with that on ${want}.`}`.trim();
+    }
     case "ask-back": {
       const base = topic ? `Yeah, a bit. What about you — ${questionAbout(topic)}?` : "What about you?";
       return plan.callback ? `${base} You mentioned ${trimFact(plan.callback)} before.` : base;
@@ -460,12 +560,17 @@ export function rebuildMemory(simulation: Simulation): Map<Id, CharacterMemory> 
             addressed: named.length > 0 ? named.includes(id) : lastCharacterTurn?.characterId === id,
             addressedAnyone: named.length > 0,
             groupSize,
+            ...(goalOf(simulation.scenario, id) ? { goal: goalOf(simulation.scenario, id) } : {}),
           }),
         );
       }
     }
   }
   return memories;
+}
+
+function goalOf(scenario: SimulationScenario, characterId: Id): CharacterGoal | undefined {
+  return scenario.characters.find((character) => character.id === characterId)?.goal;
 }
 
 function factsIn(text: string, scenario: SimulationScenario, characterId: Id): string[] {

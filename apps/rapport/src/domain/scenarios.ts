@@ -3,7 +3,9 @@ import { STYLE_PROFILES } from "./simulator";
 import { getSkill } from "./skills";
 import type {
   BehaviourKey,
+  CharacterGoal,
   CommunicationStyle,
+  GoalCue,
   Id,
   SimulatedCharacter,
   SimulationScenario,
@@ -26,6 +28,34 @@ import type {
 // generated scenario is never able to invent its own success conditions.
 // ---------------------------------------------------------------------------
 
+/** One need the user can meet, with the ways someone might plausibly phrase it. */
+function cue(id: string, label: string, ...phrasings: string[]): GoalCue {
+  return { id, label, phrasings };
+}
+
+/**
+ * What a character wants, and what would move them.
+ *
+ * Passing no `movedBy` makes the position fixed. That is used deliberately and
+ * sparingly — see `goals.ts` — because a library in which everyone can be won
+ * round teaches that the right words always work.
+ */
+function goal(
+  id: string,
+  want: string,
+  intensity: number,
+  movedBy?: { cues: GoalCue[]; required: number; concession: string },
+  conflictsWith?: string[],
+): CharacterGoal {
+  return {
+    id,
+    want,
+    intensity,
+    ...(movedBy ? { movedBy } : {}),
+    ...(conflictsWith ? { conflictsWith } : {}),
+  };
+}
+
 function character(
   id: string,
   name: string,
@@ -33,7 +63,7 @@ function character(
   role: string,
   background: string[],
   interests: string[],
-  overrides: Partial<Pick<SimulatedCharacter, "openness" | "reciprocity">> = {},
+  overrides: Partial<Pick<SimulatedCharacter, "openness" | "reciprocity" | "goal">> = {},
 ): SimulatedCharacter {
   const profile = STYLE_PROFILES[style];
   return {
@@ -45,6 +75,7 @@ function character(
     interests,
     openness: overrides.openness ?? profile.volunteering,
     reciprocity: overrides.reciprocity ?? profile.asksBack,
+    ...(overrides.goal ? { goal: overrides.goal } : {}),
   };
 }
 
@@ -211,11 +242,32 @@ export const SCENARIOS: SimulationScenario[] = [
       character("ch.karen", "Karen", "direct", "a colleague who thinks the process is fine", [
         "The dates were always provisional.",
         "Nobody told me it was blocking anything.",
-      ], ["swimming"], { reciprocity: 0.15 }),
+      ], ["swimming"], {
+        reciprocity: 0.15,
+        goal: goal("g.karen.not-blamed", "it acknowledged that nobody told her the dates were firm", 0.75, {
+          cues: [
+            cue("blocking", "accepted she had not been told it was blocking anything",
+              "nobody told you", "you weren't told", "you didn't know it was blocking", "we never said it was firm"),
+            cue("forward", "moved it to what happens next rather than what went wrong",
+              "next time", "going forward", "what would help", "how do we avoid"),
+          ],
+          required: 2,
+          concession: "She offers to mark which dates are actually firm in future.",
+        }),
+      }),
       character("ch.owen", "Owen", "uncertain", "a colleague who half agrees with you", [
         "I did think it was getting tight.",
         "I didn't want to make it a whole thing.",
-      ], ["photography"]),
+      ], ["photography"], {
+        goal: goal("g.owen.cover", "not to be the one who started a row", 0.5, {
+          cues: [
+            cue("safe", "made it safe for him to agree out loud",
+              "you noticed too", "you thought it was tight", "not blaming anyone", "no one is in trouble"),
+          ],
+          required: 1,
+          concession: "He says out loud that he had seen it coming too.",
+        }),
+      }),
     ],
     branches: ["whether the dates were firm", "what happens next time", "who needed to know"],
     evaluationCriteria: ["assertiveness", "clarity", "empathy", "floorEntry"],
@@ -434,6 +486,146 @@ export const SCENARIOS: SimulationScenario[] = [
     evaluationCriteria: ["clarity", "listening", "assertiveness"],
     authoredBy: "system",
   },
+
+  // --- Scenarios that only work because characters want things --------------
+  //
+  // Everything above trains getting a conversation to work. These three train
+  // getting a conversation to *land*, which needs someone on the other side who
+  // came in wanting something and will not quietly drop it.
+
+  {
+    id: "sc.competing-needs",
+    title: "Two people who need opposite things from you",
+    context:
+      "A fifteen-minute call about a piece of work that cannot both ship on time and keep everything in it. The two people on the call want different halves of that.",
+    skillIds: ["diff.conflict", "lead.decisions", "emp.perspective"],
+    objective: "Find out what each of them actually needs before proposing anything.",
+    difficulty: 5,
+    characters: [
+      character("ch.priya", "Priya", "direct", "the person who committed to the date", [
+        "I've already told the customer the date.",
+        "I can explain a smaller release. I can't explain a later one.",
+      ], ["running"], {
+        reciprocity: 0.2,
+        goal: goal(
+          "g.priya.date",
+          "the date held, even if the work shrinks",
+          0.85,
+          {
+            cues: [
+              cue("date-heard", "said out loud that the date is the part she cannot move",
+                "the date is fixed", "you can't move the date", "the date matters most", "keep the date"),
+              cue("what-goes", "named something specific that could come out",
+                "we could drop", "leave out", "cut the", "ship without", "second phase"),
+            ],
+            required: 2,
+            concession: "She agrees to a smaller first release, with the rest named and dated.",
+          },
+          ["g.sam.scope"],
+        ),
+      }),
+      character("ch.sam", "Sam", "uncertain", "the person who has to build it", [
+        "Half of it isn't worth shipping on its own.",
+        "I've cut this twice already.",
+      ], ["baking"], {
+        goal: goal(
+          "g.sam.scope",
+          "the work kept whole, even if it lands late",
+          0.7,
+          {
+            cues: [
+              cue("scope-heard", "acknowledged that a half-built version is not worth shipping",
+                "not worth shipping", "half of it", "doesn't work on its own", "cut twice already"),
+              cue("commitment", "committed to when the rest actually happens",
+                "the rest by", "second phase", "we'll finish", "come back to it"),
+            ],
+            required: 2,
+            concession: "He accepts a first release, provided the remainder has a date attached.",
+          },
+          ["g.priya.date"],
+        ),
+      }),
+    ],
+    branches: ["what the date is actually for", "what could come out", "what happens to the rest"],
+    evaluationCriteria: ["questionQuality", "empathy", "clarity", "inclusion", "floorEntry"],
+    authoredBy: "system",
+  },
+  {
+    id: "sc.chairing",
+    title: "Chairing a meeting that keeps drifting",
+    context:
+      "You are running a half-hour meeting with three items. One person keeps returning to something not on the agenda, and one has not spoken at all.",
+    skillIds: ["lead.facilitation", "grp.facilitate", "lead.encouragement"],
+    objective: "Get through the agenda without shutting anyone down.",
+    difficulty: 4,
+    characters: [
+      character("ch.dev", "Dev", "talkative", "a colleague with a grievance about tooling", [
+        "We've been asking for a better build setup for a year.",
+        "It costs us a day a week, easily.",
+      ], ["cycling"], {
+        goal: goal("g.dev.tooling", "the tooling problem taken seriously rather than waved past", 0.85, {
+          cues: [
+            cue("heard", "acknowledged the cost rather than deflecting it",
+              "a day a week", "that's a real cost", "i can see why", "you've been asking"),
+            cue("parked", "gave it a specific place to go",
+              "put it on the agenda", "let's take it separately", "i'll book time", "next meeting"),
+          ],
+          required: 2,
+          concession: "He drops it for now, having been given a slot for it.",
+        }),
+      }),
+      character("ch.mira", "Mira", "quiet", "a colleague who has not spoken", [
+        "I did most of the work on the second item.",
+        "I'd rather not talk over people.",
+      ], ["gardening"], {
+        openness: 0.15,
+        goal: goal("g.mira.invited", "a way in that does not require interrupting anyone", 0.35, {
+          cues: [
+            cue("invited", "invited her in by name, on something she actually knows",
+              "mira what do you think", "mira you worked on", "mira how did", "over to you mira"),
+          ],
+          required: 1,
+          concession: "She gives the update on the second item, in detail.",
+        }),
+      }),
+      character("ch.tom", "Tom", "friendly", "a colleague who agrees with whoever spoke last", [
+        "Both of those seem reasonable to me.",
+      ], ["football"]),
+    ],
+    branches: ["the first agenda item", "the tooling detour", "the item Mira worked on"],
+    evaluationCriteria: ["inclusion", "clarity", "assertiveness", "contribution"],
+    authoredBy: "system",
+  },
+  {
+    id: "sc.delegating",
+    title: "Handing over something nobody wants",
+    context:
+      "A task needs an owner and the obvious person does not want it. You are not their manager.",
+    skillIds: ["lead.delegation", "asrt.requests", "emp.perspective"],
+    objective: "Ask clearly, and find out what is actually in the way.",
+    difficulty: 4,
+    characters: [
+      character("ch.ade", "Ade", "uncertain", "a colleague already carrying a lot", [
+        "I've got two things running late as it is.",
+        "Last time I took something like this on it doubled.",
+      ], ["climbing"], {
+        reciprocity: 0.2,
+        goal: goal("g.ade.bounded", "to know exactly how big this is before agreeing to anything", 0.8, {
+          cues: [
+            cue("size", "put a real boundary on the size of it",
+              "about two days", "just the first part", "nothing beyond", "scope is"),
+            cue("backup", "said what happens if it grows",
+              "if it grows", "come back to me", "we'll re-look", "you can hand it back"),
+          ],
+          required: 2,
+          concession: "He takes it, with the boundary stated back to you.",
+        }),
+      }),
+    ],
+    branches: ["what the task actually involves", "what happened last time", "what he would need"],
+    evaluationCriteria: ["clarity", "questionQuality", "empathy", "assertiveness"],
+    authoredBy: "system",
+  },
 ];
 
 const BY_ID = new Map<Id, SimulationScenario>(SCENARIOS.map((item) => [item.id, item]));
@@ -473,6 +665,12 @@ export function atDifficulty(scenario: SimulationScenario, difficulty: 1 | 2 | 3
       ...item,
       openness: clamp01(item.openness - hardness),
       reciprocity: clamp01(item.reciprocity - hardness),
+      // A harder setting means someone who lobbies for their point more
+      // insistently, not one whose mind is harder to change: what has to be
+      // said is written into the scenario, and sliding it with difficulty
+      // would make the same conversation mean different things at different
+      // levels.
+      ...(item.goal ? { goal: { ...item.goal, intensity: clamp01(item.goal.intensity + hardness) } } : {}),
     })),
   };
 }
