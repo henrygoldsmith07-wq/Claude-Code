@@ -33,7 +33,8 @@ export function Nav() {
         className="fixed inset-y-0 left-0 z-20 hidden w-56 flex-col border-r px-3 py-6 md:flex"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <Link href="/" className="mb-6 px-3 text-lg font-semibold tracking-tight">
+        <Link href="/" className="mb-6 flex items-center gap-2 px-3 text-lg font-semibold tracking-tight">
+          <img src="/logo.svg" alt="" width={24} height={24} className="rounded-md" aria-hidden="true" />
           Rapport
         </Link>
         <ul className="flex flex-1 flex-col gap-1">

@@ -24,7 +24,8 @@ export default function Home() {
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-16 dark:bg-black">
       <main className="flex w-full max-w-md flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <img src="/logo.svg" alt="" width={48} height={48} className="rounded-xl" aria-hidden="true" />
           <h1 className="text-3xl font-semibold tracking-tight">Noticed</h1>
           <p className="max-w-sm text-zinc-600 dark:text-zinc-400">
             A shared board for the invisible labor of running a household —

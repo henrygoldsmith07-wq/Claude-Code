@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description:
     "Understand what happened, where it happened, who is reporting it and where accounts differ. Story clusters, source mix by country and perspective, timeline, conflicting claims, widely agreed facts, uncertainty, corrections, what changed since yesterday and coverage gaps — grounded in real sources.",
   keywords: ["world news", "globe", "source comparison", "Gemini", "geopolitics"],
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export const viewport: Viewport = {

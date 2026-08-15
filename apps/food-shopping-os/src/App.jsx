@@ -360,7 +360,7 @@ function Shell() {
         aria-label="Main navigation"
       >
         <div className="app-brand">
-          <div className="app-brand-mark">F</div>
+          <img src="/logo.svg" alt="" width={36} height={36} className="h-9 w-9 rounded-xl" aria-hidden="true" />
           <div>
             <p className="text-[1.0625rem] font-black tracking-tight">Forq</p>
             <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>Food, sorted.</p>

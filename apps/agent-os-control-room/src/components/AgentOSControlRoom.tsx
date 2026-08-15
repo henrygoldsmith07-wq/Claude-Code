@@ -288,9 +288,7 @@ function Sidebar({
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/40 p-4">
       <div className="flex items-center gap-2 px-2 pb-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10">
-          <Zap className="h-5 w-5 text-emerald-400" />
-        </div>
+        <img src="/logo.svg" alt="" width={28} height={28} className="rounded-lg" aria-hidden="true" />
         <div>
           <p className="text-sm font-semibold text-zinc-100">Agent OS</p>
           <p className="text-xs text-zinc-500">Control Room</p>

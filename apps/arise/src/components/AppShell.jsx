@@ -21,7 +21,7 @@ export default function AppShell({ children, tab, setTab, storeVersion }){
     <div className="min-h-dvh flex flex-col bg-bg text-ink">
       <a href="#main" className="skip-link">Skip to content</a>
       <header className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-line bg-surface/90 backdrop-blur">
-        <span className="w-8 h-8 grid place-items-center rounded-xl bg-ink text-bg font-black text-sm">A</span>
+        <img src="/logo.svg" alt="" width={28} height={28} className="rounded-lg" aria-hidden="true" />
         <span className="font-extrabold tracking-tight">Arise</span>
         <span className="text-xs text-ink3 hidden sm:inline">Training, levelled up.</span>
         <span className="ml-auto text-[11px] px-2 py-1 rounded-full bg-surface2 border border-line text-ink3">Offline-ready • No account</span>

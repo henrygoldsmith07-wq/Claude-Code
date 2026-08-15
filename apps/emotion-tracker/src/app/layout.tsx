@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Reflect",
   description: "Go deeper than a mood log — work through what actually happened before you act on it.",
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export default function RootLayout({

@@ -78,7 +78,10 @@ export default function Sidebar({
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
               What · Where · Who · Where they differ
             </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight">World News Globe</h1>
+            <div className="mt-1 flex items-center gap-2">
+              <img src="/logo.svg" alt="" width={24} height={24} className="rounded-md" aria-hidden="true" />
+              <h1 className="text-xl font-semibold tracking-tight">World News Globe</h1>
+            </div>
           </Link>
 
           <Link

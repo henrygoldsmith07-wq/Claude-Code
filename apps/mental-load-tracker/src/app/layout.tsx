@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Noticed",
   description: "A shared board for the invisible labor of running a household.",
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export const viewport: Viewport = {

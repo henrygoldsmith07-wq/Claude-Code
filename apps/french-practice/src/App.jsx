@@ -42,7 +42,7 @@ import { AVATARS, activeEvent, levelFromXp } from './lib/game';
 import { syncLanguage } from './lib/i18n';
 import { getLanguage } from './lib/languages';
 import { setTelemetrySink } from './lib/groq';
-import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Layers, BookOpen, BarChart, Search, Target, Coins as CoinsIcon, StudioMark, X, Download } from './components/icons';
+import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Layers, BookOpen, BarChart, Search, Target, Coins as CoinsIcon, X, Download } from './components/icons';
 import LearnHub from './components/LearnHub';
 import ProgressHub from './components/ProgressHub';
 
@@ -423,7 +423,7 @@ export default function App() {
         {xpGain ? `${xpGain.amount} XP earned` : ''}
       </span>
       <header className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-surface backdrop-blur">
-        <StudioMark size={27} />
+        <img src="/logo.svg" alt="" width={27} height={27} className="rounded-lg" aria-hidden="true" />
         <h1 className="font-bold text-lg text-ink tracking-tight mr-1 whitespace-nowrap">
           {getLanguage(settings.language).studio}
           <span className="sr-only"> — {getLanguage(settings.language).name} speaking practice</span>

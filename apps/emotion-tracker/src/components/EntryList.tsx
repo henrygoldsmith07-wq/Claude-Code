@@ -23,9 +23,7 @@ export default function EntryList({
     <div className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-sidebar">
       {/* Brand */}
       <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-base">
-          🪞
-        </span>
+        <img src="/logo.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" aria-hidden="true" />
         <div>
           <div className="text-sm font-semibold tracking-tight">Reflect</div>
           <div className="text-[10px] text-muted">Emotion · Insight · Clarity</div>

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "Meeting Recorder",
   description: "Record meetings, transcribe with Groq, and chat over them with Claude. Evidence-linked, consent-aware.",
   manifest: "/manifest.json",
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="border-b border-line">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
             <Link href="/" className="flex items-center gap-2 font-semibold" aria-label="Meeting Recorder home">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-accent text-onaccent text-sm" aria-hidden>●</span>
+              <img src="/logo.svg" alt="" width={28} height={28} className="h-7 w-7 rounded-md" aria-hidden="true" />
               Meeting Recorder
             </Link>
             <nav className="flex items-center gap-3" aria-label="Secondary">

@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: "Agent OS Control Room",
   description:
     "A centralized command dashboard for NotebookLM, autonomous content agents, and Obsidian.",
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export default function RootLayout({
