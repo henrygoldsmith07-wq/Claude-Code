@@ -25,6 +25,11 @@ A game-like, offline-first training companion. Not a nutrition app.
 17. **Session quality & recovery (`sessionQuality.js`)** — `noteSignals()` extracts sentiment/technique signals from workout notes; `sessionQuality()` classifies each session good/ok/bad (readiness, RPE, failed reps, notes); `plateauAttribution()` tells a **real plateau from a run of bad sessions**; `deloadReadinessAssessment()` adds deload triggers that never fire on a **single-day readiness dip** (only a sustained EMA trend + other fatigue signals); `scanPRs()` walks history and flags **fake PRs** — technique/ROM changes, sub-2% jitter, low-readiness days.
 18. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
 
+## Roadmap
+
+Planned improvements — prioritised, with the PWA/local-first constraints that
+gate each one — are in [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md).
+
 ## Consolidation
 
 Arise is the canonical training app. `vendor/life-os-scrape` is an **archived, read-only mirror** of the old standalone Life OS production build (scraped 2026-07-03) and is no longer developed. Its strongest fitness practices have been ported into Arise — see `vendor/life-os-scrape/README.md` for the porting log — and its one known engineering issue (`eval()` in the analytics Web Worker) is documented there and **not** carried forward (Arise uses safe in-thread helpers).

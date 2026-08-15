@@ -15,5 +15,104 @@ export { createReflectConnector, mapReflectRecord } from "./reflect.js";
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
 export { createRapportConnector, mapRapportRecord } from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";
-export { createWearableConnector, mapWearableRecord } from "./wearable.js";
-export type { WearableDailyRecord } from "./wearable.js";
+// --- The shared health vocabulary and the sources that speak it ------------
+export * from "./health-events.js";
+export {
+  createAppleHealthConnector,
+  createHealthConnectConnector,
+  createHealthPlatformConnector,
+  healthRecordTimestamp,
+  mapHealthRecord,
+} from "./health.js";
+export type {
+  HealthActivityRecord,
+  HealthBodyRecord,
+  HealthMapOptions,
+  HealthPlatform,
+  HealthRecord,
+  HealthSleepRecord,
+  HealthVitalsRecord,
+  HealthWorkoutRecord,
+} from "./health.js";
+
+export {
+  WEARABLE_VENDORS,
+  createFitbitConnector,
+  createGarminConnector,
+  createOuraConnector,
+  createWearableConnector,
+  createWhoopConnector,
+  mapWearableRecord,
+  wearableRecordTimestamp,
+} from "./wearables.js";
+export type {
+  WearableBodyRecord,
+  WearableDailyRecord,
+  WearableMapOptions,
+  WearableRecord,
+  WearableScoreRecord,
+  WearableSleepRecord,
+  WearableVendor,
+  WearableWorkoutRecord,
+} from "./wearables.js";
+
+export {
+  calendarRecordTimestamp,
+  createCalendarConnector,
+  createGoogleCalendarConnector,
+  createOutlookCalendarConnector,
+  isCommitment,
+  mapCalendarRecord,
+  summariseCalendarDay,
+} from "./calendar.js";
+export type {
+  CalendarAvailability,
+  CalendarDayRecord,
+  CalendarDaySlot,
+  CalendarEventRecord,
+  CalendarProvider,
+  CalendarRecord,
+  CalendarResponse,
+  DayShapeOptions,
+} from "./calendar.js";
+
+// --- Bring your own file ---------------------------------------------------
+export {
+  assertValidMapping,
+  createFileImportConnector,
+  parseCsv,
+  parseJsonRecords,
+  parseNumericCell,
+  parseTimestampCell,
+  previewImport,
+} from "./tabular.js";
+export type {
+  AttributeMapping,
+  ImportMapping,
+  ImportPreview,
+  MetricMapping,
+  RowProblem,
+  TabularRow,
+  TimestampFormat,
+} from "./tabular.js";
+
+// --- Making sense of several sources at once -------------------------------
+export { reconcileEvents } from "./reconcile.js";
+export type {
+  DuplicateGroup,
+  ReconcileOptions,
+  ReconciliationReport,
+  ReconciliationResult,
+  SourceReconciliation,
+  SupersededEvent,
+} from "./reconcile.js";
+
+export { buildConnectorDashboard, freshnessSummary } from "./dashboard.js";
+export type {
+  AttentionItem,
+  ConnectorCard,
+  ConnectorDashboard,
+  CoverageGap,
+  DashboardOptions,
+  Freshness,
+} from "./dashboard.js";

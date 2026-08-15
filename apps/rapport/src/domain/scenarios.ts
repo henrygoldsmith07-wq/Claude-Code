@@ -119,7 +119,7 @@ export const SCENARIOS: SimulationScenario[] = [
       ], ["board games", "cycling"]),
     ],
     branches: ["what caused the delay", "what happens now", "who else is affected"],
-    evaluationCriteria: ["relevance", "contribution", "topicTransitions"],
+    evaluationCriteria: ["relevance", "contribution", "topicTransitions", "floorEntry"],
     authoredBy: "system",
   },
   {
@@ -140,7 +140,111 @@ export const SCENARIOS: SimulationScenario[] = [
       ], ["baking"]),
     ],
     branches: ["which option to pick", "the timeline", "who does what"],
-    evaluationCriteria: ["contribution", "assertiveness", "relevance", "clarity"],
+    evaluationCriteria: ["contribution", "assertiveness", "relevance", "clarity", "inclusion"],
+    authoredBy: "system",
+  },
+  // -------------------------------------------------------------------------
+  // Multi-party scenarios.
+  //
+  // Three characters rather than two, because two is not really a group: with
+  // one other voice the floor still comes back to the user by default, and the
+  // behaviours worth training here — getting in, bringing someone else in —
+  // only exist once the conversation can carry on without you.
+  // -------------------------------------------------------------------------
+  {
+    id: "sc.group-discussion",
+    title: "A discussion where two people dominate",
+    context:
+      "A team catch-up about how to split the next piece of work. Two people are talking freely and a third has said almost nothing.",
+    skillIds: ["grp.contributing", "grp.include", "conf.groups"],
+    objective: "Say something of your own, and bring in the person who has not spoken.",
+    difficulty: 4,
+    characters: [
+      character("ch.marc", "Marc", "talkative", "a teammate who thinks out loud", [
+        "I'd rather we split it by component than by feature.",
+        "I did it the other way on the last project and it was a mess.",
+      ], ["running", "podcasts"]),
+      character("ch.nadia", "Nadia", "direct", "a teammate who wants a decision", [
+        "We said we'd decide this by Thursday.",
+        "I don't mind which way, I mind that it keeps moving.",
+      ], ["cycling"]),
+      character("ch.ben", "Ben", "quiet", "a teammate who rarely speaks first", [
+        "I've done the import side before.",
+        "I think the component split hides the dependency problem.",
+      ], ["chess"], { openness: 0.1, reciprocity: 0.15 }),
+    ],
+    branches: ["how to split the work", "the Thursday deadline", "who picks up the import side"],
+    evaluationCriteria: ["contribution", "inclusion", "floorEntry", "relevance"],
+    authoredBy: "system",
+  },
+  {
+    id: "sc.interview-panel",
+    title: "A two-person interview panel",
+    context:
+      "An interview for a role you want. Two interviewers are taking turns, and one asks noticeably harder follow-ups than the other.",
+    skillIds: ["conf.speaking-clearly", "conf.nervousness", "conv.storytelling"],
+    objective: "Answer clearly, and ask them something of your own before the end.",
+    difficulty: 4,
+    characters: [
+      character("ch.rachel", "Rachel", "friendly", "the hiring manager", [
+        "I've been running this team for about three years.",
+        "We're growing the team by four people this year.",
+      ], ["gardening"]),
+      character("ch.imran", "Imran", "direct", "a senior engineer on the panel", [
+        "I care more about how you decide things than what you've shipped.",
+        "The last person in this role struggled with the ambiguity.",
+      ], ["climbing"], { reciprocity: 0.2 }),
+    ],
+    branches: ["a project you led", "how you handle disagreement", "questions you have for them"],
+    evaluationCriteria: ["clarity", "assertiveness", "questionQuality", "inclusion"],
+    authoredBy: "system",
+  },
+  {
+    id: "sc.difficult-conversation",
+    title: "Raising a problem with two people who disagree",
+    context:
+      "You have asked for ten minutes with two colleagues about work that keeps arriving late. They do not agree with each other about the cause.",
+    skillIds: ["diff.conflict", "asrt.disagree", "asrt.feedback"],
+    objective: "State the problem as you see it and stay with it while they disagree.",
+    difficulty: 5,
+    characters: [
+      character("ch.karen", "Karen", "direct", "a colleague who thinks the process is fine", [
+        "The dates were always provisional.",
+        "Nobody told me it was blocking anything.",
+      ], ["swimming"], { reciprocity: 0.15 }),
+      character("ch.owen", "Owen", "uncertain", "a colleague who half agrees with you", [
+        "I did think it was getting tight.",
+        "I didn't want to make it a whole thing.",
+      ], ["photography"]),
+    ],
+    branches: ["whether the dates were firm", "what happens next time", "who needed to know"],
+    evaluationCriteria: ["assertiveness", "clarity", "empathy", "floorEntry"],
+    authoredBy: "system",
+  },
+  {
+    id: "sc.seminar",
+    title: "Speaking up in a seminar",
+    context:
+      "A seminar of about a dozen people. Two students answer almost every question, and the discussion moves quickly between points.",
+    skillIds: ["grp.joining", "conf.opinions", "conf.groups"],
+    objective: "Make one point of your own while the discussion is still on it.",
+    difficulty: 5,
+    characters: [
+      character("ch.tutor", "Ella", "friendly", "the tutor running the seminar", [
+        "I'd rather hear from more of you than hear more from a few.",
+        "There isn't a right answer to this one.",
+      ], ["opera"]),
+      character("ch.jonas", "Jonas", "enthusiastic", "a student who answers first", [
+        "I read the follow-up paper as well as the set one.",
+        "I think the second argument undercuts the first.",
+      ], ["debating"]),
+      character("ch.lin", "Lin", "talkative", "a student who builds on every point", [
+        "That's basically what the third chapter says.",
+        "I'd push that further, actually.",
+      ], ["film"]),
+    ],
+    branches: ["what the reading actually argued", "whether the argument holds", "an example from outside the text"],
+    evaluationCriteria: ["floorEntry", "contribution", "relevance", "clarity"],
     authoredBy: "system",
   },
   {

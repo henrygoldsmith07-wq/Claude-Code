@@ -4,12 +4,34 @@
  * Hand-classified rather than auto-derived, because `role` and `direction` are
  * editorial judgements that decide what Pulse is willing to claim. Keeping the
  * list small and deliberate is also the primary defence against multiple
- * testing: 18 curated metrics produce a searchable family a person can
- * understand, where 90 auto-derived ones would not.
+ * testing: a few dozen curated metrics produce a searchable family a person
+ * can understand, where hundreds of auto-derived ones would not.
+ *
+ * The count that actually matters is the number of *outcomes*, since that is
+ * what sets the size of each testing family. Connecting a watch adds a lot of
+ * data and deliberately few outcomes: most physiological readings are
+ * classified `context`, where they can explain a result without generating
+ * questions of their own.
  */
 
 import type { MetricDefinition } from "./registry.js";
 import { MetricRegistry } from "./registry.js";
+import type { SourceId } from "../events/schema.js";
+
+/**
+ * Every source that can supply the shared `health.*` measurements.
+ *
+ * Listed once so that connecting a second device widens the evidence for an
+ * existing metric instead of creating a parallel one. `reconcile.ts` is what
+ * stops that widening from becoming double-counting.
+ */
+const HEALTH_SOURCES: readonly SourceId[] = [
+  "health-connect",
+  "garmin",
+  "fitbit",
+  "whoop",
+  "oura",
+];
 
 export const DEFAULT_METRICS: MetricDefinition[] = [
   // --- Revise: study outcomes -------------------------------------------
@@ -263,6 +285,10 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
   },
 
   // --- Chrono: schedule context -----------------------------------------
+  // Chrono is itself a calendar, so each of these has an external-calendar
+  // twin below. They are cross-linked as trivial partners: a user with both
+  // connected has one schedule described twice, and "your booked time predicts
+  // your committed time" is not a discovery.
   {
     id: "schedule.booked_minutes",
     name: "Time committed",
@@ -276,6 +302,7 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
     direction: "neutral",
     role: "context",
     minSampleForInsight: 20,
+    trivialPartners: ["schedule.calendar_committed_minutes"],
     format: "duration-minutes",
   },
   {
@@ -291,9 +318,10 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
     direction: "lower-better",
     role: "context",
     minSampleForInsight: 20,
+    trivialPartners: ["schedule.calendar_fragmentation"],
   },
   {
-    id: "schedule.longest_free_block",
+    id: "schedule.chrono_free_block",
     name: "Longest free block",
     description: "Longest uninterrupted stretch available in the day.",
     category: "schedule",
@@ -305,6 +333,7 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
     direction: "higher-better",
     role: "context",
     minSampleForInsight: 20,
+    trivialPartners: ["schedule.calendar_free_block"],
     format: "duration-minutes",
   },
 
@@ -449,6 +478,258 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
     role: "context",
     minSampleForInsight: 25,
     range: { min: 0, max: 10 },
+  },
+
+  // --- Health platforms and wearables -------------------------------------
+  // Defined once against the shared `health.*` events, so whichever device the
+  // user wears feeds the same series. Only four of these are outcomes: the
+  // multiple-testing family is the thing being protected, and a catalogue that
+  // calls every physiological reading an outcome would triple it overnight.
+  {
+    id: "sleep.duration",
+    name: "Sleep duration",
+    description: "Time actually asleep, as measured by your device.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.sleep"],
+    metricKey: "sleep_minutes",
+    unit: "minutes",
+    aggregation: "mean",
+    // Sleeping longer is not automatically better, and a metric that claims it
+    // is will recommend oversleeping to anyone recovering from illness.
+    direction: "neutral",
+    // You choose when to go to bed, which is what makes this the classic
+    // exposure for a personal experiment rather than a result to admire.
+    role: "behaviour",
+    minSampleForInsight: 21,
+    range: { min: 0, max: 1200 },
+    trivialPartners: ["sleep.efficiency"],
+    format: "duration-minutes",
+  },
+  {
+    id: "sleep.efficiency",
+    name: "Sleep efficiency",
+    description: "Share of time in bed actually spent asleep.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.sleep"],
+    metricKey: "sleep_efficiency",
+    unit: "ratio",
+    aggregation: "mean",
+    direction: "higher-better",
+    role: "outcome",
+    minSampleForInsight: 21,
+    range: { min: 0, max: 1 },
+    trivialPartners: ["sleep.duration"],
+    format: "percent",
+  },
+  {
+    id: "sleep.deep",
+    name: "Deep sleep",
+    description: "Time in deep sleep, as your device models it. Stage estimates vary a lot between devices.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.sleep"],
+    metricKey: "deep_minutes",
+    unit: "minutes",
+    aggregation: "mean",
+    direction: "neutral",
+    // Context rather than outcome: consumer stage detection disagrees with
+    // polysomnography often enough that promoting it to an outcome would put
+    // a confident number on a shaky measurement.
+    role: "context",
+    minSampleForInsight: 25,
+    range: { min: 0, max: 600 },
+    format: "duration-minutes",
+  },
+  {
+    id: "wellbeing.resting_heart_rate",
+    name: "Resting heart rate",
+    description: "Resting heart rate — one of the steadier signals a wearable produces.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.vitals"],
+    metricKey: "resting_heart_rate",
+    unit: "bpm",
+    aggregation: "mean",
+    direction: "lower-better",
+    role: "outcome",
+    minSampleForInsight: 21,
+    range: { min: 20, max: 200 },
+  },
+  {
+    id: "wellbeing.hrv",
+    name: "Heart rate variability",
+    description: "Heart rate variability as your device computes it. Absolute values are not comparable between devices; changes within one device are.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.vitals"],
+    metricKey: "hrv_ms",
+    unit: "ms",
+    aggregation: "mean",
+    direction: "higher-better",
+    role: "outcome",
+    minSampleForInsight: 25,
+    range: { min: 0, max: 500 },
+  },
+  {
+    id: "wellbeing.respiratory_rate",
+    name: "Breathing rate",
+    description: "Breaths per minute during sleep.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.vitals"],
+    metricKey: "respiratory_rate",
+    unit: "per-minute",
+    aggregation: "mean",
+    direction: "neutral",
+    role: "context",
+    minSampleForInsight: 25,
+    range: { min: 4, max: 40 },
+  },
+  {
+    id: "exercise.steps",
+    name: "Steps",
+    description: "Steps taken across the day.",
+    category: "exercise",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.activity"],
+    metricKey: "steps",
+    unit: "count",
+    aggregation: "sum",
+    direction: "higher-better",
+    role: "behaviour",
+    minSampleForInsight: 21,
+    range: { min: 0, max: 200_000 },
+    trivialPartners: ["exercise.distance"],
+  },
+  {
+    id: "exercise.distance",
+    name: "Distance on foot",
+    description: "Distance walked or run, which tracks steps closely.",
+    category: "exercise",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.activity"],
+    metricKey: "distance_m",
+    unit: "m",
+    aggregation: "sum",
+    direction: "neutral",
+    role: "context",
+    minSampleForInsight: 21,
+    trivialPartners: ["exercise.steps"],
+  },
+  {
+    id: "exercise.active_minutes",
+    name: "Exercise minutes",
+    description: "Minutes spent at or above a brisk effort.",
+    category: "exercise",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.activity"],
+    metricKey: "exercise_minutes",
+    unit: "minutes",
+    aggregation: "sum",
+    direction: "higher-better",
+    role: "behaviour",
+    minSampleForInsight: 21,
+    range: { min: 0, max: 1440 },
+    format: "duration-minutes",
+  },
+  {
+    id: "wellbeing.body_mass",
+    name: "Body mass",
+    description: "Body mass as recorded by your scales.",
+    category: "wellbeing",
+    source: "apple-health",
+    alsoFrom: HEALTH_SOURCES,
+    eventTypes: ["health.body"],
+    metricKey: "body_mass_kg",
+    unit: "kg",
+    aggregation: "mean",
+    // Whether up or down is "better" is the user's business, not Pulse's.
+    direction: "neutral",
+    role: "outcome",
+    minSampleForInsight: 21,
+    range: { min: 20, max: 400 },
+  },
+
+  // --- Calendars ----------------------------------------------------------
+  // Context throughout, like Chrono's day shape. A calendar mostly explains
+  // *why* a day went the way it did; it is very rarely the thing being tested.
+  {
+    id: "schedule.calendar_committed_minutes",
+    name: "Committed time",
+    description: "Minutes spoken for by accepted commitments.",
+    category: "schedule",
+    source: "google-calendar",
+    alsoFrom: ["outlook-calendar"],
+    eventTypes: ["calendar.day_shape"],
+    metricKey: "committed_minutes",
+    unit: "minutes",
+    aggregation: "mean",
+    direction: "neutral",
+    role: "context",
+    minSampleForInsight: 20,
+    range: { min: 0, max: 1440 },
+    format: "duration-minutes",
+  },
+  {
+    id: "schedule.calendar_fragmentation",
+    name: "Calendar fragmentation",
+    description: "Commitments per committed hour — how chopped up the day was.",
+    category: "schedule",
+    source: "google-calendar",
+    alsoFrom: ["outlook-calendar"],
+    eventTypes: ["calendar.day_shape"],
+    metricKey: "fragmentation",
+    unit: "ratio",
+    aggregation: "mean",
+    direction: "lower-better",
+    role: "context",
+    minSampleForInsight: 20,
+    range: { min: 0, max: 60 },
+  },
+  {
+    id: "schedule.calendar_free_block",
+    name: "Longest free block",
+    description: "The longest uninterrupted stretch left in the working day.",
+    category: "schedule",
+    source: "google-calendar",
+    alsoFrom: ["outlook-calendar"],
+    eventTypes: ["calendar.day_shape"],
+    metricKey: "longest_free_block_minutes",
+    unit: "minutes",
+    aggregation: "mean",
+    direction: "higher-better",
+    role: "context",
+    minSampleForInsight: 20,
+    range: { min: 0, max: 1440 },
+    format: "duration-minutes",
+  },
+  {
+    id: "schedule.calendar_after_hours",
+    name: "After-hours commitments",
+    description: "Committed minutes falling outside the working window.",
+    category: "schedule",
+    source: "google-calendar",
+    alsoFrom: ["outlook-calendar"],
+    eventTypes: ["calendar.day_shape"],
+    metricKey: "after_hours_minutes",
+    unit: "minutes",
+    aggregation: "mean",
+    direction: "lower-better",
+    role: "context",
+    minSampleForInsight: 20,
+    range: { min: 0, max: 1440 },
+    format: "duration-minutes",
   },
 ];
 

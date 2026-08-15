@@ -10,7 +10,7 @@ import { getWeaknessMemory, getWeaknessSummary } from '../lib/storage';
 import { levelFromXp } from '../lib/game';
 import { errorNotebookStats } from '../lib/errorNotebook';
 import { retentionPredictionVsActual, speakingImprovement } from '../lib/learnerValidation';
-import { benchmarkExam, SAMPLE_SCRIPTS } from '../lib/examBenchmark';
+import { benchmarkExaminer, EXAMINER_SCRIPTS } from '../lib/examBenchmark';
 import { allEntries as vocabAllEntries } from '../lib/vocab';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
@@ -407,12 +407,23 @@ function ErrorNotebookStats(){
     </section>
   );
 }
+// Says how far the exam marks have actually been checked against a human
+// examiner. With no marked attempts on file that is "not at all", and saying
+// so is the entire point of the panel — a confident-looking agreement figure
+// computed from nothing is worse than no panel.
 function ExamBenchmark(){
-  const b = benchmarkExam(SAMPLE_SCRIPTS);
+  const b = benchmarkExaminer(EXAMINER_SCRIPTS);
   return (
     <section className="bg-surface border border-line rounded-2xl p-4">
       <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Examiner benchmark</h3>
-      <p className="text-xs text-ink2">Agreement {b.accuracy==null?'—': Math.round(b.accuracy*100)+'%'} · κ {b.kappa==null?'—': b.kappa} (n={b.n}) — align app scores to examiner grades</p>
+      <p className="text-sm font-semibold mt-1">{b.label}</p>
+      <p className="text-xs text-ink2 mt-1">{b.message}</p>
+      {b.n > 0 && (
+        <p className="text-xs text-ink2 mt-1">
+          Within 5pp: {Math.round(b.agreement * 100)}% · MAE {b.meanAbsoluteError}pp
+          {b.kappa == null ? '' : ` · κ ${b.kappa}`} (n={b.n})
+        </p>
+      )}
     </section>
   );
 }

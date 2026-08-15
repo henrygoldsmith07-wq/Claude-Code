@@ -1,11 +1,12 @@
 import { lazy, Suspense, useState } from 'react';
-import { BarChart, Map, Clock } from './icons';
+import { BarChart, Map, Clock, Target } from './icons';
 import { ChevronRight } from './icons';
 
 const LazyProfile = lazy(() => import('./Profile'));
 const LazyAnalytics = lazy(() => import('./Analytics'));
 const LazyFocus = lazy(() => import('./Focus'));
 const LazyLearningPath = lazy(() => import('./LearningPath'));
+const LazyProficiency = lazy(() => import('./Proficiency'));
 
 function ScreenLoader() {
   return (
@@ -18,6 +19,7 @@ function ScreenLoader() {
 const SECTIONS = [
   { id: 'stats', title: 'Stats & streak', subtitle: 'XP, level, streak & weekly goal — your private dashboard.', icon: BarChart },
   { id: 'path', title: 'Learning path', subtitle: '12 units · checkpoints · 60 lessons per goal.', icon: Map },
+  { id: 'proficiency', title: 'Proficiency', subtitle: 'Your CEFR score, level gates & placement test.', icon: Target },
   { id: 'analytics', title: 'Analytics', subtitle: 'Time, retention & skill breakdown.', icon: BarChart },
   { id: 'focus', title: 'Focus & habits', subtitle: 'Timer, Pomodoro & habit tracker.', icon: Clock },
 ];
@@ -56,6 +58,18 @@ export default function ProgressHub({
         <div className="flex-1 min-h-0 overflow-y-auto px-[22px] py-4">
           <Suspense fallback={<ScreenLoader />}>
             <LazyLearningPath path={path} dueCount={dueCount} onStartLesson={onStartLesson} onOpenSetup={onOpenPathSetup} />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+  if (view === 'proficiency') {
+    return (
+      <div className="h-full flex flex-col min-h-0">
+        <HubBack onBack={() => onView(null)} label="Progress" />
+        <div className="flex-1 min-h-0">
+          <Suspense fallback={<ScreenLoader />}>
+            <LazyProficiency onXp={onXp} />
           </Suspense>
         </div>
       </div>

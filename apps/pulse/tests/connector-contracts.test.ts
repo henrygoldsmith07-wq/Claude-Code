@@ -27,6 +27,25 @@ import { createForqConnector, mapForqRecord, type ForqRecord } from "../src/conn
 import { createChronoConnector, mapChronoRecord, type ChronoRecord } from "../src/connectors/chrono.js";
 import { createReflectConnector, mapReflectRecord, type ReflectRecord } from "../src/connectors/reflect.js";
 import { createRapportConnector, mapRapportRecord, type RapportRecord } from "../src/connectors/rapport.js";
+import {
+  createAppleHealthConnector,
+  healthRecordTimestamp,
+  mapHealthRecord,
+  type HealthRecord,
+} from "../src/connectors/health.js";
+import {
+  createWearableConnector,
+  mapWearableRecord,
+  wearableRecordTimestamp,
+  type WearableRecord,
+} from "../src/connectors/wearables.js";
+import {
+  calendarRecordTimestamp,
+  createGoogleCalendarConnector,
+  mapCalendarRecord,
+  type CalendarRecord,
+} from "../src/connectors/calendar.js";
+import { createFileImportConnector, previewImport, type ImportMapping } from "../src/connectors/tabular.js";
 import type { Connector } from "../src/connectors/types.js";
 import type { RawEventInput } from "../src/events/normalise.js";
 
@@ -112,6 +131,54 @@ const rapportRecords: RapportRecord[] = [
   { kind: "challenge", id: "ch1", completedAt: "2025-06-11T12:00:00Z", skillId: "small-talk", completed: true, comfort: 3 },
 ];
 
+const healthRecords: HealthRecord[] = [
+  { kind: "sleep", id: "h1", startsAt: "2025-06-09T22:40:00Z", endsAt: "2025-06-10T06:50:00Z", asleepMinutes: 442, deepMinutes: 72, remMinutes: 96, sourceApp: "Apple Watch" },
+  { kind: "vitals", id: "h2", dateISO: "2025-06-10", recordedAt: "2025-06-10T07:00:00Z", restingHeartRate: 52, hrvMs: 68, respiratoryRate: 14.2, bloodOxygen: 0.97 },
+  { kind: "activity", id: "h3", dateISO: "2025-06-10", steps: 11_204, activeEnergyKcal: 640, exerciseMinutes: 42, distanceMeters: 8300, sourceApp: "Garmin Connect" },
+  { kind: "body", id: "h4", dateISO: "2025-06-10", recordedAt: "2025-06-10T07:10:00Z", bodyMassKg: 78.4, bodyFatRatio: 0.18 },
+  { kind: "workout", id: "h5", startsAt: "2025-06-10T17:00:00Z", endsAt: "2025-06-10T17:55:00Z", activityType: "running", activeEnergyKcal: 520, distanceMeters: 9600, meanHeartRate: 148, maxHeartRate: 176 },
+];
+
+const wearableRecords: WearableRecord[] = [
+  { kind: "sleep", id: "w1", startsAt: "2025-06-09T22:30:00Z", endsAt: "2025-06-10T06:30:00Z", asleepMinutes: 436, deepMinutes: 68, remMinutes: 91 },
+  { kind: "daily", id: "w2", dateISO: "2025-06-10", restingHeartRate: 51, hrvMs: 71, steps: 11_040, exerciseMinutes: 40 },
+  { kind: "score", id: "w3", dateISO: "2025-06-10", scores: { body_battery: 74, training_readiness: 62, stress_average: 28 } },
+  { kind: "workout", id: "w4", startsAt: "2025-06-10T17:02:00Z", endsAt: "2025-06-10T17:58:00Z", activityType: "running", meanHeartRate: 150 },
+  { kind: "body", id: "w5", dateISO: "2025-06-10", bodyMassKg: 78.2 },
+];
+
+const calendarRecords: CalendarRecord[] = [
+  { kind: "event", id: "g1", startsAt: "2025-06-10T09:00:00Z", endsAt: "2025-06-10T10:00:00Z", attendeeCount: 4, isRecurring: true, isOnline: true, calendarKind: "work" },
+  {
+    kind: "day",
+    id: "g2",
+    dateISO: "2025-06-10",
+    computedAt: "2025-06-10T22:00:00Z",
+    committedMinutes: 300,
+    eventCount: 5,
+    longestFreeBlockMinutes: 120,
+    firstCommitmentMinutes: 540,
+    backToBackCount: 2,
+    afterHoursMinutes: 30,
+    allDayCount: 0,
+    groupMeetingMinutes: 180,
+  },
+];
+
+const importMapping: ImportMapping = {
+  eventType: "import.mood-diary",
+  category: "reflection",
+  datasetName: "Mood diary",
+  timestampColumn: "date",
+  timestampFormat: "date-only",
+  metrics: [{ column: "mood", key: "mood", unit: "score", range: { min: 0, max: 10 } }],
+};
+
+const importRows = [
+  { date: "2025-06-10", mood: "7" },
+  { date: "2025-06-11", mood: "5" },
+];
+
 interface Fixture {
   connector: Connector;
   records: unknown[];
@@ -126,6 +193,26 @@ const FIXTURES: Fixture[] = [
   { connector: createChronoConnector(createArrayReader(chronoRecords, (r) => (r.kind === "event" ? r.startsAt : r.computedAt))), records: chronoRecords, map: mapChronoRecord as never },
   { connector: createReflectConnector(createArrayReader(reflectRecords, (r) => r.writtenAt)), records: reflectRecords, map: mapReflectRecord as never },
   { connector: createRapportConnector(createArrayReader(rapportRecords, (r) => (r.kind === "drill" ? r.startedAt : r.completedAt))), records: rapportRecords, map: mapRapportRecord as never },
+  {
+    connector: createAppleHealthConnector(createArrayReader(healthRecords, (r) => healthRecordTimestamp(r))),
+    records: healthRecords,
+    map: ((r: HealthRecord) => mapHealthRecord(r, "apple-health")) as never,
+  },
+  {
+    connector: createWearableConnector("garmin", createArrayReader(wearableRecords, (r) => wearableRecordTimestamp(r))),
+    records: wearableRecords,
+    map: ((r: WearableRecord) => mapWearableRecord(r, "garmin")) as never,
+  },
+  {
+    connector: createGoogleCalendarConnector(createArrayReader(calendarRecords, calendarRecordTimestamp)),
+    records: calendarRecords,
+    map: ((r: CalendarRecord) => mapCalendarRecord(r, "google-calendar")) as never,
+  },
+  {
+    connector: createFileImportConnector(importRows, importMapping),
+    records: importRows,
+    map: ((row: Record<string, unknown>) => previewImport([row], importMapping).sample) as never,
+  },
 ];
 
 /** Narrows a mapped record to a single event with attributes always present. */

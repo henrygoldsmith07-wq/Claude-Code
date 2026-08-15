@@ -62,6 +62,88 @@ stamp mismatches and history is recomputed rather than left stale.
 See [`docs/architecture.md`](docs/architecture.md), [`docs/privacy.md`](docs/privacy.md)
 and [`docs/ai-evaluation.md`](docs/ai-evaluation.md).
 
+## Group conversations
+
+One-to-one practice has an invariant that quietly does the user a favour: after
+every user turn, the character replies. The floor always comes back, so the only
+thing being trained is what to *say* once you have it.
+
+In a group that invariant is false, and its absence is the skill. `floor.ts`
+therefore **can exclude the user**: characters bid for each turn on style and
+engagement, and at higher difficulty they hold several turns among themselves
+without addressing anyone. Two guards keep that hard rather than hopeless —
+exclusion is bounded by difficulty (one turn at difficulty 1, four at 5, so
+existing solo scenarios are unchanged), and breaking in is scored as a success
+rather than punished as rudeness.
+
+| Module | What it adds |
+|---|---|
+| `floor.ts` | Who speaks next, whether the user is invited, and who they never brought in. |
+| `interruption.ts` | Classifies overlap instead of counting it. |
+| `addressing.ts` | Who a turn is aimed at — shared by both, so neither imports the other. |
+| `donation.ts` | Opt-in transcript donation and the human-rating apparatus. |
+
+Three decisions worth knowing about:
+
+- **Being named is not a bid you can lose.** Address someone and they answer,
+  deterministically. Bringing a quiet person in is the headline skill of a group
+  conversation, and it is only trainable if it reliably works — a user who says
+  "Sam, what do you think?" and gets Priya has learned that names do nothing.
+- **Attention costs something.** `updateEngagement` previously applied the full
+  engagement change to every character, which made attention free: talk only to
+  Alex all session and Sam warmed up just as much. A turn aimed at someone else
+  now lands as being passed over, so "include the quiet one" has a mechanism
+  behind it rather than being advice.
+- **Interruption is classified, not counted.** "Don't interrupt" is bad advice
+  and a worse metric. A short "yeah" over someone is support; an overlap they
+  spoke through is ordinary; only stopping someone mid-sentence costs anything.
+  Being cut off and *coming back* is counted separately, because that is the
+  trainable half and it is invisible otherwise. A turn counts as cut off by
+  whether it reached the end of its sentence — "did they speak again?" is the
+  obvious test and makes coming back impossible to detect by construction.
+
+`inclusion` and `floorEntry` join the behaviour keys, and are **dropped from
+one-to-one transcripts** rather than scored at zero: a two-person conversation
+cannot display a group behaviour, so it does not get to produce evidence about
+one in either direction. Adding them bumps `SCORING_MODEL_VERSION` to 4, so
+existing histories recompute instead of mixing two scales.
+
+Group scenarios use three characters rather than two — with one other voice the
+floor still returns by default, and there is no group to get into.
+
+Overlap is computed from turn start times and voice durations, never from audio,
+so the guarantee in `voice.ts` that nothing here can infer accent, pitch or
+emotion is unaffected. In text mode overlap does not exist and the summary says
+so rather than reporting zero.
+
+## Donated transcripts
+
+The evaluator has never been checked against a human judgement of a real
+conversation, because there are none to check it against: conversations are
+never collected, and `ai/benchmark.ts` names that as the reason its cases are
+hand-written. That reasoning is right, so the invariant stays and donation
+becomes a separate, deliberate act instead of a setting:
+
+- one transcript at a time — there is no "donate my sessions" switch, because a
+  switch collects things the user has not read;
+- the user sees the exact text that would leave the device and edits it; the
+  redacted copy is what is stored, never the original;
+- donated copies carry no user id, no timings and no link to reflections,
+  challenges or mastery — absent from the *type*, so a later refactor cannot
+  quietly reintroduce them;
+- consent records what was agreed to, and can be withdrawn.
+
+Redaction suggestions are a lexical best effort and are presented as such. A
+conversation can identify someone by what it describes with every name removed,
+so the person donating is the last check, not the first.
+
+The corpus ships **empty**. `evaluatorAgreement` reports "the evaluator has not
+been checked against human judgement" rather than a number, uses only
+transcripts with two or more raters, and ignores any behaviour the raters
+themselves disagree about by more than 0.25 — rater disagreement means the
+behaviour is not well enough defined to serve as a reference, which is itself
+the finding.
+
 ## Configuration
 
 Copy `.env.example` to `.env.local`. Everything is optional.

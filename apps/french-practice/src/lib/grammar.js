@@ -5,6 +5,8 @@
 
 import { EXTRA_GRAMMAR_TOPICS } from './grammar-extra.js';
 import { MORE_GRAMMAR_TOPICS } from './grammar-more.js';
+import { CURRICULUM_GRAMMAR_TOPICS } from './grammar-curriculum.js';
+import { C1_GRAMMAR_TOPICS } from './grammar-c1.js';
 
 const BASE_TOPICS = [
   {
@@ -262,7 +264,13 @@ const BASE_TOPICS = [
   },
 ];
 
-export const GRAMMAR_TOPICS = [...BASE_TOPICS, ...EXTRA_GRAMMAR_TOPICS, ...MORE_GRAMMAR_TOPICS];
+export const GRAMMAR_TOPICS = [
+  ...BASE_TOPICS,
+  ...EXTRA_GRAMMAR_TOPICS,
+  ...MORE_GRAMMAR_TOPICS,
+  ...CURRICULUM_GRAMMAR_TOPICS,
+  ...C1_GRAMMAR_TOPICS,
+];
 
 export const getGrammarTopic = (id) => GRAMMAR_TOPICS.find((t) => t.id === id) || null;
 

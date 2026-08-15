@@ -10,6 +10,8 @@ import { FREQUENCY_PACKS, FREQUENCY_PACKS_DE, FREQUENCY_PACKS_ES } from './vocab
 import { DE_VOCAB_PACKS } from './content/de.js';
 import { ES_VOCAB_PACKS } from './content/es.js';
 import { contentLang } from './content/active.js';
+import { CURRICULUM_PACKS_LOWER } from './content/curriculum-vocab-core.js';
+import { CURRICULUM_PACKS_UPPER } from './content/curriculum-vocab-upper.js';
 
 // freq: 1 = top 100 words, 2 = top 500, 3 = top 1000, 4 = top 5000, 5 = rare/niche
 export const FREQ_LABELS = { 1: 'Top 100', 2: 'Top 500', 3: 'Top 1000', 4: 'Top 5000', 5: 'Niche' };
@@ -302,11 +304,17 @@ const FR_VOCAB_PACKS = [
 const DE_ALL_PACKS = [...DE_VOCAB_PACKS, ...FREQUENCY_PACKS_DE];
 const ES_ALL_PACKS = [...ES_VOCAB_PACKS, ...FREQUENCY_PACKS_ES];
 
-const PACKS_BY_LANG = { fr: FR_VOCAB_PACKS, de: DE_ALL_PACKS, es: ES_ALL_PACKS };
+// The CEFR curriculum packs sit at the front of the French library: they are
+// the level-banded spine, so a learner following the path meets them first.
+export const CURRICULUM_PACKS = [...CURRICULUM_PACKS_LOWER, ...CURRICULUM_PACKS_UPPER];
+
+const FR_ALL_PACKS = [...CURRICULUM_PACKS, ...FR_VOCAB_PACKS];
+
+const PACKS_BY_LANG = { fr: FR_ALL_PACKS, de: DE_ALL_PACKS, es: ES_ALL_PACKS };
 
 // The active language's packs. A function (not a const) so the whole app
 // re-reads it after the learner switches language.
-export const getVocabPacks = () => PACKS_BY_LANG[contentLang()] || FR_VOCAB_PACKS;
+export const getVocabPacks = () => PACKS_BY_LANG[contentLang()] || FR_ALL_PACKS;
 
 export const getPack = (id) => getVocabPacks().find((p) => p.id === id);
 
@@ -314,6 +322,7 @@ export const allEntries = () => getVocabPacks().flatMap((p) => p.entries);
 
 // ---- deck organisation: themed categories for the vocabulary hub ----
 export const PACK_CATEGORIES = [
+  { id: 'curriculum', label: 'CEFR curriculum' },
   { id: 'essentials', label: 'Starter essentials' },
   { id: 'people', label: 'People & feelings' },
   { id: 'home', label: 'Food & home' },
@@ -326,6 +335,9 @@ export const PACK_CATEGORIES = [
 ];
 
 const PACK_CATEGORY = {
+  // CEFR curriculum spine (French)
+  'cefr-a1': 'curriculum', 'cefr-a2': 'curriculum', 'cefr-b1': 'curriculum',
+  'cefr-b2': 'curriculum', 'cefr-c1': 'curriculum',
   // French
   filler: 'essentials', politeness: 'essentials', connectors: 'essentials', connectors2: 'essentials',
   quantities: 'essentials', numbersx: 'essentials', time: 'essentials', questions: 'essentials', timewords: 'essentials',
@@ -367,4 +379,35 @@ export const allEntryIds = () => allEntries().map((e) => e.id);
 
 export function findEntry(id) {
   return allEntries().find((e) => e.id === id) || null;
+}
+
+// ---- CEFR banding -----------------------------------------------------------
+
+/**
+ * Entries carrying an explicit `cefr` band, grouped by level. Only the
+ * curriculum packs are banded today; themed packs return under `unbanded` so
+ * the coverage report never silently counts them as level content.
+ */
+export function entriesByCefr() {
+  const out = { A1: [], A2: [], B1: [], B2: [], C1: [], unbanded: [] };
+  for (const e of allEntries()) {
+    (out[e.cefr] || out.unbanded).push(e);
+  }
+  return out;
+}
+
+/** Word counts per level, for the coverage report and progress screens. */
+export function vocabCountByCefr() {
+  const grouped = entriesByCefr();
+  return Object.fromEntries(Object.entries(grouped).map(([k, v]) => [k, v.length]));
+}
+
+/**
+ * The next slice of curriculum words for a learner at `level`, skipping any id
+ * already in their SRS. Powers "the next 20 words you actually need".
+ */
+export function nextCurriculumWords(level, knownIds = new Set(), limit = 20) {
+  const banded = entriesByCefr()[level] || [];
+  const known = knownIds instanceof Set ? knownIds : new Set(knownIds);
+  return banded.filter((e) => !known.has(e.id)).slice(0, limit);
 }

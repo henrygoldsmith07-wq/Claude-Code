@@ -17,7 +17,7 @@
 import type { PulseEvent, SourceId } from "../events/schema.js";
 import { daysBetween, localDate, toInstant } from "../events/time.js";
 import { clamp } from "../statistics/descriptive.js";
-import type { MetricDefinition } from "../metrics/registry.js";
+import { sourcesOf, type MetricDefinition } from "../metrics/registry.js";
 import type { SyncReport } from "../connectors/sync.js";
 
 export interface QualityDimension {
@@ -172,7 +172,7 @@ export function scoreSource(
   let outOfRange = 0;
   const rangeByKey = new Map<string, { min: number; max: number }>();
   for (const definition of context.definitions ?? []) {
-    if (definition.source !== source || !definition.range) continue;
+    if (!sourcesOf(definition).includes(source) || !definition.range) continue;
     for (const type of definition.eventTypes) rangeByKey.set(`${type}::${definition.metricKey}`, definition.range);
   }
   for (const event of sourceEvents) {

@@ -299,8 +299,22 @@ export const BEHAVIOUR_KEYS = [
   "topicTransitions",
   "questionQuality",
   "contribution",
+  // Group only — see MULTI_PARTY_BEHAVIOURS below.
+  "inclusion",
+  "floorEntry",
 ] as const;
 export type BehaviourKey = (typeof BEHAVIOUR_KEYS)[number];
+
+/**
+ * Behaviours that only exist when there is more than one other person present.
+ *
+ * `scoreTranscript` drops these from a one-to-one transcript rather than
+ * scoring them low. "Did you bring the quiet one in?" is not a question a
+ * two-person conversation can answer, and answering it anyway would invent a
+ * weakness out of a situation that could not have displayed the behaviour —
+ * which would then feed the mastery model as though it were evidence.
+ */
+export const MULTI_PARTY_BEHAVIOURS: readonly BehaviourKey[] = ["inclusion", "floorEntry"];
 
 export interface BehaviourScore {
   key: BehaviourKey;

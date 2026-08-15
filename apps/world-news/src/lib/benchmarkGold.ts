@@ -1,9 +1,25 @@
-// Human-labelled clustering gold set.
+// SYNTHETIC clustering dev set. Not a benchmark — see `corpus.ts`.
 //
-// Every event below was labelled by hand against the guidelines in
-// LABELLING_GUIDELINES: one `GoldEvent` = one real-world occurrence, and an
-// article belongs to it if a reader would say "these are covering the same
-// thing that happened", regardless of language, outlet or framing.
+// Every "article" below is an authored fixture: the headline was written by
+// hand in a spec tuple and the URL (`https://<publisher>/<key>-<n>`) resolves
+// to nothing. No human reviewed a real article to produce any of it.
+//
+// That matters because a clusterer scored against fixtures written with the
+// clusterer in mind is measured on its ability to recover the fixture author's
+// intent, not on its accuracy over news. The score goes up and nothing is
+// learned. This file previously described itself as a "human-labelled gold
+// set", which is the specific overclaim `corpus.ts` now exists to prevent.
+//
+// What it is still good for is regression testing: the cases below encode
+// clustering behaviours we do not want to lose, and they fail loudly when one
+// breaks. So it stays, quarantined — `SET_PROVENANCE` marks it synthetic and
+// `benchmarkEligibility()` refuses to report it as accuracy.
+//
+// The real corpus lives in `corpusData.ts` and is currently empty.
+//
+// The structure below reads as if hand-labelled — one `GoldEvent` = one
+// occurrence, articles attached if a reader would say they cover the same
+// thing — because that is the shape real labels will take.
 //
 // The hard cases are deliberate and carry a `difficulty` tag so the benchmark
 // can report where the clusterer actually breaks rather than reporting one
@@ -21,6 +37,19 @@
 import type { ArticleLike } from "./clustering";
 import { GOLD_BATCH_1 } from "./benchmarkGoldBatch1";
 import { GOLD_BATCH_2 } from "./benchmarkGoldBatch2";
+
+/**
+ * Marks everything in this file as fixtures.
+ *
+ * Imported by the benchmark report so the provenance travels with the numbers
+ * rather than living only in a comment nobody reads at the point of use.
+ */
+export const SET_PROVENANCE = "synthetic" as const;
+
+/** What this set may and may not be used for, stated at the point of import. */
+export const SET_USAGE =
+  "Regression guard only. These are authored fixtures with synthetic URLs; scores over them are not " +
+  "evidence of accuracy on real news and must not be reported as a benchmark.";
 
 export const LABELLING_GUIDELINES = [
   "Same event = same occurrence at a point in time, not the same subject. Two rate decisions by the same bank are two events.",

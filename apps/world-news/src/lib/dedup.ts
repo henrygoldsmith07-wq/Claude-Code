@@ -105,6 +105,18 @@ export function hammingDistance(a: bigint, b: bigint): number {
   return n;
 }
 
+/**
+ * Shingle overlap between two texts, 0..1.
+ *
+ * Exported because syndication chain reconstruction needs the same notion of
+ * "is this the same copy" that deduplication uses. Two modules disagreeing
+ * about that would let an article be collapsed as a duplicate here and treated
+ * as an independent account there.
+ */
+export function titleSimilarity(a: string, b: string): number {
+  return jaccard(shingles(a), shingles(b));
+}
+
 /** Wire credit lines a syndicating outlet leaves in the headline or standfirst. */
 const WIRE_CREDIT = /\((reuters|ap|associated press|afp|dpa|efe|ansa|pa media|bloomberg|xinhua|tass|kyodo|yonhap|ians|pti)\)|\b(reuters|afp|dpa|associated press)\s*[-–—]\s/i;
 
