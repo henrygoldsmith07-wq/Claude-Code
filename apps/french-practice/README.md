@@ -21,7 +21,7 @@ validated against the `/models` endpoint before being stored. Or flip on
 ## Features
 
 - **Learning Path** — pick a goal (travel, school, business, fluency), take a
-  12-question placement test (A1–C2), and follow a personal roadmap of
+  adaptive placement test (A1–C2), and follow a personal roadmap of
   **twelve units (60 lessons)** whose lessons span every activity in the app:
   conversations, dictée, SRS cards, quick fire, grammar-topic quizzes,
   reading comprehension and listening comprehension — each unit mixes
@@ -78,7 +78,52 @@ validated against the `/models` endpoint before being stored. Or flip on
   public-domain classics (La Fontaine). Dual-language toggle, per-word
   tap-to-translate (text gloss → vocabulary dictionary → cached LLM lookup)
   with one-tap save to the notebook, and comprehension quizzes.
-- **Vocabulary** — forty-two themed packs (520+ rich cards): food, travel, work, feelings,
+- **CEFR curriculum** — the spine everything else maps onto. Five level packs
+  (A1–C1) of level-banded core vocabulary sit at the front of the library, a
+  grammar inventory names every point a learner is expected to control at each
+  level, and a **coverage report** says what is actually written versus what is
+  merely promised (currently 100% of the A1–C1 grammar inventory). A
+  **promotion gate** requires four independent signals — words known, grammar
+  mastered, speaking average and passed checkpoints — before a level moves, so
+  no single lucky run can promote anyone.
+- **Proficiency score** — one 0–100 number over five components (vocabulary,
+  grammar, speaking, listening, writing), each drawn from something actually
+  done. Evidence decays on a 45-day half-life, missing components read as
+  *unknown* rather than zero, and the score reports its own confidence. XP and
+  streaks are deliberately excluded: attendance is not proficiency.
+- **Adaptive placement test** — a computer-adaptive test over a 43-item bank
+  spanning grammar, vocabulary, reading and listening. Each answer moves a
+  Rasch ability estimate, the next item is chosen where it is most informative,
+  and the test stops on a standard-error rule. It reports a **range** (±1 SE)
+  rather than a false point estimate, because a short test cannot place anyone
+  more precisely than about half a band.
+- **Exam simulator** — timed speaking papers for **WJEC GCSE**, **WJEC
+  A-level**, **AQA GCSE** and **Edexcel GCSE**: role-play, photo card / picture
+  task, reading aloud and conversation, each on a real clock with supervised
+  preparation and push-to-talk recording. Notes are allowed where the exam
+  allows them and blocked in the conversation. Marking runs against
+  plain-English band descriptors, and the report leads with **shortfall against
+  the allowance** — running short is the commonest lost mark. Grades are *not*
+  guessed: boundaries are published per series, so the app shows an indicative
+  band and lets you enter real boundaries. Task material is original, written
+  against the published theme lists.
+- **Accents** — six varieties (France, Québec, Belgium, Suisse romande, West
+  Africa, the Midi) with pronunciation features and vocabulary differences.
+  Audio routes to the best matching voice installed on the device and **says so
+  when there is no match**, rather than passing a Parisian voice off as
+  Québécois. Listening progresses along two independent axes — speed and accent
+  variety — because ramping both at once is why advanced listening feels like a
+  wall.
+- **Conversation memory** — the partner remembers you between sessions: facts
+  (replaced, not accumulated, so it never insists you are still a nurse),
+  topics already covered, and open threads worth following up. You can **steer
+  it mid-conversation** in plain English or French ("slower", "be stricter",
+  "on se tutoie", "parlons de la politique"), and every conversation feeds a
+  **recycling loop** — corrections become retry drills that need two clean
+  passes before they retire, new words come back until they have been met three
+  times, and missed grammar points steer later questions.
+- **Vocabulary** — forty-two themed packs (520+ rich cards) alongside the CEFR
+  packs: food, travel, work, feelings,
   family & people, the body, animals, clothing & colours, city & transport,
   health, home & household, nature & weather, time / numbers / money, a
   picture deck of everyday objects, idioms, slang & argot, regional French
@@ -89,8 +134,8 @@ validated against the `/models` endpoint before being stored. Or flip on
   sentence" challenge. One-click save any word to a personal notebook (with
   your own custom entries), and review everything through a cross-pack
   spaced-repetition queue.
-- **Grammar** — a reference library of twenty-five CEFR-tagged topics (A1
-  present tense through B2 reported speech and participle agreement), each an
+- **Grammar** — a reference library of **sixty** CEFR-tagged topics (A1
+  present tense through C1 modalisation, litote and the literary tenses), each an
   interactive lesson: explanation with spoken
   examples and a "watch out" note, drills with instant feedback, tap-to-order
   sentence building, and a scored quiz (best kept; 80+ = mastered). After a
