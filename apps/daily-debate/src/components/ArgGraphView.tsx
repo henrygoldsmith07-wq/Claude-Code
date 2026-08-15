@@ -44,6 +44,14 @@ export function VerdictExplainPanel({ verdict, playerAName, playerBName }: { ver
         <p className="text-xs text-ink3 tabular">
           {playerAName}: {verdict.playerAScore}/100 · {playerBName}: {verdict.playerBScore}/100
         </p>
+        {verdict.isTie && (
+          <div className="rounded-xl border border-[var(--accent-soft)] bg-[var(--accent-soft)]/40 p-3">
+            <p className="text-sm font-medium">Too close to call</p>
+            <p className="text-xs text-ink3">
+              {verdict.tieReason ?? "The judges couldn't separate the two cases — treat it as a draw."}
+            </p>
+          </div>
+        )}
         {verdict.breakdown && (
           <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
             <Breakdown label={playerAName} data={verdict.breakdown.a} winner={verdict.winner === "a"} />
@@ -57,6 +65,8 @@ export function VerdictExplainPanel({ verdict, playerAName, playerBName }: { ver
         )}
       </div>
 
+      {typeof verdict.confidence === "number" && <ConfidencePanel verdict={verdict} playerAName={playerAName} playerBName={playerBName} />}
+
       {g ? (
         <>
           <ArgGraphInline graph={g} playerAName={playerAName} playerBName={playerBName} />
@@ -64,6 +74,40 @@ export function VerdictExplainPanel({ verdict, playerAName, playerBName }: { ver
         </>
       ) : (
         <p className="text-xs text-ink3 surface-card p-4">Structured breakdown will appear on newly judged matches. Older verdicts show only the rationale.</p>
+      )}
+    </div>
+  );
+}
+
+function ConfidencePanel({ verdict, playerAName, playerBName }: { verdict: PvpVerdict; playerAName: string; playerBName: string }) {
+  const confidence = verdict.confidence ?? 0;
+  const multiJudge = (verdict.judges?.length ?? 0) > 1;
+  return (
+    <div className="surface-card p-5 flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <p className="text-xs uppercase tracking-wide text-ink3">Judge confidence</p>
+        <p className="tabular text-xs text-ink3">{Math.round(confidence * 100)}%</p>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-ink/30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+        <div
+          className="h-full rounded-full transition-[width]"
+          style={{ width: `${Math.max(0, Math.min(100, confidence * 100))}%`, background: confidence >= 0.7 ? "var(--good)" : confidence >= 0.5 ? "var(--accent)" : "var(--bad)" }}
+        />
+      </div>
+      {verdict.scoreCI && (
+        <p className="text-xs text-ink3 tabular">
+          Score-gap 95% CI: {verdict.scoreCI.lo}–{verdict.scoreCI.hi} points
+        </p>
+      )}
+      {multiJudge && verdict.winnerCI && (
+        <p className="text-xs text-ink3 tabular">
+          Judge split — {playerAName}: {Math.round(verdict.winnerCI.a * 100)}% · {playerBName}: {Math.round(verdict.winnerCI.b * 100)}% · tie: {Math.round(verdict.winnerCI.tie * 100)}%
+        </p>
+      )}
+      {multiJudge && (
+        <p className="text-xs text-ink3">
+          Judges: {verdict.judges!.map((j) => `${j.judgeId} → ${j.winner === "a" ? playerAName : j.winner === "b" ? playerBName : "tie"}`).join(" · ")}
+        </p>
       )}
     </div>
   );

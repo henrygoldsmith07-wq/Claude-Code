@@ -221,3 +221,73 @@ export function runProbeOffline(transcripts: string[], probe: BiasProbe, runner:
 export function runAllProbesOffline(transcripts: string[]): ProbeReport[] {
   return BIAS_PROBES.map((p) => runProbeOffline(transcripts, p));
 }
+
+// ---------------------------------------------------------------------------
+// Extended bias audit: political topic, ideological asymmetry, source
+// prestige, writing complexity. Each is a *measurement* over a runner, not a
+// single transform, so the live harness can report flip rates with the same
+// runner used for the core probes.
+// ---------------------------------------------------------------------------
+
+/** Reframe an otherwise neutral clash as an explicitly contested political topic. */
+export function applyPoliticalTopic(t: string): string {
+  return "This is a politically contested election-year topic. " + t;
+}
+
+export type Winner = "a" | "b" | "tie";
+
+export interface BiasAudit {
+  n: number;
+  ideologicalAsymmetry: { leftFlips: number; rightFlips: number; asymmetric: boolean };
+  politicalTopicFlips: number;
+  sourcePrestigeFlips: number;
+  writingComplexityFlips: number;
+  details: string[];
+}
+
+/**
+ * Run the four extended bias measurements over transcripts with a runner.
+ * `runner` defaults to the deterministic offline mock (bias-free by design),
+ * so in CI every flip rate is 0; the live harness passes the real judge.
+ */
+export function runBiasAudit(
+  transcripts: string[],
+  runner: (t: string) => Winner = mockWinner,
+): BiasAudit {
+  let leftFlips = 0;
+  let rightFlips = 0;
+  let politicalFlips = 0;
+  let prestigeFlips = 0;
+  let writingFlips = 0;
+  const details: string[] = [];
+  for (const t of transcripts) {
+    const base = runner(t);
+    const left = runner(addIdeologicalFraming(t, "left"));
+    const right = runner(addIdeologicalFraming(t, "right"));
+    const political = runner(applyPoliticalTopic(t));
+    const prestige = runner(swapPrestige(t));
+    const writing = runner(sophisticateWording(t));
+    if (left !== base) { leftFlips++; details.push(`ideology-left: ${base} -> ${left}`); }
+    if (right !== base) { rightFlips++; details.push(`ideology-right: ${base} -> ${right}`); }
+    if (political !== base) { politicalFlips++; details.push(`political-topic: ${base} -> ${political}`); }
+    if (prestige !== base) { prestigeFlips++; details.push(`source-prestige: ${base} -> ${prestige}`); }
+    if (writing !== base) { writingFlips++; details.push(`writing-complexity: ${base} -> ${writing}`); }
+  }
+  return {
+    n: transcripts.length,
+    ideologicalAsymmetry: { leftFlips, rightFlips, asymmetric: leftFlips !== rightFlips },
+    politicalTopicFlips: politicalFlips,
+    sourcePrestigeFlips: prestigeFlips,
+    writingComplexityFlips: writingFlips,
+    details,
+  };
+}
+
+/** Convenience: ideological asymmetry only (framing flips differently by leaning). */
+export function measureIdeologicalAsymmetry(
+  transcripts: string[],
+  runner: (t: string) => Winner = mockWinner,
+): BiasAudit["ideologicalAsymmetry"] & { n: number } {
+  const audit = runBiasAudit(transcripts, runner);
+  return { n: audit.n, ...audit.ideologicalAsymmetry };
+}

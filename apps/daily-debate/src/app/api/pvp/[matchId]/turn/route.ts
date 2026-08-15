@@ -90,39 +90,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
     .map((t) => `${t.player_id === match.player_a ? "Player A" : "Player B"} (round ${t.round_number}): ${t.message}`)
     .join("\n");
 
-  let verdict;
+  let verdict: PvpVerdict;
   try {
-    const hasGemini = !!process.env.GEMINI_API_KEY;
-    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-    if (hasGemini && hasAnthropic) {
-      const { liveEnsembleJudge } = await import("@/lib/ensembleJudge");
-      const ensemble = await liveEnsembleJudge({
-        topicTitle: topic?.title ?? "the topic",
-        topicPrompt: topic?.prompt ?? "",
-        playerASide: match.player_a_side as "for" | "against",
-        transcript,
-      });
-      verdict = {
-        winner: ensemble.winner,
-        playerAScore: ensemble.playerAScore,
-        playerBScore: ensemble.playerBScore,
-        rationale: ensemble.rationale,
-        decidingFactor: ensemble.decidingFactor,
-        breakdown: (ensemble.judges[0] as unknown as { breakdown?: PvpVerdict["breakdown"] })?.breakdown,
-        argGraph: ensemble.argGraph,
-      } satisfies PvpVerdict;
-    } else if (hasGemini) {
-      const { judgePvpMatch } = await import("@/lib/gemini");
-      verdict = await judgePvpMatch({ topicTitle: topic?.title ?? "the topic", topicPrompt: topic?.prompt ?? "", playerASide: match.player_a_side as "for" | "against", transcript });
-    } else if (hasAnthropic) {
-      const { judgePvpMatch } = await import("@/lib/anthropic");
-      verdict = await judgePvpMatch({ topicTitle: topic?.title ?? "the topic", topicPrompt: topic?.prompt ?? "", playerASide: match.player_a_side as "for" | "against", transcript });
-    } else {
+    // Route every judged match through the ensemble harness: it runs Gemini and
+    // Anthropic in parallel (whichever keys are present), falls back to a single
+    // judge when only one key is set, and always yields uncertainty fields
+    // (confidence, score CI, winner posterior, "too close to call").
+    if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
       throw new Error("No judge configured (set GEMINI_API_KEY or ANTHROPIC_API_KEY).");
     }
+    const { liveEnsembleJudge, verdictFromEnsemble } = await import("@/lib/ensembleJudge");
+    const ensemble = await liveEnsembleJudge({
+      topicTitle: topic?.title ?? "the topic",
+      topicPrompt: topic?.prompt ?? "",
+      playerASide: match.player_a_side as "for" | "against",
+      transcript,
+    });
+    verdict = verdictFromEnsemble(ensemble);
   } catch (error) {
     console.error("Failed to judge PvP match:", error);
-    verdict = { winner: "tie" as const, playerAScore: 0, playerBScore: 0, rationale: "Judging failed; scored as a tie." } as PvpVerdict;
+    verdict = {
+      winner: "tie" as const,
+      playerAScore: 0,
+      playerBScore: 0,
+      rationale: "Judging failed; scored as a tie.",
+      isTie: true,
+      tieReason: "The judge could not complete — this result carries no confidence.",
+    } as PvpVerdict;
   }
 
   const winnerId = verdict.winner === "a" ? match.player_a : verdict.winner === "b" ? match.player_b : null;

@@ -22,6 +22,10 @@ export interface LabeledDebate {
   // Optional metadata for stratification / calibration
   topic?: string;
   createdAt?: string;
+  // Adjudication record (set by corpusAdjudication.adjudicateDebate)
+  adjudicated?: boolean;
+  adjudicatedBy?: string;
+  adjudicationNote?: string;
 }
 
 export const HUMAN_CORPUS: LabeledDebate[] = [

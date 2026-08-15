@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description:
     "Sharpen your critical thinking with daily AI-judged debates — solo against Claude or head-to-head with other players. Points, levels, and streaks make it a game.",
   keywords: ["debate", "critical thinking", "AI", "Claude", "PvP", "gamification"],
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export const viewport: Viewport = {

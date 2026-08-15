@@ -122,7 +122,9 @@ export default function PvpRoom({
           <div className="surface-card flex flex-col gap-3 p-6">
             <h2 className="text-lg font-semibold">
               {match.winner_id === null
-                ? "Tie!"
+                ? verdict?.isTie
+                  ? "Too close to call"
+                  : "Tie!"
                 : match.winner_id === currentUserId
                   ? "You won! 🏆"
                   : "Your opponent won this one."}

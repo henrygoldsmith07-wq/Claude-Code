@@ -14,7 +14,8 @@ export default async function AppHeader() {
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--rule)] bg-[var(--panel)] px-4 py-3 sm:px-6">
-      <Link href="/" className="text-sm font-semibold tracking-tight">
+      <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+        <img src="/logo.svg" alt="" width={22} height={22} className="rounded-md" aria-hidden="true" />
         Daily Debate
       </Link>
       <nav className="flex items-center gap-3 text-sm text-ink3 sm:gap-4" aria-label="Main">

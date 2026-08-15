@@ -89,6 +89,14 @@ export interface PvpTurn {
   created_at: string;
 }
 
+export interface VerdictJudgeDetail {
+  judgeId: string;
+  winner: "a" | "b" | "tie";
+  playerAScore: number;
+  playerBScore: number;
+  latencyMs?: number;
+}
+
 export interface PvpVerdict {
   winner: "a" | "b" | "tie";
   playerAScore: number;
@@ -100,6 +108,13 @@ export interface PvpVerdict {
     b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number };
   };
   decidingFactor?: string;
+  // Judge uncertainty (populated by the ensemble judge; absent on older stored verdicts).
+  confidence?: number; // 0..1 — calibrated from score gap + inter-judge agreement
+  scoreCI?: { lo: number; hi: number }; // 95% CI over the score gap
+  winnerCI?: { a: number; b: number; tie: number }; // posterior over the winner from judge votes
+  isTie?: boolean; // true when the judge genuinely can't separate the two sides
+  tieReason?: string;
+  judges?: VerdictJudgeDetail[]; // per-judge verdicts (empty for single-judge fallback-less runs)
 }
 // Alias: the judge modules export PvpJudgeResult; app code uses PvpVerdict. Keep both names.
 export type PvpJudgeResult = PvpVerdict;

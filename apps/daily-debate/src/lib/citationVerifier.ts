@@ -99,3 +99,83 @@ export function graphSourceQuality(graph: ArgGraph): number {
   }
   return sum / cited.length;
 }
+
+// ---------------------------------------------------------------------------
+// Source-date checking & original-source detection
+// ---------------------------------------------------------------------------
+
+// Primary = institutions that produce the data themselves (journals, gov labs,
+// official statistics). Secondary = outlets that report on primary work.
+const PRIMARY_SOURCES = new Set([
+  "nature", "science", "lancet", "nist", "nrel", "iea", "oecd", "who",
+  "world bank", "imf", "un", "nasa", "noaa", "stanford hai",
+]);
+
+export function isPrimarySource(name: string): boolean {
+  return PRIMARY_SOURCES.has(norm(name));
+}
+
+export function isSecondarySource(name: string): boolean {
+  return isKnownSource(name) && !isPrimarySource(name);
+}
+
+export interface OriginalSourceGap {
+  primaryCount: number;
+  secondaryCount: number;
+  hasPrimary: boolean;
+  onlySecondary: boolean;
+  note: string;
+}
+
+/** Prefer the original data producer over a news outlet that summarises it. */
+export function originalSourceGap(citations: Array<{ sourceName: string }>): OriginalSourceGap {
+  let primaryCount = 0;
+  let secondaryCount = 0;
+  for (const c of citations) {
+    if (isPrimarySource(c.sourceName)) primaryCount++;
+    else if (isSecondarySource(c.sourceName)) secondaryCount++;
+  }
+  const hasPrimary = primaryCount > 0;
+  const onlySecondary = citations.length > 0 && secondaryCount > 0 && !hasPrimary;
+  return {
+    primaryCount,
+    secondaryCount,
+    hasPrimary,
+    onlySecondary,
+    note: onlySecondary
+      ? "Only secondary (reporting) sources cited — prefer the original study/data producer."
+      : hasPrimary
+        ? "Original source present."
+        : "No recognised sources.",
+  };
+}
+
+export interface SourceDateCheck {
+  hasYear: boolean;
+  newestYear: number | null;
+  isOutdated: boolean;
+  note: string;
+}
+
+/** Check recency of a source from the years mentioned in its excerpt/snippet. */
+export function sourceDateCheck(
+  excerpt: string,
+  opts?: { nowYear?: number; maxAgeYears?: number },
+): SourceDateCheck {
+  const nowYear = opts?.nowYear ?? new Date().getFullYear();
+  const maxAge = opts?.maxAgeYears ?? 5;
+  const years = [...excerpt.matchAll(/\b(19|20)\d{2}\b/g)].map((m) => parseInt(m[0], 10));
+  if (!years.length) {
+    return { hasYear: false, newestYear: null, isOutdated: false, note: "No year found — recency unverifiable." };
+  }
+  const newestYear = Math.max(...years);
+  const isOutdated = nowYear - newestYear > maxAge;
+  return {
+    hasYear: true,
+    newestYear,
+    isOutdated,
+    note: isOutdated
+      ? `Newest year ${newestYear} is >${maxAge} years old — flag as outdated.`
+      : `Recent (${newestYear}).`,
+  };
+}

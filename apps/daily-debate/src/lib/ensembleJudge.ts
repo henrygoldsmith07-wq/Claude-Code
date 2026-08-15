@@ -3,7 +3,7 @@
 // pretending tiny score differences are meaningful. Used by the public benchmark
 // and by PvP when live keys are present; falls back to single-judge otherwise.
 
-import type { PvpJudgeResult } from "./types";
+import type { PvpJudgeResult, PvpVerdict } from "./types";
 
 export type JudgeId = "gemini" | "anthropic";
 export interface JudgedVerdict extends PvpJudgeResult {
@@ -180,4 +180,33 @@ export async function liveEnsembleJudge(params: {
     throw new Error(`All judges failed: ${reasons.join(" | ")}`);
   }
   return ensembleVerdicts(ok);
+}
+
+/**
+ * Map an ensemble result onto the stored PvpVerdict shape, preserving the
+ * uncertainty fields so the UI can show confidence, CIs, "too close to call",
+ * and per-judge agreement. Pure function — no I/O.
+ */
+export function verdictFromEnsemble(e: EnsembleResult): PvpVerdict {
+  return {
+    winner: e.winner,
+    playerAScore: e.playerAScore,
+    playerBScore: e.playerBScore,
+    rationale: e.rationale,
+    decidingFactor: e.decidingFactor,
+    argGraph: e.argGraph,
+    breakdown: e.judges[0]?.breakdown,
+    confidence: e.confidence,
+    scoreCI: e.scoreCI,
+    winnerCI: e.winnerCI,
+    isTie: e.isTie,
+    tieReason: e.tieReason,
+    judges: e.judges.map((j) => ({
+      judgeId: j.judgeId,
+      winner: j.winner,
+      playerAScore: j.playerAScore,
+      playerBScore: j.playerBScore,
+      latencyMs: j.latencyMs,
+    })),
+  };
 }

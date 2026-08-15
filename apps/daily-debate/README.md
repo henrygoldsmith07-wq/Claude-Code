@@ -97,3 +97,7 @@ Live-model note: run the real Gemini/Anthropic judge twice per fixture with each
 - Consider a periodic `cleanup_rate_limits()` (or Supabase cron) to prune expired windows.
 - Live-model judge invariance e2e (real Gemini calls) still needs an API key — fixtures + `judgeInvariance` transforms are ready for it.
 - Article-level citation verification (fetch the URL and check the excerpt) is a future server action; the offline allowlist is the floor.
+
+## Roadmap
+
+- [`docs/roadmap.md`](docs/roadmap.md) — evaluation corpus, judge bias benchmarks, and the gated path to ranked/tournament/classroom play.
