@@ -34,6 +34,59 @@ const readJson = (p) => {
   }
 };
 
+/**
+ * A lockfile that merely *exists* is not enough: Vercel installs with `npm ci`,
+ * which refuses to run when the lockfile disagrees with package.json. That is
+ * exactly how apps/emotion-tracker broke — its package.json asked for
+ * @anthropic-ai/sdk ^0.116.0 while the lockfile still pinned 0.110.0, and every
+ * install died with "lock file's ... does not satisfy ...".
+ *
+ * npm mirrors package.json's dependency ranges into the lockfile's root entry
+ * (`packages[""]`), so comparing the two catches drift without a network call.
+ * We also confirm each dependency actually resolves to a node in the tree,
+ * which is the other half of what `npm ci` complains about ("Missing: x from
+ * lock file").
+ */
+function checkLockInSync(rel, pkg, lock) {
+  if (!lock) return;
+  const rootEntry = lock.packages?.[''];
+  if (!rootEntry) {
+    // lockfileVersion 1 has no `packages` map, so there is nothing to compare.
+    warn(`${rel}/package-lock.json is lockfileVersion ${lock.lockfileVersion ?? '?'}; regenerate it with npm 7+ so drift can be detected.`);
+    return;
+  }
+
+  for (const field of ['dependencies', 'devDependencies']) {
+    const declared = pkg[field] || {};
+    const locked = rootEntry[field] || {};
+    for (const [name, range] of Object.entries(declared)) {
+      if (!(name in locked)) {
+        fail(`${rel}: ${name} is in package.json ${field} but missing from the lockfile — npm ci will fail. Run npm install in ${rel}.`);
+      } else if (locked[name] !== range) {
+        fail(`${rel}: package.json asks for ${name}@${range} but the lockfile records ${name}@${locked[name]} — npm ci will fail. Run npm install in ${rel}.`);
+      }
+    }
+    for (const name of Object.keys(locked)) {
+      if (!(name in declared)) {
+        fail(`${rel}: the lockfile still carries ${field} entry ${name}, which package.json no longer declares. Run npm install in ${rel}.`);
+      }
+    }
+  }
+
+  // Every declared dependency needs a resolved node somewhere in the tree.
+  // npm hoists most to node_modules/<name>, but nests on version conflicts.
+  const installed = new Set();
+  for (const key of Object.keys(lock.packages)) {
+    const at = key.lastIndexOf('node_modules/');
+    if (at !== -1) installed.add(key.slice(at + 'node_modules/'.length));
+  }
+  for (const name of Object.keys({ ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) })) {
+    if (!installed.has(name)) {
+      fail(`${rel}: ${name} is declared but has no entry in the lockfile tree — npm ci will fail with "Missing: ${name} from lock file". Run npm install in ${rel}.`);
+    }
+  }
+}
+
 // Frameworks Vercel builds for us. `null` is the "Other" preset: no build,
 // serve files as they are.
 const VITE = 'vite';
@@ -134,10 +187,13 @@ for (const app of apps) {
 
   // Vercel installs from the lockfile in the Root Directory. Without one the
   // deployed dependency tree is whatever npm resolves that day.
+  const npmLock = path.join(dir, 'package-lock.json');
   const hasLock = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock']
     .some((f) => existsSync(path.join(dir, f)));
   if (!hasLock) {
     fail(`${rel} has no lockfile — Vercel would resolve dependencies fresh on every deploy.`);
+  } else if (existsSync(npmLock)) {
+    checkLockInSync(rel, pkg, readJson(npmLock));
   }
 
   const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
