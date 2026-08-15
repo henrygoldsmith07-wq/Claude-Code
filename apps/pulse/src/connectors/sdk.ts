@@ -17,6 +17,7 @@ import {
   type EmittedEventSpec,
   type HealthReport,
   type SourceReader,
+  type SyncCadence,
   type SyncPage,
   type SyncRequest,
 } from "./types.js";
@@ -33,6 +34,7 @@ export interface ReaderConnectorDefinition<TRecord> {
   requiresExplicitPermission?: boolean;
   defaultSensitivity?: Sensitivity;
   maxBackfillDays?: number;
+  cadence?: SyncCadence;
   reader: SourceReader<TRecord>;
   /**
    * Pure mapping from one source record to zero or more events.
@@ -75,6 +77,7 @@ export function defineReaderConnector<TRecord>(definition: ReaderConnectorDefini
     requiresExplicitPermission,
     defaultSensitivity,
     maxBackfillDays,
+    cadence,
   } = definition;
 
   const connector: Connector = {
@@ -88,6 +91,7 @@ export function defineReaderConnector<TRecord>(definition: ReaderConnectorDefini
     ...(requiresExplicitPermission !== undefined ? { requiresExplicitPermission } : {}),
     ...(defaultSensitivity !== undefined ? { defaultSensitivity } : {}),
     ...(maxBackfillDays !== undefined ? { maxBackfillDays } : {}),
+    ...(cadence !== undefined ? { cadence } : {}),
 
     async fetch(request: SyncRequest): Promise<SyncPage> {
       const { since: cursorSince, guard } = decodeCursor(request.cursor);

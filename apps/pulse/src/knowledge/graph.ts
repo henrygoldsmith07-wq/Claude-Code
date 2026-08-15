@@ -14,7 +14,7 @@ import type { SourceId } from "../events/schema.js";
 import type { Finding } from "../discovery/finding.js";
 import type { Hypothesis } from "../hypotheses/tracker.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
-import type { MetricDefinition } from "../metrics/registry.js";
+import { sourcesOf, type MetricDefinition } from "../metrics/registry.js";
 
 export type NodeKind = "metric" | "source" | "subject" | "finding" | "hypothesis" | "experiment";
 
@@ -189,22 +189,26 @@ export function buildKnowledgeGraph(input: BuildGraphInput): KnowledgeGraph {
         unit: definition.unit,
       },
     });
-    sources.add(definition.source);
+    for (const source of sourcesOf(definition)) sources.add(source);
   }
   for (const source of sources) {
     graph.addNode({ id: `source:${source}`, kind: "source", label: String(source), attributes: {} });
   }
   for (const definition of input.definitions) {
-    graph.addEdge({
-      id: `measured:${definition.id}`,
-      from: `metric:${definition.id}`,
-      to: `source:${definition.source}`,
-      kind: "measured-by",
-      weight: 1,
-      confidence: 1,
-      justifiedBy: [`catalogue:${definition.id}`],
-      label: `${definition.name} comes from ${definition.source}`,
-    });
+    // A metric several devices can measure gets an edge to each of them, so
+    // "where did this come from?" stays answerable when the user switches band.
+    for (const source of sourcesOf(definition)) {
+      graph.addEdge({
+        id: `measured:${definition.id}:${source}`,
+        from: `metric:${definition.id}`,
+        to: `source:${source}`,
+        kind: "measured-by",
+        weight: 1,
+        confidence: 1,
+        justifiedBy: [`catalogue:${definition.id}`],
+        label: `${definition.name} comes from ${source}`,
+      });
+    }
   }
 
   for (const finding of input.findings) {
