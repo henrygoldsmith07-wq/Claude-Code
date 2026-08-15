@@ -14,6 +14,7 @@ export const CURRENT_SCHEMA_VERSION = 2;
 
 /** Sources Pulse knows about. `custom:*` is reserved for connector-SDK apps. */
 export const KNOWN_SOURCES = [
+  // First-party apps.
   "revise",
   "arise",
   "forq",
@@ -21,6 +22,19 @@ export const KNOWN_SOURCES = [
   "le-studio-french",
   "reflect",
   "rapport",
+  // Health platforms — aggregators that re-export other apps' readings.
+  "apple-health",
+  "health-connect",
+  // Wearables read directly, without going through a platform.
+  "garmin",
+  "fitbit",
+  "whoop",
+  "oura",
+  // Calendars.
+  "google-calendar",
+  "outlook-calendar",
+  // Anything the user imported from a file.
+  "file-import",
 ] as const;
 
 export type KnownSource = (typeof KNOWN_SOURCES)[number];

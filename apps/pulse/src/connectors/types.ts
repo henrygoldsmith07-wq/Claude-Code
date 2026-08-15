@@ -23,7 +23,24 @@ export interface ConnectorScope {
 export interface EmittedMetricSpec {
   /** Metric key as it appears in `event.metrics`. */
   key: string;
-  unit: "count" | "ratio" | "ms" | "minutes" | "score" | "kg" | "reps" | "level";
+  unit:
+    | "count"
+    | "ratio"
+    | "ms"
+    | "minutes"
+    | "score"
+    | "kg"
+    | "reps"
+    | "level"
+    /** Beats per minute. Kept distinct from `count` so a heart rate is never summed. */
+    | "bpm"
+    /** Breaths per minute and similar per-minute rates. */
+    | "per-minute"
+    /** Degrees Celsius, or a deviation in them. */
+    | "celsius"
+    | "kcal"
+    /** Metres. */
+    | "m";
   description: string;
   /** Inclusive bounds used by the quality scorer to spot impossible values. */
   range?: { min: number; max: number };
@@ -57,6 +74,16 @@ export interface SyncPage {
   warnings?: string[];
 }
 
+/**
+ * How often a healthy source is expected to produce data.
+ *
+ * Freshness is meaningless without it: a sleep source silent for three days is
+ * broken, while a weekly review source silent for three days is fine. Judging
+ * both against one global staleness threshold produces either false alarms or
+ * silent gaps, so the connector declares its own cadence.
+ */
+export type SyncCadence = "continuous" | "daily" | "weekly" | "irregular";
+
 export type HealthStatus = "healthy" | "degraded" | "failing" | "unknown";
 
 export interface HealthReport {
@@ -86,6 +113,8 @@ export interface Connector {
   emits: EmittedEventSpec[];
   /** How far back a backfill is allowed to reach, in days. */
   maxBackfillDays?: number;
+  /** Expected data rhythm, used to judge freshness. Defaults to `irregular`. */
+  cadence?: SyncCadence;
   fetch(request: SyncRequest): Promise<SyncPage>;
   healthCheck?(): Promise<HealthReport>;
 }

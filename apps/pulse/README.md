@@ -48,7 +48,7 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | Directory | What lives there |
 |---|---|
 | `events/` | Versioned universal event schema, DST-safe time maths, migrations, dedup, storage |
-| `connectors/` | Connector SDK, sync engine (consent, paging, cursors, backfill, health), one module per source |
+| `connectors/` | Connector SDK, sync engine (consent, paging, cursors, backfill, health), one module per source, cross-source reconciliation and the connector health dashboard |
 | `quality/` | Five-dimension data-quality scoring that feeds the confidence grade |
 | `metrics/` | Metric registry, curated catalogue, per-event and per-day computation |
 | `timeseries/` | Trend (Theil-Sen + Mann-Kendall), baselines, anomalies, lag analysis, cross-app timeline |
@@ -141,11 +141,12 @@ configured.
 
 ## Testing
 
-`npm test` runs 370+ tests covering the schema, migrations, connector contracts,
-deduplication, timezone and DST behaviour, missing data, metrics, statistics
-(checked against published reference values), lag analysis, experiment analysis,
-recommendation ranking, privacy and security, the AI guard, the full core loop,
-performance budgets, and accessibility.
+`npm test` runs 450+ tests covering the schema, migrations, connector contracts,
+deduplication and cross-source reconciliation, connector freshness and coverage
+gaps, file-import parsing and coercion, timezone and DST behaviour, missing data,
+metrics, statistics (checked against published reference values), lag analysis,
+experiment analysis, recommendation ranking, privacy and security, the AI guard,
+the full core loop, performance budgets, and accessibility.
 
 The benchmark users are the centrepiece. Each carries planted true effects,
 planted null effects and a deliberately confounded relationship, so the suite
@@ -156,6 +157,55 @@ asserts both halves of the job:
   flagged rather than endorsed.
 
 The specificity tests are the load-bearing ones. Any tool will find something.
+
+## Where the data comes from
+
+| Source | Module | What it contributes |
+|---|---|---|
+| Apple Health, Health Connect | `connectors/health.ts` | Sleep, daily vitals, movement, body composition, workouts |
+| Garmin, Fitbit, WHOOP, Oura | `connectors/wearables.ts` | The same physiology read first-hand, plus each vendor's own scores |
+| Google Calendar, Outlook | `connectors/calendar.ts` | Commitment times and day shape — no titles, no attendees, no locations |
+| Any CSV or JSON file | `connectors/tabular.ts` | Whatever the user maps, previewed before a single row is stored |
+| The first-party apps | `revise`, `arise`, `forq`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+
+Three decisions in that layer are worth knowing about.
+
+**Measured physiology is shared; invented scores are not.** Every health source
+emits the same `health.*` events with the same metric keys, so resting heart
+rate is one series whichever band took it and switching device does not split
+a year of data in two. WHOOP Recovery, Oura Readiness, Garmin Body Battery and
+Fitbit Readiness are *models*, not measurements — all "0–100, higher is better"
+and all computed differently — so they stay under `whoop.score`, `oura.score`
+and so on, and are never pooled.
+
+**A platform is an aggregator, so attribution is kept.** Apple Health will
+happily hand over a step count that Garmin Connect wrote into it. Every health
+event carries `origin_app` and `first_hand`, and `connectors/reconcile.ts` uses
+them to recognise one measurement arriving twice. Double-counting inflates
+daily totals, but the real damage is subtler: the sample looks twice as large
+as it is, and the two "sources" agree perfectly, which reads as independent
+corroboration when it is one watch wearing two hats. Reconciliation returns a
+view plus a report of what it set aside and why — nothing is deleted, and the
+user can override the precedence.
+
+**A gap is not automatically a fault.** `connectors/dashboard.ts` judges
+freshness against each connector's declared cadence, because a sleep tracker
+silent for three days is broken and a file import silent for three months is
+finished. When every source went quiet on the same days, that is named as a
+blackout — a holiday, a flat battery — and excluded from the per-connector gap
+counts, so the dashboard stays worth reading.
+
+## Importing a file
+
+`previewImport` is a dry run: it reports how many rows would land, names the
+row and column behind every rejection, and lists the columns the mapping is
+ignoring. Nothing is stored until the user agrees to it.
+
+The importer refuses to guess. A blank cell is *not measured* rather than zero,
+`1,234` is rejected rather than read as either 1234 or 1.234, and a
+milliseconds column mapped as seconds is caught by a plausibility bound. An
+import that fails loudly costs one row; an import that succeeds quietly and
+wrongly costs the dataset.
 
 ## Adding a connector
 

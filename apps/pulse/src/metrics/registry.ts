@@ -24,7 +24,19 @@ export interface MetricDefinition {
   name: string;
   description: string;
   category: EventCategory;
+  /** The source this definition was written against. */
   source: SourceId;
+  /**
+   * Other sources that measure the same quantity.
+   *
+   * Health metrics are the reason this exists. Resting heart rate is one
+   * measurement whichever band took it, so it is defined once and listed
+   * against every source that can supply it. Defining it per vendor instead
+   * would split a single series into four short ones that can never be
+   * compared, and would multiply the discovery search space by four for no
+   * added information.
+   */
+  alsoFrom?: readonly SourceId[];
   /** Event types this metric can be computed from. */
   eventTypes: string[];
   /** Key within `event.metrics`. */
@@ -40,6 +52,11 @@ export interface MetricDefinition {
   trivialPartners?: string[];
   /** How to format a value for display. */
   format?: "number" | "percent" | "duration-minutes";
+}
+
+/** Every source a metric can arrive from, declaring source first. */
+export function sourcesOf(definition: MetricDefinition): SourceId[] {
+  return [definition.source, ...(definition.alsoFrom ?? [])];
 }
 
 export class MetricRegistry {
@@ -73,7 +90,7 @@ export class MetricRegistry {
   }
 
   bySource(source: SourceId): MetricDefinition[] {
-    return this.list().filter((d) => d.source === source);
+    return this.list().filter((d) => sourcesOf(d).includes(source));
   }
 
   byRole(role: MetricRole): MetricDefinition[] {
