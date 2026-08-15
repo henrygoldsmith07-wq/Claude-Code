@@ -178,6 +178,7 @@ searchable. No other file changes. Add the subject to `src/domain/spec.ts:SPEC_M
 - [`docs/architecture.md`](docs/architecture.md) — data flow, sync, AI layer, quality gates
 - [`docs/revision-engine.md`](docs/revision-engine.md) — the algorithms and the evidence behind them
 - [`docs/benchmark.md`](docs/benchmark.md) — harnesses + the live ledger at [/benchmarks](/benchmarks) + [/case-study](/case-study)
+- [`docs/roadmap.md`](docs/roadmap.md) — competitor-gap backlog and the path to "what should I revise next?" intelligence
 
 ## Content accuracy — statement-level provenance
 

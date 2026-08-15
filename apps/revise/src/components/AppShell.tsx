@@ -122,7 +122,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop rail — landmark + label so screen readers name it, not just "navigation" */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-56 flex-col border-r border-line bg-surface z-20" aria-label="Primary">
         <div className="px-4 py-5">
-          <p className="text-sm font-semibold tracking-tight">Revise</p>
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="" width={22} height={22} className="rounded-md" aria-hidden="true" />
+            <p className="text-sm font-semibold tracking-tight">Revise</p>
+          </div>
           <p className="text-[11px] text-ink3 mt-0.5">{settings.displayName}</p>
         </div>
         <nav className="flex-1 px-2 space-y-0.5" aria-label="Main">
@@ -162,11 +165,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile top bar — banner landmark for SR rotor */}
       <header className="lg:hidden sticky top-0 z-20 bg-surface border-b border-line" role="banner">
         <div className="flex items-center justify-between px-4 h-14">
-          <div>
-            <p className="text-sm font-semibold tracking-tight">Revise</p>
-            <p className="text-[11px] text-ink3">
-              {streak.current > 0 ? `${streak.current}-day streak` : "Start your streak today"}
-            </p>
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="" width={22} height={22} className="rounded-md" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold tracking-tight">Revise</p>
+              <p className="text-[11px] text-ink3">
+                {streak.current > 0 ? `${streak.current}-day streak` : "Start your streak today"}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => setSearchOpen(true)} className="btn btn-ghost" aria-label="Search">

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     "Evidence-based A-level revision: FSRS spaced repetition, exam-style practice with examiner marking, weak-topic detection and a plan that rebuilds itself.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Revise", statusBarStyle: "default" },
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: { icon: "/logo.svg", apple: "/logo.svg" },
 };
 
 export const viewport: Viewport = {
