@@ -1,21 +1,20 @@
-// Examiner-style feedback benchmark: compare app scores to examiner grades.
-// Small deterministic harness — extend with 40 real scripts over time.
+// Compatibility shim.
+//
+// This module used to export SAMPLE_SCRIPTS — three invented exam scripts —
+// and Analytics rendered "Agreement 100% · κ 1" from them. That is a
+// validation claim built from nothing, so the fixtures are gone and the real
+// harness lives in exams/simulator.js, which starts empty and says it is
+// unvalidated until someone marks real attempts.
 
-export function benchmarkExam(scripts){
-  // scripts: [{ id, examinerGrade, appPct }]
-  let agree=0;
-  for(const s of scripts){
-    const appGrade = s.appPct>=80?'A*': s.appPct>=70?'A': s.appPct>=60?'B': s.appPct>=50?'C': s.appPct>=40?'D':'U';
-    if(appGrade===s.examinerGrade) agree++;
-  }
-  const accuracy = scripts.length? Math.round(agree/scripts.length*100)/100 : null;
-  // Cohen's kappa stub (treat as observed agreement for now)
-  const kappa = accuracy;
-  return { n: scripts.length, accuracy, kappa, agree };
-}
+export {
+  EXAMINER_SCRIPTS,
+  benchmarkExaminer,
+  cohensKappa,
+  REAL_RESULTS,
+  validateAgainstResults,
+} from './exams/simulator.js';
 
-export const SAMPLE_SCRIPTS = [
-  { id: 's1', examinerGrade: 'A', appPct: 74 },
-  { id: 's2', examinerGrade: 'C', appPct: 55 },
-  { id: 's3', examinerGrade: 'B', appPct: 62 },
-];
+import { benchmarkExaminer } from './exams/simulator.js';
+
+/** @deprecated Use benchmarkExaminer — kept so old call sites keep compiling. */
+export const benchmarkExam = (scripts) => benchmarkExaminer(scripts);

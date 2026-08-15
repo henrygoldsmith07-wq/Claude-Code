@@ -1,11 +1,12 @@
 import { lazy, Suspense } from 'react';
-import { Book, Mic, Volume, BookOpen, Pencil, Sparkles, Landmark, Compass, Search, ChevronRight } from './icons';
+import { Book, Mic, Volume, BookOpen, Pencil, Sparkles, Landmark, Compass, Search, ChevronRight, GraduationCap } from './icons';
 
 const LazyGrammar = lazy(() => import('./Grammar'));
 const LazySkills = lazy(() => import('./Skills'));
 const LazyCulture = lazy(() => import('./Culture'));
 const LazyAiHub = lazy(() => import('./AiHub'));
 const LazyReference = lazy(() => import('./Reference'));
+const LazyExamSimulator = lazy(() => import('./ExamSimulator'));
 
 function ScreenLoader() {
   return (
@@ -16,10 +17,11 @@ function ScreenLoader() {
 }
 
 const SECTIONS = [
-  { id: 'grammar', title: 'Grammar', subtitle: '25 CEFR topics · drills & explainers', icon: Book },
+  { id: 'grammar', title: 'Grammar', subtitle: '60 CEFR topics · A1 to C1', icon: Book },
   { id: 'skills', title: 'Skills', subtitle: 'Speaking · Listening · Reading · Writing', icon: Mic },
   { id: 'ai', title: 'AI tutor', subtitle: 'Ask anything, get exercises', icon: Sparkles },
   { id: 'culture', title: 'Culture', subtitle: 'Customs, food, regions, history', icon: Landmark },
+  { id: 'exams', title: 'Exam simulator', subtitle: 'WJEC · AQA · Edexcel — timed speaking', icon: GraduationCap },
   { id: 'reference', title: 'Reference', subtitle: 'Dictionary & conjugations', icon: Search },
   { id: 'realworld', title: 'Real-world', subtitle: 'Travel, café, medical phrases', icon: Compass },
 ];
@@ -85,6 +87,18 @@ export default function LearnHub({
         <div className="flex-1 min-h-0 overflow-y-auto">
           <Suspense fallback={<ScreenLoader />}>
             <LazyCulture onXp={onXp} />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+  if (view === 'exams') {
+    return (
+      <div className="h-full flex flex-col min-h-0">
+        <HubBack onBack={() => onView(null)} label="Learn" />
+        <div className="flex-1 min-h-0">
+          <Suspense fallback={<ScreenLoader />}>
+            <LazyExamSimulator apiKey={apiKey} mockMode={mockMode} onXp={onXp} onActivity={onActivity} />
           </Suspense>
         </div>
       </div>

@@ -3,7 +3,10 @@
 // a hidden transcript (listen first), translations, and a comprehension quiz.
 // All audio is synthesized locally; no external media, no link rot.
 
+import { NEW_LISTENING_TRACKS } from './content/listening-library.js';
+
 export const LISTENING_KINDS = [
+  { id: 'story', title: 'Stories', description: 'Serialised fiction — a plot that carries across sessions' },
   { id: 'authentique', title: 'Authentic audio', description: 'Real recorded voices — public-domain readings' },
   { id: 'podcast', title: 'Mini-podcasts', description: 'Short monologues on everyday topics' },
   { id: 'dialogue', title: 'Dialogues', description: 'Two voices, real back-and-forth' },
@@ -11,7 +14,7 @@ export const LISTENING_KINDS = [
   { id: 'scene', title: 'Scenes', description: 'Movie-style drama between two characters' },
 ];
 
-export const LISTENING_TRACKS = [
+const BASE_TRACKS = [
   {
     id: 'pod-paris',
     kind: 'podcast',
@@ -213,3 +216,20 @@ export const LISTENING_TRACKS = [
 export const tracksByKind = (kind) => LISTENING_TRACKS.filter((t) => t.kind === kind);
 
 export const getTrack = (id) => LISTENING_TRACKS.find((t) => t.id === id) || null;
+
+// The second-wave library (stories, longer podcasts, multi-voice dialogues and
+// adapted news) merges in here so every consumer keeps one import surface.
+export const LISTENING_TRACKS = [...BASE_TRACKS, ...NEW_LISTENING_TRACKS];
+
+/** Tracks banded at or below a level, easiest first — for the path engine. */
+export function tracksUpTo(cefr) {
+  const order = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const cap = order.indexOf(cefr);
+  return LISTENING_TRACKS
+    .filter((t) => order.indexOf(t.cefr) <= cap)
+    .sort((a, b) => order.indexOf(a.cefr) - order.indexOf(b.cefr));
+}
+
+/** The parts of a serialised story, in order. */
+export const serialParts = (serial) =>
+  LISTENING_TRACKS.filter((t) => t.serial === serial).sort((a, b) => (a.part || 0) - (b.part || 0));
