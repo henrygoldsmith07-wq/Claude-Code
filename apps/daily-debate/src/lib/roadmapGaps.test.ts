@@ -6,6 +6,8 @@ import { runBiasAudit, measureIdeologicalAsymmetry, applyPoliticalTopic, swapPre
 import { TRANSCRIPTS } from "./benchmark.fixtures";
 import { createTeam, validateTeam, assignMotion, proposeTeamDebate, transitionTeamDebate, classroomDashboard } from "./classroom";
 import type { TeacherMotion } from "./classroom";
+import { verifyQuote, extractQuotes, evidenceQualityScore, claimSourceMatch } from "./quoteVerification";
+import { graphEvidenceReport } from "./evidenceVerification";
 
 describe("corpus adjudication — guidance, consensus, adjudicated disagreements", () => {
   it("ships rater guidance", () => {
@@ -87,6 +89,96 @@ describe("bias audit — political topic, ideology, prestige, writing complexity
     expect(swapPrestige("Lazard shows X.")).toContain("MyBlog");
     const m = measureIdeologicalAsymmetry(transcripts);
     expect(m.n).toBe(TRANSCRIPTS.length);
+  });
+});
+
+describe("quote verification & evidence-quality scoring (§4 second pass)", () => {
+  const LAZARD = "Lazard's 2024 Levelized Cost of Energy report finds solar is the cheapest new-build electricity source at $24 per megawatt-hour.";
+
+  it("verifyQuote distinguishes verified / paraphrase / fabricated", () => {
+    expect(verifyQuote("solar is the cheapest new-build electricity source", LAZARD).status).toBe("verified");
+    expect(verifyQuote("Solar remains the cheapest new-build electricity source according to the report", LAZARD).status).toBe("paraphrase");
+    expect(verifyQuote("Coal dominates every grid and nuclear is unviable", LAZARD).status).toBe("fabricated");
+    expect(verifyQuote("anything", null).status).toBe("unverifiable");
+  });
+
+  it("extractQuotes finds quoted spans in evidence text", () => {
+    expect(extractQuotes('Lazard says solar is "the cheapest new-build electricity source".')).toHaveLength(1);
+  });
+
+  it("evidenceQualityScore adds quote + date dimensions to the source tier", () => {
+    const clean = evidenceQualityScore({
+      sourceName: "Lazard",
+      evidenceText: 'Lazard finds solar is "the cheapest new-build electricity source".',
+      excerpt: LAZARD,
+    });
+    expect(clean.score).toBeGreaterThan(0.9);
+    const fabricated = evidenceQualityScore({
+      sourceName: "Lazard",
+      evidenceText: 'Lazard proves "coal dominates every grid and nuclear is unviable".',
+      excerpt: LAZARD,
+    });
+    expect(fabricated.score).toBeLessThan(clean.score);
+    expect(fabricated.flags.some((f) => f.includes("fabricated quote"))).toBe(true);
+  });
+
+  it("graph evidence report counts fabricated quotes", () => {
+    const g: import("./argGraph").ArgGraph = {
+      nodes: [
+        { id: "c1", kind: "claim", owner: "a", text: "Solar wins on cost.", round: 1 },
+        { id: "e1", kind: "evidence", owner: "a", text: 'Lazard proves "coal dominates every grid and nuclear is unviable".', round: 1, evidenceStrength: "cited", citations: [{ sourceName: "Lazard", homepage: "https://www.lazard.com", excerpt: LAZARD }] },
+      ],
+      edges: [{ from: "e1", to: "c1", relation: "supports" }],
+      dropped: [], contradictions: [], concessions: [], fallacies: [],
+      evidenceStats: { total: 1, byOwner: { a: 1, b: 0, ai: 0 }, byStrength: { anecdotal: 0, general: 0, cited: 1, strong: 0 }, unsupportedClaimIds: [] },
+      impactComparison: null,
+    };
+    const rep = graphEvidenceReport(g);
+    expect(rep.fabricatedQuoteCount).toBeGreaterThan(0);
+  });
+});
+
+describe("claim-to-source matching (§4 third pass)", () => {
+  const LAZARD = "Lazard's 2024 Levelized Cost of Energy report finds solar is the cheapest new-build electricity source at $24 per megawatt-hour.";
+
+  it("claimSourceMatch grades supported / weak / mismatched against the cited excerpt", () => {
+    const supported = claimSourceMatch("Solar is the cheapest new-build electricity source", [{ sourceName: "Lazard", excerpt: LAZARD }]);
+    expect(supported.status).toBe("supported");
+    const mismatched = claimSourceMatch("Coal dominates every grid and nuclear is unviable", [{ sourceName: "Lazard", excerpt: LAZARD }]);
+    expect(mismatched.status).toBe("mismatched");
+  });
+
+  it("graph evidence report counts claims the citation doesn't support and docks the score", () => {
+    const g: import("./argGraph").ArgGraph = {
+      nodes: [
+        { id: "c1", kind: "claim", owner: "a", text: "Coal dominates every grid and nuclear is unviable.", round: 1 },
+        { id: "e1", kind: "evidence", owner: "a", text: "Lazard 2024 LCOE solar $24/MWh.", round: 1, evidenceStrength: "cited", citations: [{ sourceName: "Lazard", homepage: "https://www.lazard.com", excerpt: LAZARD }] },
+      ],
+      edges: [{ from: "e1", to: "c1", relation: "supports" }],
+      dropped: [], contradictions: [], concessions: [], fallacies: [],
+      evidenceStats: { total: 1, byOwner: { a: 1, b: 0, ai: 0 }, byStrength: { anecdotal: 0, general: 0, cited: 1, strong: 0 }, unsupportedClaimIds: [] },
+      impactComparison: null,
+    };
+    const rep = graphEvidenceReport(g);
+    expect(rep.claimMismatchCount).toBe(1);
+    expect(rep.links[0].support).toBe("tangential");
+    expect(rep.links[0].flags.some((f) => f.includes("claim not supported by source"))).toBe(true);
+  });
+
+  it("clean claim-to-source overlap adds no mismatch flags", () => {
+    const g: import("./argGraph").ArgGraph = {
+      nodes: [
+        { id: "c1", kind: "claim", owner: "a", text: "Solar is the cheapest new-build electricity source.", round: 1 },
+        { id: "e1", kind: "evidence", owner: "a", text: "Lazard 2024 LCOE solar $24/MWh.", round: 1, evidenceStrength: "cited", citations: [{ sourceName: "Lazard", homepage: "https://www.lazard.com", excerpt: LAZARD }] },
+      ],
+      edges: [{ from: "e1", to: "c1", relation: "supports" }],
+      dropped: [], contradictions: [], concessions: [], fallacies: [],
+      evidenceStats: { total: 1, byOwner: { a: 1, b: 0, ai: 0 }, byStrength: { anecdotal: 0, general: 0, cited: 1, strong: 0 }, unsupportedClaimIds: [] },
+      impactComparison: null,
+    };
+    const rep = graphEvidenceReport(g);
+    expect(rep.claimMismatchCount).toBe(0);
+    expect(rep.links[0].support).toBe("supports");
   });
 });
 

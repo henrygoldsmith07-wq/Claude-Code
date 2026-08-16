@@ -57,6 +57,26 @@ Evidence nodes are **source-grounded**: `ArgNode.citations?: EvidenceCitation[]`
 - `claimCoverageWithGroundedEvidence(graph)` — share of claims backed by grounded evidence
 - `ArgGraphView` renders `↳ Pew, Lazard` per evidence node and a **Source grounding** panel; uncited cited/strong nodes get a `⚠ no citation` flag.
 
+### Quote verification
+
+Quoted spans in evidence are checked against the cited source's excerpt
+(`src/lib/quoteVerification.ts`): verbatim quotes verify, close-but-not-verbatim
+reads as paraphrase, partial overlap is flagged misquoted, and a quote absent
+from the source is flagged **fabricated**. `evidenceQualityScore` folds source
+tier + quote fidelity + date recency into one 0–1 score, and the graph evidence
+report (`graphEvidenceReport`) counts fabricated quotes and docks its score for
+them.
+
+### Claim-to-source matching
+
+A claim's content is checked against the best-matching cited excerpt
+(`claimSourceMatch` in `src/lib/quoteVerification.ts`) and graded
+**supported → weak → mismatched** — a claim that only repeats the source's name
+is weak, and a claim whose content appears nowhere in the cited source is a
+decorative citation. `graphEvidenceReport` counts mismatched claims
+(`claimMismatchCount`), demotes those links to tangential, and docks its score
+for them. No excerpt attached means **unverifiable**, not a violation.
+
 ### Judge benchmarks (invariance + grounded coverage)
 
 `src/lib/benchmarks.test.ts` + `src/lib/benchmark.fixtures.ts` run on every `npm test` without network/DB:

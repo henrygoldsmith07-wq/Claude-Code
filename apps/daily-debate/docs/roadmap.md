@@ -21,6 +21,24 @@ call" result (`ensembleJudge.ts` → `verdictFromEnsemble` → `VerdictExplainPa
 Still open: the 1,000+ debate data collection, live-model benchmark runs (need API
 keys), and better STT (needs a transcription service).
 
+Second pass (§4 citation & evidence integrity): quote verification
+(`quoteVerification.ts`) — quoted spans in evidence are checked against the cited
+source's excerpt and classified verbatim → verified, close → paraphrase, partial →
+misquoted, absent → fabricated — plus evidence-quality scoring that adds quote +
+date dimensions to the source tier (`evidenceQualityScore`, composing
+`sourceQualityScore` and `sourceDateCheck`). The graph evidence report now counts
+fabricated quotes and docks its score for them (`evidenceVerification.ts` →
+`GraphEvidenceReport.quoteIssueCount` / `fabricatedQuoteCount`).
+
+Third pass (§4 citation & evidence integrity): claim-to-source matching
+(`claimSourceMatch` in `quoteVerification.ts`) — a claim's content is checked
+against the best-matching cited excerpt and graded supported → weak → mismatched
+(no excerpt = unverifiable, not a violation). The graph evidence report now
+counts claims whose citations don't support them (`claimMismatchCount`), demotes
+those links to tangential, and docks its score for decorative citations
+(`evidenceVerification.ts` → `GraphEvidenceReport.claimMismatchCount` /
+`weakClaimSourceCount`).
+
 ## Baseline already shipped
 
 | Capability | Where |
@@ -73,12 +91,15 @@ keys), and better STT (needs a transcription service).
 
 - Better real citation fetching *(extend — live homepage reachability is the
   known gap; the offline allowlist is the floor)*.
-- Claim-to-source matching.
-- Quote verification.
-- Source-date checking.
-- Evidence-quality scoring *(extend — `sourceQualityScore` exists; add
-  quote/date dimensions)*.
-- Original-source detection.
+- Claim-to-source matching — *shipped (third pass)*: `claimSourceMatch` in
+  `quoteVerification.ts`.
+- Quote verification — *shipped (second pass)*: `quoteVerification.ts`.
+- Source-date checking — *shipped (first pass)*: `sourceDateCheck` in
+  `citationVerifier.ts`.
+- Evidence-quality scoring — *shipped (second pass)*: `evidenceQualityScore`
+  (source tier + quote fidelity + date recency).
+- Original-source detection — *shipped (first pass)*: `originalSourceGap` in
+  `citationVerifier.ts`.
 
 ## 5. Argument graph & fallacy
 

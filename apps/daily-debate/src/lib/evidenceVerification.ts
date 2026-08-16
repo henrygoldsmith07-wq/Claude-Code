@@ -4,6 +4,7 @@
 
 import type { ArgGraph, ArgNode } from "./argGraph";
 import { graphSourceQuality, verifyGraphCitations, KNOWN_SOURCES } from "./citationVerifier";
+import { verifyEvidenceQuotes, claimSourceMatch } from "./quoteVerification";
 import { hostnameFor } from "./evidence";
 
 // ---------------------------------------------------------------------------
@@ -119,7 +120,15 @@ export function claimCitationMap(graph: ArgGraph, fetchedByUrl?: Map<string, Fet
       // Distortion heuristic: claim text makes a stronger assertion than evidence text
       const distortion = distortionScore(claim.text, ev.text);
       if (distortion > 0.6) flags.push(`possible distortion: claim stronger than evidence (score ${distortion.toFixed(2)})`);
-      const support: CitationSupport = flags.some((f) => f.includes("hallucination") || f.includes("no evidence")) ? "unsupported" : distortion > 0.6 ? "tangential" : "supports";
+      // Quote verification: quoted spans in the evidence must appear in a cited excerpt
+      const quoteReport = verifyEvidenceQuotes(ev.text ?? "", cites);
+      for (const q of quoteReport.fabricated) flags.push(`fabricated quote: "${q.quote}"`);
+      for (const q of quoteReport.issues) if (q.status === "misquoted") flags.push(`misquoted: "${q.quote}"`);
+      // Claim-to-source matching: the claim's content must appear in a cited excerpt
+      const claimSource = claimSourceMatch(claim.text, cites);
+      if (claimSource.status === "mismatched") flags.push(`claim not supported by source: ${claimSource.bestSource} (overlap ${claimSource.score.toFixed(2)})`);
+      else if (claimSource.status === "weak") flags.push(`weak claim-source overlap: ${claimSource.bestSource} (overlap ${claimSource.score.toFixed(2)})`);
+      const support: CitationSupport = flags.some((f) => f.includes("hallucination") || f.includes("no evidence")) ? "unsupported" : distortion > 0.6 || claimSource.status === "mismatched" ? "tangential" : "supports";
       links.push({
         claimId: claim.id,
         claimText: claim.text,
@@ -190,6 +199,10 @@ export interface GraphEvidenceReport {
   outdatedCount: number;
   distortionCount: number;
   hallucinationCount: number;
+  quoteIssueCount: number; // misquoted + fabricated quoted spans
+  fabricatedQuoteCount: number;
+  claimMismatchCount: number; // claims whose content doesn't appear in any cited excerpt
+  weakClaimSourceCount: number; // claims with only partial overlap against cited excerpts
   links: ClaimCitationLink[];
   graphIssues: ReturnType<typeof verifyGraphCitations>;
 }
@@ -203,8 +216,16 @@ export function graphEvidenceReport(graph: ArgGraph, fetchedByUrl?: Map<string, 
   const outdatedCount = links.filter((l) => l.flags.some((f) => f.includes("outdated"))).length;
   const distortionCount = links.filter((l) => l.flags.some((f) => f.includes("distortion"))).length;
   const hallucinationCount = verifyGraphCitations(graph).length;
+  const fabricatedQuoteCount = links.filter((l) => l.flags.some((f) => f.includes("fabricated quote"))).length;
+  const quoteIssueCount = links.filter((l) => l.flags.some((f) => f.includes("fabricated quote") || f.includes("misquoted:"))).length;
+  const claimMismatchCount = links.filter((l) => l.flags.some((f) => f.includes("claim not supported by source"))).length;
+  const weakClaimSourceCount = links.filter((l) => l.flags.some((f) => f.includes("weak claim-source overlap"))).length;
   // Freshness penalty: each outdated link docks 0.1
   const freshness = Math.max(0, 1 - outdatedCount * 0.15);
-  const score = Math.max(0, Math.min(1, avgQuality * (0.5 + 0.5 * coverage) * freshness * (hallucinationCount ? 0.6 : 1)));
-  return { score, coverage, avgQuality, outdatedCount, distortionCount, hallucinationCount, links, graphIssues: verifyGraphCitations(graph) };
+  // Fabricated quotes dock the score — a quote that isn't in the source is worse than no citation
+  const quoteIntegrity = Math.max(0.5, 1 - fabricatedQuoteCount * 0.2);
+  // A claim whose content is absent from its cited source is a decorative citation — dock it too
+  const claimIntegrity = Math.max(0.5, 1 - claimMismatchCount * 0.2);
+  const score = Math.max(0, Math.min(1, avgQuality * (0.5 + 0.5 * coverage) * freshness * (hallucinationCount ? 0.6 : 1) * quoteIntegrity * claimIntegrity));
+  return { score, coverage, avgQuality, outdatedCount, distortionCount, hallucinationCount, quoteIssueCount, fabricatedQuoteCount, claimMismatchCount, weakClaimSourceCount, links, graphIssues: verifyGraphCitations(graph) };
 }
