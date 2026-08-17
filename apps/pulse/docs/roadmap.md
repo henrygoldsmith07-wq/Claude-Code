@@ -11,6 +11,17 @@ depth rather than a new subsystem. Order within each group is not priority
 order. Sizes are S (one focused change), M (a module plus tests), L (a
 multi-file change with a real design decision).
 
+## Progress
+
+Shipped in the first implementation pass: **#10 Experiment Calendar Conflict
+Warnings** — `experiments/calendar.ts` now scans live designs per date and
+reports `calendar.conflicts` (dates with more than one experiment assigned,
+with a `sameMetric` flag for the stricter rule later), the summary counts
+them, and the experiments panel shows a warning block plus marks conflicting
+schedule entries. `tests/calendar-conflicts.test.ts` (8 tests) pins the
+behaviour. #9 (blocking same-metric overlaps at proposal time) reads the
+`sameMetric` flag this pass already computes.
+
 ## Baseline (measured 2026-08-17)
 
 | Thing | Today |
