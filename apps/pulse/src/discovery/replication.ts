@@ -10,11 +10,17 @@
  *   replicated              — the same association surfaced again in fresh data
  *   failed-to-replicate     — a controlled experiment did not reproduce it
  *   experimentally-supported — a controlled experiment you ran supported it
+ *   contradicted            — the same relationship has since been observed pointing the other way
  *
  * Two things advance the status: a later discovery with the same "signature"
  * (same outcome, same driver, same direction) as an earlier one, and the
  * verdict of an experiment whose hypothesis was derived from the finding.
  * Nothing here changes a statistic — only the claim's standing.
+ *
+ * A later discovery that points the *opposite* way is not a failed
+ * replication — it is contradictory evidence, owned by the contradiction
+ * ledger (`contradictions.ts`), which moves every side of the pair to
+ * `contradicted`.
  */
 
 import type { ExperimentVerdict } from "../experiments/analysis.js";

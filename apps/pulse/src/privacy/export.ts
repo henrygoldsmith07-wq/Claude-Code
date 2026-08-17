@@ -20,6 +20,8 @@ import type { ExperimentDesign } from "../experiments/design.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
 import type { FeedbackEntry } from "../recommendations/feedback.js";
 import type { ReplicationRecord } from "../discovery/replication.js";
+import type { ContradictionRecord } from "../discovery/contradictions.js";
+import type { InsightHistorySnapshot } from "../history/insight-history.js";
 import type { RecommendationValue } from "../recommendations/value.js";
 
 export const EXPORT_FORMAT_VERSION = 1;
@@ -40,6 +42,8 @@ export interface PulseExport {
   experimentResults: ExperimentResult[];
   feedback: FeedbackEntry[];
   replication: ReplicationRecord[];
+  contradictions: ContradictionRecord[];
+  insightHistory: InsightHistorySnapshot;
   recommendationValue: RecommendationValue[];
 }
 
@@ -55,6 +59,8 @@ export interface ExportOptions {
   experimentResults?: readonly ExperimentResult[];
   feedback?: readonly FeedbackEntry[];
   replication?: readonly ReplicationRecord[];
+  contradictions?: readonly ContradictionRecord[];
+  insightHistory?: InsightHistorySnapshot;
   recommendationValue?: readonly RecommendationValue[];
 }
 
@@ -107,6 +113,8 @@ export function buildExport(
     experimentResults: [...(options.experimentResults ?? [])],
     feedback: [...(options.feedback ?? [])],
     replication: [...(options.replication ?? [])],
+    contradictions: [...(options.contradictions ?? [])],
+    insightHistory: options.insightHistory ?? { version: 1 as const, scans: [] },
     recommendationValue: [...(options.recommendationValue ?? [])],
   };
 }

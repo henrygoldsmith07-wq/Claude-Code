@@ -98,6 +98,10 @@ function fromFinding(
   today: string,
   nowMs: number,
 ): Recommendation | null {
+  // A claim seen pointing both ways is withdrawn: recommending an action on
+  // it would be acting on conflicted evidence.
+  if (finding.replicationStatus === "contradicted") return null;
+
   const action = finding.nextAction;
   if (!action || action.kind === "observe") return null;
 

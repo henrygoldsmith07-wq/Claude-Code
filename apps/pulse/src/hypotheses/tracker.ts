@@ -19,7 +19,8 @@ export type HypothesisStatus =
   | "supported"
   | "refuted"
   | "inconclusive"
-  | "abandoned";
+  | "abandoned"
+  | "contradicted";
 
 export type PredictedDirection = "increase" | "decrease";
 
@@ -51,13 +52,16 @@ export interface Hypothesis {
 }
 
 const ALLOWED: Record<HypothesisStatus, HypothesisStatus[]> = {
-  proposed: ["testing", "abandoned"],
-  testing: ["supported", "refuted", "inconclusive", "abandoned"],
+  proposed: ["testing", "abandoned", "contradicted"],
+  testing: ["supported", "refuted", "inconclusive", "abandoned", "contradicted"],
   // A concluded hypothesis can be retested — that is how a personal finding
   // survives contact with a new term, a new job, a new sleep schedule.
-  supported: ["testing", "abandoned"],
-  refuted: ["testing", "abandoned"],
-  inconclusive: ["testing", "abandoned"],
+  supported: ["testing", "abandoned", "contradicted"],
+  refuted: ["testing", "abandoned", "contradicted"],
+  inconclusive: ["testing", "abandoned", "contradicted"],
+  // A contradicted claim is withdrawn, but a controlled experiment is the one
+  // tool that can settle the conflict, so it may still be tested — or dropped.
+  contradicted: ["testing", "abandoned", "supported", "refuted", "inconclusive"],
   abandoned: [],
 };
 
@@ -69,9 +73,12 @@ export class HypothesisTracker {
   /**
    * Builds a hypothesis from a finding. Only findings that actually justify a
    * test are eligible: an effect that dissolved under adjustment produces a
-   * null return rather than a hypothesis nobody should spend two weeks on.
+   * null return rather than a hypothesis nobody should spend two weeks on,
+   * and a finding whose claim has been seen pointing both ways is withdrawn
+   * — there is nothing coherent to predict until the conflict is resolved.
    */
   proposeFromFinding(finding: Finding): Hypothesis | null {
+    if (finding.replicationStatus === "contradicted") return null;
     if (finding.nextAction?.kind !== "run-experiment") return null;
 
     const direction: PredictedDirection = finding.effect.value >= 0 ? "increase" : "decrease";
