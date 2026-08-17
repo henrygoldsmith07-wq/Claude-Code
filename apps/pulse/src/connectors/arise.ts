@@ -9,6 +9,7 @@
  */
 
 import { defineReaderConnector } from "./sdk.js";
+import { createSameOriginReader, type StorageLike } from "./same-origin.js";
 import type { Connector, ConnectorScope, EmittedEventSpec, SourceReader } from "./types.js";
 import type { RawEventInput } from "../events/normalise.js";
 import { mean } from "../statistics/descriptive.js";
@@ -178,6 +179,103 @@ export function mapAriseRecord(record: AriseRecord, options: AriseMapOptions = {
       attributes: { time_estimated: estimated, local_date: record.dateISO },
     },
   ];
+}
+
+/** Where Arise keeps its state when both apps are served from one origin. */
+export const ARISE_STORAGE_KEY = "arise.store.v1";
+
+/** Arise's own opt-in. Absent or false means Pulse reads nothing. */
+export function ariseConsentGranted(state: unknown): boolean {
+  const preferences = (state as { preferences?: { pulseEnabled?: unknown } } | null)?.preferences;
+  return preferences?.pulseEnabled === true;
+}
+
+/**
+ * Pull Pulse records out of Arise's persisted store.
+ *
+ * Arise keeps completed work in `history` and check-ins in `readinessLog`, and
+ * stamps each saved session with `savedAt`. It is tempting to treat `savedAt` as
+ * the completion time, which would spare every session the `time_estimated`
+ * quality penalty — but `savedAt` is a *write* time. Edit a workout from last
+ * week and it moves to today, which would silently relocate an event and poison
+ * exactly the within-day timing questions the lag analysis exists to answer.
+ *
+ * So `savedAt` is trusted only when it lands on the session's own local date.
+ * Otherwise the time is left unknown and the engine flags and discounts it,
+ * which is the honest outcome rather than the flattering one.
+ */
+export function selectAriseRecords(state: unknown): AriseRecord[] {
+  const store = (state ?? {}) as {
+    history?: unknown;
+    readinessLog?: unknown;
+  };
+  const records: AriseRecord[] = [];
+
+  if (Array.isArray(store.history)) {
+    for (const raw of store.history) {
+      const session = raw as Partial<AriseSessionRecord> & { savedAt?: unknown };
+      if (typeof session.id !== "string") continue;
+      if (typeof session.dateISO !== "string" || !DATE_ONLY.test(session.dateISO)) continue;
+      if (!Array.isArray(session.blocks)) continue;
+
+      const savedAt = typeof session.savedAt === "string" ? session.savedAt : null;
+      const trustworthy = savedAt !== null && savedAt.slice(0, 10) === session.dateISO;
+
+      records.push({
+        kind: "session",
+        id: session.id,
+        dateISO: session.dateISO,
+        ...(trustworthy ? { completedAt: savedAt } : {}),
+        ...(typeof session.programId === "string" ? { programId: session.programId } : {}),
+        ...(typeof session.title === "string" ? { title: session.title } : {}),
+        ...(typeof session.location === "string" ? { location: session.location } : {}),
+        ...(typeof session.durationMin === "number" ? { durationMin: session.durationMin } : {}),
+        blocks: session.blocks as AriseBlock[],
+      });
+    }
+  }
+
+  if (Array.isArray(store.readinessLog)) {
+    for (const raw of store.readinessLog) {
+      const entry = raw as Partial<AriseReadinessRecord>;
+      if (typeof entry.dateISO !== "string" || !DATE_ONLY.test(entry.dateISO)) continue;
+      if (typeof entry.score !== "number" || !Number.isFinite(entry.score)) continue;
+      records.push({
+        kind: "readiness",
+        dateISO: entry.dateISO,
+        score: entry.score,
+        ...(typeof entry.at === "string" ? { at: entry.at } : {}),
+        ...(typeof entry.sleep === "number" ? { sleep: entry.sleep } : {}),
+        ...(typeof entry.soreness === "number" ? { soreness: entry.soreness } : {}),
+        ...(typeof entry.motivation === "number" ? { motivation: entry.motivation } : {}),
+      });
+    }
+  }
+
+  return records;
+}
+
+/**
+ * An Arise connector that reads the real app's storage, for when Pulse and
+ * Arise are served from the same origin. The mapping, dedup and quality rules
+ * are the ones the synthetic build already exercises — only the reader differs.
+ */
+export function createAriseSameOriginConnector(options: AriseMapOptions & { storage?: StorageLike | null } = {}): Connector {
+  const { storage, ...mapOptions } = options;
+  return createAriseConnector(
+    createSameOriginReader<AriseRecord>({
+      key: ARISE_STORAGE_KEY,
+      label: "Arise",
+      select: selectAriseRecords,
+      consent: ariseConsentGranted,
+      ...(storage !== undefined ? { storage } : {}),
+      timestampOf: (record) =>
+        record.kind === "session"
+          ? (record.completedAt ?? stampLocalHour(record.dateISO, mapOptions.assumedSessionHour ?? 18))
+          : (record.at ?? stampLocalHour(record.dateISO, mapOptions.assumedReadinessHour ?? 8)),
+    }),
+    mapOptions,
+  );
 }
 
 export function createAriseConnector(

@@ -3,8 +3,19 @@ export * from "./sdk.js";
 export * from "./sync.js";
 export { createReviseConnector, mapReviseRecord } from "./revise.js";
 export type { ReviseRecord, ReviseReviewRecord, ReviseAttemptRecord, ReviseSessionRecord, ReviseGrade } from "./revise.js";
-export { createAriseConnector, mapAriseRecord } from "./arise.js";
+export {
+  ARISE_STORAGE_KEY,
+  ariseConsentGranted,
+  createAriseConnector,
+  createAriseSameOriginConnector,
+  mapAriseRecord,
+  selectAriseRecords,
+} from "./arise.js";
 export type { AriseRecord, AriseSessionRecord, AriseReadinessRecord, AriseBlock, AriseSet } from "./arise.js";
+
+// --- Reading sibling apps that share this origin ---------------------------
+export { createSameOriginReader, subscribeToSameOriginSource } from "./same-origin.js";
+export type { SameOriginReaderOptions, StorageLike, Unsubscribe } from "./same-origin.js";
 export { createForqConnector, mapForqRecord } from "./forq.js";
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
 export { createChronoConnector, mapChronoRecord } from "./chrono.js";
