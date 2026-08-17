@@ -175,8 +175,12 @@ describe("the app shell", () => {
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(5);
+    expect(tabs.length).toBe(6);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Personal evidence graph" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
     expect(screen.getByRole("tab", { name: "Sources & privacy" }).getAttribute("aria-selected")).toBe("true");

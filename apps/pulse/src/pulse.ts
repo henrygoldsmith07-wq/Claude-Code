@@ -32,6 +32,8 @@ import { RecommendationValueTracker } from "./recommendations/value.js";
 import { buildTimeline, type Timeline, type TimelineOptions } from "./timeseries/timeline.js";
 import { buildWeeklyBrief, type WeeklyBrief } from "./reports/brief.js";
 import { buildKnowledgeGraph, type KnowledgeGraph } from "./knowledge/graph.js";
+import { buildClaimNode, buildEvidenceGraph, type AuthoredClaimInput, type EvidenceGraph } from "./evidence-graph/graph.js";
+import type { ClaimNode } from "./evidence-graph/types.js";
 import { ask, type Answer, type AskContext } from "./ask/answer.js";
 import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
 
@@ -61,6 +63,7 @@ export class Pulse {
   private readonly experimentResults = new Map<string, ExperimentResult>();
   private readonly now: () => number;
   private readonly expectedCadence: Record<string, number>;
+  private readonly authoredClaims = new Map<string, ClaimNode>();
   private cachedFindings: Finding[] = [];
 
   constructor(options: PulseOptions = {}) {
@@ -292,6 +295,26 @@ export class Pulse {
       findings: this.cachedFindings,
       hypotheses: this.hypotheses.list(),
       experiments: this.experimentResultsList(),
+    });
+  }
+
+  // --- LEARN (personal evidence graph) ----------------------------------
+
+  /** Records a belief the person holds, optionally linked to engine evidence. */
+  recordClaim(input: AuthoredClaimInput): ClaimNode {
+    const claim = buildClaimNode(input, this.now);
+    this.authoredClaims.set(claim.id, claim);
+    return claim;
+  }
+
+  /** "What do I believe, and what is the evidence?" */
+  evidenceGraph(): EvidenceGraph {
+    return buildEvidenceGraph({
+      findings: this.cachedFindings,
+      hypotheses: this.hypotheses.list(),
+      experiments: this.experimentResultsList(),
+      authored: [...this.authoredClaims.values()],
+      now: this.now,
     });
   }
 

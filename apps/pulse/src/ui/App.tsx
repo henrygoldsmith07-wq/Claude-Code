@@ -13,11 +13,13 @@ import { useCallback, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
 import type { Finding } from "../discovery/finding.js";
 import { FindingCard } from "./FindingCard.js";
+import { EvidencePanel } from "./EvidencePanel.js";
 
-export type TabId = "insights" | "timeline" | "experiments" | "ask" | "sources";
+export type TabId = "insights" | "evidence" | "timeline" | "experiments" | "ask" | "sources";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "insights", label: "Insights" },
+  { id: "evidence", label: "Evidence" },
   { id: "timeline", label: "Timeline" },
   { id: "experiments", label: "Experiments" },
   { id: "ask", label: "Ask Pulse" },
@@ -193,6 +195,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
           </section>
         ) : null}
 
+        {tab === "evidence" ? <EvidencePanel pulse={pulse} revision={revision} /> : null}
         {tab === "timeline" ? <TimelinePanel pulse={pulse} /> : null}
         {tab === "experiments" ? <ExperimentsPanel pulse={pulse} revision={revision} onChange={refresh} /> : null}
         {tab === "ask" ? <AskPanel pulse={pulse} /> : null}

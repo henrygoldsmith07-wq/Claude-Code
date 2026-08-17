@@ -59,6 +59,7 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | `recommendations/` | Evidence-weighted ranking and insight feedback |
 | `predictions/` | Walk-forward validated models that refuse to publish unless they beat the baselines |
 | `knowledge/` | The personal knowledge graph |
+| `evidence-graph/` | The personal evidence graph — beliefs, their evidence, and contradiction detection |
 | `reports/` | The weekly intelligence brief |
 | `privacy/` | Consent, export, per-source deletion, redaction, encryption at rest |
 | `ai/` | The narrow AI boundary and its numeric guard |
@@ -111,6 +112,24 @@ data: you, changing over time.
 Analysis can return `supported`, `refuted`, `inconclusive` or `invalid`.
 `inconclusive` is a first-class outcome, not a failure to record, and an
 underpowered null is never reported as evidence of no effect.
+
+## Personal evidence graph
+
+Above the findings sits what the person *believes* and why. Every belief is a
+claim; every claim is settled only by evidence that carries its class and
+confidence, and the same rules apply as everywhere else:
+
+- every evidence edge names the engine entity it came from — no provenance, no
+  edge;
+- observational evidence caps a claim below "high" confidence;
+- a claim worded causally is never endorsed unless an experiment backs it;
+- supporting and refuting evidence that are both strong is surfaced as
+  **contested**, not averaged into a mild "supported".
+
+A belief with no evidence is **open**, not true. Claims are derived from
+findings, hypotheses and experiment results, and can be authored directly via
+`pulse.recordClaim(...)` — the engine labels each so the two can never be
+confused.
 
 ## AI boundary
 

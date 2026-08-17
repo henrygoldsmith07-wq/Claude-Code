@@ -11,6 +11,7 @@ export * from "./experiments/index.js";
 export * from "./recommendations/index.js";
 export * from "./predictions/index.js";
 export * from "./knowledge/index.js";
+export * from "./evidence-graph/index.js";
 export * from "./reports/index.js";
 export * from "./privacy/index.js";
 export * from "./ai/index.js";

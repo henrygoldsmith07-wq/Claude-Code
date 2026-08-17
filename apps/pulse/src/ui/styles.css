@@ -432,3 +432,44 @@ td {
   white-space: nowrap;
   width: 1px;
 }
+
+/* Personal evidence graph */
+.pill--status-supported {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.pill--status-refuted,
+.pill--status-contested {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.pill--status-inconclusive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill--status-open {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.evidence__list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+
+.evidence__list li {
+  border-top: 1px solid var(--line);
+  padding: 0.6rem 0;
+}
+
+.evidence__list li:first-child {
+  border-top: none;
+}
+
+.evidence__list p {
+  margin: 0.3rem 0 0;
+}
