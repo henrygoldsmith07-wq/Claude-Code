@@ -249,6 +249,7 @@ function composeFinding(
 
   return {
     id: `finding-${hash128(`${result.candidate.id}:${result.sampleSize}`).slice(0, 16)}`,
+    candidateId: result.candidate.id,
     createdAt: new Date(nowMs).toISOString(),
     evidenceClass: "correlation",
     title,

@@ -21,6 +21,7 @@ import type { MetricRegistry } from "./metrics/registry.js";
 import { scoreAll, type QualityContext, type SourceQuality } from "./quality/score.js";
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
 import { ReplicationLedger } from "./discovery/replication.js";
+import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
@@ -38,6 +39,8 @@ import { buildExport, deleteSource, type DeletionReport, type PulseExport } from
 export interface PulseOptions {
   timezone?: string;
   adapter?: PersistenceAdapter;
+  /** Persists the insight history; without one the history lives for the process. */
+  historyAdapter?: InsightHistoryAdapter;
   registry?: MetricRegistry;
   now?: () => number;
   /** Expected weekly cadence per source, used by the quality scorer. */
@@ -52,6 +55,7 @@ export class Pulse {
   readonly hypotheses: HypothesisTracker;
   readonly replication: ReplicationLedger;
   readonly value: RecommendationValueTracker;
+  readonly insightHistory: InsightHistory;
   readonly timezone: string;
 
   private readonly connectors = new Map<SourceId, Connector>();
@@ -73,12 +77,14 @@ export class Pulse {
     this.hypotheses = new HypothesisTracker(this.now);
     this.replication = new ReplicationLedger(this.now);
     this.value = new RecommendationValueTracker(this.now);
+    this.insightHistory = new InsightHistory(options.historyAdapter);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
 
   async load(): Promise<void> {
     await this.store.load();
+    await this.insightHistory.load();
   }
 
   // --- COLLECT ----------------------------------------------------------
@@ -166,8 +172,15 @@ export class Pulse {
     return buildTimeline(this.store.all(), options);
   }
 
-  discover(options: { includeSensitive?: boolean; limit?: number; fdrLevel?: number } = {}): DiscoveryReport {
-    const report = discoverRelationships(this.events({ includeSensitive: options.includeSensitive ?? false }), {
+  discover(
+    options: { includeSensitive?: boolean; limit?: number; fdrLevel?: number; through?: string } = {},
+  ): DiscoveryReport {
+    // `through` restores the history as data accumulated: the same engine over
+    // the events up to a point, which is how the insight history shows growth.
+    const analysed = this.events({ includeSensitive: options.includeSensitive ?? false }).filter(
+      (event) => options.through === undefined || event.occurredAt <= options.through,
+    );
+    const report = discoverRelationships(analysed, {
       registry: this.registry,
       qualities: this.quality(),
       now: this.now,
@@ -176,7 +189,37 @@ export class Pulse {
     });
     report.findings = this.replication.annotate(report.findings);
     this.cachedFindings = report.findings;
+    this.recordInsightScan(analysed.length, report);
     return report;
+  }
+
+  /**
+   * Snapshots the scan into the persistent insight history. The ledger ignores
+   * scans identical to the previous one, so the re-scans the UI triggers on
+   * every render do not pollute the history with non-events.
+   */
+  private recordInsightScan(eventCount: number, report: DiscoveryReport): void {
+    this.insightHistory.recordScan({
+      at: new Date(this.now()).toISOString(),
+      eventCount,
+      findings: report.findings,
+      rejected: report.rejected.map((entry) => ({
+        candidateId: entry.candidate.id,
+        outcomeMetricId: entry.candidate.outcomeMetricId,
+        exposureMetricId: entry.candidate.exposureMetricId ?? null,
+        reason: entry.reason,
+      })),
+      totals: {
+        findings: report.findings.length,
+        rejected: report.rejected.length,
+        familySize: report.familySize,
+        familyCount: report.familyCount,
+        expectedFalseDiscoveries: report.expectedFalseDiscoveries,
+      },
+    });
+    void this.insightHistory.persist().catch((error: unknown) => {
+      console.error("Pulse: failed to persist insight history", error);
+    });
   }
 
   findings(): Finding[] {
@@ -334,6 +377,7 @@ export class Pulse {
       feedback: this.feedback.list(),
       replication: this.replication.list(),
       recommendationValue: this.value.list(),
+      insightHistory: this.insightHistory.snapshot(),
     });
   }
 
@@ -346,6 +390,9 @@ export class Pulse {
     const invalidated = new Set(report.invalidatedFindings);
     this.cachedFindings = this.cachedFindings.filter((finding) => !invalidated.has(finding.id));
     this.replication.prune(new Set(this.cachedFindings.map((finding) => finding.id)));
+    // A finding built on deleted data is unverifiable; so is its history.
+    this.insightHistory.pruneBySources([source]);
+    await this.insightHistory.persist();
     this.syncReports.delete(source);
     return report;
   }

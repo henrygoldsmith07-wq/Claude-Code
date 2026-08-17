@@ -74,6 +74,8 @@ export type ReplicationStatus = "new" | "replicated" | "failed-to-replicate" | "
 
 export interface Finding {
   id: string;
+  /** The discovery question that produced this finding; stable across scans of the same question. */
+  candidateId?: string;
   createdAt: string;
   evidenceClass: EvidenceClass;
   /** Replication/verification status. Populated by the replication ledger; defaults to "new". */

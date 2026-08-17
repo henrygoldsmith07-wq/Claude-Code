@@ -432,3 +432,43 @@ td {
   white-space: nowrap;
   width: 1px;
 }
+
+/* Insight history */
+.history-entry h3 {
+  margin: 0 0 0.25rem;
+}
+
+.history-episodes {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.history-episodes li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+
+.history-episodes time {
+  font-variant-numeric: tabular-nums;
+}
+
+.history-change {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.history-change--appeared,
+.history-change--strengthened {
+  color: var(--accent);
+}
+
+.history-change--weakened {
+  color: var(--warn);
+}
+
+.history-change--disappeared {
+  color: var(--muted);
+}

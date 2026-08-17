@@ -11,7 +11,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
-import type { Finding } from "../discovery/finding.js";
+import type { Finding, ReplicationStatus } from "../discovery/finding.js";
 import { FindingCard } from "./FindingCard.js";
 
 export type TabId = "insights" | "timeline" | "experiments" | "ask" | "sources";
@@ -27,6 +27,13 @@ const TABS: { id: TabId; label: string }[] = [
 export interface AppProps {
   pulse: Pulse;
 }
+
+const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
+  new: "New",
+  replicated: "Replicated",
+  "failed-to-replicate": "Failed to replicate",
+  "experimentally-supported": "Experimentally supported",
+};
 
 export function App({ pulse }: AppProps): React.JSX.Element {
   const [tab, setTab] = useState<TabId>("insights");
@@ -44,6 +51,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const recommendations = useMemo(() => pulse.recommendations(5), [pulse, revision]);
   const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision]);
   const quality = useMemo(() => pulse.quality(), [pulse, revision]);
+  const insightHistory = useMemo(() => pulse.insightHistory.history(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const onFeedback = useCallback(
@@ -133,6 +141,44 @@ export function App({ pulse }: AppProps): React.JSX.Element {
                   onFeedback={onFeedback}
                   onDesignExperiment={onDesignExperiment}
                 />
+              ))
+            )}
+
+            <h2>Insight history</h2>
+            <p className="muted">
+              {insightHistory.length} insight(s) tracked across {pulse.insightHistory.size()} scan(s). Each scan is a
+              point-in-time photograph of the evidence; insights are matched across scans by the relationship they
+              describe, so this shows how each one grew or faded as your data accumulated.
+            </p>
+            {insightHistory.length === 0 ? (
+              <p className="empty">
+                No insight has been seen across more than one scan yet — history builds as Pulse rescans your data.
+              </p>
+            ) : (
+              insightHistory.map((entry) => (
+                <article key={entry.id} className="card history-entry">
+                  <h3>{entry.title}</h3>
+                  <p className="muted">
+                    First seen {entry.firstSeenAt.slice(0, 10)} · last seen {entry.lastSeenAt.slice(0, 10)} · present
+                    in {entry.appearances} of {entry.episodes.length} scan(s) · {REPLICATION_LABEL[entry.latestStatus]}
+                  </p>
+                  <ul className="history-episodes">
+                    {entry.episodes.map((episode, index) => (
+                      <li key={`${episode.scanId}-${index}`}>
+                        <time>{episode.at.slice(0, 10)}</time>
+                        <span className={`history-change history-change--${episode.change}`}>{episode.change}</span>
+                        {episode.finding ? (
+                          <span className="muted">
+                            effect {episode.finding.effect.label} · {episode.finding.confidence.level} confidence · n=
+                            {episode.finding.sampleSize}
+                          </span>
+                        ) : (
+                          <span className="muted">{episode.note ?? "No longer meets the evidence bar"}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
               ))
             )}
 

@@ -172,6 +172,14 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("shows the insight history with each insight's journey across scans", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.getByRole("heading", { name: "Insight history" })).toBeTruthy();
+    expect(screen.getByText(/tracked across \d+ scan\(s\)/)).toBeTruthy();
+    expect(screen.getAllByText("appeared").length).toBeGreaterThan(0);
+    cleanup();
+  });
+
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");

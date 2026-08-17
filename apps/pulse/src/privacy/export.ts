@@ -20,6 +20,7 @@ import type { ExperimentDesign } from "../experiments/design.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
 import type { FeedbackEntry } from "../recommendations/feedback.js";
 import type { ReplicationRecord } from "../discovery/replication.js";
+import type { InsightHistorySnapshot } from "../history/insight-history.js";
 import type { RecommendationValue } from "../recommendations/value.js";
 
 export const EXPORT_FORMAT_VERSION = 1;
@@ -41,7 +42,9 @@ export interface PulseExport {
   feedback: FeedbackEntry[];
   replication: ReplicationRecord[];
   recommendationValue: RecommendationValue[];
+  insightHistory: InsightHistorySnapshot;
 }
+
 
 export interface ExportOptions {
   /** Include sources marked sensitive. Off by default, on purpose. */
@@ -56,7 +59,9 @@ export interface ExportOptions {
   feedback?: readonly FeedbackEntry[];
   replication?: readonly ReplicationRecord[];
   recommendationValue?: readonly RecommendationValue[];
+  insightHistory?: InsightHistorySnapshot;
 }
+
 
 export function buildExport(
   store: MemoryEventStore,
@@ -108,6 +113,7 @@ export function buildExport(
     feedback: [...(options.feedback ?? [])],
     replication: [...(options.replication ?? [])],
     recommendationValue: [...(options.recommendationValue ?? [])],
+    insightHistory: options.insightHistory ?? { version: 1, scans: [] },
   };
 }
 

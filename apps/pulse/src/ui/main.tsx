@@ -16,6 +16,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import { afterPaint, renderBootFailure } from "./boot.js";
 import { createSyntheticPulse } from "../synthetic/harness.js";
+import { addDays, localDayEnd } from "../events/time.js";
 import "./styles.css";
 
 function rootElement(): Element {
@@ -32,7 +33,16 @@ async function boot(): Promise<void> {
   // waits on a blank page for the whole boot.
   await afterPaint();
 
-  const { pulse } = await createSyntheticPulse({ days: 180 });
+  const { pulse, user } = await createSyntheticPulse({ days: 180 });
+
+  // Reconstruct the insight history as the data accumulated, so the history
+  // view shows the journey — insights appearing, strengthening and fading —
+  // rather than a single point-in-time photograph.
+  const timezone = user.timezone;
+  const throughDay = (dayIndex: number): string =>
+    new Date(localDayEnd(addDays(user.startDate, dayIndex), timezone)).toISOString();
+  pulse.discover({ through: throughDay(59) });
+  pulse.discover({ through: throughDay(119) });
   pulse.discover();
 
   createRoot(container).render(

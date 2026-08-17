@@ -54,6 +54,7 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | `timeseries/` | Trend (Theil-Sen + Mann-Kendall), baselines, anomalies, lag analysis, cross-app timeline |
 | `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading |
 | `discovery/` | Candidate generation, confounder detection and adjustment, the relationship scan |
+| `history/` | The persistent insight history — every scan snapshotted, and each insight's journey across scans |
 | `hypotheses/` | Hypothesis records and their status machine |
 | `experiments/` | Crossover / A-B / before-after design and analysis |
 | `recommendations/` | Evidence-weighted ranking and insight feedback |
@@ -97,6 +98,25 @@ on pure noise. Six defences, all tested:
 Findings are also checked for out-of-sample replication across a time split,
 and observational evidence is capped below "high" confidence however good the
 data is.
+
+## Insight history
+
+A discovery scan is a photograph of what the engine believes at one moment. The
+insight history keeps every scan and matches findings across scans by the
+relationship they describe (the same signature the replication ledger uses), so
+Pulse can show each insight's journey rather than only its current state:
+
+- **appeared** — the relationship first met the evidence bar
+- **strengthened / weakened** — the effect grew or shrank as data accumulated
+- **disappeared** — it stopped meeting the bar, with the scan's own rejection
+  reason attached when the log explains it
+- replication status — `new` → `replicated` → `experimentally-supported` /
+  `failed-to-replicate` as later scans and controlled experiments weigh in
+
+The history is durable: it persists through an adapter exactly like the event
+store, and per-source deletion scrubs every snapshot that drew on the deleted
+source. Identical rescans are ignored, so the history records change, not churn
+— the UI rescans on every render, and none of those re-scans are new evidence.
 
 ## Experiments
 

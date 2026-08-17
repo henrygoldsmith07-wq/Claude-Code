@@ -6,6 +6,7 @@ export * from "./metrics/index.js";
 export * from "./timeseries/index.js";
 export * from "./statistics/index.js";
 export * from "./discovery/index.js";
+export * from "./history/index.js";
 export * from "./hypotheses/index.js";
 export * from "./experiments/index.js";
 export * from "./recommendations/index.js";
