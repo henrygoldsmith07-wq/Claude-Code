@@ -6,6 +6,7 @@
  */
 
 import { Pulse } from "../pulse.js";
+import type { InsightHistoryAdapter } from "../history/insight-history.js";
 import { createArrayReader } from "../connectors/sdk.js";
 import { createReviseConnector, type ReviseRecord } from "../connectors/revise.js";
 import { createAriseConnector, type AriseRecord } from "../connectors/arise.js";
@@ -24,6 +25,8 @@ export interface HarnessOptions extends SyntheticOptions {
   includeWearable?: boolean;
   /** Fixed clock. Defaults to the day after the user's last generated day. */
   nowMs?: number;
+  /** Persists the insight history; without one the history lives for the process. */
+  historyAdapter?: InsightHistoryAdapter;
 }
 
 export interface Harness {
@@ -86,7 +89,11 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
   // A day after the last generated day, so freshness scoring is not penalised.
   const nowMs = options.nowMs ?? localDayStart(addDays(user.startDate, user.days), user.timezone) + 10 * 3_600_000;
 
-  const pulse = new Pulse({ timezone: user.timezone, now: () => nowMs });
+  const pulse = new Pulse({
+    timezone: user.timezone,
+    now: () => nowMs,
+    historyAdapter: options.historyAdapter,
+  });
 
   pulse.registerConnector(createReviseConnector(createArrayReader(user.revise, timestampOfRevise)));
   pulse.registerConnector(createAriseConnector(createArrayReader(user.arise, timestampOfArise)));

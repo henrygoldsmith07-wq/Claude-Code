@@ -17,6 +17,8 @@ import { App } from "./App.js";
 import { afterPaint, renderBootFailure } from "./boot.js";
 import { createSyntheticPulse } from "../synthetic/harness.js";
 import { addDays, localDayEnd } from "../events/time.js";
+import { createEncryptedBlobAdapter, createLocalStorageBlobStorage } from "../privacy/encryption.js";
+import type { InsightHistorySnapshot } from "../history/insight-history.js";
 import "./styles.css";
 
 function rootElement(): Element {
@@ -33,7 +35,20 @@ async function boot(): Promise<void> {
   // waits on a blank page for the whole boot.
   await afterPaint();
 
-  const { pulse, user } = await createSyntheticPulse({ days: 180 });
+  // The demo carries synthetic data only, so the at-rest key is a fixed demo
+  // passphrase — a real deployment would prompt for one, as with the event
+  // store. Encryption at rest is still exercised: what reaches localStorage
+  // is ciphertext, never the snapshots.
+  const historyAdapter = createEncryptedBlobAdapter<InsightHistorySnapshot>(
+    createLocalStorageBlobStorage("pulse.insight-history"),
+    "pulse-demo-synthetic-only",
+  );
+  const { pulse, user } = await createSyntheticPulse({ days: 180, historyAdapter });
+
+  // Restore the persisted insight history before the scans below run, so a
+  // reload replays them against what is already recorded rather than growing
+  // the history with duplicates.
+  await pulse.load();
 
   // Reconstruct the insight history as the data accumulated, so the history
   // view shows the journey — insights appearing, strengthening and fading —

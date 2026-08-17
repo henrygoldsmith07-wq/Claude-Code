@@ -14,10 +14,12 @@ import { buildExport, deleteEverything, deleteRange, deleteSource, toCsv, toNdjs
 import { assertNoRawContent, prepareForAi, redactEvent, summariseForTelemetry } from "../src/privacy/redaction.js";
 import {
   createEncryptedAdapter,
+  createEncryptedBlobAdapter,
   createMemoryBlobStorage,
   decryptJson,
   encryptJson,
 } from "../src/privacy/encryption.js";
+import type { InsightHistorySnapshot } from "../src/history/insight-history.js";
 import { normaliseEvent, type NormaliseContext } from "../src/events/normalise.js";
 import { createArrayReader } from "../src/connectors/sdk.js";
 import { createReviseConnector } from "../src/connectors/revise.js";
@@ -327,5 +329,41 @@ describe("encryption at rest", () => {
 
     const second = new MemoryEventStore(createEncryptedAdapter(storage, "wrong"));
     await expect(second.load()).rejects.toThrow(/Could not decrypt/);
+  });
+
+  it("stores the insight history encrypted and rehydrates it transparently", async () => {
+    const storage = createMemoryBlobStorage();
+    const snapshot: InsightHistorySnapshot = {
+      version: 1,
+      scans: [
+        {
+          at: "2025-07-01T00:00:00.000Z",
+          scanId: "scan-abcdef123456",
+          eventCount: 100,
+          findings: [],
+          rejected: [],
+          totals: { findings: 0, rejected: 40, familySize: 40, familyCount: 3, expectedFalseDiscoveries: 0.2 },
+        },
+      ],
+    };
+
+    await createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "passphrase").save(snapshot);
+
+    // What sits on disk must not contain the plaintext.
+    const raw = await storage.read();
+    expect(raw).toBeTruthy();
+    expect(raw!).not.toMatch(/scan-abcdef123456/);
+
+    const restored = await createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "passphrase").load();
+    expect(restored).toEqual(snapshot);
+  });
+
+  it("cannot read the insight history back with the wrong passphrase", async () => {
+    const storage = createMemoryBlobStorage();
+    await createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "right").save({ version: 1, scans: [] });
+
+    await expect(createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "wrong").load()).rejects.toThrow(
+      /Could not decrypt/,
+    );
   });
 });

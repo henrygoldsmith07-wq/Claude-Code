@@ -125,9 +125,40 @@ export function createMemoryBlobStorage(): BlobStorage {
   };
 }
 
+export interface EncryptedAdapter<T> {
+  load(): Promise<T | null>;
+  save(snapshot: T): Promise<void>;
+}
+
+/**
+ * Wraps any blob storage in transparent encryption for an arbitrary snapshot
+ * type. `createEncryptedAdapter` is the event store's form of this; the
+ * generic form encrypts anything else — e.g. the insight history — the same
+ * way, so every kind of persisted data shares one on-disk format.
+ */
+export function createEncryptedBlobAdapter<T>(storage: BlobStorage, passphrase: string): EncryptedAdapter<T> {
+  return {
+    async load() {
+      const raw = await storage.read();
+      if (!raw) return null;
+      const blob = JSON.parse(raw) as EncryptedBlob;
+      return decryptJson<T>(blob, passphrase);
+    },
+    async save(snapshot: T) {
+      const blob = await encryptJson(snapshot, passphrase);
+      await storage.write(JSON.stringify(blob));
+    },
+  };
+}
+
 /**
  * Wraps any blob storage in transparent encryption, producing a
  * `PersistenceAdapter` the event store can use unchanged.
+ *
+ * Implemented inline rather than through `createEncryptedBlobAdapter` because
+ * the event snapshot type is asymmetric — it saves `PulseEvent`s but loads
+ * `AnyStoredEvent`s awaiting migration — and that asymmetry is exactly what
+ * the store's interface describes.
  */
 export function createEncryptedAdapter(storage: BlobStorage, passphrase: string): PersistenceAdapter {
   return {

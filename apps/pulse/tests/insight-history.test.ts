@@ -227,6 +227,23 @@ describe("InsightHistory ledger", () => {
     ]);
   });
 
+  it("ignores a scan from an earlier session when a reload replays it", async () => {
+    const adapter = createMemoryInsightHistoryAdapter();
+    const first = new InsightHistory(adapter);
+    first.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    first.recordScan(scan("2025-08-01T00:00:00.000Z", [finding({ id: "f2", sampleSize: 70 })]));
+    await first.persist();
+
+    // A reload starts a fresh ledger from the adapter and replays the same
+    // scans (the demo boot does exactly this). The history must not grow.
+    const second = new InsightHistory(adapter);
+    await second.load();
+    second.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    second.recordScan(scan("2025-08-01T00:00:00.000Z", [finding({ id: "f2", sampleSize: 70 })]));
+    expect(second.size()).toBe(2);
+    expect(second.history()[0]!.appearances).toBe(2);
+  });
+
   it("carries the latest replication status into the entry", () => {
     const history = new InsightHistory();
     history.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1", replicationStatus: "new" })]));
@@ -334,5 +351,26 @@ describe("Pulse integration", () => {
     const exported = pulse.export();
     expect(exported.insightHistory.version).toBe(1);
     expect(exported.insightHistory.scans.length).toBe(pulse.insightHistory.size());
+  });
+
+  it("rehydrates the history through Pulse.load() from the same adapter", async () => {
+    const adapter = createMemoryInsightHistoryAdapter();
+    const { createSyntheticPulse } = await import("../src/synthetic/harness.js");
+    const { pulse: first } = await createSyntheticPulse({
+      days: 180,
+      seed: "discovery-suite",
+      historyAdapter: adapter,
+    });
+    first.discover();
+    expect(first.insightHistory.size()).toBe(1);
+
+    const { pulse: second } = await createSyntheticPulse({
+      days: 180,
+      seed: "discovery-suite",
+      historyAdapter: adapter,
+    });
+    await second.load();
+    expect(second.insightHistory.size()).toBe(1);
+    expect(second.insightHistory.listScans()[0]!.eventCount).toBeGreaterThan(0);
   });
 });

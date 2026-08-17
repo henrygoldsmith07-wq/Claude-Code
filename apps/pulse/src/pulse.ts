@@ -66,6 +66,7 @@ export class Pulse {
   private readonly now: () => number;
   private readonly expectedCadence: Record<string, number>;
   private cachedFindings: Finding[] = [];
+  private historyPersistQueue: Promise<void> = Promise.resolve();
 
   constructor(options: PulseOptions = {}) {
     this.timezone = options.timezone ?? "UTC";
@@ -217,9 +218,20 @@ export class Pulse {
         expectedFalseDiscoveries: report.expectedFalseDiscoveries,
       },
     });
-    void this.insightHistory.persist().catch((error: unknown) => {
-      console.error("Pulse: failed to persist insight history", error);
-    });
+    this.persistInsightHistory();
+  }
+
+  /**
+   * Writes the insight history through a serial queue. Every scan triggers a
+   * persist and encryption is genuinely async, so without the queue two writes
+   * could complete out of order and leave an older snapshot on disk.
+   */
+  private persistInsightHistory(): void {
+    this.historyPersistQueue = this.historyPersistQueue
+      .then(() => this.insightHistory.persist())
+      .catch((error: unknown) => {
+        console.error("Pulse: failed to persist insight history", error);
+      });
   }
 
   findings(): Finding[] {
@@ -392,7 +404,8 @@ export class Pulse {
     this.replication.prune(new Set(this.cachedFindings.map((finding) => finding.id)));
     // A finding built on deleted data is unverifiable; so is its history.
     this.insightHistory.pruneBySources([source]);
-    await this.insightHistory.persist();
+    this.persistInsightHistory();
+    await this.historyPersistQueue;
     this.syncReports.delete(source);
     return report;
   }

@@ -16,6 +16,7 @@ import axe from "axe-core";
 import { App } from "../src/ui/App.js";
 import { FindingCard } from "../src/ui/FindingCard.js";
 import { afterPaint, renderBootFailure } from "../src/ui/boot.js";
+import { createLocalStorageBlobStorage } from "../src/privacy/encryption.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import type { Pulse } from "../src/pulse.js";
 import type { Finding } from "../src/discovery/finding.js";
@@ -310,5 +311,28 @@ describe("the deployed page survives a slow or failing boot", () => {
 
     expect(order).toEqual(["frame", "sync", "resumed"]);
     frames.mockRestore();
+  });
+});
+
+describe("localStorage-backed blob storage", () => {
+  it("persists a value across reads in the browser", async () => {
+    const key = `pulse.test.${Math.random().toString(36).slice(2)}`;
+    try {
+      const storage = createLocalStorageBlobStorage(key);
+      await storage.write("encrypted-blob-content");
+      expect(await createLocalStorageBlobStorage(key).read()).toBe("encrypted-blob-content");
+      expect(globalThis.localStorage.getItem(key)).toBe("encrypted-blob-content");
+    } finally {
+      globalThis.localStorage?.removeItem(key);
+    }
+  });
+
+  it("returns null before anything has been written", async () => {
+    const key = `pulse.test.${Math.random().toString(36).slice(2)}`;
+    try {
+      expect(await createLocalStorageBlobStorage(key).read()).toBeNull();
+    } finally {
+      globalThis.localStorage?.removeItem(key);
+    }
   });
 });

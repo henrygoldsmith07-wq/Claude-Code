@@ -114,9 +114,11 @@ Pulse can show each insight's journey rather than only its current state:
   `failed-to-replicate` as later scans and controlled experiments weigh in
 
 The history is durable: it persists through an adapter exactly like the event
-store, and per-source deletion scrubs every snapshot that drew on the deleted
-source. Identical rescans are ignored, so the history records change, not churn
-— the UI rescans on every render, and none of those re-scans are new evidence.
+store (the demo keeps it in localStorage, encrypted at rest), and per-source
+deletion scrubs every snapshot that drew on the deleted source. Identical
+rescans are ignored, so the history records change, not churn — the UI rescans
+on every render and a reload replays the whole boot, and neither is new
+evidence.
 
 ## Experiments
 

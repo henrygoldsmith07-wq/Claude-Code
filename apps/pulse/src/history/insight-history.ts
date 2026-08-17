@@ -134,15 +134,15 @@ export class InsightHistory {
   }
 
   /**
-   * Appends a scan. A scan identical to the previous one is ignored: the
+   * Appends a scan. A scan identical to any already recorded is ignored: the
    * engine is deterministic, so the same data is the same observation, and
-   * recording it again would turn the history into churn — the UI rescans on
-   * every render, and none of those re-scans are new evidence.
+   * recording it again would turn the history into churn. Two sources of
+   * re-scans have to be absorbed: the UI rescans on every render, and a
+   * reload replays the whole boot — neither is new evidence.
    */
   recordScan(input: RecordScanInput): void {
     const contentHash = contentHashOf(input.eventCount, input.findings);
-    const last = this.scans[this.scans.length - 1];
-    if (last && contentHashOf(last.eventCount, last.findings) === contentHash) return;
+    if (this.scans.some((scan) => contentHashOf(scan.eventCount, scan.findings) === contentHash)) return;
 
     this.scans.push({
       at: input.at,
