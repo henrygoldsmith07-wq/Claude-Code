@@ -60,6 +60,17 @@
    "description": "Hold-hotkey speech-to-text typer that pastes the transcript into the focused window."
   },
   {
+   "id": "ecosystem-shell",
+   "path": "apps/ecosystem-shell",
+   "site": null,
+   "name": "Ecosystem Shell",
+   "lifecycle": "active",
+   "kind": "infrastructure",
+   "stack": "Static HTML + Vercel rewrites",
+   "owner": "apps/ecosystem-shell/README.md",
+   "description": "Serves every app from one origin so Pulse can read the localStorage they write; routes each path prefix to that app's own Vercel project."
+  },
+  {
    "id": "emotion-tracker",
    "path": "apps/emotion-tracker",
    "site": "apps/reflect-site",

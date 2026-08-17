@@ -18,6 +18,10 @@ const CSP = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Set by the one-origin shell (apps/ecosystem-shell) to serve this app under
+  // a path prefix. Unset means "serve at the root", which is exactly how this
+  // app deploys on its own today, so leaving the variable alone changes nothing.
+  basePath: process.env.APP_BASE_PATH || "",
   poweredByHeader: false,
   async headers() {
     return [
