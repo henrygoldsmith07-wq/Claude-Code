@@ -8,11 +8,14 @@
  * asserted by convention.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import axe from "axe-core";
 import { App } from "../src/ui/App.js";
 import { FindingCard } from "../src/ui/FindingCard.js";
+import { afterPaint, renderBootFailure } from "../src/ui/boot.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import type { Pulse } from "../src/pulse.js";
 import type { Finding } from "../src/discovery/finding.js";
@@ -245,5 +248,59 @@ describe("the app shell", () => {
     expect(claims).toEqual([]);
     expect(body).toMatch(/not a cause|does not establish|association/i);
     cleanup();
+  });
+});
+
+describe("the deployed page survives a slow or failing boot", () => {
+  it("ships a fallback inside #root so the page is never blank before React mounts", () => {
+    // jsdom serves modules over http, so import.meta.url is not a file URL;
+    // vitest runs with the app directory as cwd.
+    const html = readFileSync(path.join(process.cwd(), "index.html"), "utf8");
+    const root = html.match(/<div id="root">([\s\S]*?)<\/div>\s*<\/div>/);
+    expect(root, "index.html must keep a fallback inside #root").not.toBeNull();
+    expect(root?.[1]).toMatch(/role="status"/);
+    expect(root?.[1]).toMatch(/Pulse/);
+    // Boot markup is worthless if it needs the bundle to paint.
+    expect(root?.[1]).not.toMatch(/<script/);
+  });
+
+  it("states a failed boot on the page instead of leaving the fallback up", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<div class="boot" role="status"><p>Generating a synthetic person</p></div>';
+
+    renderBootFailure(container, new Error("connector registry is empty"));
+
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(container.textContent).toContain("Pulse could not start");
+    expect(container.textContent).toContain("connector registry is empty");
+    expect(container.textContent).not.toContain("Generating a synthetic person");
+    // Nothing left the browser, and the reader should be told so.
+    expect(container.textContent).toMatch(/nothing was sent anywhere/);
+  });
+
+  it("reports a non-Error rejection as text rather than rendering it as markup", () => {
+    const container = document.createElement("div");
+
+    renderBootFailure(container, '<img src=x onerror="alert(1)">');
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent).toContain('<img src=x onerror="alert(1)">');
+  });
+
+  it("yields to a paint before the caller does its expensive work", async () => {
+    const order: string[] = [];
+    const frames = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      order.push("frame");
+      callback(0);
+      return 0;
+    });
+
+    const waited = afterPaint().then(() => order.push("resumed"));
+    order.push("sync");
+    await waited;
+
+    expect(order).toEqual(["frame", "sync", "resumed"]);
+    frames.mockRestore();
   });
 });

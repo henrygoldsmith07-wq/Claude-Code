@@ -49,6 +49,43 @@ body {
   padding: 1.5rem 1rem 4rem;
 }
 
+/*
+ * The pre-React boot state, and the panel shown if booting fails. Both live in
+ * the stylesheet rather than inline in index.html so they inherit the same
+ * tokens as the app; the production build links this file from <head>, so the
+ * fallback is styled by the time it paints.
+ */
+.boot {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+}
+
+.boot h1 {
+  margin: 0.6rem 0 0;
+  font-size: 1.75rem;
+  letter-spacing: -0.01em;
+}
+
+.boot p {
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+
+.boot__logo {
+  border-radius: 8px;
+}
+
+.boot--failed {
+  border-left: 4px solid var(--warn);
+  padding-left: 0.8rem;
+}
+
+.boot__reason {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
 .app__header h1 {
   margin: 0;
   font-size: 1.75rem;
