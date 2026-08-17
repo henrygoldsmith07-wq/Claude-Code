@@ -31,14 +31,6 @@
       "destination": "https://claude-code-henrygoldsmith07-9188s-projects.vercel.app/:path*"
     },
     {
-      "source": "/forq",
-      "destination": "https://forq-henrygoldsmith07-9188s-projects.vercel.app/forq"
-    },
-    {
-      "source": "/forq/:path*",
-      "destination": "https://forq-henrygoldsmith07-9188s-projects.vercel.app/forq/:path*"
-    },
-    {
       "source": "/reflect",
       "destination": "https://claude-code-y8k6-henrygoldsmith07-9188s-projects.vercel.app/reflect"
     },

@@ -21,7 +21,6 @@ one site.
 | `/pulse` | apps/pulse | `claude-code-xuc7` | stripped |
 | `/arise` | apps/arise | `arise-fitness` | stripped |
 | `/french` | apps/french-practice | `claude-code` | stripped |
-| `/forq` | apps/food-shopping-os | `forq` | preserved |
 | `/reflect` | apps/emotion-tracker | `claude-code-y8k6` | preserved |
 | `/revise` | apps/revise | `claude-code-ybbm` | preserved |
 | `/rapport` | apps/rapport | `rapport` | preserved |
@@ -37,8 +36,8 @@ prefix and must not receive it, so `/arise/:path*` maps to the upstream's
 `basePath` either.
 
 **Preserved, for the Next apps.** Next resolves assets from `basePath`, and with
-`basePath: '/forq'` the deployment genuinely serves `/forq/…`. Strip the prefix
-there and every asset 404s.
+`basePath: '/reflect'` the deployment genuinely serves `/reflect/…`. Strip the
+prefix there and every asset 404s.
 
 ## Deploying, in this order
 
@@ -51,7 +50,6 @@ The order is not a preference. Getting it wrong takes the apps down.
 
    | Vercel project | `APP_BASE_PATH` |
    |----------------|-----------------|
-   | `forq` | `/forq` |
    | `claude-code-y8k6` | `/reflect` |
    | `claude-code-ybbm` | `/revise` |
    | `rapport` | `/rapport` |
@@ -63,8 +61,27 @@ the rollback — there is no window in which the repo is committed to a prefix t
 shell is not yet serving.
 
 Once a Next app has a `basePath`, its standalone URL serves at
-`…vercel.app/forq/` rather than `…vercel.app/`. That is the cost of one origin,
+`…vercel.app/reflect/` rather than `…vercel.app/`. That is the cost of one origin,
 and it is why the switch is an environment variable rather than a commit.
+
+## Forq is not routed yet
+
+`apps/food-shopping-os` is deliberately absent from the table above. Its test
+suite is already failing on `main` — a coupons sheet renders two inputs both
+labelled "Applies to", and a "Add price alert" control its tests still look for
+is gone — and none of that is visible day to day because the workflow only runs
+on changes under `apps/food-shopping-os/**`, which nothing had touched for days.
+
+Adding a `basePath` there means touching that path, which wakes those failures
+up, and fixing an unrelated app's UI drift is not this change's job. Routing
+`/forq` at an app that still resolves its assets from the root would 404 every
+one of them, so the route is left out rather than shipped broken.
+
+To finish it later: fix that suite, add `basePath: process.env.APP_BASE_PATH || ''`
+to `apps/food-shopping-os/next.config.mjs`, restore the `/forq` rewrites here and
+the card on the landing page, then set `APP_BASE_PATH=/forq` on the `forq`
+project. Pulse's Forq connector already exists and starts reading the moment the
+app shares this origin.
 
 ## What this does not solve
 

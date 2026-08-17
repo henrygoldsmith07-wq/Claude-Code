@@ -6,9 +6,6 @@ const securityHeaders = [
 ];
 
 export default {
-  // Set by the one-origin shell (apps/ecosystem-shell) to serve this app
-  // under a path prefix. Unset means serve at the root, exactly as today.
-  basePath: process.env.APP_BASE_PATH || '',
   poweredByHeader: false,
   outputFileTracingRoot: process.cwd(),
   async headers() {
