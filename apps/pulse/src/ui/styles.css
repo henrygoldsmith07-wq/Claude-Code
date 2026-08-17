@@ -218,6 +218,11 @@ h4 {
   color: var(--ok);
 }
 
+.pill--replication-contradicted {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
 .finding__statement {
   font-size: 1.02rem;
   margin: 0 0 0.6rem;
@@ -245,6 +250,13 @@ h4 {
 .finding__caveat {
   border-left: 3px solid var(--warn);
   color: var(--muted);
+  margin: 0 0 0.9rem;
+  padding-left: 0.7rem;
+}
+
+.finding__contradiction {
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
   margin: 0 0 0.9rem;
   padding-left: 0.7rem;
 }

@@ -34,6 +34,7 @@ const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
   replicated: "Replicated",
   "failed-to-replicate": "Failed to replicate",
   "experimentally-supported": "Experimentally supported",
+  contradicted: "Contradicted",
 };
 
 export interface FindingCardProps {
@@ -62,6 +63,12 @@ export function FindingCard({ finding, onFeedback, onDesignExperiment }: Finding
         {finding.title}
       </h3>
       <p className="finding__statement">{finding.statement}</p>
+
+      {finding.contradictionNote ? (
+        <p className="finding__contradiction" role="alert">
+          <strong>Contradicted.</strong> {finding.contradictionNote}
+        </p>
+      ) : null}
 
       <p className={`finding__uncertainty finding__uncertainty--${uncertainty.tone}`}>
         <strong>{uncertainty.label}.</strong> {uncertainty.sentence}

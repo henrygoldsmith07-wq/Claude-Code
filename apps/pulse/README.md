@@ -98,6 +98,16 @@ Findings are also checked for out-of-sample replication across a time split,
 and observational evidence is capped below "high" confidence however good the
 data is.
 
+7. **Contradictory evidence is tracked, not dropped.** The replication
+   signature includes direction, so a later discovery of the same pair
+   pointing the *other* way would otherwise look like an unrelated new claim.
+   A contradiction ledger catches it: every sighting of a conflicted pair is
+   recorded, and every finding on either side is marked `contradicted` —
+   overriding any replication status it had — with a note naming the
+   conflicting sighting. A claim seen pointing both ways is suspect whichever
+   side it was on, and the ledger keeps that conflict auditable and in the
+   export until one side's data is gone.
+
 ## Experiments
 
 Pulse turns a strong association into a structured experiment: hypothesis,

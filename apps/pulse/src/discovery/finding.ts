@@ -69,15 +69,23 @@ export interface StatisticalTestRef {
  *   replicated             — the same association showed up again in fresh data
  *   failed-to-replicate    — a controlled experiment did not reproduce it
  *   experimentally-supported — a controlled experiment you ran supported it
+ *   contradicted           — the same relationship has since been observed pointing the other way
  */
-export type ReplicationStatus = "new" | "replicated" | "failed-to-replicate" | "experimentally-supported";
+export type ReplicationStatus =
+  | "new"
+  | "replicated"
+  | "failed-to-replicate"
+  | "experimentally-supported"
+  | "contradicted";
 
 export interface Finding {
   id: string;
   createdAt: string;
   evidenceClass: EvidenceClass;
-  /** Replication/verification status. Populated by the replication ledger; defaults to "new". */
+  /** Replication/verification status. Populated by the replication and contradiction ledgers; defaults to "new". */
   replicationStatus?: ReplicationStatus;
+  /** Populated by the contradiction ledger when this claim has been observed pointing both ways. */
+  contradictionNote?: string;
   /** Short headline, e.g. "Study accuracy is higher after exercise". */
   title: string;
   /** Full sentence with the numbers in it. Generated deterministically. */

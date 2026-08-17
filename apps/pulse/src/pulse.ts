@@ -21,6 +21,7 @@ import type { MetricRegistry } from "./metrics/registry.js";
 import { scoreAll, type QualityContext, type SourceQuality } from "./quality/score.js";
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
 import { ReplicationLedger } from "./discovery/replication.js";
+import { ContradictionLedger } from "./discovery/contradictions.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
@@ -51,6 +52,7 @@ export class Pulse {
   readonly feedback: FeedbackStore;
   readonly hypotheses: HypothesisTracker;
   readonly replication: ReplicationLedger;
+  readonly contradictions: ContradictionLedger;
   readonly value: RecommendationValueTracker;
   readonly timezone: string;
 
@@ -72,6 +74,7 @@ export class Pulse {
     this.feedback = new FeedbackStore(this.now);
     this.hypotheses = new HypothesisTracker(this.now);
     this.replication = new ReplicationLedger(this.now);
+    this.contradictions = new ContradictionLedger(this.now);
     this.value = new RecommendationValueTracker(this.now);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
@@ -175,12 +178,39 @@ export class Pulse {
       ...(options.fdrLevel !== undefined ? { fdrLevel: options.fdrLevel } : {}),
     });
     report.findings = this.replication.annotate(report.findings);
+    // Contradictions override replication status: a claim seen pointing both
+    // ways is suspect, however often one side of it has been replicated.
+    report.findings = this.contradictions.annotate(report.findings);
     this.cachedFindings = report.findings;
+    this.pauseContradictedHypotheses();
     return report;
   }
 
   findings(): Finding[] {
     return this.cachedFindings;
+  }
+
+  /**
+   * A finding that has been seen pointing both ways withdraws the hypotheses
+   * derived from it: acting on conflicted evidence is how a personal tool does
+   * harm. The withdrawal is reversible — a contradicted hypothesis may still
+   * be tested, and a completed experiment moves it out of that state.
+   */
+  private pauseContradictedHypotheses(): void {
+    const contradictedFindingIds = new Set(
+      this.cachedFindings
+        .filter((finding) => finding.replicationStatus === "contradicted")
+        .map((finding) => finding.id),
+    );
+    for (const hypothesis of this.hypotheses.list()) {
+      if (!hypothesis.originFindingId || !contradictedFindingIds.has(hypothesis.originFindingId)) continue;
+      if (hypothesis.status === "contradicted" || hypothesis.status === "abandoned") continue;
+      this.hypotheses.transition(
+        hypothesis.id,
+        "contradicted",
+        `The originating finding (${hypothesis.originFindingId}) has been observed pointing both ways; the claim is withdrawn until an experiment settles it`,
+      );
+    }
   }
 
   // --- HYPOTHESISE / EXPERIMENT -----------------------------------------
@@ -230,7 +260,9 @@ export class Pulse {
     });
     this.experimentResults.set(designId, result);
 
-    if (hypothesis && hypothesis.status === "testing") {
+    // A contradicted hypothesis is still allowed to run its experiment: a
+    // controlled test is exactly what settles a conflicted observational claim.
+    if (hypothesis && (hypothesis.status === "testing" || hypothesis.status === "contradicted")) {
       const next =
         result.verdict === "supported" ? "supported" : result.verdict === "refuted" ? "refuted" : "inconclusive";
       this.hypotheses.transition(hypothesis.id, next, result.summary);
@@ -333,6 +365,7 @@ export class Pulse {
       experimentResults: this.experimentResultsList(),
       feedback: this.feedback.list(),
       replication: this.replication.list(),
+      contradictions: this.contradictions.list(),
       recommendationValue: this.value.list(),
     });
   }
@@ -345,7 +378,9 @@ export class Pulse {
     }, this.now);
     const invalidated = new Set(report.invalidatedFindings);
     this.cachedFindings = this.cachedFindings.filter((finding) => !invalidated.has(finding.id));
-    this.replication.prune(new Set(this.cachedFindings.map((finding) => finding.id)));
+    const keepFindingIds = new Set(this.cachedFindings.map((finding) => finding.id));
+    this.replication.prune(keepFindingIds);
+    this.contradictions.prune(keepFindingIds);
     this.syncReports.delete(source);
     return report;
   }
