@@ -67,17 +67,25 @@ and it is why the switch is an environment variable rather than a commit.
 ## Forq is not routed yet
 
 `apps/food-shopping-os` is deliberately absent from the table above. Its test
-suite is already failing on `main` — a coupons sheet renders two inputs both
-labelled "Applies to", and a "Add price alert" control its tests still look for
-is gone — and none of that is visible day to day because the workflow only runs
-on changes under `apps/food-shopping-os/**`, which nothing had touched for days.
+suite is already failing on `main`, and none of that is visible day to day
+because the workflow only runs on changes under `apps/food-shopping-os/**`,
+which nothing had touched for days.
+
+The suite stops at the first failure, `tests/typography.test.js`: `src/le-studio.css`
+carries `font-size: 12px`, and that test scans every CSS file under `src/` for
+absolute type. The fix is not to edit that file — it is generated, and its own
+header says so — but to change the source theme and run `scripts/sync-theme.sh`
+to propagate it. Behind that failure are two more, from UI the tests have drifted
+away from: a coupons sheet renders two inputs both labelled "Applies to", and an
+"Add price alert" control the tests still look for is gone.
 
 Adding a `basePath` there means touching that path, which wakes those failures
 up, and fixing an unrelated app's UI drift is not this change's job. Routing
 `/forq` at an app that still resolves its assets from the root would 404 every
 one of them, so the route is left out rather than shipped broken.
 
-To finish it later: fix that suite, add `basePath: process.env.APP_BASE_PATH || ''`
+To finish it later: fix that suite (the theme file first, then the two drifted
+tests), add `basePath: process.env.APP_BASE_PATH || ''`
 to `apps/food-shopping-os/next.config.mjs`, restore the `/forq` rewrites here and
 the card on the landing page, then set `APP_BASE_PATH=/forq` on the `forq`
 project. Pulse's Forq connector already exists and starts reading the moment the
