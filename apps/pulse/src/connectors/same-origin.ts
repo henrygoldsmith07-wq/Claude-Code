@@ -47,8 +47,17 @@ export interface SameOriginReaderOptions<TRecord> {
   /**
    * Whether the user has opted this source in. Read from the app's own flag so
    * there is one source of truth for consent, not two that can disagree.
+   *
+   * Receives the parsed contents of `consentKey` when one is given, otherwise
+   * the parsed contents of `key`.
    */
   consent?(state: unknown): boolean;
+  /**
+   * Where the opt-in lives, when the app keeps it apart from its data. Reflect
+   * does: entries sit in `reflectEntries` and the flag in `reflectPulseOptIn`.
+   * Naming it separately keeps every key Pulse touches explicit.
+   */
+  consentKey?: string;
   /** Defaults to the real `localStorage` when one exists. */
   storage?: StorageLike | null;
   /** Human-readable source name for probe messages. */
@@ -92,8 +101,26 @@ function loadRecords<TRecord>(options: SameOriginReaderOptions<TRecord>): ReadSt
     return { records: [], problem: `${options.key} is not valid JSON.` };
   }
 
-  if (options.consent && !options.consent(state)) {
-    return { records: [], problem: "Not connected — turn Pulse on in the source app." };
+  if (options.consent) {
+    // A flag kept in another key is read on its own. An unreadable or absent
+    // flag is "withheld": consent has to be found, never assumed.
+    let consentState: unknown = state;
+    if (options.consentKey !== undefined) {
+      try {
+        const flag = storage.getItem(options.consentKey);
+        consentState = flag === null ? null : (JSON.parse(flag) as unknown);
+      } catch {
+        // Not JSON is fine — plenty of apps store a bare "1".
+        try {
+          consentState = storage.getItem(options.consentKey);
+        } catch {
+          consentState = null;
+        }
+      }
+    }
+    if (!options.consent(consentState)) {
+      return { records: [], problem: "Not connected — turn Pulse on in the source app." };
+    }
   }
 
   let selected: readonly TRecord[];

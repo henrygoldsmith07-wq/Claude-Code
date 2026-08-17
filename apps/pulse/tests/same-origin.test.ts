@@ -15,6 +15,18 @@ import {
   selectAriseRecords,
 } from "../src/connectors/arise.js";
 import {
+  FORQ_STORAGE_KEY,
+  createForqSameOriginConnector,
+  selectForqRecords,
+} from "../src/connectors/forq.js";
+import {
+  REFLECT_CONSENT_KEY,
+  REFLECT_STORAGE_KEY,
+  createReflectSameOriginConnector,
+  reflectConsentGranted,
+  selectReflectRecords,
+} from "../src/connectors/reflect.js";
+import {
   createSameOriginReader,
   subscribeToSameOriginSource,
   type StorageLike,
@@ -288,5 +300,151 @@ describe("staying live when the other app writes", () => {
     subscribeToSameOriginSource("k", () => {}, { target })();
     expect(removed).toEqual(["storage"]);
     expect(() => subscribeToSameOriginSource("k", () => {}, { target: null })()).not.toThrow();
+  });
+});
+
+describe("Reflect: the consent flag lives in a different key from the data", () => {
+  const entry = (over: Record<string, unknown> = {}) => ({
+    id: "e1",
+    createdAt: "2026-03-02T21:15:00.000Z",
+    title: "A hard conversation",
+    status: "complete",
+    messages: [
+      { role: "user", content: "three words here" },
+      { role: "assistant", content: "two more" },
+    ],
+    summary: { coreEmotion: "frustration" },
+    ...over,
+  });
+
+  const reflectStorage = (entries: unknown, flag: string | null): StorageLike => ({
+    getItem: (key) => {
+      if (key === REFLECT_STORAGE_KEY) return JSON.stringify(entries);
+      if (key === REFLECT_CONSENT_KEY) return flag;
+      return null;
+    },
+  });
+
+  it("reads nothing until Reflect's own opt-in is set", async () => {
+    const off = createReflectSameOriginConnector({ storage: reflectStorage([entry()], null) });
+    expect((await off.fetch(syncRequest())).records).toHaveLength(0);
+
+    const on = createReflectSameOriginConnector({ storage: reflectStorage([entry()], "1") });
+    expect((await on.fetch(syncRequest())).records).toHaveLength(1);
+  });
+
+  it("treats any value other than the app's own \"1\" as withheld", () => {
+    expect(reflectConsentGranted("1")).toBe(true);
+    expect(reflectConsentGranted("0")).toBe(false);
+    expect(reflectConsentGranted("true")).toBe(false);
+    expect(reflectConsentGranted(null)).toBe(false);
+    expect(reflectConsentGranted(undefined)).toBe(false);
+  });
+
+  it("counts words and keeps the text out of the record entirely", () => {
+    const [record] = selectReflectRecords([entry()]);
+    expect(record).toMatchObject({ id: "e1", wordCount: 5, tag: "frustration" });
+    // The promise in the `entry-shape` scope: nothing carries the content.
+    expect(JSON.stringify(record)).not.toMatch(/three words here|two more/);
+  });
+
+  it("leaves the four ratings off, because Reflect does not record them", () => {
+    const [record] = selectReflectRecords([entry()]);
+    for (const field of ["mood", "energy", "stress", "clarity"]) {
+      expect(record).not.toHaveProperty(field);
+    }
+  });
+
+  it("reports an unresolved follow-up as unknown rather than as not done", () => {
+    const unresolved = selectReflectRecords([entry()])[0];
+    expect(unresolved).not.toHaveProperty("followUpCompleted");
+
+    const resolved = selectReflectRecords([
+      entry({ longitudinalReview: { assumptionVerdict: "held" } }),
+    ])[0];
+    expect(resolved).toMatchObject({ followUpCompleted: true });
+  });
+
+  it("skips entries with no id or timestamp, and a shape it does not recognise", () => {
+    expect(selectReflectRecords([entry(), { createdAt: "2026-03-02T21:15:00.000Z" }, { id: "x" }])).toHaveLength(1);
+    expect(selectReflectRecords({ entries: [] })).toEqual([]);
+    expect(selectReflectRecords(null)).toEqual([]);
+  });
+
+  it("marks every event sensitive and requires its own permission", async () => {
+    const connector = createReflectSameOriginConnector({ storage: reflectStorage([entry()], "1") });
+    expect(connector.requiresExplicitPermission).toBe(true);
+    const page = await connector.fetch(syncRequest());
+    expect(page.records[0]).toMatchObject({ sensitivity: "sensitive" });
+  });
+});
+
+describe("Forq: recovering what its cooked log does not record", () => {
+  const forqState = (over: Record<string, unknown> = {}) => ({
+    day: "2026-03-05",
+    plan: {
+      "2026-03-02": { breakfast: "porridge", lunch: "soup", dinner: "chilli" },
+      "2026-03-05": { dinner: "curry" },
+    },
+    cooked: [
+      { recipeId: "porridge", date: "2026-03-02" },
+      { recipeId: "takeaway", date: "2026-03-02" },
+    ],
+    shops: [{ id: "t1", date: "2026-03-02", store: "Co-op", total: 24.5 }],
+    ...over,
+  });
+
+  const forqStorage = (value: unknown): StorageLike => ({
+    getItem: (key) => (key === FORQ_STORAGE_KEY ? JSON.stringify(value) : null),
+  });
+
+  it("recovers the slot by looking the recipe up in that day's plan", () => {
+    const meals = selectForqRecords(forqState()).filter((r) => r.kind === "meal");
+    expect(meals).toHaveLength(1);
+    expect(meals[0]).toMatchObject({ slot: "breakfast", matchedPlan: true, id: "2026-03-02:breakfast:porridge" });
+  });
+
+  it("omits an off-plan meal rather than inventing the slot it is about", () => {
+    const meals = selectForqRecords(forqState()).filter((r) => r.kind === "meal");
+    expect(meals.map((m) => (m as { id: string }).id)).not.toContain("2026-03-02::takeaway");
+    // But it still counts towards the day's completions, where it belongs.
+    const day = selectForqRecords(forqState()).find((r) => r.kind === "plan-day");
+    expect(day).toMatchObject({ completedMeals: 2, plannedMeals: 3 });
+  });
+
+  it("flags the assumed time so the engine discounts it", async () => {
+    const connector = createForqSameOriginConnector({ storage: forqStorage(forqState()) });
+    const page = await connector.fetch(syncRequest());
+    const meal = page.records.find((r) => r.type === "forq.meal");
+    expect(meal?.attributes).toMatchObject({ time_estimated: true, slot: "breakfast" });
+    expect(meal?.occurredAt).toBe("2026-03-02T08:00:00.000Z");
+  });
+
+  it("does not score today's plan, which is still being worked through", () => {
+    const days = selectForqRecords(forqState()).filter((r) => r.kind === "plan-day");
+    expect(days.map((d) => (d as { dateISO: string }).dateISO)).toEqual(["2026-03-02"]);
+  });
+
+  it("sums the day's shopping trips into spend", () => {
+    const day = selectForqRecords(
+      forqState({
+        shops: [
+          { id: "t1", date: "2026-03-02", total: 24.5 },
+          { id: "t2", date: "2026-03-02", total: 10.25 },
+          { id: "t3", date: "2026-03-01", total: 99 },
+        ],
+      }),
+    ).find((r) => r.kind === "plan-day");
+    expect(day).toMatchObject({ shopSpend: 34.75 });
+  });
+
+  it("tolerates junk rows and a shape it has never seen", () => {
+    expect(selectForqRecords({})).toEqual([]);
+    expect(selectForqRecords(null)).toEqual([]);
+    expect(
+      selectForqRecords(
+        forqState({ cooked: [{ date: "nope" }, { recipeId: "x" }], shops: [{ date: "2026-03-02", total: "free" }] }),
+      ).filter((r) => r.kind === "meal"),
+    ).toEqual([]);
   });
 });
