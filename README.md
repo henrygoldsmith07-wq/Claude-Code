@@ -28,7 +28,7 @@ Source of truth: [`apps/registry.json`](apps/registry.json) (machine-readable, v
 | **Forq** | `apps/food-shopping-os` · site `apps/forq-site` | Next.js (local-first) | Food shopping & planning OS (pantry, retailer, nutrition) |
 | **Le Studio French** | `apps/french-practice` · hub `apps/le-studio-site` | Vite + React + Tailwind | French PWA (Today/Speak/Review/Learn/Progress, Groq arena) — family hub is Le Studio/Forq/Chrono |
 | **World News** | `apps/world-news` | Next.js + Gemini/GDELT | Globe-based world news with story clustering + source-mix provenance |
-| **Revise** | `apps/revise` | Next.js + Supabase + FSRS | WJEC A-level revision (277 specPoints, validator) |
+| **Revise** | `apps/revise` | Next.js + Supabase + FSRS | GCSE + A-level revision across WJEC/AQA/Edexcel/OCR (2,216 specPoints, validator) |
 | **Rapport** | `apps/rapport` | Next.js (local-first) + optional Supabase | Adaptive social-skills training — skill graph, mastery model, conversation simulator, real-world challenges (works with no AI provider) |
 | **Meeting Recorder** | `apps/meeting-recorder` | Electron + Next.js + R2/Groq/Anthropic | Fathom-style meeting capture + transcript + Claude chat |
 | **Noticed** | `apps/mental-load-tracker` | Next.js + Supabase Realtime | Shared board for household invisible labor (two-person, no leaderboard) |

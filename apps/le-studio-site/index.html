@@ -3,15 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Le Studio — Calm tools for learning, time and food</title>
 <meta name="description" content="Le Studio product family: speak French every day, plan time with Chrono, eat honestly with Forq. Free cores, private by default, offline-capable.">
+<link rel="canonical" href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">
 <meta name="theme-color" content="#111111" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Le Studio — French, Chrono & Forq">
 <meta property="og:description" content="Speak French, protect your calendar, plan meals honestly. Local-first tools with a calm monochrome design.">
-<meta property="og:image" content="./icon-512.png">
+<meta property="og:site_name" content="Le Studio">
+<meta property="og:url" content="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">
+<meta property="og:image" content="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="Le Studio app icon">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Le Studio — French, Chrono & Forq">
+<meta name="twitter:description" content="Speak French, protect your calendar, plan meals honestly. Local-first tools with a calm monochrome design.">
+<meta name="twitter:image" content="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png">
 <link rel="icon" href="./icon.svg">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   :root {
     --ls-bg:#f4f4f6; --ls-surface:#fff; --ls-line:#dcdce1; --ls-ink:#131316;
@@ -24,7 +37,7 @@
     }
   }
   * { box-sizing:border-box; margin:0; }
-  body { background:var(--ls-bg); color:var(--ls-ink); font-family:Inter,system-ui,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  body { background:var(--ls-bg); color:var(--ls-ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
   .wrap { max-width:1020px; margin:0 auto; padding:0 22px; }
   a:focus-visible, button:focus-visible { outline:2px solid var(--ls-ink); outline-offset:3px; }
   .skip { position:absolute; left:-9999px; }
@@ -77,12 +90,30 @@
     a.cta:hover { transform:none; }
   }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Le Studio",
+  "url": "https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/",
+  "description": "Le Studio product family: speak French every day, plan time with Chrono, eat honestly with Forq. Free cores, private by default, offline-capable.",
+  "image": "https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Web",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "GBP"
+  }
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#products">Skip to products</a>
 <div class="wrap">
   <header>
-    <img src="./icon-192.png" alt="">
+    <img src="./icon-192.png" alt="" aria-hidden="true">
     <b>Le Studio</b>
     <nav aria-label="Products">
       <a href="#french">French</a>
@@ -94,7 +125,7 @@
   </header>
 
   <section class="hero">
-    <img src="./icon-192.png" alt="">
+    <img src="./icon-192.png" alt="" aria-hidden="true">
     <h1>Calm tools.<br>Honest by design.</h1>
     <p class="sub">Le Studio is a small product family: speak French every day, protect your calendar, plan meals without fake health theatre. Local-first cores. Optional cloud only when you opt in.</p>
     <a class="cta" href="#products">Explore the family</a>
@@ -137,57 +168,57 @@
     <div class="products" aria-label="All family sites">
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Revise</h2>
-        <p>277 spec statements, FSRS, instant mark-scheme marking and a single highest-value recommender. WJEC Maths/Biology/Chemistry/Physics.</p>
+        <p>2,216 spec statements, FSRS, instant mark-scheme marking and a single highest-value recommender. WJEC, AQA, Edexcel and OCR at GCSE and A-level.</p>
         <p class="meta">IndexedDB-first · FSRS · validator in CI</p>
-        <a class="cta" href="../revise-site/index.html">Visit Revise site</a>
+        <a class="cta" href="https://revise-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit Revise site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16l6-10 6 10H6z"/><path d="M12 16v4"/></svg>Arise</h2>
-        <p>Offline-first training — 42 exercises, programs that become dated sessions, load-tracked sets and history-derived attributes.</p>
+        <p>Offline-first training — 39 exercises, programs that become dated sessions, load-tracked sets and history-derived attributes.</p>
         <p class="meta">Vite + React · PWA · no backend</p>
-        <a class="cta" href="../arise-site/index.html">Visit Arise site</a>
+        <a class="cta" href="https://claude-code-5crn.vercel.app/">Visit Arise site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h10"/><path d="M12 8v8"/></svg>Reflect</h2>
         <p>Not a mood tracker — a thinking tool. 8-stage pipeline with hedged bias language, evidence for and against each reading.</p>
         <p class="meta">Next.js · Anthropic · localStorage</p>
-        <a class="cta" href="../reflect-site/index.html">Visit Reflect site</a>
+        <a class="cta" href="https://reflect-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit Reflect site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M8 21V13M16 3v18M16 8h3"/></svg>Forq</h2>
         <p>Plan, shop, cook and log honestly. Starts empty; meal plans export to .ics for any calendar.</p>
         <p class="meta">Next.js 15 · Upstash · local-first</p>
-        <a class="cta" href="../forq-site/index.html">Visit Forq site</a>
+        <a class="cta" href="https://forq-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit Forq site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>World News</h2>
         <p>3D globe + Gemini-grounded story clusters, source mix, perspective, timeline and what-changed diffs.</p>
         <p class="meta">Gemini Search · react-globe.gl · cache</p>
-        <a class="cta" href="../world-news-site/index.html">Visit World News site</a>
+        <a class="cta" href="https://world-news-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit World News site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Daily Debate</h2>
         <p>Daily proposition, five rounds vs AI or another player, judged on an argument graph that explains the win.</p>
         <p class="meta">Next.js · Supabase · Anthropic</p>
-        <a class="cta" href="../daily-debate-site/index.html">Visit Debate site</a>
+        <a class="cta" href="https://daily-debate-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit Debate site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16"/><rect x="4" y="4" width="16" height="16" rx="2"/></svg>RTK</h2>
         <p>Tiny CLI that cuts noisy tool output by 99% with per-tool parsers, secret redaction and gain tracking.</p>
         <p class="meta">Node CLI · parsers · 100% critical retained</p>
-        <a class="cta" href="../rtk-site/index.html">Visit RTK site</a>
+        <a class="cta" href="https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit RTK site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4v8l-7 4-7-4V7z"/><path d="M12 8v5"/></svg>Dictation Typer</h2>
         <p>Hold Ctrl+Alt, speak, release — Whisper transcribes and pastes at your cursor anywhere.</p>
         <p class="meta">Python · Groq Whisper · paste mode</p>
-        <a class="cta" href="../dictation-typer-site/index.html">Visit Dictation site</a>
+        <a class="cta" href="https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit Dictation site</a>
       </article>
       <article class="product">
         <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M12 15v4"/></svg>Meeting Recorder</h2>
         <p>Electron capture → R2 → Groq Whisper → Claude Q&amp;A. Synced transcript, chat and share links.</p>
         <p class="meta">Electron + Next.js · R2 · Whisper</p>
-        <a class="cta" href="../meeting-recorder-site/index.html">Visit Recorder site</a>
+        <a class="cta" href="https://meeting-recorder-site-henrygoldsmith07-9188s-projects.vercel.app/">Visit Recorder site</a>
       </article>
     </div>
   </section>
