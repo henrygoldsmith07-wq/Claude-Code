@@ -22,6 +22,7 @@ import { scoreAll, type QualityContext, type SourceQuality } from "./quality/sco
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
 import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
+import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
@@ -39,6 +40,8 @@ import { buildExport, deleteSource, type DeletionReport, type PulseExport } from
 export interface PulseOptions {
   timezone?: string;
   adapter?: PersistenceAdapter;
+  /** Persists the insight history; without one the history lives for the process. */
+  historyAdapter?: InsightHistoryAdapter;
   registry?: MetricRegistry;
   now?: () => number;
   /** Expected weekly cadence per source, used by the quality scorer. */
@@ -54,6 +57,7 @@ export class Pulse {
   readonly replication: ReplicationLedger;
   readonly contradictions: ContradictionLedger;
   readonly value: RecommendationValueTracker;
+  readonly insightHistory: InsightHistory;
   readonly timezone: string;
 
   private readonly connectors = new Map<SourceId, Connector>();
@@ -76,12 +80,14 @@ export class Pulse {
     this.replication = new ReplicationLedger(this.now);
     this.contradictions = new ContradictionLedger(this.now);
     this.value = new RecommendationValueTracker(this.now);
+    this.insightHistory = new InsightHistory(options.historyAdapter);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
 
   async load(): Promise<void> {
     await this.store.load();
+    await this.insightHistory.load();
   }
 
   // --- COLLECT ----------------------------------------------------------
@@ -169,8 +175,15 @@ export class Pulse {
     return buildTimeline(this.store.all(), options);
   }
 
-  discover(options: { includeSensitive?: boolean; limit?: number; fdrLevel?: number } = {}): DiscoveryReport {
-    const report = discoverRelationships(this.events({ includeSensitive: options.includeSensitive ?? false }), {
+  discover(
+    options: { includeSensitive?: boolean; limit?: number; fdrLevel?: number; through?: string } = {},
+  ): DiscoveryReport {
+    const events = this.events({ includeSensitive: options.includeSensitive ?? false });
+    // A `through` cut-off re-renders the past: what did the engine believe
+    // given only the data available up to that moment?
+    const through = options.through;
+    const scanEvents = through ? events.filter((event) => event.occurredAt <= through) : events;
+    const report = discoverRelationships(scanEvents, {
       registry: this.registry,
       qualities: this.quality(),
       now: this.now,
@@ -183,6 +196,23 @@ export class Pulse {
     report.findings = this.contradictions.annotate(report.findings);
     this.cachedFindings = report.findings;
     this.pauseContradictedHypotheses();
+    this.insightHistory.recordScan({
+      at: new Date(this.now()).toISOString(),
+      eventCount: scanEvents.length,
+      findings: report.findings,
+      rejected: report.rejected.map(({ candidate, reason }) => ({
+        outcomeMetricId: candidate.outcomeMetricId,
+        exposureMetricId: candidate.exposureMetricId ?? null,
+        reason,
+      })),
+      totals: {
+        findings: report.findings.length,
+        rejected: report.rejected.length,
+        familySize: report.familySize,
+        familyCount: report.familyCount,
+        expectedFalseDiscoveries: report.expectedFalseDiscoveries,
+      },
+    });
     return report;
   }
 
@@ -367,6 +397,7 @@ export class Pulse {
       replication: this.replication.list(),
       contradictions: this.contradictions.list(),
       recommendationValue: this.value.list(),
+      insightHistory: this.insightHistory.snapshot(),
     });
   }
 
@@ -381,6 +412,9 @@ export class Pulse {
     const keepFindingIds = new Set(this.cachedFindings.map((finding) => finding.id));
     this.replication.prune(keepFindingIds);
     this.contradictions.prune(keepFindingIds);
+    // A finding built on deleted data is unverifiable; so is its history.
+    this.insightHistory.pruneBySources([source]);
+    await this.insightHistory.persist();
     this.syncReports.delete(source);
     return report;
   }
