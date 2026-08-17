@@ -37,6 +37,7 @@ import type {
 import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
 import { useNow } from "@/state/clock";
+import { publishRapportPulseHistory } from "@/data/pulse-history";
 
 // ---------------------------------------------------------------------------
 // One store for the whole app.
@@ -182,6 +183,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!ready) return;
+    publishRapportPulseHistory(events, simulations);
+  }, [ready, events, simulations]);
 
   const now = useNow();
 

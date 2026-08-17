@@ -1,7 +1,8 @@
 export * from "./types.js";
 export * from "./sdk.js";
 export * from "./sync.js";
-export { createReviseConnector, mapReviseRecord } from "./revise.js";
+export { createReviseCloudConnector, createReviseConnector, mapReviseRecord } from "./revise.js";
+export { DEFAULT_REVISE_HISTORY_ENDPOINT } from "./revise.js";
 export type { ReviseRecord, ReviseReviewRecord, ReviseAttemptRecord, ReviseSessionRecord, ReviseGrade } from "./revise.js";
 export {
   ARISE_STORAGE_KEY,
@@ -26,7 +27,13 @@ export {
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
 export { createChronoConnector, mapChronoRecord } from "./chrono.js";
 export type { ChronoRecord, ChronoEventRecord, ChronoDayRecord } from "./chrono.js";
-export { createFrenchConnector, mapFrenchRecord } from "./french.js";
+export {
+  FRENCH_STORAGE_KEY,
+  createFrenchConnector,
+  createFrenchSameOriginConnector,
+  mapFrenchRecord,
+  selectFrenchRecords,
+} from "./french.js";
 export type { FrenchRecord, FrenchSpeakingRecord, FrenchReviewRecord } from "./french.js";
 export {
   REFLECT_CONSENT_KEY,
@@ -38,8 +45,16 @@ export {
   selectReflectRecords,
 } from "./reflect.js";
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
-export { createRapportConnector, mapRapportRecord } from "./rapport.js";
+export {
+  RAPPORT_STORAGE_KEY,
+  createRapportConnector,
+  createRapportSameOriginConnector,
+  mapRapportRecord,
+  selectRapportRecords,
+} from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";
+export { createSourceHistory, migrateSourceHistory, readSourceHistoryRecords } from "../events/source-history.js";
+export type { SourceHistoryEnvelope } from "../events/source-history.js";
 // --- The shared health vocabulary and the sources that speak it ------------
 export * from "./health-events.js";
 export {

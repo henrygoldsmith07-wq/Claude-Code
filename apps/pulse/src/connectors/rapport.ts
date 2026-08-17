@@ -8,6 +8,8 @@
  */
 
 import { defineReaderConnector } from "./sdk.js";
+import { createSameOriginReader, type StorageLike } from "./same-origin.js";
+import { readSourceHistoryRecords } from "../events/source-history.js";
 import type { Connector, ConnectorScope, EmittedEventSpec, SourceReader } from "./types.js";
 import type { RawEventInput } from "../events/normalise.js";
 
@@ -36,6 +38,8 @@ export interface RapportChallengeRecord {
 }
 
 export type RapportRecord = RapportDrillRecord | RapportChallengeRecord;
+
+export const RAPPORT_STORAGE_KEY = "rapport.pulse-history.v2";
 
 const SCOPES: ConnectorScope[] = [
   { id: "drills", description: "Conversation simulator drills: skill, score and duration. Transcripts are never read.", readsContent: false },
@@ -112,7 +116,7 @@ export function createRapportConnector(reader: SourceReader<RapportRecord>): Con
   return defineReaderConnector<RapportRecord>({
     id: "rapport",
     name: "Rapport",
-    version: "1.0.0",
+    version: "2.0.0",
     category: "social",
     description: "Social-skills drills and real-world challenges. Conversation transcripts are never read.",
     scopes: SCOPES,
@@ -122,4 +126,25 @@ export function createRapportConnector(reader: SourceReader<RapportRecord>): Con
     map: (record) => mapRapportRecord(record),
     timestampOf: (record) => (record.kind === "drill" ? record.startedAt : record.completedAt),
   });
+}
+
+/** Read Rapport's durable, transcript-free event history from the shared origin. */
+export function selectRapportRecords(state: unknown): RapportRecord[] {
+  return readSourceHistoryRecords<RapportRecord>(state, "rapport").filter(
+    (record): record is RapportRecord =>
+      (record.kind === "drill" && typeof record.id === "string" && typeof record.startedAt === "string") ||
+      (record.kind === "challenge" && typeof record.id === "string" && typeof record.completedAt === "string"),
+  );
+}
+
+export function createRapportSameOriginConnector(options: { storage?: StorageLike | null } = {}): Connector {
+  return createRapportConnector(
+    createSameOriginReader<RapportRecord>({
+      key: RAPPORT_STORAGE_KEY,
+      label: "Rapport",
+      select: selectRapportRecords,
+      ...(options.storage !== undefined ? { storage: options.storage } : {}),
+      timestampOf: (record) => (record.kind === "drill" ? record.startedAt : record.completedAt),
+    }),
+  );
 }

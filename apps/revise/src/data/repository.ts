@@ -13,9 +13,10 @@ import type {
   StreakState,
   UserSettings,
 } from "@/domain/types";
-import { COLLECTION_STORES, getAll, getDb, putAll, putOne, readMeta, removeOne, writeMeta } from "./db";
+import { COLLECTION_STORES, getAll, getDb, putAll, putOne, removeOne } from "./db";
 import type { CollectionStore } from "./db";
 import { enqueue } from "./sync";
+import { readReviseMeta, REVISE_META_KEYS, writeReviseMeta } from "./storage-namespace";
 
 // ---------------------------------------------------------------------------
 // The repository is the only thing the UI talks to. It writes IndexedDB, then
@@ -23,14 +24,14 @@ import { enqueue } from "./sync";
 // network, so a slow connection can never make the app feel slow.
 // ---------------------------------------------------------------------------
 
-export const ONBOARDED_KEY = "onboardedAt";
+export const ONBOARDED_KEY = REVISE_META_KEYS.onboardedAt;
 
 export async function hasOnboarded(): Promise<boolean> {
-  return Boolean(await readMeta<string>(ONBOARDED_KEY));
+  return Boolean(await readReviseMeta<string>("onboardedAt"));
 }
 
 export async function markOnboarded(): Promise<void> {
-  await writeMeta(ONBOARDED_KEY, new Date().toISOString());
+  await writeReviseMeta("onboardedAt", new Date().toISOString());
 }
 
 export interface Snapshot {
@@ -76,7 +77,6 @@ export function defaultStreak(userId: Id): StreakState {
   return { userId, current: 0, longest: 0, lastActiveDate: null, xp: 0, achievements: [] };
 }
 
-const SEED_VERSION_KEY = "seedVersion";
 const SEED_VERSION = 1;
 
 /**
@@ -85,7 +85,7 @@ const SEED_VERSION = 1;
  * leaves every existing card's FSRS history untouched.
  */
 export async function ensureSeeded(userId: Id): Promise<void> {
-  const installed = await readMeta<number>(SEED_VERSION_KEY);
+  const installed = await readReviseMeta<number>("seedVersion");
   const existing = await getAll<Card>("cards");
   const known = new Set(existing.map((c) => c.id));
 
@@ -98,7 +98,7 @@ export async function ensureSeeded(userId: Id): Promise<void> {
   const missingQuestions = seedQuestions.filter((q) => !knownQuestions.has(q.id));
   if (missingQuestions.length) await putAll("questions", missingQuestions);
 
-  if (installed !== SEED_VERSION) await writeMeta(SEED_VERSION_KEY, SEED_VERSION);
+  if (installed !== SEED_VERSION) await writeReviseMeta("seedVersion", SEED_VERSION);
 }
 
 export async function loadSnapshot(userId: Id): Promise<Snapshot> {
