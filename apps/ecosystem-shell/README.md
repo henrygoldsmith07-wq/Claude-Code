@@ -39,6 +39,23 @@ prefix and must not receive it, so `/arise/:path*` maps to the upstream's
 `basePath: '/reflect'` the deployment genuinely serves `/reflect/…`. Strip the
 prefix there and every asset 404s.
 
+## The trailing slash is load-bearing
+
+Each app needs three rules, not one, and the reason is worth keeping.
+
+`/pulse/:path*` does **not** match `/pulse/` — a path pattern matching "zero or
+more segments" does not match the empty segment left by a bare trailing slash,
+so `/pulse/` fell through every rewrite and returned the shell's own 404. That
+is the exact URL the landing page links to, so the first deploy 404'd on the
+first click.
+
+The fix is not simply to drop the slash, because for the Vite apps the slash is
+what makes their assets resolve. `base: './'` means a document served at
+`/pulse` resolves `./assets/index.js` against `/`, requesting `/assets/index.js`
+and missing; served at `/pulse/` it resolves against `/pulse/` and hits. So the
+bare form redirects to the slashed form rather than rewriting to it, and each
+app carries `/x` (redirect), `/x/` and `/x/:path*`.
+
 ## Deploying, in this order
 
 The order is not a preference. Getting it wrong takes the apps down.

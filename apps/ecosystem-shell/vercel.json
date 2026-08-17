@@ -5,9 +5,14 @@
   "buildCommand": "echo 'No build: a static index.html plus the rewrites below.'",
   "outputDirectory": ".",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  "redirects": [
+    { "source": "/pulse", "destination": "/pulse/", "permanent": false },
+    { "source": "/arise", "destination": "/arise/", "permanent": false },
+    { "source": "/french", "destination": "/french/", "permanent": false }
+  ],
   "rewrites": [
     {
-      "source": "/pulse",
+      "source": "/pulse/",
       "destination": "https://claude-code-xuc7-henrygoldsmith07-9188s-projects.vercel.app/"
     },
     {
@@ -15,7 +20,7 @@
       "destination": "https://claude-code-xuc7-henrygoldsmith07-9188s-projects.vercel.app/:path*"
     },
     {
-      "source": "/arise",
+      "source": "/arise/",
       "destination": "https://arise-fitness-ten.vercel.app/"
     },
     {
@@ -23,7 +28,7 @@
       "destination": "https://arise-fitness-ten.vercel.app/:path*"
     },
     {
-      "source": "/french",
+      "source": "/french/",
       "destination": "https://claude-code-henrygoldsmith07-9188s-projects.vercel.app/"
     },
     {
@@ -35,6 +40,10 @@
       "destination": "https://claude-code-y8k6-henrygoldsmith07-9188s-projects.vercel.app/reflect"
     },
     {
+      "source": "/reflect/",
+      "destination": "https://claude-code-y8k6-henrygoldsmith07-9188s-projects.vercel.app/reflect/"
+    },
+    {
       "source": "/reflect/:path*",
       "destination": "https://claude-code-y8k6-henrygoldsmith07-9188s-projects.vercel.app/reflect/:path*"
     },
@@ -43,12 +52,20 @@
       "destination": "https://claude-code-ybbm-henrygoldsmith07-9188s-projects.vercel.app/revise"
     },
     {
+      "source": "/revise/",
+      "destination": "https://claude-code-ybbm-henrygoldsmith07-9188s-projects.vercel.app/revise/"
+    },
+    {
       "source": "/revise/:path*",
       "destination": "https://claude-code-ybbm-henrygoldsmith07-9188s-projects.vercel.app/revise/:path*"
     },
     {
       "source": "/rapport",
       "destination": "https://rapport-henrygoldsmith07-9188s-projects.vercel.app/rapport"
+    },
+    {
+      "source": "/rapport/",
+      "destination": "https://rapport-henrygoldsmith07-9188s-projects.vercel.app/rapport/"
     },
     {
       "source": "/rapport/:path*",
