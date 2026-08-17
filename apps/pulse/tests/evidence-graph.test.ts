@@ -19,6 +19,8 @@ import {
 } from "../src/evidence-graph/types.js";
 import type { Hypothesis } from "../src/hypotheses/tracker.js";
 import type { ExperimentResult } from "../src/experiments/analysis.js";
+import type { Finding } from "../src/discovery/finding.js";
+import type { ContradictionRecord } from "../src/discovery/contradictions.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 
 const HIGH = { level: "high" as const, score: 0.85, reasons: [], limitations: [] };
@@ -326,6 +328,89 @@ describe("assembly from engine state", () => {
     const first = buildClaimNode({ statement: "I sleep better after running." });
     const second = buildClaimNode({ statement: "I sleep better after running." });
     expect(second.id).toBe(first.id);
+  });
+});
+
+function findingFixture(id: string, title: string, direction: number, score: number): Finding {
+  return {
+    id,
+    createdAt: "2025-07-01T00:00:00Z",
+    evidenceClass: "correlation",
+    title,
+    statement: title,
+    metricIds: ["study.accuracy", "exercise.effort"],
+    sources: ["revise"],
+    sampleSize: 100,
+    sampleDescription: "100 sessions",
+    effect: { kind: "hedges_g", value: direction * score, magnitude: "small", label: `${direction > 0 ? "+" : "-"}${score} SD` },
+    confidence: { level: "moderate", score, reasons: [], limitations: [] },
+    confounders: [],
+    causalityNote: "This is an association, not a cause.",
+    nextAction: null,
+    evidence: [
+      { kind: "events", description: "100 attempts", metricIds: ["study.accuracy"], sources: ["revise"], eventCount: 100, dateRange: null },
+    ],
+    tags: ["exposure-window"],
+  };
+}
+
+function contradictionRecord(positiveId: string, negativeId: string): ContradictionRecord {
+  return {
+    id: "contradiction-test",
+    outcomeMetricId: "study.accuracy",
+    exposureMetricId: "exercise.effort",
+    sightings: [
+      { findingId: positiveId, direction: 1, createdAt: "2025-07-01T00:00:00Z" },
+      { findingId: negativeId, direction: -1, createdAt: "2025-07-02T00:00:00Z" },
+    ],
+    detectedAt: "2025-07-02T00:00:00Z",
+    evidence: "First seen positive; the same pair has since been observed pointing both ways.",
+  };
+}
+
+describe("contradiction ledger wiring", () => {
+  it("projects a ledger contradiction onto both claims as contested", () => {
+    const positive = findingFixture("f-pos", "Accuracy is higher after training.", 1, 0.6);
+    const negative = findingFixture("f-neg", "Accuracy is lower after training.", -1, 0.6);
+    const graph = buildEvidenceGraph({ findings: [positive, negative], contradictions: [contradictionRecord("f-pos", "f-neg")] });
+
+    expect(graph.assess("claim:finding:f-pos").status).toBe("contested");
+    expect(graph.assess("claim:finding:f-neg").status).toBe("contested");
+    expect(graph.contradictions().map((assessment) => assessment.claim.id).sort()).toEqual([
+      "claim:finding:f-neg",
+      "claim:finding:f-pos",
+    ]);
+  });
+
+  it("shows the opposing sighting as refuting evidence with provenance", () => {
+    const graph = buildEvidenceGraph({
+      findings: [
+        findingFixture("f-pos", "Accuracy is higher after training.", 1, 0.6),
+        findingFixture("f-neg", "Accuracy is lower after training.", -1, 0.6),
+      ],
+      contradictions: [contradictionRecord("f-pos", "f-neg")],
+    });
+
+    const against = graph.assess("claim:finding:f-pos").against.map((node) => node.refId);
+    expect(against).toEqual(["f-neg"]);
+    const refuting = graph.edgesForClaim("claim:finding:f-pos").find((graphEdge) => graphEdge.kind === "refutes");
+    expect(refuting?.justifiedBy).toEqual(["f-neg"]);
+  });
+
+  it("honours a weak opposing sighting as contested, not inconclusive", () => {
+    const graph = buildEvidenceGraph({
+      findings: [
+        findingFixture("f-pos", "Accuracy is higher after training.", 1, 0.7),
+        findingFixture("f-neg", "Accuracy is lower after training.", -1, 0.3),
+      ],
+      contradictions: [contradictionRecord("f-pos", "f-neg")],
+    });
+
+    const assessment = graph.assess("claim:finding:f-pos");
+    expect(assessment.status).toBe("contested");
+    expect(assessment.confidence.reasons).toContain(
+      "The contradiction ledger has recorded this relationship pointing both ways",
+    );
   });
 });
 

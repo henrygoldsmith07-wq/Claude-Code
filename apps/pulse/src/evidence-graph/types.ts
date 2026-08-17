@@ -47,6 +47,11 @@ export interface ClaimNode {
   supportBy?: string[];
   refuteBy?: string[];
   uncertainBy?: string[];
+  /**
+   * True when the contradiction ledger has recorded this claim's relationship
+   * pointing both ways. Set from the ledger's records, never computed here.
+   */
+  contradicted?: boolean;
   tags: string[];
 }
 
@@ -204,6 +209,11 @@ export function assessClaim(
     if (status === "supported") status = "inconclusive";
   }
 
+  // The contradiction ledger is the single source of truth for finding-level
+  // conflicts: a relationship it has recorded pointing both ways is
+  // "contested", whatever the confidence of either side.
+  if (claim.contradicted) status = "contested";
+
   // Observational evidence cannot reach "high", however much of it there is.
   let score = Math.max(supportScore, refuteScore);
   if (supportClass !== "experiment") score = Math.min(score, OBSERVATIONAL_CEILING);
@@ -225,10 +235,17 @@ export function assessClaim(
       unresolved.length === 1 ? "1 piece of evidence is unresolved" : `${unresolved.length} pieces of evidence are unresolved`,
     );
   }
+  if (claim.contradicted) {
+    reasons.push("The contradiction ledger has recorded this relationship pointing both ways");
+  }
   if (reasons.length === 0) reasons.push("No evidence yet");
 
   if (status === "contested") {
-    limitations.push("Strong evidence both supports and contradicts this — resolve the contradiction before acting on it");
+    limitations.push(
+      claim.contradicted
+        ? "The contradiction ledger recorded this relationship pointing both ways — treat the claim as unsettled"
+        : "Strong evidence both supports and contradicts this — resolve the contradiction before acting on it",
+    );
   } else if (status === "open") {
     limitations.push("An untested belief, not a finding");
   } else if (status === "inconclusive") {

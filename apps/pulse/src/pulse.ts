@@ -376,6 +376,7 @@ export class Pulse {
       hypotheses: this.hypotheses.list(),
       experiments: this.experimentResultsList(),
       authored: [...this.authoredClaims.values()],
+      contradictions: this.contradictions.list(),
       now: this.now,
     });
   }
