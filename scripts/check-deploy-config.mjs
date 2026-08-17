@@ -101,6 +101,14 @@ const NOT_DEPLOYABLE = {
   'meeting-recorder': 'Electron desktop app',
 };
 
+// Apps that deploy as plain files with no build step, like the `-site` projects
+// but without the naming convention. Being static is a property of the project,
+// not of its name, so it is declared rather than inferred — and declared here
+// rather than guessed, so a new app never falls into this case by accident.
+const STATIC_ONLY = {
+  'ecosystem-shell': 'routing shell: one index.html plus rewrites',
+};
+
 // ---- 1. the repository root must not claim to be an app ---------------------
 
 const rootConfigPath = path.join(root, 'vercel.json');
@@ -134,7 +142,9 @@ for (const app of apps) {
   const rel = `apps/${app}`;
   const configPath = path.join(dir, 'vercel.json');
   const pkgPath = path.join(dir, 'package.json');
+  // Both shapes deploy as files from the app directory with no build step.
   const isSite = app.endsWith('-site');
+  const isStatic = isSite || Boolean(STATIC_ONLY[app]);
   const hasPkg = existsSync(pkgPath);
 
   if (NOT_DEPLOYABLE[app]) {
@@ -159,12 +169,13 @@ for (const app of apps) {
     fail(`${rel}/vercel.json: expected ignoreCommand ${JSON.stringify(IGNORE_COMMAND)}, found ${JSON.stringify(config.ignoreCommand ?? null)}.`);
   }
 
-  if (isSite) {
+  if (isStatic) {
+    const what = STATIC_ONLY[app] ? `a static project (${STATIC_ONLY[app]})` : 'a static site';
     if (config.framework !== null) {
-      fail(`${rel}/vercel.json: a static site needs "framework": null (the "Other" preset), found ${JSON.stringify(config.framework)}.`);
+      fail(`${rel}/vercel.json: ${what} needs "framework": null (the "Other" preset), found ${JSON.stringify(config.framework)}.`);
     }
     if (config.outputDirectory !== '.') {
-      fail(`${rel}/vercel.json: a static site serves from ".", found ${JSON.stringify(config.outputDirectory)}.`);
+      fail(`${rel}/vercel.json: ${what} serves from ".", found ${JSON.stringify(config.outputDirectory)}.`);
     }
     if (!existsSync(path.join(dir, 'index.html'))) {
       fail(`${rel} has no index.html to serve.`);

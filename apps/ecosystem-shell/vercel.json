@@ -1,0 +1,58 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'No install: the shell routes, it does not build.'",
+  "buildCommand": "echo 'No build: a static index.html plus the rewrites below.'",
+  "outputDirectory": ".",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  "rewrites": [
+    {
+      "source": "/pulse",
+      "destination": "https://claude-code-xuc7-henrygoldsmith07-9188s-projects.vercel.app/"
+    },
+    {
+      "source": "/pulse/:path*",
+      "destination": "https://claude-code-xuc7-henrygoldsmith07-9188s-projects.vercel.app/:path*"
+    },
+    {
+      "source": "/arise",
+      "destination": "https://arise-fitness-ten.vercel.app/"
+    },
+    {
+      "source": "/arise/:path*",
+      "destination": "https://arise-fitness-ten.vercel.app/:path*"
+    },
+    {
+      "source": "/french",
+      "destination": "https://claude-code-henrygoldsmith07-9188s-projects.vercel.app/"
+    },
+    {
+      "source": "/french/:path*",
+      "destination": "https://claude-code-henrygoldsmith07-9188s-projects.vercel.app/:path*"
+    },
+    {
+      "source": "/reflect",
+      "destination": "https://claude-code-y8k6-henrygoldsmith07-9188s-projects.vercel.app/reflect"
+    },
+    {
+      "source": "/reflect/:path*",
+      "destination": "https://claude-code-y8k6-henrygoldsmith07-9188s-projects.vercel.app/reflect/:path*"
+    },
+    {
+      "source": "/revise",
+      "destination": "https://claude-code-ybbm-henrygoldsmith07-9188s-projects.vercel.app/revise"
+    },
+    {
+      "source": "/revise/:path*",
+      "destination": "https://claude-code-ybbm-henrygoldsmith07-9188s-projects.vercel.app/revise/:path*"
+    },
+    {
+      "source": "/rapport",
+      "destination": "https://rapport-henrygoldsmith07-9188s-projects.vercel.app/rapport"
+    },
+    {
+      "source": "/rapport/:path*",
+      "destination": "https://rapport-henrygoldsmith07-9188s-projects.vercel.app/rapport/:path*"
+    }
+  ]
+}

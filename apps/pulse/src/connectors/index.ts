@@ -3,15 +3,40 @@ export * from "./sdk.js";
 export * from "./sync.js";
 export { createReviseConnector, mapReviseRecord } from "./revise.js";
 export type { ReviseRecord, ReviseReviewRecord, ReviseAttemptRecord, ReviseSessionRecord, ReviseGrade } from "./revise.js";
-export { createAriseConnector, mapAriseRecord } from "./arise.js";
+export {
+  ARISE_STORAGE_KEY,
+  ariseConsentGranted,
+  createAriseConnector,
+  createAriseSameOriginConnector,
+  mapAriseRecord,
+  selectAriseRecords,
+} from "./arise.js";
 export type { AriseRecord, AriseSessionRecord, AriseReadinessRecord, AriseBlock, AriseSet } from "./arise.js";
-export { createForqConnector, mapForqRecord } from "./forq.js";
+
+// --- Reading sibling apps that share this origin ---------------------------
+export { createSameOriginReader, subscribeToSameOriginSource } from "./same-origin.js";
+export type { SameOriginReaderOptions, StorageLike, Unsubscribe } from "./same-origin.js";
+export {
+  FORQ_STORAGE_KEY,
+  createForqConnector,
+  createForqSameOriginConnector,
+  mapForqRecord,
+  selectForqRecords,
+} from "./forq.js";
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
 export { createChronoConnector, mapChronoRecord } from "./chrono.js";
 export type { ChronoRecord, ChronoEventRecord, ChronoDayRecord } from "./chrono.js";
 export { createFrenchConnector, mapFrenchRecord } from "./french.js";
 export type { FrenchRecord, FrenchSpeakingRecord, FrenchReviewRecord } from "./french.js";
-export { createReflectConnector, mapReflectRecord } from "./reflect.js";
+export {
+  REFLECT_CONSENT_KEY,
+  REFLECT_STORAGE_KEY,
+  createReflectConnector,
+  createReflectSameOriginConnector,
+  mapReflectRecord,
+  reflectConsentGranted,
+  selectReflectRecords,
+} from "./reflect.js";
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
 export { createRapportConnector, mapRapportRecord } from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";

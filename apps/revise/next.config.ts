@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Set by the one-origin shell (apps/ecosystem-shell) to serve this app under
+  // a path prefix. Unset means "serve at the root", which is exactly how this
+  // app deploys on its own today, so leaving the variable alone changes nothing.
+  basePath: process.env.APP_BASE_PATH || "",
   // The service worker and manifest are served straight from /public; no
   // build-time PWA plugin is needed and none is wanted — a hand-written
   // worker is easier to reason about than a generated one.
