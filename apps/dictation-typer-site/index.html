@@ -3,20 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Dictation Typer — Hold. Speak. Release.</title>
 <meta name="description" content="Dictation Typer — hold-hotkey Whisper typer that pastes into the focused window.">
+<link rel="canonical" href="https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/">
 <meta name="theme-color" content="#111111" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Dictation Typer — Hold. Speak. Release.">
 <meta property="og:description" content="Dictation Typer — Groq Whisper + paste-mode, in-memory audio.">
-<meta property="og:image" content="./icon-512.png">
+<meta property="og:site_name" content="Le Studio">
+<meta property="og:url" content="https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/">
+<meta property="og:image" content="https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="Dictation Typer app icon">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Dictation Typer — Hold. Speak. Release.">
+<meta name="twitter:description" content="Dictation Typer — Groq Whisper + paste-mode, in-memory audio.">
+<meta name="twitter:image" content="https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png">
 <link rel="icon" href="./icon.svg">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   :root { --ls-bg:#f4f4f6; --ls-surface:#fff; --ls-line:#dcdce1; --ls-ink:#131316; --ls-ink2:#4d4d55; --ls-ink3:#6a6a74; }
   @media (prefers-color-scheme: dark) { :root { --ls-bg:#0b0b0d; --ls-surface:#17171a; --ls-line:#34343a; --ls-ink:#f4f4f5; --ls-ink2:#b2b2ba; --ls-ink3:#8f8f99; } }
   * { box-sizing:border-box; margin:0; }
-  body { background:var(--ls-bg); color:var(--ls-ink); font-family:Inter,system-ui,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  body { background:var(--ls-bg); color:var(--ls-ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
   .wrap { max-width:1020px; margin:0 auto; padding:0 22px; }
   a:focus-visible, button:focus-visible { outline:2px solid var(--ls-ink); outline-offset:3px; }
   .skip { position:absolute; left:-9999px; }
@@ -57,26 +70,44 @@
   footer a { color:var(--ls-ink2); }
   @media (prefers-reduced-motion: reduce) { a.cta { transition:none; } a.cta:hover { transform:none; } }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Dictation Typer",
+  "url": "https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/",
+  "description": "Dictation Typer — hold-hotkey Whisper typer that pastes into the focused window.",
+  "image": "https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "GBP"
+  }
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="../le-studio-site/index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit"><img src="./icon-192.png" alt="" aria-hidden="true"><b>Dictation Typer</b></a>
+    <a href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit"><img src="./icon-192.png" alt="" aria-hidden="true"><b>Dictation Typer</b></a>
     <nav aria-label="Site">
-      <a href="../le-studio-site/index.html">Family</a>
+      <a href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">Family</a>
       <a href="#features">Features</a>
       <a href="#faq">FAQ</a>
       <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/dictation-typer">Open Dictation Typer</a>
     </nav>
   </header>
   <section class="hero" id="main">
-    <img src="./icon-192.png" alt="Dictation-Typer logo">
+    <img src="./icon-192.png" alt="" aria-hidden="true">
     <p style="margin:14px 0 0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ls-ink3);font-weight:700">Le Studio family · Dictation Typer</p>
     <h1>Type anywhere.<br>With your voice.</h1>
     <p class="sub">Hold Ctrl+Alt, speak, release — Groq Whisper transcribes and pastes at your cursor in Slack, VS Code, the browser, anywhere. In-memory audio, paste-mode preserves your clipboard.</p>
     <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/dictation-typer">Open Dictation Typer</a>
-    <a class="ghost" href="../le-studio-site/index.html">← Back to family</a>
+    <a class="ghost" href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">← Back to family</a>
   </section>
   <section class="stats" aria-label="Stats">
     <div class="stat"><b>16 kHz</b><span>Whisper-ready</span></div>
@@ -104,7 +135,7 @@
     <details><summary>Hotkey format?</summary><p>+-separated: modifiers ctrl/alt/shift/win + optional key (space, f8, letter).</p></details>
     <details><summary>Why paste mode?</summary><p>It handles any Unicode and works across more apps than synthetic keystrokes.</p></details>
   </section>
-  <footer><a href="../le-studio-site/index.html">Le Studio family</a> · Dictation Typer · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/dictation-typer">Open app</a> · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code">Source</a></footer>
+  <footer><a href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">Le Studio family</a> · Dictation Typer · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/dictation-typer">Open app</a> · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code">Source</a></footer>
 </div>
 </body>
 </html>

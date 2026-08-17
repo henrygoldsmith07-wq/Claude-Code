@@ -3,20 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>RTK — Cut the noise. Keep the signal.</title>
 <meta name="description" content="RTK — cut tool-call tokens with per-tool parsers, 99% reduction, 100% critical retained.">
+<link rel="canonical" href="https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/">
 <meta name="theme-color" content="#111111" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="RTK — Cut the noise. Keep the signal.">
 <meta property="og:description" content="RTK — a tiny CLI that filters noisy output to what an LLM actually needs.">
-<meta property="og:image" content="./icon-512.png">
+<meta property="og:site_name" content="Le Studio">
+<meta property="og:url" content="https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/">
+<meta property="og:image" content="https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="RTK app icon">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="RTK — Cut the noise. Keep the signal.">
+<meta name="twitter:description" content="RTK — a tiny CLI that filters noisy output to what an LLM actually needs.">
+<meta name="twitter:image" content="https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png">
 <link rel="icon" href="./icon.svg">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   :root { --ls-bg:#f4f4f6; --ls-surface:#fff; --ls-line:#dcdce1; --ls-ink:#131316; --ls-ink2:#4d4d55; --ls-ink3:#6a6a74; }
   @media (prefers-color-scheme: dark) { :root { --ls-bg:#0b0b0d; --ls-surface:#17171a; --ls-line:#34343a; --ls-ink:#f4f4f5; --ls-ink2:#b2b2ba; --ls-ink3:#8f8f99; } }
   * { box-sizing:border-box; margin:0; }
-  body { background:var(--ls-bg); color:var(--ls-ink); font-family:Inter,system-ui,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  body { background:var(--ls-bg); color:var(--ls-ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased; }
   .wrap { max-width:1020px; margin:0 auto; padding:0 22px; }
   a:focus-visible, button:focus-visible { outline:2px solid var(--ls-ink); outline-offset:3px; }
   .skip { position:absolute; left:-9999px; }
@@ -58,26 +71,44 @@
   footer a { color:var(--ls-ink2); }
   @media (prefers-reduced-motion: reduce) { a.cta { transition:none; } a.cta:hover { transform:none; } }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "RTK",
+  "url": "https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/",
+  "description": "RTK — cut tool-call tokens with per-tool parsers, 99% reduction, 100% critical retained.",
+  "image": "https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app/icon-512.png",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "GBP"
+  }
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="../le-studio-site/index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit"><img src="./icon-192.png" alt="" aria-hidden="true"><b>RTK</b></a>
+    <a href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit"><img src="./icon-192.png" alt="" aria-hidden="true"><b>RTK</b></a>
     <nav aria-label="Site">
-      <a href="../le-studio-site/index.html">Family</a>
+      <a href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">Family</a>
       <a href="#features">Features</a>
       <a href="#faq">FAQ</a>
       <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/rtk">Open RTK</a>
     </nav>
   </header>
   <section class="hero" id="main">
-    <img src="./icon-192.png" alt="Rtk logo">
+    <img src="./icon-192.png" alt="" aria-hidden="true">
     <p style="margin:14px 0 0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ls-ink3);font-weight:700">Le Studio family · RTK</p>
     <h1>Your tool output.<br>Minus 99%.</h1>
     <p class="sub">A tiny CLI that filters noisy command output to what an LLM (or human) needs — per-tool parsers, secret redaction, JSON/explain/raw modes and cumulative gain tracking. 100% critical-line retention.</p>
     <a class="cta" href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/rtk">Open RTK</a>
-    <a class="ghost" href="../le-studio-site/index.html">← Back to family</a>
+    <a class="ghost" href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">← Back to family</a>
   </section>
   <section class="stats" aria-label="Stats">
     <div class="stat"><b>99.9%</b><span>Vitest spam cut</span></div>
@@ -107,7 +138,7 @@ cat build.log | rtk err --stdin</pre></div>
     <details><summary>Can Claude use it alone?</summary><p>rtk init creates .rtk/ + CLAUDE.md hints so agents pick it up automatically.</p></details>
     <details><summary>Install?</summary><p>npm link for dev, or npm i -g rtk when published.</p></details>
   </section>
-  <footer><a href="../le-studio-site/index.html">Le Studio family</a> · RTK · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/rtk">Open app</a> · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code">Source</a></footer>
+  <footer><a href="https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app/">Le Studio family</a> · RTK · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code/tree/main/apps/rtk">Open app</a> · <a href="https://github.com/henrygoldsmith07-wq/Claude-Code">Source</a></footer>
 </div>
 </body>
 </html>
