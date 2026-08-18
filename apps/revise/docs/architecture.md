@@ -155,6 +155,11 @@ explicit. Review and question practice preserve their history before closing;
 timed papers mark the paper practised only when the student chooses a finish
 action.
 
+Question practice and papers use the shared `QuestionNavigator` for numbered
+jumps, answered/draft status and keyboard-reachable movement. `QuestionRunner`
+reports unfinished answers to the owning session, so leaving a question and
+returning to it does not erase work that has not yet been submitted.
+
 ## Card maintenance
 
 Three decisions worth recording:

@@ -10,8 +10,9 @@ import { tokenise } from "@/domain/marking";
 import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { PostSessionClosure } from "@/components/PostSessionClosure";
-import { QuestionRunner } from "@/components/QuestionRunner";
-import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented } from "@/components/ui";
+import { QuestionNavigator } from "@/components/QuestionNavigator";
+import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
+import { Button, EmptyState, Field, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
 
 // Past papers: upload, extract, map to topics, practise by topic or as a timed
@@ -287,6 +288,7 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   const [startedAt] = useState(() => Date.now());
   const [elapsedMs, setElapsedMs] = useState(0);
   const [scores, setScores] = useState<{ questionId: string; awarded: number; max: number }[]>([]);
+  const [questionDrafts, setQuestionDrafts] = useState<Record<string, QuestionDraft>>({});
   const [finishing, setFinishing] = useState(false);
 
   // A paper is sat under timed conditions, so the clock has to advance on its
@@ -305,6 +307,11 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   const current = questions[index];
   const totalAwarded = scores.reduce((a, s) => a + s.awarded, 0);
   const totalMax = scores.reduce((a, s) => a + s.max, 0);
+  const answered = questions.map((question) => scores.some((score) => score.questionId === question.id));
+  const drafted = questions.map((question) => {
+    const draft = questionDrafts[question.id];
+    return Boolean(draft && (draft.choice !== null || Object.values(draft.answers).some((answer) => answer.trim())));
+  });
 
   async function finish(nextHref?: string) {
     if (finishing) return;
@@ -380,30 +387,39 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         </div>
       </div>
 
-      <ProgressBar value={index / questions.length} />
-
+      <QuestionNavigator
+        currentIndex={index}
+        total={questions.length}
+        answered={answered}
+        drafted={drafted}
+        onSelect={setIndex}
+        onPrevious={() => setIndex((i) => Math.max(0, i - 1))}
+        onNext={() => {
+          setElapsedMs(Date.now() - startedAt);
+          setIndex((i) => i + 1);
+        }}
+        previousDisabled={index === 0}
+        nextDisabled={false}
+        nextLabel={index === questions.length - 1 ? "Finish paper" : answered[index] ? "Next question" : "Skip question"}
+      />
       <QuestionRunner
         key={current.id}
         question={current}
         mode="paper"
-        onFinished={(attempt) =>
+        draft={questionDrafts[current.id]}
+        onDraftChange={(draft) => setQuestionDrafts((previous) => ({ ...previous, [current.id]: draft }))}
+        onFinished={(attempt) => {
           setScores((prev) => [
             ...prev.filter((score) => score.questionId !== attempt.questionId),
             { questionId: attempt.questionId, awarded: attempt.awarded, max: attempt.max },
-          ])
-        }
-      />
-
-      <Button
-        variant="primary"
-        className="w-full"
-        onClick={() => {
-          setElapsedMs(Date.now() - startedAt);
-          setIndex((i) => i + 1);
+          ]);
+          setQuestionDrafts((previous) => {
+            const next = { ...previous };
+            delete next[attempt.questionId];
+            return next;
+          });
         }}
-      >
-        {index === questions.length - 1 ? "Finish paper" : "Next question"}
-      </Button>
+      />
     </div>
   );
 }

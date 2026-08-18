@@ -23,20 +23,29 @@ import { CreditedIcon, ICON_SIZE, MissedIcon } from "./icons";
 // the student having to do anything. That last step is the whole point; a
 // mistake you have to file manually is a mistake you never revisit.
 
+export interface QuestionDraft {
+  answers: Record<string, string>;
+  choice: number | null;
+}
+
 export function QuestionRunner({
   question,
   mode = "practice",
   farTransfer,
+  draft,
+  onDraftChange,
   onFinished,
 }: {
   question: Question;
   mode?: Attempt["mode"];
   farTransfer?: DelayedFarTransferRetest;
+  draft?: QuestionDraft;
+  onDraftChange?: (draft: QuestionDraft) => void;
   onFinished?: (attempt: Attempt) => void;
 }) {
   const store = useStore();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [choice, setChoice] = useState<number | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>(() => ({ ...(draft?.answers ?? {}) }));
+  const [choice, setChoice] = useState<number | null>(() => draft?.choice ?? null);
   const [marking, setMarking] = useState(false);
   const [result, setResult] = useState<{
     marked: MarkedPart[];
@@ -169,8 +178,12 @@ export function QuestionRunner({
               return (
                 <li key={index}>
                   <button
+                    type="button"
                     disabled={Boolean(result)}
-                    onClick={() => setChoice(index)}
+                    onClick={() => {
+                      setChoice(index);
+                      onDraftChange?.({ answers, choice: index });
+                    }}
                     className={cx(
                       "w-full text-left card px-3 py-2.5 flex gap-2.5 items-start transition-colors",
                       choice === index && !result && "border-ink3 bg-surface2",
@@ -204,7 +217,11 @@ export function QuestionRunner({
                   <AnswerInput
                     id={part.id}
                     value={answers[part.id] ?? ""}
-                    onChange={(value) => setAnswers((prev) => ({ ...prev, [part.id]: value }))}
+                    onChange={(value) => {
+                      const nextAnswers = { ...answers, [part.id]: value };
+                      setAnswers(nextAnswers);
+                      onDraftChange?.({ answers: nextAnswers, choice });
+                    }}
                     rows={Math.min(10, Math.max(3, part.marks + 1))}
                   />
                 )}

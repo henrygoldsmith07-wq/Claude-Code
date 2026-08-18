@@ -11,7 +11,8 @@ import { buildPostSessionClosure } from "@/domain/post-session-closure";
 import type { Attempt, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { PostSessionClosure } from "@/components/PostSessionClosure";
-import { QuestionRunner } from "@/components/QuestionRunner";
+import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
+import { QuestionNavigator } from "@/components/QuestionNavigator";
 import { RichText } from "@/components/RichText";
 import { Button, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 
@@ -53,6 +54,7 @@ function Practice() {
   const [generating, setGenerating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [sessionAttempts, setSessionAttempts] = useState<Attempt[]>([]);
+  const [questionDrafts, setQuestionDrafts] = useState<Record<string, QuestionDraft>>({});
   const [closed, setClosed] = useState(false);
   const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
   const [sessionStartedAt, setSessionStartedAt] = useState(() => Date.now());
@@ -104,6 +106,7 @@ function Practice() {
 
   function resetSession() {
     setSessionAttempts([]);
+    setQuestionDrafts({});
     setClosed(false);
     setSessionElapsedMs(0);
     setSessionStartedAt(Date.now());
@@ -130,6 +133,12 @@ function Practice() {
     available: sessionAvailable,
     elapsedMs: sessionElapsedMs,
   });
+  const answered = queue.map((question) => sessionAttempts.some((attempt) => attempt.questionId === question.id));
+  const drafted = queue.map((question) => {
+    const draft = questionDrafts[question.id];
+    return Boolean(draft && (draft.choice !== null || Object.values(draft.answers).some((answer) => answer.trim())));
+  });
+  const currentAnswered = current ? answered[index] : false;
 
   if (closed) {
     return (
@@ -297,33 +306,40 @@ function Practice() {
 
       {current ? (
         <>
+          <QuestionNavigator
+            currentIndex={index}
+            total={queue.length}
+            answered={answered}
+            drafted={drafted}
+            onSelect={setIndex}
+            onPrevious={() => setIndex((i) => Math.max(0, i - 1))}
+            onNext={() => {
+              if (index >= queue.length - 1) void finishSession();
+              else setIndex((i) => Math.min(queue.length - 1, i + 1));
+            }}
+            previousDisabled={index === 0}
+            nextDisabled={index >= queue.length - 1 && !currentAnswered}
+            nextLabel={index >= queue.length - 1 ? "Finish session" : currentAnswered ? "Next question" : "Skip question"}
+          />
           <QuestionRunner
             key={current.id}
             question={current}
             mode={mode}
             farTransfer={farTransferRetest}
+            draft={questionDrafts[current.id]}
+            onDraftChange={(draft) => setQuestionDrafts((previous) => ({ ...previous, [current.id]: draft }))}
             onFinished={(attempt) => {
               setSessionAttempts((previous) => [
                 ...previous.filter((existing) => existing.questionId !== attempt.questionId),
                 attempt,
               ]);
+              setQuestionDrafts((previous) => {
+                const next = { ...previous };
+                delete next[attempt.questionId];
+                return next;
+              });
             }}
           />
-          <div className="flex justify-between gap-2">
-            <Button disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
-              Previous
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!sessionAttempts.some((attempt) => attempt.questionId === current.id)}
-              onClick={() => {
-                if (index >= queue.length - 1) void finishSession();
-                else setIndex((i) => i + 1);
-              }}
-            >
-              {index >= queue.length - 1 ? "Finish session" : "Next question"}
-            </Button>
-          </div>
         </>
       ) : (
         <EmptyState
