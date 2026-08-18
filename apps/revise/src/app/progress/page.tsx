@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { aiDiagnose } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { ACHIEVEMENTS, levelFor } from "@/domain/gamification";
+import { overallProgressNarrative } from "@/domain/analytics";
 import { weakTopics } from "@/domain/mastery";
 import { mistakePatterns } from "@/domain/mistakes";
 import { remediationForMistake } from "@/domain/remediation";
@@ -56,6 +57,29 @@ export default function ProgressPage() {
     };
   }, [store.reviewLogs, store.attempts, store.mastery]);
 
+  const progressStory = useMemo(() => {
+    const focusTopic =
+      weak[0] ??
+      store.mastery
+        .filter((row) => row.cardsTotal > 0 || row.attempts > 0)
+        .slice()
+        .sort((a, b) => a.mastery - b.mastery)[0];
+    const narrative = overallProgressNarrative({
+      mastery: store.mastery,
+      attempts: store.attempts,
+      dueCards: store.dueCards.length,
+      openMistakes: openMistakes.length,
+      weakTop: focusTopic ? getTopic(focusTopic.topicId)?.title : undefined,
+      now: new Date(`${today}T23:59:59.999Z`),
+    });
+    const href = focusTopic
+      ? `/practice?topic=${encodeURIComponent(focusTopic.topicId)}`
+      : narrative.cta === "Review due cards"
+        ? "/review"
+        : "/practice";
+    return { ...narrative, href };
+  }, [store.attempts, store.dueCards.length, store.mastery, today, weak, openMistakes.length]);
+
   async function diagnose() {
     setDiagnosing(true);
     const result = await aiDiagnose(
@@ -86,6 +110,38 @@ export default function ProgressPage() {
         <StatTile label="Topics secure" value={totals.mastered} sub={`of ${store.mastery.length}`} />
         <StatTile label="Level" value={level.level} sub={`${level.into}/${level.needed} XP to next`} />
       </div>
+
+      <section aria-labelledby="progress-story-heading">
+        <Panel className="border-l-4 border-l-accent">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Progress story</p>
+              <h2 id="progress-story-heading" className="text-lg font-semibold tracking-tight mt-1">
+                {progressStory.headline}
+              </h2>
+              <div className="space-y-1.5 mt-2">
+                {progressStory.paragraphs.map((paragraph) => (
+                  <p key={paragraph} className="text-sm text-ink2">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <Link href={progressStory.href} className="shrink-0">
+              <Button size="sm">{progressStory.cta}</Button>
+            </Link>
+          </div>
+          {progressStory.bullets?.length ? (
+            <ul className="grid sm:grid-cols-3 gap-2 mt-4 pt-3 border-t border-line">
+              {progressStory.bullets.map((bullet) => (
+                <li key={bullet} className="text-xs text-ink3">
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </Panel>
+      </section>
 
       <section>
         <SectionHeading

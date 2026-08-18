@@ -1,4 +1,4 @@
-import type { AssessmentInsight, TopicMastery } from "./types";
+import type { AssessmentInsight, Attempt, TopicMastery } from "./types";
 import type { SubjectCoverage } from "./coverage";
 import type { DependencyReport } from "./prerequisites";
 import type { RetentionReport, MarksPerHourReport, TechniqueVsKnowledge, PaperAnalytics } from "./retention-analytics";
@@ -40,6 +40,79 @@ export function progressNarrative(input: {
     `Gaps: ${cov.gaps.length} flagged — see coverage panel`,
   ];
   return { headline, paragraphs, bullets, cta: input.weakTop ? `Practise ${input.weakTop}` : undefined };
+}
+
+export function overallProgressNarrative(input: {
+  mastery: TopicMastery[];
+  attempts: Array<Pick<Attempt, "awarded" | "max" | "createdAt">>;
+  dueCards: number;
+  openMistakes: number;
+  weakTop?: string;
+  now?: Date;
+}): Narrative {
+  const now = input.now ?? new Date();
+  const recentStart = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+  const previousStart = recentStart - 30 * 24 * 60 * 60 * 1000;
+  const recent = input.attempts.filter((attempt) => {
+    const time = new Date(attempt.createdAt).getTime();
+    return time >= recentStart && time <= now.getTime();
+  });
+  const previous = input.attempts.filter((attempt) => {
+    const time = new Date(attempt.createdAt).getTime();
+    return time >= previousStart && time < recentStart;
+  });
+  const overallRate = markRate(input.attempts);
+  const recentRate = markRate(recent);
+  const previousRate = markRate(previous);
+  const delta = recentRate != null && previousRate != null ? Math.round((recentRate - previousRate) * 100) : null;
+  const secure = input.mastery.filter((row) => row.mastery >= 0.8).length;
+  const evidence = input.attempts.length;
+
+  let headline = "Your progress story starts with a baseline.";
+  if (evidence && delta != null && delta >= 5) {
+    headline = `Momentum is building: ${delta} percentage points up in the last 30 days.`;
+  } else if (evidence && delta != null && delta <= -5) {
+    headline = `Recent marks dipped ${Math.abs(delta)} percentage points — here is the recovery route.`;
+  } else if (evidence) {
+    headline = `Steady progress at ${Math.round((overallRate ?? 0) * 100)}% across ${evidence} marked answers.`;
+  }
+
+  const paragraphs: string[] = [];
+  if (!evidence) {
+    paragraphs.push("There is not enough marked exam evidence to show a trend yet. One timed question set will establish a useful baseline.");
+  } else {
+    paragraphs.push(
+      `You have earned ${Math.round((overallRate ?? 0) * 100)}% of the marks available so far, with ${secure} of ${input.mastery.length} topics at 80% mastery.`,
+    );
+    if (delta != null) {
+      paragraphs.push(
+        `Recent work is ${Math.round((recentRate ?? 0) * 100)}% versus ${Math.round((previousRate ?? 0) * 100)}% in the preceding 30-day window.`,
+      );
+    } else if (recentRate != null) {
+      paragraphs.push(`The last 30 days contain ${recent.length} marked answer${recent.length === 1 ? "" : "s"} at ${Math.round(recentRate * 100)}%; keep adding evidence to firm up the trend.`);
+    }
+  }
+  if (input.weakTop) {
+    paragraphs.push(`The next useful move is ${input.weakTop}, where focused practice can convert the most headroom into marks.`);
+  } else if (input.dueCards) {
+    paragraphs.push("There is no ranked weak topic yet, so protect the progress you have by clearing the cards due today.");
+  } else {
+    paragraphs.push("Keep alternating retrieval with timed questions so the next update reflects both memory and exam performance.");
+  }
+
+  const bullets = [
+    evidence ? `${evidence} marked answer${evidence === 1 ? "" : "s"} · ${Math.round((overallRate ?? 0) * 100)}% overall` : "No marked answers yet · baseline pending",
+    `${secure}/${input.mastery.length} topics at 80% mastery`,
+    `${input.openMistakes} open mistake${input.openMistakes === 1 ? "" : "s"} · ${input.dueCards} card${input.dueCards === 1 ? "" : "s"} due`,
+  ];
+  const cta = input.weakTop ? `Practise ${input.weakTop}` : input.dueCards ? "Review due cards" : "Start a timed set";
+  return { headline, paragraphs, bullets, cta };
+}
+
+function markRate(attempts: Array<Pick<Attempt, "awarded" | "max">>): number | null {
+  const marksAvailable = attempts.reduce((total, attempt) => total + attempt.max, 0);
+  if (!marksAvailable) return null;
+  return attempts.reduce((total, attempt) => total + attempt.awarded, 0) / marksAvailable;
 }
 
 export function assessmentNarrative(insight: AssessmentInsight, topicTitle: (id: string)=>string): Narrative {
