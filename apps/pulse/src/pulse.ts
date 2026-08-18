@@ -45,6 +45,7 @@ import { buildClaimNode, buildEvidenceGraph, type AuthoredClaimInput, type Evide
 import type { ClaimNode } from "./evidence-graph/types.js";
 import { ask, type Answer, type AskContext } from "./ask/answer.js";
 import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
+import { buildResearchExport, type ResearchExport } from "./privacy/research-export.js";
 
 export interface PulseOptions {
   timezone?: string;
@@ -503,6 +504,25 @@ export class Pulse {
   }
 
   // --- PRIVACY ----------------------------------------------------------
+
+  /**
+   * The shareable form of the data: de-identified, statistics-first, with no
+   * raw events or free text. Same consent rules as the full export — sensitive
+   * sources are excluded unless asked for by name.
+   */
+  researchExport(options: { includeSensitive?: boolean } = {}): ResearchExport {
+    return buildResearchExport(this.store, this.consent, {
+      ...options,
+      now: this.now,
+      timezone: this.timezone,
+      findings: this.cachedFindings,
+      qualities: this.quality(),
+      experimentDesigns: this.listDesigns(),
+      experimentResults: this.experimentResultsList(),
+      hypotheses: this.hypotheses.list(),
+      insightHistory: this.insightHistory.history(),
+    });
+  }
 
   export(options: { includeSensitive?: boolean } = {}): PulseExport {
     return buildExport(this.store, this.consent, {
