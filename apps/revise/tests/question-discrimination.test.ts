@@ -3,7 +3,8 @@ import {
   measureQuestionBankDiscrimination,
   measureQuestionDiscrimination,
 } from "@/domain/question-discrimination";
-import type { Attempt } from "@/domain/types";
+import { buildAssessmentInsight } from "@/domain/assessment";
+import type { Attempt, Question } from "@/domain/types";
 
 function attempt(input: {
   userId: string;
@@ -32,6 +33,22 @@ function attempt(input: {
 }
 
 const question = { id: "q-target", subjectId: "maths" } as const;
+
+function questionRecord(id: string): Question {
+  return {
+    id,
+    subjectId: "maths",
+    topicIds: ["algebra"],
+    kind: "short",
+    stem: id,
+    parts: [],
+    totalMarks: 10,
+    calculatorAllowed: false,
+    difficulty: 3,
+    origin: "ai",
+    createdAt: "2025-01-01T00:00:00.000Z",
+  };
+}
 
 describe("measureQuestionDiscrimination", () => {
   it("uses latest attempts and leave-one-question-out ability for a strong item", () => {
@@ -194,5 +211,37 @@ describe("measureQuestionDiscrimination", () => {
     expect(measurements.map((measurement) => measurement.questionId)).toEqual(["q-target", "q-other"]);
     expect(measurements[0].band).toBe("strong");
     expect(measurements[1].band).toBe("strong");
+  });
+
+  it("publishes the measurements through the assessment insight", () => {
+    const target = questionRecord(question.id);
+    const baseline = questionRecord("q-baseline");
+    const attempts = [0, 1, 2, 3, 4].flatMap((index) => [
+      attempt({
+        userId: `u-${index}`,
+        questionId: target.id,
+        awarded: index * 2,
+        createdAt: `2025-09-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`,
+      }),
+      attempt({
+        userId: `u-${index}`,
+        questionId: baseline.id,
+        awarded: index * 2,
+        createdAt: `2025-09-${String(index + 1).padStart(2, "0")}T11:00:00.000Z`,
+      }),
+    ]);
+
+    const insight = buildAssessmentInsight({
+      attempts,
+      mistakes: [],
+      mastery: [],
+      questionsById: new Map([
+        [target.id, target],
+        [baseline.id, baseline],
+      ]),
+    });
+
+    expect(insight.questionDiscrimination).toHaveLength(2);
+    expect(insight.questionDiscrimination?.find((measurement) => measurement.questionId === target.id)?.band).toBe("strong");
   });
 });

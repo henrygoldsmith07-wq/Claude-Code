@@ -425,6 +425,35 @@ export interface AssessmentInsight {
   repeatedWeakSubtopics: Id[];
   /** Expected marks gained if 1 hour is spent on each listed topic. */
   expectedMarksPerHour: Array<{ topicId: Id; value: number }>;
+  /** Item-analysis measurements for questions with enough cohort evidence. */
+  questionDiscrimination?: QuestionDiscriminationMeasurement[];
+}
+
+export type QuestionDiscriminationBand =
+  | "insufficient-data"
+  | "no-variance"
+  | "reverse"
+  | "weak"
+  | "acceptable"
+  | "strong";
+
+export interface QuestionDiscriminationMeasurement {
+  questionId: Id;
+  subjectId: Id;
+  /** Valid, deduplicated attempts for the target question. */
+  sampleSize: number;
+  /** Attempts with both a valid item score and an ability score. */
+  usableSampleSize: number;
+  /** Mean awarded/max for the target question. */
+  facility: number | null;
+  /** Item-total correlation against ability, excluding the target question when derived. */
+  discrimination: number | null;
+  /** Standard error on Fisher's z scale. */
+  standardError: number | null;
+  confidenceInterval: { lower: number; upper: number } | null;
+  band: QuestionDiscriminationBand;
+  reliable: boolean;
+  abilitySource: "provided" | "leave-one-question-out" | "none";
 }
 
 export interface PaperSimulation {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import type { QuestionDiscriminationBand } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
 
@@ -219,6 +220,63 @@ export function DifficultyAndSubtopics() {
         ) : null}
       </Panel>
     </div>
+  );
+}
+
+function discriminationTone(band: QuestionDiscriminationBand): "neutral" | "success" | "review" | "danger" | "accent" {
+  if (band === "strong") return "success";
+  if (band === "acceptable") return "accent";
+  if (band === "weak") return "review";
+  if (band === "reverse") return "danger";
+  return "neutral";
+}
+
+function discriminationLabel(band: QuestionDiscriminationBand): string {
+  if (band === "insufficient-data") return "Insufficient data";
+  if (band === "no-variance") return "No variance";
+  return band[0].toUpperCase() + band.slice(1);
+}
+
+export function QuestionDiscriminationCard() {
+  const store = useStore();
+  const rows = (store.assessment?.questionDiscrimination ?? [])
+    .filter((measurement) => measurement.sampleSize > 0)
+    .slice(0, 8);
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="Question discrimination"
+        hint="Whether each question separates stronger from weaker learners."
+      />
+      {!rows.length ? (
+        <EmptyHint>Complete marked questions to start measuring the question bank.</EmptyHint>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {rows.map((measurement) => {
+              const question = store.questions.find((candidate) => candidate.id === measurement.questionId);
+              const label = question?.paperQuestionNumber
+                ? `Question ${question.paperQuestionNumber}`
+                : question?.stem?.replace(/\s+/g, " ").slice(0, 62) || measurement.questionId;
+              return (
+                <li key={measurement.questionId} className="flex items-center gap-2 text-xs">
+                  <span className="min-w-0 flex-1 truncate text-ink" title={question?.stem}>{label}</span>
+                  <span className="tabular-nums text-ink2 shrink-0">
+                    r={measurement.discrimination == null ? "—" : measurement.discrimination.toFixed(2)}
+                  </span>
+                  <Pill tone={discriminationTone(measurement.band)}>{discriminationLabel(measurement.band)}</Pill>
+                  <span className="tabular-nums text-ink3 shrink-0">n={measurement.usableSampleSize}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[11px] text-ink3 mt-3">
+            Positive r is useful separation; negative r flags a question for review. Results need five usable learners and exclude the target question from derived ability.
+          </p>
+        </>
+      )}
+    </Panel>
   );
 }
 
