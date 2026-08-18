@@ -8,13 +8,14 @@ import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { tokenise } from "@/domain/marking";
 import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
+import { ExamConditionMode } from "@/components/ExamConditionMode";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented } from "@/components/ui";
 import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
 
-// Past papers: upload, extract, map to topics, practise by topic or as a timed
-// paper. Extraction needs a model; everything after it does not, so a paper
-// extracted once stays fully usable offline forever.
+// Past papers: upload, extract, map to topics, practise by topic, or sit a
+// paper under full exam conditions. Extraction needs a model; everything after
+// it does not, so a paper extracted once stays fully usable offline forever.
 
 export default function PapersPage() {
   return (
@@ -30,6 +31,7 @@ function Papers() {
   const subjects = useSubjects();
   const [subjectId, setSubjectId] = useState(params.get("subject") ?? subjects[0]?.id ?? "");
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
+  const [examPaper, setExamPaper] = useState<Paper | null>(null);
 
   const papers = useMemo(
     () => store.papers.filter((p) => !subjectId || p.subjectId === subjectId),
@@ -40,13 +42,17 @@ function Papers() {
     return <PaperSession paper={activePaper} onExit={() => setActivePaper(null)} />;
   }
 
+  if (examPaper) {
+    return <ExamConditionMode paper={examPaper} onExit={() => setExamPaper(null)} />;
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Past papers</h1>
           <p className="text-sm text-ink3 mt-0.5">
-            Upload a paper and its mark scheme, extract the questions, then practise them by topic or in full.
+            Upload a paper and its mark scheme, extract the questions, then practise them by topic or under full exam conditions.
           </p>
         </div>
         {subjects.length > 1 ? (
@@ -60,6 +66,13 @@ function Papers() {
       </header>
 
       <UploadPaper subjectId={subjectId} />
+
+      <Panel className="space-y-2">
+        <SectionHeading title="Full exam conditions" hint="A fixed clock, no in-paper help, and feedback only after submission." />
+        <p className="text-sm text-ink2">
+          Choose <span className="font-semibold">Full exam conditions</span> beside any extracted paper below. The run is timed to the selected paper format, saves each answer only when you submit, and records the marked paper for later review.
+        </p>
+      </Panel>
 
       <section>
         <SectionHeading title="Your papers" hint="Extracted questions join the practice pool automatically." />
@@ -80,14 +93,14 @@ function Papers() {
                     </p>
                   </div>
                   <Pill tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={!paper.questionIds.length}
-                    onClick={() => setActivePaper(paper)}
-                  >
-                    Sit paper
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    <Button size="sm" disabled={!paper.questionIds.length} onClick={() => setActivePaper(paper)}>
+                      Practise paper
+                    </Button>
+                    <Button size="sm" variant="primary" disabled={!paper.questionIds.length} onClick={() => setExamPaper(paper)}>
+                      Full exam conditions
+                    </Button>
+                  </div>
                 </li>
               );
             })}
@@ -95,7 +108,7 @@ function Papers() {
         ) : (
           <EmptyState
             title="No papers uploaded"
-            body="Paste the text of a past paper, or photograph its pages. Questions are split out, mapped to topics and marked against the scheme."
+            body="Paste the text of a past paper, or photograph its pages. Questions are split out, mapped to topics and marked against the scheme. Extract one to unlock full exam conditions."
           />
         )}
       </section>
