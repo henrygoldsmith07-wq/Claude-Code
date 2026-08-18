@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   getMetrics, getSessions, getGrammarProgress, getSrs, getNotebook,
   getTimeLog, getXpLog, getReviewLog, getXp, getSettings,
+  getLearnerErrors, getLearnerErrorSummary,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { getGrammarErrors } from '../lib/storage';
@@ -59,6 +60,8 @@ export default function Analytics({ open, onClose }) {
       thisWeekXp: xpInRange(xpLog, 6, 0),
       lastWeekXp: xpInRange(xpLog, 13, 7),
       weeklyGoal: getSettings().weeklyGoal,
+      learnerErrors: getLearnerErrors({ limit: 8 }),
+      learnerErrorSummary: getLearnerErrorSummary(),
     };
   }, [open]);
 
@@ -141,6 +144,8 @@ export default function Analytics({ open, onClose }) {
 
           <LearnerValidation />
           <ErrorNotebookStats />
+          <LearnerErrorModel entries={d.learnerErrors} summary={d.learnerErrorSummary} />
+          <SessionHistory sessions={d.sessions} />
           <ExamBenchmark />
           {/* period reports */}
           <WeaknessMemory />
@@ -407,6 +412,65 @@ function ErrorNotebookStats(){
     </section>
   );
 }
+
+function LearnerErrorModel({ entries, summary }) {
+  const labels = { grammar: 'Grammar', vocabulary: 'Vocabulary', listening: 'Listening', pronunciation: 'Pronunciation' };
+  return (
+    <section className="space-y-2.5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Persistent learner error model</h3>
+      <div className="bg-surface border border-line rounded-2xl p-4 space-y-3">
+        <div className="grid grid-cols-4 gap-2 text-center">
+          {Object.entries(labels).map(([key, label]) => (
+            <div key={key}>
+              <p className="text-base font-bold text-ink tabular-nums">{summary.byCategory[key].entries}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-ink3">{label}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-ink3">{summary.active} active · {summary.recovering} recovering · {summary.resolved} resolved · {summary.recurrences} recurrences. Gaps persist across the mode where they first appeared.</p>
+        {entries.length > 0 && (
+          <div className="space-y-2">
+            {entries.map((entry) => (
+              <div key={entry.id} className="flex items-center gap-2">
+                <span className="shrink-0 px-1.5 py-0.5 rounded border border-line bg-surface2 text-[9px] font-bold uppercase tracking-wider text-ink3">{entry.category}</span>
+                <span className="flex-1 min-w-0 text-xs text-ink truncate">{entry.label}</span>
+                <span className="shrink-0 text-[10px] text-ink3 tabular-nums">{entry.errorCount}×</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!entries.length && <p className="text-xs text-ink3">No persistent gaps yet. Every low-scoring drill will feed this model.</p>}
+      </div>
+    </section>
+  );
+}
+
+function SessionHistory({ sessions }) {
+  const recent = sessions.slice().reverse().slice(0, 8);
+  return (
+    <section className="space-y-2.5">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Full session history</h3>
+      <div className="bg-surface border border-line rounded-2xl p-4 space-y-3">
+        <p className="text-xs text-ink2">{sessions.length} completed session{sessions.length === 1 ? '' : 's'} stored locally. New sessions are no longer limited to the old last-10 window.</p>
+        {recent.length > 0 && (
+          <div className="space-y-2">
+            {recent.map((session) => {
+              const score = session.report?.average_scores?.overall;
+              return (
+                <div key={session.id} className="flex items-center gap-2 text-xs">
+                  <span className="w-20 shrink-0 text-ink3 tabular-nums">{session.date ? new Date(session.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</span>
+                  <span className="flex-1 min-w-0 truncate text-ink">{session.scenarioId || 'Conversation'}</span>
+                  <span className="shrink-0 text-ink3 tabular-nums">{score == null ? '—' : `${score}%`}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // Says how far the exam marks have actually been checked against a human
 // examiner. With no marked attempts on file that is "not at all", and saying
 // so is the entire point of the panel — a confident-looking agreement figure

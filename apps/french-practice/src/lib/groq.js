@@ -232,6 +232,7 @@ function learnerLine(l) {
   if (l.mistakes?.length) bits.push(`recurring mistakes to gently catch and reinforce: ${l.mistakes.join('; ')}`);
   if (l.weakGrammar?.length) bits.push(`weak grammar areas: ${l.weakGrammar.join(', ')}`);
   if (l.memory?.focusTopic) bits.push(`due retest: ${l.memory.focusTopic} (${l.memory.errorCount || 1} prior slip${(l.memory.errorCount||1)===1?'':'s'}, ${l.memory.status||'active'}) — deliberately create a natural opening for them to use it, then observe whether they do`);
+  if (l.recyclingInstruction) bits.push(l.recyclingInstruction);
   return bits.length
     ? ` Learner profile — ${bits.join('; ')}. Tailor your examples to their interests and weak spots, and address them by name when it feels natural; never recite this profile back to them.`
     : '';

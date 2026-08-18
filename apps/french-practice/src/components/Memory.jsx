@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { allEntries } from '../lib/vocab';
-import { getSrs, getHabits, reviewHabit, getNotebook, getReviewLog } from '../lib/storage';
+import {
+  getSrs, getHabits, reviewHabit, getNotebook, getReviewLog,
+  getLearnerErrors, recordLearnerSuccess,
+} from '../lib/storage';
 import {
   memoryBuckets, weakEntries, curvePoints, heatmapWeeks, totalReviews,
   reviewOutlook, notebookAsEntries,
@@ -13,7 +16,9 @@ import { ChevronLeft, ChevronRight, Check, X, Layers, Target, Book } from './ico
 
 export default function Memory({ onBack, onOpenDeck, onXp }) {
   const [habitTick, setHabitTick] = useState(0);
+  const [errorTick, setErrorTick] = useState(0);
   const habits = useMemo(() => getHabits(), [habitTick]);
+  const learnerErrors = useMemo(() => getLearnerErrors({ limit: 8 }), [errorTick]);
 
   const { entries, buckets, weak, outlook, log } = useMemo(() => {
     const srsMap = getSrs();
@@ -119,6 +124,11 @@ export default function Memory({ onBack, onOpenDeck, onXp }) {
 
         {/* mistake review */}
         <MistakeReview habits={habits} onChange={() => setHabitTick((t) => t + 1)} onXp={onXp} />
+        <LearnerMistakeReview
+          errors={learnerErrors}
+          onChange={() => setErrorTick((t) => t + 1)}
+          onXp={onXp}
+        />
 
         {/* heatmap */}
         <div className="bg-surface border border-line rounded-2xl p-5 space-y-3">
@@ -220,6 +230,58 @@ function MistakeReview({ habits, onChange, onXp }) {
               <Check size={13} /> Got it now
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LearnerMistakeReview({ errors, onChange, onXp }) {
+  const [idx, setIdx] = useState(0);
+  const error = errors[idx % Math.max(1, errors.length)];
+
+  const answer = (gotIt) => {
+    if (gotIt && error) {
+      recordLearnerSuccess({
+        category: error.category,
+        key: error.key,
+        label: error.label,
+        mode: 'mistake-review',
+        score: 100,
+        source: 'cross-mode-recycle',
+      });
+      onXp(2);
+    }
+    onChange();
+    setIdx((i) => i + 1);
+  };
+
+  return (
+    <div className="bg-surface border border-line rounded-2xl p-5 space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Cross-mode mistake recycling</h3>
+        {errors.length > 0 && <span className="text-[11px] text-ink3 tabular-nums">{errors.length} gaps</span>}
+      </div>
+      {!error ? (
+        <p className="text-xs text-ink3">Grammar, vocabulary, listening and pronunciation gaps will collect here and follow you between modes.</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2">
+            <span className="shrink-0 px-2 py-1 rounded-full border border-line bg-surface2 text-[10px] font-bold uppercase tracking-wider text-ink3">{error.category}</span>
+            <p className="text-sm text-ink leading-relaxed">{error.label}</p>
+          </div>
+          <p className="text-[11px] text-ink3">
+            Missed ×{error.errorCount} · seen in {error.modes.length ? error.modes.join(', ') : 'more than one mode'} · {error.status}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => answer(false)} className="btn btn-secondary flex-1 min-h-11 rounded-xl text-xs">
+              <X size={13} /> Still shaky
+            </button>
+            <button onClick={() => answer(true)} className="btn btn-primary flex-1 min-h-11 rounded-xl text-xs">
+              <Check size={13} /> Got it twice
+            </button>
+          </div>
+          <p className="text-[10px] text-ink3">Two clean passes move a gap to resolved; the same error returns if it recurs.</p>
         </div>
       )}
     </div>

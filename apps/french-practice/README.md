@@ -61,8 +61,12 @@ stops at the source — even a stale mirror is refused.
   (editable before sending) → `llama-3.1-8b-instant` strict-JSON evaluation.
 - **Session report card** — "End Session" compiles the conversation
   into a graded report: strengths, stubborn habits, tomorrow's focus, progress
-  rings, canvas radar chart, 10-session trend line, streaks, and a shareable
+  rings, canvas radar chart, full-session trend line, streaks, and a shareable
   PNG progress card.
+- **Durable learning memory** — completed sessions migrate from the old
+  last-10 store into full local history; every review is an event, and a
+  cross-mode error model carries recurring grammar, vocabulary, listening and
+  pronunciation gaps into the next practice and the analytics/revision views.
 - **Speaking hub** — drills for the mouth (under the Skills tab):
   - **Pronunciation** — read a sentence aloud; Whisper transcribes it and a
     word-level diff scores how much was recognized, with unrecognized words

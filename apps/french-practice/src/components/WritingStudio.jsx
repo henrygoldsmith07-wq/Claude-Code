@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { WRITING_PROMPTS, ESSAY_PROMPTS, randomFrom } from '../lib/writing';
 import { writingFeedback, friendlyError } from '../lib/groq';
-import { recordSkillScore } from '../lib/storage';
+import { recordSkillScore, recordLearnerError } from '../lib/storage';
 import { addErrorNotebook } from '../lib/errorNotebook';
 import { explainCorrection } from '../lib/writing';
 import { Markdown, Spinner } from './ui';
@@ -11,7 +11,7 @@ import { Check, RefreshCw } from './icons';
 // prompt → write → AI review with corrections, strengths, suggestions and
 // scores. Word count guides length; XP scales with the overall score.
 
-export default function WritingStudio({ depth, apiKey, mockMode, level, onXp }) {
+export default function WritingStudio({ depth, apiKey, mockMode, level, onXp, onActivity }) {
   const essay = depth === 'essay';
   const prompts = essay ? ESSAY_PROMPTS : WRITING_PROMPTS;
   const minWords = essay ? 80 : 25;
@@ -29,14 +29,30 @@ export default function WritingStudio({ depth, apiKey, mockMode, level, onXp }) 
     setError(null);
     try {
       const r = await writingFeedback(apiKey, { text: text.trim(), prompt: prompt.fr, level, depth, mock: mockMode });
-      onXp(Math.max(2, Math.round((r.scores.overall || 50) / 10)));
-      recordSkillScore('writing', r.scores.overall || 50);
+      const overall = r.scores.overall || 50;
+      onXp(Math.max(2, Math.round(overall / 10)));
+      recordSkillScore('writing', overall);
+      onActivity?.({ type: 'writing', score: overall, mode: essay ? 'essay' : 'free-writing', label: essay ? 'Essay studio' : 'Free writing' });
       // Seed error notebook from corrections (each line becomes a retype task)
       try{
         const lines = String(r.corrections||'').split(/\n+/).slice(0,5);
         for(const line of lines){
           const m = line.match(/(.+?)\s*[→\-–]\s*(.+)/);
-          if(m) addErrorNotebook({ original: m[1].replace(/^[^a-zA-ZÀ-ÿ]+/,''), corrected: m[2].trim(), why: explainCorrection(m[1], m[2]) });
+          if(m) {
+            const original = m[1].replace(/^[^a-zA-ZÀ-ÿ]+/,'');
+            const corrected = m[2].trim();
+            const why = explainCorrection(m[1], m[2]);
+            addErrorNotebook({ original, corrected, why });
+            recordLearnerError({
+              category: 'grammar',
+              key: `writing:${original.toLowerCase()}=>${corrected.toLowerCase()}`,
+              label: `${original} → ${corrected}`,
+              mode: essay ? 'essay' : 'writing',
+              score: overall,
+              source: 'writing-correction',
+              detail: why,
+            });
+          }
         }
       }catch{}
       setReview(r);
