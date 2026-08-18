@@ -11,7 +11,7 @@ import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
-import { CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard } from "@/components/AssessmentPanels";
+import { CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard, RecurringMisconceptions } from "@/components/AssessmentPanels";
 import { ResponseTimeCalibrationPanel } from "@/components/ResponseTimeCalibration";
 import { MistakeRootCausePanel } from "@/components/MistakeRootCause";
 import { CoverageCard } from "@/components/CoverageCard";
@@ -255,6 +255,7 @@ export default function ProgressPage() {
       <section className="space-y-4">
         <ExpectedMarksCard />
         <MarksLostByCause />
+        <RecurringMisconceptions />
         <MistakeRootCausePanel />
         <DifficultyAndSubtopics />
         <PaperSimulationCard />

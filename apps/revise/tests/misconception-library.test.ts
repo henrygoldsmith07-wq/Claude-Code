@@ -7,8 +7,10 @@ import {
   seedQuestions,
 } from "@/content";
 import { allSubjects, allTopics, getTopic } from "@/domain/curriculum";
-import { matchMisconception } from "@/domain/misconception-library";
+import { mistakesFromAttempt } from "@/domain/mistakes";
+import { matchMisconception, tallyMisconceptions } from "@/domain/misconception-library";
 import { buildSearchIndex, searchIndex } from "@/domain/search";
+import type { Attempt, Question } from "@/domain/types";
 
 describe("misconception library", () => {
   it("ships at least two misconceptions for each of the four WJEC A-level subjects", () => {
@@ -86,5 +88,88 @@ describe("search integration", () => {
     const hit = searchIndex(index, "R groups").find((r) => r.kind === "misconception");
     expect(hit).toBeTruthy();
     expect(hit!.topicId).toBe("wjec-alevel-biology.biological-molecules");
+  });
+});
+
+describe("misconception tallies", () => {
+  const entries = misconceptionsForTopic("wjec-alevel-maths.algebra");
+
+  const attempt = (): Attempt => ({
+    id: "a-tally",
+    userId: "u",
+    questionId: "q-tally",
+    subjectId: "wjec-alevel-maths",
+    topicIds: ["wjec-alevel-maths.algebra"],
+    answers: { "alg-tally": "I divided both sides of -2x < 6 by -2 and kept the sign, writing x < -3" },
+    marked: [
+      {
+        partId: "alg-tally",
+        awarded: 0,
+        max: 1,
+        creditedPoints: [],
+        missedPoints: ["Solves -2x < 6 correctly"],
+        comment: "",
+      },
+    ],
+    awarded: 0,
+    max: 1,
+    feedback: "",
+    markedBy: "rubric",
+    elapsedMs: 1000,
+    mode: "practice",
+    createdAt: "2025-06-01T09:00:00.000Z",
+  });
+
+  const question = (): Question => ({
+    id: "q-tally",
+    subjectId: "wjec-alevel-maths",
+    topicIds: ["wjec-alevel-maths.algebra"],
+    kind: "structured",
+    stem: "Solve -2x < 6.",
+    parts: [
+      {
+        id: "alg-tally",
+        label: "(a)",
+        prompt: "Solve -2x < 6.",
+        marks: 1,
+        markScheme: ["Solves -2x < 6 correctly"],
+        modelAnswer: "x > -3",
+      },
+    ],
+    totalMarks: 1,
+    calculatorAllowed: true,
+    difficulty: 2,
+    origin: "seed",
+    createdAt: "2025-01-01T00:00:00.000Z",
+  });
+
+  it("records the matched library entry id on a mistake", () => {
+    let n = 0;
+    const [draft] = mistakesFromAttempt(
+      attempt(),
+      question(),
+      () => `m-${n++}`,
+      new Date("2025-06-01T09:00:00Z"),
+      entries,
+    );
+    expect(draft.mistake.misconceptionEntryId).toBe("seed-misconception:inequality-sign-reversal");
+  });
+
+  it("tallies recurring misconceptions, most frequent first", () => {
+    const a = entries[0]!;
+    const b = entries[1]!;
+    const tallies = tallyMisconceptions(
+      [
+        { misconceptionEntryId: a.id },
+        { misconceptionEntryId: b.id },
+        { misconceptionEntryId: a.id },
+        { misconceptionEntryId: a.id },
+        {},
+      ],
+      entries,
+    );
+    expect(tallies).toHaveLength(2);
+    expect(tallies[0]).toEqual({ entry: a, count: 3 });
+    expect(tallies[1]).toEqual({ entry: b, count: 1 });
   });
 });

@@ -38,7 +38,10 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
     onClose();
     if (result.kind === "question") router.push(`/practice?question=${encodeURIComponent(result.id)}`);
     else if (result.kind === "card") router.push(`/review?topic=${encodeURIComponent(result.topicId ?? "")}`);
-    else if (result.kind === "misconception") router.push(`/library?topic=${encodeURIComponent(result.topicId ?? "")}`);
+    else if (result.kind === "misconception")
+      router.push(
+        `/library?topic=${encodeURIComponent(result.topicId ?? "")}&misconception=${encodeURIComponent(result.id)}`,
+      );
     else router.push(`/library?topic=${encodeURIComponent(result.id)}`);
   };
 
