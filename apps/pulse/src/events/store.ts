@@ -98,6 +98,10 @@ export class MemoryEventStore {
       }
       result.ids.push(event.id);
     }
+    // A put that changed nothing writes nothing. Replaying a deterministic
+    // backfill over already-persisted data would otherwise re-encrypt the
+    // entire store on every reload, for no gain.
+    if (result.inserted === 0 && result.updated === 0) return result;
     await this.persist();
     return result;
   }
@@ -160,6 +164,15 @@ export class MemoryEventStore {
   }
 
   async setCursor(cursor: SyncCursor): Promise<void> {
+    const existing = this.cursors.get(cursor.source);
+    if (
+      existing &&
+      existing.cursor === cursor.cursor &&
+      existing.lastEventAt === cursor.lastEventAt &&
+      existing.lastSyncedAt === cursor.lastSyncedAt
+    ) {
+      return;
+    }
     this.cursors.set(cursor.source, cursor);
     await this.persist();
   }

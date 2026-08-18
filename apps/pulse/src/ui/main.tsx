@@ -17,7 +17,7 @@ import { App } from "./App.js";
 import { afterPaint, renderBootFailure } from "./boot.js";
 import { createSyntheticPulse } from "../synthetic/harness.js";
 import { addDays, localDayEnd } from "../events/time.js";
-import { createEncryptedBlobAdapter, createLocalStorageBlobStorage } from "../privacy/encryption.js";
+import { createEncryptedAdapter, createEncryptedBlobAdapter, createLocalStorageBlobStorage } from "../privacy/encryption.js";
 import type { InsightHistorySnapshot } from "../history/insight-history.js";
 import "./styles.css";
 
@@ -36,18 +36,23 @@ async function boot(): Promise<void> {
   await afterPaint();
 
   // The demo carries synthetic data only, so the at-rest key is a fixed demo
-  // passphrase — a real deployment would prompt for one, as with the event
-  // store. Encryption at rest is still exercised: what reaches localStorage
-  // is ciphertext, never the snapshots.
+  // passphrase — a real deployment would prompt for one. Both the event store
+  // and the insight history go through the same AES-GCM adapter, so what
+  // reaches localStorage is ciphertext, never the events or snapshots.
+  const eventsAdapter = createEncryptedAdapter(
+    createLocalStorageBlobStorage("pulse.events"),
+    "pulse-demo-synthetic-only",
+  );
   const historyAdapter = createEncryptedBlobAdapter<InsightHistorySnapshot>(
     createLocalStorageBlobStorage("pulse.insight-history"),
     "pulse-demo-synthetic-only",
   );
-  const { pulse, user } = await createSyntheticPulse({ days: 180, historyAdapter });
+  const { pulse, user } = await createSyntheticPulse({ days: 180, adapter: eventsAdapter, historyAdapter });
 
-  // Restore the persisted insight history before the scans below run, so a
-  // reload replays them against what is already recorded rather than growing
-  // the history with duplicates.
+  // Restore the persisted event store and insight history before the scans
+  // below run. The deterministic backfill in `createSyntheticPulse` replays as
+  // duplicates once the events are on disk, so a reload merges rather than
+  // duplicates, and the history is replayed against what is already recorded.
   await pulse.load();
 
   // Reconstruct the insight history as the data accumulated, so the history

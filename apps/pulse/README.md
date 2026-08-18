@@ -113,12 +113,19 @@ Pulse can show each insight's journey rather than only its current state:
 - replication status — `new` → `replicated` → `experimentally-supported` /
   `failed-to-replicate` as later scans and controlled experiments weigh in
 
-The history is durable: it persists through an adapter exactly like the event
-store (the demo keeps it in localStorage, encrypted at rest), and per-source
-deletion scrubs every snapshot that drew on the deleted source. Identical
-rescans are ignored, so the history records change, not churn — the UI rescans
-on every render and a reload replays the whole boot, and neither is new
-evidence.
+The history is durable (see **Persistence** below), and per-source deletion
+scrubs every snapshot that drew on the deleted source. Identical rescans are
+ignored, so the history records change, not churn — the UI rescans on every
+render and a reload replays the whole boot, and neither is new evidence.
+
+## Persistence
+
+Both the event store and the insight history survive reloads. Each persists
+through its own adapter; in the demo both are encrypted at rest in localStorage
+through the same AES-GCM scheme, so a refresh restores the events and the
+history without re-syncing or growing either. Writes that change nothing (a
+replayed backfill, an unchanged cursor) are skipped, so a reload does not
+re-encrypt the store for no reason.
 
 ## Experiments
 

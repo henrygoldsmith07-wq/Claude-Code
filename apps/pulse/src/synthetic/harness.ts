@@ -7,6 +7,7 @@
 
 import { Pulse } from "../pulse.js";
 import type { InsightHistoryAdapter } from "../history/insight-history.js";
+import type { PersistenceAdapter } from "../events/store.js";
 import { createArrayReader } from "../connectors/sdk.js";
 import { createReviseConnector, type ReviseRecord } from "../connectors/revise.js";
 import { createAriseConnector, type AriseRecord } from "../connectors/arise.js";
@@ -27,6 +28,8 @@ export interface HarnessOptions extends SyntheticOptions {
   nowMs?: number;
   /** Persists the insight history; without one the history lives for the process. */
   historyAdapter?: InsightHistoryAdapter;
+  /** Persists the event store; without one the events live for the process. */
+  adapter?: PersistenceAdapter;
 }
 
 export interface Harness {
@@ -93,6 +96,7 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
     timezone: user.timezone,
     now: () => nowMs,
     historyAdapter: options.historyAdapter,
+    ...(options.adapter ? { adapter: options.adapter } : {}),
   });
 
   pulse.registerConnector(createReviseConnector(createArrayReader(user.revise, timestampOfRevise)));

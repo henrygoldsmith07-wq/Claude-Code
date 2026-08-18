@@ -15,7 +15,7 @@ import {
 } from "../src/events/schema.js";
 import { buildDedupeKey, normaliseEvent, type NormaliseContext, type RawEventInput } from "../src/events/normalise.js";
 import { migrateAll, migrateEvent, needsMigration } from "../src/events/migrate.js";
-import { MemoryEventStore, createMemoryAdapter, filterEvents } from "../src/events/store.js";
+import { MemoryEventStore, createMemoryAdapter, filterEvents, type PersistenceAdapter } from "../src/events/store.js";
 import { hash128, stableHash, stableStringify } from "../src/events/hash.js";
 
 const ctx: NormaliseContext = {
@@ -295,6 +295,55 @@ describe("event store", () => {
     await second.load();
     expect(second.size).toBe(1);
     expect(second.getCursor("revise")?.cursor).toBe("abc");
+  });
+
+  it("does not persist when a put changes nothing", async () => {
+    let saves = 0;
+    const adapter: PersistenceAdapter = {
+      async load() {
+        return null;
+      },
+      async save() {
+        saves += 1;
+      },
+    };
+    const store = new MemoryEventStore(adapter);
+    await store.load();
+
+    await store.put([build()]);
+    expect(saves).toBe(1);
+
+    // Re-ingesting the identical record is a no-op — an encrypted adapter would
+    // re-derive the key and re-encrypt the whole store for nothing.
+    await store.put([build()]);
+    expect(saves).toBe(1);
+
+    await store.put([build({ metrics: { accuracy: 0.9, marks_awarded: 9 } })]);
+    expect(saves).toBe(2);
+  });
+
+  it("does not persist a cursor whose content is unchanged", async () => {
+    let saves = 0;
+    const adapter: PersistenceAdapter = {
+      async load() {
+        return null;
+      },
+      async save() {
+        saves += 1;
+      },
+    };
+    const store = new MemoryEventStore(adapter);
+    await store.load();
+
+    const cursor = { source: "revise" as const, cursor: "abc", lastSyncedAt: "2025-07-01T12:00:00Z", lastEventAt: "2025-06-15T15:30:00Z" };
+    await store.setCursor(cursor);
+    expect(saves).toBe(1);
+
+    await store.setCursor(cursor);
+    expect(saves).toBe(1);
+
+    await store.setCursor({ ...cursor, lastEventAt: "2025-06-16T15:30:00Z" });
+    expect(saves).toBe(2);
   });
 
   it("filters by source, type, category, subject and time window", async () => {

@@ -331,6 +331,31 @@ describe("encryption at rest", () => {
     await expect(second.load()).rejects.toThrow(/Could not decrypt/);
   });
 
+  it("rehydrates the event store through Pulse.load() from an encrypted adapter", async () => {
+    const storage = createMemoryBlobStorage();
+    const adapter = () => createEncryptedAdapter(storage, "passphrase");
+
+    const first = await createSyntheticPulse({ days: 60, seed: "reload-events", adapter: adapter() });
+    const before = first.pulse.events({ includeSensitive: true });
+    expect(before.length).toBeGreaterThan(100);
+
+    // A fresh boot over the same storage: the deterministic backfill replays
+    // as duplicates (so nothing is rewritten), and load() restores the
+    // encrypted snapshot — the events survive the reload untouched.
+    const second = await createSyntheticPulse({ days: 60, seed: "reload-events", adapter: adapter() });
+    await second.pulse.load();
+    const after = second.pulse.events({ includeSensitive: true });
+    expect(after).toHaveLength(before.length);
+    expect(after[0]).toEqual(before[0]);
+    expect(after.at(-1)).toEqual(before.at(-1));
+
+    // The on-disk blob is ciphertext, never the event stream.
+    const raw = await storage.read();
+    expect(raw).toBeTruthy();
+    expect(raw!).not.toMatch(/revise\.attempt/);
+    expect(raw!).not.toMatch(/reload-events/);
+  });
+
   it("stores the insight history encrypted and rehydrates it transparently", async () => {
     const storage = createMemoryBlobStorage();
     const snapshot: InsightHistorySnapshot = {
