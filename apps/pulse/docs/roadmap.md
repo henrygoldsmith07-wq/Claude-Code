@@ -30,6 +30,17 @@ the experiments panel lists the periods on each design card. The periods are
 derived from the schedule, never stored. `tests/periods.test.ts` (13 tests)
 pins the behaviour across all three design types.
 
+Shipped: **#3 Washout Periods** — `designExperiment` accepts optional
+`washoutDays` (crossover only, capped at `blockDays`): the schedule inserts a
+null-condition gap between every pair of blocks, `derivePeriods` names each
+gap "Washout", and the calendar labels those days "Washout · Day 1/2" with
+"No condition — record the outcome only" as the instruction. The analysis
+excludes washout days from the per-block means and from adherence (there is
+no assignment to follow), and reports them separately in the result's
+`washout` field — length, recorded sessions and their mean, the visible
+hangover — plus one plain sentence in the summary. `tests/washout.test.ts`
+(13 tests) pins scheduling, periods, calendar and analysis.
+
 Shipped: **#9 Experiment Conflict Detection (same-metric tier)** —
 `findSameMetricOverlaps` in `experiments/calendar.ts` refuses, at proposal
 time, any experiment whose run range intersects a live run on the same metric.
@@ -119,6 +130,11 @@ report washout days).
 **Risk:** the honest-but-expensive version of crossover. Opt-in, and let the
 replication templates (P1 #13) carry the choice forward so a replicated study
 keeps the same structure.
+
+*Shipped (see Progress): optional `washoutDays` between every pair of
+crossover blocks (capped at `blockDays`), null-condition washout days derived
+as "Washout" periods and shown in the calendar, and an analysis `washout`
+report that excludes the gap from means/adherence and states the hangover.*
 
 ### Duration and stopping
 

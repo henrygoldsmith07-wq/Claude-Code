@@ -175,7 +175,10 @@ describe("experiment design", () => {
   it("balances an A/B design exactly rather than leaving it to chance", () => {
     const assignments = buildAssignments("ab", "2025-07-07", 20, 1, "ab-seed");
     const counts = assignments.reduce(
-      (acc, assignment) => ({ ...acc, [assignment.condition]: (acc[assignment.condition] ?? 0) + 1 }),
+      (acc, assignment) =>
+        assignment.condition === null
+          ? acc
+          : { ...acc, [assignment.condition]: (acc[assignment.condition] ?? 0) + 1 },
       {} as Record<string, number>,
     );
     expect(counts.A).toBe(10);

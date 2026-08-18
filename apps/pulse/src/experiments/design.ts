@@ -33,10 +33,14 @@ export interface Condition {
 
 export interface Assignment {
   date: string;
-  condition: "A" | "B";
-  /** Block index for crossover designs. */
+  /** Null during a washout, when no condition applies. */
+  condition: "A" | "B" | null;
+  /** Block index for crossover designs; washout days keep the block they follow. */
   block: number;
 }
+
+/** What the user does on a washout day: nothing but record the outcome. */
+export const WASHOUT_INSTRUCTION = "No condition — record the outcome only.";
 
 export interface ExperimentDesign {
   id: string;
@@ -54,6 +58,9 @@ export interface ExperimentDesign {
   durationDays: number;
   /** Days per block in a crossover. */
   blockDays: number;
+  /** Null-condition days between crossover blocks; 0 when off. Always set by
+   * `designExperiment`; optional so pre-existing records stay valid. */
+  washoutDays?: number;
   startDate: string;
   endDate: string;
   assignments: Assignment[];
@@ -72,6 +79,9 @@ export interface DesignOptions {
   /** Expected eligible sessions per week; drives the duration calculation. */
   sessionsPerWeek?: number;
   blockDays?: number;
+  /** Days of no condition between crossover blocks, to let carry-over decay.
+   * Crossover only; capped at `blockDays` so it cannot double the run. */
+  washoutDays?: number;
   /** Overrides the power-derived sample requirement. Use sparingly. */
   minSamplePerCondition?: number;
   seed?: string;
@@ -86,6 +96,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
   const type = options.type ?? "crossover";
   const sessionsPerWeek = options.sessionsPerWeek ?? 4;
   const blockDays = options.blockDays ?? 7;
+  const washoutDays = options.washoutDays ?? 0;
   const seed = options.seed ?? `${hypothesis.id}:${options.startDate}`;
 
   // Predicted effects below 0.2 SD would demand hundreds of sessions; clamp so
@@ -101,6 +112,14 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
   const maxDuration = options.maxDurationDays ?? 56;
   const durationDays = Math.min(maxDuration, Math.max(14, roundToBlocks(rawDays, type === "crossover" ? blockDays : 1)));
 
+  // A washout only makes sense where blocks meet; on A/B or before-after it
+  // would be a silent no-op, so refuse it rather than pretend it happened.
+  if (washoutDays > 0 && type !== "crossover") {
+    throw new Error(`washoutDays only applies to crossover designs, not ${type}.`);
+  }
+  // Capped at one block so the gap cannot double the run length.
+  const clampedWashout = Math.max(0, Math.min(washoutDays, blockDays));
+
   const conditionA: Condition = {
     id: "A",
     label: options.conditionA?.label ?? "Intervention",
@@ -112,8 +131,9 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     instruction: options.conditionB?.instruction ?? `Keep everything else the same, but do not do the behaviour under test.`,
   };
 
-  const assignments = buildAssignments(type, options.startDate, durationDays, blockDays, seed);
-  const endDate = addDays(options.startDate, durationDays - 1);
+  const assignments = buildAssignments(type, options.startDate, durationDays, blockDays, seed, clampedWashout);
+  const washoutGaps = type === "crossover" && clampedWashout > 0 ? Math.max(2, Math.floor(durationDays / blockDays)) - 1 : 0;
+  const endDate = addDays(options.startDate, durationDays - 1 + clampedWashout * washoutGaps);
 
   const analysisMethod =
     type === "crossover"
@@ -135,6 +155,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     minSamplePerCondition: perCondition,
     durationDays,
     blockDays,
+    washoutDays: clampedWashout,
     startDate: options.startDate,
     endDate,
     assignments,
@@ -176,17 +197,29 @@ export function buildAssignments(
   durationDays: number,
   blockDays: number,
   seed: string,
+  /** Null-condition days between crossover blocks. Crossover only. */
+  washoutDays = 0,
 ): Assignment[] {
   const rng = createRng(seed);
   const assignments: Assignment[] = [];
 
   if (type === "crossover") {
     const startWithA = rng.next() < 0.5;
-    for (let day = 0; day < durationDays; day += 1) {
-      const block = Math.floor(day / blockDays);
+    const blocks = Math.max(2, Math.floor(durationDays / blockDays));
+    let day = 0;
+    for (let block = 0; block < blocks; block += 1) {
       const isFirstOfPair = block % 2 === 0;
       const condition: "A" | "B" = isFirstOfPair === startWithA ? "A" : "B";
-      assignments.push({ date: addDays(startDate, day), condition, block });
+      for (let offset = 0; offset < blockDays; offset += 1, day += 1) {
+        assignments.push({ date: addDays(startDate, day), condition, block });
+      }
+      // A washout sits between blocks: no condition applies, but the outcome
+      // is still recorded so the analysis can measure the hangover.
+      if (washoutDays > 0 && block < blocks - 1) {
+        for (let gap = 0; gap < washoutDays; gap += 1, day += 1) {
+          assignments.push({ date: addDays(startDate, day), condition: null, block });
+        }
+      }
     }
     return assignments;
   }
@@ -232,8 +265,9 @@ export function conditionForDate(design: ExperimentDesign, date: string): "A" | 
 export interface ExperimentPeriod {
   /** 1-based position within the design. */
   index: number;
-  condition: "A" | "B";
-  /** Condition label plus letter, e.g. "Intervention A". */
+  /** Null for a washout period, when no condition applies. */
+  condition: "A" | "B" | null;
+  /** Condition label plus letter, e.g. "Intervention A"; "Washout" for gaps. */
   label: string;
   startDate: string;
   endDate: string;
@@ -253,7 +287,8 @@ export interface PeriodPosition {
  * the periods cover the assignments completely.
  */
 export function derivePeriods(design: ExperimentDesign): ExperimentPeriod[] {
-  const labelOf = (condition: "A" | "B"): string => {
+  const labelOf = (condition: "A" | "B" | null): string => {
+    if (condition === null) return "Washout";
     const source = condition === "A" ? design.conditionA : design.conditionB;
     return `${source.label} ${source.id}`;
   };

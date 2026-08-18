@@ -113,6 +113,7 @@ describe("experiment calendar", () => {
     observedEffect: 0.5,
     predictedEffect: 0.45,
     adherence: { assignedDays: 28, daysWithSessions: 25, adherence: 0.89, conditionASessions: 30, conditionBSessions: 28, outOfWindowSessions: 0 },
+    washout: null,
     confidence: { level: "high", score: 0.8, reasons: [], limitations: [] },
     causalityNote: "Measured under controlled conditions you assigned.",
     blocks: [],

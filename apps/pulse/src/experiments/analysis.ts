@@ -39,6 +39,21 @@ export interface AdherenceReport {
   outOfWindowSessions: number;
 }
 
+/**
+ * The washout gap of a crossover with `washoutDays` set (P1 #3). Days with
+ * no condition are excluded from the per-block means and from adherence, but
+ * their sessions are still counted here: the mean is the visible hangover,
+ * the carry-over that the gap exists to let decay.
+ */
+export interface WashoutReport {
+  /** Washout days in the schedule. */
+  days: number;
+  /** Observations recorded on washout days. */
+  sessions: number;
+  /** Mean of the washout observations, when any exist. */
+  mean: number | null;
+}
+
 export interface ExperimentResult {
   experimentId: string;
   hypothesisId: string;
@@ -54,6 +69,8 @@ export interface ExperimentResult {
   observedEffect: number;
   predictedEffect: number;
   adherence: AdherenceReport;
+  /** The washout gap and its hangover readout, for crossover designs with one; null otherwise. */
+  washout: WashoutReport | null;
   confidence: ConfidenceAssessment;
   causalityNote: string;
   /** Blocks used, for crossover designs. */
@@ -84,6 +101,14 @@ export function analyseExperiment(
   );
   const outOfWindow = allObservations.length - inWindow.length;
 
+  // A washout day has no condition to follow, so it is not an assigned day
+  // for adherence; its sessions stay in the window and are reported
+  // separately as the hangover readout (P1 #3).
+  const conditionDates = new Set(
+    design.assignments.filter((assignment) => assignment.condition !== null).map((assignment) => assignment.date),
+  );
+  const washout = buildWashoutReport(design, inWindow, conditionDates);
+
   const groupA: MetricObservation[] = [];
   const groupB: MetricObservation[] = [];
   for (const observation of inWindow) {
@@ -92,11 +117,13 @@ export function analyseExperiment(
     else if (condition === "B") groupB.push(observation);
   }
 
-  const daysWithSessions = new Set(inWindow.map((observation) => observation.localDate)).size;
+  const daysWithSessions = new Set(
+    inWindow.filter((observation) => conditionDates.has(observation.localDate)).map((observation) => observation.localDate),
+  ).size;
   const adherence: AdherenceReport = {
-    assignedDays: design.assignments.length,
+    assignedDays: conditionDates.size,
     daysWithSessions,
-    adherence: design.assignments.length ? daysWithSessions / design.assignments.length : 0,
+    adherence: conditionDates.size ? daysWithSessions / conditionDates.size : 0,
     conditionASessions: groupA.length,
     conditionBSessions: groupB.length,
     outOfWindowSessions: outOfWindow,
@@ -108,7 +135,7 @@ export function analyseExperiment(
   // --- validity gates ---------------------------------------------------
   const minAdherence = options.minAdherence ?? 0.4;
   if (groupA.length === 0 || groupB.length === 0) {
-    return invalidResult(design, options, adherence, blocks, "One of the conditions has no sessions at all.", now());
+    return invalidResult(design, options, adherence, blocks, washout, "One of the conditions has no sessions at all.", now());
   }
   if (adherence.adherence < minAdherence) {
     return invalidResult(
@@ -116,6 +143,7 @@ export function analyseExperiment(
       options,
       adherence,
       blocks,
+      washout,
       `Only ${Math.round(adherence.adherence * 100)}% of assigned days had a session, below the ${Math.round(minAdherence * 100)}% needed for the result to mean anything.`,
       now(),
     );
@@ -209,7 +237,7 @@ export function analyseExperiment(
     hypothesisId: design.hypothesisId,
     analysedAt: new Date(now()).toISOString(),
     verdict,
-    summary: buildSummary(design, verdict, comparison, groupA, groupB),
+    summary: appendWashoutNote(buildSummary(design, verdict, comparison, groupA, groupB), washout),
     reasons,
     comparison,
     secondaryComparison: secondary,
@@ -217,6 +245,7 @@ export function analyseExperiment(
     observedEffect,
     predictedEffect: options.predictedEffect,
     adherence,
+    washout,
     confidence,
     causalityNote:
       design.type === "before-after"
@@ -232,6 +261,7 @@ function invalidResult(
   options: AnalysisOptions,
   adherence: AdherenceReport,
   blocks: ExperimentResult["blocks"],
+  washout: WashoutReport | null,
   reason: string,
   nowMs: number,
 ): ExperimentResult {
@@ -248,6 +278,7 @@ function invalidResult(
     observedEffect: NaN,
     predictedEffect: options.predictedEffect,
     adherence,
+    washout,
     confidence: gradeConfidence({
       evidenceClass: "experiment",
       sampleSize: adherence.conditionASessions + adherence.conditionBSessions,
@@ -261,6 +292,28 @@ function invalidResult(
   };
 }
 
+function buildWashoutReport(
+  design: ExperimentDesign,
+  inWindow: readonly MetricObservation[],
+  conditionDates: ReadonlySet<string>,
+): WashoutReport | null {
+  const washoutDays = design.assignments.filter((assignment) => assignment.condition === null);
+  if (washoutDays.length === 0) return null;
+  const observations = inWindow.filter((observation) => !conditionDates.has(observation.localDate));
+  return {
+    days: washoutDays.length,
+    sessions: observations.length,
+    mean: observations.length > 0 ? mean(observations.map((observation) => observation.value)) : null,
+  };
+}
+
+/** The washout gets one plain sentence in the summary, not a buried footnote. */
+function appendWashoutNote(summary: string, washout: WashoutReport | null): string {
+  if (!washout) return summary;
+  const readout = washout.mean === null ? "no sessions recorded" : `mean ${washout.mean.toFixed(3)}`;
+  return `${summary} ${washout.days} washout day${washout.days === 1 ? "" : "s"} separated the blocks; ${washout.sessions} session${washout.sessions === 1 ? "" : "s"} recorded there (${readout}) were excluded from the comparison as possible carry-over.`;
+}
+
 function summariseBlocks(
   design: ExperimentDesign,
   groupA: readonly MetricObservation[],
@@ -271,7 +324,9 @@ function summariseBlocks(
 
   for (const observation of [...groupA, ...groupB]) {
     const assignment = blockByDate.get(observation.localDate);
-    if (!assignment) continue;
+    // Observations in the groups always sit on a condition day (washout
+    // observations never reach them), but the assignment type allows null.
+    if (!assignment || assignment.condition === null) continue;
     const key = `${assignment.block}:${assignment.condition}`;
     const bucket = buckets.get(key);
     if (bucket) bucket.values.push(observation.value);

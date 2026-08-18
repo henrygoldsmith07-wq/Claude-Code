@@ -13,6 +13,7 @@ import type { ExperimentResult } from "./analysis.js";
 import {
   derivePeriods,
   periodForDate,
+  WASHOUT_INSTRUCTION,
   type ExperimentDesign,
   type PeriodPosition,
 } from "./design.js";
@@ -36,9 +37,10 @@ export interface CalendarAssignment {
   date: string;
   experimentId: string;
   title: string;
-  condition: "A" | "B";
-  instruction: string;
-  /** Derived period, e.g. "Intervention A · Day 4/7". */
+  /** Null during a washout, when no condition applies. */
+  condition: "A" | "B" | null;
+  instruction: string | null;
+  /** Derived period, e.g. "Intervention A · Day 4/7"; "Washout · Day 1/2" for gaps. */
   period: string;
 }
 
@@ -166,7 +168,9 @@ export function buildCalendar(
       todayInstruction: assignment
         ? assignment.condition === "A"
           ? design.conditionA.instruction
-          : design.conditionB.instruction
+          : assignment.condition === "B"
+            ? design.conditionB.instruction
+            : WASHOUT_INSTRUCTION
         : null,
       todayPeriod: assignment ? periodForDate(design, today) : null,
       result,
@@ -258,7 +262,12 @@ function buildSchedule(designs: readonly ExperimentDesign[], today: string): Cal
           experimentId: design.id,
           title: design.title,
           condition: period.condition,
-          instruction: period.condition === "A" ? design.conditionA.instruction : design.conditionB.instruction,
+          instruction:
+            period.condition === "A"
+              ? design.conditionA.instruction
+              : period.condition === "B"
+                ? design.conditionB.instruction
+                : WASHOUT_INSTRUCTION,
           period: `${period.label} · Day ${day + 1}/${period.dayCount}`,
         });
         byDate.set(date, list);
