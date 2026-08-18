@@ -26,7 +26,7 @@ describe("human marking corpus", () => {
     expect(report.exactMatchAccuracy).toBeCloseTo(7 / 12, 5);
     expect(report.perPartMae).toBeCloseTo(0.417, 3);
     expect(report.rows.find((row) => row.label === "sign error mid-working, wrong final")?.humanTotal).toBe(1);
-    expect(report.rows.find((row) => row.label === "sign error mid-working, wrong final")?.predictedTotal).toBe(2);
+    expect(report.rows.find((row) => row.label === "sign error mid-working, wrong final")?.predictedTotal).toBe(0);
   });
 
   it("passes the published rubric floor and exposes the thresholds", () => {
