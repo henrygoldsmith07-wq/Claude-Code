@@ -132,12 +132,33 @@ All primitives are deterministic and operate on local arrays or event
 metadata. They do not send data to a server or make a causal claim by
 themselves.
 
+### User-controlled statistical inspector
+
+The **Inspector** tab lets a person choose an outcome, exposure and optional
+negative-control metric, then re-run the safeguards with an explicit policy:
+
+- Benjamini–Hochberg, Holm or Bonferroni correction and a chosen significance level;
+- autocorrelation lag, forward temporal-lag scan and independent holdout fraction;
+- outlier cutoff, reliability weighting and uncertain-timestamp exclusion;
+- weekday/weekend, calendar-trend and seasonal sensitivity controls.
+
+The report shows raw and corrected p-values, effective sample sizes, holdout
+direction, lag results, timestamp exclusions and limitations. Each lag tested
+joins the correction family. Applying controls is explicit and never mutates
+the finding ledger; the inspector is diagnostic evidence, not a causal claim.
+
 ## Experiments
 
 Pulse turns a strong association into a structured experiment: hypothesis,
 condition A, condition B, target metric, minimum sample derived from the
 predicted effect, duration, likely confounders, analysis method and success
 criteria — with the predicted direction and size registered *before* the run.
+
+The Experiments view includes versioned templates for the three supported
+designs: weekly crossover, balanced daily A/B and before/after baseline. A
+template is a reproducible starting point, not a claim that every hypothesis
+should use the same design; its caveats are shown before the run and its ID and
+version are retained in the export.
 
 Crossover is the default because it removes the biggest confounder in personal
 data: you, changing over time.

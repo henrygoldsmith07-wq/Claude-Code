@@ -10,7 +10,9 @@
  * An entry's standing is evidence-driven but user-overridable:
  *   untested → plausible (a supporting correlation) → strengthening (a
  *   replicated correlation) → confirmed / refuted (a controlled experiment).
- * Only `retired` is sticky: once the user shelves a belief, new evidence is
+ * `contested` is the ledger's word: a pair observed pointing both ways
+ * withdraws the belief until a controlled experiment settles it. Only
+ * `retired` is sticky: once the user shelves a belief, new evidence is
  * recorded but cannot resurrect it.
  *
  * Durable by design, exactly like the insight history and the event store:
@@ -30,6 +32,7 @@ export type CausalStanding =
   | "strengthening"
   | "confirmed"
   | "refuted"
+  | "contested"
   | "retired";
 
 export type CausalDirection = "increase" | "decrease";
@@ -293,6 +296,37 @@ export class CausalHypothesisLibrary {
   /** Removes a belief from the library entirely. */
   remove(id: string): boolean {
     return this.entries.delete(id);
+  }
+
+  /**
+   * Re-bases standings against the contradiction ledger — the single source
+   * of "this outcome-exposure pair has been seen pointing both ways".
+   *
+   * A pair in the ledger withdraws the belief: its standing becomes
+   * `contested` and stays there for as long as the conflict persists. A
+   * decisive experiment overrides the withdrawal (a controlled test is the
+   * one tool that settles a conflicted pair, exactly as with hypotheses),
+   * and a retired belief stays retired. When the conflict leaves the
+   * ledger, the standing is re-derived from the recorded evidence.
+   */
+  reconcileContradictions(contradictedSubjects: ReadonlySet<string>): void {
+    for (const entry of this.entries.values()) {
+      if (entry.standing === "retired") continue;
+      const subject = `${entry.outcomeMetricId ?? ""}|${entry.exposureMetricId ?? ""}`;
+      const inConflict = contradictedSubjects.has(subject);
+      const decisive = entry.evidence.some(
+        (evidence) => evidence.kind === "experiment" && evidence.supports !== null,
+      );
+      if (inConflict && !decisive) {
+        this.applyStanding(
+          entry,
+          "contested",
+          "Withdrawn: this outcome-exposure pair has been observed pointing both ways (contradiction ledger)",
+        );
+      } else if (!inConflict && entry.standing === "contested" && !decisive) {
+        this.recomputeStanding(entry);
+      }
+    }
   }
 
   /**

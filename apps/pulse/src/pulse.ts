@@ -33,6 +33,12 @@ import {
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
+import {
+  instantiateExperimentTemplate,
+  listExperimentTemplates,
+  type ExperimentTemplate,
+  type ExperimentTemplateOptions,
+} from "./experiments/templates.js";
 import { analyseExperiment, type ExperimentResult } from "./experiments/analysis.js";
 import { buildCalendar, type ExperimentCalendar } from "./experiments/calendar.js";
 import { rankRecommendations, type Recommendation } from "./recommendations/rank.js";
@@ -45,8 +51,8 @@ import { buildClaimNode, buildEvidenceGraph, type AuthoredClaimInput, type Evide
 import type { ClaimNode } from "./evidence-graph/types.js";
 import { ask, type Answer, type AskContext } from "./ask/answer.js";
 import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
-import type { StatisticalInspectorOptions } from "./statistics/inspector.js";
 import { buildResearchExport, type ResearchExport } from "./privacy/research-export.js";
+import { buildStatisticalInspection, type StatisticalInspection, type StatisticalInspectorOptions } from "./statistics/inspector.js";
 
 export interface PulseOptions {
   timezone?: string;
@@ -217,18 +223,7 @@ export class Pulse {
   }
 
   discover(
-    options: {
-      includeSensitive?: boolean;
-      limit?: number;
-      fdrLevel?: number;
-      minEffect?: number;
-      exposureWindowsHours?: readonly number[];
-      maxLagDays?: number;
-      splitAttributes?: readonly string[];
-      through?: string;
-      /** Preview controls without adding an exploration scan to insight history. */
-      recordHistory?: boolean;
-    } = {},
+    options: { includeSensitive?: boolean; limit?: number; fdrLevel?: number; through?: string } = {},
   ): DiscoveryReport {
     const events = this.events({ includeSensitive: options.includeSensitive ?? false });
     // A `through` cut-off re-renders the past: what did the engine believe
@@ -241,10 +236,6 @@ export class Pulse {
       now: this.now,
       ...(options.limit !== undefined ? { limit: options.limit } : {}),
       ...(options.fdrLevel !== undefined ? { fdrLevel: options.fdrLevel } : {}),
-      ...(options.minEffect !== undefined ? { minEffect: options.minEffect } : {}),
-      ...(options.exposureWindowsHours !== undefined ? { exposureWindowsHours: options.exposureWindowsHours } : {}),
-      ...(options.maxLagDays !== undefined ? { maxLagDays: options.maxLagDays } : {}),
-      ...(options.splitAttributes !== undefined ? { splitAttributes: options.splitAttributes } : {}),
     });
     report.findings = this.replication.annotate(report.findings);
     // Contradictions override replication status: a claim seen pointing both
@@ -252,32 +243,33 @@ export class Pulse {
     report.findings = this.contradictions.annotate(report.findings);
     this.cachedFindings = report.findings;
     this.pauseContradictedHypotheses();
-    if (options.recordHistory !== false) {
-      this.insightHistory.recordScan({
-        at: new Date(this.now()).toISOString(),
-        eventCount: scanEvents.length,
-        findings: report.findings,
-        rejected: report.rejected.map(({ candidate, reason }) => ({
-          outcomeMetricId: candidate.outcomeMetricId,
-          exposureMetricId: candidate.exposureMetricId ?? null,
-          reason,
-        })),
-        totals: {
-          findings: report.findings.length,
-          rejected: report.rejected.length,
-          familySize: report.familySize,
-          familyCount: report.familyCount,
-          expectedFalseDiscoveries: report.expectedFalseDiscoveries,
-        },
-      });
-      this.persistInsightHistory();
-    }
+    // The library reads the same ledger as the evidence graph: a belief whose
+    // pair is observed pointing both ways is withdrawn until an experiment
+    // settles it. Reconcile on every scan, so the ledger's verdict is what
+    // the UI shows and a cleared conflict restores the standing.
+    this.causalLibrary.reconcileContradictions(
+      new Set(this.contradictions.list().map((record) => `${record.outcomeMetricId}|${record.exposureMetricId}`)),
+    );
+    this.persistCausalLibrary();
+    this.insightHistory.recordScan({
+      at: new Date(this.now()).toISOString(),
+      eventCount: scanEvents.length,
+      findings: report.findings,
+      rejected: report.rejected.map(({ candidate, reason }) => ({
+        outcomeMetricId: candidate.outcomeMetricId,
+        exposureMetricId: candidate.exposureMetricId ?? null,
+        reason,
+      })),
+      totals: {
+        findings: report.findings.length,
+        rejected: report.rejected.length,
+        familySize: report.familySize,
+        familyCount: report.familyCount,
+        expectedFalseDiscoveries: report.expectedFalseDiscoveries,
+      },
+    });
+    this.persistInsightHistory();
     return report;
-  }
-
-  /** Re-runs discovery with user-selected controls without recording a history scan. */
-  inspectStatistics(options: StatisticalInspectorOptions): DiscoveryReport {
-    return this.discover({ ...options, recordHistory: false });
   }
 
   /**
@@ -314,6 +306,19 @@ export class Pulse {
 
   findings(): Finding[] {
     return this.cachedFindings;
+  }
+
+  /** Re-runs selected statistical diagnostics without changing the finding ledger. */
+  inspectStatistics(options: StatisticalInspectorOptions): StatisticalInspection {
+    return buildStatisticalInspection(
+      {
+        events: this.events(),
+        registry: this.registry,
+        findings: this.cachedFindings,
+        qualities: this.quality(),
+      },
+      options,
+    );
   }
 
   /**
@@ -355,10 +360,29 @@ export class Pulse {
     const hypothesis = this.hypotheses.get(hypothesisId);
     if (!hypothesis) throw new Error(`Unknown hypothesis: ${hypothesisId}`);
     const design = designExperiment(hypothesis, { ...options, now: this.now });
+    return this.registerDesign(hypothesis, design);
+  }
+
+  designExperimentFromTemplate(
+    hypothesisId: string,
+    templateId: string,
+    options: Omit<ExperimentTemplateOptions, "now">,
+  ): ExperimentDesign {
+    const hypothesis = this.hypotheses.get(hypothesisId);
+    if (!hypothesis) throw new Error(`Unknown hypothesis: ${hypothesisId}`);
+    const design = instantiateExperimentTemplate(hypothesis, templateId, { ...options, now: this.now });
+    return this.registerDesign(hypothesis, design);
+  }
+
+  listExperimentTemplates(): ExperimentTemplate[] {
+    return listExperimentTemplates();
+  }
+
+  private registerDesign(hypothesis: Hypothesis, design: ExperimentDesign): ExperimentDesign {
     this.designs.set(design.id, design);
-    this.hypotheses.linkExperiment(hypothesisId, design.id);
+    this.hypotheses.linkExperiment(hypothesis.id, design.id);
     if (hypothesis.status === "proposed") {
-      this.hypotheses.transition(hypothesisId, "testing", `Experiment ${design.id} designed`);
+      this.hypotheses.transition(hypothesis.id, "testing", `Experiment ${design.id} designed`);
     }
     return design;
   }

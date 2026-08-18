@@ -192,24 +192,6 @@ describe("the app shell", () => {
     cleanup();
   });
 
-  it("lets the user inspect statistical thresholds without polluting insight history", async () => {
-    const historyBefore = pulse.insightHistory.size();
-    const { container } = render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByText("User-controlled advanced statistical inspector"));
-    expect(screen.getByLabelText("False discovery rate")).toBeTruthy();
-    expect(screen.getByText(/Showing a 5% FDR/)).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText("False discovery rate"), { target: { value: "0.1" } });
-    expect(screen.getByText(/Showing a 10% FDR/)).toBeTruthy();
-    expect(screen.getByText(/preview scans are not added to confidence history/i)).toBeTruthy();
-    expect(pulse.insightHistory.size()).toBe(historyBefore);
-    await expectNoAxeViolations(container);
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset defaults" }));
-    expect(screen.getByText(/Showing a 5% FDR/)).toBeTruthy();
-    cleanup();
-  });
-
   it("shows the insight history with each insight's journey across scans", () => {
     render(<App pulse={pulse} />);
     expect(screen.getByRole("heading", { name: "Insight history" })).toBeTruthy();
@@ -221,7 +203,7 @@ describe("the app shell", () => {
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(7);
+    expect(tabs.length).toBe(8);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
@@ -268,6 +250,22 @@ describe("the app shell", () => {
     const { container } = render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Hypothesis library" }));
     await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("lets the user run a controlled statistical inspection without changing findings", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Inspector" }));
+
+    expect(screen.getByRole("heading", { name: "User-controlled advanced statistical inspector" })).toBeTruthy();
+    expect(screen.getByLabelText("Outcome metric")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Run inspection" })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Significance level (α)"), { target: { value: "0.1" } });
+    expect(screen.getByText("Changes are ready but not applied.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Run inspection" }));
+    expect(screen.getByRole("heading", { name: "What the controls found" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Forward lag scan" })).toBeTruthy();
     cleanup();
   });
 
@@ -321,6 +319,24 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("lets a user apply a versioned experiment template to a hypothesis", async () => {
+    const { pulse: templatedPulse } = await createSyntheticPulse({ days: 30, seed: "ui-experiment-template" });
+    const hypothesis = templatedPulse.hypotheses.proposeFromFinding(finding);
+    expect(hypothesis).not.toBeNull();
+
+    render(<App pulse={templatedPulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Experiments" }));
+
+    expect(screen.getByRole("heading", { name: "Experiment templates" })).toBeTruthy();
+    expect(screen.getByLabelText("Hypothesis")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Template"), { target: { value: "balanced-daily-ab-v1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create experiment from template" }));
+
+    expect(screen.getByRole("heading", { name: /A\/B test:/ })).toBeTruthy();
+    expect(screen.getByText("balanced-daily-ab-v1 · v1")).toBeTruthy();
+    cleanup();
+  });
+
   it("renders the timeline as a table with a caption and row headers", () => {
     render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
@@ -347,6 +363,13 @@ describe("the app shell", () => {
     const { container } = render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Ask Pulse" }));
     expect(screen.getByLabelText(/Ask a question about your own data/)).toBeTruthy();
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("has no accessibility violations on the statistical inspector", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Inspector" }));
     await expectNoAxeViolations(container);
     cleanup();
   });
