@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { aiExplain, aiGenerateCards, aiSummarise } from "@/ai/client";
@@ -10,7 +9,7 @@ import { createCard } from "@/domain/scheduling";
 import type { Card, Topic } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
-import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented, SourceBadge } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented, SourceBadge } from "@/components/ui";
 import { BackIcon, CreditedIcon, DeleteIcon, ICON_SIZE, MissedIcon } from "@/components/icons";
 
 // The library is where a topic is *learned* rather than tested: spec content,
@@ -78,6 +77,7 @@ function Library() {
                 return (
                   <li key={row.id}>
                     <button
+                      type="button"
                       onClick={() => setTopicId(row.id)}
                       className="w-full text-left px-4 py-3 hover:bg-surface2 transition-colors"
                     >
@@ -272,15 +272,9 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
         <Button onClick={() => void generate()} disabled={busy !== null}>
           {busy === "cards" ? "Generating…" : "Generate flashcards"}
         </Button>
-        <Link href={`/practice?topic=${encodeURIComponent(topic.id)}`}>
-          <Button>Practise questions</Button>
-        </Link>
-        <Link href={`/review?topic=${encodeURIComponent(topic.id)}`}>
-          <Button>Review cards</Button>
-        </Link>
-        <Link href={`/tutor?topic=${encodeURIComponent(topic.id)}`}>
-          <Button>Ask the tutor</Button>
-        </Link>
+        <ButtonLink href={`/practice?topic=${encodeURIComponent(topic.id)}`}>Practise questions</ButtonLink>
+        <ButtonLink href={`/review?topic=${encodeURIComponent(topic.id)}`}>Review cards</ButtonLink>
+        <ButtonLink href={`/tutor?topic=${encodeURIComponent(topic.id)}`}>Ask the tutor</ButtonLink>
       </div>
 
       {status ? <p className="text-xs text-ink3">{status}</p> : null}

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
@@ -11,7 +10,7 @@ import type { Mistake, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { RichText } from "@/components/RichText";
-import { Button, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 
 // Question practice. The queue is built from everything the student has: the
 // authored bank, questions extracted from their own uploaded papers, and
@@ -200,12 +199,8 @@ function Practice() {
         body="That queue is done. Your marks and any new mistake cards are already saved."
         action={
           <div className="flex gap-2">
-            <Link href="/">
-              <Button variant="primary">Back to Today</Button>
-            </Link>
-            <Link href="/practice">
-              <Button>Practise another set</Button>
-            </Link>
+            <ButtonLink href="/" variant="primary">Back to Today</ButtonLink>
+            <ButtonLink href="/practice">Practise another set</ButtonLink>
           </div>
         }
       />
@@ -306,9 +301,9 @@ function Practice() {
       ) : retestId ? (
         <Panel>
           <p className="text-sm text-ink2">That mistake or its source question is no longer available.</p>
-          <Link href="/progress" className="inline-block mt-3">
-            <Button variant="primary">Return to Progress</Button>
-          </Link>
+          <ButtonLink href="/progress" variant="primary" className="inline-block mt-3">
+            Return to Progress
+          </ButtonLink>
         </Panel>
       ) : null}
 
@@ -336,9 +331,9 @@ function Practice() {
             }}
           />
           {retestMistake ? (
-            <Link href="/progress" className="inline-block">
-              <Button variant="primary">Back to Progress</Button>
-            </Link>
+            <ButtonLink href="/progress" variant="primary" className="inline-block">
+              Back to Progress
+            </ButtonLink>
           ) : (
             <div className="flex justify-between gap-2">
               <Button disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
@@ -376,9 +371,7 @@ function Practice() {
               <Button variant="primary" onClick={() => void generate()} disabled={generating}>
                 Generate questions
               </Button>
-              <Link href="/papers">
-                <Button>Upload a paper</Button>
-              </Link>
+              <ButtonLink href="/papers">Upload a paper</ButtonLink>
             </div>
           }
         />

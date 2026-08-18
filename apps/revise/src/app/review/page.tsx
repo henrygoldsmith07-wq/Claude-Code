@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
@@ -9,7 +8,7 @@ import { CUSTOM_STUDY_KEY } from "@/components/CustomStudyDialog";
 import { useShortcuts } from "@/components/shortcuts";
 import type { Card, RecallGrade } from "@/domain/types";
 import { useStore } from "@/state/store";
-import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Panel, Pill, ProgressBar, SectionHeading } from "@/components/ui";
 import { SpeakButton } from "@/components/SpeakButton";
 import { RichText } from "@/components/RichText";
 
@@ -223,11 +222,7 @@ function ReviewSession() {
             {custom ? "Custom study" : mode === "mistakes" ? "Mistake repair" : "Spaced repetition"}
           </h1>
         </div>
-        <Link href="/">
-          <Button size="sm" variant="ghost">
-            End session
-          </Button>
-        </Link>
+        <ButtonLink href="/" size="sm" variant="ghost">End session</ButtonLink>
       </div>
 
       {isPreview ? (
@@ -271,6 +266,7 @@ function ReviewSession() {
                 {[1, 2, 3, 4, 5].map((value) => (
                   <button
                     key={value}
+                    type="button"
                     onClick={() => setConfidence(value as 1 | 2 | 3 | 4 | 5)}
                     aria-pressed={confidence === value}
                     className={`flex-1 min-h-[2.5rem] text-xs font-semibold rounded-[8px] border transition-colors ${
@@ -293,6 +289,7 @@ function ReviewSession() {
             {GRADES.map((option, i) => (
               <button
                 key={option.grade}
+                type="button"
                 onClick={() => void grade(option.grade)}
                 // min-h keeps these comfortably tappable on a phone, where
                 // this is the single most-used control in the app.
@@ -364,9 +361,7 @@ function SessionSummary({
         title="Nothing due here"
         body="Spaced repetition deliberately leaves gaps — reviewing early wastes the effect. Pick another activity and come back when cards fall due."
         action={
-          <Link href="/">
-            <Button variant="primary">Back to today</Button>
-          </Link>
+          <ButtonLink href="/" variant="primary">Back to today</ButtonLink>
         }
       />
     );
@@ -398,14 +393,10 @@ function SessionSummary({
         </p>
       </Panel>
       <div className="flex gap-2">
-        <Link href="/" className="flex-1">
-          <Button variant="primary" className="w-full">
-            What&apos;s next
-          </Button>
-        </Link>
-        <Link href="/practice" className="flex-1">
-          <Button className="w-full">Practise questions</Button>
-        </Link>
+        <ButtonLink href="/" variant="primary" className="flex-1 w-full">
+          What&apos;s next
+        </ButtonLink>
+        <ButtonLink href="/practice" className="flex-1 w-full">Practise questions</ButtonLink>
       </div>
     </div>
   );

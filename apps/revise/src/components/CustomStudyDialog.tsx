@@ -6,6 +6,7 @@ import { buildCustomStudy, CUSTOM_STUDY_PRESETS, DEFAULT_CUSTOM_STUDY } from "@/
 import { tagCounts } from "@/domain/browser";
 import type { Card, CustomStudySpec } from "@/domain/types";
 import { Button, Field, Panel, Pill, cx } from "./ui";
+import { useFocusTrap } from "./useFocusTrap";
 
 // A session the student builds themselves. The dialog always shows how many
 // cards the current spec would actually produce, so nobody starts a "cram
@@ -24,6 +25,7 @@ export function CustomStudyDialog({
 }) {
   const router = useRouter();
   const [spec, setSpec] = useState<CustomStudySpec>({ ...DEFAULT_CUSTOM_STUDY, query: initialQuery });
+  const dialogRef = useFocusTrap(true, onClose);
 
   const result = useMemo(() => buildCustomStudy(cards, spec), [cards, spec]);
   const tags = useMemo(() => tagCounts(cards).slice(0, 12), [cards]);
@@ -42,17 +44,19 @@ export function CustomStudyDialog({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-start justify-center p-4 sm:pt-16 overflow-y-auto"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Custom study"
+      aria-labelledby="custom-study-title"
+      tabIndex={-1}
     >
       <div className="w-full max-w-2xl fade-in" onClick={(e) => e.stopPropagation()}>
         <Panel className="elev-pop space-y-4">
           <div className="flex items-baseline justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Custom study</h2>
+              <h2 id="custom-study-title" className="text-sm font-semibold">Custom study</h2>
               <p className="text-xs text-ink3 mt-0.5">
                 Build a session yourself when the recommendation is not what you need.
               </p>
@@ -66,6 +70,7 @@ export function CustomStudyDialog({
             {CUSTOM_STUDY_PRESETS.map((preset) => (
               <button
                 key={preset.label}
+                type="button"
                 // A preset replaces the whole spec, query included. Merging it
                 // with whatever was typed produced silent surprises like
                 // "cram everything" quietly meaning "cram only leeches".
@@ -92,6 +97,7 @@ export function CustomStudyDialog({
               {tags.map(({ tag, count }) => (
                 <button
                   key={tag}
+                  type="button"
                   onClick={() => set({ query: `${spec.query} tag:${tag}`.trim() })}
                   className="pill hover:border-ink3 transition-colors"
                 >

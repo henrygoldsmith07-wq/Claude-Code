@@ -139,6 +139,7 @@ export function QuestionRunner({
                 <li key={index}>
                   <button
                     disabled={Boolean(result)}
+                    type="button"
                     onClick={() => setChoice(index)}
                     className={cx(
                       "w-full text-left card px-3 py-2.5 flex gap-2.5 items-start transition-colors",

@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { allTopics } from "@/domain/curriculum";
 import { buildSearchIndex, searchIndex } from "@/domain/search";
 import type { SearchResult } from "@/domain/search";
 import { useStore } from "@/state/store";
+import { useFocusTrap } from "./useFocusTrap";
 import { cx, Pill } from "./ui";
 
 /** ⌘K search across topics, cards and questions. Runs locally, so it works
@@ -15,7 +16,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
   const { cards, questions, settings } = useStore();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useFocusTrap(true, onClose);
 
   // Indexed once per corpus change so each keystroke is a scan of prepared
   // strings rather than a re-lower-casing of the whole deck.
@@ -24,8 +25,6 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
     [cards, questions, settings.subjectIds],
   );
   const results = useMemo(() => searchIndex(index, query, 20), [index, query]);
-
-  useEffect(() => inputRef.current?.focus(), []);
 
   const open = (result: SearchResult) => {
     onClose();
@@ -36,41 +35,60 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-start justify-center p-4 sm:pt-24"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Search"
+      tabIndex={-1}
     >
       <div className="card elev-pop w-full max-w-xl overflow-hidden fade-in motion-safe:fade-in" onClick={(e) => e.stopPropagation()}>
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            // Reset the highlight with the query, in the same event, so the
-            // list never renders with a cursor pointing past its own end.
-            setCursor(0);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onClose();
-            if (e.key === "ArrowDown") setCursor((c) => Math.min(results.length - 1, c + 1));
-            if (e.key === "ArrowUp") setCursor((c) => Math.max(0, c - 1));
-            if (e.key === "Enter" && results[cursor]) open(results[cursor]);
-          }}
-          placeholder="Search topics, cards and questions…"
-          className="w-full bg-transparent px-4 py-3.5 text-sm outline-none border-b border-line"
-          aria-label="Search query"
-          aria-controls="search-results"
-          aria-activedescendant={results[cursor] ? `search-result-${results[cursor].id}` : undefined}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <div className="flex items-center border-b border-line">
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              // Reset the highlight with the query, in the same event, so the
+              // list never renders with a cursor pointing past its own end.
+              setCursor(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onClose();
+              if (e.key === "ArrowDown" && results.length) {
+                e.preventDefault();
+                setCursor((c) => Math.min(results.length - 1, c + 1));
+              }
+              if (e.key === "ArrowUp" && results.length) {
+                e.preventDefault();
+                setCursor((c) => Math.max(0, c - 1));
+              }
+              if (e.key === "Enter" && results[cursor]) open(results[cursor]);
+            }}
+            placeholder="Search topics, cards and questions…"
+            className="min-w-0 flex-1 bg-transparent px-4 py-3.5 text-sm outline-none"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={query.length >= 2 && results.length > 0}
+            aria-haspopup="listbox"
+            aria-label="Search query"
+            aria-controls="search-results"
+            aria-activedescendant={
+              results[cursor] ? `search-result-${results[cursor].kind}-${results[cursor].id}` : undefined
+            }
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button type="button" onClick={onClose} className="btn btn-ghost mr-2 text-xs" aria-label="Close search">
+            Close
+          </button>
+        </div>
         <ul id="search-results" className="max-h-[60vh] overflow-y-auto nice-scroll cv-list" role="listbox" aria-label="Search results">
           {results.map((result, i) => (
             <li key={`${result.kind}:${result.id}`}>
               <button
-                id={`search-result-${result.id}`}
+                type="button"
+                id={`search-result-${result.kind}-${result.id}`}
                 role="option"
                 aria-selected={i === cursor}
                 onClick={() => open(result)}
@@ -102,6 +120,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
                 {["photosynthesis", "moles", "momentum", "enzymes", "integration"].map((suggestion) => (
                   <button
                     key={suggestion}
+                    type="button"
                     onClick={() => {
                       setQuery(suggestion);
                       setCursor(0);

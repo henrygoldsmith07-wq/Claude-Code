@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTopic } from "@/domain/curriculum";
 import type { PaperWeaknessAnalysis } from "@/domain/paper-weakness";
-import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
+import { ButtonLink, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
 
 export function PaperWeaknessPanel({ analysis }: { analysis: PaperWeaknessAnalysis }) {
   const weakTopics = analysis.topics.filter((topic) => topic.marksLost > 0).slice(0, 4);
@@ -51,9 +51,9 @@ export function PaperWeaknessPanel({ analysis }: { analysis: PaperWeaknessAnalys
                         Missed: {topic.missedPoints.slice(0, 2).join("; ")}
                       </p>
                     ) : null}
-                    <Link href={`/practice?topic=${encodeURIComponent(topic.topicId)}`} className="inline-block mt-1.5">
-                      <Button size="sm">Practise topic</Button>
-                    </Link>
+                    <ButtonLink href={`/practice?topic=${encodeURIComponent(topic.topicId)}`} size="sm" className="inline-block mt-1.5">
+                      Practise topic
+                    </ButtonLink>
                   </li>
                 );
               })}

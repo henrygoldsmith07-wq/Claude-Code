@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
 import { formatTime, planForDate } from "@/domain/planner";
@@ -9,7 +8,7 @@ import { todayIso, toDateOnly } from "@/domain/scheduling";
 import type { ExamDate, PlannedSession } from "@/domain/types";
 import { activityHref, formatMinutes, relativeDay } from "@/lib/activity";
 import { useStore, useSubjects } from "@/state/store";
-import { Button, EmptyState, Field, Panel, Pill, SectionHeading, StatTile, cx } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Field, Panel, Pill, SectionHeading, StatTile, cx } from "@/components/ui";
 
 // The timetable. It is derived state, not a document: pressing "rebuild" is
 // always safe, and missed blocks roll forward on their own so the plan never
@@ -151,11 +150,9 @@ function SessionRow({ session }: { session: PlannedSession }) {
         <Pill tone="review">Missed</Pill>
       ) : (
         <div className="flex gap-1 shrink-0">
-          <Link href={activityHref(session.activity, session.subjectId, session.topicId, session.id)}>
-            <Button size="sm" variant="primary">
-              Start
-            </Button>
-          </Link>
+          <ButtonLink href={activityHref(session.activity, session.subjectId, session.topicId, session.id)} size="sm" variant="primary">
+            Start
+          </ButtonLink>
           <Button size="sm" variant="ghost" onClick={() => void store.completeSession(session.id, "skipped")}>
             Skip
           </Button>

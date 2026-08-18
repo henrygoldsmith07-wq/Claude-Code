@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { getSubject, getTopic } from "@/domain/curriculum";
 import { ACTIVITY_BLURB, ACTIVITY_LABEL } from "@/domain/recommender";
 import type { Recommendation } from "@/domain/types";
 import { formatMinutes, recommendationHref } from "@/lib/activity";
-import { Button, Panel, Pill } from "./ui";
+import { ButtonLink, Panel, Pill } from "./ui";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -96,11 +95,13 @@ export function RecommendationCard({
       )}
 
       <div className={isPrimary ? "mt-4 flex flex-wrap gap-2" : "mt-3"}>
-        <Link href={recommendationHref(recommendation)} className={isPrimary ? "flex-1 sm:flex-none" : "block"}>
-          <Button variant={isPrimary ? "primary" : "secondary"} className={isPrimary ? "w-full sm:w-auto min-h-[3rem] px-6" : "w-full"}>
-            {isPrimary ? "Start now" : "Start"}
-          </Button>
-        </Link>
+        <ButtonLink
+          href={recommendationHref(recommendation)}
+          variant={isPrimary ? "primary" : "secondary"}
+          className={isPrimary ? "flex-1 sm:flex-none w-full sm:w-auto min-h-[3rem] px-6" : "block w-full"}
+        >
+          {isPrimary ? "Start now" : "Start"}
+        </ButtonLink>
       </div>
     </Panel>
   );

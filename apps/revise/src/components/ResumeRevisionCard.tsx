@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { revisionActivityLabel } from "@/domain/revision-checkpoint";
 import { useStore } from "@/state/store";
-import { Button, Panel, Pill, ProgressBar } from "@/components/ui";
+import { Button, ButtonLink, Panel, Pill, ProgressBar } from "@/components/ui";
 
 export function ResumeRevisionCard() {
   const store = useStore();
@@ -32,9 +31,7 @@ export function ResumeRevisionCard() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link href={checkpoint.href}>
-            <Button size="sm">Resume</Button>
-          </Link>
+          <ButtonLink href={checkpoint.href} size="sm">Resume</ButtonLink>
           <Button size="sm" variant="ghost" onClick={() => void store.clearRevisionCheckpoint()}>
             Dismiss
           </Button>

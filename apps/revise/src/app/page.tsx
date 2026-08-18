@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
 import { planForDate } from "@/domain/planner";
@@ -13,7 +12,7 @@ import { formatMinutes, recommendationHref, relativeDay } from "@/lib/activity";
 import { ExpectedMarksCard } from "@/components/AssessmentPanels";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
-import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "@/components/ui";
 
 // The whole product in one screen: what to do next, why, and how long it takes.
 // Everything below the primary card is context for overriding that choice —
@@ -56,9 +55,9 @@ export default function TodayPage() {
           title="No revision queued"
           body="Set your exam dates and available study time, then the planner builds an adaptive timetable and the engine starts recommending work."
           action={
-            <Link href="/settings">
-              <Button variant="primary">Set up exams</Button>
-            </Link>
+            <ButtonLink href="/settings" variant="primary">
+              Set up exams
+            </ButtonLink>
           }
         />
       )}
@@ -117,11 +116,9 @@ export default function TodayPage() {
             title="Today's plan"
             hint={todaysPlan.length ? "Missed blocks reschedule themselves." : undefined}
             action={
-              <Link href="/planner">
-                <Button size="sm" variant="ghost">
-                  Open planner
-                </Button>
-              </Link>
+              <ButtonLink href="/planner" size="sm" variant="ghost">
+                Open planner
+              </ButtonLink>
             }
           />
           {todaysPlan.length ? (

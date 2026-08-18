@@ -17,7 +17,7 @@ import { CalculationMasteryCard, CalibrationCard, DifficultyAndSubtopics, Expect
 import { CoverageCard } from "@/components/CoverageCard";
 import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
 import { LearningControlsCard } from "@/components/LearningControlsCard";
-import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
+import { Button, ButtonLink, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
 
 // Analytics that answer one question — where are the marks? — rather than
 // showing every number the app happens to hold. Each panel ends in an action.
@@ -127,9 +127,9 @@ export default function ProgressPage() {
                 ))}
               </div>
             </div>
-            <Link href={progressStory.href} className="shrink-0">
-              <Button size="sm">{progressStory.cta}</Button>
-            </Link>
+            <ButtonLink href={progressStory.href} size="sm" className="shrink-0">
+              {progressStory.cta}
+            </ButtonLink>
           </div>
           {progressStory.bullets?.length ? (
             <ul className="grid sm:grid-cols-3 gap-2 mt-4 pt-3 border-t border-line">
@@ -190,11 +190,14 @@ export default function ProgressPage() {
                       )}
                     </div>
                     {question ? (
-                      <Link href={`/practice?retest=${encodeURIComponent(mistake.id)}`} className="shrink-0">
-                        <Button size="sm" variant="primary">
-                          Retest
-                        </Button>
-                      </Link>
+                      <ButtonLink
+                        href={`/practice?retest=${encodeURIComponent(mistake.id)}`}
+                        size="sm"
+                        variant="primary"
+                        className="shrink-0"
+                      >
+                        Retest
+                      </ButtonLink>
                     ) : (
                       <span className="text-[11px] text-ink3">Source unavailable</span>
                     )}
@@ -239,9 +242,9 @@ export default function ProgressPage() {
                       <ProgressBar value={row.mastery} tone={row.mastery < 0.4 ? "danger" : "review"} />
                     </div>
                   </div>
-                  <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`}>
-                    <Button size="sm">Practise</Button>
-                  </Link>
+                  <ButtonLink href={`/practice?topic=${encodeURIComponent(row.topicId)}`} size="sm">
+                    Practise
+                  </ButtonLink>
                 </li>
               );
             })}

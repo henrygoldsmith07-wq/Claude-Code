@@ -6,7 +6,7 @@ import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { nextGradeTarget } from "@/domain/grades";
 import { QUESTION_DIFFICULTY_MIN_SAMPLES } from "@/domain/knowledge-tracing";
 import { useStore } from "@/state/store";
-import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
+import { ButtonLink, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
 
 // The assessment view — every panel answers a concrete question a
 // student would ask about an exam, not about the app.
@@ -94,9 +94,9 @@ export function NextGradeView() {
                           ? "Low confidence — add marked questions before treating the target as reliable."
                           : "Keep checking the gap after each marked set."}
                       </p>
-                      <Link href={first ? `/practice?topic=${encodeURIComponent(first.topicId)}` : "/practice"}>
-                        <Button size="sm">{firstTopic ? `Practise ${firstTopic.title}` : "Practise a timed set"}</Button>
-                      </Link>
+                      <ButtonLink href={first ? `/practice?topic=${encodeURIComponent(first.topicId)}` : "/practice"} size="sm">
+                        {firstTopic ? `Practise ${firstTopic.title}` : "Practise a timed set"}
+                      </ButtonLink>
                     </div>
                   </>
                 ) : (
@@ -104,9 +104,9 @@ export function NextGradeView() {
                     <p className="text-xs text-ink2">
                       Already at the highest predicted boundary. Protect it with timed papers and mistake retests.
                     </p>
-                    <Link href="/practice">
-                      <Button size="sm">Practise a timed set</Button>
-                    </Link>
+                    <ButtonLink href="/practice" size="sm">
+                      Practise a timed set
+                    </ButtonLink>
                   </div>
                 )}
               </li>
@@ -162,9 +162,9 @@ export function ExpectedMarksCard() {
                 </div>
               </div>
               <span className="text-sm font-semibold tabular-nums text-accent shrink-0">+{row.value.toFixed(1)}</span>
-              <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`}>
-                <Button size="sm">Fix</Button>
-              </Link>
+              <ButtonLink href={`/practice?topic=${encodeURIComponent(row.topicId)}`} size="sm">
+                Fix
+              </ButtonLink>
             </li>
           );
         })}
@@ -407,7 +407,9 @@ export function DifficultyAndSubtopics() {
               return (
                 <li key={id} className="flex justify-between gap-2 text-xs">
                   <span className="text-ink truncate">{t?.title ?? id}</span>
-                  <Link href={`/practice?topic=${encodeURIComponent(id)}`} className="shrink-0"><Button size="sm">Practise</Button></Link>
+                  <ButtonLink href={`/practice?topic=${encodeURIComponent(id)}`} size="sm" className="shrink-0">
+                    Practise
+                  </ButtonLink>
                 </li>
               );
             })}
@@ -460,10 +462,10 @@ export function PaperSimulationCard() {
     <Panel>
       <SectionHeading title="Exam-paper simulation" hint="Predicted marks for a timed paper, with calibration for your optimism." />
       <div className="flex flex-wrap gap-2 mb-3">
-        <select value={subjectId} onChange={(e) => { setSubjectId(e.target.value); const s = subjects.find((x) => x.id === e.target.value); setPaperSpecId(s?.papers[0]?.id ?? ""); }} className="field field-inline text-sm">
+        <select aria-label="Subject for exam-paper simulation" value={subjectId} onChange={(e) => { setSubjectId(e.target.value); const s = subjects.find((x) => x.id === e.target.value); setPaperSpecId(s?.papers[0]?.id ?? ""); }} className="field field-inline text-sm">
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={paperSpecId} onChange={(e) => setPaperSpecId(e.target.value)} className="field field-inline text-sm">
+        <select aria-label="Paper for exam-paper simulation" value={paperSpecId} onChange={(e) => setPaperSpecId(e.target.value)} className="field field-inline text-sm">
           {(subject?.papers ?? []).map((p) => <option key={p.id} value={p.id}>{p.name} · {p.durationMinutes}m</option>)}
         </select>
       </div>

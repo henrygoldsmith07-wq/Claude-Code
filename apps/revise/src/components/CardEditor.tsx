@@ -194,6 +194,7 @@ export function CardEditor({
         {KINDS.map((kind) => (
           <button
             key={kind.value}
+            type="button"
             onClick={() => set({ kind: kind.value })}
             title={kind.hint}
             className={cx(
@@ -210,6 +211,7 @@ export function CardEditor({
         {SNIPPETS.map((snippet) => (
           <button
             key={snippet.label}
+            type="button"
             onClick={() => insert(snippet.insert)}
             title={`Insert ${snippet.hint} into the ${focusField}`}
             className="pill hover:border-ink3 transition-colors"
@@ -280,6 +282,7 @@ export function CardEditor({
           {draft.tags.map((tag) => (
             <button
               key={tag}
+              type="button"
               onClick={() => set({ tags: draft.tags.filter((t) => t !== tag) })}
               className="pill hover:border-danger hover:text-danger transition-colors"
               aria-label={`Remove tag ${tag}`}

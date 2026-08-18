@@ -134,6 +134,7 @@ function Tutor() {
             ].map((prompt) => (
               <button
                 key={prompt}
+                type="button"
                 onClick={() => void send(prompt)}
                 className="pill hover:border-ink3 transition-colors"
               >
@@ -163,6 +164,7 @@ function Tutor() {
               <RichText className={turn.role === "user" ? "text-ink" : ""}>{turn.content}</RichText>
               {turn.role === "assistant" ? (
                 <button
+                  type="button"
                   onClick={() => void keepAsCard(turn, index)}
                   className="text-[11px] text-ink3 hover:text-ink underline mt-2"
                 >
