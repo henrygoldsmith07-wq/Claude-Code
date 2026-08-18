@@ -381,6 +381,22 @@ export interface Question {
   createdAt: IsoInstant;
 }
 
+export type MarkEvidenceStatus = "credited" | "missed" | "unreported";
+export type MarkEvidenceStrength = "strong" | "partial" | "none";
+
+/** Deterministic explanation of the answer evidence behind one mark decision. */
+export interface MarkEvidence {
+  /** Exact mark-scheme point being explained. */
+  point: string;
+  status: MarkEvidenceStatus;
+  /** Short excerpt from the submitted answer, or null when nothing matches. */
+  evidence: string | null;
+  evidenceStrength: MarkEvidenceStrength;
+  /** 0–1 score from the same matching primitives used by offline marking. */
+  confidence: number;
+  explanation: string;
+}
+
 export interface MarkedPart {
   partId: Id;
   awarded: number;
@@ -389,6 +405,8 @@ export interface MarkedPart {
   creditedPoints: string[];
   missedPoints: string[];
   comment: string;
+  /** Per-point, answer-grounded rationale. Optional for older persisted attempts. */
+  evidence?: MarkEvidence[];
 }
 
 export type MarkEscalationReason = "low-confidence" | "missing-confidence";
@@ -454,6 +472,12 @@ export interface Attempt {
   confidence?: 1 | 2 | 3 | 4 | 5;
   elapsedMs: number;
   mode: "practice" | "paper" | "recall";
+  /** Optional provenance for attempts completed inside a paper sitting. */
+  paperId?: Id;
+  paperSpecId?: Id;
+  paperRunId?: Id;
+  /** Links a targeted practice attempt back to the open mistake it is testing. */
+  retestMistakeId?: Id;
   createdAt: IsoInstant;
 }
 
@@ -526,6 +550,11 @@ export interface Mistake {
   resolved: boolean;
   createdAt: IsoInstant;
   resolvedAt?: IsoInstant;
+  /** Number of targeted retests attempted since the mistake was captured. */
+  retestCount?: number;
+  /** Most recent targeted retest, whether or not it earned the point. */
+  lastRetestAttemptId?: Id;
+  lastRetestedAt?: IsoInstant;
 }
 
 export interface AssessmentInsight {

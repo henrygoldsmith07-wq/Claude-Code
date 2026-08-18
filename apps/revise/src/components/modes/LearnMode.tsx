@@ -118,6 +118,7 @@ export function LearnMode({ cards, onExit }: { cards: Card[]; onExit: () => void
                 <li key={choice}>
                   <button
                     disabled={Boolean(verdict)}
+                    type="button"
                     onClick={() => submit(isAnswer, current.back)}
                     className={cx(
                       "w-full text-left card px-3.5 py-3 min-h-[3rem] transition-colors",

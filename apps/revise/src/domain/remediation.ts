@@ -16,7 +16,7 @@ import { tokenise } from "./marking";
 import { diagnoseExpressionDifference } from "./maths-equivalence";
 import { matchMisconception } from "./misconception-library";
 import { firstIncorrectStep } from "./working-analysis";
-import type { MarkedPart, Misconception, QuestionPart, Topic } from "./types";
+import type { Attempt, MarkedPart, Misconception, Mistake, Question, QuestionPart, Topic } from "./types";
 
 export interface RemediationAction {
   /** Human label of the misconception, e.g. "Sign slip in expansion". */
@@ -112,10 +112,12 @@ const ACTION_BY_ERROR_HINT: Array<{ hint: RegExp; action: string }> = [
   },
 ];
 
-function genericAction(missedPoint: string): RemediationAction {
+function genericAction(missedPoint: string, answer?: string): RemediationAction {
   return {
     misconception: "Mark-scheme point missed",
-    evidence: `The scheme wanted: "${missedPoint}".`,
+    evidence: answer?.trim()
+      ? `Your answer — "${answer.trim()}" — did not demonstrate the required point: "${missedPoint}".`
+      : `The scheme wanted: "${missedPoint}".`,
     confidence: 0.4,
     action:
       "Restate the missing point explicitly in your own words, then check it against the scheme before moving on.",
@@ -217,7 +219,7 @@ export function remediatePoint(
     }
   }
 
-  return genericAction(missedPoint);
+  return genericAction(missedPoint, answer);
 }
 
 /**
@@ -275,4 +277,30 @@ export function planRemediation(
     : null;
 
   return { parts, headline };
+}
+
+/**
+ * Rebuild the best remediation action for one persisted mistake. The original
+ * attempt supplies the student's evidence; the mistake's point narrows the
+ * plan so a retest addresses this gap rather than the whole question.
+ */
+export function remediationForMistake(
+  mistake: Pick<Mistake, "partId" | "point">,
+  question: Pick<Question, "parts">,
+  originalAttempt?: Pick<Attempt, "answers" | "marked">,
+  topic?: Topic,
+): RemediationAction | null {
+  const part =
+    question.parts.find((candidate) => candidate.id === mistake.partId) ??
+    (question.parts.length === 1 ? question.parts[0] : undefined);
+  if (!part) return null;
+
+  const originalMarked = originalAttempt?.marked.find((marked) => marked.partId === part.id);
+  const missedPoints = mistake.point
+    ? [mistake.point]
+    : originalMarked?.missedPoints ?? [];
+  if (!missedPoints.length) return null;
+
+  const answer = originalAttempt?.answers[part.id] ?? "";
+  return remediatePart(part, answer, { partId: part.id, missedPoints }, topic).actions[0] ?? null;
 }

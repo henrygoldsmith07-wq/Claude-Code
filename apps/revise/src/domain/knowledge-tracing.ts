@@ -20,6 +20,7 @@ const P_SLIP = 0.11; // knows it but slips
 const P_GUESS = 0.22; // doesn't know but guesses correctly
 const P_TRANSIT = 0.14; // learns after an attempt
 const P_INIT = 0.35; // prior before any evidence
+export const QUESTION_DIFFICULTY_MIN_SAMPLES = 5;
 
 export interface TopicTrace {
   topicId: Id;
@@ -47,6 +48,23 @@ export interface QuestionTrace {
   reliable: boolean;
   discrimination: number | null; // point-biserial proxy: corr with topic mastery (when available)
   narrative: string;
+}
+
+export interface DifficultyCalibrationBand {
+  level: number;
+  questionCount: number;
+  attempts: number;
+  reliableQuestions: number;
+  empiricalDifficulty: number;
+  gap: number;
+}
+
+export interface DifficultyCalibrationReport {
+  status: "insufficient" | "aligned" | "drifting";
+  totalAttempts: number;
+  reliableQuestions: number;
+  driftingQuestions: number;
+  levels: DifficultyCalibrationBand[];
 }
 
 function clamp01(n: number): number {
@@ -167,7 +185,7 @@ export function traceQuestion(input: {
   const atts = input.attempts;
   const n = atts.length;
   const successRate = n >= 1 ? atts.reduce((a, x) => a + (x.max ? x.awarded / x.max : 0), 0) / n : null;
-  const reliable = n >= 5;
+  const reliable = n >= QUESTION_DIFFICULTY_MIN_SAMPLES;
   let empiricalDifficulty = input.question.difficulty;
   if (successRate != null && reliable) {
     // Map success 0→1 to difficulty 5→1
@@ -213,4 +231,53 @@ export function traceQuestions(input: {
 
 export function empiricalQuestionDifficultyMap(traces: QuestionTrace[]): Map<Id, number> {
   return new Map(traces.filter((t) => t.reliable).map((t) => [t.questionId, t.empiricalDifficulty]));
+}
+
+/** Aggregate item traces so Progress can show whether authored levels hold up. */
+export function calibrateDifficulty(traces: readonly QuestionTrace[]): DifficultyCalibrationReport {
+  const byLevel = new Map<number, { level: number; questionCount: number; attempts: number; reliableQuestions: number; empiricalTotal: number; gapTotal: number }>();
+  for (const trace of traces) {
+    const row = byLevel.get(trace.intrinsicDifficulty) ?? {
+      level: trace.intrinsicDifficulty,
+      questionCount: 0,
+      attempts: 0,
+      reliableQuestions: 0,
+      empiricalTotal: 0,
+      gapTotal: 0,
+    };
+    row.questionCount += 1;
+    row.attempts += trace.attempts;
+    row.reliableQuestions += trace.reliable ? 1 : 0;
+    if (trace.attempts > 0) {
+      row.empiricalTotal += trace.empiricalDifficulty * trace.attempts;
+      row.gapTotal += trace.gap * trace.attempts;
+    }
+    byLevel.set(trace.intrinsicDifficulty, row);
+  }
+
+  const levels = [...byLevel.values()]
+    .filter((row) => row.attempts > 0)
+    .map((row) => ({
+      level: row.level,
+      questionCount: row.questionCount,
+      attempts: row.attempts,
+      reliableQuestions: row.reliableQuestions,
+      empiricalDifficulty: round(row.empiricalTotal / Math.max(1, row.attempts)),
+      gap: round(row.gapTotal / Math.max(1, row.attempts)),
+    }))
+    .sort((a, b) => a.level - b.level);
+  const totalAttempts = traces.reduce((sum, trace) => sum + trace.attempts, 0);
+  const reliableQuestions = traces.filter((trace) => trace.reliable).length;
+  const driftingQuestions = traces.filter((trace) => trace.reliable && trace.gap !== 0).length;
+  return {
+    status: !totalAttempts || !reliableQuestions ? "insufficient" : driftingQuestions ? "drifting" : "aligned",
+    totalAttempts,
+    reliableQuestions,
+    driftingQuestions,
+    levels,
+  };
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }

@@ -185,6 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="p-3 space-y-2">
           <button
+            type="button"
             onClick={() => setSearchOpen(true)}
             className="w-full field text-left text-xs text-ink3 flex items-center gap-2"
           >
@@ -209,7 +210,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setSearchOpen(true)} className="btn btn-ghost" aria-label="Search">
+            <button type="button" onClick={() => setSearchOpen(true)} className="btn btn-ghost" aria-label="Search">
               <SearchIcon size={ICON_SIZE.lg} aria-hidden />
             </button>
             <Link href="/teacher" className="btn btn-ghost" aria-label="Teacher P2">
@@ -299,8 +300,14 @@ function StatusStrip() {
             : "Local only — saved here"}
         </span>
         {syncStatus.enabled ? (
-          <button onClick={() => void syncNow()} className="underline hover:text-ink">
-            {syncStatus.syncing ? "Syncing…" : syncStatus.lastSyncError ? "Try again" : "Sync now"}
+          <button type="button" onClick={() => void syncNow()} className="underline hover:text-ink">
+            {syncStatus.syncing
+              ? "Syncing…"
+              : syncStatus.lastSyncError
+                ? "Try again"
+                : syncStatus.pending
+                  ? `${syncStatus.pending} queued`
+                  : "Sync now"}
           </button>
         ) : null}
       </div>

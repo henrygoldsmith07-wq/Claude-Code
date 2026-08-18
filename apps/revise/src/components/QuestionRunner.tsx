@@ -11,10 +11,13 @@ import {
   type DelayedFarTransferRetest,
 } from "@/domain/delayed-far-transfer";
 import { markMcq } from "@/domain/marking";
+import { evaluateMistakeRetest } from "@/domain/mistakes";
+import type { RetestEvaluation } from "@/domain/mistakes";
 import { assessLowConfidenceMark, createMarkEscalationRecord } from "@/domain/mark-escalation";
 import type { LowConfidenceMarkDecision } from "@/domain/mark-escalation";
 import { planRemediation, type RemediationAction } from "@/domain/remediation";
-import type { Attempt, MarkedPart, Question } from "@/domain/types";
+import type { RemediationPlan } from "@/domain/remediation";
+import type { Attempt, Id, MarkedPart, Mistake, Question } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { AnswerInput } from "./AnswerInput";
 import { RichText } from "./RichText";
@@ -34,6 +37,10 @@ export interface QuestionDraft {
 export function QuestionRunner({
   question,
   mode = "practice",
+  paperId,
+  paperSpecId,
+  paperRunId,
+  retestMistake,
   farTransfer,
   draft,
   onDraftChange,
@@ -41,6 +48,10 @@ export function QuestionRunner({
 }: {
   question: Question;
   mode?: Attempt["mode"];
+  paperId?: Id;
+  paperSpecId?: Id;
+  paperRunId?: Id;
+  retestMistake?: Mistake;
   farTransfer?: DelayedFarTransferRetest;
   draft?: QuestionDraft;
   onDraftChange?: (draft: QuestionDraft) => void;
@@ -55,6 +66,8 @@ export function QuestionRunner({
     feedback: string;
     source: "ai" | "fallback";
     note?: string;
+    retest?: RetestEvaluation;
+    remediation: RemediationPlan;
     confidence: number | null;
     escalation?: LowConfidenceMarkDecision;
     farTransfer?: Attempt["farTransfer"];
@@ -98,6 +111,7 @@ export function QuestionRunner({
       markConfidence = source === "ai" && typeof envelope.data.confidence === "number" ? envelope.data.confidence : null;
     }
 
+    const submittedAnswers = isMcq ? { [question.parts[0]?.id ?? question.id]: String(choice) } : answers;
     const markedBy: Attempt["markedBy"] = source === "ai" ? "ai" : "rubric";
     const attemptId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -112,7 +126,7 @@ export function QuestionRunner({
       questionId: question.id,
       subjectId: question.subjectId,
       topicIds: question.topicIds,
-      answers: isMcq ? { [question.parts[0]?.id ?? question.id]: String(choice) } : answers,
+      answers: submittedAnswers,
       marked,
       awarded: marked.reduce((a, m) => a + m.awarded, 0),
       max: marked.reduce((a, m) => a + m.max, 0),
@@ -122,8 +136,15 @@ export function QuestionRunner({
       markEscalation,
       elapsedMs,
       mode,
+      ...(paperId ? { paperId } : {}),
+      ...(paperSpecId ? { paperSpecId } : {}),
+      ...(paperRunId ? { paperRunId } : {}),
+      ...(retestMistake ? { retestMistakeId: retestMistake.id } : {}),
       createdAt,
     };
+
+    const retest = retestMistake ? evaluateMistakeRetest(retestMistake, question, attempt) : undefined;
+    const remediation = planRemediation(question, submittedAnswers, marked, topic, misconceptionsForTopic(question.topicIds[0] ?? ""));
 
     const farTransferLink = farTransfer
       ? completeDelayedFarTransfer(farTransfer, attempt)
@@ -141,6 +162,8 @@ export function QuestionRunner({
       feedback,
       source,
       note,
+      retest,
+      remediation,
       confidence: markConfidence,
       escalation: escalationDecision.escalate ? escalationDecision : undefined,
       farTransfer: persistedAttempt.farTransfer,
@@ -155,6 +178,7 @@ export function QuestionRunner({
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Pill>{question.totalMarks} marks</Pill>
           <Pill>{topic?.title ?? question.subjectId}</Pill>
+          {retestMistake ? <Pill tone="review">Retest</Pill> : null}
           {question.origin === "past-paper" ? <Pill tone="review">Past paper</Pill> : null}
           {question.origin === "ai" ? <Pill tone="speak">AI generated</Pill> : null}
           {!question.calculatorAllowed ? <Pill tone="danger">No calculator</Pill> : null}
@@ -234,7 +258,10 @@ export function QuestionRunner({
           </div>
         )}
 
-        {!result ? (
+        {!result && retestMistake?.resolved ? (
+          <p className="text-xs text-success mt-5">This mistake is already resolved. Return to Progress to choose another repair.</p>
+        ) : null}
+        {!result && !retestMistake?.resolved ? (
           <Button
             variant="primary"
             className="w-full min-h-11 mt-5"
@@ -277,6 +304,8 @@ function MarkedResult({
     feedback: string;
     source: "ai" | "fallback";
     note?: string;
+    retest?: RetestEvaluation;
+    remediation: RemediationPlan;
     confidence: number | null;
     escalation?: LowConfidenceMarkDecision;
     farTransfer?: Attempt["farTransfer"];
@@ -354,6 +383,59 @@ function MarkedResult({
       ) : null}
       <ProgressBar value={pct} tone={pct >= 0.8 ? "success" : pct >= 0.5 ? "review" : "danger"} />
 
+      {result.retest ? (
+        <div
+          className={cx(
+            "mt-4 card card-2 p-3",
+            result.retest.status === "resolved"
+              ? "border-success bg-successsoft"
+              : result.retest.status === "still-open"
+                ? "border-danger bg-dangersoft"
+                : "bg-surface2",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill
+              tone={
+                result.retest.status === "resolved"
+                  ? "success"
+                  : result.retest.status === "still-open"
+                    ? "danger"
+                    : "review"
+              }
+            >
+              {result.retest.status === "resolved"
+                ? "Retest passed"
+                : result.retest.status === "still-open"
+                  ? "Retest still open"
+                  : "Retest not linked"}
+            </Pill>
+            <span className="text-xs text-ink2">{result.retest.feedback}</span>
+          </div>
+          {result.retest.status === "resolved" ? (
+            <p className="text-[11px] text-success mt-2">The mistake has been removed from your open repair queue.</p>
+          ) : result.retest.status === "still-open" ? (
+            <p className="text-[11px] text-ink2 mt-2">Repeat the remediation above, then retest this question again.</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {result.remediation.headline ? (
+        <div className="mt-4 card card-2 p-3 bg-surface2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone="review">Remediation</Pill>
+            <span className="text-xs text-ink2">{result.remediation.headline.misconception}</span>
+          </div>
+          <p className="text-sm text-ink mt-2">{result.remediation.headline.action}</p>
+          <p className="text-[11px] text-ink3 mt-1.5">Evidence: {result.remediation.headline.evidence}</p>
+          {result.remediation.headline.targetKeyPoint ? (
+            <p className="text-[11px] text-ink3 mt-1">
+              Restudy: {result.remediation.headline.targetKeyPoint}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-4 space-y-4">
         {result.marked.map((marked) => {
           const part = question.parts.find((p) => p.id === marked.partId);
@@ -383,6 +465,33 @@ function MarkedResult({
                 </ul>
               ) : null}
               {marked.comment ? <p className="text-xs text-ink3 mt-1.5">{marked.comment}</p> : null}
+              {marked.evidence?.length ? (
+                <details className="mt-2" open={marked.missedPoints.length > 0}>
+                  <summary className="text-xs text-ink2 cursor-pointer select-none">Evidence for each mark</summary>
+                  <p className="text-[11px] text-ink3 mt-1.5">Matched locally against your answer and the mark scheme.</p>
+                  <ul className="mt-2 space-y-2">
+                    {marked.evidence.map((item, i) => {
+                      const tone = item.status === "credited" ? "success" : item.status === "missed" ? "danger" : "review";
+                      const label = item.status === "credited" ? "awarded" : item.status === "missed" ? "not awarded" : "unreported";
+                      return (
+                        <li key={`${item.point}:${i}`} className="card card-2 p-2.5 text-xs">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Pill tone={tone}>{label}</Pill>
+                            <Pill>{item.evidenceStrength} evidence</Pill>
+                          </div>
+                          <p className="text-ink2 mt-1.5">{item.point}</p>
+                          <p className="text-ink3 mt-1">{item.explanation}</p>
+                          {item.evidence ? (
+                            <p className="text-ink3 mt-1">
+                              Submitted text: <span className="text-ink2">“{item.evidence}”</span>
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
+              ) : null}
               {part?.modelAnswer ? (
                 <details className="mt-2">
                   <summary className="text-xs text-ink2 cursor-pointer select-none">Model answer</summary>
@@ -443,7 +552,7 @@ function MarkedResult({
             })}
           </div>
         ) : null}
-        {awarded < question.totalMarks ? (
+        {!result.retest && awarded < question.totalMarks ? (
           <p className="text-[11px] text-ink3">
             The dropped marks have been logged as mistakes — with AO, command word and timing — and turned into cards that will reappear until you can answer them. See <span className="font-semibold">Progress</span> for expected marks per hour.
           </p>

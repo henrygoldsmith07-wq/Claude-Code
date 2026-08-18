@@ -7,8 +7,10 @@ import { toBase64 } from "@/components/AnswerInput";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { buildPostSessionClosure } from "@/domain/post-session-closure";
 import { tokenise } from "@/domain/marking";
+import { analysePaperWeakness } from "@/domain/paper-weakness";
 import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
+import { PaperWeaknessPanel } from "@/components/PaperWeaknessPanel";
 import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { QuestionNavigator } from "@/components/QuestionNavigator";
 import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
@@ -33,7 +35,14 @@ function Papers() {
   const store = useStore();
   const subjects = useSubjects();
   const [subjectId, setSubjectId] = useState(params.get("subject") ?? subjects[0]?.id ?? "");
-  const [activePaper, setActivePaper] = useState<Paper | null>(null);
+  const resumeCheckpoint =
+    params.get("resume") === "1" && store.revisionCheckpoint?.activity === "paper"
+      ? store.revisionCheckpoint
+      : null;
+  const [resumeActive, setResumeActive] = useState(Boolean(resumeCheckpoint?.paperId));
+  const [activePaper, setActivePaper] = useState<Paper | null>(() =>
+    resumeCheckpoint?.paperId ? store.papers.find((paper) => paper.id === resumeCheckpoint.paperId) ?? null : null,
+  );
   const [examPaper, setExamPaper] = useState<Paper | null>(null);
 
   const papers = useMemo(
@@ -42,7 +51,15 @@ function Papers() {
   );
 
   if (activePaper) {
-    return <PaperSession paper={activePaper} onExit={() => setActivePaper(null)} />;
+    const checkpoint = resumeActive && resumeCheckpoint?.paperId === activePaper.id ? resumeCheckpoint : null;
+    return (
+      <PaperSession
+        paper={activePaper}
+        initialIndex={checkpoint?.position ?? 0}
+        initialPaperRunId={checkpoint?.paperRunId}
+        onExit={() => setActivePaper(null)}
+      />
+    );
   }
 
   if (examPaper) {
@@ -99,7 +116,15 @@ function Papers() {
                   </div>
                   <Pill className="self-start sm:self-auto" tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
                   <div className="grid grid-cols-1 sm:flex justify-end gap-1.5 w-full sm:w-auto">
-                    <Button size="sm" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setActivePaper(paper)}>
+                    <Button
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={!paper.questionIds.length}
+                      onClick={() => {
+                        setResumeActive(false);
+                        setActivePaper(paper);
+                      }}
+                    >
                       Practise paper
                     </Button>
                     <Button size="sm" variant="primary" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setExamPaper(paper)}>
@@ -296,10 +321,35 @@ export function mapToTopics(subjectId: string, text: string, limit = 2): string[
   return picked.length ? picked : [topicsFor(subjectId)[0]?.id].filter(Boolean);
 }
 
-function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
+function PaperSession({
+  paper,
+  initialIndex,
+  initialPaperRunId,
+  onExit,
+}: {
+  paper: Paper;
+  initialIndex: number;
+  initialPaperRunId?: string;
+  onExit: () => void;
+}) {
   const router = useRouter();
   const store = useStore();
-  const [index, setIndex] = useState(0);
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
+  const questions = useMemo(
+    () => paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q)),
+    [paper.questionIds, store.questions],
+  );
+  const [paperRunId] = useState(() => initialPaperRunId ?? crypto.randomUUID());
+  const [index, setIndex] = useState(() => {
+    const attempted = new Set(
+      initialPaperRunId
+        ? store.attempts.filter((attempt) => attempt.paperRunId === initialPaperRunId).map((attempt) => attempt.questionId)
+        : [],
+    );
+    let next = Math.max(0, Math.floor(initialIndex));
+    while (next < questions.length && attempted.has(questions[next].id)) next++;
+    return next;
+  });
   const [startedAt] = useState(() => Date.now());
   const [elapsedMs, setElapsedMs] = useState(0);
   const [scores, setScores] = useState<{ questionId: string; awarded: number; max: number }[]>([]);
@@ -315,22 +365,53 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
     return () => clearInterval(tick);
   }, [startedAt]);
 
-  const questions = useMemo(
-    () => paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q)),
-    [paper.questionIds, store.questions],
+  const paperAttempts = useMemo(
+    () => store.attempts.filter((attempt) => attempt.paperRunId === paperRunId),
+    [paperRunId, store.attempts],
+  );
+  const weaknessAnalysis = useMemo(
+    () =>
+      analysePaperWeakness({
+        paper,
+        attempts: paperAttempts,
+        questions,
+        mistakes: store.mistakes,
+        paperRunId,
+      }),
+    [paper, paperAttempts, paperRunId, questions, store.mistakes],
   );
   const current = questions[index];
-  const totalAwarded = scores.reduce((a, s) => a + s.awarded, 0);
-  const totalMax = scores.reduce((a, s) => a + s.max, 0);
-  const answered = questions.map((question) => scores.some((score) => score.questionId === question.id));
+  const totalAwarded = paperAttempts.reduce((a, attempt) => a + attempt.awarded, 0);
+  const totalMax = paperAttempts.reduce((a, attempt) => a + attempt.max, 0);
+  const answered = questions.map((question) =>
+    scores.some((score) => score.questionId === question.id) || paperAttempts.some((attempt) => attempt.questionId === question.id),
+  );
   const drafted = questions.map((question) => {
     const draft = questionDrafts[question.id];
     return Boolean(draft && (draft.choice !== null || Object.values(draft.answers).some((answer) => answer.trim())));
   });
 
+  useEffect(() => {
+    if (!questions.length || !current) {
+      if (questions.length) void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "paper",
+      title: paper.title,
+      href: "/papers?resume=1",
+      position: index,
+      total: questions.length,
+      queueIds: paper.questionIds,
+      paperId: paper.id,
+      paperRunId,
+    });
+  }, [clearRevisionCheckpoint, current, index, paper, paperRunId, questions.length, saveRevisionCheckpoint]);
+
   async function finish(nextHref?: string) {
     if (finishing) return;
     setFinishing(true);
+    await clearRevisionCheckpoint();
     await store.addPaper({ ...paper, status: "practised" });
     if (nextHref) router.push(nextHref);
     else onExit();
@@ -340,7 +421,7 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
     const availableMarks = paper.totalMarks || totalMax;
     const closure = buildPostSessionClosure({
       session: "paper",
-      attempted: scores.length,
+      attempted: paperAttempts.length,
       total: questions.length,
       awarded: totalAwarded,
       available: availableMarks,
@@ -361,7 +442,12 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         closure={closure}
         title="Paper complete"
         hint={paper.title}
-        extra={calibration ? <p>{calibration} See Progress for the updated calibration.</p> : null}
+        extra={
+          <div className="space-y-3">
+            {calibration ? <p>{calibration} See Progress for the updated calibration.</p> : null}
+            <PaperWeaknessPanel analysis={weaknessAnalysis} />
+          </div>
+        }
         actions={
           <div className="flex gap-2">
             <Button
@@ -421,6 +507,9 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         key={current.id}
         question={current}
         mode="paper"
+        paperId={paper.id}
+        paperSpecId={paper.paperSpecId}
+        paperRunId={paperRunId}
         draft={questionDrafts[current.id]}
         onDraftChange={(draft) => setQuestionDrafts((previous) => ({ ...previous, [current.id]: draft }))}
         onFinished={(attempt) => {

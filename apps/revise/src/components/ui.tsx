@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 // The shared vocabulary every screen is built from. Le Studio's tokens carry
@@ -42,26 +43,45 @@ export function SectionHeading({
   );
 }
 
+type ControlVariant = "primary" | "secondary" | "ghost";
+type ControlSize = "sm" | "md";
+
+function controlClass(variant: ControlVariant, size: ControlSize, className?: string) {
+  return cx(
+    "btn",
+    variant === "primary" && "btn-primary",
+    variant === "secondary" && "btn-secondary",
+    variant === "ghost" && "btn-ghost",
+    size === "sm" && "text-xs px-2.5 py-1.5",
+    size === "md" && "text-sm",
+    className,
+  );
+}
+
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md";
 };
 
-export function Button({ variant = "secondary", size = "md", className, ...props }: ButtonProps) {
+export function Button({ variant = "secondary", size = "md", className, type = "button", ...props }: ButtonProps) {
   return (
     <button
+      type={type}
       {...props}
-      className={cx(
-        "btn",
-        variant === "primary" && "btn-primary",
-        variant === "secondary" && "btn-secondary",
-        variant === "ghost" && "btn-ghost",
-        size === "sm" && "text-xs px-2.5 py-1.5",
-        size === "md" && "text-sm",
-        className,
-      )}
+      className={controlClass(variant, size, className)}
     />
   );
+}
+
+type ButtonLinkProps = Omit<React.ComponentProps<typeof Link>, "href" | "className"> & {
+  href: string;
+  variant?: ControlVariant;
+  size?: ControlSize;
+  className?: string;
+};
+
+export function ButtonLink({ href, variant = "secondary", size = "md", className, ...props }: ButtonLinkProps) {
+  return <Link href={href} {...props} className={controlClass(variant, size, className)} />;
 }
 
 export function Pill({
@@ -104,10 +124,10 @@ export function StatTile({
   const toneClass =
     tone === "success" ? "text-success" : tone === "review" ? "text-review" : tone === "danger" ? "text-danger" : "text-ink";
   return (
-    <div className="card p-3 sm:p-4">
-      <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">{label}</p>
-      <p className={cx("text-2xl font-semibold tabular-nums mt-1", toneClass)}>{value}</p>
-      {sub ? <p className="text-xs text-ink3 mt-0.5">{sub}</p> : null}
+    <div className="rounded-[8px] border border-line bg-transparent p-3 sm:p-3.5">
+      <p className="text-[10px] uppercase tracking-wide text-ink3 font-semibold">{label}</p>
+      <p className={cx("text-xl font-semibold tabular-nums mt-0.5", toneClass)}>{value}</p>
+      {sub ? <p className="text-[11px] text-ink3 mt-0.5">{sub}</p> : null}
     </div>
   );
 }
@@ -176,12 +196,12 @@ export function Segmented<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="inline-flex card-2 card p-0.5 gap-0.5" role="tablist" aria-label={ariaLabel}>
+    <div className="inline-flex card-2 card p-0.5 gap-0.5" role="group" aria-label={ariaLabel}>
       {options.map((option) => (
         <button
           key={option.value}
-          role="tab"
-          aria-selected={option.value === value}
+          type="button"
+          aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
           className={cx(
             "px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-colors",

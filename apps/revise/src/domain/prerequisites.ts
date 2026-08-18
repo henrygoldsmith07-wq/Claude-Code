@@ -195,3 +195,84 @@ export function bestPrerequisiteFix(input: { topics: Topic[]; mastery: TopicMast
   const c = candidates[0];
   return { topicId: c.topicId, prerequisiteId: c.prerequisiteId, reason: c.reason };
 }
+
+export interface RootPrerequisitePath {
+  rootTopicId: Id;
+  /** Ordered from the downstream topic towards the root. */
+  path: Id[];
+}
+
+/** Traverse the dependency graph to the foundational topics behind one topic. */
+export function rootPrerequisitePaths(topicId: Id, edges: PrerequisiteEdge[] = prerequisiteEdges()): RootPrerequisitePath[] {
+  const visit = (current: Id, path: Id[], seen: Set<Id>): RootPrerequisitePath[] => {
+    if (seen.has(current)) return [{ rootTopicId: current, path: [...path, current] }];
+    const next = edges.filter((edge) => edge.topicId === current).map((edge) => edge.prerequisiteId);
+    if (!next.length) return [{ rootTopicId: current, path: [...path, current] }];
+    const nextSeen = new Set(seen).add(current);
+    return next.flatMap((prerequisiteId) => visit(prerequisiteId, [...path, current], nextSeen));
+  };
+
+  const unique = new Map<string, RootPrerequisitePath>();
+  for (const row of visit(topicId, [], new Set())) unique.set(`${row.rootTopicId}:${row.path.join("/")}`, row);
+  return [...unique.values()];
+}
+
+export interface RootPrerequisiteRemediation {
+  rootTopicId: Id;
+  affectedTopicIds: Id[];
+  paths: Id[][];
+  rootMastery: number;
+  lowestAffectedMastery: number;
+  priority: number;
+  reason: string;
+}
+
+/** Rank weak foundational topics whose repair can unblock several weak dependents. */
+export function rootPrerequisiteRemediation(input: {
+  topics: Topic[];
+  mastery: TopicMastery[];
+  marksPerHour?: Map<Id, number>;
+  edges?: PrerequisiteEdge[];
+}): RootPrerequisiteRemediation[] {
+  const edges = input.edges ?? prerequisiteEdges();
+  const topicIds = new Set(input.topics.map((topic) => topic.id));
+  const masteryById = new Map(input.mastery.map((row) => [row.topicId, row]));
+  const candidates = new Map<Id, { affectedTopicIds: Set<Id>; paths: Id[][] }>();
+
+  for (const target of input.topics) {
+    const targetMastery = masteryById.get(target.id);
+    if (!targetMastery?.weak) continue;
+    for (const path of rootPrerequisitePaths(target.id, edges)) {
+      if (path.path.length < 2 || !topicIds.has(path.rootTopicId)) continue;
+      const rootMastery = masteryById.get(path.rootTopicId);
+      if (!rootMastery?.weak) continue;
+      const current = candidates.get(path.rootTopicId) ?? { affectedTopicIds: new Set<Id>(), paths: [] };
+      current.affectedTopicIds.add(target.id);
+      current.paths.push(path.path);
+      candidates.set(path.rootTopicId, current);
+    }
+  }
+
+  return [...candidates.entries()]
+    .map(([rootTopicId, value]) => {
+      const rootMastery = masteryById.get(rootTopicId)?.mastery ?? 0;
+      const affectedTopicIds = [...value.affectedTopicIds];
+      const lowestAffectedMastery = Math.min(...affectedTopicIds.map((id) => masteryById.get(id)?.mastery ?? 0));
+      const marksPerHour = input.marksPerHour?.get(rootTopicId) ?? 0;
+      const priority = roundPriority((1 - rootMastery) * affectedTopicIds.length + marksPerHour * 0.05);
+      return {
+        rootTopicId,
+        affectedTopicIds,
+        paths: value.paths,
+        rootMastery,
+        lowestAffectedMastery,
+        priority,
+        reason: `Repairing this foundation can unblock ${affectedTopicIds.length} weak dependent topic${affectedTopicIds.length === 1 ? "" : "s"}.`,
+      };
+    })
+    .sort((a, b) => b.priority - a.priority || a.rootTopicId.localeCompare(b.rootTopicId));
+}
+
+function roundPriority(value: number): number {
+  return Math.round(value * 100) / 100;
+}

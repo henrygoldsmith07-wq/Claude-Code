@@ -25,6 +25,20 @@ export interface GradePrediction {
   headroom: { topicId: Id; potentialPercent: number }[];
 }
 
+export interface NextGradeRoute {
+  topicId: Id;
+  potentialPercent: number;
+  contributionPercent: number;
+}
+
+export interface NextGradeTarget {
+  nextGrade: { grade: string; percent: number } | null;
+  gapPercent: number;
+  modeledGainPercent: number;
+  remainingPercent: number;
+  route: NextGradeRoute[];
+}
+
 const MIN_ATTEMPTS_FOR_TRUST = 10;
 
 export function gradeForPercent(subject: Subject, percent: number): string {
@@ -33,6 +47,24 @@ export function gradeForPercent(subject: Subject, percent: number): string {
     if (percent >= row.percent) return row.grade;
   }
   return sorted.length ? sorted[sorted.length - 1].grade : "U";
+}
+
+/** Find the next boundary and allocate available topic headroom towards it. */
+export function nextGradeTarget(subject: Subject, prediction: GradePrediction): NextGradeTarget {
+  const nextGrade = [...subject.gradeBoundaries]
+    .filter((boundary) => boundary.percent > prediction.percent)
+    .sort((a, b) => a.percent - b.percent)[0] ?? null;
+  const gapPercent = nextGrade ? nextGrade.percent - prediction.percent : 0;
+  let remainingPercent = gapPercent;
+  const route = prediction.headroom
+    .map((row) => {
+      const contributionPercent = Math.min(row.potentialPercent, remainingPercent);
+      remainingPercent = Math.max(0, remainingPercent - row.potentialPercent);
+      return { ...row, contributionPercent };
+    })
+    .filter((row) => row.contributionPercent > 0);
+  const modeledGainPercent = gapPercent - remainingPercent;
+  return { nextGrade, gapPercent, modeledGainPercent, remainingPercent, route };
 }
 
 export function predictGrade(

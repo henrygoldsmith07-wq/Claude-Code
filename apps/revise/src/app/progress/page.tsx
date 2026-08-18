@@ -8,19 +8,23 @@ import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { delayedFarTransferReport, delayedFarTransferRetests } from "@/domain/delayed-far-transfer";
 import type { GradePrediction } from "@/domain/grades";
 import { ACHIEVEMENTS, levelFor } from "@/domain/gamification";
+import { overallProgressNarrative } from "@/domain/analytics";
 import { weakTopics } from "@/domain/mastery";
 import { mistakePatterns } from "@/domain/mistakes";
+import { remediationForMistake } from "@/domain/remediation";
 import { markEscalationReport } from "@/domain/mark-escalation";
 import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
-import { ApplicationMasteryCard, CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, MasteryUncertaintyCard, PaperSimulationCard, QuestionDiscriminationCard, RecallMasteryCard, RecurringMisconceptions, TechniqueVsKnowledgeCard } from "@/components/AssessmentPanels";
+import { ApplicationMasteryCard, CalculationMasteryCard, CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, MasteryUncertaintyCard, NextGradeView, PaperSimulationCard, QuestionDiscriminationCard, RecallMasteryCard, RecurringMisconceptions, TechniqueVsKnowledgeCard } from "@/components/AssessmentPanels";
 import { ResponseTimeCalibrationPanel } from "@/components/ResponseTimeCalibration";
 import { RetentionMasteryPanel } from "@/components/RetentionMasteryPanel";
 import { MistakeRootCausePanel } from "@/components/MistakeRootCause";
 import { CoverageCard } from "@/components/CoverageCard";
-import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
+import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
+import { LearningControlsCard } from "@/components/LearningControlsCard";
+import { Button, ButtonLink, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
 
 // Analytics that answer one question — where are the marks? — rather than
 // showing every number the app happens to hold. Each panel ends in an action.
@@ -113,7 +117,15 @@ export default function ProgressPage() {
   const [diagnosing, setDiagnosing] = useState(false);
 
   const weak = useMemo(() => weakTopics(store.mastery, 8), [store.mastery]);
-  const patterns = useMemo(() => mistakePatterns(store.mistakes.filter((m) => !m.resolved)), [store.mistakes]);
+  const openMistakes = useMemo(
+    () =>
+      store.mistakes
+        .filter((mistake) => !mistake.resolved)
+        .slice()
+        .sort((a, b) => b.marksLost - a.marksLost || b.createdAt.localeCompare(a.createdAt)),
+    [store.mistakes],
+  );
+  const patterns = useMemo(() => mistakePatterns(openMistakes), [openMistakes]);
   const forecast = useMemo(() => dueCountByDay(store.cards, 14, today), [store.cards, today]);
   const maxDue = Math.max(1, ...forecast.map((f) => f.count));
   const level = levelFor(store.streak.xp);
@@ -143,6 +155,29 @@ export default function ProgressPage() {
     };
   }, [store.reviewLogs, store.attempts, store.mastery]);
 
+  const progressStory = useMemo(() => {
+    const focusTopic =
+      weak[0] ??
+      store.mastery
+        .filter((row) => row.cardsTotal > 0 || row.attempts > 0)
+        .slice()
+        .sort((a, b) => a.mastery - b.mastery)[0];
+    const narrative = overallProgressNarrative({
+      mastery: store.mastery,
+      attempts: store.attempts,
+      dueCards: store.dueCards.length,
+      openMistakes: openMistakes.length,
+      weakTop: focusTopic ? getTopic(focusTopic.topicId)?.title : undefined,
+      now: new Date(`${today}T23:59:59.999Z`),
+    });
+    const href = focusTopic
+      ? `/practice?topic=${encodeURIComponent(focusTopic.topicId)}`
+      : narrative.cta === "Review due cards"
+        ? "/review"
+        : "/practice";
+    return { ...narrative, href };
+  }, [store.attempts, store.dueCards.length, store.mastery, today, weak, openMistakes.length]);
+
   async function diagnose() {
     setDiagnosing(true);
     const result = await aiDiagnose(
@@ -160,6 +195,8 @@ export default function ProgressPage() {
         <p className="text-sm text-ink3 mt-0.5">Where your marks are, and where the next ones come from.</p>
       </header>
 
+      <ResumeRevisionCard />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile label="Cards reviewed" value={totals.reviews} sub="all time" />
         <StatTile
@@ -171,6 +208,38 @@ export default function ProgressPage() {
         <StatTile label="Topics secure" value={totals.mastered} sub={`of ${store.mastery.length}`} />
         <StatTile label="Level" value={level.level} sub={`${level.into}/${level.needed} XP to next`} />
       </div>
+
+      <section aria-labelledby="progress-story-heading">
+        <Panel className="border-l-4 border-l-accent">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Progress story</p>
+              <h2 id="progress-story-heading" className="text-lg font-semibold tracking-tight mt-1">
+                {progressStory.headline}
+              </h2>
+              <div className="space-y-1.5 mt-2">
+                {progressStory.paragraphs.map((paragraph) => (
+                  <p key={paragraph} className="text-sm text-ink2">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <ButtonLink href={progressStory.href} size="sm" className="shrink-0">
+              {progressStory.cta}
+            </ButtonLink>
+          </div>
+          {progressStory.bullets?.length ? (
+            <ul className="grid sm:grid-cols-3 gap-2 mt-4 pt-3 border-t border-line">
+              {progressStory.bullets.map((bullet) => (
+                <li key={bullet} className="text-xs text-ink3">
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </Panel>
+      </section>
 
       <RetentionMasteryPanel />
 
@@ -279,6 +348,78 @@ export default function ProgressPage() {
 
       <section>
         <SectionHeading
+          title="Mistake → remediation → retest"
+          hint="Each dropped mark has a specific next action. Retest the same point until it is secure."
+        />
+        {openMistakes.length ? (
+          <ul className="card divide-y divide-line">
+            {openMistakes.slice(0, 8).map((mistake) => {
+              const question = mistake.questionId
+                ? store.questions.find((candidate) => candidate.id === mistake.questionId)
+                : undefined;
+              const attempt = mistake.attemptId
+                ? store.attempts.find((candidate) => candidate.id === mistake.attemptId)
+                : undefined;
+              const remediation = question
+                ? remediationForMistake(mistake, question, attempt, getTopic(mistake.topicId))
+                : null;
+              return (
+                <li key={mistake.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Pill tone="danger">{mistake.category}</Pill>
+                        <span className="text-[11px] text-ink3 tabular-nums">
+                          {mistake.marksLost} mark(s) lost
+                        </span>
+                        {(mistake.retestCount ?? 0) > 0 ? (
+                          <span className="text-[11px] text-ink3 tabular-nums">
+                            {mistake.retestCount} retest{mistake.retestCount === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-sm text-ink mt-1.5">{mistake.description}</p>
+                      {remediation ? (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-ink2">
+                            <span className="font-semibold">Remediation:</span> {remediation.action}
+                          </p>
+                          <p className="text-[11px] text-ink3">Evidence: {remediation.evidence}</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-ink3 mt-2">
+                          Revisit the mark-scheme point, then retest the source question.
+                        </p>
+                      )}
+                    </div>
+                    {question ? (
+                      <ButtonLink
+                        href={`/practice?retest=${encodeURIComponent(mistake.id)}`}
+                        size="sm"
+                        variant="primary"
+                        className="shrink-0"
+                      >
+                        Retest
+                      </ButtonLink>
+                    ) : (
+                      <span className="text-[11px] text-ink3">Source unavailable</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <Panel>
+            <p className="text-sm text-ink3">
+              No open mistakes. A dropped mark will appear here with its remediation and retest link.
+            </p>
+          </Panel>
+        )}
+      </section>
+
+      <section>
+        <SectionHeading
           title="Predicted grades"
           hint="A working estimate, with the evidence, range and next lever kept visible."
         />
@@ -294,6 +435,8 @@ export default function ProgressPage() {
           ))}
         </ul>
       </section>
+
+      <NextGradeView />
 
       <section>
         <SectionHeading
@@ -320,9 +463,9 @@ export default function ProgressPage() {
                       <ProgressBar value={row.mastery} tone={row.mastery < 0.4 ? "danger" : "review"} />
                     </div>
                   </div>
-                  <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`}>
-                    <Button size="sm">Practise</Button>
-                  </Link>
+                  <ButtonLink href={`/practice?topic=${encodeURIComponent(row.topicId)}`} size="sm">
+                    Practise
+                  </ButtonLink>
                 </li>
               );
             })}
@@ -437,6 +580,8 @@ export default function ProgressPage() {
         <MasteryUncertaintyCard />
         <ExpectedMarksCard />
         <MarksLostByCause />
+        <CalculationMasteryCard />
+        <LearningControlsCard />
         <TechniqueVsKnowledgeCard />
         <RecurringMisconceptions />
         <MistakeRootCausePanel />

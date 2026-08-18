@@ -8,7 +8,9 @@ import {
   summariseFallback,
 } from "./fallback";
 import { getTopic } from "@/domain/curriculum";
+import { withMarkEvidence } from "@/domain/marking";
 import type { Mistake, Question, Topic } from "@/domain/types";
+import { RESPONSE_SCHEMAS } from "./types";
 import type {
   AiEnvelope,
   AiTask,
@@ -42,7 +44,16 @@ async function call<T>(task: AiTask, payload: unknown, fallback: () => T): Promi
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       return { data: fallback(), source: "fallback", note: body.error ?? `HTTP ${res.status}` };
     }
-    return (await res.json()) as AiEnvelope<T>;
+    const body = (await res.json()) as { data?: unknown; source?: unknown; [key: string]: unknown };
+    const parsed = RESPONSE_SCHEMAS[task].safeParse(body?.data);
+    if (!parsed.success || (body?.source !== "ai" && body?.source !== "fallback")) {
+      return {
+        data: fallback(),
+        source: "fallback",
+        note: "The AI response did not match its structured output contract.",
+      };
+    }
+    return { ...body, data: parsed.data } as AiEnvelope<T>;
   } catch (error) {
     return {
       data: fallback(),
@@ -60,8 +71,9 @@ export function aiSocratic(topicId: string, history: { role: "user" | "assistant
   return call<SocraticResponse>("socratic", { topicId, history }, () => socraticFallback(topicId, history.length));
 }
 
-export function aiMark(question: Question, answers: Record<string, string>) {
-  return call<MarkResponse>("mark", { question, answers }, () => markFallback(question, answers));
+export async function aiMark(question: Question, answers: Record<string, string>) {
+  const envelope = await call<MarkResponse>("mark", { question, answers }, () => markFallback(question, answers));
+  return { ...envelope, data: withMarkEvidence(question, answers, envelope.data) };
 }
 
 export function aiGenerateCards(topicId: string, count = 8) {

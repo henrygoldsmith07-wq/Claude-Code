@@ -75,7 +75,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   mastery.ts       Topic mastery with explicit evidence weighting
   recommender.ts   "What should I do right now?" (+ recommender-enhancements: cold-start, ties, exploration, gain)
   planner.ts       Adaptive timetable + missed-session recovery (realism + diminishing returns)
-  marking.ts       Offline rubric marking against mark schemes
+  marking.ts       Offline rubric marking against mark schemes + evidence-based per-point explanations
   post-session-closure.ts  Shared session-end metrics and next-action rules
   mistakes.ts      Dropped mark → classified mistake → flashcard
   mistake-root-cause.ts  Ranked, answer-aware diagnosis with confidence thresholds
@@ -83,8 +83,10 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   quick-session.ts  Fixed five- and ten-minute question selection and priority rules
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
+  fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening + empirical difficulty calibration
+  working-analysis.ts  Student working diagnosis + authored worked-solution validation
+  moderation.ts / sync-conflicts.ts / portability.ts  Platform: review, sync, GDPR portability
   retention-mastery.ts  Evidence-gated retention status, trend and next action
-  fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
   moderation.ts / question-validation.ts / sync-conflicts.ts / portability.ts  Platform: review, question quality, sync, GDPR portability
   i18n.ts / onboarding.ts  Localisation scaffolding + funnel measurement
   gamification.ts  Streaks, XP, achievements
@@ -220,7 +222,7 @@ searchable. No other file changes. Add the subject to `src/domain/spec.ts:SPEC_M
 
 - [`docs/architecture.md`](docs/architecture.md) — data flow, sync, AI layer, quality gates
 - [`docs/revision-engine.md`](docs/revision-engine.md) — the algorithms and the evidence behind them
-- [`docs/benchmark.md`](docs/benchmark.md) — harnesses + the live ledger at [/benchmarks](/benchmarks) + [/case-study](/case-study)
+- [`docs/benchmark.md`](docs/benchmark.md) — harnesses + the live ledger at [benchmarks](src/app/benchmarks) + [case study](src/app/case-study)
 - [`docs/roadmap.md`](docs/roadmap.md) — competitor-gap backlog and the path to "what should I revise next?" intelligence
 
 ## Content accuracy — statement-level provenance
@@ -238,6 +240,50 @@ mapped with `specPointIds + learningClaims` aligned 1:1 with mark-scheme points.
 Topic lists and grade boundaries remain approximate and labelled as such; always
 check the current board specification for exact assessment objectives and
 weightings.
+
+## Specification Coverage Audit
+
+The Progress screen also runs `specificationCoverageAudit()` over the authored
+curriculum, seed cards and seed questions. It compares each subject's authored
+`specPoint` inventory with `SPEC_MANIFEST.statementsTotal`, then checks stable
+IDs and refs, provenance, spec versions, freshness, verification, card links,
+question links and question-to-topic consistency. Missing cards or questions
+are review findings; dangling references, duplicate IDs, invalid metadata and
+cross-topic mappings fail the audit. This keeps intentional curriculum-first
+subjects visible without treating them as broken.
+
+The audit is pure and deterministic when `today` is supplied, so the same
+report can be rendered in the browser and asserted in tests:
+
+```ts
+const audit = specificationCoverageAudit({
+  subjects: allSubjects(),
+  topics: allTopics(),
+  questions: seedQuestions,
+  cards: seedCards(allTopics(), "audit"),
+  today: "2026-08-18",
+});
+```
+
+## Worked Solution Validation
+
+The Progress screen also runs `validateWorkedSolutions()` over authored model
+answers. Each answer is checked against every mark-scheme point using the same
+deterministic coverage and numerical-equivalence primitives as offline
+marking. Missing answer keys and contradictory numerical results fail; points
+that are not represented clearly are review warnings. The aggregate report
+retains question and part IDs so findings can be traced back to the answer key
+that needs editing.
+
+## Evidence-Based Mark Explanations
+
+Every marked part can now carry a deterministic `evidence` array. Each entry
+states whether the point was awarded, missed or left unreported, gives a
+strong/partial/none evidence strength, and quotes the shortest useful excerpt
+from the submitted answer. The explanation uses the same keyword, numerical
+and symbolic matching primitives as offline marking, so it never invents a
+reason for a mark. AI marking results are enriched locally before they reach
+the attempt record or the result screen; MCQs cite the selected option.
 
 Recovery note: the deleted `apps/wjec-study-app` had **no** per-topic
 validation, provenance or coverage tooling — only bare topic titles — so

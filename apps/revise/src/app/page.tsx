@@ -6,7 +6,8 @@ import { planForDate } from "@/domain/planner";
 import { todayIso } from "@/domain/scheduling";
 import { useStore } from "@/state/store";
 import { RecommendationCard } from "@/components/RecommendationCard";
-import { Button, EmptyState } from "@/components/ui";
+import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
+import { ButtonLink, EmptyState } from "@/components/ui";
 
 // The whole product in one screen: what to do next, why, and how long it takes.
 // Everything below the primary card is context for overriding that choice —
@@ -36,6 +37,8 @@ export default function TodayPage() {
         </p>
       </header>
 
+      <ResumeRevisionCard />
+
       {primary ? (
         <RecommendationCard recommendation={primary} variant="primary" compact />
       ) : (
@@ -43,9 +46,9 @@ export default function TodayPage() {
           title="No revision queued"
           body="Set an exam date and available study time. Revise will choose your next best task."
           action={
-            <Link href="/settings">
-              <Button variant="primary">Set up exams</Button>
-            </Link>
+            <ButtonLink href="/settings" variant="primary">
+              Set up exams
+            </ButtonLink>
           }
         />
       )}
