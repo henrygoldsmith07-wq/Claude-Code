@@ -15,12 +15,14 @@ import { physicsQuestions } from "./questions/physics";
 import { physicsAqaQuestions } from "./questions/physics-aqa";
 import { physicsAqaExtraQuestions } from "./questions/physics-aqa-extra";
 import { physicsExtraQuestions } from "./questions/physics-extra";
+import { authenticExpansionQuestions } from "./questions/massive-authentic";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
 
 /** The authored question bank. Uploaded and AI-generated questions live in
  *  IndexedDB alongside these and are treated identically everywhere else. */
 export const seedQuestions: Question[] = [
+  ...authenticExpansionQuestions,
   ...mathsQuestions,
   ...mathsExtraQuestions,
   ...biologyQuestions,
@@ -38,6 +40,8 @@ export const seedQuestions: Question[] = [
   ...physicsAqaQuestions,
   ...physicsAqaExtraQuestions,
 ];
+
+export { authenticExpansionQuestions };
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {
   return seedQuestions.filter((q) => q.subjectId === subjectId);
