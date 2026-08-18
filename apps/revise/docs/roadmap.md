@@ -111,7 +111,7 @@ These exist today and are the foundation the roadmap builds on:
 - Real exam countdown planning *(extend — planner exists; add a live countdown
   that drives daily priority)*.
 - Automatic revision-plan rebuilding (re-plan when a session is missed, a grade
-  target changes, or an exam date moves).
+  target changes, or an exam date moves) *(shipped — `src/domain/replan.ts`)*.
 - Better predicted grades.
 - Confidence ranges around predicted grades *(extend — bands exist; tighten them
   as data grows)*.

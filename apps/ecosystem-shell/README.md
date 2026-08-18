@@ -10,8 +10,8 @@ explicitly published, consent-gated histories they already own. It is a static
 |------|-----|--------|----------------|
 | `/pulse` | apps/pulse | stripped | Pulse store |
 | `/arise` | apps/arise | stripped | `arise.store.v1` |
-| `/french` | apps/french-practice | stripped | `fp.pulse-history.v2` |
-| `/forq` | apps/food-shopping-os | preserved | `forq-state-v2` |
+| `/french` | apps/french-practice | stripped | `fp.pulse-history.v2` (+ `fp.pulse-opt-in`) |
+| `/forq` | apps/food-shopping-os | preserved | `forq-state-v2` (+ `forq-pulse-opt-in`) |
 | `/reflect` | apps/emotion-tracker | preserved | `reflectEntries` |
 | `/revise` | apps/revise | preserved | authenticated cloud history |
 | `/rapport` | apps/rapport | preserved | `rapport.pulse-history.v2` |

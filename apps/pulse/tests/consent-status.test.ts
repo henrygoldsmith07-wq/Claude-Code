@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createHabitSameOriginConnector, HABIT_PULSE_OPT_IN_KEY, HABIT_STORAGE_KEY } from "../src/connectors/habit.js";
 import { createRapportSameOriginConnector, RAPPORT_PULSE_OPT_IN_KEY } from "../src/connectors/rapport.js";
 import { createAriseSameOriginConnector, ARISE_STORAGE_KEY } from "../src/connectors/arise.js";
-import { createForqSameOriginConnector } from "../src/connectors/forq.js";
+import { createForqSameOriginConnector, FORQ_PULSE_OPT_IN_KEY } from "../src/connectors/forq.js";
+import { createFrenchSameOriginConnector, FRENCH_PULSE_OPT_IN_KEY } from "../src/connectors/french.js";
 import { createReviseCloudConnector } from "../src/connectors/revise.js";
 
 const jsonStorage = (entries: Record<string, unknown>): { getItem(key: string): string | null } => ({
@@ -64,11 +65,28 @@ describe("app-side consent status", () => {
     expect(off.consentStatus?.()?.granted).toBe(false);
   });
 
-  it("reports no app-side gate for sources without one (Forq)", () => {
-    const connector = createForqSameOriginConnector({
-      storage: jsonStorage({ "forq-state-v2": { day: "2026-08-17", plan: {}, cooked: [], shops: [] } }),
+  it("reports Forq's own flag, granted or revoked", () => {
+    const on = createForqSameOriginConnector({
+      storage: jsonStorage({ "forq-state-v2": { day: "2026-08-17", plan: {}, cooked: [], shops: [] }, [FORQ_PULSE_OPT_IN_KEY]: "1" }),
     });
-    expect(connector.consentStatus).toBeUndefined();
+    expect(on.consentStatus?.()).toMatchObject({ kind: "flag", key: FORQ_PULSE_OPT_IN_KEY, granted: true });
+
+    const off = createForqSameOriginConnector({
+      storage: jsonStorage({ "forq-state-v2": { day: "2026-08-17", plan: {}, cooked: [], shops: [] }, [FORQ_PULSE_OPT_IN_KEY]: "0" }),
+    });
+    expect(off.consentStatus?.()?.granted).toBe(false);
+  });
+
+  it("reports Le Studio's flag the same way", () => {
+    const on = createFrenchSameOriginConnector({
+      storage: jsonStorage({ "fp.pulse-history.v2": { format: "le-studio.source-history", records: [] }, [FRENCH_PULSE_OPT_IN_KEY]: "1" }),
+    });
+    expect(on.consentStatus?.()).toMatchObject({ kind: "flag", key: FRENCH_PULSE_OPT_IN_KEY, granted: true });
+
+    const off = createFrenchSameOriginConnector({
+      storage: jsonStorage({ "fp.pulse-history.v2": { format: "le-studio.source-history", records: [] }, [FRENCH_PULSE_OPT_IN_KEY]: "0" }),
+    });
+    expect(off.consentStatus?.()?.granted).toBe(false);
   });
 
   it("reports the server-side gate for Revise cloud, with no readable flag", () => {

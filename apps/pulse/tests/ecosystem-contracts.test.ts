@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { checkContract } from "../src/connectors/sdk.js";
-import { createForqSameOriginConnector, mapForqRecord } from "../src/connectors/forq.js";
-import { createFrenchSameOriginConnector, mapFrenchRecord } from "../src/connectors/french.js";
+import { createForqSameOriginConnector, FORQ_PULSE_OPT_IN_KEY, mapForqRecord } from "../src/connectors/forq.js";
+import { createFrenchSameOriginConnector, FRENCH_PULSE_OPT_IN_KEY, mapFrenchRecord } from "../src/connectors/french.js";
 import { createHabitSameOriginConnector, HABIT_PULSE_OPT_IN_KEY } from "../src/connectors/habit.js";
 import { createRapportSameOriginConnector, mapRapportRecord, RAPPORT_PULSE_OPT_IN_KEY } from "../src/connectors/rapport.js";
 import { createReviseCloudConnector, mapReviseRecord } from "../src/connectors/revise.js";
@@ -62,18 +62,22 @@ describe("first-party ecosystem connectors", () => {
     const storage = {
       getItem(key: string) {
         seen.push(key);
-        return key === "forq-state-v2" ? JSON.stringify(forqState) : null;
+        if (key === "forq-state-v2") return JSON.stringify(forqState);
+        if (key === FORQ_PULSE_OPT_IN_KEY) return "1";
+        return null;
       },
     };
     const connector = createForqSameOriginConnector({ storage });
     const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
     expect(page.records.length).toBeGreaterThan(0);
-    expect(seen).toEqual(["forq-state-v2"]);
+    expect(seen).toEqual(["forq-state-v2", FORQ_PULSE_OPT_IN_KEY]);
     expect(checkContract(connector, page.records)).toEqual([]);
   });
 
   it("maps the durable French and Rapport envelopes, Rapport behind its own opt-in flag", async () => {
-    const french = createFrenchSameOriginConnector({ storage: jsonStorage({ "fp.pulse-history.v2": frenchHistory }) });
+    const french = createFrenchSameOriginConnector({
+      storage: jsonStorage({ "fp.pulse-history.v2": frenchHistory, [FRENCH_PULSE_OPT_IN_KEY]: "1" }),
+    });
     const rapport = createRapportSameOriginConnector({
       storage: {
         getItem: (key: string) =>
@@ -154,7 +158,9 @@ describe("first-party ecosystem connectors", () => {
   it("keeps the shared storage keys unique", () => {
     const keys = [
       "forq-state-v2",
+      "forq-pulse-opt-in",
       "fp.pulse-history.v2",
+      "fp.pulse-opt-in",
       "rapport.pulse-history.v2",
       "rapport-pulse-opt-in",
       "habit-tracker-state-v1",
@@ -163,6 +169,6 @@ describe("first-party ecosystem connectors", () => {
       "reflectPulseOptIn",
     ];
     expect(new Set(keys).size).toBe(keys.length);
-    expect(keys.filter((key) => key.startsWith("fp.") || key.startsWith("rapport.")).every((key) => /\.v\d+$/.test(key))).toBe(true);
+    expect(keys.filter((key) => key.endsWith(".v2")).every((key) => /\.v\d+$/.test(key))).toBe(true);
   });
 });
