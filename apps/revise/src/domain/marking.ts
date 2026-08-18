@@ -89,9 +89,9 @@ function numbersClose(a: number, b: number, relEps = 0.01, absEps = 0.005): bool
 
 /** True when the answer contains a number equivalent to any number in the mark scheme. */
 function numericMatch(point: string, answer: string): boolean {
-  const wanted = extractNumbers(point);
+  const wanted = extractNumbers(point.replace(/[−–—]/g, "-"));
   if (!wanted.length) return false;
-  const given = extractNumbers(answer);
+  const given = extractNumbers(answer.replace(/[−–—]/g, "-"));
   if (!given.length) return false;
   // Also accept unicode fractions like ½ ¼ ¾
   const unicodeFrac: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1/3, "⅔": 2/3 };
@@ -123,8 +123,13 @@ export interface PartialCreditCalibration {
 }
 
 /** Evaluate whether a mark-scheme point looks like a calculation/numeric point. */
-function isNumericPoint(point: string): boolean {
-  return /\d/.test(point) && /\b(answer|calculate|value|concentration|mol|J\b|kJ|m s|Pa|N\b)/i.test(point);
+export function isNumericPoint(point: string): boolean {
+  if (!/\d/.test(point)) return false;
+  return (
+    /\b(answer|calculate|value|concentration|mol|kJ)\b/i.test(point) ||
+    /\d\s*(?:J|Pa|N)\b/i.test(point) ||
+    /\bm\s*s(?:[-^]?\d+)?\b/i.test(point)
+  );
 }
 
 export function perPointThreshold(point: string, calibration?: PartialCreditCalibration): number {

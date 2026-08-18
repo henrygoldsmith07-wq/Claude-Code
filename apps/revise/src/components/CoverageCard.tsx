@@ -7,10 +7,11 @@ import { allSubjects, allTopics, topicsFor } from "@/domain/curriculum";
 import { coverageForSubject } from "@/domain/coverage";
 import { SPEC_MANIFEST } from "@/domain/spec";
 import { specificationCoverageAudit } from "@/domain/specification-audit";
+import { validateWorkedSolutions } from "@/domain/working-analysis";
 import { Panel, Pill, ProgressBar, SectionHeading } from "./ui";
 
 export function CoverageCard({ subjectId }: { subjectId?: string }) {
-  const { rows, audit } = useMemo(() => {
+  const { rows, audit, workedSolution } = useMemo(() => {
     const subjects = subjectId ? allSubjects().filter((s) => s.id === subjectId) : allSubjects();
     const subjectIds = new Set(subjects.map((subject) => subject.id));
     const topics = subjects.flatMap((subject) => topicsFor(subject.id));
@@ -35,6 +36,7 @@ export function CoverageCard({ subjectId }: { subjectId?: string }) {
         cards,
         manifest: SPEC_MANIFEST.filter((entry) => subjectIds.has(entry.subjectId)),
       }),
+      workedSolution: validateWorkedSolutions(questions),
     };
   }, [subjectId]);
 
@@ -43,6 +45,9 @@ export function CoverageCard({ subjectId }: { subjectId?: string }) {
   const auditTone = audit.status === "pass" ? "success" : audit.status === "review" ? "review" : "danger";
   const auditLabel = audit.status === "pass" ? "Audit passed" : audit.status === "review" ? "Review needed" : "Audit failed";
   const visibleIssues = audit.issues.slice(0, 5);
+  const workedSolutionTone = workedSolution.status === "pass" ? "success" : workedSolution.status === "review" ? "review" : "danger";
+  const workedSolutionLabel = workedSolution.status === "pass" ? "Validation passed" : workedSolution.status === "review" ? "Review needed" : "Validation failed";
+  const visibleWorkedSolutionIssues = workedSolution.issues.slice(0, 5);
 
   return (
     <div className="space-y-4">
@@ -95,6 +100,60 @@ export function CoverageCard({ subjectId }: { subjectId?: string }) {
           </div>
         ) : (
           <p className="text-xs text-ink3 mt-3">All tracked statements have valid metadata and linked learning content.</p>
+        )}
+      </Panel>
+
+      <SectionHeading
+        title="Worked solution validation"
+        hint="Checks authored model answers against every mark-scheme point, including numerical results."
+      />
+      <Panel>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-ink">{workedSolutionLabel}</p>
+            <p className="text-xs text-ink3 mt-0.5">
+              {workedSolution.passedParts}/{workedSolution.partCount} question parts pass the answer-key checks
+            </p>
+          </div>
+          <Pill tone={workedSolutionTone}>{workedSolution.errors} errors · {workedSolution.warnings} warnings</Pill>
+        </div>
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div className="card p-2">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Questions</p>
+            <p className="text-sm font-semibold tabular-nums">{workedSolution.questionCount}</p>
+          </div>
+          <div className="card p-2">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Parts</p>
+            <p className="text-sm font-semibold tabular-nums">{workedSolution.partCount}</p>
+          </div>
+          <div className="card p-2">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Passing</p>
+            <p className="text-sm font-semibold tabular-nums">{workedSolution.passedParts}</p>
+          </div>
+          <div className="card p-2">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Findings</p>
+            <p className="text-sm font-semibold tabular-nums">{workedSolution.issues.length}</p>
+          </div>
+        </div>
+        {visibleWorkedSolutionIssues.length ? (
+          <div className="mt-3 pt-3 border-t border-line">
+            <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-1.5">Highest-priority findings</p>
+            <ul className="space-y-1">
+              {visibleWorkedSolutionIssues.map((issue, index) => (
+                <li key={`${issue.questionId}:${issue.partId}:${issue.kind}:${index}`} className="flex items-start gap-2 text-xs">
+                  <Pill tone={issue.severity === "error" ? "danger" : "review"}>{issue.severity}</Pill>
+                  <span className="text-ink2">
+                    <span className="font-semibold">{issue.questionId} · {issue.partId}</span> {issue.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {workedSolution.issues.length > visibleWorkedSolutionIssues.length ? (
+              <p className="text-[11px] text-ink3 mt-2">+ {workedSolution.issues.length - visibleWorkedSolutionIssues.length} more findings in the validation report.</p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-xs text-ink3 mt-3">Every authored model answer covers its mark-scheme points.</p>
         )}
       </Panel>
 

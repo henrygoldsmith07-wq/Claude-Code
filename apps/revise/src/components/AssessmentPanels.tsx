@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { QUESTION_DIFFICULTY_MIN_SAMPLES } from "@/domain/knowledge-tracing";
 import { useStore } from "@/state/store";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
 
@@ -151,19 +152,17 @@ function TimingBreakdown() {
 export function DifficultyAndSubtopics() {
   const store = useStore();
   const insight = store.assessment;
+  const questionTraces = store.questionTraces;
+  const calibration = store.difficultyCalibration;
   const weakRepeated = insight?.repeatedWeakSubtopics ?? [];
-  // Difficulty slice: average difficulty where marks were lost vs where they weren't
-  const byDifficulty: Record<number, { lost: number; attempts: number }> = {};
-  for (const a of store.attempts) {
-    const q = store.questions.find((qq) => qq.id === a.questionId);
-    const d = q?.difficulty ?? 3;
-    const row = byDifficulty[d] ?? { lost: 0, attempts: 0 };
-    row.lost += a.max - a.awarded;
-    row.attempts += a.max;
-    byDifficulty[d] = row;
-  }
-  const difficultyRows = Object.entries(byDifficulty).sort((a, b) => Number(a[0]) - Number(b[0]));
-  const hasDifficulty = difficultyRows.length > 0;
+  const difficultyRows = calibration.levels;
+  const driftedQuestions = questionTraces
+    .filter((row) => row.reliable && row.gap !== 0)
+    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
+    .slice(0, 4);
+  const questionById = new Map(store.questions.map((question) => [question.id, question]));
+  const calibrationStatus = calibration.status;
+  const hasDifficulty = calibration.totalAttempts > 0;
   const hasRepeated = weakRepeated.length > 0;
 
   if (!hasDifficulty && !hasRepeated) return null;
@@ -171,22 +170,52 @@ export function DifficultyAndSubtopics() {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Panel>
-        <SectionHeading title="Question difficulty" hint="Where the marks actually drop as difficulty rises." />
+        <div className="flex items-start justify-between gap-3">
+          <SectionHeading title="Difficulty calibration" hint="Observed challenge compared with each question's authored level." />
+          <Pill tone={calibrationStatus === "aligned" ? "success" : calibrationStatus === "drifting" ? "review" : "neutral"}>
+            {calibrationStatus === "aligned" ? "Aligned" : calibrationStatus === "drifting" ? "Drifting" : "Needs evidence"}
+          </Pill>
+        </div>
         {hasDifficulty ? (
-          <ul className="space-y-1.5">
-            {difficultyRows.map(([level, row]) => {
-              const rate = row.attempts ? row.lost / row.attempts : 0;
+          <>
+            <ul className="space-y-1.5">
+            {difficultyRows.map((row) => {
               return (
-                <li key={level} className="flex items-center gap-2 text-xs">
-                  <span className="w-10 text-ink3">Level {level}</span>
+                <li key={row.level} className="flex items-center gap-2 text-xs">
+                  <span className="w-10 text-ink3">Level {row.level}</span>
                   <div className="flex-1 h-1.5 rounded-full bg-surface2 overflow-hidden">
-                    <div className="h-full bg-review bar-anim rounded-full" style={{ width: `${Math.round(rate * 100)}%` }} />
+                    <div className="h-full bg-review bar-anim rounded-full" style={{ width: `${Math.round((row.empiricalDifficulty / 5) * 100)}%` }} />
                   </div>
-                  <span className="tabular-nums w-16 text-right text-ink2">{row.lost}/{row.attempts} lost</span>
+                  <span className="tabular-nums w-20 text-right text-ink2">
+                    {row.empiricalDifficulty.toFixed(1)}/5
+                  </span>
+                  <span className="tabular-nums w-16 text-right text-ink3">n={row.attempts}</span>
+                  <span className={row.gap > 0 ? "tabular-nums w-12 text-right text-danger" : row.gap < 0 ? "tabular-nums w-12 text-right text-success" : "tabular-nums w-12 text-right text-ink3"}>
+                    {row.gap > 0 ? "+" : ""}{row.gap.toFixed(1)}
+                  </span>
                 </li>
               );
             })}
-          </ul>
+            </ul>
+            <p className="text-[11px] text-ink3 mt-3">
+              {QUESTION_DIFFICULTY_MIN_SAMPLES} attempts are needed before an item can move away from its authored level; sparse evidence stays at the authored prior.
+            </p>
+            {driftedQuestions.length ? (
+              <div className="mt-3 pt-3 border-t border-line">
+                <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-1.5">Largest item shifts</p>
+                <ul className="space-y-1">
+                  {driftedQuestions.map((row) => (
+                    <li key={row.questionId} className="flex justify-between gap-2 text-xs">
+                      <span className="text-ink2 truncate">{questionById.get(row.questionId)?.stem ?? row.questionId}</span>
+                      <span className={row.gap > 0 ? "text-danger tabular-nums shrink-0" : "text-success tabular-nums shrink-0"}>
+                        {row.intrinsicDifficulty} → {row.empiricalDifficulty.toFixed(1)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
         ) : <EmptyHint>Answer a few questions across difficulties.</EmptyHint>}
       </Panel>
       <Panel>

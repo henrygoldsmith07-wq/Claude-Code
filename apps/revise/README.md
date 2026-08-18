@@ -65,7 +65,8 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   mistakes.ts      Dropped mark → classified mistake → flashcard
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
-  fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
+  fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening + empirical difficulty calibration
+  working-analysis.ts  Student working diagnosis + authored worked-solution validation
   moderation.ts / sync-conflicts.ts / portability.ts  Platform: review, sync, GDPR portability
   i18n.ts / onboarding.ts  Localisation scaffolding + funnel measurement
   gamification.ts  Streaks, XP, achievements
@@ -219,6 +220,16 @@ const audit = specificationCoverageAudit({
   today: "2026-08-18",
 });
 ```
+
+## Worked Solution Validation
+
+The Progress screen also runs `validateWorkedSolutions()` over authored model
+answers. Each answer is checked against every mark-scheme point using the same
+deterministic coverage and numerical-equivalence primitives as offline
+marking. Missing answer keys and contradictory numerical results fail; points
+that are not represented clearly are review warnings. The aggregate report
+retains question and part IDs so findings can be traced back to the answer key
+that needs editing.
 
 Recovery note: the deleted `apps/wjec-study-app` had **no** per-topic
 validation, provenance or coverage tooling — only bare topic titles — so

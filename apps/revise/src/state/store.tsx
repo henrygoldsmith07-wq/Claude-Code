@@ -12,6 +12,8 @@ import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
 import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/domain/gamification";
 import { buildAssessmentInsight, calibrateFromHistory, simulatePaper } from "@/domain/assessment";
+import { calibrateDifficulty, traceQuestions } from "@/domain/knowledge-tracing";
+import type { DifficultyCalibrationReport, QuestionTrace } from "@/domain/knowledge-tracing";
 import type {
   AssessmentInsight,
   Attempt,
@@ -68,6 +70,8 @@ interface StoreValue extends Snapshot {
   /** Expected exam marks gained per study hour, keyed by topic. The metric the brief asks for. */
   marksPerHour: Map<Id, number>;
   calibrations: Map<Id, Calibration>;
+  questionTraces: QuestionTrace[];
+  difficultyCalibration: DifficultyCalibrationReport;
   syncStatus: SyncStatus;
   /** Build a paper simulation for the given subject/paper without mutating state. */
   previewPaper(subjectId: Id, paperSpecId: Id, questionIds: Id[]): PaperSimulation | null;
@@ -214,6 +218,18 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       questionsById,
     });
   }, [snapshot, mastery]);
+
+  const questionTraces = useMemo(() => {
+    if (!snapshot) return [];
+    const attemptsByQuestion = new Map<Id, Attempt[]>();
+    for (const attempt of snapshot.attempts) {
+      const rows = attemptsByQuestion.get(attempt.questionId) ?? [];
+      rows.push(attempt);
+      attemptsByQuestion.set(attempt.questionId, rows);
+    }
+    return traceQuestions({ questions: snapshot.questions, attemptsByQuestion });
+  }, [snapshot]);
+  const difficultyCalibration = useMemo(() => calibrateDifficulty(questionTraces), [questionTraces]);
 
   const marksPerHour = useMemo(() => {
     if (!assessment) return new Map<Id, number>();
@@ -535,6 +551,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       assessment,
       marksPerHour,
       calibrations,
+      questionTraces,
+      difficultyCalibration,
       previewPaper,
       syncStatus,
       reviewCard,
@@ -565,6 +583,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     assessment,
     marksPerHour,
     calibrations,
+    questionTraces,
+    difficultyCalibration,
     previewPaper,
     syncStatus,
     reviewCard,
