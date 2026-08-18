@@ -138,6 +138,34 @@ export interface Topic {
   lastChecked?: IsoDate | null;
 }
 
+/**
+ * One entry in the misconception library: a common wrong belief, why it is
+ * wrong, the symptom an examiner sees, and what to write instead. Authored
+ * content, linked to the topics where the mistake costs marks.
+ */
+export interface Misconception {
+  id: Id;
+  subjectId: Id;
+  topicIds: Id[];
+  /** The wrong belief, phrased the way a student holds it. */
+  statement: string;
+  /** Why it is wrong and the correct conception, in examiner voice. */
+  explanation: string;
+  /** A concrete wrong-answer symptom — what an examiner sees every year. */
+  example: string;
+  /** What to write instead. */
+  correction: string;
+  /** Fine-grained tag shared with Mistake.misconception, for analytics. */
+  tag?: MisconceptionTag;
+  /** Assessment objective this misconception most often costs. */
+  ao?: AoCode;
+  source?: ContentSource;
+  licensedSource?: LicensedSource | null;
+  verification?: VerificationStatus;
+  reviewer?: string | null;
+  lastChecked?: IsoDate | null;
+}
+
 // --- spaced repetition -----------------------------------------------------
 
 export type CardKind = "basic" | "cloze" | "image" | "equation" | "mistake" | "audio";

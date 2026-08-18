@@ -79,7 +79,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   sharing.ts       Link encoding for deck sharing
   shuffle.ts       One deterministic shuffle, shared by every mode
 
-src/content/     Authored revision content (cards derived from spec, question bank)
+src/content/     Authored revision content (cards from spec, question bank, misconception library)
 src/data/        IndexedDB primary store, repository, outbox sync to Supabase
 src/ai/          Provider abstraction, prompts, schemas, offline fallbacks
 src/state/       One store; all derived numbers recomputed, never cached
@@ -151,6 +151,20 @@ in CI — it now enforces that every subject has specPoints on every topic and t
 `src/content/questions/physics.ts` for the first mapped questions and
 `tests/coverage.test.ts` for the statement-level contract (stable ids, AO,
 verification, card/question mapping).
+
+## Misconception library
+
+Alongside the question bank sits a hand-authored **misconception library**
+(`src/content/misconceptions/`): each entry names a common wrong belief, why
+it is wrong, the symptom an examiner sees every year, and what to write
+instead — linked to the topics where it costs marks and tagged with the same
+`MisconceptionTag` the analytics use. Entries are rendered in the Library
+topic view, so a student reads the correct conception — not just that they
+were wrong — before the mistake is made. Ids are deterministic
+(`seed-misconception:<slug>`) so re-seeding is idempotent, and the lookups
+(`misconceptionsForSubject` / `misconceptionsForTopic` / `misconceptionById`)
+mirror the question bank's, so future remediation and tutor wiring can share
+one source of truth.
 
 ## Adding a new exam board or subject
 

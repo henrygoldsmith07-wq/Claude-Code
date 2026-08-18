@@ -1,4 +1,4 @@
-import type { Id, Question } from "@/domain/types";
+import type { Id, Misconception, Question } from "@/domain/types";
 import { biologyQuestions } from "./questions/biology";
 import { biologyAqaQuestions } from "./questions/biology-aqa";
 import { biologyAqaExtraQuestions } from "./questions/biology-aqa-extra";
@@ -16,6 +16,7 @@ import { physicsAqaQuestions } from "./questions/physics-aqa";
 import { physicsAqaExtraQuestions } from "./questions/physics-aqa-extra";
 import { physicsExtraQuestions } from "./questions/physics-extra";
 import { authenticExpansionQuestions } from "./questions/massive-authentic";
+import { seedMisconceptions } from "./misconceptions";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
 
@@ -49,4 +50,20 @@ export function seedQuestionsForSubject(subjectId: Id): Question[] {
 
 export function seedQuestionsForTopic(topicId: Id): Question[] {
   return seedQuestions.filter((q) => q.topicIds.includes(topicId));
+}
+
+// --- misconception library -------------------------------------------------
+
+export { seedMisconceptions };
+
+export function misconceptionsForSubject(subjectId: Id): Misconception[] {
+  return seedMisconceptions.filter((m) => m.subjectId === subjectId);
+}
+
+export function misconceptionsForTopic(topicId: Id): Misconception[] {
+  return seedMisconceptions.filter((m) => m.topicIds.includes(topicId));
+}
+
+export function misconceptionById(id: Id): Misconception | undefined {
+  return seedMisconceptions.find((m) => m.id === id);
 }
