@@ -14,6 +14,7 @@ import type { Pulse } from "../pulse.js";
 import type { Finding } from "../discovery/finding.js";
 import { FindingCard } from "./FindingCard.js";
 import { EvidencePanel } from "./EvidencePanel.js";
+import { ProductTrustPanel, type FeedbackAction } from "./ProductTrustPanel.js";
 
 export type TabId = "insights" | "evidence" | "timeline" | "experiments" | "ask" | "sources";
 
@@ -32,6 +33,8 @@ export interface AppProps {
 
 export function App({ pulse }: AppProps): React.JSX.Element {
   const [tab, setTab] = useState<TabId>("insights");
+  const [askPrefill, setAskPrefill] = useState("");
+  const [suppressedFindingIds, setSuppressedFindingIds] = useState<string[]>([]);
   // Bumped whenever the engine's derived state changes, so memoised views
   // recompute without the component owning any analytic state itself.
   const [revision, setRevision] = useState(0);
@@ -49,9 +52,18 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const onFeedback = useCallback(
-    (findingId: string, verdict: "useful" | "not-useful" | "already-knew") => {
+    (findingId: string, verdict: FeedbackAction) => {
       const finding = discovery.findings.find((candidate) => candidate.id === findingId);
-      pulse.feedback.record(findingId, verdict, finding?.metricIds ?? []);
+      const metricIds = finding?.metricIds ?? [];
+      if (verdict === "bad-data") {
+        pulse.feedback.record(findingId, "wrong", metricIds, "User marked the supporting measurement as bad data");
+      } else if (verdict === "stop-investigating") {
+        pulse.feedback.dismiss(findingId);
+        for (const metricId of metricIds) pulse.feedback.muteTopic(metricId);
+        setSuppressedFindingIds((current) => (current.includes(findingId) ? current : [...current, findingId]));
+      } else {
+        pulse.feedback.record(findingId, verdict, metricIds);
+      }
       refresh();
     },
     [discovery.findings, pulse, refresh],
@@ -78,6 +90,13 @@ export function App({ pulse }: AppProps): React.JSX.Element {
     [brief.weekEnd, pulse, refresh],
   );
 
+  const openAsk = useCallback((question = "") => {
+    setAskPrefill(question);
+    setTab("ask");
+  }, []);
+
+  const visibleFindings = discovery.findings.filter((finding) => !suppressedFindingIds.includes(finding.id));
+
   return (
     <div className="app">
       <header className="app__header">
@@ -86,6 +105,18 @@ export function App({ pulse }: AppProps): React.JSX.Element {
           <h1>Pulse</h1>
         </div>
         <p className="app__tagline">Evidence about you, with its working shown.</p>
+        <form
+          className="universal-ask"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const value = new FormData(event.currentTarget).get("question");
+            openAsk(typeof value === "string" ? value : "");
+          }}
+        >
+          <label htmlFor="universal-ask-input">Ask Pulse</label>
+          <input id="universal-ask-input" name="question" placeholder="Ask about your own data…" />
+          <button type="submit" aria-label="Open Ask Pulse">Open</button>
+        </form>
       </header>
 
       <nav aria-label="Sections">
@@ -111,6 +142,19 @@ export function App({ pulse }: AppProps): React.JSX.Element {
       <main>
         {tab === "insights" ? (
           <section role="tabpanel" id="panel-insights" aria-labelledby="tab-insights" tabIndex={-1}>
+            <ProductTrustPanel
+              pulse={pulse}
+              findings={visibleFindings}
+              discovery={discovery}
+              quality={quality}
+              recommendations={recommendations}
+              revision={revision}
+              onFeedback={onFeedback}
+              onRecommendationOutcome={onRecommendationOutcome}
+              onDesignExperiment={onDesignExperiment}
+              onOpenAsk={() => openAsk()}
+              onChange={refresh}
+            />
             <h2>This week</h2>
             <p className="brief__headline">{brief.headline}</p>
 
@@ -122,13 +166,13 @@ export function App({ pulse }: AppProps): React.JSX.Element {
               {discovery.expectedFalseDiscoveries.toFixed(1)} of them to be false.
             </p>
 
-            {discovery.findings.length === 0 ? (
+            {visibleFindings.length === 0 ? (
               <p className="empty">
                 Nothing in your data yet meets the evidence bar. That is a result, not a gap — Pulse would rather show
                 you nothing than something it cannot stand behind.
               </p>
             ) : (
-              discovery.findings.map((finding) => (
+              visibleFindings.map((finding) => (
                 <FindingCard
                   key={finding.id}
                   finding={finding}
@@ -198,7 +242,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
         {tab === "evidence" ? <EvidencePanel pulse={pulse} revision={revision} /> : null}
         {tab === "timeline" ? <TimelinePanel pulse={pulse} /> : null}
         {tab === "experiments" ? <ExperimentsPanel pulse={pulse} revision={revision} onChange={refresh} /> : null}
-        {tab === "ask" ? <AskPanel pulse={pulse} /> : null}
+        {tab === "ask" ? <AskPanel key={askPrefill} pulse={pulse} initialQuestion={askPrefill} /> : null}
         {tab === "sources" ? <SourcesPanel pulse={pulse} quality={quality} onChange={refresh} /> : null}
       </main>
     </div>
@@ -388,8 +432,8 @@ const SUGGESTED_QUESTIONS = [
   "What should I test next?",
 ];
 
-function AskPanel({ pulse }: { pulse: Pulse }): React.JSX.Element {
-  const [question, setQuestion] = useState("");
+function AskPanel({ pulse, initialQuestion = "" }: { pulse: Pulse; initialQuestion?: string }): React.JSX.Element {
+  const [question, setQuestion] = useState(initialQuestion);
   const [answer, setAnswer] = useState<ReturnType<Pulse["ask"]> | null>(null);
 
   const submit = (value: string): void => {
@@ -470,9 +514,29 @@ function SourcesPanel({
 }): React.JSX.Element {
   const connectors = pulse.listConnectors();
   const qualityBySource = new Map(quality.map((entry) => [String(entry.source), entry]));
+  const dashboard = pulse.connectorDashboard({ windowDays: 30 });
 
   return (
     <section role="tabpanel" id="panel-sources" aria-labelledby="tab-sources" tabIndex={-1}>
+      <section className="connector-dashboard" aria-labelledby="connector-dashboard-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Connector health dashboard</p>
+            <h2 id="connector-dashboard-title">Are the inputs still telling the truth?</h2>
+          </div>
+          <span className="status status--controlled">{dashboard.summary.healthy}/{dashboard.summary.connected} healthy</span>
+        </div>
+        <div className="connector-health-grid">
+          {dashboard.cards.map((card) => (
+            <article className="connector-health-card" key={String(card.source)}>
+              <div className="section-heading"><strong>{card.name}</strong><span className={`status status--${card.freshness === "fresh" ? "controlled" : card.freshness === "unknown" ? "checked-balanced" : "uncontrolled"}`}>{card.freshness}</span></div>
+              <p className="muted">{card.eventCount} events · {card.daysWithData}/{card.coverageDays} days covered</p>
+              {card.attention.length ? <details><summary>Recovery guidance ({card.attention.length})</summary><ul>{card.attention.map((item) => <li key={item.message} className={item.severity === "critical" ? "warn" : "muted"}>{item.message}{item.remedy ? ` — ${item.remedy}` : ""}</li>)}</ul></details> : <p className="muted">No recovery action needed.</p>}
+            </article>
+          ))}
+        </div>
+        {dashboard.blackoutDays.length ? <p className="muted">Shared quiet days are treated as a possible blackout, not five separate connector faults: {dashboard.blackoutDays.length} day(s) in the window.</p> : null}
+      </section>
       <h2>Connected sources</h2>
       <p className="muted">
         Pulse processes everything on this device. Each source is connected separately, can be revoked at any time, and

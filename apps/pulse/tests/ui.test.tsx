@@ -166,6 +166,26 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("surfaces the trust controls and routes the universal Ask entry", () => {
+    render(<App pulse={pulse} />);
+    for (const heading of [
+      "Confidence change history",
+      "Contradictory evidence",
+      "Automatic replication tracking",
+      "Full measurement lineage",
+      "Reliability profiles",
+      "Research measurement loop",
+    ]) {
+      expect(screen.getByRole("heading", { name: heading })).toBeTruthy();
+    }
+
+    fireEvent.change(screen.getByLabelText("Ask Pulse"), { target: { value: "What changed this week?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open Ask Pulse" }));
+    expect(screen.getByRole("tab", { name: "Ask Pulse" }).getAttribute("aria-selected")).toBe("true");
+    expect((screen.getByLabelText(/Ask a question about your own data/) as HTMLInputElement).value).toBe("What changed this week?");
+    cleanup();
+  });
+
   it("discloses the size of the search and the expected false discoveries", () => {
     render(<App pulse={pulse} />);
     expect(screen.getByText(/Expect roughly [\d.]+ of them to be false/)).toBeTruthy();

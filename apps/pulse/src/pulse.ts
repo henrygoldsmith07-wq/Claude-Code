@@ -15,6 +15,7 @@ import { MemoryEventStore, type PersistenceAdapter } from "./events/store.js";
 import { localDate } from "./events/time.js";
 import { SyncEngine, type SyncOptions, type SyncReport } from "./connectors/sync.js";
 import type { Connector } from "./connectors/types.js";
+import { buildConnectorDashboard, type ConnectorDashboard } from "./connectors/dashboard.js";
 import { ConsentRegistry } from "./privacy/consent.js";
 import { createDefaultRegistry } from "./metrics/catalogue.js";
 import type { MetricRegistry } from "./metrics/registry.js";
@@ -170,6 +171,23 @@ export class Pulse {
       });
     }
     return scoreAll(this.store.all(), context, perSource);
+  }
+
+  /**
+   * Returns connector state in the same shape as the health dashboard.
+   * Keeping this on the facade means the UI cannot accidentally calculate
+   * freshness from a different clock or a different event set.
+   */
+  connectorDashboard(options: { windowDays?: number } = {}): ConnectorDashboard {
+    return buildConnectorDashboard(this.listConnectors(), this.store.all(), {
+      timezone: this.timezone,
+      now: this.now,
+      ...(options.windowDays !== undefined ? { windowDays: options.windowDays } : {}),
+      syncReports: [...this.syncReports.values()],
+      connectedSources: this.listConnectors()
+        .filter((connector) => this.consent.isGranted(connector.id))
+        .map((connector) => connector.id),
+    });
   }
 
   // --- ANALYSE / DISCOVER -----------------------------------------------
