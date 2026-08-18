@@ -45,8 +45,21 @@ only tested logic:
 npm test
 ```
 
-15 tests cover current/best streak semantics (including the "today not yet
-done" rule), weekly grouping, and timezone-safe day arithmetic.
+Tests cover current/best streak semantics (including the "today not yet
+done" rule), weekly grouping, timezone-safe day arithmetic, and the Pulse
+mirror + opt-in flag round-tripping through storage.
+
+## Pulse connection
+
+Habit can share its check-ins with Pulse, the personal evidence engine in this
+ecosystem, when both apps are served from one origin. Sharing is **opt-in**
+and controlled here, where the data originates: the Manage tab has a
+"Share habits with Pulse" toggle. While it is on, the app mirrors its habits
+and check-ins into `localStorage` (`habit-tracker-state-v1`) for Pulse's
+same-origin connector to read. Turning it off deletes the mirror immediately
+and sets the opt-in flag Pulse's connector checks, so the flow stops at the
+source — even a stale mirror is refused. No Supabase credentials are shared;
+Pulse reads only what this device's own browser holds.
 
 ## Schema
 

@@ -7,13 +7,13 @@ const CORE_A_LEVEL_SUBJECTS = allSubjects().filter(
 );
 
 describe("massive authentic question expansion", () => {
-  it("adds a full 20-question exam-style set to every supported A-level subject", () => {
-    expect(authenticExpansionQuestions).toHaveLength(160);
+  it("adds a full 24-question exam-style set to every supported A-level subject", () => {
+    expect(authenticExpansionQuestions).toHaveLength(192);
 
     for (const subject of CORE_A_LEVEL_SUBJECTS) {
       const questions = authenticExpansionQuestions.filter((question) => question.subjectId === subject.id);
-      expect(questions, `${subject.id} should receive 20 expansion questions`).toHaveLength(20);
-      expect(new Set(questions.map((question) => question.id)).size).toBe(20);
+      expect(questions, `${subject.id} should receive 24 expansion questions`).toHaveLength(24);
+      expect(new Set(questions.map((question) => question.id)).size).toBe(24);
     }
 
     expect(seedQuestions.length).toBeGreaterThanOrEqual(300);

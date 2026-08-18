@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seedQuestions, seedQuestionsForSubject, seedQuestionsForTopic } from "@/content";
+import { seedMisconceptions, seedQuestions, seedQuestionsForSubject, seedQuestionsForTopic } from "@/content";
 import { makeCloze, seedCardsForTopic } from "@/content/seed-cards";
 import {
   allSubjects,
@@ -89,14 +89,31 @@ describe("seed cards", () => {
 });
 
 describe("seed question bank", () => {
-  it("ships questions for the original WJEC/AQA A-level subjects (Edexcel/OCR/GCSE question banks land with licensed sourcing)", () => {
-    const required = allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel"));
+  it("ships questions for the authored WJEC/AQA/OCR A-level subjects (Edexcel/GCSE question banks land with licensed sourcing)", () => {
+    const required = allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel") || s.id.startsWith("ocr-alevel"));
     for (const subject of required) {
       expect(seedQuestionsForSubject(subject.id).length, `${subject.id} should have seed questions`).toBeGreaterThan(0);
     }
-    // New boards/GCSE ship curriculum first; questions follow when licensed sources are added.
+    // Edexcel/GCSE ship curriculum first; questions follow when licensed sources are added.
     // Guard that we did not regress the overall bank.
     expect(seedQuestions.length).toBeGreaterThanOrEqual(100);
+  });
+
+  it("keeps the additional A-level batch balanced across the four core subjects", () => {
+    const batch = seedQuestions.filter((question) => question.id.includes("more-alevel"));
+    expect(batch.length).toBeGreaterThanOrEqual(32);
+    for (const subjectId of [
+      "wjec-alevel-biology",
+      "wjec-alevel-chemistry",
+      "wjec-alevel-maths",
+      "wjec-alevel-physics",
+      "aqa-alevel-biology",
+      "aqa-alevel-chemistry",
+      "aqa-alevel-maths",
+      "aqa-alevel-physics",
+    ]) {
+      expect(batch.filter((question) => question.subjectId === subjectId), subjectId).toHaveLength(4);
+    }
   });
 
   it("keeps every question well-formed and self-consistent", () => {
@@ -274,7 +291,7 @@ describe("gamification", () => {
 });
 
 describe("search", () => {
-  const corpus = { topics: allTopics(), cards: [], questions: seedQuestions };
+  const corpus = { topics: allTopics(), cards: [], questions: seedQuestions, misconceptions: seedMisconceptions };
 
   it("ignores queries that are too short to be useful", () => {
     expect(search(corpus, "a")).toHaveLength(0);
@@ -290,6 +307,13 @@ describe("search", () => {
   it("searches question text as well as curriculum content", () => {
     const results = search(corpus, "titration");
     expect(results.some((r) => r.kind === "question")).toBe(true);
+  });
+
+  it("searches misconception statements and links them to their topic", () => {
+    const results = search(corpus, "R groups");
+    const hit = results.find((r) => r.kind === "misconception");
+    expect(hit).toBeTruthy();
+    expect(hit!.topicId).toBe("wjec-alevel-biology.biological-molecules");
   });
 
   it("returns nothing for a term that does not appear", () => {

@@ -88,6 +88,10 @@ The authentic-source expansion adds 55 original field-note, report, archive and
 technical-brief extracts, materialised into another 440 questions across all
 32 subject variants.
 
+The misconception library does the same for common errors: each entry names the
+wrong belief, why it is wrong, the examiner-visible symptom, and what to write
+instead, linked to topics and tagged for analytics.
+
 ### `src/data` — offline-first storage
 
 IndexedDB is the primary store. A write lands there and is durable before the UI

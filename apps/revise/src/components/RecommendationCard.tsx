@@ -3,18 +3,9 @@
 import Link from "next/link";
 import { getSubject, getTopic } from "@/domain/curriculum";
 import { ACTIVITY_BLURB, ACTIVITY_LABEL } from "@/domain/recommender";
-import type { Recommendation } from "@/domain/types";
+import type { Recommendation, RecommendationExplanation } from "@/domain/types";
 import { formatMinutes, recommendationHref } from "@/lib/activity";
 import { Button, Panel, Pill } from "./ui";
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-2 text-[11px]">
-      <span className="text-ink3">{label}</span>
-      <span className="text-ink2 tabular-nums font-medium">{value}</span>
-    </div>
-  );
-}
 
 function FactorRow({ factors }: { factors: Recommendation["factors"] }) {
   if (!factors) return null;
@@ -29,12 +20,158 @@ function FactorRow({ factors }: { factors: Recommendation["factors"] }) {
   );
 }
 
+function formatMarks(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
+}
+
+function examTiming(explanation: RecommendationExplanation): string | null {
+  if (explanation.daysToExam == null) return null;
+  const paper = explanation.paperLabel ?? "Next paper";
+  if (explanation.daysToExam === 0) return `${paper} is today.`;
+  if (explanation.daysToExam === 1) return `${paper} is tomorrow.`;
+  return `${paper} is in ${explanation.daysToExam} days.`;
+}
+
+function buildWhyThis(
+  recommendation: Recommendation,
+  explanation: RecommendationExplanation,
+  target: string,
+): { summary: string; evidence: string[] } {
+  const evidence = [`Estimated value: about ${formatMarks(explanation.recoverableMarks)} exam marks in ${formatMinutes(recommendation.minutes)}.`];
+
+  switch (recommendation.activity) {
+    case "flashcards": {
+      const count = explanation.count ?? 0;
+      const overdue = explanation.overdueCount ?? 0;
+      return {
+        summary:
+          overdue > 0
+            ? `${count} review ${count === 1 ? "card is" : "cards are"} waiting, including ${overdue} overdue. Reviewing them now protects recall before it fades further.`
+            : `${count} review ${count === 1 ? "card is" : "cards are"} due today. Clearing them keeps recently learned material retrievable.`,
+        evidence: [...evidence, `${overdue > 0 ? `${overdue} overdue` : "No overdue cards"} in this review set.`],
+      };
+    }
+    case "mistakes": {
+      const count = explanation.count ?? 0;
+      return {
+        summary: `${count} ${count === 1 ? "mistake is" : "mistakes are"} still unrepaired. Re-answering them targets marks you have already shown you can recover, rather than starting from scratch.`,
+        evidence,
+      };
+    }
+    case "practice":
+      return {
+        summary:
+          explanation.lastEvidencePercent != null
+            ? `${target} is currently at ${explanation.lastEvidencePercent}% in marked evidence. Exam-style questions will test the gap and show exactly what to fix next.`
+            : `${target} is a weak point with limited marked evidence. An exam-style question will turn that uncertainty into something you can act on.`,
+        evidence,
+      };
+    case "learn":
+      return {
+        summary: `You have not started ${target} yet. A first pass fills the coverage gap before recall and exam questions try to strengthen it.`,
+        evidence: [...evidence, "No marked evidence yet — this is a coverage gap."],
+      };
+    case "paper":
+      return {
+        summary:
+          explanation.daysToExam != null && explanation.daysToExam <= 21
+            ? `${examTiming(explanation)?.replace(/\.$/, "")} A timed paper now checks whether your knowledge survives the conditions that matter.`
+            : `Your coverage is strong enough for a timed ${target} paper. It will reveal whether knowledge holds up under exam pressure.`,
+        evidence,
+      };
+    case "recall":
+      return {
+        summary: `${target} needs a retrieval check, not another reread. Recalling it from memory will expose the missing links while there is still time to repair them.`,
+        evidence,
+      };
+    default:
+      return {
+        summary: recommendation.reason,
+        evidence,
+      };
+  }
+}
+
+function RecommendationWhy({
+  recommendation,
+  explanation,
+  target,
+  compact,
+}: {
+  recommendation: Recommendation;
+  explanation: RecommendationExplanation;
+  target: string;
+  compact: boolean;
+}) {
+  const copy = buildWhyThis(recommendation, explanation, target);
+  const timing = examTiming(explanation);
+  const whyId = `recommendation-why-${recommendation.activity}-${recommendation.subjectId}`;
+  const evidence = [...copy.evidence];
+
+  if (explanation.marksPerHour != null) {
+    evidence.push(`Expected return: about ${explanation.marksPerHour.toFixed(1)} marks per hour.`);
+  }
+  if (explanation.lastEvidencePercent != null && recommendation.activity !== "practice") {
+    evidence.push(`Latest marked evidence: ${explanation.lastEvidencePercent}% accuracy.`);
+  }
+  if (explanation.daysSinceRetrieval != null) {
+    evidence.push(
+      explanation.daysSinceRetrieval === 0
+        ? "Last retrieval was today."
+        : `Last retrieval was ${explanation.daysSinceRetrieval} days ago.`,
+    );
+  }
+  if (timing) evidence.push(timing);
+
+  const content = (
+    <>
+      <p className="text-sm text-ink2 leading-6">{copy.summary}</p>
+      <ul className="mt-3 space-y-2 text-xs text-ink3">
+        {evidence.slice(0, 3).map((item) => (
+          <li key={item} className="flex gap-2">
+            <span className="text-accent" aria-hidden="true">•</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+      <details className="mt-3 border-t border-line pt-2.5">
+        <summary className="cursor-pointer text-[11px] font-semibold text-ink3 hover:text-ink">
+          Show scoring detail
+        </summary>
+        <FactorRow factors={explanation.factors} />
+        <p className="text-[11px] text-ink3 mt-2">
+          The rank weighs expected marks, exam timing, weakness, fading recall and evidence depth against the time required.
+        </p>
+      </details>
+    </>
+  );
+
+  if (compact) {
+    return (
+      <details className="mt-4 border-t border-line pt-3">
+        <summary className="cursor-pointer text-xs font-semibold text-ink2 hover:text-ink">Why this?</summary>
+        <div className="pt-2.5">{content}</div>
+      </details>
+    );
+  }
+
+  return (
+    <section className="mt-4 border-t border-line pt-3" aria-labelledby={whyId}>
+      <h3 id={whyId} className="text-xs font-semibold text-ink2">Why this?</h3>
+      <div className="pt-2.5">{content}</div>
+    </section>
+  );
+}
+
 export function RecommendationCard({
   recommendation,
   variant = "primary",
+  compact = false,
 }: {
   recommendation: Recommendation;
   variant?: "primary" | "secondary";
+  compact?: boolean;
 }) {
   const topic = recommendation.topicId ? getTopic(recommendation.topicId) : null;
   const subject = getSubject(recommendation.subjectId);
@@ -45,7 +182,7 @@ export function RecommendationCard({
     <Panel className={isPrimary ? "relative overflow-hidden" : ""}>
       {isPrimary ? (
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <Pill tone="speak">Recommended now</Pill>
+          <Pill tone="speak">{compact ? "Next step" : "Recommended now"}</Pill>
           <Pill>{formatMinutes(recommendation.minutes)}</Pill>
           {recommendation.plannedSessionId ? <Pill tone="success">In today&apos;s plan</Pill> : null}
         </div>
@@ -65,35 +202,16 @@ export function RecommendationCard({
       </p>
       <p className="text-sm text-ink2 mt-3 max-w-2xl">{recommendation.reason}</p>
 
-      {/* The brief's exact disclosure: Do electrolysis questions — 18 min / Estimated recoverable marks: 5.6 / Last exam evidence: 46% / No successful retrieval for 11 days / Paper 1: 24 days away */}
       {exp ? (
-        <div className="mt-4 rounded-xl bg-surface2 p-3 space-y-1.5">
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-ink2">Why this now</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <DetailRow label="Estimated recoverable marks" value={`${exp.recoverableMarks.toFixed(1)}`} />
-            <DetailRow label="Time" value={formatMinutes(recommendation.minutes)} />
-            <DetailRow
-              label="Last exam evidence"
-              value={exp.lastEvidencePercent != null ? `${exp.lastEvidencePercent}%` : "— no marked work yet"}
-            />
-            <DetailRow
-              label="Last retrieval"
-              value={exp.daysSinceRetrieval != null ? `${exp.daysSinceRetrieval} days ago` : exp.lastEvidencePercent == null ? "— never studied" : "— no card history"}
-            />
-            <DetailRow
-              label={exp.paperLabel ? exp.paperLabel : "Next paper"}
-              value={exp.daysToExam != null ? `${exp.daysToExam} days away` : "— no date set"}
-            />
-            {exp.marksPerHour != null ? <DetailRow label="Marks / hour" value={`${exp.marksPerHour.toFixed(1)}`} /> : null}
-          </div>
-          <FactorRow factors={exp.factors} />
-          <p className="text-[11px] text-ink3 mt-1">
-            Score ≈ gain × urgency × weakness × forgetting × uncertainty ÷ time. Hover a pill for what it means.
-          </p>
-        </div>
-      ) : (
+        <RecommendationWhy
+          recommendation={recommendation}
+          explanation={exp}
+          target={topic?.title ?? subject?.name ?? recommendation.subjectId}
+          compact={compact}
+        />
+      ) : !compact ? (
         <FactorRow factors={recommendation.factors ?? recommendation.explanation?.factors} />
-      )}
+      ) : null}
 
       <div className={isPrimary ? "mt-4 flex flex-wrap gap-2" : "mt-3"}>
         <Link href={recommendationHref(recommendation)} className={isPrimary ? "flex-1 sm:flex-none" : "block"}>

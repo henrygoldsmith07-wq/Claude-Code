@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { aiMark } from "@/ai/client";
+import { misconceptionsForTopic } from "@/content";
+import { validateCommandWord, type CommandWordValidation } from "@/domain/command-word-validation";
 import { getTopic } from "@/domain/curriculum";
 import {
   completeDelayedFarTransfer,
@@ -11,6 +13,7 @@ import {
 import { markMcq } from "@/domain/marking";
 import { assessLowConfidenceMark, createMarkEscalationRecord } from "@/domain/mark-escalation";
 import type { LowConfidenceMarkDecision } from "@/domain/mark-escalation";
+import { planRemediation, type RemediationAction } from "@/domain/remediation";
 import type { Attempt, MarkedPart, Question } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { AnswerInput } from "./AnswerInput";
@@ -168,7 +171,7 @@ export function QuestionRunner({
           </div>
         ) : null}
 
-        <RichText className="text-base text-ink">{question.stem}</RichText>
+        <RichText className="text-base leading-7 text-ink">{question.stem}</RichText>
 
         {isMcq ? (
           <ul className="mt-4 space-y-1.5">
@@ -185,7 +188,7 @@ export function QuestionRunner({
                       onDraftChange?.({ answers, choice: index });
                     }}
                     className={cx(
-                      "w-full text-left card px-3 py-2.5 flex gap-2.5 items-start transition-colors",
+                      "w-full min-h-12 sm:min-h-0 text-left card px-3 py-3 sm:py-2.5 flex gap-2.5 items-start transition-colors",
                       choice === index && !result && "border-ink3 bg-surface2",
                       correct && "border-success bg-successsoft",
                       wrongPick && "border-danger bg-dangersoft",
@@ -204,13 +207,14 @@ export function QuestionRunner({
           <div className="mt-4 space-y-5">
             {question.parts.map((part) => (
               <div key={part.id}>
-                <div className="flex items-baseline gap-2 mb-1.5">
+                <div className="flex items-start gap-2 mb-1.5">
                   {part.label ? <span className="text-sm font-semibold text-ink">{part.label}</span> : null}
-                  <RichText className="text-sm flex-1">{part.prompt}</RichText>
-                  <span className="text-xs text-ink3 shrink-0">[{part.marks}]</span>
+                  <RichText className="text-sm leading-6 flex-1 min-w-0">{part.prompt}</RichText>
+                  <span className="text-xs text-ink3 shrink-0 pt-0.5">[{part.marks}]</span>
                 </div>
+                <CommandWordCheck validation={validateCommandWord(question, part, answers[part.id] ?? "")} />
                 {result ? (
-                  <div className="card card-2 p-3 text-sm text-ink2 whitespace-pre-wrap">
+                  <div className="card card-2 p-3 text-sm text-ink2 whitespace-pre-wrap break-words">
                     {answers[part.id]?.trim() || "(no answer given)"}
                   </div>
                 ) : (
@@ -233,7 +237,7 @@ export function QuestionRunner({
         {!result ? (
           <Button
             variant="primary"
-            className="w-full mt-5"
+            className="w-full min-h-11 mt-5"
             disabled={marking || (isMcq ? choice === null : !Object.values(answers).some((a) => a.trim()))}
             onClick={() => void submit()}
           >
@@ -242,7 +246,21 @@ export function QuestionRunner({
         ) : null}
       </Panel>
 
-      {result ? <MarkedResult question={question} result={result} awarded={awarded} /> : null}
+      {result ? <MarkedResult question={question} result={result} awarded={awarded} answers={answers} /> : null}
+    </div>
+  );
+}
+
+function CommandWordCheck({ validation }: { validation: CommandWordValidation }) {
+  if (validation.status === "not-applicable") return null;
+  const tone = validation.status === "aligned" ? "success" : validation.status === "needs-attention" ? "review" : "neutral";
+  const status = validation.status === "aligned" ? "Verb covered" : validation.status === "empty" ? "Start with the verb" : "Check the verb";
+  return (
+    <div className="flex items-start gap-2 mt-2 text-[11px] text-ink3">
+      <Pill tone={tone}>{validation.label}</Pill>
+      <p className="pt-0.5 leading-relaxed">
+        <span className="font-semibold text-ink2">{status}.</span> {validation.message}
+      </p>
     </div>
   );
 }
@@ -251,6 +269,7 @@ function MarkedResult({
   question,
   result,
   awarded,
+  answers,
 }: {
   question: Question;
   result: {
@@ -263,8 +282,29 @@ function MarkedResult({
     farTransfer?: Attempt["farTransfer"];
   };
   awarded: number;
+  answers: Record<string, string>;
 }) {
   const pct = question.totalMarks ? awarded / question.totalMarks : 0;
+  const topic = getTopic(question.topicIds[0] ?? "");
+  const misconceptions = useMemo(
+    () => [...new Set(question.topicIds.flatMap((id) => misconceptionsForTopic(id)))],
+    [question.topicIds],
+  );
+  const plan = useMemo(
+    () => planRemediation(question, answers, result.marked, topic, misconceptions),
+    [question, answers, result.marked, topic, misconceptions],
+  );
+  const actions = useMemo(() => {
+    const seen = new Map<string, RemediationAction>();
+    for (const part of plan.parts) {
+      for (const action of part.actions) {
+        const key = action.misconception.toLowerCase();
+        const prev = seen.get(key);
+        if (!prev || action.confidence > prev.confidence) seen.set(key, action);
+      }
+    }
+    return [...seen.values()].sort((a, b) => b.confidence - a.confidence);
+  }, [plan]);
   return (
     <Panel className="fade-in">
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -353,6 +393,37 @@ function MarkedResult({
           );
         })}
       </div>
+
+      {question.kind !== "mcq" && actions.length ? (
+        <div className="mt-4 pt-4 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">How to fix it</p>
+          <ul className="space-y-2.5">
+            {actions.map((action) => (
+              <li key={action.misconception} className="card card-2 p-3">
+                <div className="flex items-start gap-2">
+                  <MissedIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0 mt-0.5 text-danger" />
+                  <p className="text-sm font-semibold text-ink">{action.misconception}</p>
+                </div>
+                {action.misconceptionEntry ? (
+                  <>
+                    <p className="text-xs text-ink3 mt-2">
+                      <span className="font-semibold">What it looks like: </span>
+                      {action.misconceptionEntry.example}
+                    </p>
+                    <p className="text-sm text-ink2 mt-1.5">{action.misconceptionEntry.explanation}</p>
+                    <div className="flex items-start gap-2 mt-1.5">
+                      <CreditedIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0 mt-0.5 text-success" />
+                      <p className="text-sm text-ink2 flex-1">{action.misconceptionEntry.correction}</p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-ink2 mt-1.5">{action.action}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="mt-4 pt-4 border-t border-line space-y-3">
         <RichText className="text-sm">{result.feedback}</RichText>

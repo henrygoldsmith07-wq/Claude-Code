@@ -12,12 +12,13 @@ import { useStore, useSubjects } from "@/state/store";
 import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { QuestionNavigator } from "@/components/QuestionNavigator";
 import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
+import { ExamConditionMode } from "@/components/ExamConditionMode";
 import { Button, EmptyState, Field, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
 
-// Past papers: upload, extract, map to topics, practise by topic or as a timed
-// paper. Extraction needs a model; everything after it does not, so a paper
-// extracted once stays fully usable offline forever.
+// Past papers: upload, extract, map to topics, practise by topic, or sit a
+// paper under full exam conditions. Extraction needs a model; everything after
+// it does not, so a paper extracted once stays fully usable offline forever.
 
 export default function PapersPage() {
   return (
@@ -33,6 +34,7 @@ function Papers() {
   const subjects = useSubjects();
   const [subjectId, setSubjectId] = useState(params.get("subject") ?? subjects[0]?.id ?? "");
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
+  const [examPaper, setExamPaper] = useState<Paper | null>(null);
 
   const papers = useMemo(
     () => store.papers.filter((p) => !subjectId || p.subjectId === subjectId),
@@ -43,26 +45,39 @@ function Papers() {
     return <PaperSession paper={activePaper} onExit={() => setActivePaper(null)} />;
   }
 
+  if (examPaper) {
+    return <ExamConditionMode paper={examPaper} onExit={() => setExamPaper(null)} />;
+  }
+
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header className="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">Past papers</h1>
           <p className="text-sm text-ink3 mt-0.5">
-            Upload a paper and its mark scheme, extract the questions, then practise them by topic or in full.
+            Upload a paper and its mark scheme, extract the questions, then practise them by topic or under full exam conditions.
           </p>
         </div>
         {subjects.length > 1 ? (
-          <Segmented
-            ariaLabel="Subject"
-            value={subjectId}
-            onChange={setSubjectId}
-            options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-          />
+          <div className="w-full sm:w-auto max-w-full overflow-x-auto nice-scroll pb-1">
+            <Segmented
+              ariaLabel="Subject"
+              value={subjectId}
+              onChange={setSubjectId}
+              options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </div>
         ) : null}
       </header>
 
       <UploadPaper subjectId={subjectId} />
+
+      <Panel className="space-y-2">
+        <SectionHeading title="Full exam conditions" hint="A fixed clock, no in-paper help, and feedback only after submission." />
+        <p className="text-sm text-ink2">
+          Choose <span className="font-semibold">Full exam conditions</span> beside any extracted paper below. The run is timed to the selected paper format, saves each answer only when you submit, and records the marked paper for later review.
+        </p>
+      </Panel>
 
       <section>
         <SectionHeading title="Your papers" hint="Extracted questions join the practice pool automatically." />
@@ -73,7 +88,7 @@ function Papers() {
               const scored = attempted.reduce((a, x) => a + x.awarded, 0);
               const possible = attempted.reduce((a, x) => a + x.max, 0);
               return (
-                <li key={paper.id} className="px-4 py-3 flex items-center gap-3">
+                <li key={paper.id} className="px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-ink truncate">{paper.title}</p>
                     <p className="text-[11px] text-ink3">
@@ -82,15 +97,15 @@ function Papers() {
                       {possible ? ` · scored ${scored}/${possible}` : ""}
                     </p>
                   </div>
-                  <Pill tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={!paper.questionIds.length}
-                    onClick={() => setActivePaper(paper)}
-                  >
-                    Sit paper
-                  </Button>
+                  <Pill className="self-start sm:self-auto" tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
+                  <div className="grid grid-cols-1 sm:flex justify-end gap-1.5 w-full sm:w-auto">
+                    <Button size="sm" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setActivePaper(paper)}>
+                      Practise paper
+                    </Button>
+                    <Button size="sm" variant="primary" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setExamPaper(paper)}>
+                      Full exam conditions
+                    </Button>
+                  </div>
                 </li>
               );
             })}
@@ -98,7 +113,7 @@ function Papers() {
         ) : (
           <EmptyState
             title="No papers uploaded"
-            body="Paste the text of a past paper, or photograph its pages. Questions are split out, mapped to topics and marked against the scheme."
+            body="Paste the text of a past paper, or photograph its pages. Questions are split out, mapped to topics and marked against the scheme. Extract one to unlock full exam conditions."
           />
         )}
       </section>
@@ -368,7 +383,7 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <header className="sticky top-14 lg:top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-bg/95 backdrop-blur border-b border-line flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold truncate">{paper.title}</h1>
           <p className="text-[11px] text-ink3">
@@ -377,15 +392,15 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={elapsedMs > 90 * 60_000 ? "danger" : undefined}>
+          <Pill className="tabular-nums" tone={elapsedMs > 90 * 60_000 ? "danger" : undefined}>
             <TimerIcon size={ICON_SIZE.sm} aria-hidden />
             {Math.floor(elapsedMs / 60_000)} min
           </Pill>
-          <Button size="sm" variant="ghost" onClick={onExit}>
+          <Button size="sm" variant="ghost" className="min-h-10" onClick={onExit}>
             Exit
           </Button>
         </div>
-      </div>
+      </header>
 
       <QuestionNavigator
         currentIndex={index}

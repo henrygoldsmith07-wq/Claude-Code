@@ -59,8 +59,8 @@ describe("content pipeline — questions carry provenance", () => {
 });
 
 describe("content pipeline — coverage is measured", () => {
-  it("every subject has non-zero coverage (original A-level boards require exam questions; new boards/GCSE ship curriculum-first)", () => {
-    const originalAleveIds = new Set(allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel")).map((s) => s.id));
+  it("every subject has non-zero coverage (authored A-level boards require exam questions; new boards/GCSE ship curriculum-first)", () => {
+    const authoredAlevelIds = new Set(allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel") || s.id.startsWith("ocr-alevel")).map((s) => s.id));
     for (const subject of allSubjects()) {
       const topics = topicsFor(subject.id);
       const qs = seedQuestions.filter((q) => q.subjectId === subject.id);
@@ -74,10 +74,10 @@ describe("content pipeline — coverage is measured", () => {
         expect(cov.statements.length).toBe(cov.specPointsTotal);
         expect(cov.specPointsLearnable).toBeGreaterThan(0);
       }
-      if (originalAleveIds.has(subject.id)) {
+      if (authoredAlevelIds.has(subject.id)) {
         expect(cov.examQuestions, `${subject.id} should have seed questions`).toBeGreaterThan(0);
       } else {
-        // New boards/GCSE: curriculum ships first; questions follow with licensed past-paper sourcing.
+        // Edexcel/GCSE: curriculum ships first; questions follow with licensed past-paper sourcing.
         expect(cov.specPointsTotal, `${subject.id} should still have statements`).toBeGreaterThan(0);
       }
     }

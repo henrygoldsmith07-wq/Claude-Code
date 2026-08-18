@@ -1,4 +1,4 @@
-import type { Card, Id, Question, Topic } from "./types";
+import type { Card, Id, Misconception, Question, Topic } from "./types";
 
 // ---------------------------------------------------------------------------
 // Search runs entirely client-side against the IndexedDB mirror, so it works
@@ -7,7 +7,7 @@ import type { Card, Id, Question, Topic } from "./types";
 // field outweighs the body.
 // ---------------------------------------------------------------------------
 
-export type SearchKind = "topic" | "card" | "question";
+export type SearchKind = "topic" | "card" | "question" | "misconception";
 
 export interface SearchResult {
   kind: SearchKind;
@@ -23,6 +23,7 @@ export interface SearchCorpus {
   topics: Topic[];
   cards: Card[];
   questions: Question[];
+  misconceptions: Misconception[];
 }
 
 interface IndexedDoc {
@@ -84,6 +85,19 @@ export function buildSearchIndex(corpus: SearchCorpus): SearchIndex {
       topicId: question.topicIds[0],
     });
   }
+  for (const misconception of corpus.misconceptions) {
+    const body = `${misconception.example} ${misconception.explanation} ${misconception.correction}`;
+    docs.push({
+      kind: "misconception",
+      id: misconception.id,
+      title: misconception.statement,
+      body,
+      titleLower: misconception.statement.toLowerCase(),
+      bodyLower: body.toLowerCase(),
+      subjectId: misconception.subjectId,
+      topicId: misconception.topicIds[0],
+    });
+  }
 
   return { docs };
 }
@@ -97,7 +111,7 @@ export function searchIndex(index: SearchIndex, rawQuery: string, limit = 30): S
 
   // Titles outweigh bodies, and topics outrank cards at equal strength: a
   // student searching "photosynthesis" wants the topic, not card #214.
-  const kindWeight: Record<SearchKind, number> = { topic: 3, card: 1, question: 1.2 };
+  const kindWeight: Record<SearchKind, number> = { topic: 3, card: 1, question: 1.2, misconception: 2 };
 
   for (const doc of index.docs) {
     const score =
@@ -203,6 +217,22 @@ export function search(corpus: SearchCorpus, rawQuery: string, limit = 30): Sear
         snippet: snippet(body || question.stem, query),
         subjectId: question.subjectId,
         topicId: question.topicIds[0],
+        score,
+      });
+    }
+  }
+
+  for (const misconception of corpus.misconceptions) {
+    const body = `${misconception.example} ${misconception.explanation} ${misconception.correction}`;
+    const score = scoreText(misconception.statement, query, words, 2) + scoreText(body, query, words, 1);
+    if (score > 0) {
+      out.push({
+        kind: "misconception",
+        id: misconception.id,
+        title: misconception.statement,
+        snippet: snippet(body, query),
+        subjectId: misconception.subjectId,
+        topicId: misconception.topicIds[0],
         score,
       });
     }

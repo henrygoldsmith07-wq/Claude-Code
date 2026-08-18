@@ -51,6 +51,7 @@ import { buildKnowledgeGraph, type KnowledgeGraph } from "./knowledge/graph.js";
 import { buildClaimNode, buildEvidenceGraph, type AuthoredClaimInput, type EvidenceGraph } from "./evidence-graph/graph.js";
 import type { ClaimNode } from "./evidence-graph/types.js";
 import { ask, type Answer, type AskContext } from "./ask/answer.js";
+import { createPersonalEvidenceApi, type PersonalEvidenceApi } from "./evidence-api/index.js";
 import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
 import { buildResearchExport, type ResearchExport } from "./privacy/research-export.js";
 import { buildStatisticalInspection, type StatisticalInspection, type StatisticalInspectorOptions } from "./statistics/inspector.js";
@@ -503,6 +504,19 @@ export class Pulse {
       contradictions: this.contradictions.list(),
       now: this.now,
     });
+  }
+
+  /** Read-only, versioned access to the current personal evidence graph. */
+  personalEvidence(): PersonalEvidenceApi {
+    return createPersonalEvidenceApi(() => this.evidenceGraph(), this.now, {
+      fullExport: (options) => this.export(options),
+      researchExport: (options) => this.researchExport(options),
+    });
+  }
+
+  /** @deprecated Use personalEvidence() for the stable public entry point. */
+  personalEvidenceApi(): PersonalEvidenceApi {
+    return this.personalEvidence();
   }
 
   weeklyBrief(weekOf?: string): WeeklyBrief {

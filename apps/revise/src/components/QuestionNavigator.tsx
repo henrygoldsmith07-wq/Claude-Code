@@ -11,6 +11,7 @@ export interface QuestionNavigationProps {
   previousDisabled?: boolean;
   nextDisabled?: boolean;
   nextLabel?: string;
+  controlsClassName?: string;
 }
 
 export function QuestionNavigator({
@@ -24,6 +25,7 @@ export function QuestionNavigator({
   previousDisabled = false,
   nextDisabled = false,
   nextLabel = "Next question",
+  controlsClassName,
 }: QuestionNavigationProps) {
   if (total < 1) return null;
 
@@ -73,7 +75,7 @@ export function QuestionNavigator({
         })}
       </ol>
 
-      <div className="flex gap-2">
+      <div className={cx(controlsClassName ?? "flex gap-2")}>
         <Button type="button" size="sm" className="flex-1" disabled={previousDisabled} onClick={onPrevious}>
           Previous
         </Button>

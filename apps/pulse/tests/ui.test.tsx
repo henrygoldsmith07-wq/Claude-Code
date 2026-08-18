@@ -16,6 +16,8 @@ import axe from "axe-core";
 import { App } from "../src/ui/App.js";
 import { FindingCard } from "../src/ui/FindingCard.js";
 import { afterPaint, renderBootFailure } from "../src/ui/boot.js";
+import { createHabitSameOriginConnector } from "../src/connectors/habit.js";
+import { createRapportSameOriginConnector } from "../src/connectors/rapport.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import type { Pulse } from "../src/pulse.js";
 import type { Finding } from "../src/discovery/finding.js";
@@ -276,6 +278,45 @@ describe("the app shell", () => {
     expect(screen.getByRole("heading", { name: "Reflect" })).toBeTruthy();
     expect(screen.getByText(/must be granted on its own/)).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /Revoke and delete all/ }).length).toBeGreaterThan(0);
+    cleanup();
+  });
+
+  it("surfaces each source's app-side opt-in, marking revoked sources as paused at source", async () => {
+    const harness = await createSyntheticPulse({ days: 60, seed: "consent-overview" });
+    const fresh = harness.pulse;
+    const storage: Record<string, string> = {
+      "habit-tracker-state-v1": JSON.stringify({ day: "2026-08-17", mirroredAt: "2026-08-17T12:00:00.000Z", habits: [], checkins: [] }),
+      "habit-tracker-pulse-opt-in": "1",
+      "rapport.pulse-history.v2": JSON.stringify({
+        format: "le-studio.source-history",
+        schemaVersion: 2,
+        source: "rapport",
+        connectorVersion: "2.0.0",
+        generatedAt: "2026-08-17T12:00:00.000Z",
+        records: [],
+        cursor: null,
+      }),
+      "rapport-pulse-opt-in": "0",
+    };
+    const getItem = (key: string) => storage[key] ?? null;
+    fresh.registerConnector(createHabitSameOriginConnector({ storage: { getItem } }));
+    fresh.registerConnector(createRapportSameOriginConnector({ storage: { getItem } }));
+    fresh.connect("habit");
+    fresh.connect("rapport");
+
+    render(<App pulse={fresh} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
+
+    const cardOf = (name: string) => screen.getByRole("heading", { name }).closest("article")!;
+    const paragraphWith = (card: HTMLElement, needle: string) =>
+      within(card).getByText((_, node) => {
+        if (!node || node.tagName !== "P") return false;
+        return (node.textContent ?? "").replace(/\s+/g, " ").trim().includes(needle);
+      });
+    expect(paragraphWith(cardOf("Habit"), "App-side opt-in: granted")).toBeTruthy();
+    expect(paragraphWith(cardOf("Rapport"), "App-side opt-in: paused at source")).toBeTruthy();
+    // Sources without an app-side gate say so honestly.
+    expect(paragraphWith(cardOf("Forq"), "App-side opt-in: none")).toBeTruthy();
     cleanup();
   });
 

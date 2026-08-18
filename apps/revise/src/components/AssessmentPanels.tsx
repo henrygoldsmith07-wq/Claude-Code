@@ -419,6 +419,54 @@ export function MasteryUncertaintyCard() {
   );
 }
 
+export function RecurringMisconceptions() {
+  const store = useStore();
+  const rows = store.recurringMisconceptions;
+  if (!rows.length) {
+    return (
+      <Panel>
+        <SectionHeading
+          title="Recurring misconceptions"
+          hint="Specific wrong beliefs you keep losing marks on, drawn from the misconception library."
+        />
+        <EmptyHint>Answer some questions — matched misconceptions appear here with their explanations.</EmptyHint>
+      </Panel>
+    );
+  }
+  return (
+    <Panel>
+      <SectionHeading
+        title="Recurring misconceptions"
+        hint="The specific wrong beliefs that cost you the most marks, linked to their full explanation."
+      />
+      <ul className="card divide-y divide-line">
+        {rows.slice(0, 5).map(({ entry, count, marksLost }) => {
+          const subject = getSubject(entry.subjectId);
+          const topic = getTopic(entry.topicIds[0] ?? "");
+          return (
+            <li key={entry.id} className="px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  href={`/library?topic=${encodeURIComponent(entry.topicIds[0] ?? "")}&misconception=${encodeURIComponent(entry.id)}`}
+                  className="text-sm font-semibold text-ink hover:underline"
+                >
+                  {entry.statement}
+                </Link>
+                <Pill tone="danger">{marksLost} marks</Pill>
+              </div>
+              <p className="text-[11px] text-ink3 mt-1">
+                {subject?.name ?? entry.subjectId}
+                {topic ? ` · ${topic.title}` : ""}
+                {` · ${count}×`}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </Panel>
+  );
+}
+
 function TimingBreakdown() {
   const store = useStore();
   const byTiming: Record<string, number> = { ok: 0, rushed: 0, slow: 0, unknown: 0 };

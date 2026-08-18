@@ -9,7 +9,9 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 test('shared-origin history keys are unique and owned by one app', async () => {
   const keys = [
     ['forq', 'forq-state-v2'],
+    ['forq-consent', 'forq-pulse-opt-in'],
     ['french', 'fp.pulse-history.v2'],
+    ['french-consent', 'fp.pulse-opt-in'],
     ['rapport', 'rapport.pulse-history.v2'],
     ['reflect', 'reflectEntries'],
     ['reflect-consent', 'reflectPulseOptIn'],

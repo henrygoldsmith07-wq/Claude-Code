@@ -13,6 +13,8 @@ import { useStore, useSubjects } from "@/state/store";
 import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
 import { QuestionNavigator } from "@/components/QuestionNavigator";
+import { parseQuickSessionMinutes, type QuickSessionMinutes } from "@/domain/quick-session";
+import { QuickSessionMode, QuickSessionPicker } from "@/components/QuickSessionMode";
 import { RichText } from "@/components/RichText";
 import { Button, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 
@@ -50,6 +52,8 @@ function Practice() {
 
   const [subjectId, setSubjectId] = useState(subjectParam ?? farTransferRetest?.subjectId ?? subjects[0]?.id ?? "");
   const [topicId, setTopicId] = useState(topicParam ?? farTransferRetest?.topicIds[0] ?? "");
+  const quickParam = params.get("quick");
+  const [quickMinutes, setQuickMinutes] = useState<QuickSessionMinutes | null>(() => parseQuickSessionMinutes(quickParam));
   const [index, setIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -201,10 +205,21 @@ function Practice() {
 
   const topics = subjectId ? topicsFor(subjectId) : [];
 
+  if (quickMinutes) {
+    return (
+      <QuickSessionMode
+        minutes={quickMinutes}
+        subjectId={subjectId}
+        topicId={topicId}
+        onExit={() => setQuickMinutes(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header className="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">
             {mode === "recall" ? "Active recall" : "Exam questions"}
           </h1>
@@ -215,18 +230,20 @@ function Practice() {
           </p>
         </div>
         {subjects.length > 1 && !farTransferRetest ? (
-          <Segmented
-            ariaLabel="Subject"
-            value={subjectId}
-            onChange={(value) => {
-              setSubjectId(value);
-              setTopicId("");
-              setIndex(0);
-              setOrder(orderFor(value, ""));
-              resetSession();
-            }}
-            options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-          />
+          <div className="w-full sm:w-auto max-w-full overflow-x-auto nice-scroll pb-1">
+            <Segmented
+              ariaLabel="Subject"
+              value={subjectId}
+              onChange={(value) => {
+                setSubjectId(value);
+                setTopicId("");
+                setIndex(0);
+                setOrder(orderFor(value, ""));
+                resetSession();
+              }}
+              options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </div>
         ) : null}
         {sessionAttempts.length ? (
           <Button size="sm" variant="primary" onClick={() => void finishSession()} disabled={finishing}>
@@ -256,7 +273,9 @@ function Practice() {
         </Panel>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <QuickSessionPicker onSelect={setQuickMinutes} />
+
+      <div className="grid grid-cols-1 sm:flex sm:flex-wrap sm:items-center gap-2">
         <select
           value={topicId}
           disabled={Boolean(farTransferRetest)}
@@ -268,7 +287,7 @@ function Practice() {
             setOrder(orderFor(subjectId, e.target.value));
             resetSession();
           }}
-          className="field field-inline text-sm"
+          className="field field-inline text-sm w-full sm:w-auto"
           aria-label="Topic"
         >
           <option value="">All topics</option>
@@ -282,11 +301,11 @@ function Practice() {
             );
           })}
         </select>
-        <Button size="sm" onClick={() => void generate()} disabled={generating || Boolean(farTransferRetest)}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating || Boolean(farTransferRetest)}>
           {generating ? "Generating…" : "Generate similar questions"}
         </Button>
         {queue.length ? (
-          <span className="text-xs text-ink3 ml-auto tabular-nums">
+          <span className="text-xs text-ink3 sm:ml-auto justify-self-end tabular-nums">
             {index + 1} of {queue.length}
           </span>
         ) : null}
@@ -320,6 +339,7 @@ function Practice() {
             previousDisabled={index === 0}
             nextDisabled={index >= queue.length - 1 && !currentAnswered}
             nextLabel={index >= queue.length - 1 ? "Finish session" : currentAnswered ? "Next question" : "Skip question"}
+            controlsClassName="grid grid-cols-2 gap-2"
           />
           <QuestionRunner
             key={current.id}
@@ -350,12 +370,12 @@ function Practice() {
               : "Pick a topic, or upload a past paper to extract questions from it."
           }
           action={
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={() => void generate()} disabled={generating}>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button variant="primary" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating}>
                 Generate questions
               </Button>
               <Link href="/papers">
-                <Button>Upload a paper</Button>
+                <Button className="w-full sm:w-auto">Upload a paper</Button>
               </Link>
             </div>
           }

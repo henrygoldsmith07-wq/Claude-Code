@@ -7,6 +7,7 @@ import type {
   Id,
   IsoDate,
   PlannedSession,
+  Subject,
   Topic,
   TopicMastery,
 } from "./types";
@@ -34,6 +35,10 @@ export interface PlanInput {
   /** Minutes from midnight the study day starts at. */
   dayStartMinute?: number;
   horizonDays?: number;
+  /** Subjects (with grade boundaries) so target grades can be compared to attainment. */
+  subjects?: Subject[];
+  /** Per-subject target grade letters; boosts subjects that are furthest below target. */
+  targetGrades?: Record<Id, string>;
   /** Existing plan; done/skipped entries are carried through untouched. */
   existing?: PlannedSession[];
   now?: Date;
@@ -85,7 +90,7 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
     let cursor = input.dayStartMinute ?? DEFAULT_DAY_START;
 
     const shares = allocateBlocks(blocks, input.subjectIds, (subjectId) =>
-      subjectWeight(subjectId, input.mastery, input.exams, date),
+      subjectWeight(subjectId, input.mastery, input.exams, date, input.subjects, input.targetGrades),
     );
 
     for (const subjectId of input.subjectIds) {
@@ -126,14 +131,40 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
   return out.sort((a, b) => (a.date === b.date ? a.startMinute - b.startMinute : a.date < b.date ? -1 : 1));
 }
 
-/** How much of a day's attention a subject has earned. */
-function subjectWeight(subjectId: Id, mastery: TopicMastery[], exams: ExamDate[], date: IsoDate): number {
+/**
+ * How much of a day's attention a subject has earned: deficit-driven, scaled
+ * by exam proximity, then boosted when the subject is chasing a target grade
+ * its current attainment is still short of.
+ */
+function subjectWeight(
+  subjectId: Id,
+  mastery: TopicMastery[],
+  exams: ExamDate[],
+  date: IsoDate,
+  subjects: Subject[] = [],
+  targetGrades: Record<Id, string> = {},
+): number {
   const rows = mastery.filter((m) => m.subjectId === subjectId);
   const avg = rows.length ? rows.reduce((a, m) => a + m.mastery, 0) / rows.length : 0.3;
   const urgency = examUrgency(daysToExam(exams, subjectId, date));
   // Deficit-driven: a subject at 30% mastery pulls more than twice the weight
   // of one at 70%, then exam proximity scales it again.
-  return (0.15 + (1 - avg)) * urgency;
+  let weight = (0.15 + (1 - avg)) * urgency;
+
+  const subject = subjects.find((s) => s.id === subjectId);
+  const target = targetGrades[subjectId];
+  if (subject && target) {
+    const boundary = subject.gradeBoundaries.find((b) => b.grade === target);
+    if (boundary) {
+      // Same attainment model as predictGrade: mastery compresses into a
+      // realistic attainment percent, so the gap is in comparable units.
+      const predicted = avg * 92 + 4;
+      const gap = boundary.percent - predicted;
+      if (gap > 0) weight *= 1 + Math.min(0.6, (gap / 100) * 2);
+    }
+  }
+
+  return weight;
 }
 
 /**

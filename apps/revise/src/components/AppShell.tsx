@@ -13,9 +13,11 @@ import {
   ModesIcon,
   LibraryIcon,
   PapersIcon,
+  EvidenceIcon,
   PlanIcon,
   PracticeIcon,
   ProgressIcon,
+  ResponseTimeIcon,
   ReviewIcon,
   SearchIcon,
   OfflineIcon,
@@ -24,6 +26,7 @@ import {
   TutorIcon,
   BenchmarkIcon,
   CaseStudyIcon,
+  CorpusIcon,
 } from "./icons";
 import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
@@ -40,12 +43,15 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
   { href: "/practice", label: "Practice", Icon: PracticeIcon },
   { href: "/planner", label: "Plan", Icon: PlanIcon, primary: true },
   { href: "/progress", label: "Progress", Icon: ProgressIcon, primary: true },
+  { href: "/response-time", label: "Response time", Icon: ResponseTimeIcon },
   { href: "/generate", label: "From notes", Icon: GenerateIcon },
   { href: "/cards", label: "Cards", Icon: CardsIcon },
   { href: "/papers", label: "Past papers", Icon: PapersIcon },
   { href: "/library", label: "Library", Icon: LibraryIcon },
+  { href: "/question-evidence", label: "Question evidence", Icon: EvidenceIcon },
   { href: "/tutor", label: "Tutor", Icon: TutorIcon },
   { href: "/benchmarks", label: "Benchmarks", Icon: BenchmarkIcon },
+  { href: "/answer-corpus", label: "Answer corpus", Icon: CorpusIcon },
   { href: "/case-study", label: "Case study", Icon: CaseStudyIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];

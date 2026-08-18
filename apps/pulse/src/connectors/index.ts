@@ -18,17 +18,23 @@ export type { AriseRecord, AriseSessionRecord, AriseReadinessRecord, AriseBlock,
 export { createSameOriginReader, subscribeToSameOriginSource } from "./same-origin.js";
 export type { SameOriginReaderOptions, StorageLike, Unsubscribe } from "./same-origin.js";
 export {
+  FORQ_PULSE_OPT_IN_KEY,
   FORQ_STORAGE_KEY,
   createForqConnector,
   createForqSameOriginConnector,
+  forqPulseOptInGranted,
   mapForqRecord,
   selectForqRecords,
 } from "./forq.js";
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
 
 export {
+  HABIT_PULSE_OPT_IN_KEY,
+  HABIT_STORAGE_KEY,
   createHabitConnector,
+  createHabitSameOriginConnector,
   createHabitSupabaseConnector,
+  habitPulseOptInGranted,
   habitRecordTimestamp,
   mapHabitRecord,
   selectHabitRecords,
@@ -43,9 +49,11 @@ export type {
 export { createChronoConnector, mapChronoRecord } from "./chrono.js";
 export type { ChronoRecord, ChronoEventRecord, ChronoDayRecord } from "./chrono.js";
 export {
+  FRENCH_PULSE_OPT_IN_KEY,
   FRENCH_STORAGE_KEY,
   createFrenchConnector,
   createFrenchSameOriginConnector,
+  frenchPulseOptInGranted,
   mapFrenchRecord,
   selectFrenchRecords,
 } from "./french.js";
@@ -62,9 +70,11 @@ export {
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
 export {
   RAPPORT_STORAGE_KEY,
+  RAPPORT_PULSE_OPT_IN_KEY,
   createRapportConnector,
   createRapportSameOriginConnector,
   mapRapportRecord,
+  rapportPulseOptInGranted,
   selectRapportRecords,
 } from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";

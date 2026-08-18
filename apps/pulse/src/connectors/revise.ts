@@ -283,6 +283,16 @@ export function createReviseCloudConnector(options: ReviseCloudConnectorOptions 
         return { ok: false, message: error instanceof Error ? error.message : String(error), latestAt: null };
       }
     },
+    // Revise's opt-in is enforced server-side: the /api/pulse/history route
+    // refuses unless the account's synced `pulseEnabled` flag is true, so
+    // there is no local flag Pulse can read. The overview says so explicitly
+    // rather than pretending the flag is granted.
+    consentStatus: () => ({
+      kind: "server",
+      key: null,
+      granted: null,
+      message: "Gated server-side — Revise refuses this endpoint unless “Share study history with Pulse” is on in its settings",
+    }),
   };
   return createReviseConnector(reader);
 }

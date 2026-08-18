@@ -44,6 +44,14 @@ export type FrenchRecord = FrenchSpeakingRecord | FrenchReviewRecord;
 
 export const FRENCH_STORAGE_KEY = "fp.pulse-history.v2";
 
+/** Le Studio's own Pulse opt-in flag, kept apart from the mirror it gates. */
+export const FRENCH_PULSE_OPT_IN_KEY = "fp.pulse-opt-in";
+
+/** Le Studio's own opt-in. Anything other than the explicit on-value is withheld. */
+export function frenchPulseOptInGranted(flag: unknown): boolean {
+  return flag === "1" || flag === 1;
+}
+
 const SCOPES: ConnectorScope[] = [
   { id: "speaking", description: "Speaking practice sessions: duration, prompts and automatic pronunciation scores. Audio is never read.", readsContent: false },
   { id: "reviews", description: "Vocabulary and grammar reviews: correct/incorrect and timing", readsContent: false },
@@ -146,12 +154,24 @@ export function selectFrenchRecords(state: unknown): FrenchRecord[] {
   );
 }
 
+/**
+ * A Le Studio connector reading the app's own local mirror.
+ *
+ * Le Studio gates its Pulse share with its own opt-in flag
+ * (`FRENCH_PULSE_OPT_IN_KEY`), written and revocable in the app's settings
+ * where the data originates. The flag is read from the app's own storage so
+ * there is one source of truth: revoking it in Le Studio stops the flow here
+ * even if a stale mirror lingers, and the app deletes the mirror outright when
+ * the flag is turned off.
+ */
 export function createFrenchSameOriginConnector(options: { storage?: StorageLike | null } = {}): Connector {
   return createFrenchConnector(
     createSameOriginReader<FrenchRecord>({
       key: FRENCH_STORAGE_KEY,
+      consentKey: FRENCH_PULSE_OPT_IN_KEY,
       label: "Le Studio French",
       select: selectFrenchRecords,
+      consent: frenchPulseOptInGranted,
       ...(options.storage !== undefined ? { storage: options.storage } : {}),
       timestampOf: (record) => (record.kind === "speaking" ? record.startedAt : record.reviewedAt),
     }),

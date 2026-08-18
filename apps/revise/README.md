@@ -8,7 +8,7 @@ Open the app → get a recommended task → complete it → get marked instantly
 progress updates → next task.
 
 Ships with **32 subjects across WJEC / AQA / Edexcel / OCR × A-level / GCSE** —
-**440 topics, 302 seed questions**, every topic with `specPoints` and provenance —
+**440 topics, 374 seed questions**, every topic with `specPoints` and provenance —
 as real, authored revision content. The architecture is board-agnostic: adding
 a new board or qualification means adding one curriculum module and changing
 nothing else.
@@ -18,7 +18,7 @@ nothing else.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 412 tests (29 files) — see docs/benchmark.md and /benchmarks for outcome benchmarks
+npm test             # 466 tests (36 files) — see docs/benchmark.md and /benchmarks for outcome benchmarks
 npm run build        # production build
 ```
 
@@ -28,18 +28,32 @@ marking, planning, analytics, search — and only cross-device sync and
 model-written prose unavailable. See [`.env.example`](.env.example) for the
 optional Supabase and AI provider settings.
 
+## Pulse connection
+
+Revise can share its study history with Pulse, the personal evidence engine in
+this ecosystem. Sharing is **opt-in** and controlled here, where the data
+originates: Settings → Pulse has a "Share study history with Pulse" switch.
+The choice is stored in the synced `user_settings` row (`pulseEnabled`, off by
+default), and the `/api/pulse/history` endpoint checks it server-side on every
+request — a missing row, a missing flag, or a revoked flag all refuse the
+history with `403`. Pulse therefore only ever reads this account's reviews
+and attempts while the switch is on; turning it off stops the flow at the
+source immediately.
+
 ## What it does
 
 | Area | Behaviour |
 |------|-----------|
 | **Recommendation** | Scores every candidate activity on one scale — due reviews, mistake repair, weak-topic practice, first-pass learning, timed papers — and shows the winner with a plain-English reason. |
 | **Spaced repetition** | FSRS scheduling with per-grade interval previews, confidence captured *before* reveal, and failed cards reinserted within the same session. |
-| **Exam practice** | Structured questions marked point-by-point against the mark scheme, with examiner-style feedback, model answers, safe draft-preserving navigation and a post-session route into mistakes or further practice. |
+| **Exam practice** | Structured questions marked point-by-point against the mark scheme, with examiner-style feedback, model answers, safe draft-preserving navigation and five- or ten-minute question sprints. |
 | **Mistake tracking** | Every dropped mark becomes a classified mistake *and* a flashcard automatically, and closes only once the card is recalled reliably. |
-| **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, navigate by question, sit them timed, then close with full-denominator scoring and a repair route. |
+| **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, navigate by question, practise them question-by-question or sit them in full exam conditions with a fixed clock, no in-paper aids, auto-submit and marking after the paper, then close with full-denominator scoring and a repair route. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
-| **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
-| **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, and hands-free Listen — all over the same cards. |
+| **Analytics** | Mastery per topic, measured Retention Mastery from 1/7/30-day recall, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
+| **Mistake diagnosis** | Ranks likely root causes from missed points, answer/working evidence, timing, command words and the authored misconception library; one-off evidence stays an early signal. |
+| **Marking evidence** | Double-marked answer corpus with independent-marker agreement, disagreement review, adjudication and versioned JSON import/export. |
+| **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, hands-free Listen, and Explanation mastery — teach a topic from memory and see which authored key points made it into the explanation. |
 | **From notes** | One click: drop a PDF, paste notes or photograph a page, and get flashcards back, previewed before they join the deck. |
 | **Onboarding** | Four questions that each change what the app does, ending with a built plan rather than an empty state. |
 | **Sharing** | A link that carries the deck in its fragment (never sent to a server), or a file via the native share sheet. |
@@ -64,8 +78,12 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   marking.ts       Offline rubric marking against mark schemes
   post-session-closure.ts  Shared session-end metrics and next-action rules
   mistakes.ts      Dropped mark → classified mistake → flashcard
+  mistake-root-cause.ts  Ranked, answer-aware diagnosis with confidence thresholds
+  exam-conditions.ts  Deterministic paper timer, warning state, answer completeness and progress rules
+  quick-session.ts  Fixed five- and ten-minute question selection and priority rules
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
+  retention-mastery.ts  Evidence-gated retention status, trend and next action
   fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
   moderation.ts / question-validation.ts / sync-conflicts.ts / portability.ts  Platform: review, question quality, sync, GDPR portability
   i18n.ts / onboarding.ts  Localisation scaffolding + funnel measurement
@@ -75,17 +93,18 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   card-stats.ts    Per-card and per-deck statistics, incl. true retention
   custom-study.ts  Hand-built sessions, with preview-only cramming
   deck-io.ts       Deck export/import, validation and materialisation
-  study-modes.ts   Learn, Test and Match rules
+  study-modes.ts   Learn, Test, Match and Explanation mastery entry rules
+  explanation-mastery.ts  Offline key-point coverage for learner explanations
   diagrams.ts      Diagram cards, hotspots and the labelling round
   sharing.ts       Link encoding for deck sharing
   shuffle.ts       One deterministic shuffle, shared by every mode
 
-src/content/     Authored revision content (cards derived from spec, question bank)
+src/content/     Authored revision content (cards from spec, question bank, misconception library)
 src/data/        IndexedDB primary store, repository, outbox sync to Supabase
 src/ai/          Provider abstraction, prompts, schemas, offline fallbacks
 src/state/       One store; all derived numbers recomputed, never cached
 src/components/  Le Studio UI primitives, question runner, answer input
-src/app/         Next.js App Router pages (incl. /benchmarks live ledger + /case-study)
+src/app/         Next.js App Router pages (incl. /benchmarks, /answer-corpus live evidence ledger + /case-study)
 supabase/        Postgres schema with row-level security
 docs/            Architecture, revision engine, benchmarks
 ```
@@ -146,7 +165,8 @@ ids when omitted and threads per-statement provenance from the topic. Cards
 auto-link to the nearest statement(s); all four subjects now have specPoints on
 every topic (Physics 76, Chemistry 76, Biology 70, Maths 55) with `paperBreakdown`
 for unit·duration·marks·weighting on every paper. Every seed question maps to
-statements with `learningClaims` (1:1 with markScheme) — the `no-spec-points`
+statements with `learningClaims` (1:1 with markScheme), including the new OCR
+A-Level and extended-response question sets — the `no-spec-points`
 gaps in Progress now only fire on regressions. Run `node scripts/validate-curriculum.mjs`
 in CI — it now enforces that every subject has specPoints on every topic and that any `specPointIds` are paired with `learningClaims`. See
 `src/content/questions/physics.ts` for the first mapped questions and
@@ -160,6 +180,20 @@ mapping and provenance checks gate submission; a later audit demotes a validated
 question when specification drift or stale provenance appears, and validated
 content can be explicitly retired. This quality gate is persisted on the
 question itself and remains separate from generic moderation/publishing status.
+
+## Misconception library
+
+Alongside the question bank sits a hand-authored **misconception library**
+(`src/content/misconceptions/`): each entry names a common wrong belief, why
+it is wrong, the symptom an examiner sees every year, and what to write
+instead — linked to the topics where it costs marks and tagged with the same
+`MisconceptionTag` the analytics use. Entries are rendered in the Library
+topic view, so a student reads the correct conception — not just that they
+were wrong — before the mistake is made. Ids are deterministic
+(`seed-misconception:<slug>`) so re-seeding is idempotent, and the lookups
+(`misconceptionsForSubject` / `misconceptionsForTopic` / `misconceptionById`)
+mirror the question bank's, so future remediation and tutor wiring can share
+one source of truth.
 
 ## Adding a new exam board or subject
 
@@ -199,7 +233,7 @@ provenance record (`source` / `verification` / `reviewer` / `lastChecked` /
 retrieval cards, how many have an exam question (*which* parts test *which*
 statements), which are verified, and — per `SPEC_MANIFEST` — which unit/paper
 (duration, marks, weighting) each belongs to. The statement model now covers all **32 subjects (WJEC/AQA/Edexcel/OCR × A-level/GCSE): 440 topics,
-302 seed questions**, every topic with `specPoints` and every seed question part
+374 seed questions**, every topic with `specPoints` and every seed question part
 mapped with `specPointIds + learningClaims` aligned 1:1 with mark-scheme points.
 Topic lists and grade boundaries remain approximate and labelled as such; always
 check the current board specification for exact assessment objectives and

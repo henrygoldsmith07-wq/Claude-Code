@@ -45,6 +45,21 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 - `/benchmarks` also renders the current pairwise disagreement matrix keyed by `questionId`; the internal corpus currently measures human ↔ rubric and leaves AI coverage explicitly unmeasured until provider-marked gold exists.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.
 
+## Double-marked answer corpus
+
+*Source:* `src/domain/double-marked-corpus.ts`, `src/components/DoubleMarkedCorpus.tsx`,
+`src/app/answer-corpus/page.tsx`.
+
+- `DoubleMarkedAnswer` stores the prompt, answer, maximum marks, two independent
+  marker scores, provenance and an optional adjudicated score.
+- `buildDoubleMarkedCorpusReport` reports exact agreement, within-one-mark
+  agreement, mean absolute gap, normalised gap, marker bias and the pending
+  adjudication count. Adjudication never overwrites the original pair.
+- `/answer-corpus` accepts version-1 JSON exports, keeps invalid rows visible as
+  import warnings, exposes a disagreement queue, and exports decisions again.
+- The built-in rows are explicitly synthetic demonstrations. They are a UI and
+  metric fixture, not teacher evidence; imported rows carry `provenance: imported`.
+
 ## Grade prediction & confidence calibration
 
 *Source:* `src/domain/grades.ts`, `tests/grade-calibration.test.ts`.

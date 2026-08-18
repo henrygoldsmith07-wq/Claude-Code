@@ -151,6 +151,8 @@ export function defineReaderConnector<TRecord>(definition: ReaderConnectorDefini
         latestSourceEventAt: probe.latestAt ?? null,
       };
     },
+
+    ...(reader.consentStatus ? { consentStatus: () => reader.consentStatus?.() ?? null } : {}),
   };
 
   return connector;
