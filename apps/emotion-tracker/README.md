@@ -41,6 +41,8 @@ This is validated in code (`src/lib/validation.ts`); the model is rejected if it
 
 From **Insights** in the sidebar: completed count, streak, 14-day chart, most common core emotions, and the patterns flagged most often. Computed client-side from `localStorage`.
 
+The **Longitudinal evidence report** adds a dated, versioned view of the same local summaries: month-by-month evidence counts, linked findings, calibration and action trends, plus JSON or Markdown export. Conversation messages are excluded from the report; findings cite the local reflection IDs they came from.
+
 ## Longitudinal engine — calibration, not just counting
 
 `src/lib/longitudinal.ts` turns the follow-up loop into measurable learning:

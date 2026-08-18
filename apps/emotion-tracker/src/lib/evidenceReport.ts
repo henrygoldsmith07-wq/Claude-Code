@@ -53,7 +53,7 @@ export interface EvidenceReportRecord {
 }
 
 export interface EvidenceReportTotals {
-  records: number;
+  recordCount: number;
   observations: number;
   assumptions: number;
   alternatives: number;
@@ -118,7 +118,7 @@ function dateKey(value: string | Date | null | undefined): string | null {
 function boundTime(value: string | Date | null | undefined, endOfDay = false): number | null {
   const time = parsedTime(value);
   if (time === null) return null;
-  if (!endOfDay || value instanceof Date || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return time;
+  if (!endOfDay || value instanceof Date || typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return time;
   return time + 86_399_999;
 }
 
@@ -187,7 +187,7 @@ function evidenceTotals(records: EvidenceReportRecord[]): EvidenceReportTotals {
       if (link.linkedAssumptions.length > 0 || link.linkedAlternatives.length > 0) totals.linkedObservations++;
     }
     return {
-      records: totals.records + 1,
+      recordCount: totals.recordCount + 1,
       observations: totals.observations + record.observations.length,
       assumptions: totals.assumptions + record.assumptions.length,
       alternatives: totals.alternatives + record.alternatives.length,
@@ -196,7 +196,7 @@ function evidenceTotals(records: EvidenceReportRecord[]): EvidenceReportTotals {
       linkedAlternatives: totals.linkedAlternatives,
     };
   }, {
-    records: 0,
+    recordCount: 0,
     observations: 0,
     assumptions: 0,
     alternatives: 0,

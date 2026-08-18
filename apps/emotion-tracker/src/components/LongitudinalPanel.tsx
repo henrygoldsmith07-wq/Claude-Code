@@ -1,6 +1,7 @@
 "use client";
 
 import type { Entry } from "@/lib/types";
+import EvidenceReportCard from "@/components/EvidenceReportCard";
 import {
   calibrationFor,
   detectContradictions,
@@ -33,8 +34,11 @@ export default function LongitudinalPanel({
   const completed = entries.filter((e) => e.summary);
   if (completed.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-sm text-muted">{longitudinalSummary(entries)}</p>
+      <div className="flex flex-col gap-6">
+        <EvidenceReportCard entries={entries} onSelect={onSelect} />
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-sm text-muted">{longitudinalSummary(entries)}</p>
+        </div>
       </div>
     );
   }
@@ -52,6 +56,8 @@ export default function LongitudinalPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <EvidenceReportCard entries={entries} onSelect={onSelect} />
+
       {/* Summary + calibration */}
       <div className="rounded-xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Longitudinal summary</h3>

@@ -308,7 +308,7 @@ function isoWeekKey(dateInput: string | Date): string {
 function monthKey(dateInput: string): string {
   const d = new Date(dateInput);
   if (Number.isNaN(d.getTime())) return dateInput.slice(0, 7);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export function weeklyReviews(entries: Entry[]): PeriodReview[] {
