@@ -3,6 +3,7 @@ import { biologyQuestions } from "./questions/biology";
 import { biologyAqaQuestions } from "./questions/biology-aqa";
 import { biologyAqaExtraQuestions } from "./questions/biology-aqa-extra";
 import { aqaGcseQuestions } from "./questions/aqa-gcse";
+import { aqaGcsePracticalQuestions } from "./questions/aqa-gcse-practical";
 import { biologyExtraQuestions } from "./questions/biology-extra";
 import { chemistryQuestions } from "./questions/chemistry";
 import { chemistryAqaQuestions } from "./questions/chemistry-aqa";
@@ -41,9 +42,10 @@ export const seedQuestions: Question[] = [
   ...physicsAqaQuestions,
   ...physicsAqaExtraQuestions,
   ...aqaGcseQuestions,
+  ...aqaGcsePracticalQuestions,
 ];
 
-export { aqaGcseQuestions, authenticExpansionQuestions };
+export { aqaGcsePracticalQuestions, aqaGcseQuestions, authenticExpansionQuestions };
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {
   return seedQuestions.filter((q) => q.subjectId === subjectId);
