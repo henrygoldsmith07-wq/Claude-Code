@@ -133,6 +133,84 @@ export function MarksLostByCause() {
   );
 }
 
+const TECHNIQUE_DRIVER_LABELS: Record<string, string> = {
+  "exam-technique": "exam technique",
+  "knowledge-gap": "knowledge gap",
+  mixed: "mixed signal",
+  rushing: "rushing",
+  "time-management": "time management",
+};
+
+export function TechniqueVsKnowledgeCard() {
+  const insight = useStore().assessment;
+  const split = insight?.techniqueVsKnowledge;
+  if (!split) return null;
+
+  const knowledgePercent = Math.round(split.knowledgeShare * 100);
+  const techniquePercent = Math.round(split.techniqueShare * 100);
+  const techniqueLead = split.techniqueShare > split.knowledgeShare;
+  const actionHref = techniqueLead ? "/papers" : "/review?mode=mistakes";
+  const actionLabel = techniqueLead ? "Practise timed papers" : "Review knowledge gaps";
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="Exam technique vs knowledge"
+        hint="Separates marks lost through missing understanding from marks lost under exam conditions."
+      />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <StatTile
+          label="Knowledge gaps"
+          value={`${knowledgePercent}%`}
+          sub={`${split.knowledgeLost} marks lost`}
+          tone={knowledgePercent >= techniquePercent ? "danger" : undefined}
+        />
+        <StatTile
+          label="Exam technique"
+          value={`${techniquePercent}%`}
+          sub={`${split.techniqueLost} marks lost`}
+          tone={techniquePercent > knowledgePercent ? "review" : undefined}
+        />
+      </div>
+      <div
+        className="mt-4"
+        role="img"
+        aria-label={`Lost marks split: ${knowledgePercent}% knowledge gaps and ${techniquePercent}% exam technique`}
+      >
+        <div className="flex h-2 overflow-hidden rounded-full bg-surface2">
+          {knowledgePercent ? <div className="h-full bg-danger" style={{ width: `${knowledgePercent}%` }} /> : null}
+          {techniquePercent ? <div className="h-full bg-review" style={{ width: `${techniquePercent}%` }} /> : null}
+        </div>
+        <div className="flex justify-between gap-3 mt-1 text-[11px] text-ink3">
+          <span>Knowledge {knowledgePercent}%</span>
+          <span>Technique {techniquePercent}%</span>
+        </div>
+      </div>
+      <p className="text-xs text-ink2 mt-3">{split.narrative}</p>
+      {split.drivers.length ? (
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {split.drivers.map((driver) => (
+            <Pill
+              key={driver}
+              tone={driver === "knowledge-gap" ? "danger" : driver === "exam-technique" || driver === "rushing" ? "review" : "neutral"}
+            >
+              {TECHNIQUE_DRIVER_LABELS[driver] ?? driver}
+            </Pill>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-3 pt-3 border-t border-line flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-ink3">
+          {split.reliable ? "Reliable split from at least eight marked mistakes." : "Early signal — mark more questions to make this split reliable."}
+        </p>
+        <Link href={actionHref}>
+          <Button size="sm">{actionLabel}</Button>
+        </Link>
+      </div>
+    </Panel>
+  );
+}
+
 function TimingBreakdown() {
   const store = useStore();
   const byTiming: Record<string, number> = { ok: 0, rushed: 0, slow: 0, unknown: 0 };

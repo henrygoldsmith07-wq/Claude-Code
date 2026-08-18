@@ -511,8 +511,25 @@ export interface AssessmentInsight {
   repeatedWeakSubtopics: Id[];
   /** Expected marks gained if 1 hour is spent on each listed topic. */
   expectedMarksPerHour: Array<{ topicId: Id; value: number }>;
+  /** Estimated split between lost marks caused by knowledge and exam technique. */
+  techniqueVsKnowledge: TechniqueVsKnowledge;
   /** Item-analysis measurements for questions with enough cohort evidence. */
   questionDiscrimination?: QuestionDiscriminationMeasurement[];
+}
+
+export interface TechniqueVsKnowledge {
+  /** Marks lost on knowledge gaps (recall/method/conceptual + AO1). */
+  knowledgeLost: number;
+  /** Marks lost on exam technique (timing/communication/interpretation + command-word slips). */
+  techniqueLost: number;
+  knowledgeShare: number;
+  techniqueShare: number;
+  totalLost: number;
+  /** Stronger evidence when n ≥ 8 mistakes. */
+  reliable: boolean;
+  narrative: string;
+  /** Top driver tags, for the UI. */
+  drivers: string[];
 }
 
 export type QuestionDiscriminationBand =

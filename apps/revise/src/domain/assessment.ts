@@ -18,6 +18,7 @@ import type {
 import { gradeForPercent } from "./grades";
 import type { Subject } from "./types";
 import { measureQuestionBankDiscrimination } from "./question-discrimination";
+import { techniqueVsKnowledge } from "./retention-analytics";
 
 export const COMMAND_WORDS: CommandWord[] = [
   "state","describe","explain","calculate","show that","suggest","compare","evaluate","discuss","justify","deduce","predict","outline","other",
@@ -135,6 +136,7 @@ export function buildAssessmentInsight(input: {
     marksLostByAo,
     repeatedWeakSubtopics,
     expectedMarksPerHour,
+    techniqueVsKnowledge: techniqueVsKnowledge(input.mistakes),
     questionDiscrimination,
   };
 }

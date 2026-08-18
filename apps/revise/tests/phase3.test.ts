@@ -32,7 +32,7 @@ describe("phase 3 — analytics narratives", () => {
     expect(n.cta).toContain("Enzymes");
   });
   it("assessmentNarrative handles empty insight", () => {
-    const n = assessmentNarrative({ byCommand:{} as never, byMisconception:{} as never, marksLostByTopic:[], marksLostByAo:{}, repeatedWeakSubtopics:[], expectedMarksPerHour:[] }, ()=> "topic");
+    const n = assessmentNarrative({ byCommand:{} as never, byMisconception:{} as never, marksLostByTopic:[], marksLostByAo:{}, repeatedWeakSubtopics:[], expectedMarksPerHour:[], techniqueVsKnowledge: { knowledgeLost: 0, techniqueLost: 0, knowledgeShare: 0, techniqueShare: 0, totalLost: 0, reliable: false, narrative: "", drivers: [] } }, ()=> "topic");
     expect(n.headline).toMatch(/No marks/);
   });
   it("dependencyNarrative returns null when nothing blocked", () => {
