@@ -9,6 +9,7 @@ import {
   validateQuestion,
   withQuestionValidation,
 } from "@/domain/question-validation";
+import { regressionReport } from "@/domain/content-review";
 import type { Question, Topic } from "@/domain/types";
 
 const NOW = new Date("2026-08-18T10:00:00.000Z");
@@ -176,5 +177,15 @@ describe("question validation lifecycle", () => {
     expect(retired.validation?.stage).toBe("retired");
     expect(retired.validation?.history.at(-1)?.from).toBe("validated");
     expect(() => submitQuestionForValidation(retired, [TOPIC], "author", { now: NOW })).toThrow(/Cannot submit/);
+  });
+
+  it("surfaces unfinished validation in the existing regression report", () => {
+    const draft = withQuestionValidation(
+      question(),
+      createQuestionValidation(question(), { now: NOW }),
+    );
+    const report = regressionReport({ topics: [TOPIC], questions: [draft], today: "2026-08-18" });
+
+    expect(report.flags).toContainEqual(expect.objectContaining({ kind: "question-validation", id: draft.id }));
   });
 });
