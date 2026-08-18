@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { checkContract } from "../src/connectors/sdk.js";
 import {
   createHabitConnector,
+  createHabitSameOriginConnector,
   createHabitSupabaseConnector,
   mapHabitRecord,
   selectHabitRecords,
@@ -157,6 +158,65 @@ describe("selectHabitRecords - Supabase rows to day records", () => {
   it("returns nothing for an unrecognised shape rather than throwing", () => {
     expect(selectHabitRecords({ wrong: true }, "2025-06-11")).toEqual([]);
     expect(selectHabitRecords(null, "2025-06-11")).toEqual([]);
+  });
+});
+
+describe("habit same-origin connector", () => {
+  // The app mirrors its Supabase rows into localStorage under this shape, so
+  // Pulse can connect without needing the project's credentials.
+  const mirrorState = {
+    day: "2025-06-10",
+    mirroredAt: "2025-06-10T21:00:00.000Z",
+    habits: [
+      {
+        id: "h1",
+        name: "Read 20 pages",
+        target_per_week: 3,
+        colour: "#6366f1",
+        sort_order: 0,
+        archived: false,
+        created_at: "2025-06-01T09:00:00Z",
+      },
+    ],
+    checkins: [
+      { id: "c1", habit_id: "h1", day: "2025-06-02", completed: true, created_at: "2025-06-02T20:00:00Z" },
+      { id: "c2", habit_id: "h1", day: "2025-06-05", completed: true, created_at: "2025-06-05T20:10:00Z" },
+    ],
+  };
+
+  it("reads the app's mirror and synthesises completed + missed days", async () => {
+    const seen: string[] = [];
+    const storage = {
+      getItem(key: string) {
+        seen.push(key);
+        return key === "habit-tracker-state-v1" ? JSON.stringify(mirrorState) : null;
+      },
+    };
+    const connector = createHabitSameOriginConnector({ storage });
+    const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    // Only its own key, never another app's.
+    expect(seen).toEqual(["habit-tracker-state-v1"]);
+    expect(page.records.length).toBeGreaterThan(0);
+    expect(page.records.every((event) => event.source === "habit")).toBe(true);
+    expect(checkContract(connector, page.records)).toEqual([]);
+    // Missed days are synthesised, not just completions.
+    expect(page.records.filter((event) => event.metrics.completed === 0).length).toBeGreaterThan(0);
+  });
+
+  it("never emits today, using the mirror's own day", async () => {
+    const connector = createHabitSameOriginConnector({
+      storage: { getItem: () => JSON.stringify(mirrorState) },
+    });
+    const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    expect(page.records.every((event) => event.occurredAt < "2025-06-10T00:00:00.000Z")).toBe(true);
+  });
+
+  it("reports no data when the mirror is absent", async () => {
+    const connector = createHabitSameOriginConnector({ storage: { getItem: () => null } });
+    const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    expect(page.records).toEqual([]);
+    const health = await connector.healthCheck!();
+    expect(health.status).toBe("failing");
   });
 });
 

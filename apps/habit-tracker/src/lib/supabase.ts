@@ -12,8 +12,9 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { addDays, todayISO } from "./date";
+import { todayISO } from "./date";
 import { bestStreak, completionRate, currentStreak, weekCounts } from "./streaks";
+import { buildLocalMirror, writeLocalMirror } from "./mirror";
 import type { DbCheckin, DbHabit } from "./types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -56,6 +57,9 @@ export interface HabitInput {
 
 export function useHabitData() {
   const [habits, setHabits] = useState<DbHabit[] | null>(null);
+  // The raw check-in rows, kept alongside the derived day-map so the Pulse
+  // mirror can carry timestamps instead of flattening them away.
+  const [checkinRows, setCheckinRows] = useState<DbCheckin[]>([]);
   const [checkins, setCheckins] = useState<Map<string, Set<string>>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
@@ -63,11 +67,10 @@ export function useHabitData() {
     if (!supabase) return;
     const [habitResult, checkinResult] = await Promise.all([
       supabase.from("habits").select("*").order("sort_order", { ascending: true }),
-      supabase
-        .from("checkins")
-        .select("*")
-        .gte("day", addDays(todayISO(), -(HISTORY_WEEKS * 7)))
-        .lte("day", todayISO()),
+      // The whole log, not a recent window: the history table slices its own
+      // eight weeks in the memo below, but the Pulse mirror and the all-time
+      // best streak need every day that was ever checked off.
+      supabase.from("checkins").select("*").order("day", { ascending: true }),
     ]);
     if (habitResult.error) {
       setError(habitResult.error.message);
@@ -77,12 +80,14 @@ export function useHabitData() {
       setError(checkinResult.error.message);
       return;
     }
+    const rows = checkinResult.data as DbCheckin[];
     const byHabit = new Map<string, Set<string>>();
-    for (const row of checkinResult.data as DbCheckin[]) {
+    for (const row of rows) {
       if (!byHabit.has(row.habit_id)) byHabit.set(row.habit_id, new Set());
       if (row.completed) byHabit.get(row.habit_id)!.add(row.day);
     }
     setHabits(habitResult.data as DbHabit[]);
+    setCheckinRows(rows);
     setCheckins(byHabit);
     setError(null);
   }, []);
@@ -92,6 +97,13 @@ export function useHabitData() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
+
+  // Mirror every loaded state into localStorage for Pulse's same-origin
+  // connector, so Pulse can connect without this project's credentials.
+  useEffect(() => {
+    if (habits === null) return;
+    writeLocalMirror(buildLocalMirror(habits, checkinRows, todayISO()));
+  }, [habits, checkinRows]);
 
   /** Optimistically flips today's check-in, then persists; reverts on failure. */
   const toggle = useCallback(
@@ -103,6 +115,20 @@ export function useHabitData() {
         else days.delete(day);
         next.set(habitId, days);
         return next;
+      });
+      setCheckinRows((current) => {
+        const without = current.filter((row) => !(row.habit_id === habitId && row.day === day));
+        if (!completed) return without;
+        return [
+          ...without,
+          {
+            id: `${habitId}:${day}`,
+            habit_id: habitId,
+            day,
+            completed: true,
+            created_at: new Date().toISOString(),
+          },
+        ];
       });
       if (!supabase) return;
       if (completed) {
@@ -196,6 +222,7 @@ export function useHabitData() {
       next.delete(id);
       return next;
     });
+    setCheckinRows((current) => current.filter((row) => row.habit_id !== id));
   }, []);
 
   const views: HabitView[] = useMemo(() => {

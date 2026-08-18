@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { checkContract } from "../src/connectors/sdk.js";
 import { createForqSameOriginConnector, mapForqRecord } from "../src/connectors/forq.js";
 import { createFrenchSameOriginConnector, mapFrenchRecord } from "../src/connectors/french.js";
+import { createHabitSameOriginConnector } from "../src/connectors/habit.js";
 import { createRapportSameOriginConnector, mapRapportRecord } from "../src/connectors/rapport.js";
 import { createReviseCloudConnector, mapReviseRecord } from "../src/connectors/revise.js";
 import type { RawEventInput } from "../src/events/normalise.js";
@@ -36,6 +37,15 @@ const rapportHistory = sourceEnvelope("rapport", [
   { kind: "drill", id: "d1", startedAt: "2026-08-16T18:00:00.000Z", durationMs: 300_000, skillId: "listening", score: 0.8 },
   { kind: "challenge", id: "c1", completedAt: "2026-08-16T19:00:00.000Z", skillId: "assertiveness", completed: true, comfort: 4 },
 ]);
+
+const habitMirror = {
+  day: "2026-08-17",
+  mirroredAt: "2026-08-17T12:00:00.000Z",
+  habits: [
+    { id: "h1", name: "Read", target_per_week: 3, colour: "#6366f1", sort_order: 0, archived: false, created_at: "2026-08-01T09:00:00Z" },
+  ],
+  checkins: [{ id: "c1", habit_id: "h1", day: "2026-08-10", completed: true, created_at: "2026-08-10T20:00:00Z" }],
+};
 
 const reviseHistory = sourceEnvelope("revise", [
   { kind: "review", id: "rr1", cardId: "card", topicId: "topic", subjectId: "physics", grade: "good", elapsedMs: 1400, reviewedAt: "2026-08-16T20:00:00.000Z" },
@@ -73,6 +83,23 @@ describe("first-party ecosystem connectors", () => {
     expect(first(rapportPage.records).source).toBe("rapport");
   });
 
+  it("reads the Habit mirror the app writes under its own key", async () => {
+    const seen: string[] = [];
+    const habit = createHabitSameOriginConnector({
+      storage: {
+        getItem(key: string) {
+          seen.push(key);
+          return key === "habit-tracker-state-v1" ? JSON.stringify(habitMirror) : null;
+        },
+      },
+    });
+    const page = await habit.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    expect(seen).toEqual(["habit-tracker-state-v1"]);
+    expect(page.records.length).toBeGreaterThan(0);
+    expect(checkContract(habit, page.records)).toEqual([]);
+    expect(first(page.records).source).toBe("habit");
+  });
+
   it("reads Revise cloud history through the same versioned payload", async () => {
     const connector = createReviseCloudConnector({
       endpoint: "https://revise.example.test/api/pulse/history",
@@ -88,7 +115,14 @@ describe("first-party ecosystem connectors", () => {
   });
 
   it("keeps the shared storage keys unique", () => {
-    const keys = ["forq-state-v2", "fp.pulse-history.v2", "rapport.pulse-history.v2", "reflectEntries", "reflectPulseOptIn"];
+    const keys = [
+      "forq-state-v2",
+      "fp.pulse-history.v2",
+      "rapport.pulse-history.v2",
+      "habit-tracker-state-v1",
+      "reflectEntries",
+      "reflectPulseOptIn",
+    ];
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys.filter((key) => key.startsWith("fp.") || key.startsWith("rapport.")).every((key) => /\.v\d+$/.test(key))).toBe(true);
   });
