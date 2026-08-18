@@ -21,6 +21,23 @@ import { calibrateDifficulty, traceQuestions } from "@/domain/knowledge-tracing"
 import type { DifficultyCalibrationReport, QuestionTrace } from "@/domain/knowledge-tracing";
 import { calculateCalculationMastery } from "@/domain/calculation-mastery";
 import type { CalculationMasteryReport } from "@/domain/calculation-mastery";
+import {
+  adaptiveDifficultyCalibration,
+  buildPredictionOutcomePairs,
+  predictionOutcomeReport,
+  sparseEvidenceConfidence as buildSparseEvidenceConfidence,
+} from "@/domain/learning-controls";
+import type {
+  AdaptiveDifficultyReport,
+  PredictionOutcomeReport,
+  SparseEvidenceConfidenceReport,
+} from "@/domain/learning-controls";
+import { questionExposureReport } from "@/domain/question-exposure";
+import type { QuestionExposureReport } from "@/domain/question-exposure";
+import { rootPrerequisiteRemediation as buildRootPrerequisiteRemediation } from "@/domain/prerequisites";
+import type { RootPrerequisiteRemediation } from "@/domain/prerequisites";
+import { validateFsrs } from "@/domain/fsrs-tuning";
+import type { FsrsValidation } from "@/domain/fsrs-tuning";
 import type {
   AssessmentInsight,
   Attempt,
@@ -85,6 +102,12 @@ interface StoreValue extends Snapshot {
   questionTraces: QuestionTrace[];
   difficultyCalibration: DifficultyCalibrationReport;
   calculationMastery: CalculationMasteryReport;
+  sparseEvidenceConfidence: SparseEvidenceConfidenceReport;
+  predictionOutcome: PredictionOutcomeReport;
+  adaptiveDifficulty: AdaptiveDifficultyReport;
+  forgettingCalibration: FsrsValidation;
+  questionExposure: QuestionExposureReport;
+  rootPrerequisiteRemediation: RootPrerequisiteRemediation[];
   revisionCheckpoint: RevisionCheckpoint | null;
   syncStatus: SyncStatus;
   /** Build a paper simulation for the given subject/paper without mutating state. */
@@ -259,11 +282,41 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       mistakes: snapshot.mistakes,
     });
   }, [snapshot]);
+  const sparseEvidenceConfidence = useMemo(() => {
+    if (!snapshot) return buildSparseEvidenceConfidence({ topics: [], mastery: [], cards: [], attempts: [], mistakes: [] });
+    return buildSparseEvidenceConfidence({
+      topics,
+      mastery,
+      cards: snapshot.cards,
+      attempts: snapshot.attempts,
+      mistakes: snapshot.mistakes,
+    });
+  }, [snapshot, topics, mastery]);
+  const predictionOutcome = useMemo(() => {
+    if (!snapshot) return predictionOutcomeReport([]);
+    return predictionOutcomeReport(buildPredictionOutcomePairs({ attempts: snapshot.attempts, questions: snapshot.questions }));
+  }, [snapshot]);
+  const adaptiveDifficulty = useMemo(() => {
+    if (!snapshot) return adaptiveDifficultyCalibration({ questions: [], traces: [] });
+    return adaptiveDifficultyCalibration({ questions: snapshot.questions, traces: questionTraces });
+  }, [snapshot, questionTraces]);
+  const forgettingCalibration = useMemo(
+    () => validateFsrs({ cards: snapshot?.cards ?? [], logs: snapshot?.reviewLogs ?? [] }),
+    [snapshot],
+  );
+  const questionExposure = useMemo(() => {
+    if (!snapshot) return questionExposureReport({ questions: [], attempts: [] });
+    return questionExposureReport({ questions: snapshot.questions, attempts: snapshot.attempts });
+  }, [snapshot]);
 
   const marksPerHour = useMemo(() => {
     if (!assessment) return new Map<Id, number>();
     return new Map(assessment.expectedMarksPerHour.map((r) => [r.topicId, r.value] as const));
   }, [assessment]);
+  const rootPrerequisiteRemediation = useMemo(
+    () => buildRootPrerequisiteRemediation({ topics, mastery, marksPerHour }),
+    [topics, mastery, marksPerHour],
+  );
 
   // Calibration per subject from paper-mode attempts: predicted vs actual.
   // Paper attempts are the only ones with a stable "total marks" denominator.
@@ -616,6 +669,12 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       questionTraces,
       difficultyCalibration,
       calculationMastery,
+      sparseEvidenceConfidence,
+      predictionOutcome,
+      adaptiveDifficulty,
+      forgettingCalibration,
+      questionExposure,
+      rootPrerequisiteRemediation,
       revisionCheckpoint,
       previewPaper,
       syncStatus,
@@ -652,6 +711,12 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     questionTraces,
     difficultyCalibration,
     calculationMastery,
+    sparseEvidenceConfidence,
+    predictionOutcome,
+    adaptiveDifficulty,
+    forgettingCalibration,
+    questionExposure,
+    rootPrerequisiteRemediation,
     revisionCheckpoint,
     previewPaper,
     syncStatus,

@@ -15,6 +15,7 @@ import { RichText } from "@/components/RichText";
 import { CalculationMasteryCard, CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard } from "@/components/AssessmentPanels";
 import { CoverageCard } from "@/components/CoverageCard";
 import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
+import { LearningControlsCard } from "@/components/LearningControlsCard";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
 
 // Analytics that answer one question — where are the marks? — rather than
@@ -335,6 +336,7 @@ export default function ProgressPage() {
         <ExpectedMarksCard />
         <MarksLostByCause />
         <CalculationMasteryCard />
+        <LearningControlsCard />
         <DifficultyAndSubtopics />
         <PaperSimulationCard />
         <CalibrationCard />

@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { remediationForMistake } from "@/domain/remediation";
+import { rankQuestionsForExposure } from "@/domain/question-exposure";
 import type { Mistake, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { QuestionRunner } from "@/components/QuestionRunner";
@@ -88,17 +89,13 @@ function Practice() {
       if (subject) pool = pool.filter((q) => q.subjectId === subject);
       if (topic) pool = pool.filter((q) => q.topicIds.includes(topic));
     }
-    // Unseen questions first, then weakest topic. Re-doing a question you have
-    // already marked teaches recall of the answer, not of the content.
-    const attempted = new Set(store.attempts.map((a) => a.questionId));
-    return [...pool]
-      .sort((a, b) => {
-        const seen = Number(attempted.has(a.id)) - Number(attempted.has(b.id));
-        if (seen !== 0) return seen;
-        const masteryA = masteryByTopic.get(a.topicIds[0] ?? "")?.mastery ?? 0.5;
-        const masteryB = masteryByTopic.get(b.topicIds[0] ?? "")?.mastery ?? 0.5;
-        return masteryA - masteryB;
-      })
+    // Exposure control keeps unseen questions ahead of secure repeats, while
+    // still allowing weak questions back into the queue when they need work.
+    return rankQuestionsForExposure({
+      questions: pool,
+      attempts: store.attempts,
+      masteryByTopic: new Map([...masteryByTopic.entries()].map(([id, row]) => [id, row.mastery])),
+    })
       .map((q) => q.id);
   };
 
