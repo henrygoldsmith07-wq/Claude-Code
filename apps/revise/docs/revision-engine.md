@@ -58,6 +58,23 @@ test pins this.
 evidence behind it. Topics with no evidence are routed to a first-pass "learn"
 activity instead of remediation, which is a different thing to do.
 
+### Recall mastery
+
+`src/domain/recall-mastery.ts`
+
+Recall mastery is the recall-only companion to topic mastery. It deliberately
+ignores exam-question attempts and reports each topic's card strength as:
+
+```
+recall mastery = stability score · 0.6 + current FSRS retrievability · 0.4
+```
+
+The same row also reports observed true retention (`again` vs every other
+grade), due cards, review count and evidence level (`unmeasured`, `emerging`,
+`reliable` at 20 reviews). `/progress` shows the weighted overall score and
+the topics that need retrieval, while keeping modelled mastery separate from
+observed recall.
+
 ## 3. Recommendation
 
 `src/domain/recommender.ts` — technical documentation for the recommendation engine.

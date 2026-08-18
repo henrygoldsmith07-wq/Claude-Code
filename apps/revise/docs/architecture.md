@@ -42,6 +42,9 @@ lives:
 - `mastery.ts` turns raw history into a 0–1 number per topic, damped by how much
   evidence exists. Unmeasured is reported as zero, never as a prior — a topic
   the student has never opened must not inflate a predicted grade.
+- `recall-mastery.ts` keeps a recall-only score separate from exam performance,
+  combining card stability and current FSRS retrievability, while exposing
+  observed review outcomes and due-card pressure for `/progress`.
 - `recommender.ts` scores every candidate activity on a single scale so they can
   be compared, and attaches a human-readable reason to each.
 - `planner.ts` builds the timetable and folds missed sessions forward.
