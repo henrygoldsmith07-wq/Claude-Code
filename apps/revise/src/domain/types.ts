@@ -363,6 +363,8 @@ export interface Mistake {
   command?: CommandWord;
   /** Fine-grained misconception tag. */
   misconception?: MisconceptionTag;
+  /** Id of the specific misconception-library entry this mistake matched, when one did. */
+  misconceptionEntryId?: Id;
   /** AO this mistake belongs to. */
   ao?: AoCode;
   /** Difficulty of the question/part where the mark was lost. */

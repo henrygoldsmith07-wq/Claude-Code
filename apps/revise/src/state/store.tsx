@@ -3,10 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { allSubjects, allTopics, getSubject } from "@/domain/curriculum";
+import { misconceptionsForTopic, seedMisconceptions } from "@/content";
 import { predictGrade } from "@/domain/grades";
 import type { GradePrediction } from "@/domain/grades";
 import { computeTopicMastery } from "@/domain/mastery";
 import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
+import { tallyMisconceptions, type MisconceptionTally } from "@/domain/misconception-library";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
 import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
@@ -69,6 +71,8 @@ interface StoreValue extends Snapshot {
   assessment: AssessmentInsight | null;
   /** Expected exam marks gained per study hour, keyed by topic. The metric the brief asks for. */
   marksPerHour: Map<Id, number>;
+  /** Misconception-library entries the student keeps hitting, most frequent first. */
+  recurringMisconceptions: MisconceptionTally[];
   calibrations: Map<Id, Calibration>;
   responseTimeCalibration: ResponseTimeCalibrationReport;
   syncStatus: SyncStatus;
@@ -223,6 +227,11 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     return new Map(assessment.expectedMarksPerHour.map((r) => [r.topicId, r.value] as const));
   }, [assessment]);
 
+  const recurringMisconceptions = useMemo(
+    () => (snapshot ? tallyMisconceptions(snapshot.mistakes, seedMisconceptions) : []),
+    [snapshot],
+  );
+
   // Calibration per subject from paper-mode attempts: predicted vs actual.
   // Paper attempts are the only ones with a stable "total marks" denominator.
   const calibrations = useMemo(() => {
@@ -375,7 +384,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
   const recordAttempt = useCallback<StoreValue["recordAttempt"]>(
     async (attempt, question) => {
       await repo.saveAttempt(attempt);
-      const drafts = mistakesFromAttempt(attempt, question);
+      const misconceptions = [...new Set(question.topicIds.flatMap((id) => misconceptionsForTopic(id)))];
+      const drafts = mistakesFromAttempt(attempt, question, undefined, undefined, misconceptions);
       if (drafts.length) {
         await repo.saveMistakes(drafts.map((d) => d.mistake));
         await repo.saveCards(drafts.map((d) => d.card));
@@ -548,6 +558,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       dueCards,
       assessment,
       marksPerHour,
+      recurringMisconceptions,
       calibrations,
       responseTimeCalibration,
       previewPaper,
@@ -579,6 +590,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     dueCards,
     assessment,
     marksPerHour,
+    recurringMisconceptions,
     calibrations,
     responseTimeCalibration,
     previewPaper,

@@ -1,5 +1,5 @@
 import { tokenise } from "./marking";
-import type { Misconception } from "./types";
+import type { Id, Misconception } from "./types";
 
 // Deterministic matching between a student's evidence and the misconception
 // library. Pure: the caller supplies the entries, so the engine stays
@@ -9,6 +9,34 @@ export interface MisconceptionMatch {
   entry: Misconception;
   /** 0–1 — how strongly the evidence carries this entry's tell-tale tokens. */
   score: number;
+}
+
+/** One entry's cumulative per-student tally, for the Progress view. */
+export interface MisconceptionTally {
+  entry: Misconception;
+  /** How many mistakes matched this entry. */
+  count: number;
+}
+
+/**
+ * Aggregate mistakes by the misconception-library entry they matched, most
+ * frequent first. Mistakes without a match (or with an id that no longer
+ * exists in the library) are ignored, so the tally always names a real entry.
+ */
+export function tallyMisconceptions(
+  mistakes: ReadonlyArray<{ misconceptionEntryId?: Id }>,
+  entries: readonly Misconception[],
+): MisconceptionTally[] {
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  const counts = new Map<Id, number>();
+  for (const m of mistakes) {
+    if (!m.misconceptionEntryId) continue;
+    counts.set(m.misconceptionEntryId, (counts.get(m.misconceptionEntryId) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([id, count]) => ({ entry: byId.get(id), count }))
+    .filter((r): r is MisconceptionTally => Boolean(r.entry))
+    .sort((a, b) => b.count - a.count);
 }
 
 /** Fraction of the pattern's content tokens that appear in the evidence, 0–1. */
