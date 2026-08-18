@@ -126,6 +126,10 @@ export interface CalendarConflict {
   sameMetric: boolean;
   /** The target metrics involved, deduped and sorted — the flag above in detail. */
   metricIds: string[];
+  /** True when two overlapping experiments assign conditions in the same behaviour slot that day (P1 #9). */
+  mutuallyExclusive: boolean;
+  /** The colliding behaviour slots, deduped and sorted — the flag above in detail. */
+  behaviourSlots: string[];
 }
 
 /**
@@ -138,6 +142,23 @@ export interface SameMetricOverlap {
   title: string;
   startDate: string;
   endDate: string;
+}
+
+/**
+ * An existing experiment whose assigned conditions collide with the
+ * candidate's in a behaviour slot on a shared day — the mutually-exclusive
+ * tier of P1 #9. The two conditions cannot both be followed, even when the
+ * experiments measure different metrics.
+ */
+export interface MutuallyExclusiveOverlap {
+  designId: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  /** The behaviour slot the two conditions share. */
+  slot: string;
+  /** The first date both assign a condition in that slot. */
+  date: string;
 }
 
 /**
@@ -170,6 +191,60 @@ export function findSameMetricOverlaps(
 }
 
 /**
+ * Finds existing experiments whose conditions collide with the candidate's
+ * in a behaviour slot on a shared day — the mutually-exclusive tier of P1
+ * #9. Same-metric overlap is blocked separately; this blocks the clash that
+ * survives different metrics: two conditions in the same slot (a morning
+ * routine, caffeine, a sleep window) cannot both be followed on one day.
+ *
+ * Only *assigned* days count: a washout or baseline day assigns no
+ * condition, so it can never collide. A condition without a `behaviour`
+ * slot is skipped — exclusivity is asserted by the author, never inferred
+ * from the instruction text.
+ */
+export function findMutuallyExclusiveOverlaps(
+  existing: readonly ExperimentDesign[],
+  candidate: ExperimentDesign,
+): MutuallyExclusiveOverlap[] {
+  // Candidate's assigned days -> the slot the assigned condition occupies.
+  const candidateByDate = new Map<string, string>();
+  for (const assignment of candidate.assignments) {
+    if (assignment.condition === null) continue;
+    const slot =
+      assignment.condition === "A" ? candidate.conditionA.behaviour : candidate.conditionB.behaviour;
+    if (slot) candidateByDate.set(assignment.date, slot);
+  }
+  if (candidateByDate.size === 0) return [];
+
+  const overlaps: MutuallyExclusiveOverlap[] = [];
+  for (const design of existing) {
+    if (design.id === candidate.id) continue;
+    let first: { slot: string; date: string } | null = null;
+    for (const [date, slot] of candidateByDate) {
+      if (date < design.startDate || date > design.endDate) continue;
+      const condition = conditionForDateFrom(design.assignments, date);
+      const existingSlot =
+        condition === "A" ? design.conditionA.behaviour : condition === "B" ? design.conditionB.behaviour : null;
+      if (existingSlot && existingSlot === slot) {
+        first = { slot, date };
+        break;
+      }
+    }
+    if (first) {
+      overlaps.push({
+        designId: design.id,
+        title: design.title,
+        startDate: design.startDate,
+        endDate: design.endDate,
+        slot: first.slot,
+        date: first.date,
+      });
+    }
+  }
+  return overlaps;
+}
+
+/**
  * Thrown when a proposed experiment overlaps a live same-metric run. Carries
  * the structured details so the UI can render them; the message is the
  * human-readable form.
@@ -191,6 +266,37 @@ export class ExperimentConflictError extends Error {
     this.name = "ExperimentConflictError";
     this.candidateId = candidate.id;
     this.targetMetricId = candidate.targetMetricId;
+    this.conflicts = conflicts;
+  }
+}
+
+/**
+ * Thrown when a proposed experiment assigns a condition in the same
+ * behaviour slot as a live run on a shared day (P1 #9, mutually-exclusive
+ * tier) — the two conditions cannot both be followed, even on different
+ * metrics. Carries the structured details; the message names the slot, the
+ * first colliding day and the blocking experiments.
+ */
+export class MutuallyExclusiveConflictError extends Error {
+  readonly candidateId: string;
+  readonly slot: string;
+  readonly conflicts: MutuallyExclusiveOverlap[];
+
+  constructor(candidate: ExperimentDesign, conflicts: MutuallyExclusiveOverlap[]) {
+    const slots = [...new Set(conflicts.map((overlap) => overlap.slot))].sort().join(", ");
+    const firstDate = conflicts.map((overlap) => overlap.date).sort()[0]!;
+    const names = conflicts
+      .map((overlap) => `"${overlap.title}" (${overlap.designId}, ${overlap.startDate}..${overlap.endDate})`)
+      .join(", ");
+    super(
+      `Cannot start "${candidate.title}": on ${firstDate} it assigns a condition in the behaviour slot "${slots}", ` +
+        `which ${conflicts.length === 1 ? "an overlapping experiment" : "overlapping experiments"} ` +
+        `(${names}) also ${conflicts.length === 1 ? "assigns" : "assign"} that day — the two conditions cannot ` +
+        `both be followed. Change the slot or shift the dates before proposing again.`,
+    );
+    this.name = "MutuallyExclusiveConflictError";
+    this.candidateId = candidate.id;
+    this.slot = slots;
     this.conflicts = conflicts;
   }
 }
@@ -304,15 +410,24 @@ function buildConflicts(
 ): CalendarConflict[] {
   if (designs.length < 2) return [];
 
-  const byDate = new Map<string, { experimentIds: string[]; titles: string[]; metricIds: string[] }>();
+  const byDate = new Map<string, { experimentIds: string[]; titles: string[]; metricIds: string[]; behaviours: (string | null)[] }>();
   for (const design of designs) {
     const assignments = extendedByDesign.get(design.id) ?? design.assignments;
     for (const assignment of assignments) {
       if (assignment.date < today) continue;
-      const entry = byDate.get(assignment.date) ?? { experimentIds: [], titles: [], metricIds: [] };
+      const entry = byDate.get(assignment.date) ?? { experimentIds: [], titles: [], metricIds: [], behaviours: [] };
       entry.experimentIds.push(design.id);
       entry.titles.push(design.title);
       entry.metricIds.push(...outcomeMetricIds(design));
+      // The behaviour slot of the condition assigned this day, or null when
+      // no condition applies (washout/baseline) or none is declared.
+      entry.behaviours.push(
+        assignment.condition === "A"
+          ? design.conditionA.behaviour ?? null
+          : assignment.condition === "B"
+            ? design.conditionB.behaviour ?? null
+            : null,
+      );
       byDate.set(assignment.date, entry);
     }
   }
@@ -323,12 +438,24 @@ function buildConflicts(
     if (date > horizon) continue;
     if (entry.experimentIds.length < 2) continue;
     const metricIds = [...new Set(entry.metricIds)].sort();
+    // A slot occupied by two different experiments this day is a
+    // mutually-exclusive clash: the two conditions cannot both be followed.
+    const counts = new Map<string, number>();
+    for (const behaviour of entry.behaviours) {
+      if (behaviour) counts.set(behaviour, (counts.get(behaviour) ?? 0) + 1);
+    }
+    const behaviourSlots = [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([slot]) => slot)
+      .sort();
     conflicts.push({
       date,
       experimentIds: entry.experimentIds,
       titles: entry.titles,
       sameMetric: metricIds.length < entry.experimentIds.length,
       metricIds,
+      mutuallyExclusive: behaviourSlots.length > 0,
+      behaviourSlots,
     });
   }
   return conflicts;

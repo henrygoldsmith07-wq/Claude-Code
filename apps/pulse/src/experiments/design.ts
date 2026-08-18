@@ -30,6 +30,16 @@ export interface Condition {
   label: string;
   /** What the user actually does. Must be unambiguous enough to follow. */
   instruction: string;
+  /**
+   * The behaviour slot this condition occupies (P1 #9, mutually-exclusive
+   * tier) — e.g. "morning-routine", "caffeine", "sleep-window". Two live
+   * experiments assigning conditions in the same slot on the same day are a
+   * conflict even when they measure different metrics, because the user
+   * cannot follow both. Asserted by the experiment author — nothing is
+   * inferred from free-text instructions, so a condition without a slot can
+   * never be proven exclusive.
+   */
+  behaviour?: string;
 }
 
 export interface Assignment {
@@ -239,11 +249,15 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     id: "A",
     label: options.conditionA?.label ?? "Intervention",
     instruction: options.conditionA?.instruction ?? `Deliberately do the behaviour under test before each session.`,
+    // Behaviour slot for the mutually-exclusive conflict tier (P1 #9) —
+    // carried through when the author declares one, never inferred.
+    ...(options.conditionA?.behaviour ? { behaviour: options.conditionA.behaviour } : {}),
   };
   const conditionB: Condition = {
     id: "B",
     label: options.conditionB?.label ?? "Control",
     instruction: options.conditionB?.instruction ?? `Keep everything else the same, but do not do the behaviour under test.`,
+    ...(options.conditionB?.behaviour ? { behaviour: options.conditionB.behaviour } : {}),
   };
 
   const assignments = buildAssignments(type, options.startDate, durationDays, blockDays, seed, clampedWashout, clampedBaseline);

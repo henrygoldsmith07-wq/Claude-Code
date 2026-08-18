@@ -139,8 +139,19 @@ time, any experiment whose run range intersects a live run on the same metric.
 experiment, its range and the shared metric; the design is not stored and the
 hypothesis stays `proposed`. Different metrics may still share days, and
 sequential runs on the same metric are unaffected. The UI surfaces the refusal
-in an alert on the insights panel. The mutually-exclusive-behaviour tier
-(same-day conditions that cannot both be followed) remains open.
+in an alert on the insights panel. The mutually-exclusive-behaviour tier is
+also shipped: a condition may declare a `behaviour` slot (a morning routine,
+caffeine, a sleep window), asserted by the author — never inferred from the
+instruction text. `findMutuallyExclusiveOverlaps` in `experiments/calendar.ts`
+refuses any proposal that assigns a condition in the same slot as a live run
+on a shared day, even on a different metric, with `MutuallyExclusiveConflictError`
+naming the slot, the first colliding day and the blocking experiments; the
+replication path inherits the check. The calendar warnings carry a per-date
+`mutuallyExclusive` flag (and the colliding `behaviourSlots`), rendered as
+"cannot both be followed" in the experiments panel, and the design card names
+the slot next to each condition. `tests/mutually-exclusive.test.ts` (16 tests)
+pins the scan, the proposal-time block, the replication inheritance, the error
+message and the calendar flag.
 
 ## Baseline (measured 2026-08-17)
 
@@ -360,10 +371,11 @@ morning routines at once.
 **Risk:** not all overlap is harmful — different metrics can share days.
 Only same-metric and same-time-slot overlap should block.
 
-*Same-metric tier shipped (see Progress): `findSameMetricOverlaps` blocks an
-overlapping proposal at design time. The mutually-exclusive-behaviour tier —
-two conditions that cannot both be followed on the same day, even on
-different metrics — is the remaining half.*
+*Both tiers shipped (see Progress): `findSameMetricOverlaps` blocks an
+overlapping proposal at design time, and `findMutuallyExclusiveOverlaps`
+blocks the same-slot clash — two conditions that cannot both be followed on
+the same day, even on different metrics — when the conditions declare a
+shared `behaviour` slot.*
 
 #### 10. Experiment Calendar Conflict Warnings — **S**
 
