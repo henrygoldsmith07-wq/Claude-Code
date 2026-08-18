@@ -6,6 +6,9 @@
  */
 
 import { Pulse } from "../pulse.js";
+import type { PersistenceAdapter } from "../events/store.js";
+import type { InsightHistoryAdapter } from "../history/insight-history.js";
+import type { CausalLibraryAdapter } from "../hypotheses/library.js";
 import { createArrayReader } from "../connectors/sdk.js";
 import { createReviseConnector, type ReviseRecord } from "../connectors/revise.js";
 import { createAriseConnector, type AriseRecord } from "../connectors/arise.js";
@@ -24,6 +27,12 @@ export interface HarnessOptions extends SyntheticOptions {
   includeWearable?: boolean;
   /** Fixed clock. Defaults to the day after the user's last generated day. */
   nowMs?: number;
+  /** Persistence for the event store, as with PulseOptions. */
+  adapter?: PersistenceAdapter;
+  /** Persistence for the insight history, as with PulseOptions. */
+  historyAdapter?: InsightHistoryAdapter;
+  /** Persistence for the causal hypothesis library, as with PulseOptions. */
+  libraryAdapter?: CausalLibraryAdapter;
 }
 
 export interface Harness {
@@ -86,7 +95,13 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
   // A day after the last generated day, so freshness scoring is not penalised.
   const nowMs = options.nowMs ?? localDayStart(addDays(user.startDate, user.days), user.timezone) + 10 * 3_600_000;
 
-  const pulse = new Pulse({ timezone: user.timezone, now: () => nowMs });
+  const pulse = new Pulse({
+    timezone: user.timezone,
+    now: () => nowMs,
+    adapter: options.adapter,
+    historyAdapter: options.historyAdapter,
+    libraryAdapter: options.libraryAdapter,
+  });
 
   pulse.registerConnector(createReviseConnector(createArrayReader(user.revise, timestampOfRevise)));
   pulse.registerConnector(createAriseConnector(createArrayReader(user.arise, timestampOfArise)));

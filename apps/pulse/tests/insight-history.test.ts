@@ -97,6 +97,23 @@ describe("InsightHistory ledger", () => {
     expect(history.history()[0]!.episodes).toHaveLength(1);
   });
 
+  it("ignores a scan from an earlier session when a reload replays it", async () => {
+    const adapter = createMemoryInsightHistoryAdapter();
+    const first = new InsightHistory(adapter);
+    first.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    first.recordScan(scan("2025-08-01T00:00:00.000Z", [finding({ id: "f2", sampleSize: 70 })]));
+    await first.persist();
+
+    // A reload starts a fresh ledger from the adapter and replays the same
+    // scans (the demo boot does exactly this). The history must not grow.
+    const second = new InsightHistory(adapter);
+    await second.load();
+    second.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    second.recordScan(scan("2025-08-01T00:00:00.000Z", [finding({ id: "f2", sampleSize: 70 })]));
+    expect(second.size()).toBe(2);
+    expect(second.history()[0]!.appearances).toBe(2);
+  });
+
   it("tracks strengthening and weakening as the effect changes across scans", () => {
     const history = new InsightHistory();
     history.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1", sampleSize: 40 })]));

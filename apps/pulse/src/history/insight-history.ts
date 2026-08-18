@@ -110,6 +110,8 @@ const EFFECT_CHANGE_EPSILON = 0.02;
 
 export class InsightHistory {
   private scans: InsightScanRecord[] = [];
+  /** Content hashes of every recorded scan, lazily rebuilt; drives reload-proof dedupe. */
+  private seenHashes: Set<string> | null = null;
   private readonly adapter: InsightHistoryAdapter | null;
 
   constructor(adapter?: InsightHistoryAdapter) {
@@ -121,6 +123,9 @@ export class InsightHistory {
     const snapshot = await this.adapter.load();
     if (snapshot && snapshot.version === HISTORY_VERSION && Array.isArray(snapshot.scans)) {
       this.scans = snapshot.scans;
+      // Restored scans count as already seen, so a reload that replays the
+      // whole boot cannot grow the history.
+      this.seenHashes = null;
     }
   }
 
@@ -130,15 +135,15 @@ export class InsightHistory {
   }
 
   /**
-   * Appends a scan. A scan identical to the previous one is ignored: the
+   * Appends a scan. A scan identical to any earlier one is ignored: the
    * engine is deterministic, so the same data is the same observation, and
    * recording it again would turn the history into churn — the UI rescans on
-   * every render, and none of those re-scans are new evidence.
+   * every render, and a reload that replays the whole boot is re-recording
+   * observations the ledger already holds.
    */
   recordScan(input: RecordScanInput): void {
     const contentHash = contentHashOf(input.eventCount, input.findings);
-    const last = this.scans[this.scans.length - 1];
-    if (last && contentHashOf(last.eventCount, last.findings) === contentHash) return;
+    if (this.hashes().has(contentHash)) return;
 
     this.scans.push({
       at: input.at,
@@ -148,6 +153,7 @@ export class InsightHistory {
       rejected: [...input.rejected],
       totals: { ...input.totals },
     });
+    this.hashes().add(contentHash);
   }
 
   /** The journey of every insight Pulse has ever reported, oldest first. */
@@ -261,7 +267,15 @@ export class InsightHistory {
     }
 
     this.scans = surviving;
+    this.seenHashes = null;
     return before - this.scans.length;
+  }
+
+  private hashes(): Set<string> {
+    if (!this.seenHashes) {
+      this.seenHashes = new Set(this.scans.map((scan) => contentHashOf(scan.eventCount, scan.findings)));
+    }
+    return this.seenHashes;
   }
 
   private findingAt(scanIndex: number, signature: string): Finding {

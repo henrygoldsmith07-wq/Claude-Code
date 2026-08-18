@@ -25,6 +25,11 @@ import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
 import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
 import { InsightCollectionStore, type InsightCollectionsAdapter } from "./history/insight-collections.js";
+import {
+  CausalHypothesisLibrary,
+  type CausalLibraryAdapter,
+  type CausalLibraryEntry,
+} from "./hypotheses/library.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
@@ -48,6 +53,8 @@ export interface PulseOptions {
   historyAdapter?: InsightHistoryAdapter;
   /** Persists user-authored insight collections; without one they live for the process. */
   collectionsAdapter?: InsightCollectionsAdapter;
+  /** Persists the causal hypothesis library; without one it lives for the process. */
+  libraryAdapter?: CausalLibraryAdapter;
   registry?: MetricRegistry;
   now?: () => number;
   /** Expected weekly cadence per source, used by the quality scorer. */
@@ -65,6 +72,7 @@ export class Pulse {
   readonly value: RecommendationValueTracker;
   readonly insightHistory: InsightHistory;
   readonly insightCollections: InsightCollectionStore;
+  readonly causalLibrary: CausalHypothesisLibrary;
   readonly timezone: string;
 
   private readonly connectors = new Map<SourceId, Connector>();
@@ -76,6 +84,8 @@ export class Pulse {
   private readonly expectedCadence: Record<string, number>;
   private readonly authoredClaims = new Map<string, ClaimNode>();
   private cachedFindings: Finding[] = [];
+  private historyPersistQueue: Promise<void> = Promise.resolve();
+  private libraryPersistQueue: Promise<void> = Promise.resolve();
 
   constructor(options: PulseOptions = {}) {
     this.timezone = options.timezone ?? "UTC";
@@ -90,6 +100,7 @@ export class Pulse {
     this.value = new RecommendationValueTracker(this.now);
     this.insightHistory = new InsightHistory(options.historyAdapter);
     this.insightCollections = new InsightCollectionStore(this.now, options.collectionsAdapter);
+    this.causalLibrary = new CausalHypothesisLibrary(options.libraryAdapter);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
@@ -98,6 +109,7 @@ export class Pulse {
     await this.store.load();
     await this.insightHistory.load();
     await this.insightCollections.load();
+    await this.causalLibrary.load();
   }
 
   // --- COLLECT ----------------------------------------------------------
@@ -240,7 +252,40 @@ export class Pulse {
         expectedFalseDiscoveries: report.expectedFalseDiscoveries,
       },
     });
+    this.persistInsightHistory();
     return report;
+  }
+
+  /**
+   * Writes the insight history through a serial queue. Every scan triggers a
+   * persist and encryption is genuinely async, so without the queue two writes
+   * could complete out of order and leave an older snapshot on disk.
+   */
+  private persistInsightHistory(): void {
+    this.historyPersistQueue = this.historyPersistQueue
+      .then(() => this.insightHistory.persist())
+      .catch((error: unknown) => {
+        console.error("Pulse: failed to persist insight history", error);
+      });
+  }
+
+  /**
+   * Lifts a finding into the personal causal hypothesis library. A finding
+   * already cited there is a no-op, so rescans and reloads never duplicate.
+   */
+  promoteFindingToLibrary(finding: Finding): CausalLibraryEntry | null {
+    const entry = this.causalLibrary.addFromFinding(finding);
+    if (entry) this.persistCausalLibrary();
+    return entry;
+  }
+
+  /** Serialised like the history, so racing encrypts cannot leave a stale blob. */
+  private persistCausalLibrary(): void {
+    this.libraryPersistQueue = this.libraryPersistQueue
+      .then(() => this.causalLibrary.persist())
+      .catch((error: unknown) => {
+        console.error("Pulse: failed to persist causal hypothesis library", error);
+      });
   }
 
   findings(): Finding[] {
@@ -328,6 +373,10 @@ export class Pulse {
     if (hypothesis?.originFindingId) {
       this.replication.recordExperimentResult(hypothesis.originFindingId, result.verdict);
     }
+    // And it lands in the causal library under the belief it tested, moving
+    // that belief's standing when the verdict is decisive.
+    this.causalLibrary.recordExperimentResult(result, hypothesis ?? null);
+    this.persistCausalLibrary();
     return result;
   }
 
@@ -469,6 +518,7 @@ export class Pulse {
       recommendationValue: this.value.list(),
       insightHistory: this.insightHistory.snapshot(),
       insightCollections: this.insightCollections.list(),
+      causalLibrary: this.causalLibrary.snapshot(),
     });
   }
 
@@ -483,10 +533,17 @@ export class Pulse {
     const keepFindingIds = new Set(this.cachedFindings.map((finding) => finding.id));
     this.replication.prune(keepFindingIds);
     this.contradictions.prune(keepFindingIds);
+    // A finding built on deleted data is unverifiable; so is its history, and
+    // so is the library evidence it supplied. Drain the queues first so no
+    // in-flight write lands after the prune.
+    await this.historyPersistQueue;
     this.insightCollections.prune(new Set(this.cachedFindings.map((finding) => ReplicationLedger.signature(finding))));
-    // A finding built on deleted data is unverifiable; so is its history.
     this.insightHistory.pruneBySources([source]);
     await this.insightHistory.persist();
+    await this.libraryPersistQueue;
+    this.causalLibrary.pruneEvidence(new Set(report.invalidatedFindings), new Set(report.invalidatedHypotheses));
+    await this.causalLibrary.persist();
+    await this.insightCollections.persist();
     this.syncReports.delete(source);
     return report;
   }

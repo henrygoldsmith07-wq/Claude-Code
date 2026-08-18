@@ -192,18 +192,64 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("shows the insight history with each insight's journey across scans", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.getByRole("heading", { name: "Insight history" })).toBeTruthy();
+    expect(screen.getByText(/tracked across \d+ scan\(s\)/)).toBeTruthy();
+    expect(screen.getAllByText("appeared").length).toBeGreaterThan(0);
+    cleanup();
+  });
+
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(6);
+    expect(tabs.length).toBe(7);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
     expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("heading", { name: "Personal evidence graph" })).toBeTruthy();
 
+    fireEvent.click(screen.getByRole("tab", { name: "Hypothesis library" }));
+    expect(screen.getByRole("tab", { name: "Hypothesis library" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Personal causal hypothesis library" })).toBeTruthy();
+
     fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
     expect(screen.getByRole("tab", { name: "Sources & privacy" }).getAttribute("aria-selected")).toBe("true");
+    cleanup();
+  });
+
+  it("promotes an insight into the causal hypothesis library and adds a belief", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Hypothesis library" }));
+
+    // Every current finding can be promoted in one click.
+    const promoteButtons = screen.getAllByRole("button", { name: "Add to library" });
+    expect(promoteButtons.length).toBeGreaterThan(0);
+    fireEvent.click(promoteButtons[0]!);
+    const entries = screen.getAllByRole("article").filter((node) => node.querySelector(".standing"));
+    expect(entries.length).toBeGreaterThan(0);
+
+    // A belief can be added by hand with the user's own wording.
+    fireEvent.change(screen.getByLabelText(/Statement/), { target: { value: "Coffee after 2pm keeps me up." } });
+    fireEvent.change(screen.getByLabelText(/Cause/), { target: { value: "afternoon coffee" } });
+    fireEvent.change(screen.getByLabelText(/Effect/), { target: { value: "sleep" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save belief" }));
+    expect(screen.getByText("Coffee after 2pm keeps me up.")).toBeTruthy();
+
+    // The belief starts untested and can be marked confirmed by the user.
+    const standingSelects = screen.getAllByLabelText(/Standing/);
+    expect(standingSelects.length).toBeGreaterThan(0);
+    fireEvent.change(standingSelects[standingSelects.length - 1]!, { target: { value: "confirmed" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Update standing" })[standingSelects.length - 1]!);
+    expect(screen.getAllByText("confirmed").length).toBeGreaterThan(0);
+    cleanup();
+  });
+
+  it("has no accessibility violations on the hypothesis library view", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Hypothesis library" }));
+    await expectNoAxeViolations(container);
     cleanup();
   });
 

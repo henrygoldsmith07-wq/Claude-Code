@@ -256,7 +256,7 @@ export function createForqConnector(reader: SourceReader<ForqRecord>): Connector
   return defineReaderConnector<ForqRecord>({
     id: "forq",
     name: "Forq",
-    version: "1.0.0",
+    version: "2.0.0",
     category: "wellbeing",
     description: "Meal logs, macros and daily plan adherence.",
     scopes: SCOPES,

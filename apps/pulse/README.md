@@ -51,8 +51,8 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | `connectors/` | Connector SDK, sync engine (consent, paging, cursors, backfill, health), one module per source, cross-source reconciliation and the connector health dashboard |
 | `quality/` | Five-dimension data-quality scoring that feeds the confidence grade |
 | `metrics/` | Metric registry, curated catalogue, per-event and per-day computation |
-| `timeseries/` | Trend (Theil-Sen + Mann-Kendall), baselines, anomalies, lag analysis, cross-app timeline |
-| `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading |
+| `timeseries/` | Trend (Theil-Sen + Mann-Kendall), context-aware baselines, drift and change points, seasonal adjustment, distributed lag/carryover analysis, cross-app timeline |
+| `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading and P1 safeguards |
 | `discovery/` | Candidate generation, confounder detection and adjustment, the relationship scan |
 | `hypotheses/` | Hypothesis records and their status machine |
 | `experiments/` | Crossover / A-B / before-after design and analysis |
@@ -109,6 +109,29 @@ data is.
    side it was on, and the ledger keeps that conflict auditable and in the
    export until one side's data is gone.
 
+### P1 statistics safeguards
+
+The P1 layer in `statistics/safeguards.ts`, `timeseries/context.ts` and
+`connectors/agreement.ts` makes the remaining failure modes explicit:
+
+- **Personal context and baselines:** travel, illness, school, work and
+  holiday labels; weekday/weekend and seasonal adjustment; context-aware
+  baselines; baseline drift and change-point detection.
+- **Temporal structure:** distributed lag models, carryover detection and
+  autocorrelation-adjusted effective sample sizes. Estimated timestamps carry
+  uncertainty windows, so weak temporal ordering cannot masquerade as a lag.
+- **Robustness:** minimum observation/day thresholds, independent holdout
+  periods, confounder and negative-control sensitivity, outlier sensitivity,
+  effect stability and measurement-error propagation.
+- **Evidence quality:** named BH/Holm/Bonferroni safeguards, reliability
+  weighting and nearest-timestamp cross-source agreement checks. Discovery
+  confidence surfaces serial correlation, unstable effects, low reliability and
+  uncertain timestamps as limitations.
+
+All primitives are deterministic and operate on local arrays or event
+metadata. They do not send data to a server or make a causal claim by
+themselves.
+
 ## Experiments
 
 Pulse turns a strong association into a structured experiment: hypothesis,
@@ -141,6 +164,30 @@ findings, hypotheses and experiment results, and can be authored directly via
 `pulse.recordClaim(...)` — the engine labels each so the two can never be
 confused.
 
+## Personal causal hypothesis library
+
+Pulse's findings answer "what is true?" and its experiments answer "what is
+causal?" — but neither is the user's own record of what they believe. The
+library is that record: beliefs the user holds about what changes what, each
+with a standing — untested → plausible → strengthening → confirmed or refuted —
+that follows the evidence filed under it. Findings are promoted in one click
+from the Insights tab (the finding becomes the belief's first evidence), and an
+analysed experiment moves the standing when its verdict is decisive. The user
+can override any standing; only "retired" is sticky. Beliefs, evidence and
+standing history are scrubbed when a source that supplied them is deleted, and
+persist at rest through the same encrypted adapter as the event store.
+
+## Persistent insight history
+
+Every discovery scan is a point-in-time photograph of what the engine believes;
+the history ledger keeps each one and matches insights across scans by the
+relationship they describe, so the Insights tab shows each insight's journey —
+appeared, strengthened, weakened, disappeared (with the scan's own rejection
+reason) — rather than only its current state. Identical rescans are ignored, so
+the history records change, not churn, and it survives reloads: scans are
+written through an encrypted adapter and restored by `pulse.load()` before the
+boot replays them.
+
 ## AI boundary
 
 AI is used for explanation, summarisation, natural-language querying and
@@ -165,6 +212,8 @@ configured.
   that depended on it are invalidated with it.
 - Full export in JSON, NDJSON or CSV. Free text never enters the analytic path.
 - Optional AES-GCM encryption at rest with a PBKDF2-derived key.
+- The event store, insight history and causal hypothesis library persist
+  through the same encrypted adapter and survive reloads via `pulse.load()`.
 - Telemetry carries shapes and counts only, enforced by a whitelist and a
   redaction assertion.
 

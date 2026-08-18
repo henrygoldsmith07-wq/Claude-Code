@@ -290,7 +290,7 @@ export default function BudgetPanel() {
             className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-40"
             style={{ borderColor: 'var(--line)' }}
           >
-            <span className="inline-flex items-center gap-1.5"><Plus size={14} /> Add £ target</span>
+            <span className="inline-flex items-center gap-1.5"><Plus size={14} /> Add price alert</span>
           </button>
           {app.priceAlertStatus.map((alert) => (
             <div key={alert.id} className="flex items-center gap-3 border-t pt-2.5" style={{ borderColor: 'var(--line)' }}>
