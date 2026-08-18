@@ -167,6 +167,12 @@ test("walks the whole evidence loop with the keyboard alone", async ({ page }) =
   await expect(page.getByRole("tab", { name: "Insights" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".finding--highlight")).toBeVisible();
 
+  // The scan survives the drill-in: return to it via the back-to-scan pill.
+  await page.getByRole("button", { name: /Back to scan/ }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".scan-detail")).toBeVisible();
+
   // Return to the exact query that started the journey.
   await page.getByRole("button", { name: /Back to search/ }).focus();
   await page.keyboard.press("Enter");

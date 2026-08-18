@@ -435,6 +435,43 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("returns from a scan drill-in to the scan via the back-to-scan pill", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
+
+    // Drill into a finding from the scan card: the scan stays reachable, so
+    // the way back is offered on the landing tab.
+    const scanFinding = pulse.insightHistory.listScans()[0]!.findings[0]!;
+    fireEvent.click(screen.getByRole("button", { name: scanFinding.title }));
+    expect(screen.getByRole("tab", { name: "Insights" }).getAttribute("aria-selected")).toBe("true");
+    await expectNoAxeViolations(container);
+
+    // The pill names the scan and returns to it: card open again, flashed.
+    const back = screen.getByRole("button", { name: /Back to scan/ });
+    expect(back.textContent).toContain("scan-");
+    fireEvent.click(back);
+
+    expect(screen.getByRole("tab", { name: "History" }).getAttribute("aria-selected")).toBe("true");
+    const card = document.querySelector(".scan-detail");
+    expect(card).not.toBeNull();
+    expect(card!.className).toContain("scan--highlight");
+    expect(scrollIntoView).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("offers no back-to-scan affordance before a scan is opened", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.queryByRole("button", { name: /Back to scan/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.queryByRole("button", { name: /Back to scan/ })).toBeNull();
+    cleanup();
+  });
+
   it("jumps from a finding hit to its full card on the Insights tab", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;

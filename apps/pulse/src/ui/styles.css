@@ -316,7 +316,21 @@ h4 {
   padding-left: 0.6rem;
 }
 
-.back-to-search {
+.destination-bar {
+  /* Sticky: a deep link lands scrolled to the destination card, and the
+     way back must still be in view. The pills share the bar so both can
+     be active at once (a search journey and a scan journey). */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 0.75rem;
+  z-index: 10;
+}
+
+.back-to-search,
+.back-to-scan {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -324,16 +338,11 @@ h4 {
   cursor: pointer;
   font: inherit;
   font-size: 0.85rem;
-  margin-bottom: 1rem;
   padding: 0.3rem 0.8rem;
-  /* Sticky: a deep link lands scrolled to the destination card, and the
-     way back must still be in view. */
-  position: sticky;
-  top: 0.75rem;
-  z-index: 10;
 }
 
-.back-to-search:hover {
+.back-to-search:hover,
+.back-to-scan:hover {
   border-color: var(--accent);
   color: var(--accent);
 }

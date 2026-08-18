@@ -53,17 +53,20 @@ export function App({ pulse }: AppProps): React.JSX.Element {
     | null
   >(null);
 
-  // The scan card opened from a rejection stays on the History tab until the
-  // user leaves it or opens another destination — only the flash is transient.
+  // The scan card opened from a rejection is a journey: it survives leaving
+  // the History tab so a drill-in to a finding can return via the
+  // back-to-scan pill — only the flash is transient.
   const [openScan, setOpenScan] = useState<{ scanId: string; reason: string } | null>(null);
 
   const onOpenFinding = useCallback((findingId: string) => {
-    setOpenScan(null);
+    // The drill-in keeps the scan journey open: the back-to-scan pill is the
+    // way back from the finding card to the scan that contained it.
     setFocusRequest({ destination: "insights", findingId, at: Date.now() });
     setTab("insights");
   }, []);
 
   const onOpenHistory = useCallback((signature: string) => {
+    // Opening a journey replaces the scan context — one destination at a time.
     setOpenScan(null);
     setFocusRequest({ destination: "history", signature, at: Date.now() });
     setTab("history");
@@ -75,12 +78,6 @@ export function App({ pulse }: AppProps): React.JSX.Element {
     setTab("history");
   }, []);
 
-  // Leaving the History tab closes the open scan; opening another destination
-  // clears it too (above), so the card never lingers out of context.
-  useEffect(() => {
-    if (tab !== "history") setOpenScan(null);
-  }, [tab]);
-
   // The evidence search is lifted so it survives tab switches: a deep link
   // from a result can return to the exact query that started the journey.
   const [searchInput, setSearchInput] = useState("");
@@ -88,6 +85,9 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const submitSearch = useCallback((value: string) => {
     setSearchInput(value);
     setSearchSubmitted(value);
+    // A new query starts a new journey: the previous scan is no longer the
+    // destination a back-to-scan pill should return to.
+    setOpenScan(null);
   }, []);
 
   // The tab switch above happened; now bring the target into view and let the
@@ -158,6 +158,12 @@ export function App({ pulse }: AppProps): React.JSX.Element {
     [brief.weekEnd, pulse, refresh],
   );
 
+  // The destination pills mirror each other: whichever journey is active and
+  // you are not currently on shows its way back. Both can be active at once
+  // (search "sleep" → scan → finding), so they share a sticky bar.
+  const backToSearchVisible = searchSubmitted !== "" && tab !== "evidence";
+  const backToScanVisible = openScan !== null && tab !== "history";
+
   return (
     <div className="app">
       <header className="app__header">
@@ -189,17 +195,30 @@ export function App({ pulse }: AppProps): React.JSX.Element {
       </nav>
 
       <main>
-        {searchSubmitted !== "" && tab !== "evidence" ? (
-          <button
-            type="button"
-            className="back-to-search"
-            onClick={() => {
-              setSearchInput(searchSubmitted);
-              setTab("evidence");
-            }}
-          >
-            ← Back to search: “{searchSubmitted}”
-          </button>
+        {backToSearchVisible || backToScanVisible ? (
+          <div className="destination-bar">
+            {backToSearchVisible ? (
+              <button
+                type="button"
+                className="back-to-search"
+                onClick={() => {
+                  setSearchInput(searchSubmitted);
+                  setTab("evidence");
+                }}
+              >
+                ← Back to search: “{searchSubmitted}”
+              </button>
+            ) : null}
+            {backToScanVisible ? (
+              <button
+                type="button"
+                className="back-to-scan"
+                onClick={() => onOpenScan(openScan!.scanId, openScan!.reason)}
+              >
+                ← Back to scan: {openScan!.scanId}
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {tab === "history" ? (
           <HistoryPanel
