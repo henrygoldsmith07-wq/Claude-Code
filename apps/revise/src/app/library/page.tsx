@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { aiExplain, aiGenerateCards, aiSummarise } from "@/ai/client";
 import type { ExplainResponse } from "@/ai/types";
 import { misconceptionsForTopic } from "@/content";
@@ -33,6 +33,7 @@ function Library() {
   const store = useStore();
   const topicParam = params.get("topic");
   const subjectParam = params.get("subject");
+  const misconceptionParam = params.get("misconception");
 
   const [subjectId, setSubjectId] = useState(
     subjectParam ?? (topicParam ? getTopic(topicParam)?.subjectId : null) ?? subjects[0]?.id ?? "",
@@ -42,7 +43,7 @@ function Library() {
   const topic = topicId ? getTopic(topicId) : null;
 
   if (topic) {
-    return <TopicDetail topic={topic} onBack={() => setTopicId("")} />;
+    return <TopicDetail topic={topic} onBack={() => setTopicId("")} highlightMisconceptionId={misconceptionParam ?? ""} />;
   }
 
   const units = subjectId ? unitsFor(subjectId) : [];
@@ -126,7 +127,15 @@ function Library() {
   );
 }
 
-function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
+function TopicDetail({
+  topic,
+  onBack,
+  highlightMisconceptionId,
+}: {
+  topic: Topic;
+  onBack: () => void;
+  highlightMisconceptionId?: string;
+}) {
   const store = useStore();
   const [explanation, setExplanation] = useState<{
     data: ExplainResponse;
@@ -142,6 +151,10 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
     [store.questions, topic.id],
   );
   const misconceptions = useMemo(() => misconceptionsForTopic(topic.id), [topic.id]);
+  useEffect(() => {
+    if (!highlightMisconceptionId) return;
+    document.getElementById(highlightMisconceptionId)?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [highlightMisconceptionId]);
   const mastery = store.mastery.find((m) => m.topicId === topic.id);
 
   async function explain() {
@@ -272,7 +285,8 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
           />
           <div className="space-y-3">
             {misconceptions.map((misconception) => (
-              <Panel key={misconception.id}>
+              <div key={misconception.id} id={misconception.id} className="scroll-mt-24">
+                <Panel className={highlightMisconceptionId === misconception.id ? "ring-2 ring-accent" : undefined}>
                 <div className="flex flex-wrap items-center gap-2">
                   <Pill tone="danger">Misconception</Pill>
                   {misconception.tag ? <Pill>{misconception.tag}</Pill> : null}
@@ -291,7 +305,8 @@ function TopicDetail({ topic, onBack }: { topic: Topic; onBack: () => void }) {
                   <CreditedIcon size={ICON_SIZE.md} aria-hidden className="shrink-0 mt-0.5 text-success" />
                   <span className="flex-1">{misconception.correction}</span>
                 </p>
-              </Panel>
+                </Panel>
+              </div>
             ))}
           </div>
         </section>

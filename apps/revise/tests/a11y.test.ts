@@ -78,4 +78,11 @@ describe("a11y scaffolding", () => {
     expect(src).toContain("misconceptionEntry.correction");
     expect(src).toContain("planRemediation(");
   });
+  it("misconception search deep-links to the specific entry", async () => {
+    const overlay = readFileSync(join(process.cwd(), "src/components/SearchOverlay.tsx"), "utf8");
+    expect(overlay).toContain("&misconception=");
+    const library = readFileSync(join(process.cwd(), "src/app/library/page.tsx"), "utf8");
+    expect(library).toContain("id={misconception.id}");
+    expect(library).toContain("scrollIntoView");
+  });
 });
