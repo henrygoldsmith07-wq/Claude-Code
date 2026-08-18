@@ -23,6 +23,7 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
+  Database,
   Clock,
   FileText,
   Flame,
@@ -67,6 +68,8 @@ export const ProgressIcon = ChartLine;
 export const PapersIcon = FileText;
 /** The curriculum and card decks. */
 export const LibraryIcon = BookOpen;
+/** The question bank's provenance and performance index. */
+export const EvidenceIcon = Database;
 /** The card browser — a grid of everything, for maintenance. */
 export const CardsIcon = LayoutGrid;
 /** The Socratic tutor. */

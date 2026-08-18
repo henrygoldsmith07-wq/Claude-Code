@@ -19,6 +19,7 @@ const APP_SHELL = [
   "/planner",
   "/practice",
   "/progress",
+  "/question-evidence",
   "/review",
   "/settings",
   "/shared",
