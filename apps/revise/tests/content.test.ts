@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seedQuestions, seedQuestionsForSubject, seedQuestionsForTopic } from "@/content";
+import { seedMisconceptions, seedQuestions, seedQuestionsForSubject, seedQuestionsForTopic } from "@/content";
 import { makeCloze, seedCardsForTopic } from "@/content/seed-cards";
 import {
   allSubjects,
@@ -274,7 +274,7 @@ describe("gamification", () => {
 });
 
 describe("search", () => {
-  const corpus = { topics: allTopics(), cards: [], questions: seedQuestions };
+  const corpus = { topics: allTopics(), cards: [], questions: seedQuestions, misconceptions: seedMisconceptions };
 
   it("ignores queries that are too short to be useful", () => {
     expect(search(corpus, "a")).toHaveLength(0);
@@ -290,6 +290,13 @@ describe("search", () => {
   it("searches question text as well as curriculum content", () => {
     const results = search(corpus, "titration");
     expect(results.some((r) => r.kind === "question")).toBe(true);
+  });
+
+  it("searches misconception statements and links them to their topic", () => {
+    const results = search(corpus, "R groups");
+    const hit = results.find((r) => r.kind === "misconception");
+    expect(hit).toBeTruthy();
+    expect(hit!.topicId).toBe("wjec-alevel-biology.biological-molecules");
   });
 
   it("returns nothing for a term that does not appear", () => {

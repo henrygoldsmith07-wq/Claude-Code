@@ -4,9 +4,11 @@ import {
   misconceptionsForSubject,
   misconceptionsForTopic,
   seedMisconceptions,
+  seedQuestions,
 } from "@/content";
 import { allSubjects, allTopics, getTopic } from "@/domain/curriculum";
 import { matchMisconception } from "@/domain/misconception-library";
+import { buildSearchIndex, searchIndex } from "@/domain/search";
 
 describe("misconception library", () => {
   it("ships at least two misconceptions for each of the four WJEC A-level subjects", () => {
@@ -69,5 +71,20 @@ describe("matchMisconception", () => {
   it("returns null when the answer carries none of an entry's tell-tale tokens", () => {
     const entries = misconceptionsForTopic("wjec-alevel-maths.algebra");
     expect(matchMisconception(entries, "States x^2 - x - 6", "the sky is blue")).toBeNull();
+  });
+});
+
+describe("search integration", () => {
+  const index = buildSearchIndex({
+    topics: allTopics(),
+    cards: [],
+    questions: seedQuestions,
+    misconceptions: seedMisconceptions,
+  });
+
+  it("indexes misconceptions so a belief can be looked up by name", () => {
+    const hit = searchIndex(index, "R groups").find((r) => r.kind === "misconception");
+    expect(hit).toBeTruthy();
+    expect(hit!.topicId).toBe("wjec-alevel-biology.biological-molecules");
   });
 });

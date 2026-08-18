@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { aiMark } from "@/ai/client";
+import { misconceptionsForTopic } from "@/content";
 import { validateCommandWord, type CommandWordValidation } from "@/domain/command-word-validation";
 import { getTopic } from "@/domain/curriculum";
 import { markMcq } from "@/domain/marking";
+import { planRemediation, type RemediationAction } from "@/domain/remediation";
 import type { Attempt, MarkedPart, Question } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { AnswerInput } from "./AnswerInput";
@@ -174,7 +176,7 @@ export function QuestionRunner({
         ) : null}
       </Panel>
 
-      {result ? <MarkedResult question={question} result={result} awarded={awarded} /> : null}
+      {result ? <MarkedResult question={question} result={result} awarded={awarded} answers={answers} /> : null}
     </div>
   );
 }
@@ -197,12 +199,34 @@ function MarkedResult({
   question,
   result,
   awarded,
+  answers,
 }: {
   question: Question;
   result: { marked: MarkedPart[]; feedback: string; source: "ai" | "fallback"; note?: string };
   awarded: number;
+  answers: Record<string, string>;
 }) {
   const pct = question.totalMarks ? awarded / question.totalMarks : 0;
+  const topic = getTopic(question.topicIds[0] ?? "");
+  const misconceptions = useMemo(
+    () => [...new Set(question.topicIds.flatMap((id) => misconceptionsForTopic(id)))],
+    [question.topicIds],
+  );
+  const plan = useMemo(
+    () => planRemediation(question, answers, result.marked, topic, misconceptions),
+    [question, answers, result.marked, topic, misconceptions],
+  );
+  const actions = useMemo(() => {
+    const seen = new Map<string, RemediationAction>();
+    for (const part of plan.parts) {
+      for (const action of part.actions) {
+        const key = action.misconception.toLowerCase();
+        const prev = seen.get(key);
+        if (!prev || action.confidence > prev.confidence) seen.set(key, action);
+      }
+    }
+    return [...seen.values()].sort((a, b) => b.confidence - a.confidence);
+  }, [plan]);
   return (
     <Panel className="fade-in">
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -256,6 +280,37 @@ function MarkedResult({
           );
         })}
       </div>
+
+      {question.kind !== "mcq" && actions.length ? (
+        <div className="mt-4 pt-4 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">How to fix it</p>
+          <ul className="space-y-2.5">
+            {actions.map((action) => (
+              <li key={action.misconception} className="card card-2 p-3">
+                <div className="flex items-start gap-2">
+                  <MissedIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0 mt-0.5 text-danger" />
+                  <p className="text-sm font-semibold text-ink">{action.misconception}</p>
+                </div>
+                {action.misconceptionEntry ? (
+                  <>
+                    <p className="text-xs text-ink3 mt-2">
+                      <span className="font-semibold">What it looks like: </span>
+                      {action.misconceptionEntry.example}
+                    </p>
+                    <p className="text-sm text-ink2 mt-1.5">{action.misconceptionEntry.explanation}</p>
+                    <div className="flex items-start gap-2 mt-1.5">
+                      <CreditedIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0 mt-0.5 text-success" />
+                      <p className="text-sm text-ink2 flex-1">{action.misconceptionEntry.correction}</p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-ink2 mt-1.5">{action.action}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="mt-4 pt-4 border-t border-line space-y-3">
         <RichText className="text-sm">{result.feedback}</RichText>
