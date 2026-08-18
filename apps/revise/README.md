@@ -196,6 +196,30 @@ Topic lists and grade boundaries remain approximate and labelled as such; always
 check the current board specification for exact assessment objectives and
 weightings.
 
+## Specification Coverage Audit
+
+The Progress screen also runs `specificationCoverageAudit()` over the authored
+curriculum, seed cards and seed questions. It compares each subject's authored
+`specPoint` inventory with `SPEC_MANIFEST.statementsTotal`, then checks stable
+IDs and refs, provenance, spec versions, freshness, verification, card links,
+question links and question-to-topic consistency. Missing cards or questions
+are review findings; dangling references, duplicate IDs, invalid metadata and
+cross-topic mappings fail the audit. This keeps intentional curriculum-first
+subjects visible without treating them as broken.
+
+The audit is pure and deterministic when `today` is supplied, so the same
+report can be rendered in the browser and asserted in tests:
+
+```ts
+const audit = specificationCoverageAudit({
+  subjects: allSubjects(),
+  topics: allTopics(),
+  questions: seedQuestions,
+  cards: seedCards(allTopics(), "audit"),
+  today: "2026-08-18",
+});
+```
+
 Recovery note: the deleted `apps/wjec-study-app` had **no** per-topic
 validation, provenance or coverage tooling — only bare topic titles — so
 nothing of competitive value was lost in that deletion. The previous repo's
