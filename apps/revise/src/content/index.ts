@@ -16,6 +16,7 @@ import { physicsAqaQuestions } from "./questions/physics-aqa";
 import { physicsAqaExtraQuestions } from "./questions/physics-aqa-extra";
 import { physicsExtraQuestions } from "./questions/physics-extra";
 import { authenticExpansionQuestions } from "./questions/massive-authentic";
+import { ocrAuthoredQuestions } from "./questions/ocr-authored";
 import { seedMisconceptions } from "./misconceptions";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
@@ -24,6 +25,7 @@ export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
  *  IndexedDB alongside these and are treated identically everywhere else. */
 export const seedQuestions: Question[] = [
   ...authenticExpansionQuestions,
+  ...ocrAuthoredQuestions,
   ...mathsQuestions,
   ...mathsExtraQuestions,
   ...biologyQuestions,
@@ -43,6 +45,7 @@ export const seedQuestions: Question[] = [
 ];
 
 export { authenticExpansionQuestions };
+export { ocrAuthoredQuestions };
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {
   return seedQuestions.filter((q) => q.subjectId === subjectId);

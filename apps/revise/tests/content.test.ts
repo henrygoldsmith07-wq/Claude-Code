@@ -89,12 +89,12 @@ describe("seed cards", () => {
 });
 
 describe("seed question bank", () => {
-  it("ships questions for the original WJEC/AQA A-level subjects (Edexcel/OCR/GCSE question banks land with licensed sourcing)", () => {
-    const required = allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel"));
+  it("ships questions for the authored WJEC/AQA/OCR A-level subjects (Edexcel/GCSE question banks land with licensed sourcing)", () => {
+    const required = allSubjects().filter((s) => s.id.startsWith("wjec-alevel") || s.id.startsWith("aqa-alevel") || s.id.startsWith("ocr-alevel"));
     for (const subject of required) {
       expect(seedQuestionsForSubject(subject.id).length, `${subject.id} should have seed questions`).toBeGreaterThan(0);
     }
-    // New boards/GCSE ship curriculum first; questions follow when licensed sources are added.
+    // Edexcel/GCSE ship curriculum first; questions follow when licensed sources are added.
     // Guard that we did not regress the overall bank.
     expect(seedQuestions.length).toBeGreaterThanOrEqual(100);
   });
