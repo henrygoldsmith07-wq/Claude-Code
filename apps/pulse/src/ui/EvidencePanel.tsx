@@ -13,6 +13,9 @@
 import { useMemo } from "react";
 import type { Pulse } from "../pulse.js";
 import type { ClaimAssessment, ClaimStatus, EvidenceNode } from "../evidence-graph/types.js";
+import type { ContradictionRecord, ContradictionSighting } from "../discovery/contradictions.js";
+import type { Finding } from "../discovery/finding.js";
+import type { MetricRegistry } from "../metrics/registry.js";
 import { uncertaintySummary } from "../statistics/confidence.js";
 
 const STATUS_LABEL: Record<ClaimStatus, string> = {
@@ -40,7 +43,11 @@ export function EvidencePanel({ pulse, revision }: EvidencePanelProps): React.JS
     },
     { open: 0, supported: 0, refuted: 0, inconclusive: 0, contested: 0 },
   );
-  const contested = assessments.filter((assessment) => assessment.status === "contested");
+  const records = useMemo(() => pulse.contradictions.list(), [pulse, revision]);
+  const findingsById = useMemo(
+    () => new Map(pulse.findings().map((finding) => [finding.id, finding])),
+    [pulse, revision],
+  );
 
   return (
     <section role="tabpanel" id="panel-evidence" aria-labelledby="tab-evidence" tabIndex={-1}>
@@ -51,14 +58,22 @@ export function EvidencePanel({ pulse, revision }: EvidencePanelProps): React.JS
         stated more strongly than the evidence allows.
       </p>
 
-      {contested.length > 0 ? (
+      {records.length > 0 ? (
         <div className="card" role="alert">
           <h3>Contradictions to resolve</h3>
-          <ul>
-            {contested.map((assessment) => (
-              <li key={assessment.claim.id}>{assessment.claim.statement}</li>
-            ))}
-          </ul>
+          <p className="muted">
+            {records.length} relationship{records.length === 1 ? "" : "s"}{" "}
+            {records.length === 1 ? "has" : "have"} been observed pointing both ways. Each side's sightings are listed
+            with the evidence behind them.
+          </p>
+          {records.map((record) => (
+            <ContradictionCard
+              key={record.id}
+              record={record}
+              findingsById={findingsById}
+              registry={pulse.registry}
+            />
+          ))}
         </div>
       ) : null}
 
@@ -139,6 +154,117 @@ function ClaimCard({ assessment }: { assessment: ClaimAssessment }): React.JSX.E
         ) : null}
       </details>
     </article>
+  );
+}
+
+/**
+ * One ledger record, rendered as the relationship with its two sides side by
+ * side. A sighting whose finding is no longer in the current scan is still
+ * shown — the record keeps it — but only with what the record itself carries.
+ */
+function ContradictionCard({
+  record,
+  findingsById,
+  registry,
+}: {
+  record: ContradictionRecord;
+  findingsById: ReadonlyMap<string, Finding>;
+  registry: MetricRegistry;
+}): React.JSX.Element {
+  const positive = record.sightings.filter((sighting) => sighting.direction > 0);
+  const negative = record.sightings.filter((sighting) => sighting.direction < 0);
+  const outcome = registry.get(record.outcomeMetricId)?.name ?? record.outcomeMetricId;
+  const exposure = registry.get(record.exposureMetricId)?.name ?? record.exposureMetricId;
+
+  return (
+    <article className="contradiction">
+      <header className="finding__header">
+        <strong>
+          {outcome} × {exposure}
+        </strong>
+        <span className="pill pill--replication-contradicted">Contested</span>
+      </header>
+      <p className="muted">{record.evidence}</p>
+      <div className="contradiction__sides">
+        <div className="contradiction__side">
+          <h4>Observed positive ({positive.length})</h4>
+          {positive.length === 0 ? (
+            <p className="muted">No sightings point this way.</p>
+          ) : (
+            <ul>
+              {positive.map((sighting) => (
+                <SightingRow
+                  key={sighting.findingId}
+                  sighting={sighting}
+                  finding={findingsById.get(sighting.findingId)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="contradiction__side">
+          <h4>Observed negative ({negative.length})</h4>
+          {negative.length === 0 ? (
+            <p className="muted">No sightings point this way.</p>
+          ) : (
+            <ul>
+              {negative.map((sighting) => (
+                <SightingRow
+                  key={sighting.findingId}
+                  sighting={sighting}
+                  finding={findingsById.get(sighting.findingId)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function SightingRow({ sighting, finding }: { sighting: ContradictionSighting; finding?: Finding }): React.JSX.Element {
+  if (!finding) {
+    return (
+      <li>
+        <code>{sighting.findingId}</code>
+        <p className="muted">
+          Sighted {sighting.createdAt.slice(0, 10)} · not in the current findings — the record keeps the sighting even
+          after its finding is gone.
+        </p>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <p>
+        <strong>{finding.title}</strong>
+      </p>
+      <p className="muted">{finding.statement}</p>
+      <dl className="finding__stats">
+        <div>
+          <dt>Effect</dt>
+          <dd>{finding.effect.label}</dd>
+        </div>
+        <div>
+          <dt>Confidence</dt>
+          <dd>{finding.confidence.level}</dd>
+        </div>
+        <div>
+          <dt>Sources</dt>
+          <dd>{finding.sources.join(", ")}</dd>
+        </div>
+        <div>
+          <dt>Sample</dt>
+          <dd>{finding.sampleSize}</dd>
+        </div>
+        <div>
+          <dt>Seen</dt>
+          <dd>{sighting.createdAt.slice(0, 10)}</dd>
+        </div>
+      </dl>
+      {finding.evidence[0] ? <p className="muted">— {finding.evidence[0].description}</p> : null}
+    </li>
   );
 }
 

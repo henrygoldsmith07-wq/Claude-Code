@@ -16,6 +16,7 @@
 
 import { hash128 } from "../events/hash.js";
 import type { Finding } from "../discovery/finding.js";
+import type { ContradictionRecord } from "../discovery/contradictions.js";
 import type { Hypothesis } from "../hypotheses/tracker.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
 import {
@@ -46,6 +47,7 @@ export class EvidenceGraph {
       existing.supportBy = mergeRefs(existing.supportBy, claim.supportBy);
       existing.refuteBy = mergeRefs(existing.refuteBy, claim.refuteBy);
       existing.uncertainBy = mergeRefs(existing.uncertainBy, claim.uncertainBy);
+      existing.contradicted = existing.contradicted || claim.contradicted;
       existing.updatedAt = claim.updatedAt;
       return existing;
     }
@@ -171,6 +173,8 @@ export interface BuildEvidenceGraphInput {
   hypotheses?: readonly Hypothesis[];
   experiments?: readonly ExperimentResult[];
   authored?: readonly ClaimNode[];
+  /** Records from the contradiction ledger — the source of truth for finding-level conflicts. */
+  contradictions?: readonly ContradictionRecord[];
   now?: () => number;
 }
 
@@ -277,6 +281,13 @@ export function buildEvidenceGraph(input: BuildEvidenceGraphInput): EvidenceGrap
     });
   }
 
+  // Finding-level contradictions come from the ledger, not from re-deriving
+  // direction conflicts here: each record marks the affected claims and adds
+  // the opposing sighting as refuting evidence.
+  for (const record of input.contradictions ?? []) {
+    wireContradiction(graph, record, refIndex);
+  }
+
   for (const authored of input.authored ?? []) {
     graph.addClaim(authored);
     addAuthoredEdges(graph, authored, refIndex, "supportBy", "supports");
@@ -285,6 +296,56 @@ export function buildEvidenceGraph(input: BuildEvidenceGraphInput): EvidenceGrap
   }
 
   return graph;
+}
+
+/**
+ * Projects one contradiction record into the graph.
+ *
+ * Every sighting's claim is marked `contradicted`, and each side of the pair
+ * refutes the other side's claim — so "why do you believe that?" walks to the
+ * opposing sighting, and the claim's status is the ledger's verdict rather
+ * than a second, independent contradiction rule.
+ */
+function wireContradiction(
+  graph: EvidenceGraph,
+  record: ContradictionRecord,
+  refIndex: ReadonlyMap<string, EvidenceNode>,
+): void {
+  const positive = record.sightings.filter((sighting) => sighting.direction > 0);
+  const negative = record.sightings.filter((sighting) => sighting.direction < 0);
+
+  for (const sighting of record.sightings) {
+    const claim = graph.getClaim(`claim:finding:${sighting.findingId}`);
+    if (claim) graph.addClaim({ ...claim, contradicted: true });
+  }
+
+  for (const forSighting of positive) {
+    for (const againstSighting of negative) {
+      addCrossEdge(graph, refIndex, forSighting.findingId, againstSighting.findingId);
+      addCrossEdge(graph, refIndex, againstSighting.findingId, forSighting.findingId);
+    }
+  }
+}
+
+function addCrossEdge(
+  graph: EvidenceGraph,
+  refIndex: ReadonlyMap<string, EvidenceNode>,
+  refutingFindingId: string,
+  refutedFindingId: string,
+): void {
+  const evidenceNode = refIndex.get(refutingFindingId);
+  const claim = graph.getClaim(`claim:finding:${refutedFindingId}`);
+  if (!evidenceNode || !claim) return;
+  graph.addEdge({
+    id: `refutes:claim:finding:${refutedFindingId}:${refutingFindingId}`,
+    from: evidenceNode.id,
+    to: claim.id,
+    kind: "refutes",
+    weight: evidenceNode.confidence.score,
+    confidence: evidenceNode.confidence.score,
+    justifiedBy: [refutingFindingId],
+    label: "contradicts",
+  });
 }
 
 function addAuthoredEdges(
