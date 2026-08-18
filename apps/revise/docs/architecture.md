@@ -75,6 +75,8 @@ every card's FSRS history.
 
 The question bank is hand-authored per subject with full mark schemes and model
 answers, so exam practice and rubric marking work with no provider configured.
+The GCSE expansion adds 55 original templates that materialise into 220
+board-specific questions across every GCSE topic in WJEC, AQA, Edexcel and OCR.
 
 ### `src/data` — offline-first storage
 
