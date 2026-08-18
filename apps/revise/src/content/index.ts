@@ -19,6 +19,7 @@ import { authenticExpansionQuestions } from "./questions/massive-authentic";
 import { gcseExpansionQuestions } from "./questions/gcse-expansion";
 import { edexcelExpansionQuestions } from "./questions/edexcel-expansion";
 import { dataExpansionQuestions } from "./questions/data-expansion";
+import { unfamiliarContextQuestions } from "./questions/unfamiliar-context";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
 
@@ -29,6 +30,7 @@ export const seedQuestions: Question[] = [
   ...gcseExpansionQuestions,
   ...edexcelExpansionQuestions,
   ...dataExpansionQuestions,
+  ...unfamiliarContextQuestions,
   ...mathsQuestions,
   ...mathsExtraQuestions,
   ...biologyQuestions,
@@ -51,6 +53,7 @@ export { authenticExpansionQuestions };
 export { gcseExpansionQuestions };
 export { edexcelExpansionQuestions };
 export { dataExpansionQuestions };
+export { unfamiliarContextQuestions };
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {
   return seedQuestions.filter((q) => q.subjectId === subjectId);
