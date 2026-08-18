@@ -223,6 +223,121 @@ h4 {
   color: var(--warn);
 }
 
+.pill--kind-finding {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill--kind-experiment {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.pill--kind-hypothesis {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.pill--kind-rejection {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.evidence-hit__terms {
+  font-size: 0.82rem;
+}
+
+.evidence-hit__title-button,
+.scan-detail__finding-button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.evidence-hit__title-button:hover,
+.scan-detail__finding-button:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.evidence-hit__context {
+  border-top: 1px solid var(--line);
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+}
+
+.finding--highlight,
+.history-entry--highlight,
+.scan--highlight {
+  animation: destination-flash 2.2s ease-out;
+}
+
+@keyframes destination-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+.evidence-hit__history-button,
+.history-episode__finding-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.evidence-hit__history-button {
+  font-size: 0.85rem;
+}
+
+.evidence-hit__history-button:hover,
+.history-episode__finding-button:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.scan-detail__rejected--focused {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+}
+
+.back-to-search {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 0.3rem 0.8rem;
+  /* Sticky: a deep link lands scrolled to the destination card, and the
+     way back must still be in view. */
+  position: sticky;
+  top: 0.75rem;
+  z-index: 10;
+}
+
+.back-to-search:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .finding__statement {
   font-size: 1.02rem;
   margin: 0 0 0.6rem;

@@ -23,6 +23,7 @@ import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.
 import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
 import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
+import { searchEvidence, type EvidenceHit, type RejectedClaim } from "./search/evidence-search.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
@@ -73,6 +74,8 @@ export class Pulse {
   private readonly now: () => number;
   private readonly expectedCadence: Record<string, number>;
   private cachedFindings: Finding[] = [];
+  /** Questions the last scan asked and declined to publish — the searchable rejection trail. */
+  private lastRejected: RejectedClaim[] = [];
 
   constructor(options: PulseOptions = {}) {
     this.timezone = options.timezone ?? "UTC";
@@ -200,6 +203,15 @@ export class Pulse {
     // ways is suspect, however often one side of it has been replicated.
     report.findings = this.contradictions.annotate(report.findings);
     this.cachedFindings = report.findings;
+    // The rejection trail is evidence too: every question asked and declined,
+    // with the question phrased as the engine asked it, for the evidence search.
+    this.lastRejected = report.rejected.map(({ candidate, reason }) => ({
+      kind: candidate.kind,
+      question: candidate.question,
+      outcomeMetricId: candidate.outcomeMetricId,
+      exposureMetricId: candidate.exposureMetricId ?? null,
+      reason,
+    }));
     this.pauseContradictedHypotheses();
     this.insightHistory.recordScan({
       at: new Date(this.now()).toISOString(),
@@ -209,6 +221,7 @@ export class Pulse {
         outcomeMetricId: candidate.outcomeMetricId,
         exposureMetricId: candidate.exposureMetricId ?? null,
         reason,
+        question: candidate.question,
       })),
       totals: {
         findings: report.findings.length,
@@ -223,6 +236,27 @@ export class Pulse {
 
   findings(): Finding[] {
     return this.cachedFindings;
+  }
+
+  /**
+   * Evidence search: findings, the rejection trail, experiments and
+   * hypotheses, ranked deterministically by how much of the query they
+   * mention. Absence is inspectable — search is how you see that a metric
+   * was checked and why it was not published.
+   */
+  search(query: string, options: { limit?: number } = {}): EvidenceHit[] {
+    return searchEvidence(
+      query,
+      {
+        findings: this.cachedFindings,
+        rejected: this.lastRejected,
+        hypotheses: this.hypotheses.list(),
+        experiments: this.listDesigns(),
+        experimentResults: this.experimentResultsList(),
+        registry: this.registry,
+      },
+      options,
+    );
   }
 
   /**
@@ -410,6 +444,7 @@ export class Pulse {
       contradictions: this.contradictions.list(),
       recommendationValue: this.value.list(),
       insightHistory: this.insightHistory.snapshot(),
+      rejected: this.lastRejected,
     });
   }
 

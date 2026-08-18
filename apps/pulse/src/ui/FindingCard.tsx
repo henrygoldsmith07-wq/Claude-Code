@@ -41,16 +41,27 @@ export interface FindingCardProps {
   finding: Finding;
   onFeedback?: (findingId: string, verdict: "useful" | "not-useful" | "already-knew") => void;
   onDesignExperiment?: (finding: Finding) => void;
+  /** When true the card flashes briefly — used when a search hit jumps here. */
+  highlight?: boolean;
 }
 
-export function FindingCard({ finding, onFeedback, onDesignExperiment }: FindingCardProps): React.JSX.Element {
+export function FindingCard({
+  finding,
+  onFeedback,
+  onDesignExperiment,
+  highlight = false,
+}: FindingCardProps): React.JSX.Element {
   const uncontrolled = finding.confounders.filter((confounder) => confounder.status === "uncontrolled");
   const headingId = `finding-title-${finding.id}`;
   const replicationStatus = finding.replicationStatus ?? "new";
   const uncertainty = uncertaintySummary(finding.confidence);
 
   return (
-    <article className="card finding" aria-labelledby={headingId}>
+    <article
+      id={`finding-${finding.id}`}
+      className={`card finding${highlight ? " finding--highlight" : ""}`}
+      aria-labelledby={headingId}
+    >
       <header className="finding__header">
         <span className={`pill pill--${finding.evidenceClass}`}>{EVIDENCE_LABEL[finding.evidenceClass]}</span>
         <span className={`pill pill--confidence-${finding.confidence.level}`}>

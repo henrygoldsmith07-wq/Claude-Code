@@ -21,6 +21,7 @@ import type { ExperimentResult } from "../experiments/analysis.js";
 import type { FeedbackEntry } from "../recommendations/feedback.js";
 import type { ReplicationRecord } from "../discovery/replication.js";
 import type { ContradictionRecord } from "../discovery/contradictions.js";
+import type { RejectedClaim } from "../search/evidence-search.js";
 import type { InsightHistorySnapshot } from "../history/insight-history.js";
 import type { RecommendationValue } from "../recommendations/value.js";
 
@@ -45,6 +46,8 @@ export interface PulseExport {
   contradictions: ContradictionRecord[];
   insightHistory: InsightHistorySnapshot;
   recommendationValue: RecommendationValue[];
+  /** Questions the scan asked and declined to publish, with the reason each failed. */
+  rejected: RejectedClaim[];
 }
 
 export interface ExportOptions {
@@ -62,6 +65,7 @@ export interface ExportOptions {
   contradictions?: readonly ContradictionRecord[];
   insightHistory?: InsightHistorySnapshot;
   recommendationValue?: readonly RecommendationValue[];
+  rejected?: readonly RejectedClaim[];
 }
 
 export function buildExport(
@@ -116,6 +120,7 @@ export function buildExport(
     contradictions: [...(options.contradictions ?? [])],
     insightHistory: options.insightHistory ?? { version: 1 as const, scans: [] },
     recommendationValue: [...(options.recommendationValue ?? [])],
+    rejected: [...(options.rejected ?? [])],
   };
 }
 

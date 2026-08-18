@@ -59,6 +59,8 @@ export interface InsightScanRejection {
   outcomeMetricId: string;
   exposureMetricId: string | null;
   reason: string;
+  /** The question as the engine asked it, when the scan recorded it — so a scan view can show what was actually checked. */
+  question?: string;
 }
 
 export interface InsightScanTotals {

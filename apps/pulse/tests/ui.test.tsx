@@ -11,7 +11,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import axe from "axe-core";
 import { App } from "../src/ui/App.js";
 import { FindingCard } from "../src/ui/FindingCard.js";
@@ -201,7 +201,7 @@ describe("the app shell", () => {
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(6);
+    expect(tabs.length).toBe(7);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
@@ -366,6 +366,248 @@ describe("the app shell", () => {
     const claims = body.match(/\b(causes|caused|proves)\b/gi) ?? [];
     expect(claims).toEqual([]);
     expect(body).toMatch(/not a cause|does not establish|association/i);
+    cleanup();
+  });
+
+  it("searches findings, experiments, hypotheses and the rejection trail from the Evidence tab", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getByRole("heading", { name: "Evidence search" })).toBeTruthy();
+    expect(screen.getByLabelText(/Search the evidence/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    // Published findings surface first.
+    expect(screen.getByText("Question accuracy is higher within 4h of training effort")).toBeTruthy();
+    // The rejection trail is searchable too: questions the scan asked and declined.
+    expect(screen.getAllByText("Checked, not published").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Why it was not published/).length).toBeGreaterThan(0);
+    cleanup();
+  });
+
+  it("shows an honest empty state when the evidence search matches nothing", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "zzzz-no-match" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByText(/Nothing in the evidence matches/)).toBeTruthy();
+    cleanup();
+  });
+
+  it("has no accessibility violations on the Evidence view, including an expanded rejection context", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getByLabelText(/Search the evidence/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Show context" })[0]!);
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("returns from a deep link to the exact query that started it", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    // Jump to a destination, then come back.
+    const findingHit = pulse.search("accuracy").find((hit) => hit.finding)!;
+    fireEvent.click(screen.getByRole("button", { name: findingHit.title }));
+
+    const back = screen.getByRole("button", { name: /Back to search/ });
+    expect(back.textContent).toContain("accuracy");
+    fireEvent.click(back);
+
+    expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
+    expect((screen.getByLabelText(/Search the evidence/) as HTMLInputElement).value).toBe("accuracy");
+    // The results are live again, not a fresh empty state.
+    expect(screen.getByText("Question accuracy is higher within 4h of training effort")).toBeTruthy();
+    cleanup();
+  });
+
+  it("offers no back-to-search affordance before any search", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.queryByRole("button", { name: /Back to search/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.queryByRole("button", { name: /Back to search/ })).toBeNull();
+    cleanup();
+  });
+
+  it("jumps from a finding hit to its full card on the Insights tab", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    const findingHit = pulse.search("accuracy").find((hit) => hit.finding)!;
+    expect(findingHit.finding).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: findingHit.title }));
+
+    // Back on Insights, with the matching card scrolled to and highlighted.
+    expect(screen.getByRole("tab", { name: "Insights" }).getAttribute("aria-selected")).toBe("true");
+    const card = document.getElementById(`finding-${findingHit.finding!.id}`);
+    expect(card).not.toBeNull();
+    expect(card!.className).toContain("finding--highlight");
+    expect(scrollIntoView).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("jumps from a finding hit to its journey in the History tab", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    const findingHit = pulse.search("accuracy").find((hit) => hit.finding)!;
+    expect(findingHit.signature).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "See how this changed over time" })[0]!);
+
+    // Now on History, with that insight's journey entry scrolled to and highlighted.
+    expect(screen.getByRole("tab", { name: "History" }).getAttribute("aria-selected")).toBe("true");
+    const entry = document.getElementById(`history-${findingHit.signature}`);
+    expect(entry).not.toBeNull();
+    expect(entry!.className).toContain("history-entry--highlight");
+    expect(scrollIntoView).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("jumps from a rejection hit to the scan that produced it, with totals and findings", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    const rejectionHit = pulse.search("accuracy").find((hit) => hit.rejection)!;
+    expect(rejectionHit.rejection).toBeDefined();
+    fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
+
+    // Now on History with the scan rendered: totals, published findings,
+    // the declined questions, and the rejection the user came from marked.
+    expect(screen.getByRole("tab", { name: "History" }).getAttribute("aria-selected")).toBe("true");
+    const card = document.querySelector(".scan-detail");
+    expect(card).not.toBeNull();
+    expect(card!.className).toContain("scan--highlight");
+    expect(screen.getByText(/Findings published in this scan/)).toBeTruthy();
+    expect(screen.getByText(/Questions checked and declined/)).toBeTruthy();
+    expect(screen.getByText("You came from this rejection")).toBeTruthy();
+    expect(card!.textContent).toContain(rejectionHit.rejection!.reason);
+    expect(scrollIntoView).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("keeps the scan card open on History after the arrival flash fades", () => {
+    vi.useFakeTimers();
+    try {
+      render(<App pulse={pulse} />);
+      fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+      fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+      fireEvent.click(screen.getByRole("button", { name: "Search" }));
+      fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
+
+      const arrived = document.querySelector(".scan-detail");
+      expect(arrived).not.toBeNull();
+      expect(arrived!.className).toContain("scan--highlight");
+
+      // Let the flash timer elapse: the card stays open, the flash is gone.
+      act(() => {
+        vi.advanceTimersByTime(2500);
+      });
+      const after = document.querySelector(".scan-detail");
+      expect(after).not.toBeNull();
+      expect(after!.className).not.toContain("scan--highlight");
+      expect(screen.getByText(/Findings published in this scan/)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+      cleanup();
+    }
+  });
+
+  it("opens a finding's card from inside the scan view, making the scan a hub", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
+
+    const scanFinding = pulse.insightHistory.listScans()[0]!.findings[0]!;
+    fireEvent.click(screen.getByRole("button", { name: scanFinding.title }));
+
+    // The scan card's finding row jumped to the full card on Insights.
+    expect(screen.getByRole("tab", { name: "Insights" }).getAttribute("aria-selected")).toBe("true");
+    const card = document.getElementById(`finding-${scanFinding.id}`);
+    expect(card).not.toBeNull();
+    expect(card!.className).toContain("finding--highlight");
+    expect(scrollIntoView).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("opens a finding's card from its History episode, completing the hub", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+
+    // Each episode carries the finding as it was computed at that scan.
+    const entry = pulse.insightHistory.history()[0]!;
+    const episodeFinding = entry.episodes.find((episode) => episode.finding)!.finding!;
+    const detail = `${episodeFinding.effect.label} — ${episodeFinding.sampleDescription}`;
+    fireEvent.click(screen.getByRole("button", { name: detail }));
+
+    expect(screen.getByRole("tab", { name: "Insights" }).getAttribute("aria-selected")).toBe("true");
+    const card = document.getElementById(`finding-${episodeFinding.id}`);
+    expect(card).not.toBeNull();
+    expect(card!.className).toContain("finding--highlight");
+    expect(scrollIntoView).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("has no accessibility violations on the History view with episode links", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.getAllByRole("button", { name: /SD —/ }).length).toBeGreaterThan(0);
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("has no accessibility violations on the scan view", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
+    expect(screen.getByText(/Findings published in this scan/)).toBeTruthy();
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("expands a rejection hit to show the family of questions it sat in", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Show context" })[0]!);
+
+    expect(screen.getByText("Outcome checked")).toBeTruthy();
+    expect(screen.getByText(/One of \d+ question\(s\) asked about/)).toBeTruthy();
+    expect(screen.getByText(/none of them were published/)).toBeTruthy();
+    // The context names the whole family, not just this one question.
+    expect(screen.getByText(/Failed because/)).toBeTruthy();
     cleanup();
   });
 });

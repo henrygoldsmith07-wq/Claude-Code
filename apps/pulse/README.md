@@ -70,7 +70,7 @@ Analytics is completely independent of the UI. Everything under `src/` except
 
 Personal analytics fails in a specific way: with twenty metrics there are
 hundreds of comparisons, and at p < 0.05 a good handful will look significant
-on pure noise. Six defences, all tested:
+on pure noise. Nine defences, all tested:
 
 1. **Curated metrics.** Only quantities someone has classified as an outcome,
    behaviour or context are scanned. `role` and `direction` are editorial
@@ -113,10 +113,19 @@ data is.
    the direction to flip or the p-value to cross the threshold the finding
    itself survived. A claim that reverses when a single sitting is removed is
    labelled `fragile` and flagged as load-bearing — acting on it would be
-   acting on a handful of days — while a claim that survives is labelled
+   acting on a handful of days — while a claim that survives is   labelled
    `robust`. The removal order is greedy and the correction is not recomputed
    per removal, so the numbers are a probe, not a proof, and the statement
    says so.
+9. **Absence is inspectable.** Every question the engine asks and declines to
+   publish is kept — the rejection trail — with the question phrased as the
+   engine asked it and the reason it failed. An evidence search indexes
+   findings, the rejection trail, experiments and hypotheses by the metrics
+   and words involved, so a user can see that a metric they care about was
+   checked and exactly why it is not being reported. Ranked deterministically
+   by how much of the query each document mentions, with published evidence
+   ahead of the rejection trail on equal scores.
+
 
 ## Experiments
 
@@ -177,6 +186,14 @@ asserts both halves of the job:
   flagged rather than endorsed.
 
 The specificity tests are the load-bearing ones. Any tool will find something.
+
+`npm run test:e2e` runs the browser suite (Playwright) against a real build: it
+boots, checks colour contrast in both schemes, walks every tab with the
+keyboard, and proves the whole evidence loop — search, drill to a scan, open a
+finding, and return to the query. The synthetic user is booted once per worker
+and shared, and the preview server is rebuilt on every run unless you keep one
+alive: start `npm run e2e:serve` once in a terminal and subsequent runs reuse
+it, skipping the rebuild.
 
 ## Where the data comes from
 
