@@ -18,7 +18,7 @@ nothing else.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm test             # 412 tests (29 files) — see docs/benchmark.md and /benchmarks for outcome benchmarks
+npm test             # 466 tests (36 files) — see docs/benchmark.md and /benchmarks for outcome benchmarks
 npm run build        # production build
 ```
 
@@ -27,6 +27,18 @@ as a single local profile against IndexedDB, with every feature working — card
 marking, planning, analytics, search — and only cross-device sync and
 model-written prose unavailable. See [`.env.example`](.env.example) for the
 optional Supabase and AI provider settings.
+
+## Pulse connection
+
+Revise can share its study history with Pulse, the personal evidence engine in
+this ecosystem. Sharing is **opt-in** and controlled here, where the data
+originates: Settings → Pulse has a "Share study history with Pulse" switch.
+The choice is stored in the synced `user_settings` row (`pulseEnabled`, off by
+default), and the `/api/pulse/history` endpoint checks it server-side on every
+request — a missing row, a missing flag, or a revoked flag all refuse the
+history with `403`. Pulse therefore only ever reads this account's reviews
+and attempts while the switch is on; turning it off stops the flow at the
+source immediately.
 
 ## What it does
 

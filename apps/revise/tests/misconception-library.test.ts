@@ -6,6 +6,7 @@ import {
   seedMisconceptions,
 } from "@/content";
 import { allSubjects, allTopics, getTopic } from "@/domain/curriculum";
+import { matchMisconception } from "@/domain/misconception-library";
 
 describe("misconception library", () => {
   it("ships at least two misconceptions for each of the four WJEC A-level subjects", () => {
@@ -49,5 +50,24 @@ describe("misconception library", () => {
     for (const entry of seedMisconceptions) {
       expect(allTopics().some((t) => t.subjectId === entry.subjectId)).toBe(true);
     }
+  });
+});
+
+describe("matchMisconception", () => {
+  it("matches a student answer against the entry's example", () => {
+    const entries = misconceptionsForTopic("wjec-alevel-maths.algebra");
+    const match = matchMisconception(
+      entries,
+      "Solves -2x < 6 correctly",
+      "I divided both sides of -2x < 6 by -2 and kept the sign, writing x < -3",
+    );
+    expect(match).not.toBeNull();
+    expect(match!.entry.id).toBe("seed-misconception:inequality-sign-reversal");
+    expect(match!.score).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it("returns null when the answer carries none of an entry's tell-tale tokens", () => {
+    const entries = misconceptionsForTopic("wjec-alevel-maths.algebra");
+    expect(matchMisconception(entries, "States x^2 - x - 6", "the sky is blue")).toBeNull();
   });
 });

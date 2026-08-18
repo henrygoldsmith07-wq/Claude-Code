@@ -262,6 +262,12 @@ configured.
 
 - Everything is processed locally; there is no server.
 - Consent is per-source and per-scope, with the scope descriptions shown verbatim.
+- The Sources & privacy view shows each source's **app-side opt-in** — the
+  flag the source app itself controls (Habit, Rapport, Reflect, Arise) — read
+  live from that app's storage, so a source revoked in its own app is visibly
+  "paused at source" rather than silently quiet. Sources without an app-side
+  gate (Forq, French Practice) say so, and Revise's server-side gate is
+  labelled as such.
 - **Reflect requires its own explicit permission** and can never be enabled by a
   bulk "connect everything" action.
 - Sensitive sources are excluded from analysis, exports and AI prompts unless
@@ -305,6 +311,8 @@ The specificity tests are the load-bearing ones. Any tool will find something.
 | The first-party apps | `revise`, `arise`, `forq`, `habit`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
 | Habit (Supabase) | `connectors/habit.ts` | Habit check-ins — one event per habit per day, done or missed |
 | Habit (same origin) | `connectors/habit.ts` | The same check-ins read from the app's local mirror, gated by Habit's own opt-in flag |
+| Rapport (same origin) | `connectors/rapport.ts` | Drill and challenge history read from the app's local mirror, gated by Rapport's own opt-in flag |
+| Revise (cloud) | `connectors/revise.ts` | Study history from `/api/pulse/history`, which the app refuses server-side unless its `pulseEnabled` flag is on |
 
 Three decisions in that layer are worth knowing about.
 

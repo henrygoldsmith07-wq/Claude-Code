@@ -25,7 +25,7 @@
  *   in the app stops the data flow here, not merely in some settings screen.
  */
 
-import type { SourceReader } from "./types.js";
+import type { SourceConsentStatus, SourceReader } from "./types.js";
 
 /** The slice of `localStorage` this module needs, so tests can pass a fake. */
 export interface StorageLike {
@@ -82,6 +82,70 @@ interface ReadState<TRecord> {
   problem: string | null;
 }
 
+/**
+ * The parsed consent flag: a separate `consentKey` when the app keeps one,
+ * otherwise the (already parsed) contents of the app's own store. Absent or
+ * unreadable is `null` — consent has to be found, never assumed.
+ */
+function readConsentState<TRecord>(
+  options: SameOriginReaderOptions<TRecord>,
+  storage: StorageLike,
+  embeddedState: unknown,
+): unknown {
+  if (options.consentKey === undefined) return embeddedState;
+  try {
+    const flag = storage.getItem(options.consentKey);
+    if (flag === null) return null;
+    // Not JSON is fine — plenty of apps store a bare "1".
+    try {
+      return JSON.parse(flag) as unknown;
+    } catch {
+      return flag;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A live read of the app-side gate, for the consent overview. Never throws:
+ * blocked storage or an absent flag both report "not granted", because consent
+ * has to be found, never assumed.
+ */
+function consentStatusFor<TRecord>(options: SameOriginReaderOptions<TRecord>): () => SourceConsentStatus {
+  return () => {
+    const kind: SourceConsentStatus["kind"] = options.consentKey !== undefined ? "flag" : "embedded";
+    const key = options.consentKey ?? options.key;
+    const storage = resolveStorage(options.storage);
+    let granted = false;
+    if (storage) {
+      try {
+        const flag = options.consentKey !== undefined ? storage.getItem(options.consentKey) : storage.getItem(options.key);
+        const consentState = flag === null ? null : parseLenient(flag);
+        granted = options.consent?.(consentState) === true;
+      } catch {
+        granted = false;
+      }
+    }
+    return {
+      kind,
+      key,
+      granted,
+      message: granted
+        ? "Opted in — the app's own Pulse flag is on"
+        : "Paused at source — the app's own Pulse flag is off",
+    };
+  };
+}
+
+function parseLenient(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
 function loadRecords<TRecord>(options: SameOriginReaderOptions<TRecord>): ReadState<TRecord> {
   const storage = resolveStorage(options.storage);
   if (!storage) return { records: [], problem: "No storage available in this environment." };
@@ -104,20 +168,7 @@ function loadRecords<TRecord>(options: SameOriginReaderOptions<TRecord>): ReadSt
   if (options.consent) {
     // A flag kept in another key is read on its own. An unreadable or absent
     // flag is "withheld": consent has to be found, never assumed.
-    let consentState: unknown = state;
-    if (options.consentKey !== undefined) {
-      try {
-        const flag = storage.getItem(options.consentKey);
-        consentState = flag === null ? null : (JSON.parse(flag) as unknown);
-      } catch {
-        // Not JSON is fine — plenty of apps store a bare "1".
-        try {
-          consentState = storage.getItem(options.consentKey);
-        } catch {
-          consentState = null;
-        }
-      }
-    }
+    const consentState = readConsentState(options, storage, state);
     if (!options.consent(consentState)) {
       return { records: [], problem: "Not connected — turn Pulse on in the source app." };
     }
@@ -193,6 +244,8 @@ export function createSameOriginReader<TRecord>(
         latestAt: typeof latest === "string" ? latest : null,
       };
     },
+
+    ...(options.consent ? { consentStatus: consentStatusFor(options) } : {}),
   };
 }
 

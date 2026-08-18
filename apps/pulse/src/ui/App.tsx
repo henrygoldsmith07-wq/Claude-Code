@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Connector, SourceConsentStatus } from "../connectors/types.js";
 import type { Pulse } from "../pulse.js";
 import type { Finding, ReplicationStatus } from "../discovery/finding.js";
 import { relationshipSubject } from "../discovery/relationship.js";
@@ -704,6 +705,42 @@ function downloadResearchExport(pulse: Pulse): void {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * The source app's own Pulse gate, read live from its storage. A revoked flag
+ * is shown as "paused at source" so a source the user switched off in its own
+ * app is visibly stopped here, not silently quiet. Sources without an app-side
+ * gate (Forq, French Practice) say so rather than pretending to be consented.
+ */
+function AppSideConsent({ connector }: { connector: Connector }): React.JSX.Element {
+  const status: SourceConsentStatus | null | undefined = connector.consentStatus?.();
+  if (!status) {
+    return (
+      <p className="muted">
+        App-side opt-in: <strong>none</strong> — this source shares whenever it has data.
+      </p>
+    );
+  }
+  if (status.kind === "server") {
+    return (
+      <p className="muted">
+        App-side opt-in: <strong>gated server-side</strong> — {status.message}
+      </p>
+    );
+  }
+  if (status.granted) {
+    return (
+      <p className="muted">
+        App-side opt-in: <strong>granted</strong> — {status.message}
+      </p>
+    );
+  }
+  return (
+    <p className="warn">
+      App-side opt-in: <strong>paused at source</strong> — {status.message}
+    </p>
+  );
+}
+
 function SourcesPanel({
   pulse,
   quality,
@@ -789,6 +826,7 @@ function SourcesPanel({
                 </>
               ) : null}
             </p>
+            <AppSideConsent connector={connector} />
 
             {health && health.issues.length > 0 ? (
               <ul>

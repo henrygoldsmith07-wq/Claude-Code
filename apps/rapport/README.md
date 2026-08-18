@@ -34,6 +34,19 @@ device, and practice conversations fall back to the built-in character engine.
 | **Voice** | Pace, fillers, pauses, reply length and turn share. Nothing else is computable from what is stored. |
 | **Privacy** | Local-first. Every permission off by default. Optional end-to-end encrypted sync. |
 
+## Pulse connection
+
+Rapport can share a transcript-free history of its drills and challenges with
+Pulse, the personal evidence engine in this ecosystem, when both apps are
+served from one origin. Sharing is **opt-in** and controlled here, where the
+data originates: Settings → Data & permissions has a "Share with Pulse"
+toggle. While it is on, the app writes the derived history
+(`rapport.pulse-history.v2`) where Pulse's same-origin connector can read it.
+Turning it off deletes that copy immediately and clears the opt-in flag
+(`rapport-pulse-opt-in`) Pulse's connector checks, so the flow stops at the
+source — even a stale mirror is refused. Pulse never sees conversation
+transcripts; the shared history is scores, timings and skill ids only.
+
 ## Architecture
 
 ```

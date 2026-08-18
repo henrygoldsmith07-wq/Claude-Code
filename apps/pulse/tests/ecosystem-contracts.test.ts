@@ -3,7 +3,7 @@ import { checkContract } from "../src/connectors/sdk.js";
 import { createForqSameOriginConnector, mapForqRecord } from "../src/connectors/forq.js";
 import { createFrenchSameOriginConnector, mapFrenchRecord } from "../src/connectors/french.js";
 import { createHabitSameOriginConnector, HABIT_PULSE_OPT_IN_KEY } from "../src/connectors/habit.js";
-import { createRapportSameOriginConnector, mapRapportRecord } from "../src/connectors/rapport.js";
+import { createRapportSameOriginConnector, mapRapportRecord, RAPPORT_PULSE_OPT_IN_KEY } from "../src/connectors/rapport.js";
 import { createReviseCloudConnector, mapReviseRecord } from "../src/connectors/revise.js";
 import type { RawEventInput } from "../src/events/normalise.js";
 
@@ -72,15 +72,39 @@ describe("first-party ecosystem connectors", () => {
     expect(checkContract(connector, page.records)).toEqual([]);
   });
 
-  it("maps the durable French and Rapport envelopes", async () => {
+  it("maps the durable French and Rapport envelopes, Rapport behind its own opt-in flag", async () => {
     const french = createFrenchSameOriginConnector({ storage: jsonStorage({ "fp.pulse-history.v2": frenchHistory }) });
-    const rapport = createRapportSameOriginConnector({ storage: jsonStorage({ "rapport.pulse-history.v2": rapportHistory }) });
+    const rapport = createRapportSameOriginConnector({
+      storage: {
+        getItem: (key: string) =>
+          key === "rapport.pulse-history.v2"
+            ? JSON.stringify(rapportHistory)
+            : key === RAPPORT_PULSE_OPT_IN_KEY
+              ? "1"
+              : null,
+      },
+    });
     const frenchPage = await french.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
     const rapportPage = await rapport.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
     expect(checkContract(french, frenchPage.records)).toEqual([]);
     expect(checkContract(rapport, rapportPage.records)).toEqual([]);
     expect(first(frenchPage.records).source).toBe("le-studio-french");
     expect(first(rapportPage.records).source).toBe("rapport");
+  });
+
+  it("stops the Rapport flow entirely when the app's opt-in flag is revoked", async () => {
+    const rapport = createRapportSameOriginConnector({
+      storage: {
+        getItem: (key: string) =>
+          key === "rapport.pulse-history.v2"
+            ? JSON.stringify(rapportHistory)
+            : key === RAPPORT_PULSE_OPT_IN_KEY
+              ? "0"
+              : null,
+      },
+    });
+    const page = await rapport.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    expect(page.records).toEqual([]);
   });
 
   it("reads the Habit mirror the app writes under its own key, behind the app's opt-in flag", async () => {
@@ -132,6 +156,7 @@ describe("first-party ecosystem connectors", () => {
       "forq-state-v2",
       "fp.pulse-history.v2",
       "rapport.pulse-history.v2",
+      "rapport-pulse-opt-in",
       "habit-tracker-state-v1",
       "habit-tracker-pulse-opt-in",
       "reflectEntries",
