@@ -20,6 +20,7 @@ const APP_SHELL = [
   "/practice",
   "/progress",
   "/question-evidence",
+  "/response-time",
   "/review",
   "/settings",
   "/shared",

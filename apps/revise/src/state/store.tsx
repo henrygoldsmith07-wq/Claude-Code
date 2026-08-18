@@ -12,6 +12,8 @@ import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
 import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/domain/gamification";
 import { buildAssessmentInsight, calibrateFromHistory, simulatePaper } from "@/domain/assessment";
+import { buildResponseTimeCalibration } from "@/domain/response-time-calibration";
+import type { ResponseTimeCalibrationReport } from "@/domain/response-time-calibration";
 import type {
   AssessmentInsight,
   Attempt,
@@ -68,6 +70,7 @@ interface StoreValue extends Snapshot {
   /** Expected exam marks gained per study hour, keyed by topic. The metric the brief asks for. */
   marksPerHour: Map<Id, number>;
   calibrations: Map<Id, Calibration>;
+  responseTimeCalibration: ResponseTimeCalibrationReport;
   syncStatus: SyncStatus;
   /** Build a paper simulation for the given subject/paper without mutating state. */
   previewPaper(subjectId: Id, paperSpecId: Id, questionIds: Id[]): PaperSimulation | null;
@@ -246,6 +249,17 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     for (const sid of subjectIds) if (!out.has(sid)) out.set(sid, { subjectId: sid, bias: 0, slope: 1, sampleSize: 0, mae: 0 });
     return out;
   }, [snapshot, mastery, subjectIds]);
+
+  const responseTimeCalibration = useMemo(
+    () =>
+      buildResponseTimeCalibration({
+        attempts: snapshot?.attempts ?? [],
+        questions: snapshot?.questions ?? [],
+        papers: snapshot?.papers ?? [],
+        subjects: allSubjects().filter((subject) => subjectIds.includes(subject.id)),
+      }),
+    [snapshot, subjectIds],
+  );
 
   const recommendations = useMemo(() => {
     if (!snapshot) return [];
@@ -535,6 +549,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       assessment,
       marksPerHour,
       calibrations,
+      responseTimeCalibration,
       previewPaper,
       syncStatus,
       reviewCard,
@@ -565,6 +580,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     assessment,
     marksPerHour,
     calibrations,
+    responseTimeCalibration,
     previewPaper,
     syncStatus,
     reviewCard,

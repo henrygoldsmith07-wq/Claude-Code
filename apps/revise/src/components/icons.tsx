@@ -64,6 +64,8 @@ export const PracticeIcon = PenLine;
 export const PlanIcon = Calendar;
 /** Analytics and predicted grades. */
 export const ProgressIcon = ChartLine;
+/** Timing calibration against the exam's mark budget. */
+export const ResponseTimeIcon = Clock;
 /** Uploaded past papers. */
 export const PapersIcon = FileText;
 /** The curriculum and card decks. */
