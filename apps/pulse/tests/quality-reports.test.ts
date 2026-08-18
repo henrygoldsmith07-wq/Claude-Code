@@ -15,6 +15,8 @@ import { weekOverWeek } from "../src/timeseries/trend.js";
 import { findNearDuplicates, gradeFor, qualityForSources, scoreSource } from "../src/quality/score.js";
 import { buildKnowledgeGraph, KnowledgeGraph } from "../src/knowledge/graph.js";
 import { buildWeeklyBrief, renderBriefText } from "../src/reports/brief.js";
+import { CausalHypothesisLibrary } from "../src/hypotheses/library.js";
+import type { Finding } from "../src/discovery/finding.js";
 import { score, trainAndValidate } from "../src/predictions/model.js";
 import { normaliseEvent, type NormaliseContext } from "../src/events/normalise.js";
 import { createRng, normalDeviate } from "../src/statistics/random.js";
@@ -273,5 +275,94 @@ describe("prediction models", () => {
     const worse = score([2, 2, 2], [1, 2, 3]);
     expect(worse.mae).toBeCloseTo(2 / 3, 6);
     expect(worse.r2).toBeCloseTo(0, 6);
+  });
+});
+
+describe("withdrawn beliefs in the weekly brief", () => {
+  const finding: Finding = {
+    id: "f-exercise",
+    createdAt: "2025-06-30T00:00:00Z",
+    evidenceClass: "correlation",
+    title: "Question accuracy is higher within 4h of training",
+    statement: "Across 300 observations, question accuracy within 4h of training was 8.7% higher.",
+    metricIds: ["study.accuracy", "exercise.volume"],
+    sources: ["revise", "arise"],
+    sampleSize: 300,
+    sampleDescription: "120 within window vs 180 outside",
+    effect: { kind: "hedges_g", value: 0.45, magnitude: "small", label: "+0.45 SD" },
+    confidence: { level: "moderate", score: 0.6, reasons: [], limitations: [] },
+    confounders: [],
+    causalityNote: "This is an association, not a cause.",
+    nextAction: null,
+    evidence: [
+      { kind: "events", description: "300 attempts", metricIds: ["study.accuracy"], sources: ["revise"], eventCount: 300, dateRange: null },
+    ],
+    tags: ["exposure-window"],
+  };
+
+  it("calls out beliefs the contradiction ledger withdrew this week", () => {
+    const library = new CausalHypothesisLibrary(undefined, clock);
+    library.addFromFinding(finding);
+    library.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+    expect(library.list()[0]!.standing).toBe("contested");
+
+    const brief = buildWeeklyBrief({
+      registry,
+      weekOf: "2025-06-30",
+      events: [],
+      causalEntries: library.list(),
+      now: clock,
+    });
+
+    expect(brief.withdrawnBeliefs).toHaveLength(1);
+    expect(brief.withdrawnBeliefs[0]!.statement).toMatch(/question accuracy/i);
+    expect(brief.withdrawnBeliefs[0]!.note).toMatch(/pointing both ways/);
+    // The metric pair travels with the withdrawal so the UI can link it to
+    // the ledger record that owns it.
+    expect(brief.withdrawnBeliefs[0]!.outcomeMetricId).toBe("study.accuracy");
+    expect(brief.withdrawnBeliefs[0]!.exposureMetricId).toBe("exercise.volume");
+    expect(brief.notes.join(" ")).toMatch(/withdrawn/);
+    expect(brief.headline).toMatch(/withdrawn/);
+  });
+
+  it("reports a withdrawal only in the week it happened", () => {
+    const current = new CausalHypothesisLibrary(undefined, clock);
+    current.addFromFinding(finding);
+    current.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+
+    const earlier = new CausalHypothesisLibrary(undefined, () => Date.parse("2025-05-12T00:00:00Z"));
+    earlier.addFromFinding({ ...finding, id: "f-old" });
+    earlier.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+
+    const plain = new CausalHypothesisLibrary(undefined, clock);
+    plain.addFromFinding({ ...finding, id: "f-plain" });
+
+    const brief = buildWeeklyBrief({
+      registry,
+      weekOf: "2025-06-30",
+      events: [],
+      causalEntries: [...current.list(), ...earlier.list(), ...plain.list()],
+      now: clock,
+    });
+
+    expect(brief.withdrawnBeliefs).toHaveLength(1);
+    expect(brief.withdrawnBeliefs[0]!.statement).toMatch(/question accuracy/i);
+  });
+
+  it("renders withdrawn beliefs in the text brief", () => {
+    const library = new CausalHypothesisLibrary(undefined, clock);
+    library.addFromFinding(finding);
+    library.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+
+    const brief = buildWeeklyBrief({
+      registry,
+      weekOf: "2025-06-30",
+      events: [],
+      causalEntries: library.list(),
+      now: clock,
+    });
+    const text = renderBriefText(brief);
+    expect(text).toMatch(/Withdrawn beliefs:/);
+    expect(text).toMatch(/raise question accuracy/i);
   });
 });

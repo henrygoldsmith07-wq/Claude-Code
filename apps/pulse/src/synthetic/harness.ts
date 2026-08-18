@@ -16,6 +16,7 @@ import { createFrenchConnector, type FrenchRecord } from "../connectors/french.j
 import { createForqConnector, type ForqRecord } from "../connectors/forq.js";
 import { createReflectConnector, type ReflectRecord } from "../connectors/reflect.js";
 import { createWearableConnector } from "../connectors/wearable.js";
+import { createHabitConnector, habitRecordTimestamp } from "../connectors/habit.js";
 import { addDays, localDayStart } from "../events/time.js";
 import { generateSyntheticUser, type SyntheticOptions, type SyntheticUser } from "./generator.js";
 import { createRng, normalDeviate } from "../statistics/random.js";
@@ -25,6 +26,8 @@ export interface HarnessOptions extends SyntheticOptions {
   includeReflect?: boolean;
   /** Connect the wearable source. Off by default so existing tests stay small. */
   includeWearable?: boolean;
+  /** Connect the habit source. Off by default so existing tests stay small. */
+  includeHabit?: boolean;
   /** Fixed clock. Defaults to the day after the user's last generated day. */
   nowMs?: number;
   /** Persistence for the event store, as with PulseOptions. */
@@ -112,6 +115,9 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
       createWearableConnector(createArrayReader(user.wearable, (record) => record.at ?? `${record.dateISO}T12:00:00.000Z`)),
     );
   }
+  if (options.includeHabit) {
+    pulse.registerConnector(createHabitConnector(createArrayReader(user.habit, habitRecordTimestamp)));
+  }
 
   const reflectEntries = options.includeReflect ? generateReflectEntries(user) : [];
   pulse.registerConnector(
@@ -124,6 +130,7 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
   for (const source of ["revise", "arise", "le-studio-french", "forq"] as const) {
     await pulse.backfill(source, user.startDate);
   }
+  if (options.includeHabit) await pulse.backfill("habit", user.startDate);
   if (options.includeReflect) await pulse.backfill("reflect", user.startDate);
   if (options.includeWearable) await pulse.backfill("wearable", user.startDate);
 

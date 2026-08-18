@@ -25,6 +25,21 @@ export {
   selectForqRecords,
 } from "./forq.js";
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
+
+export {
+  createHabitConnector,
+  createHabitSupabaseConnector,
+  habitRecordTimestamp,
+  mapHabitRecord,
+  selectHabitRecords,
+} from "./habit.js";
+export type {
+  HabitCheckinRow,
+  HabitDayRecord,
+  HabitSupabaseConnectorOptions,
+  HabitSupabaseRow,
+  HabitSupabaseState,
+} from "./habit.js";
 export { createChronoConnector, mapChronoRecord } from "./chrono.js";
 export type { ChronoRecord, ChronoEventRecord, ChronoDayRecord } from "./chrono.js";
 export {

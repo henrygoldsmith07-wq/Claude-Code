@@ -60,6 +60,7 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | `predictions/` | Walk-forward validated models that refuse to publish unless they beat the baselines |
 | `knowledge/` | The personal knowledge graph |
 | `evidence-graph/` | The personal evidence graph — beliefs, their evidence, and contradiction detection |
+| `evidence-api/` | Versioned, read-only DTO access to the personal evidence graph |
 | `reports/` | The weekly intelligence brief |
 | `privacy/` | Consent, export, per-source deletion, redaction, encryption at rest |
 | `ai/` | The narrow AI boundary and its numeric guard |
@@ -185,6 +186,28 @@ findings, hypotheses and experiment results, and can be authored directly via
 `pulse.recordClaim(...)` — the engine labels each so the two can never be
 confused.
 
+## Personal Evidence API
+
+`pulse.personalEvidence()` exposes a versioned, read-only in-process
+contract for sibling UI code and trusted local integrations:
+
+```ts
+const evidence = pulse.personalEvidence();
+const supported = evidence.listClaims({ status: "supported", limit: 20 });
+const detail = supported[0] ? evidence.explainClaim(supported[0].id) : null;
+const snapshot = evidence.snapshot();
+```
+
+The API returns claims, confidence, evidence nodes, provenance edges and
+deterministic query results. It never returns raw events, metric attributes or
+notes, and it rebuilds from the live graph on every call so source deletion is
+reflected immediately. Claim and evidence statements can still contain the
+person's own text; a future HTTP host must add authentication, tenancy,
+transport redaction and rate limiting before exposing this contract remotely.
+The API also exposes explicit `fullExport()` and `researchExport()` hand-offs;
+the latter is the de-identified shareable payload. The older
+`personalEvidenceApi()` method remains as a compatibility alias.
+
 ## Personal causal hypothesis library
 
 Pulse's findings answer "what is true?" and its experiments answer "what is
@@ -203,8 +226,8 @@ persist at rest through the same encrypted adapter as the event store.
 Every discovery scan is a point-in-time photograph of what the engine believes;
 the history ledger keeps each one and matches insights across scans by the
 relationship they describe, so the Insights tab shows each insight's journey —
-appeared, strengthened, weakened, disappeared (with the scan's own rejection
-reason) — rather than only its current state. Identical rescans are ignored, so
+appeared, strengthened, weakened, reversed, disappeared (with the scan's own
+rejection reason) — rather than only its current state. Identical rescans are ignored, so
 the history records change, not churn, and it survives reloads: scans are
 written through an encrypted adapter and restored by `pulse.load()` before the
 boot replays them.
@@ -279,7 +302,8 @@ The specificity tests are the load-bearing ones. Any tool will find something.
 | Garmin, Fitbit, WHOOP, Oura | `connectors/wearables.ts` | The same physiology read first-hand, plus each vendor's own scores |
 | Google Calendar, Outlook | `connectors/calendar.ts` | Commitment times and day shape — no titles, no attendees, no locations |
 | Any CSV or JSON file | `connectors/tabular.ts` | Whatever the user maps, previewed before a single row is stored |
-| The first-party apps | `revise`, `arise`, `forq`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+| The first-party apps | `revise`, `arise`, `forq`, `habit`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+| Habit (Supabase) | `connectors/habit.ts` | Habit check-ins — one event per habit per day, done or missed |
 
 Three decisions in that layer are worth knowing about.
 

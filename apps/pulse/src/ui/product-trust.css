@@ -243,7 +243,8 @@
 .history-row__dot { background: var(--line); border-radius: 50%; flex: 0 0 auto; height: 0.55rem; width: 0.55rem; }
 .history-row__dot--strengthened { background: var(--ok); }
 .history-row__dot--weakened,
-.history-row__dot--disappeared { background: var(--warn); }
+.history-row__dot--disappeared,
+.history-row__dot--reversed { background: var(--warn); }
 .history-row__dot--appeared { background: var(--accent); }
 .ledger-row > div { flex: 1; }
 .ledger-row button { flex: 0 0 auto; font-size: 0.76rem; }

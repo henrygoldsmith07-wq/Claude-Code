@@ -9,9 +9,10 @@
  * Pulse believes and why, with the caveats attached rather than buried.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
 import type { Finding, ReplicationStatus } from "../discovery/finding.js";
+import { relationshipSubject } from "../discovery/relationship.js";
 import { FindingCard } from "./FindingCard.js";
 import { EvidencePanel } from "./EvidencePanel.js";
 import { LibraryPanel } from "./LibraryPanel.js";
@@ -47,6 +48,9 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const [tab, setTab] = useState<TabId>("insights");
   const [askPrefill, setAskPrefill] = useState("");
   const [suppressedFindingIds, setSuppressedFindingIds] = useState<string[]>([]);
+  // A ledger record the reader just asked to see; scrolled to once the
+  // evidence view has rendered it.
+  const [pendingContradiction, setPendingContradiction] = useState<string | null>(null);
   // Bumped whenever the engine's derived state changes, so memoised views
   // recompute without the component owning any analytic state itself.
   const [revision, setRevision] = useState(0);
@@ -62,6 +66,15 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision]);
   const quality = useMemo(() => pulse.quality(), [pulse, revision]);
   const insightHistory = useMemo(() => pulse.insightHistory.history(), [pulse, revision]);
+  const recordBySubject = useMemo(
+    () =>
+      new Map(
+        pulse.contradictions
+          .list()
+          .map((record) => [relationshipSubject(record.outcomeMetricId, record.exposureMetricId), record]),
+      ),
+    [pulse, revision],
+  );
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const onFeedback = useCallback(
@@ -107,6 +120,20 @@ export function App({ pulse }: AppProps): React.JSX.Element {
     setAskPrefill(question);
     setTab("ask");
   }, []);
+
+  const openContradiction = useCallback((recordId: string) => {
+    setPendingContradiction(recordId);
+    setTab("evidence");
+  }, []);
+
+  // Once the evidence view has rendered the targeted record, bring it into
+  // view. The effect runs after commit, when the anchor exists in the DOM.
+  useEffect(() => {
+    if (tab !== "evidence" || !pendingContradiction) return;
+    const target = document.getElementById(`contradiction-${pendingContradiction}`);
+    if (target?.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    setPendingContradiction(null);
+  }, [tab, pendingContradiction]);
 
   const visibleFindings = discovery.findings.filter((finding) => !suppressedFindingIds.includes(finding.id));
 
@@ -170,6 +197,34 @@ export function App({ pulse }: AppProps): React.JSX.Element {
             />
             <h2>This week</h2>
             <p className="brief__headline">{brief.headline}</p>
+
+            {brief.withdrawnBeliefs.length > 0 ? (
+              <div className="card" role="alert">
+                <h3>Withdrawn beliefs</h3>
+                <p className="muted">
+                  {brief.withdrawnBeliefs.length === 1
+                    ? "A belief was withdrawn this week: its evidence now points both ways, so Pulse no longer stands behind it."
+                    : `${brief.withdrawnBeliefs.length} beliefs were withdrawn this week: their evidence now points both ways, so Pulse no longer stands behind them.`}
+                </p>
+                <ul>
+                  {brief.withdrawnBeliefs.map((belief) => {
+                    const record = recordBySubject.get(
+                      relationshipSubject(belief.outcomeMetricId, belief.exposureMetricId),
+                    );
+                    return (
+                      <li key={`${belief.statement}-${belief.cause}`} className="warn">
+                        <strong>{belief.statement}</strong> <span className="muted">{belief.note}</span>
+                        {record ? (
+                          <button type="button" onClick={() => openContradiction(record.id)}>
+                            View the contradictory evidence
+                          </button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
 
             <h2>What Pulse believes</h2>
             <p className="muted">

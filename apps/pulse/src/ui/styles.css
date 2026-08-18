@@ -558,7 +558,8 @@ td {
   color: var(--accent);
 }
 
-.history-change--weakened {
+.history-change--weakened,
+.history-change--reversed {
   color: var(--warn);
 }
 

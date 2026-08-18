@@ -11,7 +11,7 @@
  */
 
 import type { PulseEvent, SourceId } from "../events/schema.js";
-import { addDays, eachLocalDate, isoWeekKey, startOfIsoWeek } from "../events/time.js";
+import { addDays, eachLocalDate, isoWeekKey, localDate, startOfIsoWeek } from "../events/time.js";
 import { dailySeries } from "../metrics/compute.js";
 import type { MetricDefinition, MetricRegistry } from "../metrics/registry.js";
 import { weekOverWeek, type WeekChange } from "../timeseries/trend.js";
@@ -20,6 +20,7 @@ import type { SourceQuality } from "../quality/score.js";
 import type { Finding } from "../discovery/finding.js";
 import type { Recommendation } from "../recommendations/rank.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
+import type { CausalLibraryEntry } from "../hypotheses/library.js";
 
 export interface BriefChange {
   metricId: string;
@@ -28,6 +29,17 @@ export interface BriefChange {
   /** Sentence with the numbers already in it. */
   statement: string;
   change: WeekChange;
+}
+
+/** A causal belief the contradiction ledger withdrew this week. */
+export interface WithdrawnBelief {
+  statement: string;
+  cause: string;
+  effect: string;
+  note: string;
+  /** The pair the ledger records under, so the UI can link to the record. */
+  outcomeMetricId: string | null;
+  exposureMetricId: string | null;
 }
 
 export interface WeeklyBrief {
@@ -41,6 +53,8 @@ export interface WeeklyBrief {
   anomalies: Anomaly[];
   newFindings: Finding[];
   experimentUpdates: ExperimentResult[];
+  /** Beliefs the contradiction ledger withdrew this week, not every week they stay withdrawn. */
+  withdrawnBeliefs: WithdrawnBelief[];
   topRecommendations: Recommendation[];
   dataHealth: { source: SourceId; grade: string; message: string }[];
   /** Things Pulse deliberately is not claiming this week. */
@@ -56,6 +70,10 @@ export interface BriefOptions {
   findings?: readonly Finding[];
   recommendations?: readonly Recommendation[];
   experiments?: readonly ExperimentResult[];
+  /** The causal hypothesis library, so withdrawals are reported the week they happen. */
+  causalEntries?: readonly CausalLibraryEntry[];
+  /** Timezone for turning a withdrawal's instant into the local week it happened in. */
+  timezone?: string;
   qualities?: readonly SourceQuality[];
   now?: () => number;
   /** Prior weeks used to judge whether a change is unusual. */
@@ -116,6 +134,18 @@ export function buildWeeklyBrief(options: BriefOptions): WeeklyBrief {
   const experimentUpdates = (options.experiments ?? []).filter(
     (experiment) => experiment.analysedAt.slice(0, 10) >= weekStart && experiment.analysedAt.slice(0, 10) <= weekEnd,
   );
+  const withdrawnBeliefs = (options.causalEntries ?? [])
+    .filter(
+      (entry) => entry.standing === "contested" && wasWithdrawnThisWeek(entry, weekStart, weekEnd, options.timezone ?? "UTC"),
+    )
+    .map((entry) => ({
+      statement: entry.statement,
+      cause: entry.cause,
+      effect: entry.effect,
+      note: entry.standingNote,
+      outcomeMetricId: entry.outcomeMetricId,
+      exposureMetricId: entry.exposureMetricId,
+    }));
 
   const dataHealth = (options.qualities ?? [])
     .filter((quality) => quality.grade === "fair" || quality.grade === "poor")
@@ -133,22 +163,41 @@ export function buildWeeklyBrief(options: BriefOptions): WeeklyBrief {
   if (newFindings.length === 0) {
     notes.push("No new relationships passed the evidence bar this week.");
   }
+  if (withdrawnBeliefs.length > 0) {
+    notes.push(
+      `${withdrawnBeliefs.length} belief${withdrawnBeliefs.length === 1 ? "" : "s"} ${withdrawnBeliefs.length === 1 ? "was" : "were"} withdrawn this week because the evidence now points both ways.`,
+    );
+  }
 
   return {
     weekKey: isoWeekKey(weekStart),
     weekStart,
     weekEnd,
     generatedAt: new Date(now()).toISOString(),
-    headline: buildHeadline(topChanges, anomalies, activity, newFindings.length),
+    headline: buildHeadline(topChanges, anomalies, activity, newFindings.length, withdrawnBeliefs.length),
     changes: topChanges,
     anomalies,
     newFindings,
     experimentUpdates,
+    withdrawnBeliefs,
     topRecommendations: (options.recommendations ?? []).slice(0, 3),
     dataHealth,
     notes,
     activity,
   };
+}
+
+/**
+ * A belief is reported the week it was withdrawn, not every week it stays
+ * withdrawn: the latest transition into `contested` is the event. The
+ * transition's instant is converted to a local date in the brief's
+ * timezone, so a withdrawal near midnight is filed in the right week.
+ */
+function wasWithdrawnThisWeek(entry: CausalLibraryEntry, weekStart: string, weekEnd: string, timezone: string): boolean {
+  const transition = [...entry.standingHistory].reverse().find((change) => change.standing === "contested");
+  if (!transition) return false;
+  const date = localDate(Date.parse(transition.at), timezone);
+  return date >= weekStart && date <= weekEnd;
 }
 
 function describeChange(definition: MetricDefinition, change: WeekChange): string {
@@ -171,11 +220,12 @@ function buildHeadline(
   anomalies: readonly Anomaly[],
   activity: { events: number; activeDays: number; sources: number },
   newFindingCount: number,
+  withdrawnCount: number,
 ): string {
-  if (activity.events === 0) return "Nothing was logged this week, so there is nothing to report.";
-
   const parts: string[] = [];
-  if (changes.length === 0) {
+  if (activity.events === 0) {
+    parts.push("Nothing was logged this week, so there is nothing to report.");
+  } else if (changes.length === 0) {
     parts.push(`A steady week: ${activity.events} events across ${activity.activeDays} days, with nothing outside its usual range.`);
   } else {
     const top = changes[0]!;
@@ -183,6 +233,9 @@ function buildHeadline(
     if (changes.length > 1) parts.push(`${changes.length - 1} other metric(s) also moved unusually.`);
   }
   if (anomalies.length) parts.push(`${anomalies.length} individual day(s) stood out sharply.`);
+  if (withdrawnCount) {
+    parts.push(`${withdrawnCount} belief${withdrawnCount === 1 ? "" : "s"} ${withdrawnCount === 1 ? "was" : "were"} withdrawn on conflicting evidence.`);
+  }
   if (newFindingCount) parts.push(`${newFindingCount} new finding(s) passed the evidence bar.`);
   return parts.join(" ");
 }
@@ -210,6 +263,12 @@ export function renderBriefText(brief: WeeklyBrief): string {
     lines.push("", "Unusual days:");
     for (const anomaly of brief.anomalies) {
       lines.push(`  - ${anomaly.date}: ${anomaly.metricId} was ${anomaly.direction} its usual level (${anomaly.value.toFixed(2)} vs ${anomaly.expected.toFixed(2)}).`);
+    }
+  }
+  if (brief.withdrawnBeliefs.length) {
+    lines.push("", "Withdrawn beliefs:");
+    for (const belief of brief.withdrawnBeliefs) {
+      lines.push(`  - ${belief.statement} ${belief.note}`);
     }
   }
   if (brief.newFindings.length) {
