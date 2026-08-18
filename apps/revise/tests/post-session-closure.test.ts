@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildPostSessionClosure } from "@/domain/post-session-closure";
 
@@ -70,5 +72,22 @@ describe("post-session closure", () => {
         elapsedMs: 0,
       }).nextAction,
     ).toBe("today");
+  });
+
+  it("uses one accessible closure surface across review, practice and papers", () => {
+    const component = readFileSync(join(process.cwd(), "src/components/PostSessionClosure.tsx"), "utf8");
+    const review = readFileSync(join(process.cwd(), "src/app/review/page.tsx"), "utf8");
+    const practice = readFileSync(join(process.cwd(), "src/app/practice/page.tsx"), "utf8");
+    const papers = readFileSync(join(process.cwd(), "src/app/papers/page.tsx"), "utf8");
+
+    expect(component).toContain('role="status"');
+    expect(component).toContain('aria-live="polite"');
+    expect(component).toContain("Close the loop");
+    expect(review).toContain("PostSessionClosure");
+    expect(practice).toContain("finishSession");
+    expect(practice).toContain("PostSessionClosure");
+    expect(practice).not.toContain("completed === 0");
+    expect(papers).toContain("Finish and review mistakes");
+    expect(papers).toContain("PostSessionClosure");
   });
 });
