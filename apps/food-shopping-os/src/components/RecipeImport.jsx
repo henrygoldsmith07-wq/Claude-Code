@@ -66,7 +66,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
       setText(importText);
       setImportFormat(structured.format);
     }
-    setResult(out);
+    setResult({ ...out, provenance: provenance || {} });
     setServings(1);
   };
 
@@ -202,7 +202,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
             </p>
             <button
               onClick={() => {
-                app.saveRecipe(recipeFromImport(result, { text, url: mode === 'url' ? url : link, provenance }));
+                app.saveRecipe(recipeFromImport(result, { text, url: mode === 'url' ? url : link, provenance: result.provenance }));
                 setKept(true);
               }}
               disabled={kept}
@@ -232,7 +232,7 @@ export default function RecipeImport({ defaultMeal, onDone }) {
             </button>
               <button
                 onClick={() => {
-                  const imported = recipeFromImport(result, { text, url: mode === 'url' ? url : link, provenance });
+                  const imported = recipeFromImport(result, { text, url: mode === 'url' ? url : link, provenance: result.provenance });
                   app.addToList(itemsFromRecipes([imported]));
                   setListed(true);
                 }}

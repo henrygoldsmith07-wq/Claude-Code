@@ -169,18 +169,18 @@ export default function OffersPanel() {
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <label className="block">
-              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Applies to</span>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Coupon match</span>
               <input
                 value={draftCoupon.match}
                 onChange={(e) => setDraftCoupon((d) => ({ ...d, match: e.target.value }))}
                 placeholder="pasta"
-                aria-label="Coupon applies to"
+                aria-label="Coupon match"
                 className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
                 style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
               />
             </label>
             <NumberField
-              label={draftCoupon.kind === 'money' ? 'Amount off' : draftCoupon.kind === 'percent' ? 'Per cent off' : draftCoupon.kind === 'multibuy' ? 'Buy this many' : 'Value (optional)'}
+              label={draftCoupon.kind === 'money' ? 'Coupon value' : draftCoupon.kind === 'percent' ? 'Coupon percentage' : draftCoupon.kind === 'multibuy' ? 'Coupon quantity' : 'Coupon value (optional)'}
               value={draftCoupon.value}
               onChange={(v) => setDraftCoupon((d) => ({ ...d, value: v }))}
               suffix={draftCoupon.kind === 'money' ? '£' : draftCoupon.kind === 'percent' ? '%' : draftCoupon.kind === 'multibuy' ? 'for' : ''}

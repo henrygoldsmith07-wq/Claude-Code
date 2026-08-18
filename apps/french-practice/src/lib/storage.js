@@ -3,7 +3,9 @@ import { rateFsrs as fsrsRate, migrateFromSm2 } from './fsrs.js';
 
 const KEYS = {
   apiKey: 'fp.groqKey',
-  sessions: 'fp.sessions', // array of completed session summaries
+  sessions: 'fp.sessions', // durable array of completed session summaries
+  pulseHistory: 'fp.pulse-history.v2', // versioned, transcript-free history for Pulse
+  reviewEvents: 'fp.reviewEvents.v2', // durable per-review events; reviewLog remains a heatmap aggregate
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel, theme, level, dailyGoal }
@@ -162,9 +164,54 @@ const DEFAULT_PREFS = {
 export const getPrefs = () => ({ ...DEFAULT_PREFS, ...read(KEYS.prefs, {}) });
 export const setPrefs = (p) => write(KEYS.prefs, { ...getPrefs(), ...p });
 
-// ---- session history (last 10 kept for trend charts) ----
+// ---- durable session and Pulse history ------------------------------------
 
-export const getSessions = () => read(KEYS.sessions, []);
+export const getSessions = () => {
+  const sessions = read(KEYS.sessions, []);
+  return Array.isArray(sessions) ? sessions : [];
+};
+
+export const getReviewEvents = () => {
+  const events = read(KEYS.reviewEvents, []);
+  return Array.isArray(events) ? events : [];
+};
+
+function pulseSkill(value) {
+  return value === 'grammar' || value === 'listening' || value === 'reading' ? value : 'vocab';
+}
+
+function speakingRecord(session, index) {
+  const report = session?.report || {};
+  const startedAt = session?.startedAt || session?.date;
+  if (typeof startedAt !== 'string') return null;
+  const durationMs = Number(report.durationMs ?? report.duration_ms ?? session.durationMs ?? 0);
+  return {
+    kind: 'speaking',
+    id: String(session.id || `session:${session.scenarioId || 'unknown'}:${session.date || index}`),
+    startedAt,
+    durationMs: Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0,
+    ...(typeof report.pronunciationScore === 'number' ? { pronunciationScore: report.pronunciationScore } : {}),
+    ...(typeof report.pronunciation_score === 'number' ? { pronunciationScore: report.pronunciation_score } : {}),
+    ...(typeof report.fluencyScore === 'number' ? { fluencyScore: report.fluencyScore } : {}),
+    ...(typeof report.fluency_score === 'number' ? { fluencyScore: report.fluency_score } : {}),
+    ...(typeof report.wordsSpoken === 'number' ? { wordsSpoken: report.wordsSpoken } : {}),
+    promptCount: Number.isFinite(Number(session.turns)) ? Math.max(0, Number(session.turns)) : 0,
+    ...(typeof session.topic === 'string' ? { topic: session.topic } : {}),
+  };
+}
+
+function publishPulseHistory() {
+  const records = getSessions().map(speakingRecord).filter(Boolean).concat(getReviewEvents());
+  write(KEYS.pulseHistory, {
+    format: 'le-studio.source-history',
+    schemaVersion: 2,
+    source: 'le-studio-french',
+    connectorVersion: '2.0.0',
+    generatedAt: new Date().toISOString(),
+    records,
+    cursor: null,
+  });
+}
 
 // ---- in-flight conversation (survives a page refresh) ----
 
@@ -181,8 +228,13 @@ export function getLastReport() {
 
 export function saveSession(summary) {
   const sessions = getSessions();
-  sessions.push({ ...summary, date: new Date().toISOString() });
-  write(KEYS.sessions, sessions.slice(-10));
+  sessions.push({
+    ...summary,
+    id: summary.id || `session:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+    date: new Date().toISOString(),
+  });
+  write(KEYS.sessions, sessions);
+  publishPulseHistory();
   recordHabits(summary.report?.stubborn_habits || []);
   bumpStreak();
 }
@@ -717,7 +769,7 @@ export function rateCard(cardId, rating, opts={}) {
     const next = fsrsRate(prev, rating);
     srs[key] = next;
     write(KEYS.srs, srs);
-    logReview();
+    logReview({ cardId, rating, elapsedMs: opts.elapsedMs, skill: opts.skill, intervalDays: existing?.interval });
     return next;
   }
   const prev = srs[key] || { interval: 0, reps: 0, lapses: 0, ease: DEFAULT_EASE };
@@ -752,7 +804,7 @@ export function rateCard(cardId, rating, opts={}) {
     lastReviewed: new Date().toISOString(),
   };
   write(KEYS.srs, srs);
-  logReview();
+  logReview({ cardId, rating, elapsedMs: opts.elapsedMs, skill: opts.skill, intervalDays: existing?.interval });
   return srs[key];
 }
 
@@ -760,7 +812,7 @@ export function rateCard(cardId, rating, opts={}) {
 
 export const getReviewLog = () => read(KEYS.reviewLog, {});
 
-function logReview() {
+function logReview({ cardId, rating, elapsedMs, skill, intervalDays } = {}) {
   const log = getReviewLog();
   const today = dayStamp();
   log[today] = (log[today] || 0) + 1;
@@ -768,6 +820,21 @@ function logReview() {
   const cutoff = dayStamp(new Date(Date.now() - 183 * 86400000));
   for (const day of Object.keys(log)) if (day < cutoff) delete log[day];
   write(KEYS.reviewLog, log);
+
+  const events = getReviewEvents();
+  const reviewedAt = new Date().toISOString();
+  events.push({
+    kind: 'review',
+    id: `review:${reviewedAt}:${cardId || 'unknown'}:${Math.random().toString(36).slice(2, 8)}`,
+    reviewedAt,
+    itemId: String(cardId || 'unknown'),
+    skill: pulseSkill(skill),
+    correct: rating !== 'again',
+    elapsedMs: Number.isFinite(Number(elapsedMs)) ? Math.max(0, Number(elapsedMs)) : 0,
+    ...(Number.isFinite(Number(intervalDays)) ? { intervalDays: Math.max(0, Number(intervalDays)) } : {}),
+  });
+  write(KEYS.reviewEvents, events);
+  publishPulseHistory();
 }
 
 // ---- mistake review (drill the recurring-mistake bank down to zero) ----

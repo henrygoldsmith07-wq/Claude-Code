@@ -1,6 +1,7 @@
 import type { Id, OutboxItem, SyncEntity } from "@/domain/types";
-import { getDb, readMeta, writeMeta } from "./db";
+import { getDb } from "./db";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
+import { readReviseMeta, writeReviseMeta } from "./storage-namespace";
 
 // ---------------------------------------------------------------------------
 // Offline-first sync: a durable outbox plus a pull that merges by timestamp.
@@ -25,8 +26,6 @@ const TABLES: Record<SyncEntity, string> = {
   settings: "user_settings",
   streak: "streaks",
 };
-
-const LAST_PULL_KEY = "lastPullAt";
 
 export async function enqueue(entity: SyncEntity, op: OutboxItem["op"], payload: unknown): Promise<void> {
   // With no backend there is nothing to drain into, so queuing would only
@@ -123,7 +122,7 @@ async function drainOutbox(userId: Id): Promise<{ pushed: number; failed: number
 async function pull(userId: Id): Promise<number> {
   const supabase = getSupabase();
   const db = await getDb();
-  const since = (await readMeta<string>(LAST_PULL_KEY)) ?? "1970-01-01T00:00:00.000Z";
+  const since = (await readReviseMeta<string>("lastPullAt")) ?? "1970-01-01T00:00:00.000Z";
   const startedAt = new Date().toISOString();
   let pulled = 0;
 
@@ -146,7 +145,7 @@ async function pull(userId: Id): Promise<number> {
     await tx.done;
   }
 
-  await writeMeta(LAST_PULL_KEY, startedAt);
+  await writeReviseMeta("lastPullAt", startedAt);
   return pulled;
 }
 

@@ -9,6 +9,8 @@
  */
 
 import { defineReaderConnector } from "./sdk.js";
+import { createSameOriginReader, type StorageLike } from "./same-origin.js";
+import { readSourceHistoryRecords } from "../events/source-history.js";
 import type { Connector, ConnectorScope, EmittedEventSpec, SourceReader } from "./types.js";
 import type { RawEventInput } from "../events/normalise.js";
 
@@ -39,6 +41,8 @@ export interface FrenchReviewRecord {
 }
 
 export type FrenchRecord = FrenchSpeakingRecord | FrenchReviewRecord;
+
+export const FRENCH_STORAGE_KEY = "fp.pulse-history.v2";
 
 const SCOPES: ConnectorScope[] = [
   { id: "speaking", description: "Speaking practice sessions: duration, prompts and automatic pronunciation scores. Audio is never read.", readsContent: false },
@@ -122,7 +126,7 @@ export function createFrenchConnector(reader: SourceReader<FrenchRecord>): Conne
   return defineReaderConnector<FrenchRecord>({
     id: "le-studio-french",
     name: "Le Studio French",
-    version: "1.0.0",
+    version: "2.0.0",
     category: "language",
     description: "French speaking practice and spaced review. Audio recordings are never read.",
     scopes: SCOPES,
@@ -132,4 +136,24 @@ export function createFrenchConnector(reader: SourceReader<FrenchRecord>): Conne
     map: (record) => mapFrenchRecord(record),
     timestampOf: (record) => (record.kind === "speaking" ? record.startedAt : record.reviewedAt),
   });
+}
+
+export function selectFrenchRecords(state: unknown): FrenchRecord[] {
+  return readSourceHistoryRecords<FrenchRecord>(state, "le-studio-french").filter(
+    (record): record is FrenchRecord =>
+      (record.kind === "speaking" && typeof record.id === "string" && typeof record.startedAt === "string") ||
+      (record.kind === "review" && typeof record.id === "string" && typeof record.reviewedAt === "string"),
+  );
+}
+
+export function createFrenchSameOriginConnector(options: { storage?: StorageLike | null } = {}): Connector {
+  return createFrenchConnector(
+    createSameOriginReader<FrenchRecord>({
+      key: FRENCH_STORAGE_KEY,
+      label: "Le Studio French",
+      select: selectFrenchRecords,
+      ...(options.storage !== undefined ? { storage: options.storage } : {}),
+      timestampOf: (record) => (record.kind === "speaking" ? record.startedAt : record.reviewedAt),
+    }),
+  );
 }

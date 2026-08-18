@@ -156,6 +156,11 @@ export async function writeMeta(key: string, value: unknown): Promise<void> {
   await db.put("meta", { key, value });
 }
 
+export async function deleteMeta(key: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("meta", key);
+}
+
 /** Wipe every store. Used by "sign out and forget this device". */
 export async function clearAll(): Promise<void> {
   const db = await getDb();
