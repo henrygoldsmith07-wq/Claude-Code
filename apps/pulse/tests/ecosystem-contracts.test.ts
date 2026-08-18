@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { checkContract } from "../src/connectors/sdk.js";
 import { createForqSameOriginConnector, mapForqRecord } from "../src/connectors/forq.js";
 import { createFrenchSameOriginConnector, mapFrenchRecord } from "../src/connectors/french.js";
-import { createHabitSameOriginConnector } from "../src/connectors/habit.js";
+import { createHabitSameOriginConnector, HABIT_PULSE_OPT_IN_KEY } from "../src/connectors/habit.js";
 import { createRapportSameOriginConnector, mapRapportRecord } from "../src/connectors/rapport.js";
 import { createReviseCloudConnector, mapReviseRecord } from "../src/connectors/revise.js";
 import type { RawEventInput } from "../src/events/normalise.js";
@@ -83,21 +83,34 @@ describe("first-party ecosystem connectors", () => {
     expect(first(rapportPage.records).source).toBe("rapport");
   });
 
-  it("reads the Habit mirror the app writes under its own key", async () => {
+  it("reads the Habit mirror the app writes under its own key, behind the app's opt-in flag", async () => {
     const seen: string[] = [];
     const habit = createHabitSameOriginConnector({
       storage: {
         getItem(key: string) {
           seen.push(key);
-          return key === "habit-tracker-state-v1" ? JSON.stringify(habitMirror) : null;
+          if (key === "habit-tracker-state-v1") return JSON.stringify(habitMirror);
+          if (key === HABIT_PULSE_OPT_IN_KEY) return "1";
+          return null;
         },
       },
     });
     const page = await habit.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
-    expect(seen).toEqual(["habit-tracker-state-v1"]);
+    expect(seen).toEqual(["habit-tracker-state-v1", HABIT_PULSE_OPT_IN_KEY]);
     expect(page.records.length).toBeGreaterThan(0);
     expect(checkContract(habit, page.records)).toEqual([]);
     expect(first(page.records).source).toBe("habit");
+  });
+
+  it("stops the Habit flow entirely when the app's opt-in flag is revoked", async () => {
+    const habit = createHabitSameOriginConnector({
+      storage: {
+        getItem: (key: string) =>
+          key === "habit-tracker-state-v1" ? JSON.stringify(habitMirror) : key === HABIT_PULSE_OPT_IN_KEY ? "0" : null,
+      },
+    });
+    const page = await habit.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    expect(page.records).toEqual([]);
   });
 
   it("reads Revise cloud history through the same versioned payload", async () => {
@@ -120,6 +133,7 @@ describe("first-party ecosystem connectors", () => {
       "fp.pulse-history.v2",
       "rapport.pulse-history.v2",
       "habit-tracker-state-v1",
+      "habit-tracker-pulse-opt-in",
       "reflectEntries",
       "reflectPulseOptIn",
     ];

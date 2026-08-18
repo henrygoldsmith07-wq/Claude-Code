@@ -14,7 +14,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { todayISO } from "./date";
 import { bestStreak, completionRate, currentStreak, weekCounts } from "./streaks";
-import { buildLocalMirror, writeLocalMirror } from "./mirror";
+import { buildLocalMirror, clearLocalMirror, readPulseOptIn, writeLocalMirror, writePulseOptIn } from "./mirror";
 import type { DbCheckin, DbHabit } from "./types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -62,6 +62,8 @@ export function useHabitData() {
   const [checkinRows, setCheckinRows] = useState<DbCheckin[]>([]);
   const [checkins, setCheckins] = useState<Map<string, Set<string>>>(new Map());
   const [error, setError] = useState<string | null>(null);
+  // Habit's own Pulse opt-in, read from localStorage so it survives reloads.
+  const [pulseOptIn, setPulseOptInState] = useState<boolean>(() => readPulseOptIn());
 
   const refresh = useCallback(async () => {
     if (!supabase) return;
@@ -99,11 +101,18 @@ export function useHabitData() {
   }, [refresh]);
 
   // Mirror every loaded state into localStorage for Pulse's same-origin
-  // connector, so Pulse can connect without this project's credentials.
+  // connector, so Pulse can connect without this project's credentials — but
+  // only while the user has turned the connection on in this app.
   useEffect(() => {
     if (habits === null) return;
-    writeLocalMirror(buildLocalMirror(habits, checkinRows, todayISO()));
-  }, [habits, checkinRows]);
+    if (readPulseOptIn()) writeLocalMirror(buildLocalMirror(habits, checkinRows, todayISO()));
+    else clearLocalMirror();
+  }, [habits, checkinRows, pulseOptIn]);
+
+  const setPulseOptIn = useCallback((enabled: boolean) => {
+    writePulseOptIn(enabled);
+    setPulseOptInState(enabled);
+  }, []);
 
   /** Optimistically flips today's check-in, then persists; reverts on failure. */
   const toggle = useCallback(
@@ -253,6 +262,8 @@ export function useHabitData() {
     views,
     loading: habits === null,
     error,
+    pulseOptIn,
+    setPulseOptIn,
     toggle,
     addHabit,
     updateHabit,
