@@ -301,6 +301,10 @@ export interface Attempt {
   confidence?: 1 | 2 | 3 | 4 | 5;
   elapsedMs: number;
   mode: "practice" | "paper" | "recall";
+  /** Optional provenance for attempts completed inside a paper sitting. */
+  paperId?: Id;
+  paperSpecId?: Id;
+  paperRunId?: Id;
   /** Links a targeted practice attempt back to the open mistake it is testing. */
   retestMistakeId?: Id;
   createdAt: IsoInstant;

@@ -6,8 +6,10 @@ import { aiExtractQuestions, aiOcr } from "@/ai/client";
 import { toBase64 } from "@/components/AnswerInput";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { tokenise } from "@/domain/marking";
+import { analysePaperWeakness } from "@/domain/paper-weakness";
 import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
+import { PaperWeaknessPanel } from "@/components/PaperWeaknessPanel";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented } from "@/components/ui";
 import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
@@ -281,6 +283,7 @@ export function mapToTopics(subjectId: string, text: string, limit = 2): string[
 function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   const store = useStore();
   const [index, setIndex] = useState(0);
+  const [paperRunId] = useState(() => crypto.randomUUID());
   const [startedAt] = useState(() => Date.now());
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const [scores, setScores] = useState<{ awarded: number; max: number }[]>([]);
@@ -295,6 +298,21 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   const questions = useMemo(
     () => paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q)),
     [paper.questionIds, store.questions],
+  );
+  const paperAttempts = useMemo(
+    () => store.attempts.filter((attempt) => attempt.paperRunId === paperRunId),
+    [paperRunId, store.attempts],
+  );
+  const weaknessAnalysis = useMemo(
+    () =>
+      analysePaperWeakness({
+        paper,
+        attempts: paperAttempts,
+        questions,
+        mistakes: store.mistakes,
+        paperRunId,
+      }),
+    [paper, paperAttempts, paperRunId, questions, store.mistakes],
   );
   const current = questions[index];
   const totalAwarded = scores.reduce((a, s) => a + s.awarded, 0);
@@ -311,7 +329,6 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
       const subject = getSubject(paper.subjectId);
       const qs = paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q));
       if (!subject || !qs.length) return null;
-      const masteryMap = new Map(store.mastery.map((m) => [m.topicId, m.mastery]));
       const psId = paper.paperSpecId ?? subject.papers[0]?.id ?? "";
       return store.previewPaper(subject.id, psId, paper.questionIds);
     })();
@@ -334,6 +351,7 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
           </p>
           {calibration ? <p className="text-[11px] text-ink3 mt-2">{calibration} See Progress for the updated calibration.</p> : null}
         </Panel>
+        <PaperWeaknessPanel analysis={weaknessAnalysis} />
         <Button variant="primary" className="w-full" onClick={() => void finish()}>
           Finish
         </Button>
@@ -368,6 +386,9 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         key={current.id}
         question={current}
         mode="paper"
+        paperId={paper.id}
+        paperSpecId={paper.paperSpecId}
+        paperRunId={paperRunId}
         onFinished={(attempt) => setScores((prev) => [...prev, { awarded: attempt.awarded, max: attempt.max }])}
       />
 

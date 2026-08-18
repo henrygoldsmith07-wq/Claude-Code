@@ -6,7 +6,7 @@ import { getTopic } from "@/domain/curriculum";
 import { markMcq } from "@/domain/marking";
 import { evaluateMistakeRetest } from "@/domain/mistakes";
 import { planRemediation } from "@/domain/remediation";
-import type { Attempt, MarkedPart, Mistake, Question } from "@/domain/types";
+import type { Attempt, Id, MarkedPart, Mistake, Question } from "@/domain/types";
 import type { RetestEvaluation } from "@/domain/mistakes";
 import type { RemediationPlan } from "@/domain/remediation";
 import { useStore } from "@/state/store";
@@ -23,11 +23,17 @@ import { CreditedIcon, ICON_SIZE, MissedIcon } from "./icons";
 export function QuestionRunner({
   question,
   mode = "practice",
+  paperId,
+  paperSpecId,
+  paperRunId,
   retestMistake,
   onFinished,
 }: {
   question: Question;
   mode?: Attempt["mode"];
+  paperId?: Id;
+  paperSpecId?: Id;
+  paperRunId?: Id;
   retestMistake?: Mistake;
   onFinished?: (attempt: Attempt) => void;
 }) {
@@ -95,6 +101,9 @@ export function QuestionRunner({
       markedBy: source === "ai" ? "ai" : "rubric",
       elapsedMs,
       mode,
+      ...(paperId ? { paperId } : {}),
+      ...(paperSpecId ? { paperSpecId } : {}),
+      ...(paperRunId ? { paperRunId } : {}),
       ...(retestMistake ? { retestMistakeId: retestMistake.id } : {}),
       createdAt: new Date().toISOString(),
     };
