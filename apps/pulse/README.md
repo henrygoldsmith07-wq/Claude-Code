@@ -188,6 +188,20 @@ the history records change, not churn, and it survives reloads: scans are
 written through an encrypted adapter and restored by `pulse.load()` before the
 boot replays them.
 
+## Research export
+
+`pulse.researchExport()` is the shareable form of the data: a de-identified,
+statistics-first snapshot that can go to a researcher or into a study without
+carrying a year of personal data along with it. Findings carry effect sizes,
+confidence intervals, corrected p-values, sample sizes and confounders — never
+titles, statements or narratives. Experiments carry verdicts, observed effects,
+power and adherence. Coverage is counts and grades, never events, and each
+insight's journey is condensed to its signature and change sequence. The whole
+payload must survive the same redaction guard that protects anything else
+leaving the device (`assertNoRawContent`), and sensitive sources are excluded
+unless asked for by name — the same consent rules as the full export. The
+Sources & privacy view offers it as a JSON download.
+
 ## AI boundary
 
 AI is used for explanation, summarisation, natural-language querying and

@@ -555,6 +555,16 @@ function AskPanel({ pulse, initialQuestion = "" }: { pulse: Pulse; initialQuesti
   );
 }
 
+function downloadResearchExport(pulse: Pulse): void {
+  const payload = JSON.stringify(pulse.researchExport(), null, 2);
+  const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `pulse-research-export-${new Date().toISOString().slice(0, 10)}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function SourcesPanel({
   pulse,
   quality,
@@ -589,6 +599,21 @@ function SourcesPanel({
         </div>
         {dashboard.blackoutDays.length ? <p className="muted">Shared quiet days are treated as a possible blackout, not five separate connector faults: {dashboard.blackoutDays.length} day(s) in the window.</p> : null}
       </section>
+
+      <section className="card" aria-labelledby="research-export-title">
+        <h2 id="research-export-title">Research export</h2>
+        <p className="muted">
+          A de-identified, statistics-first snapshot for sharing with a researcher or a study: findings with effect
+          sizes, confidence intervals and corrected p-values, experiment verdicts, and data coverage. No raw events, no
+          free text, no authored beliefs, and no sensitive sources.
+        </p>
+        <div className="actions">
+          <button type="button" onClick={() => downloadResearchExport(pulse)}>
+            Download research export
+          </button>
+        </div>
+      </section>
+
       <h2>Connected sources</h2>
       <p className="muted">
         Pulse processes everything on this device. Each source is connected separately, can be revoked at any time, and

@@ -263,6 +263,15 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("offers a de-identified research export from the sources view", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
+    expect(screen.getByRole("heading", { name: "Research export" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download research export" })).toBeTruthy();
+    expect(screen.getByText(/no free text/)).toBeTruthy();
+    cleanup();
+  });
+
   it("answers a suggested question in the Ask panel", () => {
     render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Ask Pulse" }));
