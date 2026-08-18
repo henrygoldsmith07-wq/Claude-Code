@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { markResponseSchema } from "@/ai/types";
 import {
   LOW_CONFIDENCE_MARK_THRESHOLD,
@@ -66,11 +68,22 @@ describe("low-confidence mark escalation", () => {
     expect(report.escalationRate).toBeCloseTo(0.5);
   });
 
-  it("defaults absent provider confidence conservatively", () => {
+  it("preserves absent provider confidence for urgent escalation", () => {
     const parsed = markResponseSchema.parse({
       marked: [{ partId: "p1", awarded: 0, max: 1 }],
       feedback: "No mark.",
     });
-    expect(parsed.confidence).toBe(0.5);
+    expect(parsed.confidence).toBeUndefined();
+    expect(assessLowConfidenceMark({ markedBy: "ai", confidence: parsed.confidence })).toMatchObject({
+      reason: "missing-confidence",
+      priority: "urgent",
+    });
+  });
+
+  it("publishes the durable queue on Progress", () => {
+    const src = readFileSync(join(process.cwd(), "src/app/progress/page.tsx"), "utf8");
+    expect(src).toContain("markEscalationReport");
+    expect(src).toContain("Mark review queue");
+    expect(src).toContain("pending");
   });
 });

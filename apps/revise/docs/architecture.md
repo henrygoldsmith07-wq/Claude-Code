@@ -45,7 +45,7 @@ lives:
 - `recommender.ts` scores every candidate activity on a single scale so they can
   be compared, and attaches a human-readable reason to each.
 - `planner.ts` builds the timetable and folds missed sessions forward.
-- `marking.ts` marks answers against a mark scheme with no model involved.
+- `marking.ts` marks answers against a mark scheme with no model involved; `mark-escalation.ts` keeps low-confidence AI marks provisional and queues them for human review.
 - `mistakes.ts` converts dropped marks into classified mistakes and cards.
 - `grades.ts` predicts a grade with an explicit confidence and range.
 - `browser.ts` parses the card-browser query language and filters on it.

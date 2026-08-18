@@ -7,6 +7,7 @@ import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { ACHIEVEMENTS, levelFor } from "@/domain/gamification";
 import { weakTopics } from "@/domain/mastery";
 import { mistakePatterns } from "@/domain/mistakes";
+import { markEscalationReport } from "@/domain/mark-escalation";
 import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
@@ -30,6 +31,13 @@ export default function ProgressPage() {
   const forecast = useMemo(() => dueCountByDay(store.cards, 14, today), [store.cards, today]);
   const maxDue = Math.max(1, ...forecast.map((f) => f.count));
   const level = levelFor(store.streak.xp);
+  const markReview = useMemo(() => {
+    const report = markEscalationReport(store.attempts);
+    const pending = store.attempts
+      .filter((attempt) => attempt.markEscalation?.status === "pending")
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return { report, pending };
+  }, [store.attempts]);
 
   const totals = useMemo(() => {
     const marksMax = store.attempts.reduce((a, x) => a + x.max, 0);
@@ -73,6 +81,50 @@ export default function ProgressPage() {
         <StatTile label="Topics secure" value={totals.mastered} sub={`of ${store.mastery.length}`} />
         <StatTile label="Level" value={level.level} sub={`${level.into}/${level.needed} XP to next`} />
       </div>
+
+      <section>
+        <SectionHeading title="Mark review queue" hint="Low-confidence AI marks are held for a second-marker decision." />
+        <Panel>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <StatTile
+              label="Pending human review"
+              value={markReview.pending.length}
+              sub={markReview.pending.length ? "saved with the attempts below" : "No escalations waiting"}
+              tone={markReview.pending.length ? "review" : "success"}
+            />
+            <StatTile label="AI marks" value={markReview.report.aiAttempts} sub={`${markReview.report.escalatedAttempts} escalated`} />
+            <StatTile
+              label="Escalation rate"
+              value={markReview.report.escalationRate === null ? "—" : `${Math.round(markReview.report.escalationRate * 100)}%`}
+              sub="of AI-marked attempts"
+              tone={markReview.report.escalationRate !== null && markReview.report.escalationRate > 0 ? "review" : undefined}
+            />
+          </div>
+          {markReview.pending.length ? (
+            <ul className="mt-4 border-t border-line divide-y divide-line">
+              {markReview.pending.slice(0, 5).map((attempt) => (
+                <li key={attempt.id} className="py-2.5 flex items-start gap-3">
+                  <Pill tone={attempt.markEscalation?.priority === "urgent" ? "danger" : "review"}>
+                    {attempt.markEscalation?.priority ?? "review"}
+                  </Pill>
+                  <div className="min-w-0">
+                    <p className="text-sm text-ink truncate">
+                      {store.questions.find((question) => question.id === attempt.questionId)?.stem ?? attempt.questionId}
+                    </p>
+                    <p className="text-[11px] text-ink3">
+                      {attempt.markConfidence === undefined ? "Confidence unavailable" : `${Math.round(attempt.markConfidence * 100)}% confidence`} · {attempt.createdAt.slice(0, 10)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-ink3 mt-4 border-t border-line pt-3">
+              AI marks below 60% confidence will appear here and remain labelled as provisional until reviewed.
+            </p>
+          )}
+        </Panel>
+      </section>
 
       <section>
         <SectionHeading

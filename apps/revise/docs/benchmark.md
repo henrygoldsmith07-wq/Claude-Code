@@ -21,7 +21,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 ## Marking — rubric floor + AI vs human
 
-*Source:* `src/domain/marking.ts`, `src/domain/maths-equivalence.ts`, `src/domain/working-analysis.ts`, `src/domain/remediation.ts`, `src/domain/human-marking-corpus.ts`, `src/domain/marker-disagreement.ts`, `tests/marking.test.ts`, `tests/marking.benchmark.test.ts`, `tests/marker-disagreement.test.ts`.
+*Source:* `src/domain/marking.ts`, `src/domain/maths-equivalence.ts`, `src/domain/working-analysis.ts`, `src/domain/remediation.ts`, `src/domain/human-marking-corpus.ts`, `src/domain/marker-disagreement.ts`, `src/domain/mark-escalation.ts`, `tests/marking.test.ts`, `tests/marking.benchmark.test.ts`, `tests/marker-disagreement.test.ts`, `tests/low-confidence-mark-escalation.test.ts`.
 
 - Rubric: keyword + lemma overlap ≥50% per mark-scheme point or numeric match; 3-word cap, proportional award, strict about content, generous about wording.
 - Symbolic layer (`maths-equivalence.ts`): when both the scheme point and the student's *final* expression parse as single-variable polynomials, equivalent forms credit (`(x+2)(x-3)` ↔ `x^2 - x - 6`) and a wrong pure expression is rejected even when it shares digits with the scheme. Unparseable or prose-embedded points fall through to the rubric unchanged.
@@ -30,6 +30,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 - Human marking corpus: version `2026.08.v1`, 12 teacher/examiner-labelled regression rows across chemistry and maths. `validateHumanMarkingCorpus` checks row IDs, part alignment and award ranges; no learner-identifying data is included.
 - Benchmark harness: `scoreHumanMarkingCorpus` reports `exact-match accuracy`, `per-part MAE` and total MAE, with floors of exact-match ≥ 0.5 and MAE ≤ 0.8. The same rows will carry `aiAward` columns once provider marking exists.
 - Marker disagreement tracking: `scoreMarkerDisagreement(corpus, { rubric, ai })` and the generic `trackMarkerDisagreement(samples)` compare marker award arrays per question part. Every pair (`human ↔ rubric`, `human ↔ ai`, `rubric ↔ ai`) reports compared rows/parts, total agreement, part agreement, MAE, disagreement count and signed bias (`right − left`). Missing marker arrays are `null`/unmeasured, never silently treated as zero.
+- Low-confidence mark escalation: AI mark responses carry a validated `confidence` in `[0,1]`; below `0.60` the attempt stores a pending `human-review` escalation, with missing confidence treated as urgent. Rubric and offline fallback marks remain deterministic and are not escalated. `/progress` shows the durable pending queue and its AI-mark escalation rate.
 - `/benchmarks` renders the live corpus version, row-level human vs rubric totals and the same floor status used by CI.
 - `/benchmarks` also renders the current pairwise disagreement matrix keyed by `questionId`; the internal corpus currently measures human ↔ rubric and leaves AI coverage explicitly unmeasured until provider-marked gold exists.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.
