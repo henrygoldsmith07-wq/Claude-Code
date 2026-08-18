@@ -18,6 +18,7 @@ import { physicsExtraQuestions } from "./questions/physics-extra";
 import { authenticExpansionQuestions } from "./questions/massive-authentic";
 import { gcseExpansionQuestions } from "./questions/gcse-expansion";
 import { edexcelExpansionQuestions } from "./questions/edexcel-expansion";
+import { dataExpansionQuestions } from "./questions/data-expansion";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
 
@@ -27,6 +28,7 @@ export const seedQuestions: Question[] = [
   ...authenticExpansionQuestions,
   ...gcseExpansionQuestions,
   ...edexcelExpansionQuestions,
+  ...dataExpansionQuestions,
   ...mathsQuestions,
   ...mathsExtraQuestions,
   ...biologyQuestions,
@@ -48,6 +50,7 @@ export const seedQuestions: Question[] = [
 export { authenticExpansionQuestions };
 export { gcseExpansionQuestions };
 export { edexcelExpansionQuestions };
+export { dataExpansionQuestions };
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {
   return seedQuestions.filter((q) => q.subjectId === subjectId);
