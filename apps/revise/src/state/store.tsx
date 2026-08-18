@@ -10,6 +10,7 @@ import { computeTopicMastery } from "@/domain/mastery";
 import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
 import { tallyMisconceptions, type MisconceptionTally } from "@/domain/misconception-library";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
+import { computeFingerprint, fingerprintKey, replanDynamically, type ReplanFingerprint } from "@/domain/replan";
 import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
 import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/domain/gamification";
@@ -73,6 +74,8 @@ interface StoreValue extends Snapshot {
   marksPerHour: Map<Id, number>;
   /** Misconception-library entries the student keeps hitting, most frequent first. */
   recurringMisconceptions: MisconceptionTally[];
+  /** Why the plan last changed itself, or null when nothing has. */
+  replanSummary: string | null;
   calibrations: Map<Id, Calibration>;
   responseTimeCalibration: ResponseTimeCalibrationReport;
   syncStatus: SyncStatus;
@@ -116,6 +119,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     syncing: false,
   });
   const bootstrapped = useRef(false);
+  const [replanSummary, setReplanSummary] = useState<string | null>(null);
+  const lastFingerprint = useRef<ReplanFingerprint | null>(null);
 
   useEffect(() => {
     if (bootstrapped.current) return;
@@ -123,6 +128,13 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     void (async () => {
       const loaded = await repo.loadSnapshot(userId);
       setSnapshot(loaded);
+      lastFingerprint.current = computeFingerprint({
+        exams: loaded.examDates,
+        targetGrades: loaded.settings.targetGrades,
+        availability: loaded.settings.availability,
+        sessionLengthMinutes: loaded.settings.sessionLengthMinutes,
+        subjectIds: loaded.settings.subjectIds,
+      });
       setNeedsOnboarding(!(await repo.hasOnboarded()));
       // A plan that has drifted into the past is worse than no plan: fold
       // missed sessions forward before the dashboard renders anything.
@@ -231,6 +243,48 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     () => (snapshot ? tallyMisconceptions(snapshot.mistakes, seedMisconceptions) : []),
     [snapshot],
   );
+
+  // Dynamic replanning: when an input the plan depends on changes (exam date,
+  // target grade, availability, session length or subject set), rebuild the
+  // pending future sessions automatically and say why. The fingerprint lives
+  // in a ref so replanning never triggers an extra render.
+  useEffect(() => {
+    if (!snapshot) return;
+    const current = computeFingerprint({
+      exams: snapshot.examDates,
+      targetGrades: snapshot.settings.targetGrades,
+      availability: snapshot.settings.availability,
+      sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
+      subjectIds: snapshot.settings.subjectIds,
+    });
+    if (lastFingerprint.current === null) {
+      lastFingerprint.current = current;
+      return;
+    }
+    if (fingerprintKey(current) === fingerprintKey(lastFingerprint.current)) return;
+    const previous = lastFingerprint.current;
+    lastFingerprint.current = current;
+    void (async () => {
+      const result = replanDynamically({
+        userId,
+        topics,
+        subjects: allSubjects().filter((s) => snapshot.settings.subjectIds.includes(s.id)),
+        mastery,
+        exams: snapshot.examDates,
+        availability: snapshot.settings.availability,
+        sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
+        subjectIds: snapshot.settings.subjectIds,
+        targetGrades: snapshot.settings.targetGrades,
+        existing: snapshot.plannedSessions,
+        previous,
+      });
+      if (result.changed) {
+        await repo.replacePlan(userId, result.plan);
+        setSnapshot((prev) => (prev ? { ...prev, plannedSessions: result.plan } : prev));
+      }
+      setReplanSummary(result.summary);
+    })();
+  }, [snapshot, userId, topics, mastery]);
 
   // Calibration per subject from paper-mode attempts: predicted vs actual.
   // Paper attempts are the only ones with a stable "total marks" denominator.
@@ -467,6 +521,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   const regeneratePlan = useCallback<StoreValue["regeneratePlan"]>(async () => {
     if (!snapshot) return;
+    const subjects = allSubjects().filter((s) => snapshot.settings.subjectIds.includes(s.id));
     const plan = buildPlan({
       userId,
       topics,
@@ -475,6 +530,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       availability: snapshot.settings.availability,
       sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
       subjectIds: snapshot.settings.subjectIds,
+      subjects,
+      targetGrades: snapshot.settings.targetGrades,
       existing: snapshot.plannedSessions,
     });
     await repo.replacePlan(userId, plan);
@@ -559,6 +616,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       assessment,
       marksPerHour,
       recurringMisconceptions,
+      replanSummary,
       calibrations,
       responseTimeCalibration,
       previewPaper,
@@ -591,6 +649,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     assessment,
     marksPerHour,
     recurringMisconceptions,
+    replanSummary,
     calibrations,
     responseTimeCalibration,
     previewPaper,
