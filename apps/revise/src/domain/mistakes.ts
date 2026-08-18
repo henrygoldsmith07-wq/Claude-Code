@@ -187,6 +187,95 @@ export function shouldResolve(card: Card): boolean {
   return card.reps >= 2 && card.stability >= 7 && card.lapses === 0;
 }
 
+export type RetestStatus = "resolved" | "still-open" | "not-applicable";
+
+export interface RetestEvaluation {
+  mistakeId: Id;
+  status: RetestStatus;
+  awarded: number;
+  max: number;
+  point: string | null;
+  pointRelearned: boolean;
+  feedback: string;
+}
+
+/**
+ * A targeted retest closes the original mistake only when the student earns
+ * every mark on the affected part and the exact lost point is credited.
+ * Partial recovery stays attached to the same mistake so the loop does not
+ * manufacture a second mistake for the same gap.
+ */
+export function evaluateMistakeRetest(
+  mistake: Mistake,
+  question: Question,
+  attempt: Attempt,
+): RetestEvaluation {
+  const point = mistake.point ?? null;
+  const notApplicable = (feedback: string): RetestEvaluation => ({
+    mistakeId: mistake.id,
+    status: "not-applicable",
+    awarded: 0,
+    max: 0,
+    point,
+    pointRelearned: false,
+    feedback,
+  });
+
+  if (
+    attempt.questionId !== question.id ||
+    (mistake.questionId && mistake.questionId !== question.id) ||
+    (attempt.retestMistakeId && attempt.retestMistakeId !== mistake.id)
+  ) {
+    return notApplicable("This attempt is not linked to the question that created the mistake.");
+  }
+
+  const marked = mistake.partId
+    ? attempt.marked.find((part) => part.partId === mistake.partId)
+    : attempt.marked.length === 1
+      ? attempt.marked[0]
+      : undefined;
+  if (!marked) {
+    return notApplicable("The affected part was not included in this retest.");
+  }
+
+  const pointRelearned = point ? marked.creditedPoints.includes(point) : marked.awarded >= marked.max;
+  const fullPart = marked.awarded >= marked.max;
+  const resolved = fullPart && pointRelearned;
+
+  return {
+    mistakeId: mistake.id,
+    status: resolved ? "resolved" : "still-open",
+    awarded: marked.awarded,
+    max: marked.max,
+    point,
+    pointRelearned,
+    feedback: resolved
+      ? `Retest earned ${marked.awarded}/${marked.max} and recovered the missed point${point ? `: ${point}` : "."}`
+      : `Retest earned ${marked.awarded}/${marked.max}. The original mistake stays open until the affected part is complete and the missed point is credited.`,
+  };
+}
+
+/** Persist the state transition for one targeted retest. */
+export function applyRetestToMistake(
+  mistake: Mistake,
+  evaluation: RetestEvaluation,
+  attempt: Attempt,
+): Mistake {
+  if (evaluation.status === "not-applicable") return mistake;
+
+  const updated: Mistake = {
+    ...mistake,
+    retestCount: (mistake.retestCount ?? 0) + 1,
+    lastRetestAttemptId: attempt.id,
+    lastRetestedAt: attempt.createdAt,
+  };
+  if (evaluation.status === "resolved") {
+    updated.resolved = true;
+    updated.resolvedAt = attempt.createdAt;
+  }
+  return updated;
+}
+
 export interface MistakePattern {
   category: MistakeCategory;
   count: number;

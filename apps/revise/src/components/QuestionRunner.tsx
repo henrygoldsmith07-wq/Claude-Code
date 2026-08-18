@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { aiMark } from "@/ai/client";
 import { getTopic } from "@/domain/curriculum";
 import { markMcq } from "@/domain/marking";
-import type { Attempt, MarkedPart, Question } from "@/domain/types";
+import { evaluateMistakeRetest } from "@/domain/mistakes";
+import { planRemediation } from "@/domain/remediation";
+import type { Attempt, MarkedPart, Mistake, Question } from "@/domain/types";
+import type { RetestEvaluation } from "@/domain/mistakes";
+import type { RemediationPlan } from "@/domain/remediation";
 import { useStore } from "@/state/store";
 import { AnswerInput } from "./AnswerInput";
 import { RichText } from "./RichText";
@@ -19,10 +23,12 @@ import { CreditedIcon, ICON_SIZE, MissedIcon } from "./icons";
 export function QuestionRunner({
   question,
   mode = "practice",
+  retestMistake,
   onFinished,
 }: {
   question: Question;
   mode?: Attempt["mode"];
+  retestMistake?: Mistake;
   onFinished?: (attempt: Attempt) => void;
 }) {
   const store = useStore();
@@ -34,6 +40,8 @@ export function QuestionRunner({
     feedback: string;
     source: "ai" | "fallback";
     note?: string;
+    retest?: RetestEvaluation;
+    remediation: RemediationPlan;
   } | null>(null);
   // Stamped after mount: reading the clock during render makes the render
   // impure and would restart the timer on every re-render.
@@ -72,13 +80,14 @@ export function QuestionRunner({
       note = envelope.note;
     }
 
+    const submittedAnswers = isMcq ? { [question.parts[0]?.id ?? question.id]: String(choice) } : answers;
     const attempt: Attempt = {
       id: crypto.randomUUID(),
       userId: store.userId,
       questionId: question.id,
       subjectId: question.subjectId,
       topicIds: question.topicIds,
-      answers: isMcq ? { [question.parts[0]?.id ?? question.id]: String(choice) } : answers,
+      answers: submittedAnswers,
       marked,
       awarded: marked.reduce((a, m) => a + m.awarded, 0),
       max: marked.reduce((a, m) => a + m.max, 0),
@@ -86,11 +95,14 @@ export function QuestionRunner({
       markedBy: source === "ai" ? "ai" : "rubric",
       elapsedMs,
       mode,
+      ...(retestMistake ? { retestMistakeId: retestMistake.id } : {}),
       createdAt: new Date().toISOString(),
     };
 
+    const retest = retestMistake ? evaluateMistakeRetest(retestMistake, question, attempt) : undefined;
+    const remediation = planRemediation(question, submittedAnswers, marked, topic);
     await store.recordAttempt(attempt, question);
-    setResult({ marked, feedback, source, note });
+    setResult({ marked, feedback, source, note, retest, remediation });
     setMarking(false);
     onFinished?.(attempt);
   }
@@ -101,6 +113,7 @@ export function QuestionRunner({
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Pill>{question.totalMarks} marks</Pill>
           <Pill>{topic?.title ?? question.subjectId}</Pill>
+          {retestMistake ? <Pill tone="review">Retest</Pill> : null}
           {question.origin === "past-paper" ? <Pill tone="review">Past paper</Pill> : null}
           {question.origin === "ai" ? <Pill tone="speak">AI generated</Pill> : null}
           {!question.calculatorAllowed ? <Pill tone="danger">No calculator</Pill> : null}
@@ -160,7 +173,10 @@ export function QuestionRunner({
           </div>
         )}
 
-        {!result ? (
+        {!result && retestMistake?.resolved ? (
+          <p className="text-xs text-success mt-5">This mistake is already resolved. Return to Progress to choose another repair.</p>
+        ) : null}
+        {!result && !retestMistake?.resolved ? (
           <Button
             variant="primary"
             className="w-full mt-5"
@@ -183,7 +199,14 @@ function MarkedResult({
   awarded,
 }: {
   question: Question;
-  result: { marked: MarkedPart[]; feedback: string; source: "ai" | "fallback"; note?: string };
+  result: {
+    marked: MarkedPart[];
+    feedback: string;
+    source: "ai" | "fallback";
+    note?: string;
+    retest?: RetestEvaluation;
+    remediation: RemediationPlan;
+  };
   awarded: number;
 }) {
   const pct = question.totalMarks ? awarded / question.totalMarks : 0;
@@ -200,6 +223,59 @@ function MarkedResult({
         <SourceBadge source={result.source} note={result.note} />
       </div>
       <ProgressBar value={pct} tone={pct >= 0.8 ? "success" : pct >= 0.5 ? "review" : "danger"} />
+
+      {result.retest ? (
+        <div
+          className={cx(
+            "mt-4 card card-2 p-3",
+            result.retest.status === "resolved"
+              ? "border-success bg-successsoft"
+              : result.retest.status === "still-open"
+                ? "border-danger bg-dangersoft"
+                : "bg-surface2",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill
+              tone={
+                result.retest.status === "resolved"
+                  ? "success"
+                  : result.retest.status === "still-open"
+                    ? "danger"
+                    : "review"
+              }
+            >
+              {result.retest.status === "resolved"
+                ? "Retest passed"
+                : result.retest.status === "still-open"
+                  ? "Retest still open"
+                  : "Retest not linked"}
+            </Pill>
+            <span className="text-xs text-ink2">{result.retest.feedback}</span>
+          </div>
+          {result.retest.status === "resolved" ? (
+            <p className="text-[11px] text-success mt-2">The mistake has been removed from your open repair queue.</p>
+          ) : result.retest.status === "still-open" ? (
+            <p className="text-[11px] text-ink2 mt-2">Repeat the remediation above, then retest this question again.</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {result.remediation.headline ? (
+        <div className="mt-4 card card-2 p-3 bg-surface2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone="review">Remediation</Pill>
+            <span className="text-xs text-ink2">{result.remediation.headline.misconception}</span>
+          </div>
+          <p className="text-sm text-ink mt-2">{result.remediation.headline.action}</p>
+          <p className="text-[11px] text-ink3 mt-1.5">Evidence: {result.remediation.headline.evidence}</p>
+          {result.remediation.headline.targetKeyPoint ? (
+            <p className="text-[11px] text-ink3 mt-1">
+              Restudy: {result.remediation.headline.targetKeyPoint}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 space-y-4">
         {result.marked.map((marked) => {
@@ -286,7 +362,7 @@ function MarkedResult({
             })}
           </div>
         ) : null}
-        {awarded < question.totalMarks ? (
+        {!result.retest && awarded < question.totalMarks ? (
           <p className="text-[11px] text-ink3">
             The dropped marks have been logged as mistakes — with AO, command word and timing — and turned into cards that will reappear until you can answer them. See <span className="font-semibold">Progress</span> for expected marks per hour.
           </p>

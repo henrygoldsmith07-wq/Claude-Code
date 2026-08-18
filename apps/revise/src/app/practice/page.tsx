@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
-import type { Question } from "@/domain/types";
+import { remediationForMistake } from "@/domain/remediation";
+import type { Mistake, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { RichText } from "@/components/RichText";
@@ -31,6 +32,7 @@ function Practice() {
   const subjectParam = params.get("subject");
   const sessionId = params.get("session");
   const questionParam = params.get("question");
+  const retestId = params.get("retest");
   const mode = params.get("mode") === "recall" ? "recall" : "practice";
 
   const [subjectId, setSubjectId] = useState(subjectParam ?? subjects[0]?.id ?? "");
@@ -41,6 +43,30 @@ function Practice() {
   const [completed, setCompleted] = useState(0);
 
   const masteryByTopic = useMemo(() => new Map(store.mastery.map((m) => [m.topicId, m])), [store.mastery]);
+  const questionsById = useMemo(
+    () => new Map(store.questions.map((q) => [q.id, q] as const)),
+    [store.questions],
+  );
+  const retestMistake: Mistake | undefined = useMemo(
+    () => (retestId ? store.mistakes.find((mistake) => mistake.id === retestId) : undefined),
+    [retestId, store.mistakes],
+  );
+  const retestQuestion = retestMistake?.questionId ? questionsById.get(retestMistake.questionId) : undefined;
+  const originalAttempt = retestMistake?.attemptId
+    ? store.attempts.find((attempt) => attempt.id === retestMistake.attemptId)
+    : undefined;
+  const retestRemediation = useMemo(
+    () =>
+      retestMistake && retestQuestion
+        ? remediationForMistake(
+            retestMistake,
+            retestQuestion,
+            originalAttempt,
+            getTopic(retestMistake.topicId),
+          )
+        : null,
+    [originalAttempt, retestMistake, retestQuestion],
+  );
 
   /**
    * Order the pool once, then hold it. Marking an answer changes mastery and
@@ -50,6 +76,7 @@ function Practice() {
    * or generates new questions.
    */
   const orderFor = (subject: string, topic: string): string[] => {
+    if (retestQuestion) return [retestQuestion.id];
     let pool = store.questions.filter((q) => store.settings.subjectIds.includes(q.subjectId));
     if (questionParam) pool = pool.filter((q) => q.id === questionParam);
     else {
@@ -72,16 +99,12 @@ function Practice() {
 
   const [order, setOrder] = useState<string[]>(() => orderFor(subjectId, topicId));
 
-  const questionsById = useMemo(
-    () => new Map(store.questions.map((q) => [q.id, q])),
-    [store.questions],
-  );
   const queue = useMemo(
     () => order.map((id) => questionsById.get(id)).filter((q): q is Question => Boolean(q)),
     [order, questionsById],
   );
 
-  const current: Question | undefined = queue[index];
+  const current: Question | undefined = retestMistake ? retestQuestion : queue[index];
 
   async function generate() {
     if (!topicId) {
@@ -139,10 +162,12 @@ function Practice() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">
-            {mode === "recall" ? "Active recall" : "Exam questions"}
+            {retestMistake ? "Retest a mistake" : mode === "recall" ? "Active recall" : "Exam questions"}
           </h1>
           <p className="text-sm text-ink3 mt-0.5">
-            {mode === "recall"
+            {retestMistake
+              ? "Apply the remediation, answer the original question again, and close the loop only when the missed point is secure."
+              : mode === "recall"
               ? "Answer from memory with nothing in front of you, then get it marked."
               : "Answer as you would in the exam. Every dropped mark becomes a card."}
           </p>
@@ -165,6 +190,7 @@ function Practice() {
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={topicId}
+          disabled={Boolean(retestMistake)}
           onChange={(e) => {
             setTopicId(e.target.value);
             // The queue is rebuilt for the new filter, so a stale cursor would
@@ -186,7 +212,7 @@ function Practice() {
             );
           })}
         </select>
-        <Button size="sm" onClick={() => void generate()} disabled={generating}>
+        <Button size="sm" onClick={() => void generate()} disabled={generating || Boolean(retestMistake)}>
           {generating ? "Generating…" : "Generate similar questions"}
         </Button>
         {queue.length ? (
@@ -198,6 +224,37 @@ function Practice() {
 
       {note ? <p className="text-xs text-ink3">{note}</p> : null}
 
+      {retestMistake && current ? (
+        <Panel className="card-2 border-l-4 border-l-accent">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone={retestMistake.resolved ? "success" : "danger"}>
+              {retestMistake.resolved ? "Resolved mistake" : "Open mistake"}
+            </Pill>
+            <span className="text-xs text-ink3">{retestMistake.description}</span>
+          </div>
+          {retestRemediation ? (
+            <div className="mt-3 space-y-1.5">
+              <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Remediation</p>
+              <p className="text-sm text-ink">{retestRemediation.action}</p>
+              <p className="text-xs text-ink3">Evidence: {retestRemediation.evidence}</p>
+              {retestRemediation.targetKeyPoint ? (
+                <p className="text-xs text-ink3">Restudy: {retestRemediation.targetKeyPoint}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="text-[11px] text-ink3 mt-3">
+            Targeted retests: {retestMistake.retestCount ?? 0} · submit when you are ready to check the point again.
+          </p>
+        </Panel>
+      ) : retestId ? (
+        <Panel>
+          <p className="text-sm text-ink2">That mistake or its source question is no longer available.</p>
+          <Link href="/progress" className="inline-block mt-3">
+            <Button variant="primary">Return to Progress</Button>
+          </Link>
+        </Panel>
+      ) : null}
+
       {mode === "recall" && current ? (
         <Panel className="card-2">
           <p className="text-xs text-ink2">
@@ -208,29 +265,36 @@ function Practice() {
         </Panel>
       ) : null}
 
-      {current ? (
+      {retestId && (!retestMistake || !retestQuestion) ? null : current ? (
         <>
           <QuestionRunner
-            key={current.id}
+            key={`${current.id}:${retestMistake?.id ?? "practice"}`}
             question={current}
             mode={mode}
+            retestMistake={retestMistake}
             onFinished={() => {
               setCompleted((c) => c + 1);
               if (sessionId && completed === 0) void store.completeSession(sessionId);
             }}
           />
-          <div className="flex justify-between gap-2">
-            <Button disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
-              Previous
-            </Button>
-            <Button
-              variant="primary"
-              disabled={index >= queue.length - 1}
-              onClick={() => setIndex((i) => i + 1)}
-            >
-              Next question
-            </Button>
-          </div>
+          {retestMistake ? (
+            <Link href="/progress" className="inline-block">
+              <Button variant="primary">Back to Progress</Button>
+            </Link>
+          ) : (
+            <div className="flex justify-between gap-2">
+              <Button disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+                Previous
+              </Button>
+              <Button
+                variant="primary"
+                disabled={index >= queue.length - 1}
+                onClick={() => setIndex((i) => i + 1)}
+              >
+                Next question
+              </Button>
+            </div>
+          )}
         </>
       ) : (
         <EmptyState

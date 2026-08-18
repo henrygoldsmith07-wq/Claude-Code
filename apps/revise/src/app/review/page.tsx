@@ -71,10 +71,16 @@ function ReviewSession() {
       if (!store.settings.subjectIds.includes(card.subjectId)) return false;
       if (subjectId && card.subjectId !== subjectId) return false;
       if (topicId && card.topicId !== topicId) return false;
-      if (mode === "mistakes") return card.kind === "mistake" && !card.suspended;
+      if (mode === "mistakes") {
+        if (card.kind !== "mistake" || card.suspended) return false;
+        const sourceMistake = card.sourceMistakeId
+          ? store.mistakes.find((mistake) => mistake.id === card.sourceMistakeId)
+          : undefined;
+        return !sourceMistake?.resolved;
+      }
       return isDue(card, today);
     });
-  }, [store.cards, store.settings.subjectIds, subjectId, topicId, mode, custom]);
+  }, [store.cards, store.mistakes, store.settings.subjectIds, subjectId, topicId, mode, custom]);
 
   // The queue is built once, at mount: rebuilding it as cards are graded would
   // reshuffle the deck underneath the student mid-session.

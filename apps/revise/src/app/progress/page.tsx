@@ -7,6 +7,7 @@ import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { ACHIEVEMENTS, levelFor } from "@/domain/gamification";
 import { weakTopics } from "@/domain/mastery";
 import { mistakePatterns } from "@/domain/mistakes";
+import { remediationForMistake } from "@/domain/remediation";
 import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
@@ -26,7 +27,15 @@ export default function ProgressPage() {
   const [diagnosing, setDiagnosing] = useState(false);
 
   const weak = useMemo(() => weakTopics(store.mastery, 8), [store.mastery]);
-  const patterns = useMemo(() => mistakePatterns(store.mistakes.filter((m) => !m.resolved)), [store.mistakes]);
+  const openMistakes = useMemo(
+    () =>
+      store.mistakes
+        .filter((mistake) => !mistake.resolved)
+        .slice()
+        .sort((a, b) => b.marksLost - a.marksLost || b.createdAt.localeCompare(a.createdAt)),
+    [store.mistakes],
+  );
+  const patterns = useMemo(() => mistakePatterns(openMistakes), [openMistakes]);
   const forecast = useMemo(() => dueCountByDay(store.cards, 14, today), [store.cards, today]);
   const maxDue = Math.max(1, ...forecast.map((f) => f.count));
   const level = levelFor(store.streak.xp);
@@ -73,6 +82,75 @@ export default function ProgressPage() {
         <StatTile label="Topics secure" value={totals.mastered} sub={`of ${store.mastery.length}`} />
         <StatTile label="Level" value={level.level} sub={`${level.into}/${level.needed} XP to next`} />
       </div>
+
+      <section>
+        <SectionHeading
+          title="Mistake → remediation → retest"
+          hint="Each dropped mark has a specific next action. Retest the same point until it is secure."
+        />
+        {openMistakes.length ? (
+          <ul className="card divide-y divide-line">
+            {openMistakes.slice(0, 8).map((mistake) => {
+              const question = mistake.questionId
+                ? store.questions.find((candidate) => candidate.id === mistake.questionId)
+                : undefined;
+              const attempt = mistake.attemptId
+                ? store.attempts.find((candidate) => candidate.id === mistake.attemptId)
+                : undefined;
+              const remediation = question
+                ? remediationForMistake(mistake, question, attempt, getTopic(mistake.topicId))
+                : null;
+              return (
+                <li key={mistake.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Pill tone="danger">{mistake.category}</Pill>
+                        <span className="text-[11px] text-ink3 tabular-nums">
+                          {mistake.marksLost} mark(s) lost
+                        </span>
+                        {(mistake.retestCount ?? 0) > 0 ? (
+                          <span className="text-[11px] text-ink3 tabular-nums">
+                            {mistake.retestCount} retest{mistake.retestCount === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-sm text-ink mt-1.5">{mistake.description}</p>
+                      {remediation ? (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-ink2">
+                            <span className="font-semibold">Remediation:</span> {remediation.action}
+                          </p>
+                          <p className="text-[11px] text-ink3">Evidence: {remediation.evidence}</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-ink3 mt-2">
+                          Revisit the mark-scheme point, then retest the source question.
+                        </p>
+                      )}
+                    </div>
+                    {question ? (
+                      <Link href={`/practice?retest=${encodeURIComponent(mistake.id)}`} className="shrink-0">
+                        <Button size="sm" variant="primary">
+                          Retest
+                        </Button>
+                      </Link>
+                    ) : (
+                      <span className="text-[11px] text-ink3">Source unavailable</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <Panel>
+            <p className="text-sm text-ink3">
+              No open mistakes. A dropped mark will appear here with its remediation and retest link.
+            </p>
+          </Panel>
+        )}
+      </section>
 
       <section>
         <SectionHeading

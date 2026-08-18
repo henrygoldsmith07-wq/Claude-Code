@@ -6,7 +6,12 @@ import { allSubjects, allTopics, getSubject } from "@/domain/curriculum";
 import { predictGrade } from "@/domain/grades";
 import type { GradePrediction } from "@/domain/grades";
 import { computeTopicMastery } from "@/domain/mastery";
-import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
+import {
+  applyRetestToMistake,
+  evaluateMistakeRetest,
+  mistakesFromAttempt,
+  shouldResolve,
+} from "@/domain/mistakes";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
 import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
@@ -376,8 +381,24 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   const recordAttempt = useCallback<StoreValue["recordAttempt"]>(
     async (attempt, question) => {
+      const isRetest = Boolean(attempt.retestMistakeId);
+      const retestMistake = isRetest
+        ? snapshot?.mistakes.find((mistake) => mistake.id === attempt.retestMistakeId && !mistake.resolved)
+        : undefined;
+      if (isRetest && !retestMistake) {
+        throw new Error("Cannot retest an unavailable or already resolved mistake.");
+      }
+      const retestEvaluation = retestMistake ? evaluateMistakeRetest(retestMistake, question, attempt) : undefined;
+      const updatedMistake = retestMistake && retestEvaluation
+        ? applyRetestToMistake(retestMistake, retestEvaluation, attempt)
+        : undefined;
+
       await repo.saveAttempt(attempt);
-      const drafts = mistakesFromAttempt(attempt, question);
+      if (updatedMistake) await repo.saveMistake(updatedMistake);
+
+      // A failed retest updates the original mistake in place. It must not
+      // create another card for the same gap.
+      const drafts = isRetest ? [] : mistakesFromAttempt(attempt, question);
       if (drafts.length) {
         await repo.saveMistakes(drafts.map((d) => d.mistake));
         await repo.saveCards(drafts.map((d) => d.card));
@@ -387,17 +408,20 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
         const next: Snapshot = {
           ...prev,
           attempts: [...prev.attempts, attempt],
-          mistakes: [...prev.mistakes, ...drafts.map((d) => d.mistake)],
+          mistakes: updatedMistake
+            ? prev.mistakes.map((mistake) => (mistake.id === updatedMistake.id ? updatedMistake : mistake))
+            : [...prev.mistakes, ...drafts.map((d) => d.mistake)],
           cards: [...prev.cards, ...drafts.map((d) => d.card)],
         };
-        void bumpGamification(prev.streak, attempt.awarded * XP.attemptMark, {}, next).then((streak) =>
+        const retestXp = retestEvaluation?.status === "resolved" ? XP.mistakeResolved : 0;
+        void bumpGamification(prev.streak, attempt.awarded * XP.attemptMark + retestXp, {}, next).then((streak) =>
           patch((p) => ({ ...p, streak })),
         );
         return next;
       });
-      return drafts.map((d) => d.mistake);
+      return updatedMistake ? [updatedMistake] : drafts.map((d) => d.mistake);
     },
-    [bumpGamification, patch],
+    [bumpGamification, patch, snapshot],
   );
 
   const addCards = useCallback<StoreValue["addCards"]>(

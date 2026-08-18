@@ -301,6 +301,8 @@ export interface Attempt {
   confidence?: 1 | 2 | 3 | 4 | 5;
   elapsedMs: number;
   mode: "practice" | "paper" | "recall";
+  /** Links a targeted practice attempt back to the open mistake it is testing. */
+  retestMistakeId?: Id;
   createdAt: IsoInstant;
 }
 
@@ -371,6 +373,11 @@ export interface Mistake {
   resolved: boolean;
   createdAt: IsoInstant;
   resolvedAt?: IsoInstant;
+  /** Number of targeted retests attempted since the mistake was captured. */
+  retestCount?: number;
+  /** Most recent targeted retest, whether or not it earned the point. */
+  lastRetestAttemptId?: Id;
+  lastRetestedAt?: IsoInstant;
 }
 
 export interface AssessmentInsight {
