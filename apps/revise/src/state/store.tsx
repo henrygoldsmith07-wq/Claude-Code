@@ -46,7 +46,7 @@ import type { MasteryInterval } from "@/domain/mastery-uncertainty";
 import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
 import type { Snapshot } from "@/data/repository";
-import { outboxSize, sync } from "@/data/sync";
+import { SYNC_QUEUE_EVENT, outboxSize, sync } from "@/data/sync";
 import { isSupabaseConfigured } from "@/data/supabase";
 
 // ---------------------------------------------------------------------------
@@ -61,6 +61,7 @@ export interface SyncStatus {
   online: boolean;
   pending: number;
   lastSyncedAt: string | null;
+  lastSyncError: string | null;
   enabled: boolean;
   syncing: boolean;
 }
@@ -124,6 +125,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     online: true,
     pending: 0,
     lastSyncedAt: null,
+    lastSyncError: null,
     enabled: isSupabaseConfigured,
     syncing: false,
   });
@@ -159,7 +161,10 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   // Network status drives the offline banner and gates sync attempts.
   useEffect(() => {
-    const update = () => setSyncStatus((s) => ({ ...s, online: navigator.onLine }));
+    const update = () => {
+      const online = navigator.onLine;
+      setSyncStatus((s) => ({ ...s, online, lastSyncError: online ? s.lastSyncError : null }));
+    };
     update();
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
@@ -167,6 +172,18 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
     };
+  }, []);
+
+  // Local writes enqueue after IndexedDB succeeds. Reflect that immediately so
+  // offline work is visibly safe instead of waiting for the next retry timer.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const refreshPending = () => {
+      void outboxSize().then((pending) => setSyncStatus((s) => ({ ...s, pending })));
+    };
+    refreshPending();
+    window.addEventListener(SYNC_QUEUE_EVENT, refreshPending);
+    return () => window.removeEventListener(SYNC_QUEUE_EVENT, refreshPending);
   }, []);
 
   const completeOnboarding = useCallback(async () => {
@@ -177,19 +194,36 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
   const syncNow = useCallback(async () => {
     if (!isSupabaseConfigured) return;
     setSyncStatus((s) => ({ ...s, syncing: true }));
-    const result = await sync(userId);
-    const pending = await outboxSize();
-    setSyncStatus((s) => ({
-      ...s,
-      syncing: false,
-      pending,
-      lastSyncedAt: result.skipped ? s.lastSyncedAt : new Date().toISOString(),
-    }));
-    if (result.pulled > 0) setSnapshot(await repo.loadSnapshot(userId));
+    try {
+      const result = await sync(userId);
+      const pending = await outboxSize();
+      const error =
+        result.failed > 0
+          ? "Some changes are still waiting to sync. We’ll keep trying."
+          : result.skipped === "signed-out"
+            ? "Sign in to sync across devices. Your data is still saved here."
+            : null;
+      setSyncStatus((s) => ({
+        ...s,
+        syncing: false,
+        pending,
+        lastSyncedAt: result.skipped || result.failed > 0 ? s.lastSyncedAt : new Date().toISOString(),
+        lastSyncError: error,
+      }));
+      if (result.pulled > 0) setSnapshot(await repo.loadSnapshot(userId));
+    } catch {
+      const pending = await outboxSize();
+      setSyncStatus((s) => ({
+        ...s,
+        syncing: false,
+        pending,
+        lastSyncError: "Sync is unavailable right now. Your data is still saved on this device.",
+      }));
+    }
   }, [userId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !snapshot) return;
+    if (!isSupabaseConfigured || !snapshot || !syncStatus.online) return;
     // Deferred rather than called inline: syncNow sets state, and doing that
     // synchronously inside an effect cascades an extra render on every mount.
     const first = setTimeout(() => void syncNow(), 0);
@@ -198,7 +232,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       clearTimeout(first);
       clearInterval(timer);
     };
-  }, [snapshot, syncNow]);
+  }, [snapshot, syncNow, syncStatus.online]);
 
   const patch = useCallback((updater: (prev: Snapshot) => Snapshot) => {
     setSnapshot((prev) => (prev ? updater(prev) : prev));
