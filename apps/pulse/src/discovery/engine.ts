@@ -44,9 +44,9 @@ export interface DiscoveryOptions {
   fdrLevel?: number;
   /** Minimum |standardised effect| worth reporting. */
   minEffect?: number;
-  exposureWindowsHours?: number[];
+  exposureWindowsHours?: readonly number[];
   maxLagDays?: number;
-  splitAttributes?: string[];
+  splitAttributes?: readonly string[];
   /** Deterministic clock. */
   now?: () => number;
   /** Cap on findings returned. */

@@ -46,6 +46,7 @@ import {
   type CalendarRecord,
 } from "../src/connectors/calendar.js";
 import { createFileImportConnector, previewImport, type ImportMapping } from "../src/connectors/tabular.js";
+import { createHabitConnector, mapHabitRecord, type HabitDayRecord } from "../src/connectors/habit.js";
 import type { Connector } from "../src/connectors/types.js";
 import type { RawEventInput } from "../src/events/normalise.js";
 
@@ -179,6 +180,32 @@ const importRows = [
   { date: "2025-06-11", mood: "5" },
 ];
 
+const habitRecords: HabitDayRecord[] = [
+  {
+    kind: "day",
+    id: "hb-1:2025-06-10",
+    habitId: "hb-1",
+    habitName: "Read 20 pages",
+    targetPerWeek: 5,
+    colour: "#6366f1",
+    archived: false,
+    day: "2025-06-10",
+    completed: true,
+    completedAt: "2025-06-10T20:15:00.000Z",
+  },
+  {
+    kind: "day",
+    id: "hb-1:2025-06-11",
+    habitId: "hb-1",
+    habitName: "Read 20 pages",
+    targetPerWeek: 5,
+    colour: "#6366f1",
+    archived: false,
+    day: "2025-06-11",
+    completed: false,
+  },
+];
+
 interface Fixture {
   connector: Connector;
   records: unknown[];
@@ -212,6 +239,11 @@ const FIXTURES: Fixture[] = [
     connector: createFileImportConnector(importRows, importMapping),
     records: importRows,
     map: ((row: Record<string, unknown>) => previewImport([row], importMapping).sample) as never,
+  },
+  {
+    connector: createHabitConnector(createArrayReader(habitRecords, (record) => record.completedAt ?? `${record.day}T23:59:59.999Z`)),
+    records: habitRecords,
+    map: ((record: HabitDayRecord) => mapHabitRecord(record)) as never,
   },
 ];
 

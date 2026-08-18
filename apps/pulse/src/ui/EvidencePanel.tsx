@@ -177,7 +177,9 @@ function ContradictionCard({
   const exposure = registry.get(record.exposureMetricId)?.name ?? record.exposureMetricId;
 
   return (
-    <article className="contradiction">
+    // The id is the link target for a withdrawn belief's "view the evidence"
+    // action: each belief links to the ledger record that owns its conflict.
+    <article className="contradiction" id={`contradiction-${record.id}`}>
       <header className="finding__header">
         <strong>
           {outcome} × {exposure}

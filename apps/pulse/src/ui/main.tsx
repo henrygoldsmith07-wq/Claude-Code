@@ -63,6 +63,10 @@ async function boot(): Promise<void> {
     adapter: eventsAdapter,
     historyAdapter,
     libraryAdapter,
+    includeHabit: true,
+    // Planted so the demo's insight history shows the habit correlation the
+    // connector exists to surface; see the generator's ground truth.
+    habitAccuracyBoost: 0.16,
   });
 
   // Restore the persisted stores before the scans below run. The deterministic

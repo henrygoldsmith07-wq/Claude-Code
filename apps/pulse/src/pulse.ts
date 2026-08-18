@@ -23,6 +23,7 @@ import { scoreAll, type QualityContext, type SourceQuality } from "./quality/sco
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
 import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
+import { relationshipSubject } from "./discovery/relationship.js";
 import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
 import { InsightCollectionStore, type InsightCollectionsAdapter } from "./history/insight-collections.js";
 import {
@@ -109,7 +110,7 @@ export class Pulse {
     this.value = new RecommendationValueTracker(this.now);
     this.insightHistory = new InsightHistory(options.historyAdapter);
     this.insightCollections = new InsightCollectionStore(this.now, options.collectionsAdapter);
-    this.causalLibrary = new CausalHypothesisLibrary(options.libraryAdapter);
+    this.causalLibrary = new CausalHypothesisLibrary(options.libraryAdapter, this.now);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
@@ -249,7 +250,9 @@ export class Pulse {
     // settles it. Reconcile on every scan, so the ledger's verdict is what
     // the UI shows and a cleared conflict restores the standing.
     this.causalLibrary.reconcileContradictions(
-      new Set(this.contradictions.list().map((record) => `${record.outcomeMetricId}|${record.exposureMetricId}`)),
+      new Set(
+        this.contradictions.list().map((record) => relationshipSubject(record.outcomeMetricId, record.exposureMetricId)),
+      ),
     );
     this.persistCausalLibrary();
     this.insightHistory.recordScan({
@@ -524,6 +527,10 @@ export class Pulse {
       findings: this.cachedFindings,
       recommendations: this.recommendations(),
       experiments: this.experimentResultsList(),
+      // Withdrawals are reported the week they happen, straight from the
+      // library's standing history, in the person's own timezone.
+      causalEntries: this.causalLibrary.list(),
+      timezone: this.timezone,
       qualities: this.quality(),
       now: this.now,
     });

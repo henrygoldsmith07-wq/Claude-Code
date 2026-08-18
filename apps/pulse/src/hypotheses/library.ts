@@ -23,6 +23,7 @@
 
 import { hash128 } from "../events/hash.js";
 import type { Finding, ReplicationStatus } from "../discovery/finding.js";
+import { relationshipSubject } from "../discovery/relationship.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
 import type { Hypothesis } from "./tracker.js";
 
@@ -312,7 +313,7 @@ export class CausalHypothesisLibrary {
   reconcileContradictions(contradictedSubjects: ReadonlySet<string>): void {
     for (const entry of this.entries.values()) {
       if (entry.standing === "retired") continue;
-      const subject = `${entry.outcomeMetricId ?? ""}|${entry.exposureMetricId ?? ""}`;
+      const subject = relationshipSubject(entry.outcomeMetricId, entry.exposureMetricId);
       const inConflict = contradictedSubjects.has(subject);
       const decisive = entry.evidence.some(
         (evidence) => evidence.kind === "experiment" && evidence.supports !== null,

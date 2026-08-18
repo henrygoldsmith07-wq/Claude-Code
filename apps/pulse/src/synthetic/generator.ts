@@ -24,6 +24,7 @@ import type { AriseRecord } from "../connectors/arise.js";
 import type { FrenchRecord } from "../connectors/french.js";
 import type { ForqRecord } from "../connectors/forq.js";
 import type { WearableDailyRecord } from "../connectors/wearable.js";
+import type { HabitDayRecord } from "../connectors/habit.js";
 
 export type GroundTruthKind = "true-effect" | "null-effect" | "confounded";
 
@@ -57,6 +58,7 @@ export interface SyntheticUser {
   french: FrenchRecord[];
   forq: ForqRecord[];
   wearable: WearableDailyRecord[];
+  habit: HabitDayRecord[];
   groundTruth: GroundTruthRelationship[];
 }
 
@@ -77,6 +79,8 @@ export interface SyntheticOptions {
   includeConfounded?: boolean;
   /** Absolute accuracy gain per hour of sleep above the ~7h baseline. */
   sleepAccuracyBoost?: number;
+  /** Absolute accuracy gain on days when all tracked habits were completed. */
+  habitAccuracyBoost?: number;
 }
 
 const BASE_ACCURACY = 0.62;
@@ -105,23 +109,62 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
   // Off by default so existing benchmarks keep their known sensitivity/specificity
   // profile; the longitudinal benchmark opts in when it wants the wearable signal.
   const sleepAccuracyBoost = options.sleepAccuracyBoost ?? 0;
+  // Off by default for the same reason: the habit effect must be opted in so
+  // existing benchmarks keep their known results.
+  const habitAccuracyBoost = options.habitAccuracyBoost ?? 0;
 
   const rng = createRng(seed);
   // Wearable draws use their own stream so adding them never shifts the
   // study/exercise data — existing benchmarks keep their known results.
   const wearableRng = createRng(`${seed}:wearable`);
+  // Habits draw from their own stream for the same reason.
+  const habitRng = createRng(`${seed}:habit`);
 
   const revise: ReviseRecord[] = [];
   const arise: AriseRecord[] = [];
   const french: FrenchRecord[] = [];
   const forq: ForqRecord[] = [];
   const wearable: WearableDailyRecord[] = [];
+  const habit: HabitDayRecord[] = [];
+
+  // Three habits, tracked from the first generated day. Completion is per-day
+  // and draws from its own rng stream so the benchmark's study/exercise data
+  // never shifts.
+  const HABIT_DEFS = [
+    { id: "hb-read", name: "Read 20 pages", targetPerWeek: 5, colour: "#6366f1" },
+    { id: "hb-journal", name: "Journal", targetPerWeek: 7, colour: "#10b981" },
+    { id: "hb-stretch", name: "Stretch", targetPerWeek: 3, colour: "#f59e0b" },
+  ] as const;
 
   for (let dayIndex = 0; dayIndex < days; dayIndex += 1) {
     const date = addDays(startDate, dayIndex);
     const dayStartMs = localDayStart(date, timezone);
     const dow = localDayOfWeek(dayStartMs, timezone);
     const isWeekend = dow === 0 || dow === 6;
+
+    // --- habits: completed with some probability, flagged at ~20:00 ---------
+    // The planted habit effect is a same-day accuracy boost proportional to the
+    // share of habits completed, so discovery's daily lagged correlation sees
+    // it the way a real habit/mood question would be asked.
+    let completedHabits = 0;
+    for (const definition of HABIT_DEFS) {
+      const completed = habitRng.next() < 0.6;
+      if (completed) completedHabits += 1;
+      habit.push({
+        kind: "day",
+        id: `${definition.id}:${date}`,
+        habitId: definition.id,
+        habitName: definition.name,
+        targetPerWeek: definition.targetPerWeek,
+        colour: definition.colour,
+        archived: false,
+        day: date,
+        completed,
+        ...(completed ? { completedAt: instantAt(dayStartMs, 1200) } : {}),
+        timezone,
+      });
+    }
+    const habitShare = completedHabits / HABIT_DEFS.length;
 
     // --- exercise -------------------------------------------------------
     let workoutMinutes: number | null = null;
@@ -197,6 +240,8 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
       if (minutes >= 720 && minutes < 1080) accuracy += afternoonBoost;
       // Longer sleep → sharper sessions (the planted wearable effect).
       if (sleepAccuracyBoost > 0) accuracy += sleepAccuracyBoost * ((sleepMinutes - 420) / 60);
+      // More habits done today → sharper sessions (the planted habit effect).
+      if (habitAccuracyBoost > 0) accuracy += habitAccuracyBoost * habitShare;
       // Evening sharpness — the *real* cause behind the French/recall pattern.
       const eveningSharpness = includeConfounded && minutes >= 1080 && minutes < 1320 ? 0.05 : 0;
       accuracy += eveningSharpness;
@@ -291,6 +336,7 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
     french,
     forq,
     wearable,
+    habit,
     groundTruth: [
       {
         id: "exercise-then-study",
@@ -373,6 +419,15 @@ export function generateSyntheticUser(options: SyntheticOptions = {}): Synthetic
         matchTag: "lagged-correlation",
         plantedEffect: 0,
       },
+      {
+        id: "habit-completion-accuracy",
+        kind: "true-effect",
+        description: "Study accuracy is higher on days more habits are completed.",
+        outcomeMetricId: "study.accuracy",
+        exposureMetricId: "habit.completion",
+        matchTag: "lagged-correlation",
+        plantedEffect: habitAccuracyBoost,
+      },
     ],
   };
 }
@@ -390,6 +445,7 @@ export function generateNullUser(options: SyntheticOptions = {}): SyntheticUser 
     exerciseAccuracyBoost: 0,
     afternoonAccuracyBoost: 0,
     sleepAccuracyBoost: 0,
+    habitAccuracyBoost: 0,
     includeConfounded: false,
   });
   return {

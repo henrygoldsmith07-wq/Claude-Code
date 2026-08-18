@@ -21,6 +21,7 @@
 
 import { hash128 } from "../events/hash.js";
 import type { Finding, ReplicationStatus } from "./finding.js";
+import { relationshipSubject } from "./relationship.js";
 
 export interface ContradictionSighting {
   findingId: string;
@@ -55,7 +56,7 @@ export class ContradictionLedger {
    * would look like a different claim.
    */
   static subject(finding: Finding): string {
-    return [finding.metricIds[0] ?? "", finding.metricIds[1] ?? ""].join("|");
+    return relationshipSubject(finding.metricIds[0], finding.metricIds[1]);
   }
 
   /**
