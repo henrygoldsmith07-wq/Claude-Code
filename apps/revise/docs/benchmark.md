@@ -40,6 +40,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 - Edexcel A-level content expansion: `edexcelExpansionQuestions` adds 55 original checked questions, one for every Edexcel A-level topic across biology, chemistry, mathematics and physics, with Edexcel topic/spec-point anchors.
 - Data-question expansion: `dataExpansionQuestions` materialises 55 checked dataset-driven templates into 440 questions across all 32 board/qualification subjects, covering table reading, calculations, trends and experimental interpretation.
 - Unfamiliar-context expansion: `unfamiliarContextQuestions` materialises 55 checked transfer templates into 440 questions across all 32 board/qualification subjects, covering novel biological, chemical, mathematical and physical scenarios.
+- Authentic source-material expansion: `authenticSourceQuestions` materialises 55 checked original field-note, report, archive and technical-brief extracts into 440 questions across all 32 board/qualification subjects.
 - `/benchmarks` renders the live corpus version, row-level human vs rubric totals and the same floor status used by CI.
 - `/benchmarks` also renders the current pairwise disagreement matrix keyed by `questionId`; the internal corpus currently measures human ↔ rubric and leaves AI coverage explicitly unmeasured until provider-marked gold exists.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.
@@ -59,7 +60,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 - Every topic has `specPoints` on every unit; every `specPointIds` is paired with `learningClaims`; stale topics (>365d) and unverified statements are surfaced by `regressionReport`.
 - Spec-change diff tooling (`curriculum-diff.ts`): diff two snapshots of a subject's topics (old spec version vs new) and get added/removed/reworded spec points, key-point and common-error changes, plus the questions pinned to affected points — so a board revision is triaged instead of re-read. `recordedSpecVersionChanges` lists subjects whose manifest history spans multiple spec versions.
-- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 522 authored question templates today; the runtime bank materialises 1,155 GCSE, Edexcel A-level, data-question and unfamiliar-context expansion entries (8 boards×levels, tree-shakable modules).
+- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 577 authored question templates today; the runtime bank materialises 1,595 GCSE, Edexcel A-level, data-question, unfamiliar-context and authentic-source expansion entries (8 boards×levels, tree-shakable modules).
 - Visual regression: `e2e/visual.spec.ts` guards the Today shell (2% tolerance, `e2e/__screenshots__/`); update with `--update-snapshots`.
 
 

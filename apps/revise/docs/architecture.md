@@ -83,6 +83,9 @@ The data expansion adds 55 table, experiment and trend templates that
 materialise into 440 dataset-driven questions across all 32 subject variants.
 The unfamiliar-context expansion adds a further 55 transfer and application
 templates, also materialised into 440 questions across all 32 subject variants.
+The authentic-source expansion adds 55 original field-note, report, archive and
+technical-brief extracts, materialised into another 440 questions across all
+32 subject variants.
 
 ### `src/data` — offline-first storage
 
