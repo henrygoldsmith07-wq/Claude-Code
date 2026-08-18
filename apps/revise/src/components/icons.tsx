@@ -47,6 +47,7 @@ import {
   Trash2,
   TriangleAlert,
   Trophy,
+  UsersRound,
   WifiOff,
   X,
 } from "lucide-react";
@@ -78,6 +79,8 @@ export const CardsIcon = LayoutGrid;
 /** The Socratic tutor. */
 export const TutorIcon = Sparkles;
 export const SettingsIcon = Settings;
+/** Teacher cohort, assignment and moderation workspace. */
+export const TeacherIcon = UsersRound;
 /** Study modes other than plain review. */
 export const ModesIcon = Shapes;
 /** One-click generation from notes. */

@@ -24,6 +24,7 @@ import {
   SettingsIcon,
   SyncIcon,
   TodayIcon,
+  TeacherIcon,
   TutorIcon,
   BenchmarkIcon,
   CaseStudyIcon,
@@ -45,6 +46,7 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
   { href: "/practice", label: "Practice", Icon: PracticeIcon },
   { href: "/planner", label: "Plan", Icon: PlanIcon, primary: true },
   { href: "/progress", label: "Progress", Icon: ProgressIcon, primary: true },
+  { href: "/teacher", label: "Teacher P2", Icon: TeacherIcon },
   { href: "/response-time", label: "Response time", Icon: ResponseTimeIcon },
   { href: "/generate", label: "From notes", Icon: GenerateIcon },
   { href: "/cards", label: "Cards", Icon: CardsIcon },
@@ -210,6 +212,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button onClick={() => setSearchOpen(true)} className="btn btn-ghost" aria-label="Search">
               <SearchIcon size={ICON_SIZE.lg} aria-hidden />
             </button>
+            <Link href="/teacher" className="btn btn-ghost" aria-label="Teacher P2">
+              <TeacherIcon size={ICON_SIZE.lg} aria-hidden />
+            </Link>
             <Link href="/settings" className="btn btn-ghost" aria-label="Settings">
               <SettingsIcon size={ICON_SIZE.lg} aria-hidden />
             </Link>
