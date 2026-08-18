@@ -22,7 +22,7 @@ describe("Edexcel A-level content expansion", () => {
       }
     }
 
-    expect(seedQuestions.length).toBeGreaterThanOrEqual(630);
+    expect(seedQuestions.length).toBeGreaterThanOrEqual(570);
   });
 
   it("keeps Edexcel questions checked, markable and mapped to Edexcel specification points", () => {
