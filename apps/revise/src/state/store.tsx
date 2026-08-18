@@ -6,6 +6,7 @@ import { allSubjects, allTopics, getSubject } from "@/domain/curriculum";
 import { predictGrade } from "@/domain/grades";
 import type { GradePrediction } from "@/domain/grades";
 import { computeTopicMastery } from "@/domain/mastery";
+import { computeRecallMastery } from "@/domain/recall-mastery";
 import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
 import { recommend } from "@/domain/recommender";
@@ -32,6 +33,7 @@ import type {
   TopicMastery,
   UserSettings,
 } from "@/domain/types";
+import type { RecallMasteryRow } from "@/domain/recall-mastery";
 import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
 import type { Snapshot } from "@/data/repository";
@@ -61,6 +63,7 @@ interface StoreValue extends Snapshot {
   completeOnboarding(): Promise<void>;
   userId: Id;
   mastery: TopicMastery[];
+  recallMastery: RecallMasteryRow[];
   recommendations: Recommendation[];
   predictions: GradePrediction[];
   dueCards: Card[];
@@ -194,6 +197,15 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       reviewLogs: snapshot.reviewLogs,
       attempts: snapshot.attempts,
       mistakes: snapshot.mistakes,
+    });
+  }, [snapshot, topics]);
+
+  const recallMastery = useMemo(() => {
+    if (!snapshot) return [];
+    return computeRecallMastery({
+      topics,
+      cards: snapshot.cards,
+      reviewLogs: snapshot.reviewLogs,
     });
   }, [snapshot, topics]);
 
@@ -529,6 +541,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       completeOnboarding,
       userId,
       mastery,
+      recallMastery,
       recommendations,
       predictions,
       dueCards,
@@ -559,6 +572,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     completeOnboarding,
     userId,
     mastery,
+    recallMastery,
     recommendations,
     predictions,
     dueCards,

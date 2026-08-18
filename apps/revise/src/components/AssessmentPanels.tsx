@@ -211,6 +211,78 @@ export function TechniqueVsKnowledgeCard() {
   );
 }
 
+export function RecallMasteryCard() {
+  const store = useStore();
+  const rows = store.recallMastery.filter((row) => row.cardsTotal > 0);
+  if (!rows.length) {
+    return (
+      <Panel>
+        <SectionHeading
+          title="Recall mastery"
+          hint="A recall-only view of memory strength, separate from exam-question performance."
+        />
+        <EmptyHint>Review a few flashcards to start measuring what you can retrieve from memory.</EmptyHint>
+      </Panel>
+    );
+  }
+
+  const totalCards = rows.reduce((sum, row) => sum + row.cardsTotal, 0);
+  const weighted = (selector: (row: typeof rows[number]) => number) =>
+    rows.reduce((sum, row) => sum + selector(row) * row.cardsTotal, 0) / totalCards;
+  const overall = weighted((row) => row.mastery);
+  const currentRetention = weighted((row) => row.currentRetention);
+  const reviews = rows.reduce((sum, row) => sum + row.reviews, 0);
+  const recalled = rows.reduce((sum, row) => sum + row.recalled, 0);
+  const trueRetention = reviews ? recalled / reviews : null;
+  const due = rows.reduce((sum, row) => sum + row.cardsDue, 0);
+  const weakest = [...rows].sort((a, b) => a.mastery - b.mastery).slice(0, 6);
+  const masteryTone = overall >= 0.8 ? "success" : overall >= 0.55 ? "review" : "danger";
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="Recall mastery"
+        hint="Memory strength from card stability and current retrievability — exam marks are deliberately excluded."
+        action={
+          <Link href="/review">
+            <Button size="sm">Review cards</Button>
+          </Link>
+        }
+      />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile label="Recall mastery" value={`${Math.round(overall * 100)}%`} sub={`${totalCards} cards`} tone={masteryTone} />
+        <StatTile label="Current retention" value={`${Math.round(currentRetention * 100)}%`} sub="FSRS estimate now" tone={currentRetention < 0.8 ? "review" : "success"} />
+        <StatTile label="Observed recall" value={trueRetention == null ? "—" : `${Math.round(trueRetention * 100)}%`} sub={`${reviews} reviews`} tone={trueRetention != null && trueRetention < 0.8 ? "danger" : undefined} />
+        <StatTile label="Due cards" value={due} sub={due ? "retrieval practice waiting" : "Nothing due"} tone={due ? "review" : "success"} />
+      </div>
+      <div className="mt-4">
+        <ProgressBar value={overall} label="Recall mastery across studied cards" tone={masteryTone} />
+      </div>
+      <div className="mt-4 pt-3 border-t border-line">
+        <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Topics needing retrieval</p>
+        <ul className="space-y-2">
+          {weakest.map((row) => (
+            <li key={row.topicId} className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <Link href={`/review?topic=${encodeURIComponent(row.topicId)}`} className="text-xs text-ink2 truncate hover:underline block">
+                  {getTopic(row.topicId)?.title ?? row.topicId}
+                </Link>
+                <ProgressBar value={row.mastery} tone={row.mastery < 0.55 ? "danger" : "review"} />
+              </div>
+              <span className="text-xs tabular-nums text-ink3 shrink-0">
+                {Math.round(row.mastery * 100)}%{row.cardsDue ? ` · ${row.cardsDue} due` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-[11px] text-ink3 mt-3">
+        Observed recall counts every grade except “again”; the mastery score remains model-based so a thin review history cannot overstate certainty.
+      </p>
+    </Panel>
+  );
+}
+
 function TimingBreakdown() {
   const store = useStore();
   const byTiming: Record<string, number> = { ok: 0, rushed: 0, slow: 0, unknown: 0 };
