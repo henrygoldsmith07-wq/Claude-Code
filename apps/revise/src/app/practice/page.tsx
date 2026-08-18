@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { remediationForMistake } from "@/domain/remediation";
@@ -27,6 +27,7 @@ export default function PracticePage() {
 function Practice() {
   const params = useSearchParams();
   const store = useStore();
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
   const subjects = useSubjects();
   const topicParam = params.get("topic");
   const subjectParam = params.get("subject");
@@ -34,13 +35,17 @@ function Practice() {
   const questionParam = params.get("question");
   const retestId = params.get("retest");
   const mode = params.get("mode") === "recall" ? "recall" : "practice";
+  const resumeRequested = params.get("resume") === "1";
+  const savedCheckpoint =
+    resumeRequested && store.revisionCheckpoint?.activity === "practice" ? store.revisionCheckpoint : null;
 
   const [subjectId, setSubjectId] = useState(subjectParam ?? subjects[0]?.id ?? "");
   const [topicId, setTopicId] = useState(topicParam ?? "");
-  const [index, setIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [completed, setCompleted] = useState(0);
+  const [submittedIndex, setSubmittedIndex] = useState<number | null>(null);
+  const [finished, setFinished] = useState(false);
 
   const masteryByTopic = useMemo(() => new Map(store.mastery.map((m) => [m.topicId, m])), [store.mastery]);
   const questionsById = useMemo(
@@ -97,7 +102,8 @@ function Practice() {
       .map((q) => q.id);
   };
 
-  const [order, setOrder] = useState<string[]>(() => orderFor(subjectId, topicId));
+  const [index, setIndex] = useState(() => savedCheckpoint?.position ?? 0);
+  const [order, setOrder] = useState<string[]>(() => savedCheckpoint?.queueIds?.length ? savedCheckpoint.queueIds : orderFor(subjectId, topicId));
 
   const queue = useMemo(
     () => order.map((id) => questionsById.get(id)).filter((q): q is Question => Boolean(q)),
@@ -105,6 +111,38 @@ function Practice() {
   );
 
   const current: Question | undefined = retestMistake ? retestQuestion : queue[index];
+
+  const checkpointHref = useMemo(() => {
+    const next = new URLSearchParams();
+    if (subjectId) next.set("subject", subjectId);
+    if (topicId) next.set("topic", topicId);
+    if (mode === "recall") next.set("mode", mode);
+    if (sessionId) next.set("session", sessionId);
+    if (retestId) next.set("retest", retestId);
+    next.set("resume", "1");
+    const query = next.toString();
+    return query ? `/practice?${query}` : "/practice?resume=1";
+  }, [mode, retestId, sessionId, subjectId, topicId]);
+
+  useEffect(() => {
+    if (finished || !current) {
+      if (resumeRequested && !current) void clearRevisionCheckpoint();
+      return;
+    }
+    if (retestMistake?.resolved) {
+      void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "practice",
+      title: retestMistake ? "Retest a mistake" : mode === "recall" ? "Active recall" : "Exam questions",
+      href: checkpointHref,
+      position: retestMistake ? 0 : index,
+      total: retestMistake ? 1 : queue.length,
+      queueIds: retestMistake ? [current.id] : order,
+      retestMistakeId: retestMistake?.id,
+    });
+  }, [checkpointHref, clearRevisionCheckpoint, current, finished, index, mode, order, queue.length, resumeRequested, retestMistake, saveRevisionCheckpoint]);
 
   async function generate() {
     if (!topicId) {
@@ -146,6 +184,7 @@ function Practice() {
       // New questions go to the front: the student asked for them just now.
       setOrder((prev) => [...fresh.map((q) => q.id), ...prev]);
       setIndex(0);
+      setSubmittedIndex(null);
     }
     setNote(
       result.source === "ai"
@@ -156,6 +195,25 @@ function Practice() {
   }
 
   const topics = subjectId ? topicsFor(subjectId) : [];
+
+  if (finished) {
+    return (
+      <EmptyState
+        title="Practice session complete"
+        body="That queue is done. Your marks and any new mistake cards are already saved."
+        action={
+          <div className="flex gap-2">
+            <Link href="/">
+              <Button variant="primary">Back to Today</Button>
+            </Link>
+            <Link href="/practice">
+              <Button>Practise another set</Button>
+            </Link>
+          </div>
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -177,10 +235,11 @@ function Practice() {
             ariaLabel="Subject"
             value={subjectId}
             onChange={(value) => {
-              setSubjectId(value);
-              setTopicId("");
-              setIndex(0);
-              setOrder(orderFor(value, ""));
+               setSubjectId(value);
+               setTopicId("");
+               setIndex(0);
+               setSubmittedIndex(null);
+               setOrder(orderFor(value, ""));
             }}
             options={subjects.map((s) => ({ value: s.id, label: s.name }))}
           />
@@ -194,9 +253,10 @@ function Practice() {
           onChange={(e) => {
             setTopicId(e.target.value);
             // The queue is rebuilt for the new filter, so a stale cursor would
-            // land on an unrelated question.
-            setIndex(0);
-            setOrder(orderFor(subjectId, e.target.value));
+             // land on an unrelated question.
+             setIndex(0);
+             setSubmittedIndex(null);
+             setOrder(orderFor(subjectId, e.target.value));
           }}
           className="field field-inline text-sm"
           aria-label="Topic"
@@ -274,6 +334,7 @@ function Practice() {
             retestMistake={retestMistake}
             onFinished={() => {
               setCompleted((c) => c + 1);
+              setSubmittedIndex(index);
               if (sessionId && completed === 0) void store.completeSession(sessionId);
             }}
           />
@@ -286,13 +347,22 @@ function Practice() {
               <Button disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
                 Previous
               </Button>
-              <Button
-                variant="primary"
-                disabled={index >= queue.length - 1}
-                onClick={() => setIndex((i) => i + 1)}
-              >
-                Next question
-              </Button>
+              {index >= queue.length - 1 ? (
+                <Button
+                  variant="primary"
+                  disabled={submittedIndex !== index}
+                  onClick={() => {
+                    void clearRevisionCheckpoint();
+                    setFinished(true);
+                  }}
+                >
+                  Finish session
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={() => setIndex((i) => i + 1)}>
+                  Next question
+                </Button>
+              )}
             </div>
           )}
         </>

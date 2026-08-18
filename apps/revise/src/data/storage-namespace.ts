@@ -5,12 +5,14 @@ export const REVISE_META_KEYS = {
   lastPullAt: "revise.lastPullAt.v1",
   onboardedAt: "revise.onboardedAt.v1",
   seedVersion: "revise.seedVersion.v1",
+  revisionCheckpoint: "revise.revisionCheckpoint.v1",
 } as const;
 
 const LEGACY_KEYS = {
   lastPullAt: "lastPullAt",
   onboardedAt: "onboardedAt",
   seedVersion: "seedVersion",
+  revisionCheckpoint: "revisionCheckpoint",
 } as const;
 
 /** Read a namespaced key and migrate its old unprefixed spelling once. */

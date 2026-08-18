@@ -31,7 +31,14 @@ function Papers() {
   const store = useStore();
   const subjects = useSubjects();
   const [subjectId, setSubjectId] = useState(params.get("subject") ?? subjects[0]?.id ?? "");
-  const [activePaper, setActivePaper] = useState<Paper | null>(null);
+  const resumeCheckpoint =
+    params.get("resume") === "1" && store.revisionCheckpoint?.activity === "paper"
+      ? store.revisionCheckpoint
+      : null;
+  const [resumeActive, setResumeActive] = useState(Boolean(resumeCheckpoint?.paperId));
+  const [activePaper, setActivePaper] = useState<Paper | null>(() =>
+    resumeCheckpoint?.paperId ? store.papers.find((paper) => paper.id === resumeCheckpoint.paperId) ?? null : null,
+  );
 
   const papers = useMemo(
     () => store.papers.filter((p) => !subjectId || p.subjectId === subjectId),
@@ -39,7 +46,15 @@ function Papers() {
   );
 
   if (activePaper) {
-    return <PaperSession paper={activePaper} onExit={() => setActivePaper(null)} />;
+    const checkpoint = resumeActive && resumeCheckpoint?.paperId === activePaper.id ? resumeCheckpoint : null;
+    return (
+      <PaperSession
+        paper={activePaper}
+        initialIndex={checkpoint?.position ?? 0}
+        initialPaperRunId={checkpoint?.paperRunId}
+        onExit={() => setActivePaper(null)}
+      />
+    );
   }
 
   return (
@@ -86,7 +101,10 @@ function Papers() {
                     size="sm"
                     variant="primary"
                     disabled={!paper.questionIds.length}
-                    onClick={() => setActivePaper(paper)}
+                    onClick={() => {
+                      setResumeActive(false);
+                      setActivePaper(paper);
+                    }}
                   >
                     Sit paper
                   </Button>
@@ -280,13 +298,36 @@ export function mapToTopics(subjectId: string, text: string, limit = 2): string[
   return picked.length ? picked : [topicsFor(subjectId)[0]?.id].filter(Boolean);
 }
 
-function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
+function PaperSession({
+  paper,
+  initialIndex,
+  initialPaperRunId,
+  onExit,
+}: {
+  paper: Paper;
+  initialIndex: number;
+  initialPaperRunId?: string;
+  onExit: () => void;
+}) {
   const store = useStore();
-  const [index, setIndex] = useState(0);
-  const [paperRunId] = useState(() => crypto.randomUUID());
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
+  const questions = useMemo(
+    () => paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q)),
+    [paper.questionIds, store.questions],
+  );
+  const [paperRunId] = useState(() => initialPaperRunId ?? crypto.randomUUID());
+  const [index, setIndex] = useState(() => {
+    const attempted = new Set(
+      initialPaperRunId
+        ? store.attempts.filter((attempt) => attempt.paperRunId === initialPaperRunId).map((attempt) => attempt.questionId)
+        : [],
+    );
+    let next = Math.max(0, Math.floor(initialIndex));
+    while (next < questions.length && attempted.has(questions[next].id)) next++;
+    return next;
+  });
   const [startedAt] = useState(() => Date.now());
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
-  const [scores, setScores] = useState<{ awarded: number; max: number }[]>([]);
 
   // A paper is sat under timed conditions, so the clock has to advance on its
   // own rather than only when something else re-renders.
@@ -295,10 +336,6 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
     return () => clearInterval(tick);
   }, [startedAt]);
 
-  const questions = useMemo(
-    () => paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q)),
-    [paper.questionIds, store.questions],
-  );
   const paperAttempts = useMemo(
     () => store.attempts.filter((attempt) => attempt.paperRunId === paperRunId),
     [paperRunId, store.attempts],
@@ -315,10 +352,28 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
     [paper, paperAttempts, paperRunId, questions, store.mistakes],
   );
   const current = questions[index];
-  const totalAwarded = scores.reduce((a, s) => a + s.awarded, 0);
-  const totalMax = scores.reduce((a, s) => a + s.max, 0);
+  const totalAwarded = paperAttempts.reduce((a, attempt) => a + attempt.awarded, 0);
+  const totalMax = paperAttempts.reduce((a, attempt) => a + attempt.max, 0);
+
+  useEffect(() => {
+    if (!questions.length || !current) {
+      if (questions.length) void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "paper",
+      title: paper.title,
+      href: "/papers?resume=1",
+      position: index,
+      total: questions.length,
+      queueIds: paper.questionIds,
+      paperId: paper.id,
+      paperRunId,
+    });
+  }, [clearRevisionCheckpoint, current, index, paper, paperRunId, questions.length, saveRevisionCheckpoint]);
 
   async function finish() {
+    await clearRevisionCheckpoint();
     await store.addPaper({ ...paper, status: "practised" });
     onExit();
   }
@@ -389,7 +444,6 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         paperId={paper.id}
         paperSpecId={paper.paperSpecId}
         paperRunId={paperRunId}
-        onFinished={(attempt) => setScores((prev) => [...prev, { awarded: attempt.awarded, max: attempt.max }])}
       />
 
       <Button variant="primary" className="w-full" onClick={() => setIndex((i) => i + 1)}>

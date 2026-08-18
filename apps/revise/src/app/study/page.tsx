@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { browse } from "@/domain/browser";
 import { isDiagramCard } from "@/domain/diagrams";
 import { getSubject, topicsFor } from "@/domain/curriculum";
@@ -79,7 +79,12 @@ export default function StudyPage() {
 function Study() {
   const params = useSearchParams();
   const store = useStore();
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
   const subjects = useSubjects();
+  const resumeRequested = params.get("resume") === "1";
+  const savedCheckpoint =
+    resumeRequested && store.revisionCheckpoint?.activity === "study" ? store.revisionCheckpoint : null;
+  const [resumeQueueIds] = useState<string[] | null>(() => savedCheckpoint?.queueIds ?? null);
 
   const [mode, setMode] = useState<StudyMode | null>((params.get("mode") as StudyMode) || null);
   const [subjectId, setSubjectId] = useState(params.get("subject") ?? "");
@@ -99,15 +104,50 @@ function Study() {
 
   const diagramCount = useMemo(() => pool.filter(isDiagramCard).length, [pool]);
 
+  const activePool = useMemo(() => {
+    if (!resumeQueueIds?.length) return pool;
+    const byId = new Map(store.cards.map((card) => [card.id, card] as const));
+    const restored = resumeQueueIds.map((id) => byId.get(id)).filter((card): card is (typeof store.cards)[number] => Boolean(card));
+    return restored.length ? restored : pool;
+  }, [pool, resumeQueueIds, store.cards]);
+
+  const checkpointHref = useMemo(() => {
+    const next = new URLSearchParams();
+    if (mode) next.set("mode", mode);
+    if (subjectId) next.set("subject", subjectId);
+    if (topicId) next.set("topic", topicId);
+    if (query) next.set("q", query);
+    next.set("resume", "1");
+    return `/study?${next.toString()}`;
+  }, [mode, query, subjectId, topicId]);
+
+  useEffect(() => {
+    if (!mode) {
+      if (resumeRequested) void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "study",
+      title: `${mode[0].toUpperCase()}${mode.slice(1)} mode`,
+      href: checkpointHref,
+      position: 0,
+      total: activePool.length,
+      queueIds: activePool.map((card) => card.id),
+    });
+  }, [activePool, checkpointHref, clearRevisionCheckpoint, mode, resumeRequested, saveRevisionCheckpoint]);
+
   if (mode) {
-    const exit = () => setMode(null);
+    const exit = () => {
+      void clearRevisionCheckpoint();
+      setMode(null);
+    };
     return (
       <div className="pb-4">
-        {mode === "learn" ? <LearnMode cards={pool} onExit={exit} /> : null}
-        {mode === "test" ? <TestMode cards={pool} onExit={exit} /> : null}
-        {mode === "match" ? <MatchGame cards={pool} onExit={exit} /> : null}
-        {mode === "diagram" ? <DiagramMode cards={pool} onExit={exit} /> : null}
-        {mode === "audio" ? <AudioMode cards={pool} onExit={exit} /> : null}
+        {mode === "learn" ? <LearnMode cards={activePool} onExit={exit} /> : null}
+        {mode === "test" ? <TestMode cards={activePool} onExit={exit} /> : null}
+        {mode === "match" ? <MatchGame cards={activePool} onExit={exit} /> : null}
+        {mode === "diagram" ? <DiagramMode cards={activePool} onExit={exit} /> : null}
+        {mode === "audio" ? <AudioMode cards={activePool} onExit={exit} /> : null}
       </div>
     );
   }

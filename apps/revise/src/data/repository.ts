@@ -13,6 +13,10 @@ import type {
   StreakState,
   UserSettings,
 } from "@/domain/types";
+import {
+  isRevisionCheckpoint,
+  type RevisionCheckpoint,
+} from "@/domain/revision-checkpoint";
 import { COLLECTION_STORES, getAll, getDb, putAll, putOne, removeOne } from "./db";
 import type { CollectionStore } from "./db";
 import { enqueue } from "./sync";
@@ -32,6 +36,41 @@ export async function hasOnboarded(): Promise<boolean> {
 
 export async function markOnboarded(): Promise<void> {
   await writeReviseMeta("onboardedAt", new Date().toISOString());
+}
+
+export async function loadRevisionCheckpoint(userId: Id): Promise<RevisionCheckpoint | undefined> {
+  const value = await readReviseMeta<unknown>("revisionCheckpoint");
+  if (isRevisionCheckpoint(value)) return value.userId === userId ? value : undefined;
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = (value as Record<string, unknown>)[userId];
+  return isRevisionCheckpoint(candidate) && candidate.userId === userId ? candidate : undefined;
+}
+
+export async function saveRevisionCheckpoint(checkpoint: RevisionCheckpoint): Promise<void> {
+  const current = await readReviseMeta<unknown>("revisionCheckpoint");
+  const byUser: Record<string, RevisionCheckpoint> = {};
+  if (isRevisionCheckpoint(current)) byUser[current.userId] = current;
+  else if (current && typeof current === "object") {
+    for (const [userId, value] of Object.entries(current)) {
+      if (isRevisionCheckpoint(value) && value.userId === userId) byUser[userId] = value;
+    }
+  }
+  byUser[checkpoint.userId] = checkpoint;
+  await writeReviseMeta("revisionCheckpoint", byUser);
+}
+
+export async function clearRevisionCheckpoint(userId: Id): Promise<void> {
+  const current = await readReviseMeta<unknown>("revisionCheckpoint");
+  if (isRevisionCheckpoint(current)) {
+    if (current.userId === userId) await writeReviseMeta("revisionCheckpoint", null);
+    return;
+  }
+  if (!current || typeof current !== "object") return;
+  const byUser: Record<string, RevisionCheckpoint> = {};
+  for (const [key, value] of Object.entries(current)) {
+    if (key !== userId && isRevisionCheckpoint(value) && value.userId === key) byUser[key] = value;
+  }
+  await writeReviseMeta("revisionCheckpoint", Object.keys(byUser).length ? byUser : null);
 }
 
 export interface Snapshot {

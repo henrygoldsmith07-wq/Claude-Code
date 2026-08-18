@@ -14,6 +14,7 @@ import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
 import { CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard } from "@/components/AssessmentPanels";
 import { CoverageCard } from "@/components/CoverageCard";
+import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
 
 // Analytics that answer one question — where are the marks? — rather than
@@ -70,6 +71,8 @@ export default function ProgressPage() {
         <h1 className="text-xl font-semibold tracking-tight">Progress</h1>
         <p className="text-sm text-ink3 mt-0.5">Where your marks are, and where the next ones come from.</p>
       </header>
+
+      <ResumeRevisionCard />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile label="Cards reviewed" value={totals.reviews} sub="all time" />

@@ -44,6 +44,11 @@ import { LOCAL_USER_ID } from "@/data/repository";
 import type { Snapshot } from "@/data/repository";
 import { outboxSize, sync } from "@/data/sync";
 import { isSupabaseConfigured } from "@/data/supabase";
+import {
+  createRevisionCheckpoint,
+  type RevisionCheckpoint,
+  type RevisionCheckpointInput,
+} from "@/domain/revision-checkpoint";
 
 // ---------------------------------------------------------------------------
 // One store for the whole app. Revision data is small (thousands of rows at
@@ -77,6 +82,7 @@ interface StoreValue extends Snapshot {
   calibrations: Map<Id, Calibration>;
   questionTraces: QuestionTrace[];
   difficultyCalibration: DifficultyCalibrationReport;
+  revisionCheckpoint: RevisionCheckpoint | null;
   syncStatus: SyncStatus;
   /** Build a paper simulation for the given subject/paper without mutating state. */
   previewPaper(subjectId: Id, paperSpecId: Id, questionIds: Id[]): PaperSimulation | null;
@@ -96,6 +102,8 @@ interface StoreValue extends Snapshot {
   upsertExamDate(exam: ExamDate): Promise<void>;
   removeExamDate(id: Id): Promise<void>;
   updateSettings(patch: Partial<UserSettings>): Promise<void>;
+  saveRevisionCheckpoint(input: RevisionCheckpointInput): Promise<void>;
+  clearRevisionCheckpoint(): Promise<void>;
   syncNow(): Promise<void>;
 }
 
@@ -109,6 +117,7 @@ export function useStore(): StoreValue {
 
 export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: ReactNode; userId?: Id }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [revisionCheckpoint, setRevisionCheckpoint] = useState<RevisionCheckpoint | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     online: true,
@@ -123,7 +132,11 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     if (bootstrapped.current) return;
     bootstrapped.current = true;
     void (async () => {
-      const loaded = await repo.loadSnapshot(userId);
+      const [loaded, checkpoint] = await Promise.all([
+        repo.loadSnapshot(userId),
+        repo.loadRevisionCheckpoint(userId),
+      ]);
+      setRevisionCheckpoint(checkpoint ?? null);
       setSnapshot(loaded);
       setNeedsOnboarding(!(await repo.hasOnboarded()));
       // A plan that has drifted into the past is worse than no plan: fold
@@ -560,6 +573,20 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     [snapshot, patch],
   );
 
+  const saveRevisionCheckpoint = useCallback<StoreValue["saveRevisionCheckpoint"]>(
+    async (input) => {
+      const checkpoint = createRevisionCheckpoint(userId, input);
+      await repo.saveRevisionCheckpoint(checkpoint);
+      setRevisionCheckpoint(checkpoint);
+    },
+    [userId],
+  );
+
+  const clearRevisionCheckpoint = useCallback<StoreValue["clearRevisionCheckpoint"]>(async () => {
+    await repo.clearRevisionCheckpoint(userId);
+    setRevisionCheckpoint(null);
+  }, [userId]);
+
   const value: StoreValue | null = useMemo(() => {
     if (!snapshot) return null;
     return {
@@ -577,6 +604,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       calibrations,
       questionTraces,
       difficultyCalibration,
+      revisionCheckpoint,
       previewPaper,
       syncStatus,
       reviewCard,
@@ -593,6 +621,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       upsertExamDate,
       removeExamDate,
       updateSettings,
+      saveRevisionCheckpoint,
+      clearRevisionCheckpoint,
       syncNow,
     };
   }, [
@@ -609,6 +639,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     calibrations,
     questionTraces,
     difficultyCalibration,
+    revisionCheckpoint,
     previewPaper,
     syncStatus,
     reviewCard,
@@ -625,6 +656,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     upsertExamDate,
     removeExamDate,
     updateSettings,
+    saveRevisionCheckpoint,
+    clearRevisionCheckpoint,
     syncNow,
   ]);
 

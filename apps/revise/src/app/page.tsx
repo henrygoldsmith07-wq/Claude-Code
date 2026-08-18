@@ -12,6 +12,7 @@ import { useStore } from "@/state/store";
 import { formatMinutes, recommendationHref, relativeDay } from "@/lib/activity";
 import { ExpectedMarksCard } from "@/components/AssessmentPanels";
 import { RecommendationCard } from "@/components/RecommendationCard";
+import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
 import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "@/components/ui";
 
 // The whole product in one screen: what to do next, why, and how long it takes.
@@ -45,6 +46,8 @@ export default function TodayPage() {
             : "Nothing is due. Add an exam date and the planner will build your week."}
         </p>
       </header>
+
+      <ResumeRevisionCard />
 
       {primary ? (
         <RecommendationCard recommendation={primary} variant="primary" />
