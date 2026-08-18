@@ -3,23 +3,9 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { createCard } from "@/domain/scheduling";
 import { masteryIntervals } from "@/domain/mastery-uncertainty";
-import type { Attempt, Card, Topic } from "@/domain/types";
+import type { Attempt, Card } from "@/domain/types";
 
 const NOW = new Date("2026-08-18T09:00:00.000Z");
-
-function topic(id: string): Topic {
-  return {
-    id,
-    subjectId: "physics",
-    unitId: "unit-1",
-    title: id,
-    order: 0,
-    intrinsicDifficulty: 3,
-    summary: "summary",
-    keyPoints: ["point"],
-    commonErrors: ["error"],
-  };
-}
 
 function card(topicId: string, id: string): Card {
   return {

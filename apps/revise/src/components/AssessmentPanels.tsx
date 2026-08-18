@@ -356,6 +356,69 @@ export function ApplicationMasteryCard() {
   );
 }
 
+export function MasteryUncertaintyCard() {
+  const store = useStore();
+  const rows = store.masteryUncertainty;
+  if (!rows.length) return null;
+
+  const uncertain = rows.filter((row) => row.needsMoreEvidence);
+  const high = rows.filter((row) => row.uncertainty === "high");
+  const widest = rows.slice(0, 6);
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="Mastery uncertainty"
+        hint="Shows where the mastery estimate is still wide, so a high score is not mistaken for certainty."
+        action={
+          <Link href="/practice">
+            <Button size="sm">Collect evidence</Button>
+          </Link>
+        }
+      />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <StatTile label="Need more evidence" value={uncertain.length} sub="below 8 weighted trials" tone={uncertain.length ? "review" : "success"} />
+        <StatTile label="High uncertainty" value={high.length} sub="widest estimates" tone={high.length ? "danger" : "success"} />
+        <StatTile label="Measured topics" value={rows.length - uncertain.length} sub={`of ${rows.length}`} tone="success" />
+      </div>
+      <ul className="mt-4 pt-3 border-t border-line space-y-2">
+        {widest.map((row) => {
+          const topic = getTopic(row.topicId);
+          const title = topic?.title ?? row.topicId;
+          const uncertaintyTone = row.uncertainty === "high" ? "danger" : row.uncertainty === "medium" ? "review" : "success";
+          const lower = Math.round(row.lower * 100);
+          const upper = Math.round(row.upper * 100);
+          const rangeWidth = Math.max(2, upper - lower);
+          return (
+            <li key={row.topicId} className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`} className="text-xs text-ink2 truncate hover:underline block">
+                  {title}
+                </Link>
+                <div
+                  className="relative mt-1.5 h-1.5 rounded-full bg-surface2"
+                  role="img"
+                  aria-label={`${title}: mastery range ${lower} to ${upper} percent`}
+                >
+                  <div className="absolute h-full rounded-full bg-review" style={{ left: `${lower}%`, width: `${rangeWidth}%` }} />
+                  <div className="absolute top-[-2px] h-2.5 w-0.5 bg-ink" style={{ left: `${row.mastery * 100}%` }} />
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Pill tone={uncertaintyTone}>{lower}–{upper}%</Pill>
+                <span className="text-[11px] text-ink3">{row.needsMoreEvidence ? "more evidence" : `${row.evidence} trials`}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[11px] text-ink3 mt-3">
+        The band is a conservative 95% estimate; practice narrows it only as evidence accumulates.
+      </p>
+    </Panel>
+  );
+}
+
 function TimingBreakdown() {
   const store = useStore();
   const byTiming: Record<string, number> = { ok: 0, rushed: 0, slow: 0, unknown: 0 };

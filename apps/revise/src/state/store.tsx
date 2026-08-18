@@ -8,6 +8,7 @@ import type { GradePrediction } from "@/domain/grades";
 import { computeTopicMastery } from "@/domain/mastery";
 import { computeApplicationMastery } from "@/domain/application-mastery";
 import { computeRecallMastery } from "@/domain/recall-mastery";
+import { masteryIntervals } from "@/domain/mastery-uncertainty";
 import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
 import { recommend } from "@/domain/recommender";
@@ -36,6 +37,7 @@ import type {
 } from "@/domain/types";
 import type { ApplicationMasteryRow } from "@/domain/application-mastery";
 import type { RecallMasteryRow } from "@/domain/recall-mastery";
+import type { MasteryInterval } from "@/domain/mastery-uncertainty";
 import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
 import type { Snapshot } from "@/data/repository";
@@ -65,6 +67,7 @@ interface StoreValue extends Snapshot {
   completeOnboarding(): Promise<void>;
   userId: Id;
   mastery: TopicMastery[];
+  masteryUncertainty: MasteryInterval[];
   applicationMastery: ApplicationMasteryRow[];
   recallMastery: RecallMasteryRow[];
   recommendations: Recommendation[];
@@ -211,6 +214,40 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       reviewLogs: snapshot.reviewLogs,
     });
   }, [snapshot, topics]);
+
+  const masteryUncertainty = useMemo(() => {
+    if (!snapshot) return [];
+
+    const cardsByTopic = new Map<Id, Card[]>();
+    for (const card of snapshot.cards) {
+      const rows = cardsByTopic.get(card.topicId) ?? [];
+      rows.push(card);
+      cardsByTopic.set(card.topicId, rows);
+    }
+
+    const attemptsByTopic = new Map<Id, Attempt[]>();
+    for (const attempt of snapshot.attempts) {
+      for (const topicId of attempt.topicIds) {
+        const rows = attemptsByTopic.get(topicId) ?? [];
+        rows.push(attempt);
+        attemptsByTopic.set(topicId, rows);
+      }
+    }
+
+    const mistakesByTopic = new Map<Id, Mistake[]>();
+    for (const mistake of snapshot.mistakes) {
+      const rows = mistakesByTopic.get(mistake.topicId) ?? [];
+      rows.push(mistake);
+      mistakesByTopic.set(mistake.topicId, rows);
+    }
+
+    return masteryIntervals({
+      masteryByTopic: new Map(mastery.map((row) => [row.topicId, row.mastery] as const)),
+      cardsByTopic,
+      attemptsByTopic,
+      mistakesByTopic,
+    });
+  }, [snapshot, mastery]);
 
   const applicationMastery = useMemo(() => {
     if (!snapshot) return [];
@@ -553,6 +590,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       completeOnboarding,
       userId,
       mastery,
+      masteryUncertainty,
       applicationMastery,
       recallMastery,
       recommendations,
@@ -585,6 +623,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     completeOnboarding,
     userId,
     mastery,
+    masteryUncertainty,
     applicationMastery,
     recallMastery,
     recommendations,
