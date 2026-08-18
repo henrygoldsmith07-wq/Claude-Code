@@ -8,6 +8,7 @@ import {
   summariseFallback,
 } from "./fallback";
 import { getTopic } from "@/domain/curriculum";
+import { withMarkEvidence } from "@/domain/marking";
 import type { Mistake, Question, Topic } from "@/domain/types";
 import type {
   AiEnvelope,
@@ -60,8 +61,9 @@ export function aiSocratic(topicId: string, history: { role: "user" | "assistant
   return call<SocraticResponse>("socratic", { topicId, history }, () => socraticFallback(topicId, history.length));
 }
 
-export function aiMark(question: Question, answers: Record<string, string>) {
-  return call<MarkResponse>("mark", { question, answers }, () => markFallback(question, answers));
+export async function aiMark(question: Question, answers: Record<string, string>) {
+  const envelope = await call<MarkResponse>("mark", { question, answers }, () => markFallback(question, answers));
+  return { ...envelope, data: withMarkEvidence(question, answers, envelope.data) };
 }
 
 export function aiGenerateCards(topicId: string, count = 8) {

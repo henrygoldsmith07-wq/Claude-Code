@@ -230,6 +230,33 @@ function MarkedResult({
                 </ul>
               ) : null}
               {marked.comment ? <p className="text-xs text-ink3 mt-1.5">{marked.comment}</p> : null}
+              {marked.evidence?.length ? (
+                <details className="mt-2" open={marked.missedPoints.length > 0}>
+                  <summary className="text-xs text-ink2 cursor-pointer select-none">Evidence for each mark</summary>
+                  <p className="text-[11px] text-ink3 mt-1.5">Matched locally against your answer and the mark scheme.</p>
+                  <ul className="mt-2 space-y-2">
+                    {marked.evidence.map((item, i) => {
+                      const tone = item.status === "credited" ? "success" : item.status === "missed" ? "danger" : "review";
+                      const label = item.status === "credited" ? "awarded" : item.status === "missed" ? "not awarded" : "unreported";
+                      return (
+                        <li key={`${item.point}:${i}`} className="card card-2 p-2.5 text-xs">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Pill tone={tone}>{label}</Pill>
+                            <Pill>{item.evidenceStrength} evidence</Pill>
+                          </div>
+                          <p className="text-ink2 mt-1.5">{item.point}</p>
+                          <p className="text-ink3 mt-1">{item.explanation}</p>
+                          {item.evidence ? (
+                            <p className="text-ink3 mt-1">
+                              Submitted text: <span className="text-ink2">“{item.evidence}”</span>
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
+              ) : null}
               {part?.modelAnswer ? (
                 <details className="mt-2">
                   <summary className="text-xs text-ink2 cursor-pointer select-none">Model answer</summary>

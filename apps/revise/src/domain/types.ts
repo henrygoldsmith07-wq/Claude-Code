@@ -256,6 +256,22 @@ export interface Question {
   createdAt: IsoInstant;
 }
 
+export type MarkEvidenceStatus = "credited" | "missed" | "unreported";
+export type MarkEvidenceStrength = "strong" | "partial" | "none";
+
+/** Deterministic explanation of the answer evidence behind one mark decision. */
+export interface MarkEvidence {
+  /** Exact mark-scheme point being explained. */
+  point: string;
+  status: MarkEvidenceStatus;
+  /** Short excerpt from the submitted answer, or null when nothing matches. */
+  evidence: string | null;
+  evidenceStrength: MarkEvidenceStrength;
+  /** 0–1 score from the same matching primitives used by offline marking. */
+  confidence: number;
+  explanation: string;
+}
+
 export interface MarkedPart {
   partId: Id;
   awarded: number;
@@ -264,6 +280,8 @@ export interface MarkedPart {
   creditedPoints: string[];
   missedPoints: string[];
   comment: string;
+  /** Per-point, answer-grounded rationale. Optional for older persisted attempts. */
+  evidence?: MarkEvidence[];
 }
 
 export interface Attempt {
