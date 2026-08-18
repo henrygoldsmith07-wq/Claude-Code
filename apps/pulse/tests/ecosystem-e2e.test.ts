@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createForqSameOriginConnector } from "../src/connectors/forq.js";
 import { createFrenchSameOriginConnector } from "../src/connectors/french.js";
-import { createRapportSameOriginConnector } from "../src/connectors/rapport.js";
+import { createRapportSameOriginConnector, RAPPORT_PULSE_OPT_IN_KEY } from "../src/connectors/rapport.js";
 import { SyncEngine } from "../src/connectors/sync.js";
 import { ConsentRegistry } from "../src/privacy/consent.js";
 import { deleteSource } from "../src/privacy/export.js";
@@ -53,6 +53,7 @@ describe("ecosystem integration and consent revocation", () => {
         "rapport.pulse-history.v2": envelope("rapport", [
           { kind: "challenge", id: "c1", completedAt: "2026-08-16T12:00:00.000Z", skillId: "listening", completed: true, comfort: 3 },
         ]),
+        [RAPPORT_PULSE_OPT_IN_KEY]: "1",
       }),
     });
     const forq = createForqSameOriginConnector({

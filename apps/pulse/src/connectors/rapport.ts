@@ -41,6 +41,14 @@ export type RapportRecord = RapportDrillRecord | RapportChallengeRecord;
 
 export const RAPPORT_STORAGE_KEY = "rapport.pulse-history.v2";
 
+/** Rapport's own Pulse opt-in flag, kept apart from the mirror it gates. */
+export const RAPPORT_PULSE_OPT_IN_KEY = "rapport-pulse-opt-in";
+
+/** Rapport's own opt-in. Anything other than the explicit on-value is withheld. */
+export function rapportPulseOptInGranted(flag: unknown): boolean {
+  return flag === "1" || flag === 1;
+}
+
 const SCOPES: ConnectorScope[] = [
   { id: "drills", description: "Conversation simulator drills: skill, score and duration. Transcripts are never read.", readsContent: false },
   { id: "challenges", description: "Real-world challenges: whether you completed them and how comfortable you felt", readsContent: false },
@@ -137,12 +145,23 @@ export function selectRapportRecords(state: unknown): RapportRecord[] {
   );
 }
 
+/**
+ * A Rapport connector reading the app's own local mirror.
+ *
+ * Rapport gates its Pulse share with its own opt-in flag (`RAPPORT_PULSE_OPT_IN_KEY`),
+ * written and revocable in the app's settings where the data originates. The
+ * flag is read from the app's own storage so there is one source of truth:
+ * revoking it in Rapport stops the flow here even if a stale mirror lingers,
+ * and the app deletes the mirror outright when the flag is turned off.
+ */
 export function createRapportSameOriginConnector(options: { storage?: StorageLike | null } = {}): Connector {
   return createRapportConnector(
     createSameOriginReader<RapportRecord>({
       key: RAPPORT_STORAGE_KEY,
+      consentKey: RAPPORT_PULSE_OPT_IN_KEY,
       label: "Rapport",
       select: selectRapportRecords,
+      consent: rapportPulseOptInGranted,
       ...(options.storage !== undefined ? { storage: options.storage } : {}),
       timestampOf: (record) => (record.kind === "drill" ? record.startedAt : record.completedAt),
     }),

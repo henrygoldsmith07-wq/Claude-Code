@@ -492,6 +492,8 @@ export interface UserSettings {
     reduceMotion: boolean;
   };
   aiEnabled: boolean;
+  /** Whether Pulse may read this account's study history. Off by default. */
+  pulseEnabled: boolean;
   updatedAt: IsoInstant;
 }
 

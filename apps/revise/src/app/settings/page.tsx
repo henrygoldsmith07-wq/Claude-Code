@@ -215,6 +215,30 @@ export default function SettingsPage() {
       <DataControls />
 
       <section>
+        <SectionHeading title="Pulse" hint="Off by default. Nothing is shared until you switch it on." />
+        <Panel>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-ink">Share study history with Pulse</p>
+              <p className="text-[11px] text-ink3 mt-0.5">
+                When on, Pulse can connect to this account and correlate your reviews and attempts with outcomes
+                like mood or study accuracy. Turning it off revokes access immediately — Pulse is refused at the
+                source until it is switched back on.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={settings.pulseEnabled ? "primary" : "secondary"}
+              aria-pressed={settings.pulseEnabled}
+              onClick={() => void store.updateSettings({ pulseEnabled: !settings.pulseEnabled })}
+            >
+              {settings.pulseEnabled ? "On" : "Off"}
+            </Button>
+          </div>
+        </Panel>
+      </section>
+
+      <section>
         <SectionHeading title="Privacy" hint="What leaves this device, and what never does." />
         <Panel>
           <ul className="text-xs text-ink2 space-y-1 list-disc list-inside">

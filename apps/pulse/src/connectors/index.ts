@@ -66,9 +66,11 @@ export {
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
 export {
   RAPPORT_STORAGE_KEY,
+  RAPPORT_PULSE_OPT_IN_KEY,
   createRapportConnector,
   createRapportSameOriginConnector,
   mapRapportRecord,
+  rapportPulseOptInGranted,
   selectRapportRecords,
 } from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";

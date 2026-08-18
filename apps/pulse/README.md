@@ -305,6 +305,8 @@ The specificity tests are the load-bearing ones. Any tool will find something.
 | The first-party apps | `revise`, `arise`, `forq`, `habit`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
 | Habit (Supabase) | `connectors/habit.ts` | Habit check-ins — one event per habit per day, done or missed |
 | Habit (same origin) | `connectors/habit.ts` | The same check-ins read from the app's local mirror, gated by Habit's own opt-in flag |
+| Rapport (same origin) | `connectors/rapport.ts` | Drill and challenge history read from the app's local mirror, gated by Rapport's own opt-in flag |
+| Revise (cloud) | `connectors/revise.ts` | Study history from `/api/pulse/history`, which the app refuses server-side unless its `pulseEnabled` flag is on |
 
 Three decisions in that layer are worth knowing about.
 
