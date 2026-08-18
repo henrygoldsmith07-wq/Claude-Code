@@ -99,6 +99,23 @@ describe("seed question bank", () => {
     expect(seedQuestions.length).toBeGreaterThanOrEqual(100);
   });
 
+  it("keeps the additional A-level batch balanced across the four core subjects", () => {
+    const batch = seedQuestions.filter((question) => question.id.includes("more-alevel"));
+    expect(batch.length).toBeGreaterThanOrEqual(32);
+    for (const subjectId of [
+      "wjec-alevel-biology",
+      "wjec-alevel-chemistry",
+      "wjec-alevel-maths",
+      "wjec-alevel-physics",
+      "aqa-alevel-biology",
+      "aqa-alevel-chemistry",
+      "aqa-alevel-maths",
+      "aqa-alevel-physics",
+    ]) {
+      expect(batch.filter((question) => question.subjectId === subjectId), subjectId).toHaveLength(4);
+    }
+  });
+
   it("keeps every question well-formed and self-consistent", () => {
     for (const question of seedQuestions) {
       expect(question.parts.length).toBeGreaterThan(0);
