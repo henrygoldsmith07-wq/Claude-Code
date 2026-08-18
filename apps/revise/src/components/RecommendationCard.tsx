@@ -32,9 +32,11 @@ function FactorRow({ factors }: { factors: Recommendation["factors"] }) {
 export function RecommendationCard({
   recommendation,
   variant = "primary",
+  compact = false,
 }: {
   recommendation: Recommendation;
   variant?: "primary" | "secondary";
+  compact?: boolean;
 }) {
   const topic = recommendation.topicId ? getTopic(recommendation.topicId) : null;
   const subject = getSubject(recommendation.subjectId);
@@ -45,7 +47,7 @@ export function RecommendationCard({
     <Panel className={isPrimary ? "relative overflow-hidden" : ""}>
       {isPrimary ? (
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <Pill tone="speak">Recommended now</Pill>
+          <Pill tone="speak">{compact ? "Next step" : "Recommended now"}</Pill>
           <Pill>{formatMinutes(recommendation.minutes)}</Pill>
           {recommendation.plannedSessionId ? <Pill tone="success">In today&apos;s plan</Pill> : null}
         </div>
@@ -65,35 +67,36 @@ export function RecommendationCard({
       </p>
       <p className="text-sm text-ink2 mt-3 max-w-2xl">{recommendation.reason}</p>
 
-      {/* The brief's exact disclosure: Do electrolysis questions — 18 min / Estimated recoverable marks: 5.6 / Last exam evidence: 46% / No successful retrieval for 11 days / Paper 1: 24 days away */}
-      {exp ? (
-        <div className="mt-4 rounded-xl bg-surface2 p-3 space-y-1.5">
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-ink2">Why this now</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <DetailRow label="Estimated recoverable marks" value={`${exp.recoverableMarks.toFixed(1)}`} />
-            <DetailRow label="Time" value={formatMinutes(recommendation.minutes)} />
-            <DetailRow
-              label="Last exam evidence"
-              value={exp.lastEvidencePercent != null ? `${exp.lastEvidencePercent}%` : "— no marked work yet"}
-            />
-            <DetailRow
-              label="Last retrieval"
-              value={exp.daysSinceRetrieval != null ? `${exp.daysSinceRetrieval} days ago` : exp.lastEvidencePercent == null ? "— never studied" : "— no card history"}
-            />
-            <DetailRow
-              label={exp.paperLabel ? exp.paperLabel : "Next paper"}
-              value={exp.daysToExam != null ? `${exp.daysToExam} days away` : "— no date set"}
-            />
-            {exp.marksPerHour != null ? <DetailRow label="Marks / hour" value={`${exp.marksPerHour.toFixed(1)}`} /> : null}
+      {!compact ? (
+        exp ? (
+          <div className="mt-4 rounded-xl bg-surface2 p-3 space-y-1.5">
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-ink2">Why this now</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <DetailRow label="Estimated recoverable marks" value={`${exp.recoverableMarks.toFixed(1)}`} />
+              <DetailRow label="Time" value={formatMinutes(recommendation.minutes)} />
+              <DetailRow
+                label="Last exam evidence"
+                value={exp.lastEvidencePercent != null ? `${exp.lastEvidencePercent}%` : "— no marked work yet"}
+              />
+              <DetailRow
+                label="Last retrieval"
+                value={exp.daysSinceRetrieval != null ? `${exp.daysSinceRetrieval} days ago` : exp.lastEvidencePercent == null ? "— never studied" : "— no card history"}
+              />
+              <DetailRow
+                label={exp.paperLabel ? exp.paperLabel : "Next paper"}
+                value={exp.daysToExam != null ? `${exp.daysToExam} days away` : "— no date set"}
+              />
+              {exp.marksPerHour != null ? <DetailRow label="Marks / hour" value={`${exp.marksPerHour.toFixed(1)}`} /> : null}
+            </div>
+            <FactorRow factors={exp.factors} />
+            <p className="text-[11px] text-ink3 mt-1">
+              Score ≈ gain × urgency × weakness × forgetting × uncertainty ÷ time. Hover a pill for what it means.
+            </p>
           </div>
-          <FactorRow factors={exp.factors} />
-          <p className="text-[11px] text-ink3 mt-1">
-            Score ≈ gain × urgency × weakness × forgetting × uncertainty ÷ time. Hover a pill for what it means.
-          </p>
-        </div>
-      ) : (
-        <FactorRow factors={recommendation.factors ?? recommendation.explanation?.factors} />
-      )}
+        ) : (
+          <FactorRow factors={recommendation.factors ?? recommendation.explanation?.factors} />
+        )
+      ) : null}
 
       <div className={isPrimary ? "mt-4 flex flex-wrap gap-2" : "mt-3"}>
         <Link href={recommendationHref(recommendation)} className={isPrimary ? "flex-1 sm:flex-none" : "block"}>
