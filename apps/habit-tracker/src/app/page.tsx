@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { HistoryTable } from "@/components/HistoryTable";
 import { ManageList } from "@/components/ManageList";
+import { PulseSettings } from "@/components/PulseSettings";
 import { SetupNotice } from "@/components/SetupNotice";
 import { TodayList } from "@/components/TodayList";
 import { isSupabaseConfigured, useHabitData } from "@/lib/supabase";
@@ -79,14 +80,17 @@ export default function Home() {
             {tab === "today" ? <TodayList views={active} toggle={data.toggle} /> : null}
             {tab === "history" ? <HistoryTable views={data.views} /> : null}
             {tab === "manage" ? (
-              <ManageList
-                active={active}
-                archived={archived}
-                addHabit={data.addHabit}
-                updateHabit={data.updateHabit}
-                setArchived={data.setArchived}
-                removeHabit={data.removeHabit}
-              />
+              <div className="space-y-6">
+                <PulseSettings enabled={data.pulseOptIn} onChange={data.setPulseOptIn} />
+                <ManageList
+                  active={active}
+                  archived={archived}
+                  addHabit={data.addHabit}
+                  updateHabit={data.updateHabit}
+                  setArchived={data.setArchived}
+                  removeHabit={data.removeHabit}
+                />
+              </div>
             ) : null}
           </>
         ) : null}

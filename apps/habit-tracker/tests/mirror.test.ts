@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { HABIT_STORAGE_KEY, buildLocalMirror } from "../src/lib/mirror";
+import {
+  HABIT_STORAGE_KEY,
+  PULSE_OPT_IN_KEY,
+  buildLocalMirror,
+  clearLocalMirror,
+  readPulseOptIn,
+  writeLocalMirror,
+  writePulseOptIn,
+} from "../src/lib/mirror";
 import type { DbCheckin, DbHabit } from "../src/lib/types";
+
+/** In-memory stand-in for localStorage so the mirror is testable in node. */
+function fakeStorage(): { store: Map<string, string>; getItem: (k: string) => string | null; setItem: (k: string, v: string) => void; removeItem: (k: string) => void } {
+  const store = new Map<string, string>();
+  return {
+    store,
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => void store.set(k, v),
+    removeItem: (k) => void store.delete(k),
+  };
+}
 
 const habits: DbHabit[] = [
   {
@@ -45,5 +64,37 @@ describe("the local Pulse mirror", () => {
   it("carries every row it is given, completed or not", () => {
     const mirror = buildLocalMirror(habits, [], "2025-06-10");
     expect(mirror.checkins).toEqual([]);
+  });
+});
+
+describe("the Pulse opt-in", () => {
+  it("defaults to off when no flag has been stored", () => {
+    expect(readPulseOptIn(fakeStorage())).toBe(false);
+  });
+
+  it("stores the flag under the key Pulse reads", () => {
+    const storage = fakeStorage();
+    writePulseOptIn(true, storage);
+    expect(storage.store.get(PULSE_OPT_IN_KEY)).toBe("1");
+    expect(readPulseOptIn(storage)).toBe(true);
+
+    writePulseOptIn(false, storage);
+    expect(storage.store.get(PULSE_OPT_IN_KEY)).toBe("0");
+    expect(readPulseOptIn(storage)).toBe(false);
+  });
+
+  it("treats anything other than the explicit on-value as revoked", () => {
+    const storage = fakeStorage();
+    storage.store.set(PULSE_OPT_IN_KEY, "yes please");
+    expect(readPulseOptIn(storage)).toBe(false);
+  });
+
+  it("clears the mirror when revoked, so the data flow stops at the source", () => {
+    const storage = fakeStorage();
+    writeLocalMirror(buildLocalMirror(habits, checkins, "2025-06-10", "2025-06-10T21:00:00.000Z"), storage);
+    expect(storage.store.has(HABIT_STORAGE_KEY)).toBe(true);
+
+    clearLocalMirror(storage);
+    expect(storage.store.has(HABIT_STORAGE_KEY)).toBe(false);
   });
 });

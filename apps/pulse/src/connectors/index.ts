@@ -27,10 +27,12 @@ export {
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
 
 export {
+  HABIT_PULSE_OPT_IN_KEY,
   HABIT_STORAGE_KEY,
   createHabitConnector,
   createHabitSameOriginConnector,
   createHabitSupabaseConnector,
+  habitPulseOptInGranted,
   habitRecordTimestamp,
   mapHabitRecord,
   selectHabitRecords,

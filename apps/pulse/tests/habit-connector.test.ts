@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 import { checkContract } from "../src/connectors/sdk.js";
 import {
+  HABIT_PULSE_OPT_IN_KEY,
   createHabitConnector,
   createHabitSameOriginConnector,
   createHabitSupabaseConnector,
@@ -189,13 +190,15 @@ describe("habit same-origin connector", () => {
     const storage = {
       getItem(key: string) {
         seen.push(key);
-        return key === "habit-tracker-state-v1" ? JSON.stringify(mirrorState) : null;
+        if (key === "habit-tracker-state-v1") return JSON.stringify(mirrorState);
+        if (key === HABIT_PULSE_OPT_IN_KEY) return "1";
+        return null;
       },
     };
     const connector = createHabitSameOriginConnector({ storage });
     const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
-    // Only its own key, never another app's.
-    expect(seen).toEqual(["habit-tracker-state-v1"]);
+    // Only its own keys — the mirror and the opt-in flag — never another app's.
+    expect(seen).toEqual(["habit-tracker-state-v1", "habit-tracker-pulse-opt-in"]);
     expect(page.records.length).toBeGreaterThan(0);
     expect(page.records.every((event) => event.source === "habit")).toBe(true);
     expect(checkContract(connector, page.records)).toEqual([]);
@@ -205,7 +208,9 @@ describe("habit same-origin connector", () => {
 
   it("never emits today, using the mirror's own day", async () => {
     const connector = createHabitSameOriginConnector({
-      storage: { getItem: () => JSON.stringify(mirrorState) },
+      storage: {
+        getItem: (key: string) => (key === HABIT_PULSE_OPT_IN_KEY ? "1" : key === "habit-tracker-state-v1" ? JSON.stringify(mirrorState) : null),
+      },
     });
     const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
     expect(page.records.every((event) => event.occurredAt < "2025-06-10T00:00:00.000Z")).toBe(true);
@@ -217,6 +222,40 @@ describe("habit same-origin connector", () => {
     expect(page.records).toEqual([]);
     const health = await connector.healthCheck!();
     expect(health.status).toBe("failing");
+  });
+
+  it("reads the app's opt-in flag and refuses when it is not granted", async () => {
+    const storage = {
+      getItem: (key: string) =>
+        key === "habit-tracker-state-v1"
+          ? JSON.stringify(mirrorState)
+          : key === HABIT_PULSE_OPT_IN_KEY
+            ? "0"
+            : null,
+    };
+    const connector = createHabitSameOriginConnector({ storage });
+    const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    // The mirror may be stale; the flag is the gate, so nothing flows.
+    expect(page.records).toEqual([]);
+    const health = await connector.healthCheck!();
+    expect(health.status).toBe("failing");
+    expect(health.message).toMatch(/turn Pulse on/i);
+  });
+
+  it("reads data once the app's opt-in flag is granted", async () => {
+    const storage = {
+      getItem: (key: string) =>
+        key === "habit-tracker-state-v1"
+          ? JSON.stringify(mirrorState)
+          : key === HABIT_PULSE_OPT_IN_KEY
+            ? "1"
+            : null,
+    };
+    const connector = createHabitSameOriginConnector({ storage });
+    const page = await connector.fetch({ since: null, cursor: null, timezone: "UTC", mode: "live", limit: 50 });
+    expect(page.records.length).toBeGreaterThan(0);
+    const health = await connector.healthCheck!();
+    expect(health.status).toBe("healthy");
   });
 });
 

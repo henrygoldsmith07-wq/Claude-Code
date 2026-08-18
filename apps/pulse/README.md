@@ -304,6 +304,7 @@ The specificity tests are the load-bearing ones. Any tool will find something.
 | Any CSV or JSON file | `connectors/tabular.ts` | Whatever the user maps, previewed before a single row is stored |
 | The first-party apps | `revise`, `arise`, `forq`, `habit`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
 | Habit (Supabase) | `connectors/habit.ts` | Habit check-ins — one event per habit per day, done or missed |
+| Habit (same origin) | `connectors/habit.ts` | The same check-ins read from the app's local mirror, gated by Habit's own opt-in flag |
 
 Three decisions in that layer are worth knowing about.
 

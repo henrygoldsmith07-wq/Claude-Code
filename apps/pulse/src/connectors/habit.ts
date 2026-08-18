@@ -176,6 +176,14 @@ export function habitRecordTimestamp(record: HabitDayRecord): string {
 /** Where Habit mirrors its Supabase rows when both apps share an origin. */
 export const HABIT_STORAGE_KEY = "habit-tracker-state-v1";
 
+/** Habit's own Pulse opt-in flag, kept apart from the mirror it gates. */
+export const HABIT_PULSE_OPT_IN_KEY = "habit-tracker-pulse-opt-in";
+
+/** Habit's own opt-in. Anything other than the explicit on-value is withheld. */
+export function habitPulseOptInGranted(flag: unknown): boolean {
+  return flag === "1" || flag === 1;
+}
+
 /**
  * A Habit connector reading the app's own local mirror.
  *
@@ -185,19 +193,24 @@ export const HABIT_STORAGE_KEY = "habit-tracker-state-v1";
  * app's local today), which is what lets this connector stop synthesising
  * before today the same way the Supabase reader does.
  *
- * Like Forq, Habit has no Pulse opt-in of its own, so the gate is Pulse's own
- * per-connector grant.
+ * Unlike Forq, Habit has its own Pulse opt-in (`HABIT_PULSE_OPT_IN_KEY`),
+ * written and revocable in the app where the data originates. The flag is
+ * read from the app's own storage so there is one source of truth: revoking
+ * it in Habit stops the flow here even if a stale mirror lingers, and the
+ * app deletes the mirror outright when the flag is turned off.
  */
 export function createHabitSameOriginConnector(options: { storage?: StorageLike | null } = {}): Connector {
   return createHabitConnector(
     createSameOriginReader<HabitDayRecord>({
       key: HABIT_STORAGE_KEY,
+      consentKey: HABIT_PULSE_OPT_IN_KEY,
       label: "Habit",
       select: (state) => {
         const day = (state as { day?: unknown })?.day;
         const today = typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : new Date().toISOString().slice(0, 10);
         return selectHabitRecords(state, today);
       },
+      consent: habitPulseOptInGranted,
       timestampOf: habitRecordTimestamp,
       ...(options.storage !== undefined ? { storage: options.storage } : {}),
     }),
