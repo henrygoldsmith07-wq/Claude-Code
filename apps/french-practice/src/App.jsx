@@ -331,6 +331,7 @@ export default function App() {
       grammar: evt.topicId ? `Grammar: ${getGrammarTopic(evt.topicId)?.title || ''}` : null,
       listening: evt.trackId ? `Listening: ${getTrack(evt.trackId)?.title || ''}` : null,
       pronunciation: 'Pronunciation practice',
+      speaking: 'Exam speaking',
       writing: 'Writing practice',
       reading: 'Reading practice',
     };

@@ -46,6 +46,9 @@ const KEYS = {
   lastActivity: 'fp.lastActivity', // { type, id?, label, at } — powers Home's continue card
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
+  examBoundaries: 'fp.examBoundaries.v1', // learner/teacher-supplied grade-boundary sets
+  examinerScripts: 'fp.examinerScripts.v1', // real app-vs-human marking pairs
+  realExamResults: 'fp.realExamResults.v1', // real predicted-vs-returned grades
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
   onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
   syncId: 'fp.syncId', // stable local account id — travels with a sync snapshot
@@ -91,6 +94,67 @@ function write(key, value) {
 export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
+
+export const getExamBoundarySets = () => {
+  const value = read(KEYS.examBoundaries, []);
+  return Array.isArray(value) ? value : [];
+};
+
+export function saveExamBoundarySet(set) {
+  const current = getExamBoundarySets().filter((item) => item && item.id !== set?.id);
+  const saved = {
+    ...set,
+    id: String(set?.id || `boundary-${Date.now()}`),
+    boundaries: { ...(set?.boundaries || {}) },
+    importedAt: set?.importedAt || new Date().toISOString(),
+  };
+  write(KEYS.examBoundaries, [...current, saved].slice(-50));
+  return saved;
+}
+
+export function removeExamBoundarySet(id) {
+  const next = getExamBoundarySets().filter((set) => set?.id !== id);
+  write(KEYS.examBoundaries, next);
+  return next;
+}
+
+export const getExaminerScripts = () => {
+  const value = read(KEYS.examinerScripts, []);
+  return Array.isArray(value) ? value : [];
+};
+
+export function recordExaminerMark(entry = {}) {
+  const appPercent = Number(entry.appPercent);
+  const examinerPercent = Number(entry.examinerPercent);
+  if (!Number.isFinite(appPercent) || !Number.isFinite(examinerPercent)) return null;
+  const saved = {
+    ...entry,
+    id: String(entry.id || `examiner-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+    appPercent: Math.max(0, Math.min(100, appPercent)),
+    examinerPercent: Math.max(0, Math.min(100, examinerPercent)),
+    at: entry.at || new Date().toISOString(),
+  };
+  write(KEYS.examinerScripts, [...getExaminerScripts(), saved].slice(-500));
+  return saved;
+}
+
+export const getRealExamResults = () => {
+  const value = read(KEYS.realExamResults, []);
+  return Array.isArray(value) ? value : [];
+};
+
+export function recordRealExamResult(entry = {}) {
+  if (!entry.predictedGrade || !entry.actualGrade) return null;
+  const saved = {
+    ...entry,
+    id: String(entry.id || `result-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+    predictedGrade: String(entry.predictedGrade),
+    actualGrade: String(entry.actualGrade),
+    at: entry.at || new Date().toISOString(),
+  };
+  write(KEYS.realExamResults, [...getRealExamResults(), saved].slice(-200));
+  return saved;
+}
 
 // ---- first-run onboarding gate ----
 // New visitors (no key, no XP, no sessions, no explicit flag) see the wizard.

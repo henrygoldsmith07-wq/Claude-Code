@@ -11,7 +11,8 @@ import { getWeaknessMemory, getWeaknessSummary } from '../lib/storage';
 import { levelFromXp } from '../lib/game';
 import { errorNotebookStats } from '../lib/errorNotebook';
 import { retentionPredictionVsActual, speakingImprovement } from '../lib/learnerValidation';
-import { benchmarkExaminer, EXAMINER_SCRIPTS } from '../lib/examBenchmark';
+import { benchmarkExaminer, validateAgainstResults } from '../lib/examBenchmark';
+import { getExaminerScripts, getRealExamResults } from '../lib/storage';
 import { allEntries as vocabAllEntries } from '../lib/vocab';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
 import {
@@ -476,7 +477,8 @@ function SessionHistory({ sessions }) {
 // so is the entire point of the panel — a confident-looking agreement figure
 // computed from nothing is worse than no panel.
 function ExamBenchmark(){
-  const b = benchmarkExaminer(EXAMINER_SCRIPTS);
+  const b = benchmarkExaminer(getExaminerScripts());
+  const results = validateAgainstResults(getRealExamResults());
   return (
     <section className="bg-surface border border-line rounded-2xl p-4">
       <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Examiner benchmark</h3>
@@ -488,6 +490,7 @@ function ExamBenchmark(){
           {b.kappa == null ? '' : ` · κ ${b.kappa}`} (n={b.n})
         </p>
       )}
+      {results.n > 0 && <p className="text-xs text-ink2 mt-1">Real results: {results.message}</p>}
     </section>
   );
 }
