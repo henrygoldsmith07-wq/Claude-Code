@@ -223,12 +223,51 @@ export interface QuestionPart {
 
 export type QuestionValidationStage = "draft" | "in_review" | "validated" | "needs_changes" | "rejected" | "retired";
 
+export type DistractorQualityIssueCode =
+  | "blank-option"
+  | "duplicate-option"
+  | "unattractive-distractor"
+  | "overselected-distractor";
+
+export type DistractorQualityOptionStatus = "correct" | "invalid" | "unmeasured" | "unused" | "healthy" | "overselected";
+
+export type DistractorQualityStatus = "not-applicable" | "unmeasured" | "insufficient-data" | "healthy" | "needs-review";
+
+export interface DistractorQualityIssue {
+  code: DistractorQualityIssueCode;
+  message: string;
+  severity: "error" | "warning";
+}
+
+export interface DistractorOptionQuality {
+  index: number;
+  text: string;
+  isCorrect: boolean;
+  selectionCount: number;
+  selectionRate: number | null;
+  status: DistractorQualityOptionStatus;
+}
+
+export interface DistractorQualityReport {
+  questionId: Id;
+  applicable: boolean;
+  optionCount: number;
+  distractorCount: number;
+  responseCount: number;
+  reliable: boolean;
+  status: DistractorQualityStatus;
+  ok: boolean;
+  issues: DistractorQualityIssue[];
+  options: DistractorOptionQuality[];
+}
+
 export type QuestionValidationIssueCode =
   | "missing-stem"
   | "missing-parts"
   | "invalid-part"
   | "invalid-total-marks"
   | "invalid-mcq"
+  | DistractorQualityIssueCode
   | "missing-topic"
   | "unknown-topic"
   | "missing-aos"
@@ -253,6 +292,7 @@ export interface QuestionValidationReport {
   checkedAt: IsoInstant;
   issues: QuestionValidationIssue[];
   ok: boolean;
+  distractorQuality?: DistractorQualityReport;
 }
 
 export interface QuestionValidationHistoryEntry {

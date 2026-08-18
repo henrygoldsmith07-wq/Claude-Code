@@ -1,12 +1,14 @@
 import type {
   Id,
   IsoDate,
+  Attempt,
   Question,
   QuestionValidationIssue,
   QuestionValidationRecord,
   QuestionValidationStage,
   Topic,
 } from "./types";
+import { validateDistractorQuality } from "./distractor-quality";
 
 export type QuestionValidationDecision = "validate" | "request_changes" | "reject";
 
@@ -14,6 +16,10 @@ export interface QuestionValidationCheckOptions {
   now?: Date;
   today?: IsoDate;
   staleAfterDays?: number;
+  /** Optional MCQ responses used to validate distractor behaviour. */
+  attempts?: Attempt[];
+  /** Minimum valid responses before distractor distribution warnings are emitted. */
+  minDistractorResponses?: number;
 }
 
 export interface QuestionValidationCreateOptions extends QuestionValidationCheckOptions {
@@ -106,6 +112,13 @@ export function validateQuestion(
     if (!optionsValid || !indexValid) addIssue(issues, "invalid-mcq", `${question.id}: MCQs need two options and a valid correctIndex`);
   }
 
+  const distractorQuality = validateDistractorQuality({
+    question,
+    attempts: options.attempts,
+    minResponses: options.minDistractorResponses,
+  });
+  issues.push(...distractorQuality.issues);
+
   if (question.topicIds.length === 0) addIssue(issues, "missing-topic", `${question.id}: at least one topic is required`);
   const topicById = new Map(topics.map((topic) => [topic.id, topic]));
   for (const topicId of question.topicIds) {
@@ -149,6 +162,7 @@ export function validateQuestion(
     checkedAt,
     issues,
     ok: issues.every((issue) => issue.severity !== "error"),
+    distractorQuality,
   };
 }
 

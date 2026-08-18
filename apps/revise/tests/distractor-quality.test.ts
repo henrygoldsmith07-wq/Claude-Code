@@ -123,6 +123,17 @@ describe("validateDistractorQuality", () => {
     expect(report.ok).toBe(true);
   });
 
+  it("ignores empty answers instead of coercing them to option A", () => {
+    const incomplete = attempt("u-1", 0, "2026-08-04T09:00:00.000Z");
+    incomplete.answers["q-distractor-1-a"] = "";
+
+    const report = validateDistractorQuality({ question: question(), attempts: [incomplete] });
+
+    expect(report.responseCount).toBe(0);
+    expect(report.options[0].selectionCount).toBe(0);
+    expect(report.status).toBe("unmeasured");
+  });
+
   it("does not apply distractor checks to non-MCQs", () => {
     const report = validateDistractorQuality({ question: question({ kind: "short", options: undefined, correctIndex: undefined }) });
 
