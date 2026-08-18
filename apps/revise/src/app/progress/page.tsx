@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { aiDiagnose } from "@/ai/client";
+import { gradeCalibrationNarrative } from "@/domain/analytics";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import type { GradePrediction } from "@/domain/grades";
 import { ACHIEVEMENTS, levelFor } from "@/domain/gamification";
 import { weakTopics } from "@/domain/mastery";
 import { mistakePatterns } from "@/domain/mistakes";
@@ -20,6 +22,86 @@ import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile
 
 // Analytics that answer one question — where are the marks? — rather than
 // showing every number the app happens to hold. Each panel ends in an action.
+
+function confidenceTone(confidence: number): "success" | "review" {
+  return confidence >= 0.72 ? "success" : "review";
+}
+
+function confidenceLabel(confidence: number): string {
+  if (confidence < 0.45) return "Early estimate";
+  if (confidence < 0.72) return "Developing estimate";
+  return "Well supported";
+}
+
+function PredictedGradeCard({
+  prediction,
+  subjectName,
+  markedAnswers,
+  topicTitle,
+}: {
+  prediction: GradePrediction;
+  subjectName: string;
+  markedAnswers: number;
+  topicTitle: (topicId: string) => string;
+}) {
+  const narrative = gradeCalibrationNarrative(prediction, topicTitle);
+  const next = prediction.headroom[0];
+  const evidenceLabel = markedAnswers === 0 ? "No marked answers yet" : `${markedAnswers} marked ${markedAnswers === 1 ? "answer" : "answers"}`;
+  const trendLabel = prediction.trend === 0
+    ? null
+    : `${prediction.trend > 0 ? "+" : "−"}${Math.abs(prediction.trend)}pp over 30 days`;
+
+  return (
+    <Panel as="li">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">{subjectName}</p>
+          <p className="text-xs text-ink3 mt-0.5">Current estimate</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-2xl font-semibold tabular-nums text-ink">{prediction.grade}</p>
+          <p className="text-xs text-ink3 tabular-nums">{prediction.percent}%</p>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <ProgressBar value={prediction.percent / 100} label="Estimated performance" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 text-xs text-ink3">
+        <Pill tone={confidenceTone(prediction.confidence)}>{confidenceLabel(prediction.confidence)}</Pill>
+        <span>{evidenceLabel}</span>
+        <span>Range {prediction.worstCase}–{prediction.bestCase}</span>
+        {trendLabel ? <span>{trendLabel}</span> : null}
+      </div>
+
+      <p className="text-sm text-ink2 mt-3">{narrative.paragraphs[0]}</p>
+
+      {next ? (
+        <div className="mt-3 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Next lever</p>
+          <Link
+            href={`/practice?topic=${encodeURIComponent(next.topicId)}`}
+            className="flex items-center justify-between gap-3 mt-1 group"
+          >
+            <span className="text-sm text-ink group-hover:underline truncate">{topicTitle(next.topicId)}</span>
+            <span className="text-xs text-ink3 tabular-nums shrink-0">up to +{next.potentialPercent}pp →</span>
+          </Link>
+          <p className="text-[11px] text-ink3 mt-1">Potential gain if this topic reached full mastery.</p>
+        </div>
+      ) : null}
+
+      <details className="mt-3 border-t border-line pt-2.5">
+        <summary className="cursor-pointer text-[11px] font-semibold text-ink3 hover:text-ink">
+          How this estimate works
+        </summary>
+        <p className="text-xs text-ink3 leading-5 mt-2">
+          It blends marked exam-question accuracy with topic coverage. Marked answers carry more weight as evidence accumulates; the range stays wider when there is less evidence or more time for your performance to change.
+        </p>
+      </details>
+    </Panel>
+  );
+}
 
 export default function ProgressPage() {
   const store = useStore();
@@ -82,39 +164,17 @@ export default function ProgressPage() {
       <section>
         <SectionHeading
           title="Predicted grades"
-          hint="Blends measured exam-question accuracy with topic coverage. Confidence rises with marked work."
+          hint="A working estimate, with the evidence, range and next lever kept visible."
         />
         <ul className="grid sm:grid-cols-2 gap-3">
           {store.predictions.map((prediction) => (
-            <Panel as="li" key={prediction.subjectId}>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm font-semibold">{getSubject(prediction.subjectId)?.name}</p>
-                <p className="text-2xl font-semibold tabular-nums">{prediction.grade}</p>
-              </div>
-              <div className="mt-2">
-                <ProgressBar value={prediction.percent / 100} label={`${prediction.percent}%`} />
-              </div>
-              <p className="text-[11px] text-ink3 mt-2">
-                Realistic range {prediction.worstCase}–{prediction.bestCase} · confidence{" "}
-                {Math.round(prediction.confidence * 100)}%
-                {prediction.trend !== 0 ? ` · ${prediction.trend > 0 ? "+" : ""}${prediction.trend}pp this month` : ""}
-              </p>
-              {prediction.headroom.length ? (
-                <div className="mt-3 pt-3 border-t border-line">
-                  <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-1.5">
-                    Biggest gains available
-                  </p>
-                  <ul className="space-y-1">
-                    {prediction.headroom.slice(0, 3).map((row) => (
-                      <li key={row.topicId} className="flex justify-between gap-2 text-xs">
-                        <span className="text-ink2 truncate">{getTopic(row.topicId)?.title}</span>
-                        <span className="text-ink3 tabular-nums shrink-0">+{row.potentialPercent}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </Panel>
+            <PredictedGradeCard
+              key={prediction.subjectId}
+              prediction={prediction}
+              subjectName={getSubject(prediction.subjectId)?.name ?? prediction.subjectId}
+              markedAnswers={store.attempts.filter((attempt) => attempt.subjectId === prediction.subjectId).length}
+              topicTitle={(topicId) => getTopic(topicId)?.title ?? topicId}
+            />
           ))}
         </ul>
       </section>

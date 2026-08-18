@@ -132,18 +132,26 @@ export function paperBreakdownNarrative(papers: PaperAnalytics[], titleFor: (id:
   };
 }
 
-export function gradeCalibrationNarrative(pred: GradePrediction): Narrative {
+export function gradeCalibrationNarrative(pred: GradePrediction, titleFor: (topicId: string) => string = (id) => id): Narrative {
   const headline = `Predicted ${pred.grade} (${pred.percent}%) — range ${pred.worstCase}–${pred.bestCase}`;
   const paragraphs: string[] = [];
-  if (pred.confidence < 0.45) paragraphs.push(`Low confidence (${Math.round(pred.confidence * 100)}%) — add more timed attempts to tighten this. Headroom: ${pred.headroom.map((h) => `${h.topicId} +${h.potentialPercent}%`).slice(0, 2).join(", ") || "—"}.`);
-  else if (pred.confidence < 0.72) paragraphs.push(`Moderate confidence (${Math.round(pred.confidence * 100)}%). Best lever: ${pred.headroom[0] ? `${pred.headroom[0].topicId} (+${pred.headroom[0].potentialPercent}%)` : "a timed paper"}.`);
-  else paragraphs.push(`Confident (${Math.round(pred.confidence * 100)}%). Remaining headroom is small — switch to timed papers and technique work.`);
+  const confidence = Math.round(pred.confidence * 100);
+  if (pred.confidence < 0.45) {
+    paragraphs.push(`Low confidence (${confidence}%). This is still an early estimate, weighted more towards topic coverage than marked answers. Do more timed questions to tighten the range.`);
+  } else if (pred.confidence < 0.72) {
+    paragraphs.push(`Moderate confidence (${confidence}%). Your marked answers are starting to carry more weight; more timed work will make this range narrower.`);
+  } else {
+    paragraphs.push(`Confident (${confidence}%). Keep using timed papers to check that this grade holds under exam conditions.`);
+  }
   if (pred.trend > 4) paragraphs.push(`Trending up +${pred.trend}pp over the last 30 days.`);
   else if (pred.trend < -4) paragraphs.push(`Trending down ${pred.trend}pp — check whether recent topics are harder or revision slipped.`);
+  const next = pred.headroom[0];
   const bullets = [
-    `Confidence: ${Math.round(pred.confidence * 100)}%`,
-    `Best case: ${pred.bestCase} · Worst case: ${pred.worstCase}`,
-    ...pred.headroom.slice(0, 3).map((h) => `${h.topicId}: +${h.potentialPercent}% to grade`),
+    `Confidence: ${confidence}%`,
+    `Likely range: ${pred.worstCase}–${pred.bestCase}`,
+    next
+      ? `Next lever: ${titleFor(next.topicId)} could add up to +${next.potentialPercent} percentage points if fully mastered.`
+      : "Next lever: sit a timed paper to collect more evidence.",
   ];
   return { headline, paragraphs, bullets };
 }
