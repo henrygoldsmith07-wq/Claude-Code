@@ -104,10 +104,10 @@ export function StatTile({
   const toneClass =
     tone === "success" ? "text-success" : tone === "review" ? "text-review" : tone === "danger" ? "text-danger" : "text-ink";
   return (
-    <div className="card p-3 sm:p-4">
-      <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">{label}</p>
-      <p className={cx("text-2xl font-semibold tabular-nums mt-1", toneClass)}>{value}</p>
-      {sub ? <p className="text-xs text-ink3 mt-0.5">{sub}</p> : null}
+    <div className="rounded-[8px] border border-line bg-transparent p-3 sm:p-3.5">
+      <p className="text-[10px] uppercase tracking-wide text-ink3 font-semibold">{label}</p>
+      <p className={cx("text-xl font-semibold tabular-nums mt-0.5", toneClass)}>{value}</p>
+      {sub ? <p className="text-[11px] text-ink3 mt-0.5">{sub}</p> : null}
     </div>
   );
 }
