@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { allSubjects } from "@/domain/curriculum";
 import { benchmarkRecommendationQuality, syntheticOutcomePairs } from "@/domain/recommender";
 import { calibrationReport, syntheticCalibrationOutcomes } from "@/domain/grades";
+import { markQuestion } from "@/domain/marking";
+import { HUMAN_MARKING_CORPUS, passesHumanMarkingFloor, scoreHumanMarkingCorpus } from "@/domain/human-marking-corpus";
 import { Panel, SectionHeading, Pill, ProgressBar } from "@/components/ui";
 
 // Public benchmark page — the honest ledger.
@@ -50,6 +52,11 @@ export default function BenchmarksPage() {
 
   const recOk = rec.stats.hitRate >= 0.6 && rec.stats.correlation >= 0.5;
   const calibOk = calib.report.ece < 0.08;
+  const marking = useMemo(
+    () => scoreHumanMarkingCorpus(HUMAN_MARKING_CORPUS, (question, answers) => markQuestion(question, answers)),
+    [],
+  );
+  const markingOk = passesHumanMarkingFloor(marking);
 
   return (
     <div className="space-y-7">
@@ -157,6 +164,43 @@ export default function BenchmarksPage() {
                 <span className="w-16 text-right tabular-nums">{b.count} in bucket</span>
               </div>
             ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeading title="Human marking corpus" hint="Reusable teacher/examiner labels for the offline marking floor." />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Metric label="Rows" value={`${marking.rowCount}`} hint={`corpus ${marking.corpusVersion}`} />
+          <Metric label="Exact match" value={`${Math.round(marking.exactMatchAccuracy * 100)}%`} hint={`${marking.exactCount}/${marking.rowCount} scripts`} tone={markingOk ? "success" : "review"} />
+          <Metric label="Part MAE" value={marking.perPartMae.toFixed(3)} hint="mean absolute mark error" tone={marking.perPartMae <= 0.8 ? "success" : "danger"} />
+          <Metric label="Rubric floor" value={markingOk ? "Pass" : "Review"} hint="exact ≥50%, MAE ≤0.8" tone={markingOk ? "success" : "danger"} />
+        </div>
+        <Panel>
+          <p className="text-xs text-ink2">
+            Versioned internal fixture: teacher/examiner per-part awards, chemistry + maths, no learner-identifying data. The same scorer powers CI and this live view.
+          </p>
+          <div className="mt-3 max-h-52 overflow-auto nice-scroll rounded-[8px] border border-line">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-surface2 text-ink3">
+                <tr>
+                  <th className="text-left px-2 py-1">script</th>
+                  <th className="text-right px-2 py-1">human</th>
+                  <th className="text-right px-2 py-1">rubric</th>
+                  <th className="text-right px-2 py-1">part MAE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marking.rows.map((row) => (
+                  <tr key={row.rowId} className="border-t border-line">
+                    <td className="px-2 py-1 truncate max-w-[18rem]" title={row.label}>{row.label}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{row.humanTotal}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{row.predictedTotal}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{row.partMae.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Panel>
       </section>
