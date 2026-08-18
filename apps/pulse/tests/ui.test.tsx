@@ -19,6 +19,7 @@ import { afterPaint, renderBootFailure } from "../src/ui/boot.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import type { Pulse } from "../src/pulse.js";
 import type { Finding } from "../src/discovery/finding.js";
+import type { Hypothesis } from "../src/hypotheses/tracker.js";
 
 const finding: Finding = {
   id: "f1",
@@ -187,7 +188,13 @@ describe("the app shell", () => {
     const { pulse } = await createSyntheticPulse({ days: 180, seed: "discovery-suite" });
     pulse.discover();
     pulse.proposeHypotheses();
-    const hypotheses = pulse.hypotheses.list();
+    // Different metrics may share days (the warning tier covers any overlap);
+    // a same-metric overlap is refused outright, so pick distinct outcomes.
+    const byMetric = new Map<string, Hypothesis>();
+    for (const hypothesis of pulse.hypotheses.list()) {
+      if (!byMetric.has(hypothesis.outcomeMetricId)) byMetric.set(hypothesis.outcomeMetricId, hypothesis);
+    }
+    const hypotheses = [...byMetric.values()];
     expect(hypotheses.length).toBeGreaterThanOrEqual(2);
 
     const today = pulse.calendar().today;
@@ -198,6 +205,29 @@ describe("the app shell", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Experiments" }));
     expect(screen.getByText(/Scheduling conflict/)).toBeTruthy();
     expect(screen.getByText(/more than one experiment assigned/)).toBeTruthy();
+    cleanup();
+  });
+
+  it("refuses to start a same-metric experiment that overlaps a live run", async () => {
+    const { pulse } = await createSyntheticPulse({ days: 180, seed: "conflict-block-ui" });
+    const discovery = pulse.discover();
+    const hypothesis = pulse.proposeHypotheses()[0]!;
+    const origin = discovery.findings.find((entry) => entry.id === hypothesis.originFindingId)!;
+    expect(origin).toBeDefined();
+    pulse.designExperiment(hypothesis.id, { startDate: pulse.calendar().today, sessionsPerWeek: 4 });
+
+    render(<App pulse={pulse} />);
+    // The card that produced the live run still offers to design it again;
+    // asking again must explain the refusal instead of silently failing.
+    const card = screen.getAllByRole("article").find((entry) => entry.textContent?.includes(origin.title))!;
+    expect(card).toBeDefined();
+    fireEvent.click(within(card).getByRole("button", { name: "Design this experiment" }));
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toMatch(/Experiment not started/);
+    expect(alert.textContent).toMatch(/same metric/);
+    expect(alert.textContent).toContain("study.accuracy");
+    expect(pulse.listDesigns().length).toBe(1);
     cleanup();
   });
 

@@ -51,6 +51,70 @@ export interface CalendarConflict {
   metricIds: string[];
 }
 
+/**
+ * An existing experiment whose run range intersects a proposed one on the
+ * same metric. The hard-block tier (P1 #9) reads this at proposal time; the
+ * warning tier only needs the per-date `sameMetric` flag above.
+ */
+export interface SameMetricOverlap {
+  designId: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Finds existing experiments that would share days with the candidate while
+ * targeting the same metric. Two experiments may share days freely when they
+ * measure different things; the same metric cannot be measured under two
+ * conditions at once without the runs contaminating each other.
+ */
+export function findSameMetricOverlaps(
+  existing: readonly ExperimentDesign[],
+  candidate: ExperimentDesign,
+): SameMetricOverlap[] {
+  return existing
+    .filter(
+      (design) =>
+        design.id !== candidate.id &&
+        design.targetMetricId === candidate.targetMetricId &&
+        design.startDate <= candidate.endDate &&
+        candidate.startDate <= design.endDate,
+    )
+    .map((design) => ({
+      designId: design.id,
+      title: design.title,
+      startDate: design.startDate,
+      endDate: design.endDate,
+    }));
+}
+
+/**
+ * Thrown when a proposed experiment overlaps a live same-metric run. Carries
+ * the structured details so the UI can render them; the message is the
+ * human-readable form.
+ */
+export class ExperimentConflictError extends Error {
+  readonly candidateId: string;
+  readonly targetMetricId: string;
+  readonly conflicts: SameMetricOverlap[];
+
+  constructor(candidate: ExperimentDesign, conflicts: SameMetricOverlap[]) {
+    const names = conflicts
+      .map((overlap) => `"${overlap.title}" (${overlap.designId}, ${overlap.startDate}..${overlap.endDate})`)
+      .join(", ");
+    super(
+      `Cannot start "${candidate.title}": its run overlaps ${names}, ` +
+        `${conflicts.length === 1 ? "an experiment" : "experiments"} targeting the same metric ` +
+        `(${candidate.targetMetricId}). Resolve the overlap before proposing again.`,
+    );
+    this.name = "ExperimentConflictError";
+    this.candidateId = candidate.id;
+    this.targetMetricId = candidate.targetMetricId;
+    this.conflicts = conflicts;
+  }
+}
+
 export interface ExperimentCalendar {
   today: string;
   entries: CalendarEntry[];

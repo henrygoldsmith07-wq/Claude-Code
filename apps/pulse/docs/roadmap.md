@@ -14,13 +14,21 @@ multi-file change with a real design decision).
 ## Progress
 
 Shipped in the first implementation pass: **#10 Experiment Calendar Conflict
-Warnings** — `experiments/calendar.ts` now scans live designs per date and
-reports `calendar.conflicts` (dates with more than one experiment assigned,
-with a `sameMetric` flag for the stricter rule later), the summary counts
-them, and the experiments panel shows a warning block plus marks conflicting
-schedule entries. `tests/calendar-conflicts.test.ts` (8 tests) pins the
-behaviour. #9 (blocking same-metric overlaps at proposal time) reads the
-`sameMetric` flag this pass already computes.
+Warnings** — `experiments/calendar.ts` scans live designs per date and reports
+`calendar.conflicts` (dates with more than one experiment assigned, with a
+`sameMetric` flag), the summary counts them, and the experiments panel shows a
+warning block plus marks conflicting schedule entries.
+`tests/calendar-conflicts.test.ts` pins the behaviour.
+
+Shipped: **#9 Experiment Conflict Detection (same-metric tier)** —
+`findSameMetricOverlaps` in `experiments/calendar.ts` refuses, at proposal
+time, any experiment whose run range intersects a live run on the same metric.
+`Pulse.designExperiment` throws `ExperimentConflictError` naming the blocking
+experiment, its range and the shared metric; the design is not stored and the
+hypothesis stays `proposed`. Different metrics may still share days, and
+sequential runs on the same metric are unaffected. The UI surfaces the refusal
+in an alert on the insights panel. The mutually-exclusive-behaviour tier
+(same-day conditions that cannot both be followed) remains open.
 
 ## Baseline (measured 2026-08-17)
 
@@ -199,6 +207,11 @@ morning routines at once.
 
 **Risk:** not all overlap is harmful — different metrics can share days.
 Only same-metric and same-time-slot overlap should block.
+
+*Same-metric tier shipped (see Progress): `findSameMetricOverlaps` blocks an
+overlapping proposal at design time. The mutually-exclusive-behaviour tier —
+two conditions that cannot both be followed on the same day, even on
+different metrics — is the remaining half.*
 
 #### 10. Experiment Calendar Conflict Warnings — **S**
 

@@ -27,7 +27,12 @@ import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
 import { analyseExperiment, type ExperimentResult } from "./experiments/analysis.js";
-import { buildCalendar, type ExperimentCalendar } from "./experiments/calendar.js";
+import {
+  buildCalendar,
+  ExperimentConflictError,
+  findSameMetricOverlaps,
+  type ExperimentCalendar,
+} from "./experiments/calendar.js";
 import { rankRecommendations, type Recommendation } from "./recommendations/rank.js";
 import { FeedbackStore } from "./recommendations/feedback.js";
 import { RecommendationValueTracker } from "./recommendations/value.js";
@@ -259,6 +264,13 @@ export class Pulse {
     const hypothesis = this.hypotheses.get(hypothesisId);
     if (!hypothesis) throw new Error(`Unknown hypothesis: ${hypothesisId}`);
     const design = designExperiment(hypothesis, { ...options, now: this.now });
+    // The calendar is a scheduler, not a to-do list: a run that shares days
+    // with a live same-metric run is refused before it can start, so the
+    // metric is never measured under two conditions at once (P1 #9).
+    const overlaps = findSameMetricOverlaps(this.listDesigns(), design);
+    if (overlaps.length > 0) {
+      throw new ExperimentConflictError(design, overlaps);
+    }
     this.designs.set(design.id, design);
     this.hypotheses.linkExperiment(hypothesisId, design.id);
     if (hypothesis.status === "proposed") {

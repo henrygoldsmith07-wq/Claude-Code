@@ -36,6 +36,8 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   // recompute without the component owning any analytic state itself.
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  // Why the last experiment proposal was refused, shown where the user asked.
+  const [experimentError, setExperimentError] = useState<string | null>(null);
 
   // `revision` is a deliberate dependency, not a redundant one: the engine is
   // external mutable state that React cannot observe, so bumping the counter
@@ -69,10 +71,19 @@ export function App({ pulse }: AppProps): React.JSX.Element {
     (finding: Finding) => {
       const hypothesis = pulse.hypotheses.proposeFromFinding(finding);
       if (!hypothesis) return;
-      pulse.designExperiment(hypothesis.id, {
-        startDate: brief.weekEnd,
-        sessionsPerWeek: 4,
-      });
+      try {
+        pulse.designExperiment(hypothesis.id, {
+          startDate: brief.weekEnd,
+          sessionsPerWeek: 4,
+        });
+        setExperimentError(null);
+      } catch (error) {
+        // The engine refuses same-metric overlaps at proposal time (P1 #9);
+        // surface the refusal instead of letting the click vanish silently.
+        setExperimentError(
+          error instanceof Error ? error.message : "Could not start the experiment — please try again.",
+        );
+      }
       refresh();
     },
     [brief.weekEnd, pulse, refresh],
@@ -122,6 +133,14 @@ export function App({ pulse }: AppProps): React.JSX.Element {
               {Math.round(discovery.fdrLevel * 100)}% false-discovery rate. Expect roughly{" "}
               {discovery.expectedFalseDiscoveries.toFixed(1)} of them to be false.
             </p>
+
+            {experimentError ? (
+              <div className="calendar__conflict" role="alert">
+                <p>
+                  <strong>Experiment not started:</strong> {experimentError}
+                </p>
+              </div>
+            ) : null}
 
             {discovery.findings.length === 0 ? (
               <p className="empty">
