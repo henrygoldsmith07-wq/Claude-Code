@@ -262,6 +262,12 @@ configured.
 
 - Everything is processed locally; there is no server.
 - Consent is per-source and per-scope, with the scope descriptions shown verbatim.
+- The Sources & privacy view shows each source's **app-side opt-in** — the
+  flag the source app itself controls (Habit, Rapport, Reflect, Arise) — read
+  live from that app's storage, so a source revoked in its own app is visibly
+  "paused at source" rather than silently quiet. Sources without an app-side
+  gate (Forq, French Practice) say so, and Revise's server-side gate is
+  labelled as such.
 - **Reflect requires its own explicit permission** and can never be enabled by a
   bulk "connect everything" action.
 - Sensitive sources are excluded from analysis, exports and AI prompts unless
