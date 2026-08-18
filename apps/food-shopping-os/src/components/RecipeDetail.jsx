@@ -126,11 +126,24 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
         </button>
         <button
           onClick={() => app.toggleFavourite(recipe.id)}
-          aria-label="Favourite"
-          className="press absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border"
-          style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
+          aria-label={fav ? 'Unfavourite' : 'Favourite'}
+          aria-pressed={fav}
+          className={cx(
+            'press favourite-button absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border',
+            fav && 'is-favourite',
+          )}
+          style={{
+            background: fav ? 'var(--danger-soft)' : 'var(--card)',
+            borderColor: fav ? 'var(--danger)' : 'var(--line)',
+            color: fav ? 'var(--danger)' : 'var(--faint)',
+          }}
         >
-          <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
+          <Heart
+            key={fav ? 'favourite' : 'not-favourite'}
+            className={fav ? 'favourite-heart' : undefined}
+            size={16}
+            fill={fav ? 'currentColor' : 'none'}
+          />
         </button>
       </div>
 
@@ -288,10 +301,10 @@ export default function RecipeDetail({ recipe: original, onClose, goTab, startCo
             </button>
           </div>
           <div className="flex justify-between">
-            <Ring value={recipe.kcal} max={800} size={68} color="var(--series-2)" label={recipe.kcal} sub="kcal" />
-            <Ring value={recipe.protein} max={50} size={68} color="var(--series-1)" label={`${recipe.protein}g`} sub="protein" />
-            <Ring value={recipe.carbs} max={90} size={68} color="var(--series-3)" label={`${recipe.carbs}g`} sub="carbs" />
-            <Ring value={recipe.fat} max={40} size={68} color="var(--accent)" label={`${recipe.fat}g`} sub="fat" />
+            <Ring value={recipe.kcal} max={800} size={68} color="var(--nutrition-kcal)" label={recipe.kcal} sub="kcal" />
+            <Ring value={recipe.protein} max={50} size={68} color="var(--nutrition-protein)" label={`${recipe.protein}g`} sub="protein" />
+            <Ring value={recipe.carbs} max={90} size={68} color="var(--nutrition-carbs)" label={`${recipe.carbs}g`} sub="carbs" />
+            <Ring value={recipe.fat} max={40} size={68} color="var(--nutrition-fat)" label={`${recipe.fat}g`} sub="fat" />
           </div>
           <p className="mt-3 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
             {nutrition.label}

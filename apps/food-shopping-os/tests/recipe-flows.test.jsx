@@ -92,8 +92,11 @@ describe('the recipe library', () => {
     openRecipes();
     const favourite = screen.getAllByLabelText('Favourite')[0];
     expect(favourite.parentElement.closest('button, [role="button"], a[href]')).toBeNull();
+    expect(favourite.className).toContain('favourite-button');
     fireEvent.click(favourite);
     expect(favourite.getAttribute('aria-pressed')).toBe('true');
+    expect(favourite.className).toContain('is-favourite');
+    expect(favourite.querySelector('svg').getAttribute('class')).toContain('favourite-heart');
     fireEvent.click(screen.getByText('Favourites (1)'));
     expect(countLine()).toMatch(/^1 recipe/);
   });
@@ -214,6 +217,19 @@ describe('a recipe page', () => {
     expect(screen.getByText(/% protein/)).toBeDefined();
     expect(screen.getByText('Potassium')).toBeDefined();
     expect(screen.getByText(/micronutrients are estimated/)).toBeDefined();
+  });
+
+  it('turns the recipe like button red and announces the active state', () => {
+    onboard();
+    openFirstMatch('Coconut Chickpea Curry');
+    const favourite = screen.getAllByRole('button', { name: 'Favourite' }).at(-1);
+
+    fireEvent.click(favourite);
+
+    expect(favourite.getAttribute('aria-label')).toBe('Unfavourite');
+    expect(favourite.getAttribute('aria-pressed')).toBe('true');
+    expect(favourite.className).toContain('is-favourite');
+    expect(favourite.querySelector('svg').getAttribute('class')).toContain('favourite-heart');
   });
 
   it('hands missing recipe ingredients to Shop, then offers a review handoff', () => {

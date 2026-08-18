@@ -4,7 +4,7 @@ import {
   Trash2, UtensilsCrossed, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
-import { gbp } from '../lib/utils.js';
+import { cx, gbp } from '../lib/utils.js';
 import { allRecipes, DISCOVER_FILTERS, filterRecipes } from '../data/recipes.js';
 import { DIET_PATTERNS } from '../data/goals.js';
 import { missingFrom, parseShareCode, searchRecipes } from '../lib/recipe-tools.js';
@@ -393,10 +393,22 @@ export default function RecipesTab({ openRecipe }) {
                       onClick={() => app.toggleFavourite(r.id)}
                       aria-label={fav ? 'Unfavourite' : 'Favourite'}
                       aria-pressed={fav}
-                      className="tap press absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border"
-                      style={{ background: 'var(--card)', borderColor: 'var(--line)', color: fav ? 'var(--ink)' : 'var(--faint)' }}
+                      className={cx(
+                        'tap press favourite-button absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border',
+                        fav && 'is-favourite',
+                      )}
+                      style={{
+                        background: fav ? 'var(--danger-soft)' : 'var(--card)',
+                        borderColor: fav ? 'var(--danger)' : 'var(--line)',
+                        color: fav ? 'var(--danger)' : 'var(--faint)',
+                      }}
                     >
-                      <Heart size={15} fill={fav ? 'currentColor' : 'none'} />
+                      <Heart
+                        key={fav ? 'favourite' : 'not-favourite'}
+                        className={fav ? 'favourite-heart' : undefined}
+                        size={15}
+                        fill={fav ? 'currentColor' : 'none'}
+                      />
                     </button>
                   )}
                 </Card>
