@@ -242,6 +242,24 @@ A mistake resolves only when its card has `reps ≥ 2`, `stability ≥ 7 days` a
 zero lapses. Resolving on a single correct answer would close mistakes that the
 student got right by luck.
 
+## Exam technique vs knowledge separation
+
+`src/domain/retention-analytics.ts`, `src/domain/assessment.ts` and
+`src/components/AssessmentPanels.tsx`
+
+`techniqueVsKnowledge(mistakes)` estimates whether dropped marks are primarily
+an understanding problem or an exam-performance problem. AO1 and recall losses
+are treated as knowledge evidence; rushing, slow timing, communication,
+interpretation, arithmetic and explicit command-word slips are treated as
+technique evidence; method losses remain a mixed signal. The result is attached
+to `AssessmentInsight`, including mark totals, shares, reliability and driver
+tags, so every consumer uses the same diagnosis.
+
+`/progress` renders the split as a small stacked bar with the narrative and a
+next action. The split is labelled preliminary until there are at least eight
+mistakes and ten lost marks; it is a prioritisation signal, not a claim that a
+single mistake has one perfectly observable cause.
+
 ## Gamification
 
 `src/domain/gamification.ts`

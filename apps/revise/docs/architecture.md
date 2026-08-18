@@ -55,7 +55,7 @@ lives:
 - `deck-io.ts` validates and materialises imported decks.
 - `i18n.ts` — locale detection, dictionary lookup and `t()` interpolation for the localisation scaffolding (en-GB core, cy/fr ready; no runtime dep).
 - `onboarding.ts` — funnel measurement: completion/drop-off, time-to-activation and `isActivated` derived from real review/attempt/session signals (local-only, no PII shipped).
-- `retention-analytics.ts`, `fsrs-tuning.ts`, `mastery-uncertainty.ts`, `knowledge-tracing.ts`, `recommender-enhancements.ts`, `sync-conflicts.ts`, `portability.ts`, `moderation.ts` — Phase 3–6 learning-science and platform hardening (covered in `docs/revision-engine.md`).
+- `retention-analytics.ts`, `fsrs-tuning.ts`, `mastery-uncertainty.ts`, `knowledge-tracing.ts`, `recommender-enhancements.ts`, `sync-conflicts.ts`, `portability.ts`, `moderation.ts` — Phase 3–6 learning-science and platform hardening (including the shared exam-technique vs knowledge diagnosis; covered in `docs/revision-engine.md`).
 - `src/app/benchmarks` + `src/app/case-study` — live ledger and case-study routes that compute from the same harnesses as CI (Phase 8).
 
 ### `src/content` — authored revision material
