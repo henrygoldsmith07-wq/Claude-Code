@@ -1,0 +1,33 @@
+name: Habit Tracker
+
+on:
+  push:
+    paths:
+      - "apps/habit-tracker/**"
+      - ".github/workflows/habit-tracker.yml"
+  pull_request:
+    paths:
+      - "apps/habit-tracker/**"
+      - ".github/workflows/habit-tracker.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/habit-tracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/habit-tracker/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: du -sh .next 2>/dev/null || echo "no build artifact to measure"
