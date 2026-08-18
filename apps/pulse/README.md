@@ -107,6 +107,16 @@ data is.
    conflicting sighting. A claim seen pointing both ways is suspect whichever
    side it was on, and the ledger keeps that conflict auditable and in the
    export until one side's data is gone.
+8. **Findings are stress-tested before they are trusted.** Every finding
+   carries a counterfactual analysis: the sittings most responsible for the
+   effect are removed one at a time and the same test re-run, watching for
+   the direction to flip or the p-value to cross the threshold the finding
+   itself survived. A claim that reverses when a single sitting is removed is
+   labelled `fragile` and flagged as load-bearing — acting on it would be
+   acting on a handful of days — while a claim that survives is labelled
+   `robust`. The removal order is greedy and the correction is not recomputed
+   per removal, so the numbers are a probe, not a proof, and the statement
+   says so.
 
 ## Experiments
 

@@ -89,6 +89,31 @@ describe("FindingCard renders the whole evidence contract", () => {
     expect(note.textContent).toMatch(/not a cause/);
   });
 
+  it("shows the counterfactual stress test when one was computed", () => {
+    render(
+      <FindingCard
+        finding={{
+          ...finding,
+          counterfactual: {
+            verdict: "fragile",
+            removalsToFlipDirection: 1,
+            removalsToBreakSignificance: Number.POSITIVE_INFINITY,
+            fragileToSingleSitting: true,
+            influentialSittings: [{ localDate: "2025-06-02", side: "A", value: 0.93 }],
+            statement: "This finding hinges on a single sitting, and it is load-bearing: remove the most influential sitting and the effect reverses direction. Treat the claim as provisional.",
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText(/How fragile is this\?/)).toBeTruthy();
+    expect(screen.getByText(/hinges on a single sitting/)).toBeTruthy();
+  });
+
+  it("says nothing about fragility when no counterfactual analysis was possible", () => {
+    render(<FindingCard finding={finding} />);
+    expect(screen.queryByText(/How fragile is this\?/)).toBeNull();
+  });
+
   it("labels the evidence class so a correlation is never mistaken for a result", () => {
     render(<FindingCard finding={finding} />);
     expect(screen.getByText("Correlation")).toBeTruthy();

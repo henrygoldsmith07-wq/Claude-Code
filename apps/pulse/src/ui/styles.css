@@ -261,6 +261,22 @@ h4 {
   padding-left: 0.7rem;
 }
 
+.finding__counterfactual {
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+  margin: 0 0 0.9rem;
+  padding-left: 0.7rem;
+}
+
+.finding__counterfactual--robust {
+  border-left-color: var(--ok);
+}
+
+.finding__counterfactual--fragile {
+  border-left-color: var(--warn);
+  color: var(--warn);
+}
+
 .calendar__conflict {
   border-left: 3px solid var(--warn);
   color: var(--warn);

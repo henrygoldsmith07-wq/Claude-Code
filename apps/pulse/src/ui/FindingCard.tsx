@@ -74,6 +74,12 @@ export function FindingCard({ finding, onFeedback, onDesignExperiment }: Finding
         <strong>{uncertainty.label}.</strong> {uncertainty.sentence}
       </p>
 
+      {finding.counterfactual ? (
+        <p className={`finding__counterfactual finding__counterfactual--${finding.counterfactual.verdict}`}>
+          <strong>How fragile is this?</strong> {finding.counterfactual.statement}
+        </p>
+      ) : null}
+
       <p className="finding__caveat" role="note">
         {finding.causalityNote}
       </p>
