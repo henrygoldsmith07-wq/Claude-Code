@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import {
+  misconceptionById,
+  misconceptionsForSubject,
+  misconceptionsForTopic,
+  seedMisconceptions,
+} from "@/content";
+import { allSubjects, allTopics, getTopic } from "@/domain/curriculum";
+
+describe("misconception library", () => {
+  it("ships at least two misconceptions for each of the four WJEC A-level subjects", () => {
+    const required = allSubjects().filter((s) => s.id.startsWith("wjec-alevel"));
+    for (const subject of required) {
+      expect(
+        misconceptionsForSubject(subject.id).length,
+        `${subject.id} should have misconceptions`,
+      ).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("keeps every entry well-formed and linked to topics that exist", () => {
+    for (const entry of seedMisconceptions) {
+      expect(entry.statement.trim().length).toBeGreaterThan(10);
+      expect(entry.explanation.trim().length).toBeGreaterThan(20);
+      expect(entry.example.trim().length).toBeGreaterThan(10);
+      expect(entry.correction.trim().length).toBeGreaterThan(10);
+      expect(entry.topicIds.length).toBeGreaterThan(0);
+      for (const topicId of entry.topicIds) {
+        expect(getTopic(topicId), `unknown topic ${topicId} in ${entry.id}`).toBeDefined();
+      }
+    }
+  });
+
+  it("uses unique, stable ids", () => {
+    const ids = seedMisconceptions.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => id.startsWith("seed-misconception:"))).toBe(true);
+  });
+
+  it("finds entries by subject, topic and id", () => {
+    const entry = seedMisconceptions[0]!;
+    expect(misconceptionsForSubject(entry.subjectId)).toContainEqual(entry);
+    expect(misconceptionsForTopic(entry.topicIds[0]!)).toContainEqual(entry);
+    expect(misconceptionById(entry.id)).toBe(entry);
+    expect(misconceptionById("does-not-exist")).toBeUndefined();
+  });
+
+  it("covers every entry's subject in the curriculum", () => {
+    for (const entry of seedMisconceptions) {
+      expect(allTopics().some((t) => t.subjectId === entry.subjectId)).toBe(true);
+    }
+  });
+});

@@ -58,7 +58,7 @@ These exist today and are the foundation the roadmap builds on:
   `docs/benchmark.md`, grown into a labelled set).
 - Teacher-marking comparison (measure the marker against a human teacher, not
   only against the rubric).
-- Explanation library for common misconceptions.
+- Explanation library for common misconceptions *(shipped — `src/content/misconceptions/`)*.
 - Video/visual explanations.
 
 ## 4. Input & accessibility
