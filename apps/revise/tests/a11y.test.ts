@@ -93,4 +93,25 @@ describe("a11y scaffolding", () => {
     expect(i18n.SUPPORTED_LOCALES).toContain("en-GB");
     expect(i18n.DEFAULT_LOCALE).toBe("en-GB");
   });
+  it("QuestionRunner: remediation renders the misconception explanation with a fix", async () => {
+    const src = readFileSync(join(process.cwd(), "src/components/QuestionRunner.tsx"), "utf8");
+    expect(src).toContain("How to fix it");
+    expect(src).toContain("misconceptionEntry.explanation");
+    expect(src).toContain("misconceptionEntry.correction");
+    expect(src).toContain("planRemediation(");
+  });
+  it("misconception search deep-links to the specific entry", async () => {
+    const overlay = readFileSync(join(process.cwd(), "src/components/SearchOverlay.tsx"), "utf8");
+    expect(overlay).toContain("&misconception=");
+    const library = readFileSync(join(process.cwd(), "src/app/library/page.tsx"), "utf8");
+    expect(library).toContain("id={misconception.id}");
+    expect(library).toContain("scrollIntoView");
+  });
+  it("Progress surfaces the most-recurring misconceptions with a deep-link to each entry", async () => {
+    const panels = readFileSync(join(process.cwd(), "src/components/AssessmentPanels.tsx"), "utf8");
+    expect(panels).toContain("recurringMisconceptions");
+    expect(panels).toContain("&misconception=");
+    const progress = readFileSync(join(process.cwd(), "src/app/progress/page.tsx"), "utf8");
+    expect(progress).toContain("RecurringMisconceptions");
+  });
 });

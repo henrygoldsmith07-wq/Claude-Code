@@ -191,9 +191,9 @@ export async function mark(question: Question, answers: Record<string, string>) 
       "",
       "Mark each part. Credit a mark-scheme point only if the student's answer contains it —",
       "reward correct alternative wording, never reward what is merely implied.",
-      "Return one entry per part with its exact partId, and one overall examiner-style feedback paragraph.",
+    "Return one entry per part with its exact partId, one overall examiner-style feedback paragraph, and confidence from 0 to 1 in the mark.",
     ].join("\n"),
-    `{ "marked": [{ "partId": string, "awarded": number, "max": number, "creditedPoints": string[], "missedPoints": string[], "comment": string }], "feedback": string }`,
+    `{ "marked": [{ "partId": string, "awarded": number, "max": number, "creditedPoints": string[], "missedPoints": string[], "comment": string }], "feedback": string, "confidence": number }`,
     () => markFallback(question, answers),
     1800,
   );

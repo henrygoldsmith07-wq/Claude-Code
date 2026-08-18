@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { misconceptionsForTopic } from "@/content";
 import { markQuestion } from "@/domain/marking";
 import {
   planRemediation,
@@ -132,5 +133,49 @@ describe("planRemediation + markQuestion integration", () => {
       all.some((a) => /sign|slip|arithmetic|method/i.test(a.misconception)),
     ).toBe(true);
     expect(all.some((a) => a.evidence.includes("x^2 + 3x + 2x - 6"))).toBe(true);
+  });
+});
+
+describe("misconception library integration", () => {
+  const misconceptions = misconceptionsForTopic("wjec-alevel-maths.algebra");
+
+  it("shows the library explanation when the answer matches an entry", () => {
+    const action = remediatePoint(
+      part,
+      "I divided both sides of -2x < 6 by -2 and kept the sign, writing x < -3",
+      "Solves -2x < 6 correctly",
+      topic,
+      undefined,
+      undefined,
+      misconceptions,
+    );
+    expect(action.misconceptionEntry?.id).toBe("seed-misconception:inequality-sign-reversal");
+    expect(action.misconception).toMatch(/sign stays the same/i);
+    expect(action.action).toMatch(/reverse the inequality sign/i);
+  });
+
+  it("keeps the generic fallback when no library entry matches", () => {
+    const action = remediatePoint(
+      part,
+      "the sky is blue",
+      "x^2 - x - 6",
+      topic,
+      undefined,
+      undefined,
+      misconceptions,
+    );
+    expect(action.misconceptionEntry).toBeUndefined();
+    expect(action.misconception).toBe("Mark-scheme point missed");
+  });
+
+  it("threads the library through remediatePart", () => {
+    const plan = remediatePart(
+      part,
+      "I divided both sides of -2x < 6 by -2 and kept the sign, writing x < -3",
+      markedPart(["Solves -2x < 6 correctly"]),
+      topic,
+      misconceptions,
+    );
+    expect(plan.actions[0]?.misconceptionEntry?.id).toBe("seed-misconception:inequality-sign-reversal");
   });
 });

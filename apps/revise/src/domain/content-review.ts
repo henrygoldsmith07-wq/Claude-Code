@@ -15,7 +15,7 @@ import { entriesWithProvenanceGaps } from "./moderation";
 // ---------------------------------------------------------------------------
 
 export interface ReviewFlag {
-  kind: "unverified"|"no-aos"|"no-specPoints"|"thin-specPoints"|"unmapped-question"|"stale-check";
+  kind: "unverified"|"no-aos"|"no-specPoints"|"thin-specPoints"|"unmapped-question"|"question-validation"|"stale-check";
   id: Id;
   detail: string;
 }
@@ -58,6 +58,10 @@ export function regressionReport(input: {
   // Questions: every question should map to specPointIds and AOs at the part level
   const unmapped: Id[] = [];
   for (const q of input.questions) {
+    if (q.validation && (q.validation.stage !== "validated" || !q.validation.report.ok)) {
+      const reason = q.validation.report.issues[0]?.message ?? `stage is ${q.validation.stage}`;
+      flags.push({ kind: "question-validation", id: q.id, detail: `${q.id}: validation incomplete — ${reason}` });
+    }
     const hasMapping = (q.specPointIds?.length ?? 0) > 0 || q.parts.some((p)=> (p.specPointIds?.length ?? 0) > 0);
     if (!hasMapping) { unmapped.push(q.id); flags.push({ kind: "unmapped-question", id: q.id, detail: `${q.id}: no specPoint mapping` }); }
     // Dangling topic refs

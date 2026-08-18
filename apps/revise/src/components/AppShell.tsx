@@ -13,17 +13,22 @@ import {
   ModesIcon,
   LibraryIcon,
   PapersIcon,
+  EvidenceIcon,
   PlanIcon,
   PracticeIcon,
   ProgressIcon,
+  ResponseTimeIcon,
   ReviewIcon,
   SearchIcon,
   OfflineIcon,
   SettingsIcon,
+  SyncIcon,
   TodayIcon,
   TutorIcon,
   BenchmarkIcon,
   CaseStudyIcon,
+  CorpusIcon,
+  WarningIcon,
 } from "./icons";
 import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
@@ -40,12 +45,15 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
   { href: "/practice", label: "Practice", Icon: PracticeIcon },
   { href: "/planner", label: "Plan", Icon: PlanIcon, primary: true },
   { href: "/progress", label: "Progress", Icon: ProgressIcon, primary: true },
+  { href: "/response-time", label: "Response time", Icon: ResponseTimeIcon },
   { href: "/generate", label: "From notes", Icon: GenerateIcon },
   { href: "/cards", label: "Cards", Icon: CardsIcon },
   { href: "/papers", label: "Past papers", Icon: PapersIcon },
   { href: "/library", label: "Library", Icon: LibraryIcon },
+  { href: "/question-evidence", label: "Question evidence", Icon: EvidenceIcon },
   { href: "/tutor", label: "Tutor", Icon: TutorIcon },
   { href: "/benchmarks", label: "Benchmarks", Icon: BenchmarkIcon },
+  { href: "/answer-corpus", label: "Answer corpus", Icon: CorpusIcon },
   { href: "/case-study", label: "Case study", Icon: CaseStudyIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
@@ -53,8 +61,32 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { settings, dueCards, streak, syncStatus, updateSettings, needsOnboarding, completeOnboarding } = useStore();
+  const { settings, dueCards, streak, syncStatus, syncNow, updateSettings, needsOnboarding, completeOnboarding } = useStore();
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const syncNotice = !syncStatus.online
+    ? {
+        title: "Offline — your work is safe",
+        body: syncStatus.pending
+          ? `${syncStatus.pending} change${syncStatus.pending === 1 ? "" : "s"} will sync when you reconnect.`
+          : "Your revision work is saved on this device and will sync when you reconnect.",
+      }
+    : syncStatus.syncing
+      ? { title: "Syncing your latest changes…", body: "You can keep revising while this finishes." }
+      : syncStatus.lastSyncError
+        ? { title: "Sync needs another attempt", body: syncStatus.lastSyncError }
+        : syncStatus.pending
+          ? {
+              title: `${syncStatus.pending} change${syncStatus.pending === 1 ? "" : "s"} waiting to sync`,
+              body: "Your work is saved here. We’ll retry automatically, or you can try now.",
+            }
+          : null;
+  const SyncNoticeIcon = !syncStatus.online ? OfflineIcon : syncStatus.lastSyncError ? WarningIcon : SyncIcon;
+  const syncNoticeClass = !syncStatus.online
+    ? "bg-reviewsoft text-review"
+    : syncStatus.lastSyncError
+      ? "bg-dangersoft text-danger"
+      : "bg-surface2 text-ink2";
 
   // Theme and accessibility preferences live on <html> so Le Studio's tokens
   // flip everything at once, including anything rendered into a portal.
@@ -184,15 +216,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </div>
-        {!syncStatus.online ? (
-          <p
-            className="px-4 py-1.5 text-[11px] bg-reviewsoft text-review font-medium flex items-center gap-1.5"
-            role="status"
-            aria-live="polite"
-          >
-            <OfflineIcon size={ICON_SIZE.sm} aria-hidden className="shrink-0" />
-            Offline — everything still works and will sync when you reconnect.
-          </p>
+        {syncStatus.enabled && syncNotice ? (
+          <div className={cx("px-4 py-2.5 text-[11px] font-medium flex items-start gap-2", syncNoticeClass)} role="status" aria-live="polite">
+            <SyncNoticeIcon size={ICON_SIZE.sm} aria-hidden className={cx("shrink-0 mt-0.5", syncStatus.syncing && "animate-spin")} />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{syncNotice.title}</p>
+              <p className="mt-0.5 leading-relaxed">{syncNotice.body}</p>
+            </div>
+            {syncStatus.online && !syncStatus.syncing ? (
+              <button type="button" onClick={() => void syncNow()} className="shrink-0 underline underline-offset-2">
+                {syncStatus.lastSyncError ? "Try again" : "Sync now"}
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </header>
 
@@ -233,6 +269,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function StatusStrip() {
   const { syncStatus, syncNow, streak } = useStore();
+  const lastSynced = syncStatus.lastSyncedAt
+    ? new Date(syncStatus.lastSyncedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    : null;
   return (
     <div className="text-[11px] text-ink3 space-y-1">
       <div className="flex items-center justify-between">
@@ -245,14 +284,30 @@ function StatusStrip() {
             aria-hidden
             className={cx("w-1.5 h-1.5 rounded-full", syncStatus.online ? "bg-success" : "bg-review")}
           />
-          {syncStatus.enabled ? (syncStatus.online ? "Synced" : "Offline") : "Local only"}
+          {syncStatus.enabled
+            ? syncStatus.syncing
+              ? "Syncing…"
+              : syncStatus.online
+                ? syncStatus.pending
+                  ? `${syncStatus.pending} queued`
+                  : "Synced"
+                : "Offline — saved here"
+            : "Local only — saved here"}
         </span>
         {syncStatus.enabled ? (
           <button type="button" onClick={() => void syncNow()} className="underline hover:text-ink">
-            {syncStatus.syncing ? "Syncing…" : syncStatus.pending ? `${syncStatus.pending} queued` : "Sync"}
+            {syncStatus.syncing
+              ? "Syncing…"
+              : syncStatus.lastSyncError
+                ? "Try again"
+                : syncStatus.pending
+                  ? `${syncStatus.pending} queued`
+                  : "Sync now"}
           </button>
         ) : null}
       </div>
+      {syncStatus.lastSyncError ? <p className="text-danger" role="status">{syncStatus.lastSyncError}</p> : null}
+      {lastSynced && syncStatus.online && !syncStatus.lastSyncError ? <p>Last synced {lastSynced}</p> : null}
     </div>
   );
 }

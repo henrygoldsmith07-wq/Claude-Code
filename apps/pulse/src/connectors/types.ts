@@ -94,6 +94,26 @@ export interface HealthReport {
   latestSourceEventAt?: string | null;
 }
 
+/**
+ * The source app's own Pulse gate, as far as Pulse can see it. Surfaces in the
+ * consent overview so a source that is revoked *in its own app* is visibly
+ * "paused at source" rather than silently producing nothing.
+ */
+export interface SourceConsentStatus {
+  /**
+   * `flag` — the app keeps a dedicated storage key; `embedded` — the flag lives
+   * inside the app's own store; `server` — enforced server-side, with no local
+   * flag Pulse can read (e.g. Revise's `/api/pulse/history` route).
+   */
+  kind: "flag" | "embedded" | "server";
+  /** The app's storage key (`flag`/`embedded`), or null for server-gated. */
+  key: string | null;
+  /** Currently granted. Null when Pulse cannot read the flag (server-gated). */
+  granted: boolean | null;
+  /** Plain-language copy for the UI. */
+  message: string;
+}
+
 export interface Connector {
   id: SourceId;
   name: string;
@@ -117,6 +137,11 @@ export interface Connector {
   cadence?: SyncCadence;
   fetch(request: SyncRequest): Promise<SyncPage>;
   healthCheck?(): Promise<HealthReport>;
+  /**
+   * The source app's own Pulse gate, read live from its storage. Null (or
+   * absent) means the source has no app-side opt-in.
+   */
+  consentStatus?(): SourceConsentStatus | null;
 }
 
 /**
@@ -129,6 +154,8 @@ export interface SourceReader<TRecord> {
   read(since: string | null, limit: number): Promise<{ records: TRecord[]; hasMore: boolean }>;
   /** Optional liveness probe. */
   probe?(): Promise<{ ok: boolean; message: string; latestAt?: string | null }>;
+  /** Optional app-side consent status, passed through to the connector. */
+  consentStatus?(): SourceConsentStatus | null;
 }
 
 export class ConnectorError extends Error {

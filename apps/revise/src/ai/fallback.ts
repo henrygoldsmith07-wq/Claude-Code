@@ -86,6 +86,7 @@ export function markFallback(question: Question, answers: Record<string, string>
   return {
     marked: result.marked,
     feedback: `${result.feedback}${errorNote}\n\n_Marked against the mark scheme on this device — no AI was involved._`,
+    confidence: 1,
   };
 }
 

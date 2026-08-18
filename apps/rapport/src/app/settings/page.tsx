@@ -5,6 +5,7 @@ import { Badge, Button, Card, Field, PageHeader, TextInput, Toggle } from "@/com
 import { useStore } from "@/state/store";
 import { sessionMinutesFor } from "@/domain/assessment";
 import { cryptoAvailable, passphraseStrength } from "@/data/crypto";
+import { readRapportPulseOptIn, setRapportPulseOptIn } from "@/data/pulse-history";
 import { currentEmail, isSyncConfigured, push, pull, signInWithEmail, signOut, deleteRemote } from "@/data/sync";
 import type { TrainingIntensity } from "@/domain/types";
 
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ provider: { available: boolean; name: string | null }; stats: { calls: number; fallbackRate: number; estimatedCostUsd: number } } | null>(null);
+  const [pulseShared, setPulseShared] = useState(() => readRapportPulseOptIn());
 
   useEffect(() => {
     void (async () => setSignedInAs(await currentEmail()))();
@@ -146,6 +148,16 @@ export default function SettingsPage() {
             onChange={(value) => void store.updatePreference({ allowModelTraining: value })}
             label="Allow my data to be used to improve models"
             description="Off by default and separate from the setting above. This build never sends data for training regardless; the switch exists so the answer is recorded and honoured if that ever changes."
+          />
+          <Toggle
+            id="pulse"
+            checked={pulseShared}
+            onChange={(value) => {
+              setRapportPulseOptIn(value);
+              setPulseShared(value);
+            }}
+            label="Share with Pulse"
+            description="Off by default. When on, a transcript-free history of your drills and challenges is written where Pulse can read it. Turning it off deletes that copy immediately."
           />
         </div>
 

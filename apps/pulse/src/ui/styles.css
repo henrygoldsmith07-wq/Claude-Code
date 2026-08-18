@@ -18,6 +18,7 @@
   --card: #f7f8fa;
   --accent: #17457a;
   --warn: #8a3b06;
+  --danger: #b3261e;
   --ok: #13543a;
   --radius: 8px;
 }
@@ -31,6 +32,7 @@
     --card: #1c1f25;
     --accent: #8dbdf0;
     --warn: #f0a86a;
+    --danger: #ff8a80;
     --ok: #77d3ac;
   }
 }
@@ -560,6 +562,10 @@ td {
 
 .history-change--weakened {
   color: var(--warn);
+}
+
+.history-change--reversed {
+  color: var(--danger);
 }
 
 .history-change--disappeared {

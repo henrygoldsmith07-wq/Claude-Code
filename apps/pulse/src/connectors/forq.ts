@@ -130,6 +130,14 @@ export function mapForqRecord(record: ForqRecord): RawEventInput[] {
 /** Where Forq keeps its state when both apps are served from one origin. */
 export const FORQ_STORAGE_KEY = "forq-state-v2";
 
+/** Forq's own Pulse opt-in flag, kept apart from the state it gates. */
+export const FORQ_PULSE_OPT_IN_KEY = "forq-pulse-opt-in";
+
+/** Forq's own opt-in. Anything other than the explicit on-value is withheld. */
+export function forqPulseOptInGranted(flag: unknown): boolean {
+  return flag === "1" || flag === 1;
+}
+
 /** Local hour assumed for each slot when Forq recorded only a date. */
 const SLOT_HOURS: Record<string, number> = { breakfast: 8, lunch: 13, dinner: 19, snack: 16 };
 
@@ -233,10 +241,12 @@ export function selectForqRecords(state: unknown): ForqRecord[] {
 /**
  * A Forq connector reading the real app's storage at a shared origin.
  *
- * Unlike Arise and Reflect, Forq has no Pulse opt-in of its own, so the gate is
- * Pulse's own per-connector grant — the same one the health, wearable and
- * calendar sources rely on. If Forq later grows its own flag, pass it as
- * `consent` and it becomes the stricter of the two.
+ * Forq now owns its own Pulse opt-in (`FORQ_PULSE_OPT_IN_KEY`), written and
+ * revocable in the app's privacy settings where the data originates. The flag
+ * is read from the app's own storage so there is one source of truth: revoking
+ * it in Forq stops the flow here even though Forq's own state (which Pulse
+ * merely reads, never owns) remains in place. Pulse's own per-connector grant
+ * still applies on top — the stricter of the two gates wins.
  */
 export function createForqSameOriginConnector(
   options: { storage?: StorageLike | null } = {},
@@ -244,8 +254,10 @@ export function createForqSameOriginConnector(
   return createForqConnector(
     createSameOriginReader<ForqRecord>({
       key: FORQ_STORAGE_KEY,
+      consentKey: FORQ_PULSE_OPT_IN_KEY,
       label: "Forq",
       select: selectForqRecords,
+      consent: forqPulseOptInGranted,
       ...(options.storage !== undefined ? { storage: options.storage } : {}),
       timestampOf: (record) => (record.kind === "meal" ? record.loggedAt : record.closedAt),
     }),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markQuestion } from "@/domain/marking";
+import { HUMAN_MARKING_CORPUS, scoreHumanMarkingCorpus } from "@/domain/human-marking-corpus";
 import { firstIncorrectStep } from "@/domain/working-analysis";
 import type { Question } from "@/domain/types";
 
@@ -106,103 +107,7 @@ describe("examiner-style marking validation", () => {
 });
 
 describe("AI vs human benchmark — offline harness", () => {
-  // -------------------------------------------------------------------------
-  // Human-labelled gold set. `human` is the per-part award a teacher/examiner
-  // gives (marks for each part, in part order); `label` explains the script.
-  // Add rows the way you would add regression fixtures; the metrics and their
-  // floors update automatically.
-  // -------------------------------------------------------------------------
-  const GOLD: Array<{
-    question: Question;
-    answers: Record<string, string>;
-    human: number[];
-    label: string;
-  }> = [
-    // --- Chemistry probe (2 parts × 2 marks) ---
-    {
-      question: probeQuestion(),
-      answers: {
-        "seed-q:probe:0": "n=cV, so n = 0.25 mol dm-3.",
-        "seed-q:probe:1": "Nuclear charge increases and shielding is similar, so first ionisation energy increases.",
-      },
-      human: [2, 2],
-      label: "complete, correct response",
-    },
-    {
-      question: probeQuestion(),
-      answers: {},
-      human: [0, 0],
-      label: "blank script",
-    },
-    {
-      question: probeQuestion(),
-      answers: { "seed-q:probe:0": "0.25", "seed-q:probe:1": "" },
-      human: [1, 0],
-      label: "answer only, no method",
-    },
-    {
-      question: probeQuestion(),
-      answers: { "seed-q:probe:0": "I used n = c × V", "seed-q:probe:1": "" },
-      human: [1, 0],
-      label: "method shown, no final answer",
-    },
-    {
-      question: probeQuestion(),
-      answers: {
-        "seed-q:probe:0": "",
-        "seed-q:probe:1": "More nuclear charge, less shielding, so ionisation energy goes up.",
-      },
-      human: [0, 2],
-      label: "explanation only",
-    },
-    {
-      question: probeQuestion(),
-      answers: { "seed-q:probe:0": "The sky is blue", "seed-q:probe:1": "The sky is blue" },
-      human: [0, 0],
-      label: "wrong content",
-    },
-    // --- Algebra (1 part × 3 marks) ---
-    {
-      question: algebraQuestion(),
-      answers: { "seed-q:algebra:0": "x^2 - x - 6" },
-      human: [1],
-      label: "final answer only, no working",
-    },
-    {
-      question: algebraQuestion(),
-      answers: { "seed-q:algebra:0": "(x+2)(x-3)" },
-      human: [0],
-      label: "restates the question (factored form) — documents rubric generosity",
-    },
-    {
-      question: algebraQuestion(),
-      answers: { "seed-q:algebra:0": "x^2 + x - 6" },
-      human: [0],
-      label: "wrong final expression, sign error",
-    },
-    {
-      question: algebraQuestion(),
-      answers: {
-        "seed-q:algebra:0": "(x+2)(x-3)\n= x^2 - 3x + 2x - 6\n= x^2 - x - 6",
-      },
-      human: [3],
-      label: "full correct working",
-    },
-    {
-      question: algebraQuestion(),
-      answers: {
-        "seed-q:algebra:0": "(x+2)(x-3)\n= x^2 + 3x + 2x - 6\n= x^2 + x - 6",
-      },
-      human: [1],
-      label: "sign error mid-working, wrong final",
-    },
-    {
-      question: algebraQuestion(),
-      answers: { "seed-q:algebra:0": "" },
-      human: [0],
-      label: "blank script",
-    },
-  ];
+  const GOLD = HUMAN_MARKING_CORPUS.rows;
 
   interface RowResult {
     label: string;
@@ -213,20 +118,16 @@ describe("AI vs human benchmark — offline harness", () => {
     firstWrongStep?: { studentStep: string; expected: string };
   }
 
-  const results: RowResult[] = GOLD.map((row) => {
-    const r = markQuestion(row.question, row.answers);
-    const humanTotal = row.human.reduce((a, b) => a + b, 0);
-    const partMae =
-      r.marked.reduce((acc, m, i) => acc + Math.abs(m.awarded - (row.human[i] ?? 0)), 0) /
-      r.marked.length;
-
-    const analysis = firstIncorrectStep(row.question.parts[0]!, row.answers[row.question.parts[0]!.id] ?? "");
+  const corpusReport = scoreHumanMarkingCorpus(HUMAN_MARKING_CORPUS, (question, answers) => markQuestion(question, answers));
+  const results: RowResult[] = corpusReport.rows.map((row) => {
+    const source = GOLD.find((candidate) => candidate.id === row.rowId)!;
+    const analysis = firstIncorrectStep(source.question.parts[0]!, source.answers[source.question.parts[0]!.id] ?? "");
     return {
       label: row.label,
-      humanTotal,
-      rubricTotal: r.awarded,
-      partMae,
-      exact: r.awarded === humanTotal,
+      humanTotal: row.humanTotal,
+      rubricTotal: row.predictedTotal,
+      partMae: row.partMae,
+      exact: row.exact,
       firstWrongStep:
         analysis.firstIncorrect && !analysis.consistentWithModel
           ? { studentStep: analysis.firstIncorrect.studentStep, expected: analysis.firstIncorrect.expected }

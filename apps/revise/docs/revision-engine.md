@@ -58,6 +58,65 @@ test pins this.
 evidence behind it. Topics with no evidence are routed to a first-pass "learn"
 activity instead of remediation, which is a different thing to do.
 
+### Recall mastery
+
+`src/domain/recall-mastery.ts`
+
+Recall mastery is the recall-only companion to topic mastery. It deliberately
+ignores exam-question attempts and reports each topic's card strength as:
+
+```
+recall mastery = stability score · 0.6 + current FSRS retrievability · 0.4
+```
+
+The same row also reports observed true retention (`again` vs every other
+grade), due cards, review count and evidence level (`unmeasured`, `emerging`,
+`reliable` at 20 reviews). `/progress` shows the weighted overall score and
+the topics that need retrieval, while keeping modelled mastery separate from
+observed recall.
+
+### Application mastery
+
+`src/domain/application-mastery.ts`
+
+Application mastery is the question-performance companion to recall mastery.
+It uses eligible marked practice and paper attempts only:
+
+- active-recall attempts are excluded because they measure retrieval, not
+  application;
+- attempts with a pending low-confidence mark escalation are excluded until
+  the mark is resolved;
+- a multi-topic question splits its awarded and available marks evenly across
+  the mapped topics.
+
+The score is mark-weighted application accuracy. Each row also exposes recent
+accuracy over the last five topic attempts, average question difficulty,
+question/attempt counts and an evidence level (`unmeasured`, `emerging`,
+`reliable` at ten eligible attempts). `/progress` uses the score to rank topics
+for more exam-question practice without allowing recall or provisional marks to
+inflate the result.
+
+### Mastery uncertainty
+
+`src/domain/mastery-uncertainty.ts`
+
+Mastery uncertainty makes the confidence of the point estimate visible. For
+each topic it applies a conservative Wilson 95% interval to a pseudo-trial
+count derived from the same evidence model:
+
+```
+evidence  = cards + 2 × attempts
+successes = round(mastery × evidence)
+```
+
+The interval uses at least one denominator for a stable small-sample estimate,
+then widens when card retrievability conflicts with the mastery point estimate.
+Evidence below eight weighted trials is marked `needsMoreEvidence`; interval
+width is labelled `low` below 0.20, `medium` below 0.50 and `high` otherwise.
+`masteryIntervals` sorts topics by widest interval first. `/progress` shows the
+six widest bands, their evidence state and a direct practice action, so a high
+mastery score is not mistaken for a measured one.
+
 ## 3. Recommendation
 
 `src/domain/recommender.ts` — technical documentation for the recommendation engine.
@@ -241,6 +300,24 @@ twelve individual mistakes.
 A mistake resolves only when its card has `reps ≥ 2`, `stability ≥ 7 days` and
 zero lapses. Resolving on a single correct answer would close mistakes that the
 student got right by luck.
+
+## Exam technique vs knowledge separation
+
+`src/domain/retention-analytics.ts`, `src/domain/assessment.ts` and
+`src/components/AssessmentPanels.tsx`
+
+`techniqueVsKnowledge(mistakes)` estimates whether dropped marks are primarily
+an understanding problem or an exam-performance problem. AO1 and recall losses
+are treated as knowledge evidence; rushing, slow timing, communication,
+interpretation, arithmetic and explicit command-word slips are treated as
+technique evidence; method losses remain a mixed signal. The result is attached
+to `AssessmentInsight`, including mark totals, shares, reliability and driver
+tags, so every consumer uses the same diagnosis.
+
+`/progress` renders the split as a small stacked bar with the narrative and a
+next action. The split is labelled preliminary until there are at least eight
+mistakes and ten lost marks; it is a prioritisation signal, not a claim that a
+single mistake has one perfectly observable cause.
 
 ## Gamification
 

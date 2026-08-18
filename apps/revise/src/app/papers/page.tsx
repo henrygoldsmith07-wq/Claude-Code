@@ -1,22 +1,26 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { aiExtractQuestions, aiOcr } from "@/ai/client";
 import { toBase64 } from "@/components/AnswerInput";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { buildPostSessionClosure } from "@/domain/post-session-closure";
 import { tokenise } from "@/domain/marking";
 import { analysePaperWeakness } from "@/domain/paper-weakness";
 import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { PaperWeaknessPanel } from "@/components/PaperWeaknessPanel";
-import { QuestionRunner } from "@/components/QuestionRunner";
-import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented } from "@/components/ui";
+import { PostSessionClosure } from "@/components/PostSessionClosure";
+import { QuestionNavigator } from "@/components/QuestionNavigator";
+import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
+import { ExamConditionMode } from "@/components/ExamConditionMode";
+import { Button, EmptyState, Field, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
 
-// Past papers: upload, extract, map to topics, practise by topic or as a timed
-// paper. Extraction needs a model; everything after it does not, so a paper
-// extracted once stays fully usable offline forever.
+// Past papers: upload, extract, map to topics, practise by topic, or sit a
+// paper under full exam conditions. Extraction needs a model; everything after
+// it does not, so a paper extracted once stays fully usable offline forever.
 
 export default function PapersPage() {
   return (
@@ -39,6 +43,7 @@ function Papers() {
   const [activePaper, setActivePaper] = useState<Paper | null>(() =>
     resumeCheckpoint?.paperId ? store.papers.find((paper) => paper.id === resumeCheckpoint.paperId) ?? null : null,
   );
+  const [examPaper, setExamPaper] = useState<Paper | null>(null);
 
   const papers = useMemo(
     () => store.papers.filter((p) => !subjectId || p.subjectId === subjectId),
@@ -57,26 +62,39 @@ function Papers() {
     );
   }
 
+  if (examPaper) {
+    return <ExamConditionMode paper={examPaper} onExit={() => setExamPaper(null)} />;
+  }
+
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header className="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">Past papers</h1>
           <p className="text-sm text-ink3 mt-0.5">
-            Upload a paper and its mark scheme, extract the questions, then practise them by topic or in full.
+            Upload a paper and its mark scheme, extract the questions, then practise them by topic or under full exam conditions.
           </p>
         </div>
         {subjects.length > 1 ? (
-          <Segmented
-            ariaLabel="Subject"
-            value={subjectId}
-            onChange={setSubjectId}
-            options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-          />
+          <div className="w-full sm:w-auto max-w-full overflow-x-auto nice-scroll pb-1">
+            <Segmented
+              ariaLabel="Subject"
+              value={subjectId}
+              onChange={setSubjectId}
+              options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </div>
         ) : null}
       </header>
 
       <UploadPaper subjectId={subjectId} />
+
+      <Panel className="space-y-2">
+        <SectionHeading title="Full exam conditions" hint="A fixed clock, no in-paper help, and feedback only after submission." />
+        <p className="text-sm text-ink2">
+          Choose <span className="font-semibold">Full exam conditions</span> beside any extracted paper below. The run is timed to the selected paper format, saves each answer only when you submit, and records the marked paper for later review.
+        </p>
+      </Panel>
 
       <section>
         <SectionHeading title="Your papers" hint="Extracted questions join the practice pool automatically." />
@@ -87,7 +105,7 @@ function Papers() {
               const scored = attempted.reduce((a, x) => a + x.awarded, 0);
               const possible = attempted.reduce((a, x) => a + x.max, 0);
               return (
-                <li key={paper.id} className="px-4 py-3 flex items-center gap-3">
+                <li key={paper.id} className="px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-ink truncate">{paper.title}</p>
                     <p className="text-[11px] text-ink3">
@@ -96,18 +114,23 @@ function Papers() {
                       {possible ? ` · scored ${scored}/${possible}` : ""}
                     </p>
                   </div>
-                  <Pill tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={!paper.questionIds.length}
-                    onClick={() => {
-                      setResumeActive(false);
-                      setActivePaper(paper);
-                    }}
-                  >
-                    Sit paper
-                  </Button>
+                  <Pill className="self-start sm:self-auto" tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
+                  <div className="grid grid-cols-1 sm:flex justify-end gap-1.5 w-full sm:w-auto">
+                    <Button
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={!paper.questionIds.length}
+                      onClick={() => {
+                        setResumeActive(false);
+                        setActivePaper(paper);
+                      }}
+                    >
+                      Practise paper
+                    </Button>
+                    <Button size="sm" variant="primary" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setExamPaper(paper)}>
+                      Full exam conditions
+                    </Button>
+                  </div>
                 </li>
               );
             })}
@@ -115,7 +138,7 @@ function Papers() {
         ) : (
           <EmptyState
             title="No papers uploaded"
-            body="Paste the text of a past paper, or photograph its pages. Questions are split out, mapped to topics and marked against the scheme."
+            body="Paste the text of a past paper, or photograph its pages. Questions are split out, mapped to topics and marked against the scheme. Extract one to unlock full exam conditions."
           />
         )}
       </section>
@@ -309,6 +332,7 @@ function PaperSession({
   initialPaperRunId?: string;
   onExit: () => void;
 }) {
+  const router = useRouter();
   const store = useStore();
   const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
   const questions = useMemo(
@@ -327,12 +351,17 @@ function PaperSession({
     return next;
   });
   const [startedAt] = useState(() => Date.now());
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [scores, setScores] = useState<{ questionId: string; awarded: number; max: number }[]>([]);
+  const [questionDrafts, setQuestionDrafts] = useState<Record<string, QuestionDraft>>({});
+  const [finishing, setFinishing] = useState(false);
 
   // A paper is sat under timed conditions, so the clock has to advance on its
   // own rather than only when something else re-renders.
   useEffect(() => {
-    const tick = setInterval(() => setElapsedMinutes(Math.floor((Date.now() - startedAt) / 60_000)), 15_000);
+    const updateElapsed = () => setElapsedMs(Date.now() - startedAt);
+    updateElapsed();
+    const tick = setInterval(updateElapsed, 15_000);
     return () => clearInterval(tick);
   }, [startedAt]);
 
@@ -354,6 +383,13 @@ function PaperSession({
   const current = questions[index];
   const totalAwarded = paperAttempts.reduce((a, attempt) => a + attempt.awarded, 0);
   const totalMax = paperAttempts.reduce((a, attempt) => a + attempt.max, 0);
+  const answered = questions.map((question) =>
+    scores.some((score) => score.questionId === question.id) || paperAttempts.some((attempt) => attempt.questionId === question.id),
+  );
+  const drafted = questions.map((question) => {
+    const draft = questionDrafts[question.id];
+    return Boolean(draft && (draft.choice !== null || Object.values(draft.answers).some((answer) => answer.trim())));
+  });
 
   useEffect(() => {
     if (!questions.length || !current) {
@@ -372,14 +408,25 @@ function PaperSession({
     });
   }, [clearRevisionCheckpoint, current, index, paper, paperRunId, questions.length, saveRevisionCheckpoint]);
 
-  async function finish() {
+  async function finish(nextHref?: string) {
+    if (finishing) return;
+    setFinishing(true);
     await clearRevisionCheckpoint();
     await store.addPaper({ ...paper, status: "practised" });
-    onExit();
+    if (nextHref) router.push(nextHref);
+    else onExit();
   }
 
   if (!current) {
-    const paperPct = totalMax ? totalAwarded / totalMax : 0;
+    const availableMarks = paper.totalMarks || totalMax;
+    const closure = buildPostSessionClosure({
+      session: "paper",
+      attempted: paperAttempts.length,
+      total: questions.length,
+      awarded: totalAwarded,
+      available: availableMarks,
+      elapsedMs,
+    });
     const predictedBefore = (() => {
       const subject = getSubject(paper.subjectId);
       const qs = paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q));
@@ -391,32 +438,38 @@ function PaperSession({
       ? `Simulation had predicted ${predictedBefore.predictedMarks}/${predictedBefore.totalMarks} — calibration will tighten next time.`
       : null;
     return (
-      <div className="max-w-lg mx-auto space-y-5">
-        <SectionHeading title="Paper complete" hint={paper.title} />
-        <Panel>
-          <p className="text-3xl font-semibold tabular-nums">
-            {totalAwarded}
-            <span className="text-ink3 text-xl">/{totalMax || paper.totalMarks}</span>
-          </p>
-          <div className="mt-3">
-            <ProgressBar value={paperPct} tone={paperPct >= 0.7 ? "success" : paperPct >= 0.5 ? "review" : "danger"} />
+      <PostSessionClosure
+        closure={closure}
+        title="Paper complete"
+        hint={paper.title}
+        extra={
+          <div className="space-y-3">
+            {calibration ? <p>{calibration} See Progress for the updated calibration.</p> : null}
+            <PaperWeaknessPanel analysis={weaknessAnalysis} />
           </div>
-          <p className="text-xs text-ink3 mt-3">
-            {elapsedMinutes} minutes. Every dropped mark is now a mistake card in your review queue.
-          </p>
-          {calibration ? <p className="text-[11px] text-ink3 mt-2">{calibration} See Progress for the updated calibration.</p> : null}
-        </Panel>
-        <PaperWeaknessPanel analysis={weaknessAnalysis} />
-        <Button variant="primary" className="w-full" onClick={() => void finish()}>
-          Finish
-        </Button>
-      </div>
+        }
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="primary"
+              className="flex-1"
+              disabled={finishing}
+              onClick={() => void finish(closure.nextAction === "mistakes" ? "/review?mode=mistakes" : undefined)}
+            >
+              {finishing ? "Saving…" : closure.nextAction === "mistakes" ? "Finish and review mistakes" : "Finish paper"}
+            </Button>
+            <Button className="flex-1" disabled={finishing} onClick={() => void finish()}>
+              Back to papers
+            </Button>
+          </div>
+        }
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <header className="sticky top-14 lg:top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-bg/95 backdrop-blur border-b border-line flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold truncate">{paper.title}</h1>
           <p className="text-[11px] text-ink3">
@@ -425,18 +478,31 @@ function PaperSession({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={elapsedMinutes > 90 ? "danger" : undefined}>
+          <Pill className="tabular-nums" tone={elapsedMs > 90 * 60_000 ? "danger" : undefined}>
             <TimerIcon size={ICON_SIZE.sm} aria-hidden />
-            {elapsedMinutes} min
+            {Math.floor(elapsedMs / 60_000)} min
           </Pill>
-          <Button size="sm" variant="ghost" onClick={onExit}>
+          <Button size="sm" variant="ghost" className="min-h-10" onClick={onExit}>
             Exit
           </Button>
         </div>
-      </div>
+      </header>
 
-      <ProgressBar value={index / questions.length} />
-
+      <QuestionNavigator
+        currentIndex={index}
+        total={questions.length}
+        answered={answered}
+        drafted={drafted}
+        onSelect={setIndex}
+        onPrevious={() => setIndex((i) => Math.max(0, i - 1))}
+        onNext={() => {
+          setElapsedMs(Date.now() - startedAt);
+          setIndex((i) => i + 1);
+        }}
+        previousDisabled={index === 0}
+        nextDisabled={false}
+        nextLabel={index === questions.length - 1 ? "Finish paper" : answered[index] ? "Next question" : "Skip question"}
+      />
       <QuestionRunner
         key={current.id}
         question={current}
@@ -444,11 +510,20 @@ function PaperSession({
         paperId={paper.id}
         paperSpecId={paper.paperSpecId}
         paperRunId={paperRunId}
+        draft={questionDrafts[current.id]}
+        onDraftChange={(draft) => setQuestionDrafts((previous) => ({ ...previous, [current.id]: draft }))}
+        onFinished={(attempt) => {
+          setScores((prev) => [
+            ...prev.filter((score) => score.questionId !== attempt.questionId),
+            { questionId: attempt.questionId, awarded: attempt.awarded, max: attempt.max },
+          ]);
+          setQuestionDrafts((previous) => {
+            const next = { ...previous };
+            delete next[attempt.questionId];
+            return next;
+          });
+        }}
       />
-
-      <Button variant="primary" className="w-full" onClick={() => setIndex((i) => i + 1)}>
-        {index === questions.length - 1 ? "Finish paper" : "Next question"}
-      </Button>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { seedMisconceptions } from "@/content";
 import { allTopics } from "@/domain/curriculum";
 import { buildSearchIndex, searchIndex } from "@/domain/search";
 import type { SearchResult } from "@/domain/search";
@@ -9,19 +10,30 @@ import { useStore } from "@/state/store";
 import { useFocusTrap } from "./useFocusTrap";
 import { cx, Pill } from "./ui";
 
-/** ⌘K search across topics, cards and questions. Runs locally, so it works
- *  offline and returns within a keystroke. */
+/** ⌘K search across topics, cards, questions and misconceptions. Runs
+ *  locally, so it works offline and returns within a keystroke. */
 export function SearchOverlay({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { cards, questions, settings } = useStore();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useFocusTrap(true, onClose);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   // Indexed once per corpus change so each keystroke is a scan of prepared
   // strings rather than a re-lower-casing of the whole deck.
   const index = useMemo(
-    () => buildSearchIndex({ topics: allTopics(settings.subjectIds), cards, questions }),
+    () =>
+      buildSearchIndex({
+        topics: allTopics(settings.subjectIds),
+        cards,
+        questions,
+        misconceptions: seedMisconceptions.filter((m) => settings.subjectIds.includes(m.subjectId)),
+      }),
     [cards, questions, settings.subjectIds],
   );
   const results = useMemo(() => searchIndex(index, query, 20), [index, query]);
@@ -30,6 +42,10 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
     onClose();
     if (result.kind === "question") router.push(`/practice?question=${encodeURIComponent(result.id)}`);
     else if (result.kind === "card") router.push(`/review?topic=${encodeURIComponent(result.topicId ?? "")}`);
+    else if (result.kind === "misconception")
+      router.push(
+        `/library?topic=${encodeURIComponent(result.topicId ?? "")}&misconception=${encodeURIComponent(result.id)}`,
+      );
     else router.push(`/library?topic=${encodeURIComponent(result.id)}`);
   };
 
@@ -46,6 +62,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
       <div className="card elev-pop w-full max-w-xl overflow-hidden fade-in motion-safe:fade-in" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center border-b border-line">
           <input
+            ref={inputRef}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -65,7 +82,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
               }
               if (e.key === "Enter" && results[cursor]) open(results[cursor]);
             }}
-            placeholder="Search topics, cards and questions…"
+            placeholder="Search topics, cards, questions and misconceptions…"
             className="min-w-0 flex-1 bg-transparent px-4 py-3.5 text-sm outline-none"
             role="combobox"
             aria-autocomplete="list"

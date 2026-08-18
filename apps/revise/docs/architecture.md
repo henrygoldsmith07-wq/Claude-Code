@@ -42,10 +42,16 @@ lives:
 - `mastery.ts` turns raw history into a 0–1 number per topic, damped by how much
   evidence exists. Unmeasured is reported as zero, never as a prior — a topic
   the student has never opened must not inflate a predicted grade.
+- `recall-mastery.ts` keeps a recall-only score separate from exam performance,
+  combining card stability and current FSRS retrievability, while exposing
+  observed review outcomes and due-card pressure for `/progress`.
+- `application-mastery.ts` keeps marked-question application accuracy separate
+  from recall, excluding active-recall and pending provisional attempts and
+  allocating multi-topic marks fairly for `/progress`.
 - `recommender.ts` scores every candidate activity on a single scale so they can
   be compared, and attaches a human-readable reason to each.
 - `planner.ts` builds the timetable and folds missed sessions forward.
-- `marking.ts` marks answers against a mark scheme with no model involved.
+- `marking.ts` marks answers against a mark scheme with no model involved; `mark-escalation.ts` keeps low-confidence AI marks provisional and queues them for human review; `delayed-far-transfer.ts` turns a strong answer into a scheduled, novel-context retest and measures its outcome separately.
 - `mistakes.ts` converts dropped marks into classified mistakes and cards.
 - `grades.ts` predicts a grade with an explicit confidence and range.
 - `browser.ts` parses the card-browser query language and filters on it.
@@ -55,7 +61,8 @@ lives:
 - `deck-io.ts` validates and materialises imported decks.
 - `i18n.ts` — locale detection, dictionary lookup and `t()` interpolation for the localisation scaffolding (en-GB core, cy/fr ready; no runtime dep).
 - `onboarding.ts` — funnel measurement: completion/drop-off, time-to-activation and `isActivated` derived from real review/attempt/session signals (local-only, no PII shipped).
-- `retention-analytics.ts`, `fsrs-tuning.ts`, `mastery-uncertainty.ts`, `knowledge-tracing.ts`, `recommender-enhancements.ts`, `sync-conflicts.ts`, `portability.ts`, `moderation.ts` — Phase 3–6 learning-science and platform hardening (covered in `docs/revision-engine.md`).
+- `retention-analytics.ts`, `fsrs-tuning.ts`, `mastery-uncertainty.ts`, `knowledge-tracing.ts`, `recommender-enhancements.ts`, `sync-conflicts.ts`, `portability.ts`, `moderation.ts` — Phase 3–6 learning-science and platform hardening; `mastery-uncertainty.ts` exposes pure Wilson intervals and empirical difficulty signals (including the shared exam-technique vs knowledge diagnosis; covered in `docs/revision-engine.md`).
+- `post-session-closure.ts` — pure session-end metrics and next-action rules shared by review, question practice and timed papers.
 - `src/app/benchmarks` + `src/app/case-study` — live ledger and case-study routes that compute from the same harnesses as CI (Phase 8).
 
 ### `src/content` — authored revision material
@@ -69,6 +76,21 @@ every card's FSRS history.
 
 The question bank is hand-authored per subject with full mark schemes and model
 answers, so exam practice and rubric marking work with no provider configured.
+The GCSE expansion adds 55 original templates that materialise into 220
+board-specific questions across every GCSE topic in WJEC, AQA, Edexcel and OCR.
+The Edexcel A-level expansion adds a further 55 original questions across all
+Edexcel biology, chemistry, mathematics and physics topics.
+The data expansion adds 55 table, experiment and trend templates that
+materialise into 440 dataset-driven questions across all 32 subject variants.
+The unfamiliar-context expansion adds a further 55 transfer and application
+templates, also materialised into 440 questions across all 32 subject variants.
+The authentic-source expansion adds 55 original field-note, report, archive and
+technical-brief extracts, materialised into another 440 questions across all
+32 subject variants.
+
+The misconception library does the same for common errors: each entry names the
+wrong belief, why it is wrong, the examiner-visible symptom, and what to write
+instead, linked to topics and tagged for analytics.
 
 ### `src/data` — offline-first storage
 
@@ -85,7 +107,9 @@ more information in it.
 The wire format keeps the whole domain object in a `data` jsonb column and lifts
 out only what the server indexes or secures on. A new domain field therefore
 needs no migration, which matters when a client can be weeks stale and still
-syncing.
+syncing. Delayed far-transfer links use this path: the source and completion
+attempts remain ordinary attempt rows, so offline reload and cross-device sync
+do not need a second schedule table.
 
 ### `src/ai` — provider abstraction
 
@@ -128,6 +152,17 @@ The Le Studio design system (`src/app/le-studio.css`) carries all colour through
 CSS custom properties that flip themselves for dark mode, so components carry no
 `dark:` variants. `RichText` renders the small markdown subset the content uses
 plus KaTeX maths, escaping input before adding any markup.
+
+Session endings use the shared `PostSessionClosure` surface. It makes completion,
+marks, time and the next repair step visible together, while keeping navigation
+explicit. Review and question practice preserve their history before closing;
+timed papers mark the paper practised only when the student chooses a finish
+action.
+
+Question practice and papers use the shared `QuestionNavigator` for numbered
+jumps, answered/draft status and keyboard-reachable movement. `QuestionRunner`
+reports unfinished answers to the owning session, so leaving a question and
+returning to it does not erase work that has not yet been submitted.
 
 ## Card maintenance
 

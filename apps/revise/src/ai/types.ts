@@ -54,6 +54,8 @@ export const markedPartSchema = z.object({
 export const markResponseSchema = z.object({
   marked: z.array(markedPartSchema).min(1),
   feedback: z.string().min(1).max(3000),
+  /** Provider confidence in the mark; absence is preserved so escalation can be urgent. */
+  confidence: z.number().min(0).max(1).optional(),
 });
 
 export const explainResponseSchema = z.object({

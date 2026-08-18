@@ -119,14 +119,14 @@ export function NutritionBreakdown({ recipe }) {
           Where the calories come from
         </p>
         <div className="flex h-3 overflow-hidden rounded-full" style={{ background: 'var(--card-2)' }}>
-          {[['protein', 'var(--series-1)'], ['carbs', 'var(--series-3)'], ['fat', 'var(--accent)']].map(([key, colour]) => (
+          {[['protein', 'var(--nutrition-protein)'], ['carbs', 'var(--nutrition-carbs)'], ['fat', 'var(--nutrition-fat)']].map(([key, colour]) => (
             <div key={key} style={{ width: `${split[key]}%`, background: colour }} />
           ))}
         </div>
         <div className="mt-2 flex justify-between text-[0.75rem] font-bold">
-          <span>{split.protein}% protein</span>
-          <span>{split.carbs}% carbs</span>
-          <span>{split.fat}% fat</span>
+          <span style={{ color: 'var(--nutrition-protein)' }}>{split.protein}% protein</span>
+          <span style={{ color: 'var(--nutrition-carbs)' }}>{split.carbs}% carbs</span>
+          <span style={{ color: 'var(--nutrition-fat)' }}>{split.fat}% fat</span>
         </div>
       </div>
 

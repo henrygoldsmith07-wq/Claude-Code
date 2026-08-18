@@ -108,6 +108,8 @@ export function defaultSettings(userId: Id): UserSettings {
     theme: "system",
     accessibility: { largeText: false, dyslexiaFont: false, highContrast: false, reduceMotion: false },
     aiEnabled: true,
+    // Pulse never reads this account's study history until it is switched on.
+    pulseEnabled: false,
     updatedAt: new Date().toISOString(),
   };
 }

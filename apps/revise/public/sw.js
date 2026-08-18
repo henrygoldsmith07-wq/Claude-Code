@@ -11,6 +11,7 @@ const CACHE_VERSION = "revise-v2";
 const APP_SHELL = [
   "/",
   "/benchmarks",
+  "/answer-corpus",
   "/cards",
   "/case-study",
   "/generate",
@@ -19,6 +20,8 @@ const APP_SHELL = [
   "/planner",
   "/practice",
   "/progress",
+  "/question-evidence",
+  "/response-time",
   "/review",
   "/settings",
   "/shared",

@@ -21,6 +21,7 @@ export default function PlannerPage() {
   const subjects = useSubjects();
   const today = todayIso();
   const [busy, setBusy] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const days = useMemo(
     () =>
@@ -70,6 +71,20 @@ export default function PlannerPage() {
           </Button>
         </div>
       </header>
+
+      {store.replanSummary && !dismissed ? (
+        <div
+          role="status"
+          className="card border-review bg-reviewsoft px-4 py-3 flex items-start justify-between gap-3"
+        >
+          <p className="text-sm text-ink">
+            <span className="font-semibold">Plan adjusted.</span> {store.replanSummary}
+          </p>
+          <Button size="sm" variant="ghost" onClick={() => setDismissed(true)} aria-label="Dismiss plan update note">
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile label="Planned" value={formatMinutes(plannedMinutes)} sub="over the next two weeks" />
@@ -183,9 +198,8 @@ function ExamDates({ subjects }: { subjects: { id: string; name: string; papers:
     await store.upsertExamDate(exam);
     setDate("");
     setLabel("");
-    // A new exam date changes every urgency weight, so the plan is stale the
-    // moment it is added.
-    await store.regeneratePlan();
+    // Adding an exam date changes every urgency weight, so the store replans
+    // automatically the moment it lands.
   }
 
   return (

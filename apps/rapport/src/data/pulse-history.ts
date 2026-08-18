@@ -5,6 +5,17 @@ export const RAPPORT_PULSE_HISTORY_KEY = "rapport.pulse-history.v2";
 export const RAPPORT_PULSE_HISTORY_FORMAT = "le-studio.source-history";
 export const RAPPORT_PULSE_HISTORY_VERSION = 2;
 
+/**
+ * Rapport's own Pulse opt-in, kept apart from the mirror it gates. Off by
+ * default; only the explicit on-value is accepted. Revoking it deletes the
+ * mirror outright so the flow stops at the source.
+ */
+export const RAPPORT_PULSE_OPT_IN_KEY = "rapport-pulse-opt-in";
+
+export function rapportPulseOptInGranted(flag: unknown): boolean {
+  return flag === "1" || flag === 1;
+}
+
 export type RapportPulseRecord =
   | {
       kind: "drill";
@@ -92,16 +103,61 @@ export function buildRapportPulseHistory(
   };
 }
 
+/** Read the app's own opt-in flag (undefined storage means "not granted"). */
+export function readRapportPulseOptIn(storage: StorageLike = defaultStorage()): boolean {
+  return rapportPulseOptInGranted(parseFlag(storage.getItem(RAPPORT_PULSE_OPT_IN_KEY)));
+}
+
+/**
+ * Switch the Pulse share on or off. Turning it off removes both the flag and
+ * the mirror, so a stale copy cannot linger for Pulse (or anyone) to read.
+ */
+export function setRapportPulseOptIn(on: boolean, storage: StorageLike = defaultStorage()): void {
+  try {
+    if (on) {
+      storage.setItem(RAPPORT_PULSE_OPT_IN_KEY, "1");
+    } else {
+      storage.removeItem(RAPPORT_PULSE_OPT_IN_KEY);
+      storage.removeItem(RAPPORT_PULSE_HISTORY_KEY);
+    }
+  } catch {
+    // IndexedDB remains the source of truth when shared storage is unavailable.
+  }
+}
+
+interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+function defaultStorage(): StorageLike {
+  if (typeof window === "undefined") return { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+  return window.localStorage;
+}
+
+function parseFlag(value: string | null): unknown {
+  if (value === null) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Publish the Pulse mirror, but only while the app's own opt-in flag is on.
+ * The flag and the mirror it gates live under separate keys so there is one
+ * source of truth: revoking it here stops the flow at the source.
+ */
 export function publishRapportPulseHistory(
   events: readonly DomainEvent[],
   simulations: readonly Simulation[] = [],
+  storage: StorageLike = defaultStorage(),
 ): void {
-  if (typeof window === "undefined") return;
+  if (!readRapportPulseOptIn(storage)) return;
   try {
-    window.localStorage.setItem(
-      RAPPORT_PULSE_HISTORY_KEY,
-      JSON.stringify(buildRapportPulseHistory(events, simulations)),
-    );
+    storage.setItem(RAPPORT_PULSE_HISTORY_KEY, JSON.stringify(buildRapportPulseHistory(events, simulations)));
   } catch {
     // IndexedDB remains the source of truth when shared storage is unavailable.
   }

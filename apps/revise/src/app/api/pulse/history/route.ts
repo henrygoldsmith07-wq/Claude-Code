@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { pulseHistoryAllowed } from "@/data/pulse-consent";
 
 export const runtime = "nodejs";
 
@@ -106,6 +107,23 @@ export async function GET(request: Request) {
   });
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "Sign in to Revise before connecting Pulse." }, { status: 401 });
+
+  // The user's own opt-in gates the flow at the source: Pulse may only read
+  // this account's history while `pulseEnabled` is true in the synced
+  // user_settings row. Absent row, absent flag, or a revoked flag all withhold.
+  const { data: settingsRow } = await supabase
+    .from("user_settings")
+    .select("data")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  const settingsData =
+    settingsRow && typeof settingsRow === "object" && "data" in settingsRow ? (settingsRow as { data: unknown }).data : null;
+  if (!pulseHistoryAllowed(settingsData)) {
+    return NextResponse.json(
+      { error: "Sharing study history with Pulse is turned off. Enable it in Revise settings." },
+      { status: 403 },
+    );
+  }
 
   const [reviews, attempts] = await Promise.all([
     supabase.from("review_logs").select("id, updated_at, data").eq("user_id", auth.user.id).gt("updated_at", since).order("updated_at", { ascending: true }).limit(limit),

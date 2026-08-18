@@ -19,6 +19,10 @@
   --series-1: var(--ink);
   --series-2: var(--ink-2);
   --series-3: var(--ink-3);
+  --nutrition-kcal: #b85b2d;
+  --nutrition-protein: #23784d;
+  --nutrition-carbs: #966b00;
+  --nutrition-fat: #9d3f5d;
   --good: var(--success);
   --warn: var(--review);
 }
@@ -42,6 +46,14 @@
   --good-deep: color-mix(in srgb, var(--good) 82%, var(--ink));
   --warn-deep: color-mix(in srgb, var(--warn) 82%, var(--ink));
   --danger-deep: color-mix(in srgb, var(--danger) 82%, var(--ink));
+}
+
+.dark,
+:root[data-theme="dark"] {
+  --nutrition-kcal: #f09a69;
+  --nutrition-protein: #65d395;
+  --nutrition-carbs: #e5ba55;
+  --nutrition-fat: #ef86a3;
 }
 
 @theme inline {
@@ -377,6 +389,16 @@ select { font-size: 1rem !important; }
 .press:active { transform: scale(0.97); }
 @media (hover: hover) {
   .press:hover { transform: translateY(-1px); }
+}
+
+@keyframes favourite-heart-pop {
+  0% { transform: scale(0.72) rotate(-10deg); }
+  55% { transform: scale(1.18) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.favourite-heart { transform-origin: center; }
+.favourite-button.is-favourite .favourite-heart {
+  animation: favourite-heart-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes rise {

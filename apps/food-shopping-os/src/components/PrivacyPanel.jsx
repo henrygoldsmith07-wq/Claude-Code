@@ -12,6 +12,7 @@ import HealthVaultPanel from './HealthVaultPanel.jsx';
 import {
   clearProductEvents, readAnalyticsConsent, setAnalyticsConsent,
 } from '../lib/product-analytics.js';
+import { readForqPulseOptIn, setForqPulseOptIn } from '../lib/pulse-opt-in.js';
 
 const ICONS = {
   device: HardDrive,
@@ -36,6 +37,7 @@ export default function PrivacyPanel({
   const [deleting, setDeleting] = useState(false);
   const [status, setStatus] = useState('');
   const [analyticsConsent, setAnalyticsConsentState] = useState(() => readAnalyticsConsent());
+  const [pulseShared, setPulseShared] = useState(() => readForqPulseOptIn());
   const selectedId = selectedCloudHouseholdId();
 
   useEffect(() => {
@@ -148,6 +150,7 @@ export default function PrivacyPanel({
       )}
 
       {!youth.separateConsent && (
+      <>
       <Card className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -184,6 +187,45 @@ export default function PrivacyPanel({
           </p>
         )}
       </Card>
+
+      <Card className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-extrabold text-[0.90625rem]">Share with Pulse</p>
+            <p className="mt-1 text-[0.75rem] font-semibold leading-relaxed" style={{ color: 'var(--muted)' }}>
+              Pulse, the personal evidence engine in this ecosystem, can read your planning, cooking and shopping
+              history when both apps are served from one origin. Nothing leaves this device; the switch just decides
+              whether Pulse may look at what is already here.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pulseShared}
+            aria-label="Share with Pulse"
+            onClick={() => {
+              const next = !pulseShared;
+              setForqPulseOptIn(next);
+              setPulseShared(next);
+            }}
+            className="press shrink-0 rounded-full border px-3 py-2 text-[0.75rem] font-extrabold"
+            style={{
+              borderColor: pulseShared ? 'var(--accent)' : 'var(--line)',
+              background: pulseShared ? 'var(--accent-soft)' : 'var(--card)',
+              color: pulseShared ? 'var(--accent)' : 'var(--muted)',
+            }}
+          >
+            {pulseShared ? 'On' : 'Off'}
+          </button>
+        </div>
+        {pulseShared && (
+          <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Off by default. Turning it off refuses Pulse immediately — its connector checks this flag before reading
+            anything, and your Forq data is never deleted or moved.
+          </p>
+        )}
+      </Card>
+      </>
       )}
 
       {PRIVACY_DISCLOSURE.map((section) => {

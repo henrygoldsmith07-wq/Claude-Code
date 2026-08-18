@@ -15,6 +15,7 @@ import {
   selectAriseRecords,
 } from "../src/connectors/arise.js";
 import {
+  FORQ_PULSE_OPT_IN_KEY,
   FORQ_STORAGE_KEY,
   createForqSameOriginConnector,
   selectForqRecords,
@@ -395,7 +396,11 @@ describe("Forq: recovering what its cooked log does not record", () => {
   });
 
   const forqStorage = (value: unknown): StorageLike => ({
-    getItem: (key) => (key === FORQ_STORAGE_KEY ? JSON.stringify(value) : null),
+    getItem: (key) => {
+      if (key === FORQ_STORAGE_KEY) return JSON.stringify(value);
+      if (key === FORQ_PULSE_OPT_IN_KEY) return "1";
+      return null;
+    },
   });
 
   it("recovers the slot by looking the recipe up in that day's plan", () => {

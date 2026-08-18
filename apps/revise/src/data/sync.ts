@@ -27,6 +27,8 @@ const TABLES: Record<SyncEntity, string> = {
   streak: "streaks",
 };
 
+export const SYNC_QUEUE_EVENT = "revise:sync-queue";
+
 export async function enqueue(entity: SyncEntity, op: OutboxItem["op"], payload: unknown): Promise<void> {
   // With no backend there is nothing to drain into, so queuing would only
   // grow unbounded on a device that is working perfectly well.
@@ -40,6 +42,7 @@ export async function enqueue(entity: SyncEntity, op: OutboxItem["op"], payload:
     queuedAt: new Date().toISOString(),
     attempts: 0,
   });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SYNC_QUEUE_EVENT));
 }
 
 export async function outboxSize(): Promise<number> {
@@ -68,7 +71,7 @@ export async function sync(userId: Id): Promise<SyncResult> {
 
   const pushed = await drainOutbox(userId);
   const pulled = await pull(userId);
-  return { ...pushed, pulled };
+  return { ...pushed, pulled: pulled.pulled, failed: pushed.failed + pulled.failed };
 }
 
 async function drainOutbox(userId: Id): Promise<{ pushed: number; failed: number }> {
@@ -119,12 +122,13 @@ async function drainOutbox(userId: Id): Promise<{ pushed: number; failed: number
   return { pushed, failed };
 }
 
-async function pull(userId: Id): Promise<number> {
+async function pull(userId: Id): Promise<{ pulled: number; failed: number }> {
   const supabase = getSupabase();
   const db = await getDb();
   const since = (await readReviseMeta<string>("lastPullAt")) ?? "1970-01-01T00:00:00.000Z";
   const startedAt = new Date().toISOString();
   let pulled = 0;
+  let failed = 0;
 
   for (const [entity, table] of Object.entries(TABLES) as [SyncEntity, string][]) {
     const { data, error } = await supabase!
@@ -132,7 +136,11 @@ async function pull(userId: Id): Promise<number> {
       .select("*")
       .eq("user_id", userId)
       .gt("updated_at", since);
-    if (error || !data?.length) continue;
+    if (error) {
+      failed++;
+      continue;
+    }
+    if (!data?.length) continue;
 
     const store = STORE_FOR[entity];
     const tx = db.transaction(store, "readwrite");
@@ -145,8 +153,10 @@ async function pull(userId: Id): Promise<number> {
     await tx.done;
   }
 
-  await writeReviseMeta("lastPullAt", startedAt);
-  return pulled;
+  // Keep the old cursor when a table failed so reconnecting retries that
+  // table instead of silently skipping rows that were never pulled.
+  if (failed === 0) await writeReviseMeta("lastPullAt", startedAt);
+  return { pulled, failed };
 }
 
 const STORE_FOR: Record<SyncEntity, "cards" | "reviewLogs" | "attempts" | "mistakes" | "questions" | "papers" | "plannedSessions" | "examDates" | "settings" | "streak"> = {

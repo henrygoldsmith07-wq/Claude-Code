@@ -13,6 +13,10 @@ describe("Phase 8 — public benchmark/results page", () => {
     expect(src).toContain("syntheticOutcomePairs");
     expect(src).toContain("calibrationReport");
     expect(src).toContain("syntheticCalibrationOutcomes");
+    expect(src).toContain("HUMAN_MARKING_CORPUS");
+    expect(src).toContain("scoreHumanMarkingCorpus");
+    expect(src).toContain("scoreMarkerDisagreement");
+    expect(src).toContain("Marker disagreement");
     expect(src).toContain("Benchmarks & results");
     expect(src).toContain("Provenance");
   });
@@ -69,6 +73,7 @@ describe("Phase 8 — docs", () => {
     expect(md).toContain("Recommendation quality");
     expect(md).toContain("syntheticOutcomePairs");
     expect(md).toContain("calibrationReport");
+    expect(md).toContain("Human marking corpus");
   });
   it("architecture.md documents Phase 8 public surfaces", () => {
     // Phase 7 already documented Quality gates; Phase 8 adds benchmarks/case-study to the arch if present.

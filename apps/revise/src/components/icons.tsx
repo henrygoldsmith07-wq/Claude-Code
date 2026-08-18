@@ -19,10 +19,12 @@ import {
   BookOpen,
   Calendar,
   Camera,
+  ClipboardCheck,
   ChartLine,
   Check,
   ChevronRight,
   CircleHelp,
+  Database,
   Clock,
   FileText,
   Flame,
@@ -63,10 +65,14 @@ export const PracticeIcon = PenLine;
 export const PlanIcon = Calendar;
 /** Analytics and predicted grades. */
 export const ProgressIcon = ChartLine;
+/** Timing calibration against the exam's mark budget. */
+export const ResponseTimeIcon = Clock;
 /** Uploaded past papers. */
 export const PapersIcon = FileText;
 /** The curriculum and card decks. */
 export const LibraryIcon = BookOpen;
+/** The question bank's provenance and performance index. */
+export const EvidenceIcon = Database;
 /** The card browser — a grid of everything, for maintenance. */
 export const CardsIcon = LayoutGrid;
 /** The Socratic tutor. */
@@ -78,6 +84,7 @@ export const ModesIcon = Shapes;
 export const GenerateIcon = Sparkle;
 export const BenchmarkIcon = BarChart3;
 export const CaseStudyIcon = Library;
+export const CorpusIcon = ClipboardCheck;
 export const ShareIcon = Share2;
 export const AudioIcon = Volume2;
 export const AudioOffIcon = VolumeX;

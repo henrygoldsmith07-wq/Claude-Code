@@ -1,5 +1,6 @@
+import { matchMisconception } from "./misconception-library";
 import { createCard } from "./scheduling";
-import type { Attempt, Card, Id, Mistake, Question } from "./types";
+import type { Attempt, Card, Id, Misconception, Mistake, Question } from "./types";
 
 // ---------------------------------------------------------------------------
 // Mistake tracking closes the loop: a dropped mark becomes a classified
@@ -123,6 +124,7 @@ export function mistakesFromAttempt(
   question: Question,
   idFactory: () => string = () => crypto.randomUUID(),
   now: Date = new Date(),
+  misconceptions: readonly Misconception[] = [],
 ): MistakeDraft[] {
   const drafts: MistakeDraft[] = [];
   const topicId = question.topicIds[0] ?? attempt.topicIds[0];
@@ -136,6 +138,10 @@ export function mistakesFromAttempt(
 
     const marksLost = marked.max - marked.awarded;
     const ao = part?.aos?.[0];
+    const studentAnswer = attempt.answers[marked.partId] ?? "";
+    const misconceptionMatch = misconceptions.length
+      ? matchMisconception(misconceptions, marked.missedPoints.join("; "), studentAnswer)
+      : null;
     const mistake: Mistake = {
       id: mistakeId,
       userId: attempt.userId,
@@ -147,6 +153,7 @@ export function mistakesFromAttempt(
       point: marked.missedPoints[0],
       command: detectCommandWord(part?.prompt ?? question.stem),
       misconception: detectMisconception(marked.missedPoints),
+      ...(misconceptionMatch ? { misconceptionEntryId: misconceptionMatch.entry.id } : {}),
       ao,
       difficultyAtLoss: question.difficulty,
       marksLost,

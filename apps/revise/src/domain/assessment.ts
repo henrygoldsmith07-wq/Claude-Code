@@ -17,6 +17,8 @@ import type {
 } from "./types";
 import { gradeForPercent } from "./grades";
 import type { Subject } from "./types";
+import { measureQuestionBankDiscrimination } from "./question-discrimination";
+import { techniqueVsKnowledge } from "./retention-analytics";
 
 export const COMMAND_WORDS: CommandWord[] = [
   "state","describe","explain","calculate","show that","suggest","compare","evaluate","discuss","justify","deduce","predict","outline","other",
@@ -122,7 +124,21 @@ export function buildAssessmentInsight(input: {
   }
   expectedMarksPerHour.sort((a, b) => b.value - a.value);
 
-  return { byCommand, byMisconception, marksLostByTopic, marksLostByAo, repeatedWeakSubtopics, expectedMarksPerHour };
+  const questionDiscrimination = measureQuestionBankDiscrimination({
+    questions: [...input.questionsById.values()],
+    attempts: input.attempts,
+  });
+
+  return {
+    byCommand,
+    byMisconception,
+    marksLostByTopic,
+    marksLostByAo,
+    repeatedWeakSubtopics,
+    expectedMarksPerHour,
+    techniqueVsKnowledge: techniqueVsKnowledge(input.mistakes),
+    questionDiscrimination,
+  };
 }
 
 export function simulatePaper(input: {

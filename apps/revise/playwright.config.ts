@@ -22,7 +22,8 @@ export default defineConfig({
   // Keep tolerance tight; bump only with a deliberate visual change.
   snapshotPathTemplate: "{testDir}/__screenshots__/{testFilePath}/{arg}{ext}",
   webServer: {
-    command: `npm run build && PORT=${PORT} npm run start -- --port ${PORT} --hostname 0.0.0.0`,
+    command: `npm run build && npm run start -- --port ${PORT} --hostname 0.0.0.0`,
+    env: { PORT: String(PORT) },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
