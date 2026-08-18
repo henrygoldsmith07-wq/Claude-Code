@@ -4,6 +4,8 @@ test("question evidence database exposes searchable provenance", async ({ page }
   await page.goto("/");
 
   const onboarding = page.getByText(/Revision that knows what to do next/i);
+  const today = page.locator("main#main");
+  await expect(onboarding.or(today).first()).toBeVisible({ timeout: 15_000 });
   if (await onboarding.isVisible()) {
     await page.getByRole("button", { name: /Continue/i }).first().click();
     await page.waitForTimeout(300);
@@ -19,6 +21,7 @@ test("question evidence database exposes searchable provenance", async ({ page }
 
     await page.waitForTimeout(300);
     await page.getByRole("button", { name: /Build my plan|Continue/i }).first().click();
+    await expect(today).toBeVisible({ timeout: 15_000 });
   }
 
   await page.goto("/question-evidence");
