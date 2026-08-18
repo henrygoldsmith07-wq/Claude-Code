@@ -8,7 +8,7 @@ Open the app → get a recommended task → complete it → get marked instantly
 progress updates → next task.
 
 Ships with **32 subjects across WJEC / AQA / Edexcel / OCR × A-level / GCSE** —
-**440 topics, 350 seed questions**, every topic with `specPoints` and provenance —
+**440 topics, 374 seed questions**, every topic with `specPoints` and provenance —
 as real, authored revision content. The architecture is board-agnostic: adding
 a new board or qualification means adding one curriculum module and changing
 nothing else.
@@ -165,7 +165,7 @@ auto-link to the nearest statement(s); all four subjects now have specPoints on
 every topic (Physics 76, Chemistry 76, Biology 70, Maths 55) with `paperBreakdown`
 for unit·duration·marks·weighting on every paper. Every seed question maps to
 statements with `learningClaims` (1:1 with markScheme), including the new OCR
-A-Level question set — the `no-spec-points`
+A-Level and extended-response question sets — the `no-spec-points`
 gaps in Progress now only fire on regressions. Run `node scripts/validate-curriculum.mjs`
 in CI — it now enforces that every subject has specPoints on every topic and that any `specPointIds` are paired with `learningClaims`. See
 `src/content/questions/physics.ts` for the first mapped questions and
@@ -224,7 +224,7 @@ provenance record (`source` / `verification` / `reviewer` / `lastChecked` /
 retrieval cards, how many have an exam question (*which* parts test *which*
 statements), which are verified, and — per `SPEC_MANIFEST` — which unit/paper
 (duration, marks, weighting) each belongs to. The statement model now covers all **32 subjects (WJEC/AQA/Edexcel/OCR × A-level/GCSE): 440 topics,
-350 seed questions**, every topic with `specPoints` and every seed question part
+374 seed questions**, every topic with `specPoints` and every seed question part
 mapped with `specPointIds + learningClaims` aligned 1:1 with mark-scheme points.
 Topic lists and grade boundaries remain approximate and labelled as such; always
 check the current board specification for exact assessment objectives and
