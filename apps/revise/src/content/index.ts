@@ -2,6 +2,7 @@ import type { Id, Question } from "@/domain/types";
 import { biologyQuestions } from "./questions/biology";
 import { biologyAqaQuestions } from "./questions/biology-aqa";
 import { biologyAqaExtraQuestions } from "./questions/biology-aqa-extra";
+import { aqaGcseQuestions } from "./questions/aqa-gcse";
 import { biologyExtraQuestions } from "./questions/biology-extra";
 import { chemistryQuestions } from "./questions/chemistry";
 import { chemistryAqaQuestions } from "./questions/chemistry-aqa";
@@ -39,9 +40,10 @@ export const seedQuestions: Question[] = [
   ...mathsAqaExtraQuestions,
   ...physicsAqaQuestions,
   ...physicsAqaExtraQuestions,
+  ...aqaGcseQuestions,
 ];
 
-export { authenticExpansionQuestions };
+export { aqaGcseQuestions, authenticExpansionQuestions };
 
 export function seedQuestionsForSubject(subjectId: Id): Question[] {
   return seedQuestions.filter((q) => q.subjectId === subjectId);
