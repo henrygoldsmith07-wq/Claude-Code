@@ -151,8 +151,8 @@ function Practice() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header className="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">
             {mode === "recall" ? "Active recall" : "Exam questions"}
           </h1>
@@ -163,23 +163,25 @@ function Practice() {
           </p>
         </div>
         {subjects.length > 1 ? (
-          <Segmented
-            ariaLabel="Subject"
-            value={subjectId}
-            onChange={(value) => {
-              setSubjectId(value);
-              setTopicId("");
-              setIndex(0);
-              setOrder(orderFor(value, ""));
-            }}
-            options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-          />
+          <div className="w-full sm:w-auto max-w-full overflow-x-auto nice-scroll pb-1">
+            <Segmented
+              ariaLabel="Subject"
+              value={subjectId}
+              onChange={(value) => {
+                setSubjectId(value);
+                setTopicId("");
+                setIndex(0);
+                setOrder(orderFor(value, ""));
+              }}
+              options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </div>
         ) : null}
       </header>
 
       <QuickSessionPicker onSelect={setQuickMinutes} />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid grid-cols-1 sm:flex sm:flex-wrap sm:items-center gap-2">
         <select
           value={topicId}
           onChange={(e) => {
@@ -189,7 +191,7 @@ function Practice() {
             setIndex(0);
             setOrder(orderFor(subjectId, e.target.value));
           }}
-          className="field field-inline text-sm"
+          className="field field-inline text-sm w-full sm:w-auto"
           aria-label="Topic"
         >
           <option value="">All topics</option>
@@ -203,11 +205,11 @@ function Practice() {
             );
           })}
         </select>
-        <Button size="sm" onClick={() => void generate()} disabled={generating}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating}>
           {generating ? "Generating…" : "Generate similar questions"}
         </Button>
         {queue.length ? (
-          <span className="text-xs text-ink3 ml-auto tabular-nums">
+          <span className="text-xs text-ink3 sm:ml-auto justify-self-end tabular-nums">
             {index + 1} of {queue.length}
           </span>
         ) : null}
@@ -236,12 +238,13 @@ function Practice() {
               if (sessionId && completed === 0) void store.completeSession(sessionId);
             }}
           />
-          <div className="flex justify-between gap-2">
-            <Button disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+          <div className="grid grid-cols-2 gap-2">
+            <Button className="w-full min-h-11" disabled={index === 0} onClick={() => setIndex((i) => Math.max(0, i - 1))}>
               Previous
             </Button>
             <Button
               variant="primary"
+              className="w-full min-h-11"
               disabled={index >= queue.length - 1}
               onClick={() => setIndex((i) => i + 1)}
             >
@@ -258,12 +261,12 @@ function Practice() {
               : "Pick a topic, or upload a past paper to extract questions from it."
           }
           action={
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={() => void generate()} disabled={generating}>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button variant="primary" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating}>
                 Generate questions
               </Button>
               <Link href="/papers">
-                <Button>Upload a paper</Button>
+                <Button className="w-full sm:w-auto">Upload a paper</Button>
               </Link>
             </div>
           }

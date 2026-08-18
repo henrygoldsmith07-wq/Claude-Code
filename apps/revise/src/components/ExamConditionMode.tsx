@@ -254,9 +254,9 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
             </ul>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={onExit}>Back to papers</Button>
-            <Button variant="primary" onClick={startExam} className="flex-1 min-w-48">Start full exam</Button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button className="w-full sm:w-auto" onClick={onExit}>Back to papers</Button>
+            <Button variant="primary" onClick={startExam} className="w-full sm:flex-1 sm:min-w-48">Start full exam</Button>
           </div>
         </Panel>
       </div>
@@ -267,20 +267,20 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <header className="sticky top-14 lg:top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-bg/95 backdrop-blur border-b border-line flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Full exam conditions</p>
           <h1 className="text-sm font-semibold truncate">{paper.title}</h1>
           <p className="text-[11px] text-ink3">Question {index + 1} of {questions.length} · {paperSpec.name}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={clockTone}>
+          <Pill className="text-sm px-3 py-1.5 tabular-nums" tone={clockTone}>
             <TimerIcon size={ICON_SIZE.sm} aria-hidden />
             <span aria-label={`${formatExamTime(remaining)} remaining`}>{formatExamTime(remaining)}</span>
           </Pill>
-          <Button size="sm" variant="ghost" disabled={submitting} onClick={() => setExitRequested(true)}>End session</Button>
+          <Button size="sm" variant="ghost" className="min-h-10" disabled={submitting} onClick={() => setExitRequested(true)}>End session</Button>
         </div>
-      </div>
+      </header>
 
       {clockState === "warning" ? (
         <div className="card card-2 p-3 text-sm text-review" role="status">Five minutes or less remain. Submit any unfinished answers before the clock reaches zero.</div>
@@ -310,9 +310,9 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
             onChoice={(choice) => setAnswers((previous) => ({ ...previous, [current.id]: String(choice) }))}
             onAnswer={(partId, value) => setAnswers((previous) => ({ ...previous, [partId]: value }))}
           />
-          <div className="flex gap-2">
-            <Button disabled={index === 0 || submitting} onClick={() => goToQuestion(index - 1)}>Previous</Button>
-            <Button variant="primary" className="flex-1" disabled={submitting} onClick={() => (index === questions.length - 1 ? openReview() : goToQuestion(index + 1))}>
+          <div className="grid grid-cols-2 gap-2">
+            <Button className="w-full min-h-11" disabled={index === 0 || submitting} onClick={() => goToQuestion(index - 1)}>Previous</Button>
+            <Button variant="primary" className="w-full min-h-11" disabled={submitting} onClick={() => (index === questions.length - 1 ? openReview() : goToQuestion(index + 1))}>
               {index === questions.length - 1 ? "Review and submit" : "Next question"}
             </Button>
           </div>
@@ -328,9 +328,9 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
             <p className="text-sm font-semibold text-ink">End this exam without submitting?</p>
             <p className="text-xs text-ink3 mt-1">Your answers will be discarded and this run will not be counted.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setExitRequested(false)}>Keep working</Button>
-            <Button variant="primary" onClick={onExit}>End session</Button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button className="w-full sm:w-auto" onClick={() => setExitRequested(false)}>Keep working</Button>
+            <Button variant="primary" className="w-full sm:w-auto" onClick={onExit}>End session</Button>
           </div>
         </Panel>
       ) : null}
@@ -364,7 +364,7 @@ function ExamQuestion({
         {!question.calculatorAllowed ? <Pill tone="danger">No calculator</Pill> : null}
       </div>
 
-      <RichText className="text-base text-ink">{question.stem}</RichText>
+      <RichText className="text-base leading-7 text-ink">{question.stem}</RichText>
 
       {isMcq ? (
         <ul className="mt-4 space-y-1.5">
@@ -375,7 +375,7 @@ function ExamQuestion({
                 disabled={disabled}
                 onClick={() => onChoice(optionIndex)}
                 className={cx(
-                  "w-full text-left card px-3 py-2.5 flex gap-2.5 items-start transition-colors",
+                  "w-full min-h-12 sm:min-h-0 text-left card px-3 py-3 sm:py-2.5 flex gap-2.5 items-start transition-colors",
                   choice === optionIndex && "border-ink3 bg-surface2",
                 )}
               >
@@ -389,10 +389,10 @@ function ExamQuestion({
         <div className="mt-4 space-y-5">
           {question.parts.map((part) => (
             <div key={part.id}>
-              <div className="flex items-baseline gap-2 mb-1.5">
+              <div className="flex items-start gap-2 mb-1.5">
                 {part.label ? <span className="text-sm font-semibold text-ink">{part.label}</span> : null}
-                <RichText className="text-sm flex-1">{part.prompt}</RichText>
-                <span className="text-xs text-ink3 shrink-0">[{part.marks}]</span>
+                <RichText className="text-sm leading-6 flex-1 min-w-0">{part.prompt}</RichText>
+                <span className="text-xs text-ink3 shrink-0 pt-0.5">[{part.marks}]</span>
               </div>
               <label htmlFor={`exam-${part.id}`} className="sr-only">{part.label ? `${part.label} answer` : "Your answer"}</label>
               <textarea
@@ -402,7 +402,7 @@ function ExamQuestion({
                 rows={Math.min(10, Math.max(3, part.marks + 1))}
                 disabled={disabled}
                 placeholder="Write your answer as you would in the exam…"
-                className="field nice-scroll resize-y font-normal"
+                className="field nice-scroll resize-y font-normal text-base leading-6"
               />
             </div>
           ))}
@@ -444,7 +444,7 @@ function ReviewAnswers({
         {questions.map((question, questionIndex) => {
           const answered = questionHasAnswer(question, answers);
           return (
-            <Button key={question.id} size="sm" disabled={submitting} onClick={() => onSelect(questionIndex)} className="justify-between">
+            <Button key={question.id} size="sm" disabled={submitting} onClick={() => onSelect(questionIndex)} className="w-full min-h-11 justify-between">
               <span>Question {questionIndex + 1}</span>
               <Pill tone={answered ? "success" : "danger"}>{answered ? "Answered" : "Blank"}</Pill>
             </Button>
@@ -452,9 +452,9 @@ function ReviewAnswers({
         })}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={submitting} onClick={onBack}>Back to paper</Button>
-        <Button variant="primary" disabled={submitting} onClick={onSubmit} className="flex-1 min-w-48">
+      <div className="flex flex-col-reverse sm:flex-row gap-2">
+        <Button className="w-full sm:w-auto" disabled={submitting} onClick={onBack}>Back to paper</Button>
+        <Button variant="primary" disabled={submitting} onClick={onSubmit} className="w-full sm:flex-1 sm:min-w-48">
           {submitting ? "Submitting…" : "Submit full paper"}
         </Button>
       </div>

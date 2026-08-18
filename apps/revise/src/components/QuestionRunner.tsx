@@ -109,7 +109,7 @@ export function QuestionRunner({
           {!question.calculatorAllowed ? <Pill tone="danger">No calculator</Pill> : null}
         </div>
 
-        <RichText className="text-base text-ink">{question.stem}</RichText>
+        <RichText className="text-base leading-7 text-ink">{question.stem}</RichText>
 
         {isMcq ? (
           <ul className="mt-4 space-y-1.5">
@@ -122,7 +122,7 @@ export function QuestionRunner({
                     disabled={Boolean(result)}
                     onClick={() => setChoice(index)}
                     className={cx(
-                      "w-full text-left card px-3 py-2.5 flex gap-2.5 items-start transition-colors",
+                      "w-full min-h-12 sm:min-h-0 text-left card px-3 py-3 sm:py-2.5 flex gap-2.5 items-start transition-colors",
                       choice === index && !result && "border-ink3 bg-surface2",
                       correct && "border-success bg-successsoft",
                       wrongPick && "border-danger bg-dangersoft",
@@ -141,14 +141,14 @@ export function QuestionRunner({
           <div className="mt-4 space-y-5">
             {question.parts.map((part) => (
               <div key={part.id}>
-                <div className="flex items-baseline gap-2 mb-1.5">
+                <div className="flex items-start gap-2 mb-1.5">
                   {part.label ? <span className="text-sm font-semibold text-ink">{part.label}</span> : null}
-                  <RichText className="text-sm flex-1">{part.prompt}</RichText>
-                  <span className="text-xs text-ink3 shrink-0">[{part.marks}]</span>
+                  <RichText className="text-sm leading-6 flex-1 min-w-0">{part.prompt}</RichText>
+                  <span className="text-xs text-ink3 shrink-0 pt-0.5">[{part.marks}]</span>
                 </div>
                 <CommandWordCheck validation={validateCommandWord(question, part, answers[part.id] ?? "")} />
                 {result ? (
-                  <div className="card card-2 p-3 text-sm text-ink2 whitespace-pre-wrap">
+                  <div className="card card-2 p-3 text-sm text-ink2 whitespace-pre-wrap break-words">
                     {answers[part.id]?.trim() || "(no answer given)"}
                   </div>
                 ) : (
@@ -167,7 +167,7 @@ export function QuestionRunner({
         {!result ? (
           <Button
             variant="primary"
-            className="w-full mt-5"
+            className="w-full min-h-11 mt-5"
             disabled={marking || (isMcq ? choice === null : !Object.values(answers).some((a) => a.trim()))}
             onClick={() => void submit()}
           >

@@ -148,9 +148,9 @@ export function QuickSessionMode({
             <p className="mt-1.5"><span className="font-semibold">How it works:</span> answer one question, see the marking, then move on. Only completed answers count.</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={onExit}>Back to practice</Button>
-            <Button variant="primary" className="flex-1 min-w-48" onClick={start}>Start {minutes}-minute sprint</Button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button className="w-full sm:w-auto" onClick={onExit}>Back to practice</Button>
+            <Button variant="primary" className="w-full sm:flex-1 sm:min-w-48" onClick={start}>Start {minutes}-minute sprint</Button>
           </div>
         </Panel>
       </div>
@@ -161,20 +161,20 @@ export function QuickSessionMode({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <header className="sticky top-14 lg:top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-bg/95 backdrop-blur border-b border-line flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Question sprint</p>
           <h1 className="text-sm font-semibold truncate">I Have {minutes} Minutes</h1>
           <p className="text-[11px] text-ink3">Question {index + 1} of {queue.length} · {subject?.name ?? subjectId}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={clockTone}>
+          <Pill className="text-sm px-3 py-1.5 tabular-nums" tone={clockTone}>
             <TimerIcon size={ICON_SIZE.sm} aria-hidden />
             <span aria-label={`${formatExamTime(remaining)} remaining`}>{formatExamTime(remaining)}</span>
           </Pill>
-          <Button size="sm" variant="ghost" onClick={() => setExitRequested(true)}>End sprint</Button>
+          <Button size="sm" variant="ghost" className="min-h-10" onClick={() => setExitRequested(true)}>End sprint</Button>
         </div>
-      </div>
+      </header>
 
       {clockState === "warning" ? (
         <div className="card card-2 p-3 text-sm text-review" role="status">One minute left. Finish the answer on screen, then move on.</div>
@@ -192,7 +192,7 @@ export function QuickSessionMode({
           />
           <Button
             variant="primary"
-            className="w-full"
+            className="w-full min-h-11"
             disabled={!currentCompleted}
             onClick={() => (index >= queue.length - 1 ? end("completed") : setIndex((value) => value + 1))}
           >
@@ -207,9 +207,9 @@ export function QuickSessionMode({
             <p className="text-sm font-semibold text-ink">End this sprint?</p>
             <p className="text-xs text-ink3 mt-1">Completed answers stay in your history. The question currently on screen will not count unless you submit it.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setExitRequested(false)}>Keep going</Button>
-            <Button variant="primary" onClick={() => onExit()}>End sprint</Button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button className="w-full sm:w-auto" onClick={() => setExitRequested(false)}>Keep going</Button>
+            <Button variant="primary" className="w-full sm:w-auto" onClick={() => onExit()}>End sprint</Button>
           </div>
         </Panel>
       ) : null}

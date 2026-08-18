@@ -48,20 +48,22 @@ function Papers() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header className="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">Past papers</h1>
           <p className="text-sm text-ink3 mt-0.5">
             Upload a paper and its mark scheme, extract the questions, then practise them by topic or under full exam conditions.
           </p>
         </div>
         {subjects.length > 1 ? (
-          <Segmented
-            ariaLabel="Subject"
-            value={subjectId}
-            onChange={setSubjectId}
-            options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-          />
+          <div className="w-full sm:w-auto max-w-full overflow-x-auto nice-scroll pb-1">
+            <Segmented
+              ariaLabel="Subject"
+              value={subjectId}
+              onChange={setSubjectId}
+              options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </div>
         ) : null}
       </header>
 
@@ -83,7 +85,7 @@ function Papers() {
               const scored = attempted.reduce((a, x) => a + x.awarded, 0);
               const possible = attempted.reduce((a, x) => a + x.max, 0);
               return (
-                <li key={paper.id} className="px-4 py-3 flex items-center gap-3">
+                <li key={paper.id} className="px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-ink truncate">{paper.title}</p>
                     <p className="text-[11px] text-ink3">
@@ -92,12 +94,12 @@ function Papers() {
                       {possible ? ` · scored ${scored}/${possible}` : ""}
                     </p>
                   </div>
-                  <Pill tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
-                  <div className="flex flex-wrap justify-end gap-1.5">
-                    <Button size="sm" disabled={!paper.questionIds.length} onClick={() => setActivePaper(paper)}>
+                  <Pill className="self-start sm:self-auto" tone={paper.status === "practised" ? "success" : undefined}>{paper.status}</Pill>
+                  <div className="grid grid-cols-1 sm:flex justify-end gap-1.5 w-full sm:w-auto">
+                    <Button size="sm" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setActivePaper(paper)}>
                       Practise paper
                     </Button>
-                    <Button size="sm" variant="primary" disabled={!paper.questionIds.length} onClick={() => setExamPaper(paper)}>
+                    <Button size="sm" variant="primary" className="w-full sm:w-auto" disabled={!paper.questionIds.length} onClick={() => setExamPaper(paper)}>
                       Full exam conditions
                     </Button>
                   </div>
@@ -356,7 +358,7 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <header className="sticky top-14 lg:top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-bg/95 backdrop-blur border-b border-line flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold truncate">{paper.title}</h1>
           <p className="text-[11px] text-ink3">
@@ -365,15 +367,15 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={elapsedMinutes > 90 ? "danger" : undefined}>
+          <Pill className="tabular-nums" tone={elapsedMinutes > 90 ? "danger" : undefined}>
             <TimerIcon size={ICON_SIZE.sm} aria-hidden />
             {elapsedMinutes} min
           </Pill>
-          <Button size="sm" variant="ghost" onClick={onExit}>
+          <Button size="sm" variant="ghost" className="min-h-10" onClick={onExit}>
             Exit
           </Button>
         </div>
-      </div>
+      </header>
 
       <ProgressBar value={index / questions.length} />
 
@@ -384,7 +386,7 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         onFinished={(attempt) => setScores((prev) => [...prev, { awarded: attempt.awarded, max: attempt.max }])}
       />
 
-      <Button variant="primary" className="w-full" onClick={() => setIndex((i) => i + 1)}>
+      <Button variant="primary" className="w-full min-h-11" onClick={() => setIndex((i) => i + 1)}>
         {index === questions.length - 1 ? "Finish paper" : "Next question"}
       </Button>
     </div>
