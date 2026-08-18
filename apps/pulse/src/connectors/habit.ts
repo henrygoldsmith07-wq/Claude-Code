@@ -17,6 +17,7 @@
  */
 
 import { defineReaderConnector } from "./sdk.js";
+import { createSameOriginReader, type StorageLike } from "./same-origin.js";
 import type { Connector, ConnectorScope, EmittedEventSpec, SourceReader } from "./types.js";
 import type { RawEventInput } from "../events/normalise.js";
 import { addDays } from "../events/time.js";
@@ -170,6 +171,37 @@ export function mapHabitRecord(record: HabitDayRecord): RawEventInput[] {
 
 export function habitRecordTimestamp(record: HabitDayRecord): string {
   return record.completedAt ?? dayEnd(record.day);
+}
+
+/** Where Habit mirrors its Supabase rows when both apps share an origin. */
+export const HABIT_STORAGE_KEY = "habit-tracker-state-v1";
+
+/**
+ * A Habit connector reading the app's own local mirror.
+ *
+ * Habit is Supabase-backed, so unlike Forq and Arise there is no native
+ * localStorage state to read — the app mirrors its rows after every load and
+ * mutation under `HABIT_STORAGE_KEY`. The mirror carries a `day` field (the
+ * app's local today), which is what lets this connector stop synthesising
+ * before today the same way the Supabase reader does.
+ *
+ * Like Forq, Habit has no Pulse opt-in of its own, so the gate is Pulse's own
+ * per-connector grant.
+ */
+export function createHabitSameOriginConnector(options: { storage?: StorageLike | null } = {}): Connector {
+  return createHabitConnector(
+    createSameOriginReader<HabitDayRecord>({
+      key: HABIT_STORAGE_KEY,
+      label: "Habit",
+      select: (state) => {
+        const day = (state as { day?: unknown })?.day;
+        const today = typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : new Date().toISOString().slice(0, 10);
+        return selectHabitRecords(state, today);
+      },
+      timestampOf: habitRecordTimestamp,
+      ...(options.storage !== undefined ? { storage: options.storage } : {}),
+    }),
+  );
 }
 
 export function createHabitConnector(reader: SourceReader<HabitDayRecord>): Connector {
