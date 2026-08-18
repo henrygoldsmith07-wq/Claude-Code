@@ -7,7 +7,7 @@ import { QUESTION_DIFFICULTY_MIN_SAMPLES } from "@/domain/knowledge-tracing";
 import { useStore } from "@/state/store";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
 
-// The eight-slice assessment view — every panel answers a concrete question a
+// The assessment view — every panel answers a concrete question a
 // student would ask about an exam, not about the app.
 
 function EmptyHint({ children }: { children: string }) {
@@ -129,6 +129,80 @@ export function MarksLostByCause() {
       <div className="mt-3">
         <TimingBreakdown />
       </div>
+    </Panel>
+  );
+}
+
+function accuracyLabel(accuracy: number | null): string {
+  return accuracy == null ? "—" : `${Math.round(accuracy * 100)}%`;
+}
+
+export function CalculationMasteryCard() {
+  const store = useStore();
+  const report = store.calculationMastery;
+  const tone = report.status === "secure" ? "success" : report.status === "developing" ? "review" : "neutral";
+  const statusLabel = report.status === "secure" ? "Secure" : report.status === "developing" ? "Developing" : "Needs evidence";
+  const topics = report.byTopic.slice(0, 6);
+  const errorPatterns = report.errorPatterns.slice(0, 5);
+
+  return (
+    <Panel>
+      <div className="flex items-start justify-between gap-3">
+        <SectionHeading title="Calculation mastery" hint="Marks-weighted performance on calculation questions only." />
+        <Pill tone={tone}>{statusLabel}</Pill>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        <StatTile label="Accuracy" value={accuracyLabel(report.accuracy)} sub={`${report.attempts} question${report.attempts === 1 ? "" : "s"}`} tone={report.status === "secure" ? "success" : report.status === "developing" ? "review" : undefined} />
+        <StatTile label="Marks" value={`${report.marksAwarded}/${report.marksAvailable}`} sub="calculation marks" />
+        <StatTile label="Recent" value={accuracyLabel(report.recent.accuracy)} sub={report.trend == null ? "latest window" : `${report.trend >= 0 ? "+" : ""}${Math.round(report.trend * 100)} pp`} tone={report.trend != null && report.trend < 0 ? "danger" : report.trend != null && report.trend > 0 ? "success" : undefined} />
+        <StatTile label="Threshold" value={`${report.minimumAttempts}`} sub="questions for reliability" />
+      </div>
+      <ProgressBar
+        value={report.accuracy ?? 0}
+        label={report.accuracy == null ? "No calculation evidence yet" : "Overall calculation accuracy"}
+        tone={report.status === "secure" ? "success" : report.status === "developing" ? "review" : "accent"}
+      />
+      <p className="text-xs text-ink2 mt-3">{report.nextAction}</p>
+
+      {(report.calculator.attempts || report.noCalculator.attempts) ? (
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Calculator context</p>
+          <div className="flex flex-wrap gap-1.5">
+            <Pill tone="accent">Allowed: {accuracyLabel(report.calculator.accuracy)} · n={report.calculator.attempts}</Pill>
+            <Pill>Not allowed: {accuracyLabel(report.noCalculator.accuracy)} · n={report.noCalculator.attempts}</Pill>
+          </div>
+        </div>
+      ) : null}
+
+      {topics.length ? (
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">By topic</p>
+          <ul className="space-y-2">
+            {topics.map((row) => (
+              <li key={row.topicId}>
+                <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                  <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`} className="text-ink2 truncate hover:underline">
+                    {getTopic(row.topicId)?.title ?? row.topicId}
+                  </Link>
+                  <span className="text-ink3 tabular-nums shrink-0">{accuracyLabel(row.accuracy)} · n={row.attempts}</span>
+                </div>
+                {row.accuracy != null ? <ProgressBar value={row.accuracy} tone={row.status === "secure" ? "success" : "review"} /> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {errorPatterns.length ? (
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Calculation errors</p>
+          <div className="flex flex-wrap gap-1.5">
+            {errorPatterns.map((pattern) => (
+              <Pill key={pattern.key} tone="danger">{pattern.label} · {pattern.marksLost}m</Pill>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </Panel>
   );
 }

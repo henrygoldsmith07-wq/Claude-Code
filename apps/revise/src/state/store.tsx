@@ -19,6 +19,8 @@ import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/d
 import { buildAssessmentInsight, calibrateFromHistory, simulatePaper } from "@/domain/assessment";
 import { calibrateDifficulty, traceQuestions } from "@/domain/knowledge-tracing";
 import type { DifficultyCalibrationReport, QuestionTrace } from "@/domain/knowledge-tracing";
+import { calculateCalculationMastery } from "@/domain/calculation-mastery";
+import type { CalculationMasteryReport } from "@/domain/calculation-mastery";
 import type {
   AssessmentInsight,
   Attempt,
@@ -82,6 +84,7 @@ interface StoreValue extends Snapshot {
   calibrations: Map<Id, Calibration>;
   questionTraces: QuestionTrace[];
   difficultyCalibration: DifficultyCalibrationReport;
+  calculationMastery: CalculationMasteryReport;
   revisionCheckpoint: RevisionCheckpoint | null;
   syncStatus: SyncStatus;
   /** Build a paper simulation for the given subject/paper without mutating state. */
@@ -248,6 +251,14 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     return traceQuestions({ questions: snapshot.questions, attemptsByQuestion });
   }, [snapshot]);
   const difficultyCalibration = useMemo(() => calibrateDifficulty(questionTraces), [questionTraces]);
+  const calculationMastery = useMemo(() => {
+    if (!snapshot) return calculateCalculationMastery({ questions: [], attempts: [], mistakes: [] });
+    return calculateCalculationMastery({
+      questions: snapshot.questions,
+      attempts: snapshot.attempts,
+      mistakes: snapshot.mistakes,
+    });
+  }, [snapshot]);
 
   const marksPerHour = useMemo(() => {
     if (!assessment) return new Map<Id, number>();
@@ -604,6 +615,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       calibrations,
       questionTraces,
       difficultyCalibration,
+      calculationMastery,
       revisionCheckpoint,
       previewPaper,
       syncStatus,
@@ -639,6 +651,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     calibrations,
     questionTraces,
     difficultyCalibration,
+    calculationMastery,
     revisionCheckpoint,
     previewPaper,
     syncStatus,
