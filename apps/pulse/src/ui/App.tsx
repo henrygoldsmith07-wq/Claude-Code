@@ -11,12 +11,13 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
-import type { Finding } from "../discovery/finding.js";
+import type { Finding, ReplicationStatus } from "../discovery/finding.js";
 import { FindingCard } from "./FindingCard.js";
 import { EvidencePanel } from "./EvidencePanel.js";
+import { LibraryPanel } from "./LibraryPanel.js";
 import { ProductTrustPanel, type FeedbackAction } from "./ProductTrustPanel.js";
 
-export type TabId = "insights" | "evidence" | "timeline" | "experiments" | "ask" | "sources";
+export type TabId = "insights" | "evidence" | "timeline" | "experiments" | "ask" | "library" | "sources";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "insights", label: "Insights" },
@@ -24,8 +25,17 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "timeline", label: "Timeline" },
   { id: "experiments", label: "Experiments" },
   { id: "ask", label: "Ask Pulse" },
+  { id: "library", label: "Hypothesis library" },
   { id: "sources", label: "Sources & privacy" },
 ];
+
+const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
+  new: "New",
+  replicated: "Replicated",
+  "failed-to-replicate": "Failed to replicate",
+  "experimentally-supported": "Experimentally supported",
+  contradicted: "Contradicted",
+};
 
 export interface AppProps {
   pulse: Pulse;
@@ -49,6 +59,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const recommendations = useMemo(() => pulse.recommendations(5), [pulse, revision]);
   const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision]);
   const quality = useMemo(() => pulse.quality(), [pulse, revision]);
+  const insightHistory = useMemo(() => pulse.insightHistory.history(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const onFeedback = useCallback(
@@ -182,6 +193,44 @@ export function App({ pulse }: AppProps): React.JSX.Element {
               ))
             )}
 
+            <h2>Insight history</h2>
+            <p className="muted">
+              {insightHistory.length} insight(s) tracked across {pulse.insightHistory.size()} scan(s). Each scan is a
+              point-in-time photograph of the evidence; insights are matched across scans by the relationship they
+              describe, so this shows how each one grew or faded as your data accumulated.
+            </p>
+            {insightHistory.length === 0 ? (
+              <p className="empty">
+                No insight has been seen across more than one scan yet — history builds as Pulse rescans your data.
+              </p>
+            ) : (
+              insightHistory.map((entry) => (
+                <article key={entry.signature} className="card history-entry">
+                  <h3>{entry.title}</h3>
+                  <p className="muted">
+                    First seen {entry.firstSeenAt.slice(0, 10)} · last seen {entry.lastSeenAt.slice(0, 10)} · present
+                    in {entry.appearances} of {entry.episodes.length} scan(s) · {REPLICATION_LABEL[entry.latestStatus]}
+                  </p>
+                  <ul className="history-episodes">
+                    {entry.episodes.map((episode, index) => (
+                      <li key={`${episode.scanId}-${index}`}>
+                        <time>{episode.at.slice(0, 10)}</time>
+                        <span className={`history-change history-change--${episode.change}`}>{episode.change}</span>
+                        {episode.finding ? (
+                          <span className="muted">
+                            effect {episode.finding.effect.label} · {episode.finding.confidence.level} confidence · n=
+                            {episode.finding.sampleSize}
+                          </span>
+                        ) : (
+                          <span className="muted">{episode.note ?? "No longer meets the evidence bar"}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))
+            )}
+
             <h2>Worth doing next</h2>
             <p className="muted">
               Recommendation value: {funnel.recommended} shown · {funnel.accepted} accepted · {funnel.followed} followed ·{" "}
@@ -243,6 +292,9 @@ export function App({ pulse }: AppProps): React.JSX.Element {
         {tab === "timeline" ? <TimelinePanel pulse={pulse} /> : null}
         {tab === "experiments" ? <ExperimentsPanel pulse={pulse} revision={revision} onChange={refresh} /> : null}
         {tab === "ask" ? <AskPanel key={askPrefill} pulse={pulse} initialQuestion={askPrefill} /> : null}
+        {tab === "library" ? (
+          <LibraryPanel pulse={pulse} findings={discovery.findings} revision={revision} onChange={refresh} />
+        ) : null}
         {tab === "sources" ? <SourcesPanel pulse={pulse} quality={quality} onChange={refresh} /> : null}
       </main>
     </div>

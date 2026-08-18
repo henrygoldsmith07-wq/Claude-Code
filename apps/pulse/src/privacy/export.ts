@@ -22,6 +22,7 @@ import type { FeedbackEntry } from "../recommendations/feedback.js";
 import type { ReplicationRecord } from "../discovery/replication.js";
 import type { ContradictionRecord } from "../discovery/contradictions.js";
 import type { InsightHistorySnapshot } from "../history/insight-history.js";
+import type { CausalLibrarySnapshot } from "../hypotheses/library.js";
 import type { RecommendationValue } from "../recommendations/value.js";
 
 export const EXPORT_FORMAT_VERSION = 1;
@@ -44,6 +45,7 @@ export interface PulseExport {
   replication: ReplicationRecord[];
   contradictions: ContradictionRecord[];
   insightHistory: InsightHistorySnapshot;
+  causalLibrary: CausalLibrarySnapshot;
   recommendationValue: RecommendationValue[];
 }
 
@@ -61,6 +63,7 @@ export interface ExportOptions {
   replication?: readonly ReplicationRecord[];
   contradictions?: readonly ContradictionRecord[];
   insightHistory?: InsightHistorySnapshot;
+  causalLibrary?: CausalLibrarySnapshot;
   recommendationValue?: readonly RecommendationValue[];
 }
 
@@ -115,6 +118,7 @@ export function buildExport(
     replication: [...(options.replication ?? [])],
     contradictions: [...(options.contradictions ?? [])],
     insightHistory: options.insightHistory ?? { version: 1 as const, scans: [] },
+    causalLibrary: options.causalLibrary ?? { version: 1 as const, entries: [] },
     recommendationValue: [...(options.recommendationValue ?? [])],
   };
 }

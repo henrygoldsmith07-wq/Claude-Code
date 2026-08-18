@@ -164,6 +164,30 @@ findings, hypotheses and experiment results, and can be authored directly via
 `pulse.recordClaim(...)` — the engine labels each so the two can never be
 confused.
 
+## Personal causal hypothesis library
+
+Pulse's findings answer "what is true?" and its experiments answer "what is
+causal?" — but neither is the user's own record of what they believe. The
+library is that record: beliefs the user holds about what changes what, each
+with a standing — untested → plausible → strengthening → confirmed or refuted —
+that follows the evidence filed under it. Findings are promoted in one click
+from the Insights tab (the finding becomes the belief's first evidence), and an
+analysed experiment moves the standing when its verdict is decisive. The user
+can override any standing; only "retired" is sticky. Beliefs, evidence and
+standing history are scrubbed when a source that supplied them is deleted, and
+persist at rest through the same encrypted adapter as the event store.
+
+## Persistent insight history
+
+Every discovery scan is a point-in-time photograph of what the engine believes;
+the history ledger keeps each one and matches insights across scans by the
+relationship they describe, so the Insights tab shows each insight's journey —
+appeared, strengthened, weakened, disappeared (with the scan's own rejection
+reason) — rather than only its current state. Identical rescans are ignored, so
+the history records change, not churn, and it survives reloads: scans are
+written through an encrypted adapter and restored by `pulse.load()` before the
+boot replays them.
+
 ## AI boundary
 
 AI is used for explanation, summarisation, natural-language querying and
@@ -188,6 +212,8 @@ configured.
   that depended on it are invalidated with it.
 - Full export in JSON, NDJSON or CSV. Free text never enters the analytic path.
 - Optional AES-GCM encryption at rest with a PBKDF2-derived key.
+- The event store, insight history and causal hypothesis library persist
+  through the same encrypted adapter and survive reloads via `pulse.load()`.
 - Telemetry carries shapes and counts only, enforced by a whitelist and a
   redaction assertion.
 

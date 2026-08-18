@@ -143,3 +143,25 @@ export function createEncryptedAdapter(storage: BlobStorage, passphrase: string)
     },
   };
 }
+
+/**
+ * The same transparent encryption for any other JSON snapshot — the insight
+ * history and the causal hypothesis library use this unchanged.
+ */
+export function createEncryptedBlobAdapter<T>(storage: BlobStorage, passphrase: string): {
+  load(): Promise<T | null>;
+  save(snapshot: T): Promise<void>;
+} {
+  return {
+    async load() {
+      const raw = await storage.read();
+      if (!raw) return null;
+      const blob = JSON.parse(raw) as EncryptedBlob;
+      return decryptJson<T>(blob, passphrase);
+    },
+    async save(snapshot: T) {
+      const blob = await encryptJson(snapshot, passphrase);
+      await storage.write(JSON.stringify(blob));
+    },
+  };
+}

@@ -14,6 +14,7 @@ import { buildExport, deleteEverything, deleteRange, deleteSource, toCsv, toNdjs
 import { assertNoRawContent, prepareForAi, redactEvent, summariseForTelemetry } from "../src/privacy/redaction.js";
 import {
   createEncryptedAdapter,
+  createEncryptedBlobAdapter,
   createMemoryBlobStorage,
   decryptJson,
   encryptJson,
@@ -25,6 +26,8 @@ import { createReflectConnector } from "../src/connectors/reflect.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import type { PulseEvent } from "../src/events/schema.js";
 import type { Finding } from "../src/discovery/finding.js";
+import type { InsightHistorySnapshot } from "../src/history/insight-history.js";
+import type { CausalLibrarySnapshot } from "../src/hypotheses/library.js";
 
 const clock = (): number => Date.parse("2025-07-01T12:00:00Z");
 
@@ -327,5 +330,113 @@ describe("encryption at rest", () => {
 
     const second = new MemoryEventStore(createEncryptedAdapter(storage, "wrong"));
     await expect(second.load()).rejects.toThrow(/Could not decrypt/);
+  });
+
+  it("rehydrates the event store through Pulse.load() from an encrypted adapter", async () => {
+    const storage = createMemoryBlobStorage();
+    const adapter = () => createEncryptedAdapter(storage, "passphrase");
+
+    const first = await createSyntheticPulse({ days: 60, seed: "reload-events", adapter: adapter() });
+    const before = first.pulse.events({ includeSensitive: true });
+    expect(before.length).toBeGreaterThan(100);
+
+    // A fresh boot over the same storage: the deterministic backfill replays
+    // as duplicates (so nothing is rewritten), and load() restores the
+    // encrypted snapshot — the events survive the reload untouched.
+    const second = await createSyntheticPulse({ days: 60, seed: "reload-events", adapter: adapter() });
+    await second.pulse.load();
+    const after = second.pulse.events({ includeSensitive: true });
+    expect(after).toHaveLength(before.length);
+    expect(after[0]).toEqual(before[0]);
+    expect(after.at(-1)).toEqual(before.at(-1));
+
+    // The on-disk blob is ciphertext, never the event stream.
+    const raw = await storage.read();
+    expect(raw).toBeTruthy();
+    expect(raw!).not.toMatch(/revise\.attempt/);
+    expect(raw!).not.toMatch(/reload-events/);
+  });
+
+  it("stores the insight history encrypted and rehydrates it transparently", async () => {
+    const storage = createMemoryBlobStorage();
+    const snapshot: InsightHistorySnapshot = {
+      version: 1,
+      scans: [
+        {
+          at: "2025-07-01T00:00:00.000Z",
+          scanId: "scan-abcdef123456",
+          eventCount: 100,
+          findings: [],
+          rejected: [],
+          totals: { findings: 0, rejected: 40, familySize: 40, familyCount: 3, expectedFalseDiscoveries: 0.2 },
+        },
+      ],
+    };
+
+    await createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "passphrase").save(snapshot);
+
+    // What sits on disk must not contain the plaintext.
+    const raw = await storage.read();
+    expect(raw).toBeTruthy();
+    expect(raw!).not.toMatch(/scan-abcdef123456/);
+
+    const restored = await createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "passphrase").load();
+    expect(restored).toEqual(snapshot);
+  });
+
+  it("cannot read the insight history back with the wrong passphrase", async () => {
+    const storage = createMemoryBlobStorage();
+    await createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "right").save({ version: 1, scans: [] });
+
+    await expect(createEncryptedBlobAdapter<InsightHistorySnapshot>(storage, "wrong").load()).rejects.toThrow(
+      /Could not decrypt/,
+    );
+  });
+
+  it("stores the causal library encrypted and rehydrates it transparently", async () => {
+    const storage = createMemoryBlobStorage();
+    const snapshot: CausalLibrarySnapshot = {
+      version: 1,
+      entries: [
+        {
+          id: "lib-abcdef123456",
+          statement: "Evening study improves my recall.",
+          cause: "evening study",
+          effect: "recall",
+          direction: "increase",
+          outcomeMetricId: null,
+          exposureMetricId: null,
+          origin: "user",
+          hypothesisId: null,
+          createdAt: "2025-07-01T00:00:00.000Z",
+          updatedAt: "2025-07-01T00:00:00.000Z",
+          standing: "untested",
+          standingNote: "Added to the library",
+          standingHistory: [{ standing: "untested", at: "2025-07-01T00:00:00.000Z", note: "Added to the library" }],
+          evidence: [],
+          notes: "",
+          tags: [],
+        },
+      ],
+    };
+
+    await createEncryptedBlobAdapter<CausalLibrarySnapshot>(storage, "passphrase").save(snapshot);
+
+    // What sits on disk must not contain the plaintext.
+    const raw = await storage.read();
+    expect(raw).toBeTruthy();
+    expect(raw!).not.toMatch(/Evening study improves/);
+
+    const restored = await createEncryptedBlobAdapter<CausalLibrarySnapshot>(storage, "passphrase").load();
+    expect(restored).toEqual(snapshot);
+  });
+
+  it("cannot read the causal library back with the wrong passphrase", async () => {
+    const storage = createMemoryBlobStorage();
+    await createEncryptedBlobAdapter<CausalLibrarySnapshot>(storage, "right").save({ version: 1, entries: [] });
+
+    await expect(createEncryptedBlobAdapter<CausalLibrarySnapshot>(storage, "wrong").load()).rejects.toThrow(
+      /Could not decrypt/,
+    );
   });
 });
