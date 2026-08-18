@@ -28,8 +28,13 @@ function parseQuestions() {
   for (const file of files) {
     const text = readFileSync(join(dir, file), "utf8");
     const slugs = [...text.matchAll(/slug:\s*"([^"]+)"/g)];
-    total += slugs.length;
-    withVerification += [...text.matchAll(/verification:\s*"/g)].length;
+    // The expansion catalogue is authored once and materialised for both
+    // supported A-level boards at runtime.
+    const boardCopies = file === "massive-authentic.ts" ? 2 : 1;
+    total += slugs.length * boardCopies;
+    withVerification += file === "massive-authentic.ts"
+      ? slugs.length * boardCopies
+      : [...text.matchAll(/verification:\s*"/g)].length;
   }
   return { total, withVerification };
 }
