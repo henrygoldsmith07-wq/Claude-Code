@@ -2,16 +2,123 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { getSubject, getTopic } from "@/domain/curriculum";
+import { nextGradeTarget } from "@/domain/grades";
+import { QUESTION_DIFFICULTY_MIN_SAMPLES } from "@/domain/knowledge-tracing";
 import type { QuestionDiscriminationBand } from "@/domain/types";
 import { useStore } from "@/state/store";
-import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
+import { Button, ButtonLink, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
 
-// The eight-slice assessment view — every panel answers a concrete question a
+// The assessment view — every panel answers a concrete question a
 // student would ask about an exam, not about the app.
 
 function EmptyHint({ children }: { children: string }) {
   return <p className="text-xs text-ink3">{children}</p>;
+}
+
+export function NextGradeView() {
+  const store = useStore();
+  const rows = store.predictions
+    .map((prediction) => {
+      const subject = getSubject(prediction.subjectId);
+      return subject ? { subject, prediction, target: nextGradeTarget(subject, prediction) } : null;
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="What Gets Me to the Next Grade?"
+        hint="A boundary gap, then the topics with enough modelled headroom to close it. Treat the route as a ranked plan, not a promise."
+      />
+      {rows.length ? (
+        <ul className="divide-y divide-line">
+          {rows.map(({ subject, prediction, target }) => {
+            const first = target.route[0];
+            const firstTopic = first ? getTopic(first.topicId) : undefined;
+            const confidence = Math.round(prediction.confidence * 100);
+            return (
+              <li key={prediction.subjectId} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{subject.name}</p>
+                    <p className="text-xs text-ink3 mt-0.5">
+                      Predicted {prediction.grade} at {prediction.percent}% · confidence {confidence}%
+                    </p>
+                  </div>
+                  <p className="text-lg font-semibold tabular-nums shrink-0">
+                    {target.nextGrade ? `→ ${target.nextGrade.grade}` : "Highest"}
+                  </p>
+                </div>
+
+                {target.nextGrade ? (
+                  <>
+                    <div className="mt-3">
+                      <ProgressBar
+                        value={prediction.percent / target.nextGrade.percent}
+                        label={`Progress to ${target.nextGrade.grade}`}
+                      />
+                    </div>
+                    <p className="text-xs text-ink2 mt-2">
+                      {prediction.percent}% now · {target.nextGrade.percent}% needed for {target.nextGrade.grade}. Need{" "}
+                      <span className="font-semibold">+{target.gapPercent} percentage points</span>. The ranked route models
+                      +{target.modeledGainPercent}pp from the topics below.
+                    </p>
+                    {target.route.length ? (
+                      <ul className="mt-3 space-y-2">
+                        {target.route.slice(0, 3).map((route, index) => (
+                          <li key={route.topicId} className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs text-ink2 truncate">
+                                {index === 0 ? "Start with " : "Then "}
+                                {getTopic(route.topicId)?.title ?? route.topicId}
+                              </p>
+                              <p className="text-[11px] text-ink3">
+                                Up to +{route.potentialPercent}pp headroom
+                              </p>
+                            </div>
+                            <span className="text-xs text-accent font-semibold tabular-nums shrink-0">
+                              +{route.contributionPercent}pp
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-ink3 mt-3">
+                        No topic has enough measured headroom yet. Add marked timed work to replace this estimate with a
+                        firmer route.
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-line">
+                      <p className="text-[11px] text-ink3">
+                        {confidence < 45
+                          ? "Low confidence — add marked questions before treating the target as reliable."
+                          : "Keep checking the gap after each marked set."}
+                      </p>
+                      <ButtonLink href={first ? `/practice?topic=${encodeURIComponent(first.topicId)}` : "/practice"} size="sm">
+                        {firstTopic ? `Practise ${firstTopic.title}` : "Practise a timed set"}
+                      </ButtonLink>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-ink2">
+                      Already at the highest predicted boundary. Protect it with timed papers and mistake retests.
+                    </p>
+                    <ButtonLink href="/practice" size="sm">
+                      Practise a timed set
+                    </ButtonLink>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <EmptyHint>Pick a subject and complete marked work to see a grade target.</EmptyHint>
+      )}
+    </Panel>
+  );
 }
 
 export function ExpectedMarksCard() {
@@ -56,9 +163,9 @@ export function ExpectedMarksCard() {
                 </div>
               </div>
               <span className="text-sm font-semibold tabular-nums text-accent shrink-0">+{row.value.toFixed(1)}</span>
-              <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`}>
-                <Button size="sm">Fix</Button>
-              </Link>
+              <ButtonLink href={`/practice?topic=${encodeURIComponent(row.topicId)}`} size="sm">
+                Fix
+              </ButtonLink>
             </li>
           );
         })}
@@ -129,6 +236,80 @@ export function MarksLostByCause() {
       <div className="mt-3">
         <TimingBreakdown />
       </div>
+    </Panel>
+  );
+}
+
+function accuracyLabel(accuracy: number | null): string {
+  return accuracy == null ? "—" : `${Math.round(accuracy * 100)}%`;
+}
+
+export function CalculationMasteryCard() {
+  const store = useStore();
+  const report = store.calculationMastery;
+  const tone = report.status === "secure" ? "success" : report.status === "developing" ? "review" : "neutral";
+  const statusLabel = report.status === "secure" ? "Secure" : report.status === "developing" ? "Developing" : "Needs evidence";
+  const topics = report.byTopic.slice(0, 6);
+  const errorPatterns = report.errorPatterns.slice(0, 5);
+
+  return (
+    <Panel>
+      <div className="flex items-start justify-between gap-3">
+        <SectionHeading title="Calculation mastery" hint="Marks-weighted performance on calculation questions only." />
+        <Pill tone={tone}>{statusLabel}</Pill>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        <StatTile label="Accuracy" value={accuracyLabel(report.accuracy)} sub={`${report.attempts} question${report.attempts === 1 ? "" : "s"}`} tone={report.status === "secure" ? "success" : report.status === "developing" ? "review" : undefined} />
+        <StatTile label="Marks" value={`${report.marksAwarded}/${report.marksAvailable}`} sub="calculation marks" />
+        <StatTile label="Recent" value={accuracyLabel(report.recent.accuracy)} sub={report.trend == null ? "latest window" : `${report.trend >= 0 ? "+" : ""}${Math.round(report.trend * 100)} pp`} tone={report.trend != null && report.trend < 0 ? "danger" : report.trend != null && report.trend > 0 ? "success" : undefined} />
+        <StatTile label="Threshold" value={`${report.minimumAttempts}`} sub="questions for reliability" />
+      </div>
+      <ProgressBar
+        value={report.accuracy ?? 0}
+        label={report.accuracy == null ? "No calculation evidence yet" : "Overall calculation accuracy"}
+        tone={report.status === "secure" ? "success" : report.status === "developing" ? "review" : "accent"}
+      />
+      <p className="text-xs text-ink2 mt-3">{report.nextAction}</p>
+
+      {(report.calculator.attempts || report.noCalculator.attempts) ? (
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Calculator context</p>
+          <div className="flex flex-wrap gap-1.5">
+            <Pill tone="accent">Allowed: {accuracyLabel(report.calculator.accuracy)} · n={report.calculator.attempts}</Pill>
+            <Pill>Not allowed: {accuracyLabel(report.noCalculator.accuracy)} · n={report.noCalculator.attempts}</Pill>
+          </div>
+        </div>
+      ) : null}
+
+      {topics.length ? (
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">By topic</p>
+          <ul className="space-y-2">
+            {topics.map((row) => (
+              <li key={row.topicId}>
+                <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                  <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`} className="text-ink2 truncate hover:underline">
+                    {getTopic(row.topicId)?.title ?? row.topicId}
+                  </Link>
+                  <span className="text-ink3 tabular-nums shrink-0">{accuracyLabel(row.accuracy)} · n={row.attempts}</span>
+                </div>
+                {row.accuracy != null ? <ProgressBar value={row.accuracy} tone={row.status === "secure" ? "success" : "review"} /> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {errorPatterns.length ? (
+        <div className="mt-4 pt-3 border-t border-line">
+          <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Calculation errors</p>
+          <div className="flex flex-wrap gap-1.5">
+            {errorPatterns.map((pattern) => (
+              <Pill key={pattern.key} tone="danger">{pattern.label} · {pattern.marksLost}m</Pill>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </Panel>
   );
 }
@@ -486,19 +667,17 @@ function TimingBreakdown() {
 export function DifficultyAndSubtopics() {
   const store = useStore();
   const insight = store.assessment;
+  const questionTraces = store.questionTraces;
+  const calibration = store.difficultyCalibration;
   const weakRepeated = insight?.repeatedWeakSubtopics ?? [];
-  // Difficulty slice: average difficulty where marks were lost vs where they weren't
-  const byDifficulty: Record<number, { lost: number; attempts: number }> = {};
-  for (const a of store.attempts) {
-    const q = store.questions.find((qq) => qq.id === a.questionId);
-    const d = q?.difficulty ?? 3;
-    const row = byDifficulty[d] ?? { lost: 0, attempts: 0 };
-    row.lost += a.max - a.awarded;
-    row.attempts += a.max;
-    byDifficulty[d] = row;
-  }
-  const difficultyRows = Object.entries(byDifficulty).sort((a, b) => Number(a[0]) - Number(b[0]));
-  const hasDifficulty = difficultyRows.length > 0;
+  const difficultyRows = calibration.levels;
+  const driftedQuestions = questionTraces
+    .filter((row) => row.reliable && row.gap !== 0)
+    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
+    .slice(0, 4);
+  const questionById = new Map(store.questions.map((question) => [question.id, question]));
+  const calibrationStatus = calibration.status;
+  const hasDifficulty = calibration.totalAttempts > 0;
   const hasRepeated = weakRepeated.length > 0;
 
   if (!hasDifficulty && !hasRepeated) return null;
@@ -506,22 +685,52 @@ export function DifficultyAndSubtopics() {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Panel>
-        <SectionHeading title="Question difficulty" hint="Where the marks actually drop as difficulty rises." />
+        <div className="flex items-start justify-between gap-3">
+          <SectionHeading title="Difficulty calibration" hint="Observed challenge compared with each question's authored level." />
+          <Pill tone={calibrationStatus === "aligned" ? "success" : calibrationStatus === "drifting" ? "review" : "neutral"}>
+            {calibrationStatus === "aligned" ? "Aligned" : calibrationStatus === "drifting" ? "Drifting" : "Needs evidence"}
+          </Pill>
+        </div>
         {hasDifficulty ? (
-          <ul className="space-y-1.5">
-            {difficultyRows.map(([level, row]) => {
-              const rate = row.attempts ? row.lost / row.attempts : 0;
+          <>
+            <ul className="space-y-1.5">
+            {difficultyRows.map((row) => {
               return (
-                <li key={level} className="flex items-center gap-2 text-xs">
-                  <span className="w-10 text-ink3">Level {level}</span>
+                <li key={row.level} className="flex items-center gap-2 text-xs">
+                  <span className="w-10 text-ink3">Level {row.level}</span>
                   <div className="flex-1 h-1.5 rounded-full bg-surface2 overflow-hidden">
-                    <div className="h-full bg-review bar-anim rounded-full" style={{ width: `${Math.round(rate * 100)}%` }} />
+                    <div className="h-full bg-review bar-anim rounded-full" style={{ width: `${Math.round((row.empiricalDifficulty / 5) * 100)}%` }} />
                   </div>
-                  <span className="tabular-nums w-16 text-right text-ink2">{row.lost}/{row.attempts} lost</span>
+                  <span className="tabular-nums w-20 text-right text-ink2">
+                    {row.empiricalDifficulty.toFixed(1)}/5
+                  </span>
+                  <span className="tabular-nums w-16 text-right text-ink3">n={row.attempts}</span>
+                  <span className={row.gap > 0 ? "tabular-nums w-12 text-right text-danger" : row.gap < 0 ? "tabular-nums w-12 text-right text-success" : "tabular-nums w-12 text-right text-ink3"}>
+                    {row.gap > 0 ? "+" : ""}{row.gap.toFixed(1)}
+                  </span>
                 </li>
               );
             })}
-          </ul>
+            </ul>
+            <p className="text-[11px] text-ink3 mt-3">
+              {QUESTION_DIFFICULTY_MIN_SAMPLES} attempts are needed before an item can move away from its authored level; sparse evidence stays at the authored prior.
+            </p>
+            {driftedQuestions.length ? (
+              <div className="mt-3 pt-3 border-t border-line">
+                <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-1.5">Largest item shifts</p>
+                <ul className="space-y-1">
+                  {driftedQuestions.map((row) => (
+                    <li key={row.questionId} className="flex justify-between gap-2 text-xs">
+                      <span className="text-ink2 truncate">{questionById.get(row.questionId)?.stem ?? row.questionId}</span>
+                      <span className={row.gap > 0 ? "text-danger tabular-nums shrink-0" : "text-success tabular-nums shrink-0"}>
+                        {row.intrinsicDifficulty} → {row.empiricalDifficulty.toFixed(1)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
         ) : <EmptyHint>Answer a few questions across difficulties.</EmptyHint>}
       </Panel>
       <Panel>
@@ -533,7 +742,9 @@ export function DifficultyAndSubtopics() {
               return (
                 <li key={id} className="flex justify-between gap-2 text-xs">
                   <span className="text-ink truncate">{t?.title ?? id}</span>
-                  <Link href={`/practice?topic=${encodeURIComponent(id)}`} className="shrink-0"><Button size="sm">Practise</Button></Link>
+                  <ButtonLink href={`/practice?topic=${encodeURIComponent(id)}`} size="sm" className="shrink-0">
+                    Practise
+                  </ButtonLink>
                 </li>
               );
             })}
@@ -643,10 +854,10 @@ export function PaperSimulationCard() {
     <Panel>
       <SectionHeading title="Exam-paper simulation" hint="Predicted marks for a timed paper, with calibration for your optimism." />
       <div className="flex flex-wrap gap-2 mb-3">
-        <select value={subjectId} onChange={(e) => { setSubjectId(e.target.value); const s = subjects.find((x) => x.id === e.target.value); setPaperSpecId(s?.papers[0]?.id ?? ""); }} className="field field-inline text-sm">
+        <select aria-label="Subject for exam-paper simulation" value={subjectId} onChange={(e) => { setSubjectId(e.target.value); const s = subjects.find((x) => x.id === e.target.value); setPaperSpecId(s?.papers[0]?.id ?? ""); }} className="field field-inline text-sm">
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={paperSpecId} onChange={(e) => setPaperSpecId(e.target.value)} className="field field-inline text-sm">
+        <select aria-label="Paper for exam-paper simulation" value={paperSpecId} onChange={(e) => setPaperSpecId(e.target.value)} className="field field-inline text-sm">
           {(subject?.papers ?? []).map((p) => <option key={p.id} value={p.id}>{p.name} · {p.durationMinutes}m</option>)}
         </select>
       </div>

@@ -126,6 +126,7 @@ export function MatchGame({ cards, onExit }: { cards: Card[]; onExit: () => void
           return (
             <li key={tile.id}>
               <button
+                type="button"
                 onClick={() => choose(tile)}
                 disabled={isMatched}
                 aria-pressed={selected?.id === tile.id}

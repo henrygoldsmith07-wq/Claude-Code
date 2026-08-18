@@ -7,10 +7,15 @@ import { misconceptionsForTopic, seedMisconceptions } from "@/content";
 import { predictGrade } from "@/domain/grades";
 import type { GradePrediction } from "@/domain/grades";
 import { computeTopicMastery } from "@/domain/mastery";
+import {
+  applyRetestToMistake,
+  evaluateMistakeRetest,
+  mistakesFromAttempt,
+  shouldResolve,
+} from "@/domain/mistakes";
 import { computeApplicationMastery } from "@/domain/application-mastery";
 import { computeRecallMastery } from "@/domain/recall-mastery";
 import { masteryIntervals } from "@/domain/mastery-uncertainty";
-import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
 import { tallyMisconceptions, type MisconceptionTally } from "@/domain/misconception-library";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
 import { computeFingerprint, fingerprintKey, replanDynamically, type ReplanFingerprint } from "@/domain/replan";
@@ -18,6 +23,27 @@ import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
 import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/domain/gamification";
 import { buildAssessmentInsight, calibrateFromHistory, simulatePaper } from "@/domain/assessment";
+import { calibrateDifficulty, traceQuestions } from "@/domain/knowledge-tracing";
+import type { DifficultyCalibrationReport, QuestionTrace } from "@/domain/knowledge-tracing";
+import { calculateCalculationMastery } from "@/domain/calculation-mastery";
+import type { CalculationMasteryReport } from "@/domain/calculation-mastery";
+import {
+  adaptiveDifficultyCalibration,
+  buildPredictionOutcomePairs,
+  predictionOutcomeReport,
+  sparseEvidenceConfidence as buildSparseEvidenceConfidence,
+} from "@/domain/learning-controls";
+import type {
+  AdaptiveDifficultyReport,
+  PredictionOutcomeReport,
+  SparseEvidenceConfidenceReport,
+} from "@/domain/learning-controls";
+import { questionExposureReport } from "@/domain/question-exposure";
+import type { QuestionExposureReport } from "@/domain/question-exposure";
+import { rootPrerequisiteRemediation as buildRootPrerequisiteRemediation } from "@/domain/prerequisites";
+import type { RootPrerequisiteRemediation } from "@/domain/prerequisites";
+import { validateFsrs } from "@/domain/fsrs-tuning";
+import type { FsrsValidation } from "@/domain/fsrs-tuning";
 import { buildResponseTimeCalibration } from "@/domain/response-time-calibration";
 import type { ResponseTimeCalibrationReport } from "@/domain/response-time-calibration";
 import type {
@@ -48,6 +74,11 @@ import { LOCAL_USER_ID } from "@/data/repository";
 import type { Snapshot } from "@/data/repository";
 import { SYNC_QUEUE_EVENT, outboxSize, sync } from "@/data/sync";
 import { isSupabaseConfigured } from "@/data/supabase";
+import {
+  createRevisionCheckpoint,
+  type RevisionCheckpoint,
+  type RevisionCheckpointInput,
+} from "@/domain/revision-checkpoint";
 
 // ---------------------------------------------------------------------------
 // One store for the whole app. Revision data is small (thousands of rows at
@@ -87,6 +118,16 @@ interface StoreValue extends Snapshot {
   /** Why the plan last changed itself, or null when nothing has. */
   replanSummary: string | null;
   calibrations: Map<Id, Calibration>;
+  questionTraces: QuestionTrace[];
+  difficultyCalibration: DifficultyCalibrationReport;
+  calculationMastery: CalculationMasteryReport;
+  sparseEvidenceConfidence: SparseEvidenceConfidenceReport;
+  predictionOutcome: PredictionOutcomeReport;
+  adaptiveDifficulty: AdaptiveDifficultyReport;
+  forgettingCalibration: FsrsValidation;
+  questionExposure: QuestionExposureReport;
+  rootPrerequisiteRemediation: RootPrerequisiteRemediation[];
+  revisionCheckpoint: RevisionCheckpoint | null;
   responseTimeCalibration: ResponseTimeCalibrationReport;
   syncStatus: SyncStatus;
   /** Build a paper simulation for the given subject/paper without mutating state. */
@@ -107,6 +148,8 @@ interface StoreValue extends Snapshot {
   upsertExamDate(exam: ExamDate): Promise<void>;
   removeExamDate(id: Id): Promise<void>;
   updateSettings(patch: Partial<UserSettings>): Promise<void>;
+  saveRevisionCheckpoint(input: RevisionCheckpointInput): Promise<void>;
+  clearRevisionCheckpoint(): Promise<void>;
   syncNow(): Promise<void>;
 }
 
@@ -120,6 +163,7 @@ export function useStore(): StoreValue {
 
 export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: ReactNode; userId?: Id }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [revisionCheckpoint, setRevisionCheckpoint] = useState<RevisionCheckpoint | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     online: true,
@@ -137,7 +181,11 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     if (bootstrapped.current) return;
     bootstrapped.current = true;
     void (async () => {
-      const loaded = await repo.loadSnapshot(userId);
+      const [loaded, checkpoint] = await Promise.all([
+        repo.loadSnapshot(userId),
+        repo.loadRevisionCheckpoint(userId),
+      ]);
+      setRevisionCheckpoint(checkpoint ?? null);
       setSnapshot(loaded);
       lastFingerprint.current = computeFingerprint({
         exams: loaded.examDates,
@@ -329,10 +377,60 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     });
   }, [snapshot, mastery]);
 
+  const questionTraces = useMemo(() => {
+    if (!snapshot) return [];
+    const attemptsByQuestion = new Map<Id, Attempt[]>();
+    for (const attempt of snapshot.attempts) {
+      const rows = attemptsByQuestion.get(attempt.questionId) ?? [];
+      rows.push(attempt);
+      attemptsByQuestion.set(attempt.questionId, rows);
+    }
+    return traceQuestions({ questions: snapshot.questions, attemptsByQuestion });
+  }, [snapshot]);
+  const difficultyCalibration = useMemo(() => calibrateDifficulty(questionTraces), [questionTraces]);
+  const calculationMastery = useMemo(() => {
+    if (!snapshot) return calculateCalculationMastery({ questions: [], attempts: [], mistakes: [] });
+    return calculateCalculationMastery({
+      questions: snapshot.questions,
+      attempts: snapshot.attempts,
+      mistakes: snapshot.mistakes,
+    });
+  }, [snapshot]);
+  const sparseEvidenceConfidence = useMemo(() => {
+    if (!snapshot) return buildSparseEvidenceConfidence({ topics: [], mastery: [], cards: [], attempts: [], mistakes: [] });
+    return buildSparseEvidenceConfidence({
+      topics,
+      mastery,
+      cards: snapshot.cards,
+      attempts: snapshot.attempts,
+      mistakes: snapshot.mistakes,
+    });
+  }, [snapshot, topics, mastery]);
+  const predictionOutcome = useMemo(() => {
+    if (!snapshot) return predictionOutcomeReport([]);
+    return predictionOutcomeReport(buildPredictionOutcomePairs({ attempts: snapshot.attempts, questions: snapshot.questions }));
+  }, [snapshot]);
+  const adaptiveDifficulty = useMemo(() => {
+    if (!snapshot) return adaptiveDifficultyCalibration({ questions: [], traces: [] });
+    return adaptiveDifficultyCalibration({ questions: snapshot.questions, traces: questionTraces });
+  }, [snapshot, questionTraces]);
+  const forgettingCalibration = useMemo(
+    () => validateFsrs({ cards: snapshot?.cards ?? [], logs: snapshot?.reviewLogs ?? [] }),
+    [snapshot],
+  );
+  const questionExposure = useMemo(() => {
+    if (!snapshot) return questionExposureReport({ questions: [], attempts: [] });
+    return questionExposureReport({ questions: snapshot.questions, attempts: snapshot.attempts });
+  }, [snapshot]);
+
   const marksPerHour = useMemo(() => {
     if (!assessment) return new Map<Id, number>();
     return new Map(assessment.expectedMarksPerHour.map((r) => [r.topicId, r.value] as const));
   }, [assessment]);
+  const rootPrerequisiteRemediation = useMemo(
+    () => buildRootPrerequisiteRemediation({ topics, mastery, marksPerHour }),
+    [topics, mastery, marksPerHour],
+  );
 
   const recurringMisconceptions = useMemo(
     () => (snapshot ? tallyMisconceptions(snapshot.mistakes, seedMisconceptions) : []),
@@ -532,9 +630,25 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   const recordAttempt = useCallback<StoreValue["recordAttempt"]>(
     async (attempt, question) => {
+      const isRetest = Boolean(attempt.retestMistakeId);
+      const retestMistake = isRetest
+        ? snapshot?.mistakes.find((mistake) => mistake.id === attempt.retestMistakeId && !mistake.resolved)
+        : undefined;
+      if (isRetest && !retestMistake) {
+        throw new Error("Cannot retest an unavailable or already resolved mistake.");
+      }
+      const retestEvaluation = retestMistake ? evaluateMistakeRetest(retestMistake, question, attempt) : undefined;
+      const updatedMistake = retestMistake && retestEvaluation
+        ? applyRetestToMistake(retestMistake, retestEvaluation, attempt)
+        : undefined;
+
       await repo.saveAttempt(attempt);
+      if (updatedMistake) await repo.saveMistake(updatedMistake);
+
+      // A failed retest updates the original mistake in place. It must not
+      // create another card for the same gap.
       const misconceptions = [...new Set(question.topicIds.flatMap((id) => misconceptionsForTopic(id)))];
-      const drafts = mistakesFromAttempt(attempt, question, undefined, undefined, misconceptions);
+      const drafts = isRetest ? [] : mistakesFromAttempt(attempt, question, undefined, undefined, misconceptions);
       if (drafts.length) {
         await repo.saveMistakes(drafts.map((d) => d.mistake));
         await repo.saveCards(drafts.map((d) => d.card));
@@ -544,17 +658,20 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
         const next: Snapshot = {
           ...prev,
           attempts: [...prev.attempts, attempt],
-          mistakes: [...prev.mistakes, ...drafts.map((d) => d.mistake)],
+          mistakes: updatedMistake
+            ? prev.mistakes.map((mistake) => (mistake.id === updatedMistake.id ? updatedMistake : mistake))
+            : [...prev.mistakes, ...drafts.map((d) => d.mistake)],
           cards: [...prev.cards, ...drafts.map((d) => d.card)],
         };
-        void bumpGamification(prev.streak, attempt.awarded * XP.attemptMark, {}, next).then((streak) =>
+        const retestXp = retestEvaluation?.status === "resolved" ? XP.mistakeResolved : 0;
+        void bumpGamification(prev.streak, attempt.awarded * XP.attemptMark + retestXp, {}, next).then((streak) =>
           patch((p) => ({ ...p, streak })),
         );
         return next;
       });
-      return drafts.map((d) => d.mistake);
+      return updatedMistake ? [updatedMistake] : drafts.map((d) => d.mistake);
     },
-    [bumpGamification, patch],
+    [bumpGamification, patch, snapshot],
   );
 
   const addCards = useCallback<StoreValue["addCards"]>(
@@ -696,6 +813,20 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     [snapshot, patch],
   );
 
+  const saveRevisionCheckpoint = useCallback<StoreValue["saveRevisionCheckpoint"]>(
+    async (input) => {
+      const checkpoint = createRevisionCheckpoint(userId, input);
+      await repo.saveRevisionCheckpoint(checkpoint);
+      setRevisionCheckpoint(checkpoint);
+    },
+    [userId],
+  );
+
+  const clearRevisionCheckpoint = useCallback<StoreValue["clearRevisionCheckpoint"]>(async () => {
+    await repo.clearRevisionCheckpoint(userId);
+    setRevisionCheckpoint(null);
+  }, [userId]);
+
   const value: StoreValue | null = useMemo(() => {
     if (!snapshot) return null;
     return {
@@ -716,6 +847,16 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       recurringMisconceptions,
       replanSummary,
       calibrations,
+      questionTraces,
+      difficultyCalibration,
+      calculationMastery,
+      sparseEvidenceConfidence,
+      predictionOutcome,
+      adaptiveDifficulty,
+      forgettingCalibration,
+      questionExposure,
+      rootPrerequisiteRemediation,
+      revisionCheckpoint,
       responseTimeCalibration,
       previewPaper,
       syncStatus,
@@ -733,6 +874,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       upsertExamDate,
       removeExamDate,
       updateSettings,
+      saveRevisionCheckpoint,
+      clearRevisionCheckpoint,
       syncNow,
     };
   }, [
@@ -752,6 +895,16 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     recurringMisconceptions,
     replanSummary,
     calibrations,
+    questionTraces,
+    difficultyCalibration,
+    calculationMastery,
+    sparseEvidenceConfidence,
+    predictionOutcome,
+    adaptiveDifficulty,
+    forgettingCalibration,
+    questionExposure,
+    rootPrerequisiteRemediation,
+    revisionCheckpoint,
     responseTimeCalibration,
     previewPaper,
     syncStatus,
@@ -769,6 +922,8 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     upsertExamDate,
     removeExamDate,
     updateSettings,
+    saveRevisionCheckpoint,
+    clearRevisionCheckpoint,
     syncNow,
   ]);
 

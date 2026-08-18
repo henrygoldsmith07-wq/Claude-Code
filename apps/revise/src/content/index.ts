@@ -2,6 +2,9 @@ import type { Id, Misconception, Question } from "@/domain/types";
 import { biologyQuestions } from "./questions/biology";
 import { biologyAqaQuestions } from "./questions/biology-aqa";
 import { biologyAqaExtraQuestions } from "./questions/biology-aqa-extra";
+import { aqaGcseQuestions } from "./questions/aqa-gcse";
+import { aqaGcsePracticalQuestions } from "./questions/aqa-gcse-practical";
+import { aqaGcseSynopticQuestions } from "./questions/aqa-gcse-synoptic";
 import { biologyExtraQuestions } from "./questions/biology-extra";
 import { chemistryQuestions } from "./questions/chemistry";
 import { chemistryAqaQuestions } from "./questions/chemistry-aqa";
@@ -55,9 +58,12 @@ export const seedQuestions: Question[] = [
   ...mathsAqaExtraQuestions,
   ...physicsAqaQuestions,
   ...physicsAqaExtraQuestions,
+  ...aqaGcseQuestions,
+  ...aqaGcsePracticalQuestions,
+  ...aqaGcseSynopticQuestions,
 ];
 
-export { authenticExpansionQuestions };
+export { aqaGcsePracticalQuestions, aqaGcseQuestions, aqaGcseSynopticQuestions, authenticExpansionQuestions };
 export { gcseExpansionQuestions };
 export { edexcelExpansionQuestions };
 export { dataExpansionQuestions };

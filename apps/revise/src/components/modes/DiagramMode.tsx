@@ -99,6 +99,7 @@ function DiagramRound({
             const done = round.placed[hotspot.id];
             return (
               <button
+                type="button"
                 key={hotspot.id}
                 onClick={() => tapHotspot(hotspot.id)}
                 aria-label={done ? `${done}, placed` : "Unlabelled point"}
@@ -146,6 +147,7 @@ function DiagramRound({
           <div className="flex flex-wrap gap-1.5">
             {round.bank.map((label) => (
               <button
+                type="button"
                 key={label}
                 onClick={() => setPicked(picked === label ? null : label)}
                 className={cx(

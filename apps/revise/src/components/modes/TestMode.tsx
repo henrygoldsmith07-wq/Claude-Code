@@ -166,6 +166,7 @@ export function TestMode({ cards, onExit }: { cards: Card[]; onExit: () => void 
                 {question.options.map((option, optionIndex) => (
                   <li key={optionIndex}>
                     <button
+                      type="button"
                       onClick={() => setAnswers((prev) => ({ ...prev, [question.id]: String(optionIndex) }))}
                       className={cx(
                         "w-full text-left card px-3 py-2.5 min-h-[2.75rem] transition-colors",

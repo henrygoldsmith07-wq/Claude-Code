@@ -7,6 +7,7 @@ import type { Availability, ExamDate } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { Button, Field, Panel, ProgressBar, cx } from "./ui";
 import { CreditedIcon } from "./icons";
+import { useFocusTrap } from "./useFocusTrap";
 
 // ---------------------------------------------------------------------------
 // First run.
@@ -42,6 +43,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const subjects = useMemo(() => allSubjects(), []);
   const today = todayIso();
   const steps = ["You", "Subjects", "Exams", "Time"];
+  const dialogRef = useFocusTrap(true, onDone);
 
   async function finish() {
     setSaving(true);
@@ -77,7 +79,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const canContinue = step === 1 ? subjectIds.length > 0 : true;
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg overflow-y-auto" role="dialog" aria-modal="true" aria-label="Onboarding">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-50 bg-bg overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-step-title"
+      tabIndex={-1}
+    >
       <div className="min-h-full flex items-center justify-center p-4">
         <div className="w-full max-w-lg space-y-4 app-enter motion-safe:app-enter">
           <div>
@@ -89,7 +98,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
           {step === 0 ? (
             <Panel className="space-y-3">
-              <h1 className="text-xl font-semibold tracking-tight">Revision that knows what to do next</h1>
+              <h1 id="onboarding-step-title" className="text-xl font-semibold tracking-tight">Revision that knows what to do next</h1>
               <p className="text-sm text-ink2">
                 Open the app, get one recommended task, do it, get marked. No deciding what to revise, no blank
                 page. Four quick questions and it is set up.
@@ -111,7 +120,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {step === 1 ? (
             <Panel className="space-y-3">
               <div>
-                <h2 className="text-sm font-semibold">Which subjects are you taking?</h2>
+                <h2 id="onboarding-step-title" className="text-sm font-semibold">Which subjects are you taking?</h2>
                 <p className="text-xs text-ink3 mt-0.5">
                   Each comes with its specification, flashcards and exam questions already written.
                 </p>
@@ -127,6 +136,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                             on ? subjectIds.filter((id) => id !== subject.id) : [...subjectIds, subject.id],
                           )
                         }
+                        type="button"
                         className={cx(
                           "w-full text-left card px-4 py-3 min-h-[3.25rem] flex items-center gap-3 transition-colors",
                           on ? "border-ink3 bg-surface2" : "hover:border-ink3",
@@ -156,7 +166,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {step === 2 ? (
             <Panel className="space-y-3">
               <div>
-                <h2 className="text-sm font-semibold">When are the exams?</h2>
+                <h2 id="onboarding-step-title" className="text-sm font-semibold">When are the exams?</h2>
                 <p className="text-xs text-ink3 mt-0.5">
                   This is what makes the plan urgent in the right places. Skip any you do not know yet.
                 </p>
@@ -178,6 +188,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   {["A*", "A", "B", "C"].map((grade) => (
                     <button
                       key={grade}
+                      type="button"
                       onClick={() => setTarget(grade)}
                       aria-pressed={target === grade}
                       aria-label={`Target grade ${grade}`}
@@ -197,7 +208,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {step === 3 ? (
             <Panel className="space-y-3">
               <div>
-                <h2 className="text-sm font-semibold">How much time do you have?</h2>
+                <h2 id="onboarding-step-title" className="text-sm font-semibold">How much time do you have?</h2>
                 <p className="text-xs text-ink3 mt-0.5">
                   The planner never schedules more than this. You can fine-tune each day later.
                 </p>
@@ -207,6 +218,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   <li key={option.label}>
                     <button
                       onClick={() => setPreset(i)}
+                      type="button"
                       className={cx(
                         "w-full text-left card px-4 py-3 min-h-[3.25rem] transition-colors",
                         preset === i ? "border-ink3 bg-surface2" : "hover:border-ink3",
@@ -254,7 +266,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             )}
           </div>
 
-          <button onClick={onDone} className="w-full text-center text-xs text-ink3 hover:text-ink py-2" aria-label="Skip onboarding">
+          <button type="button" onClick={onDone} className="w-full text-center text-xs text-ink3 hover:text-ink py-2" aria-label="Skip onboarding">
             Skip — I will set this up later
           </button>
         </div>

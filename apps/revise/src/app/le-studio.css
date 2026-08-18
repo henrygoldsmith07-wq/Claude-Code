@@ -228,7 +228,8 @@ html { -webkit-text-size-adjust: 100%; }
   transition: border-color 0.15s ease;
 }
 .field::placeholder { color: var(--ink-3); }
-.field:focus { outline: none; border-color: var(--ink-3); }
+.field:focus { border-color: var(--ink-3); }
+.field:focus:not(:focus-visible) { outline: none; }
 
 /* ---- pills / badges ---- */
 .pill {

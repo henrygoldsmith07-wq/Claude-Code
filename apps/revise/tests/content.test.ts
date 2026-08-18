@@ -11,7 +11,7 @@ import {
   topicsFor,
   unitsFor,
 } from "@/domain/curriculum";
-import { gradeForPercent, predictGrade } from "@/domain/grades";
+import { gradeForPercent, nextGradeTarget, predictGrade } from "@/domain/grades";
 import { addXp, levelFor, newlyUnlocked, touchStreak, unlockedAchievements } from "@/domain/gamification";
 import { search } from "@/domain/search";
 import type { Attempt, StreakState, TopicMastery } from "@/domain/types";
@@ -232,6 +232,28 @@ describe("grade prediction", () => {
     rows[0] = { ...rows[0], mastery: 0.1 };
     const prediction = predictGrade(subject, rows, [], [], "2025-06-01");
     expect(prediction.headroom[0].topicId).toBe(rows[0].topicId);
+  });
+
+  it("turns grade headroom into a route to the next boundary", () => {
+    const prediction = {
+      subjectId: subject.id,
+      percent: 56,
+      grade: "C",
+      bestCase: "B",
+      worstCase: "D",
+      confidence: 0.62,
+      trend: 2,
+      headroom: [
+        { topicId: "topic-a", potentialPercent: 5 },
+        { topicId: "topic-b", potentialPercent: 3 },
+      ],
+    };
+    const target = nextGradeTarget(subject, prediction);
+    expect(target.nextGrade).toEqual({ grade: "B", percent: 60 });
+    expect(target.gapPercent).toBe(4);
+    expect(target.modeledGainPercent).toBe(4);
+    expect(target.route[0]).toEqual({ topicId: "topic-a", potentialPercent: 5, contributionPercent: 4 });
+    expect(target.remainingPercent).toBe(0);
   });
 });
 

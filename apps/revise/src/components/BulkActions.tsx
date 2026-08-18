@@ -124,7 +124,12 @@ export function BulkActions({
         {mode ? (
           <div className="flex gap-1.5 items-center">
             {mode === "move" ? (
-              <select value={value} onChange={(e) => setValue(e.target.value)} className="field text-sm flex-1">
+              <select
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="field text-sm flex-1"
+                aria-label="Topic to move selected cards to"
+              >
                 <option value="">Choose a topic…</option>
                 {moveTopics.map((topic) => (
                   <option key={topic.id} value={topic.id}>
@@ -140,6 +145,7 @@ export function BulkActions({
                 onKeyDown={(e) => e.key === "Enter" && void commitTag()}
                 placeholder="paper-1, tricky"
                 className="field text-sm flex-1"
+                aria-label="Tags to add to selected cards"
               />
             )}
             <Button

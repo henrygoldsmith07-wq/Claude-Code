@@ -324,7 +324,7 @@ export function paperAnalytics(input: {
   if (!attempts.length) return [];
 
   // Group by (subjectId, paperSpecId). Fall back to subject-level when paper unknown.
-  const keyFor = (a: Attempt): string => `${a.subjectId}::${(a as unknown as { paperSpecId?: Id }).paperSpecId ?? "unknown"}`;
+  const keyFor = (a: Attempt): string => `${a.subjectId}::${a.paperSpecId ?? "unknown"}`;
   const byKey = new Map<string, Attempt[]>();
   for (const a of attempts) {
     const k = keyFor(a);

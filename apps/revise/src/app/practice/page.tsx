@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { remediationForMistake } from "@/domain/remediation";
+import { rankQuestionsForExposure } from "@/domain/question-exposure";
 import { delayedFarTransferRetests } from "@/domain/delayed-far-transfer";
 import { todayIso } from "@/domain/scheduling";
 import { buildPostSessionClosure } from "@/domain/post-session-closure";
-import type { Attempt, Question } from "@/domain/types";
+import type { Attempt, Mistake, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { QuestionRunner, type QuestionDraft } from "@/components/QuestionRunner";
@@ -16,7 +18,7 @@ import { QuestionNavigator } from "@/components/QuestionNavigator";
 import { parseQuickSessionMinutes, type QuickSessionMinutes } from "@/domain/quick-session";
 import { QuickSessionMode, QuickSessionPicker } from "@/components/QuickSessionMode";
 import { RichText } from "@/components/RichText";
-import { Button, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
 
 // Question practice. The queue is built from everything the student has: the
 // authored bank, questions extracted from their own uploaded papers, and
@@ -33,30 +35,33 @@ export default function PracticePage() {
 function Practice() {
   const params = useSearchParams();
   const store = useStore();
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
   const subjects = useSubjects();
   const topicParam = params.get("topic");
   const subjectParam = params.get("subject");
   const sessionId = params.get("session");
   const questionParam = params.get("question");
-  const retestParam = params.get("retest");
+  const retestId = params.get("retest");
   const mode = params.get("mode") === "recall" ? "recall" : "practice";
+  const resumeRequested = params.get("resume") === "1";
+  const savedCheckpoint =
+    resumeRequested && store.revisionCheckpoint?.activity === "practice" ? store.revisionCheckpoint : null;
+
+  const [generating, setGenerating] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const today = todayIso();
   const farTransferRetests = useMemo(
     () => delayedFarTransferRetests({ attempts: store.attempts, questions: store.questions, today }),
     [store.attempts, store.questions, today],
   );
-  const farTransferRetest = retestParam
-    ? farTransferRetests.find((retest) => retest.retestId === retestParam && retest.status !== "completed")
+  const farTransferRetest = retestId
+    ? farTransferRetests.find((retest) => retest.retestId === retestId && retest.status !== "completed")
     : undefined;
   const requestedQuestionParam = farTransferRetest?.candidateQuestionId ?? questionParam;
-
   const [subjectId, setSubjectId] = useState(subjectParam ?? farTransferRetest?.subjectId ?? subjects[0]?.id ?? "");
   const [topicId, setTopicId] = useState(topicParam ?? farTransferRetest?.topicIds[0] ?? "");
   const quickParam = params.get("quick");
   const [quickMinutes, setQuickMinutes] = useState<QuickSessionMinutes | null>(() => parseQuickSessionMinutes(quickParam));
-  const [index, setIndex] = useState(0);
-  const [generating, setGenerating] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   const [sessionAttempts, setSessionAttempts] = useState<Attempt[]>([]);
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, QuestionDraft>>({});
   const [closed, setClosed] = useState(false);
@@ -66,6 +71,30 @@ function Practice() {
   const [finishing, setFinishing] = useState(false);
 
   const masteryByTopic = useMemo(() => new Map(store.mastery.map((m) => [m.topicId, m])), [store.mastery]);
+  const questionsById = useMemo(
+    () => new Map(store.questions.map((q) => [q.id, q] as const)),
+    [store.questions],
+  );
+  const retestMistake: Mistake | undefined = useMemo(
+    () => (retestId ? store.mistakes.find((mistake) => mistake.id === retestId) : undefined),
+    [retestId, store.mistakes],
+  );
+  const retestQuestion = retestMistake?.questionId ? questionsById.get(retestMistake.questionId) : undefined;
+  const originalAttempt = retestMistake?.attemptId
+    ? store.attempts.find((attempt) => attempt.id === retestMistake.attemptId)
+    : undefined;
+  const retestRemediation = useMemo(
+    () =>
+      retestMistake && retestQuestion
+        ? remediationForMistake(
+            retestMistake,
+            retestQuestion,
+            originalAttempt,
+            getTopic(retestMistake.topicId),
+          )
+        : null,
+    [originalAttempt, retestMistake, retestQuestion],
+  );
 
   /**
    * Order the pool once, then hold it. Marking an answer changes mastery and
@@ -75,38 +104,64 @@ function Practice() {
    * or generates new questions.
    */
   const orderFor = (subject: string, topic: string): string[] => {
+    if (retestQuestion) return [retestQuestion.id];
     let pool = store.questions.filter((q) => store.settings.subjectIds.includes(q.subjectId));
     if (requestedQuestionParam) pool = pool.filter((q) => q.id === requestedQuestionParam);
     else {
       if (subject) pool = pool.filter((q) => q.subjectId === subject);
       if (topic) pool = pool.filter((q) => q.topicIds.includes(topic));
     }
-    // Unseen questions first, then weakest topic. Re-doing a question you have
-    // already marked teaches recall of the answer, not of the content.
-    const attempted = new Set(store.attempts.map((a) => a.questionId));
-    return [...pool]
-      .sort((a, b) => {
-        const seen = Number(attempted.has(a.id)) - Number(attempted.has(b.id));
-        if (seen !== 0) return seen;
-        const masteryA = masteryByTopic.get(a.topicIds[0] ?? "")?.mastery ?? 0.5;
-        const masteryB = masteryByTopic.get(b.topicIds[0] ?? "")?.mastery ?? 0.5;
-        return masteryA - masteryB;
-      })
+    // Exposure control keeps unseen questions ahead of secure repeats, while
+    // still allowing weak questions back into the queue when they need work.
+    return rankQuestionsForExposure({
+      questions: pool,
+      attempts: store.attempts,
+      masteryByTopic: new Map([...masteryByTopic.entries()].map(([id, row]) => [id, row.mastery])),
+    })
       .map((q) => q.id);
   };
 
-  const [order, setOrder] = useState<string[]>(() => orderFor(subjectId, topicId));
+  const [index, setIndex] = useState(() => savedCheckpoint?.position ?? 0);
+  const [order, setOrder] = useState<string[]>(() => savedCheckpoint?.queueIds?.length ? savedCheckpoint.queueIds : orderFor(subjectId, topicId));
 
-  const questionsById = useMemo(
-    () => new Map(store.questions.map((q) => [q.id, q])),
-    [store.questions],
-  );
   const queue = useMemo(
     () => order.map((id) => questionsById.get(id)).filter((q): q is Question => Boolean(q)),
     [order, questionsById],
   );
 
-  const current: Question | undefined = queue[index];
+  const current: Question | undefined = retestMistake ? retestQuestion : queue[index];
+
+  const checkpointHref = useMemo(() => {
+    const next = new URLSearchParams();
+    if (subjectId) next.set("subject", subjectId);
+    if (topicId) next.set("topic", topicId);
+    if (mode === "recall") next.set("mode", mode);
+    if (sessionId) next.set("session", sessionId);
+    if (retestId) next.set("retest", retestId);
+    next.set("resume", "1");
+    const query = next.toString();
+    return query ? `/practice?${query}` : "/practice?resume=1";
+  }, [mode, retestId, sessionId, subjectId, topicId]);
+
+  useEffect(() => {
+    if (closed || !current) {
+      if (resumeRequested && !current) void clearRevisionCheckpoint();
+      return;
+    }
+    if (retestMistake?.resolved) {
+      void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "practice",
+      title: retestMistake ? "Retest a mistake" : mode === "recall" ? "Active recall" : "Exam questions",
+      href: checkpointHref,
+      position: retestMistake ? 0 : index,
+      total: retestMistake ? 1 : queue.length,
+      queueIds: retestMistake ? [current.id] : order,
+      retestMistakeId: retestMistake?.id,
+    });
+  }, [checkpointHref, clearRevisionCheckpoint, closed, current, index, mode, order, queue.length, resumeRequested, retestMistake, saveRevisionCheckpoint]);
 
   function resetSession() {
     setSessionAttempts([]);
@@ -221,10 +276,12 @@ function Practice() {
       <header className="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">
-            {mode === "recall" ? "Active recall" : "Exam questions"}
+            {retestMistake ? "Retest a mistake" : mode === "recall" ? "Active recall" : "Exam questions"}
           </h1>
           <p className="text-sm text-ink3 mt-0.5">
-            {mode === "recall"
+            {retestMistake
+              ? "Apply the remediation, answer the original question again, and close the loop only when the missed point is secure."
+              : mode === "recall"
               ? "Answer from memory with nothing in front of you, then get it marked."
               : "Answer as you would in the exam. Every dropped mark becomes a card."}
           </p>
@@ -278,14 +335,14 @@ function Practice() {
       <div className="grid grid-cols-1 sm:flex sm:flex-wrap sm:items-center gap-2">
         <select
           value={topicId}
-          disabled={Boolean(farTransferRetest)}
+          disabled={Boolean(retestMistake || farTransferRetest)}
           onChange={(e) => {
             setTopicId(e.target.value);
             // The queue is rebuilt for the new filter, so a stale cursor would
-            // land on an unrelated question.
-            setIndex(0);
-            setOrder(orderFor(subjectId, e.target.value));
-            resetSession();
+             // land on an unrelated question.
+             setIndex(0);
+             setOrder(orderFor(subjectId, e.target.value));
+             resetSession();
           }}
           className="field field-inline text-sm w-full sm:w-auto"
           aria-label="Topic"
@@ -301,7 +358,7 @@ function Practice() {
             );
           })}
         </select>
-        <Button size="sm" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating || Boolean(farTransferRetest)}>
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating || Boolean(retestMistake || farTransferRetest)}>
           {generating ? "Generating…" : "Generate similar questions"}
         </Button>
         {queue.length ? (
@@ -313,6 +370,37 @@ function Practice() {
 
       {note ? <p className="text-xs text-ink3">{note}</p> : null}
 
+      {retestMistake && current ? (
+        <Panel className="card-2 border-l-4 border-l-accent">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone={retestMistake.resolved ? "success" : "danger"}>
+              {retestMistake.resolved ? "Resolved mistake" : "Open mistake"}
+            </Pill>
+            <span className="text-xs text-ink3">{retestMistake.description}</span>
+          </div>
+          {retestRemediation ? (
+            <div className="mt-3 space-y-1.5">
+              <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold">Remediation</p>
+              <p className="text-sm text-ink">{retestRemediation.action}</p>
+              <p className="text-xs text-ink3">Evidence: {retestRemediation.evidence}</p>
+              {retestRemediation.targetKeyPoint ? (
+                <p className="text-xs text-ink3">Restudy: {retestRemediation.targetKeyPoint}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="text-[11px] text-ink3 mt-3">
+            Targeted retests: {retestMistake.retestCount ?? 0} · submit when you are ready to check the point again.
+          </p>
+        </Panel>
+      ) : retestId ? (
+        <Panel>
+          <p className="text-sm text-ink2">That mistake or its source question is no longer available.</p>
+          <ButtonLink href="/progress" variant="primary" className="inline-block mt-3">
+            Return to Progress
+          </ButtonLink>
+        </Panel>
+      ) : null}
+
       {mode === "recall" && current ? (
         <Panel className="card-2">
           <p className="text-xs text-ink2">
@@ -323,7 +411,7 @@ function Practice() {
         </Panel>
       ) : null}
 
-      {current ? (
+      {retestId && (!retestMistake || !retestQuestion) ? null : current ? (
         <>
           <QuestionNavigator
             currentIndex={index}
@@ -342,9 +430,10 @@ function Practice() {
             controlsClassName="grid grid-cols-2 gap-2"
           />
           <QuestionRunner
-            key={current.id}
+            key={`${current.id}:${retestMistake?.id ?? "practice"}`}
             question={current}
             mode={mode}
+            retestMistake={retestMistake}
             farTransfer={farTransferRetest}
             draft={questionDrafts[current.id]}
             onDraftChange={(draft) => setQuestionDrafts((previous) => ({ ...previous, [current.id]: draft }))}
@@ -360,6 +449,11 @@ function Practice() {
               });
             }}
           />
+          {retestMistake ? (
+            <ButtonLink href="/progress" variant="primary" className="inline-block">
+              Back to Progress
+            </ButtonLink>
+          ) : null}
         </>
       ) : (
         <EmptyState
@@ -374,9 +468,7 @@ function Practice() {
               <Button variant="primary" className="w-full sm:w-auto" onClick={() => void generate()} disabled={generating}>
                 Generate questions
               </Button>
-              <Link href="/papers">
-                <Button className="w-full sm:w-auto">Upload a paper</Button>
-              </Link>
+              <ButtonLink href="/papers">Upload a paper</ButtonLink>
             </div>
           }
         />

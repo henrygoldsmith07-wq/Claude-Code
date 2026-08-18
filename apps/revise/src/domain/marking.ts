@@ -1,5 +1,5 @@
 import { symbolicMatch } from "./maths-equivalence";
-import type { MarkedPart, Question, QuestionPart } from "./types";
+import type { MarkEvidence, MarkedPart, Question, QuestionPart } from "./types";
 
 // ---------------------------------------------------------------------------
 // Offline marking. This is the floor the product stands on: when no AI
@@ -89,9 +89,9 @@ function numbersClose(a: number, b: number, relEps = 0.01, absEps = 0.005): bool
 
 /** True when the answer contains a number equivalent to any number in the mark scheme. */
 function numericMatch(point: string, answer: string): boolean {
-  const wanted = extractNumbers(point);
+  const wanted = extractNumbers(point.replace(/[−–—]/g, "-"));
   if (!wanted.length) return false;
-  const given = extractNumbers(answer);
+  const given = extractNumbers(answer.replace(/[−–—]/g, "-"));
   if (!given.length) return false;
   // Also accept unicode fractions like ½ ¼ ¾
   const unicodeFrac: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1/3, "⅔": 2/3 };
@@ -123,14 +123,131 @@ export interface PartialCreditCalibration {
 }
 
 /** Evaluate whether a mark-scheme point looks like a calculation/numeric point. */
-function isNumericPoint(point: string): boolean {
-  return /\d/.test(point) && /\b(answer|calculate|value|concentration|mol|J\b|kJ|m s|Pa|N\b)/i.test(point);
+export function isNumericPoint(point: string): boolean {
+  if (!/\d/.test(point)) return false;
+  return (
+    /\b(answer|calculate|value|concentration|mol|kJ)\b/i.test(point) ||
+    /\d\s*(?:J|Pa|N)\b/i.test(point) ||
+    /\bm\s*s(?:[-^]?\d+)?\b/i.test(point)
+  );
 }
 
 export function perPointThreshold(point: string, calibration?: PartialCreditCalibration): number {
   if (calibration?.thresholds?.[point] != null) return calibration.thresholds[point]!;
   if (isNumericPoint(point)) return 0.45;
   return CREDIT_THRESHOLD;
+}
+
+const EVIDENCE_EXCERPT_LIMIT = 240;
+
+function answerFragments(answer: string): string[] {
+  return (answer ?? "")
+    .split(/\r?\n|=>|;|[!?]\s+|\.\s+(?=[A-Z])/)
+    .map((fragment) => fragment.trim())
+    .filter(Boolean);
+}
+
+function evidenceScore(point: string, answer: string): number {
+  const symbolic = symbolicMatch(answer, point);
+  if (symbolic === "equivalent") return 1;
+  if (symbolic === "not-equivalent") return 0;
+  return Math.max(pointCoverage(point, answer), numericEquivalent(point, answer) ? 0.9 : 0);
+}
+
+interface EvidenceMatch {
+  text: string | null;
+  score: number;
+}
+
+function bestEvidence(point: string, answer: string): EvidenceMatch {
+  const candidates = answerFragments(answer);
+  if (answer.trim() && !candidates.includes(answer.trim())) candidates.push(answer.trim());
+  return candidates.reduce<EvidenceMatch>(
+    (best, fragment) => {
+      const score = evidenceScore(point, fragment);
+      return score > best.score ? { text: fragment, score } : best;
+    },
+    { text: null, score: 0 },
+  );
+}
+
+function excerpt(text: string | null): string | null {
+  if (!text) return null;
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > EVIDENCE_EXCERPT_LIMIT ? `${clean.slice(0, EVIDENCE_EXCERPT_LIMIT - 1)}…` : clean;
+}
+
+function evidenceStrength(point: string, match: EvidenceMatch): MarkEvidence["evidenceStrength"] {
+  if (!match.text || match.score <= 0) return "none";
+  return match.score >= perPointThreshold(point) ? "strong" : "partial";
+}
+
+function explanationFor(
+  status: MarkEvidence["status"],
+  evidence: string | null,
+  strength: MarkEvidence["evidenceStrength"],
+): string {
+  const quote = evidence ? `“${evidence}”` : null;
+  if (status === "credited") {
+    if (strength === "strong" && quote) return `Awarded: your answer includes ${quote}, which covers this point.`;
+    if (quote) return `Awarded, but the supporting wording is only partial: ${quote}. Review this mark if needed.`;
+    return "Awarded, but no clear supporting excerpt was found in the submitted answer; review this mark.";
+  }
+  if (status === "missed") {
+    if (strength === "strong" && quote) return `Not awarded even though the answer contains strong matching evidence: ${quote}. Review the marking.`;
+    if (quote) return `Not awarded: the answer mentions ${quote}, but it does not cover the full point.`;
+    return "Not awarded: No matching evidence for this point appears in your answer.";
+  }
+  if (quote) return `The marking result did not report a decision for this point. The strongest matching evidence is ${quote}.`;
+  return "The marking result did not report a decision for this point, and no matching evidence was found.";
+}
+
+/** Build a deterministic explanation for every point reported by a marker. */
+export function evidenceForMarkedPart(
+  part: QuestionPart,
+  answer: string,
+  marked: Pick<MarkedPart, "creditedPoints" | "missedPoints">,
+): MarkEvidence[] {
+  const credited = new Set(marked.creditedPoints);
+  const missed = new Set(marked.missedPoints);
+  const points = [...new Set([...part.markScheme, ...marked.creditedPoints, ...marked.missedPoints])].filter(Boolean);
+
+  return points.map((point) => {
+    const status: MarkEvidence["status"] = credited.has(point)
+      ? "credited"
+      : missed.has(point)
+        ? "missed"
+        : "unreported";
+    const match = bestEvidence(point, answer);
+    const strength = evidenceStrength(point, match);
+    const supportingEvidence = excerpt(match.text);
+    return {
+      point,
+      status,
+      evidence: supportingEvidence,
+      evidenceStrength: strength,
+      confidence: Math.round(match.score * 100) / 100,
+      explanation: explanationFor(status, supportingEvidence, strength),
+    };
+  });
+}
+
+/** Add deterministic answer evidence to rubric or AI marking output. */
+export function withMarkEvidence<T extends { marked: MarkedPart[] }>(
+  question: Question,
+  answers: Record<string, string>,
+  result: T,
+): T {
+  if (question.kind === "mcq") return result;
+  return {
+    ...result,
+    marked: result.marked.map((marked) => {
+      const part = question.parts.find((candidate) => candidate.id === marked.partId);
+      return part
+        ? { ...marked, evidence: evidenceForMarkedPart(part, answers[part.id] ?? "", marked) }
+        : marked;
+    }),
+  } as T;
 }
 
 export function markPart(part: QuestionPart, answer: string, calibration?: PartialCreditCalibration): MarkedPart {
@@ -171,7 +288,7 @@ export function markPart(part: QuestionPart, answer: string, calibration?: Parti
   // keywords it happens to contain.
   if (trimmed.split(/\s+/).length < 3 && part.marks > 1) awarded = Math.min(awarded, 1);
 
-  return {
+  const marked: MarkedPart = {
     partId: part.id,
     awarded,
     max: part.marks,
@@ -179,6 +296,7 @@ export function markPart(part: QuestionPart, answer: string, calibration?: Parti
     missedPoints: missed,
     comment: buildComment(awarded, part.marks, missed),
   };
+  return { ...marked, evidence: evidenceForMarkedPart(part, trimmed, marked) };
 }
 
 function buildComment(awarded: number, max: number, missed: string[]): string {
@@ -190,15 +308,30 @@ function buildComment(awarded: number, max: number, missed: string[]): string {
 export function markMcq(question: Question, chosenIndex: number): MarkedPart {
   const part = question.parts[0];
   const correct = chosenIndex === question.correctIndex;
+  const point = part?.markScheme[0] ?? "Correct option";
+  const selected = question.options?.[chosenIndex];
+  const selectedLabel = chosenIndex < 0
+    ? "no option"
+    : `${String.fromCharCode(65 + chosenIndex)}${selected ? `: ${selected}` : ""}`;
   return {
     partId: part?.id ?? question.id,
     awarded: correct ? question.totalMarks : 0,
     max: question.totalMarks,
-    creditedPoints: correct ? [part?.markScheme[0] ?? "Correct option"] : [],
-    missedPoints: correct ? [] : [part?.markScheme[0] ?? "Correct option"],
+    creditedPoints: correct ? [point] : [],
+    missedPoints: correct ? [] : [point],
     comment: correct
       ? "Correct."
       : `Not this one — the answer is ${String.fromCharCode(65 + (question.correctIndex ?? 0))}.`,
+    evidence: [{
+      point,
+      status: correct ? "credited" : "missed",
+      evidence: `Selected option ${selectedLabel}`,
+      evidenceStrength: correct ? "strong" : "none",
+      confidence: 1,
+      explanation: correct
+        ? `Awarded: you selected option ${selectedLabel}, the keyed answer.`
+        : `Not awarded: you selected option ${selectedLabel}; the keyed answer is option ${String.fromCharCode(65 + (question.correctIndex ?? 0))}.`,
+    }],
   };
 }
 
@@ -217,7 +350,7 @@ export function markQuestion(question: Question, answers: Record<string, string>
 
   const awarded = marked.reduce((a, m) => a + m.awarded, 0);
   const max = marked.reduce((a, m) => a + m.max, 0);
-  return { marked, awarded, max, feedback: examinerSummary(awarded, max, marked) };
+  return withMarkEvidence(question, answers, { marked, awarded, max, feedback: examinerSummary(awarded, max, marked) });
 }
 
 /** Examiner-voice summary: what was earned, what was dropped, what to do. */
