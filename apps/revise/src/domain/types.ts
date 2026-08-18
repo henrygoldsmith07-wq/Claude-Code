@@ -221,6 +221,61 @@ export interface QuestionPart {
   learningClaims?: string[];
 }
 
+export type QuestionValidationStage = "draft" | "in_review" | "validated" | "needs_changes" | "rejected" | "retired";
+
+export type QuestionValidationIssueCode =
+  | "missing-stem"
+  | "missing-parts"
+  | "invalid-part"
+  | "invalid-total-marks"
+  | "invalid-mcq"
+  | "missing-topic"
+  | "unknown-topic"
+  | "missing-aos"
+  | "missing-spec-points"
+  | "unmapped-spec-point"
+  | "missing-provenance"
+  | "unverified-provenance"
+  | "missing-spec-version"
+  | "missing-reviewer"
+  | "missing-last-checked"
+  | "stale-provenance"
+  | "missing-licence";
+
+export interface QuestionValidationIssue {
+  code: QuestionValidationIssueCode;
+  message: string;
+  severity: "error" | "warning";
+}
+
+export interface QuestionValidationReport {
+  questionId: Id;
+  checkedAt: IsoInstant;
+  issues: QuestionValidationIssue[];
+  ok: boolean;
+}
+
+export interface QuestionValidationHistoryEntry {
+  from: QuestionValidationStage;
+  to: QuestionValidationStage;
+  at: IsoInstant;
+  by: Id;
+  note?: string;
+}
+
+export interface QuestionValidationRecord {
+  questionId: Id;
+  version: string;
+  stage: QuestionValidationStage;
+  report: QuestionValidationReport;
+  history: QuestionValidationHistoryEntry[];
+  reviewerId?: Id;
+  submittedAt?: IsoInstant;
+  reviewedAt?: IsoInstant;
+  createdAt: IsoInstant;
+  updatedAt: IsoInstant;
+}
+
 export interface Question {
   id: Id;
   subjectId: Id;
@@ -250,6 +305,8 @@ export interface Question {
   aos?: AoCode[];
   /** Which spec statements this question tests (union of parts; stable ids). */
   specPointIds?: Id[];
+  /** Persisted question-specific validation lifecycle; moderation remains a separate publishing gate. */
+  validation?: QuestionValidationRecord;
   /** Set when extracted from an uploaded paper. */
   paperId?: Id;
   paperQuestionNumber?: string;

@@ -66,7 +66,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
   fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
-  moderation.ts / sync-conflicts.ts / portability.ts  Platform: review, sync, GDPR portability
+  moderation.ts / question-validation.ts / sync-conflicts.ts / portability.ts  Platform: review, question quality, sync, GDPR portability
   i18n.ts / onboarding.ts  Localisation scaffolding + funnel measurement
   gamification.ts  Streaks, XP, achievements
   search.ts        Local search across topics, cards and questions
@@ -151,6 +151,14 @@ in CI — it now enforces that every subject has specPoints on every topic and t
 `src/content/questions/physics.ts` for the first mapped questions and
 `tests/coverage.test.ts` for the statement-level contract (stable ids, AO,
 verification, card/question mapping).
+
+Questions also carry a separate validation lifecycle in
+`src/domain/question-validation.ts`: `draft → in_review → validated`, with
+`needs_changes` and `rejected` resubmission paths. Deterministic structural,
+mapping and provenance checks gate submission; a later audit demotes a validated
+question when specification drift or stale provenance appears, and validated
+content can be explicitly retired. This quality gate is persisted on the
+question itself and remains separate from generic moderation/publishing status.
 
 ## Adding a new exam board or subject
 
