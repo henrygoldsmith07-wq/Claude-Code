@@ -13,6 +13,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
 import type { Finding } from "../discovery/finding.js";
 import type { InsightChange } from "../history/insight-history.js";
+import { derivePeriods } from "../experiments/design.js";
 import { FindingCard, REPLICATION_LABEL } from "./FindingCard.js";
 
 export type TabId = "insights" | "history" | "timeline" | "experiments" | "ask" | "sources";
@@ -386,8 +387,11 @@ function ExperimentsPanel({
                 .map((entry) => (
                   <li key={entry.design.id}>
                     <strong>Today:</strong> {entry.design.title} —{" "}
-                    {entry.todayCondition === "A" ? entry.design.conditionA.label : entry.design.conditionB.label}:{" "}
-                    {entry.todayInstruction}
+                    {entry.todayCondition === "A" ? entry.design.conditionA.label : entry.design.conditionB.label}
+                    {entry.todayPeriod
+                      ? ` · Day ${entry.todayPeriod.dayInPeriod}/${entry.todayPeriod.period.dayCount}`
+                      : null}
+                    : {entry.todayInstruction}
                   </li>
                 ))}
             </ul>
@@ -401,7 +405,7 @@ function ExperimentsPanel({
                     key={`${assignment.date}-${assignment.experimentId}`}
                     className={conflictDates.has(assignment.date) ? "warn" : undefined}
                   >
-                    {assignment.date}: {assignment.title} — condition {assignment.condition}
+                    {assignment.date}: {assignment.title} — {assignment.period}
                     {conflictDates.has(assignment.date) ? " — conflicts with another experiment" : ""}
                   </li>
                 ))}
@@ -447,6 +451,19 @@ function ExperimentsPanel({
                   <dt>Runs</dt>
                   <dd>
                     {design.startDate} to {design.endDate} ({design.durationDays} days)
+                  </dd>
+                </div>
+                <div>
+                  <dt>Periods</dt>
+                  <dd>
+                    <ul>
+                      {derivePeriods(design).map((period) => (
+                        <li key={period.index}>
+                          Period {period.index}: {period.label} — {period.startDate} to {period.endDate} (
+                          {period.dayCount} {period.dayCount === 1 ? "day" : "days"})
+                        </li>
+                      ))}
+                    </ul>
                   </dd>
                 </div>
                 <div>

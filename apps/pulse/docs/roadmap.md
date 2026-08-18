@@ -20,6 +20,16 @@ Warnings** — `experiments/calendar.ts` scans live designs per date and reports
 warning block plus marks conflicting schedule entries.
 `tests/calendar-conflicts.test.ts` pins the behaviour.
 
+Shipped: **#2 Intervention Periods** — `derivePeriods` in
+`experiments/design.ts` splits a design's schedule into named periods (the
+crossover's blocks, the before-after's two halves, the A/B's condition runs),
+each with its condition label, dates and day count; `periodForDate` gives a
+day's position within its period. `experiments/calendar.ts` marks the active
+entry's today period and labels every schedule row "Intervention A · Day 4/7";
+the experiments panel lists the periods on each design card. The periods are
+derived from the schedule, never stored. `tests/periods.test.ts` (13 tests)
+pins the behaviour across all three design types.
+
 Shipped: **#9 Experiment Conflict Detection (same-metric tier)** —
 `findSameMetricOverlaps` in `experiments/calendar.ts` refuses, at proposal
 time, any experiment whose run range intersects a live run on the same metric.
@@ -86,6 +96,10 @@ contiguous stretch of the same condition as a period.
 
 **Risk:** low — mostly naming and display, but keep the derivation pure and
 tested against every design type.
+
+*Shipped (see Progress): `derivePeriods` + `periodForDate` in
+`experiments/design.ts`, calendar today/schedule labels, and the period list
+on each design card.*
 
 #### 3. Washout Periods — **M**
 

@@ -10,7 +10,12 @@
 
 import { addDays, daysBetween } from "../events/time.js";
 import type { ExperimentResult } from "./analysis.js";
-import type { ExperimentDesign } from "./design.js";
+import {
+  derivePeriods,
+  periodForDate,
+  type ExperimentDesign,
+  type PeriodPosition,
+} from "./design.js";
 
 export type CalendarBucket = "active" | "upcoming" | "completed" | "analysed";
 
@@ -20,6 +25,8 @@ export interface CalendarEntry {
   /** Condition assigned to `today`, when the experiment is active. */
   todayCondition: "A" | "B" | null;
   todayInstruction: string | null;
+  /** The period containing today, when the experiment assigns a condition today. */
+  todayPeriod: PeriodPosition | null;
   result: ExperimentResult | null;
   /** Days until the run ends; negative once it has overrun. */
   daysRemaining: number;
@@ -31,6 +38,8 @@ export interface CalendarAssignment {
   title: string;
   condition: "A" | "B";
   instruction: string;
+  /** Derived period, e.g. "Intervention A · Day 4/7". */
+  period: string;
 }
 
 /**
@@ -159,6 +168,7 @@ export function buildCalendar(
           ? design.conditionA.instruction
           : design.conditionB.instruction
         : null,
+      todayPeriod: assignment ? periodForDate(design, today) : null,
       result,
       daysRemaining: daysBetween(today, design.endDate),
     };
@@ -235,17 +245,24 @@ function buildSchedule(designs: readonly ExperimentDesign[], today: string): Cal
 
   const byDate = new Map<string, CalendarAssignment[]>();
   for (const design of designs) {
-    for (const assignment of design.assignments) {
-      if (assignment.date < today) continue;
-      const list = byDate.get(assignment.date) ?? [];
-      list.push({
-        date: assignment.date,
-        experimentId: design.id,
-        title: design.title,
-        condition: assignment.condition,
-        instruction: assignment.condition === "A" ? design.conditionA.instruction : design.conditionB.instruction,
-      });
-      byDate.set(assignment.date, list);
+    // Iterate the derived periods rather than the raw assignments: every
+    // assigned date falls in exactly one period, so the rows are identical
+    // and each carries its period label and day position.
+    for (const period of derivePeriods(design)) {
+      for (let day = 0; day < period.dayCount; day += 1) {
+        const date = addDays(period.startDate, day);
+        if (date < today) continue;
+        const list = byDate.get(date) ?? [];
+        list.push({
+          date,
+          experimentId: design.id,
+          title: design.title,
+          condition: period.condition,
+          instruction: period.condition === "A" ? design.conditionA.instruction : design.conditionB.instruction,
+          period: `${period.label} · Day ${day + 1}/${period.dayCount}`,
+        });
+        byDate.set(date, list);
+      }
     }
   }
 

@@ -17,7 +17,7 @@
  */
 
 import { hash128 } from "../events/hash.js";
-import { addDays } from "../events/time.js";
+import { addDays, daysBetween } from "../events/time.js";
 import { createRng } from "../statistics/random.js";
 import { minSamplePaired, minSamplePerGroup } from "../statistics/power.js";
 import type { Hypothesis } from "../hypotheses/tracker.js";
@@ -220,4 +220,71 @@ function buildSuccessCriteria(hypothesis: Hypothesis, perCondition: number): str
 
 export function conditionForDate(design: ExperimentDesign, date: string): "A" | "B" | null {
   return design.assignments.find((assignment) => assignment.date === date)?.condition ?? null;
+}
+
+/**
+ * A contiguous stretch of the same condition in a design's schedule. Derived
+ * from the assignments, never stored — the derivation is the source of truth,
+ * so a period cannot drift from the schedule it names. For a crossover the
+ * periods are the blocks; for before-after they are the two halves; for A/B
+ * they are the condition runs.
+ */
+export interface ExperimentPeriod {
+  /** 1-based position within the design. */
+  index: number;
+  condition: "A" | "B";
+  /** Condition label plus letter, e.g. "Intervention A". */
+  label: string;
+  startDate: string;
+  endDate: string;
+  dayCount: number;
+}
+
+/** A day's position within the period that contains it. */
+export interface PeriodPosition {
+  period: ExperimentPeriod;
+  /** 1-based day within the period. */
+  dayInPeriod: number;
+}
+
+/**
+ * Splits the design's schedule into named periods. A period ends wherever the
+ * condition changes, so every assigned date belongs to exactly one period and
+ * the periods cover the assignments completely.
+ */
+export function derivePeriods(design: ExperimentDesign): ExperimentPeriod[] {
+  const labelOf = (condition: "A" | "B"): string => {
+    const source = condition === "A" ? design.conditionA : design.conditionB;
+    return `${source.label} ${source.id}`;
+  };
+
+  const byDate = [...design.assignments].sort((a, b) => a.date.localeCompare(b.date));
+  const periods: ExperimentPeriod[] = [];
+  for (const assignment of byDate) {
+    const current = periods[periods.length - 1];
+    if (current && current.condition === assignment.condition) {
+      current.endDate = assignment.date;
+      current.dayCount += 1;
+    } else {
+      periods.push({
+        index: periods.length + 1,
+        condition: assignment.condition,
+        label: labelOf(assignment.condition),
+        startDate: assignment.date,
+        endDate: assignment.date,
+        dayCount: 1,
+      });
+    }
+  }
+  return periods;
+}
+
+/** The period containing `date`, with the day's 1-based position within it. */
+export function periodForDate(design: ExperimentDesign, date: string): PeriodPosition | null {
+  for (const period of derivePeriods(design)) {
+    if (date >= period.startDate && date <= period.endDate) {
+      return { period, dayInPeriod: daysBetween(period.startDate, date) + 1 };
+    }
+  }
+  return null;
 }

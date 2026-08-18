@@ -256,6 +256,26 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("shows derived intervention periods on the calendar and the design card", async () => {
+    const { pulse } = await createSyntheticPulse({ days: 180, seed: "periods-ui" });
+    pulse.discover();
+    const hypothesis = pulse.proposeHypotheses()[0]!;
+    pulse.designExperiment(hypothesis.id, { startDate: pulse.calendar().today, sessionsPerWeek: 4 });
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Experiments" }));
+
+    // The design card lists the derived periods (which condition starts is
+    // seed-dependent, so accept either label).
+    expect(screen.getByText("Periods")).toBeTruthy();
+    expect(screen.getAllByText(/Period 1: (Intervention A|Control B)/).length).toBeGreaterThan(0);
+    // Today's assignment shows its position within the current period, both in
+    // the today row and the schedule.
+    expect(screen.getAllByText(/· Day \d+\/\d+/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Day 1\/\d+/).length).toBeGreaterThan(0);
+    cleanup();
+  });
+
   it("shows each insight's journey across discovery scans in the History tab", () => {
     render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "History" }));
