@@ -595,7 +595,8 @@ select {
   color: var(--ok);
 }
 
-.standing--refuted {
+.standing--refuted,
+.standing--contested {
   border-color: var(--warn);
   color: var(--warn);
 }

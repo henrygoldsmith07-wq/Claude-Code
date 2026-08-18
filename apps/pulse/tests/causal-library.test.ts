@@ -403,3 +403,53 @@ describe("the library inside Pulse", () => {
     expect(matches).toHaveLength(1);
   });
 });
+
+describe("the contradiction ledger", () => {
+  it("withdraws a plausible belief whose pair is in the ledger", () => {
+    const library = new CausalHypothesisLibrary(undefined, clock);
+    const entry = library.addFromFinding(finding)!;
+    expect(entry.standing).toBe("plausible");
+
+    library.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+
+    expect(entry.standing).toBe("contested");
+    expect(entry.standingNote).toMatch(/pointing both ways/);
+    expect(entry.standingHistory.at(-1)!.note).toMatch(/ledger/);
+  });
+
+  it("a decisive experiment settles a contested pair", () => {
+    const library = new CausalHypothesisLibrary(undefined, clock);
+    const entry = library.addFromFinding(finding)!;
+    const hypothesis = makeHypothesis();
+    const result = experimentResult(hypothesis, { A: 0.78, B: 0.6 }, "lib-settle");
+    expect(result.verdict).toBe("supported");
+    library.recordExperimentResult(result, hypothesis);
+    expect(entry.standing).toBe("confirmed");
+
+    library.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+
+    // A controlled test is the one tool that settles a conflicted pair.
+    expect(entry.standing).toBe("confirmed");
+  });
+
+  it("restores the evidence-based standing when the conflict clears", () => {
+    const library = new CausalHypothesisLibrary(undefined, clock);
+    const entry = library.addFromFinding(finding)!;
+    library.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+    expect(entry.standing).toBe("contested");
+
+    library.reconcileContradictions(new Set());
+
+    expect(entry.standing).toBe("plausible");
+  });
+
+  it("never resurrects a retired belief", () => {
+    const library = new CausalHypothesisLibrary(undefined, clock);
+    const entry = library.addFromFinding(finding)!;
+    library.setStanding(entry.id, "retired", "I no longer track this");
+
+    library.reconcileContradictions(new Set(["study.accuracy|exercise.volume"]));
+
+    expect(entry.standing).toBe("retired");
+  });
+});

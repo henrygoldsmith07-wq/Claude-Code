@@ -236,6 +236,14 @@ export class Pulse {
     report.findings = this.contradictions.annotate(report.findings);
     this.cachedFindings = report.findings;
     this.pauseContradictedHypotheses();
+    // The library reads the same ledger as the evidence graph: a belief whose
+    // pair is observed pointing both ways is withdrawn until an experiment
+    // settles it. Reconcile on every scan, so the ledger's verdict is what
+    // the UI shows and a cleared conflict restores the standing.
+    this.causalLibrary.reconcileContradictions(
+      new Set(this.contradictions.list().map((record) => `${record.outcomeMetricId}|${record.exposureMetricId}`)),
+    );
+    this.persistCausalLibrary();
     this.insightHistory.recordScan({
       at: new Date(this.now()).toISOString(),
       eventCount: scanEvents.length,

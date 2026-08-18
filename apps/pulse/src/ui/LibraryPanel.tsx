@@ -16,6 +16,7 @@ const STANDINGS: CausalStanding[] = [
   "untested",
   "plausible",
   "strengthening",
+  "contested",
   "confirmed",
   "refuted",
   "retired",
