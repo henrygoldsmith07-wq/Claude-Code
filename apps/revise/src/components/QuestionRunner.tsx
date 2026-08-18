@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { aiMark } from "@/ai/client";
+import { validateCommandWord, type CommandWordValidation } from "@/domain/command-word-validation";
 import { getTopic } from "@/domain/curriculum";
 import { markMcq } from "@/domain/marking";
 import type { Attempt, MarkedPart, Question } from "@/domain/types";
@@ -143,6 +144,7 @@ export function QuestionRunner({
                   <RichText className="text-sm flex-1">{part.prompt}</RichText>
                   <span className="text-xs text-ink3 shrink-0">[{part.marks}]</span>
                 </div>
+                <CommandWordCheck validation={validateCommandWord(question, part, answers[part.id] ?? "")} />
                 {result ? (
                   <div className="card card-2 p-3 text-sm text-ink2 whitespace-pre-wrap">
                     {answers[part.id]?.trim() || "(no answer given)"}
@@ -173,6 +175,20 @@ export function QuestionRunner({
       </Panel>
 
       {result ? <MarkedResult question={question} result={result} awarded={awarded} /> : null}
+    </div>
+  );
+}
+
+function CommandWordCheck({ validation }: { validation: CommandWordValidation }) {
+  if (validation.status === "not-applicable") return null;
+  const tone = validation.status === "aligned" ? "success" : validation.status === "needs-attention" ? "review" : "neutral";
+  const status = validation.status === "aligned" ? "Verb covered" : validation.status === "empty" ? "Start with the verb" : "Check the verb";
+  return (
+    <div className="flex items-start gap-2 mt-2 text-[11px] text-ink3">
+      <Pill tone={tone}>{validation.label}</Pill>
+      <p className="pt-0.5 leading-relaxed">
+        <span className="font-semibold text-ink2">{status}.</span> {validation.message}
+      </p>
     </div>
   );
 }
