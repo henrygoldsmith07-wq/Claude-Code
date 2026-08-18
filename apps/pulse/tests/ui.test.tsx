@@ -203,7 +203,7 @@ describe("the app shell", () => {
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(7);
+    expect(tabs.length).toBe(8);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
@@ -250,6 +250,22 @@ describe("the app shell", () => {
     const { container } = render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Hypothesis library" }));
     await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("lets the user run a controlled statistical inspection without changing findings", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Inspector" }));
+
+    expect(screen.getByRole("heading", { name: "User-controlled advanced statistical inspector" })).toBeTruthy();
+    expect(screen.getByLabelText("Outcome metric")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Run inspection" })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Significance level (α)"), { target: { value: "0.1" } });
+    expect(screen.getByText("Changes are ready but not applied.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Run inspection" }));
+    expect(screen.getByRole("heading", { name: "What the controls found" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Forward lag scan" })).toBeTruthy();
     cleanup();
   });
 
@@ -347,6 +363,13 @@ describe("the app shell", () => {
     const { container } = render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Ask Pulse" }));
     expect(screen.getByLabelText(/Ask a question about your own data/)).toBeTruthy();
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("has no accessibility violations on the statistical inspector", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Inspector" }));
     await expectNoAxeViolations(container);
     cleanup();
   });
