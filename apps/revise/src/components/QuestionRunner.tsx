@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { aiMark } from "@/ai/client";
 import { getTopic } from "@/domain/curriculum";
+import {
+  completeDelayedFarTransfer,
+  scheduleDelayedFarTransfer,
+  type DelayedFarTransferRetest,
+} from "@/domain/delayed-far-transfer";
 import { markMcq } from "@/domain/marking";
 import { assessLowConfidenceMark, createMarkEscalationRecord } from "@/domain/mark-escalation";
 import type { LowConfidenceMarkDecision } from "@/domain/mark-escalation";
@@ -21,10 +26,12 @@ import { CreditedIcon, ICON_SIZE, MissedIcon } from "./icons";
 export function QuestionRunner({
   question,
   mode = "practice",
+  farTransfer,
   onFinished,
 }: {
   question: Question;
   mode?: Attempt["mode"];
+  farTransfer?: DelayedFarTransferRetest;
   onFinished?: (attempt: Attempt) => void;
 }) {
   const store = useStore();
@@ -38,6 +45,7 @@ export function QuestionRunner({
     note?: string;
     confidence: number | null;
     escalation?: LowConfidenceMarkDecision;
+    farTransfer?: Attempt["farTransfer"];
   } | null>(null);
   // Stamped after mount: reading the clock during render makes the render
   // impure and would restart the timer on every re-render.
@@ -105,7 +113,17 @@ export function QuestionRunner({
       createdAt,
     };
 
-    await store.recordAttempt(attempt, question);
+    const farTransferLink = farTransfer
+      ? completeDelayedFarTransfer(farTransfer, attempt)
+      : scheduleDelayedFarTransfer({
+          attempt,
+          question,
+          questions: store.questions,
+          attemptedQuestionIds: store.attempts.map((existing) => existing.questionId),
+        });
+    const persistedAttempt = farTransferLink ? { ...attempt, farTransfer: farTransferLink } : attempt;
+
+    await store.recordAttempt(persistedAttempt, question);
     setResult({
       marked,
       feedback,
@@ -113,9 +131,10 @@ export function QuestionRunner({
       note,
       confidence: markConfidence,
       escalation: escalationDecision.escalate ? escalationDecision : undefined,
+      farTransfer: persistedAttempt.farTransfer,
     });
     setMarking(false);
-    onFinished?.(attempt);
+    onFinished?.(persistedAttempt);
   }
 
   return (
@@ -127,7 +146,18 @@ export function QuestionRunner({
           {question.origin === "past-paper" ? <Pill tone="review">Past paper</Pill> : null}
           {question.origin === "ai" ? <Pill tone="speak">AI generated</Pill> : null}
           {!question.calculatorAllowed ? <Pill tone="danger">No calculator</Pill> : null}
+          {farTransfer ? <Pill tone="accent">Delayed far-transfer</Pill> : null}
         </div>
+
+        {farTransfer ? (
+          <div className="rounded-[8px] border border-accent bg-accentsoft px-3 py-2.5 mb-4 text-sm text-ink2">
+            <p className="font-semibold text-ink">A different-context transfer check</p>
+            <p className="text-xs mt-1">
+              This question tests the same mapped learning claim after a {farTransfer.delayDays}-day delay. It is
+              scored separately from the original answer.
+            </p>
+          </div>
+        ) : null}
 
         <RichText className="text-base text-ink">{question.stem}</RichText>
 
@@ -213,6 +243,7 @@ function MarkedResult({
     note?: string;
     confidence: number | null;
     escalation?: LowConfidenceMarkDecision;
+    farTransfer?: Attempt["farTransfer"];
   };
   awarded: number;
 }) {
@@ -229,6 +260,21 @@ function MarkedResult({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           <SourceBadge source={result.source} note={result.note} />
+          {result.farTransfer ? (
+            <Pill
+              tone={
+                result.farTransfer.role === "retest"
+                  ? result.farTransfer.outcome?.passed
+                    ? "success"
+                    : "danger"
+                  : "accent"
+              }
+            >
+              {result.farTransfer.role === "retest"
+                ? `Transfer ${Math.round((result.farTransfer.outcome?.percentage ?? 0) * 100)}%`
+                : `Transfer check due ${result.farTransfer.scheduledFor}`}
+            </Pill>
+          ) : null}
           {result.source === "ai" ? (
             <Pill tone={result.escalation ? "review" : "success"}>
               {result.confidence === null ? "AI confidence unavailable" : `AI confidence ${Math.round(result.confidence * 100)}%`}
@@ -242,6 +288,12 @@ function MarkedResult({
           <p className="text-xs mt-1">{result.escalation.message}</p>
           <p className="text-[11px] text-ink3 mt-1">This pending escalation is saved with the attempt for a second-marker decision.</p>
         </div>
+      ) : null}
+      {result.farTransfer?.role === "source" ? (
+        <p className="text-xs text-ink3 mb-3">
+          You have another question scheduled for {result.farTransfer.scheduledFor} to check whether this learning
+          transfers to a new context.
+        </p>
       ) : null}
       <ProgressBar value={pct} tone={pct >= 0.8 ? "success" : pct >= 0.5 ? "review" : "danger"} />
 

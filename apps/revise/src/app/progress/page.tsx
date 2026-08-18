@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { aiDiagnose } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { delayedFarTransferReport, delayedFarTransferRetests } from "@/domain/delayed-far-transfer";
 import { ACHIEVEMENTS, levelFor } from "@/domain/gamification";
 import { weakTopics } from "@/domain/mastery";
 import { mistakePatterns } from "@/domain/mistakes";
@@ -38,6 +39,10 @@ export default function ProgressPage() {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return { report, pending };
   }, [store.attempts]);
+  const farTransfer = useMemo(() => {
+    const retests = delayedFarTransferRetests({ attempts: store.attempts, questions: store.questions, today });
+    return { retests, report: delayedFarTransferReport(retests) };
+  }, [store.attempts, store.questions, today]);
 
   const totals = useMemo(() => {
     const marksMax = store.attempts.reduce((a, x) => a + x.max, 0);
@@ -121,6 +126,65 @@ export default function ProgressPage() {
           ) : (
             <p className="text-xs text-ink3 mt-4 border-t border-line pt-3">
               AI marks below 60% confidence will appear here and remain labelled as provisional until reviewed.
+            </p>
+          )}
+        </Panel>
+      </section>
+
+      <section>
+        <SectionHeading
+          title="Delayed far-transfer"
+          hint="A high-scoring answer earns a different-context question seven days later — a stronger test than repeating the same prompt."
+        />
+        <Panel>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatTile
+              label="Due now"
+              value={farTransfer.report.due}
+              sub={farTransfer.report.due ? "open transfer checks" : "No checks waiting"}
+              tone={farTransfer.report.due ? "review" : "success"}
+            />
+            <StatTile label="Upcoming" value={farTransfer.report.upcoming} sub="scheduled checks" />
+            <StatTile label="Completed" value={farTransfer.report.completed} sub="separate transfer evidence" />
+            <StatTile
+              label="Transfer pass rate"
+              value={farTransfer.report.passRate === null ? "—" : `${Math.round(farTransfer.report.passRate * 100)}%`}
+              sub="60% counts as a pass"
+              tone={farTransfer.report.passRate === null ? undefined : farTransfer.report.passRate >= 0.6 ? "success" : "danger"}
+            />
+          </div>
+          {farTransfer.retests.length ? (
+            <ul className="mt-4 border-t border-line divide-y divide-line">
+              {farTransfer.retests.slice(0, 6).map((retest) => {
+                const candidate = store.questions.find((question) => question.id === retest.candidateQuestionId);
+                const source = store.questions.find((question) => question.id === retest.sourceQuestionId);
+                const row = (
+                  <>
+                    <Pill tone={retest.status === "completed" ? (retest.outcome?.passed ? "success" : "danger") : retest.status === "due" ? "review" : "accent"}>
+                      {retest.status === "completed"
+                        ? `${Math.round((retest.outcome?.percentage ?? 0) * 100)}%`
+                        : retest.status === "due"
+                          ? "due"
+                          : retest.scheduledFor}
+                    </Pill>
+                    <div className="min-w-0">
+                      <p className="text-sm text-ink truncate">{candidate?.stem ?? retest.candidateQuestionId}</p>
+                      <p className="text-[11px] text-ink3 truncate">
+                        From {source?.stem ?? retest.sourceQuestionId} · {getTopic(retest.topicIds[0] ?? "")?.title ?? retest.subjectId}
+                      </p>
+                    </div>
+                  </>
+                );
+                return (
+                  <li key={retest.retestId} className="py-2.5 flex items-start gap-3">
+                    {retest.status === "completed" ? row : <Link href={`/practice?retest=${encodeURIComponent(retest.retestId)}`} className="flex items-start gap-3 min-w-0 flex-1">{row}</Link>}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-xs text-ink3 mt-4 border-t border-line pt-3">
+              Score at least 80% on a mapped question and a new-context check will appear here for seven days later.
             </p>
           )}
         </Panel>

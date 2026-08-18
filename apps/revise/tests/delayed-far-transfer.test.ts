@@ -187,18 +187,18 @@ describe("delayed far-transfer retesting", () => {
   });
 
   it("scores transfer independently from the original answer", () => {
-    const source = attempt("a-source", "q-source", 2);
     const strong = attempt("a-strong", "q-far", 2, 2, { createdAt: "2026-08-08T09:00:00.000Z" });
-    const partial = attempt("a-partial", "q-far", 1, 2, { createdAt: "2026-08-08T09:00:00.000Z" });
+    const partial = attempt("a-partial", "q-far", 3, 5, { createdAt: "2026-08-08T09:00:00.000Z" });
     const weak = attempt("a-weak", "q-far", 0, 2, { createdAt: "2026-08-08T09:00:00.000Z" });
 
-    expect(scoreFarTransferRetest(source, strong)).toMatchObject({ percentage: 1, passed: true, band: "secure" });
-    expect(scoreFarTransferRetest(source, partial)).toMatchObject({
+    expect(FAR_TRANSFER_SOURCE_THRESHOLD).toBe(0.8);
+    expect(scoreFarTransferRetest(strong)).toMatchObject({ percentage: 1, passed: true, band: "secure" });
+    expect(scoreFarTransferRetest(partial)).toMatchObject({
       percentage: FAR_TRANSFER_PASS_THRESHOLD,
       passed: true,
       band: "partial",
     });
-    expect(scoreFarTransferRetest(source, weak)).toMatchObject({ percentage: 0, passed: false, band: "not-secure" });
+    expect(scoreFarTransferRetest(weak)).toMatchObject({ percentage: 0, passed: false, band: "not-secure" });
   });
 
   it("publishes the due queue in Progress and opens it from Practice", () => {

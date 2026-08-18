@@ -379,6 +379,30 @@ export interface MarkEscalation {
   resolvedBy?: "human" | "rubric" | "ai";
 }
 
+export type FarTransferRetestStatus = "scheduled" | "due" | "completed";
+export type FarTransferOutcomeBand = "secure" | "partial" | "not-secure";
+
+export interface FarTransferOutcome {
+  awarded: number;
+  max: number;
+  percentage: number;
+  passed: boolean;
+  band: FarTransferOutcomeBand;
+  completedAt: IsoInstant;
+}
+
+/** Link stored on attempts so a delayed retest survives reload and sync. */
+export interface FarTransferAttemptLink {
+  retestId: Id;
+  role: "source" | "retest";
+  sourceAttemptId: Id;
+  sourceQuestionId: Id;
+  candidateQuestionId: Id;
+  scheduledFor: IsoDate;
+  delayDays: number;
+  outcome?: FarTransferOutcome;
+}
+
 export interface Attempt {
   id: Id;
   userId: Id;
@@ -397,6 +421,8 @@ export interface Attempt {
   markConfidence?: number;
   /** Durable request for a second marker when an AI mark is not reliable enough. */
   markEscalation?: MarkEscalation;
+  /** A high-scoring source answer or its completed delayed transfer check. */
+  farTransfer?: FarTransferAttemptLink;
   confidence?: 1 | 2 | 3 | 4 | 5;
   elapsedMs: number;
   mode: "practice" | "paper" | "recall";

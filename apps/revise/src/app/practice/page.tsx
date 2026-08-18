@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { delayedFarTransferRetests } from "@/domain/delayed-far-transfer";
+import { todayIso } from "@/domain/scheduling";
 import type { Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
 import { QuestionRunner } from "@/components/QuestionRunner";
@@ -31,10 +33,20 @@ function Practice() {
   const subjectParam = params.get("subject");
   const sessionId = params.get("session");
   const questionParam = params.get("question");
+  const retestParam = params.get("retest");
   const mode = params.get("mode") === "recall" ? "recall" : "practice";
+  const today = todayIso();
+  const farTransferRetests = useMemo(
+    () => delayedFarTransferRetests({ attempts: store.attempts, questions: store.questions, today }),
+    [store.attempts, store.questions, today],
+  );
+  const farTransferRetest = retestParam
+    ? farTransferRetests.find((retest) => retest.retestId === retestParam && retest.status !== "completed")
+    : undefined;
+  const requestedQuestionParam = farTransferRetest?.candidateQuestionId ?? questionParam;
 
-  const [subjectId, setSubjectId] = useState(subjectParam ?? subjects[0]?.id ?? "");
-  const [topicId, setTopicId] = useState(topicParam ?? "");
+  const [subjectId, setSubjectId] = useState(subjectParam ?? farTransferRetest?.subjectId ?? subjects[0]?.id ?? "");
+  const [topicId, setTopicId] = useState(topicParam ?? farTransferRetest?.topicIds[0] ?? "");
   const [index, setIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -51,7 +63,7 @@ function Practice() {
    */
   const orderFor = (subject: string, topic: string): string[] => {
     let pool = store.questions.filter((q) => store.settings.subjectIds.includes(q.subjectId));
-    if (questionParam) pool = pool.filter((q) => q.id === questionParam);
+    if (requestedQuestionParam) pool = pool.filter((q) => q.id === requestedQuestionParam);
     else {
       if (subject) pool = pool.filter((q) => q.subjectId === subject);
       if (topic) pool = pool.filter((q) => q.topicIds.includes(topic));
@@ -147,7 +159,7 @@ function Practice() {
               : "Answer as you would in the exam. Every dropped mark becomes a card."}
           </p>
         </div>
-        {subjects.length > 1 ? (
+        {subjects.length > 1 && !farTransferRetest ? (
           <Segmented
             ariaLabel="Subject"
             value={subjectId}
@@ -162,9 +174,31 @@ function Practice() {
         ) : null}
       </header>
 
+      {farTransferRetest ? (
+        <Panel className="border-accent bg-accentsoft">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Pill tone={farTransferRetest.status === "due" ? "review" : "accent"}>
+                  {farTransferRetest.status === "due" ? "Due now" : `Due ${farTransferRetest.scheduledFor}`}
+                </Pill>
+                <p className="text-sm font-semibold text-ink">Delayed far-transfer retest</p>
+              </div>
+              <p className="text-xs text-ink2 mt-2">
+                A new-context question checks whether your original success on {getTopic(farTransferRetest.topicIds[0] ?? "")?.title ?? "this topic"} transfers after a delay.
+              </p>
+            </div>
+            <Link href="/practice">
+              <Button size="sm">Leave retest</Button>
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={topicId}
+          disabled={Boolean(farTransferRetest)}
           onChange={(e) => {
             setTopicId(e.target.value);
             // The queue is rebuilt for the new filter, so a stale cursor would
@@ -186,7 +220,7 @@ function Practice() {
             );
           })}
         </select>
-        <Button size="sm" onClick={() => void generate()} disabled={generating}>
+        <Button size="sm" onClick={() => void generate()} disabled={generating || Boolean(farTransferRetest)}>
           {generating ? "Generating…" : "Generate similar questions"}
         </Button>
         {queue.length ? (
@@ -214,6 +248,7 @@ function Practice() {
             key={current.id}
             question={current}
             mode={mode}
+            farTransfer={farTransferRetest}
             onFinished={() => {
               setCompleted((c) => c + 1);
               if (sessionId && completed === 0) void store.completeSession(sessionId);
