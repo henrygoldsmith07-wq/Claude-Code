@@ -36,18 +36,102 @@ export type RapportPulseRecord =
       comfort?: number;
     };
 
-interface RapportPulseEnvelope {
+export interface RapportPulseEventRecord {
+  /** Safe aggregate events only; no transcript text, names or rater ids. */
+  kind: "drill" | "challenge" | "exercise" | "lesson" | "session" | "human-rating" | "human-adjudication" | "real-world-outcome";
+  id: string;
+  at: string;
+  subject?: string;
+  metrics?: Record<string, number | undefined>;
+  labels?: string[];
+}
+
+export interface RapportPulseEnvelope {
   format: typeof RAPPORT_PULSE_HISTORY_FORMAT;
   schemaVersion: typeof RAPPORT_PULSE_HISTORY_VERSION;
   source: "rapport";
   connectorVersion: "2.0.0";
   generatedAt: string;
   records: RapportPulseRecord[];
+  /** Optional sidecar retained in the same Pulse-compatible envelope. */
+  eventLog: RapportPulseEventRecord[];
   cursor: null;
 }
 
 function asDifficulty(value: number | undefined): 1 | 2 | 3 | 4 | 5 | undefined {
   return value === undefined || value < 1 || value > 5 ? undefined : (Math.round(value) as 1 | 2 | 3 | 4 | 5);
+}
+
+/** Project every durable event into a safe, Pulse-compatible audit trail. */
+export function buildRapportPulseEventLog(events: readonly DomainEvent[]): RapportPulseEventRecord[] {
+  return events.map((event) => {
+    switch (event.kind) {
+      case "simulation-evaluated":
+        return {
+          kind: "drill",
+          id: `evaluation:${event.simulationId}`,
+          at: event.at,
+          subject: event.skillIds[0],
+          metrics: { performance: event.performance, difficulty: event.difficulty, reliability: event.reliability },
+        };
+      case "challenge-attempted":
+        return {
+          kind: "challenge",
+          id: event.attemptId,
+          at: event.at,
+          subject: event.skillId,
+          metrics: {
+            performance: event.performance,
+            reliability: event.reliability,
+            completed: event.outcome === "no" ? 0 : 1,
+            ...(event.comfort === undefined ? {} : { comfort: event.comfort }),
+          },
+          labels: [event.outcome],
+        };
+      case "challenge-skipped":
+        return { kind: "challenge", id: event.attemptId, at: event.at, subject: event.skillId, metrics: { completed: 0 }, labels: ["skipped"] };
+      case "exercise-completed":
+        return { kind: "exercise", id: event.exerciseId, at: event.at, subject: event.skillId, metrics: { performance: event.performance, difficulty: event.difficulty } };
+      case "lesson-read":
+        return { kind: "lesson", id: event.lessonId, at: event.at, subject: event.skillId };
+      case "session-completed":
+        return { kind: "session", id: event.sessionId, at: event.at, subject: event.focusSkillId };
+      case "human-rating-recorded":
+        return {
+          kind: "human-rating",
+          id: event.ratingId,
+          at: event.at,
+          subject: event.itemId,
+          metrics: { behaviourCount: event.behaviourKeys.length, meanConfidence: event.meanConfidence },
+        };
+      case "human-adjudication-completed":
+        return {
+          kind: "human-adjudication",
+          id: event.adjudicationId,
+          at: event.at,
+          subject: event.itemId,
+          metrics: { selectedScore: event.selectedScore },
+          labels: [event.behaviourKey, event.selectedDecision],
+        };
+      case "real-world-outcome-recorded":
+        return {
+          kind: "real-world-outcome",
+          id: event.outcomeId,
+          at: event.at,
+          subject: event.skillId,
+          metrics: {
+            completed: event.completed ? 1 : 0,
+            ...(event.comfort === undefined ? {} : { comfort: event.comfort }),
+            ...(event.followUpScore === undefined ? {} : { followUpScore: event.followUpScore }),
+          },
+          labels: [event.outcome],
+        };
+      case "assessment-completed":
+        return { kind: "session", id: event.assessmentId, at: event.at, metrics: { priorCount: event.priors.length }, labels: ["assessment"] };
+      case "user-corrected-skill":
+        return { kind: "session", id: `correction:${event.skillId}:${event.at}`, at: event.at, subject: event.skillId, labels: ["user-correction"] };
+    }
+  });
 }
 
 /** Project Rapport's private event log into the safe, transcript-free Pulse view. */
@@ -99,6 +183,7 @@ export function buildRapportPulseHistory(
     connectorVersion: "2.0.0",
     generatedAt,
     records,
+    eventLog: buildRapportPulseEventLog(events),
     cursor: null,
   };
 }

@@ -75,6 +75,7 @@ interface StoreValue {
   dismissUnlocked(): void;
 
   completeOnboarding(assessment: Assessment, statement: string): Promise<void>;
+  recordEvidenceEvent(event: DomainEvent): Promise<void>;
   setFocus(skillId: Id): Promise<void>;
   recordLessonRead(skillId: Id, lessonId: Id): Promise<void>;
   saveSimulation(simulation: Simulation): Promise<SimulationEvaluation | null>;
@@ -288,6 +289,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     return nextStates;
   }, [achievements]);
+
+  const recordEvidenceEvent = useCallback<StoreValue["recordEvidenceEvent"]>(async (event) => {
+    await applyEvent(event);
+  }, [applyEvent]);
 
   const completeOnboarding = useCallback<StoreValue["completeOnboarding"]>(async (assessment, statement) => {
     const at = new Date().toISOString();
@@ -589,6 +594,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       justUnlocked,
       dismissUnlocked: () => setJustUnlocked([]),
       completeOnboarding,
+      recordEvidenceEvent,
       setFocus,
       recordLessonRead,
       saveSimulation,
@@ -609,6 +615,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ready, user, preference, states, goals, events, attempts, reflections, simulations, evaluations,
       sessions, insights, experiments, observations, achievements, reviews, todayPlan, justUnlocked,
       completeOnboarding, setFocus, recordLessonRead, saveSimulation, assignChallenge, completeChallenge,
+      recordEvidenceEvent,
       skipChallenge, swapChallenge, correctSkill, updatePreference, startExperiment, recordObservation,
       endExperiment, dismissInsight, exportData, wipeData,
     ],
