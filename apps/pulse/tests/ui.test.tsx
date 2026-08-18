@@ -217,6 +217,20 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("creates a collection and saves an active insight to it", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.change(screen.getByLabelText("New collection"), { target: { value: "Study focus" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+    expect(screen.getByRole("heading", { name: "Study focus" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    expect(screen.getByText("1 insight")).toBeTruthy();
+
+    const created = pulse.insightCollections.list().find((collection) => collection.title === "Study focus");
+    if (created) pulse.deleteInsightCollection(created.id);
+    cleanup();
+  });
+
   it("answers a suggested question in the Ask panel", () => {
     render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Ask Pulse" }));

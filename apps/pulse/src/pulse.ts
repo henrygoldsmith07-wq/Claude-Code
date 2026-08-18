@@ -24,6 +24,7 @@ import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.
 import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
 import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
+import { InsightCollectionStore, type InsightCollectionsAdapter } from "./history/insight-collections.js";
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
@@ -45,6 +46,8 @@ export interface PulseOptions {
   adapter?: PersistenceAdapter;
   /** Persists the insight history; without one the history lives for the process. */
   historyAdapter?: InsightHistoryAdapter;
+  /** Persists user-authored insight collections; without one they live for the process. */
+  collectionsAdapter?: InsightCollectionsAdapter;
   registry?: MetricRegistry;
   now?: () => number;
   /** Expected weekly cadence per source, used by the quality scorer. */
@@ -61,6 +64,7 @@ export class Pulse {
   readonly contradictions: ContradictionLedger;
   readonly value: RecommendationValueTracker;
   readonly insightHistory: InsightHistory;
+  readonly insightCollections: InsightCollectionStore;
   readonly timezone: string;
 
   private readonly connectors = new Map<SourceId, Connector>();
@@ -85,6 +89,7 @@ export class Pulse {
     this.contradictions = new ContradictionLedger(this.now);
     this.value = new RecommendationValueTracker(this.now);
     this.insightHistory = new InsightHistory(options.historyAdapter);
+    this.insightCollections = new InsightCollectionStore(this.now, options.collectionsAdapter);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
@@ -92,6 +97,7 @@ export class Pulse {
   async load(): Promise<void> {
     await this.store.load();
     await this.insightHistory.load();
+    await this.insightCollections.load();
   }
 
   // --- COLLECT ----------------------------------------------------------
@@ -425,6 +431,28 @@ export class Pulse {
     return ask(question, context);
   }
 
+  // --- ORGANISE ---------------------------------------------------------
+
+  createInsightCollection(title: string) {
+    return this.insightCollections.create(title);
+  }
+
+  renameInsightCollection(id: string, title: string) {
+    return this.insightCollections.rename(id, title);
+  }
+
+  addFindingToInsightCollection(collectionId: string, finding: Finding) {
+    return this.insightCollections.addInsight(collectionId, ReplicationLedger.signature(finding));
+  }
+
+  removeInsightFromCollection(collectionId: string, signature: string) {
+    return this.insightCollections.removeInsight(collectionId, signature);
+  }
+
+  deleteInsightCollection(id: string): boolean {
+    return this.insightCollections.delete(id);
+  }
+
   // --- PRIVACY ----------------------------------------------------------
 
   export(options: { includeSensitive?: boolean } = {}): PulseExport {
@@ -440,6 +468,7 @@ export class Pulse {
       contradictions: this.contradictions.list(),
       recommendationValue: this.value.list(),
       insightHistory: this.insightHistory.snapshot(),
+      insightCollections: this.insightCollections.list(),
     });
   }
 
@@ -454,6 +483,7 @@ export class Pulse {
     const keepFindingIds = new Set(this.cachedFindings.map((finding) => finding.id));
     this.replication.prune(keepFindingIds);
     this.contradictions.prune(keepFindingIds);
+    this.insightCollections.prune(new Set(this.cachedFindings.map((finding) => ReplicationLedger.signature(finding))));
     // A finding built on deleted data is unverifiable; so is its history.
     this.insightHistory.pruneBySources([source]);
     await this.insightHistory.persist();

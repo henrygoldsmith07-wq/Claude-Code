@@ -278,10 +278,48 @@
 .connector-health-card summary { cursor: pointer; font-size: 0.78rem; font-weight: 700; }
 .connector-health-card ul { font-size: 0.78rem; margin: 0.4rem 0 0; padding-left: 1.1rem; }
 
+.collection-toolbar { display: grid; gap: 0.8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.8rem; }
+.collection-form { display: grid; gap: 0.35rem; min-width: 0; }
+.collection-form label { color: var(--muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+.collection-form__controls { display: flex; flex-wrap: wrap; gap: 0.4rem; min-width: 0; }
+.collection-form input,
+.collection-form select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  font: inherit;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+}
+.collection-form input { flex: 1 1 12rem; }
+.collection-form select { flex: 1 1 10rem; }
+.collection-list { border-top: 1px solid var(--line); }
+.collection-row { border-bottom: 1px solid var(--line); min-width: 0; padding: 0.75rem 0; }
+.collection-row:last-child { border-bottom: 0; }
+.collection-row__header { align-items: flex-start; display: flex; gap: 0.8rem; justify-content: space-between; }
+.collection-row h4 { margin: 0.1rem 0 0.2rem; }
+.collection-row__header button,
+.collection-insights button { font-size: 0.76rem; }
+.collection-insights { display: grid; gap: 0.35rem; list-style: none; margin: 0.6rem 0 0; padding: 0; }
+.collection-insights li {
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  gap: 0.55rem;
+  justify-content: space-between;
+  padding: 0.45rem 0.55rem;
+}
+.collection-insights li span { min-width: 0; overflow-wrap: anywhere; }
+
 @media (max-width: 720px) {
   .metric-grid,
   .study-grid,
   .connector-health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .collection-toolbar { grid-template-columns: 1fr; }
   .today-grid,
   .trust-grid { grid-template-columns: 1fr; }
   .today-panel__hero { display: block; }

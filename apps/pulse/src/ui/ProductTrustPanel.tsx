@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
 import type { Finding } from "../discovery/finding.js";
+import { ReplicationLedger } from "../discovery/replication.js";
 import { buildReplicationSchedule } from "../discovery/replication-schedule.js";
 import { detectInvalidExperimentDays, MISSING_DATA_REASONS, type MissingDataReason } from "../experiments/data-quality.js";
+import type { InsightCollection } from "../history/insight-collections.js";
 import { buildReliabilityProfiles, type ReliabilityProfile } from "../quality/profiles.js";
 import type { SourceQuality } from "../quality/score.js";
 import type { Recommendation } from "../recommendations/rank.js";
@@ -41,6 +43,9 @@ export function ProductTrustPanel({
   const [lineageOpen, setLineageOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [classifiedDays, setClassifiedDays] = useState<Record<string, MissingDataReason>>({});
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [selectedCollectionId, setSelectedCollectionId] = useState("");
+  const [selectedFindingId, setSelectedFindingId] = useState(findings[0]?.id ?? "");
 
   /* The engine is mutable by design. revision tells this view when a user
      action changed a ledger or tracker and its derived rows should refresh. */
@@ -55,6 +60,7 @@ export function ProductTrustPanel({
   const designs = useMemo(() => pulse.listDesigns(), [pulse, revision]);
   const results = useMemo(() => pulse.experimentResultsList(), [pulse, revision]);
   const measurement = useMemo(() => pulse.events()[0], [pulse, revision]);
+  const collections = useMemo(() => pulse.insightCollections.list(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const primaryFinding = findings.find((finding) => finding.replicationStatus !== "contradicted") ?? findings[0];
@@ -68,6 +74,38 @@ export function ProductTrustPanel({
   const funnel = pulse.recommendationFunnel();
   const invalidDays = designs.flatMap((design) => detectInvalidExperimentDays(design, pulse.events(), pulse.registry).map((day) => ({ ...day, title: design.title })));
   const experimentCompletion = designs.length ? results.length / designs.length : 0;
+  const activeCollectionId = collections.some((collection) => collection.id === selectedCollectionId) ? selectedCollectionId : collections[0]?.id ?? "";
+  const activeFindingId = findings.some((finding) => finding.id === selectedFindingId) ? selectedFindingId : findings[0]?.id ?? "";
+
+  const createCollection = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    const collection = pulse.createInsightCollection(newCollectionName);
+    setNewCollectionName("");
+    setSelectedCollectionId(collection.id);
+    setNotice(`Collection “${collection.title}” created.`);
+    onChange();
+  };
+
+  const addToCollection = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    const finding = findings.find((candidate) => candidate.id === activeFindingId);
+    if (!finding || !activeCollectionId) return;
+    pulse.addFindingToInsightCollection(activeCollectionId, finding);
+    setNotice(`Saved “${finding.title}” to the collection.`);
+    onChange();
+  };
+
+  const removeFromCollection = (collection: InsightCollection, signature: string): void => {
+    pulse.removeInsightFromCollection(collection.id, signature);
+    onChange();
+  };
+
+  const deleteCollection = (collection: InsightCollection): void => {
+    pulse.deleteInsightCollection(collection.id);
+    setSelectedCollectionId(collections.find((candidate) => candidate.id !== collection.id)?.id ?? "");
+    setNotice(`Collection “${collection.title}” deleted.`);
+    onChange();
+  };
 
   return (
     <section className="today-panel" aria-labelledby="today-title">
@@ -147,6 +185,37 @@ export function ProductTrustPanel({
       </div>
 
       {notice ? <p className="toast" role="status">{notice}<button type="button" onClick={() => setNotice(null)} aria-label="Dismiss message">×</button></p> : null}
+
+      <TrustSection title="Insight Collections" kicker="Keep related evidence together">
+        <div className="collection-toolbar">
+          <form className="collection-form" onSubmit={createCollection}>
+            <label htmlFor="new-collection-name">New collection</label>
+            <div className="collection-form__controls">
+              <input id="new-collection-name" value={newCollectionName} onChange={(event) => setNewCollectionName(event.target.value)} placeholder="e.g. Study habits" required />
+              <button type="submit">Create</button>
+            </div>
+          </form>
+          <form className="collection-form" onSubmit={addToCollection}>
+            <label htmlFor="collection-insight">Save an insight</label>
+            <div className="collection-form__controls">
+              <select id="collection-insight" value={activeFindingId} onChange={(event) => setSelectedFindingId(event.target.value)} disabled={!findings.length}>
+                {findings.length ? findings.map((finding) => <option key={finding.id} value={finding.id}>{finding.title}</option>) : <option value="">No active insights</option>}
+              </select>
+              <select aria-label="Collection to save insight to" value={activeCollectionId} onChange={(event) => setSelectedCollectionId(event.target.value)} disabled={!collections.length}>
+                {collections.length ? collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.title}</option>) : <option value="">Create a collection first</option>}
+              </select>
+              <button type="submit" disabled={!findings.length || !collections.length}>Save</button>
+            </div>
+          </form>
+        </div>
+        {collections.length ? <div className="collection-list">{collections.map((collection) => <article className="collection-row" key={collection.id}>
+          <div className="collection-row__header"><div><h4>{collection.title}</h4><span className="muted">{collection.insightSignatures.length} insight{collection.insightSignatures.length === 1 ? "" : "s"}</span></div><button type="button" onClick={() => deleteCollection(collection)} aria-label={`Delete collection ${collection.title}`}>Delete</button></div>
+          {collection.insightSignatures.length ? <ul className="collection-insights">{collection.insightSignatures.map((signature) => {
+            const current = findings.find((finding) => ReplicationLedger.signature(finding) === signature);
+            return <li key={signature}><span>{current?.title ?? "Insight not in the current scan"}</span><button type="button" onClick={() => removeFromCollection(collection, signature)} aria-label={`Remove ${current?.title ?? "insight"} from ${collection.title}`}>Remove</button></li>;
+          })}</ul> : <p className="empty-inline">Save an insight here when you want to revisit it.</p>}
+        </article>)}</div> : <p className="empty-inline">Create a collection for evidence you want to compare, revisit or share.</p>}
+      </TrustSection>
 
       <div className="trust-grid">
         <TrustSection title="Confidence change history" kicker="Every scan leaves a trail">
