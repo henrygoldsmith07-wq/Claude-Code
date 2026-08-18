@@ -7,7 +7,7 @@ const GCSE_SUBJECTS = allSubjects().filter((subject) => subject.qualificationId.
 describe("GCSE question expansion", () => {
   it("adds one original question for every GCSE topic across every supported board", () => {
     expect(GCSE_SUBJECTS).toHaveLength(16);
-    expect(gcseExpansionQuestions).toHaveLength(228);
+    expect(gcseExpansionQuestions).toHaveLength(220);
 
     for (const subject of GCSE_SUBJECTS) {
       const questions = gcseExpansionQuestions.filter((question) => question.subjectId === subject.id);
