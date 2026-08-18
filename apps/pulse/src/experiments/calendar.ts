@@ -10,6 +10,7 @@
 
 import { addDays, daysBetween } from "../events/time.js";
 import type { ExperimentResult } from "./analysis.js";
+import type { StopDecision } from "./stopping.js";
 import {
   BASELINE_INSTRUCTION,
   conditionForDateFrom,
@@ -93,6 +94,8 @@ export interface CalendarEntry {
   endDate: string;
   /** Days until the run ends; negative once it has overrun. */
   daysRemaining: number;
+  /** Pre-registered early-stopping decision (P1 #5): null while the run continues. */
+  stopping: StopDecision | null;
 }
 
 export interface CalendarAssignment {
@@ -213,6 +216,8 @@ export function buildCalendar(
   today: string,
   /** Effective end dates per design from the adaptive-duration rule (P1 #4). */
   projectedEnds?: ReadonlyMap<string, string>,
+  /** Pre-registered early-stopping decisions per design (P1 #5), evaluated live. */
+  stoppingByDesign?: ReadonlyMap<string, StopDecision>,
 ): ExperimentCalendar {
   const resultById = new Map(results.map((result) => [result.experimentId, result]));
 
@@ -250,6 +255,7 @@ export function buildCalendar(
       result,
       endDate,
       daysRemaining: daysBetween(today, endDate),
+      stopping: stoppingByDesign?.get(design.id) ?? null,
     };
   });
 

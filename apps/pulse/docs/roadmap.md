@@ -67,6 +67,22 @@ no assignment to follow), and reports them separately in the result's
 hangover — plus one plain sentence in the summary. `tests/washout.test.ts`
 (13 tests) pins scheduling, periods, calendar and analysis.
 
+Shipped: **#5 Early Stopping Rules, #6 Futility, #7 Low-Adherence, #8
+Data-Quality** — `experiments/stopping.ts` evaluates a live run per day and
+decides *continue* or *stop*, with the reason recorded on the experiment. Only
+rules pre-registered on the design may stop a run — `designExperiment` accepts
+a `stopping` option whose thresholds are resolved and stored on the design
+record. Three rules ship: futility (conditional power at the planned sample
+below a pre-registered floor — always `inconclusive`, never `refuted`),
+low-adherence (projected final adherence below the floor with no realistic
+recovery, naming the missed days — `invalid`), and data-quality (the worst
+contributing source's score over the run window collapses — `invalid`). The
+calendar carries the live decision on the entry (`entry.stopping`), the
+analysis integrates it (a stopped run's window closes on the day it was
+stopped), and the experiments panel shows a "Stopped early" alert.
+`tests/stopping.test.ts` (23 tests) pins pre-registration, the three rules,
+their gates, ordering and the analysis integration.
+
 Shipped: **#9 Experiment Conflict Detection (same-metric tier)** —
 `findSameMetricOverlaps` in `experiments/calendar.ts` refuses, at proposal
 time, any experiment whose run range intersects a live run on the same metric.
@@ -210,6 +226,11 @@ returns an answer that mixes early and late data.
 **Files:** new `src/experiments/stopping.ts`, `experiments/calendar.ts` hook,
 `experiments/analysis.ts` (final verdict integrates the stop).
 
+*Shipped (see Progress): `experiments/stopping.ts` evaluates the
+pre-registered rules per day on the live calendar — futility, low-adherence
+and data-quality — with the decision carried on the calendar entry and
+integrated into the final verdict.*
+
 #### 6. Futility Stopping — **M**
 
 An underpowered run runs to its full length and returns `inconclusive` at the
@@ -226,6 +247,10 @@ end, after weeks of collecting data that could never have answered.
 **Risk:** a too-eager threshold stops on early noise. Calibrate against the
 synthetic benchmark users, and pre-register the threshold in the design.
 
+*Shipped (see Progress): conditional-power check with a pre-registered floor
+(0.2 default) gated behind a minimum observed sample fraction (0.5 default),
+so early noise cannot stop a run; a futility stop is always `inconclusive`.*
+
 #### 7. Low-Adherence Stopping — **S**
 
 Adherence is computed at analysis time; below 40% the run is `invalid` — but
@@ -238,6 +263,11 @@ that is discovered only when it is over.
 
 **Files:** `experiments/stopping.ts`, `experiments/calendar.ts` (daily
 adherence), `experiments/analysis.ts`.
+
+*Shipped (see Progress): the adherence rule projects the final adherence over
+the adaptive-duration window — if even perfect recovery cannot reach the
+floor, the run stops as `invalid` with the missed days named. It reuses the
+analysis's 40% default floor.*
 
 #### 8. Data-Quality Stopping — **M**
 
@@ -255,6 +285,12 @@ score), calendar hook.
 **Risk:** distinguish "missing because the condition says don't do it" from
 "missing because the pipeline broke" — the former is adherence, the latter is
 quality.
+
+*Shipped (see Progress): the quality rule scores the worst contributing
+source over the run's own window (freshness collapses when a connector stops
+syncing) and stops as `invalid` below the pre-registered 0.45 floor, gated
+behind a 7-day elapsed minimum; adherence is evaluated first, so missing
+because the condition said don't stays an adherence matter.*
 
 ### Calendar safety
 

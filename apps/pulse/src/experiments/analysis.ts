@@ -26,6 +26,7 @@ import { intervalCrossesZero, type Interval } from "../statistics/effects.js";
 import { gradeConfidence, causalityCaveat, type ConfidenceAssessment } from "../statistics/confidence.js";
 import { twoSampleTPower } from "../statistics/power.js";
 import { adaptiveEndDate } from "./calendar.js";
+import type { StopDecision } from "./stopping.js";
 import { conditionForDateFrom, extendedAssignments, type Assignment, type ExperimentDesign } from "./design.js";
 
 export type ExperimentVerdict = "supported" | "refuted" | "inconclusive" | "invalid";
@@ -94,6 +95,8 @@ export interface ExperimentResult {
   baseline: BaselineReport | null;
   /** The washout gap and its hangover readout, for crossover designs with one; null otherwise. */
   washout: WashoutReport | null;
+  /** The pre-registered early-stopping decision (P1 #5) the verdict integrates; null when the run ran its course. */
+  stopping: StopDecision | null;
   confidence: ConfidenceAssessment;
   causalityNote: string;
   /** Blocks used, for crossover designs. */
@@ -110,6 +113,8 @@ export interface AnalysisOptions {
   timezone?: string;
   /** Minimum adherence before the run is called invalid. */
   minAdherence?: number;
+  /** A pre-registered early-stopping decision (P1 #5), evaluated live; the verdict integrates it. */
+  stopping?: StopDecision | null;
 }
 
 export function analyseExperiment(
@@ -126,11 +131,16 @@ export function analyseExperiment(
   // extension count. The analysis method and the planned sample never change
   // — only the window does.
   const today = localDate(now(), options.timezone ?? "UTC");
-  const effectiveEnd = adaptiveEndDate(
+  const adaptiveEnd = adaptiveEndDate(
     design,
     allObservations.map((observation) => observation.localDate),
     today,
   );
+  // A run stopped by a pre-registered rule (P1 #5) ended on the day it was
+  // stopped: the window closes there, so sessions collected after the stop
+  // are out of window rather than silently counted against the run.
+  const effectiveEnd =
+    options.stopping && options.stopping.decidedOn < adaptiveEnd ? options.stopping.decidedOn : adaptiveEnd;
 
   const effectiveAssignments = extendedAssignments(design, effectiveEnd);
 
@@ -195,7 +205,14 @@ export function analyseExperiment(
   }
 
   // --- validity gates ---------------------------------------------------
+  // A pre-registered stop recorded on the live run (P1 #5) is authoritative:
+  // a futility stop is inconclusive — never refuted — and still reports the
+  // comparison below; an adherence or quality stop means the run did not
+  // happen as designed, so it is invalid before any comparison is attempted.
   const minAdherence = options.minAdherence ?? 0.4;
+  if (options.stopping && options.stopping.rule !== "futility") {
+    return invalidResult(design, options, adherence, blocks, baseline, washout, options.stopping.reason, now());
+  }
   if (groupA.length === 0 || groupB.length === 0) {
     return invalidResult(design, options, adherence, blocks, baseline, washout, "One of the conditions has no sessions at all.", now());
   }
@@ -213,32 +230,7 @@ export function analyseExperiment(
   }
 
   // --- the comparison ---------------------------------------------------
-  const paired = design.type === "crossover" && blocks.length >= 4;
-  let comparison: ComparisonResult;
-  let secondary: ComparisonResult | null = null;
-
-  if (paired) {
-    const { a, b } = pairBlocks(blocks);
-    if (a.length >= 2) {
-      comparison = pairedTTest(b, a);
-      // A second method always accompanies the first, so a verdict is never
-      // the artefact of one test's assumptions. Wilcoxon needs six pairs;
-      // below that, an unpaired rank test on the raw sessions is the honest
-      // cross-check available.
-      secondary =
-        a.length >= 6
-          ? wilcoxonSignedRank(b, a)
-          : mannWhitneyU(groupA.map((o) => o.value), groupB.map((o) => o.value));
-    } else {
-      comparison = welchTTest(groupA.map((o) => o.value), groupB.map((o) => o.value));
-      secondary = mannWhitneyU(groupA.map((o) => o.value), groupB.map((o) => o.value));
-    }
-  } else {
-    const a = groupA.map((o) => o.value);
-    const b = groupB.map((o) => o.value);
-    comparison = welchTTest(a, b);
-    secondary = mannWhitneyU(a, b);
-  }
+  const { comparison, secondary } = computeComparison(design, groupA, groupB, blocks);
 
   const observedEffect = comparison.effect.value;
   const differenceCi = comparison.differenceCi ?? null;
@@ -261,7 +253,13 @@ export function analyseExperiment(
     reasons.push("The two analysis methods disagree on the direction, which is a reason for caution.");
   }
 
-  if (comparison.insufficient) {
+  if (options.stopping?.rule === "futility") {
+    // A futility stop is never evidence of no effect — the run could not
+    // answer its question, so the verdict is inconclusive by pre-registered
+    // rule, with the comparison still reported for transparency.
+    verdict = "inconclusive";
+    reasons.push(options.stopping.reason);
+  } else if (comparison.insufficient) {
     verdict = "inconclusive";
     reasons.push(comparison.insufficient);
   } else if (ciExcludesZero && directionMatches && bigEnough && !underSampled) {
@@ -311,6 +309,7 @@ export function analyseExperiment(
     adherence,
     baseline,
     washout,
+    stopping: options.stopping ?? null,
     confidence,
     causalityNote:
       design.type === "before-after"
@@ -347,6 +346,7 @@ function invalidResult(
     adherence,
     baseline,
     washout,
+    stopping: options.stopping ?? null,
     confidence: gradeConfidence({
       evidenceClass: "experiment",
       sampleSize: adherence.conditionASessions + adherence.conditionBSessions,
@@ -440,6 +440,44 @@ function summariseBlocks(
   return [...buckets.values()]
     .map((bucket) => ({ block: bucket.block, condition: bucket.condition, n: bucket.values.length, mean: mean(bucket.values) }))
     .sort((a, b) => a.block - b.block || a.condition.localeCompare(b.condition));
+}
+
+/**
+ * Runs the primary comparison and its cross-check. A crossover with at least
+ * four blocks pairs consecutive A and B block means; anything else compares
+ * the raw sessions. A second method always accompanies the first, so a
+ * verdict is never the artefact of one test's assumptions. Wilcoxon needs six
+ * pairs; below that, an unpaired rank test on the raw sessions is the honest
+ * cross-check available.
+ */
+function computeComparison(
+  design: ExperimentDesign,
+  groupA: readonly MetricObservation[],
+  groupB: readonly MetricObservation[],
+  blocks: ExperimentResult["blocks"],
+): { comparison: ComparisonResult; secondary: ComparisonResult | null } {
+  const paired = design.type === "crossover" && blocks.length >= 4;
+  if (paired) {
+    const { a, b } = pairBlocks(blocks);
+    if (a.length >= 2) {
+      const comparison = pairedTTest(b, a);
+      const secondary =
+        a.length >= 6
+          ? wilcoxonSignedRank(b, a)
+          : mannWhitneyU(groupA.map((o) => o.value), groupB.map((o) => o.value));
+      return { comparison, secondary };
+    }
+    return {
+      comparison: welchTTest(groupA.map((o) => o.value), groupB.map((o) => o.value)),
+      secondary: mannWhitneyU(groupA.map((o) => o.value), groupB.map((o) => o.value)),
+    };
+  }
+  const a = groupA.map((o) => o.value);
+  const b = groupB.map((o) => o.value);
+  return {
+    comparison: welchTTest(a, b),
+    secondary: mannWhitneyU(a, b),
+  };
 }
 
 /**

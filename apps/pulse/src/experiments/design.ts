@@ -21,6 +21,7 @@ import { addDays, daysBetween } from "../events/time.js";
 import { createRng } from "../statistics/random.js";
 import { minSamplePaired, minSamplePerGroup } from "../statistics/power.js";
 import type { Hypothesis } from "../hypotheses/tracker.js";
+import type { StoppingConfig, StoppingConfigInput } from "./stopping.js";
 
 export type ExperimentType = "crossover" | "ab" | "before-after";
 
@@ -74,6 +75,10 @@ export interface ExperimentDesign {
    * rule (P1 #4) compares the observed rate against this. Always set by
    * `designExperiment`; optional so pre-existing records stay valid. */
   assumedSessionsPerWeek?: number;
+  /** Pre-registered early stopping rules (P1 #5): only a rule present here may
+   * stop a live run, with its thresholds resolved. `{}` when off. Always set by
+   * `designExperiment`; optional so pre-existing records stay valid. */
+  stopping?: StoppingConfig;
   startDate: string;
   endDate: string;
   assignments: Assignment[];
@@ -100,6 +105,11 @@ export interface DesignOptions {
   baselineDays?: number;
   /** Overrides the power-derived sample requirement. Use sparingly. */
   minSamplePerCondition?: number;
+  /** Pre-registered early stopping rules (P1 #5-8): futility, low-adherence
+   * and data-quality. Only rules present here may stop the run — a rule that
+   * appears after the run started is rationalisation, not a rule. Fields are
+   * optional; defaults are resolved onto the stored design record. */
+  stopping?: StoppingConfigInput;
   seed?: string;
   now?: () => number;
   conditionA?: Partial<Condition>;
@@ -136,6 +146,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
   }
   // Capped at one block so the gap cannot double the run length.
   const clampedWashout = Math.max(0, Math.min(washoutDays, blockDays));
+  const stopping = resolveStoppingConfig(options.stopping);
   // A lead-in is only informative when it stays short — beyond a week it is
   // just a longer run with a weaker design.
   const clampedBaseline = Math.max(0, Math.min(baselineDays, BASELINE_MAX_DAYS));
@@ -178,6 +189,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     washoutDays: clampedWashout,
     baselineDays: clampedBaseline,
     assumedSessionsPerWeek: sessionsPerWeek,
+    stopping,
     startDate: options.startDate,
     endDate,
     assignments,
@@ -196,6 +208,54 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
       "A change in circumstances that affects both conditions unequally (illness, exams, travel)",
     ],
   };
+}
+
+// --- early stopping pre-registration (P1 #5) -----------------------------
+
+/** Conditional-power floor below which a futility stop fires. */
+export const DEFAULT_FUTILITY_FLOOR = 0.2;
+/** Minimum share of the planned sample before futility is even evaluated. */
+export const DEFAULT_FUTILITY_MIN_SAMPLE_FRACTION = 0.5;
+/** Projected final adherence below which an adherence stop fires. */
+export const DEFAULT_ADHERENCE_FLOOR = 0.4;
+/** Minimum elapsed assigned days before an adherence stop is evaluated. */
+export const DEFAULT_ADHERENCE_MIN_ASSIGNED_DAYS = 7;
+/** Worst contributing source score below which a quality stop fires. */
+export const DEFAULT_QUALITY_FLOOR = 0.45;
+/** Minimum elapsed days of the run before a quality stop is evaluated. */
+export const DEFAULT_QUALITY_MIN_ELAPSED_DAYS = 7;
+
+/**
+ * Fills in the defaults for each pre-registered stopping rule. A rule the
+ * caller did not pre-register stays out — only a rule present in the resolved
+ * config may stop a run, and the thresholds it can stop by are stored on the
+ * design record itself rather than hidden in a default somewhere.
+ */
+export function resolveStoppingConfig(config: StoppingConfigInput | undefined): StoppingConfig {
+  if (!config) return {};
+  const resolved: StoppingConfig = {};
+  if (config.futility) {
+    resolved.futility = {
+      conditionalPowerFloor: DEFAULT_FUTILITY_FLOOR,
+      minSampleFraction: DEFAULT_FUTILITY_MIN_SAMPLE_FRACTION,
+      ...config.futility,
+    };
+  }
+  if (config.adherence) {
+    resolved.adherence = {
+      minAdherence: DEFAULT_ADHERENCE_FLOOR,
+      minAssignedDays: DEFAULT_ADHERENCE_MIN_ASSIGNED_DAYS,
+      ...config.adherence,
+    };
+  }
+  if (config.quality) {
+    resolved.quality = {
+      minQuality: DEFAULT_QUALITY_FLOOR,
+      minElapsedDays: DEFAULT_QUALITY_MIN_ELAPSED_DAYS,
+      ...config.quality,
+    };
+  }
+  return resolved;
 }
 
 function roundToBlocks(days: number, blockDays: number): number {
