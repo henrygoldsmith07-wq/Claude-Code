@@ -23,6 +23,7 @@ import { scoreAll, type QualityContext, type SourceQuality } from "./quality/sco
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
 import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
+import { relationshipSubject } from "./discovery/relationship.js";
 import { InsightHistory, type InsightHistoryAdapter } from "./history/insight-history.js";
 import { InsightCollectionStore, type InsightCollectionsAdapter } from "./history/insight-collections.js";
 import {
@@ -248,7 +249,9 @@ export class Pulse {
     // settles it. Reconcile on every scan, so the ledger's verdict is what
     // the UI shows and a cleared conflict restores the standing.
     this.causalLibrary.reconcileContradictions(
-      new Set(this.contradictions.list().map((record) => `${record.outcomeMetricId}|${record.exposureMetricId}`)),
+      new Set(
+        this.contradictions.list().map((record) => relationshipSubject(record.outcomeMetricId, record.exposureMetricId)),
+      ),
     );
     this.persistCausalLibrary();
     this.insightHistory.recordScan({

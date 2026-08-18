@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
 import type { Finding, ReplicationStatus } from "../discovery/finding.js";
+import { relationshipSubject } from "../discovery/relationship.js";
 import { FindingCard } from "./FindingCard.js";
 import { EvidencePanel } from "./EvidencePanel.js";
 import { LibraryPanel } from "./LibraryPanel.js";
@@ -68,7 +69,9 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const recordBySubject = useMemo(
     () =>
       new Map(
-        pulse.contradictions.list().map((record) => [`${record.outcomeMetricId}|${record.exposureMetricId}`, record]),
+        pulse.contradictions
+          .list()
+          .map((record) => [relationshipSubject(record.outcomeMetricId, record.exposureMetricId), record]),
       ),
     [pulse, revision],
   );
@@ -205,10 +208,9 @@ export function App({ pulse }: AppProps): React.JSX.Element {
                 </p>
                 <ul>
                   {brief.withdrawnBeliefs.map((belief) => {
-                    // The ledger's subject normalises a missing exposure to an
-                    // empty string; the library stores the same as null. Match
-                    // on the ledger's own identity format.
-                    const record = recordBySubject.get(`${belief.outcomeMetricId ?? ""}|${belief.exposureMetricId ?? ""}`);
+                    const record = recordBySubject.get(
+                      relationshipSubject(belief.outcomeMetricId, belief.exposureMetricId),
+                    );
                     return (
                       <li key={`${belief.statement}-${belief.cause}`} className="warn">
                         <strong>{belief.statement}</strong> <span className="muted">{belief.note}</span>
