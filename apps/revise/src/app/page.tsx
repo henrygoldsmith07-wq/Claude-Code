@@ -149,7 +149,7 @@ export default function TodayPage() {
               title="No plan for today"
               body="Generate an adaptive timetable from your exam dates, available hours and current mastery."
               action={
-                <Button variant="primary" onClick={() => void store.regeneratePlan()}>
+                <Button onClick={() => void store.regeneratePlan()}>
                   Build my plan
                 </Button>
               }

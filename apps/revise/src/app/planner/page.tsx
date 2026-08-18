@@ -84,7 +84,7 @@ export default function PlannerPage() {
           title="No plan yet"
           body="Set how much time you have on each weekday in settings, add your exam dates, then build the plan. It rebuilds from your latest mastery every time."
           action={
-            <Button variant="primary" onClick={() => void rebuild()}>
+            <Button onClick={() => void rebuild()}>
               Build my plan
             </Button>
           }

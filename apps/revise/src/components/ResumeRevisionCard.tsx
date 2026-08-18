@@ -33,7 +33,7 @@ export function ResumeRevisionCard() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link href={checkpoint.href}>
-            <Button variant="primary" size="sm">Resume</Button>
+            <Button size="sm">Resume</Button>
           </Link>
           <Button size="sm" variant="ghost" onClick={() => void store.clearRevisionCheckpoint()}>
             Dismiss
