@@ -51,6 +51,7 @@ source immediately.
 | **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, sit them timed. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
 | **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
+| **Mistake diagnosis** | Ranks likely root causes from missed points, answer/working evidence, timing, command words and the authored misconception library; one-off evidence stays an early signal. |
 | **Marking evidence** | Double-marked answer corpus with independent-marker agreement, disagreement review, adjudication and versioned JSON import/export. |
 | **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, and hands-free Listen — all over the same cards. |
 | **From notes** | One click: drop a PDF, paste notes or photograph a page, and get flashcards back, previewed before they join the deck. |
@@ -76,6 +77,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   planner.ts       Adaptive timetable + missed-session recovery (realism + diminishing returns)
   marking.ts       Offline rubric marking against mark schemes
   mistakes.ts      Dropped mark → classified mistake → flashcard
+  mistake-root-cause.ts  Ranked, answer-aware diagnosis with confidence thresholds
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
   fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
