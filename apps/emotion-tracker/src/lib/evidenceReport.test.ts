@@ -101,14 +101,18 @@ describe("longitudinal evidence reports", () => {
     const report = buildLongitudinalEvidenceReport([
       entry("private", "2026-01-05T12:00:00.000Z", {
         messages: [{ role: "user", content: "This private transcript must never be exported in the report" }],
+        summary: summary({}, {
+          observations: ["More detail was requested"],
+          assumptions: ["More detail means I am incompetent"],
+        }),
       }),
     ], { generatedAt: "2026-01-06T12:00:00.000Z" });
 
     const serialised = JSON.stringify(report);
     expect(serialised).not.toContain("private transcript");
     expect(report.evidence.records[0]).not.toHaveProperty("messages");
-    expect(report.evidence.records[0].observations).toEqual(["Manager said more detail would help"]);
-    expect(report.evidence.records[0].links[0].linkedAssumptions).toContain("They think I am incompetent");
+    expect(report.evidence.records[0].observations).toEqual(["More detail was requested"]);
+    expect(report.evidence.records[0].links[0].linkedAssumptions).toContain("More detail means I am incompetent");
   });
 
   it("renders a readable Markdown report with evidence citations", () => {
