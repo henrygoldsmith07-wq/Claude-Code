@@ -67,6 +67,22 @@ no assignment to follow), and reports them separately in the result's
 hangover — plus one plain sentence in the summary. `tests/washout.test.ts`
 (13 tests) pins scheduling, periods, calendar and analysis.
 
+Shipped: **#12 Multi-Outcome Experiments** — the design registers an
+`outcomes` array: the hypothesis's metric as primary (which alone may drive
+the verdict), plus secondaries each carrying their own predicted direction
+and size (capped at five outcomes, duplicates refused). The analysis runs the
+same comparison machinery per outcome and corrects the whole family with the
+same Benjamini-Hochberg step-up the discovery layer uses — a borderline
+primary that the family-wide search cannot single out is `inconclusive`, not
+`supported`, with the correction named in the reasons. Secondaries are
+reported on the result (comparison, effect, raw and adjusted p, plain
+reading) and never flip the verdict; an under-sampled secondary drops out of
+the family rather than polluting it. The same-metric conflict scan now
+considers every outcome metric, primary or secondary. `tests/multi-outcome
+.test.ts` (12 tests) pins the design record, the correction bite, the
+primary-driven verdict, the reported secondaries, and the secondary-metric
+conflict block.
+
 Shipped: **#11 Delayed Outcome Support** — `designExperiment` accepts an
 `outcomeLagDays` option (0 = today's outcome, capped at a week), stored on the
 design; `assignmentDateForOutcome` pairs every outcome observation dated X to
@@ -374,6 +390,11 @@ outcome multiplies the false-positive rate across the family.
 
 **Files:** `experiments/design.ts` (outcomes array), `experiments/analysis.ts`
 (per-outcome verdicts + family correction), `hypotheses/tracker.ts`.
+
+*Shipped (see Progress): `outcomes` array on the design (primary +
+secondaries, each with its own prediction), per-outcome comparisons with
+Benjamini-Hochberg across the family, and a primary-only verdict. The tracker
+needed no structural change — the hypothesis stays the primary claim.*
 
 ### Reuse
 

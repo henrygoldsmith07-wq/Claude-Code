@@ -152,6 +152,8 @@ describe("the numeric guard", () => {
       adherence: { assignedDays: 28, daysWithSessions: 24, adherence: 0.857, conditionASessions: 30, conditionBSessions: 28, outOfWindowSessions: 0 },
       baseline: null,
       washout: null,
+      family: null,
+      secondaryOutcomes: [],
       confidence: { level: "moderate", score: 0.6, reasons: [], limitations: [] },
       causalityNote: "",
       blocks: [],

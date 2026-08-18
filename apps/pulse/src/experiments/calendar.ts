@@ -16,6 +16,7 @@ import {
   conditionForDateFrom,
   derivePeriodsFrom,
   extendedAssignments,
+  outcomeMetricIds,
   periodForDateFrom,
   WASHOUT_INSTRUCTION,
   type Assignment,
@@ -149,11 +150,14 @@ export function findSameMetricOverlaps(
   existing: readonly ExperimentDesign[],
   candidate: ExperimentDesign,
 ): SameMetricOverlap[] {
+  const candidateMetrics = new Set(outcomeMetricIds(candidate));
   return existing
     .filter(
       (design) =>
         design.id !== candidate.id &&
-        design.targetMetricId === candidate.targetMetricId &&
+        // Any shared outcome metric — primary or secondary (P1 #12) — is a
+        // conflict: the metric cannot be measured under two conditions at once.
+        outcomeMetricIds(design).some((metricId) => candidateMetrics.has(metricId)) &&
         design.startDate <= candidate.endDate &&
         candidate.startDate <= design.endDate,
     )
@@ -308,7 +312,7 @@ function buildConflicts(
       const entry = byDate.get(assignment.date) ?? { experimentIds: [], titles: [], metricIds: [] };
       entry.experimentIds.push(design.id);
       entry.titles.push(design.title);
-      entry.metricIds.push(design.targetMetricId);
+      entry.metricIds.push(...outcomeMetricIds(design));
       byDate.set(assignment.date, entry);
     }
   }

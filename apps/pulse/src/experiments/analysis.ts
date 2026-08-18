@@ -25,6 +25,7 @@ import { mean, slope } from "../statistics/descriptive.js";
 import { intervalCrossesZero, type Interval } from "../statistics/effects.js";
 import { gradeConfidence, causalityCaveat, type ConfidenceAssessment } from "../statistics/confidence.js";
 import { twoSampleTPower } from "../statistics/power.js";
+import { benjaminiHochberg } from "../statistics/multiple.js";
 import { adaptiveEndDate } from "./calendar.js";
 import type { StopDecision } from "./stopping.js";
 import {
@@ -33,6 +34,7 @@ import {
   extendedAssignments,
   type Assignment,
   type ExperimentDesign,
+  type ExperimentOutcome,
 } from "./design.js";
 
 export type ExperimentVerdict = "supported" | "refuted" | "inconclusive" | "invalid";
@@ -80,6 +82,25 @@ export interface BaselineReport {
   trendPerDay: number | null;
 }
 
+/**
+ * A secondary outcome's readout (P1 #12). Reported alongside the primary,
+ * corrected within the family, and never allowed to flip the verdict.
+ */
+export interface SecondaryOutcomeResult {
+  metricId: string;
+  predictedDirection: "increase" | "decrease";
+  predictedEffect: number;
+  comparison: ComparisonResult;
+  observedEffect: number;
+  /** Raw p-value of this outcome's comparison. */
+  pValue: number;
+  /** Benjamini-Hochberg adjusted p across the family; NaN when the comparison was insufficient. */
+  adjustedP: number;
+  significant: boolean;
+  /** Plain reading — reported, not decisive. */
+  note: string;
+}
+
 export interface ExperimentResult {
   experimentId: string;
   hypothesisId: string;
@@ -103,6 +124,10 @@ export interface ExperimentResult {
   washout: WashoutReport | null;
   /** The pre-registered early-stopping decision (P1 #5) the verdict integrates; null when the run ran its course. */
   stopping: StopDecision | null;
+  /** Family correction applied over the outcomes (P1 #12); null when the experiment measures only the primary. */
+  family: { size: number; primaryAdjustedP: number | null } | null;
+  /** Secondary outcomes, reported but never allowed to flip the verdict. */
+  secondaryOutcomes: SecondaryOutcomeResult[];
   confidence: ConfidenceAssessment;
   causalityNote: string;
   /** Blocks used, for crossover designs. */
@@ -180,13 +205,7 @@ export function analyseExperiment(
   const baseline = buildBaselineReport(design, inWindow, baselineDates);
   const washout = buildWashoutReport(design, inWindow, washoutDates);
 
-  const groupA: MetricObservation[] = [];
-  const groupB: MetricObservation[] = [];
-  for (const observation of inWindow) {
-    const condition = conditionForDateFrom(effectiveAssignments, assignmentDateForOutcome(design, observation.localDate));
-    if (condition === "A") groupA.push(observation);
-    else if (condition === "B") groupB.push(observation);
-  }
+  const { groupA, groupB } = splitByCondition(design, inWindow, effectiveAssignments);
 
   const daysWithSessions = new Set(
     inWindow
@@ -246,14 +265,89 @@ export function analyseExperiment(
   const observedEffect = comparison.effect.value;
   const differenceCi = comparison.differenceCi ?? null;
   const harmonicN = (2 * groupA.length * groupB.length) / (groupA.length + groupB.length) / 2;
-  const achievedPower = twoSampleTPower(options.predictedEffect, Math.max(2, harmonicN));
+
+  // --- outcomes and family correction (P1 #12) ---------------------------
+  // The primary is the hypothesis's own outcome and the only one that may
+  // drive the verdict. Secondaries get the same comparison machinery and are
+  // corrected with Benjamini-Hochberg across the whole family, so running
+  // several outcomes in one experiment does not quietly multiply the
+  // false-positive rate the way several separate experiments would.
+  const outcomeSpecs: ExperimentOutcome[] =
+    design.outcomes ??
+    [
+      {
+        metricId: design.targetMetricId,
+        predictedDirection: options.predictedEffect >= 0 ? "increase" : "decrease",
+        predictedEffect: options.predictedEffect,
+        role: "primary",
+      },
+    ];
+  const primarySpec = outcomeSpecs.find((outcome) => outcome.role === "primary") ?? outcomeSpecs[0]!;
+
+  const secondaryReadouts: {
+    spec: ExperimentOutcome;
+    comparison: ComparisonResult;
+    observedEffect: number;
+    pValue: number;
+  }[] = [];
+  for (const spec of outcomeSpecs) {
+    if (spec.role === "primary") continue;
+    const secondaryWindow = observationsFor(events, options.registry.require(spec.metricId)).filter((observation) => {
+      const assigned = assignmentDateForOutcome(design, observation.localDate);
+      return assigned >= design.startDate && assigned <= effectiveEnd;
+    });
+    const secondaryGroups = splitByCondition(design, secondaryWindow, effectiveAssignments);
+    const secondaryBlocks = summariseBlocks(secondaryGroups.groupA, secondaryGroups.groupB, effectiveAssignments, design);
+    const secondaryComparison = computeComparison(design, secondaryGroups.groupA, secondaryGroups.groupB, secondaryBlocks);
+    secondaryReadouts.push({
+      spec,
+      comparison: secondaryComparison.comparison,
+      observedEffect: secondaryComparison.comparison.effect.value,
+      pValue: secondaryComparison.comparison.pValue,
+    });
+  }
+
+  const family =
+    secondaryReadouts.length > 0
+      ? benjaminiHochberg(
+          [
+            { spec: primarySpec, pValue: comparison.pValue },
+            ...secondaryReadouts.map((readout) => ({ spec: readout.spec, pValue: readout.pValue })),
+          ],
+          (item) => item.pValue,
+          0.05,
+        )
+      : null;
+  const primaryAdjustedP = family?.results.find((result) => result.item.spec.role === "primary")?.adjustedP ?? null;
+
+  const secondaryOutcomes: SecondaryOutcomeResult[] = secondaryReadouts.map((readout) => {
+    const adjusted = family?.results.find((result) => result.item.spec.metricId === readout.spec.metricId)?.adjustedP ?? NaN;
+    return {
+      metricId: readout.spec.metricId,
+      predictedDirection: readout.spec.predictedDirection,
+      predictedEffect: readout.spec.predictedEffect,
+      comparison: readout.comparison,
+      observedEffect: readout.observedEffect,
+      pValue: readout.pValue,
+      adjustedP: adjusted,
+      significant: Number.isFinite(adjusted) && adjusted <= 0.05,
+      note: secondaryNote(readout.spec, readout.comparison, adjusted),
+    };
+  });
+
+  const achievedPower = twoSampleTPower(primarySpec.predictedEffect, Math.max(2, harmonicN));
 
   // --- verdict ----------------------------------------------------------
   let verdict: ExperimentVerdict;
   const underSampled = groupA.length < design.minSamplePerCondition || groupB.length < design.minSamplePerCondition;
-  const directionMatches = Math.sign(observedEffect) === Math.sign(options.predictedEffect || 1);
+  const directionMatches =
+    Math.sign(observedEffect) === (primarySpec.predictedDirection === "increase" ? 1 : -1);
   const ciExcludesZero = differenceCi ? !intervalCrossesZero(differenceCi) : comparison.pValue < 0.05;
-  const bigEnough = Math.abs(observedEffect) >= Math.abs(options.predictedEffect) * 0.5;
+  const bigEnough = Math.abs(observedEffect) >= Math.abs(primarySpec.predictedEffect) * 0.5;
+  // With secondaries registered, the primary must survive the family
+  // correction to be supported — a borderline effect that the family-wide
+  // search cannot single out is inconclusive, not a win.
+  const familyAllowsSupport = !family || (primaryAdjustedP !== null && primaryAdjustedP <= 0.05);
 
   if (underSampled) {
     reasons.push(
@@ -273,9 +367,14 @@ export function analyseExperiment(
   } else if (comparison.insufficient) {
     verdict = "inconclusive";
     reasons.push(comparison.insufficient);
-  } else if (ciExcludesZero && directionMatches && bigEnough && !underSampled) {
+  } else if (ciExcludesZero && directionMatches && bigEnough && !underSampled && familyAllowsSupport) {
     verdict = "supported";
     reasons.push("The effect is in the predicted direction, large enough to matter, and the interval excludes zero.");
+    if (family) {
+      reasons.push(
+        `It remains significant after Benjamini-Hochberg correction across ${family.summary.familySize} outcomes (adjusted p ${primaryAdjustedP!.toFixed(3)}).`,
+      );
+    }
   } else if (ciExcludesZero && !directionMatches) {
     verdict = "refuted";
     reasons.push("The effect is clearly non-zero but runs in the opposite direction to the prediction.");
@@ -283,6 +382,13 @@ export function analyseExperiment(
     verdict = "refuted";
     reasons.push(
       `With ${groupA.length} vs ${groupB.length} sessions this run had ${Math.round(achievedPower * 100)}% power to detect the predicted effect and did not find it.`,
+    );
+  } else if (ciExcludesZero && directionMatches && bigEnough && !underSampled && !familyAllowsSupport) {
+    // The effect looks real on its own but does not survive the family: this
+    // is precisely the false-positive the correction exists to catch.
+    verdict = "inconclusive";
+    reasons.push(
+      `The primary's effect is in the predicted direction and the interval excludes zero, but after Benjamini-Hochberg correction across ${family!.summary.familySize} outcomes the adjusted p is ${primaryAdjustedP!.toFixed(3)} — the family-wide search cannot single this outcome out.`,
     );
   } else {
     verdict = "inconclusive";
@@ -324,6 +430,8 @@ export function analyseExperiment(
     baseline,
     washout,
     stopping: options.stopping ?? null,
+    family: family ? { size: family.summary.familySize, primaryAdjustedP } : null,
+    secondaryOutcomes,
     confidence,
     causalityNote:
       design.type === "before-after"
@@ -361,6 +469,8 @@ function invalidResult(
     baseline,
     washout,
     stopping: options.stopping ?? null,
+    family: null,
+    secondaryOutcomes: [],
     confidence: gradeConfidence({
       evidenceClass: "experiment",
       sampleSize: adherence.conditionASessions + adherence.conditionBSessions,
@@ -462,6 +572,38 @@ function summariseBlocks(
   return [...buckets.values()]
     .map((bucket) => ({ block: bucket.block, condition: bucket.condition, n: bucket.values.length, mean: mean(bucket.values) }))
     .sort((a, b) => a.block - b.block || a.condition.localeCompare(b.condition));
+}
+
+/** Splits in-window observations into their condition groups by assignment day. */
+function splitByCondition(
+  design: ExperimentDesign,
+  inWindow: readonly MetricObservation[],
+  effectiveAssignments: readonly Assignment[],
+): { groupA: MetricObservation[]; groupB: MetricObservation[] } {
+  const groupA: MetricObservation[] = [];
+  const groupB: MetricObservation[] = [];
+  for (const observation of inWindow) {
+    const condition = conditionForDateFrom(effectiveAssignments, assignmentDateForOutcome(design, observation.localDate));
+    if (condition === "A") groupA.push(observation);
+    else if (condition === "B") groupB.push(observation);
+  }
+  return { groupA, groupB };
+}
+
+/**
+ * A secondary outcome's plain-language reading: the direction it moved, its
+ * raw and corrected p, and the standing reminder that it cannot decide the
+ * experiment. An insufficient comparison says so instead of pretending.
+ */
+function secondaryNote(spec: ExperimentOutcome, comparison: ComparisonResult, adjustedP: number): string {
+  if (comparison.insufficient) return `${comparison.insufficient} — not counted in the family.`;
+  const movedInDirection =
+    Math.sign(comparison.effect.value) === (spec.predictedDirection === "increase" ? 1 : -1);
+  const correction = Number.isFinite(adjustedP) ? `, adjusted ${adjustedP.toFixed(3)}` : "";
+  return (
+    `Moved ${Math.abs(comparison.effect.value).toFixed(2)} SD ${movedInDirection ? "in" : "against"} the ` +
+    `predicted direction (raw p ${comparison.pValue.toFixed(3)}${correction}) — reported, not decisive.`
+  );
 }
 
 /**

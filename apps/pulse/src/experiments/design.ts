@@ -40,6 +40,19 @@ export interface Assignment {
   block: number;
 }
 
+/**
+ * One measured outcome of an experiment (P1 #12). The primary carries the
+ * success criterion; secondaries are reported and family-corrected, never
+ * allowed to flip the verdict.
+ */
+export interface ExperimentOutcome {
+  metricId: string;
+  predictedDirection: "increase" | "decrease";
+  /** Standardised effect predicted, registered up front. */
+  predictedEffect: number;
+  role: "primary" | "secondary";
+}
+
 /** What the user does on a washout day: nothing but record the outcome. */
 export const WASHOUT_INSTRUCTION = "No condition — record the outcome only.";
 
@@ -54,6 +67,13 @@ export const BASELINE_MAX_DAYS = 7;
  * the behaviour at most; beyond a week the pair stops meaning anything.
  */
 export const OUTCOME_LAG_MAX_DAYS = 7;
+
+/**
+ * Most outcomes an experiment may register (P1 #12). One person's controlled
+ * test can honestly measure a handful of things; beyond five the family
+ * correction over-corrects and the design stops being about anything.
+ */
+export const MAX_OUTCOMES = 5;
 
 export interface ExperimentDesign {
   id: string;
@@ -89,6 +109,10 @@ export interface ExperimentDesign {
    * 0 = today's outcome. Always set by `designExperiment`; optional so
    * pre-existing records stay valid. */
   outcomeLagDays?: number;
+  /** Every measured outcome (P1 #12): the hypothesis's metric as primary, the
+   * rest as secondaries. Always set by `designExperiment`; optional so
+   * pre-existing records stay valid. */
+  outcomes?: ExperimentOutcome[];
   startDate: string;
   endDate: string;
   assignments: Assignment[];
@@ -123,6 +147,15 @@ export interface DesignOptions {
   /** Days between the assignment and the outcome that reflects it (P1 #11);
    * 0 = today's outcome. Sleep measured the morning after is 1. */
   outcomeLagDays?: number;
+  /** Additional outcomes beyond the hypothesis's own (which stays primary).
+   * Each carries its own predicted direction and size; all are analysed with
+   * the within-family Benjamini-Hochberg correction, and only the primary may
+   * drive the verdict (P1 #12). */
+  outcomes?: Array<{
+    metricId: string;
+    predictedDirection: "increase" | "decrease";
+    predictedEffect: number;
+  }>;
   seed?: string;
   now?: () => number;
   conditionA?: Partial<Condition>;
@@ -167,6 +200,39 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
   // just a longer run with a weaker design.
   const clampedBaseline = Math.max(0, Math.min(baselineDays, BASELINE_MAX_DAYS));
 
+  // Multi-outcome registration (P1 #12): the primary is always the
+  // hypothesis's own outcome; everything else is a secondary with its own
+  // prediction. Duplicates are refused (a metric cannot be measured twice in
+  // one run) and the family is capped so the correction stays meaningful.
+  const requestedSecondaries = options.outcomes ?? [];
+  if (requestedSecondaries.length + 1 > MAX_OUTCOMES) {
+    throw new Error(`An experiment can register at most ${MAX_OUTCOMES} outcomes (${MAX_OUTCOMES - 1} secondaries).`);
+  }
+  const seenMetrics = new Set<string>([hypothesis.outcomeMetricId]);
+  for (const secondary of requestedSecondaries) {
+    if (seenMetrics.has(secondary.metricId)) {
+      throw new Error(`Outcome "${secondary.metricId}" is registered more than once in this experiment.`);
+    }
+    seenMetrics.add(secondary.metricId);
+  }
+  const outcomes: ExperimentOutcome[] = [
+    {
+      metricId: hypothesis.outcomeMetricId,
+      predictedDirection: hypothesis.predictedDirection,
+      predictedEffect: effect,
+      role: "primary",
+    },
+    ...requestedSecondaries.map((secondary) => ({
+      metricId: secondary.metricId,
+      predictedDirection: secondary.predictedDirection,
+      // Same floor as the primary: a prediction below 0.25 SD cannot be
+      // tested by one person's experiment, so the honest record is the
+      // smallest effect the design can actually detect.
+      predictedEffect: Math.sign(secondary.predictedEffect) * Math.max(0.25, Math.abs(secondary.predictedEffect)),
+      role: "secondary" as const,
+    })),
+  ];
+
   const conditionA: Condition = {
     id: "A",
     label: options.conditionA?.label ?? "Intervention",
@@ -207,6 +273,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     assumedSessionsPerWeek: sessionsPerWeek,
     stopping,
     outcomeLagDays,
+    outcomes,
     startDate: options.startDate,
     endDate,
     assignments,
@@ -369,6 +436,12 @@ export function conditionForDate(design: ExperimentDesign, date: string): "A" | 
  */
 export function assignmentDateForOutcome(design: ExperimentDesign, date: string): string {
   return addDays(date, -(design.outcomeLagDays ?? 0));
+}
+
+/** Every metric this experiment measures, primary first (P1 #12). */
+export function outcomeMetricIds(design: ExperimentDesign): string[] {
+  const fromOutcomes = (design.outcomes ?? []).map((outcome) => outcome.metricId);
+  return fromOutcomes.length > 0 ? fromOutcomes : [design.targetMetricId];
 }
 
 /** Condition on `date` within an arbitrary assignment list (e.g. an extended schedule). */
