@@ -226,8 +226,8 @@ persist at rest through the same encrypted adapter as the event store.
 Every discovery scan is a point-in-time photograph of what the engine believes;
 the history ledger keeps each one and matches insights across scans by the
 relationship they describe, so the Insights tab shows each insight's journey —
-appeared, strengthened, weakened, disappeared (with the scan's own rejection
-reason) — rather than only its current state. Identical rescans are ignored, so
+appeared, strengthened, weakened, reversed, disappeared (with the scan's own
+rejection reason) — rather than only its current state. Identical rescans are ignored, so
 the history records change, not churn, and it survives reloads: scans are
 written through an encrypted adapter and restored by `pulse.load()` before the
 boot replays them.

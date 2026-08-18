@@ -79,7 +79,7 @@ describe("InsightHistory ledger", () => {
     const entries = history.history();
     expect(entries).toHaveLength(1);
     const entry = entries[0]!;
-    expect(entry.signature).toBe("study.accuracy|exercise.volume|1");
+    expect(entry.signature).toBe("study.accuracy|exercise.volume");
     expect(entry.title).toBe("Accuracy is higher after exercise");
     expect(entry.firstSeenAt).toBe("2025-07-01T00:00:00.000Z");
     expect(entry.lastSeenAt).toBe("2025-07-01T00:00:00.000Z");
@@ -134,6 +134,21 @@ describe("InsightHistory ledger", () => {
     expect(entry.appearances).toBe(3);
     expect(entry.firstSeenAt).toBe("2025-07-01T00:00:00.000Z");
     expect(entry.lastSeenAt).toBe("2025-09-01T00:00:00.000Z");
+  });
+
+  it("treats a direction flip as a reversal of one insight, not a disappearance and reappearance", () => {
+    const history = new InsightHistory();
+    history.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    history.recordScan(
+      scan("2025-08-01T00:00:00.000Z", [
+        finding({ id: "f2", effect: { kind: "hedges_g", value: -0.5, magnitude: "small", label: "-0.50 SD" } }),
+      ]),
+    );
+
+    expect(history.history()).toHaveLength(1);
+    const entry = history.history()[0]!;
+    expect(entry.signature).toBe("study.accuracy|exercise.volume");
+    expect(entry.episodes.map((episode) => episode.change)).toEqual(["appeared", "reversed"]);
   });
 
   it("keeps sub-threshold movement as unchanged rather than manufacturing change", () => {
@@ -291,7 +306,7 @@ describe("Pulse integration", () => {
     expect(entries.length).toBeGreaterThan(0);
     const multiScan = entries.filter((entry) => entry.episodes.length > 1);
     expect(multiScan.length).toBeGreaterThan(0);
-    const allowed = new Set(["appeared", "disappeared", "strengthened", "weakened", "unchanged"]);
+    const allowed = new Set(["appeared", "disappeared", "strengthened", "weakened", "reversed", "unchanged"]);
     for (const entry of entries) {
       for (const episode of entry.episodes) expect(allowed.has(episode.change), episode.change).toBe(true);
     }
