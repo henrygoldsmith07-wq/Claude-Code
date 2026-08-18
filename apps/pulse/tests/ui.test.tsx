@@ -255,6 +255,75 @@ describe("the app shell", () => {
   });
 });
 
+describe("ledger contradictions render side by side", () => {
+  let pulse: Pulse;
+  let targetTitle: string;
+  let targetEffectLabel: string;
+  let flippedId: string;
+
+  beforeAll(async () => {
+    const harness = await createSyntheticPulse({ days: 180, seed: "ui-contradiction-sides" });
+    pulse = harness.pulse;
+    const first = pulse.discover();
+    const target = first.findings.find((finding) => finding.nextAction?.kind === "run-experiment")!;
+    targetTitle = target.title;
+    targetEffectLabel = target.effect.label;
+    flippedId = `${target.id}-flipped`;
+    // A later sighting claims the same relationship the other way; the ledger
+    // records it even before any scan has produced it as a live finding.
+    pulse.contradictions.annotate([
+      {
+        ...target,
+        id: flippedId,
+        createdAt: "2025-07-08T00:00:00Z",
+        effect: { ...target.effect, value: -target.effect.value },
+      },
+    ]);
+  });
+
+  it("shows every ledger contradiction as two provenance-bearing sides", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+
+    expect(screen.getByRole("heading", { name: "Contradictions to resolve" })).toBeTruthy();
+
+    // Each direction is a labelled side of the same relationship.
+    const positive = screen
+      .getByRole("heading", { name: /Observed positive/ })
+      .closest(".contradiction__side") as HTMLElement;
+    const negative = screen
+      .getByRole("heading", { name: /Observed negative/ })
+      .closest(".contradiction__side") as HTMLElement;
+
+    // The side backed by a live finding shows its provenance.
+    expect(within(positive).getByText(targetTitle)).toBeTruthy();
+    expect(within(positive).getByText(targetEffectLabel)).toBeTruthy();
+    expect(within(positive).getByText(/revise/)).toBeTruthy();
+
+    // The opposing sighting is shown even when its finding is not in the
+    // current scan, carrying what the record itself holds.
+    expect(within(negative).getByText(flippedId)).toBeTruthy();
+    expect(within(negative).getByText(/2025-07-08/)).toBeTruthy();
+    expect(within(negative).getByText(/not in the current findings/)).toBeTruthy();
+
+    cleanup();
+  });
+
+  it("shows the affected claim as contested above its own card", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getAllByText("Contested").length).toBeGreaterThanOrEqual(1);
+    cleanup();
+  });
+
+  it("has no accessibility violations on the evidence view with a contradiction", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+});
+
 describe("the deployed page survives a slow or failing boot", () => {
   it("ships a fallback inside #root so the page is never blank before React mounts", () => {
     // jsdom serves modules over http, so import.meta.url is not a file URL;

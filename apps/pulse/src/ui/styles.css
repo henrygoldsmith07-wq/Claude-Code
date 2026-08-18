@@ -485,3 +485,41 @@ td {
 .evidence__list p {
   margin: 0.3rem 0 0;
 }
+
+/* Contradiction ledger records, side by side */
+.contradiction + .contradiction {
+  border-top: 1px solid var(--line);
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+}
+
+.contradiction__sides {
+  display: grid;
+  gap: 0.5rem 1.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.contradiction__side ul {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+
+.contradiction__side li {
+  border-top: 1px solid var(--line);
+  padding: 0.6rem 0;
+}
+
+.contradiction__side li:first-child {
+  border-top: none;
+}
+
+.contradiction__side p {
+  margin: 0.3rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .contradiction__sides {
+    grid-template-columns: 1fr;
+  }
+}
