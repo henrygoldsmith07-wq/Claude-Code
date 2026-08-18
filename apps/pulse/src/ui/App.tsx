@@ -171,6 +171,24 @@ export function App({ pulse }: AppProps): React.JSX.Element {
             <h2>This week</h2>
             <p className="brief__headline">{brief.headline}</p>
 
+            {brief.withdrawnBeliefs.length > 0 ? (
+              <div className="card" role="alert">
+                <h3>Withdrawn beliefs</h3>
+                <p className="muted">
+                  {brief.withdrawnBeliefs.length === 1
+                    ? "A belief was withdrawn this week: its evidence now points both ways, so Pulse no longer stands behind it."
+                    : `${brief.withdrawnBeliefs.length} beliefs were withdrawn this week: their evidence now points both ways, so Pulse no longer stands behind them.`}
+                </p>
+                <ul>
+                  {brief.withdrawnBeliefs.map((belief) => (
+                    <li key={`${belief.statement}-${belief.cause}`} className="warn">
+                      <strong>{belief.statement}</strong> <span className="muted">{belief.note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             <h2>What Pulse believes</h2>
             <p className="muted">
               {discovery.findings.length} finding(s) survived correction across {discovery.familySize} comparisons, split

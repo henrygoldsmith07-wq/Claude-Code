@@ -409,6 +409,9 @@ describe("ledger contradictions render side by side", () => {
         effect: { ...target.effect, value: -target.effect.value },
       },
     ]);
+    // The belief is promoted before the conflict lands, so the next scan
+    // withdraws it — the state the weekly brief must call out.
+    pulse.promoteFindingToLibrary(target);
   });
 
   it("shows every ledger contradiction as two provenance-bearing sides", () => {
@@ -450,6 +453,13 @@ describe("ledger contradictions render side by side", () => {
     const { container } = render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
     await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("calls out the withdrawn belief on the insights view", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.getByRole("heading", { name: "Withdrawn beliefs" })).toBeTruthy();
+    expect(screen.getAllByText(/pointing both ways/).length).toBeGreaterThanOrEqual(1);
     cleanup();
   });
 });

@@ -453,3 +453,28 @@ describe("the contradiction ledger", () => {
     expect(entry.standing).toBe("retired");
   });
 });
+
+  it("surfaces a withdrawn belief in the weekly brief", async () => {
+    const { pulse } = await createSyntheticPulse({ days: 180, seed: "lib-brief" });
+    pulse.discover();
+    const target = pulse.findings()[0]!;
+    pulse.promoteFindingToLibrary(target);
+    // A later sighting claims the same relationship the other way.
+    pulse.contradictions.annotate([
+      {
+        ...target,
+        id: `${target.id}-flipped`,
+        createdAt: "2025-07-08T00:00:00Z",
+        effect: { ...target.effect, value: -target.effect.value },
+      },
+    ]);
+    pulse.discover();
+
+    const entry = pulse.causalLibrary
+      .list()
+      .find((candidate) => candidate.evidence.some((evidence) => evidence.id === target.id))!;
+    expect(entry.standing).toBe("contested");
+
+    const brief = pulse.weeklyBrief();
+    expect(brief.withdrawnBeliefs.some((belief) => belief.statement === entry.statement)).toBe(true);
+  });

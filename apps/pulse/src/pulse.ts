@@ -108,7 +108,7 @@ export class Pulse {
     this.value = new RecommendationValueTracker(this.now);
     this.insightHistory = new InsightHistory(options.historyAdapter);
     this.insightCollections = new InsightCollectionStore(this.now, options.collectionsAdapter);
-    this.causalLibrary = new CausalHypothesisLibrary(options.libraryAdapter);
+    this.causalLibrary = new CausalHypothesisLibrary(options.libraryAdapter, this.now);
     this.syncEngine = new SyncEngine(this.store, this.consent);
     this.expectedCadence = options.expectedCadence ?? {};
   }
@@ -510,6 +510,10 @@ export class Pulse {
       findings: this.cachedFindings,
       recommendations: this.recommendations(),
       experiments: this.experimentResultsList(),
+      // Withdrawals are reported the week they happen, straight from the
+      // library's standing history, in the person's own timezone.
+      causalEntries: this.causalLibrary.list(),
+      timezone: this.timezone,
       qualities: this.quality(),
       now: this.now,
     });
