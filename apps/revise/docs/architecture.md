@@ -77,6 +77,8 @@ The question bank is hand-authored per subject with full mark schemes and model
 answers, so exam practice and rubric marking work with no provider configured.
 The GCSE expansion adds 55 original templates that materialise into 220
 board-specific questions across every GCSE topic in WJEC, AQA, Edexcel and OCR.
+The Edexcel A-level expansion adds a further 55 original questions across all
+Edexcel biology, chemistry, mathematics and physics topics.
 
 ### `src/data` — offline-first storage
 

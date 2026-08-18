@@ -37,6 +37,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 - Application mastery: `computeApplicationMastery` reports mark-weighted question performance while excluding active-recall and pending provisional attempts; ten eligible attempts make a topic reliable and `/progress` surfaces the weakest application topics.
 - Mastery uncertainty: `masteryIntervals` reports a conservative Wilson 95% band from cards and weighted attempts, flags topics below eight weighted trials and widens conflicting card/mastery signals; `/progress` surfaces the six widest intervals.
 - GCSE question expansion: `gcseExpansionQuestions` materialises 55 original checked templates into 220 board-specific questions, one for every GCSE topic across WJEC, AQA, Edexcel and OCR, with full mark schemes, model answers and spec-point anchors.
+- Edexcel A-level content expansion: `edexcelExpansionQuestions` adds 55 original checked questions, one for every Edexcel A-level topic across biology, chemistry, mathematics and physics, with Edexcel topic/spec-point anchors.
 - `/benchmarks` renders the live corpus version, row-level human vs rubric totals and the same floor status used by CI.
 - `/benchmarks` also renders the current pairwise disagreement matrix keyed by `questionId`; the internal corpus currently measures human ↔ rubric and leaves AI coverage explicitly unmeasured until provider-marked gold exists.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.
@@ -56,7 +57,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 - Every topic has `specPoints` on every unit; every `specPointIds` is paired with `learningClaims`; stale topics (>365d) and unverified statements are surfaced by `regressionReport`.
 - Spec-change diff tooling (`curriculum-diff.ts`): diff two snapshots of a subject's topics (old spec version vs new) and get added/removed/reworded spec points, key-point and common-error changes, plus the questions pinned to affected points — so a board revision is triaged instead of re-read. `recordedSpecVersionChanges` lists subjects whose manifest history spans multiple spec versions.
-- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 357 authored question templates today; the runtime bank also materialises 220 GCSE board copies (8 boards×levels, tree-shakable modules).
+- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 412 authored question templates today; the runtime bank materialises 275 GCSE/Edexcel expansion entries (8 boards×levels, tree-shakable modules).
 - Visual regression: `e2e/visual.spec.ts` guards the Today shell (2% tolerance, `e2e/__screenshots__/`); update with `--update-snapshots`.
 
 
