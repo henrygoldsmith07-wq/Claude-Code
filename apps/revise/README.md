@@ -53,7 +53,7 @@ source immediately.
 | **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
 | **Mistake diagnosis** | Ranks likely root causes from missed points, answer/working evidence, timing, command words and the authored misconception library; one-off evidence stays an early signal. |
 | **Marking evidence** | Double-marked answer corpus with independent-marker agreement, disagreement review, adjudication and versioned JSON import/export. |
-| **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, and hands-free Listen — all over the same cards. |
+| **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, hands-free Listen, and Explanation mastery — teach a topic from memory and see which authored key points made it into the explanation. |
 | **From notes** | One click: drop a PDF, paste notes or photograph a page, and get flashcards back, previewed before they join the deck. |
 | **Onboarding** | Four questions that each change what the app does, ending with a built plan rather than an empty state. |
 | **Sharing** | A link that carries the deck in its fragment (never sent to a server), or a file via the native share sheet. |
@@ -91,7 +91,8 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   card-stats.ts    Per-card and per-deck statistics, incl. true retention
   custom-study.ts  Hand-built sessions, with preview-only cramming
   deck-io.ts       Deck export/import, validation and materialisation
-  study-modes.ts   Learn, Test and Match rules
+  study-modes.ts   Learn, Test, Match and Explanation mastery entry rules
+  explanation-mastery.ts  Offline key-point coverage for learner explanations
   diagrams.ts      Diagram cards, hotspots and the labelling round
   sharing.ts       Link encoding for deck sharing
   shuffle.ts       One deterministic shuffle, shared by every mode
