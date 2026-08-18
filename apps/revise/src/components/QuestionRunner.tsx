@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { aiMark } from "@/ai/client";
 import { getTopic } from "@/domain/curriculum";
 import { markMcq } from "@/domain/marking";
+import { assessLowConfidenceMark, createMarkEscalationRecord } from "@/domain/mark-escalation";
+import type { LowConfidenceMarkDecision } from "@/domain/mark-escalation";
 import type { Attempt, MarkedPart, Question } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { AnswerInput } from "./AnswerInput";
@@ -34,6 +36,8 @@ export function QuestionRunner({
     feedback: string;
     source: "ai" | "fallback";
     note?: string;
+    confidence: number | null;
+    escalation?: LowConfidenceMarkDecision;
   } | null>(null);
   // Stamped after mount: reading the clock during render makes the render
   // impure and would restart the timer on every re-render.
@@ -56,6 +60,7 @@ export function QuestionRunner({
     let feedback: string;
     let source: "ai" | "fallback" = "fallback";
     let note: string | undefined;
+    let markConfidence: number | null = null;
 
     if (isMcq) {
       const single = markMcq(question, choice ?? -1);
@@ -70,10 +75,19 @@ export function QuestionRunner({
       feedback = envelope.data.feedback;
       source = envelope.source;
       note = envelope.note;
+      markConfidence = source === "ai" && typeof envelope.data.confidence === "number" ? envelope.data.confidence : null;
     }
 
+    const markedBy: Attempt["markedBy"] = source === "ai" ? "ai" : "rubric";
+    const attemptId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const escalationDecision = assessLowConfidenceMark({
+      markedBy,
+      confidence: source === "ai" ? markConfidence : undefined,
+    });
+    const markEscalation = createMarkEscalationRecord(escalationDecision, createdAt);
     const attempt: Attempt = {
-      id: crypto.randomUUID(),
+      id: attemptId,
       userId: store.userId,
       questionId: question.id,
       subjectId: question.subjectId,
@@ -83,14 +97,23 @@ export function QuestionRunner({
       awarded: marked.reduce((a, m) => a + m.awarded, 0),
       max: marked.reduce((a, m) => a + m.max, 0),
       feedback,
-      markedBy: source === "ai" ? "ai" : "rubric",
+      markedBy,
+      markConfidence: source === "ai" ? markConfidence ?? undefined : undefined,
+      markEscalation,
       elapsedMs,
       mode,
-      createdAt: new Date().toISOString(),
+      createdAt,
     };
 
     await store.recordAttempt(attempt, question);
-    setResult({ marked, feedback, source, note });
+    setResult({
+      marked,
+      feedback,
+      source,
+      note,
+      confidence: markConfidence,
+      escalation: escalationDecision.escalate ? escalationDecision : undefined,
+    });
     setMarking(false);
     onFinished?.(attempt);
   }
@@ -183,7 +206,14 @@ function MarkedResult({
   awarded,
 }: {
   question: Question;
-  result: { marked: MarkedPart[]; feedback: string; source: "ai" | "fallback"; note?: string };
+  result: {
+    marked: MarkedPart[];
+    feedback: string;
+    source: "ai" | "fallback";
+    note?: string;
+    confidence: number | null;
+    escalation?: LowConfidenceMarkDecision;
+  };
   awarded: number;
 }) {
   const pct = question.totalMarks ? awarded / question.totalMarks : 0;
@@ -197,8 +227,22 @@ function MarkedResult({
             <span className="text-ink3 text-lg">/{question.totalMarks}</span>
           </p>
         </div>
-        <SourceBadge source={result.source} note={result.note} />
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <SourceBadge source={result.source} note={result.note} />
+          {result.source === "ai" ? (
+            <Pill tone={result.escalation ? "review" : "success"}>
+              {result.confidence === null ? "AI confidence unavailable" : `AI confidence ${Math.round(result.confidence * 100)}%`}
+            </Pill>
+          ) : null}
+        </div>
       </div>
+      {result.escalation ? (
+        <div className="rounded-[8px] border border-review bg-reviewsoft px-3 py-2.5 text-sm text-ink2" role="status">
+          <p className="font-semibold text-review">Human review requested</p>
+          <p className="text-xs mt-1">{result.escalation.message}</p>
+          <p className="text-[11px] text-ink3 mt-1">This pending escalation is saved with the attempt for a second-marker decision.</p>
+        </div>
+      ) : null}
       <ProgressBar value={pct} tone={pct >= 0.8 ? "success" : pct >= 0.5 ? "review" : "danger"} />
 
       <div className="mt-4 space-y-4">

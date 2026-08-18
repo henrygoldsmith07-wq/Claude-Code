@@ -363,6 +363,22 @@ export interface MarkedPart {
   comment: string;
 }
 
+export type MarkEscalationReason = "low-confidence" | "missing-confidence";
+export type MarkEscalationPriority = "standard" | "urgent";
+
+export interface MarkEscalation {
+  status: "pending" | "resolved";
+  reason: MarkEscalationReason;
+  priority: MarkEscalationPriority;
+  target: "human-review";
+  /** 0–1 confidence returned by the marker; null means it was not supplied. */
+  confidence: number | null;
+  threshold: number;
+  requestedAt: IsoInstant;
+  resolvedAt?: IsoInstant;
+  resolvedBy?: "human" | "rubric" | "ai";
+}
+
 export interface Attempt {
   id: Id;
   userId: Id;
@@ -377,6 +393,10 @@ export interface Attempt {
   /** Examiner-style prose, ready to show verbatim. */
   feedback: string;
   markedBy: "ai" | "rubric" | "self";
+  /** Marker confidence, distinct from the student's self-reported review confidence. */
+  markConfidence?: number;
+  /** Durable request for a second marker when an AI mark is not reliable enough. */
+  markEscalation?: MarkEscalation;
   confidence?: 1 | 2 | 3 | 4 | 5;
   elapsedMs: number;
   mode: "practice" | "paper" | "recall";
