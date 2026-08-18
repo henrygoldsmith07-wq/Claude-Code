@@ -113,6 +113,8 @@ export interface ExperimentDesign {
    * rest as secondaries. Always set by `designExperiment`; optional so
    * pre-existing records stay valid. */
   outcomes?: ExperimentOutcome[];
+  /** The analysed design this one replicates (P1 #13); absent for a fresh design. */
+  replicatedFromDesignId?: string;
   startDate: string;
   endDate: string;
   assignments: Assignment[];
@@ -414,6 +416,95 @@ export function buildAssignments(
     assignments.push({ date: addDays(startDate, baselineDays + day), condition: shuffled[day]!, block: 0 });
   }
   return assignments;
+}
+
+/**
+ * One-click replication (P1 #13). Clones an analysed design — conditions,
+ * outcomes, analysis method, success criteria and structure (block length,
+ * washout, baseline, lag, stopping) — and re-derives the sample from the
+ * *observed* effect of the original run, so a replication is sized to what
+ * was actually seen rather than the original prediction. The clone gets a
+ * fresh id, seed and start date, and carries the link back to the original —
+ * the paper trail the replication ledger's retested path runs on.
+ */
+export function replicateDesign(
+  original: ExperimentDesign,
+  options: {
+    startDate: string;
+    /** Observed standardised effect of the original run — sizes the replication. */
+    observedEffect: number;
+    seed?: string;
+    now?: () => number;
+  },
+): ExperimentDesign {
+  const now = options.now ?? Date.now;
+  const seed = options.seed ?? `${original.seed}:replicate:${options.startDate}`;
+  const type = original.type;
+  const blockDays = original.blockDays ?? 7;
+  const washoutDays = original.washoutDays ?? 0;
+  const baselineDays = original.baselineDays ?? 0;
+  const sessionsPerWeek = original.assumedSessionsPerWeek ?? 4;
+
+  // Sized to reproduce what the original actually found: a strong observed
+  // effect needs fewer sessions, a weak one many more. The same 0.25 floor as
+  // design time applies — nothing smaller can be detected in a reasonable
+  // run, whatever the observation suggested.
+  const effect = Math.max(0.25, Math.abs(options.observedEffect));
+  const perCondition = type === "crossover" ? minSamplePaired(effect) : minSamplePerGroup(effect);
+
+  const totalSessions = perCondition * 2;
+  const rawDays = Math.ceil((totalSessions / sessionsPerWeek) * 7);
+  const durationDays = Math.min(56, Math.max(14, roundToBlocks(rawDays, type === "crossover" ? blockDays : 1)));
+
+  const assignments = buildAssignments(type, options.startDate, durationDays, blockDays, seed, washoutDays, baselineDays);
+  const washoutGaps = type === "crossover" && washoutDays > 0 ? Math.max(2, Math.floor(durationDays / blockDays)) - 1 : 0;
+  const endDate = addDays(options.startDate, baselineDays + durationDays - 1 + washoutDays * washoutGaps);
+
+  return {
+    id: `exp-${hash128(`${original.id}:replicate:${options.startDate}:${seed}`).slice(0, 16)}`,
+    hypothesisId: original.hypothesisId,
+    createdAt: new Date(now()).toISOString(),
+    type,
+    title: original.title,
+    hypothesis: original.hypothesis,
+    conditionA: original.conditionA,
+    conditionB: original.conditionB,
+    targetMetricId: original.targetMetricId,
+    minSamplePerCondition: perCondition,
+    durationDays,
+    blockDays,
+    washoutDays,
+    baselineDays,
+    assumedSessionsPerWeek: sessionsPerWeek,
+    stopping: original.stopping,
+    outcomeLagDays: original.outcomeLagDays,
+    outcomes: original.outcomes,
+    replicatedFromDesignId: original.id,
+    startDate: options.startDate,
+    endDate,
+    assignments,
+    likelyConfounders: original.likelyConfounders,
+    analysisMethod: original.analysisMethod,
+    successCriteria: buildReplicationCriteria(original, perCondition, effect),
+    seed,
+    invalidations: original.invalidations,
+  };
+}
+
+/**
+ * The replication's success criteria, rebuilt for the new sample and judged
+ * against the effect the original actually found — reproducing a much smaller
+ * effect is inconclusive, not support.
+ */
+function buildReplicationCriteria(original: ExperimentDesign, perCondition: number, effect: number): string {
+  const primary = (original.outcomes ?? []).find((outcome) => outcome.role === "primary");
+  const direction = primary?.predictedDirection ?? "increase";
+  const directionWord = direction === "increase" ? "higher" : "lower";
+  return [
+    `At least ${perCondition} qualifying sessions in each condition.`,
+    `Condition A is ${directionWord} than condition B, with a 95% confidence interval that excludes zero.`,
+    `The observed effect is at least half the ${effect.toFixed(2)} SD found in the original run — a replication that comes back much smaller is inconclusive, not support.`,
+  ].join(" ");
 }
 
 function buildSuccessCriteria(hypothesis: Hypothesis, perCondition: number): string {

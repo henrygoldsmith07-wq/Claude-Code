@@ -83,6 +83,24 @@ considers every outcome metric, primary or secondary. `tests/multi-outcome
 primary-driven verdict, the reported secondaries, and the secondary-metric
 conflict block.
 
+Shipped: **#13 Replication Templates** — `pulse.replicateExperiment` clones
+an analysed design with one click: `replicateDesign` keeps its conditions,
+outcomes, analysis method, success criteria and structure (block length,
+washout, baseline, lag, stopping), and re-derives the sample from the
+*observed* effect of the original run — a strong observed effect needs fewer
+sessions, a weak one many more (same 0.25 floor as design time) — scheduled
+with a fresh id, seed and start date (default: the day after the original
+ends). The clone carries `replicatedFromDesignId` back to the original, the
+hypothesis is relinked to `testing`, the same-metric conflict check runs
+against every *other* live design (the original itself is never a conflict),
+and when the clone is analysed the replication ledger's `retested` path
+records the second run on the paper trail (`recordExperimentResult` takes a
+note). A run analysed `invalid` — no observed effect to size from — refuses
+replication. The design card shows "Replicates …" on the clone and a
+one-click Replicate button on analysed cards. `tests/replication.test.ts` (11
+tests) pins the clone, the sample re-derivation, the relink, the conflict
+exclusion, the ledger note, and the invalid-run refusal.
+
 Shipped: **#11 Delayed Outcome Support** — `designExperiment` accepts an
 `outcomeLagDays` option (0 = today's outcome, capped at a week), stored on the
 design; `assignmentDateForOutcome` pairs every outcome observation dated X to

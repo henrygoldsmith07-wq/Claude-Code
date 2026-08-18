@@ -117,8 +117,12 @@ export class ReplicationLedger {
     return this.records.get(findingId)?.status ?? "new";
   }
 
-  /** A completed experiment moves its origin finding to a terminal status. */
-  recordExperimentResult(findingId: string, verdict: ExperimentVerdict): ReplicationStatus {
+  /**
+   * A completed experiment moves its origin finding to a terminal status.
+   * `note` carries the retested path's paper trail (P1 #13): when the
+   * experiment was a replication, the record names the original run.
+   */
+  recordExperimentResult(findingId: string, verdict: ExperimentVerdict, note?: string): ReplicationStatus {
     const at = new Date(this.now()).toISOString();
     const status: ReplicationStatus =
       verdict === "supported"
@@ -126,12 +130,13 @@ export class ReplicationLedger {
         : verdict === "refuted"
           ? "failed-to-replicate"
           : this.statusOf(findingId);
-    const evidence =
+    const base =
       verdict === "supported"
         ? "A controlled experiment supported the claim"
         : verdict === "refuted"
           ? "A controlled experiment failed to reproduce the effect"
           : "An experiment was run but did not settle the claim";
+    const evidence = note ? `${base} (${note})` : base;
     this.records.set(findingId, { findingId, status, updatedAt: at, evidence });
     return status;
   }
