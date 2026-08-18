@@ -45,7 +45,7 @@ lives:
 - `recommender.ts` scores every candidate activity on a single scale so they can
   be compared, and attaches a human-readable reason to each.
 - `planner.ts` builds the timetable and folds missed sessions forward.
-- `marking.ts` marks answers against a mark scheme with no model involved; `mark-escalation.ts` keeps low-confidence AI marks provisional and queues them for human review.
+- `marking.ts` marks answers against a mark scheme with no model involved; `mark-escalation.ts` keeps low-confidence AI marks provisional and queues them for human review; `delayed-far-transfer.ts` turns a strong answer into a scheduled, novel-context retest and measures its outcome separately.
 - `mistakes.ts` converts dropped marks into classified mistakes and cards.
 - `grades.ts` predicts a grade with an explicit confidence and range.
 - `browser.ts` parses the card-browser query language and filters on it.
@@ -85,7 +85,9 @@ more information in it.
 The wire format keeps the whole domain object in a `data` jsonb column and lifts
 out only what the server indexes or secures on. A new domain field therefore
 needs no migration, which matters when a client can be weeks stale and still
-syncing.
+syncing. Delayed far-transfer links use this path: the source and completion
+attempts remain ordinary attempt rows, so offline reload and cross-device sync
+do not need a second schedule table.
 
 ### `src/ai` — provider abstraction
 
