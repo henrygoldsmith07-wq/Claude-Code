@@ -42,6 +42,8 @@ export interface InsightEpisode {
   finding: Finding | null;
   /** Why it disappeared, when the scan's own rejection log explains it. */
   note: string | null;
+  /** The previous scan's effect label when this episode reversed direction; null otherwise. */
+  previousEffectLabel: string | null;
 }
 
 export interface InsightHistoryEntry {
@@ -174,10 +176,11 @@ export class InsightHistory {
         present.add(signature);
 
         const previousIndex = lastPresent.get(signature);
-        const change: InsightChange =
-          previousIndex === undefined || previousIndex !== scanIndex - 1
-            ? "appeared"
-            : changeBetween(this.findingAt(previousIndex, signature), finding);
+        const previousFinding =
+          previousIndex !== undefined && previousIndex === scanIndex - 1
+            ? this.findingAt(previousIndex, signature)
+            : null;
+        const change: InsightChange = previousFinding ? changeBetween(previousFinding, finding) : "appeared";
 
         let entry = entries.get(signature);
         if (!entry) {
@@ -205,6 +208,7 @@ export class InsightHistory {
           change,
           finding,
           note: null,
+          previousEffectLabel: change === "reversed" && previousFinding ? previousFinding.effect.label : null,
         });
         lastPresent.set(signature, scanIndex);
       }
@@ -220,6 +224,7 @@ export class InsightHistory {
           change: "disappeared",
           finding: null,
           note: noteForDisappearance(scan, signature),
+          previousEffectLabel: null,
         });
       }
     }

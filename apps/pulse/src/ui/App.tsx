@@ -275,8 +275,10 @@ export function App({ pulse }: AppProps): React.JSX.Element {
                         <span className={`history-change history-change--${episode.change}`}>{episode.change}</span>
                         {episode.finding ? (
                           <span className="muted">
-                            effect {episode.finding.effect.label} · {episode.finding.confidence.level} confidence · n=
-                            {episode.finding.sampleSize}
+                            {episode.change === "reversed" && episode.previousEffectLabel
+                              ? `${episode.previousEffectLabel} → ${episode.finding.effect.label}`
+                              : `effect ${episode.finding.effect.label}`}{" "}
+                            · {episode.finding.confidence.level} confidence · n={episode.finding.sampleSize}
                           </span>
                         ) : (
                           <span className="muted">{episode.note ?? "No longer meets the evidence bar"}</span>

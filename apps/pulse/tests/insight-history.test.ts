@@ -149,6 +149,9 @@ describe("InsightHistory ledger", () => {
     const entry = history.history()[0]!;
     expect(entry.signature).toBe("study.accuracy|exercise.volume");
     expect(entry.episodes.map((episode) => episode.change)).toEqual(["appeared", "reversed"]);
+    expect(entry.episodes[0]!.previousEffectLabel).toBeNull();
+    expect(entry.episodes[1]!.previousEffectLabel).toBe("+0.40 SD");
+    expect(entry.episodes[1]!.finding?.effect.label).toBe("-0.50 SD");
   });
 
   it("keeps sub-threshold movement as unchanged rather than manufacturing change", () => {
