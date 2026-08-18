@@ -283,6 +283,79 @@ export function RecallMasteryCard() {
   );
 }
 
+export function ApplicationMasteryCard() {
+  const store = useStore();
+  const rows = store.applicationMastery.filter((row) => row.attempts > 0);
+  if (!rows.length) {
+    return (
+      <Panel>
+        <SectionHeading
+          title="Application mastery"
+          hint="How well you apply knowledge in marked exam questions, separate from flashcard recall."
+        />
+        <EmptyHint>Answer a few marked exam questions to measure application rather than memory alone.</EmptyHint>
+      </Panel>
+    );
+  }
+
+  const marksAvailable = rows.reduce((sum, row) => sum + row.marksAvailable, 0);
+  const marksAwarded = rows.reduce((sum, row) => sum + row.marksAwarded, 0);
+  const overall = marksAvailable ? marksAwarded / marksAvailable : 0;
+  const recentRows = rows.filter((row) => row.recentAccuracy != null);
+  const recentAccuracy = recentRows.length
+    ? recentRows.reduce((sum, row) => sum + (row.recentAccuracy ?? 0) * row.marksAvailable, 0) /
+      recentRows.reduce((sum, row) => sum + row.marksAvailable, 0)
+    : null;
+  const attempts = rows.reduce((sum, row) => sum + row.attempts, 0);
+  const reliable = rows.filter((row) => row.evidence === "reliable").length;
+  const weakest = [...rows].sort((a, b) => a.mastery - b.mastery).slice(0, 6);
+  const masteryTone = overall >= 0.8 ? "success" : overall >= 0.55 ? "review" : "danger";
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="Application mastery"
+        hint="Mark-weighted performance on practice and paper questions — active-recall attempts and provisional marks are excluded."
+        action={
+          <Link href="/practice">
+            <Button size="sm">Practise questions</Button>
+          </Link>
+        }
+      />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile label="Application mastery" value={`${Math.round(overall * 100)}%`} sub={`${Math.round(marksAwarded * 10) / 10}/${Math.round(marksAvailable * 10) / 10} marks`} tone={masteryTone} />
+        <StatTile label="Recent accuracy" value={recentAccuracy == null ? "—" : `${Math.round(recentAccuracy * 100)}%`} sub="last five topic attempts" tone={recentAccuracy != null && recentAccuracy < overall ? "review" : "success"} />
+        <StatTile label="Topic attempts" value={attempts} sub="marked application evidence" />
+        <StatTile label="Reliable topics" value={`${reliable}/${rows.length}`} sub="10+ eligible attempts" tone={reliable === rows.length ? "success" : "review"} />
+      </div>
+      <div className="mt-4">
+        <ProgressBar value={overall} label="Application mastery across marked work" tone={masteryTone} />
+      </div>
+      <div className="mt-4 pt-3 border-t border-line">
+        <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-2">Topics needing application practice</p>
+        <ul className="space-y-2">
+          {weakest.map((row) => (
+            <li key={row.topicId} className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <Link href={`/practice?topic=${encodeURIComponent(row.topicId)}`} className="text-xs text-ink2 truncate hover:underline block">
+                  {getTopic(row.topicId)?.title ?? row.topicId}
+                </Link>
+                <ProgressBar value={row.mastery} tone={row.mastery < 0.55 ? "danger" : "review"} />
+              </div>
+              <span className="text-xs tabular-nums text-ink3 shrink-0">
+                {Math.round(row.mastery * 100)}% · {row.attempts} attempt{row.attempts === 1 ? "" : "s"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-[11px] text-ink3 mt-3">
+        Application evidence is mark-weighted. A topic becomes reliable after ten eligible attempts; use the recent figure to spot a change in form.
+      </p>
+    </Panel>
+  );
+}
+
 function TimingBreakdown() {
   const store = useStore();
   const byTiming: Record<string, number> = { ok: 0, rushed: 0, slow: 0, unknown: 0 };

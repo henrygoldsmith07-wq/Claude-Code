@@ -13,7 +13,7 @@ import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
-import { CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard, QuestionDiscriminationCard, RecallMasteryCard, TechniqueVsKnowledgeCard } from "@/components/AssessmentPanels";
+import { ApplicationMasteryCard, CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard, QuestionDiscriminationCard, RecallMasteryCard, TechniqueVsKnowledgeCard } from "@/components/AssessmentPanels";
 import { CoverageCard } from "@/components/CoverageCard";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
 
@@ -368,6 +368,7 @@ export default function ProgressPage() {
 
       <section className="space-y-4">
         <RecallMasteryCard />
+        <ApplicationMasteryCard />
         <ExpectedMarksCard />
         <MarksLostByCause />
         <TechniqueVsKnowledgeCard />

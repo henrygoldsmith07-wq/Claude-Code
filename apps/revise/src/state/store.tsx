@@ -6,6 +6,7 @@ import { allSubjects, allTopics, getSubject } from "@/domain/curriculum";
 import { predictGrade } from "@/domain/grades";
 import type { GradePrediction } from "@/domain/grades";
 import { computeTopicMastery } from "@/domain/mastery";
+import { computeApplicationMastery } from "@/domain/application-mastery";
 import { computeRecallMastery } from "@/domain/recall-mastery";
 import { mistakesFromAttempt, shouldResolve } from "@/domain/mistakes";
 import { buildPlan, rescheduleMissed } from "@/domain/planner";
@@ -33,6 +34,7 @@ import type {
   TopicMastery,
   UserSettings,
 } from "@/domain/types";
+import type { ApplicationMasteryRow } from "@/domain/application-mastery";
 import type { RecallMasteryRow } from "@/domain/recall-mastery";
 import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
@@ -63,6 +65,7 @@ interface StoreValue extends Snapshot {
   completeOnboarding(): Promise<void>;
   userId: Id;
   mastery: TopicMastery[];
+  applicationMastery: ApplicationMasteryRow[];
   recallMastery: RecallMasteryRow[];
   recommendations: Recommendation[];
   predictions: GradePrediction[];
@@ -206,6 +209,15 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       topics,
       cards: snapshot.cards,
       reviewLogs: snapshot.reviewLogs,
+    });
+  }, [snapshot, topics]);
+
+  const applicationMastery = useMemo(() => {
+    if (!snapshot) return [];
+    return computeApplicationMastery({
+      topics,
+      questions: snapshot.questions,
+      attempts: snapshot.attempts,
     });
   }, [snapshot, topics]);
 
@@ -541,6 +553,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       completeOnboarding,
       userId,
       mastery,
+      applicationMastery,
       recallMastery,
       recommendations,
       predictions,
@@ -572,6 +585,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     completeOnboarding,
     userId,
     mastery,
+    applicationMastery,
     recallMastery,
     recommendations,
     predictions,
