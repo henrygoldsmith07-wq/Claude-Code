@@ -303,6 +303,24 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("lets a user apply a versioned experiment template to a hypothesis", async () => {
+    const { pulse: templatedPulse } = await createSyntheticPulse({ days: 30, seed: "ui-experiment-template" });
+    const hypothesis = templatedPulse.hypotheses.proposeFromFinding(finding);
+    expect(hypothesis).not.toBeNull();
+
+    render(<App pulse={templatedPulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Experiments" }));
+
+    expect(screen.getByRole("heading", { name: "Experiment templates" })).toBeTruthy();
+    expect(screen.getByLabelText("Hypothesis")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Template"), { target: { value: "balanced-daily-ab-v1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create experiment from template" }));
+
+    expect(screen.getByRole("heading", { name: /A\/B test:/ })).toBeTruthy();
+    expect(screen.getByText("balanced-daily-ab-v1 · v1")).toBeTruthy();
+    cleanup();
+  });
+
   it("renders the timeline as a table with a caption and row headers", () => {
     render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));

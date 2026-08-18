@@ -33,6 +33,12 @@ import {
 import type { Finding } from "./discovery/finding.js";
 import { HypothesisTracker, type Hypothesis } from "./hypotheses/tracker.js";
 import { designExperiment, type DesignOptions, type ExperimentDesign } from "./experiments/design.js";
+import {
+  instantiateExperimentTemplate,
+  listExperimentTemplates,
+  type ExperimentTemplate,
+  type ExperimentTemplateOptions,
+} from "./experiments/templates.js";
 import { analyseExperiment, type ExperimentResult } from "./experiments/analysis.js";
 import { buildCalendar, type ExperimentCalendar } from "./experiments/calendar.js";
 import { rankRecommendations, type Recommendation } from "./recommendations/rank.js";
@@ -340,10 +346,29 @@ export class Pulse {
     const hypothesis = this.hypotheses.get(hypothesisId);
     if (!hypothesis) throw new Error(`Unknown hypothesis: ${hypothesisId}`);
     const design = designExperiment(hypothesis, { ...options, now: this.now });
+    return this.registerDesign(hypothesis, design);
+  }
+
+  designExperimentFromTemplate(
+    hypothesisId: string,
+    templateId: string,
+    options: Omit<ExperimentTemplateOptions, "now">,
+  ): ExperimentDesign {
+    const hypothesis = this.hypotheses.get(hypothesisId);
+    if (!hypothesis) throw new Error(`Unknown hypothesis: ${hypothesisId}`);
+    const design = instantiateExperimentTemplate(hypothesis, templateId, { ...options, now: this.now });
+    return this.registerDesign(hypothesis, design);
+  }
+
+  listExperimentTemplates(): ExperimentTemplate[] {
+    return listExperimentTemplates();
+  }
+
+  private registerDesign(hypothesis: Hypothesis, design: ExperimentDesign): ExperimentDesign {
     this.designs.set(design.id, design);
-    this.hypotheses.linkExperiment(hypothesisId, design.id);
+    this.hypotheses.linkExperiment(hypothesis.id, design.id);
     if (hypothesis.status === "proposed") {
-      this.hypotheses.transition(hypothesisId, "testing", `Experiment ${design.id} designed`);
+      this.hypotheses.transition(hypothesis.id, "testing", `Experiment ${design.id} designed`);
     }
     return design;
   }

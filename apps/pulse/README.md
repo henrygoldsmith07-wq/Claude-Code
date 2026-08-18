@@ -139,6 +139,12 @@ condition A, condition B, target metric, minimum sample derived from the
 predicted effect, duration, likely confounders, analysis method and success
 criteria — with the predicted direction and size registered *before* the run.
 
+The Experiments view includes versioned templates for the three supported
+designs: weekly crossover, balanced daily A/B and before/after baseline. A
+template is a reproducible starting point, not a claim that every hypothesis
+should use the same design; its caveats are shown before the run and its ID and
+version are retained in the export.
+
 Crossover is the default because it removes the biggest confounder in personal
 data: you, changing over time.
 
