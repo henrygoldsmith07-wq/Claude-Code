@@ -5,6 +5,7 @@ const KEYS = {
   apiKey: 'fp.groqKey',
   sessions: 'fp.sessions', // durable array of completed session summaries
   pulseHistory: 'fp.pulse-history.v2', // versioned, transcript-free history for Pulse
+  pulseOptIn: 'fp.pulse-opt-in', // Le Studio's own Pulse opt-in, separate from the mirror it gates
   reviewEvents: 'fp.reviewEvents.v2', // durable per-review events; reviewLog remains a heatmap aggregate
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
@@ -164,6 +165,22 @@ const DEFAULT_PREFS = {
 export const getPrefs = () => ({ ...DEFAULT_PREFS, ...read(KEYS.prefs, {}) });
 export const setPrefs = (p) => write(KEYS.prefs, { ...getPrefs(), ...p });
 
+// ---- Pulse opt-in ---------------------------------------------------------
+// Pulse reads the mirror under `fp.pulse-history.v2`. Sharing is off by
+// default and gated here, where the data originates: while the flag is off no
+// mirror is written, and revoking deletes the mirror outright.
+
+export const readPulseOptIn = () => read(KEYS.pulseOptIn, null) === '1';
+
+export function setPulseOptIn(enabled) {
+  if (enabled) {
+    write(KEYS.pulseOptIn, '1');
+  } else {
+    localStorage.removeItem(KEYS.pulseOptIn);
+    localStorage.removeItem(KEYS.pulseHistory);
+  }
+}
+
 // ---- durable session and Pulse history ------------------------------------
 
 export const getSessions = () => {
@@ -201,6 +218,7 @@ function speakingRecord(session, index) {
 }
 
 function publishPulseHistory() {
+  if (!readPulseOptIn()) return;
   const records = getSessions().map(speakingRecord).filter(Boolean).concat(getReviewEvents());
   write(KEYS.pulseHistory, {
     format: 'le-studio.source-history',

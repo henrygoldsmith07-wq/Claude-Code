@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createForqSameOriginConnector } from "../src/connectors/forq.js";
-import { createFrenchSameOriginConnector } from "../src/connectors/french.js";
+import { createForqSameOriginConnector, FORQ_PULSE_OPT_IN_KEY } from "../src/connectors/forq.js";
+import { createFrenchSameOriginConnector, FRENCH_PULSE_OPT_IN_KEY } from "../src/connectors/french.js";
 import { createRapportSameOriginConnector, RAPPORT_PULSE_OPT_IN_KEY } from "../src/connectors/rapport.js";
 import { SyncEngine } from "../src/connectors/sync.js";
 import { ConsentRegistry } from "../src/privacy/consent.js";
@@ -42,6 +42,7 @@ describe("ecosystem integration and consent revocation", () => {
         "fp.pulse-history.v2": envelope("le-studio-french", [
           { kind: "review", id: "r1", reviewedAt: "2026-08-16T12:00:00.000Z", itemId: "bonjour", skill: "vocab", correct: true, elapsedMs: 1000 },
         ]),
+        [FRENCH_PULSE_OPT_IN_KEY]: "1",
       }),
     });
     await syncAndRevoke(connector, new MemoryEventStore(), new ConsentRegistry(() => Date.parse("2026-08-17T12:00:00.000Z")));
@@ -59,6 +60,7 @@ describe("ecosystem integration and consent revocation", () => {
     const forq = createForqSameOriginConnector({
       storage: storage({
         "forq-state-v2": JSON.stringify({ day: "2026-08-17", plan: { "2026-08-16": { dinner: "pasta" } }, cooked: [{ recipeId: "pasta", date: "2026-08-16" }], shops: [] }),
+        [FORQ_PULSE_OPT_IN_KEY]: "1",
       }),
     });
     await syncAndRevoke(rapport, new MemoryEventStore(), new ConsentRegistry());

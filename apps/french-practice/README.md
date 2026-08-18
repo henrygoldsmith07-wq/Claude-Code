@@ -18,6 +18,17 @@ your CEFR level (A1–C2) — it calibrates the AI's complexity and scoring — 
 validated against the `/models` endpoint before being stored. Or flip on
 **Mock Mode** in settings → Dev Panel to explore the whole app offline.
 
+## Pulse connection
+
+Le Studio can share a transcript-free history of its sessions and reviews with
+Pulse, the personal evidence engine in this ecosystem, when both apps are
+served from one origin. Sharing is **opt-in** and controlled here, where the
+data originates: Settings has a "Share with Pulse" switch. While it is on, the
+app writes the derived history (`fp.pulse-history.v2`) where Pulse's
+same-origin connector can read it. Turning it off deletes that copy immediately
+and clears the flag (`fp.pulse-opt-in`) Pulse's connector checks, so the flow
+stops at the source — even a stale mirror is refused.
+
 ## Features
 
 - **Learning Path** — pick a goal (travel, school, business, fluency), take a
