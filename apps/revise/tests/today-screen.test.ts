@@ -29,6 +29,16 @@ describe("Today screen", () => {
     const source = recommendation();
     expect(source).toContain("compact?: boolean");
     expect(source).toContain('compact ? "Next step" : "Recommended now"');
-    expect(source).toContain("!compact");
+    expect(source).toContain("if (compact)");
+  });
+
+  it("explains the recommendation in plain English before exposing scoring detail", () => {
+    const source = recommendation();
+    expect(source).toContain("Why this?");
+    expect(source).toContain("Show scoring detail");
+    expect(source).toContain("The rank weighs expected marks, exam timing, weakness, fading recall and evidence depth");
+    expect(source).toContain("limited marked evidence");
+    expect(source).not.toContain("Score ≈ gain × urgency");
+    expect(source).not.toContain("Estimated recoverable marks");
   });
 });
