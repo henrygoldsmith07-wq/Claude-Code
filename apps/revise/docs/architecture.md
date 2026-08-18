@@ -79,6 +79,8 @@ The GCSE expansion adds 55 original templates that materialise into 220
 board-specific questions across every GCSE topic in WJEC, AQA, Edexcel and OCR.
 The Edexcel A-level expansion adds a further 55 original questions across all
 Edexcel biology, chemistry, mathematics and physics topics.
+The data expansion adds 55 table, experiment and trend templates that
+materialise into 440 dataset-driven questions across all 32 subject variants.
 
 ### `src/data` — offline-first storage
 
