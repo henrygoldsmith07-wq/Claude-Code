@@ -141,3 +141,11 @@ export type {
   DashboardOptions,
   Freshness,
 } from "./dashboard.js";
+
+export { crossSourceAgreement } from "./agreement.js";
+export type {
+  CrossSourceAgreementOptions,
+  CrossSourceAgreementReport,
+  SourceAgreementPair,
+  SourceMeasurement,
+} from "./agreement.js";

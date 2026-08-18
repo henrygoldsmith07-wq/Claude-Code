@@ -51,8 +51,8 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | `connectors/` | Connector SDK, sync engine (consent, paging, cursors, backfill, health), one module per source, cross-source reconciliation and the connector health dashboard |
 | `quality/` | Five-dimension data-quality scoring that feeds the confidence grade |
 | `metrics/` | Metric registry, curated catalogue, per-event and per-day computation |
-| `timeseries/` | Trend (Theil-Sen + Mann-Kendall), baselines, anomalies, lag analysis, cross-app timeline |
-| `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading |
+| `timeseries/` | Trend (Theil-Sen + Mann-Kendall), context-aware baselines, drift and change points, seasonal adjustment, distributed lag/carryover analysis, cross-app timeline |
+| `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading and P1 safeguards |
 | `discovery/` | Candidate generation, confounder detection and adjustment, the relationship scan |
 | `hypotheses/` | Hypothesis records and their status machine |
 | `experiments/` | Crossover / A-B / before-after design and analysis |
@@ -108,6 +108,29 @@ data is.
    conflicting sighting. A claim seen pointing both ways is suspect whichever
    side it was on, and the ledger keeps that conflict auditable and in the
    export until one side's data is gone.
+
+### P1 statistics safeguards
+
+The P1 layer in `statistics/safeguards.ts`, `timeseries/context.ts` and
+`connectors/agreement.ts` makes the remaining failure modes explicit:
+
+- **Personal context and baselines:** travel, illness, school, work and
+  holiday labels; weekday/weekend and seasonal adjustment; context-aware
+  baselines; baseline drift and change-point detection.
+- **Temporal structure:** distributed lag models, carryover detection and
+  autocorrelation-adjusted effective sample sizes. Estimated timestamps carry
+  uncertainty windows, so weak temporal ordering cannot masquerade as a lag.
+- **Robustness:** minimum observation/day thresholds, independent holdout
+  periods, confounder and negative-control sensitivity, outlier sensitivity,
+  effect stability and measurement-error propagation.
+- **Evidence quality:** named BH/Holm/Bonferroni safeguards, reliability
+  weighting and nearest-timestamp cross-source agreement checks. Discovery
+  confidence surfaces serial correlation, unstable effects, low reliability and
+  uncertain timestamps as limitations.
+
+All primitives are deterministic and operate on local arrays or event
+metadata. They do not send data to a server or make a causal claim by
+themselves.
 
 ## Experiments
 
