@@ -63,6 +63,17 @@ describe("post-session closure", () => {
     expect(closure.detail).toContain("2");
   });
 
+  it("returns a clean review to today instead of duplicating the practice action", () => {
+    expect(
+      buildPostSessionClosure({
+        session: "review",
+        attempted: 6,
+        total: 6,
+        elapsedMs: 360_000,
+      }).nextAction,
+    ).toBe("today");
+  });
+
   it("gives an unstarted session a safe return action", () => {
     expect(
       buildPostSessionClosure({

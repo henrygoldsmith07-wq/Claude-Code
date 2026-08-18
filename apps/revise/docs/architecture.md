@@ -62,6 +62,7 @@ lives:
 - `i18n.ts` — locale detection, dictionary lookup and `t()` interpolation for the localisation scaffolding (en-GB core, cy/fr ready; no runtime dep).
 - `onboarding.ts` — funnel measurement: completion/drop-off, time-to-activation and `isActivated` derived from real review/attempt/session signals (local-only, no PII shipped).
 - `retention-analytics.ts`, `fsrs-tuning.ts`, `mastery-uncertainty.ts`, `knowledge-tracing.ts`, `recommender-enhancements.ts`, `sync-conflicts.ts`, `portability.ts`, `moderation.ts` — Phase 3–6 learning-science and platform hardening; `mastery-uncertainty.ts` exposes pure Wilson intervals and empirical difficulty signals (including the shared exam-technique vs knowledge diagnosis; covered in `docs/revision-engine.md`).
+- `post-session-closure.ts` — pure session-end metrics and next-action rules shared by review, question practice and timed papers.
 - `src/app/benchmarks` + `src/app/case-study` — live ledger and case-study routes that compute from the same harnesses as CI (Phase 8).
 
 ### `src/content` — authored revision material
@@ -147,6 +148,12 @@ The Le Studio design system (`src/app/le-studio.css`) carries all colour through
 CSS custom properties that flip themselves for dark mode, so components carry no
 `dark:` variants. `RichText` renders the small markdown subset the content uses
 plus KaTeX maths, escaping input before adding any markup.
+
+Session endings use the shared `PostSessionClosure` surface. It makes completion,
+marks, time and the next repair step visible together, while keeping navigation
+explicit. Review and question practice preserve their history before closing;
+timed papers mark the paper practised only when the student chooses a finish
+action.
 
 ## Card maintenance
 

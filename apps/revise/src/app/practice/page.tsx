@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
 import { delayedFarTransferRetests } from "@/domain/delayed-far-transfer";
 import { todayIso } from "@/domain/scheduling";
-import type { Question } from "@/domain/types";
+import { buildPostSessionClosure } from "@/domain/post-session-closure";
+import type { Attempt, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
+import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { RichText } from "@/components/RichText";
 import { Button, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
@@ -50,7 +52,12 @@ function Practice() {
   const [index, setIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [completed, setCompleted] = useState(0);
+  const [sessionAttempts, setSessionAttempts] = useState<Attempt[]>([]);
+  const [closed, setClosed] = useState(false);
+  const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
+  const [sessionStartedAt, setSessionStartedAt] = useState(() => Date.now());
+  const closing = useRef(false);
+  const [finishing, setFinishing] = useState(false);
 
   const masteryByTopic = useMemo(() => new Map(store.mastery.map((m) => [m.topicId, m])), [store.mastery]);
 
@@ -94,6 +101,45 @@ function Practice() {
   );
 
   const current: Question | undefined = queue[index];
+
+  function resetSession() {
+    setSessionAttempts([]);
+    setClosed(false);
+    setSessionElapsedMs(0);
+    setSessionStartedAt(Date.now());
+    closing.current = false;
+    setFinishing(false);
+  }
+
+  async function finishSession() {
+    if (!sessionAttempts.length || closing.current) return;
+    closing.current = true;
+    setFinishing(true);
+    setSessionElapsedMs(Date.now() - sessionStartedAt);
+    if (sessionId) await store.completeSession(sessionId);
+    setClosed(true);
+  }
+
+  const sessionAwarded = sessionAttempts.reduce((sum, attempt) => sum + attempt.awarded, 0);
+  const sessionAvailable = sessionAttempts.reduce((sum, attempt) => sum + attempt.max, 0);
+  const closure = buildPostSessionClosure({
+    session: "practice",
+    attempted: sessionAttempts.length,
+    total: queue.length,
+    awarded: sessionAwarded,
+    available: sessionAvailable,
+    elapsedMs: sessionElapsedMs,
+  });
+
+  if (closed) {
+    return (
+      <PostSessionClosure
+        closure={closure}
+        hint="Your answers are recorded and dropped marks are available in the mistake queue."
+        secondary={{ href: "/practice", label: "Practise another topic" }}
+      />
+    );
+  }
 
   async function generate() {
     if (!topicId) {
@@ -168,9 +214,15 @@ function Practice() {
               setTopicId("");
               setIndex(0);
               setOrder(orderFor(value, ""));
+              resetSession();
             }}
             options={subjects.map((s) => ({ value: s.id, label: s.name }))}
           />
+        ) : null}
+        {sessionAttempts.length ? (
+          <Button size="sm" variant="primary" onClick={() => void finishSession()} disabled={finishing}>
+            Finish session
+          </Button>
         ) : null}
       </header>
 
@@ -205,6 +257,7 @@ function Practice() {
             // land on an unrelated question.
             setIndex(0);
             setOrder(orderFor(subjectId, e.target.value));
+            resetSession();
           }}
           className="field field-inline text-sm"
           aria-label="Topic"
@@ -249,9 +302,11 @@ function Practice() {
             question={current}
             mode={mode}
             farTransfer={farTransferRetest}
-            onFinished={() => {
-              setCompleted((c) => c + 1);
-              if (sessionId && completed === 0) void store.completeSession(sessionId);
+            onFinished={(attempt) => {
+              setSessionAttempts((previous) => [
+                ...previous.filter((existing) => existing.questionId !== attempt.questionId),
+                attempt,
+              ]);
             }}
           />
           <div className="flex justify-between gap-2">
@@ -260,10 +315,13 @@ function Practice() {
             </Button>
             <Button
               variant="primary"
-              disabled={index >= queue.length - 1}
-              onClick={() => setIndex((i) => i + 1)}
+              disabled={!sessionAttempts.some((attempt) => attempt.questionId === current.id)}
+              onClick={() => {
+                if (index >= queue.length - 1) void finishSession();
+                else setIndex((i) => i + 1);
+              }}
             >
-              Next question
+              {index >= queue.length - 1 ? "Finish session" : "Next question"}
             </Button>
           </div>
         </>

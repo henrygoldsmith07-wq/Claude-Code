@@ -1,13 +1,15 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { aiExtractQuestions, aiOcr } from "@/ai/client";
 import { toBase64 } from "@/components/AnswerInput";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { buildPostSessionClosure } from "@/domain/post-session-closure";
 import { tokenise } from "@/domain/marking";
 import type { Paper, Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
+import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { Button, EmptyState, Field, Panel, Pill, ProgressBar, SectionHeading, Segmented } from "@/components/ui";
 import { ICON_SIZE, PhotoIcon, TimerIcon } from "@/components/icons";
@@ -279,16 +281,20 @@ export function mapToTopics(subjectId: string, text: string, limit = 2): string[
 }
 
 function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
+  const router = useRouter();
   const store = useStore();
   const [index, setIndex] = useState(0);
   const [startedAt] = useState(() => Date.now());
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
-  const [scores, setScores] = useState<{ awarded: number; max: number }[]>([]);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [scores, setScores] = useState<{ questionId: string; awarded: number; max: number }[]>([]);
+  const [finishing, setFinishing] = useState(false);
 
   // A paper is sat under timed conditions, so the clock has to advance on its
   // own rather than only when something else re-renders.
   useEffect(() => {
-    const tick = setInterval(() => setElapsedMinutes(Math.floor((Date.now() - startedAt) / 60_000)), 15_000);
+    const updateElapsed = () => setElapsedMs(Date.now() - startedAt);
+    updateElapsed();
+    const tick = setInterval(updateElapsed, 15_000);
     return () => clearInterval(tick);
   }, [startedAt]);
 
@@ -300,18 +306,28 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   const totalAwarded = scores.reduce((a, s) => a + s.awarded, 0);
   const totalMax = scores.reduce((a, s) => a + s.max, 0);
 
-  async function finish() {
+  async function finish(nextHref?: string) {
+    if (finishing) return;
+    setFinishing(true);
     await store.addPaper({ ...paper, status: "practised" });
-    onExit();
+    if (nextHref) router.push(nextHref);
+    else onExit();
   }
 
   if (!current) {
-    const paperPct = totalMax ? totalAwarded / totalMax : 0;
+    const availableMarks = paper.totalMarks || totalMax;
+    const closure = buildPostSessionClosure({
+      session: "paper",
+      attempted: scores.length,
+      total: questions.length,
+      awarded: totalAwarded,
+      available: availableMarks,
+      elapsedMs,
+    });
     const predictedBefore = (() => {
       const subject = getSubject(paper.subjectId);
       const qs = paper.questionIds.map((id) => store.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q));
       if (!subject || !qs.length) return null;
-      const masteryMap = new Map(store.mastery.map((m) => [m.topicId, m.mastery]));
       const psId = paper.paperSpecId ?? subject.papers[0]?.id ?? "";
       return store.previewPaper(subject.id, psId, paper.questionIds);
     })();
@@ -319,25 +335,27 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
       ? `Simulation had predicted ${predictedBefore.predictedMarks}/${predictedBefore.totalMarks} — calibration will tighten next time.`
       : null;
     return (
-      <div className="max-w-lg mx-auto space-y-5">
-        <SectionHeading title="Paper complete" hint={paper.title} />
-        <Panel>
-          <p className="text-3xl font-semibold tabular-nums">
-            {totalAwarded}
-            <span className="text-ink3 text-xl">/{totalMax || paper.totalMarks}</span>
-          </p>
-          <div className="mt-3">
-            <ProgressBar value={paperPct} tone={paperPct >= 0.7 ? "success" : paperPct >= 0.5 ? "review" : "danger"} />
+      <PostSessionClosure
+        closure={closure}
+        title="Paper complete"
+        hint={paper.title}
+        extra={calibration ? <p>{calibration} See Progress for the updated calibration.</p> : null}
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="primary"
+              className="flex-1"
+              disabled={finishing}
+              onClick={() => void finish(closure.nextAction === "mistakes" ? "/review?mode=mistakes" : undefined)}
+            >
+              {finishing ? "Saving…" : closure.nextAction === "mistakes" ? "Finish and review mistakes" : "Finish paper"}
+            </Button>
+            <Button className="flex-1" disabled={finishing} onClick={() => void finish()}>
+              Back to papers
+            </Button>
           </div>
-          <p className="text-xs text-ink3 mt-3">
-            {elapsedMinutes} minutes. Every dropped mark is now a mistake card in your review queue.
-          </p>
-          {calibration ? <p className="text-[11px] text-ink3 mt-2">{calibration} See Progress for the updated calibration.</p> : null}
-        </Panel>
-        <Button variant="primary" className="w-full" onClick={() => void finish()}>
-          Finish
-        </Button>
-      </div>
+        }
+      />
     );
   }
 
@@ -352,9 +370,9 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Pill tone={elapsedMinutes > 90 ? "danger" : undefined}>
+          <Pill tone={elapsedMs > 90 * 60_000 ? "danger" : undefined}>
             <TimerIcon size={ICON_SIZE.sm} aria-hidden />
-            {elapsedMinutes} min
+            {Math.floor(elapsedMs / 60_000)} min
           </Pill>
           <Button size="sm" variant="ghost" onClick={onExit}>
             Exit
@@ -368,10 +386,22 @@ function PaperSession({ paper, onExit }: { paper: Paper; onExit: () => void }) {
         key={current.id}
         question={current}
         mode="paper"
-        onFinished={(attempt) => setScores((prev) => [...prev, { awarded: attempt.awarded, max: attempt.max }])}
+        onFinished={(attempt) =>
+          setScores((prev) => [
+            ...prev.filter((score) => score.questionId !== attempt.questionId),
+            { questionId: attempt.questionId, awarded: attempt.awarded, max: attempt.max },
+          ])
+        }
       />
 
-      <Button variant="primary" className="w-full" onClick={() => setIndex((i) => i + 1)}>
+      <Button
+        variant="primary"
+        className="w-full"
+        onClick={() => {
+          setElapsedMs(Date.now() - startedAt);
+          setIndex((i) => i + 1);
+        }}
+      >
         {index === questions.length - 1 ? "Finish paper" : "Next question"}
       </Button>
     </div>

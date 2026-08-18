@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
+import { buildPostSessionClosure } from "@/domain/post-session-closure";
 import { buildReviewQueue, buryCard, isDue, previewIntervals, reinsert, setSuspended, todayIso } from "@/domain/scheduling";
 import { CUSTOM_STUDY_KEY } from "@/components/CustomStudyDialog";
 import { useShortcuts } from "@/components/shortcuts";
 import type { Card, RecallGrade } from "@/domain/types";
 import { useStore } from "@/state/store";
-import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading } from "@/components/ui";
+import { Button, EmptyState, Panel, Pill, ProgressBar } from "@/components/ui";
+import { PostSessionClosure } from "@/components/PostSessionClosure";
 import { SpeakButton } from "@/components/SpeakButton";
 import { RichText } from "@/components/RichText";
 
@@ -326,41 +328,18 @@ function SessionSummary({
     );
   }
 
-  const accuracy = reviewed ? Math.round(((reviewed - again) / reviewed) * 100) : 0;
+  const closure = buildPostSessionClosure({
+    session: "review",
+    attempted: reviewed,
+    total: reviewed,
+    retryCount: again,
+    elapsedMs: minutes * 60_000,
+  });
   return (
-    <div className="max-w-lg mx-auto space-y-5">
-      <SectionHeading title="Session complete" hint="Every card is rescheduled by FSRS from how you graded it." />
-      <Panel>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">{reviewed}</p>
-            <p className="text-[11px] text-ink3">reviewed</p>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">{accuracy}%</p>
-            <p className="text-[11px] text-ink3">recalled first time</p>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">{minutes}</p>
-            <p className="text-[11px] text-ink3">minutes</p>
-          </div>
-        </div>
-        <p className="text-xs text-ink3 mt-4">
-          {again > 0
-            ? `${again} card${again === 1 ? "" : "s"} came back this session and will return sooner than the rest.`
-            : "No lapses — those intervals just grew significantly."}
-        </p>
-      </Panel>
-      <div className="flex gap-2">
-        <Link href="/" className="flex-1">
-          <Button variant="primary" className="w-full">
-            What&apos;s next
-          </Button>
-        </Link>
-        <Link href="/practice" className="flex-1">
-          <Button className="w-full">Practise questions</Button>
-        </Link>
-      </div>
-    </div>
+    <PostSessionClosure
+      closure={closure}
+      hint="Every card has been rescheduled by FSRS from how you graded it."
+      secondary={{ href: "/practice", label: "Practise questions" }}
+    />
   );
 }

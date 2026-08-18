@@ -34,9 +34,9 @@ optional Supabase and AI provider settings.
 |------|-----------|
 | **Recommendation** | Scores every candidate activity on one scale — due reviews, mistake repair, weak-topic practice, first-pass learning, timed papers — and shows the winner with a plain-English reason. |
 | **Spaced repetition** | FSRS scheduling with per-grade interval previews, confidence captured *before* reveal, and failed cards reinserted within the same session. |
-| **Exam practice** | Structured questions marked point-by-point against the mark scheme, with examiner-style feedback and model answers. |
+| **Exam practice** | Structured questions marked point-by-point against the mark scheme, with examiner-style feedback, model answers and a post-session route into mistakes or further practice. |
 | **Mistake tracking** | Every dropped mark becomes a classified mistake *and* a flashcard automatically, and closes only once the card is recalled reliably. |
-| **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, sit them timed. |
+| **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, sit them timed, then close with full-denominator scoring and a repair route. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
 | **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
 | **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, and hands-free Listen — all over the same cards. |
@@ -62,6 +62,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   recommender.ts   "What should I do right now?" (+ recommender-enhancements: cold-start, ties, exploration, gain)
   planner.ts       Adaptive timetable + missed-session recovery (realism + diminishing returns)
   marking.ts       Offline rubric marking against mark schemes
+  post-session-closure.ts  Shared session-end metrics and next-action rules
   mistakes.ts      Dropped mark → classified mistake → flashcard
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
