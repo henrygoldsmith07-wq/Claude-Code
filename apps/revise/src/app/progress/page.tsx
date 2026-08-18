@@ -13,7 +13,7 @@ import { dueCountByDay, todayIso } from "@/domain/scheduling";
 import type { DiagnoseResponse } from "@/ai/types";
 import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
-import { CalculationMasteryCard, CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard } from "@/components/AssessmentPanels";
+import { CalculationMasteryCard, CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, NextGradeView, PaperSimulationCard } from "@/components/AssessmentPanels";
 import { CoverageCard } from "@/components/CoverageCard";
 import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
 import { LearningControlsCard } from "@/components/LearningControlsCard";
@@ -212,45 +212,7 @@ export default function ProgressPage() {
         )}
       </section>
 
-      <section>
-        <SectionHeading
-          title="Predicted grades"
-          hint="Blends measured exam-question accuracy with topic coverage. Confidence rises with marked work."
-        />
-        <ul className="grid sm:grid-cols-2 gap-3">
-          {store.predictions.map((prediction) => (
-            <Panel as="li" key={prediction.subjectId}>
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm font-semibold">{getSubject(prediction.subjectId)?.name}</p>
-                <p className="text-2xl font-semibold tabular-nums">{prediction.grade}</p>
-              </div>
-              <div className="mt-2">
-                <ProgressBar value={prediction.percent / 100} label={`${prediction.percent}%`} />
-              </div>
-              <p className="text-[11px] text-ink3 mt-2">
-                Realistic range {prediction.worstCase}–{prediction.bestCase} · confidence{" "}
-                {Math.round(prediction.confidence * 100)}%
-                {prediction.trend !== 0 ? ` · ${prediction.trend > 0 ? "+" : ""}${prediction.trend}pp this month` : ""}
-              </p>
-              {prediction.headroom.length ? (
-                <div className="mt-3 pt-3 border-t border-line">
-                  <p className="text-[11px] uppercase tracking-wide text-ink3 font-semibold mb-1.5">
-                    Biggest gains available
-                  </p>
-                  <ul className="space-y-1">
-                    {prediction.headroom.slice(0, 3).map((row) => (
-                      <li key={row.topicId} className="flex justify-between gap-2 text-xs">
-                        <span className="text-ink2 truncate">{getTopic(row.topicId)?.title}</span>
-                        <span className="text-ink3 tabular-nums shrink-0">+{row.potentialPercent}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </Panel>
-          ))}
-        </ul>
-      </section>
+      <NextGradeView />
 
       <section>
         <SectionHeading

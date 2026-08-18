@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { nextGradeTarget } from "@/domain/grades";
 import { QUESTION_DIFFICULTY_MIN_SAMPLES } from "@/domain/knowledge-tracing";
 import { useStore } from "@/state/store";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui";
@@ -12,6 +13,111 @@ import { Button, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "./ui
 
 function EmptyHint({ children }: { children: string }) {
   return <p className="text-xs text-ink3">{children}</p>;
+}
+
+export function NextGradeView() {
+  const store = useStore();
+  const rows = store.predictions
+    .map((prediction) => {
+      const subject = getSubject(prediction.subjectId);
+      return subject ? { subject, prediction, target: nextGradeTarget(subject, prediction) } : null;
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+  return (
+    <Panel>
+      <SectionHeading
+        title="What Gets Me to the Next Grade?"
+        hint="A boundary gap, then the topics with enough modelled headroom to close it. Treat the route as a ranked plan, not a promise."
+      />
+      {rows.length ? (
+        <ul className="divide-y divide-line">
+          {rows.map(({ subject, prediction, target }) => {
+            const first = target.route[0];
+            const firstTopic = first ? getTopic(first.topicId) : undefined;
+            const confidence = Math.round(prediction.confidence * 100);
+            return (
+              <li key={prediction.subjectId} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{subject.name}</p>
+                    <p className="text-xs text-ink3 mt-0.5">
+                      Predicted {prediction.grade} at {prediction.percent}% · confidence {confidence}%
+                    </p>
+                  </div>
+                  <p className="text-lg font-semibold tabular-nums shrink-0">
+                    {target.nextGrade ? `→ ${target.nextGrade.grade}` : "Highest"}
+                  </p>
+                </div>
+
+                {target.nextGrade ? (
+                  <>
+                    <div className="mt-3">
+                      <ProgressBar
+                        value={prediction.percent / target.nextGrade.percent}
+                        label={`Progress to ${target.nextGrade.grade}`}
+                      />
+                    </div>
+                    <p className="text-xs text-ink2 mt-2">
+                      {prediction.percent}% now · {target.nextGrade.percent}% needed for {target.nextGrade.grade}. Need{" "}
+                      <span className="font-semibold">+{target.gapPercent} percentage points</span>. The ranked route models
+                      +{target.modeledGainPercent}pp from the topics below.
+                    </p>
+                    {target.route.length ? (
+                      <ul className="mt-3 space-y-2">
+                        {target.route.slice(0, 3).map((route, index) => (
+                          <li key={route.topicId} className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs text-ink2 truncate">
+                                {index === 0 ? "Start with " : "Then "}
+                                {getTopic(route.topicId)?.title ?? route.topicId}
+                              </p>
+                              <p className="text-[11px] text-ink3">
+                                Up to +{route.potentialPercent}pp headroom
+                              </p>
+                            </div>
+                            <span className="text-xs text-accent font-semibold tabular-nums shrink-0">
+                              +{route.contributionPercent}pp
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-ink3 mt-3">
+                        No topic has enough measured headroom yet. Add marked timed work to replace this estimate with a
+                        firmer route.
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-line">
+                      <p className="text-[11px] text-ink3">
+                        {confidence < 45
+                          ? "Low confidence — add marked questions before treating the target as reliable."
+                          : "Keep checking the gap after each marked set."}
+                      </p>
+                      <Link href={first ? `/practice?topic=${encodeURIComponent(first.topicId)}` : "/practice"}>
+                        <Button size="sm">{firstTopic ? `Practise ${firstTopic.title}` : "Practise a timed set"}</Button>
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-ink2">
+                      Already at the highest predicted boundary. Protect it with timed papers and mistake retests.
+                    </p>
+                    <Link href="/practice">
+                      <Button size="sm">Practise a timed set</Button>
+                    </Link>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <EmptyHint>Pick a subject and complete marked work to see a grade target.</EmptyHint>
+      )}
+    </Panel>
+  );
 }
 
 export function ExpectedMarksCard() {
