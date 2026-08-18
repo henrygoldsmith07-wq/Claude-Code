@@ -13,6 +13,7 @@ import { useStore, useSubjects } from "@/state/store";
 import { RichText } from "@/components/RichText";
 import { CalibrationCard, DifficultyAndSubtopics, ExpectedMarksCard, MarksLostByCause, PaperSimulationCard, RecurringMisconceptions } from "@/components/AssessmentPanels";
 import { ResponseTimeCalibrationPanel } from "@/components/ResponseTimeCalibration";
+import { RetentionMasteryPanel } from "@/components/RetentionMasteryPanel";
 import { MistakeRootCausePanel } from "@/components/MistakeRootCause";
 import { CoverageCard } from "@/components/CoverageCard";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, SourceBadge, StatTile, cx } from "@/components/ui";
@@ -75,6 +76,8 @@ export default function ProgressPage() {
         <StatTile label="Topics secure" value={totals.mastered} sub={`of ${store.mastery.length}`} />
         <StatTile label="Level" value={level.level} sub={`${level.into}/${level.needed} XP to next`} />
       </div>
+
+      <RetentionMasteryPanel />
 
       <section>
         <SectionHeading

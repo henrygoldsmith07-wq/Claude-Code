@@ -50,7 +50,7 @@ source immediately.
 | **Mistake tracking** | Every dropped mark becomes a classified mistake *and* a flashcard automatically, and closes only once the card is recalled reliably. |
 | **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, practise them question-by-question or sit them in full exam conditions with a fixed clock, no in-paper aids, auto-submit and marking after the paper. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
-| **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
+| **Analytics** | Mastery per topic, measured Retention Mastery from 1/7/30-day recall, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
 | **Mistake diagnosis** | Ranks likely root causes from missed points, answer/working evidence, timing, command words and the authored misconception library; one-off evidence stays an early signal. |
 | **Marking evidence** | Double-marked answer corpus with independent-marker agreement, disagreement review, adjudication and versioned JSON import/export. |
 | **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, hands-free Listen, and Explanation mastery — teach a topic from memory and see which authored key points made it into the explanation. |
@@ -82,6 +82,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   quick-session.ts  Fixed five- and ten-minute question selection and priority rules
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
+  retention-mastery.ts  Evidence-gated retention status, trend and next action
   fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening
   moderation.ts / sync-conflicts.ts / portability.ts  Platform: review, sync, GDPR portability
   i18n.ts / onboarding.ts  Localisation scaffolding + funnel measurement
