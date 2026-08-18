@@ -35,6 +35,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 - Exam technique vs knowledge separation: `techniqueVsKnowledge(mistakes)` reports the estimated lost-mark split, driver tags and a reliability flag (`≥8` mistakes and `≥10` lost marks). `/progress` turns it into a repair choice between timed paper practice and knowledge-gap review.
 - Recall mastery: `computeRecallMastery` keeps card stability/current retrievability separate from exam marks, and reports observed recall, due pressure and evidence level per topic. `/progress` surfaces the overall recall score and weakest retrieval topics.
 - Application mastery: `computeApplicationMastery` reports mark-weighted question performance while excluding active-recall and pending provisional attempts; ten eligible attempts make a topic reliable and `/progress` surfaces the weakest application topics.
+- Mastery uncertainty: `masteryIntervals` reports a conservative Wilson 95% band from cards and weighted attempts, flags topics below eight weighted trials and widens conflicting card/mastery signals; `/progress` surfaces the six widest intervals.
 - `/benchmarks` renders the live corpus version, row-level human vs rubric totals and the same floor status used by CI.
 - `/benchmarks` also renders the current pairwise disagreement matrix keyed by `questionId`; the internal corpus currently measures human ↔ rubric and leaves AI coverage explicitly unmeasured until provider-marked gold exists.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.

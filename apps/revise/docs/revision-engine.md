@@ -96,6 +96,27 @@ question/attempt counts and an evidence level (`unmeasured`, `emerging`,
 for more exam-question practice without allowing recall or provisional marks to
 inflate the result.
 
+### Mastery uncertainty
+
+`src/domain/mastery-uncertainty.ts`
+
+Mastery uncertainty makes the confidence of the point estimate visible. For
+each topic it applies a conservative Wilson 95% interval to a pseudo-trial
+count derived from the same evidence model:
+
+```
+evidence  = cards + 2 × attempts
+successes = round(mastery × evidence)
+```
+
+The interval uses at least one denominator for a stable small-sample estimate,
+then widens when card retrievability conflicts with the mastery point estimate.
+Evidence below eight weighted trials is marked `needsMoreEvidence`; interval
+width is labelled `low` below 0.20, `medium` below 0.50 and `high` otherwise.
+`masteryIntervals` sorts topics by widest interval first. `/progress` shows the
+six widest bands, their evidence state and a direct practice action, so a high
+mastery score is not mistaken for a measured one.
+
 ## 3. Recommendation
 
 `src/domain/recommender.ts` — technical documentation for the recommendation engine.
