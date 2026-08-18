@@ -16,6 +16,12 @@ import { FindingCard } from "./FindingCard.js";
 import { EvidencePanel } from "./EvidencePanel.js";
 import { LibraryPanel } from "./LibraryPanel.js";
 import { ProductTrustPanel, type FeedbackAction } from "./ProductTrustPanel.js";
+import { StatisticalInspector } from "./StatisticalInspector.js";
+import {
+  createDefaultStatisticalInspectorOptions,
+  normaliseStatisticalInspectorOptions,
+  type StatisticalInspectorOptions,
+} from "../statistics/inspector.js";
 
 export type TabId = "insights" | "evidence" | "timeline" | "experiments" | "ask" | "library" | "sources";
 
@@ -45,19 +51,31 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const [tab, setTab] = useState<TabId>("insights");
   const [askPrefill, setAskPrefill] = useState("");
   const [suppressedFindingIds, setSuppressedFindingIds] = useState<string[]>([]);
+  const [statisticalOptions, setStatisticalOptions] = useState(createDefaultStatisticalInspectorOptions);
   // Bumped whenever the engine's derived state changes, so memoised views
   // recompute without the component owning any analytic state itself.
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
 
+  const onStatisticalOptionsChange = useCallback(
+    (options: StatisticalInspectorOptions) => {
+      setStatisticalOptions(normaliseStatisticalInspectorOptions(options));
+      refresh();
+    },
+    [refresh],
+  );
+
   // `revision` is a deliberate dependency, not a redundant one: the engine is
   // external mutable state that React cannot observe, so bumping the counter
   // is what tells these memos to recompute after feedback or a revocation.
   /* eslint-disable react-hooks/exhaustive-deps */
-  const discovery = useMemo(() => pulse.discover(), [pulse, revision]);
-  const brief = useMemo(() => pulse.weeklyBrief(), [pulse, revision]);
-  const recommendations = useMemo(() => pulse.recommendations(5), [pulse, revision]);
-  const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision]);
+  const discovery = useMemo(
+    () => (revision === 0 ? pulse.discover(statisticalOptions) : pulse.inspectStatistics(statisticalOptions)),
+    [pulse, revision, statisticalOptions],
+  );
+  const brief = useMemo(() => pulse.weeklyBrief(), [pulse, revision, statisticalOptions]);
+  const recommendations = useMemo(() => pulse.recommendations(5), [pulse, revision, statisticalOptions]);
+  const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision, statisticalOptions]);
   const quality = useMemo(() => pulse.quality(), [pulse, revision]);
   const insightHistory = useMemo(() => pulse.insightHistory.history(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
@@ -168,6 +186,12 @@ export function App({ pulse }: AppProps): React.JSX.Element {
             />
             <h2>This week</h2>
             <p className="brief__headline">{brief.headline}</p>
+
+            <StatisticalInspector
+              discovery={discovery}
+              options={statisticalOptions}
+              onOptionsChange={onStatisticalOptionsChange}
+            />
 
             <h2>What Pulse believes</h2>
             <p className="muted">

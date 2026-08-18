@@ -192,6 +192,24 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("lets the user inspect statistical thresholds without polluting insight history", async () => {
+    const historyBefore = pulse.insightHistory.size();
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByText("User-controlled advanced statistical inspector"));
+    expect(screen.getByLabelText("False discovery rate")).toBeTruthy();
+    expect(screen.getByText(/Showing a 5% FDR/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("False discovery rate"), { target: { value: "0.1" } });
+    expect(screen.getByText(/Showing a 10% FDR/)).toBeTruthy();
+    expect(screen.getByText(/preview scans are not added to confidence history/i)).toBeTruthy();
+    expect(pulse.insightHistory.size()).toBe(historyBefore);
+    await expectNoAxeViolations(container);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset defaults" }));
+    expect(screen.getByText(/Showing a 5% FDR/)).toBeTruthy();
+    cleanup();
+  });
+
   it("shows the insight history with each insight's journey across scans", () => {
     render(<App pulse={pulse} />);
     expect(screen.getByRole("heading", { name: "Insight history" })).toBeTruthy();

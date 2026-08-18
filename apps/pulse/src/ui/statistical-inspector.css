@@ -1,0 +1,128 @@
+.statistical-inspector {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 1.4rem 0;
+  padding: 0.8rem 1rem;
+}
+
+.statistical-inspector > summary {
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.statistical-inspector__intro {
+  color: var(--muted);
+  margin: 0.65rem 0 1rem;
+  max-width: 48rem;
+}
+
+.statistical-inspector__controls {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.statistical-inspector__field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.statistical-inspector__field > span,
+.statistical-inspector__windows legend {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.statistical-inspector__field output {
+  color: var(--fg);
+  float: right;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.statistical-inspector select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  font: inherit;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+}
+
+.statistical-inspector input[type="range"] {
+  accent-color: var(--accent);
+  min-width: 0;
+  width: 100%;
+}
+
+.statistical-inspector__windows {
+  border: 0;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.statistical-inspector__windows > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.8rem;
+  margin-top: 0.45rem;
+}
+
+.statistical-inspector__windows label {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.statistical-inspector__results {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.7rem 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+}
+
+.statistical-inspector__results dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.statistical-inspector__results dd {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0.1rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.statistical-inspector__footer {
+  align-items: center;
+  display: flex;
+  gap: 0.8rem;
+  justify-content: space-between;
+  margin-top: 0.9rem;
+}
+
+.statistical-inspector__footer p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .statistical-inspector__controls,
+  .statistical-inspector__results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .statistical-inspector__controls,
+  .statistical-inspector__results { grid-template-columns: 1fr; }
+  .statistical-inspector__footer { align-items: flex-start; flex-direction: column; }
+}
