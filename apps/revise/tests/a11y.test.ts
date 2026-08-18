@@ -71,4 +71,11 @@ describe("a11y scaffolding", () => {
     expect(i18n.SUPPORTED_LOCALES).toContain("en-GB");
     expect(i18n.DEFAULT_LOCALE).toBe("en-GB");
   });
+  it("QuestionRunner: remediation renders the misconception explanation with a fix", async () => {
+    const src = readFileSync(join(process.cwd(), "src/components/QuestionRunner.tsx"), "utf8");
+    expect(src).toContain("How to fix it");
+    expect(src).toContain("misconceptionEntry.explanation");
+    expect(src).toContain("misconceptionEntry.correction");
+    expect(src).toContain("planRemediation(");
+  });
 });
