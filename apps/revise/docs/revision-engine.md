@@ -75,6 +75,27 @@ grade), due cards, review count and evidence level (`unmeasured`, `emerging`,
 the topics that need retrieval, while keeping modelled mastery separate from
 observed recall.
 
+### Application mastery
+
+`src/domain/application-mastery.ts`
+
+Application mastery is the question-performance companion to recall mastery.
+It uses eligible marked practice and paper attempts only:
+
+- active-recall attempts are excluded because they measure retrieval, not
+  application;
+- attempts with a pending low-confidence mark escalation are excluded until
+  the mark is resolved;
+- a multi-topic question splits its awarded and available marks evenly across
+  the mapped topics.
+
+The score is mark-weighted application accuracy. Each row also exposes recent
+accuracy over the last five topic attempts, average question difficulty,
+question/attempt counts and an evidence level (`unmeasured`, `emerging`,
+`reliable` at ten eligible attempts). `/progress` uses the score to rank topics
+for more exam-question practice without allowing recall or provisional marks to
+inflate the result.
+
 ## 3. Recommendation
 
 `src/domain/recommender.ts` — technical documentation for the recommendation engine.

@@ -45,6 +45,9 @@ lives:
 - `recall-mastery.ts` keeps a recall-only score separate from exam performance,
   combining card stability and current FSRS retrievability, while exposing
   observed review outcomes and due-card pressure for `/progress`.
+- `application-mastery.ts` keeps marked-question application accuracy separate
+  from recall, excluding active-recall and pending provisional attempts and
+  allocating multi-topic marks fairly for `/progress`.
 - `recommender.ts` scores every candidate activity on a single scale so they can
   be compared, and attaches a human-readable reason to each.
 - `planner.ts` builds the timetable and folds missed sessions forward.
