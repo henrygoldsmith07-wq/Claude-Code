@@ -279,7 +279,8 @@ The specificity tests are the load-bearing ones. Any tool will find something.
 | Garmin, Fitbit, WHOOP, Oura | `connectors/wearables.ts` | The same physiology read first-hand, plus each vendor's own scores |
 | Google Calendar, Outlook | `connectors/calendar.ts` | Commitment times and day shape — no titles, no attendees, no locations |
 | Any CSV or JSON file | `connectors/tabular.ts` | Whatever the user maps, previewed before a single row is stored |
-| The first-party apps | `revise`, `arise`, `forq`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+| The first-party apps | `revise`, `arise`, `forq`, `habit`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+| Habit (Supabase) | `connectors/habit.ts` | Habit check-ins — one event per habit per day, done or missed |
 
 Three decisions in that layer are worth knowing about.
 
