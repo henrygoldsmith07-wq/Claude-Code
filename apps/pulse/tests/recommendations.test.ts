@@ -49,6 +49,7 @@ const supportedExperiment: ExperimentResult = {
   experimentId: "e1",
   hypothesisId: "h1",
   analysedAt: "2025-06-30T00:00:00Z",
+  effectiveEndDate: "2025-07-28",
   verdict: "supported",
   summary: "Accuracy was 9.0% higher under the intervention.",
   reasons: [],

@@ -17,7 +17,7 @@
  */
 
 import type { PulseEvent } from "../events/schema.js";
-import { daysBetween } from "../events/time.js";
+import { daysBetween, localDate } from "../events/time.js";
 import { observationsFor, type MetricObservation } from "../metrics/compute.js";
 import type { MetricRegistry } from "../metrics/registry.js";
 import { mannWhitneyU, pairedTTest, welchTTest, wilcoxonSignedRank, type ComparisonResult } from "../statistics/comparisons.js";
@@ -25,7 +25,8 @@ import { mean, slope } from "../statistics/descriptive.js";
 import { intervalCrossesZero, type Interval } from "../statistics/effects.js";
 import { gradeConfidence, causalityCaveat, type ConfidenceAssessment } from "../statistics/confidence.js";
 import { twoSampleTPower } from "../statistics/power.js";
-import { conditionForDate, type ExperimentDesign } from "./design.js";
+import { adaptiveEndDate } from "./calendar.js";
+import { conditionForDateFrom, extendedAssignments, type Assignment, type ExperimentDesign } from "./design.js";
 
 export type ExperimentVerdict = "supported" | "refuted" | "inconclusive" | "invalid";
 
@@ -76,6 +77,8 @@ export interface ExperimentResult {
   experimentId: string;
   hypothesisId: string;
   analysedAt: string;
+  /** The window actually analysed: the design's end, or the adaptive-duration end (P1 #4). */
+  effectiveEndDate: string;
   verdict: ExperimentVerdict;
   /** Plain sentence stating the outcome, assembled from the numbers. */
   summary: string;
@@ -103,6 +106,8 @@ export interface AnalysisOptions {
   predictedEffect: number;
   dataQuality?: number;
   now?: () => number;
+  /** Timezone for the analysis date, which drives the adaptive-duration rule. */
+  timezone?: string;
   /** Minimum adherence before the run is called invalid. */
   minAdherence?: number;
 }
@@ -116,8 +121,21 @@ export function analyseExperiment(
   const definition = options.registry.require(design.targetMetricId);
   const allObservations = observationsFor(events, definition);
 
+  // The data-collection window adapts (P1 #4): the end date is recomputed
+  // from the observed sessions-per-week, so sessions recorded during an
+  // extension count. The analysis method and the planned sample never change
+  // — only the window does.
+  const today = localDate(now(), options.timezone ?? "UTC");
+  const effectiveEnd = adaptiveEndDate(
+    design,
+    allObservations.map((observation) => observation.localDate),
+    today,
+  );
+
+  const effectiveAssignments = extendedAssignments(design, effectiveEnd);
+
   const inWindow = allObservations.filter(
-    (observation) => observation.localDate >= design.startDate && observation.localDate <= design.endDate,
+    (observation) => observation.localDate >= design.startDate && observation.localDate <= effectiveEnd,
   );
   const outOfWindow = allObservations.length - inWindow.length;
 
@@ -125,7 +143,7 @@ export function analyseExperiment(
   // days have no condition to follow, so they cannot be failed. Their
   // sessions stay in the window and are reported separately — baseline as the
   // starting level and drift (P1 #1), washout as the hangover (P1 #3).
-  const byDate = [...design.assignments].sort((a, b) => a.date.localeCompare(b.date));
+  const byDate = [...effectiveAssignments].sort((a, b) => a.date.localeCompare(b.date));
   const firstConditionIndex = byDate.findIndex((assignment) => assignment.condition !== null);
   const baselineDates = new Set(
     (firstConditionIndex === -1 ? byDate : byDate.slice(0, firstConditionIndex))
@@ -146,7 +164,7 @@ export function analyseExperiment(
   const groupA: MetricObservation[] = [];
   const groupB: MetricObservation[] = [];
   for (const observation of inWindow) {
-    const condition = conditionForDate(design, observation.localDate);
+    const condition = conditionForDateFrom(effectiveAssignments, observation.localDate);
     if (condition === "A") groupA.push(observation);
     else if (condition === "B") groupB.push(observation);
   }
@@ -163,8 +181,18 @@ export function analyseExperiment(
     outOfWindowSessions: outOfWindow,
   };
 
-  const blocks = summariseBlocks(design, groupA, groupB);
+  const blocks = summariseBlocks(groupA, groupB, effectiveAssignments);
   const reasons: string[] = [];
+
+  if (effectiveEnd > design.endDate) {
+    const observed = groupA.length + groupB.length;
+    const elapsedDays = Math.max(1, daysBetween(design.startDate, today) + 1);
+    const rate = (observed / elapsedDays) * 7;
+    const assumed = design.assumedSessionsPerWeek ?? 4;
+    reasons.push(
+      `Run extended to ${effectiveEnd} (from ${design.endDate}) to reach the planned ${design.minSamplePerCondition * 2} sessions — observed ${rate.toFixed(1)}/week against the assumed ${assumed}/week.`,
+    );
+  }
 
   // --- validity gates ---------------------------------------------------
   const minAdherence = options.minAdherence ?? 0.4;
@@ -271,6 +299,7 @@ export function analyseExperiment(
     experimentId: design.id,
     hypothesisId: design.hypothesisId,
     analysedAt: new Date(now()).toISOString(),
+    effectiveEndDate: effectiveEnd,
     verdict,
     summary: appendWashoutNote(appendBaselineNote(buildSummary(design, verdict, comparison, groupA, groupB), baseline), washout),
     reasons,
@@ -306,6 +335,7 @@ function invalidResult(
     experimentId: design.id,
     hypothesisId: design.hypothesisId,
     analysedAt: new Date(nowMs).toISOString(),
+    effectiveEndDate: design.endDate,
     verdict: "invalid",
     summary: `This run cannot be analysed. ${reason}`,
     reasons: [reason],
@@ -389,11 +419,11 @@ function appendWashoutNote(summary: string, washout: WashoutReport | null): stri
 }
 
 function summariseBlocks(
-  design: ExperimentDesign,
   groupA: readonly MetricObservation[],
   groupB: readonly MetricObservation[],
+  effectiveAssignments: readonly Assignment[],
 ): ExperimentResult["blocks"] {
-  const blockByDate = new Map(design.assignments.map((assignment) => [assignment.date, assignment]));
+  const blockByDate = new Map(effectiveAssignments.map((assignment) => [assignment.date, assignment]));
   const buckets = new Map<string, { block: number; condition: "A" | "B"; values: number[] }>();
 
   for (const observation of [...groupA, ...groupB]) {

@@ -104,6 +104,7 @@ describe("experiment calendar", () => {
     experimentId: design.id,
     hypothesisId: hypothesis.id,
     analysedAt: "2025-07-20T00:00:00Z",
+    effectiveEndDate: design.endDate,
     verdict: "supported",
     summary: "Accuracy was higher under the intervention.",
     reasons: [],

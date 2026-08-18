@@ -139,6 +139,7 @@ describe("the numeric guard", () => {
       experimentId: "e1",
       hypothesisId: "h1",
       analysedAt: "2025-07-01T00:00:00Z",
+      effectiveEndDate: "2025-07-28",
       verdict: "supported",
       summary: "Accuracy was 12.0% higher.",
       reasons: [],

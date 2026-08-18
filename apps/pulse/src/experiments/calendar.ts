@@ -11,15 +11,74 @@
 import { addDays, daysBetween } from "../events/time.js";
 import type { ExperimentResult } from "./analysis.js";
 import {
-  derivePeriods,
-  periodForDate,
   BASELINE_INSTRUCTION,
+  conditionForDateFrom,
+  derivePeriodsFrom,
+  extendedAssignments,
+  periodForDateFrom,
   WASHOUT_INSTRUCTION,
+  type Assignment,
   type ExperimentDesign,
   type PeriodPosition,
 } from "./design.js";
 
 export type CalendarBucket = "active" | "upcoming" | "completed" | "analysed";
+
+/**
+ * Hard cap on a run's total length, start to finish. The adaptive-duration
+ * rule (P1 #4) may extend a slow run so it still reaches its planned sample,
+ * but never past this — beyond it the data would be a different experiment.
+ */
+export const MAX_RUN_DAYS = 84;
+
+/**
+ * The effective end date of a run under the adaptive-duration rule (P1 #4).
+ *
+ * Observed sessions are compared with the planned sample (`minSamplePerCondition
+ * * 2`): if the sample is already reached, the run ends when it was completed
+ * (never before the original end); otherwise the end is projected from the
+ * observed rate per week, never earlier than the original end, never past
+ * `MAX_RUN_DAYS`. Because sessions recorded during an extension only count
+ * once their dates have conditions, the projection is iterated until it
+ * settles — the extended schedule feeds back into the count.
+ */
+export function adaptiveEndDate(
+  design: ExperimentDesign,
+  observationDates: readonly string[],
+  today: string,
+): string {
+  let end = design.endDate;
+  for (let i = 0; i < 10; i += 1) {
+    const assignments = extendedAssignments(design, end);
+    const conditionDates = observationDates.filter(
+      (date) => date >= design.startDate && date <= today && conditionForDateFrom(assignments, date) !== null,
+    );
+    const next = projectEnd(design, conditionDates, today);
+    if (next === end) return end;
+    end = next;
+  }
+  return end;
+}
+
+function projectEnd(design: ExperimentDesign, conditionDates: readonly string[], today: string): string {
+  const target = design.minSamplePerCondition * 2;
+  const sorted = [...conditionDates].sort();
+  const hardCap = addDays(design.startDate, MAX_RUN_DAYS - 1);
+
+  if (sorted.length >= target) {
+    const completion = sorted[target - 1]!;
+    if (completion <= design.endDate) return design.endDate;
+    return completion < hardCap ? completion : hardCap;
+  }
+
+  const elapsedDays = Math.max(1, daysBetween(design.startDate, today) + 1);
+  const observedPerWeek = (sorted.length / elapsedDays) * 7;
+  if (observedPerWeek === 0) return design.endDate;
+  const daysNeeded = Math.ceil(((target - sorted.length) / observedPerWeek) * 7);
+  const projected = addDays(today, daysNeeded);
+  if (projected <= design.endDate) return design.endDate;
+  return projected < hardCap ? projected : hardCap;
+}
 
 export interface CalendarEntry {
   design: ExperimentDesign;
@@ -30,6 +89,8 @@ export interface CalendarEntry {
   /** The period containing today, when the experiment assigns a condition today. */
   todayPeriod: PeriodPosition | null;
   result: ExperimentResult | null;
+  /** Effective end date — the adaptive-duration end (P1 #4), or the design's own. */
+  endDate: string;
   /** Days until the run ends; negative once it has overrun. */
   daysRemaining: number;
 }
@@ -150,19 +211,28 @@ export function buildCalendar(
   designs: readonly ExperimentDesign[],
   results: readonly ExperimentResult[],
   today: string,
+  /** Effective end dates per design from the adaptive-duration rule (P1 #4). */
+  projectedEnds?: ReadonlyMap<string, string>,
 ): ExperimentCalendar {
   const resultById = new Map(results.map((result) => [result.experimentId, result]));
 
+  const extendedByDesign = new Map<string, Assignment[]>();
   const entries: CalendarEntry[] = designs.map((design) => {
     const result = resultById.get(design.id) ?? null;
+    const endDate = projectedEnds?.get(design.id) ?? design.endDate;
+    // The schedule the run actually follows: the stored assignments, extended
+    // to the effective end so extension days carry their conditions.
+    const assignments = extendedAssignments(design, endDate);
+    extendedByDesign.set(design.id, assignments);
+
     let bucket: CalendarBucket;
     if (result) bucket = "analysed";
-    else if (design.endDate < today) bucket = "completed";
+    else if (endDate < today) bucket = "completed";
     else if (design.startDate > today) bucket = "upcoming";
     else bucket = "active";
 
-    const assignment = design.assignments.find((entry) => entry.date === today) ?? null;
-    const todayPeriod = assignment ? periodForDate(design, today) : null;
+    const assignment = assignments.find((entry) => entry.date === today) ?? null;
+    const todayPeriod = assignment ? periodForDateFrom(assignments, design, today) : null;
     return {
       design,
       bucket,
@@ -178,17 +248,18 @@ export function buildCalendar(
         : null,
       todayPeriod,
       result,
-      daysRemaining: daysBetween(today, design.endDate),
+      endDate,
+      daysRemaining: daysBetween(today, endDate),
     };
   });
 
   const live = entries.filter((entry) => entry.bucket === "active" || entry.bucket === "upcoming");
   const nextAnalysisDate =
     live
-      .map((entry) => entry.design.endDate)
+      .map((entry) => entry.endDate)
       .filter((date) => date >= today)
       .sort()[0] ?? null;
-  const conflicts = buildConflicts(live.map((entry) => entry.design), today);
+  const conflicts = buildConflicts(live.map((entry) => entry.design), today, extendedByDesign);
 
   return {
     today,
@@ -197,7 +268,7 @@ export function buildCalendar(
     upcoming: entries.filter((entry) => entry.bucket === "upcoming"),
     completed: entries.filter((entry) => entry.bucket === "completed"),
     analysed: entries.filter((entry) => entry.bucket === "analysed"),
-    schedule: buildSchedule(live.map((entry) => entry.design), today),
+    schedule: buildSchedule(live.map((entry) => entry.design), today, extendedByDesign),
     conflicts,
     nextAnalysisDate,
     summary: {
@@ -216,12 +287,17 @@ export function buildCalendar(
  * more assigned experiments is one conflict; the same-metric flag is computed
  * here so the blocking rule (P1 #9) reads it instead of re-deriving it.
  */
-function buildConflicts(designs: readonly ExperimentDesign[], today: string): CalendarConflict[] {
+function buildConflicts(
+  designs: readonly ExperimentDesign[],
+  today: string,
+  extendedByDesign: ReadonlyMap<string, Assignment[]>,
+): CalendarConflict[] {
   if (designs.length < 2) return [];
 
   const byDate = new Map<string, { experimentIds: string[]; titles: string[]; metricIds: string[] }>();
   for (const design of designs) {
-    for (const assignment of design.assignments) {
+    const assignments = extendedByDesign.get(design.id) ?? design.assignments;
+    for (const assignment of assignments) {
       if (assignment.date < today) continue;
       const entry = byDate.get(assignment.date) ?? { experimentIds: [], titles: [], metricIds: [] };
       entry.experimentIds.push(design.id);
@@ -248,15 +324,20 @@ function buildConflicts(designs: readonly ExperimentDesign[], today: string): Ca
   return conflicts;
 }
 
-function buildSchedule(designs: readonly ExperimentDesign[], today: string): CalendarAssignment[] {
+function buildSchedule(
+  designs: readonly ExperimentDesign[],
+  today: string,
+  extendedByDesign: ReadonlyMap<string, Assignment[]>,
+): CalendarAssignment[] {
   if (designs.length === 0) return [];
 
   const byDate = new Map<string, CalendarAssignment[]>();
   for (const design of designs) {
     // Iterate the derived periods rather than the raw assignments: every
     // assigned date falls in exactly one period, so the rows are identical
-    // and each carries its period label and day position.
-    for (const period of derivePeriods(design)) {
+    // and each carries its period label and day position. The extended
+    // schedule is used when the adaptive rule moved the end date.
+    for (const period of derivePeriodsFrom(extendedByDesign.get(design.id) ?? design.assignments, design)) {
       for (let day = 0; day < period.dayCount; day += 1) {
         const date = addDays(period.startDate, day);
         if (date < today) continue;

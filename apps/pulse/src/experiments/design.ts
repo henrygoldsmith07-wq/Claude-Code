@@ -70,6 +70,10 @@ export interface ExperimentDesign {
   /** Null-condition days before the first assignment; 0 when off. Always set
    * by `designExperiment`; optional so pre-existing records stay valid. */
   baselineDays?: number;
+  /** The sessions-per-week the duration was sized from; the adaptive-duration
+   * rule (P1 #4) compares the observed rate against this. Always set by
+   * `designExperiment`; optional so pre-existing records stay valid. */
+  assumedSessionsPerWeek?: number;
   startDate: string;
   endDate: string;
   assignments: Assignment[];
@@ -173,6 +177,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     blockDays,
     washoutDays: clampedWashout,
     baselineDays: clampedBaseline,
+    assumedSessionsPerWeek: sessionsPerWeek,
     startDate: options.startDate,
     endDate,
     assignments,
@@ -277,7 +282,64 @@ function buildSuccessCriteria(hypothesis: Hypothesis, perCondition: number): str
 }
 
 export function conditionForDate(design: ExperimentDesign, date: string): "A" | "B" | null {
-  return design.assignments.find((assignment) => assignment.date === date)?.condition ?? null;
+  return conditionForDateFrom(design.assignments, date);
+}
+
+/** Condition on `date` within an arbitrary assignment list (e.g. an extended schedule). */
+export function conditionForDateFrom(assignments: readonly Assignment[], date: string): "A" | "B" | null {
+  return assignments.find((assignment) => assignment.date === date)?.condition ?? null;
+}
+
+/**
+ * The schedule a design actually runs under, extended to `endDate`. When the
+ * adaptive-duration rule (P1 #4) moves the end date, the extension continues
+ * the design's condition pattern — the crossover's block alternation with its
+ * washout gaps, strict alternation for A/B, the after condition for
+ * before/after — so sessions recorded after the original end still belong to
+ * a condition. Days inside the stored schedule are returned untouched.
+ */
+export function extendedAssignments(design: ExperimentDesign, endDate: string): Assignment[] {
+  const totalDays = daysBetween(design.startDate, endDate) + 1;
+  if (totalDays <= design.assignments.length) return design.assignments;
+
+  const extra: Assignment[] = [];
+  if (design.type === "crossover") {
+    for (let day = design.assignments.length; day < totalDays; day += 1) {
+      extra.push(crossoverDayAssignment(design, day));
+    }
+  } else if (design.type === "before-after") {
+    for (let day = design.assignments.length; day < totalDays; day += 1) {
+      extra.push({ date: addDays(design.startDate, day), condition: "A", block: 1 });
+    }
+  } else {
+    // A/B: the balanced pool is fixed at design time, so the extension keeps
+    // the split honest with strict alternation from the last stored day.
+    const last = design.assignments[design.assignments.length - 1]!;
+    for (let day = design.assignments.length; day < totalDays; day += 1) {
+      const previous = extra[extra.length - 1] ?? last;
+      extra.push({ date: addDays(design.startDate, day), condition: previous.condition === "A" ? "B" : "A", block: 0 });
+    }
+  }
+  return [...design.assignments, ...extra];
+}
+
+/**
+ * The assignment the crossover generator would produce for a given day index,
+ * for days beyond the stored schedule: baseline, then blocks of `blockDays`
+ * with a `washoutDays` gap between every pair, alternating conditions.
+ */
+function crossoverDayAssignment(design: ExperimentDesign, day: number): Assignment {
+  const date = addDays(design.startDate, day);
+  const baseline = design.baselineDays ?? 0;
+  if (day < baseline) return { date, condition: null, block: 0 };
+  const washout = design.washoutDays ?? 0;
+  const cycle = design.blockDays + washout;
+  const position = day - baseline;
+  const block = Math.floor(position / cycle);
+  if (position % cycle >= design.blockDays) return { date, condition: null, block };
+  const firstCondition = design.assignments.find((assignment) => assignment.condition !== null)?.condition ?? "A";
+  const condition = block % 2 === 0 ? firstCondition : firstCondition === "A" ? "B" : "A";
+  return { date, condition, block };
 }
 
 /**
@@ -315,7 +377,12 @@ export interface PeriodPosition {
  * the periods cover the assignments completely.
  */
 export function derivePeriods(design: ExperimentDesign): ExperimentPeriod[] {
-  const byDate = [...design.assignments].sort((a, b) => a.date.localeCompare(b.date));
+  return derivePeriodsFrom(design.assignments, design);
+}
+
+/** `derivePeriods` over an arbitrary assignment list (e.g. an extended schedule). */
+export function derivePeriodsFrom(assignments: readonly Assignment[], design: ExperimentDesign): ExperimentPeriod[] {
+  const byDate = [...assignments].sort((a, b) => a.date.localeCompare(b.date));
   const periods: ExperimentPeriod[] = [];
   for (const assignment of byDate) {
     const current = periods[periods.length - 1];
@@ -354,7 +421,16 @@ export function derivePeriods(design: ExperimentDesign): ExperimentPeriod[] {
 
 /** The period containing `date`, with the day's 1-based position within it. */
 export function periodForDate(design: ExperimentDesign, date: string): PeriodPosition | null {
-  for (const period of derivePeriods(design)) {
+  return periodForDateFrom(design.assignments, design, date);
+}
+
+/** `periodForDate` over an arbitrary assignment list (e.g. an extended schedule). */
+export function periodForDateFrom(
+  assignments: readonly Assignment[],
+  design: ExperimentDesign,
+  date: string,
+): PeriodPosition | null {
+  for (const period of derivePeriodsFrom(assignments, design)) {
     if (date >= period.startDate && date <= period.endDate) {
       return { period, dayInPeriod: daysBetween(period.startDate, date) + 1 };
     }

@@ -30,6 +30,21 @@ the experiments panel lists the periods on each design card. The periods are
 derived from the schedule, never stored. `tests/periods.test.ts` (13 tests)
 pins the behaviour across all three design types.
 
+Shipped: **#4 Adaptive Experiment Duration** — the design records the
+assumed `sessionsPerWeek`; `adaptiveEndDate` in `experiments/calendar.ts`
+recomputes a run's end date from the observed rate (condition sessions per
+week over the elapsed run), extending only when the planned sample
+(`minSamplePerCondition * 2`) will not be reached by the original end, never
+ending early, and hard-capped at 84 days. Extension days continue the
+design's condition pattern (`extendedAssignments` in `experiments/design.ts`:
+block alternation plus washout gaps for crossover, strict alternation for
+A/B, the after condition for before/after) so sessions recorded there count;
+the calendar stays live past the original end, shows the effective end date
+and schedules the extension days; the analysis window follows the effective
+end and records it (`result.effectiveEndDate`) with a reason stating the
+observed vs assumed rate. `tests/adaptive-duration.test.ts` (18 tests) pins
+the rule, the extended schedule, calendar and analysis.
+
 Shipped: **#1 Baseline Periods** — `designExperiment` accepts optional
 `baselineDays` (any design type, capped at 7): the schedule prepends a
 null-condition lead-in before the first assignment, `derivePeriods` names it
@@ -172,6 +187,12 @@ the run ends with too few or too many days, silently.
 
 **Risk:** high if it drifts into "let the data decide". The extension must be
 rule-based and recorded, not opportunistic.
+
+*Shipped (see Progress): `adaptiveEndDate` recomputes the end from the
+observed sessions-per-week (extend-only, capped at 84 days, deterministic);
+`extendedAssignments` continues the condition pattern so extension sessions
+count; the calendar and analysis follow the effective end, recorded as
+`result.effectiveEndDate` with the observed-vs-assumed rate in the reasons.*
 
 #### 5. Early Stopping Rules — **M**
 
