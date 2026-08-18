@@ -15,6 +15,8 @@ describe("Phase 8 — public benchmark/results page", () => {
     expect(src).toContain("syntheticCalibrationOutcomes");
     expect(src).toContain("HUMAN_MARKING_CORPUS");
     expect(src).toContain("scoreHumanMarkingCorpus");
+    expect(src).toContain("scoreMarkerDisagreement");
+    expect(src).toContain("Marker disagreement");
     expect(src).toContain("Benchmarks & results");
     expect(src).toContain("Provenance");
   });

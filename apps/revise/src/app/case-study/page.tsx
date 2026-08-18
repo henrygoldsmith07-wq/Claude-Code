@@ -122,7 +122,7 @@ npm --prefix apps/revise run build</pre>
           <ul className="text-sm text-ink2 mt-2 space-y-1 list-disc list-inside">
             <li><code className="font-mono text-xs">syntheticOutcomePairs → (simulatePaper.predictedMarks, laterTimedPaper.actualMarks)</code></li>
             <li><code className="font-mono text-xs">syntheticCalibrationOutcomes → (predictGrade.percent/100, laterPaperPercent/100)</code></li>
-            <li>Marking gold becomes <code className="font-mono text-xs">questionId → (rubricAward, aiAward, humanAward)</code> with <code className="font-mono text-xs">rubricVsHuman MAE vs aiVsHuman MAE</code>.</li>
+            <li>Marking gold is tracked per part as <code className="font-mono text-xs">questionId → (rubricAward, aiAward, humanAward)</code>; <code className="font-mono text-xs">scoreMarkerDisagreement</code> reports pairwise MAE, agreement and signed bias, with missing AI labels left unmeasured.</li>
           </ul>
           <p className="text-xs text-ink3 mt-3">
             The benchmarks page will sprout a cohort table at that point; the synthetic curtain stays as the “CI provenance” panel so the ledger never loses its history.

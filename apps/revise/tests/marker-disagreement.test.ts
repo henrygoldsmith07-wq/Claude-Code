@@ -74,6 +74,8 @@ describe("marker disagreement tracking", () => {
     const humanRubric = report.metrics.find((metric) => metric.pair === "human-vs-rubric")!;
     const humanAi = report.metrics.find((metric) => metric.pair === "human-vs-ai")!;
 
+    expect(report.corpusId).toBe(HUMAN_MARKING_CORPUS.id);
+    expect(report.corpusVersion).toBe(HUMAN_MARKING_CORPUS.version);
     expect(humanRubric.comparedRows).toBe(HUMAN_MARKING_CORPUS.rows.length);
     expect(humanRubric.comparedParts).toBe(18);
     expect(humanRubric.meanAbsoluteDifference).toBeCloseTo(6 / 18);

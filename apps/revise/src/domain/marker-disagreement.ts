@@ -55,6 +55,8 @@ export interface MarkerDisagreementMetric {
 }
 
 export interface MarkerDisagreementReport {
+  corpusId?: Id;
+  corpusVersion?: string;
   rows: MarkerDisagreementRow[];
   metrics: MarkerDisagreementMetric[];
 }
@@ -195,5 +197,9 @@ export function scoreMarkerDisagreement(
     };
   });
 
-  return trackMarkerDisagreement(samples);
+  return {
+    ...trackMarkerDisagreement(samples),
+    corpusId: corpus.id,
+    corpusVersion: corpus.version,
+  };
 }
