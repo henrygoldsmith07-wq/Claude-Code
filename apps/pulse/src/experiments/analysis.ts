@@ -27,7 +27,13 @@ import { gradeConfidence, causalityCaveat, type ConfidenceAssessment } from "../
 import { twoSampleTPower } from "../statistics/power.js";
 import { adaptiveEndDate } from "./calendar.js";
 import type { StopDecision } from "./stopping.js";
-import { conditionForDateFrom, extendedAssignments, type Assignment, type ExperimentDesign } from "./design.js";
+import {
+  assignmentDateForOutcome,
+  conditionForDateFrom,
+  extendedAssignments,
+  type Assignment,
+  type ExperimentDesign,
+} from "./design.js";
 
 export type ExperimentVerdict = "supported" | "refuted" | "inconclusive" | "invalid";
 
@@ -133,7 +139,7 @@ export function analyseExperiment(
   const today = localDate(now(), options.timezone ?? "UTC");
   const adaptiveEnd = adaptiveEndDate(
     design,
-    allObservations.map((observation) => observation.localDate),
+    allObservations.map((observation) => assignmentDateForOutcome(design, observation.localDate)),
     today,
   );
   // A run stopped by a pre-registered rule (P1 #5) ended on the day it was
@@ -142,10 +148,13 @@ export function analyseExperiment(
   const effectiveEnd =
     options.stopping && options.stopping.decidedOn < adaptiveEnd ? options.stopping.decidedOn : adaptiveEnd;
 
+
   const effectiveAssignments = extendedAssignments(design, effectiveEnd);
 
   const inWindow = allObservations.filter(
-    (observation) => observation.localDate >= design.startDate && observation.localDate <= effectiveEnd,
+    (observation) =>
+      assignmentDateForOutcome(design, observation.localDate) >= design.startDate &&
+      assignmentDateForOutcome(design, observation.localDate) <= effectiveEnd,
   );
   const outOfWindow = allObservations.length - inWindow.length;
 
@@ -174,13 +183,15 @@ export function analyseExperiment(
   const groupA: MetricObservation[] = [];
   const groupB: MetricObservation[] = [];
   for (const observation of inWindow) {
-    const condition = conditionForDateFrom(effectiveAssignments, observation.localDate);
+    const condition = conditionForDateFrom(effectiveAssignments, assignmentDateForOutcome(design, observation.localDate));
     if (condition === "A") groupA.push(observation);
     else if (condition === "B") groupB.push(observation);
   }
 
   const daysWithSessions = new Set(
-    inWindow.filter((observation) => conditionDates.has(observation.localDate)).map((observation) => observation.localDate),
+    inWindow
+      .filter((observation) => conditionDates.has(assignmentDateForOutcome(design, observation.localDate)))
+      .map((observation) => assignmentDateForOutcome(design, observation.localDate)),
   ).size;
   const adherence: AdherenceReport = {
     assignedDays: conditionDates.size,
@@ -191,7 +202,7 @@ export function analyseExperiment(
     outOfWindowSessions: outOfWindow,
   };
 
-  const blocks = summariseBlocks(groupA, groupB, effectiveAssignments);
+  const blocks = summariseBlocks(groupA, groupB, effectiveAssignments, design);
   const reasons: string[] = [];
 
   if (effectiveEnd > design.endDate) {
@@ -299,7 +310,10 @@ export function analyseExperiment(
     analysedAt: new Date(now()).toISOString(),
     effectiveEndDate: effectiveEnd,
     verdict,
-    summary: appendWashoutNote(appendBaselineNote(buildSummary(design, verdict, comparison, groupA, groupB), baseline), washout),
+    summary: appendLagNote(
+      appendWashoutNote(appendBaselineNote(buildSummary(design, verdict, comparison, groupA, groupB), baseline), washout),
+      design,
+    ),
     reasons,
     comparison,
     secondaryComparison: secondary,
@@ -367,7 +381,7 @@ function buildWashoutReport(
 ): WashoutReport | null {
   const washoutDays = design.assignments.filter((assignment) => washoutDates.has(assignment.date));
   if (washoutDays.length === 0) return null;
-  const observations = inWindow.filter((observation) => washoutDates.has(observation.localDate));
+  const observations = inWindow.filter((observation) => washoutDates.has(assignmentDateForOutcome(design, observation.localDate)));
   return {
     days: washoutDays.length,
     sessions: observations.length,
@@ -383,12 +397,12 @@ function buildBaselineReport(
   const baselineDays = design.assignments.filter((assignment) => baselineDates.has(assignment.date));
   if (baselineDays.length === 0) return null;
   const observations = inWindow
-    .filter((observation) => baselineDates.has(observation.localDate))
-    .sort((a, b) => a.localDate.localeCompare(b.localDate));
+    .filter((observation) => baselineDates.has(assignmentDateForOutcome(design, observation.localDate)))
+    .sort((a, b) => assignmentDateForOutcome(design, a.localDate).localeCompare(assignmentDateForOutcome(design, b.localDate)));
   const values = observations.map((observation) => observation.value);
   const firstDate = baselineDays[0]!.date;
   const trend = slope(
-    observations.map((observation) => daysBetween(firstDate, observation.localDate)),
+    observations.map((observation) => daysBetween(firstDate, assignmentDateForOutcome(design, observation.localDate))),
     values,
   );
   // A slope of exactly zero is no slope to report — "drift of +0.000/day"
@@ -418,16 +432,24 @@ function appendWashoutNote(summary: string, washout: WashoutReport | null): stri
   return `${summary} ${washout.days} washout day${washout.days === 1 ? "" : "s"} separated the blocks; ${washout.sessions} session${washout.sessions === 1 ? "" : "s"} recorded there (${readout}) were excluded from the comparison as possible carry-over.`;
 }
 
+/** A lagged outcome gets one plain sentence in the summary, so the pairing is visible. */
+function appendLagNote(summary: string, design: ExperimentDesign): string {
+  const lag = design.outcomeLagDays ?? 0;
+  if (lag <= 0) return summary;
+  return `${summary} Outcomes were paired to the assignment ${lag === 1 ? "the day before" : `${lag} days before`} they were recorded.`;
+}
+
 function summariseBlocks(
   groupA: readonly MetricObservation[],
   groupB: readonly MetricObservation[],
   effectiveAssignments: readonly Assignment[],
+  design: ExperimentDesign,
 ): ExperimentResult["blocks"] {
   const blockByDate = new Map(effectiveAssignments.map((assignment) => [assignment.date, assignment]));
   const buckets = new Map<string, { block: number; condition: "A" | "B"; values: number[] }>();
 
   for (const observation of [...groupA, ...groupB]) {
-    const assignment = blockByDate.get(observation.localDate);
+    const assignment = blockByDate.get(assignmentDateForOutcome(design, observation.localDate));
     // Observations in the groups always sit on a condition day (washout
     // observations never reach them), but the assignment type allows null.
     if (!assignment || assignment.condition === null) continue;

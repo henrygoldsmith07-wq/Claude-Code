@@ -49,6 +49,12 @@ export const BASELINE_INSTRUCTION = "Record the outcome as usual — no conditio
 /** Baseline is kept short so it cannot inflate the perceived run length. */
 export const BASELINE_MAX_DAYS = 7;
 
+/**
+ * Longest accepted outcome lag. Outcomes are assumed to land the day after
+ * the behaviour at most; beyond a week the pair stops meaning anything.
+ */
+export const OUTCOME_LAG_MAX_DAYS = 7;
+
 export interface ExperimentDesign {
   id: string;
   hypothesisId: string;
@@ -79,6 +85,10 @@ export interface ExperimentDesign {
    * stop a live run, with its thresholds resolved. `{}` when off. Always set by
    * `designExperiment`; optional so pre-existing records stay valid. */
   stopping?: StoppingConfig;
+  /** Days between the assignment and the outcome that reflects it (P1 #11);
+   * 0 = today's outcome. Always set by `designExperiment`; optional so
+   * pre-existing records stay valid. */
+  outcomeLagDays?: number;
   startDate: string;
   endDate: string;
   assignments: Assignment[];
@@ -110,6 +120,9 @@ export interface DesignOptions {
    * appears after the run started is rationalisation, not a rule. Fields are
    * optional; defaults are resolved onto the stored design record. */
   stopping?: StoppingConfigInput;
+  /** Days between the assignment and the outcome that reflects it (P1 #11);
+   * 0 = today's outcome. Sleep measured the morning after is 1. */
+  outcomeLagDays?: number;
   seed?: string;
   now?: () => number;
   conditionA?: Partial<Condition>;
@@ -146,6 +159,9 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
   }
   // Capped at one block so the gap cannot double the run length.
   const clampedWashout = Math.max(0, Math.min(washoutDays, blockDays));
+  // A lag beyond a week would pair today's behaviour with a different week's
+  // outcome; clamp rather than silently accept it.
+  const outcomeLagDays = Math.max(0, Math.min(options.outcomeLagDays ?? 0, OUTCOME_LAG_MAX_DAYS));
   const stopping = resolveStoppingConfig(options.stopping);
   // A lead-in is only informative when it stays short — beyond a week it is
   // just a longer run with a weaker design.
@@ -190,6 +206,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
     baselineDays: clampedBaseline,
     assumedSessionsPerWeek: sessionsPerWeek,
     stopping,
+    outcomeLagDays,
     startDate: options.startDate,
     endDate,
     assignments,
@@ -343,6 +360,15 @@ function buildSuccessCriteria(hypothesis: Hypothesis, perCondition: number): str
 
 export function conditionForDate(design: ExperimentDesign, date: string): "A" | "B" | null {
   return conditionForDateFrom(design.assignments, date);
+}
+
+/**
+ * The assigned day an outcome observation dated `date` reflects, under the
+ * design's lag (P1 #11): a rating recorded the morning after belongs to the
+ * previous day's assignment. Explicit pairing — never by row position.
+ */
+export function assignmentDateForOutcome(design: ExperimentDesign, date: string): string {
+  return addDays(date, -(design.outcomeLagDays ?? 0));
 }
 
 /** Condition on `date` within an arbitrary assignment list (e.g. an extended schedule). */

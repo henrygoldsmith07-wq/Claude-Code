@@ -67,6 +67,21 @@ no assignment to follow), and reports them separately in the result's
 hangover — plus one plain sentence in the summary. `tests/washout.test.ts`
 (13 tests) pins scheduling, periods, calendar and analysis.
 
+Shipped: **#11 Delayed Outcome Support** — `designExperiment` accepts an
+`outcomeLagDays` option (0 = today's outcome, capped at a week), stored on the
+design; `assignmentDateForOutcome` pairs every outcome observation dated X to
+the assignment of X − lag, never by row position. The analysis applies the
+pairing everywhere it touches a date: the window bounds, the condition
+attribution, adherence (an assigned day is followed when its outcome lands the
+day after), the baseline and washout reports, the per-block means, and the
+adaptive-duration projection (fed assignment dates so a slow run still extends
+the right days). The summary states the pairing in plain language. Tested
+against the synthetic benchmark user's next-morning sleep rating — a genuine
+planted lag. `tests/outcome-lag.test.ts` (12 tests) pins the option, the
+explicit pairing (and the misattribution a lag-0 read makes of the same
+data), the washout/baseline shift, adherence, window bounds and the
+adaptive wiring.
+
 Shipped: **#5 Early Stopping Rules, #6 Futility, #7 Low-Adherence, #8
 Data-Quality** — `experiments/stopping.ts` evaluates a live run per day and
 decides *continue* or *stop*, with the reason recorded on the experiment. Only
@@ -339,6 +354,11 @@ following day, gets paired with the wrong day by row number.
 - Test with a planted lag in the synthetic benchmark users.
 
 **Files:** `experiments/design.ts`, `experiments/analysis.ts` (lagged pairing).
+
+*Shipped (see Progress): `outcomeLagDays` on the design (capped at 7),
+`assignmentDateForOutcome` in `experiments/design.ts`, and the lagged pairing
+applied consistently across the analysis, the adaptive projection, the
+calendar's end-date projection and the stopping rules.*
 
 #### 12. Multi-Outcome Experiments — **L**
 

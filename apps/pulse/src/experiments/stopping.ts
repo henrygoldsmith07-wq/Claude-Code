@@ -30,7 +30,13 @@ import { scoreSource } from "../quality/score.js";
 import { welchTTest } from "../statistics/comparisons.js";
 import { twoSampleTPower } from "../statistics/power.js";
 import { adaptiveEndDate } from "./calendar.js";
-import { conditionForDateFrom, extendedAssignments, type Assignment, type ExperimentDesign } from "./design.js";
+import {
+  assignmentDateForOutcome,
+  conditionForDateFrom,
+  extendedAssignments,
+  type Assignment,
+  type ExperimentDesign,
+} from "./design.js";
 
 // ---------------------------------------------------------------------------
 // Pre-registered rule configuration
@@ -152,15 +158,21 @@ export function evaluateStopping(
   if (today < design.startDate) return null;
 
   const definition = options.registry.require(design.targetMetricId);
+  // Observations belong to the assignment day they reflect (P1 #11): an
+  // outcome dated X counts as the observation of X - lag, so a next-morning
+  // rating is not attributed to the day it happened to be recorded on.
   const observations = observationsFor(events, definition).filter(
-    (observation) => observation.localDate >= design.startDate && observation.localDate <= today,
+    (observation) => {
+      const assignedDate = assignmentDateForOutcome(design, observation.localDate);
+      return assignedDate >= design.startDate && assignedDate <= today;
+    },
   );
   // The run's window is the adaptive one (P1 #4): an extension changes how
   // many assigned days remain, which is exactly what the adherence projection
   // must account for.
   const effectiveEnd = adaptiveEndDate(
     design,
-    observations.map((observation) => observation.localDate),
+    observations.map((observation) => assignmentDateForOutcome(design, observation.localDate)),
     today,
   );
   if (today >= effectiveEnd) return null;
@@ -169,7 +181,7 @@ export function evaluateStopping(
   const groupA: MetricObservation[] = [];
   const groupB: MetricObservation[] = [];
   for (const observation of observations) {
-    const condition = conditionForDateFrom(assignments, observation.localDate);
+    const condition = conditionForDateFrom(assignments, assignmentDateForOutcome(design, observation.localDate));
     if (condition === "A") groupA.push(observation);
     else if (condition === "B") groupB.push(observation);
   }
@@ -256,7 +268,7 @@ function evaluateAdherence(
   const elapsed = assignedDates.filter((date) => date <= today).length;
   if (elapsed < rule.minAssignedDays) return null;
 
-  const sessionDates = new Set(observations.map((observation) => observation.localDate));
+  const sessionDates = new Set(observations.map((observation) => assignmentDateForOutcome(design, observation.localDate)));
   const daysWithSessions = assignedDates.filter((date) => date <= today && sessionDates.has(date)).length;
   const remaining = Math.max(0, total - elapsed);
   const projected = total > 0 ? (daysWithSessions + remaining) / total : 0;
