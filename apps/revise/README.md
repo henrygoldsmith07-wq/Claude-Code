@@ -39,6 +39,7 @@ optional Supabase and AI provider settings.
 | **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, sit them timed. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
 | **Analytics** | Mastery per topic, predicted grades with honest confidence bands, review forecast, mistake patterns, marks-available-per-topic headroom. |
+| **Marking evidence** | Double-marked answer corpus with independent-marker agreement, disagreement review, adjudication and versioned JSON import/export. |
 | **Study modes** | Learn (recognition → typed production), Test (a fixed paper marked at the end), Match (timed pairing), Diagram labelling, and hands-free Listen — all over the same cards. |
 | **From notes** | One click: drop a PDF, paste notes or photograph a page, and get flashcards back, previewed before they join the deck. |
 | **Onboarding** | Four questions that each change what the app does, ending with a built plan rather than an empty state. |
@@ -84,7 +85,7 @@ src/data/        IndexedDB primary store, repository, outbox sync to Supabase
 src/ai/          Provider abstraction, prompts, schemas, offline fallbacks
 src/state/       One store; all derived numbers recomputed, never cached
 src/components/  Le Studio UI primitives, question runner, answer input
-src/app/         Next.js App Router pages (incl. /benchmarks live ledger + /case-study)
+src/app/         Next.js App Router pages (incl. /benchmarks, /answer-corpus live evidence ledger + /case-study)
 supabase/        Postgres schema with row-level security
 docs/            Architecture, revision engine, benchmarks
 ```

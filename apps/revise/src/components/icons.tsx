@@ -19,6 +19,7 @@ import {
   BookOpen,
   Calendar,
   Camera,
+  ClipboardCheck,
   ChartLine,
   Check,
   ChevronRight,
@@ -83,6 +84,7 @@ export const ModesIcon = Shapes;
 export const GenerateIcon = Sparkle;
 export const BenchmarkIcon = BarChart3;
 export const CaseStudyIcon = Library;
+export const CorpusIcon = ClipboardCheck;
 export const ShareIcon = Share2;
 export const AudioIcon = Volume2;
 export const AudioOffIcon = VolumeX;

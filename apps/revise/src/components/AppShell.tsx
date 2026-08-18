@@ -26,6 +26,7 @@ import {
   TutorIcon,
   BenchmarkIcon,
   CaseStudyIcon,
+  CorpusIcon,
 } from "./icons";
 import type { LucideIcon } from "./icons";
 import { SearchOverlay } from "./SearchOverlay";
@@ -50,6 +51,7 @@ const NAV: { href: string; label: string; Icon: LucideIcon; primary?: boolean }[
   { href: "/question-evidence", label: "Question evidence", Icon: EvidenceIcon },
   { href: "/tutor", label: "Tutor", Icon: TutorIcon },
   { href: "/benchmarks", label: "Benchmarks", Icon: BenchmarkIcon },
+  { href: "/answer-corpus", label: "Answer corpus", Icon: CorpusIcon },
   { href: "/case-study", label: "Case study", Icon: CaseStudyIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
