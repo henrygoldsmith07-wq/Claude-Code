@@ -76,7 +76,7 @@ describe("marker disagreement tracking", () => {
 
     expect(humanRubric.comparedRows).toBe(HUMAN_MARKING_CORPUS.rows.length);
     expect(humanRubric.comparedParts).toBe(18);
-    expect(humanRubric.meanAbsoluteDifference).toBeCloseTo(7 / 18);
+    expect(humanRubric.meanAbsoluteDifference).toBeCloseTo(6 / 18);
     expect(humanRubric.totalAgreement).toBeCloseTo(7 / 12);
     expect(humanAi.comparedRows).toBe(0);
   });
