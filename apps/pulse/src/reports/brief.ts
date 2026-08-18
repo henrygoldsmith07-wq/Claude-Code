@@ -37,6 +37,9 @@ export interface WithdrawnBelief {
   cause: string;
   effect: string;
   note: string;
+  /** The pair the ledger records under, so the UI can link to the record. */
+  outcomeMetricId: string | null;
+  exposureMetricId: string | null;
 }
 
 export interface WeeklyBrief {
@@ -140,6 +143,8 @@ export function buildWeeklyBrief(options: BriefOptions): WeeklyBrief {
       cause: entry.cause,
       effect: entry.effect,
       note: entry.standingNote,
+      outcomeMetricId: entry.outcomeMetricId,
+      exposureMetricId: entry.exposureMetricId,
     }));
 
   const dataHealth = (options.qualities ?? [])

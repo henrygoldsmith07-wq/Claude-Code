@@ -317,6 +317,10 @@ describe("withdrawn beliefs in the weekly brief", () => {
     expect(brief.withdrawnBeliefs).toHaveLength(1);
     expect(brief.withdrawnBeliefs[0]!.statement).toMatch(/question accuracy/i);
     expect(brief.withdrawnBeliefs[0]!.note).toMatch(/pointing both ways/);
+    // The metric pair travels with the withdrawal so the UI can link it to
+    // the ledger record that owns it.
+    expect(brief.withdrawnBeliefs[0]!.outcomeMetricId).toBe("study.accuracy");
+    expect(brief.withdrawnBeliefs[0]!.exposureMetricId).toBe("exercise.volume");
     expect(brief.notes.join(" ")).toMatch(/withdrawn/);
     expect(brief.headline).toMatch(/withdrawn/);
   });

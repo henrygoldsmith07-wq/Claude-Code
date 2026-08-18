@@ -462,6 +462,18 @@ describe("ledger contradictions render side by side", () => {
     expect(screen.getAllByText(/pointing both ways/).length).toBeGreaterThanOrEqual(1);
     cleanup();
   });
+
+  it("links a withdrawn belief to its side-by-side contradiction record", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("button", { name: "View the contradictory evidence" }));
+
+    expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Contradictions to resolve" })).toBeTruthy();
+    // The specific record is reachable by anchor, ready for the scroll target.
+    const record = pulse.contradictions.list()[0]!;
+    expect(document.getElementById(`contradiction-${record.id}`)).toBeTruthy();
+    cleanup();
+  });
 });
 
 describe("the deployed page survives a slow or failing boot", () => {
