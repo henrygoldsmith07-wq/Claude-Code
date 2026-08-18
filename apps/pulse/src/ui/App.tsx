@@ -241,7 +241,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
 
         {tab === "evidence" ? <EvidencePanel pulse={pulse} revision={revision} /> : null}
         {tab === "timeline" ? <TimelinePanel pulse={pulse} /> : null}
-        {tab === "experiments" ? <ExperimentsPanel pulse={pulse} revision={revision} onChange={refresh} /> : null}
+        {tab === "experiments" ? <ExperimentsPanel pulse={pulse} revision={revision} startDate={brief.weekEnd} onChange={refresh} /> : null}
         {tab === "ask" ? <AskPanel key={askPrefill} pulse={pulse} initialQuestion={askPrefill} /> : null}
         {tab === "sources" ? <SourcesPanel pulse={pulse} quality={quality} onChange={refresh} /> : null}
       </main>
@@ -288,10 +288,12 @@ function TimelinePanel({ pulse }: { pulse: Pulse }): React.JSX.Element {
 function ExperimentsPanel({
   pulse,
   revision,
+  startDate,
   onChange,
 }: {
   pulse: Pulse;
   revision: number;
+  startDate: string;
   onChange: () => void;
 }): React.JSX.Element {
   // As above: `revision` is how this view learns the engine changed.
@@ -299,12 +301,81 @@ function ExperimentsPanel({
   const designs = useMemo(() => pulse.listDesigns(), [pulse, revision]);
   const results = useMemo(() => pulse.experimentResultsList(), [pulse, revision]);
   const calendar = useMemo(() => pulse.calendar(), [pulse, revision]);
+  const templates = useMemo(() => pulse.listExperimentTemplates(), [pulse, revision]);
+  const hypotheses = useMemo(
+    () => pulse.hypotheses.list().filter((hypothesis) => hypothesis.status !== "abandoned"),
+    [pulse, revision],
+  );
   /* eslint-enable react-hooks/exhaustive-deps */
+  const [selectedHypothesisId, setSelectedHypothesisId] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const selectedHypothesis = hypotheses.find((hypothesis) => hypothesis.id === (selectedHypothesisId || hypotheses[0]?.id));
+  const selectedTemplate = templates.find((template) => template.id === (selectedTemplateId || templates[0]?.id));
   const resultById = new Map(results.map((result) => [result.experimentId, result]));
 
   return (
     <section role="tabpanel" id="panel-experiments" aria-labelledby="tab-experiments" tabIndex={-1}>
       <h2>Personal experiments</h2>
+      <section className="card" aria-labelledby="experiment-templates-heading">
+        <h3 id="experiment-templates-heading">Experiment templates</h3>
+        <p>
+          Choose a tested structure for a hypothesis. Pulse records the template and version on the design so the run
+          stays reproducible and auditable.
+        </p>
+        <div className="actions">
+          <label htmlFor="experiment-template-hypothesis">Hypothesis</label>
+          <select
+            id="experiment-template-hypothesis"
+            value={selectedHypothesis?.id ?? ""}
+            onChange={(event) => setSelectedHypothesisId(event.currentTarget.value)}
+            disabled={hypotheses.length === 0}
+          >
+            {hypotheses.length === 0 ? <option value="">No testable hypotheses yet</option> : null}
+            {hypotheses.map((hypothesis) => (
+              <option key={hypothesis.id} value={hypothesis.id}>
+                {hypothesis.outcomeMetricId} · {hypothesis.status}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="experiment-template-select">Template</label>
+          <select
+            id="experiment-template-select"
+            value={selectedTemplate?.id ?? ""}
+            onChange={(event) => setSelectedTemplateId(event.currentTarget.value)}
+            disabled={templates.length === 0}
+          >
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name} · v{template.version}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!selectedHypothesis || !selectedTemplate}
+            onClick={() => {
+              if (!selectedHypothesis || !selectedTemplate) return;
+              pulse.designExperimentFromTemplate(selectedHypothesis.id, selectedTemplate.id, { startDate });
+              onChange();
+            }}
+          >
+            Create experiment from template
+          </button>
+        </div>
+        <ul>
+          {templates.map((template) => (
+            <li key={template.id}>
+              <strong>{template.name} · v{template.version}</strong> — {template.description}
+              <ul>
+                {template.caveats.map((caveat) => (
+                  <li key={caveat}>{caveat}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+        {hypotheses.length === 0 ? <p className="muted">Templates become selectable after Pulse proposes a testable hypothesis.</p> : null}
+      </section>
       {calendar.entries.length > 0 ? (
         <div className="card">
           <p>
@@ -357,6 +428,14 @@ function ExperimentsPanel({
                   <dt>Design</dt>
                   <dd>{design.type}</dd>
                 </div>
+                {design.templateId ? (
+                  <div>
+                    <dt>Template</dt>
+                    <dd>
+                      {design.templateId} · v{design.templateVersion ?? 1}
+                    </dd>
+                  </div>
+                ) : null}
                 <div>
                   <dt>Condition A</dt>
                   <dd>{design.conditionA.instruction}</dd>
