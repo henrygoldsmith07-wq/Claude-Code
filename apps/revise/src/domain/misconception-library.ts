@@ -16,27 +16,33 @@ export interface MisconceptionTally {
   entry: Misconception;
   /** How many mistakes matched this entry. */
   count: number;
+  /** Total marks lost across those mistakes — the weighting that orders the list. */
+  marksLost: number;
 }
 
 /**
- * Aggregate mistakes by the misconception-library entry they matched, most
- * frequent first. Mistakes without a match (or with an id that no longer
- * exists in the library) are ignored, so the tally always names a real entry.
+ * Aggregate mistakes by the misconception-library entry they matched, ordered
+ * by marks lost (a two-mark slip outweighs two one-mark slips). Mistakes without
+ * a match (or with an id that no longer exists in the library) are ignored, so
+ * the tally always names a real entry.
  */
 export function tallyMisconceptions(
-  mistakes: ReadonlyArray<{ misconceptionEntryId?: Id }>,
+  mistakes: ReadonlyArray<{ misconceptionEntryId?: Id; marksLost?: number }>,
   entries: readonly Misconception[],
 ): MisconceptionTally[] {
   const byId = new Map(entries.map((e) => [e.id, e]));
-  const counts = new Map<Id, number>();
+  const totals = new Map<Id, { count: number; marksLost: number }>();
   for (const m of mistakes) {
     if (!m.misconceptionEntryId) continue;
-    counts.set(m.misconceptionEntryId, (counts.get(m.misconceptionEntryId) ?? 0) + 1);
+    const cur = totals.get(m.misconceptionEntryId) ?? { count: 0, marksLost: 0 };
+    cur.count += 1;
+    cur.marksLost += m.marksLost ?? 0;
+    totals.set(m.misconceptionEntryId, cur);
   }
-  return [...counts.entries()]
-    .map(([id, count]) => ({ entry: byId.get(id), count }))
+  return [...totals.entries()]
+    .map(([id, t]) => ({ entry: byId.get(id), count: t.count, marksLost: t.marksLost }))
     .filter((r): r is MisconceptionTally => Boolean(r.entry))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.marksLost - a.marksLost || b.count - a.count);
 }
 
 /** Fraction of the pattern's content tokens that appear in the evidence, 0–1. */

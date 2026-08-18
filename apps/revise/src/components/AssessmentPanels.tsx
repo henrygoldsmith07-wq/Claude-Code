@@ -150,10 +150,10 @@ export function RecurringMisconceptions() {
     <Panel>
       <SectionHeading
         title="Recurring misconceptions"
-        hint="The specific wrong beliefs you hit most often, linked to their full explanation."
+        hint="The specific wrong beliefs that cost you the most marks, linked to their full explanation."
       />
       <ul className="card divide-y divide-line">
-        {rows.slice(0, 5).map(({ entry, count }) => {
+        {rows.slice(0, 5).map(({ entry, count, marksLost }) => {
           const subject = getSubject(entry.subjectId);
           const topic = getTopic(entry.topicIds[0] ?? "");
           return (
@@ -165,11 +165,12 @@ export function RecurringMisconceptions() {
                 >
                   {entry.statement}
                 </Link>
-                <Pill tone="danger">{count}×</Pill>
+                <Pill tone="danger">{marksLost} marks</Pill>
               </div>
               <p className="text-[11px] text-ink3 mt-1">
                 {subject?.name ?? entry.subjectId}
                 {topic ? ` · ${topic.title}` : ""}
+                {` · ${count}×`}
               </p>
             </li>
           );
