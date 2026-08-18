@@ -30,6 +30,17 @@ the experiments panel lists the periods on each design card. The periods are
 derived from the schedule, never stored. `tests/periods.test.ts` (13 tests)
 pins the behaviour across all three design types.
 
+Shipped: **#1 Baseline Periods** — `designExperiment` accepts optional
+`baselineDays` (any design type, capped at 7): the schedule prepends a
+null-condition lead-in before the first assignment, `derivePeriods` names it
+"Baseline" (distinct from a washout by position), and the calendar labels
+those days "Baseline · Day 2/4" with "Record the outcome as usual — no
+condition applies yet". The analysis excludes the lead-in from the comparison
+and adherence, and reports it in the result's `baseline` field — days,
+sessions, mean (the starting level) and a least-squares drift per day — plus
+one plain sentence in the summary. `tests/baseline.test.ts` (15 tests) pins
+scheduling, periods, calendar and analysis.
+
 Shipped: **#3 Washout Periods** — `designExperiment` accepts optional
 `washoutDays` (crossover only, capped at `blockDays`): the schedule inserts a
 null-condition gap between every pair of blocks, `derivePeriods` names each
@@ -91,6 +102,11 @@ measurement of the starting level.
 
 **Risk:** baseline inflates perceived length. Default off; when on, the design
 must say what the baseline is for, not just that one exists.
+
+*Shipped (see Progress): optional `baselineDays` lead-in (capped at 7 days,
+any design type) derived as a "Baseline" period and shown in the calendar;
+the analysis excludes it from the comparison and adherence and reports the
+starting level and per-day drift in the result's `baseline` field.*
 
 #### 2. Intervention Periods — **S**
 

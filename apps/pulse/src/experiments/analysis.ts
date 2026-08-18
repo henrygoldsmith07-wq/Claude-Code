@@ -17,10 +17,11 @@
  */
 
 import type { PulseEvent } from "../events/schema.js";
+import { daysBetween } from "../events/time.js";
 import { observationsFor, type MetricObservation } from "../metrics/compute.js";
 import type { MetricRegistry } from "../metrics/registry.js";
 import { mannWhitneyU, pairedTTest, welchTTest, wilcoxonSignedRank, type ComparisonResult } from "../statistics/comparisons.js";
-import { mean } from "../statistics/descriptive.js";
+import { mean, slope } from "../statistics/descriptive.js";
 import { intervalCrossesZero, type Interval } from "../statistics/effects.js";
 import { gradeConfidence, causalityCaveat, type ConfidenceAssessment } from "../statistics/confidence.js";
 import { twoSampleTPower } from "../statistics/power.js";
@@ -54,6 +55,23 @@ export interface WashoutReport {
   mean: number | null;
 }
 
+/**
+ * The baseline lead-in of a design with `baselineDays` set (P1 #1). Its days
+ * have no condition and are excluded from the comparison and adherence, but
+ * they are reported so the user can see the starting level and any drift
+ * before the intervention — the context the effect is judged against.
+ */
+export interface BaselineReport {
+  /** Baseline days in the schedule. */
+  days: number;
+  /** Observations recorded on baseline days. */
+  sessions: number;
+  /** Mean of the baseline observations, when any exist — the starting level. */
+  mean: number | null;
+  /** Least-squares drift per day over the baseline; null when unmeasurable. */
+  trendPerDay: number | null;
+}
+
 export interface ExperimentResult {
   experimentId: string;
   hypothesisId: string;
@@ -69,6 +87,8 @@ export interface ExperimentResult {
   observedEffect: number;
   predictedEffect: number;
   adherence: AdherenceReport;
+  /** The baseline lead-in: starting level and drift, when the design has one; null otherwise. */
+  baseline: BaselineReport | null;
   /** The washout gap and its hangover readout, for crossover designs with one; null otherwise. */
   washout: WashoutReport | null;
   confidence: ConfidenceAssessment;
@@ -101,13 +121,27 @@ export function analyseExperiment(
   );
   const outOfWindow = allObservations.length - inWindow.length;
 
-  // A washout day has no condition to follow, so it is not an assigned day
-  // for adherence; its sessions stay in the window and are reported
-  // separately as the hangover readout (P1 #3).
-  const conditionDates = new Set(
-    design.assignments.filter((assignment) => assignment.condition !== null).map((assignment) => assignment.date),
+  // Days with a condition are the only "assigned" days: baseline and washout
+  // days have no condition to follow, so they cannot be failed. Their
+  // sessions stay in the window and are reported separately — baseline as the
+  // starting level and drift (P1 #1), washout as the hangover (P1 #3).
+  const byDate = [...design.assignments].sort((a, b) => a.date.localeCompare(b.date));
+  const firstConditionIndex = byDate.findIndex((assignment) => assignment.condition !== null);
+  const baselineDates = new Set(
+    (firstConditionIndex === -1 ? byDate : byDate.slice(0, firstConditionIndex))
+      .filter((assignment) => assignment.condition === null)
+      .map((assignment) => assignment.date),
   );
-  const washout = buildWashoutReport(design, inWindow, conditionDates);
+  const washoutDates = new Set(
+    (firstConditionIndex === -1 ? [] : byDate.slice(firstConditionIndex))
+      .filter((assignment) => assignment.condition === null)
+      .map((assignment) => assignment.date),
+  );
+  const conditionDates = new Set(
+    byDate.filter((assignment) => assignment.condition !== null).map((assignment) => assignment.date),
+  );
+  const baseline = buildBaselineReport(design, inWindow, baselineDates);
+  const washout = buildWashoutReport(design, inWindow, washoutDates);
 
   const groupA: MetricObservation[] = [];
   const groupB: MetricObservation[] = [];
@@ -135,7 +169,7 @@ export function analyseExperiment(
   // --- validity gates ---------------------------------------------------
   const minAdherence = options.minAdherence ?? 0.4;
   if (groupA.length === 0 || groupB.length === 0) {
-    return invalidResult(design, options, adherence, blocks, washout, "One of the conditions has no sessions at all.", now());
+    return invalidResult(design, options, adherence, blocks, baseline, washout, "One of the conditions has no sessions at all.", now());
   }
   if (adherence.adherence < minAdherence) {
     return invalidResult(
@@ -143,6 +177,7 @@ export function analyseExperiment(
       options,
       adherence,
       blocks,
+      baseline,
       washout,
       `Only ${Math.round(adherence.adherence * 100)}% of assigned days had a session, below the ${Math.round(minAdherence * 100)}% needed for the result to mean anything.`,
       now(),
@@ -237,7 +272,7 @@ export function analyseExperiment(
     hypothesisId: design.hypothesisId,
     analysedAt: new Date(now()).toISOString(),
     verdict,
-    summary: appendWashoutNote(buildSummary(design, verdict, comparison, groupA, groupB), washout),
+    summary: appendWashoutNote(appendBaselineNote(buildSummary(design, verdict, comparison, groupA, groupB), baseline), washout),
     reasons,
     comparison,
     secondaryComparison: secondary,
@@ -245,6 +280,7 @@ export function analyseExperiment(
     observedEffect,
     predictedEffect: options.predictedEffect,
     adherence,
+    baseline,
     washout,
     confidence,
     causalityNote:
@@ -261,6 +297,7 @@ function invalidResult(
   options: AnalysisOptions,
   adherence: AdherenceReport,
   blocks: ExperimentResult["blocks"],
+  baseline: BaselineReport | null,
   washout: WashoutReport | null,
   reason: string,
   nowMs: number,
@@ -278,6 +315,7 @@ function invalidResult(
     observedEffect: NaN,
     predictedEffect: options.predictedEffect,
     adherence,
+    baseline,
     washout,
     confidence: gradeConfidence({
       evidenceClass: "experiment",
@@ -295,16 +333,52 @@ function invalidResult(
 function buildWashoutReport(
   design: ExperimentDesign,
   inWindow: readonly MetricObservation[],
-  conditionDates: ReadonlySet<string>,
+  washoutDates: ReadonlySet<string>,
 ): WashoutReport | null {
-  const washoutDays = design.assignments.filter((assignment) => assignment.condition === null);
+  const washoutDays = design.assignments.filter((assignment) => washoutDates.has(assignment.date));
   if (washoutDays.length === 0) return null;
-  const observations = inWindow.filter((observation) => !conditionDates.has(observation.localDate));
+  const observations = inWindow.filter((observation) => washoutDates.has(observation.localDate));
   return {
     days: washoutDays.length,
     sessions: observations.length,
     mean: observations.length > 0 ? mean(observations.map((observation) => observation.value)) : null,
   };
+}
+
+function buildBaselineReport(
+  design: ExperimentDesign,
+  inWindow: readonly MetricObservation[],
+  baselineDates: ReadonlySet<string>,
+): BaselineReport | null {
+  const baselineDays = design.assignments.filter((assignment) => baselineDates.has(assignment.date));
+  if (baselineDays.length === 0) return null;
+  const observations = inWindow
+    .filter((observation) => baselineDates.has(observation.localDate))
+    .sort((a, b) => a.localDate.localeCompare(b.localDate));
+  const values = observations.map((observation) => observation.value);
+  const firstDate = baselineDays[0]!.date;
+  const trend = slope(
+    observations.map((observation) => daysBetween(firstDate, observation.localDate)),
+    values,
+  );
+  // A slope of exactly zero is no slope to report — "drift of +0.000/day"
+  // would be a claim dressed as a number.
+  const trendPerDay = Number.isFinite(trend) && Math.abs(trend) >= 1e-9 ? trend : null;
+  return {
+    days: baselineDays.length,
+    sessions: observations.length,
+    mean: observations.length > 0 ? mean(values) : null,
+    trendPerDay,
+  };
+}
+
+/** The baseline gets one plain sentence in the summary, not a buried footnote. */
+function appendBaselineNote(summary: string, baseline: BaselineReport | null): string {
+  if (!baseline) return summary;
+  const readout = baseline.mean === null ? "no sessions recorded" : `averaged ${baseline.mean.toFixed(3)}`;
+  const trendReadout =
+    baseline.trendPerDay === null ? "with a stable level across the lead-in" : `with a drift of ${baseline.trendPerDay >= 0 ? "+" : ""}${baseline.trendPerDay.toFixed(3)}/day`;
+  return `${summary} ${baseline.days} baseline day${baseline.days === 1 ? "" : "s"} preceded the run; ${baseline.sessions} session${baseline.sessions === 1 ? "" : "s"} recorded there ${readout}, ${trendReadout} — the starting level before any intervention.`;
 }
 
 /** The washout gets one plain sentence in the summary, not a buried footnote. */

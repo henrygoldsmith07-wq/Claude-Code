@@ -13,6 +13,7 @@ import type { ExperimentResult } from "./analysis.js";
 import {
   derivePeriods,
   periodForDate,
+  BASELINE_INSTRUCTION,
   WASHOUT_INSTRUCTION,
   type ExperimentDesign,
   type PeriodPosition,
@@ -161,18 +162,21 @@ export function buildCalendar(
     else bucket = "active";
 
     const assignment = design.assignments.find((entry) => entry.date === today) ?? null;
+    const todayPeriod = assignment ? periodForDate(design, today) : null;
     return {
       design,
       bucket,
       todayCondition: assignment?.condition ?? null,
-      todayInstruction: assignment
-        ? assignment.condition === "A"
-          ? design.conditionA.instruction
-          : assignment.condition === "B"
-            ? design.conditionB.instruction
-            : WASHOUT_INSTRUCTION
+      todayInstruction: todayPeriod
+        ? todayPeriod.period.kind === "baseline"
+          ? BASELINE_INSTRUCTION
+          : todayPeriod.period.kind === "washout"
+            ? WASHOUT_INSTRUCTION
+            : todayPeriod.period.condition === "A"
+              ? design.conditionA.instruction
+              : design.conditionB.instruction
         : null,
-      todayPeriod: assignment ? periodForDate(design, today) : null,
+      todayPeriod,
       result,
       daysRemaining: daysBetween(today, design.endDate),
     };
@@ -263,11 +267,13 @@ function buildSchedule(designs: readonly ExperimentDesign[], today: string): Cal
           title: design.title,
           condition: period.condition,
           instruction:
-            period.condition === "A"
-              ? design.conditionA.instruction
-              : period.condition === "B"
-                ? design.conditionB.instruction
-                : WASHOUT_INSTRUCTION,
+            period.kind === "baseline"
+              ? BASELINE_INSTRUCTION
+              : period.kind === "washout"
+                ? WASHOUT_INSTRUCTION
+                : period.condition === "A"
+                  ? design.conditionA.instruction
+                  : design.conditionB.instruction,
           period: `${period.label} · Day ${day + 1}/${period.dayCount}`,
         });
         byDate.set(date, list);

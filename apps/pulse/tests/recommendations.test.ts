@@ -58,6 +58,7 @@ const supportedExperiment: ExperimentResult = {
   observedEffect: 0.6,
   predictedEffect: 0.5,
   adherence: { assignedDays: 28, daysWithSessions: 25, adherence: 0.89, conditionASessions: 30, conditionBSessions: 28, outOfWindowSessions: 0 },
+  baseline: null,
   washout: null,
   confidence: { level: "high", score: 0.8, reasons: [], limitations: [] },
   causalityNote: "Measured under controlled conditions you assigned.",
