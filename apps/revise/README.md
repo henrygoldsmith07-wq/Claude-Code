@@ -46,7 +46,7 @@ source immediately.
 |------|-----------|
 | **Recommendation** | Scores every candidate activity on one scale — due reviews, mistake repair, weak-topic practice, first-pass learning, timed papers — and shows the winner with a plain-English reason. |
 | **Spaced repetition** | FSRS scheduling with per-grade interval previews, confidence captured *before* reveal, and failed cards reinserted within the same session. |
-| **Exam practice** | Structured questions marked point-by-point against the mark scheme, with examiner-style feedback and model answers. |
+| **Exam practice** | Structured questions marked point-by-point against the mark scheme, with examiner-style feedback and model answers; five- and ten-minute question sprints make short gaps useful. |
 | **Mistake tracking** | Every dropped mark becomes a classified mistake *and* a flashcard automatically, and closes only once the card is recalled reliably. |
 | **Past papers** | Upload or photograph a paper and mark scheme, extract questions, map them to topics, practise them question-by-question or sit them in full exam conditions with a fixed clock, no in-paper aids, auto-submit and marking after the paper. |
 | **Planning** | An adaptive timetable from exam dates, availability, mastery and mistakes. Missed blocks roll forward on their own. |
@@ -79,6 +79,7 @@ src/domain/      Pure revision engine — no React, no I/O, fully unit-tested
   mistakes.ts      Dropped mark → classified mistake → flashcard
   mistake-root-cause.ts  Ranked, answer-aware diagnosis with confidence thresholds
   exam-conditions.ts  Deterministic paper timer, warning state, answer completeness and progress rules
+  quick-session.ts  Fixed five- and ten-minute question selection and priority rules
   grades.ts        Grade prediction with confidence bands + calibration
   retention-analytics.ts  Retention 1/7/30d, marks/hour, technique-vs-knowledge, paper analytics
   fsrs-tuning.ts / mastery-uncertainty.ts / knowledge-tracing.ts  Learning-science hardening

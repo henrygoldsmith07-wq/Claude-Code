@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { aiGenerateQuestions } from "@/ai/client";
 import { getSubject, getTopic, topicsFor } from "@/domain/curriculum";
+import { parseQuickSessionMinutes, type QuickSessionMinutes } from "@/domain/quick-session";
 import type { Question } from "@/domain/types";
 import { useStore, useSubjects } from "@/state/store";
+import { QuickSessionMode, QuickSessionPicker } from "@/components/QuickSessionMode";
 import { QuestionRunner } from "@/components/QuestionRunner";
 import { RichText } from "@/components/RichText";
 import { Button, EmptyState, Panel, Pill, SectionHeading, Segmented } from "@/components/ui";
@@ -32,9 +34,11 @@ function Practice() {
   const sessionId = params.get("session");
   const questionParam = params.get("question");
   const mode = params.get("mode") === "recall" ? "recall" : "practice";
+  const quickParam = params.get("quick");
 
   const [subjectId, setSubjectId] = useState(subjectParam ?? subjects[0]?.id ?? "");
   const [topicId, setTopicId] = useState(topicParam ?? "");
+  const [quickMinutes, setQuickMinutes] = useState<QuickSessionMinutes | null>(() => parseQuickSessionMinutes(quickParam));
   const [index, setIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -134,6 +138,17 @@ function Practice() {
 
   const topics = subjectId ? topicsFor(subjectId) : [];
 
+  if (quickMinutes) {
+    return (
+      <QuickSessionMode
+        minutes={quickMinutes}
+        subjectId={subjectId}
+        topicId={topicId}
+        onExit={() => setQuickMinutes(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -161,6 +176,8 @@ function Practice() {
           />
         ) : null}
       </header>
+
+      <QuickSessionPicker onSelect={setQuickMinutes} />
 
       <div className="flex flex-wrap items-center gap-2">
         <select

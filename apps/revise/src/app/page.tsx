@@ -13,6 +13,7 @@ import { formatMinutes, recommendationHref, relativeDay } from "@/lib/activity";
 import { ExpectedMarksCard } from "@/components/AssessmentPanels";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading, StatTile } from "@/components/ui";
+import { ICON_SIZE, TimerIcon } from "@/components/icons";
 
 // The whole product in one screen: what to do next, why, and how long it takes.
 // Everything below the primary card is context for overriding that choice —
@@ -85,6 +86,30 @@ export default function TodayPage() {
           sub={nextExam ? `${getSubject(nextExam.subjectId)?.name} ${relativeDay(nextExam.date, today)}` : "No date set"}
         />
       </div>
+
+      <section>
+        <SectionHeading title="Short on time?" hint="Start a focused question sprint without rebuilding a plan." />
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Link href="/practice?quick=5" className="card p-4 hover:border-ink3 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">I Have 5 Minutes</p>
+                <p className="text-xs text-ink3 mt-1">Up to two focused questions, marked as you go.</p>
+              </div>
+              <Pill tone="accent"><TimerIcon size={ICON_SIZE.sm} aria-hidden /> 5m</Pill>
+            </div>
+          </Link>
+          <Link href="/practice?quick=10" className="card p-4 hover:border-ink3 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">I Have 10 Minutes</p>
+                <p className="text-xs text-ink3 mt-1">Up to four focused questions, marked as you go.</p>
+              </div>
+              <Pill tone="accent"><TimerIcon size={ICON_SIZE.sm} aria-hidden /> 10m</Pill>
+            </div>
+          </Link>
+        </div>
+      </section>
 
       {store.assessment ? (
         <section>
