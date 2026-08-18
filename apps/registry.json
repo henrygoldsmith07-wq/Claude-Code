@@ -221,15 +221,6 @@
  ],
  "auxiliary": [
   {
-   "id": "genetic-health",
-   "path": "apps/genetic-health",
-   "name": "Genetic Health",
-   "lifecycle": "active",
-   "kind": "workspace",
-   "stack": "Python (23andMe + ClinVar/PharmGKB pipeline)",
-   "description": "Offline genetic health analysis workspace (docs/pipeline, no hosted app)."
-  },
-  {
    "id": "le-studio-tokens",
    "path": "packages/le-studio-tokens",
    "name": "Le Studio Tokens",

@@ -32,6 +32,8 @@ jobs:
           cache-dependency-path: apps/rapport/package-lock.json
       - run: npm ci
       - run: npm run verify
+      - name: Enforce performance budget
+        run: node ../../scripts/check-performance-budgets.mjs --require-builds --only=apps/rapport
       - name: Playwright E2E (Chromium + mobile)
         run: |
           npx playwright install --with-deps chromium

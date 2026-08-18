@@ -29,15 +29,12 @@ jobs:
           cache-dependency-path: apps/revise/package-lock.json
       - run: npm ci
       - run: npm run verify
-      - name: Playwright E2E (Chromium, optional)
+      - name: Verify required Playwright dependency
+        run: npm ls @playwright/test
+      - name: Playwright E2E (Chromium, hard fail)
         run: |
-          if npm ls @playwright/test >/dev/null 2>&1; then
-            npx playwright install --with-deps chromium
-            npm run test:e2e -- --reporter=github,html || echo "E2E failed — see Playwright report"
-          else
-            echo "Playwright not installed — skipping browser E2E (node smoke in tests/sync.test.ts remains the gate)"
-            npm run test:e2e --if-present || true
-          fi
+          npx playwright install --with-deps chromium
+          npm run test:e2e -- --reporter=github,html
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -48,3 +45,5 @@ jobs:
           if-no-files-found: ignore
       - run: du -sh .next 2>/dev/null || du -sh dist 2>/dev/null || du -sh build 2>/dev/null || echo "no build artifact to measure"
       - run: node -e "const fs=require('fs');try{const s=require('child_process').execSync('du -sk .next 2>/dev/null || du -sk dist 2>/dev/null || echo 0',{encoding:'utf8'}).trim();console.log('SIZE_KB:'+s.split(/\s+/)[0])}catch(e){console.log('size check skipped')}" 
+      - name: Enforce performance budget
+        run: node ../../scripts/check-performance-budgets.mjs --require-builds --only=apps/revise

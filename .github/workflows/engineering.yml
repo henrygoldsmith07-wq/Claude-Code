@@ -1,0 +1,53 @@
+name: Engineering gates
+
+on:
+  push:
+    paths:
+      - "apps/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "apps/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/engineering-gates.mjs
+
+  integration-contracts:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: revise-content-and-ai
+            path: apps/revise
+            test: npm test -- --run tests/content-schema.test.ts tests/ai-structured-output.test.ts
+          - name: forq-cloud-and-migrations
+            path: apps/food-shopping-os
+            test: npm test -- --run tests/cloud-data-integration.test.js tests/migration-runner.test.js
+    defaults:
+      run:
+        working-directory: ${{ matrix.path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+      - run: npm ci
+      - run: ${{ matrix.test }}

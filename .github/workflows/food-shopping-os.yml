@@ -33,6 +33,8 @@ jobs:
         continue-on-error: true
       - run: npm test
       - run: npm run build
+      - name: Enforce performance budget
+        run: node ../../scripts/check-performance-budgets.mjs --require-builds --only=apps/food-shopping-os
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

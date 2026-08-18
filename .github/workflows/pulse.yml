@@ -32,7 +32,7 @@ jobs:
       - run: npm run type-check
       - run: npm test
       - run: npm run build
-      - run: du -sh dist
+      - run: node ../../scripts/check-performance-budgets.mjs --require-builds --only=apps/pulse
 
   e2e:
     runs-on: ubuntu-latest
