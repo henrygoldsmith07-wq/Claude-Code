@@ -17,6 +17,7 @@
 import { toInstant } from "../events/time.js";
 import { alignSeries, type DailySeries, type MetricObservation } from "../metrics/compute.js";
 import { spearman, type CorrelationResult } from "../statistics/correlation.js";
+import { autocorrelationControl } from "../statistics/safeguards.js";
 
 export interface ExposureSplit {
   /** Outcomes that occurred within the window after an exposure. */
@@ -111,6 +112,9 @@ export interface LagResult {
   lagDays: number;
   correlation: CorrelationResult;
   n: number;
+  /** Effective n after accounting for serial dependence in the outcome. */
+  effectiveSampleSize: number;
+  autocorrelationInflation: number;
 }
 
 export interface CrossCorrelationResult {
@@ -150,7 +154,14 @@ export function crossCorrelate(
   for (let lag = 0; lag <= maxLag; lag += 1) {
     const aligned = alignSeries(a, b, lag);
     if (aligned.dates.length < minPairs) continue;
-    lags.push({ lagDays: lag, correlation: spearman(aligned.a, aligned.b), n: aligned.dates.length });
+    const control = autocorrelationControl(aligned.b);
+    lags.push({
+      lagDays: lag,
+      correlation: spearman(aligned.a, aligned.b),
+      n: aligned.dates.length,
+      effectiveSampleSize: control.effectiveSampleSize,
+      autocorrelationInflation: control.inflationFactor,
+    });
   }
 
   const usable = lags.filter((lag) => Number.isFinite(lag.correlation.r));
