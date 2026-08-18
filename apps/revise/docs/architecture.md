@@ -81,6 +81,8 @@ The Edexcel A-level expansion adds a further 55 original questions across all
 Edexcel biology, chemistry, mathematics and physics topics.
 The data expansion adds 55 table, experiment and trend templates that
 materialise into 440 dataset-driven questions across all 32 subject variants.
+The unfamiliar-context expansion adds a further 55 transfer and application
+templates, also materialised into 440 questions across all 32 subject variants.
 
 ### `src/data` — offline-first storage
 
