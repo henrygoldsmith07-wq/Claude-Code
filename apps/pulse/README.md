@@ -132,6 +132,21 @@ All primitives are deterministic and operate on local arrays or event
 metadata. They do not send data to a server or make a causal claim by
 themselves.
 
+### User-controlled statistical inspector
+
+The **Inspector** tab lets a person choose an outcome, exposure and optional
+negative-control metric, then re-run the safeguards with an explicit policy:
+
+- Benjamini–Hochberg, Holm or Bonferroni correction and a chosen significance level;
+- autocorrelation lag, forward temporal-lag scan and independent holdout fraction;
+- outlier cutoff, reliability weighting and uncertain-timestamp exclusion;
+- weekday/weekend, calendar-trend and seasonal sensitivity controls.
+
+The report shows raw and corrected p-values, effective sample sizes, holdout
+direction, lag results, timestamp exclusions and limitations. Each lag tested
+joins the correction family. Applying controls is explicit and never mutates
+the finding ledger; the inspector is diagnostic evidence, not a causal claim.
+
 ## Experiments
 
 Pulse turns a strong association into a structured experiment: hypothesis,

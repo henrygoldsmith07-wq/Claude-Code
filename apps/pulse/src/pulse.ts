@@ -39,6 +39,7 @@ import { buildClaimNode, buildEvidenceGraph, type AuthoredClaimInput, type Evide
 import type { ClaimNode } from "./evidence-graph/types.js";
 import { ask, type Answer, type AskContext } from "./ask/answer.js";
 import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
+import { buildStatisticalInspection, type StatisticalInspection, type StatisticalInspectorOptions } from "./statistics/inspector.js";
 
 export interface PulseOptions {
   timezone?: string;
@@ -239,6 +240,19 @@ export class Pulse {
 
   findings(): Finding[] {
     return this.cachedFindings;
+  }
+
+  /** Re-runs selected statistical diagnostics without changing the finding ledger. */
+  inspectStatistics(options: StatisticalInspectorOptions): StatisticalInspection {
+    return buildStatisticalInspection(
+      {
+        events: this.events(),
+        registry: this.registry,
+        findings: this.cachedFindings,
+        qualities: this.quality(),
+      },
+      options,
+    );
   }
 
   /**

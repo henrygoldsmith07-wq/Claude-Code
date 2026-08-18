@@ -8,3 +8,4 @@ export * from "./power.js";
 export * from "./random.js";
 export * from "./confidence.js";
 export * from "./safeguards.js";
+export * from "./inspector.js";
