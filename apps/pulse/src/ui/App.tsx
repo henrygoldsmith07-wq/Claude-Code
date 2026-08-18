@@ -12,12 +12,14 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Pulse } from "../pulse.js";
 import type { Finding } from "../discovery/finding.js";
-import { FindingCard } from "./FindingCard.js";
+import type { InsightChange } from "../history/insight-history.js";
+import { FindingCard, REPLICATION_LABEL } from "./FindingCard.js";
 
-export type TabId = "insights" | "timeline" | "experiments" | "ask" | "sources";
+export type TabId = "insights" | "history" | "timeline" | "experiments" | "ask" | "sources";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "insights", label: "Insights" },
+  { id: "history", label: "History" },
   { id: "timeline", label: "Timeline" },
   { id: "experiments", label: "Experiments" },
   { id: "ask", label: "Ask Pulse" },
@@ -107,6 +109,7 @@ export function App({ pulse }: AppProps): React.JSX.Element {
       </nav>
 
       <main>
+        {tab === "history" ? <HistoryPanel pulse={pulse} revision={revision} /> : null}
         {tab === "insights" ? (
           <section role="tabpanel" id="panel-insights" aria-labelledby="tab-insights" tabIndex={-1}>
             <h2>This week</h2>
@@ -202,6 +205,77 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   );
 }
 
+const CHANGE_LABEL: Record<InsightChange, string> = {
+  appeared: "Appeared",
+  disappeared: "Disappeared",
+  strengthened: "Strengthened",
+  weakened: "Weakened",
+  unchanged: "Unchanged",
+};
+
+function formatDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/**
+ * The insight history: each finding's journey across discovery scans — when
+ * it appeared, whether it strengthened or weakened as data accumulated, and
+ * when it stopped meeting the evidence bar.
+ */
+function HistoryPanel({ pulse, revision }: { pulse: Pulse; revision: number }): React.JSX.Element {
+  // As above: `revision` is how this view learns the engine changed.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const entries = useMemo(() => pulse.insightHistory.history(), [pulse, revision]);
+  const scanCount = useMemo(() => pulse.insightHistory.size(), [pulse, revision]);
+  /* eslint-enable react-hooks/exhaustive-deps */
+
+  return (
+    <section role="tabpanel" id="panel-history" aria-labelledby="tab-history" tabIndex={-1}>
+      <h2>How the insights have changed</h2>
+      <p className="muted">
+        {scanCount} discovery scan(s) recorded; {entries.length} insight(s) tracked across them. Identical re-scans of
+        unchanged data are not recorded.
+      </p>
+
+      {entries.length === 0 ? (
+        <p className="empty">
+          Nothing to show yet. Pulse records every discovery scan, and this view will show how each insight appeared,
+          strengthened, weakened or disappeared as your data grew.
+        </p>
+      ) : (
+        entries.map((entry) => (
+          <article key={entry.signature} className="card history-entry">
+            <header className="history-entry__header">
+              <h3>{entry.title}</h3>
+              <span className={`pill pill--replication-${entry.latestStatus}`}>
+                {REPLICATION_LABEL[entry.latestStatus]}
+              </span>
+            </header>
+            <p className="muted">
+              First seen {formatDay(entry.firstSeenAt)} · last seen {formatDay(entry.lastSeenAt)} · {entry.appearances}{" "}
+              appearance(s) across {scanCount} scan(s)
+            </p>
+            <ol className="history-entry__episodes">
+              {entry.episodes.map((episode) => (
+                <li key={episode.scanId} className={`history-episode history-episode--${episode.change}`}>
+                  <span className="history-episode__change">{CHANGE_LABEL[episode.change]}</span>
+                  <span className="history-episode__at">{formatDay(episode.at)}</span>
+                  {episode.present && episode.finding ? (
+                    <span className="muted">
+                      {episode.finding.effect.label} — {episode.finding.sampleDescription}
+                    </span>
+                  ) : null}
+                  {!episode.present && episode.note ? <span className="muted">{episode.note}</span> : null}
+                </li>
+              ))}
+            </ol>
+          </article>
+        ))
+      )}
+    </section>
+  );
+}
+
 function TimelinePanel({ pulse }: { pulse: Pulse }): React.JSX.Element {
   const timeline = useMemo(() => pulse.timeline(), [pulse]);
   const recent = timeline.days.slice(-14).reverse();
@@ -254,6 +328,7 @@ function ExperimentsPanel({
   const calendar = useMemo(() => pulse.calendar(), [pulse, revision]);
   /* eslint-enable react-hooks/exhaustive-deps */
   const resultById = new Map(results.map((result) => [result.experimentId, result]));
+  const conflictDates = new Set(calendar.conflicts.map((conflict) => conflict.date));
 
   return (
     <section role="tabpanel" id="panel-experiments" aria-labelledby="tab-experiments" tabIndex={-1}>
@@ -266,6 +341,25 @@ function ExperimentsPanel({
             analysed
             {calendar.nextAnalysisDate ? <> — next analysis {calendar.nextAnalysisDate}</> : null}
           </p>
+          {calendar.conflicts.length > 0 ? (
+            <div className="calendar__conflict" role="alert">
+              <p>
+                <strong>{calendar.conflicts.length === 1 ? "Scheduling conflict" : "Scheduling conflicts"}:</strong>{" "}
+                {calendar.conflicts.length === 1
+                  ? "one day has"
+                  : `${calendar.conflicts.length} days have`}{" "}
+                more than one experiment assigned — you would be asked to run both.
+              </p>
+              <ul>
+                {calendar.conflicts.map((conflict) => (
+                  <li key={conflict.date}>
+                    {conflict.date}: {conflict.titles.join(" and ")}
+                    {conflict.sameMetric ? <> — both target {conflict.metricIds.join(", ")}</> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {calendar.active.some((entry) => entry.todayCondition) ? (
             <ul>
               {calendar.active
@@ -284,8 +378,12 @@ function ExperimentsPanel({
               <summary>Upcoming schedule ({calendar.schedule.length} assignments)</summary>
               <ul>
                 {calendar.schedule.map((assignment) => (
-                  <li key={`${assignment.date}-${assignment.experimentId}`}>
+                  <li
+                    key={`${assignment.date}-${assignment.experimentId}`}
+                    className={conflictDates.has(assignment.date) ? "warn" : undefined}
+                  >
                     {assignment.date}: {assignment.title} — condition {assignment.condition}
+                    {conflictDates.has(assignment.date) ? " — conflicts with another experiment" : ""}
                   </li>
                 ))}
               </ul>

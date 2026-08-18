@@ -295,7 +295,9 @@ function changeBetween(previous: Finding, current: Finding): InsightChange {
 }
 
 function noteForDisappearance(scan: InsightScanRecord, signature: string): string | null {
-  const [outcome, exposure = ""] = signature.split("|");
+  // The signature is kind|outcome|exposure|direction; the kind is irrelevant
+  // when matching a rejection, which is keyed by outcome and exposure.
+  const [, outcome = "", exposure = ""] = signature.split("|");
   const match = scan.rejected.find(
     (rejection) =>
       rejection.outcomeMetricId === outcome && (rejection.exposureMetricId ?? "") === exposure,

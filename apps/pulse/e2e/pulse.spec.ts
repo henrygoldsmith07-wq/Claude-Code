@@ -55,7 +55,7 @@ test("every tab is reachable and operable from the keyboard alone", async ({ pag
   }
   await expect(page.locator(":focus")).toHaveAttribute("role", "tab");
 
-  for (const label of ["Timeline", "Experiments", "Ask Pulse", "Sources & privacy"]) {
+  for (const label of ["History", "Timeline", "Experiments", "Ask Pulse", "Sources & privacy"]) {
     await page.getByRole("tab", { name: label }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("tab", { name: label })).toHaveAttribute("aria-selected", "true");

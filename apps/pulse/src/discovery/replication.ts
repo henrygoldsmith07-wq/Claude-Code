@@ -43,15 +43,22 @@ export class ReplicationLedger {
 
   /**
    * The signature that identifies "the same claim" regardless of how many
-   * times discovery recomputes its id: outcome, driver and direction. Effect
-   * magnitude is deliberately absent — a replication that comes back at half
-   * the size is still a replication, just a weaker one.
+   * times discovery recomputes its id: the candidate kind, outcome, driver and
+   * direction. Effect magnitude is deliberately absent — a replication that
+   * comes back at half the size is still a replication, just a weaker one.
+   *
+   * The kind is part of the identity because it is what the engine actually
+   * asked: "accuracy is higher in the evening" and "accuracy is higher with
+   * method = practice" are different claims about the same outcome, and
+   * collapsing them would let one replicate or contradict the other.
    */
   static signature(finding: Finding): string {
     const outcome = finding.metricIds[0] ?? "";
     const exposure = finding.metricIds[1] ?? "";
     const direction = Math.sign(finding.effect.value);
-    return [outcome, exposure, direction].join("|");
+    // The engine always tags findings with their candidate kind first.
+    const kind = finding.tags[0] ?? "unknown";
+    return [kind, outcome, exposure, direction].join("|");
   }
 
   /**

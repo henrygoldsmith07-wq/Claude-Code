@@ -261,6 +261,76 @@ h4 {
   padding-left: 0.7rem;
 }
 
+.calendar__conflict {
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
+  margin: 0.9rem 0;
+  padding-left: 0.7rem;
+}
+
+.calendar__conflict p {
+  margin: 0 0 0.4rem;
+}
+
+.calendar__conflict ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.calendar__conflict li {
+  margin-bottom: 0.25rem;
+}
+
+.history-entry__header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.history-entry__episodes {
+  border-left: 2px solid var(--line);
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.history-episode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  padding: 0.4rem 0 0.4rem 0.9rem;
+  position: relative;
+}
+
+.history-episode::before {
+  background: var(--line);
+  border-radius: 50%;
+  content: "";
+  height: 0.5rem;
+  left: -0.33rem;
+  position: absolute;
+  top: 0.8rem;
+  width: 0.5rem;
+}
+
+.history-episode--appeared::before,
+.history-episode--strengthened::before {
+  background: var(--ok);
+}
+
+.history-episode--weakened::before {
+  background: var(--warn);
+}
+
+.history-episode--disappeared::before {
+  background: var(--muted);
+}
+
+.history-episode__change {
+  font-weight: 600;
+}
+
 .finding__stats,
 .factors {
   display: grid;

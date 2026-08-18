@@ -44,7 +44,7 @@ function finding(overrides: Partial<Finding> = {}): Finding {
         dateRange: null,
       },
     ],
-    tags: [],
+    tags: ["exposure-window"],
     ...overrides,
   };
 }
@@ -79,13 +79,28 @@ describe("InsightHistory ledger", () => {
     const entries = history.history();
     expect(entries).toHaveLength(1);
     const entry = entries[0]!;
-    expect(entry.signature).toBe("study.accuracy|exercise.volume|1");
+    expect(entry.signature).toBe("exposure-window|study.accuracy|exercise.volume|1");
     expect(entry.title).toBe("Accuracy is higher after exercise");
     expect(entry.firstSeenAt).toBe("2025-07-01T00:00:00.000Z");
     expect(entry.lastSeenAt).toBe("2025-07-01T00:00:00.000Z");
     expect(entry.appearances).toBe(1);
     expect(entry.latestStatus).toBe("new");
     expect(entry.episodes.map((episode) => episode.change)).toEqual(["appeared"]);
+  });
+
+  it("keeps different candidate kinds as separate insights", () => {
+    const history = new InsightHistory();
+    history.recordScan(
+      scan("2025-07-01T00:00:00.000Z", [
+        finding({ id: "f1", tags: ["time-of-day"] }),
+        finding({ id: "f2", tags: ["attribute-split"] }),
+      ]),
+    );
+
+    const entries = history.history();
+    expect(entries).toHaveLength(2);
+    const kinds = new Set(entries.map((entry) => entry.signature.split("|")[0]));
+    expect(kinds).toEqual(new Set(["time-of-day", "attribute-split"]));
   });
 
   it("ignores a second scan over the same data — an identical observation is not a new episode", () => {

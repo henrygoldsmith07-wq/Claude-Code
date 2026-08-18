@@ -72,6 +72,13 @@ describe("replication ledger", () => {
     expect(later!.replicationStatus).toBe("new");
   });
 
+  it("does not treat different candidate kinds as the same claim", () => {
+    const ledger = new ReplicationLedger(clock);
+    ledger.annotate([finding({ id: "a", tags: ["time-of-day"] })]);
+    const [later] = ledger.annotate([finding({ id: "b", tags: ["attribute-split"] })]);
+    expect(later!.replicationStatus).toBe("new");
+  });
+
   it("records experiment verdicts as terminal replication states", () => {
     const ledger = new ReplicationLedger(clock);
     expect(ledger.recordExperimentResult("a", "supported")).toBe("experimentally-supported");

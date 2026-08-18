@@ -68,6 +68,16 @@ describe("contradiction ledger", () => {
     expect(ledger.list()).toEqual([]);
   });
 
+  it("does not contradict across different candidate kinds", () => {
+    const ledger = new ContradictionLedger(clock);
+    ledger.annotate([finding({ id: "a", createdAt: "2025-06-01T00:00:00Z", tags: ["time-of-day"] })]);
+    const [later] = ledger.annotate([
+      finding({ id: "b", createdAt: "2025-06-15T00:00:00Z", tags: ["attribute-split"], effect: negativeEffect }),
+    ]);
+    expect(later!.replicationStatus).toBeUndefined();
+    expect(ledger.list()).toEqual([]);
+  });
+
   it("marks both sides contradicted when a later sighting points the other way", () => {
     const ledger = new ContradictionLedger(clock);
     ledger.annotate([finding({ id: "a", createdAt: "2025-06-01T00:00:00Z" })]);

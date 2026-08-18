@@ -175,11 +175,55 @@ describe("the app shell", () => {
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(5);
+    expect(tabs.length).toBe(6);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
 
     fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
     expect(screen.getByRole("tab", { name: "Sources & privacy" }).getAttribute("aria-selected")).toBe("true");
+    cleanup();
+  });
+
+  it("warns about overlapping experiments on the calendar", async () => {
+    const { pulse } = await createSyntheticPulse({ days: 180, seed: "discovery-suite" });
+    pulse.discover();
+    pulse.proposeHypotheses();
+    const hypotheses = pulse.hypotheses.list();
+    expect(hypotheses.length).toBeGreaterThanOrEqual(2);
+
+    const today = pulse.calendar().today;
+    pulse.designExperiment(hypotheses[0]!.id, { startDate: today });
+    pulse.designExperiment(hypotheses[1]!.id, { startDate: today });
+
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Experiments" }));
+    expect(screen.getByText(/Scheduling conflict/)).toBeTruthy();
+    expect(screen.getByText(/more than one experiment assigned/)).toBeTruthy();
+    cleanup();
+  });
+
+  it("shows each insight's journey across discovery scans in the History tab", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+
+    expect(screen.getByRole("heading", { name: "How the insights have changed" })).toBeTruthy();
+    expect(screen.getByText(/discovery scan\(s\) recorded/)).toBeTruthy();
+    // Every recorded insight appears at least once, marked with its journey.
+    expect(screen.getAllByText("Appeared").length).toBeGreaterThan(0);
+    cleanup();
+  });
+
+  it("shows an honest empty state in History before any finding survives", async () => {
+    const { pulse: empty } = await createSyntheticPulse({ days: 5, seed: "ui-history-empty" });
+    render(<App pulse={empty} />);
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    expect(screen.getByText(/Nothing to show yet/)).toBeTruthy();
+    cleanup();
+  });
+
+  it("has no accessibility violations on the history view", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "History" }));
+    await expectNoAxeViolations(container);
     cleanup();
   });
 

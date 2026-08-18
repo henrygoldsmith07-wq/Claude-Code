@@ -29,7 +29,7 @@ const CONFIDENCE_LABEL: Record<ConfidenceLevel, string> = {
   high: "High",
 };
 
-const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
+export const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
   new: "New",
   replicated: "Replicated",
   "failed-to-replicate": "Failed to replicate",
