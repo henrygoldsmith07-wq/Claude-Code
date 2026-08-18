@@ -155,21 +155,21 @@ describe("misconception tallies", () => {
     expect(draft.mistake.misconceptionEntryId).toBe("seed-misconception:inequality-sign-reversal");
   });
 
-  it("tallies recurring misconceptions, most frequent first", () => {
+  it("tallies recurring misconceptions weighted by marks lost", () => {
     const a = entries[0]!;
     const b = entries[1]!;
     const tallies = tallyMisconceptions(
       [
-        { misconceptionEntryId: a.id },
-        { misconceptionEntryId: b.id },
-        { misconceptionEntryId: a.id },
-        { misconceptionEntryId: a.id },
+        { misconceptionEntryId: a.id, marksLost: 2 },
+        { misconceptionEntryId: b.id, marksLost: 5 },
+        { misconceptionEntryId: a.id, marksLost: 1 },
         {},
       ],
       entries,
     );
     expect(tallies).toHaveLength(2);
-    expect(tallies[0]).toEqual({ entry: a, count: 3 });
-    expect(tallies[1]).toEqual({ entry: b, count: 1 });
+    // b appears once but costs 5 marks; a appears twice for 3 — b ranks first.
+    expect(tallies[0]).toEqual({ entry: b, count: 1, marksLost: 5 });
+    expect(tallies[1]).toEqual({ entry: a, count: 2, marksLost: 3 });
   });
 });
