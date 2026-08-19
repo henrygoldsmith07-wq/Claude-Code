@@ -1,12 +1,15 @@
 const KEY = 'arise.store.v1';
+export const STORE_SCHEMA_VERSION = 4;
 
 const DEFAULT = {
-  version: 3,
+  version: STORE_SCHEMA_VERSION,
   onboarding: null, // { goal, equipment:[], location, level, daysPerWeek }
   activeSchedule: null, // { programId, startDateISO, sessions:[{id,dateISO,status,blocks,...}] }
   activeWorkout: null, // recoverable runner draft: { session, blocks, note, noteTags, restEndsAt, restLabel, updatedAt }
+  eventHistory: [], // imported/exported event snapshot; live telemetry remains append-only in its own local key
+  healthSummary: null, // optional user-approved health-platform summary
   history: [], // completed sessions: { id, dateISO, programId, week, day, title, blocks:[{exerciseId, sets:[{reps,weightKg,rpe,side,rom,assistedKg,tempo}]}] }
-  preferences: { units: 'kg', theme: null, syncEnabled: false, telemetryEnabled: null, pulseEnabled: false }, // theme null follows OS; telemetry null = prompt
+  preferences: { units: 'kg', theme: null, syncEnabled: false, telemetryEnabled: null, pulseEnabled: false, healthSummaryEnabled: false }, // theme null follows OS; telemetry null = prompt
   readinessLog: [], // [{ dateISO, score, sleep, soreness, motivation }]
   programHistory: [], // [{ programId, version, startDateISO, endDateISO }]
 };
@@ -21,6 +24,8 @@ export function loadStore(){
     if(!j.readinessLog) j.readinessLog=[];
     if(!j.programHistory) j.programHistory=[];
     if(j.activeWorkout === undefined) j.activeWorkout = null;
+    if(j.eventHistory === undefined) j.eventHistory=[];
+    if(j.healthSummary === undefined) j.healthSummary=null;
     return { ...structuredClone(DEFAULT), ...j };
   }catch{ return structuredClone(DEFAULT); }
 }
@@ -35,11 +40,12 @@ export function runMigrations(raw){
   let j=raw;
   if(!j.version || j.version < 1) j = { ...j, version: 1 };
   if(j.version === 1){
-    if(!j.preferences) j.preferences={ units:'kg', theme:null, syncEnabled:false, telemetryEnabled:null, pulseEnabled:false };
+    if(!j.preferences) j.preferences={ units:'kg', theme:null, syncEnabled:false, telemetryEnabled:null, pulseEnabled:false, healthSummaryEnabled:false };
     else {
       if(j.preferences.syncEnabled==null) j.preferences.syncEnabled=false;
       if(j.preferences.telemetryEnabled==null) j.preferences.telemetryEnabled=null;
       if(j.preferences.pulseEnabled==null) j.preferences.pulseEnabled=false;
+      if(j.preferences.healthSummaryEnabled==null) j.preferences.healthSummaryEnabled=false;
     }
     if(!j.readinessLog) j.readinessLog=[];
     if(!j.programHistory) j.programHistory=[];
@@ -59,9 +65,23 @@ export function runMigrations(raw){
     if(j.preferences && j.preferences.telemetryEnabled===undefined) j.preferences.telemetryEnabled=null;
     j.version = 3;
   }
-  // v3 adds the durable in-progress workout draft. Keep the version stable so
-  // existing exports and sync payloads remain compatible.
+  if(j.version === 3){
+    // v3 -> v4: durable event/health fields and explicit optional integration consent.
+    if(j.activeWorkout === undefined) j.activeWorkout = null;
+    if(j.eventHistory === undefined) j.eventHistory=[];
+    if(j.healthSummary === undefined) j.healthSummary=null;
+    if(!j.preferences) j.preferences={};
+    if(j.preferences.healthSummaryEnabled==null) j.preferences.healthSummaryEnabled=false;
+    j.version = STORE_SCHEMA_VERSION;
+  }
   if(j.activeWorkout === undefined) j.activeWorkout = null;
+  if(j.eventHistory === undefined) j.eventHistory=[];
+  if(j.healthSummary === undefined) j.healthSummary=null;
+  if(!j.preferences) j.preferences={};
+  if(j.preferences.syncEnabled==null) j.preferences.syncEnabled=false;
+  if(j.preferences.telemetryEnabled==null) j.preferences.telemetryEnabled=null;
+  if(j.preferences.pulseEnabled==null) j.preferences.pulseEnabled=false;
+  if(j.preferences.healthSummaryEnabled==null) j.preferences.healthSummaryEnabled=false;
   return j;
 }
 

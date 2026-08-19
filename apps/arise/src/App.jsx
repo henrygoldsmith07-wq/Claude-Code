@@ -17,6 +17,7 @@ export default function App(){
   const [tab,setTab]=useState('today');
   const [activeSession,setActiveSession]=useState(null);
   const [recoveryOpen,setRecoveryOpen]=useState(()=> Boolean(loadStore().activeWorkout));
+  const [consentOpen,setConsentOpen]=useState(()=> loadStore().preferences?.telemetryEnabled == null);
   const [onboardingOpen,setOnboardingOpen]=useState(()=> !loadStore().onboarding);
   const [updateReady,setUpdateReady]=useState(false);
 
@@ -28,6 +29,10 @@ export default function App(){
   useEffect(()=>{
     saveStore(store);
   },[store]);
+
+  useEffect(()=>{
+    setConsentOpen(store.preferences?.telemetryEnabled == null);
+  },[store.preferences?.telemetryEnabled]);
 
   useEffect(()=>{
     const isDark = store.preferences?.theme ? store.preferences.theme==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -82,6 +87,12 @@ export default function App(){
     try { recordEvent('session:start', { sessionId: session.id, title: session.title }); } catch {}
   };
 
+  const chooseMeasurementConsent=(enabled)=>{
+    setStore({ ...store, preferences:{ ...(store.preferences||{}), telemetryEnabled:enabled } });
+    recordEvent('consent:local-measurements', { enabled }, { essential:true });
+    setConsentOpen(false);
+  };
+
   const handleDraftChange = useCallback((draft)=>{
     setStoreState(prev=>{
       const next={ ...prev, activeWorkout: draft };
@@ -106,11 +117,22 @@ export default function App(){
     // Pulse push if enabled and adapter present (adapter injected via window.__PULSE_ADAPTER__ for now)
     try {
       const adapter = typeof window !== 'undefined' ? window.__PULSE_ADAPTER__ : null;
-      if(next.preferences?.pulseEnabled && adapter) pushToPulse(payload, hist, adapter);
+      if(next.preferences?.pulseEnabled && adapter){
+        Promise.resolve(pushToPulse(payload, hist, adapter)).then(result=>{
+          const ok=result?.ok ?? Object.values(result||{}).every(value=> value?.ok !== false);
+          recordEvent('pulse:sync', { sessionId:payload.id, ok, result }, { essential:false });
+        }).catch(error=> recordEvent('pulse:sync', { sessionId:payload.id, ok:false, error:String(error?.message||error) }, { essential:false }));
+      }
     } catch {}
   };
   const handleCancelSession = ()=>{
-    if(activeSession) try { recordEvent('session:abandon', { sessionId: activeSession.id }); } catch {}
+    if(activeSession) try {
+      const draft=store.activeWorkout;
+      const totalSets=draft?.blocks?.reduce((n,b)=> n+(b.sets||[]).length,0) || 0;
+      const completedSets=draft?.blocks?.reduce((n,b)=> n+(b.sets||[]).filter(s=> s.completed).length,0) || 0;
+      const startedAt=draft?.startedAt ? Date.parse(draft.startedAt) : null;
+      recordEvent('session:abandon', { sessionId: activeSession.id, totalSets, completedSets, elapsedMs:startedAt ? Math.max(0,Date.now()-startedAt) : null });
+    } catch {}
     setStore({ ...store, activeWorkout: null });
     setActiveSession(null);
     setRecoveryOpen(false);
@@ -166,6 +188,16 @@ export default function App(){
           <div className="flex gap-2">
             <button onClick={resumeDraft} className="btn btn-primary min-h-10 rounded-xl flex-1">Resume</button>
             <button onClick={discardDraft} className="btn btn-secondary min-h-10 rounded-xl">Discard draft</button>
+          </div>
+        </div>
+      )}
+      {consentOpen && !activeSession && (
+        <div className="mx-4 mt-2 rounded-2xl border border-line bg-surface px-4 py-3 space-y-2" role="dialog" aria-label="Local measurement consent">
+          <p className="text-sm font-bold">Choose local measurements</p>
+          <p className="text-xs text-ink3">Arise can measure logging time, session abandonment and recommendation acceptance. These events stay on this device and are included only when you export a backup.</p>
+          <div className="flex gap-2">
+            <button onClick={()=> chooseMeasurementConsent(true)} className="btn btn-primary min-h-10 rounded-xl flex-1">Allow local measurements</button>
+            <button onClick={()=> chooseMeasurementConsent(false)} className="btn btn-secondary min-h-10 rounded-xl">No thanks</button>
           </div>
         </div>
       )}

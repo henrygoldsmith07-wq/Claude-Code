@@ -3,6 +3,7 @@ import { EXERCISE_BY_ID } from '../lib/data.js';
 import { lastExerciseSets } from '../lib/store.js';
 import { recommendNext } from '../lib/progression.js';
 import { substitutionOptions } from '../lib/substitutions.js';
+import { recordEvent } from '../lib/telemetry.js';
 
 const NOTE_PROMPTS = [
   { id: 'felt-strong', label: 'Felt strong' },
@@ -60,6 +61,10 @@ function suggestedTarget(rec, block){
   return `${reps} reps`;
 }
 
+function getRecommendation(block, history){
+  try{ return recommendNext({ exerciseId:block.exerciseId, history, targetReps:block.reps || '8–12' }); }catch{ return null; }
+}
+
 function hasUnfinishedSet(blocks, bi, si){
   for(let i=bi;i<blocks.length;i++){
     const start = i===bi ? si+1 : 0;
@@ -77,6 +82,10 @@ export default function SessionRunner({ session, history = [], availableEquipmen
   const [clock,setClock]=useState(()=> Date.now());
   const [swapOpen,setSwapOpen]=useState(null);
   const draftRef=useRef(null);
+  const startedAtRef=useRef(draft?.startedAt || new Date().toISOString());
+  const lastSetAtRef=useRef(draft?.lastSetAt || startedAtRef.current);
+  const shownRecommendationRef=useRef(new Set());
+  const dismissedRecommendationRef=useRef(new Set());
 
   useEffect(()=>{
     const onKey = (e)=>{ if(e.key==='Escape') onCancel(); };
@@ -111,6 +120,8 @@ export default function SessionRunner({ session, history = [], availableEquipmen
       noteTags,
       restEndsAt,
       restLabel,
+      startedAt:startedAtRef.current,
+      lastSetAt:lastSetAtRef.current,
       updatedAt: new Date().toISOString(),
     };
     draftRef.current = nextDraft;
@@ -124,6 +135,15 @@ export default function SessionRunner({ session, history = [], availableEquipmen
     window.addEventListener('pagehide', persistOnPageHide);
     return ()=> window.removeEventListener('pagehide', persistOnPageHide);
   }, [onDraftChange]);
+
+  useEffect(()=>{
+    for(const block of blocks){
+      if(shownRecommendationRef.current.has(block.exerciseId)) continue;
+      const recommendation=getRecommendation(block,history);
+      shownRecommendationRef.current.add(block.exerciseId);
+      recordEvent('recommendation:shown', { sessionId:session.id, exerciseId:block.exerciseId, target:suggestedTarget(recommendation,block) });
+    }
+  }, [blocks, history, session.id]);
 
   const startRest=(seconds,label)=>{
     const sec=Number(seconds)||0;
@@ -145,6 +165,10 @@ export default function SessionRunner({ session, history = [], availableEquipmen
   const completedSets = blocks.reduce((n,b)=> n+b.sets.filter(s=> s.completed).length, 0);
 
   const updateSet = (bi, si, patch)=>{
+    if((patch.reps!==undefined || patch.weightKg!==undefined) && !dismissedRecommendationRef.current.has(bi)){
+      dismissedRecommendationRef.current.add(bi);
+      recordEvent('recommendation:dismissed', { sessionId:session.id, exerciseId:blocks[bi]?.exerciseId, reason:'manual set edit' });
+    }
     setBlocks(prev=> prev.map((b,i)=> i!==bi? b : { ...b, sets: b.sets.map((s,j)=> j!==si? s : { ...s, ...patch }) }));
   };
   const completeSet = (bi,si)=>{
@@ -153,7 +177,18 @@ export default function SessionRunner({ session, history = [], availableEquipmen
     if(!set) return;
     const completing=!set.completed;
     updateSet(bi,si,{ completed: completing });
-    if(completing && hasUnfinishedSet(blocks,bi,si)) startRest(block.restSec, EXERCISE_BY_ID[block.exerciseId]?.name || block.exerciseId);
+    if(completing){
+      const now=Date.now();
+      recordEvent('set:complete', {
+        sessionId:session.id,
+        exerciseId:block.exerciseId,
+        setIndex:si,
+        elapsedMs:Math.max(0,now-Date.parse(lastSetAtRef.current)),
+        sessionElapsedMs:Math.max(0,now-Date.parse(startedAtRef.current)),
+      });
+      lastSetAtRef.current=new Date(now).toISOString();
+      if(hasUnfinishedSet(blocks,bi,si)) startRest(block.restSec, EXERCISE_BY_ID[block.exerciseId]?.name || block.exerciseId);
+    }
   };
   const addSet = (bi)=> setBlocks(prev=> prev.map((b,i)=> i!==bi? b : { ...b, sets: [...b.sets, newSet('', b.unilateral)] }));
   const duplicateUnilateral = (bi)=> setBlocks(prev=> prev.map((b,i)=>{
@@ -184,6 +219,23 @@ export default function SessionRunner({ session, history = [], availableEquipmen
       };
     }));
     setSwapOpen(null);
+  };
+
+  const applyRecommendation=(bi,recommendation)=>{
+    const block=blocks[bi];
+    if(!block || !recommendation) return;
+    const target=suggestedTarget(recommendation,block);
+    setBlocks(prev=> prev.map((b,i)=> i!==bi ? b : {
+      ...b,
+      sets:b.sets.map(s=> s.completed ? s : {
+        ...s,
+        reps: recommendation.reps != null ? String(recommendation.reps) : s.reps,
+        weightKg: recommendation.load != null && recommendation.load > 0 ? String(recommendation.load) : s.weightKg,
+        assistedKg: recommendation.assistKg != null ? String(recommendation.assistKg) : s.assistedKg,
+      }),
+    }));
+    dismissedRecommendationRef.current.add(bi);
+    recordEvent('recommendation:accepted', { sessionId:session.id, exerciseId:block.exerciseId, target });
   };
 
   const toggleNoteTag=(id)=> setNoteTags(prev=> prev.includes(id) ? prev.filter(x=>x!==id) : [...prev,id]);
@@ -242,8 +294,7 @@ export default function SessionRunner({ session, history = [], availableEquipmen
           const prev=lastExerciseSets(history,b.exerciseId);
           const supportsWeighted=ex?.supportsWeighted;
           const supportsAssisted=ex?.supportsAssisted;
-          let recommendation=null;
-          try{ recommendation=recommendNext({ exerciseId:b.exerciseId, history, targetReps: b.reps || '8–12' }); }catch{}
+          const recommendation=getRecommendation(b,history);
           const target=suggestedTarget(recommendation,b);
           const options=swapOpen===bi ? substitutionOptions(b.exerciseId,{ availableEquipment, history, limit:5 }) : [];
           return (
@@ -260,7 +311,7 @@ export default function SessionRunner({ session, history = [], availableEquipmen
                   )}
                   {b.warmups?.length ? <p className="text-[11px] text-ink3 mt-1">Warm-ups: {b.warmups.map(w=> `${w.reps}×${w.weightKg||'bw'}${w.note?` (${w.note})`:''}`).join(' • ')}</p> : null}
                   {b.restSec ? <p className="text-[11px] text-ink3">Rest {fmtRest(b.restSec)} · load hint: {b.loadHint || '—'}</p> : null}
-                  <p className="text-[11px] mt-1"><span className="font-bold">Suggested target</span> · {target}</p>
+                  <div className="flex items-center gap-2 mt-1"><p className="text-[11px]"><span className="font-bold">Suggested target</span> · {target}</p>{recommendation && <button onClick={()=> applyRecommendation(bi,recommendation)} className="text-[10px] font-bold underline underline-offset-2 shrink-0">Use target</button>}</div>
                   <p className="text-[11px] text-ink3 italic">{b.substitutionReason ? `Swap rationale: ${b.substitutionReason}` : `Why: ${b.why || recommendation?.reason || 'Follow the prescribed range and stop with good form.'}`}</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0 flex-wrap justify-end max-w-[190px]">
