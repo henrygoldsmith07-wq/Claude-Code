@@ -1,6 +1,8 @@
 import { addDays, pantryAnalytics, spendByMonth } from './kitchen.js';
 import { dayTotals } from './nutrition.js';
 import { periodFootprint, shopFootprint } from './footprint.js';
+import { shoppingNameKey } from './shopping.js';
+import { SLOT_KEYS } from './mealplan.js';
 
 const round = (value, places = 0) => {
   const scale = 10 ** places;
@@ -156,6 +158,268 @@ export const wasteAnalytics = (state, today = state.day) => {
       6,
       today,
     ).map(({ key, label, spend }) => ({ key, label, cost: spend })),
+  };
+};
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MEASUREMENT_DAYS = 30;
+const MINIMUM_TREND_TRIPS = 4;
+const EMERGENCY_SHOP_MAX_ITEMS = 2;
+const DUPLICATE_PURCHASE_WINDOW_DAYS = 7;
+const TIME_SAVED_MODEL = {
+  consolidatedLineMinutes: 2,
+  purchaseWarningMinutes: 1,
+};
+
+const isDate = (value) => DATE_RE.test(String(value || ''));
+
+const inDateWindow = (value, start, end) => {
+  const date = String(value || '');
+  return isDate(date) && date >= start && date <= end;
+};
+
+const dayDistance = (from, to) => {
+  if (!isDate(from) || !isDate(to)) return Infinity;
+  return Math.abs(
+    (new Date(`${to}T12:00:00`).getTime() - new Date(`${from}T12:00:00`).getTime()) / 86400000,
+  );
+};
+
+const datedShops = (shops = []) => shops
+  .map((shop, index) => ({ shop, index }))
+  .filter(({ shop }) => isDate(shop.date))
+  .sort((a, b) => String(a.shop.date).localeCompare(String(b.shop.date)) || a.index - b.index);
+
+const splitShopHistory = (shops = []) => {
+  const rows = datedShops(shops);
+  if (rows.length < MINIMUM_TREND_TRIPS) return null;
+  const splitAt = Math.ceil(rows.length / 2);
+  return {
+    rows,
+    splitAt,
+    baseline: rows.slice(0, splitAt),
+    recent: rows.slice(splitAt),
+    boundary: rows[splitAt]?.shop.date || '',
+  };
+};
+
+const relativeReduction = (baseline, recent) => (
+  baseline > 0 ? round(((baseline - recent) / baseline) * 100, 1) : null
+);
+
+const trendFor = (baselineValue, recentValue) => ({
+  baseline: round(baselineValue, 1),
+  recent: round(recentValue, 1),
+  reductionPct: relativeReduction(baselineValue, recentValue),
+});
+
+const itemCount = (shop) => (shop.items || []).filter((item) => String(item.name || '').trim()).length;
+
+const emergencyShop = (shop) => itemCount(shop) > 0 && itemCount(shop) <= EMERGENCY_SHOP_MAX_ITEMS;
+
+const rate = (numerator, denominator) => (denominator ? round((numerator / denominator) * 100, 1) : null);
+
+const plannedMealCompletion = (state, today, start) => {
+  const planned = Object.entries(state.plan || {}).flatMap(([date, day]) => {
+    if (!inDateWindow(date, start, today)) return [];
+    return SLOT_KEYS
+      .filter((slot) => day?.[slot])
+      .map((slot) => ({ date, slot, recipeId: day[slot] }));
+  });
+  const cooked = new Map();
+  (state.cooked || []).forEach((entry) => {
+    if (!inDateWindow(entry.date, start, today) || !entry.recipeId) return;
+    const key = `${entry.date}|${entry.recipeId}`;
+    cooked.set(key, (cooked.get(key) || 0) + 1);
+  });
+  let completed = 0;
+  planned.forEach((entry) => {
+    const key = `${entry.date}|${entry.recipeId}`;
+    const available = cooked.get(key) || 0;
+    if (available > 0) {
+      completed += 1;
+      cooked.set(key, available - 1);
+    }
+  });
+  return {
+    days: MEASUREMENT_DAYS,
+    planned: planned.length,
+    completed,
+    incomplete: Math.max(0, planned.length - completed),
+    completionPct: rate(completed, planned.length),
+  };
+};
+
+const duplicatePurchaseRows = (shops = []) => {
+  const lastPurchased = new Map();
+  const rows = [];
+  datedShops(shops).forEach(({ shop }, shopIndex) => {
+    const keys = new Set();
+    (shop.items || []).forEach((item) => {
+      const key = shoppingNameKey(item.name);
+      if (!key) return;
+      const previous = lastPurchased.get(key);
+      rows.push({
+        shopDate: shop.date,
+        shopIndex,
+        key,
+        duplicate: Boolean(previous && dayDistance(previous, shop.date) <= DUPLICATE_PURCHASE_WINDOW_DAYS),
+      });
+      keys.add(key);
+    });
+    keys.forEach((key) => lastPurchased.set(key, shop.date));
+  });
+  return rows;
+};
+
+const measurementWindow = (today) => ({
+  start: addDays(today, -MEASUREMENT_DAYS + 1),
+  end: today,
+});
+
+const timeSavedMeasurement = (state) => {
+  const list = state.shoppingList || [];
+  const consolidatedLines = list.reduce((total, item) => {
+    const recipeSources = Math.max(
+      Array.isArray(item.forRecipes) ? item.forRecipes.length : 0,
+      Array.isArray(item.sourceRecipes) ? item.sourceRecipes.length : 0,
+    );
+    const alternateNames = Array.isArray(item.alsoKnownAs) ? item.alsoKnownAs.length : 0;
+    return total + Math.max(0, recipeSources - 1) + alternateNames;
+  }, 0);
+  const purchaseWarnings = list.filter((item) => item.purchaseWarning).length;
+  const estimatedMinutes = (consolidatedLines * TIME_SAVED_MODEL.consolidatedLineMinutes)
+    + (purchaseWarnings * TIME_SAVED_MODEL.purchaseWarningMinutes);
+  return {
+    estimatedMinutes: estimatedMinutes || null,
+    confidence: 'proxy',
+    consolidatedLines,
+    purchaseWarnings,
+    model: TIME_SAVED_MODEL,
+    explanation: 'Proxy estimate from consolidated list lines and recent-purchase warnings; no stopwatch data is recorded.',
+  };
+};
+
+const emergencyShopMeasurement = (shops) => {
+  const emergency = shops.filter(emergencyShop).length;
+  const history = splitShopHistory(shops);
+  let trend = null;
+  if (history) {
+    const baselineEmergency = history.baseline.filter(({ shop }) => emergencyShop(shop)).length;
+    const recentEmergency = history.recent.filter(({ shop }) => emergencyShop(shop)).length;
+    trend = trendFor(
+      rate(baselineEmergency, history.baseline.length) || 0,
+      rate(recentEmergency, history.recent.length) || 0,
+    );
+  }
+  return {
+    definition: `recorded shop with ${EMERGENCY_SHOP_MAX_ITEMS} or fewer named items`,
+    trips: shops.length,
+    emergencyTrips: emergency,
+    rate: rate(emergency, shops.length),
+    trend,
+    readyForTrend: Boolean(history),
+    minimumTrips: MINIMUM_TREND_TRIPS,
+  };
+};
+
+const duplicatePurchaseMeasurement = (state, shops) => {
+  const rows = duplicatePurchaseRows(shops);
+  const duplicates = rows.filter((row) => row.duplicate).length;
+  const history = splitShopHistory(shops);
+  let trend = null;
+  if (history) {
+    const baselineRows = rows.filter((row) => row.shopIndex < history.splitAt);
+    const recentRows = rows.filter((row) => row.shopIndex >= history.splitAt);
+    trend = trendFor(
+      rate(baselineRows.filter((row) => row.duplicate).length, baselineRows.length) || 0,
+      rate(recentRows.filter((row) => row.duplicate).length, recentRows.length) || 0,
+    );
+  }
+  return {
+    definition: `same item bought again within ${DUPLICATE_PURCHASE_WINDOW_DAYS} days of a recorded shop (proxy)`,
+    itemLines: rows.length,
+    duplicateLines: duplicates,
+    rate: rate(duplicates, rows.length),
+    recentPurchaseWarnings: (state.shoppingList || []).filter((item) => item.purchaseWarning).length,
+    trend,
+    readyForTrend: Boolean(history),
+    minimumTrips: MINIMUM_TREND_TRIPS,
+  };
+};
+
+const wasteReductionMeasurement = (state, shops, today, start) => {
+  const waste = state.waste || [];
+  const windowRows = waste.filter((row) => inDateWindow(row.date, start, today));
+  const history = splitShopHistory(shops);
+  let trend = null;
+  if (history) {
+    const baselineCost = sum(waste.filter((row) => isDate(row.date) && row.date < history.boundary), (row) => row.cost);
+    const recentCost = sum(waste.filter((row) => isDate(row.date) && row.date >= history.boundary), (row) => row.cost);
+    const baselineRate = baselineCost / (history.baseline.length || 1);
+    const recentRate = recentCost / (history.recent.length || 1);
+    trend = {
+      ...trendFor(baselineRate, recentRate),
+      baselineCost: round(baselineCost, 2),
+      recentCost: round(recentCost, 2),
+      unit: '£ per recorded shop',
+    };
+  }
+  return {
+    definition: 'recorded waste cost per recorded shop; reductions are relative to the earlier half of shop history',
+    observedCost: round(sum(waste, (row) => row.cost), 2),
+    observedItems: waste.length,
+    window: {
+      days: MEASUREMENT_DAYS,
+      cost: round(sum(windowRows, (row) => row.cost), 2),
+      items: windowRows.length,
+    },
+    trend,
+    readyForTrend: Boolean(history),
+    minimumTrips: MINIMUM_TREND_TRIPS,
+  };
+};
+
+const pantryConfirmationMeasurement = (state, today, start) => {
+  const events = (state.pantryEvents || []).filter((event) => (
+    event.type === 'recipe_consumption'
+    && event.enabled !== false
+    && inDateWindow(event.date || event.at, start, today)
+  ));
+  const requestCounts = events.map((event) => (
+    Array.isArray(event.confirmationNeeded)
+      ? event.confirmationNeeded.length
+      : Number(event.confirmationNeeded) || 0
+  ));
+  const eventsNeedingConfirmation = requestCounts.filter((count) => count > 0).length;
+  const confirmationRequests = sum(requestCounts, (count) => count);
+  const openConflicts = (state.pantryConflicts || []).filter((conflict) => conflict.status !== 'resolved').length;
+  return {
+    days: MEASUREMENT_DAYS,
+    consumptionEvents: events.length,
+    eventsNeedingConfirmation,
+    confirmationRequests,
+    burdenPct: rate(eventsNeedingConfirmation, events.length),
+    openConflicts,
+  };
+};
+
+/**
+ * Outcome measurements for the household loop. Values are derived from
+ * recorded actions; a reduction is withheld until four dated shop trips can
+ * provide an earlier and later comparison period.
+ */
+export const measurementAnalytics = (state, today = state.day) => {
+  const { start } = measurementWindow(today);
+  const shops = state.shops || [];
+  return {
+    window: { days: MEASUREMENT_DAYS, start, end: today },
+    householdTimeSaved: timeSavedMeasurement(state),
+    emergencyShopReduction: emergencyShopMeasurement(shops),
+    duplicatePurchaseReduction: duplicatePurchaseMeasurement(state, shops),
+    foodWasteReduction: wasteReductionMeasurement(state, shops, today, start),
+    plannedMealCompletion: plannedMealCompletion(state, today, start),
+    pantryConfirmationBurden: pantryConfirmationMeasurement(state, today, start),
   };
 };
 

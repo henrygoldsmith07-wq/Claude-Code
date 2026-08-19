@@ -235,6 +235,14 @@ function Shell() {
     else if (id === 'assistant') { setGuidanceView('ask'); setGuidanceOpen(true); }
     else if (id === 'undo') undo();
   };
+  const addQuickShopping = (name) => {
+    const trimmed = name?.trim();
+    if (!trimmed) return;
+    app.addToList({ name: trimmed });
+    setLauncher(null);
+    setShopAdd((value) => value + 1);
+    setTab('shop');
+  };
 
   // Pulse: hand the host app a snapshot of the kitchen at most once a second.
   // The snapshot is numbers with dates/context, never live state — the host
@@ -437,7 +445,7 @@ function Shell() {
       </Sheet>
       <Suspense fallback={null}>
         {launcher === 'search' && <CommandPalette open onClose={() => setLauncher(null)} onRun={runResult} />}
-        {launcher === 'quick' && <QuickAdd open onClose={() => setLauncher(null)} onRun={runQuick} />}
+        {launcher === 'quick' && <QuickAdd open onClose={() => setLauncher(null)} onRun={runQuick} onAddShopping={addQuickShopping} />}
       </Suspense>
       {notice && (
         <div

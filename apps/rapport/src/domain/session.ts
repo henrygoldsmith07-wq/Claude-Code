@@ -4,6 +4,7 @@ import { lessonFor } from "./lessons";
 import { nextDifficulty, selectDailyFocus, suggestedAssistLevel } from "./recommender";
 import type { RecommendationInput } from "./recommender";
 import { atDifficulty, selectScenario } from "./scenarios";
+import { buildTrainingGuidance } from "./training";
 import { todayIso } from "./scheduling";
 import { getSkill } from "./skills";
 import type {
@@ -11,6 +12,7 @@ import type {
   Id,
   IsoDate,
   Lesson,
+  SimulationEvaluation,
   SessionStep,
   SimulationScenario,
   TrainingSession,
@@ -20,7 +22,7 @@ import type {
 // ---------------------------------------------------------------------------
 // The daily session.
 //
-// One skill, four optional steps: learn, practise, apply, reflect. The
+// One skill, up to five optional steps: learn, recycle, practise, apply, reflect. The
 // constraint that shapes everything is the time budget — five to fifteen
 // minutes — because a training system that cannot be done on a bad day gets
 // done on no days.
@@ -47,6 +49,7 @@ export interface BuildSessionInput extends RecommendationInput {
   /** Scenario ids seen recently, so practice is not the same conversation twice. */
   recentScenarioIds: Id[];
   challengeHistory: Parameters<typeof selectChallenge>[2];
+  evaluations?: SimulationEvaluation[];
   /** Overrides the engine's choice when the user picks their own focus. */
   focusSkillId?: Id;
 }
@@ -66,11 +69,21 @@ export function buildSession(input: BuildSessionInput): SessionPlan | null {
 
   const budget = sessionMinutesFor(input.preference.intensity);
   const performances = input.recentEvidence.filter((e) => e.skillId === skill.id).map((e) => e.performance);
-  const difficulty = nextDifficulty(state, performances);
+  const training = buildTrainingGuidance({
+    skillId: skill.id,
+    states: input.states,
+    recentScenarioIds: input.recentScenarioIds,
+    recentPerformances: performances,
+    evaluations: input.evaluations ?? [],
+    focusHistory: input.focusHistory,
+    now: input.now,
+    preferenceAssistLevel: input.preference.assistLevel,
+  });
+  const difficulty = training?.scenario?.difficulty ?? nextDifficulty(state, performances);
 
   const lesson = lessonFor(skill.id);
   const baseScenario = selectScenario(skill.id, state, input.recentScenarioIds);
-  const scenario = baseScenario ? atDifficulty(baseScenario, difficulty) : null;
+  const scenario = training?.scenario?.scenario ?? (baseScenario ? atDifficulty(baseScenario, difficulty) : null);
   const challengeSelection = selectChallenge(skill.id, state, input.challengeHistory, input.preference.contexts);
 
   const steps: SessionStep[] = [];
@@ -90,6 +103,19 @@ export function buildSession(input: BuildSessionInput): SessionPlan | null {
     spent += lesson.estimatedMinutes;
   }
 
+  // Recycle a recurring measured error before asking for another full
+  // conversation. This is deliberately small: one focused retrieval is more
+  // useful than adding a second lesson to an already tight session.
+  if (training?.recurringError && spent + 2 <= budget) {
+    steps.push({
+      kind: "exercise",
+      refId: training.recurringError.exercise.id,
+      estimatedMinutes: 2,
+      reason: training.recurringError.message,
+    });
+    spent += 2;
+  }
+
   // Practise — the core of the session.
   if (scenario) {
     const minutes = Math.min(8, Math.max(4, budget - spent - 2));
@@ -98,7 +124,7 @@ export function buildSession(input: BuildSessionInput): SessionPlan | null {
         kind: "simulation",
         refId: scenario.id,
         estimatedMinutes: minutes,
-        reason: `Rehearsal at difficulty ${difficulty} of 5 — just above what you handled last time.`,
+        reason: training?.scenario?.reason ?? `Rehearsal at difficulty ${difficulty} of 5 — just above what you handled last time.`,
       });
       spent += minutes;
     }
@@ -138,7 +164,7 @@ export function buildSession(input: BuildSessionInput): SessionPlan | null {
       objectiveText: objectiveText(challengeSelection),
       reason: challengeSelection.reason,
     },
-    assistLevel: input.preference.assistLevel === "none" ? "none" : suggestedAssistLevel(state),
+    assistLevel: training?.assistance.level ?? (input.preference.assistLevel === "none" ? "none" : suggestedAssistLevel(state)),
   };
 }
 

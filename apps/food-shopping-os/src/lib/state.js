@@ -117,6 +117,8 @@ export const EMPTY_STATE = {
   shoppingList: [], // {id,name,emoji,aisle,store,qty,price,checked,note,priority,assigneeId}
   favouriteShopping: [], // saved products {name,emoji,aisle,qty,price,note}
   shops: [], // recorded trips {id,date,store,total,items[]}
+  shoppingPreferences: { offlineMode: false, largeTouch: false }, // local shopping controls; list data remains local-first
+  shoppingMeta: { lastChangedAt: 0, lastChangedBy: '' }, // shared-list freshness, not a second source of truth
   aisleMemory: {}, // name → the aisle you filed it under
   storeRoutes: {}, // store → the aisle order you actually walked
   offers: [], // vouchers and deals you told it about
@@ -126,7 +128,10 @@ export const EMPTY_STATE = {
   priceAlertConfig: { risePct: 15, bargainPct: 15, overrides: {} }, // receipt-only rise/bargain thresholds, 15% default, per-item tunable
   waste: [], // what you threw away, and what it cost
   /* kitchen */
-  pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
+  pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low,confidence,amountConfidence}
+  pantryConflicts: [], // quantity/source conflicts awaiting a household decision
+  pantryEvents: [], // purchase, confirmation and recipe-consumption evidence
+  lastPantryEvent: null,
   autoUsePantry: false,
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
   calendarBusy: [], // [{date,source,importedAt}] imported from a connected calendar

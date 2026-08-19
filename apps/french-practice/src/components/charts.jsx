@@ -141,7 +141,9 @@ export function TrendChart({ sessions }) {
   const w = 560;
   const h = 130;
   const pad = { l: 30, r: 10, t: 12, b: 20 };
-  const points = sessions.map((s) => s.report.average_scores.overall);
+  const points = sessions
+    .map((s) => Number(s?.report?.average_scores?.overall))
+    .filter((score) => Number.isFinite(score));
   if (points.length < 2) {
     return (
       <p className="text-xs text-ink3 italic py-6 text-center">

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from '../src/App.jsx';
 
 const onboard = () => {
@@ -43,5 +43,41 @@ describe('global UX controls', () => {
     expect(within(palette).getByLabelText('Sort results')).toBeTruthy();
     expect(within(palette).getByText(/Ctrl K/)).toBeTruthy();
     expect(within(palette).getByText(/Q.*quick add/)).toBeTruthy();
+  });
+
+  it('adds a shopping item directly from quick add', () => {
+    onboard();
+    fireEvent.keyDown(window, { key: 'q' });
+    const quick = screen.getByText('Quick add').closest('[role="dialog"]');
+    const input = within(quick).getByLabelText('Quick shopping item');
+    fireEvent.change(input, { target: { value: 'Oats' } });
+    fireEvent.submit(input.closest('form'));
+
+    expect(screen.queryByText('Quick add')).toBeNull();
+    expect(screen.getByLabelText('Tick Oats')).toBeTruthy();
+  });
+
+  it('keeps pantry capture name-first and optional', () => {
+    onboard();
+    fireEvent.click(screen.getByText('Add what’s in your cupboards'));
+    const pantry = screen.getByText('Smart pantry').closest('[role="dialog"]');
+    fireEvent.click(within(pantry).getByText('Add an item'));
+
+    const details = within(pantry).getByText(/Add details/).closest('details');
+    expect(details.open).toBe(false);
+    expect(within(pantry).getByText(/name is enough for now/)).toBeTruthy();
+    fireEvent.change(within(pantry).getByLabelText('Item name'), { target: { value: 'Rice' } });
+    fireEvent.click(within(pantry).getByText('Add to pantry'));
+    expect(within(pantry).getByText('Rice')).toBeTruthy();
+  });
+
+  it('keeps secondary home detail closed and makes offline recovery visible', async () => {
+    onboard();
+    expect(screen.getByText('Week progress').closest('details').open).toBe(false);
+
+    window.dispatchEvent(new Event('offline'));
+    await waitFor(() => expect(screen.getByText('Offline — changes stay on this device.')).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Retry household sync' })).toBeTruthy();
+    window.dispatchEvent(new Event('online'));
   });
 });

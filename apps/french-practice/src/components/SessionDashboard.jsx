@@ -151,7 +151,7 @@ export default function SessionDashboard({ open, onClose, apiKey, mockMode, scen
               </div>
             </div>
 
-            {/* trend over the last 10 sessions */}
+            {/* trend over the durable session history */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-ink2 mb-2">
                 Progress (last {pastSessions.length} session{pastSessions.length > 1 ? 's' : ''})

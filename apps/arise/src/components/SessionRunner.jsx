@@ -73,6 +73,10 @@ export default function SessionRunner({ session, history = [], onSave, onCancel 
       week: session.week,
       day: session.day,
       title: session.title,
+      mode: session.mode || 'standard',
+      targetMinutes: session.targetMinutes || null,
+      originalDurationMin: session.originalDurationMin || null,
+      rescheduledFrom: session.rescheduledFrom || null,
       blocks: blocks.map(b=> ({ exerciseId: b.exerciseId, sets: b.sets.map(s=> {
         const out = { reps: String(s.reps).trim(), weightKg: String(s.weightKg).trim(), rpe: String(s.rpe).trim() };
         if(b.unilateral && s.side) out.side = s.side;
@@ -92,7 +96,7 @@ export default function SessionRunner({ session, history = [], onSave, onCancel 
       <div className="sticky top-0 flex items-center gap-3 px-4 py-3 border-b border-line bg-surface">
         <button onClick={onCancel} className="w-9 h-9 grid place-items-center rounded-full border border-line bg-surface2" aria-label="Close session">✕</button>
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-ink3">Session</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-ink3">{session.mode === 'short' ? 'Short session' : 'Session'}</p>
           <p className="font-bold truncate">{session.title} • {session.dateISO}</p>
         </div>
         <span className="ml-auto text-xs font-bold px-2.5 py-1 rounded-full bg-surface2 border border-line tabular-nums">{volume} kg volume</span>

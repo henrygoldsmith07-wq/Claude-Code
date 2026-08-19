@@ -3,6 +3,7 @@
 // once from settings (setSpeechLanguage) so call sites don't each pass it.
 
 import { getLanguage, DEFAULT_LANG } from './languages.js';
+import { getAccent, resolveVoice } from './accents.js';
 
 let active = getLanguage(DEFAULT_LANG);
 let cachedVoice = null;
@@ -79,19 +80,23 @@ export function adaptiveTtsRate(level){
   return map[level] || 1.0;
 }
 
-export function speakLines(lines, { rate = 1, onLine, onEnd } = {}) {
+export function speakLines(lines, { rate = 1, accentId = null, onLine, onEnd } = {}) {
   if (!ttsSupported() || !lines.length) return;
   window.speechSynthesis.cancel();
   const installed = langVoices();
-  const voiceA = pickVoice() || installed[0] || null;
-  const voiceB = installed.find((v) => v !== voiceA) || voiceA;
+  const accentVoice = accentId ? resolveVoice(accentId, installed).voice : null;
+  const accent = accentId ? getAccent(accentId) : null;
+  const voiceA = accentVoice || pickVoice() || installed[0] || null;
+  const voicePool = [voiceA, ...installed.filter((voice) => voice !== voiceA)];
+  const speakers = [...new Set(lines.map((line) => line.speaker).filter(Boolean))];
   lines.forEach((line, i) => {
     const u = new SpeechSynthesisUtterance(line.fr);
-    u.lang = active.speechLang;
+    u.lang = accent?.speechLang || active.speechLang;
     u.rate = Math.min(1.5, Math.max(0.5, rate));
-    const second = line.speaker === 'B';
-    if (second ? voiceB : voiceA) u.voice = second ? voiceB : voiceA;
-    if (second && voiceB === voiceA) u.pitch = 0.8;
+    const speakerIndex = line.speaker ? Math.max(0, speakers.indexOf(line.speaker)) : 0;
+    const voice = voicePool[speakerIndex] || voiceA;
+    if (voice) u.voice = voice;
+    if (speakerIndex > 0 && voice === voiceA) u.pitch = Math.min(1.4, 0.8 + speakerIndex * 0.15);
     u.onstart = () => onLine?.(i);
     if (i === lines.length - 1 && onEnd) u.onend = onEnd;
     window.speechSynthesis.speak(u);

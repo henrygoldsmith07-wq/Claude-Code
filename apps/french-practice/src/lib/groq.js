@@ -479,7 +479,33 @@ function normalizeTurn(json) {
   };
 }
 
-export async function evaluateTurn(apiKey, { scenario, history, userText, curveball, level = 'B1', knownWords, reversed, learner, mock }) {
+function learningPlanLine(plan) {
+  if (!plan) return '';
+  const input = plan.input || {};
+  const grammar = plan.grammar || {};
+  const natural = plan.naturalSpeech || {};
+  const assistance = plan.assistance || {};
+  const correction = plan.correction || {};
+  const progression = plan.progression || {};
+  const recycling = plan.recycling || {};
+  const due = Array.isArray(recycling.due) ? recycling.due.slice(0, 3).map((entry) => entry.label || entry.key).filter(Boolean) : [];
+  return [
+    '\n\nLEARNING ADAPTATION (follow this quietly; do not mention internal scores):',
+    input.directive,
+    grammar.directive,
+    natural.directive,
+    `Assistance fade: ${assistance.translation === 'off' ? 'no English translation' : assistance.translation === 'inline' ? 'brief English glosses are allowed' : 'translate only when asked'}; offer ${assistance.starters || 0} sentence starter${assistance.starters === 1 ? '' : 's'} unless the learner asks for more challenge.`,
+    plan.sentenceComplexity?.wordCount ? `The learner's last sentence was ${plan.sentenceComplexity.band}-sized (${plan.sentenceComplexity.wordCount} words); keep the next turn manageable and add complexity gradually.` : '',
+    progression.targetLevel && progression.targetLevel !== progression.baseLevel
+      ? `Progression: gently target CEFR ${progression.targetLevel} language while keeping the turn accessible.`
+      : 'Progression: hold the current conversation challenge until more evidence accumulates.',
+    correction.directive,
+    due.length ? `Delayed recycling due: naturally revisit ${due.join(', ')} when it fits.` : '',
+    plan.sentenceTarget?.maxWords ? `Keep the partner reply within roughly ${Math.max(8, Math.round(plan.sentenceTarget.maxWords * 0.7))}–${plan.sentenceTarget.maxWords} words.` : '',
+  ].filter(Boolean).join(' ');
+}
+
+export async function evaluateTurn(apiKey, { scenario, history, userText, curveball, level = 'B1', knownWords, reversed, learner, learningPlan, mock }) {
   if (mock) return mockTurn().evaluation;
   const messages = [
     {
@@ -488,7 +514,7 @@ export async function evaluateTurn(apiKey, { scenario, history, userText, curveb
         ? `The roles are reversed today: the learner plays this role — «${scenario.aiRole}» — and YOU play the ordinary customer / other person in the scene. Ask questions, make realistic requests, and add small complications like a real customer would.`
         : scenario.aiRole}${knownWords && knownWords.length
         ? `\n\nVocabulary the learner already knows (prefer these words and their level naturally, without artificially limiting yourself): ${knownWords.join(', ')}.`
-        : ''}${learner ? learnerLine(learner) : ''}`,
+        : ''}${learner ? learnerLine(learner) : ''}${learningPlanLine(learningPlan)}`,
     },
     ...history.flatMap((t) => [
       { role: 'user', content: t.userText },

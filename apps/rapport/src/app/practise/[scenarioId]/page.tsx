@@ -3,7 +3,8 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { atDifficulty, getScenario } from "@/domain/scenarios";
-import { suggestedAssistLevel } from "@/domain/recommender";
+import { adaptiveScenarioDifficulty, assistancePlan } from "@/domain/training";
+import { recentEvidence } from "@/domain/events";
 import { Button, Card, PageHeader, Skeleton } from "@/components/ui";
 import { SimulationRunner } from "@/components/simulation-runner";
 import { useStore } from "@/state/store";
@@ -71,10 +72,13 @@ export default function ScenarioPage({ params }: { params: Promise<{ scenarioId:
   }
 
   const state = store.states.find((item) => item.skillId === scenario.skillIds[0]);
-  const level = state ? Math.round(Math.min(5, Math.max(1, state.difficultyTolerance))) : scenario.difficulty;
+  const performances = recentEvidence(store.events)
+    .filter((item) => scenario.skillIds.includes(item.skillId))
+    .map((item) => item.performance);
+  const level = state ? adaptiveScenarioDifficulty(state, performances) : scenario.difficulty;
   const difficulty = replay.difficulty ?? level;
   const scaled = atDifficulty(scenario, Math.min(5, Math.max(1, difficulty)) as 1 | 2 | 3 | 4 | 5);
-  const assist = state ? suggestedAssistLevel(state) : "full";
+  const assist = state ? assistancePlan(state, store.preference.assistLevel).level : "full";
 
   return (
     <>

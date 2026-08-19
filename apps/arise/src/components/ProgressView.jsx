@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { deriveAttributes, levelFromAttributes } from '../lib/attributes.js';
 import { totalVolumeKg, streakDays } from '../lib/store.js';
 import { EXERCISE_BY_ID } from '../lib/data.js';
 import { weeklyVolume, frequencyByMuscleSync, volumeLandmarks, volumeDistribution, strengthSeriesWithConfidence, extractNoteRecommendations, plannedVsCompletedStats } from '../lib/analytics.js';
 import { strengthTrendWithConfidence, classifyPR } from '../lib/progression.js';
+import { exerciseHistorySummary, plateauDetection, programAdherence, recommendationCalibration, validateDeloadLogic } from '../lib/programming.js';
 
 export default function ProgressView({ store }){
   const attrs = useMemo(()=> deriveAttributes(store.history), [store.history]);
@@ -18,6 +19,18 @@ export default function ProgressView({ store }){
   const dist = useMemo(()=> volumeDistribution(history, EXERCISE_BY_ID), [history]);
   const noteRecs = useMemo(()=> extractNoteRecommendations(history), [history]);
   const adherence = useMemo(()=> plannedVsCompletedStats(store.activeSchedule, history), [store.activeSchedule, history]);
+  const programmeAdherence = useMemo(()=> programAdherence(store.activeSchedule, history), [store.activeSchedule, history]);
+  const exerciseOptions = useMemo(()=> {
+    const ids = new Set();
+    for(const session of history) for(const block of session.blocks || []) ids.add(block.exerciseId);
+    return [...ids].sort((a, b)=> (EXERCISE_BY_ID[a]?.name || a).localeCompare(EXERCISE_BY_ID[b]?.name || b));
+  }, [history]);
+  const [selectedExerciseId, setSelectedExerciseId] = useState('');
+  const exerciseId = exerciseOptions.includes(selectedExerciseId) ? selectedExerciseId : exerciseOptions[0];
+  const exerciseSummary = useMemo(()=> exerciseId ? exerciseHistorySummary(history, exerciseId) : null, [history, exerciseId]);
+  const plateau = useMemo(()=> exerciseId ? plateauDetection(history, exerciseId, { readinessLog: store.readinessLog || [] }) : null, [history, exerciseId, store.readinessLog]);
+  const deloadValidation = useMemo(()=> validateDeloadLogic({ history, readinessLog: store.readinessLog || [] }), [history, store.readinessLog]);
+  const calibration = useMemo(()=> recommendationCalibration(history), [history]);
 
   return (
     <div className="px-4 py-5 space-y-4">
@@ -38,6 +51,17 @@ export default function ProgressView({ store }){
           <p className="font-bold tabular-nums mt-1">{streak} days</p><p className="text-ink3">streak</p>
         </div>
       </div>
+
+      {store.activeSchedule && (
+        <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold">Programme adherence</h3>
+            <span className="text-xs font-black tabular-nums">{programmeAdherence.toDateRate == null ? '—' : `${Math.round(programmeAdherence.toDateRate * 100)}%`}</span>
+          </div>
+          <p className="text-xs text-ink3">{programmeAdherence.completed} completed • {programmeAdherence.missed} missed • {programmeAdherence.upcoming} upcoming. Future sessions do not lower the rate yet.</p>
+          {programmeAdherence.missed > 0 && <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Missed sessions are recoverable in order. Open Today to re-plan the schedule rather than doubling the next workout.</p>}
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         {attrs.map(a=> (
@@ -113,6 +137,49 @@ export default function ProgressView({ store }){
         )}
       </section>
 
+      <section className="rounded-2xl border border-line bg-surface p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold">Exercise history</h3>
+          {!!exerciseOptions.length && (
+            <select value={exerciseId || ''} onChange={e=> setSelectedExerciseId(e.target.value)} className="max-w-[58%] rounded-xl border border-line bg-surface2 px-2 py-2 text-xs font-semibold">
+              {exerciseOptions.map(id=> <option key={id} value={id}>{EXERCISE_BY_ID[id]?.name || id}</option>)}
+            </select>
+          )}
+        </div>
+        {!exerciseSummary ? (
+          <p className="text-xs text-ink3">Log an exercise to see its session-by-session history, plateau status and next-step rule.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink3">
+              <span><strong className="text-ink">{exerciseSummary.sessions}</strong> exposures</span>
+              <span><strong className="text-ink">{exerciseSummary.best?.e1rm ? `${exerciseSummary.best.e1rm}kg` : '—'}</strong> best e1RM</span>
+              <span><strong className="text-ink">{exerciseSummary.trend.confidence}</strong> trend confidence</span>
+              <span className={plateau?.detected ? 'font-bold text-amber-800' : ''}>{plateau?.detected ? 'Plateau detected' : plateau?.status === 'fatigue' ? 'Fatigue signal' : 'No plateau'}</span>
+            </div>
+            <p className="text-xs text-ink3">{plateau?.reason || 'Keep logging consistent sets before judging a plateau.'}</p>
+            <div className="rounded-xl border border-line bg-surface2 px-3 py-2">
+              <p className="text-xs font-bold">Next step: {exerciseSummary.recommendation.reason}</p>
+              <details className="mt-1">
+                <summary className="text-[11px] font-semibold cursor-pointer">Show the rule and evidence</summary>
+                <p className="text-[11px] text-ink3 mt-1">{exerciseSummary.recommendation.rule}</p>
+                <ul className="mt-1 space-y-0.5 text-[11px] text-ink3">
+                  {exerciseSummary.recommendation.evidence.map((item, index)=> <li key={index}>• {item}</li>)}
+                </ul>
+              </details>
+            </div>
+            <ul className="space-y-1.5">
+              {exerciseSummary.rows.slice(-5).reverse().map(row=> (
+                <li key={row.sessionId || `${row.dateISO}-${row.title}`} className="flex items-center gap-2 text-xs border border-line rounded-xl px-3 py-2 bg-surface2">
+                  <span className="font-bold tabular-nums w-20">{row.dateISO}</span>
+                  <span>{row.sets} sets • {row.volumeKg}kg</span>
+                  <span className="ml-auto text-ink3">{row.best ? `${row.best.weightKg ? `${row.best.weightKg}kg × ` : ''}${row.best.reps}` : 'no loaded best'}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
       {noteRecs.length>0 && (
         <section className="rounded-2xl border border-line bg-surface p-4">
           <h3 className="text-sm font-bold">Notes → next recommendations</h3>
@@ -126,6 +193,29 @@ export default function ProgressView({ store }){
           </ul>
         </section>
       )}
+
+      <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold">Deload logic check</h3>
+          <span className={`text-[11px] font-bold px-2 py-1 rounded-full border ${deloadValidation.decision.yes ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-surface2 border-line text-ink3'}`}>{deloadValidation.decision.yes ? 'consider deload' : 'hold'} </span>
+        </div>
+        <p className="text-xs text-ink3">{deloadValidation.decision.reason}</p>
+        <p className="text-[11px] text-ink3">Signals: {deloadValidation.decision.signals.length ? deloadValidation.decision.signals.join(' • ') : 'none'} • {deloadValidation.note}</p>
+      </section>
+
+      <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold">Recommendation calibration</h3>
+          <span className="text-[11px] font-bold px-2 py-1 rounded-full border border-line bg-surface2">{calibration.status}</span>
+        </div>
+        <p className="text-xs text-ink3">{calibration.note}</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <span>{calibration.samples} comparisons</span>
+          <span>{calibration.hitRate == null ? '—' : `${Math.round(calibration.hitRate * 100)}% within target`}</span>
+          <span>{calibration.followThrough.followedPct == null ? '—' : `${calibration.followThrough.followedPct}% followed`}</span>
+          <span className="text-ink3">{calibration.confidence} confidence</span>
+        </div>
+      </section>
 
       {history.length ? (
         <section className="rounded-2xl border border-line bg-surface p-4">

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { getSrs, getGrammarProgress, getSessions, getMetrics, getSettings } from '../lib/storage';
-import { LEVELS, assistancePolicy, coverageReport, profileFor, promotionGate } from '../lib/cefr';
+import { LEVELS, coverageReport, profileFor, promotionGate } from '../lib/cefr';
 import { DIMENSIONS, nextFocus, proficiency } from '../lib/proficiency';
+import { assistanceFading, retentionCalibration } from '../lib/learningAdaptation';
 import { GRAMMAR_TOPICS } from '../lib/grammar';
 import { vocabCountByCefr } from '../lib/vocab';
 import { startPlacement, selectItem, answerItem, placementResultFrom } from '../lib/placement';
@@ -33,7 +34,9 @@ export default function Proficiency({ onXp }) {
     checkpointsPassed: countCheckpoints(evidence.sessions),
   }), [level, result, evidence.sessions]);
 
-  const assist = assistancePolicy(level, result.confidence);
+  const successStreak = evidence.sessions.slice(-3).every((session) => Number(session?.report?.average_scores?.overall) >= 80) ? 3 : 0;
+  const assist = assistanceFading({ level, confidence: result.confidence, successStreak });
+  const retention = useMemo(() => retentionCalibration(evidence.srs), [evidence.srs]);
   const coverage = useMemo(
     () => coverageReport({ grammarTopics: GRAMMAR_TOPICS, vocabByLevel: vocabCountByCefr() }),
     [],
@@ -114,6 +117,29 @@ export default function Proficiency({ onXp }) {
           <Row label="Sentence starters" value={assist.starters === 0 ? 'none' : `${assist.starters}`} />
           <Row label="Corrections" value={assist.correctionTiming} />
           <Row label="Partner simplifies" value={assist.simplifyPartner ? 'yes' : 'no'} />
+        </section>
+
+        <section className="bg-surface border border-line rounded-2xl p-4 space-y-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Retention calibration</h3>
+            <span className="text-[11px] text-ink3 tabular-nums">{retention.n} reviews</span>
+          </div>
+          {retention.ready ? (
+            <>
+              <p className="text-xs text-ink2">The scheduler predicts {Math.round(retention.predicted * 100)}% recall; observed recall is {Math.round(retention.actual * 100)}% ({retention.bias >= 0 ? '+' : ''}{Math.round(retention.bias * 100)} points).</p>
+              <div className="space-y-1">
+                {retention.curve.map((row) => (
+                  <div key={`${row.from}-${row.to}`} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-16 text-ink3 tabular-nums">{Math.round(row.from * 100)}–{Math.round(row.to * 100)}%</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-surface2 overflow-hidden"><div className="h-full bg-ink" style={{ width: `${row.actual * 100}%` }} /></div>
+                    <span className="w-12 text-right text-ink2 tabular-nums">{Math.round(row.actual * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-ink2">Keep reviewing: calibration stays provisional until {retention.needed} more prediction/outcome pairs are recorded.</p>
+          )}
         </section>
 
         <section className="bg-surface border border-line rounded-2xl p-4 space-y-1.5">

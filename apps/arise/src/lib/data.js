@@ -407,7 +407,12 @@ export function plannedVsCompleted(schedule, history){
   });
 }
 
-function toISO(d){ return d.toISOString().slice(0,10); }
+// Format the local calendar date instead of slicing toISOString(). The latter
+// can move a midnight schedule back one day on devices west of UTC.
+function toISO(d){
+  const pad = value=> String(value).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
 
 // Simple content validation used by scripts/lint-content.mjs
 export function validateContent(){

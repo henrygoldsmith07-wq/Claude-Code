@@ -6,7 +6,7 @@ export const metadata = {
   title: PRODUCT.title,
   description: PRODUCT.metaDescription,
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/logo.svg', apple: '/icon-192.png' },
+  icons: { icon: '/logo.svg', apple: '/apple-touch-icon.png' },
 };
 
 export const viewport = {

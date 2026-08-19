@@ -8,6 +8,7 @@ import { targetActions } from './target-actions.js';
 import { applyEntries, clearDates, LEFTOVER_CAT, leftoverEntry, moveMeal } from './mealplan.js';
 import { consumePantryIngredients } from './kitchen.js';
 import { canonicalName, learnAlias } from './aliases.js';
+import { consolidatePantry as consolidate, inferConsumption, normalisePantryItem, reconcilePurchase } from './pantry-intelligence.js';
 import { pantryActions } from './pantry-actions.js';
 import { healthActions, seedMeasurements } from './health-actions.js';
 import { reminderActions } from './reminder-actions.js';
@@ -23,14 +24,26 @@ import { vaultActions } from './vault-actions.js';
 import { receiptActions, shoppingActions } from './shopping-actions.js';
 import { normalisePriceAlertConfig } from './price-alerts.js';
 import { COUPON_KINDS, LOYALTY_PROGRAMMES, normaliseCoupon } from './coupons.js';
+import { duplicatePurchaseCheck } from './shopping-intelligence.js';
 export function useStoreApi({
   blockPersistence, cloudStatus, latest, setState, setStorageIssue, storageIssue,
   undoHistory, vaultKey, vaultSalt, vaultWrites, setVaultUnlocked,
 }) {
   const api = useMemo(() => {
     const set = (patch) => setState((s) => {
-      const changes = typeof patch === 'function' ? patch(s) : patch;
+      let changes = typeof patch === 'function' ? patch(s) : patch;
       if (!changes || !Object.keys(changes).length) return s;
+      const shoppingKeys = ['shoppingList', 'shops', 'favouriteShopping', 'shoppingPreferences', 'aisleMemory', 'storeRoutes', 'offers'];
+      if (Object.keys(changes).some((key) => shoppingKeys.includes(key)) && !changes.shoppingMeta) {
+        changes = {
+          ...changes,
+          shoppingMeta: {
+            ...(s.shoppingMeta || {}),
+            lastChangedAt: Date.now(),
+            lastChangedBy: s.activeMemberId || 'this device',
+          },
+        };
+      }
       if (s.healthVaultEnabled && !vaultKey.current
         && Object.keys(changes).some((key) => HEALTH_FIELDS.includes(key))) return s;
       undoHistory.current = [...undoHistory.current.slice(-29), s];
@@ -199,20 +212,29 @@ export function useStoreApi({
           if (!id || score < 1 || score > 5) return {};
           return { recipeRatings: { ...s.recipeRatings, [id]: score } };
         }),
-      addPantryItem: (item) =>
-        set((s) => (householdPermission(s, 'pantry') ? {
-          pantry: [...s.pantry, {
+      addPantryItem: (item = {}) =>
+        set((s) => {
+          if (!householdPermission(s, 'pantry')) return {};
+          const added = normalisePantryItem({
             id: uid('p'),
             emoji: emojiFor(item.name),
             low: false,
             addedAt: s.day,
             ...item,
+            name: String(item.name || '').trim(),
             // The day it went into the cupboard is the purchase day when no
-            // other date was given — freshness reads off it.
+            // other date was given — freshness and confidence read off it.
             purchaseDate: item.purchaseDate || s.day,
+            lastConfirmedAt: item.lastConfirmedAt || s.day,
+            confidenceUpdatedAt: item.confidenceUpdatedAt || s.day,
             cost: Number(item.cost) || 0,
-          }],
-        } : {})),
+          }, { learnedAliases: s.aliasMemory || {} });
+          const result = consolidate([...s.pantry, added], { learnedAliases: s.aliasMemory || {}, today: s.day });
+          return {
+            pantry: result.pantry,
+            pantryConflicts: [...(s.pantryConflicts || []), ...result.conflicts].slice(-100),
+          };
+        }),
       updatePantryItem: (id, patch) =>
         set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)) } : {})),
       removePantryItem: (id) => set((s) => (householdPermission(s, 'pantry') ? { pantry: s.pantry.filter((p) => p.id !== id) } : {})),
@@ -243,19 +265,29 @@ export function useStoreApi({
           }));
           const fresh = mergeItems(Array.isArray(items) ? items : [items])
             .filter((i) => i.name && !have.has(keyFor(i.name)))
-            .map((i) => ({
-              id: i.id || uid('s'),
-              checked: false,
-              price: Number(i.price) || 0,
-              qty: i.qty || quantities.get(keyFor(i.name)) || '',
-              note: String(i.note || '').trim(),
-              priority: i.priority === 'high' ? 'high' : 'normal',
-              emoji: i.emoji || emojiFor(i.name),
-              ...i,
-              aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
-                ? (i.aisle || guessAisle(i.name))
-                : aisleFor(i.name, s.aisleMemory),
-            }));
+            .map((i) => {
+              const check = duplicatePurchaseCheck(i, {
+                list: s.shoppingList,
+                shops: s.shops,
+                today: s.day,
+                learnedAliases: s.aliasMemory || {},
+              });
+              return {
+                id: i.id || uid('s'),
+                checked: false,
+                price: Number(i.price) || 0,
+                priceSource: i.priceSource || (Number(i.price) > 0 ? 'manual' : 'unknown'),
+                qty: i.qty || quantities.get(keyFor(i.name)) || '',
+                note: String(i.note || '').trim(),
+                priority: i.priority === 'high' ? 'high' : 'normal',
+                emoji: i.emoji || emojiFor(i.name),
+                ...i,
+                purchaseWarning: check.recentlyPurchased || null,
+                aisle: aisleFor(i.name, s.aisleMemory) === guessAisle(i.name)
+                  ? (i.aisle || guessAisle(i.name))
+                  : aisleFor(i.name, s.aisleMemory),
+              };
+            });
           return fresh.length ? { shoppingList: [...s.shoppingList, ...fresh] } : {};
         }),
       repeatLastShop: () =>
@@ -264,7 +296,7 @@ export function useStoreApi({
           if (!last?.items?.length) return {};
           const have = new Set(s.shoppingList.map((i) => shoppingNameKey(i.name)));
           const items = last.items.filter((i) => i.name && !have.has(shoppingNameKey(i.name)) && (have.add(shoppingNameKey(i.name)), true))
-            .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0,
+            .map((i) => ({ id: uid('s'), name: i.name, qty: i.qty || '', price: Number(i.price) || 0, priceSource: 'receipt',
               store: last.store || '', emoji: i.emoji || emojiFor(i.name), aisle: aisleFor(i.name, s.aisleMemory), checked: false,
               note: '', priority: 'normal' }));
           return items.length ? { shoppingList: [...s.shoppingList, ...items] } : {};
@@ -279,7 +311,31 @@ export function useStoreApi({
           };
         }),
       updateListItem: (id, patch) =>
-        set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
+        set((s) => ({ shoppingList: s.shoppingList.map((i) => (i.id === id
+          ? { ...i, ...patch, ...(Object.prototype.hasOwnProperty.call(patch || {}, 'price') ? { priceSource: Number(patch.price) > 0 ? 'manual' : 'unknown' } : {}) }
+          : i)) })),
+      substituteListItem: (id, option) =>
+        set((s) => {
+          const current = s.shoppingList.find((item) => item.id === id);
+          const name = String(option?.name || '').trim();
+          if (!current || name.length < 2 || current.name === name) return {};
+          const duplicate = s.shoppingList.find((item) => item.id !== id && shoppingNameKey(item.name) === shoppingNameKey(name));
+          if (duplicate) return {};
+          const price = Number(option.price) || 0;
+          return {
+            shoppingList: s.shoppingList.map((item) => (item.id === id ? {
+              ...item,
+              name,
+              emoji: option.emoji || emojiFor(name),
+              price,
+              priceSource: price ? (option.priceConfidence === 'receipt' ? 'receipt' : 'recorded') : 'unknown',
+              aisle: aisleFor(name, s.aisleMemory),
+              substitutedFrom: current.name,
+              substitutionWhy: option.why || option.rationale || '',
+              purchaseWarning: null,
+            } : item)),
+          };
+        }),
       moveListItem: (id, beforeId) =>
         set((s) => {
           const shoppingList = moveBefore(s.shoppingList, id, beforeId);
@@ -305,30 +361,46 @@ export function useStoreApi({
             store: shopStore,
             total: Math.round((Number(total) || 0) * 100) / 100,
             saved,
-            items: bought.map(({ name, price, qty, emoji }) => ({ name, price: Number(price) || 0, qty, emoji })),
+            items: bought.map(({ name, price, qty, emoji }) => ({
+              name,
+              price: Number(price) || 0,
+              priceSource: 'receipt',
+              recordedAt: s.day,
+              qty,
+              emoji,
+            })),
           };
           const purchaseDate = s.day;
           const route = routeFromTicks(bought);
+          const reconciled = toPantry && householdPermission(s, 'pantry')
+            ? reconcilePurchase(s.pantry, bought.map((item) => ({
+              ...item, store: shop.store, location, price: Number(item.price) || 0,
+            })), {
+              learnedAliases: s.aliasMemory || {},
+              date: purchaseDate,
+              today: s.day,
+              location,
+              idFactory: () => uid('p'),
+            })
+            : null;
+          const pantryEvent = reconciled
+            ? {
+              id: uid('pe'), type: 'purchase_reconciliation', date: s.day,
+              store: shop.store, added: reconciled.added.length,
+              merged: reconciled.matches.filter((match) => match.action === 'merged').length,
+              conflicts: reconciled.conflicts.length,
+            }
+            : null;
           return {
             shops: [...s.shops, shop],
             shoppingList: s.shoppingList.filter((i) => !bought.some((item) => item.id === i.id)),
             storeRoutes: route.length > 1 ? { ...s.storeRoutes, [shop.store]: route } : s.storeRoutes,
-            pantry: toPantry && householdPermission(s, 'pantry')
-              ? [...s.pantry, ...bought.map((i) => ({
-                  id: uid('p'),
-                  name: i.name,
-                  emoji: i.emoji,
-                  cat: 'Fresh',
-                  location,
-                  qty: i.qty || '',
-                  cost: Number(i.price) || 0,
-                  store: shop.store,
-                  expiry: null,
-                  low: false,
-                  addedAt: s.day,
-                  purchaseDate,
-                }))]
-              : s.pantry,
+            pantry: reconciled ? reconciled.pantry : s.pantry,
+            pantryConflicts: reconciled
+              ? [...(s.pantryConflicts || []), ...reconciled.conflicts].slice(-100)
+              : s.pantryConflicts,
+            pantryEvents: pantryEvent ? [...(s.pantryEvents || []), pantryEvent].slice(-100) : s.pantryEvents,
+            lastPantryEvent: pantryEvent || s.lastPantryEvent,
           };
         }),
       addOffer: (offer) =>
@@ -365,6 +437,15 @@ export function useStoreApi({
           return { priceAlertConfig: next };
         }),
       /* ---- Kitchen intelligence (Forq 10) ---- */
+      setShoppingPreferences: (patch) =>
+        set((s) => ({
+          shoppingPreferences: {
+            ...(s.shoppingPreferences || {}),
+            ...(patch || {}),
+            offlineMode: patch?.offlineMode == null ? Boolean(s.shoppingPreferences?.offlineMode) : Boolean(patch.offlineMode),
+            largeTouch: patch?.largeTouch == null ? Boolean(s.shoppingPreferences?.largeTouch) : Boolean(patch.largeTouch),
+          },
+        })),
       setStoreRoute: (store, order) =>
         set((s) => {
           const cleanStore = String(store || '').trim();
@@ -387,7 +468,18 @@ export function useStoreApi({
         set((s) => {
           const next = learnAlias(s.aliasMemory || {}, from, to);
           if (next === s.aliasMemory) return {};
-          return { aliasMemory: next };
+          const result = consolidate(s.pantry, { learnedAliases: next, today: s.day });
+          const event = {
+            id: uid('pe'), type: 'household_alias_learned', date: s.day,
+            from, to, merged: result.merged,
+          };
+          return {
+            aliasMemory: next,
+            pantry: result.pantry,
+            pantryConflicts: [...(s.pantryConflicts || []), ...result.conflicts].slice(-100),
+            pantryEvents: [...(s.pantryEvents || []), event].slice(-100),
+            lastPantryEvent: event,
+          };
         }),
       /** Alias-aware pantry consumption for one recipe's ingredient line. */
       canonicalName: (name) => canonicalName(name, latest.current.aliasMemory),
@@ -542,14 +634,24 @@ export function useStoreApi({
               learnedAliases: s.aliasMemory,
               servings: Math.max(1, Math.round(s.portions || 0)) + Math.max(0, Number(leftovers) || 0),
               recipeServings: recipe.servings,
+              today: s.day,
             })
-            : { pantry: s.pantry };
+            : { pantry: s.pantry, used: [], shortfalls: [], assumed: [], confirmationNeeded: [] };
+          const inference = inferConsumption({
+            recipe,
+            ...consumed,
+            today: s.day,
+            enabled: householdPermission(s, 'pantry') && s.autoUsePantry,
+          });
+          const pantryEvent = { id: uid('pe'), ...inference };
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
             pantry: householdPermission(s, 'pantry') && leftovers > 0
               ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
               : consumed.pantry,
+            pantryEvents: [...(s.pantryEvents || []), pantryEvent].slice(-100),
+            lastPantryEvent: pantryEvent,
           };
         }),
     };

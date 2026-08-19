@@ -1,11 +1,15 @@
 import { scheduleProgram, PROGRAM_BY_ID } from './data.js';
 
-export function todayISO(){ return new Date().toISOString().slice(0,10); }
+export function todayISO(){
+  const d = new Date();
+  const pad = value=> String(value).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
 
 export function sessionForToday(schedule){
   if(!schedule?.sessions?.length) return null;
   const t = todayISO();
-  return schedule.sessions.find(s=> s.dateISO===t) || null;
+  return schedule.sessions.find(s=> s.dateISO===t && s.status!=='done') || null;
 }
 
 export function nextSession(schedule){

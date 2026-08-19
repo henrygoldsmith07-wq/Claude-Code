@@ -5,7 +5,7 @@ import {
 import { useApp } from '../lib/store.jsx';
 import { cx, gbp, expiryStatus } from '../lib/utils.js';
 import {
-  daysUntil, expiringSoon, freshnessOf, pantryAnalytics, pantryAvailability,
+  daysUntil, expiringSoon, freshnessOf, pantryAnalytics, pantryAvailability, pantryConfidenceLevel,
   pantryTruthLabel, pantryTruthTone, pantryUseLabel, pantryUncertaintyLabel, pantryValue,
 } from '../lib/kitchen.js';
 import { expiryBuckets } from '../lib/shopping.js';
@@ -27,6 +27,7 @@ function AddItemForm() {
   const app = useApp();
   const [draft, setDraft] = useState(BLANK);
   const [added, setAdded] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const field = (k) => (v) => setDraft((d) => ({ ...d, [k]: v }));
 
   /** Stays open after saving — putting a shop away means several items in a row. */
@@ -48,62 +49,70 @@ function AddItemForm() {
         className="w-full rounded-2xl border px-4 py-3 text-[0.875rem] font-semibold outline-none"
         style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
       />
-      <div className="grid grid-cols-2 gap-2.5">
-        <label className="block">
-          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
-          <input
-            value={draft.qty}
-            onChange={(e) => field('qty')(e.target.value)}
-            placeholder="500 g, 2 tins…"
-            aria-label="Amount"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
-            style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-          />
-        </label>
-        <NumberField label="Cost" value={draft.cost} onChange={field('cost')} suffix="£" step={0.5} />
-        <label className="block">
-          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Use by</span>
-          <input
-            type="date"
-            value={draft.expiry}
-            onChange={(e) => field('expiry')(e.target.value)}
-            aria-label="Use by"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
-            style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-          />
-        </label>
-        <label className="block">
-          <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where from</span>
-          <input
-            value={draft.store}
-            onChange={(e) => field('store')(e.target.value)}
-            placeholder="Shop"
-            aria-label="Where from"
-            className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
-            style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
-          />
-        </label>
-      </div>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar">
-        {LOCATIONS.map((l) => (
-          <Chip key={l} active={draft.location === l} onClick={() => field('location')(l)}>{l}</Chip>
-        ))}
-      </div>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Stock confidence">
-        {[['definite','Definitely have'],['probable','Probably have'],['unknown','Unknown']].map(([id,label]) => (
-          <Chip key={id} active={draft.confidence === id} onClick={() => field('confidence')(id)}>{label}</Chip>
-        ))}
-      </div>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Amount confidence">
-        {[['exact','Amount known'],['approximate','Amount approx.'],['unknown','Amount unknown']].map(([id,label]) => (
-          <Chip key={id} active={draft.amountConfidence === id} onClick={() => field('amountConfidence')(id)}>{label}</Chip>
-        ))}
-      </div>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Category">
-        {CATEGORIES.map((c) => (
-          <Chip key={c} active={draft.cat === c} onClick={() => field('cat')(c)}>{c}</Chip>
-        ))}
-      </div>
+      <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+        The name is enough for now. Add an amount or use-by date only when you have it.
+      </p>
+      <details open={detailsOpen} onToggle={(event) => setDetailsOpen(event.currentTarget.open)} className="rounded-2xl border p-3" style={{ borderColor: 'var(--line)', background: 'var(--card-2)' }}>
+        <summary className="cursor-pointer list-none text-[0.75rem] font-extrabold">Add details <span className="font-semibold" style={{ color: 'var(--muted)' }}>· optional</span></summary>
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="block">
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Amount</span>
+              <input
+                value={draft.qty}
+                onChange={(e) => field('qty')(e.target.value)}
+                placeholder="500 g, 2 tins…"
+                aria-label="Amount"
+                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
+                style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+              />
+            </label>
+            <NumberField label="Cost" value={draft.cost} onChange={field('cost')} suffix="£" step={0.5} />
+            <label className="block">
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Use by</span>
+              <input
+                type="date"
+                value={draft.expiry}
+                onChange={(e) => field('expiry')(e.target.value)}
+                aria-label="Use by"
+                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
+                style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+              />
+            </label>
+            <label className="block">
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Where from</span>
+              <input
+                value={draft.store}
+                onChange={(e) => field('store')(e.target.value)}
+                placeholder="Shop"
+                aria-label="Where from"
+                className="mt-1 w-full rounded-2xl border px-3 py-2.5 text-[0.875rem] font-semibold outline-none"
+                style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+              />
+            </label>
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {LOCATIONS.map((l) => (
+              <Chip key={l} active={draft.location === l} onClick={() => field('location')(l)}>{l}</Chip>
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Stock confidence">
+            {[['definite','Definitely have'],['probable','Probably have'],['unknown','Unknown']].map(([id,label]) => (
+              <Chip key={id} active={draft.confidence === id} onClick={() => field('confidence')(id)}>{label}</Chip>
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Amount confidence">
+            {[['exact','Amount known'],['approximate','Amount approx.'],['unknown','Amount unknown']].map(([id,label]) => (
+              <Chip key={id} active={draft.amountConfidence === id} onClick={() => field('amountConfidence')(id)}>{label}</Chip>
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar" aria-label="Category">
+            {CATEGORIES.map((c) => (
+              <Chip key={c} active={draft.cat === c} onClick={() => field('cat')(c)}>{c}</Chip>
+            ))}
+          </div>
+        </div>
+      </details>
       <button
         onClick={save}
         disabled={draft.name.trim().length < 2}
@@ -146,10 +155,10 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
     let list = app.pantry;
     if (location !== 'All') list = list.filter((p) => p.location === location);
     if (category !== 'All') list = list.filter((p) => p.cat === category);
-    if (status === 'low') list = list.filter((p) => pantryAvailability(p) === 'running_low');
-    if (status === 'unknown') list = list.filter((p) => pantryAvailability(p) === 'unknown');
-    if (status === 'sufficient') list = list.filter((p) => pantryAvailability(p) === 'confirmed_sufficient');
-    if (status === 'probable') list = list.filter((p) => pantryAvailability(p) === 'probably_available');
+    if (status === 'low') list = list.filter((p) => pantryAvailability(p, app.day) === 'running_low');
+    if (status === 'unknown') list = list.filter((p) => pantryAvailability(p, app.day) === 'unknown');
+    if (status === 'sufficient') list = list.filter((p) => pantryAvailability(p, app.day) === 'confirmed_sufficient');
+    if (status === 'probable') list = list.filter((p) => pantryAvailability(p, app.day) === 'probably_available');
     if (status === 'expiring') list = list.filter((p) => p.expiry && daysUntil(p.expiry, app.day) <= 7);
     if (status === 'dated') list = list.filter((p) => p.expiry);
     if (query.trim()) {
@@ -174,6 +183,13 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
   const undated = app.pantry.filter((p) => !p.expiry).length;
   const empty = app.pantry.length === 0;
   const analytics = useMemo(() => pantryAnalytics(app.pantry, app.day), [app.pantry, app.day]);
+  const confidenceChecks = useMemo(
+    () => app.pantry
+      .map((item) => ({ item, confidence: pantryConfidenceLevel(item, app.day) }))
+      .filter(({ confidence }) => confidence.requiresConfirmation),
+    [app.pantry, app.day],
+  );
+  const conflicts = (app.pantryConflicts || []).filter((conflict) => conflict.status !== 'resolved');
 
   if (!app.householdAccess.pantry) {
     return (
@@ -241,6 +257,88 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
           />
         </Card>
       )}
+      {app.pantry.length > 1 && (
+        <button
+          onClick={() => app.consolidatePantry()}
+          className="press w-full rounded-2xl border py-2.5 text-[0.8125rem] font-extrabold"
+          style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+        >
+          Consolidate matching quantities
+        </button>
+      )}
+
+      {confidenceChecks.length > 0 && (
+        <Section title={`Check pantry confidence · ${confidenceChecks.length}`} className="!px-0">
+          <Card className="space-y-3">
+            <p className="text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              Older or uncertain stock is not silently treated as confirmed. Confirm anything you still have.
+            </p>
+            {confidenceChecks.length > 1 && (
+              <button
+                type="button"
+                onClick={() => confidenceChecks.forEach(({ item }) => app.confirmPantryItem(item.id))}
+                className="press w-full rounded-xl border px-3 py-2.5 text-[0.75rem] font-extrabold"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+              >
+                Confirm all {confidenceChecks.length} stock rows
+              </button>
+            )}
+            {confidenceChecks.slice(0, 8).map(({ item, confidence }) => (
+              <div key={item.id} className="flex items-center gap-3">
+                <Glyph e={item.emoji} size={20} style={{ color: 'var(--muted)' }} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[0.8125rem] truncate">{item.name}</p>
+                  <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{confidence.reason}</p>
+                </div>
+                <button
+                  onClick={() => app.confirmPantryItem(item.id)}
+                  aria-label={`Confirm ${item.name}`}
+                  className="press shrink-0 rounded-xl border px-2.5 py-1.5 text-[0.71875rem] font-extrabold"
+                  style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                >
+                  Confirm stock
+                </button>
+              </div>
+            ))}
+          </Card>
+        </Section>
+      )}
+
+      {conflicts.length > 0 && (
+        <Section title={`Pantry conflicts · ${conflicts.length}`} className="!px-0">
+          <Card className="space-y-3">
+            {conflicts.slice(0, 8).map((conflict) => (
+              <div key={conflict.id} className="border-b pb-3 last:border-0 last:pb-0" style={{ borderColor: 'var(--line)' }}>
+                <p className="font-bold text-[0.8125rem]">{conflict.title}</p>
+                <p className="mt-1 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>{conflict.reason}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => app.resolvePantryConflict(conflict.id, 'keep_separate')}
+                    className="press rounded-xl border px-2.5 py-1.5 text-[0.6875rem] font-extrabold"
+                    style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+                  >
+                    Keep separate
+                  </button>
+                  <button
+                    onClick={() => app.resolvePantryConflict(conflict.id, 'merge')}
+                    className="press rounded-xl border px-2.5 py-1.5 text-[0.6875rem] font-extrabold"
+                    style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                  >
+                    Merge as written
+                  </button>
+                  <button
+                    onClick={() => app.resolvePantryConflict(conflict.id, 'dismiss')}
+                    className="press rounded-xl px-2.5 py-1.5 text-[0.6875rem] font-extrabold"
+                    style={{ color: 'var(--faint)' }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </Card>
+        </Section>
+      )}
 
       {/* What's going off, and what waste has cost you */}
       {(buckets.length > 0 || app.wasted.count > 0) && (
@@ -257,7 +355,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-[0.875rem] truncate">{item.name}</p>
                       <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                        {pantryUncertaintyLabel(item)}{days !== null ? ` · ${expiryStatus(days).label}` : ''}{item.cost > 0 ? ` · ${gbp(item.cost, { always: true })}` : ''}
+                        {pantryUncertaintyLabel(item, app.day)}{days !== null ? ` · ${expiryStatus(days).label}` : ''}{item.cost > 0 ? ` · ${gbp(item.cost, { always: true })}` : ''}
                       </p>
                     </div>
                     <button
@@ -399,6 +497,7 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
               const days = p.expiry ? daysUntil(p.expiry, app.day) : null;
               const st = days === null ? null : expiryStatus(days); const useLabel = pantryUseLabel(p);
               const fresh = freshnessOf(p, app.day);
+              const confidence = pantryConfidenceLevel(p, app.day);
               const menuActions = [
                 { label: p.low ? 'Mark stocked' : 'Mark running low', onClick: () => app.togglePantryLow(p.id) },
                 { label: useLabel, onClick: () => app.usePantryItem(p.id) },
@@ -406,6 +505,9 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
                 { label: 'Add to shopping list', onClick: () => app.addToList({ name: p.name, emoji: p.emoji, qty: p.qty }) },
                 { label: 'Remove', tone: 'danger', onClick: () => app.removePantryItem(p.id) },
               ];
+              if (confidence.requiresConfirmation) {
+                menuActions.unshift({ label: 'Confirm stock', onClick: () => app.confirmPantryItem(p.id) });
+              }
               if (p.location === 'Freezer') {
                 menuActions.splice(3, 0, { label: 'Move to fridge (thaw)', onClick: () => app.updatePantryItem(p.id, { location: 'Fridge' }) });
               } else if (p.cat !== 'Leftovers') {
@@ -425,7 +527,12 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
                     <p className="font-bold text-[0.875rem] truncate">{p.name}</p>
                     <p className="text-[0.71875rem] font-semibold truncate" style={{ color: 'var(--muted)' }}>
                       {[p.qty, p.location, p.store].filter(Boolean).join(' · ') || p.cat}
-                      {fresh.kind !== 'unknown' && ` · ${fresh.label}`}
+                    </p>
+                    {fresh.kind !== 'unknown' && (
+                      <p className="text-[0.65625rem] font-semibold" style={{ color: 'var(--muted)' }}>{fresh.label}</p>
+                    )}
+                    <p className="text-[0.65625rem] font-bold" style={{ color: confidence.requiresConfirmation ? 'var(--warn)' : 'var(--faint)' }}>
+                      {pantryUncertaintyLabel(p, app.day)}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
@@ -434,6 +541,17 @@ export default function PantryView({ quickAddKey = 0, initialQuery = '', onPlan 
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
                     <button onClick={() => app.usePantryItem(p.id)} aria-label={`${useLabel} ${p.name}`} title={useLabel} className="press p-1" style={{ color: 'var(--muted)' }}><Minus size={15} /></button>
+                    {confidence.requiresConfirmation && (
+                      <button
+                        onClick={() => app.confirmPantryItem(p.id)}
+                        aria-label={`Confirm ${p.name}`}
+                        title="Confirm stock"
+                        className="press p-1"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        <Check size={15} />
+                      </button>
+                    )}
                     <button
                       onClick={() => app.togglePantryLow(p.id)}
                       aria-label={`Mark ${p.name} ${p.low ? 'stocked' : 'running low'}`}

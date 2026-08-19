@@ -1,25 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { LISTENING_KINDS, LISTENING_TRACKS, getTrack } from '../lib/listening';
-import { recordSkillScore } from '../lib/storage';
+import { recordSkillScore, recordListeningGap } from '../lib/storage';
 import { speakLines, stopSpeaking } from '../lib/tts';
 import Dictation from './Dictation';
 import AudioCourse from './AudioCourse';
 import NumberDash from './NumberDash';
 import { Volume, Play, Square, ChevronLeft, ChevronRight, Check, X, RefreshCw } from './icons';
-import { getSrs } from '../lib/storage';
+import { getSrs, getMetrics, getReviewEvents } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
-import { listeningDifficulty } from '../lib/adaptivePractice';
+import { listeningDifficultyLadder } from '../lib/learningAdaptation';
+import { playbackFor } from '../lib/accents';
 
 // Listening hub: TTS-narrated tracks (mini-podcasts, dialogues, news,
 // scenes) with listen-first transcripts, per-line highlighting, variable
 // speed, and comprehension quizzes — plus the Dictée drill.
 
-export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivity }) {
-  const adaptive = (()=>{ try{ return listeningDifficulty(getSrs(), allEntries()); }catch{ return null; } })();
+export default function Listening({ mode, onModeChange, ttsRate, level = 'B1', onXp, onActivity }) {
+  const adaptive = (() => {
+    try {
+      return listeningDifficultyLadder({ level, srs: getSrs(), entries: allEntries(), metrics: getMetrics(), reviewEvents: getReviewEvents() });
+    } catch { return null; }
+  })();
   if (mode === 'dictation') {
     return (
       <Shell title="Dictée" onBack={() => onModeChange(null)}>
-        <Dictation ttsRate={ttsRate} onXp={onXp} onActivity={onActivity} />
+        <Dictation ttsRate={ttsRate} level={level} onXp={onXp} onActivity={onActivity} />
       </Shell>
     );
   }
@@ -40,7 +45,7 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
   if (mode && getTrack(mode)) {
     return (
       <Shell title={getTrack(mode).title} onBack={() => onModeChange(null)}>
-        <TrackPlayer track={getTrack(mode)} baseRate={ttsRate} onXp={onXp} onActivity={onActivity} />
+        <TrackPlayer track={getTrack(mode)} baseRate={ttsRate} level={level} onXp={onXp} onActivity={onActivity} />
       </Shell>
     );
   }
@@ -53,7 +58,7 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
           <p className="text-xs text-ink2 mt-1">
             Train your ear: audio first, transcript after. Adjustable speed on everything.
           </p>
-          {adaptive && <p className="text-[11px] text-ink3 mt-1">Suggested: {adaptive.cefr} · {adaptive.speed.toFixed(2)}× · level {adaptive.level}</p>}
+          {adaptive && <p className="text-[11px] text-ink3 mt-1">Suggested: stage {adaptive.stage} · {adaptive.rate.toFixed(2)}× · {adaptive.label} · {adaptive.accentCount} accent{adaptive.accentCount === 1 ? '' : 's'}</p>}
         </div>
 
         <button
@@ -142,9 +147,14 @@ function Shell({ title, onBack, children }) {
   );
 }
 
-function TrackPlayer({ track, baseRate, onXp, onActivity }) {
-  const adaptive = (()=>{ try{ return listeningDifficulty(getSrs(), allEntries()); }catch{ return null; } })();
-  const [rate, setRate] = useState(adaptive?.speed || baseRate);
+function TrackPlayer({ track, baseRate, level = 'B1', onXp, onActivity }) {
+  const adaptive = (() => {
+    try {
+      return listeningDifficultyLadder({ level, srs: getSrs(), entries: allEntries(), metrics: getMetrics(), reviewEvents: getReviewEvents() });
+    } catch { return null; }
+  })();
+  const playback = playbackFor(adaptive?.stage || 1, track.id);
+  const [rate, setRate] = useState(Math.min(1.5, Math.max(0.5, (adaptive?.rate || 1) * baseRate * (playback.rate / (adaptive?.rate || 1)))));
   const [playing, setPlaying] = useState(false);
   const [currentLine, setCurrentLine] = useState(-1);
   const [listened, setListened] = useState(false);
@@ -171,6 +181,7 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
     }
     speakLines(track.lines, {
       rate,
+      accentId: playback.accentId,
       onLine: setCurrentLine,
       onEnd: () => {
         setPlaying(false);
@@ -190,7 +201,14 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
 
   const answer = (i) => {
     if (quiz.picked != null) return;
-    const correct = i === track.questions[quiz.index].answer;
+    const question = track.questions[quiz.index];
+    const correct = i === question.answer;
+    recordListeningGap(`${track.id}:${quiz.index}`, {
+      label: question.q,
+      score: correct ? 100 : 0,
+      source: 'listening-quiz',
+      context: { trackId: track.id, questionIndex: quiz.index },
+    });
     setQuiz({ ...quiz, picked: i, correct: quiz.correct + (correct ? 1 : 0) });
   };
 
@@ -227,6 +245,9 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
               : 'Recording not installed — playing with TTS (see public/audio/README.md).'}
           </p>
         )}
+        <p className="text-[11px] text-ink3 text-center">
+          Stage {adaptive?.stage || 1} · {playback.accentLabel} · {new Set(track.lines.map((line) => line.speaker).filter(Boolean)).size || 1} speaker{(new Set(track.lines.map((line) => line.speaker).filter(Boolean)).size || 1) === 1 ? '' : 's'}
+        </p>
         <div className="flex items-center justify-center gap-3">
           {playing ? (
             <button onClick={stop} aria-label="Stop" className="btn btn-primary w-14 h-14 rounded-full">

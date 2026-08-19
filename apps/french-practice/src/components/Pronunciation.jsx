@@ -5,7 +5,7 @@ import { randomPoolSentence, toWords, diffWords, displayHits } from '../lib/sent
 import { transcribe, accentFeedback, friendlyError } from '../lib/groq';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
-import { recordSkillScore } from '../lib/storage';
+import { recordSkillScore, recordPronunciationGap } from '../lib/storage';
 import { speak, stopSpeaking, adaptiveTtsRate } from '../lib/tts';
 import { SpeakButton, Spinner } from './ui';
 import { accentToleranceScore, calibratedConfidence, PHONEMES, getPhonemeProfile, nextMinimalPair, recordPhonemeAttempt, weakestPhonemes } from '../lib/phonemeProfile';
@@ -56,7 +56,13 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
         recordSkillScore(mode === 'shadowing' ? 'speaking' : 'pronunciation', accuracy);
         const metrics = speechMetrics(heard, durationMs, activeLanguage().id);
         // Phoneme bookkeeping (light): treat underlined = miss
-        for(let i=0;i<target.length;i++) recordPhonemeAttempt('overall', { correct: hits[i], confidence: accCal });
+        for(let i=0;i<target.length;i++) recordPhonemeAttempt('overall', { correct: hits[i], confidence: accCal, trackGap: false });
+        recordPronunciationGap(`${mode}:sentence-clarity`, {
+          label: 'Sentence clarity',
+          score: accuracy,
+          source: mode === 'shadowing' ? 'shadowing' : 'read-aloud',
+          context: { missedWords: target.filter((_, i) => !hits[i]).slice(0, 8), rawAccuracy: Math.round(rawAcc * 100) },
+        });
         setPhonemeTick(t=>t+1);
         void phonemeTick; void PHONEMES; void getPhonemeProfile;
         let feedback = '';

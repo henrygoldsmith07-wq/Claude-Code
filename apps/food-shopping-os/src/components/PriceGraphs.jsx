@@ -202,6 +202,7 @@ function PriceByShop({ points }) {
 export default function PriceGraphs({ history }) {
   const options = useMemo(() => history.slice().sort((a, b) => b.times - a.times).slice(0, 12), [history]);
   const [selected, setSelected] = useState(() => options[0]?.name || '');
+  const [showGraphs, setShowGraphs] = useState(false);
 
   const entry = useMemo(() => history.find((h) => h.name === selected) || options[0] || null, [history, selected, options]);
   const points = entry?.points || [];
@@ -221,64 +222,82 @@ export default function PriceGraphs({ history }) {
   }
 
   return (
-    <Section title="Price graphs — your receipts only">
-      <p className="text-[0.75rem] font-semibold -mt-1 mb-3" style={{ color: 'var(--muted)' }}>
-        Every point is a receipt you recorded. No shop feed, no estimates — missing dates stay missing.
-      </p>
+    <Section className="rise rise-2">
+      <button
+        type="button"
+        onClick={() => setShowGraphs((value) => !value)}
+        aria-expanded={showGraphs}
+        className="press flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left"
+        style={{ borderColor: 'var(--line)', background: 'var(--card)' }}
+      >
+        <span>
+          <span className="block text-[0.9375rem] font-bold tracking-tight">Price graphs — your receipts only</span>
+          <span className="mt-0.5 block text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>Open dated trends and shop comparisons</span>
+        </span>
+        <span className="shrink-0 text-[0.71875rem] font-extrabold" style={{ color: 'var(--accent)' }}>{showGraphs ? 'Hide' : 'Show'}</span>
+      </button>
 
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-5 px-5">
-        {options.map((p) => (
-          <Chip key={p.name} active={p.name === entry.name} onClick={() => setSelected(p.name)}>
-            <span className="inline-flex items-center gap-1.5"><Glyph e={p.emoji} size={12} /> {p.name}</span>
-          </Chip>
-        ))}
-      </div>
+      {showGraphs && (
+        <>
+          <p className="mt-3 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Every point is a receipt you recorded. No shop feed, no estimates — missing dates stay missing.
+          </p>
 
-      {entry && (
-        <div className="mt-3 space-y-3">
-          <Card>
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="min-w-0">
-                <p className="font-extrabold text-[0.9375rem] flex items-center gap-1.5"><Glyph e={entry.emoji} size={16} /> {entry.name}</p>
-                <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                  {entry.times} receipt{entry.times === 1 ? '' : 's'} · latest {gbp(entry.latest, { always: true })}
-                  {entry.change !== null && entry.times > 1 && (
-                    <span className="ml-1.5 font-bold" style={{ color: entry.change > 0 ? 'var(--danger)' : entry.change < 0 ? 'var(--good)' : 'var(--faint)' }}>
-                      {entry.change > 0 ? `▲ ${gbp(entry.change, { always: true })}` : entry.change < 0 ? `▼ ${gbp(-entry.change, { always: true })}` : '· flat'} vs previous
-                    </span>
-                  )}
-                  {entry.bestStore && ` · cheapest ${gbp(entry.best, { always: true })} at ${entry.bestStore}`}
-                </p>
-              </div>
-              {entry.prices.length > 1 && <span className="hidden sm:inline-flex"><Pill tone={entry.change > 0 ? 'danger' : entry.change < 0 ? 'good' : 'muted'}>{entry.times} points</Pill></span>}
+          <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-5 px-5">
+            {options.map((p) => (
+              <Chip key={p.name} active={p.name === entry.name} onClick={() => setSelected(p.name)}>
+                <span className="inline-flex items-center gap-1.5"><Glyph e={p.emoji} size={12} /> {p.name}</span>
+              </Chip>
+            ))}
+          </div>
+
+          {entry && (
+            <div className="mt-3 space-y-3">
+              <Card>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-[0.9375rem] flex items-center gap-1.5"><Glyph e={entry.emoji} size={16} /> {entry.name}</p>
+                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                      {entry.times} receipt{entry.times === 1 ? '' : 's'} · latest {gbp(entry.latest, { always: true })}
+                      {entry.change !== null && entry.times > 1 && (
+                        <span className="ml-1.5 font-bold" style={{ color: entry.change > 0 ? 'var(--danger)' : entry.change < 0 ? 'var(--good)' : 'var(--faint)' }}>
+                          {entry.change > 0 ? `▲ ${gbp(entry.change, { always: true })}` : entry.change < 0 ? `▼ ${gbp(-entry.change, { always: true })}` : '· flat'} vs previous
+                        </span>
+                      )}
+                      {entry.bestStore && ` · cheapest ${gbp(entry.best, { always: true })} at ${entry.bestStore}`}
+                    </p>
+                  </div>
+                  {entry.prices.length > 1 && <span className="hidden sm:inline-flex"><Pill tone={entry.change > 0 ? 'danger' : entry.change < 0 ? 'good' : 'muted'}>{entry.times} points</Pill></span>}
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[0.6875rem] font-extrabold uppercase tracking-wide flex items-center gap-1.5 mb-2" style={{ color: 'var(--faint)' }}>
+                      <TrendingUp size={12} /> Over time
+                    </p>
+                    <PriceTimeline points={points} />
+                  </div>
+
+                  <div className="pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
+                    <p className="text-[0.6875rem] font-extrabold uppercase tracking-wide flex items-center gap-1.5 mb-2.5" style={{ color: 'var(--faint)' }}>
+                      <Store size={12} /> By shop
+                    </p>
+                    <PriceByShop points={points} />
+                  </div>
+                </div>
+              </Card>
+
+              {entry.times === 1 && (
+                <Card className="flex gap-2.5 !py-3">
+                  <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
+                  <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    One dot is all we have for {entry.name} — buy it again (any shop) and the line and shop comparison unlock.
+                  </p>
+                </Card>
+              )}
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-[0.6875rem] font-extrabold uppercase tracking-wide flex items-center gap-1.5 mb-2" style={{ color: 'var(--faint)' }}>
-                  <TrendingUp size={12} /> Over time
-                </p>
-                <PriceTimeline points={points} />
-              </div>
-
-              <div className="pt-3 border-t" style={{ borderColor: 'var(--line)' }}>
-                <p className="text-[0.6875rem] font-extrabold uppercase tracking-wide flex items-center gap-1.5 mb-2.5" style={{ color: 'var(--faint)' }}>
-                  <Store size={12} /> By shop
-                </p>
-                <PriceByShop points={points} />
-              </div>
-            </div>
-          </Card>
-
-          {entry.times === 1 && (
-            <Card className="flex gap-2.5 !py-3">
-              <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--muted)' }} />
-              <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                One dot is all we have for {entry.name} — buy it again (any shop) and the line and shop comparison unlock.
-              </p>
-            </Card>
           )}
-        </div>
+        </>
       )}
     </Section>
   );

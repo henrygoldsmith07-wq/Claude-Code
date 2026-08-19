@@ -1,17 +1,23 @@
 import { useMemo, useState } from 'react';
 import { randomPoolSentence as randomSentence, toWords, diffWords } from '../lib/sentences';
-import { recordSkillScore, getSrs } from '../lib/storage';
+import { recordSkillScore, recordListeningGap, getSrs } from '../lib/storage';
 import { speak, stopSpeaking } from '../lib/tts';
 import { Play, Volume, RefreshCw, Check } from './icons';
-import { dictationSpeed, diacriticStrict, levelForSrs, DICTATION_LEVELS } from '../lib/dictationProgression';
+import { dictationSpeed, diacriticStrict, DICTATION_LEVELS } from '../lib/dictationProgression';
 import { allEntries } from '../lib/vocab';
+import { getMetrics, getReviewEvents } from '../lib/storage';
+import { listeningDifficultyLadder } from '../lib/learningAdaptation';
 
 // Dictée: pure listening drill. The app speaks a French sentence the learner
 // cannot see; they type what they heard and get a word-level diff + accuracy
 // score. Everything runs locally (TTS + diff) — no API calls.
 
-export default function Dictation({ ttsRate, onXp, onActivity }) {
-  const level = (()=>{ try{ return levelForSrs(getSrs(), allEntries()); }catch{ return 1; } })();
+export default function Dictation({ ttsRate, level: cefr = 'B1', onXp, onActivity }) {
+  const level = (() => {
+    try {
+      return listeningDifficultyLadder({ level: cefr, srs: getSrs(), entries: allEntries(), metrics: getMetrics(), reviewEvents: getReviewEvents() }).stage;
+    } catch { return 1; }
+  })();
   const lvlMeta = DICTATION_LEVELS.find(l=> l.id===level) || DICTATION_LEVELS[0];
   const speed = dictationSpeed(level);
   const strict = diacriticStrict(level);
@@ -35,6 +41,12 @@ export default function Dictation({ ttsRate, onXp, onActivity }) {
     const matched = hits.filter(Boolean).length;
     const accuracy = Math.round((matched / Math.max(1, target.length)) * 100);
     const gained = Math.max(1, Math.round(accuracy / 10));
+    recordListeningGap(sentence.id || sentence.text, {
+      label: sentence.text,
+      score: accuracy,
+      source: 'dictation',
+      context: { missedWords: target.filter((_, index) => !hits[index]).slice(0, 8) },
+    });
     onXp(gained);
     onActivity?.({ type: 'dictation', accuracy });
     recordSkillScore('listening', accuracy);
