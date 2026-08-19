@@ -5,6 +5,7 @@ import { EXERCISE_BY_ID } from '../lib/data.js';
 import { weeklyVolume, frequencyByMuscleSync, volumeLandmarks, volumeDistribution, strengthSeriesWithConfidence, extractNoteRecommendations, plannedVsCompletedStats } from '../lib/analytics.js';
 import { strengthTrendWithConfidence, classifyPR } from '../lib/progression.js';
 import { exerciseHistorySummary, plateauDetection, programAdherence, recommendationCalibration, validateDeloadLogic } from '../lib/programming.js';
+import { badSessionAttribution, plateauAttribution } from '../lib/sessionQuality.js';
 
 export default function ProgressView({ store }){
   const attrs = useMemo(()=> deriveAttributes(store.history), [store.history]);
@@ -31,6 +32,14 @@ export default function ProgressView({ store }){
   const plateau = useMemo(()=> exerciseId ? plateauDetection(history, exerciseId, { readinessLog: store.readinessLog || [] }) : null, [history, exerciseId, store.readinessLog]);
   const deloadValidation = useMemo(()=> validateDeloadLogic({ history, readinessLog: store.readinessLog || [] }), [history, store.readinessLog]);
   const calibration = useMemo(()=> recommendationCalibration(history), [history]);
+  const badAttribution = useMemo(()=> badSessionAttribution(history, { readinessLog: store.readinessLog || [] }), [history, store.readinessLog]);
+  const plateauRows = useMemo(()=>{
+    const ids=[...new Set(history.flatMap(h=> (h.blocks||[]).map(b=> b.exerciseId)))];
+    return ids.map(exerciseId=> ({ exerciseId, result: plateauAttribution(history, exerciseId, { readinessLog: store.readinessLog || [] }) }))
+      .filter(row=> row.result.kind !== 'insufficient')
+      .sort((a,b)=> (a.result.kind==='genuine'?0:1) - (b.result.kind==='genuine'?0:1))
+      .slice(0,5);
+  }, [history, store.readinessLog]);
 
   return (
     <div className="px-4 py-5 space-y-4">
@@ -82,6 +91,30 @@ export default function ProgressView({ store }){
           </div>
         )}
         {!!wv.length && <p className="text-xs text-ink3 mt-2">{wv[wv.length-1]?.vol> (wv[wv.length-2]?.vol||0)*1.2 ? `Volume up ${Math.round((wv[wv.length-1].vol/(wv[wv.length-2]?.vol||1)-1)*100)}% vs last week — hold steady or deload if RPE was high.` : wv[wv.length-1]?.vol < (wv[wv.length-2]?.vol||0)*0.8 ? 'Volume dipped — good if planned deload, otherwise add a session.' : 'Trends look steady — keep progressing where RIR ≥2.'}</p>}
+      </section>
+
+      <section className="rounded-2xl border border-line bg-surface p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-bold">Training feedback</h3>
+          <p className="text-xs text-ink3">Separates a genuine plateau from fatigue or an isolated bad session.</p>
+        </div>
+        <div className="rounded-xl border border-line bg-surface2 px-3 py-2.5">
+          <p className="text-xs font-bold">Recent session attribution <span className="font-normal text-ink3">({badAttribution.confidence} confidence)</span></p>
+          <p className="text-xs mt-1">{badAttribution.reason}</p>
+          {!!badAttribution.evidence?.length && <p className="text-[11px] text-ink3 mt-1">Evidence: {badAttribution.evidence.join(' · ')}</p>}
+          <p className="text-[11px] text-ink3 mt-1">Next: {badAttribution.action}</p>
+        </div>
+        {!!plateauRows.length && <div className="space-y-2">
+          {plateauRows.map(row=> {
+            const ex=EXERCISE_BY_ID[row.exerciseId];
+            const kind=row.result.kind==='bad-sessions' ? 'fatigue-driven' : row.result.kind;
+            return <div key={row.exerciseId} className="rounded-xl border border-line bg-surface2 px-3 py-2.5">
+              <div className="flex items-center gap-2"><p className="text-xs font-bold truncate">{ex?.name || row.exerciseId}</p><span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-ink3">{kind}</span></div>
+              <p className="text-[11px] mt-1">{row.result.reason}</p>
+              <p className="text-[11px] text-ink3 mt-1">Next: {row.result.action}</p>
+            </div>;
+          })}
+        </div>}
       </section>
 
       {!!Object.keys(landmarks).length && (

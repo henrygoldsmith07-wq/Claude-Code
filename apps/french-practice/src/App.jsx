@@ -33,8 +33,7 @@ import {
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
-  setOnboarded, setLastActivity, getLastActivity,
-  recordSpeakingGap,
+  setOnboarded, setLastActivity, getLastActivity, recordSpeakingGap, recordLearningActivity,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries, dueEntries } from './lib/memory';
@@ -328,6 +327,8 @@ export default function App() {
   };
 
   const handleActivity = (evt) => {
+    if (!evt || typeof evt !== 'object') return;
+    recordLearningActivity(evt);
     const labels = {
       cards: 'Flashcard review',
       dictation: 'Dictée practice',
@@ -335,6 +336,9 @@ export default function App() {
       session: evt.scenarioId ? `Conversation: ${getScenarios().find((x) => x.id === evt.scenarioId)?.title || ''}` : null,
       grammar: evt.topicId ? `Grammar: ${getGrammarTopic(evt.topicId)?.title || ''}` : null,
       listening: evt.trackId ? `Listening: ${getTrack(evt.trackId)?.title || ''}` : null,
+      pronunciation: 'Pronunciation practice',
+      speaking: 'Exam speaking',
+      writing: 'Writing practice',
       reading: 'Reading practice',
     };
     if (labels[evt.type]) setLastActivity(evt.type, evt.scenarioId || evt.topicId || evt.trackId || evt.textId, labels[evt.type]);

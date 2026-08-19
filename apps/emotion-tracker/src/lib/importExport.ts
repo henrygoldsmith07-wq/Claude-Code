@@ -3,7 +3,7 @@
 // file must never silently wipe or corrupt the vault. Every check here is pure
 // and unit-testable, so the UI handler stays a thin wrapper.
 
-import type { Entry, LongitudinalReview, Message, ReflectionSummary } from "./types";
+import type { Entry, LongitudinalReview, Message, ReflectionMode, ReflectionSummary } from "./types";
 
 export const MAX_IMPORT_ENTRIES = 2000;
 export const MAX_MESSAGES_PER_ENTRY = 200;
@@ -41,6 +41,7 @@ export function sanitizeEntry(raw: unknown, index: number): Entry | null {
   const createdAt = validDate(r.createdAt) ? r.createdAt : new Date().toISOString();
   const title = typeof r.title === "string" && r.title.trim() ? r.title.slice(0, MAX_TITLE_CHARS) : "Imported reflection";
   const status: Entry["status"] = r.status === "in_progress" ? "in_progress" : "complete";
+  const mode: ReflectionMode = r.mode === "quick" ? "quick" : "full";
 
   // messages: only well-formed {role, content} pairs with known roles, capped
   const messages: Message[] = Array.isArray(r.messages)
@@ -84,7 +85,7 @@ export function sanitizeEntry(raw: unknown, index: number): Entry | null {
   // in_progress entries must have messages to be useful; otherwise mark complete
   const finalStatus: Entry["status"] = status === "in_progress" && messages.length === 0 ? "complete" : status;
 
-  return { id, createdAt, title, messages, status: finalStatus, summary, longitudinalReview };
+  return { id, createdAt, title, messages, status: finalStatus, mode, summary, longitudinalReview };
 }
 
 /**
@@ -100,7 +101,7 @@ export function parseImport(text: string): ImportOutcome {
     return { ok: false, entries: [], warnings: [], error: "Not valid JSON — nothing was imported." };
   }
   if (isEncryptedBlob(parsed)) {
-    return { ok: false, entries: [], warnings: [], error: "That looks like an encrypted vault export. Restore it with its passphrase (Privacy → Restore vault) instead of importing it as plaintext." };
+    return { ok: false, entries: [], warnings: [], error: "That looks like an encrypted vault export. Restore it with its passphrase (Settings → Restore vault) instead of importing it as plaintext." };
   }
   if (!Array.isArray(parsed)) {
     return { ok: false, entries: [], warnings: [], error: "Expected a JSON array of reflections." };

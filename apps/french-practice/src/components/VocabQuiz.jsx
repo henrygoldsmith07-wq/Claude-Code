@@ -103,9 +103,15 @@ export default function VocabQuiz({ deck, library, title, onRate, onXp, onActivi
     if (result) return; // already answered
     setResult(correct ? 'right' : 'wrong');
     setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
-    rateCard(entry.id, correct ? 'good' : 'again', { mode: cardMode, label: entry.fr, skill: 'vocabulary' });
+    rateCard(entry.id, correct ? 'good' : 'again', {
+      mode: cardMode,
+      skill: 'vocabulary',
+      itemLabel: entry.fr,
+      label: entry.fr,
+      source: 'vocab-quiz',
+    });
     onRate?.();
-    onActivity?.({ type: 'cards', rating: correct ? 'good' : 'again' });
+    onActivity?.({ type: 'cards', rating: correct ? 'good' : 'again', itemId: entry.id, itemLabel: entry.fr, mode: cardMode });
     if (correct) onXp?.(5);
   };
 

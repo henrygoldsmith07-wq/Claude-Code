@@ -2,6 +2,8 @@ import { openDB } from "idb";
 import type { DBSchema, IDBPDatabase } from "idb";
 import { SCORING_MODEL_VERSION, recomputeStates } from "@/domain/events";
 import type { DomainEvent } from "@/domain/events";
+import { emptyHumanEvidence } from "@/domain/human-evidence";
+import type { HumanEvidenceState } from "@/domain/human-evidence";
 import { redact, shouldRedact } from "@/domain/reflection";
 import type {
   Achievement,
@@ -40,6 +42,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const LOCAL_USER_ID = "local";
+export const HUMAN_EVIDENCE_META_KEY = "humanEvidence";
 const DB_NAME = "rapport";
 const DB_VERSION = 1;
 
@@ -146,6 +149,17 @@ export async function dismissedInsightIds(): Promise<string[]> {
 export async function saveDismissedInsightIds(ids: string[]): Promise<void> {
   const database = await db();
   await database.put("meta", ids, "dismissedInsights");
+}
+
+/** The research workspace is local-first and travels with the normal export. */
+export async function getHumanEvidence(): Promise<HumanEvidenceState> {
+  const database = await db();
+  return ((await database.get("meta", HUMAN_EVIDENCE_META_KEY)) as HumanEvidenceState | undefined) ?? emptyHumanEvidence();
+}
+
+export async function saveHumanEvidence(state: HumanEvidenceState): Promise<void> {
+  const database = await db();
+  await database.put("meta", state, HUMAN_EVIDENCE_META_KEY);
 }
 
 let eventCounter = 0;
@@ -308,9 +322,15 @@ export async function snapshot(now: string): Promise<Snapshot> {
 }
 
 /** Full export: the snapshot plus the raw event log, so a copy is self-sufficient. */
-export async function exportAll(now: string): Promise<{ exportedAt: string; version: number; snapshot: Snapshot; events: DomainEvent[] }> {
-  const [data, events] = await Promise.all([snapshot(now), allEvents()]);
-  return { exportedAt: now, version: SCORING_MODEL_VERSION, snapshot: data, events };
+export async function exportAll(now: string): Promise<{
+  exportedAt: string;
+  version: number;
+  snapshot: Snapshot;
+  events: DomainEvent[];
+  humanEvidence: HumanEvidenceState;
+}> {
+  const [data, events, humanEvidence] = await Promise.all([snapshot(now), allEvents(), getHumanEvidence()]);
+  return { exportedAt: now, version: SCORING_MODEL_VERSION, snapshot: data, events, humanEvidence };
 }
 
 /**
@@ -365,7 +385,10 @@ export async function applyRetention(retentionDays: number, now: string): Promis
 }
 
 /** Replace local data with an imported export. Used by restore and by sync pull. */
-export async function importAll(payload: { snapshot: Snapshot; events: DomainEvent[] }, now: string): Promise<void> {
+export async function importAll(
+  payload: { snapshot: Snapshot; events: DomainEvent[]; humanEvidence?: HumanEvidenceState },
+  now: string,
+): Promise<void> {
   await wipe();
   const database = await db();
   await saveUser(payload.snapshot.user);
@@ -396,6 +419,7 @@ export async function importAll(payload: { snapshot: Snapshot; events: DomainEve
   await putMany("exercises", payload.snapshot.generatedExercises);
   await putMany("challenges", payload.snapshot.generatedChallenges);
   await putMany("scenarios", payload.snapshot.savedScenarios);
+  if (payload.humanEvidence) await saveHumanEvidence(payload.humanEvidence);
   await refreshStates(now);
 }
 

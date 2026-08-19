@@ -1,14 +1,25 @@
 import { rateFsrs as fsrsRate, migrateFromSm2 } from './fsrs.js';
+import {
+  createLearnerErrorModel,
+  recordLearnerError as applyLearnerError,
+  recordLearnerSuccess as applyLearnerSuccess,
+  prioritiseLearnerErrors,
+  learnerErrorSummary,
+} from './learnerErrors.js';
 // Thin localStorage wrapper — the app's only persistence layer (no backend).
 
 const KEYS = {
   apiKey: 'fp.groqKey',
   sessions: 'fp.sessions', // durable array of completed session summaries
   sessionHistoryMeta: 'fp.sessionHistory.v2', // migration marker for unbounded session history
+  sessionHistory: 'fp.sessionHistory.v1', // canonical, uncapped completed-session history
+  studyEvents: 'fp.studyEvents.v1', // durable cross-mode activity/event trail
+  learnerErrors: 'fp.learnerErrors.v1', // persistent grammar/vocab/listening/pronunciation gaps
+  migrations: 'fp.storageMigrations.v1', // one-time local schema migrations
   pulseHistory: 'fp.pulse-history.v2', // versioned, transcript-free history for Pulse
   pulseOptIn: 'fp.pulse-opt-in', // Le Studio's own Pulse opt-in, separate from the mirror it gates
   reviewEvents: 'fp.reviewEvents.v2', // durable per-review events; reviewLog remains a heatmap aggregate
-  learnerErrors: 'fp.learnerErrors.v1', // persistent cross-mode error model
+  evidenceLedger: 'fp.evidenceLedger.v1', // cross-mode evidence ledger (recycling queue)
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel, theme, level, dailyGoal }
@@ -37,6 +48,9 @@ const KEYS = {
   lastActivity: 'fp.lastActivity', // { type, id?, label, at } — powers Home's continue card
   timeLog: 'fp.timeLog', // { 'YYYY-MM-DD': seconds } — time studied per day
   metrics: 'fp.metrics', // [{ skill, score, at }] — scored-activity log for analytics
+  examBoundaries: 'fp.examBoundaries.v1', // learner/teacher-supplied grade-boundary sets
+  examinerScripts: 'fp.examinerScripts.v1', // real app-vs-human marking pairs
+  realExamResults: 'fp.realExamResults.v1', // real predicted-vs-returned grades
   habitTracker: 'fp.habitTracker', // { list: [{id,name}], done: { habitId: { 'YYYY-MM-DD': true } } }
   onboarded: 'fp.onboarded', // '1' once the first-run onboarding is done/skipped
   syncId: 'fp.syncId', // stable local account id — travels with a sync snapshot
@@ -84,6 +98,67 @@ function write(key, value) {
 export const getApiKey = () => read(KEYS.apiKey, '');
 export const setApiKey = (k) => write(KEYS.apiKey, k);
 export const clearApiKey = () => localStorage.removeItem(KEYS.apiKey);
+
+export const getExamBoundarySets = () => {
+  const value = read(KEYS.examBoundaries, []);
+  return Array.isArray(value) ? value : [];
+};
+
+export function saveExamBoundarySet(set) {
+  const current = getExamBoundarySets().filter((item) => item && item.id !== set?.id);
+  const saved = {
+    ...set,
+    id: String(set?.id || `boundary-${Date.now()}`),
+    boundaries: { ...(set?.boundaries || {}) },
+    importedAt: set?.importedAt || new Date().toISOString(),
+  };
+  write(KEYS.examBoundaries, [...current, saved].slice(-50));
+  return saved;
+}
+
+export function removeExamBoundarySet(id) {
+  const next = getExamBoundarySets().filter((set) => set?.id !== id);
+  write(KEYS.examBoundaries, next);
+  return next;
+}
+
+export const getExaminerScripts = () => {
+  const value = read(KEYS.examinerScripts, []);
+  return Array.isArray(value) ? value : [];
+};
+
+export function recordExaminerMark(entry = {}) {
+  const appPercent = Number(entry.appPercent);
+  const examinerPercent = Number(entry.examinerPercent);
+  if (!Number.isFinite(appPercent) || !Number.isFinite(examinerPercent)) return null;
+  const saved = {
+    ...entry,
+    id: String(entry.id || `examiner-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+    appPercent: Math.max(0, Math.min(100, appPercent)),
+    examinerPercent: Math.max(0, Math.min(100, examinerPercent)),
+    at: entry.at || new Date().toISOString(),
+  };
+  write(KEYS.examinerScripts, [...getExaminerScripts(), saved].slice(-500));
+  return saved;
+}
+
+export const getRealExamResults = () => {
+  const value = read(KEYS.realExamResults, []);
+  return Array.isArray(value) ? value : [];
+};
+
+export function recordRealExamResult(entry = {}) {
+  if (!entry.predictedGrade || !entry.actualGrade) return null;
+  const saved = {
+    ...entry,
+    id: String(entry.id || `result-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+    predictedGrade: String(entry.predictedGrade),
+    actualGrade: String(entry.actualGrade),
+    at: entry.at || new Date().toISOString(),
+  };
+  write(KEYS.realExamResults, [...getRealExamResults(), saved].slice(-200));
+  return saved;
+}
 
 // ---- first-run onboarding gate ----
 // New visitors (no key, no XP, no sessions, no explicit flag) see the wizard.
@@ -188,68 +263,88 @@ export function setPulseOptIn(enabled) {
 
 // ---- durable session and Pulse history ------------------------------------
 
-const SESSION_HISTORY_SCHEMA = 2;
-const LEGACY_SESSION_KEYS = ['fp.sessionHistory', 'fp.sessions.v1'];
-
-function isoOrNow(value) {
-  return typeof value === 'string' && !Number.isNaN(new Date(value).getTime())
-    ? value
-    : new Date().toISOString();
+function migrationState() {
+  const state = read(KEYS.migrations, {});
+  return state && typeof state === 'object' ? state : {};
 }
 
-function normaliseSession(session, index) {
-  const savedAt = isoOrNow(session?.savedAt || session?.date);
+function markMigration(id, detail = {}) {
+  write(KEYS.migrations, { ...migrationState(), [id]: { ...detail, at: new Date().toISOString() } });
+}
+
+function normaliseSession(session, index = 0) {
+  if (!session || typeof session !== 'object') return null;
+  const date = typeof session.date === 'string' ? session.date : new Date().toISOString();
   return {
-    ...(session && typeof session === 'object' ? session : {}),
-    id: String(session?.id || `session:legacy:${index}:${savedAt}`),
-    date: isoOrNow(session?.date || savedAt),
-    savedAt,
-    historySchemaVersion: SESSION_HISTORY_SCHEMA,
+    ...session,
+    id: String(session.id || `session:migrated:${index}:${date}`),
+    date,
   };
 }
 
-function sessionArray(value) {
-  if (Array.isArray(value)) return value;
-  if (value && Array.isArray(value.sessions)) return value.sessions;
-  if (value && Array.isArray(value.items)) return value.items;
-  return [];
-}
-
 function migrateSessionHistory() {
-  const marker = read(KEYS.sessionHistoryMeta, null);
-  const primaryRaw = read(KEYS.sessions, null);
-  let source = primaryRaw;
-  let sourceKey = KEYS.sessions;
-  if (source == null || (Array.isArray(source) && source.length === 0)) {
-    for (const key of LEGACY_SESSION_KEYS) {
-      const candidate = read(key, null);
-      if (candidate != null) {
-        source = candidate;
-        sourceKey = key;
-        break;
-      }
-    }
-  }
-  const sessions = sessionArray(source).map(normaliseSession);
-  const alreadyMigrated = marker?.schemaVersion === SESSION_HISTORY_SCHEMA && Array.isArray(primaryRaw);
-  if (!alreadyMigrated || sourceKey !== KEYS.sessions || !Array.isArray(primaryRaw)) {
-    // The old UI retained only a recent window. We can preserve every row
-    // still present, but deleted rows cannot be reconstructed from local data.
-    write(KEYS.sessions, sessions);
-    write(KEYS.sessionHistoryMeta, {
-      schemaVersion: SESSION_HISTORY_SCHEMA,
-      migratedAt: new Date().toISOString(),
-      migration: 'last-10-to-durable',
-      recoveredSessions: sessions.length,
-      retention: 'unbounded',
-      sourceKey,
-    });
-  }
+  const legacy = read(KEYS.sessions, []);
+  const sessions = (Array.isArray(legacy) ? legacy : []).map(normaliseSession).filter(Boolean);
+  write(KEYS.sessionHistory, sessions);
+  write(KEYS.sessionHistoryMeta, {
+    schemaVersion: 1,
+    migratedAt: new Date().toISOString(),
+    migration: 'last-10-to-durable',
+    recoveredSessions: sessions.length,
+    retention: 'unbounded',
+    sourceKey: KEYS.sessions,
+  });
+  markMigration('sessions.last-10-to-full-history.v1', {
+    source: KEYS.sessions,
+    imported: sessions.length,
+    note: 'Existing sessions were copied into the uncapped canonical history. Sessions discarded by an older last-10 build cannot be recovered.',
+  });
   return sessions;
 }
 
+// New builds read the canonical history. The old key is kept as a mirror so
+// an exported snapshot can still be opened by an older Le Studio build.
+export const getSessions = () => {
+  const sessions = read(KEYS.sessionHistory, null);
+  if (Array.isArray(sessions)) return sessions.map(normaliseSession).filter(Boolean);
+  return migrateSessionHistory();
+};
+
+function normaliseReviewEvent(event, index = 0) {
+  if (!event || typeof event !== 'object') return null;
+  const reviewedAt = typeof event.reviewedAt === 'string'
+    ? event.reviewedAt
+    : typeof event.at === 'string' ? event.at : new Date().toISOString();
+  const rating = String(event.rating || (event.correct === false ? 'again' : 'good'));
+  return {
+    ...event,
+    schemaVersion: 2,
+    kind: 'review',
+    id: String(event.id || `review:migrated:${index}:${reviewedAt}`),
+    reviewedAt,
+    itemId: String(event.itemId || 'unknown'),
+    skill: pulseSkill(event.skill),
+    mode: String(event.mode || 'receptive'),
+    rating,
+    correct: event.correct == null ? rating !== 'again' : Boolean(event.correct),
+    elapsedMs: Number.isFinite(Number(event.elapsedMs)) ? Math.max(0, Number(event.elapsedMs)) : 0,
+    source: String(event.source || 'srs'),
+  };
+}
+
+export const getReviewEvents = () => {
+  const raw = read(KEYS.reviewEvents, []);
+  const events = (Array.isArray(raw) ? raw : []).map(normaliseReviewEvent).filter(Boolean);
+  if (Array.isArray(raw)) write(KEYS.reviewEvents, events);
+  return events;
+};
+
+export const getStudyEvents = () => {
+  const events = read(KEYS.studyEvents, []);
+  return Array.isArray(events) ? events : [];
+};
+
 export const getSessionHistoryMeta = () => read(KEYS.sessionHistoryMeta, null);
-export const getSessions = () => migrateSessionHistory();
 
 function normalisePracticeMode(value) {
   const mode = String(value || '').toLowerCase();
@@ -263,31 +358,32 @@ function normalisePracticeMode(value) {
   return mode || 'vocabulary';
 }
 
+export function recordStudyEvent(event = {}) {
+  if (!event || typeof event !== 'object') return null;
+  const at = typeof event.at === 'string' ? event.at : new Date().toISOString();
+  const events = getStudyEvents();
+  const stored = {
+    ...event,
+    kind: event.kind || 'study',
+    id: String(event.id || `study:${at}:${Math.random().toString(36).slice(2, 8)}`),
+    at,
+  };
+  events.push(stored);
+  write(KEYS.studyEvents, events);
+  return stored;
+}
+
+function isoOrNow(value) {
+  return typeof value === 'string' && !Number.isNaN(new Date(value).getTime())
+    ? value
+    : new Date().toISOString();
+}
+
 function pulseSkill(value) {
   const mode = normalisePracticeMode(value);
   return mode === 'grammar' || mode === 'listening' || mode === 'reading' ? mode : mode === 'pronunciation' ? 'speaking' : 'vocab';
 }
 
-function normaliseReviewEvent(event, index) {
-  const reviewedAt = isoOrNow(event?.reviewedAt || event?.at);
-  const mode = normalisePracticeMode(event?.mode || event?.skill);
-  const itemId = String(event?.itemId || event?.cardId || event?.gapKey || 'unknown');
-  return {
-    ...(event && typeof event === 'object' ? event : {}),
-    kind: event?.kind || 'review',
-    id: String(event?.id || `review:legacy:${index}:${reviewedAt}`),
-    reviewedAt,
-    itemId,
-    mode,
-    skill: event?.skill || pulseSkill(mode),
-  };
-}
-
-export const getReviewEvents = () => {
-  const raw = read(KEYS.reviewEvents, []);
-  const events = Array.isArray(raw) ? raw : raw && Array.isArray(raw.events) ? raw.events : [];
-  return events.map(normaliseReviewEvent);
-};
 
 export function recordReviewEvent(event = {}) {
   const reviewedAt = isoOrNow(event.reviewedAt || event.at);
@@ -349,8 +445,8 @@ function errorKey(mode, key) {
   return `${mode}:${compactText(key, 120)}`;
 }
 
-export const getLearnerErrors = () => {
-  const raw = read(KEYS.learnerErrors, []);
+export const getLedgerErrors = () => {
+  const raw = read(KEYS.evidenceLedger, []);
   const entries = Array.isArray(raw) ? raw : raw && Array.isArray(raw.entries) ? raw.entries : [];
   return entries.filter((entry) => entry && entry.key && entry.mode).map((entry) => ({
     schemaVersion: LEARNER_ERROR_SCHEMA,
@@ -361,10 +457,10 @@ export const getLearnerErrors = () => {
   }));
 };
 
-function writeLearnerErrors(entries) {
+function writeLedgerErrors(entries) {
   // Error summaries are deliberately generous; unlike the old recent-session
   // window, this does not discard the learner's durable pattern history.
-  write(KEYS.learnerErrors, entries);
+  write(KEYS.evidenceLedger, entries);
 }
 
 function errorPriority(entry) {
@@ -383,12 +479,12 @@ function errorRecycleAt(entry, from = entry?.lastErrorAt) {
   return new Date(new Date(from).getTime() + days * 86400000).toISOString();
 }
 
-export function recordLearnerError({ mode, key, label, score = 0, source = 'practice', context = null } = {}) {
+export function recordLedgerError({ mode, key, label, score = 0, source = 'practice', context = null } = {}) {
   const normalisedMode = normalisePracticeMode(mode);
   const cleanKey = compactText(key, 120);
   if (!cleanKey) return null;
   const now = new Date().toISOString();
-  const list = getLearnerErrors();
+  const list = getLedgerErrors();
   let entry = list.find((item) => item.mode === normalisedMode && item.key === cleanKey);
   if (!entry) {
     entry = {
@@ -426,15 +522,15 @@ export function recordLearnerError({ mode, key, label, score = 0, source = 'prac
   const delayDays = ERROR_RECYCLE_DAYS[Math.min(ERROR_RECYCLE_DAYS.length - 1, Number(entry.successCount) || 0)];
   entry.nextReviewAt = new Date(Date.now() + delayDays * 86400000).toISOString();
   entry.status = 'active';
-  writeLearnerErrors(list);
+  writeLedgerErrors(list);
   return entry;
 }
 
-export function recordLearnerSuccess({ mode, key, label, score = 100, source = 'practice', context = null } = {}) {
+export function recordLedgerSuccess({ mode, key, label, score = 100, source = 'practice', context = null } = {}) {
   const normalisedMode = normalisePracticeMode(mode);
   const cleanKey = compactText(key, 120);
   if (!cleanKey) return null;
-  const list = getLearnerErrors();
+  const list = getLedgerErrors();
   const entry = list.find((item) => item.mode === normalisedMode && item.key === cleanKey);
   if (!entry) return null;
   const now = new Date().toISOString();
@@ -449,14 +545,14 @@ export function recordLearnerSuccess({ mode, key, label, score = 100, source = '
   const delayDays = ERROR_RECYCLE_DAYS[Math.min(ERROR_RECYCLE_DAYS.length - 1, Number(entry.successCount) || 0)];
   entry.nextReviewAt = new Date(Date.now() + delayDays * 86400000).toISOString();
   entry.status = entry.successCount >= 2 && entry.successCount >= entry.errorCount ? 'resolved' : 'recovering';
-  writeLearnerErrors(list);
+  writeLedgerErrors(list);
   return entry;
 }
 
 function recordGapOutcome({ mode, key, label, score = 0, source, context, event = true }) {
   const result = clampScore(score) >= 80
-    ? recordLearnerSuccess({ mode, key, label, score, source, context })
-    : recordLearnerError({ mode, key, label, score, source, context });
+    ? recordLedgerSuccess({ mode, key, label, score, source, context })
+    : recordLedgerError({ mode, key, label, score, source, context });
   if (event) {
     recordReviewEvent({
       kind: 'assessment',
@@ -497,8 +593,8 @@ export function recordWritingGap(itemId, { label = itemId, score = 0, source = '
   return recordGapOutcome({ mode: 'writing', key: itemId, label, score, source, context });
 }
 
-export function getLearnerErrorModel() {
-  return getLearnerErrors()
+export function getEvidenceLedgerModel() {
+  return getLedgerErrors()
     .map((entry) => ({
       ...entry,
       priority: errorPriority(entry),
@@ -508,7 +604,7 @@ export function getLearnerErrorModel() {
 }
 
 export function getErrorModelSummary() {
-  const entries = getLearnerErrors();
+  const entries = getLedgerErrors();
   const byMode = {};
   for (const entry of entries) byMode[entry.mode] = (byMode[entry.mode] || 0) + 1;
   return {
@@ -522,14 +618,14 @@ export function getErrorModelSummary() {
 }
 
 export function getCrossModePracticeQueue(limit = 12) {
-  return getLearnerErrorModel()
+  return getEvidenceLedgerModel()
     .filter((entry) => entry.status !== 'resolved')
     .slice(0, Math.max(0, limit));
 }
 
 /** Errors become deliberate delayed retests instead of immediate recognition drills. */
 export function getDelayedErrorQueue(limit = 12, nowMs = Date.now()) {
-  return getLearnerErrorModel()
+  return getEvidenceLedgerModel()
     .filter((entry) => entry.status !== 'resolved')
     .map((entry) => ({ ...entry, nextReviewAt: errorRecycleAt(entry) }))
     .filter((entry) => entry.nextReviewAt && new Date(entry.nextReviewAt).getTime() <= nowMs)
@@ -587,17 +683,39 @@ export function getLastReport() {
 
 export function saveSession(summary) {
   const sessions = getSessions();
-  const savedAt = new Date().toISOString();
-  sessions.push({
+  const saved = {
     ...summary,
     id: summary.id || `session:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
-    date: summary.date || savedAt,
-    savedAt,
-    historySchemaVersion: SESSION_HISTORY_SCHEMA,
-  });
+    date: new Date().toISOString(),
+  };
+  sessions.push(saved);
+  // Canonical history is intentionally uncapped. Keep the legacy key in sync
+  // for old backups/builds, but all current reads use sessionHistory.
+  write(KEYS.sessionHistory, sessions);
   write(KEYS.sessions, sessions);
+  recordStudyEvent({
+    type: 'session.completed',
+    sessionId: saved.id,
+    scenarioId: saved.scenarioId || null,
+    turns: saved.turns || 0,
+    score: saved.report?.average_scores?.overall ?? null,
+  });
   publishPulseHistory();
+  // Initialise the learner model before adding this report's habits, so the
+  // one-time legacy import cannot count the same new habit twice.
+  getLearnerErrorModel();
   recordHabits(summary.report?.stubborn_habits || []);
+  for (const habit of summary.report?.stubborn_habits || []) {
+    const label = String(habit || '').trim();
+    if (label) recordLearnerError({
+      category: 'grammar',
+      key: `habit:${label.toLowerCase().replace(/\s+/g, '-').slice(0, 80)}`,
+      label,
+      mode: 'conversation',
+      source: 'session-report',
+      detail: 'Recurring habit reported at the end of a conversation.',
+    });
+  }
   bumpStreak();
 }
 
@@ -618,12 +736,126 @@ export const dismissGettingStarted = () => write(KEYS.gettingStarted, '1');
 
 export const getGrammarErrors = () => read(KEYS.grammarErrors, {});
 
-export function recordGrammarError(topicId) {
+export function recordGrammarError(topicId, { mode = 'conversation', score = null, label = null, detail = null } = {}) {
+  // See saveSession: initialise before mutating a legacy source that the
+  // migration also knows how to import.
+  getLearnerErrorModel();
   const all = getGrammarErrors();
   all[topicId] = (all[topicId] || 0) + 1;
   write(KEYS.grammarErrors, all);
+  recordLearnerError({
+    category: 'grammar',
+    key: topicId,
+    label: label || topicId,
+    mode,
+    score,
+    source: 'grammar-classification',
+    detail,
+  });
   recordGrammarGap(topicId, { source: 'conversation' });
   return all[topicId];
+}
+
+function migrateLearnerErrors() {
+  let model = createLearnerErrorModel();
+  const grammarErrors = getGrammarErrors();
+  for (const [topicId, count] of Object.entries(grammarErrors || {})) {
+    if (Number(count) > 0) model = applyLearnerError(model, {
+      category: 'grammar',
+      key: topicId,
+      label: topicId,
+      mode: 'conversation',
+      source: 'legacy-grammar-errors',
+      count: Number(count),
+    });
+  }
+  for (const weakness of getWeaknessMemory()) {
+    if (!weakness?.topicId || Number(weakness.errorCount) <= 0) continue;
+    model = applyLearnerError(model, {
+      category: 'grammar',
+      key: weakness.topicId,
+      label: weakness.topicId,
+      mode: 'conversation',
+      source: 'legacy-weakness-memory',
+      count: Number(weakness.errorCount),
+      recurrenceCount: Number(weakness.recurrenceCount) || 0,
+    });
+  }
+  for (const habit of getHabits()) {
+    if (!habit?.key || Number(habit.count) <= 0) continue;
+    model = applyLearnerError(model, {
+      category: 'grammar',
+      key: `habit:${habit.key}`,
+      label: habit.text || habit.key,
+      mode: 'conversation',
+      source: 'legacy-habit-bank',
+      count: Number(habit.count),
+    });
+  }
+  for (const event of getReviewEvents()) {
+    if (event.rating !== 'again' && event.correct !== false) continue;
+    model = applyLearnerError(model, {
+      category: 'vocabulary',
+      key: `item:${event.itemId}`,
+      label: event.itemLabel || event.itemId,
+      mode: event.mode || 'cards',
+      source: 'legacy-review-events',
+      score: 0,
+    });
+  }
+  const metricGaps = new Map();
+  for (const metric of getMetrics()) {
+    const skill = metric?.skill;
+    if ((skill !== 'listening' && skill !== 'pronunciation') || Number(metric.score) >= 70) continue;
+    const category = skill === 'pronunciation' ? 'pronunciation' : 'listening';
+    const current = metricGaps.get(category) || { count: 0, score: 100 };
+    current.count += 1;
+    current.score = Math.min(current.score, Number(metric.score));
+    metricGaps.set(category, current);
+  }
+  for (const [category, gap] of metricGaps) {
+    model = applyLearnerError(model, {
+      category,
+      key: `skill:${category}`,
+      label: category === 'pronunciation' ? 'Pronunciation clarity' : 'Listening accuracy',
+      mode: category,
+      source: 'legacy-skill-metrics',
+      count: gap.count,
+      score: gap.score,
+    });
+  }
+  return model;
+}
+
+export function getLearnerErrorModel() {
+  const raw = read(KEYS.learnerErrors, null);
+  if (raw && typeof raw === 'object' && Array.isArray(raw.entries)) {
+    return createLearnerErrorModel(raw);
+  }
+  const model = migrateLearnerErrors();
+  write(KEYS.learnerErrors, model);
+  markMigration('learner-errors.v1', { imported: model.entries.length });
+  return model;
+}
+
+export function getLearnerErrors(options = {}) {
+  return prioritiseLearnerErrors(getLearnerErrorModel(), options);
+}
+
+export function getLearnerErrorSummary() {
+  return learnerErrorSummary(getLearnerErrorModel());
+}
+
+export function recordLearnerError(error, options = {}) {
+  const model = applyLearnerError(getLearnerErrorModel(), error, options);
+  write(KEYS.learnerErrors, model);
+  return model.entries[0] || null;
+}
+
+export function recordLearnerSuccess(success, options = {}) {
+  const model = applyLearnerSuccess(getLearnerErrorModel(), success, options);
+  write(KEYS.learnerErrors, model);
+  return model.entries[0] || null;
 }
 
 // ---- persistent learner weakness memory (moat) ----
@@ -645,6 +877,7 @@ function nextRetestDelay(repairCount) {
 export function recordWeaknessError(topicId, { scenarioId = null } = {}) {
   const id = clampTopicId(topicId);
   if (!id) return null;
+  getLearnerErrorModel();
   const now = new Date().toISOString();
   const list = getWeaknessMemory();
   let e = list.find((x) => x.topicId === id);
@@ -685,11 +918,23 @@ export function recordWeaknessRepair(topicId, { scenarioId = null, passed = true
     e.status = tail.length === 2 && tail.every((r) => r.passed) ? 'resolved' : (passed ? 'recovering' : 'active');
   }
   writeWeakness(list);
+  if (passed) {
+    recordLearnerSuccess({
+      category: 'grammar',
+      key: id,
+      label: id,
+      mode: 'conversation',
+      source: 'weakness-retest',
+      score: 80,
+      detail: scenarioId ? `Repair in scenario ${scenarioId}.` : 'Repair attempt.',
+    });
+  }
   return e;
 }
 export function recordWeaknessRetestResult(topicId, passed, { scenarioId = null } = {}) {
   const id = clampTopicId(topicId);
   if (!id) return null;
+  getLearnerErrorModel();
   const now = new Date().toISOString();
   const list = getWeaknessMemory();
   const e = list.find((x) => x.topicId === id);
@@ -709,6 +954,11 @@ export function recordWeaknessRetestResult(topicId, passed, { scenarioId = null 
     e.retestDueAt = null;
   }
   writeWeakness(list);
+  if (passed) {
+    recordLearnerSuccess({ category: 'grammar', key: id, label: id, mode: 'conversation', source: 'weakness-retest', score: 80 });
+  } else {
+    recordLearnerError({ category: 'grammar', key: id, label: id, mode: 'conversation', source: 'weakness-retest', score: 0 });
+  }
   return e;
 }
 export function getDueWeaknesses(nowMs = Date.now()) {
@@ -763,19 +1013,18 @@ export function getLearnerModel() {
   const errHist = getGrammarErrors();
   const pronun = metrics.filter(m=> m.skill==='pronunciation').slice(-20);
   const avgPronun = pronun.length ? Math.round(pronun.reduce((a,b)=>a+b.score,0)/pronun.length) : null;
+  const errorSummary = getLearnerErrorSummary();
+  const errorGaps = getLearnerErrors({ limit: 6 });
   return {
     srsSize: Object.keys(srs).length,
     vocabRecall,
-    habits: habits.slice(0, 5),
+    habits: habits.slice(0,5),
     grammar,
     errHist,
+    errorSummary,
+    errorGaps,
     pronunciation: { avg: avgPronun, n: pronun.length },
     sessions: sessions.length,
-    sessionHistory: getSessionHistoryMeta(),
-    reviewEvents: getReviewEvents().length,
-    errors: getErrorModelSummary(),
-    errorQueue: getCrossModePracticeQueue(8),
-    delayedErrorQueue: getDelayedErrorQueue(8),
     notebook: notebook.length,
     xpLogDays: Object.keys(xpLog).length,
   };
@@ -796,6 +1045,7 @@ export function getLearnerBrief() {
   // Retest intent: nudge the tutor toward the next due weakness (if any)
   const due = getDueWeaknesses()[0] || null;
   const memory = due ? { focusTopic: due.topicId, status: due.status, errorCount: due.errorCount } : null;
+  const errorGaps = getLearnerErrors({ limit: 5 });
   return {
     name: String(getSettings().name || '').slice(0, 40),
     topics: (prefs.favouriteTopics || []).slice(0, 4),
@@ -811,6 +1061,17 @@ export function getLearnerBrief() {
     })),
     correctionFrequency: settings.correctionFrequency,
     memory,
+    errorGaps: errorGaps.map((entry) => ({
+      category: entry.category,
+      key: entry.key,
+      label: entry.label,
+      status: entry.status,
+      errors: entry.errorCount,
+      modes: entry.modes,
+    })),
+    recyclingInstruction: errorGaps.length
+      ? `Recycle these persistent gaps naturally across the next practice: ${errorGaps.map((entry) => `${entry.category} — ${entry.label}`).join('; ')}.`
+      : null,
   };
 }
 
@@ -893,12 +1154,53 @@ export function addStudyTime(seconds) {
 
 export const getMetrics = () => read(KEYS.metrics, []);
 
-export function recordSkillScore(skill, score) {
+export function recordSkillScore(skill, score, meta = {}) {
   const n = Math.max(0, Math.min(100, Math.round(score)));
+  getLearnerErrorModel();
   const metrics = getMetrics();
-  metrics.push({ skill, score: n, at: new Date().toISOString() });
+  metrics.push({ skill, score: n, at: new Date().toISOString(), ...(meta && typeof meta === 'object' ? meta : {}) });
   write(KEYS.metrics, metrics.slice(-300));
   return metrics;
+}
+
+// One ingestion point for activity emitted by the UI. It keeps the raw event
+// trail and turns low scores into durable, cross-mode gaps; the next mode can
+// then see the same learner state instead of starting from a blank slate.
+export function recordLearningActivity(event = {}) {
+  if (!event || typeof event !== 'object') return null;
+  const at = typeof event.at === 'string' ? event.at : new Date().toISOString();
+  const stored = recordStudyEvent({ ...event, at, source: event.source || 'activity' });
+  const score = Number.isFinite(Number(event.score))
+    ? Math.max(0, Math.min(100, Math.round(Number(event.score))))
+    : Number.isFinite(Number(event.accuracy))
+      ? Math.max(0, Math.min(100, Math.round(Number(event.accuracy))))
+      : null;
+  const signal = {
+    mode: event.mode || event.type || 'practice',
+    score,
+    source: 'activity-event',
+    detail: event.detail || null,
+  };
+  if (event.type === 'dictation' && score != null) {
+    const gap = { ...signal, category: 'listening', key: 'dictation', label: 'Dictée listening accuracy' };
+    if (score < 80) recordLearnerError(gap, { at });
+    else recordLearnerSuccess(gap, { at });
+  } else if (event.type === 'listening' && score != null) {
+    const key = `track:${event.trackId || 'listening'}`;
+    const gap = { ...signal, category: 'listening', key, label: event.label || event.trackId || 'Listening comprehension' };
+    if (score < 80) recordLearnerError(gap, { at });
+    else recordLearnerSuccess(gap, { at });
+  } else if (event.type === 'pronunciation' && score != null) {
+    const key = `mode:${event.mode || 'pronunciation'}`;
+    const gap = { ...signal, category: 'pronunciation', key, label: event.label || 'Pronunciation clarity' };
+    if (score < 80) recordLearnerError(gap, { at });
+    else recordLearnerSuccess(gap, { at });
+  } else if (event.type === 'grammar' && score != null) {
+    const gap = { ...signal, category: 'grammar', key: event.topicId || 'grammar', label: event.label || event.topicId || 'Grammar accuracy' };
+    if (score < 80) recordLearnerError(gap, { at });
+    else recordLearnerSuccess(gap, { at });
+  }
+  return stored;
 }
 
 // ---- habit tracker (user-defined daily habits with per-habit streaks) ----
@@ -1168,12 +1470,15 @@ export function rateCard(cardId, rating, opts={}) {
     const next = fsrsRate(prev, rating);
     srs[key] = next;
     write(KEYS.srs, srs);
-    logReview({ cardId, rating, mode, label: opts.label, elapsedMs: opts.elapsedMs, skill: opts.skill, intervalDays: existing?.interval });
-    recordVocabularyGap(key, {
-      label: opts.label || cardId,
-      score: VOCAB_SCORE[rating] ?? 0,
-      source: `vocabulary-${mode}`,
-      context: { rating, reviewMode: mode },
+    logReview({
+      cardId,
+      rating,
+      elapsedMs: opts.elapsedMs,
+      skill: opts.skill || 'vocabulary',
+      intervalDays: existing?.interval,
+      mode,
+      itemLabel: opts.itemLabel,
+      source: opts.source || 'srs',
     });
     return next;
   }
@@ -1209,12 +1514,15 @@ export function rateCard(cardId, rating, opts={}) {
     lastReviewed: new Date().toISOString(),
   };
   write(KEYS.srs, srs);
-  logReview({ cardId, rating, mode, label: opts.label, elapsedMs: opts.elapsedMs, skill: opts.skill, intervalDays: existing?.interval });
-  recordVocabularyGap(key, {
-    label: opts.label || cardId,
-    score: VOCAB_SCORE[rating] ?? 0,
-    source: `vocabulary-${mode}`,
-    context: { rating, reviewMode: mode },
+  logReview({
+    cardId,
+    rating,
+    elapsedMs: opts.elapsedMs,
+    skill: opts.skill || 'vocabulary',
+    intervalDays: existing?.interval,
+    mode,
+    itemLabel: opts.itemLabel,
+    source: opts.source || 'srs',
   });
   return srs[key];
 }
@@ -1223,7 +1531,10 @@ export function rateCard(cardId, rating, opts={}) {
 
 export const getReviewLog = () => read(KEYS.reviewLog, {});
 
-function logReview({ cardId, rating, mode, label, elapsedMs, skill, intervalDays } = {}) {
+function logReview({ cardId, rating, elapsedMs, skill, intervalDays, mode, itemLabel, source } = {}) {
+  // Initialise before appending the new event because the first learner-model
+  // migration also imports legacy review misses.
+  getLearnerErrorModel();
   const log = getReviewLog();
   const today = dayStamp();
   log[today] = (log[today] || 0) + 1;
@@ -1232,18 +1543,55 @@ function logReview({ cardId, rating, mode, label, elapsedMs, skill, intervalDays
   for (const day of Object.keys(log)) if (day < cutoff) delete log[day];
   write(KEYS.reviewLog, log);
 
-  recordReviewEvent({
+  const events = getReviewEvents();
+  const reviewedAt = new Date().toISOString();
+  const event = {
     kind: 'review',
+    schemaVersion: 2,
+    id: `review:${reviewedAt}:${cardId || 'unknown'}:${Math.random().toString(36).slice(2, 8)}`,
+    reviewedAt,
     itemId: String(cardId || 'unknown'),
-    mode: 'vocabulary',
-    reviewMode: mode || 'receptive',
-    label: label || cardId || 'Vocabulary card',
-    skill: skill || 'vocab',
-    rating,
+    skill: pulseSkill(skill),
+    mode: String(mode || 'receptive'),
+    rating: String(rating || 'again'),
     correct: rating !== 'again',
     elapsedMs: Number.isFinite(Number(elapsedMs)) ? Math.max(0, Number(elapsedMs)) : 0,
+    source: String(source || 'srs'),
+    ...(itemLabel ? { itemLabel: String(itemLabel).slice(0, 120) } : {}),
     ...(Number.isFinite(Number(intervalDays)) ? { intervalDays: Math.max(0, Number(intervalDays)) } : {}),
+  };
+  events.push(event);
+  write(KEYS.reviewEvents, events);
+  recordStudyEvent({
+    type: 'review',
+    reviewId: event.id,
+    itemId: event.itemId,
+    itemLabel: event.itemLabel || null,
+    rating: event.rating,
+    correct: event.correct,
+    mode: event.mode,
+    score: event.correct ? 100 : 0,
   });
+  const learnerError = {
+    category: 'vocabulary',
+    key: `item:${event.itemId}`,
+    label: itemLabel || event.itemId,
+    mode: 'cards',
+    score: event.correct ? 100 : 0,
+    source: 'per-review-event',
+    detail: event.correct ? 'Successful recall.' : 'Card marked again.',
+  };
+  if (event.correct) recordLearnerSuccess(learnerError);
+  else recordLearnerError(learnerError);
+  // The evidence ledger tracks the same miss under its own cross-mode
+  // vocabulary, so the delayed-retest queue keeps seeing card reviews.
+  recordVocabularyGap(cardId, {
+    label: itemLabel || cardId,
+    score: event.correct ? (VOCAB_SCORE[rating] ?? 100) : 0,
+    source: `vocabulary-${mode}`,
+    context: { rating, reviewMode: mode },
+  });
+  publishPulseHistory();
 }
 
 // ---- mistake review (drill the recurring-mistake bank down to zero) ----

@@ -27,7 +27,7 @@ const GENERATORS = [
 
 const normalise = (s) => s.replace(/[^\d.:]/g, '').replace(',', '.');
 
-export default function NumberDash({ ttsRate, onXp }) {
+export default function NumberDash({ ttsRate, onXp, onActivity }) {
   const [round, setRound] = useState(null); // { i, item, input, checked, correct, score }
   const inputRef = useRef(null);
 
@@ -53,6 +53,7 @@ export default function NumberDash({ ttsRate, onXp }) {
       const score = Math.round((round.correct / ROUNDS) * 100);
       recordSkillScore('listening', score);
       onXp(Math.max(1, round.correct * 2));
+      onActivity?.({ type: 'listening', trackId: 'numbers', score, label: 'Les nombres', mode: 'numbers' });
       setRound({ ...round, done: true, score });
       return;
     }

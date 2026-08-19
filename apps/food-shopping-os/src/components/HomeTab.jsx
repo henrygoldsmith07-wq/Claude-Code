@@ -35,7 +35,9 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
   const [customising, setCustomising] = useState(false);
   const [dragging, setDragging] = useState(null);
   const todayPlan = planForDay(app.plan, app.day);
-  const expiring = expiringSoon(app.pantry, 3, app.day);
+  const expiring = app.useSoonIngredients?.length
+    ? app.useSoonIngredients.map((row) => row.item)
+    : expiringSoon(app.pantry, 3, app.day);
   const low = runningLow(app.pantry);
   const left = app.weeklyBudget - app.spentThisWeek;
   const recipeOfDay = RECIPES[new Date().getDate() % RECIPES.length];

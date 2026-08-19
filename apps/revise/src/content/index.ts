@@ -29,6 +29,7 @@ import { extendedResponseQuestions } from "./questions/extended-responses";
 import { seedMisconceptions } from "./misconceptions";
 
 export { seedCards, seedCardsForTopic, makeCloze } from "./seed-cards";
+export { CONTENT_SCHEMAS, contentCardSchema, contentQuestionPartSchema, contentQuestionSchema, contentTopicSchema } from "./schema";
 
 /** The authored question bank. Uploaded and AI-generated questions live in
  *  IndexedDB alongside these and are treated identically everywhere else. */

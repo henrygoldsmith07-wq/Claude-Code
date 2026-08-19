@@ -26,7 +26,7 @@ export function localOnlyAudit(): PrivacyAudit {
       "calibration & prediction accuracy",
       "decision-improvement measurement",
       "longitudinal evidence report generation and export (summary fields only)",
-      "TF-IDF semantic search",
+      "automatic local relevance search",
       "vault encryption (WebCrypto AES-GCM, client-side)",
       "import / export / restore",
       "Pulse snapshot aggregation (opt-in only, counts not content)",

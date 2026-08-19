@@ -21,7 +21,7 @@ const SECTIONS = [
   { id: 'skills', title: 'Skills', subtitle: 'Speaking · Listening · Reading · Writing', icon: Mic },
   { id: 'ai', title: 'AI tutor', subtitle: 'Ask anything, get exercises', icon: Sparkles },
   { id: 'culture', title: 'Culture', subtitle: 'Customs, food, regions, history', icon: Landmark },
-  { id: 'exams', title: 'Exam simulator', subtitle: 'WJEC · AQA · Edexcel — timed speaking', icon: GraduationCap },
+  { id: 'exams', title: 'Exam simulator', subtitle: 'WJEC · AQA · Edexcel — speaking · writing · listening · reading', icon: GraduationCap },
   { id: 'reference', title: 'Reference', subtitle: 'Dictionary & conjugations', icon: Search },
   { id: 'realworld', title: 'Real-world', subtitle: 'Travel, café, medical phrases', icon: Compass },
 ];

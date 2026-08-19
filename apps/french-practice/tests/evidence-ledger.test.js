@@ -36,8 +36,8 @@ test('stores per-review evidence and recycles gaps across modes', async () => {
   storage.rateCard('bonjour', 'good', { mode: 'receptive', label: 'bonjour', elapsedMs: 600 });
   const reviews = storage.getReviewEvents();
   assert.equal(reviews.length, 2);
-  assert.equal(reviews[0].mode, 'vocabulary');
-  assert.equal(reviews[0].reviewMode, 'receptive');
+  assert.equal(reviews[0].mode, 'receptive');
+  assert.equal(reviews[0].skill, 'vocab');
   assert.equal(reviews[0].rating, 'again');
   assert.equal(reviews[1].correct, true);
 
@@ -47,7 +47,7 @@ test('stores per-review evidence and recycles gaps across modes', async () => {
   storage.recordListeningGap('track-1:0', { label: 'Choose the train', score: 40 });
   storage.recordPronunciationGap('overall', { label: 'Sentence clarity', score: 0 });
 
-  const model = storage.getLearnerErrorModel();
+  const model = storage.getEvidenceLedgerModel();
   const vocabulary = model.find((entry) => entry.mode === 'vocabulary' && entry.key === 'bonjour');
   const grammar = model.find((entry) => entry.mode === 'grammar' && entry.key === 'present');
   assert.equal(vocabulary.status, 'recovering');

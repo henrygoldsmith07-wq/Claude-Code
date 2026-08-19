@@ -8,7 +8,7 @@ import { scoreDelta, redoVerdict } from '../lib/redo';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
 import {
-  getSrs, getSessions, getMetrics, getReviewEvents, getGrammarProgress, getLearnerErrorModel,
+  getSrs, getSessions, getMetrics, getReviewEvents, getGrammarProgress, getEvidenceLedgerModel,
   getSettings, recordGrammarError, recordWeaknessError, recordWeaknessRepair, getDueWeaknesses, getLearnerBrief,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
@@ -167,7 +167,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
         reviewEvents: getReviewEvents(),
         grammarTopics: GRAMMAR_TOPICS,
         grammarProgress: getGrammarProgress(),
-        errorModel: getLearnerErrorModel(),
+        errorModel: getEvidenceLedgerModel(),
         correctionFrequency: getSettings().correctionFrequency,
         confidence: learner.errorQueue?.length ? 0.45 : 0.55,
         userRate: ttsRate,

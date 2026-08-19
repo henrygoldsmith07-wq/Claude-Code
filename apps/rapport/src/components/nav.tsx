@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarCheck, MessageCircle, Network, Sparkles } from "lucide-react";
+import { BarChart3, CalendarCheck, ClipboardCheck, MessageCircle, Network, Sparkles } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Primary navigation: five destinations, no more.
+// Primary navigation: the evidence workspace is a first-class destination so
+// review work does not disappear inside settings.
 //
 // On mobile it is a bottom bar with targets comfortably above the 44px minimum;
 // on desktop it becomes a sidebar. Both render from the same list so they never
@@ -18,6 +19,7 @@ const ITEMS = [
   { href: "/practise", label: "Practise", icon: Sparkles },
   { href: "/skills", label: "Skills", icon: Network },
   { href: "/progress", label: "Progress", icon: BarChart3 },
+  { href: "/evidence", label: "Evidence", icon: ClipboardCheck },
   { href: "/coach", label: "Coach", icon: MessageCircle },
 ];
 

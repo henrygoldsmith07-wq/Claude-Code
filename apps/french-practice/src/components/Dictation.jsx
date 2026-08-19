@@ -48,7 +48,7 @@ export default function Dictation({ ttsRate, level: cefr = 'B1', onXp, onActivit
       context: { missedWords: target.filter((_, index) => !hits[index]).slice(0, 8) },
     });
     onXp(gained);
-    onActivity?.({ type: 'dictation', accuracy });
+    onActivity?.({ type: 'dictation', accuracy, score: accuracy, mode: 'dictation', label: 'Dictée' });
     recordSkillScore('listening', accuracy);
     setResult({ hits, accuracy, gained });
   };

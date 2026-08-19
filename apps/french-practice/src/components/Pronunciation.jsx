@@ -17,7 +17,7 @@ import { Mic, Square, Play, RefreshCw } from './icons';
 // diff scores how much was recognized (a solid proxy for clarity), and the
 // LLM turns the mis-transcriptions into specific accent feedback.
 
-export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, onXp }) {
+export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, onXp, onActivity }) {
   const shadow = mode === 'shadow';
   const [sentence, setSentence] = useState(() => randomPoolSentence());
   const [played, setPlayed] = useState(false); // shadowing requires listening first
@@ -54,6 +54,13 @@ export default function Pronunciation({ mode, apiKey, mockMode, ttsRate, level, 
         const gained = Math.max(1, Math.round(accuracy / 10));
         onXp(gained);
         recordSkillScore(mode === 'shadowing' ? 'speaking' : 'pronunciation', accuracy);
+        onActivity?.({
+          type: 'pronunciation',
+          mode: shadow ? 'shadowing' : 'pronunciation',
+          score: accuracy,
+          accuracy,
+          label: shadow ? 'Shadowing clarity' : 'Read-aloud clarity',
+        });
         const metrics = speechMetrics(heard, durationMs, activeLanguage().id);
         // Phoneme bookkeeping (light): treat underlined = miss
         for(let i=0;i<target.length;i++) recordPhonemeAttempt('overall', { correct: hits[i], confidence: accCal, trackGap: false });

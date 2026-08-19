@@ -52,6 +52,33 @@ describe("Rapport Pulse history", () => {
     expect(history.records).toHaveLength(2);
     expect(JSON.stringify(history)).not.toMatch(/transcript|conversation/);
   });
+
+  it("keeps human review events in a safe sidecar without rater ids or exact evidence", () => {
+    const history = buildRapportPulseHistory([
+      {
+        kind: "human-rating-recorded",
+        at: "2026-08-16T20:00:00.000Z",
+        ratingId: "rating-1",
+        itemId: "item-1",
+        raterId: "private-rater-id",
+        behaviourKeys: ["listening"],
+        meanConfidence: 4,
+      },
+      {
+        kind: "real-world-outcome-recorded",
+        at: "2026-08-16T21:00:00.000Z",
+        outcomeId: "outcome-1",
+        studyId: "study-1",
+        skillId: "listening",
+        outcome: "yes",
+        completed: true,
+        followUpScore: 0.8,
+      },
+    ]);
+    expect(history.eventLog.map((event) => event.kind)).toEqual(["human-rating", "real-world-outcome"]);
+    expect(JSON.stringify(history.eventLog)).not.toContain("private-rater-id");
+    expect(JSON.stringify(history.eventLog)).not.toContain("exact evidence");
+  });
 });
 
 describe("Rapport Pulse opt-in", () => {

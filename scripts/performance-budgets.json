@@ -1,0 +1,8 @@
+{
+  "budgets": [
+    { "name": "Revise browser assets", "path": "apps/revise/.next/static", "maxBytes": 16000000 },
+    { "name": "Rapport browser assets", "path": "apps/rapport/.next/static", "maxBytes": 16000000 },
+    { "name": "Forq browser assets", "path": "apps/food-shopping-os/.next/static", "maxBytes": 16000000 },
+    { "name": "Pulse browser assets", "path": "apps/pulse/dist", "maxBytes": 5000000 }
+  ]
+}

@@ -15,6 +15,36 @@
 
 export const TIER = { FOUNDATION: 'foundation', HIGHER: 'higher' };
 
+export const EXAM_MODE = {
+  SPEAKING: 'speaking',
+  WRITING: 'writing',
+  LISTENING: 'listening',
+  READING: 'reading',
+};
+
+export const EXAM_MODES = {
+  [EXAM_MODE.SPEAKING]: {
+    id: EXAM_MODE.SPEAKING,
+    label: 'Speaking',
+    description: 'Timed role-play, picture task and conversation.',
+  },
+  [EXAM_MODE.WRITING]: {
+    id: EXAM_MODE.WRITING,
+    label: 'Writing',
+    description: 'A timed original task with word-count and register checks.',
+  },
+  [EXAM_MODE.LISTENING]: {
+    id: EXAM_MODE.LISTENING,
+    label: 'Listening',
+    description: 'Listen to original French audio and answer without seeing the script.',
+  },
+  [EXAM_MODE.READING]: {
+    id: EXAM_MODE.READING,
+    label: 'Reading',
+    description: 'Read an original passage and answer exam-style questions.',
+  },
+};
+
 /**
  * Timings are in seconds and are the *task* allowances, not the whole exam
  * slot. `prep` is supervised preparation time; `target` is the length a
@@ -294,6 +324,42 @@ export const CRITERIA = {
       { min: 80, label: 'Fluent', desc: 'Initiates, asks questions, redirects and recovers from difficulty unaided.' },
     ],
   },
+  content: {
+    id: 'content',
+    label: 'Task fulfilment',
+    blurb: 'Did you answer every bullet with relevant, developed detail?',
+    bands: [
+      { min: 0, label: 'Not attempted', desc: 'The task is missing or does not address the prompt.' },
+      { min: 20, label: 'Partial', desc: 'Some relevant ideas, but important bullets are missing.' },
+      { min: 40, label: 'Mostly relevant', desc: 'The main task is covered, with limited development.' },
+      { min: 60, label: 'Complete', desc: 'All required points are answered with relevant detail.' },
+      { min: 80, label: 'Developed', desc: 'Every point is developed with precise, purposeful detail.' },
+    ],
+  },
+  organisation: {
+    id: 'organisation',
+    label: 'Organisation & register',
+    blurb: 'Is the response easy to follow and appropriate for its audience?',
+    bands: [
+      { min: 0, label: 'Unclear', desc: 'Ideas are not connected or the register is unsuitable.' },
+      { min: 20, label: 'Basic', desc: 'A few linked ideas, with abrupt changes or inconsistent register.' },
+      { min: 40, label: 'Ordered', desc: 'The response follows a clear enough sequence.' },
+      { min: 60, label: 'Controlled', desc: 'Paragraphing, connectives and register support the message.' },
+      { min: 80, label: 'Purposeful', desc: 'The structure and register are consistently well judged.' },
+    ],
+  },
+  comprehension: {
+    id: 'comprehension',
+    label: 'Comprehension',
+    blurb: 'How accurately did you understand the French?',
+    bands: [
+      { min: 0, label: 'Not yet', desc: 'The key information was not identified.' },
+      { min: 20, label: 'A little', desc: 'A few isolated details are understood.' },
+      { min: 40, label: 'Partial', desc: 'Main points are understood, but detail is inconsistent.' },
+      { min: 60, label: 'Secure', desc: 'Main points and most supporting details are understood.' },
+      { min: 80, label: 'Detailed', desc: 'Explicit and implied meaning is understood reliably.' },
+    ],
+  },
 };
 
 /** Which criteria apply to a given task. */
@@ -304,6 +370,9 @@ export const TASK_CRITERIA = {
   conversation: ['communication', 'range', 'accuracy', 'spontaneity', 'pronunciation'],
   stimulus: ['communication', 'range', 'accuracy', 'spontaneity'],
   research: ['communication', 'range', 'accuracy', 'spontaneity'],
+  writing: ['content', 'accuracy', 'range', 'organisation'],
+  listening: ['comprehension'],
+  reading: ['comprehension'],
 };
 
 /** The band a 0–100 sub-score falls into, with its descriptor. */
@@ -324,4 +393,38 @@ export function specCaveat(boardId) {
   const b = getBoard(boardId);
   if (!b) return '';
   return `Modelled on the ${b.specVersion}. Specifications change — verify timings and task order at ${b.verifyAt}.`;
+}
+
+/**
+ * Internal consistency checks for the timing table. This is deliberately
+ * separate from official-board verification: it catches broken local data,
+ * but cannot make a changing specification authoritative.
+ */
+export function timingQa(boardId = null) {
+  const boards = boardId ? [getBoard(boardId)].filter(Boolean) : boardList();
+  const issues = [];
+  const reports = boards.map((board) => {
+    const tiers = board.tiers.length ? board.tiers : [TIER.HIGHER];
+    const taskReports = board.tasks.map((task) => {
+      const values = tiers.map((tier) => ({
+        tier,
+        seconds: targetSeconds(board.id, task.id, tier),
+        marks: taskMarks(board.id, task.id, tier),
+      }));
+      for (const value of values) {
+        if (!(value.seconds > 0)) issues.push(`${board.id}/${task.id}/${value.tier}: missing timing`);
+        if (!(value.marks > 0)) issues.push(`${board.id}/${task.id}/${value.tier}: missing marks`);
+      }
+      return { id: task.id, values };
+    });
+    if (!(board.prepTotal > 0)) issues.push(`${board.id}: missing preparation allowance`);
+    return { id: board.id, prepSeconds: board.prepTotal, tasks: taskReports };
+  });
+  return {
+    ok: issues.length === 0,
+    status: issues.length === 0 ? 'pass' : 'attention',
+    boards: reports,
+    checks: reports.reduce((n, board) => n + board.tasks.reduce((m, task) => m + task.values.length * 2, 0) + 1, 0),
+    issues,
+  };
 }

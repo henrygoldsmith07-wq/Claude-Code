@@ -176,7 +176,10 @@ flag; Forq's own data is never deleted or moved.
   twice gets a cook-once schedule: which day, how many batches, how much time it
   saves. **Leftovers** you save after cooking sit in the fridge with a use-by
   date, cover planned meals, and drop out of the shopping list. The list itself
-  generates from whichever range you're looking at, minus your pantry
+  generates from whichever range you're looking at, minus your pantry. Planning
+  also surfaces use-soon and perishable ingredients, lets you replan around the
+  time and ingredients you actually have, records adherence and skip reasons,
+  and learns household preferences, repeat fatigue and real cooking times.
 - **Household** — name a household and add adult or child profiles, each with
   their own portions, dietary patterns, shopping/pantry/recipe permissions and
   notification preference. Shopping lines and chores can be assigned to a

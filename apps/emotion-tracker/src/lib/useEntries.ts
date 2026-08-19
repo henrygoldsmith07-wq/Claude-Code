@@ -1,4 +1,4 @@
-import type { Entry, LongitudinalReview, Message, ReflectionSummary } from "./types";
+import type { Entry, LongitudinalReview, Message, ReflectionMode, ReflectionSummary } from "./types";
 
 type SetEntries = (value: Entry[] | ((current: Entry[]) => Entry[])) => void;
 
@@ -8,7 +8,7 @@ function deriveTitle(situation: string): string {
 }
 
 export function useEntries(entries: Entry[], setEntries: SetEntries) {
-  function startEntry(situation: string): Entry {
+  function startEntry(situation: string, mode: ReflectionMode = "full"): Entry {
     const entry: Entry = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -16,6 +16,7 @@ export function useEntries(entries: Entry[], setEntries: SetEntries) {
       messages: [{ role: "user", content: situation }],
       summary: null,
       status: "in_progress",
+      mode,
     };
     setEntries((current) => [entry, ...current]);
     return entry;

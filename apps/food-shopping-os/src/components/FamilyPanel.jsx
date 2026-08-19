@@ -281,7 +281,7 @@ function DislikeSection({ member, onAdd, onRemove }) {
           className="press rounded-xl px-3 py-2 text-[0.75rem] font-extrabold disabled:opacity-40"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
-          Add
+          Add dislike
         </button>
       </div>
     </div>

@@ -23,7 +23,7 @@ const MODES = [
   { id: 'essay', icon: BookOpen, title: 'Essay studio', subtitle: 'Longer form, structured feedback and scores' },
 ];
 
-export default function Writing({ apiKey, mockMode, level, onXp }) {
+export default function Writing({ apiKey, mockMode, level, onXp, onActivity }) {
   const [mode, setMode] = useState(null);
   const active = MODES.find((m) => m.id === mode);
 
@@ -70,8 +70,8 @@ export default function Writing({ apiKey, mockMode, level, onXp }) {
         {mode === 'translate' && <TranslateDrill onXp={onXp} />}
         {mode === 'typing' && <><TypingDrill onXp={onXp} /><div className="pt-4"><ErrorNotebookCard /></div></>}
         {mode === 'completion' && <Completion apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
-        {mode === 'free' && <WritingStudio depth="quick" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
-        {mode === 'essay' && <WritingStudio depth="essay" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} />}
+        {mode === 'free' && <WritingStudio depth="quick" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} onActivity={onActivity} />}
+        {mode === 'essay' && <WritingStudio depth="essay" apiKey={apiKey} mockMode={mockMode} level={level} onXp={onXp} onActivity={onActivity} />}
       </div>
     </div>
   );

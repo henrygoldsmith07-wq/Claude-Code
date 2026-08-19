@@ -369,7 +369,9 @@ export function availablePrograms(availableEquipment) {
 export function scheduleProgram({ programId, startDateISO }) {
   const program = PROGRAM_BY_ID[programId];
   if (!program) throw new Error(`Unknown program ${programId}`);
-  const start = new Date(startDateISO + 'T00:00:00');
+  // Use UTC date arithmetic so a schedule never shifts by a day on devices
+  // west of UTC (the ISO date is a calendar date, not a local timestamp).
+  const start = new Date(startDateISO + 'T00:00:00Z');
   const sessions = [];
   let cursor = new Date(start);
   for (const wk of program.weeks) {
@@ -384,10 +386,10 @@ export function scheduleProgram({ programId, startDateISO }) {
         blocks: w.blocks.map(b=> ({ ...b, version: program.version || 1 })),
         status: 'planned',
       });
-      cursor.setDate(cursor.getDate() + 2);
+      cursor.setUTCDate(cursor.getUTCDate() + 2);
     }
     const nextWeekStart = new Date(start);
-    nextWeekStart.setDate(start.getDate() + wk.week * 7);
+    nextWeekStart.setUTCDate(start.getUTCDate() + wk.week * 7);
     if (cursor < nextWeekStart) cursor = nextWeekStart;
   }
   return { programId, startDateISO, sessions, programVersion: program.version || 1 };

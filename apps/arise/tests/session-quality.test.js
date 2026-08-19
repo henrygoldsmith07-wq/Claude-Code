@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  noteSignals, sessionQuality, badSessionRatio, plateauAttribution,
+  noteSignals, sessionQuality, badSessionRatio, badSessionAttribution, plateauAttribution,
   deloadReadinessAssessment, scanPRs,
 } from "../src/lib/sessionQuality.js";
 
@@ -61,6 +61,16 @@ describe("bad session ratio", ()=>{
     const r = badSessionRatio(history, { readinessLog: [] });
     assert.equal(r.total, 3);
     assert.ok(r.ratio >= 0.5);
+  });
+  it("attributes an isolated bad session without overreacting", ()=>{
+    const history = [
+      mkSess("2026-01-01", "barbell-squat", [{ reps:"8", weightKg:"40", rpe:"7" }]),
+      mkSess("2026-01-03", "barbell-squat", [{ reps:"8", weightKg:"40", rpe:"10" }], { note:"tired" }),
+      mkSess("2026-01-05", "barbell-squat", [{ reps:"9", weightKg:"40", rpe:"7" }]),
+    ];
+    const r = badSessionAttribution(history, { readinessLog: [] });
+    assert.equal(r.kind, "isolated");
+    assert.ok(r.action.includes("conservative"));
   });
 });
 

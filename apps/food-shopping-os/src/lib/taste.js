@@ -5,7 +5,7 @@ const ranked = (scores) => Object.entries(scores)
   .sort((a, b) => b[1] - a[1])
   .map(([name]) => name);
 
-export const buildTasteProfile = (recipes = [], ratings = {}, favourites = []) => {
+export const buildTasteProfile = (recipes = [], ratings = {}, favourites = [], cooked = []) => {
   const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
   const cuisines = {};
   const tags = {};
@@ -21,6 +21,18 @@ export const buildTasteProfile = (recipes = [], ratings = {}, favourites = []) =
     });
   });
 
+  // Cooking is a softer signal than an explicit rating, but repeated choices
+  // are still useful household preference evidence. It nudges cuisines and
+  // tags without turning one cooked meal into a verdict.
+  for (const entry of cooked || []) {
+    const recipe = byId.get(entry.recipeId);
+    if (!recipe) continue;
+    if (recipe.cuisine) cuisines[recipe.cuisine] = (cuisines[recipe.cuisine] || 0) + 0.5;
+    (recipe.tags || []).forEach((tag) => {
+      tags[tag] = (tags[tag] || 0) + 0.25;
+    });
+  }
+
   return {
     ratings: merged,
     rated: Object.keys(merged).length,
@@ -28,6 +40,8 @@ export const buildTasteProfile = (recipes = [], ratings = {}, favourites = []) =
     tags,
     topCuisines: ranked(cuisines),
     topTags: ranked(tags),
+    cookedMeals: cooked?.length || 0,
+    learnedFromCooking: (cooked?.length || 0) > 0,
   };
 };
 

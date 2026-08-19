@@ -31,8 +31,10 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const [budget, setBudget] = useState(2.5);
   const [occasion, setOccasion] = useState('Everyday');
   const [quick, setQuick] = useState(false);
+  const [timeAvailable, setTimeAvailable] = useState(null);
   const [batch, setBatch] = useState(false);
   const [usePantry, setUsePantry] = useState(true);
+  const [availabilityOnly, setAvailabilityOnly] = useState(false);
   const [seasonal, setSeasonal] = useState(true);
   const [leftoverFirst, setLeftoverFirst] = useState(app.leftovers.length > 0);
   const [variety, setVariety] = useState(true);
@@ -47,14 +49,16 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const planDates = dates.filter((date) => !busyDates.has(date));
   const noOpenDates = ['A week', 'A month'].includes(scope) && planDates.length === 0;
   const pantryNames = app.pantry.map((p) => p.name);
-  const expiringNames = expiringSoon(app.pantry, 3, app.day).map((p) => p.name);
+  const expiringNames = (app.useSoonIngredients?.length
+    ? app.useSoonIngredients.map((row) => row.item.name)
+    : expiringSoon(app.pantry, 3, app.day).map((p) => p.name));
   const ownRecipeIds = new Set(app.myRecipes.map((recipe) => recipe.id));
   const ownCandidates = app.safeRecipes.filter((recipe) => ownRecipeIds.has(recipe.id)).length;
   const recipeKey = app.safeRecipes.map((recipe) => recipe.id).join(',');
   const tasteKey = JSON.stringify(app.tasteProfile);
   const leftoversKey = app.leftovers.map((item) => `${item.recipeId}:${item.portions}:${item.expiry || ''}`).join(',');
   const generatorKey = [
-    scope, people, budget, occasion, quick, batch, usePantry, seasonal, leftoverFirst, variety,
+    scope, people, budget, occasion, quick, timeAvailable, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety,
     planDates.join(','), pantryNames.join(','), (app.equipment || []).join(','), app.planDiets.join(','), app.goal, month,
     recipeKey, tasteKey, leftoversKey,
   ].join('|');
@@ -71,7 +75,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         diets: app.planDiets,
         goal: app.goal,
         budget,
-        maxTime: quick ? 30 : null,
+        maxTime: timeAvailable || (quick ? 30 : null),
         occasion,
         people,
         batch,
@@ -82,6 +86,8 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         taste: app.tasteProfile,
         leftovers: leftoverFirst ? app.leftovers : [],
         equipment: (app.equipment || []).length ? app.equipment : null,
+        pantryItems: app.pantry,
+        availableOnly: availabilityOnly,
         expiry: usePantry ? expiringNames : [],
         variety,
       },
@@ -89,7 +95,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
     );
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, occasion, people, batch, usePantry, seasonal, leftoverFirst, variety, app.leftovers, month, planDates.length, (app.equipment || []).join(',')]);
+  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, timeAvailable, occasion, people, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety, app.leftovers, app.pantry, month, planDates.length, (app.equipment || []).join(',')]);
 
   const generated = plan?.meals ?? null;
 
@@ -103,6 +109,8 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
       hasPantry: usePantry && pantryNames.length > 0,
       seasonal,
       leftoverFirst,
+      timeAvailable: timeAvailable || (quick ? 30 : null),
+      availabilityOnly,
     });
   };
 
@@ -212,6 +220,11 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
               Taste Match favours {app.tasteProfile.topCuisines.slice(0, 2).join(' and ') || 'the flavours you liked'}.
             </p>
           )}
+          {app.householdPreferences?.learnedFromCooking > 0 && (
+            <p className="mt-1 text-[0.75rem] font-bold" style={{ color: 'var(--accent)' }}>
+              Household learning is active from {app.householdPreferences.learnedFromCooking} cooked meal{app.householdPreferences.learnedFromCooking === 1 ? '' : 's'}.
+            </p>
+          )}
         </div>
 
         <div>
@@ -235,6 +248,23 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
               <Chip active={on} onClick={() => set(!on)}>{on ? 'On' : 'Off'}</Chip>
             </div>
           ))}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Time available tonight</p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+            {[[null, 'No limit'], [15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '60 min']].map(([minutes, label]) => (
+              <Chip key={label} active={timeAvailable === minutes} onClick={() => setTimeAvailable(minutes)}>{label}</Chip>
+            ))}
+          </div>
+          <p className="text-[0.7rem] font-semibold" style={{ color: 'var(--muted)' }}>
+            Replan against the time you actually have; longer recipes stay out of the result.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[0.8125rem] font-bold flex items-center gap-1.5"><Package size={14} /> Ingredient availability</p>
+          <Chip active={availabilityOnly} onClick={() => setAvailabilityOnly(!availabilityOnly)}>{availabilityOnly ? 'Only what I have' : 'Prefer pantry'}</Chip>
         </div>
 
         <div>
@@ -262,7 +292,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         </div>
         {expiringNames.length > 0 && usePantry && (
           <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--warn, #a55a12)' }}>
-            {expiringNames.slice(0, 4).join(', ')}{expiringNames.length > 4 ? '…' : ''} — going off soon; the generator will favour dishes that use them.
+            {expiringNames.slice(0, 4).join(', ')}{expiringNames.length > 4 ? '…' : ''} — use soon; the generator will favour dishes that use them.
           </p>
         )}
 

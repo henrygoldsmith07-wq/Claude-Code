@@ -8,9 +8,11 @@
 // per-task allowance that does not pause when you panic.
 
 import {
-  CRITERIA, TASK_CRITERIA, bandFor, getBoard, getTask, specCaveat, targetSeconds, taskMarks, TIER,
+  CRITERIA, EXAM_MODE, TASK_CRITERIA, bandFor, getBoard, getTask, specCaveat, targetSeconds, taskMarks, TIER,
 } from './boards.js';
-import { pickConversation, pickPhotocard, pickReadingPassage, pickRoleplay } from './tasks.js';
+import {
+  pickConversation, pickExamTask, pickPhotocard, pickReadingPassage, pickRoleplay,
+} from './tasks.js';
 
 export const PHASE = {
   BRIEFING: 'briefing',
@@ -24,51 +26,82 @@ export const PHASE = {
  * Build a paper. `mode` is 'full' (every task, in order, one prep block —
  * exam conditions) or 'single' (one task, prep included — practice).
  */
-export function buildPaper({ boardId = 'wjec-gcse', tier = TIER.HIGHER, mode = 'full', taskId = null, theme = null } = {}) {
+export function buildPaper({
+  boardId = 'wjec-gcse',
+  tier = TIER.HIGHER,
+  mode = 'full',
+  examMode = EXAM_MODE.SPEAKING,
+  taskId = null,
+  theme = null,
+  boundaries = null,
+  boundarySource = null,
+} = {}) {
   const board = getBoard(boardId);
   if (!board) throw new Error(`Unknown exam board: ${boardId}`);
 
-  const wanted = mode === 'single' && taskId
-    ? board.tasks.filter((t) => t.id === taskId)
-    : board.tasks;
+  const isSpeaking = examMode === EXAM_MODE.SPEAKING;
+  const wanted = isSpeaking
+    ? (mode === 'single' && taskId
+      ? board.tasks.filter((t) => t.id === taskId)
+      : board.tasks)
+    : [materialFor(examMode, { boardId, theme, tier })];
 
-  const sections = wanted.map((task) => ({
-    taskId: task.id,
-    label: task.label,
-    blurb: task.blurb,
-    seconds: targetSeconds(boardId, task.id, tier),
-    marks: taskMarks(boardId, task.id, tier),
-    criteria: TASK_CRITERIA[task.id] || ['communication'],
-    material: materialFor(task.id, { theme, tier }),
-  }));
+  const sections = wanted.filter(Boolean).map((task) => {
+    const material = isSpeaking
+      ? materialFor(task.id, { boardId, theme, tier })
+      : task;
+    return {
+      taskId: isSpeaking ? task.id : examMode,
+      materialId: material?.id || null,
+      label: isSpeaking ? task.label : material?.title || `${examMode} task`,
+      blurb: isSpeaking ? task.blurb : 'Original board-style practice task — verify your live specification before relying on timings.',
+      seconds: isSpeaking ? targetSeconds(boardId, task.id, tier) : material?.targetSeconds || 1800,
+      marks: isSpeaking ? taskMarks(boardId, task.id, tier) : material?.marks || 40,
+      criteria: isSpeaking ? (TASK_CRITERIA[task.id] || ['communication']) : (material?.criteria || TASK_CRITERIA[examMode] || ['comprehension']),
+      material,
+      examMode,
+    };
+  });
 
-  const prepSeconds = mode === 'single'
-    ? Math.round((board.prepTotal || 600) / Math.max(1, board.tasks.length))
-    : board.prepTotal || 600;
+  if (!sections.length) throw new Error(`No ${examMode} practice task is available for this board.`);
+
+  const prepSeconds = isSpeaking
+    ? (mode === 'single'
+      ? Math.round((board.prepTotal || 600) / Math.max(1, board.tasks.length))
+      : board.prepTotal || 600)
+    : sections[0].material?.prepSeconds || 300;
 
   return {
     boardId,
     boardName: board.name,
     tier: board.tiers.length ? tier : null,
     mode,
+    examMode,
     prepSeconds,
     sections,
     totalMarks: sections.reduce((a, s) => a + (s.marks || 0), 0),
     totalSpeakingSeconds: sections.reduce((a, s) => a + (s.seconds || 0), 0),
+    totalTaskSeconds: sections.reduce((a, s) => a + (s.seconds || 0), 0),
+    boundaries: boundaries && typeof boundaries === 'object' ? boundaries : null,
+    boundarySource: boundarySource || null,
     caveat: specCaveat(boardId),
     createdAt: new Date().toISOString(),
   };
 }
 
-function materialFor(taskId, { theme, tier }) {
+function materialFor(taskId, { boardId, theme, tier }) {
   switch (taskId) {
-    case 'roleplay': return pickRoleplay({ theme, tier });
-    case 'photocard': return pickPhotocard({ theme, tier });
-    case 'reading-aloud': return pickReadingPassage({ tier });
+    case 'roleplay': return pickRoleplay({ theme, tier, boardId });
+    case 'photocard': return pickPhotocard({ theme, tier, boardId });
+    case 'reading-aloud': return pickReadingPassage({ tier, boardId });
     case 'conversation':
     case 'stimulus':
     case 'research':
-      return pickConversation({ theme });
+      return pickConversation({ theme, boardId });
+    case EXAM_MODE.WRITING:
+    case EXAM_MODE.LISTENING:
+    case EXAM_MODE.READING:
+      return pickExamTask(taskId, { theme, boardId });
     default: return null;
   }
 }
@@ -125,20 +158,43 @@ export function isExpired(run, now = Date.now()) {
 export function notesAllowed(run) {
   if (run.phase === PHASE.PREP) return true;
   const section = run.paper.sections[run.sectionIndex];
+  if (run.paper.examMode && run.paper.examMode !== EXAM_MODE.SPEAKING) return false;
   return run.phase === PHASE.SPEAKING && section && section.taskId !== 'conversation';
 }
 
 /** Finish the current section and move on (or to review). */
-export function completeSection(run, { transcript = '', spokenSeconds = 0, now = Date.now() } = {}) {
+export function completeSection(run, {
+  transcript = '',
+  spokenSeconds = 0,
+  spentSeconds = null,
+  responseData = null,
+  submitted = true,
+  usedNotes = false,
+  candidateAsked = false,
+  unexpectedHandled = false,
+  now = Date.now(),
+} = {}) {
   const section = run.paper.sections[run.sectionIndex];
   const allowance = section?.seconds ?? 0;
+  const cleanSpoken = Number.isFinite(Number(spokenSeconds)) ? Math.max(0, Number(spokenSeconds)) : 0;
+  const cleanSpent = Number.isFinite(Number(spentSeconds))
+    ? Math.max(0, Number(spentSeconds))
+    : cleanSpoken;
   const transcripts = [...run.transcripts, {
     taskId: section?.taskId,
     transcript,
-    spokenSeconds,
+    spokenSeconds: cleanSpoken,
+    spentSeconds: cleanSpent,
     allowance,
+    responseData,
+    submitted: Boolean(submitted),
+    usedNotes: Boolean(usedNotes),
+    candidateAsked: Boolean(candidateAsked),
+    unexpectedHandled: Boolean(unexpectedHandled),
     // Under-running is the commonest lost mark, so it is recorded explicitly.
-    shortfall: Math.max(0, allowance - spokenSeconds),
+    shortfall: section?.examMode && section.examMode !== EXAM_MODE.SPEAKING
+      ? 0
+      : Math.max(0, allowance - cleanSpoken),
   }];
 
   const nextIndex = run.sectionIndex + 1;
@@ -156,19 +212,33 @@ export function completeSection(run, { transcript = '', spokenSeconds = 0, now =
  * weighting we could faithfully reproduce, and inventing one would be worse
  * than the honest equal split.
  */
-export function scoreTask({ boardId, taskId, tier = TIER.HIGHER, scores = {} }) {
+export function scoreTask({ boardId, taskId, tier = TIER.HIGHER, scores = {}, outOf = null, automaticScore = null }) {
   const criteria = TASK_CRITERIA[taskId] || ['communication'];
   const available = criteria.filter((c) => Number.isFinite(Number(scores[c])));
+  const automatic = Number.isFinite(Number(automaticScore)) && criteria.includes('comprehension');
   if (!available.length) {
-    return { taskId, marks: null, outOf: taskMarks(boardId, taskId, tier), bands: [], note: 'Not scored.' };
+    if (!automatic) {
+      return { taskId, marks: null, outOf: outOf ?? taskMarks(boardId, taskId, tier), bands: [], note: 'Not scored.' };
+    }
+    const percent = Math.max(0, Math.min(100, Number(automaticScore)));
+    const resolvedOutOf = outOf ?? taskMarks(boardId, taskId, tier) ?? 0;
+    return {
+      taskId,
+      percent: Math.round(percent),
+      marks: Math.round((percent / 100) * resolvedOutOf),
+      outOf: resolvedOutOf,
+      bands: [bandFor('comprehension', percent)],
+      unscored: [],
+      automatic: true,
+    };
   }
   const mean = available.reduce((a, c) => a + Number(scores[c]), 0) / available.length;
-  const outOf = taskMarks(boardId, taskId, tier) || 0;
+  const resolvedOutOf = outOf ?? (taskMarks(boardId, taskId, tier) || 0);
   return {
     taskId,
     percent: Math.round(mean),
-    marks: Math.round((mean / 100) * outOf),
-    outOf,
+    marks: Math.round((mean / 100) * resolvedOutOf),
+    outOf: resolvedOutOf,
     bands: available.map((c) => bandFor(c, Number(scores[c]))),
     unscored: criteria.filter((c) => !available.includes(c)),
   };
@@ -200,18 +270,22 @@ export function scorePaper({ boardId, tier = TIER.HIGHER, taskScores = [] }) {
  * explicit confidence of null and a message saying what it is, unless real
  * boundaries are supplied by the caller.
  */
-export function gradeEstimate(percent, { boundaries = null, board = null } = {}) {
+export function gradeEstimate(percent, { boundaries = null, board = null, boundarySource = null } = {}) {
   if (percent === null || percent === undefined) {
     return { grade: null, confidence: null, note: 'Not enough scored tasks to estimate.' };
   }
-  if (boundaries) {
-    const sorted = Object.entries(boundaries).sort((a, b) => b[1] - a[1]);
-    const hit = sorted.find(([, min]) => percent >= min);
-    return {
-      grade: hit ? hit[0] : 'U',
-      confidence: 0.7,
-      note: 'Estimated against the grade boundaries you supplied.',
-    };
+  if (boundaries && typeof boundaries === 'object') {
+    const sorted = Object.entries(boundaries)
+      .filter(([, min]) => Number.isFinite(Number(min)))
+      .sort((a, b) => Number(b[1]) - Number(a[1]));
+    if (sorted.length) {
+      const hit = sorted.find(([, min]) => percent >= min);
+      return {
+        grade: hit ? hit[0] : 'U',
+        confidence: 0.7,
+        note: `Estimated against the grade boundaries you supplied${boundarySource ? ` (${boundarySource})` : ''}.`,
+      };
+    }
   }
   return {
     grade: null,
@@ -227,6 +301,63 @@ function indicativeBand(percent) {
   if (percent >= 55) return 'Secure middle';
   if (percent >= 40) return 'Developing';
   return 'Early';
+}
+
+/**
+ * Exam technique is reported separately from language level. It measures
+ * whether the candidate used the task and the clock well; it must never be
+ * smuggled into a language mark or presented as an examiner prediction.
+ */
+export function scoreExamTechnique(run) {
+  const sections = run?.paper?.sections || [];
+  const transcripts = run?.transcripts || [];
+  if (!sections.length || !transcripts.length) {
+    return { score: null, status: 'not-started', languageLevel: null, components: {} };
+  }
+
+  const round = (n) => Math.round(Math.max(0, Math.min(100, n)));
+  const values = sections.map((section, index) => {
+    const t = transcripts[index] || {};
+    const allowance = Number(section.seconds) || 0;
+    const spent = Number.isFinite(Number(t.spentSeconds)) ? Number(t.spentSeconds) : Number(t.spokenSeconds) || 0;
+    const ratio = allowance ? spent / allowance : 0;
+    const timing = round((ratio / 0.85) * 100 - (ratio > 1 ? Math.min(25, (ratio - 1) * 100) : 0));
+    const response = t.responseData || {};
+    const textWords = String(t.transcript || '').trim().split(/\s+/).filter(Boolean).length;
+    const answerCount = Number(response.answerCount) || 0;
+    const expectedCount = Number(response.expectedCount) || 0;
+    const completion = expectedCount
+      ? round((answerCount / expectedCount) * 100)
+      : (response.complete === false ? 40 : textWords >= 12 ? 100 : textWords ? 70 : 0);
+    const isSpeaking = !run.paper.examMode || run.paper.examMode === EXAM_MODE.SPEAKING;
+    const interaction = !isSpeaking
+      ? 100
+      : round((t.transcript ? 60 : 0) + (t.candidateAsked ? 20 : 0) + (t.unexpectedHandled ? 20 : 0));
+    const conditions = t.usedNotes && section.taskId === 'conversation' ? 0 : 100;
+    return { timing, completion, interaction, conditions, ratio, taskId: section.taskId };
+  });
+
+  const average = (key) => round(values.reduce((sum, value) => sum + value[key], 0) / values.length);
+  const components = {
+    timing: average('timing'),
+    taskCompletion: average('completion'),
+    interaction: average('interaction'),
+    examConditions: average('conditions'),
+  };
+  const score = round(
+    components.timing * 0.35
+      + components.taskCompletion * 0.30
+      + components.interaction * 0.20
+      + components.examConditions * 0.15,
+  );
+  return {
+    score,
+    status: 'practice',
+    languageLevel: null,
+    components,
+    sections: values,
+    note: 'Technique is a separate practice signal for timing, completion and exam conditions; it is not a language-level mark.',
+  };
 }
 
 /**
@@ -364,20 +495,30 @@ export function validateAgainstResults(results = REAL_RESULTS) {
   if (!usable.length) {
     return { n: 0, exact: null, withinOne: null, status: 'no-data', message: 'No real results reported yet.' };
   }
-  const order = ['9', '8', '7', '6', '5', '4', '3', '2', '1', 'U'];
-  const idx = (g) => order.indexOf(String(g));
+  const orders = [
+    ['9', '8', '7', '6', '5', '4', '3', '2', '1', 'U'],
+    ['A*', 'A', 'B', 'C', 'D', 'E', 'U'],
+  ];
+  const idx = (g) => {
+    const value = String(g);
+    const order = orders.find((candidate) => candidate.includes(value));
+    return order ? order.indexOf(value) : -1;
+  };
   let exact = 0;
   let withinOne = 0;
-  for (const r of usable) {
+  const comparable = usable.filter((r) => idx(r.predictedGrade) >= 0 && idx(r.actualGrade) >= 0);
+  for (const r of comparable) {
     const d = Math.abs(idx(r.predictedGrade) - idx(r.actualGrade));
     if (d === 0) exact += 1;
     if (d <= 1) withinOne += 1;
   }
   return {
-    n: usable.length,
-    exact: Math.round((exact / usable.length) * 100) / 100,
-    withinOne: Math.round((withinOne / usable.length) * 100) / 100,
-    status: usable.length < 20 ? 'provisional' : 'validated',
-    message: `${exact}/${usable.length} exact, ${withinOne}/${usable.length} within one grade.`,
+    n: comparable.length,
+    exact: comparable.length ? Math.round((exact / comparable.length) * 100) / 100 : null,
+    withinOne: comparable.length ? Math.round((withinOne / comparable.length) * 100) / 100 : null,
+    status: comparable.length < 20 ? 'provisional' : 'validated',
+    message: comparable.length
+      ? `${exact}/${comparable.length} exact, ${withinOne}/${comparable.length} within one grade.`
+      : 'No comparable grade pairs recorded yet.',
   };
 }

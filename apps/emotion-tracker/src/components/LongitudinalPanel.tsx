@@ -1,6 +1,8 @@
 "use client";
 
 import type { Entry } from "@/lib/types";
+import type { Correction } from "@/lib/corrections";
+import { annotateAssumptionGroups, annotatePatterns, contradictionKey, withoutDismissed } from "@/lib/corrections";
 import EvidenceReportCard from "@/components/EvidenceReportCard";
 import {
   calibrationFor,
@@ -27,26 +29,32 @@ function Badge({ children, tone = "default" }: { children: React.ReactNode; tone
 export default function LongitudinalPanel({
   entries,
   onSelect,
+  corrections = [],
+  onDismissPattern,
+  embedded = false,
 }: {
   entries: Entry[];
   onSelect: (id: string) => void;
+  corrections?: Correction[];
+  onDismissPattern?: (correction: Correction) => void;
+  embedded?: boolean;
 }) {
   const completed = entries.filter((e) => e.summary);
   if (completed.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
-        <EvidenceReportCard entries={entries} onSelect={onSelect} />
+      <div className={`flex flex-col gap-6 ${embedded ? "pt-0" : ""}`}>
+        <EvidenceReportCard entries={entries} onSelect={onSelect} corrections={corrections} />
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted">{longitudinalSummary(entries)}</p>
+          <p className="text-sm text-muted">{longitudinalSummary(entries, corrections)}</p>
         </div>
       </div>
     );
   }
 
   const cal = calibrationFor(entries);
-  const recurring = detectRecurringAssumptions(entries);
-  const patterns = detectRecurringPatterns(entries);
-  const contras = detectContradictions(entries);
+  const recurring = withoutDismissed(annotateAssumptionGroups(detectRecurringAssumptions(entries)), corrections);
+  const patterns = withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections);
+  const contras = detectContradictions(entries).filter((item) => !corrections.some((correction) => correction.key === contradictionKey(item.entryA, item.entryB)));
   const unresolved = unresolvedEntries(entries);
   const topics = allTopics(entries);
   const links = entryRelationships(entries);
@@ -55,13 +63,13 @@ export default function LongitudinalPanel({
   const months = monthlyReviews(entries).slice(-6);
 
   return (
-    <div className="flex flex-col gap-6">
-      <EvidenceReportCard entries={entries} onSelect={onSelect} />
+    <div className={`flex flex-col gap-6 ${embedded ? "pt-0" : ""}`}>
+      <EvidenceReportCard entries={entries} onSelect={onSelect} corrections={corrections} />
 
       {/* Summary + calibration */}
       <div className="rounded-xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Longitudinal summary</h3>
-        <p className="mt-2 text-sm leading-relaxed">{longitudinalSummary(entries)}</p>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Pattern confidence over time</h3>
+        <p className="mt-2 text-sm leading-relaxed">{longitudinalSummary(entries, corrections)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Badge>Reviewed {cal.totalReviewed}</Badge>
           <Badge tone="emerald">unsupported {cal.unsupported}</Badge>
@@ -106,6 +114,7 @@ export default function LongitudinalPanel({
                       {new Date(m.createdAt).toLocaleDateString()}
                     </button>
                   ))}
+                  {onDismissPattern && <button type="button" onClick={() => onDismissPattern({ key: g.key, kind: "assumption", rejectedAt: new Date().toISOString() })} className="rounded-full border border-border bg-card px-2 py-0.5 text-xs text-muted hover:bg-card-hover">Stop showing this pattern</button>}
                 </div>
               </div>
             ))}
@@ -118,8 +127,9 @@ export default function LongitudinalPanel({
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Recurring patterns (descriptive, not diagnostic)</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {patterns.slice(0, 8).map((p, i) => (
-              <span key={i} className="rounded-full border border-border bg-background px-2.5 py-1 text-xs">
+              <span key={i} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-xs">
                 <span className="text-muted">{p.kind}:</span> {p.label} <span className="text-muted">×{p.count}</span>
+                {onDismissPattern && <button type="button" onClick={() => onDismissPattern({ key: p.key, kind: "pattern", rejectedAt: new Date().toISOString() })} className="ml-1 text-[11px] text-muted hover:text-foreground">hide</button>}
               </span>
             ))}
           </div>
@@ -139,6 +149,7 @@ export default function LongitudinalPanel({
                   <button onClick={() => onSelect(c.entryA)} className="text-xs text-accent hover:underline">Entry A</button>
                   <span className="text-xs text-muted">·</span>
                   <button onClick={() => onSelect(c.entryB)} className="text-xs text-accent hover:underline">Entry B</button>
+                  {onDismissPattern && <button type="button" onClick={() => onDismissPattern({ key: contradictionKey(c.entryA, c.entryB), kind: "contradiction", rejectedAt: new Date().toISOString() })} className="ml-auto text-xs text-muted hover:text-foreground">Stop showing this pattern</button>}
                 </div>
               </div>
             ))}

@@ -1,14 +1,20 @@
 // Export / restore / import — versioned JSON backup for local-first data.
 // No cloud sync; the user owns the file.
 
-export const EXPORT_VERSION = 2;
+import { runMigrations, STORE_SCHEMA_VERSION } from './store.js';
+import { getEventHistory } from './telemetry.js';
+
+export const EXPORT_VERSION = 3;
 
 export function buildExportPayload(store){
+  const eventHistory=getEventHistory();
+  const data={ ...store, version: store.version || STORE_SCHEMA_VERSION, eventHistory };
   return {
     app: 'arise',
     version: EXPORT_VERSION,
+    schemaVersion: STORE_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    data: store,
+    data,
   };
 }
 
@@ -26,10 +32,30 @@ export function parseImportFile(text){
   const data = parsed?.data ? parsed.data : parsed;
   if(!data || typeof data !== 'object') throw new Error('Import file is empty or malformed.');
   if(parsed?.app && parsed.app !== 'arise') throw new Error('This backup is not for Arise.');
-  if(!('history' in data) && !('onboarding' in data) && !('activeSchedule' in data)){
-    throw new Error('Unrecognised backup shape — missing history/onboarding/schedule.');
+  if(!('history' in data) && !('onboarding' in data) && !('activeSchedule' in data) && !('eventHistory' in data)){
+    throw new Error('Unrecognised backup shape — missing history/onboarding/schedule/event history.');
   }
-  return data;
+  const validation=validateStoreData(data);
+  if(!validation.ok) throw new Error(`Backup validation failed: ${validation.errors.join(' ')}`);
+  return runMigrations(typeof structuredClone==='function' ? structuredClone(data) : JSON.parse(JSON.stringify(data)));
+}
+
+export function validateStoreData(data){
+  const errors=[];
+  if(!data || typeof data!=='object' || Array.isArray(data)) return { ok:false, errors:['Expected an object.'] };
+  if(data.version!=null && (!Number.isInteger(Number(data.version)) || Number(data.version)<1)) errors.push('Schema version must be a positive integer.');
+  if(Number(data.version) > STORE_SCHEMA_VERSION) errors.push(`Schema version ${data.version} is newer than this app supports (${STORE_SCHEMA_VERSION}).`);
+  if(data.history!=null && !Array.isArray(data.history)) errors.push('History must be an array.');
+  for(const [i,session] of (data.history||[]).entries()){
+    if(!session || typeof session!=='object') { errors.push(`History item ${i+1} is not an object.`); continue; }
+    if(!session.id) errors.push(`History item ${i+1} is missing an id.`);
+    if(session.blocks!=null && !Array.isArray(session.blocks)) errors.push(`History item ${i+1} blocks must be an array.`);
+    for(const block of session.blocks||[]) if(!block.exerciseId || !Array.isArray(block.sets)) errors.push(`History item ${i+1} contains an invalid exercise block.`);
+  }
+  if(data.activeSchedule!=null && typeof data.activeSchedule!=='object') errors.push('Active schedule must be an object or null.');
+  if(data.eventHistory!=null && !Array.isArray(data.eventHistory)) errors.push('Event history must be an array.');
+  if(data.healthSummary!=null && typeof data.healthSummary!=='object') errors.push('Health summary must be an object or null.');
+  return { ok: errors.length===0, errors };
 }
 
 export function mergeStrategyLabel(strategy){
@@ -37,18 +63,26 @@ export function mergeStrategyLabel(strategy){
 }
 
 export function mergeStores(current, imported, strategy='merge'){
-  if(strategy==='replace') return { ...imported, version: current.version || 1 };
+  const currentStore=runMigrations(typeof structuredClone==='function' ? structuredClone(current||{}) : JSON.parse(JSON.stringify(current||{})));
+  const importedStore=runMigrations(typeof structuredClone==='function' ? structuredClone(imported||{}) : JSON.parse(JSON.stringify(imported||{})));
+  if(strategy==='replace') return { ...importedStore, version: STORE_SCHEMA_VERSION };
   const byId = new Map();
-  for(const h of (current.history||[])) byId.set(h.id, h);
-  for(const h of (imported.history||[])) if(!byId.has(h.id)) byId.set(h.id, h);
+  for(const h of (currentStore.history||[])) byId.set(h.id, h);
+  for(const h of (importedStore.history||[])) if(!byId.has(h.id)) byId.set(h.id, h);
+  const eventById=new Map();
+  for(const e of [...(currentStore.eventHistory||[]), ...(importedStore.eventHistory||[])]) if(e?.id) eventById.set(e.id,e);
   return {
-    version: current.version || imported.version || 1,
-    onboarding: current.onboarding || imported.onboarding || null,
-    activeSchedule: current.activeSchedule || imported.activeSchedule || null,
+    ...currentStore,
+    version: STORE_SCHEMA_VERSION,
+    onboarding: currentStore.onboarding || importedStore.onboarding || null,
+    activeSchedule: currentStore.activeSchedule || importedStore.activeSchedule || null,
+    activeWorkout: currentStore.activeWorkout || importedStore.activeWorkout || null,
     history: [...byId.values()].sort((a,b)=> a.dateISO.localeCompare(b.dateISO)),
-    preferences: { ...(imported.preferences||{}), ...(current.preferences||{}) },
-    readinessLog: [...(current.readinessLog||[]), ...(imported.readinessLog||[])].filter((v,i,a)=> a.findIndex(x=> x.dateISO===v.dateISO && x.at===v.at)===i),
-    programHistory: [...(current.programHistory||[]), ...(imported.programHistory||[])].filter((v,i,a)=> a.findIndex(x=> x.programId===v.programId && x.version===v.version)===i),
+    eventHistory: [...eventById.values()].sort((a,b)=> String(a.at||'').localeCompare(String(b.at||''))),
+    healthSummary: currentStore.healthSummary || importedStore.healthSummary || null,
+    preferences: { ...(importedStore.preferences||{}), ...(currentStore.preferences||{}) },
+    readinessLog: [...(currentStore.readinessLog||[]), ...(importedStore.readinessLog||[])].filter((v,i,a)=> a.findIndex(x=> x.dateISO===v.dateISO && x.at===v.at)===i),
+    programHistory: [...(currentStore.programHistory||[]), ...(importedStore.programHistory||[])].filter((v,i,a)=> a.findIndex(x=> x.programId===v.programId && x.version===v.version)===i),
   };
 }
 
@@ -71,5 +105,7 @@ export function deletionPreview(store){
     schedulePresent: !!store.activeSchedule,
     onboardingPresent: !!store.onboarding,
     readinessCount: (store.readinessLog||[]).length,
+    eventCount: getEventHistory().length,
+    healthSummaryPresent: !!store.healthSummary,
   };
 }
