@@ -13,9 +13,14 @@ import type {
   StreakState,
   UserSettings,
 } from "@/domain/types";
-import { COLLECTION_STORES, getAll, getDb, putAll, putOne, readMeta, removeOne, writeMeta } from "./db";
+import {
+  isRevisionCheckpoint,
+  type RevisionCheckpoint,
+} from "@/domain/revision-checkpoint";
+import { COLLECTION_STORES, getAll, getDb, putAll, putOne, removeOne } from "./db";
 import type { CollectionStore } from "./db";
 import { enqueue } from "./sync";
+import { readReviseMeta, REVISE_META_KEYS, writeReviseMeta } from "./storage-namespace";
 
 // ---------------------------------------------------------------------------
 // The repository is the only thing the UI talks to. It writes IndexedDB, then
@@ -23,14 +28,49 @@ import { enqueue } from "./sync";
 // network, so a slow connection can never make the app feel slow.
 // ---------------------------------------------------------------------------
 
-export const ONBOARDED_KEY = "onboardedAt";
+export const ONBOARDED_KEY = REVISE_META_KEYS.onboardedAt;
 
 export async function hasOnboarded(): Promise<boolean> {
-  return Boolean(await readMeta<string>(ONBOARDED_KEY));
+  return Boolean(await readReviseMeta<string>("onboardedAt"));
 }
 
 export async function markOnboarded(): Promise<void> {
-  await writeMeta(ONBOARDED_KEY, new Date().toISOString());
+  await writeReviseMeta("onboardedAt", new Date().toISOString());
+}
+
+export async function loadRevisionCheckpoint(userId: Id): Promise<RevisionCheckpoint | undefined> {
+  const value = await readReviseMeta<unknown>("revisionCheckpoint");
+  if (isRevisionCheckpoint(value)) return value.userId === userId ? value : undefined;
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = (value as Record<string, unknown>)[userId];
+  return isRevisionCheckpoint(candidate) && candidate.userId === userId ? candidate : undefined;
+}
+
+export async function saveRevisionCheckpoint(checkpoint: RevisionCheckpoint): Promise<void> {
+  const current = await readReviseMeta<unknown>("revisionCheckpoint");
+  const byUser: Record<string, RevisionCheckpoint> = {};
+  if (isRevisionCheckpoint(current)) byUser[current.userId] = current;
+  else if (current && typeof current === "object") {
+    for (const [userId, value] of Object.entries(current)) {
+      if (isRevisionCheckpoint(value) && value.userId === userId) byUser[userId] = value;
+    }
+  }
+  byUser[checkpoint.userId] = checkpoint;
+  await writeReviseMeta("revisionCheckpoint", byUser);
+}
+
+export async function clearRevisionCheckpoint(userId: Id): Promise<void> {
+  const current = await readReviseMeta<unknown>("revisionCheckpoint");
+  if (isRevisionCheckpoint(current)) {
+    if (current.userId === userId) await writeReviseMeta("revisionCheckpoint", null);
+    return;
+  }
+  if (!current || typeof current !== "object") return;
+  const byUser: Record<string, RevisionCheckpoint> = {};
+  for (const [key, value] of Object.entries(current)) {
+    if (key !== userId && isRevisionCheckpoint(value) && value.userId === key) byUser[key] = value;
+  }
+  await writeReviseMeta("revisionCheckpoint", Object.keys(byUser).length ? byUser : null);
 }
 
 export interface Snapshot {
@@ -68,6 +108,8 @@ export function defaultSettings(userId: Id): UserSettings {
     theme: "system",
     accessibility: { largeText: false, dyslexiaFont: false, highContrast: false, reduceMotion: false },
     aiEnabled: true,
+    // Pulse never reads this account's study history until it is switched on.
+    pulseEnabled: false,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -76,7 +118,6 @@ export function defaultStreak(userId: Id): StreakState {
   return { userId, current: 0, longest: 0, lastActiveDate: null, xp: 0, achievements: [] };
 }
 
-const SEED_VERSION_KEY = "seedVersion";
 const SEED_VERSION = 1;
 
 /**
@@ -85,7 +126,7 @@ const SEED_VERSION = 1;
  * leaves every existing card's FSRS history untouched.
  */
 export async function ensureSeeded(userId: Id): Promise<void> {
-  const installed = await readMeta<number>(SEED_VERSION_KEY);
+  const installed = await readReviseMeta<number>("seedVersion");
   const existing = await getAll<Card>("cards");
   const known = new Set(existing.map((c) => c.id));
 
@@ -98,7 +139,7 @@ export async function ensureSeeded(userId: Id): Promise<void> {
   const missingQuestions = seedQuestions.filter((q) => !knownQuestions.has(q.id));
   if (missingQuestions.length) await putAll("questions", missingQuestions);
 
-  if (installed !== SEED_VERSION) await writeMeta(SEED_VERSION_KEY, SEED_VERSION);
+  if (installed !== SEED_VERSION) await writeReviseMeta("seedVersion", SEED_VERSION);
 }
 
 export async function loadSnapshot(userId: Id): Promise<Snapshot> {

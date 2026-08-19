@@ -54,6 +54,8 @@ export const markedPartSchema = z.object({
 export const markResponseSchema = z.object({
   marked: z.array(markedPartSchema).min(1),
   feedback: z.string().min(1).max(3000),
+  /** Provider confidence in the mark; absence is preserved so escalation can be urgent. */
+  confidence: z.number().min(0).max(1).optional(),
 });
 
 export const explainResponseSchema = z.object({
@@ -84,6 +86,24 @@ export const summariseResponseSchema = z.object({
   summary: z.string().min(1).max(4000),
   bullets: z.array(z.string().min(1).max(400)).max(10).default([]),
 });
+
+/**
+ * The response registry is shared by the server and browser. Keeping the
+ * wrappers here prevents a provider or API change from widening one boundary
+ * while the other still assumes the old shape.
+ */
+export const RESPONSE_SCHEMAS = {
+  explain: explainResponseSchema,
+  socratic: socraticResponseSchema,
+  mark: markResponseSchema,
+  "generate-cards": z.object({ cards: z.array(generatedCardSchema).min(1).max(20) }),
+  "generate-questions": z.object({ questions: z.array(generatedQuestionSchema).min(1).max(5) }),
+  summarise: summariseResponseSchema,
+  diagnose: diagnoseResponseSchema,
+  "extract-questions": z.object({ questions: z.array(generatedQuestionSchema).min(1).max(40) }),
+  ocr: ocrResponseSchema,
+  "cards-from-notes": z.object({ cards: z.array(generatedCardSchema).min(1).max(25) }),
+} satisfies Record<AiTask, z.ZodType>;
 
 export type GeneratedCard = z.infer<typeof generatedCardSchema>;
 export type GeneratedQuestion = z.infer<typeof generatedQuestionSchema>;

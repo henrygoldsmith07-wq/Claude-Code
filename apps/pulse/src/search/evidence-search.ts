@@ -19,7 +19,7 @@
  */
 
 import type { Finding } from "../discovery/finding.js";
-import { ReplicationLedger } from "../discovery/replication.js";
+import { findingSubject } from "../discovery/relationship.js";
 import type { Hypothesis } from "../hypotheses/tracker.js";
 import type { ExperimentDesign } from "../experiments/design.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
@@ -156,7 +156,7 @@ function hitForFinding(finding: Finding, terms: readonly string[], registry: Met
     title: finding.title,
     summary: finding.statement,
     matchedTerms: matched,
-    signature: ReplicationLedger.signature(finding),
+    signature: findingSubject(finding),
     finding,
   };
 }

@@ -129,6 +129,7 @@ export const EMPTY_STATE = {
   pantry: [], // {id,name,emoji,cat,location,qty,cost,store,expiry,low}
   autoUsePantry: false,
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
+  mealPlanEvents: [], // {id,date,slot,plannedRecipeId,actualRecipeId,status,reason,at}
   calendarBusy: [], // [{date,source,importedAt}] imported from a connected calendar
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids
@@ -136,6 +137,7 @@ export const EMPTY_STATE = {
   recipeCollections: [], // {id,name,recipeIds[],createdAt}
   recipeRatings: {}, // recipe id -> personal 1–5 score
   cooked: [], // [{recipeId, date}]
+  cookingTimeHistory: [], // {id,recipeId,date,estimatedMins,actualMins}
   /* health — every reading is one you took */
   measurements: [], // {id, key, value, date}
   vitals: [], // {id, key, values:{}, date, note}

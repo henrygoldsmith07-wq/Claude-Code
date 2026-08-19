@@ -141,7 +141,7 @@ describe("toSpokenText", () => {
 });
 
 describe("search index", () => {
-  const corpus = { topics: allTopics(), cards: [card("a", "Photosynthesis card", "chlorophyll")], questions: [] };
+  const corpus = { topics: allTopics(), cards: [card("a", "Photosynthesis card", "chlorophyll")], questions: [], misconceptions: [] };
   const index = buildSearchIndex(corpus);
 
   it("indexes every document once", () => {

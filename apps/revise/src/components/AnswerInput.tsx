@@ -126,7 +126,7 @@ export function AnswerInput({
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder ?? "Write your answer as you would in the exam…"}
-        className="field nice-scroll resize-y font-normal"
+        className="field nice-scroll resize-y font-normal text-base leading-6"
         aria-label={id ? undefined : "Your answer"}
       />
       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
@@ -136,7 +136,7 @@ export function AnswerInput({
           type="button"
           onClick={toggleVoice}
           aria-pressed={listening}
-          className={cx(listening && "text-danger")}
+          className={cx("min-h-10", listening && "text-danger")}
           title={speechAvailable ? "Dictate your answer" : "Speech recognition unavailable in this browser"}
         >
           {listening ? (
@@ -151,7 +151,7 @@ export function AnswerInput({
             </>
           )}
         </Button>
-        <Button size="sm" variant="ghost" type="button" onClick={() => fileInput.current?.click()}>
+        <Button size="sm" variant="ghost" type="button" onClick={() => fileInput.current?.click()} className="min-h-10">
           <PhotoIcon size={ICON_SIZE.sm} aria-hidden />
           Photo of working
         </Button>
@@ -169,7 +169,7 @@ export function AnswerInput({
           }}
         />
         {value.trim() ? (
-          <span className="text-[11px] text-ink3 ml-auto tabular-nums">
+          <span className="text-[11px] text-ink3 sm:ml-auto tabular-nums">
             {value.trim().split(/\s+/).length} words
           </span>
         ) : null}

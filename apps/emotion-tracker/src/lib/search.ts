@@ -33,7 +33,7 @@ export function searchEntries(entries: Entry[], q: string): Entry[] {
 
 // ── lightweight semantic search ───────────────────────────────────────
 // No model dependency — runs entirely locally, so "local-only mode" stays local.
-// Ranking: stem-aware TF-IDF cosine over a *weighted* document. Field weights
+// Ranking: stem-aware local relevance scoring over a *weighted* document. Field weights
 // make a title/emotion/trigger match worth more than a buried message match;
 // stemming ("ignoring" ↔ "ignore") is the same tokenisation the longitudinal
 // detectors use, so search agrees with the pattern engine.
@@ -69,7 +69,7 @@ function buildWeightedDoc(e: Entry): string {
     note: e.summary?.suggestedNextSteps?.join(" ") ?? "",
     message: e.messages.map((m) => m.content).join(" "),
   };
-  // Repeat higher-weight fields so TF naturally reflects importance without a
+  // Repeat higher-weight fields so term frequency reflects importance without a
   // separate scoring pass.
   const parts: string[] = [];
   for (const [key, w] of FIELD_WEIGHTS) {
@@ -154,6 +154,20 @@ export function semanticSearch(entries: Entry[], q: string, topK = 20): Semantic
     }
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, topK);
+}
+
+/**
+ * One search mode for the product: rank by local relevance, then fall back to
+ * exact token matching so a useful result is never hidden by a sparse index.
+ */
+export function automaticSearch(entries: Entry[], q: string, topK = 50): Entry[] {
+  const trimmed = q.trim();
+  if (!trimmed) return entries;
+  const ranked = semanticSearch(entries, trimmed, topK).map((hit) => hit.entry);
+  if (ranked.length === 0) return searchEntries(entries, trimmed);
+  const rankedIds = new Set(ranked.map((entry) => entry.id));
+  const exactMatches = searchEntries(entries, trimmed).filter((entry) => !rankedIds.has(entry.id));
+  return [...ranked, ...exactMatches];
 }
 
 // field extraction helper for the "matched" explanation (same weights as above)

@@ -1,15 +1,18 @@
 import { useRef, useState } from 'react';
 import { buildExportPayload, downloadJson, parseImportFile, mergeStores, portableCsv, deletionPreview } from '../lib/export.js';
 import { clearStore } from '../lib/store.js';
-import { portableExport, portableImport } from '../lib/sync.js';
-import { getTelemetry, clearTelemetry, telemetrySummary } from '../lib/telemetry.js';
-import { EQUIPMENT, LOCATIONS, GOALS } from '../lib/data.js';
+import { clearTelemetry, telemetrySummary, getEventHistory, mergeEventHistory, replaceEventHistory, recordEvent } from '../lib/telemetry.js';
+import { mergeHealthSummary, pullHealthSummary } from '../lib/health.js';
+import { LOCATIONS, GOALS } from '../lib/data.js';
 
 export default function MoreView({ store, setStore, setTab, onboardingOpen, setOnboardingOpen }){
   const [importStrategy,setImportStrategy]=useState('merge');
   const [msg,setMsg]=useState(null);
   const fileRef = useRef(null);
   const [showTelemetry,setShowTelemetry]=useState(false);
+  const [healthMsg,setHealthMsg]=useState(null);
+
+  const healthAdapter = typeof window !== 'undefined' ? window.__ARISE_HEALTH_ADAPTER__ : null;
 
   const exportNow = ()=>{
     const payload = buildExportPayload(store);
@@ -26,6 +29,13 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
     setTimeout(()=> URL.revokeObjectURL(url), 2000);
   };
 
+  const exportEvents = ()=>{
+    const date=new Date().toISOString().slice(0,10);
+    downloadJson(`arise-event-history-${date}.json`, { app:'arise', version:3, exportedAt:new Date().toISOString(), eventHistory:getEventHistory() });
+    setMsg('Event history exported — it stays on your device unless you share the file.');
+    setTimeout(()=> setMsg(null), 3000);
+  };
+
   const onPickFile = async (e)=>{
     const file = e.target.files?.[0];
     if(!file) return;
@@ -33,7 +43,9 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
     try{
       const imported = parseImportFile(text);
       const merged = mergeStores(store, imported, importStrategy);
-      setStore(merged);
+      if(importStrategy==='replace') replaceEventHistory(imported.eventHistory || []);
+      else if(imported.eventHistory?.length) mergeEventHistory(imported.eventHistory);
+      setStore({ ...merged, eventHistory:getEventHistory() });
       setMsg(importStrategy==='replace' ? 'Backup restored — replaced this device.' : 'Backup merged — history combined.');
     }catch(err){
       setMsg(String(err.message || err));
@@ -55,6 +67,35 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
     location.reload();
   };
 
+  const setTelemetryConsent=(enabled)=>{
+    setStore({ ...store, preferences:{ ...(store.preferences||{}), telemetryEnabled:enabled } });
+    recordEvent('consent:local-measurements', { enabled }, { essential:true });
+    setMsg(enabled ? 'Local measurements enabled.' : 'Local measurements disabled. Existing history remains on this device.');
+    setTimeout(()=> setMsg(null), 3000);
+  };
+
+  const setPulseConsent=(enabled)=>{
+    setStore({ ...store, preferences:{ ...(store.preferences||{}), pulseEnabled:enabled } });
+    recordEvent('consent:pulse', { enabled }, { essential:true });
+    setMsg(enabled ? 'Pulse sharing enabled. Arise will only push completed workouts.' : 'Pulse sharing disabled.');
+    setTimeout(()=> setMsg(null), 3000);
+  };
+
+  const setHealthConsent=(enabled)=>{
+    setStore({ ...store, preferences:{ ...(store.preferences||{}), healthSummaryEnabled:enabled }, healthSummary:enabled ? store.healthSummary : null });
+    recordEvent('consent:health-summary', { enabled }, { essential:true });
+    setHealthMsg(enabled ? 'Health summary import enabled.' : 'Health summary disabled and its saved summary removed.');
+  };
+
+  const importHealthSummary=async()=>{
+    if(!store.preferences?.healthSummaryEnabled){ setHealthMsg('Enable health summary consent first.'); return; }
+    const result=await pullHealthSummary(healthAdapter);
+    if(!result.ok){ setHealthMsg(result.reason); return; }
+    setStore({ ...store, healthSummary:mergeHealthSummary(store.healthSummary,result.summary) });
+    recordEvent('health:summary-imported', { source:result.summary.source }, { essential:false });
+    setHealthMsg('Health summary imported locally.');
+  };
+
   return (
     <div className="px-4 py-5 space-y-4 max-w-3xl mx-auto">
       <div>
@@ -68,6 +109,7 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
         <div className="flex flex-wrap gap-2">
           <button onClick={exportNow} className="btn btn-primary min-h-10 rounded-xl px-4">Export JSON</button>
           <button onClick={exportCsv} className="btn btn-secondary min-h-10 rounded-xl px-4">Export CSV</button>
+          <button onClick={exportEvents} className="btn btn-secondary min-h-10 rounded-xl px-4">Export events</button>
           <label className="btn btn-secondary min-h-10 rounded-xl px-4 cursor-pointer">
             Import backup
             <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onPickFile} />
@@ -82,7 +124,7 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
         {msg && <p role="status" className="text-xs bg-surface2 border border-line rounded-xl px-3 py-2">{msg}</p>}
         <details className="text-xs">
           <summary className="font-semibold cursor-pointer">What’s in the backup?</summary>
-          <pre className="mt-2 overflow-auto rounded-xl bg-surface2 border border-line p-3 text-[11px] leading-relaxed">{JSON.stringify({ app:'arise', version:2, exportedAt:'…', data:{ onboarding:'{goal,equipment,location,level}', activeSchedule:'{programId,sessions}', history:'[{id,date,blocks:[{exerciseId,sets:[{reps,weightKg,rpe,side,rom}]}]}]', preferences:'{units,theme,syncEnabled}', readinessLog:'[{dateISO,score}]' }}, null, 2)}</pre>
+          <pre className="mt-2 overflow-auto rounded-xl bg-surface2 border border-line p-3 text-[11px] leading-relaxed">{JSON.stringify({ app:'arise', version:3, schemaVersion:4, exportedAt:'…', data:{ onboarding:'{goal,equipment,location,level}', activeSchedule:'{programId,sessions}', activeWorkout:'recoverable draft or null', history:'[{id,date,blocks:[{exerciseId,sets:[{reps,weightKg,rpe,side,rom}]}]}]', preferences:'{units,theme,telemetryEnabled,pulseEnabled,healthSummaryEnabled}', eventHistory:'[{id,type,at,payload}]', healthSummary:'optional summary or null' }}, null, 2)}</pre>
         </details>
       </section>
 
@@ -105,7 +147,15 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
 
       <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
         <h3 className="text-sm font-bold">Privacy & data</h3>
-        <p className="text-xs text-ink3">Local-first. No data leaves this device unless you export or enable Pulse. Crash reports and analytics are local-only unless you opt in.</p>
+        <p className="text-xs text-ink3">Local-first. Event measurements stay on this device. Nothing is sent to Pulse or a health platform unless you explicitly enable that separate integration.</p>
+        <div className="rounded-xl border border-line bg-surface2 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2"><p className="text-xs font-bold">Local measurements</p><span className="ml-auto text-[11px] text-ink3">{store.preferences?.telemetryEnabled===true?'enabled':store.preferences?.telemetryEnabled===false?'disabled':'choice needed'}</span></div>
+          <p className="text-[11px] text-ink3">Measures set logging time, session abandonment and recommendation acceptance. It never leaves this device.</p>
+          <div className="flex gap-2">
+            <button onClick={()=> setTelemetryConsent(true)} className="btn btn-primary min-h-9 rounded-xl px-3 text-xs">Allow local measurements</button>
+            <button onClick={()=> setTelemetryConsent(false)} className="btn btn-secondary min-h-9 rounded-xl px-3 text-xs">Keep private</button>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={()=> setShowTelemetry(v=>!v)} className="btn btn-secondary min-h-9 rounded-xl px-3 text-xs">{showTelemetry?'Hide':'Show'} local telemetry</button>
           <button onClick={()=> { clearTelemetry(); setMsg('Local telemetry cleared.'); setTimeout(()=> setMsg(null), 2000); }} className="btn btn-secondary min-h-9 rounded-xl px-3 text-xs">Clear telemetry</button>
@@ -113,10 +163,22 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
         {showTelemetry && (
           <pre className="text-[11px] overflow-auto rounded-xl bg-surface2 border border-line p-3">{JSON.stringify(telemetrySummary(), null, 2)}</pre>
         )}
+        <div className="rounded-xl border border-line bg-surface2 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2"><p className="text-xs font-bold">Optional health-platform summary</p><span className="ml-auto text-[11px] text-ink3">{store.preferences?.healthSummaryEnabled?'enabled':'disabled'}</span></div>
+          <p className="text-[11px] text-ink3">Import only a small summary such as steps, sleep, weight or resting heart rate. No raw health history is required.</p>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={()=> setHealthConsent(!store.preferences?.healthSummaryEnabled)} className="btn btn-secondary min-h-9 rounded-xl px-3 text-xs">{store.preferences?.healthSummaryEnabled?'Disable health summary':'Enable health summary'}</button>
+            <button onClick={importHealthSummary} disabled={!healthAdapter || !store.preferences?.healthSummaryEnabled} className="btn btn-primary min-h-9 rounded-xl px-3 text-xs disabled:opacity-40">Import summary</button>
+          </div>
+          <p className="text-[11px] text-ink3">{healthAdapter?'Adapter detected — ready to import.':'No health adapter detected — this remains optional.'}</p>
+          {store.healthSummary && <p className="text-[11px]">Latest: {Object.entries(store.healthSummary).filter(([k])=> !['version','source','asOf','importedAt'].includes(k)).map(([k,v])=> `${k} ${v}`).join(' · ')} <span className="text-ink3">({store.healthSummary.source})</span></p>}
+          {healthMsg && <p role="status" className="text-xs border border-line rounded-xl px-3 py-2">{healthMsg}</p>}
+        </div>
         <details className="rounded-xl border border-line bg-surface2 px-3 py-2">
           <summary className="text-sm font-semibold cursor-pointer">Pulse connector</summary>
-          <p className="text-xs text-ink3 mt-2">When enabled, completed sessions and weekly volume can be pushed to Pulse (your health dashboard). Pull Pulse metrics (steps, weight, sleep) to enrich Arise analytics. Requires a Pulse adapter — configure via the adapter API (see <code>src/lib/pulse.js</code>). Data is only sent when you allow it.</p>
-          <p className="text-xs text-ink3 mt-1">Current: {store.preferences?.pulseEnabled ? 'enabled' : 'disabled'} — toggle in code or via the sync adapter.</p>
+          <p className="text-xs text-ink3 mt-2">When enabled, completed sessions and weekly volume can be pushed to Pulse. Requires a Pulse adapter — configure via <code>window.__PULSE_ADAPTER__</code> (see <code>src/lib/pulse.js</code>). Data is only sent when you allow it.</p>
+          <p className="text-xs text-ink3 mt-1">Current: {store.preferences?.pulseEnabled ? 'enabled' : 'disabled'}.</p>
+          <button onClick={()=> setPulseConsent(!store.preferences?.pulseEnabled)} className="btn btn-secondary min-h-9 rounded-xl px-3 text-xs mt-2">{store.preferences?.pulseEnabled?'Disable Pulse sharing':'Enable Pulse sharing'}</button>
         </details>
         <div className="flex gap-2 mt-2">
           <button onClick={reset} className="text-xs font-semibold text-ink3 underline underline-offset-2">Clear local data</button>

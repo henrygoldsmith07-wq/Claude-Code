@@ -54,6 +54,7 @@ export default function CookMode({ recipe, onExit, onClose }) {
   const [spare, setSpare] = useState(Math.max(0, (recipe.servings || 1) - 1));
   const [saved, setSaved] = useState(false);
   const [wakeState, setWakeState] = useState('checking');
+  const [startedAt] = useState(() => Date.now());
 
   const s = recipe.steps[step];
   const last = step === recipe.steps.length - 1;
@@ -100,7 +101,7 @@ export default function CookMode({ recipe, onExit, onClose }) {
   }, [finished]);
 
   const finish = () => {
-    app.completeRecipe(recipe);
+    app.completeRecipe(recipe, { actualMins: Math.max(1, Math.round((Date.now() - startedAt) / 60000)) });
     recordProductEvent('recipe_cooked');
     setAuto(false);
     setFinished(true);

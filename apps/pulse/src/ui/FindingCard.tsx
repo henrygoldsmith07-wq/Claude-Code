@@ -39,7 +39,10 @@ export const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
 
 export interface FindingCardProps {
   finding: Finding;
-  onFeedback?: (findingId: string, verdict: "useful" | "not-useful" | "already-knew") => void;
+  onFeedback?: (
+    findingId: string,
+    verdict: "useful" | "not-useful" | "already-knew" | "bad-data" | "stop-investigating",
+  ) => void;
   onDesignExperiment?: (finding: Finding) => void;
   /** When true the card flashes briefly — used when a search hit jumps here. */
   highlight?: boolean;
@@ -219,6 +222,12 @@ export function FindingCard({
           </button>
           <button type="button" onClick={() => onFeedback(finding.id, "not-useful")}>
             Not useful
+          </button>
+          <button type="button" onClick={() => onFeedback(finding.id, "bad-data")}>
+            Bad data
+          </button>
+          <button type="button" onClick={() => onFeedback(finding.id, "stop-investigating")}>
+            Stop investigating
           </button>
         </fieldset>
       ) : null}

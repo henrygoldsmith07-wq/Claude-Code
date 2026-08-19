@@ -58,7 +58,7 @@ These exist today and are the foundation the roadmap builds on:
   `docs/benchmark.md`, grown into a labelled set).
 - Teacher-marking comparison (measure the marker against a human teacher, not
   only against the rubric).
-- Explanation library for common misconceptions.
+- Explanation library for common misconceptions *(shipped — `src/content/misconceptions/`)*.
 - Video/visual explanations.
 
 ## 4. Input & accessibility
@@ -111,7 +111,7 @@ These exist today and are the foundation the roadmap builds on:
 - Real exam countdown planning *(extend — planner exists; add a live countdown
   that drives daily priority)*.
 - Automatic revision-plan rebuilding (re-plan when a session is missed, a grade
-  target changes, or an exam date moves).
+  target changes, or an exam date moves) *(shipped — `src/domain/replan.ts`)*.
 - Better predicted grades.
 - Confidence ranges around predicted grades *(extend — bands exist; tighten them
   as data grows)*.

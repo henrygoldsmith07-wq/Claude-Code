@@ -81,6 +81,37 @@ export type DomainEvent =
       at: IsoInstant;
       sessionId: Id;
       focusSkillId: Id;
+    }
+  | {
+      kind: "human-rating-recorded";
+      at: IsoInstant;
+      ratingId: Id;
+      itemId: Id;
+      raterId: Id;
+      behaviourKeys: BehaviourKey[];
+      meanConfidence: number;
+    }
+  | {
+      kind: "human-adjudication-completed";
+      at: IsoInstant;
+      adjudicationId: Id;
+      disagreementId: Id;
+      itemId: Id;
+      behaviourKey: BehaviourKey;
+      selectedDecision: "present" | "absent" | "uncertain";
+      selectedScore: number;
+    }
+  | {
+      kind: "real-world-outcome-recorded";
+      at: IsoInstant;
+      outcomeId: Id;
+      studyId?: Id;
+      challengeAttemptId?: Id;
+      skillId: Id;
+      outcome: "yes" | "partly" | "no";
+      completed: boolean;
+      comfort?: number;
+      followUpScore?: number;
     };
 
 /** Events that carry evidence, in the order the mastery model should see them. */

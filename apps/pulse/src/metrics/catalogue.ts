@@ -369,6 +369,24 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
     minSampleForInsight: 25,
   },
 
+  // --- Habit ------------------------------------------------------------
+  {
+    id: "habit.completion",
+    name: "Habit completion",
+    description: "Share of tracked habits completed each day.",
+    category: "wellbeing",
+    source: "habit",
+    eventTypes: ["habit.checkin"],
+    metricKey: "completed",
+    unit: "ratio",
+    aggregation: "mean",
+    direction: "higher-better",
+    role: "behaviour",
+    minSampleForInsight: 20,
+    range: { min: 0, max: 1 },
+    format: "percent",
+  },
+
   // --- Wearable (health exports) ----------------------------------------
   {
     id: "wellbeing.steps",

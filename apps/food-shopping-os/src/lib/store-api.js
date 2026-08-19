@@ -449,6 +449,23 @@ export function useStoreApi({
             waste: [...s.waste, { name: item.name, cost: Number(item.cost) || 0, date: s.day }],
           };
         }),
+      markMealPlanOutcome: ({ date, slot, status = 'skipped', reason = null, actualRecipeId = null } = {}) =>
+        set((s) => {
+          const plannedRecipeId = s.plan?.[date]?.[slot];
+          if (!date || !slot || !plannedRecipeId || !['cooked', 'skipped', 'substituted'].includes(status)) return {};
+          const event = {
+            id: uid('mpe'),
+            date,
+            slot,
+            plannedRecipeId,
+            actualRecipeId: actualRecipeId || (status === 'cooked' ? plannedRecipeId : null),
+            status,
+            reason: status === 'skipped' ? (reason || 'other') : null,
+            at: Date.now(),
+          };
+          const existing = (s.mealPlanEvents || []).filter((item) => !(item.date === date && item.slot === slot));
+          return { mealPlanEvents: [...existing, event].slice(-500) };
+        }),
       setPlanSlot: (date, slot, recipeId) =>
         set((s) => {
           const day = { ...(s.plan[date] || {}) };
@@ -533,7 +550,7 @@ export function useStoreApi({
             ? s.favouriteFoods.filter((x) => x !== id)
             : [...s.favouriteFoods, id],
         })),
-      completeRecipe: (recipe, { leftovers = 0 } = {}) =>
+      completeRecipe: (recipe, { leftovers = 0, actualMins = null } = {}) =>
         set((s) => {
           const entry = buildEntry(recipeFood(recipe, [...CATALOGUE, ...s.customFoods]), { source: 'recipe' });
           // Cooking a 4-serving dish for a household of 2 uses half of it.
@@ -544,9 +561,36 @@ export function useStoreApi({
               recipeServings: recipe.servings,
             })
             : { pantry: s.pantry };
+          const plannedSlots = Object.entries(s.plan?.[s.day] || {});
+          const plannedSlot = plannedSlots.find(([, recipeId]) => recipeId === recipe.id) || plannedSlots[0] || null;
+          const plannedRecipeId = plannedSlot?.[1] || null;
+          const mealPlanEvent = plannedSlot ? {
+            id: uid('mpe'),
+            date: s.day,
+            slot: plannedSlot[0],
+            plannedRecipeId,
+            actualRecipeId: recipe.id,
+            status: plannedRecipeId === recipe.id ? 'cooked' : 'substituted',
+            reason: plannedRecipeId === recipe.id ? null : 'cooked-a-different-meal',
+            at: Date.now(),
+          } : null;
+          const elapsed = Number(actualMins);
+          const timeEvent = Number.isFinite(elapsed) && elapsed > 0 ? {
+            id: uid('ct'),
+            recipeId: recipe.id,
+            date: s.day,
+            estimatedMins: Number(recipe.time) || null,
+            actualMins: Math.round(elapsed * 10) / 10,
+          } : null;
           return {
             cooked: [...s.cooked, { recipeId: recipe.id, date: s.day }],
             log: { ...s.log, [s.day]: [...(s.log[s.day] || []), entry] },
+            mealPlanEvents: mealPlanEvent
+              ? [...(s.mealPlanEvents || []).filter((item) => !(item.date === s.day && item.slot === mealPlanEvent.slot)), mealPlanEvent].slice(-500)
+              : s.mealPlanEvents || [],
+            cookingTimeHistory: timeEvent
+              ? [...(s.cookingTimeHistory || []), timeEvent].slice(-300)
+              : s.cookingTimeHistory || [],
             pantry: householdPermission(s, 'pantry') && leftovers > 0
               ? [...consumed.pantry, { id: uid('p'), low: false, ...leftoverEntry(recipe, leftovers, s.day) }]
               : consumed.pantry,

@@ -81,10 +81,10 @@ export default function Speaking({ mode, onModeChange, apiKey, mockMode, ttsRate
         </div>
 
         {mode === 'pronunciation' && (
-          <Pronunciation mode="read" apiKey={apiKey} mockMode={mockMode} ttsRate={ttsRate} level={level} onXp={onXp} />
+          <Pronunciation mode="read" apiKey={apiKey} mockMode={mockMode} ttsRate={ttsRate} level={level} onXp={onXp} onActivity={onActivity} />
         )}
         {mode === 'shadow' && (
-          <Pronunciation mode="shadow" apiKey={apiKey} mockMode={mockMode} ttsRate={ttsRate} level={level} onXp={onXp} />
+          <Pronunciation mode="shadow" apiKey={apiKey} mockMode={mockMode} ttsRate={ttsRate} level={level} onXp={onXp} onActivity={onActivity} />
         )}
         {mode === 'quickfire' && <DailyChallenge apiKey={apiKey} mockMode={mockMode} onActivity={onActivity} />}
       </div>

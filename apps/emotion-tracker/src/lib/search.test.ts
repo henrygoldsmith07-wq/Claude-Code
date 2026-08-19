@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Entry } from "./types";
-import { allTopics, entryRelationships, searchEntries, semanticSearch } from "./search";
+import { allTopics, automaticSearch, entryRelationships, searchEntries, semanticSearch } from "./search";
 
 function entry(overrides: Partial<Entry> = {}, summaryOverrides: Record<string, unknown> = {}): Entry {
   const base = {
@@ -89,6 +89,16 @@ describe("semanticSearch", () => {
     const a = entry({ id: "field-a", title: "Manager feedback shame", summary: { ...entry().summary!, coreEmotion: "shame" } });
     const hits = semanticSearch([a], "manager");
     expect(hits[0]?.matched).toContain("title");
+  });
+});
+
+describe("automaticSearch", () => {
+  it("uses one ranked mode and falls back to exact matches", () => {
+    const a = entry({ title: "Manager feedback" });
+    const b = entry({ title: "Sunny picnic" });
+    expect(automaticSearch([b, a], "manager")[0]?.id).toBe(a.id);
+    expect(automaticSearch([a], "feedback")).toHaveLength(1);
+    expect(automaticSearch([a], "")).toEqual([a]);
   });
 });
 

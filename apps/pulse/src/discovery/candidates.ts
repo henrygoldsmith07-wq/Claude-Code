@@ -90,10 +90,10 @@ export interface CandidateContext {
   events: readonly PulseEvent[];
   registry: MetricRegistry;
   /** Windows tried for exposure questions. */
-  exposureWindowsHours?: number[];
+  exposureWindowsHours?: readonly number[];
   maxLagDays?: number;
   /** Attributes eligible for attribute-split questions. */
-  splitAttributes?: string[];
+  splitAttributes?: readonly string[];
 }
 
 const DEFAULT_WINDOWS = [4, 24];

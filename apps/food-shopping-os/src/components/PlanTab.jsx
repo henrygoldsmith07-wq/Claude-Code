@@ -23,6 +23,7 @@ import PlanGenerator from './PlanGenerator.jsx';
 import PrimaryAction from './PrimaryAction.jsx';
 import CalendarAvailability from './CalendarAvailability.jsx';
 import MonthMealRow from './MonthMealRow.jsx';
+import PlanningSignals from './PlanningSignals.jsx';
 
 const dayLabel = (date) =>
   new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -369,6 +370,7 @@ export default function PlanTab({ openRecipe, goTab, focusDate }) {
           </div>
         )}
       </Section>
+      <PlanningSignals app={app} />
       {app.leftovers.length > 0 && (
         <Section title="Leftovers" className="rise rise-2">
           <Card className="!p-0 divide-y" style={{ borderColor: 'var(--line)' }}>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Spinner } from './ui';
 import { X as XIcon } from './icons';
 import { validateKey } from '../lib/groq';
-import { setApiKey, clearApiKey } from '../lib/storage';
+import { readPulseOptIn, setApiKey, clearApiKey, setPulseOptIn } from '../lib/storage';
 import { LANGUAGE_LIST } from '../lib/languages';
 import { getQuota, formatQuota } from '../lib/quota';
 import { getRelayConfig } from '../lib/relay';
@@ -13,6 +13,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
   const [draft, setDraft] = useState('');
   const [state, setState] = useState('idle'); // idle | checking | ok | bad
   const [message, setMessage] = useState('');
+  const [pulseShared, setPulseShared] = useState(() => readPulseOptIn());
 
   const save = async () => {
     const key = draft.trim();
@@ -223,6 +224,15 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
             hint="Simulated responses — no API requests"
             checked={settings.mockMode}
             onChange={(v) => onSettingsChange({ ...settings, mockMode: v })}
+          />
+          <ToggleRow
+            label="Share with Pulse"
+            hint="Off by default. Lets Pulse read a transcript-free history of your sessions and reviews; turning it off deletes that copy immediately."
+            checked={pulseShared}
+            onChange={(v) => {
+              setPulseOptIn(v);
+              setPulseShared(v);
+            }}
           />
           {onReplayOnboarding && (
             <button

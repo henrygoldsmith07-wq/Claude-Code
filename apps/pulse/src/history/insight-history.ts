@@ -5,10 +5,11 @@
  * it answers "what is true now?" but not "what changed?" — and the second
  * question is where personal analytics either earns or loses trust. This
  * ledger keeps every scan verbatim, matches findings across scans by
- * relationship signature (the same identity the replication ledger uses), and
- * derives each insight's journey: when it first appeared, whether it
- * strengthened or weakened as data accumulated, when it stopped meeting the
- * evidence bar, and why.
+ * relationship subject (outcome × exposure, direction-free — the same key the
+ * contradiction ledger and causal hypothesis library share), and derives each
+ * insight's journey: when it first appeared, whether it strengthened, weakened
+ * or reversed as data accumulated, when it stopped meeting the evidence bar,
+ * and why.
  *
  * Durable by design: scans are written through an optional adapter so the
  * history survives restarts, exactly like the event store. Without an adapter
@@ -18,6 +19,7 @@
 import type { SourceId } from "../events/schema.js";
 import { hash128 } from "../events/hash.js";
 import { ReplicationLedger } from "../discovery/replication.js";
+import { findingSubject } from "../discovery/relationship.js";
 import type { Finding, ReplicationStatus } from "../discovery/finding.js";
 
 /** How an insight moved between consecutive scans. */
@@ -26,6 +28,7 @@ export type InsightChange =
   | "disappeared"
   | "strengthened"
   | "weakened"
+  | "reversed"
   | "unchanged";
 
 /** One moment in an insight's life. */
@@ -39,10 +42,12 @@ export interface InsightEpisode {
   finding: Finding | null;
   /** Why it disappeared, when the scan's own rejection log explains it. */
   note: string | null;
+  /** The previous scan's effect label when this episode reversed direction; null otherwise. */
+  previousEffectLabel: string | null;
 }
 
 export interface InsightHistoryEntry {
-  /** Stable identity across scans: outcome | exposure | direction. */
+  /** Stable identity across scans: outcome | exposure, direction-free so a flip is a reversal, not a new insight. */
   signature: string;
   title: string;
   metricIds: string[];
@@ -112,6 +117,8 @@ const EFFECT_CHANGE_EPSILON = 0.02;
 
 export class InsightHistory {
   private scans: InsightScanRecord[] = [];
+  /** Content hashes of every recorded scan, lazily rebuilt; drives reload-proof dedupe. */
+  private seenHashes: Set<string> | null = null;
   private readonly adapter: InsightHistoryAdapter | null;
 
   constructor(adapter?: InsightHistoryAdapter) {
@@ -123,6 +130,9 @@ export class InsightHistory {
     const snapshot = await this.adapter.load();
     if (snapshot && snapshot.version === HISTORY_VERSION && Array.isArray(snapshot.scans)) {
       this.scans = snapshot.scans;
+      // Restored scans count as already seen, so a reload that replays the
+      // whole boot cannot grow the history.
+      this.seenHashes = null;
     }
   }
 
@@ -132,15 +142,15 @@ export class InsightHistory {
   }
 
   /**
-   * Appends a scan. A scan identical to the previous one is ignored: the
+   * Appends a scan. A scan identical to any earlier one is ignored: the
    * engine is deterministic, so the same data is the same observation, and
    * recording it again would turn the history into churn — the UI rescans on
-   * every render, and none of those re-scans are new evidence.
+   * every render, and a reload that replays the whole boot is re-recording
+   * observations the ledger already holds.
    */
   recordScan(input: RecordScanInput): void {
     const contentHash = contentHashOf(input.eventCount, input.findings);
-    const last = this.scans[this.scans.length - 1];
-    if (last && contentHashOf(last.eventCount, last.findings) === contentHash) return;
+    if (this.hashes().has(contentHash)) return;
 
     this.scans.push({
       at: input.at,
@@ -150,6 +160,7 @@ export class InsightHistory {
       rejected: [...input.rejected],
       totals: { ...input.totals },
     });
+    this.hashes().add(contentHash);
   }
 
   /** The journey of every insight Pulse has ever reported, oldest first. */
@@ -163,14 +174,15 @@ export class InsightHistory {
       const present = new Set<string>();
 
       for (const finding of scan.findings) {
-        const signature = ReplicationLedger.signature(finding);
+        const signature = findingSubject(finding);
         present.add(signature);
 
         const previousIndex = lastPresent.get(signature);
-        const change: InsightChange =
-          previousIndex === undefined || previousIndex !== scanIndex - 1
-            ? "appeared"
-            : changeBetween(this.findingAt(previousIndex, signature), finding);
+        const previousFinding =
+          previousIndex !== undefined && previousIndex === scanIndex - 1
+            ? this.findingAt(previousIndex, signature)
+            : null;
+        const change: InsightChange = previousFinding ? changeBetween(previousFinding, finding) : "appeared";
 
         let entry = entries.get(signature);
         if (!entry) {
@@ -198,6 +210,7 @@ export class InsightHistory {
           change,
           finding,
           note: null,
+          previousEffectLabel: change === "reversed" && previousFinding ? previousFinding.effect.label : null,
         });
         lastPresent.set(signature, scanIndex);
       }
@@ -213,6 +226,7 @@ export class InsightHistory {
           change: "disappeared",
           finding: null,
           note: noteForDisappearance(scan, signature),
+          previousEffectLabel: null,
         });
       }
     }
@@ -263,12 +277,20 @@ export class InsightHistory {
     }
 
     this.scans = surviving;
+    this.seenHashes = null;
     return before - this.scans.length;
+  }
+
+  private hashes(): Set<string> {
+    if (!this.seenHashes) {
+      this.seenHashes = new Set(this.scans.map((scan) => contentHashOf(scan.eventCount, scan.findings)));
+    }
+    return this.seenHashes;
   }
 
   private findingAt(scanIndex: number, signature: string): Finding {
     const finding = this.scans[scanIndex]!.findings.find(
-      (candidate) => ReplicationLedger.signature(candidate) === signature,
+      (candidate) => findingSubject(candidate) === signature,
     );
     if (!finding) throw new Error(`InsightHistory invariant broken: ${signature} not present in scan ${scanIndex}`);
     return finding;
@@ -289,6 +311,7 @@ function contentHashOf(eventCount: number, findings: readonly Finding[]): string
 }
 
 function changeBetween(previous: Finding, current: Finding): InsightChange {
+  if (Math.sign(previous.effect.value) !== Math.sign(current.effect.value)) return "reversed";
   const before = Math.abs(previous.effect.value);
   const after = Math.abs(current.effect.value);
   if (after - before > EFFECT_CHANGE_EPSILON) return "strengthened";

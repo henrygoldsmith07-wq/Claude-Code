@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from './components/AppShell.jsx';
 import TodayView from './components/TodayView.jsx';
 import TrainView from './components/TrainView.jsx';
@@ -16,6 +16,8 @@ export default function App(){
   const [store,setStoreState]=useState(()=> loadStore());
   const [tab,setTab]=useState('today');
   const [activeSession,setActiveSession]=useState(null);
+  const [recoveryOpen,setRecoveryOpen]=useState(()=> Boolean(loadStore().activeWorkout));
+  const [consentOpen,setConsentOpen]=useState(()=> loadStore().preferences?.telemetryEnabled == null);
   const [onboardingOpen,setOnboardingOpen]=useState(()=> !loadStore().onboarding);
   const [updateReady,setUpdateReady]=useState(false);
 
@@ -27,6 +29,10 @@ export default function App(){
   useEffect(()=>{
     saveStore(store);
   },[store]);
+
+  useEffect(()=>{
+    setConsentOpen(store.preferences?.telemetryEnabled == null);
+  },[store.preferences?.telemetryEnabled]);
 
   useEffect(()=>{
     const isDark = store.preferences?.theme ? store.preferences.theme==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -72,9 +78,28 @@ export default function App(){
   };
 
   const handleStartSession = (session)=>{
+    if(store.activeWorkout && store.activeWorkout.session?.id !== session.id){
+      setRecoveryOpen(true);
+      return;
+    }
     setActiveSession(session);
+    setRecoveryOpen(false);
     try { recordEvent('session:start', { sessionId: session.id, title: session.title }); } catch {}
   };
+
+  const chooseMeasurementConsent=(enabled)=>{
+    setStore({ ...store, preferences:{ ...(store.preferences||{}), telemetryEnabled:enabled } });
+    recordEvent('consent:local-measurements', { enabled }, { essential:true });
+    setConsentOpen(false);
+  };
+
+  const handleDraftChange = useCallback((draft)=>{
+    setStoreState(prev=>{
+      const next={ ...prev, activeWorkout: draft };
+      saveStore(next);
+      return next;
+    });
+  },[]);
 
   const handleSaveSession = (payload)=>{
     let next = { ...store };
@@ -83,21 +108,55 @@ export default function App(){
     if(activeSchedule){
       activeSchedule = { ...activeSchedule, sessions: activeSchedule.sessions.map(s=> s.id===payload.id ? { ...s, status:'done' } : s) };
     }
-    next = { ...next, history: hist, activeSchedule };
+    next = { ...next, history: hist, activeSchedule, activeWorkout: null };
     setStore(next);
     setActiveSession(null);
+    setRecoveryOpen(false);
     setTab('progress');
     try { recordEvent('session:complete', { sessionId: payload.id, blocks: payload.blocks.length }); } catch {}
     // Pulse push if enabled and adapter present (adapter injected via window.__PULSE_ADAPTER__ for now)
     try {
       const adapter = typeof window !== 'undefined' ? window.__PULSE_ADAPTER__ : null;
-      if(next.preferences?.pulseEnabled && adapter) pushToPulse(payload, hist, adapter);
+      if(next.preferences?.pulseEnabled && adapter){
+        Promise.resolve(pushToPulse(payload, hist, adapter)).then(result=>{
+          const ok=result?.ok ?? Object.values(result||{}).every(value=> value?.ok !== false);
+          recordEvent('pulse:sync', { sessionId:payload.id, ok, result }, { essential:false });
+        }).catch(error=> recordEvent('pulse:sync', { sessionId:payload.id, ok:false, error:String(error?.message||error) }, { essential:false }));
+      }
     } catch {}
   };
   const handleCancelSession = ()=>{
-    if(activeSession) try { recordEvent('session:abandon', { sessionId: activeSession.id }); } catch {}
+    if(activeSession) try {
+      const draft=store.activeWorkout;
+      const totalSets=draft?.blocks?.reduce((n,b)=> n+(b.sets||[]).length,0) || 0;
+      const completedSets=draft?.blocks?.reduce((n,b)=> n+(b.sets||[]).filter(s=> s.completed).length,0) || 0;
+      const startedAt=draft?.startedAt ? Date.parse(draft.startedAt) : null;
+      recordEvent('session:abandon', { sessionId: activeSession.id, totalSets, completedSets, elapsedMs:startedAt ? Math.max(0,Date.now()-startedAt) : null });
+    } catch {}
+    setStore({ ...store, activeWorkout: null });
     setActiveSession(null);
+    setRecoveryOpen(false);
   };
+
+  const resumeDraft = ()=>{
+    const draft=store.activeWorkout;
+    if(!draft?.session){
+      setStore({ ...store, activeWorkout: null });
+      setRecoveryOpen(false);
+      return;
+    }
+    setActiveSession(draft.session);
+    setRecoveryOpen(false);
+    try { recordEvent('session:resume', { sessionId: draft.session.id }); } catch {}
+  };
+
+  const discardDraft = ()=>{
+    setStore({ ...store, activeWorkout: null });
+    setRecoveryOpen(false);
+  };
+
+  const draftSets = store.activeWorkout?.blocks?.reduce((n,b)=> n+(b.sets||[]).length, 0) || 0;
+  const draftDone = store.activeWorkout?.blocks?.reduce((n,b)=> n+(b.sets||[]).filter(s=> s.completed).length, 0) || 0;
 
   const applyUpdate = ()=>{
     if('serviceWorker' in navigator){
@@ -115,6 +174,31 @@ export default function App(){
           <span className="font-bold">Update available</span>
           <span className="text-ink3">New version cached — reload to apply.</span>
           <button onClick={applyUpdate} className="ml-auto btn btn-primary min-h-8 rounded-xl px-3 text-xs">Update</button>
+        </div>
+      )}
+      {recoveryOpen && store.activeWorkout && !activeSession && (
+        <div className="mx-4 mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-2" role="alert">
+          <div className="flex items-start gap-3">
+            <span className="text-base" aria-hidden>↩</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">Resume your workout?</p>
+              <p className="text-xs text-amber-900">{store.activeWorkout.session?.title || 'Workout'} · {draftDone}/{draftSets} sets saved locally{store.activeWorkout.updatedAt ? ` · last updated ${formatDraftTime(store.activeWorkout.updatedAt)}` : ''}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={resumeDraft} className="btn btn-primary min-h-10 rounded-xl flex-1">Resume</button>
+            <button onClick={discardDraft} className="btn btn-secondary min-h-10 rounded-xl">Discard draft</button>
+          </div>
+        </div>
+      )}
+      {consentOpen && !activeSession && (
+        <div className="mx-4 mt-2 rounded-2xl border border-line bg-surface px-4 py-3 space-y-2" role="dialog" aria-label="Local measurement consent">
+          <p className="text-sm font-bold">Choose local measurements</p>
+          <p className="text-xs text-ink3">Arise can measure logging time, session abandonment and recommendation acceptance. These events stay on this device and are included only when you export a backup.</p>
+          <div className="flex gap-2">
+            <button onClick={()=> chooseMeasurementConsent(true)} className="btn btn-primary min-h-10 rounded-xl flex-1">Allow local measurements</button>
+            <button onClick={()=> chooseMeasurementConsent(false)} className="btn btn-secondary min-h-10 rounded-xl">No thanks</button>
+          </div>
         </div>
       )}
       {tab==='today' && (
@@ -154,7 +238,15 @@ export default function App(){
       {tab==='more' && <MoreView store={store} setStore={setStore} setTab={setTab} onboardingOpen={onboardingOpen} setOnboardingOpen={setOnboardingOpen} />}
 
       {activeSession && (
-        <SessionRunner session={activeSession} history={store.history || []} onSave={handleSaveSession} onCancel={handleCancelSession} />
+        <SessionRunner
+          session={activeSession}
+          history={store.history || []}
+          availableEquipment={store.onboarding?.equipment || []}
+          draft={store.activeWorkout?.session?.id===activeSession.id ? store.activeWorkout : null}
+          onDraftChange={handleDraftChange}
+          onSave={handleSaveSession}
+          onCancel={handleCancelSession}
+        />
       )}
 
       <Onboarding
@@ -173,4 +265,9 @@ export default function App(){
       )}
     </AppShell>
   );
+}
+
+function formatDraftTime(value){
+  const date=new Date(value);
+  return Number.isNaN(date.getTime()) ? 'recently' : date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
 }

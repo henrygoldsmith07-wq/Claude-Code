@@ -51,14 +51,16 @@ Analytics is completely independent of the UI. Everything under `src/` except
 | `connectors/` | Connector SDK, sync engine (consent, paging, cursors, backfill, health), one module per source, cross-source reconciliation and the connector health dashboard |
 | `quality/` | Five-dimension data-quality scoring that feeds the confidence grade |
 | `metrics/` | Metric registry, curated catalogue, per-event and per-day computation |
-| `timeseries/` | Trend (Theil-Sen + Mann-Kendall), baselines, anomalies, lag analysis, cross-app timeline |
-| `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading |
+| `timeseries/` | Trend (Theil-Sen + Mann-Kendall), context-aware baselines, drift and change points, seasonal adjustment, distributed lag/carryover analysis, cross-app timeline |
+| `statistics/` | Distributions, comparisons, effect sizes, correlation, multiple-testing, power, seeded resampling, confidence grading and P1 safeguards |
 | `discovery/` | Candidate generation, confounder detection and adjustment, the relationship scan |
 | `hypotheses/` | Hypothesis records and their status machine |
 | `experiments/` | Crossover / A-B / before-after design and analysis |
 | `recommendations/` | Evidence-weighted ranking and insight feedback |
 | `predictions/` | Walk-forward validated models that refuse to publish unless they beat the baselines |
 | `knowledge/` | The personal knowledge graph |
+| `evidence-graph/` | The personal evidence graph — beliefs, their evidence, and contradiction detection |
+| `evidence-api/` | Versioned, read-only DTO access to the personal evidence graph |
 | `reports/` | The weekly intelligence brief |
 | `privacy/` | Consent, export, per-source deletion, redaction, encryption at rest |
 | `ai/` | The narrow AI boundary and its numeric guard |
@@ -127,6 +129,44 @@ data is.
    ahead of the rejection trail on equal scores.
 
 
+### P1 statistics safeguards
+
+The P1 layer in `statistics/safeguards.ts`, `timeseries/context.ts` and
+`connectors/agreement.ts` makes the remaining failure modes explicit:
+
+- **Personal context and baselines:** travel, illness, school, work and
+  holiday labels; weekday/weekend and seasonal adjustment; context-aware
+  baselines; baseline drift and change-point detection.
+- **Temporal structure:** distributed lag models, carryover detection and
+  autocorrelation-adjusted effective sample sizes. Estimated timestamps carry
+  uncertainty windows, so weak temporal ordering cannot masquerade as a lag.
+- **Robustness:** minimum observation/day thresholds, independent holdout
+  periods, confounder and negative-control sensitivity, outlier sensitivity,
+  effect stability and measurement-error propagation.
+- **Evidence quality:** named BH/Holm/Bonferroni safeguards, reliability
+  weighting and nearest-timestamp cross-source agreement checks. Discovery
+  confidence surfaces serial correlation, unstable effects, low reliability and
+  uncertain timestamps as limitations.
+
+All primitives are deterministic and operate on local arrays or event
+metadata. They do not send data to a server or make a causal claim by
+themselves.
+
+### User-controlled statistical inspector
+
+The **Inspector** tab lets a person choose an outcome, exposure and optional
+negative-control metric, then re-run the safeguards with an explicit policy:
+
+- Benjamini–Hochberg, Holm or Bonferroni correction and a chosen significance level;
+- autocorrelation lag, forward temporal-lag scan and independent holdout fraction;
+- outlier cutoff, reliability weighting and uncertain-timestamp exclusion;
+- weekday/weekend, calendar-trend and seasonal sensitivity controls.
+
+The report shows raw and corrected p-values, effective sample sizes, holdout
+direction, lag results, timestamp exclusions and limitations. Each lag tested
+joins the correction family. Applying controls is explicit and never mutates
+the finding ledger; the inspector is diagnostic evidence, not a causal claim.
+
 ## Experiments
 
 Pulse turns a strong association into a structured experiment: hypothesis,
@@ -134,12 +174,96 @@ condition A, condition B, target metric, minimum sample derived from the
 predicted effect, duration, likely confounders, analysis method and success
 criteria — with the predicted direction and size registered *before* the run.
 
+The Experiments view includes versioned templates for the three supported
+designs: weekly crossover, balanced daily A/B and before/after baseline. A
+template is a reproducible starting point, not a claim that every hypothesis
+should use the same design; its caveats are shown before the run and its ID and
+version are retained in the export.
+
 Crossover is the default because it removes the biggest confounder in personal
 data: you, changing over time.
 
 Analysis can return `supported`, `refuted`, `inconclusive` or `invalid`.
 `inconclusive` is a first-class outcome, not a failure to record, and an
 underpowered null is never reported as evidence of no effect.
+
+## Personal evidence graph
+
+Above the findings sits what the person *believes* and why. Every belief is a
+claim; every claim is settled only by evidence that carries its class and
+confidence, and the same rules apply as everywhere else:
+
+- every evidence edge names the engine entity it came from — no provenance, no
+  edge;
+- observational evidence caps a claim below "high" confidence;
+- a claim worded causally is never endorsed unless an experiment backs it;
+- supporting and refuting evidence that are both strong is surfaced as
+  **contested**, not averaged into a mild "supported".
+
+A belief with no evidence is **open**, not true. Claims are derived from
+findings, hypotheses and experiment results, and can be authored directly via
+`pulse.recordClaim(...)` — the engine labels each so the two can never be
+confused.
+
+## Personal Evidence API
+
+`pulse.personalEvidence()` exposes a versioned, read-only in-process
+contract for sibling UI code and trusted local integrations:
+
+```ts
+const evidence = pulse.personalEvidence();
+const supported = evidence.listClaims({ status: "supported", limit: 20 });
+const detail = supported[0] ? evidence.explainClaim(supported[0].id) : null;
+const snapshot = evidence.snapshot();
+```
+
+The API returns claims, confidence, evidence nodes, provenance edges and
+deterministic query results. It never returns raw events, metric attributes or
+notes, and it rebuilds from the live graph on every call so source deletion is
+reflected immediately. Claim and evidence statements can still contain the
+person's own text; a future HTTP host must add authentication, tenancy,
+transport redaction and rate limiting before exposing this contract remotely.
+The API also exposes explicit `fullExport()` and `researchExport()` hand-offs;
+the latter is the de-identified shareable payload. The older
+`personalEvidenceApi()` method remains as a compatibility alias.
+
+## Personal causal hypothesis library
+
+Pulse's findings answer "what is true?" and its experiments answer "what is
+causal?" — but neither is the user's own record of what they believe. The
+library is that record: beliefs the user holds about what changes what, each
+with a standing — untested → plausible → strengthening → confirmed or refuted —
+that follows the evidence filed under it. Findings are promoted in one click
+from the Insights tab (the finding becomes the belief's first evidence), and an
+analysed experiment moves the standing when its verdict is decisive. The user
+can override any standing; only "retired" is sticky. Beliefs, evidence and
+standing history are scrubbed when a source that supplied them is deleted, and
+persist at rest through the same encrypted adapter as the event store.
+
+## Persistent insight history
+
+Every discovery scan is a point-in-time photograph of what the engine believes;
+the history ledger keeps each one and matches insights across scans by the
+relationship they describe, so the Insights tab shows each insight's journey —
+appeared, strengthened, weakened, reversed, disappeared (with the scan's own
+rejection reason) — rather than only its current state. Identical rescans are ignored, so
+the history records change, not churn, and it survives reloads: scans are
+written through an encrypted adapter and restored by `pulse.load()` before the
+boot replays them.
+
+## Research export
+
+`pulse.researchExport()` is the shareable form of the data: a de-identified,
+statistics-first snapshot that can go to a researcher or into a study without
+carrying a year of personal data along with it. Findings carry effect sizes,
+confidence intervals, corrected p-values, sample sizes and confounders — never
+titles, statements or narratives. Experiments carry verdicts, observed effects,
+power and adherence. Coverage is counts and grades, never events, and each
+insight's journey is condensed to its signature and change sequence. The whole
+payload must survive the same redaction guard that protects anything else
+leaving the device (`assertNoRawContent`), and sensitive sources are excluded
+unless asked for by name — the same consent rules as the full export. The
+Sources & privacy view offers it as a JSON download.
 
 ## AI boundary
 
@@ -157,6 +281,11 @@ configured.
 
 - Everything is processed locally; there is no server.
 - Consent is per-source and per-scope, with the scope descriptions shown verbatim.
+- The Sources & privacy view shows each source's **app-side opt-in** — the
+  flag the source app itself controls (Habit, Rapport, Reflect, Arise, Forq,
+  French Practice) — read live from that app's storage, so a source revoked in
+  its own app is visibly "paused at source" rather than silently quiet, and
+  Revise's server-side gate is labelled as such.
 - **Reflect requires its own explicit permission** and can never be enabled by a
   bulk "connect everything" action.
 - Sensitive sources are excluded from analysis, exports and AI prompts unless
@@ -165,6 +294,8 @@ configured.
   that depended on it are invalidated with it.
 - Full export in JSON, NDJSON or CSV. Free text never enters the analytic path.
 - Optional AES-GCM encryption at rest with a PBKDF2-derived key.
+- The event store, insight history and causal hypothesis library persist
+  through the same encrypted adapter and survive reloads via `pulse.load()`.
 - Telemetry carries shapes and counts only, enforced by a whitelist and a
   redaction assertion.
 
@@ -203,7 +334,11 @@ it, skipping the rebuild.
 | Garmin, Fitbit, WHOOP, Oura | `connectors/wearables.ts` | The same physiology read first-hand, plus each vendor's own scores |
 | Google Calendar, Outlook | `connectors/calendar.ts` | Commitment times and day shape — no titles, no attendees, no locations |
 | Any CSV or JSON file | `connectors/tabular.ts` | Whatever the user maps, previewed before a single row is stored |
-| The first-party apps | `revise`, `arise`, `forq`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+| The first-party apps | `revise`, `arise`, `forq`, `habit`, `chrono`, `le-studio-french`, `reflect`, `rapport` | As before |
+| Habit (Supabase) | `connectors/habit.ts` | Habit check-ins — one event per habit per day, done or missed |
+| Habit (same origin) | `connectors/habit.ts` | The same check-ins read from the app's local mirror, gated by Habit's own opt-in flag |
+| Rapport (same origin) | `connectors/rapport.ts` | Drill and challenge history read from the app's local mirror, gated by Rapport's own opt-in flag |
+| Revise (cloud) | `connectors/revise.ts` | Study history from `/api/pulse/history`, which the app refuses server-side unless its `pulseEnabled` flag is on |
 
 Three decisions in that layer are worth knowing about.
 

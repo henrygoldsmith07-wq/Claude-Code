@@ -36,7 +36,7 @@ export default function Dictation({ ttsRate, onXp, onActivity }) {
     const accuracy = Math.round((matched / Math.max(1, target.length)) * 100);
     const gained = Math.max(1, Math.round(accuracy / 10));
     onXp(gained);
-    onActivity?.({ type: 'dictation', accuracy });
+    onActivity?.({ type: 'dictation', accuracy, score: accuracy, mode: 'dictation', label: 'Dictée' });
     recordSkillScore('listening', accuracy);
     setResult({ hits, accuracy, gained });
   };

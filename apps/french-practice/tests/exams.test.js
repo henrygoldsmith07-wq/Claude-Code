@@ -1,19 +1,20 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BOARDS, CRITERIA, TASK_CRITERIA, TIER, bandFor, boardList, getBoard, specCaveat,
+  BOARDS, CRITERIA, EXAM_MODE, EXAM_MODES, TASK_CRITERIA, TIER, bandFor, boardList, getBoard, specCaveat, timingQa,
   targetSeconds, taskMarks,
 } from '../src/lib/exams/boards.js';
 import {
   PHASE, EXAMINER_SCRIPTS, REAL_RESULTS, beginPrep, beginSpeaking, benchmarkExaminer,
   buildPaper, cohensKappa, completeSection, examFeedback, gradeEstimate, initRun, isExpired,
-  notesAllowed, phaseAllowance, scorePaper, scoreTask, timeLeft, validateAgainstResults,
+  notesAllowed, phaseAllowance, scoreExamTechnique, scorePaper, scoreTask, timeLeft, validateAgainstResults,
 } from '../src/lib/exams/simulator.js';
 import {
   CONVERSATIONS, PHOTOCARDS, READING_PASSAGES, ROLEPLAYS, availableThemes,
-  pickPhotocard, pickRoleplay, taskBankStats,
+  LISTENING_TASKS, READING_TASKS, WRITING_TASKS, pickExamTask, pickPhotocard, pickRoleplay, taskBankStats,
 } from '../src/lib/exams/tasks.js';
 import { benchmarkExam } from '../src/lib/examBenchmark.js';
+import { parseBoundaryImport } from '../src/lib/exams/boundaries.js';
 
 describe('board specifications', () => {
   it('every board declares where to verify its timings', () => {
@@ -69,6 +70,16 @@ describe('board specifications', () => {
     assert.ok(getBoard('aqa-gcse'));
     assert.ok(getBoard('edexcel-gcse'));
     assert.equal(getBoard('nonsense'), null);
+  });
+
+  it('passes the internal timing QA for every board', () => {
+    const qa = timingQa();
+    assert.equal(qa.status, 'pass');
+    assert.equal(qa.issues.length, 0);
+  });
+
+  it('declares the four supported exam formats', () => {
+    assert.deepEqual(Object.keys(EXAM_MODES), Object.values(EXAM_MODE));
   });
 });
 
@@ -127,6 +138,15 @@ describe('task bank', () => {
     const pick = pickRoleplay({ exclude: excluded });
     assert.ok(!excluded.includes(pick.id));
   });
+
+  it('has board-tagged original task banks for all non-speaking formats', () => {
+    for (const [mode, pool] of Object.entries({ writing: WRITING_TASKS, listening: LISTENING_TASKS, reading: READING_TASKS })) {
+      assert.ok(pool.length >= 4, `${mode} bank is too small`);
+      for (const boardId of ['wjec-gcse', 'aqa-gcse', 'edexcel-gcse']) {
+        assert.ok(pickExamTask(mode, { boardId }), `${mode} has no task for ${boardId}`);
+      }
+    }
+  });
 });
 
 describe('paper construction', () => {
@@ -155,6 +175,16 @@ describe('paper construction', () => {
 
   it('refuses an unknown board rather than producing nonsense', () => {
     assert.throws(() => buildPaper({ boardId: 'not-a-board' }), /Unknown exam board/);
+  });
+
+  it('builds a timed paper for writing, listening and reading', () => {
+    for (const examMode of [EXAM_MODE.WRITING, EXAM_MODE.LISTENING, EXAM_MODE.READING]) {
+      const paper = buildPaper({ boardId: 'aqa-gcse', examMode });
+      assert.equal(paper.examMode, examMode);
+      assert.equal(paper.sections.length, 1);
+      assert.ok(paper.sections[0].material);
+      assert.ok(paper.sections[0].seconds > 0);
+    }
   });
 });
 
@@ -232,6 +262,27 @@ describe('scoring', () => {
     });
     assert.equal(paperScore.outOf, taskMarks('wjec-gcse', 'roleplay', TIER.HIGHER));
     assert.equal(paperScore.percent, 80);
+  });
+
+  it('auto-scores objective comprehension without confusing it with language sliders', () => {
+    const task = scoreTask({ boardId: 'aqa-gcse', taskId: 'listening', outOf: 40, automaticScore: 75 });
+    assert.equal(task.automatic, true);
+    assert.equal(task.percent, 75);
+    assert.equal(task.marks, 30);
+  });
+
+  it('keeps exam technique separate from language level', () => {
+    const paper = buildPaper({ boardId: 'aqa-gcse', examMode: EXAM_MODE.READING });
+    let run = beginSpeaking(beginPrep(initRun(paper)));
+    run = completeSection(run, {
+      spentSeconds: 1200,
+      responseData: { answerCount: 4, expectedCount: 4, objectiveScore: 100 },
+      transcript: 'all answers submitted',
+    });
+    const technique = scoreExamTechnique(run);
+    assert.ok(technique.score > 0);
+    assert.equal(technique.languageLevel, null);
+    assert.ok(technique.components.timing > 0);
   });
 });
 
@@ -345,5 +396,27 @@ describe('real result validation', () => {
     assert.equal(v.n, 3);
     assert.ok(Math.abs(v.exact - 1 / 3) < 0.01);
     assert.ok(Math.abs(v.withinOne - 2 / 3) < 0.01);
+  });
+});
+
+describe('grade-boundary import', () => {
+  it('accepts JSON grade-to-percent data with provenance', () => {
+    const imported = parseBoundaryImport({
+      boardId: 'aqa-gcse', tier: 'higher', series: 'June 2025', source: 'AQA',
+      boundaries: { 9: 85, 8: 76, 7: 68 },
+    });
+    assert.equal(imported.sets[0].boardId, 'aqa-gcse');
+    assert.equal(imported.sets[0].boundaries[7], 68);
+    assert.equal(imported.sets[0].source, 'AQA');
+  });
+
+  it('accepts CSV raw marks and converts them to percentages', () => {
+    const imported = parseBoundaryImport(`grade,minMark,maxMark,boardId,tier,series
+9,68,80,aqa-gcse,higher,June 2025
+8,61,80,aqa-gcse,higher,June 2025
+7,54,80,aqa-gcse,higher,June 2025`);
+    assert.equal(imported.format, 'csv');
+    assert.equal(imported.sets[0].boundaries[9], 85);
+    assert.equal(imported.sets[0].boundaries[7], 67.5);
   });
 });

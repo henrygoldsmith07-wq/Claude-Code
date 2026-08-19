@@ -8,7 +8,11 @@
   "redirects": [
     { "source": "/pulse", "destination": "/pulse/", "permanent": false },
     { "source": "/arise", "destination": "/arise/", "permanent": false },
-    { "source": "/french", "destination": "/french/", "permanent": false }
+    { "source": "/french", "destination": "/french/", "permanent": false },
+    { "source": "/forq", "destination": "/forq/", "permanent": false },
+    { "source": "/reflect", "destination": "/reflect/", "permanent": false },
+    { "source": "/revise", "destination": "/revise/", "permanent": false },
+    { "source": "/rapport", "destination": "/rapport/", "permanent": false }
   ],
   "rewrites": [
     {
@@ -34,6 +38,18 @@
     {
       "source": "/french/:path*",
       "destination": "https://claude-code-henrygoldsmith07-9188s-projects.vercel.app/:path*"
+    },
+    {
+      "source": "/forq",
+      "destination": "https://forq-site-henrygoldsmith07-9188s-projects.vercel.app/forq"
+    },
+    {
+      "source": "/forq/",
+      "destination": "https://forq-site-henrygoldsmith07-9188s-projects.vercel.app/forq/"
+    },
+    {
+      "source": "/forq/:path*",
+      "destination": "https://forq-site-henrygoldsmith07-9188s-projects.vercel.app/forq/:path*"
     },
     {
       "source": "/reflect",

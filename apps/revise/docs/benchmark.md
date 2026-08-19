@@ -21,15 +21,44 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 ## Marking — rubric floor + AI vs human
 
-*Source:* `src/domain/marking.ts`, `src/domain/maths-equivalence.ts`, `src/domain/working-analysis.ts`, `src/domain/remediation.ts`, `tests/marking.test.ts`, `tests/marking.benchmark.test.ts`.
+*Source:* `src/domain/marking.ts`, `src/domain/maths-equivalence.ts`, `src/domain/working-analysis.ts`, `src/domain/remediation.ts`, `src/domain/human-marking-corpus.ts`, `src/domain/marker-disagreement.ts`, `src/domain/mark-escalation.ts`, `tests/marking.test.ts`, `tests/marking.benchmark.test.ts`, `tests/marker-disagreement.test.ts`, `tests/low-confidence-mark-escalation.test.ts`.
 
 - Rubric: keyword + lemma overlap ≥50% per mark-scheme point or numeric match; 3-word cap, proportional award, strict about content, generous about wording.
 - Symbolic layer (`maths-equivalence.ts`): when both the scheme point and the student's *final* expression parse as single-variable polynomials, equivalent forms credit (`(x+2)(x-3)` ↔ `x^2 - x - 6`) and a wrong pure expression is rejected even when it shares digits with the scheme. Unparseable or prose-embedded points fall through to the rubric unchanged.
 - Working analysis (`working-analysis.ts`): splits the response into steps and reports the first step that diverges from the model working — an examiner's marginal note, available offline.
 - Remediation (`remediation.ts`): matches missed points + first incorrect step against the topic's authored `commonErrors` and produces a targeted action (restudy the named key point, fix the specific slip, retry).
-- Benchmark harness: 12-row human-labelled gold set (teacher per-part awards; chemistry + maths) with `exact-match accuracy` and `per-part MAE` floors — today exact-match ≥ 0.5 and MAE ≤ 0.8. The same rows will carry `aiAward` columns once provider marking exists.
-- Real AI vs human will be reported here as a table keyed by `questionId` once provider-marked gold exists: rows `(rubricAward, aiAward, humanAward)` and aggregate `rubricVsHuman MAE` vs `aiVsHuman MAE`.
+- Human marking corpus: version `2026.08.v1`, 12 teacher/examiner-labelled regression rows across chemistry and maths. `validateHumanMarkingCorpus` checks row IDs, part alignment and award ranges; no learner-identifying data is included.
+- Benchmark harness: `scoreHumanMarkingCorpus` reports `exact-match accuracy`, `per-part MAE` and total MAE, with floors of exact-match ≥ 0.5 and MAE ≤ 0.8. The same rows will carry `aiAward` columns once provider marking exists.
+- Marker disagreement tracking: `scoreMarkerDisagreement(corpus, { rubric, ai })` and the generic `trackMarkerDisagreement(samples)` compare marker award arrays per question part. Every pair (`human ↔ rubric`, `human ↔ ai`, `rubric ↔ ai`) reports compared rows/parts, total agreement, part agreement, MAE, disagreement count and signed bias (`right − left`). Missing marker arrays are `null`/unmeasured, never silently treated as zero.
+- Low-confidence mark escalation: AI mark responses carry a validated `confidence` in `[0,1]`; below `0.60` the attempt stores a pending `human-review` escalation, with missing confidence treated as urgent. Rubric and offline fallback marks remain deterministic and are not escalated. `/progress` shows the durable pending queue and its AI-mark escalation rate.
+- Delayed far-transfer retesting: `delayed-far-transfer.ts` only schedules a seven-day novel-context check after a non-provisional source mark reaches `0.80`; candidate selection prefers shared spec points/learning claims and excludes the original or already-attempted question. The retest has independent outcome evidence (`0.60` pass, `0.80` secure), persisted on the attempt link and surfaced in `/progress`.
+- Exam technique vs knowledge separation: `techniqueVsKnowledge(mistakes)` reports the estimated lost-mark split, driver tags and a reliability flag (`≥8` mistakes and `≥10` lost marks). `/progress` turns it into a repair choice between timed paper practice and knowledge-gap review.
+- Recall mastery: `computeRecallMastery` keeps card stability/current retrievability separate from exam marks, and reports observed recall, due pressure and evidence level per topic. `/progress` surfaces the overall recall score and weakest retrieval topics.
+- Application mastery: `computeApplicationMastery` reports mark-weighted question performance while excluding active-recall and pending provisional attempts; ten eligible attempts make a topic reliable and `/progress` surfaces the weakest application topics.
+- Mastery uncertainty: `masteryIntervals` reports a conservative Wilson 95% band from cards and weighted attempts, flags topics below eight weighted trials and widens conflicting card/mastery signals; `/progress` surfaces the six widest intervals.
+- GCSE question expansion: `gcseExpansionQuestions` materialises 55 original checked templates into 220 board-specific questions, one for every GCSE topic across WJEC, AQA, Edexcel and OCR, with full mark schemes, model answers and spec-point anchors.
+- Edexcel A-level content expansion: `edexcelExpansionQuestions` adds 55 original checked questions, one for every Edexcel A-level topic across biology, chemistry, mathematics and physics, with Edexcel topic/spec-point anchors.
+- Data-question expansion: `dataExpansionQuestions` materialises 55 checked dataset-driven templates into 440 questions across all 32 board/qualification subjects, covering table reading, calculations, trends and experimental interpretation.
+- Unfamiliar-context expansion: `unfamiliarContextQuestions` materialises 55 checked transfer templates into 440 questions across all 32 board/qualification subjects, covering novel biological, chemical, mathematical and physical scenarios.
+- Authentic source-material expansion: `authenticSourceQuestions` materialises 55 checked original field-note, report, archive and technical-brief extracts into 440 questions across all 32 board/qualification subjects.
+- `/benchmarks` renders the live corpus version, row-level human vs rubric totals and the same floor status used by CI.
+- `/benchmarks` also renders the current pairwise disagreement matrix keyed by `questionId`; the internal corpus currently measures human ↔ rubric and leaves AI coverage explicitly unmeasured until provider-marked gold exists.
 - UI labels every answer `rubric` vs `ai` so the student is never misled.
+
+## Double-marked answer corpus
+
+*Source:* `src/domain/double-marked-corpus.ts`, `src/components/DoubleMarkedCorpus.tsx`,
+`src/app/answer-corpus/page.tsx`.
+
+- `DoubleMarkedAnswer` stores the prompt, answer, maximum marks, two independent
+  marker scores, provenance and an optional adjudicated score.
+- `buildDoubleMarkedCorpusReport` reports exact agreement, within-one-mark
+  agreement, mean absolute gap, normalised gap, marker bias and the pending
+  adjudication count. Adjudication never overwrites the original pair.
+- `/answer-corpus` accepts version-1 JSON exports, keeps invalid rows visible as
+  import warnings, exposes a disagreement queue, and exports decisions again.
+- The built-in rows are explicitly synthetic demonstrations. They are a UI and
+  metric fixture, not teacher evidence; imported rows carry `provenance: imported`.
 
 ## Grade prediction & confidence calibration
 
@@ -46,7 +75,7 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 - Every topic has `specPoints` on every unit; every `specPointIds` is paired with `learningClaims`; stale topics (>365d) and unverified statements are surfaced by `regressionReport`.
 - Spec-change diff tooling (`curriculum-diff.ts`): diff two snapshots of a subject's topics (old spec version vs new) and get added/removed/reworded spec points, key-point and common-error changes, plus the questions pinned to affected points — so a board revision is triaged instead of re-read. `recordedSpecVersionChanges` lists subjects whose manifest history spans multiple spec versions.
-- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 142 questions today (8 boards×levels, tree-shakable modules).
+- CI gate: `node scripts/validate-curriculum.mjs` — 440 topics / 577 authored question templates today; the runtime bank materialises 1,595 GCSE, Edexcel A-level, data-question, unfamiliar-context and authentic-source expansion entries (8 boards×levels, tree-shakable modules).
 - Visual regression: `e2e/visual.spec.ts` guards the Today shell (2% tolerance, `e2e/__screenshots__/`); update with `--update-snapshots`.
 
 

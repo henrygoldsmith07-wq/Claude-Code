@@ -18,7 +18,7 @@ import type { Card, Id } from "./types";
 // All of it is pure: the components own presentation, this owns the rules.
 // ---------------------------------------------------------------------------
 
-export type StudyMode = "learn" | "test" | "match" | "diagram" | "audio";
+export type StudyMode = "learn" | "test" | "match" | "diagram" | "audio" | "explanation";
 
 // --- learn mode ------------------------------------------------------------
 

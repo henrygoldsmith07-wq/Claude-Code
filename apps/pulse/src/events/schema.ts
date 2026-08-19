@@ -18,6 +18,7 @@ export const KNOWN_SOURCES = [
   "revise",
   "arise",
   "forq",
+  "habit",
   "chrono",
   "le-studio-french",
   "reflect",

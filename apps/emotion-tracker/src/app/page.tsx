@@ -1,226 +1,134 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { useEntries } from "@/lib/useEntries";
-import type { Entry, ToastState } from "@/lib/types";
+import type { BiasFlag, Entry, LongitudinalReview, ReflectionMode, ReflectionSummary, ToastState } from "@/lib/types";
 import { unresolvedEntries } from "@/lib/longitudinal";
-import { searchEntries, semanticSearch } from "@/lib/search";
+import { automaticSearch } from "@/lib/search";
 import { isPulseOptIn, emitPulse } from "@/lib/pulse";
-import EntryList from "@/components/EntryList";
-import ApiKeyBar from "@/components/ApiKeyBar";
+import { patternKey, type Correction } from "@/lib/corrections";
+import { isOutcomeStudyOptIn, logOutcomeStudyEvent } from "@/lib/outcomeStudy";
+import MainNav, { type MainView } from "@/components/MainNav";
+import HistoryView from "@/components/HistoryView";
+import PatternsView from "@/components/PatternsView";
+import SettingsView from "@/components/SettingsView";
 import NewEntryForm from "@/components/NewEntryForm";
 import ReflectionSession from "@/components/ReflectionSession";
-import InsightsView from "@/components/InsightsView";
-import TimelineView from "@/components/TimelineView";
-import LongitudinalPanel from "@/components/LongitudinalPanel";
-import PrivacyBar from "@/components/PrivacyBar";
 import Toast from "@/components/Toast";
-
-type MainView = "reflections" | "insights" | "timeline" | "longitudinal" | "privacy";
 
 export default function Home() {
   const [entries, setEntries] = useLocalStorage<Entry[]>("reflectEntries", []);
+  const [corrections, setCorrections] = useLocalStorage<Correction[]>("reflectCorrections", []);
   const [apiKey, setApiKey] = useLocalStorage<string>("geminiApiKey", "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
-  const [view, setView] = useState<MainView>("reflections");
+  const [newMode, setNewMode] = useState<ReflectionMode>("full");
+  const [view, setView] = useState<MainView>("reflect");
   const [toast, setToast] = useState<ToastState | null>(null);
-  const [q, setQ] = useState("");
-  const [semantic, setSemantic] = useState(false);
+  const [query, setQuery] = useState("");
 
-  const { startEntry, appendMessage, completeEntry, updateFollowUp, updateLongitudinalReview, clearLongitudinalReview, deleteEntry } = useEntries(
-    entries,
-    setEntries,
-  );
-
-  const selectedEntry = entries.find((e) => e.id === selectedId) ?? null;
-
+  const { startEntry, appendMessage, completeEntry, updateFollowUp, updateLongitudinalReview, clearLongitudinalReview, deleteEntry } = useEntries(entries, setEntries);
+  const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
   const unresolved = useMemo(() => unresolvedEntries(entries), [entries]);
+  const filteredEntries = useMemo(() => automaticSearch(entries, query, 50), [entries, query]);
 
-  const filteredEntries = useMemo(() => {
-    const trimmed = q.trim();
-    if (!trimmed) return entries;
-    if (semantic) {
-      const hits = semanticSearch(entries, trimmed, 50);
-      const ids = new Set(hits.map((h) => h.entry.id));
-      // keep hits first in rank order, then non-hits filtered out
-      const ranked = hits.map((h) => h.entry);
-      // if nothing scored, fall back to text search so user still sees substring matches
-      if (ranked.length === 0) return searchEntries(entries, trimmed);
-      // append any text matches not already in semantic hits (rare)
-      const textExtra = searchEntries(entries, trimmed).filter((e) => !ids.has(e.id));
-      return [...ranked, ...textExtra];
-    }
-    return searchEntries(entries, trimmed);
-  }, [entries, q, semantic]);
-
-  // Pulse: emit aggregated snapshot on change when explicitly opted in
   useEffect(() => {
     if (!isPulseOptIn()) return;
-    // throttle: only emit when entries length changes or review changes
-    const t = window.setTimeout(() => emitPulse(entries), 400);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => emitPulse(entries), 400);
+    return () => window.clearTimeout(timer);
   }, [entries]);
 
-  function handleNew() {
+  function switchView(next: MainView): void {
+    setSelectedId(null);
+    setCreatingNew(false);
+    setView(next);
+  }
+
+  function handleNew(mode: ReflectionMode = "full"): void {
+    setNewMode(mode);
     setSelectedId(null);
     setCreatingNew(true);
-    setView("reflections");
+    setView("reflect");
   }
 
-  function handleStart(situation: string) {
-    const entry = startEntry(situation);
+  function handleStart(situation: string, mode: ReflectionMode): void {
+    const entry = startEntry(situation, mode);
+    if (isOutcomeStudyOptIn()) logOutcomeStudyEvent({ type: "reflection_started", mode });
     setSelectedId(entry.id);
     setCreatingNew(false);
-    setView("reflections");
+    setView("reflect");
   }
 
-  function handleSelect(id: string) {
+  function handleSelect(id: string): void {
     setSelectedId(id);
     setCreatingNew(false);
-    setView("reflections");
+    setView("reflect");
   }
 
-  function handleDelete(id: string) {
+  function handleDelete(id: string): void {
     deleteEntry(id);
     if (selectedId === id) setSelectedId(null);
   }
 
-  function switchView(v: MainView) {
-    setSelectedId(null);
-    setCreatingNew(false);
-    setView(v);
+  function handleCompleteEntry(id: string, summary: ReflectionSummary): void {
+    completeEntry(id, summary);
+    if (isOutcomeStudyOptIn()) logOutcomeStudyEvent({ type: "reflection_completed", mode: entries.find((entry) => entry.id === id)?.mode ?? "full" });
   }
 
-  const localOnly = typeof window !== "undefined" && window.localStorage.getItem("reflectLocalOnly") === "1";
+  function handleUpdateFollowUp(id: string, at: string | null, note: string | null): void {
+    updateFollowUp(id, at, note);
+    if (at && isOutcomeStudyOptIn()) logOutcomeStudyEvent({ type: "follow_up_scheduled", mode: entries.find((entry) => entry.id === id)?.mode ?? "full" });
+  }
+
+  function handleSaveReview(id: string, patch: Partial<LongitudinalReview>): void {
+    updateLongitudinalReview(id, patch);
+    if (patch.actualOutcome && patch.assumptionVerdict && isOutcomeStudyOptIn()) logOutcomeStudyEvent({ type: "outcome_reviewed", mode: entries.find((entry) => entry.id === id)?.mode ?? "full", verdict: patch.assumptionVerdict });
+  }
+
+  function handleDismissCorrection(correction: Correction): void {
+    setCorrections((current) => current.some((item) => item.key === correction.key) ? current : [...current, correction]);
+    if (isOutcomeStudyOptIn()) logOutcomeStudyEvent({ type: "pattern_corrected" });
+    setToast({ message: "Pattern hidden. You can still find the underlying reflections in History." });
+  }
+
+  function handleDismissBias(bias: BiasFlag): void {
+    handleDismissCorrection({ key: patternKey({ kind: "bias", label: bias.type }), kind: "pattern", rejectedAt: new Date().toISOString(), reason: "User asked to stop showing this pattern." });
+  }
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <ApiKeyBar apiKey={apiKey} onChange={setApiKey} />
-      {localOnly && (
-        <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs text-amber-800">
-          Local-only mode is on — new reflections won&apos;t call the AI. Structured traces still work; turn it off in Privacy to re-enable guided reflection.
-        </div>
-      )}
-      {unresolved.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs">
-          <span className="font-medium text-amber-800">{unresolved.length} follow-up{unresolved.length === 1 ? "" : "s"} due</span>
-          <span className="text-amber-700/80">— predicted vs actual is ready to calibrate.</span>
-          <div className="flex flex-wrap gap-1">
-            {unresolved.slice(0, 4).map((e) => (
-              <button key={e.id} onClick={() => handleSelect(e.id)} className="rounded-full border border-amber-500/30 bg-card px-2 py-0.5 text-xs hover:bg-card-hover">
-                {e.title.slice(0, 28)}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => switchView("longitudinal")} className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700">
-            Review all →
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4">
+          <button type="button" onClick={() => switchView("reflect")} className="flex items-center gap-2.5 text-left">
+            <Image src="/logo.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" aria-hidden="true" />
+            <span><span className="block text-sm font-semibold tracking-tight">Reflect</span><span className="block text-[10px] text-muted">Make space for a better read</span></span>
           </button>
+          <div className="ml-auto"><MainNav view={view} onChange={switchView} /></div>
         </div>
-      )}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-sidebar">
-          <EntryList
-            entries={filteredEntries}
-            selectedId={selectedId}
-            onSelect={handleSelect}
-            onDelete={handleDelete}
-            onNew={handleNew}
-            onInsights={() => switchView("insights")}
-          />
-          <div className="border-t border-border p-2">
-            <div className="flex gap-1">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={semantic ? "Semantic search…" : "Search reflections…"}
-                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs outline-none placeholder:text-muted/60 focus:border-accent focus:ring-1 focus:ring-accent/20"
-              />
-              <button
-                onClick={() => setSemantic((v) => !v)}
-                title={semantic ? "Semantic (TF-IDF) — click for plain text" : "Plain text — click for semantic"}
-                className={`shrink-0 rounded-lg border px-2 py-1.5 text-xs font-medium ${semantic ? "border-accent bg-accent text-white" : "border-border bg-card text-muted hover:bg-card-hover"}`}
-              >
-                {semantic ? "◆" : "⌕"}
-              </button>
-            </div>
-            <div className="mt-1.5 grid grid-cols-3 gap-1">
-              {(["timeline", "longitudinal", "privacy"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => switchView(v)}
-                  className={`rounded-lg border px-1.5 py-1 text-[11px] font-medium capitalize ${view === v ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-muted hover:bg-card-hover"}`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-            {q.trim() && <p className="mt-1 text-[11px] text-muted">{filteredEntries.length} match{filteredEntries.length === 1 ? "" : "es"} · {semantic ? "semantic" : "text"}</p>}
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {selectedEntry ? (
-            <ReflectionSession
-              key={selectedEntry.id}
-              entry={selectedEntry}
-              entries={entries}
-              apiKey={apiKey}
-              onAppendMessage={appendMessage}
-              onCompleteEntry={completeEntry}
-              onUpdateFollowUp={updateFollowUp}
-              onSaveReview={updateLongitudinalReview}
-              onClearReview={clearLongitudinalReview}
-              onError={(message) => setToast({ message })}
-            />
-          ) : creatingNew ? (
-            <NewEntryForm onSubmit={handleStart} />
-          ) : view === "insights" ? (
-            <InsightsView entries={entries} onBack={() => setView("reflections")} />
-          ) : view === "timeline" ? (
-            <div className="mx-auto max-w-2xl p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Timeline</h2>
-                <button onClick={() => setView("reflections")} className="rounded-lg border border-border bg-card px-3 py-1 text-xs hover:bg-card-hover">← Back</button>
-              </div>
-              <TimelineView entries={entries} onSelect={handleSelect} />
-            </div>
-          ) : view === "longitudinal" ? (
-            <div className="mx-auto max-w-3xl p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">Longitudinal</h2>
-                  <p className="text-xs text-muted">Calibration, recurring patterns, contradictions, predicted vs actual, weekly/monthly reviews.</p>
-                </div>
-                <button onClick={() => setView("reflections")} className="rounded-lg border border-border bg-card px-3 py-1 text-xs hover:bg-card-hover">← Back</button>
-              </div>
-              <LongitudinalPanel entries={entries} onSelect={handleSelect} />
-            </div>
-          ) : view === "privacy" ? (
-            <div className="mx-auto max-w-2xl p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Privacy & data</h2>
-                <button onClick={() => setView("reflections")} className="rounded-lg border border-border bg-card px-3 py-1 text-xs hover:bg-card-hover">← Back</button>
-              </div>
-              <PrivacyBar entries={entries} setEntries={setEntries} />
-              <div className="mt-6">
-                <LongitudinalPanel entries={entries} onSelect={handleSelect} />
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center animate-fade-in">
-              <span className="text-4xl opacity-80">🪞</span>
-              <p className="text-sm font-medium text-foreground">Select a reflection, or start a new one</p>
-              <p className="max-w-xs text-xs text-muted">Reflect helps you look past the first emotion and understand what&apos;s actually going on before you act.</p>
-              <div className="mt-1 flex flex-wrap justify-center gap-2">
-                <button onClick={handleNew} className="rounded-xl bg-accent px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover">+ New reflection</button>
-                <button onClick={() => switchView("longitudinal")} className="rounded-xl border border-border bg-card px-5 py-2 text-sm font-medium hover:bg-card-hover">Longitudinal</button>
-              </div>
-              <p className="mt-2 max-w-sm text-[11px] leading-relaxed text-muted">Local-only mode keeps everything in this browser. Encryption uses WebCrypto AES-GCM. Pulse only sends aggregated counts when you explicitly opt in.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      </header>
+
+      {unresolved.length > 0 && <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs"><div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2"><span className="font-medium text-amber-800">{unresolved.length} follow-up{unresolved.length === 1 ? "" : "s"} due</span><span className="text-amber-700/80">— compare what you predicted with what actually happened.</span>{unresolved.slice(0, 3).map((entry) => <button key={entry.id} type="button" onClick={() => handleSelect(entry.id)} className="rounded-full border border-amber-500/30 bg-card px-2 py-0.5 hover:bg-card-hover">{entry.title.slice(0, 28)}</button>)}<button type="button" onClick={() => switchView("patterns")} className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 font-medium text-white hover:bg-amber-700">Review all →</button></div></div>}
+
+      <main className="flex-1 overflow-y-auto">
+        {selectedEntry ? (
+          <ReflectionSession key={selectedEntry.id} entry={selectedEntry} entries={entries} apiKey={apiKey} onAppendMessage={appendMessage} onCompleteEntry={handleCompleteEntry} onUpdateFollowUp={handleUpdateFollowUp} onSaveReview={handleSaveReview} onClearReview={clearLongitudinalReview} onDismissPattern={handleDismissBias} onError={(message) => setToast({ message })} />
+        ) : creatingNew ? (
+          <NewEntryForm initialMode={newMode} onSubmit={handleStart} />
+        ) : view === "history" ? (
+          <>
+            <div className="mx-auto max-w-4xl px-5 pt-5 sm:px-8 sm:pt-8"><label className="sr-only" htmlFor="history-search">Search history</label><input id="history-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your history…" className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none placeholder:text-muted/60 focus:border-accent focus:ring-2 focus:ring-accent/20" />{query.trim() && <p className="mt-1.5 text-xs text-muted">{filteredEntries.length} result{filteredEntries.length === 1 ? "" : "s"} · automatic local relevance search</p>}</div>
+            <HistoryView entries={filteredEntries} selectedId={selectedId} onSelect={handleSelect} onDelete={handleDelete} onNew={handleNew} />
+          </>
+        ) : view === "patterns" ? (
+          <PatternsView entries={entries} corrections={corrections} onSelect={handleSelect} onDismissPattern={handleDismissCorrection} />
+        ) : view === "settings" ? (
+          <SettingsView entries={entries} setEntries={setEntries} apiKey={apiKey} setApiKey={setApiKey} />
+        ) : (
+          <div className="mx-auto flex min-h-[calc(100vh-80px)] max-w-2xl flex-col items-center justify-center gap-4 p-8 text-center animate-fade-in"><span className="text-4xl opacity-80">🪞</span><div><p className="text-2xl font-semibold tracking-tight">What needs a better read?</p><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">Reflect separates what happened from the story your mind added, then gives you a prediction to check against reality.</p></div><div className="mt-2 flex flex-wrap justify-center gap-2"><button type="button" onClick={() => handleNew("quick")} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-card-hover">Quick reflection</button><button type="button" onClick={() => handleNew("full")} className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-accent-hover">Full reflection →</button></div><button type="button" onClick={() => switchView("patterns")} className="mt-2 text-xs font-medium text-accent hover:underline">See your patterns</button><p className="mt-5 max-w-sm text-[11px] leading-relaxed text-muted">Stored in this browser. Guided steps use your configured AI connection only when you send an answer. Follow-ups help test predictions rather than treating them as facts.</p></div>
+        )}
+      </main>
       {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
     </div>
   );

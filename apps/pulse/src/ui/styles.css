@@ -1,3 +1,6 @@
+@import "./product-trust.css";
+@import "./statistical-inspector.css";
+
 /**
  * Minimal, high-contrast styling.
  *
@@ -15,6 +18,7 @@
   --card: #f7f8fa;
   --accent: #17457a;
   --warn: #8a3b06;
+  --danger: #b3261e;
   --ok: #13543a;
   --radius: 8px;
 }
@@ -28,6 +32,7 @@
     --card: #1c1f25;
     --accent: #8dbdf0;
     --warn: #f0a86a;
+    --danger: #ff8a80;
     --ok: #77d3ac;
   }
 }
@@ -653,4 +658,208 @@ td {
   position: absolute;
   white-space: nowrap;
   width: 1px;
+}
+
+/* Personal evidence graph */
+.pill--status-supported {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.pill--status-refuted,
+.pill--status-contested {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.pill--status-inconclusive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill--status-open {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.evidence__list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+
+.evidence__list li {
+  border-top: 1px solid var(--line);
+  padding: 0.6rem 0;
+}
+
+.evidence__list li:first-child {
+  border-top: none;
+}
+
+.evidence__list p {
+  margin: 0.3rem 0 0;
+}
+
+/* Contradiction ledger records, side by side */
+.contradiction + .contradiction {
+  border-top: 1px solid var(--line);
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+}
+
+.contradiction__sides {
+  display: grid;
+  gap: 0.5rem 1.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.contradiction__side ul {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+
+.contradiction__side li {
+  border-top: 1px solid var(--line);
+  padding: 0.6rem 0;
+}
+
+.contradiction__side li:first-child {
+  border-top: none;
+}
+
+.contradiction__side p {
+  margin: 0.3rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .contradiction__sides {
+    grid-template-columns: 1fr;
+  }
+}
+
+.history-entry h3 {
+  margin: 0 0 0.25rem;
+}
+
+.history-episodes {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.history-episodes li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+
+.history-episodes time {
+  font-variant-numeric: tabular-nums;
+}
+
+.history-change {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.history-change--appeared,
+.history-change--strengthened {
+  color: var(--accent);
+}
+
+.history-change--weakened {
+  color: var(--warn);
+}
+
+.history-change--reversed {
+  color: var(--danger);
+}
+
+.history-change--disappeared {
+  color: var(--muted);
+}
+
+/* Causal hypothesis library */
+select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+}
+
+.standing {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  text-transform: capitalize;
+}
+
+.standing--plausible,
+.standing--strengthening {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.standing--confirmed {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.standing--refuted,
+.standing--contested {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.standing--untested,
+.standing--retired {
+  color: var(--muted);
+}
+
+.library-entry h3 {
+  margin: 0 0 0.25rem;
+}
+
+.library-evidence {
+  font-size: 0.9rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.library-evidence li {
+  margin-top: 0.35rem;
+}
+
+.library-promotable {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.library-promotable li {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.standing-control {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.standing-control label {
+  font-weight: 600;
 }

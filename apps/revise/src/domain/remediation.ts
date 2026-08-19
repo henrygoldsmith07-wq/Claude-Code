@@ -14,8 +14,9 @@
 
 import { tokenise } from "./marking";
 import { diagnoseExpressionDifference } from "./maths-equivalence";
+import { matchMisconception } from "./misconception-library";
 import { firstIncorrectStep } from "./working-analysis";
-import type { MarkedPart, QuestionPart, Topic } from "./types";
+import type { Attempt, MarkedPart, Misconception, Mistake, Question, QuestionPart, Topic } from "./types";
 
 export interface RemediationAction {
   /** Human label of the misconception, e.g. "Sign slip in expansion". */
@@ -28,6 +29,8 @@ export interface RemediationAction {
   action: string;
   /** Which key point of the topic to restudy, when we can name one. */
   targetKeyPoint?: string;
+  /** The full library entry this action is drawn from, when one matched. */
+  misconceptionEntry?: Misconception;
 }
 
 export interface PartRemediation {
@@ -109,10 +112,12 @@ const ACTION_BY_ERROR_HINT: Array<{ hint: RegExp; action: string }> = [
   },
 ];
 
-function genericAction(missedPoint: string): RemediationAction {
+function genericAction(missedPoint: string, answer?: string): RemediationAction {
   return {
     misconception: "Mark-scheme point missed",
-    evidence: `The scheme wanted: "${missedPoint}".`,
+    evidence: answer?.trim()
+      ? `Your answer — "${answer.trim()}" — did not demonstrate the required point: "${missedPoint}".`
+      : `The scheme wanted: "${missedPoint}".`,
     confidence: 0.4,
     action:
       "Restate the missing point explicitly in your own words, then check it against the scheme before moving on.",
@@ -153,11 +158,27 @@ export function remediatePoint(
   topic?: Topic,
   firstWrongStep?: string,
   expectedStep?: string,
+  misconceptions: readonly Misconception[] = [],
 ): RemediationAction {
   const evidencePool = [firstWrongStep, answer].filter(
     (s): s is string => Boolean(s && s.trim()),
   );
   const errors = topic?.commonErrors ?? [];
+
+  // The library is the richest source: when a known misconception matches,
+  // its full explanation and correction replace the generic restudy action.
+  const libraryMatch = misconceptions.length
+    ? matchMisconception(misconceptions, missedPoint, evidencePool.join(" "))
+    : null;
+  if (libraryMatch) {
+    return {
+      misconception: libraryMatch.entry.statement,
+      evidence: `Your answer matches a known misconception: ${libraryMatch.entry.statement} For example, ${libraryMatch.entry.example}`,
+      confidence: Math.min(0.95, 0.6 + libraryMatch.score * 0.35),
+      action: libraryMatch.entry.correction,
+      misconceptionEntry: libraryMatch.entry,
+    };
+  }
 
   let best: { error: string; score: number } | null = null;
   for (const error of errors) {
@@ -198,7 +219,7 @@ export function remediatePoint(
     }
   }
 
-  return genericAction(missedPoint);
+  return genericAction(missedPoint, answer);
 }
 
 /**
@@ -210,6 +231,7 @@ export function remediatePart(
   answer: string,
   marked: Pick<MarkedPart, "partId" | "missedPoints">,
   topic?: Topic,
+  misconceptions: readonly Misconception[] = [],
 ): PartRemediation {
   if (!marked.missedPoints.length) return { partId: part.id, actions: [] };
 
@@ -219,7 +241,7 @@ export function remediatePart(
 
   const actions: RemediationAction[] = [];
   for (const missed of marked.missedPoints) {
-    actions.push(remediatePoint(part, answer, missed, topic, firstWrongStep, expectedStep));
+    actions.push(remediatePoint(part, answer, missed, topic, firstWrongStep, expectedStep, misconceptions));
   }
   // Deduplicate identical misconceptions, keeping the strongest evidence.
   const seen = new Map<string, RemediationAction>();
@@ -239,12 +261,13 @@ export function planRemediation(
   answers: Record<string, string>,
   marked: Array<{ partId: string; missedPoints: string[] }>,
   topic?: Topic,
+  misconceptions: readonly Misconception[] = [],
 ): RemediationPlan {
   const parts: PartRemediation[] = question.parts
     .map((part) => {
       const m = marked.find((mm) => mm.partId === part.id);
       if (!m || !m.missedPoints.length) return null;
-      return remediatePart(part, answers[part.id] ?? "", m, topic);
+      return remediatePart(part, answers[part.id] ?? "", m, topic, misconceptions);
     })
     .filter((p): p is PartRemediation => p !== null && p.actions.length > 0);
 
@@ -254,4 +277,30 @@ export function planRemediation(
     : null;
 
   return { parts, headline };
+}
+
+/**
+ * Rebuild the best remediation action for one persisted mistake. The original
+ * attempt supplies the student's evidence; the mistake's point narrows the
+ * plan so a retest addresses this gap rather than the whole question.
+ */
+export function remediationForMistake(
+  mistake: Pick<Mistake, "partId" | "point">,
+  question: Pick<Question, "parts">,
+  originalAttempt?: Pick<Attempt, "answers" | "marked">,
+  topic?: Topic,
+): RemediationAction | null {
+  const part =
+    question.parts.find((candidate) => candidate.id === mistake.partId) ??
+    (question.parts.length === 1 ? question.parts[0] : undefined);
+  if (!part) return null;
+
+  const originalMarked = originalAttempt?.marked.find((marked) => marked.partId === part.id);
+  const missedPoints = mistake.point
+    ? [mistake.point]
+    : originalMarked?.missedPoints ?? [];
+  if (!missedPoints.length) return null;
+
+  const answer = originalAttempt?.answers[part.id] ?? "";
+  return remediatePart(part, answer, { partId: part.id, missedPoints }, topic).actions[0] ?? null;
 }

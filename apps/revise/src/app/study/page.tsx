@@ -1,10 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { browse } from "@/domain/browser";
 import { isDiagramCard } from "@/domain/diagrams";
-import { getSubject, topicsFor } from "@/domain/curriculum";
+import { allTopics, getSubject, topicsFor } from "@/domain/curriculum";
 import type { StudyMode } from "@/domain/study-modes";
 import { useStore, useSubjects } from "@/state/store";
 import { DiagramMode } from "@/components/modes/DiagramMode";
@@ -12,13 +12,14 @@ import { LearnMode } from "@/components/modes/LearnMode";
 import { MatchGame } from "@/components/modes/MatchGame";
 import { TestMode } from "@/components/modes/TestMode";
 import { AudioMode } from "@/components/modes/AudioMode";
+import { ExplanationMode } from "@/components/modes/ExplanationMode";
 import { Button, EmptyState, Panel, Pill, SectionHeading, cx } from "@/components/ui";
 import { ICON_SIZE, ModesIcon } from "@/components/icons";
 import type { LucideIcon } from "@/components/icons";
-import { AudioIcon, PracticeIcon, ReviewIcon, TodayIcon } from "@/components/icons";
+import { AudioIcon, PracticeIcon, ReviewIcon, TodayIcon, TutorIcon } from "@/components/icons";
 
 // ---------------------------------------------------------------------------
-// One deck, five ways to work it. The picker exists because the right mode
+// One deck, six ways to work it. The picker exists because the right mode
 // depends on where the student is: match when the material is brand new and
 // nothing sticks, learn when it half-sticks, test when they think it is done,
 // diagram and audio when the content demands it.
@@ -66,6 +67,13 @@ const MODES: {
     when: "For revising while walking, on a bus, or resting your eyes.",
     Icon: AudioIcon,
   },
+  {
+    mode: "explanation",
+    label: "Explain mastery",
+    blurb: "Teach a topic from memory, then check the ideas you included.",
+    when: "Best for proving you can connect the topic without prompts.",
+    Icon: TutorIcon,
+  },
 ];
 
 export default function StudyPage() {
@@ -79,7 +87,12 @@ export default function StudyPage() {
 function Study() {
   const params = useSearchParams();
   const store = useStore();
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
   const subjects = useSubjects();
+  const resumeRequested = params.get("resume") === "1";
+  const savedCheckpoint =
+    resumeRequested && store.revisionCheckpoint?.activity === "study" ? store.revisionCheckpoint : null;
+  const [resumeQueueIds] = useState<string[] | null>(() => savedCheckpoint?.queueIds ?? null);
 
   const [mode, setMode] = useState<StudyMode | null>((params.get("mode") as StudyMode) || null);
   const [subjectId, setSubjectId] = useState(params.get("subject") ?? "");
@@ -98,16 +111,58 @@ function Study() {
   }, [store.cards, store.settings.subjectIds, query, subjectId, topicId]);
 
   const diagramCount = useMemo(() => pool.filter(isDiagramCard).length, [pool]);
+  const topicPool = useMemo(() => {
+    const scoped = subjectId ? topicsFor(subjectId) : allTopics(store.settings.subjectIds);
+    return topicId ? scoped.filter((topic) => topic.id === topicId) : scoped;
+  }, [subjectId, topicId, store.settings.subjectIds]);
+
+  const activePool = useMemo(() => {
+    if (!resumeQueueIds?.length) return pool;
+    const byId = new Map(store.cards.map((card) => [card.id, card] as const));
+    const restored = resumeQueueIds.map((id) => byId.get(id)).filter((card): card is (typeof store.cards)[number] => Boolean(card));
+    return restored.length ? restored : pool;
+  }, [pool, resumeQueueIds, store.cards]);
+
+  const checkpointHref = useMemo(() => {
+    const next = new URLSearchParams();
+    if (mode) next.set("mode", mode);
+    if (subjectId) next.set("subject", subjectId);
+    if (topicId) next.set("topic", topicId);
+    if (query) next.set("q", query);
+    next.set("resume", "1");
+    return `/study?${next.toString()}`;
+  }, [mode, query, subjectId, topicId]);
+
+  useEffect(() => {
+    if (!mode) {
+      if (resumeRequested) void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "study",
+      title: `${mode[0].toUpperCase()}${mode.slice(1)} mode`,
+      href: checkpointHref,
+      position: 0,
+      total: activePool.length,
+      queueIds: activePool.map((card) => card.id),
+    });
+  }, [activePool, checkpointHref, clearRevisionCheckpoint, mode, resumeRequested, saveRevisionCheckpoint]);
 
   if (mode) {
-    const exit = () => setMode(null);
+    const exit = () => {
+      void clearRevisionCheckpoint();
+      setMode(null);
+    };
     return (
       <div className="pb-4">
-        {mode === "learn" ? <LearnMode cards={pool} onExit={exit} /> : null}
-        {mode === "test" ? <TestMode cards={pool} onExit={exit} /> : null}
-        {mode === "match" ? <MatchGame cards={pool} onExit={exit} /> : null}
-        {mode === "diagram" ? <DiagramMode cards={pool} onExit={exit} /> : null}
-        {mode === "audio" ? <AudioMode cards={pool} onExit={exit} /> : null}
+        {mode === "learn" ? <LearnMode cards={activePool} onExit={exit} /> : null}
+        {mode === "test" ? <TestMode cards={activePool} onExit={exit} /> : null}
+        {mode === "match" ? <MatchGame cards={activePool} onExit={exit} /> : null}
+        {mode === "diagram" ? <DiagramMode cards={activePool} onExit={exit} /> : null}
+        {mode === "audio" ? <AudioMode cards={activePool} onExit={exit} /> : null}
+        {mode === "explanation" ? (
+          <ExplanationMode topics={topicPool} initialTopicId={topicId || undefined} onExit={exit} />
+        ) : null}
       </div>
     );
   }

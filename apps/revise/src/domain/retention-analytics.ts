@@ -13,7 +13,7 @@
 // say "not enough yet" instead of flashing a volatile 73%.
 // ---------------------------------------------------------------------------
 
-import type { Attempt, Card, Id, IsoDate, Mistake, ReviewLog } from "./types";
+import type { AssessmentInsight, Attempt, Card, Id, IsoDate, Mistake, ReviewLog, TechniqueVsKnowledge } from "./types";
 import { retrievability, todayIso } from "./scheduling";
 
 export const RETENTION_CHECKPOINTS: ReadonlyArray<1 | 7 | 30> = [1, 7, 30] as const;
@@ -218,25 +218,10 @@ export function marksPerHourReport(input: {
 // Exam technique vs knowledge diagnosis
 // ---------------------------------------------------------------------------
 
-export interface TechniqueVsKnowledge {
-  /** Marks lost on knowledge gaps (recall/method/conceptual + AO1). */
-  knowledgeLost: number;
-  /** Marks lost on exam technique (timing/communication/interpretation + command-word slips). */
-  techniqueLost: number;
-  knowledgeShare: number; // 0–1 of totalLost
-  techniqueShare: number; // 0–1 of totalLost
-  totalLost: number;
-  /** Stronger evidence when n ≥ 8 mistakes. */
-  reliable: boolean;
-  narrative: string;
-  /** Top driver tags, for the UI. */
-  drivers: string[];
-}
+export type { TechniqueVsKnowledge } from "./types";
 
 const KNOWLEDGE_TAGS = new Set(["recall", "conceptual", "terminology", "method-skipped", "rearrangement", "substitution-slips"]);
 const TECHNIQUE_TAGS = new Set(["misread-command", "units", "significant-figures", "graph-reading", "method-skipped"]);
-
-import type { AssessmentInsight } from "./types";
 
 function mistakeWeightForKnowledgeTechnique(m: Mistake): { knowledge: number; technique: number } {
   // AO is the strongest signal; category/tag is the fallback.
@@ -339,7 +324,7 @@ export function paperAnalytics(input: {
   if (!attempts.length) return [];
 
   // Group by (subjectId, paperSpecId). Fall back to subject-level when paper unknown.
-  const keyFor = (a: Attempt): string => `${a.subjectId}::${(a as unknown as { paperSpecId?: Id }).paperSpecId ?? "unknown"}`;
+  const keyFor = (a: Attempt): string => `${a.subjectId}::${a.paperSpecId ?? "unknown"}`;
   const byKey = new Map<string, Attempt[]>();
   for (const a of attempts) {
     const k = keyFor(a);

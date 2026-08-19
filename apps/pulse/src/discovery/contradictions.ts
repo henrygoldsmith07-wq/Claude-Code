@@ -21,6 +21,7 @@
 
 import { hash128 } from "../events/hash.js";
 import type { Finding, ReplicationStatus } from "./finding.js";
+import { findingSubject } from "./relationship.js";
 
 export interface ContradictionSighting {
   findingId: string;
@@ -58,8 +59,7 @@ export class ContradictionLedger {
    * must never contradict each other.
    */
   static subject(finding: Finding): string {
-    const kind = finding.tags[0] ?? "unknown";
-    return [kind, finding.metricIds[0] ?? "", finding.metricIds[1] ?? ""].join("|");
+    return findingSubject(finding);
   }
 
   /**

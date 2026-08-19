@@ -138,6 +138,34 @@ export interface Topic {
   lastChecked?: IsoDate | null;
 }
 
+/**
+ * One entry in the misconception library: a common wrong belief, why it is
+ * wrong, the symptom an examiner sees, and what to write instead. Authored
+ * content, linked to the topics where the mistake costs marks.
+ */
+export interface Misconception {
+  id: Id;
+  subjectId: Id;
+  topicIds: Id[];
+  /** The wrong belief, phrased the way a student holds it. */
+  statement: string;
+  /** Why it is wrong and the correct conception, in examiner voice. */
+  explanation: string;
+  /** A concrete wrong-answer symptom — what an examiner sees every year. */
+  example: string;
+  /** What to write instead. */
+  correction: string;
+  /** Fine-grained tag shared with Mistake.misconception, for analytics. */
+  tag?: MisconceptionTag;
+  /** Assessment objective this misconception most often costs. */
+  ao?: AoCode;
+  source?: ContentSource;
+  licensedSource?: LicensedSource | null;
+  verification?: VerificationStatus;
+  reviewer?: string | null;
+  lastChecked?: IsoDate | null;
+}
+
 // --- spaced repetition -----------------------------------------------------
 
 export type CardKind = "basic" | "cloze" | "image" | "equation" | "mistake" | "audio";
@@ -221,6 +249,101 @@ export interface QuestionPart {
   learningClaims?: string[];
 }
 
+export type QuestionValidationStage = "draft" | "in_review" | "validated" | "needs_changes" | "rejected" | "retired";
+
+export type DistractorQualityIssueCode =
+  | "blank-option"
+  | "duplicate-option"
+  | "unattractive-distractor"
+  | "overselected-distractor";
+
+export type DistractorQualityOptionStatus = "correct" | "invalid" | "unmeasured" | "unused" | "healthy" | "overselected";
+
+export type DistractorQualityStatus = "not-applicable" | "unmeasured" | "insufficient-data" | "healthy" | "needs-review";
+
+export interface DistractorQualityIssue {
+  code: DistractorQualityIssueCode;
+  message: string;
+  severity: "error" | "warning";
+}
+
+export interface DistractorOptionQuality {
+  index: number;
+  text: string;
+  isCorrect: boolean;
+  selectionCount: number;
+  selectionRate: number | null;
+  status: DistractorQualityOptionStatus;
+}
+
+export interface DistractorQualityReport {
+  questionId: Id;
+  applicable: boolean;
+  optionCount: number;
+  distractorCount: number;
+  responseCount: number;
+  reliable: boolean;
+  status: DistractorQualityStatus;
+  ok: boolean;
+  issues: DistractorQualityIssue[];
+  options: DistractorOptionQuality[];
+}
+
+export type QuestionValidationIssueCode =
+  | "missing-stem"
+  | "missing-parts"
+  | "invalid-part"
+  | "invalid-total-marks"
+  | "invalid-mcq"
+  | DistractorQualityIssueCode
+  | "missing-topic"
+  | "unknown-topic"
+  | "missing-aos"
+  | "missing-spec-points"
+  | "unmapped-spec-point"
+  | "missing-provenance"
+  | "unverified-provenance"
+  | "missing-spec-version"
+  | "missing-reviewer"
+  | "missing-last-checked"
+  | "stale-provenance"
+  | "missing-licence";
+
+export interface QuestionValidationIssue {
+  code: QuestionValidationIssueCode;
+  message: string;
+  severity: "error" | "warning";
+}
+
+export interface QuestionValidationReport {
+  questionId: Id;
+  checkedAt: IsoInstant;
+  issues: QuestionValidationIssue[];
+  ok: boolean;
+  distractorQuality?: DistractorQualityReport;
+}
+
+export interface QuestionValidationHistoryEntry {
+  from: QuestionValidationStage;
+  to: QuestionValidationStage;
+  at: IsoInstant;
+  by: Id;
+  note?: string;
+}
+
+export interface QuestionValidationRecord {
+  questionId: Id;
+  version: string;
+  stage: QuestionValidationStage;
+  report: QuestionValidationReport;
+  history: QuestionValidationHistoryEntry[];
+  reviewerId?: Id;
+  submittedAt?: IsoInstant;
+  reviewedAt?: IsoInstant;
+  createdAt: IsoInstant;
+  updatedAt: IsoInstant;
+}
+
 export interface Question {
   id: Id;
   subjectId: Id;
@@ -250,10 +373,28 @@ export interface Question {
   aos?: AoCode[];
   /** Which spec statements this question tests (union of parts; stable ids). */
   specPointIds?: Id[];
+  /** Persisted question-specific validation lifecycle; moderation remains a separate publishing gate. */
+  validation?: QuestionValidationRecord;
   /** Set when extracted from an uploaded paper. */
   paperId?: Id;
   paperQuestionNumber?: string;
   createdAt: IsoInstant;
+}
+
+export type MarkEvidenceStatus = "credited" | "missed" | "unreported";
+export type MarkEvidenceStrength = "strong" | "partial" | "none";
+
+/** Deterministic explanation of the answer evidence behind one mark decision. */
+export interface MarkEvidence {
+  /** Exact mark-scheme point being explained. */
+  point: string;
+  status: MarkEvidenceStatus;
+  /** Short excerpt from the submitted answer, or null when nothing matches. */
+  evidence: string | null;
+  evidenceStrength: MarkEvidenceStrength;
+  /** 0–1 score from the same matching primitives used by offline marking. */
+  confidence: number;
+  explanation: string;
 }
 
 export interface MarkedPart {
@@ -264,6 +405,48 @@ export interface MarkedPart {
   creditedPoints: string[];
   missedPoints: string[];
   comment: string;
+  /** Per-point, answer-grounded rationale. Optional for older persisted attempts. */
+  evidence?: MarkEvidence[];
+}
+
+export type MarkEscalationReason = "low-confidence" | "missing-confidence";
+export type MarkEscalationPriority = "standard" | "urgent";
+
+export interface MarkEscalation {
+  status: "pending" | "resolved";
+  reason: MarkEscalationReason;
+  priority: MarkEscalationPriority;
+  target: "human-review";
+  /** 0–1 confidence returned by the marker; null means it was not supplied. */
+  confidence: number | null;
+  threshold: number;
+  requestedAt: IsoInstant;
+  resolvedAt?: IsoInstant;
+  resolvedBy?: "human" | "rubric" | "ai";
+}
+
+export type FarTransferRetestStatus = "scheduled" | "due" | "completed";
+export type FarTransferOutcomeBand = "secure" | "partial" | "not-secure";
+
+export interface FarTransferOutcome {
+  awarded: number;
+  max: number;
+  percentage: number;
+  passed: boolean;
+  band: FarTransferOutcomeBand;
+  completedAt: IsoInstant;
+}
+
+/** Link stored on attempts so a delayed retest survives reload and sync. */
+export interface FarTransferAttemptLink {
+  retestId: Id;
+  role: "source" | "retest";
+  sourceAttemptId: Id;
+  sourceQuestionId: Id;
+  candidateQuestionId: Id;
+  scheduledFor: IsoDate;
+  delayDays: number;
+  outcome?: FarTransferOutcome;
 }
 
 export interface Attempt {
@@ -280,9 +463,21 @@ export interface Attempt {
   /** Examiner-style prose, ready to show verbatim. */
   feedback: string;
   markedBy: "ai" | "rubric" | "self";
+  /** Marker confidence, distinct from the student's self-reported review confidence. */
+  markConfidence?: number;
+  /** Durable request for a second marker when an AI mark is not reliable enough. */
+  markEscalation?: MarkEscalation;
+  /** A high-scoring source answer or its completed delayed transfer check. */
+  farTransfer?: FarTransferAttemptLink;
   confidence?: 1 | 2 | 3 | 4 | 5;
   elapsedMs: number;
   mode: "practice" | "paper" | "recall";
+  /** Optional provenance for attempts completed inside a paper sitting. */
+  paperId?: Id;
+  paperSpecId?: Id;
+  paperRunId?: Id;
+  /** Links a targeted practice attempt back to the open mistake it is testing. */
+  retestMistakeId?: Id;
   createdAt: IsoInstant;
 }
 
@@ -335,6 +530,8 @@ export interface Mistake {
   command?: CommandWord;
   /** Fine-grained misconception tag. */
   misconception?: MisconceptionTag;
+  /** Id of the specific misconception-library entry this mistake matched, when one did. */
+  misconceptionEntryId?: Id;
   /** AO this mistake belongs to. */
   ao?: AoCode;
   /** Difficulty of the question/part where the mark was lost. */
@@ -353,6 +550,11 @@ export interface Mistake {
   resolved: boolean;
   createdAt: IsoInstant;
   resolvedAt?: IsoInstant;
+  /** Number of targeted retests attempted since the mistake was captured. */
+  retestCount?: number;
+  /** Most recent targeted retest, whether or not it earned the point. */
+  lastRetestAttemptId?: Id;
+  lastRetestedAt?: IsoInstant;
 }
 
 export interface AssessmentInsight {
@@ -368,6 +570,52 @@ export interface AssessmentInsight {
   repeatedWeakSubtopics: Id[];
   /** Expected marks gained if 1 hour is spent on each listed topic. */
   expectedMarksPerHour: Array<{ topicId: Id; value: number }>;
+  /** Estimated split between lost marks caused by knowledge and exam technique. */
+  techniqueVsKnowledge: TechniqueVsKnowledge;
+  /** Item-analysis measurements for questions with enough cohort evidence. */
+  questionDiscrimination?: QuestionDiscriminationMeasurement[];
+}
+
+export interface TechniqueVsKnowledge {
+  /** Marks lost on knowledge gaps (recall/method/conceptual + AO1). */
+  knowledgeLost: number;
+  /** Marks lost on exam technique (timing/communication/interpretation + command-word slips). */
+  techniqueLost: number;
+  knowledgeShare: number;
+  techniqueShare: number;
+  totalLost: number;
+  /** Stronger evidence when n ≥ 8 mistakes. */
+  reliable: boolean;
+  narrative: string;
+  /** Top driver tags, for the UI. */
+  drivers: string[];
+}
+
+export type QuestionDiscriminationBand =
+  | "insufficient-data"
+  | "no-variance"
+  | "reverse"
+  | "weak"
+  | "acceptable"
+  | "strong";
+
+export interface QuestionDiscriminationMeasurement {
+  questionId: Id;
+  subjectId: Id;
+  /** Valid, deduplicated attempts for the target question. */
+  sampleSize: number;
+  /** Attempts with both a valid item score and an ability score. */
+  usableSampleSize: number;
+  /** Mean awarded/max for the target question. */
+  facility: number | null;
+  /** Item-total correlation against ability, excluding the target question when derived. */
+  discrimination: number | null;
+  /** Standard error on Fisher's z scale. */
+  standardError: number | null;
+  confidenceInterval: { lower: number; upper: number } | null;
+  band: QuestionDiscriminationBand;
+  reliable: boolean;
+  abilitySource: "provided" | "leave-one-question-out" | "none";
 }
 
 export interface PaperSimulation {
@@ -464,6 +712,8 @@ export interface UserSettings {
     reduceMotion: boolean;
   };
   aiEnabled: boolean;
+  /** Whether Pulse may read this account's study history. Off by default. */
+  pulseEnabled: boolean;
   updatedAt: IsoInstant;
 }
 

@@ -13,16 +13,7 @@ import {
 } from "./fallback";
 import { extractJson, getProvider } from "./provider";
 import type { AiEnvelope, AiTask } from "./types";
-import {
-  diagnoseResponseSchema,
-  explainResponseSchema,
-  generatedCardSchema,
-  generatedQuestionSchema,
-  markResponseSchema,
-  ocrResponseSchema,
-  socraticResponseSchema,
-  summariseResponseSchema,
-} from "./types";
+import { RESPONSE_SCHEMAS } from "./types";
 
 // ---------------------------------------------------------------------------
 // One place where prompts live, one place where responses are validated, one
@@ -132,7 +123,7 @@ export const payloadSchemas = {
 export async function explain(topicId: string, question?: string) {
   const topic = getTopic(topicId);
   return run(
-    explainResponseSchema,
+    RESPONSE_SCHEMAS.explain,
     EXAMINER_VOICE,
     [
       topicContext(topic),
@@ -159,7 +150,7 @@ export async function socratic(topicId: string, history: { role: "user" | "assis
   }
   const transcript = history.map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content}`).join("\n");
   return run(
-    socraticResponseSchema,
+    RESPONSE_SCHEMAS.socratic,
     SOCRATIC_VOICE,
     [topicContext(topic), "", "Conversation so far:", transcript || "(the student has just opened the tutor)"].join("\n"),
     `{ "reply": string, "nextQuestion": string }`,
@@ -180,7 +171,7 @@ export async function mark(question: Question, answers: Record<string, string>) 
     .join("\n\n");
 
   return run(
-    markResponseSchema,
+    RESPONSE_SCHEMAS.mark,
     EXAMINER_VOICE,
     [
       topicContext(topic),
@@ -191,9 +182,9 @@ export async function mark(question: Question, answers: Record<string, string>) 
       "",
       "Mark each part. Credit a mark-scheme point only if the student's answer contains it —",
       "reward correct alternative wording, never reward what is merely implied.",
-      "Return one entry per part with its exact partId, and one overall examiner-style feedback paragraph.",
+    "Return one entry per part with its exact partId, one overall examiner-style feedback paragraph, and confidence from 0 to 1 in the mark.",
     ].join("\n"),
-    `{ "marked": [{ "partId": string, "awarded": number, "max": number, "creditedPoints": string[], "missedPoints": string[], "comment": string }], "feedback": string }`,
+    `{ "marked": [{ "partId": string, "awarded": number, "max": number, "creditedPoints": string[], "missedPoints": string[], "comment": string }], "feedback": string, "confidence": number }`,
     () => markFallback(question, answers),
     1800,
   );
@@ -207,7 +198,7 @@ export async function mark(question: Question, answers: Record<string, string>) 
 export async function cardsFromNotes(text: string, count: number, topicId?: string) {
   const topic = topicId ? getTopic(topicId) : undefined;
   return run(
-    z.object({ cards: z.array(generatedCardSchema).min(1).max(25) }),
+    RESPONSE_SCHEMAS["cards-from-notes"],
     EXAMINER_VOICE,
     [
       topic ? topicContext(topic) : "",
@@ -231,7 +222,7 @@ export async function cardsFromNotes(text: string, count: number, topicId?: stri
 export async function generateCards(topicId: string, count: number) {
   const topic = getTopic(topicId);
   return run(
-    z.object({ cards: z.array(generatedCardSchema).min(1).max(20) }),
+    RESPONSE_SCHEMAS["generate-cards"],
     EXAMINER_VOICE,
     [
       topicContext(topic),
@@ -248,7 +239,7 @@ export async function generateCards(topicId: string, count: number) {
 export async function generateQuestions(topicId: string, count: number, difficulty?: number) {
   const topic = getTopic(topicId);
   return run(
-    z.object({ questions: z.array(generatedQuestionSchema).min(1).max(5) }),
+    RESPONSE_SCHEMAS["generate-questions"],
     EXAMINER_VOICE,
     [
       topicContext(topic),
@@ -267,7 +258,7 @@ export async function generateQuestions(topicId: string, count: number, difficul
 export async function summarise(topicId: string) {
   const topic = getTopic(topicId);
   return run(
-    summariseResponseSchema,
+    RESPONSE_SCHEMAS.summarise,
     EXAMINER_VOICE,
     [topicContext(topic), "", "Write a one-page revision summary a student could read the night before the exam."].join("\n"),
     `{ "summary": string (markdown), "bullets": string[] }`,
@@ -283,7 +274,7 @@ export async function diagnose(topicIds: string[], mistakes: unknown[]) {
     .join("\n");
 
   return run(
-    diagnoseResponseSchema,
+    RESPONSE_SCHEMAS.diagnose,
     EXAMINER_VOICE,
     [
       "Weak topics:",
@@ -339,7 +330,7 @@ export async function ocr(image: string, mediaType: string, hint: "handwriting" 
       maxTokens: 3000,
     });
     const raw = extractJson<unknown>(text);
-    const parsed = ocrResponseSchema.safeParse(raw);
+    const parsed = RESPONSE_SCHEMAS.ocr.safeParse(raw);
     if (!parsed.success) throw new Error("could not read the transcription back");
     return { data: parsed.data, source: "ai" as const, provider: provider.name };
   } catch (error) {
@@ -355,7 +346,7 @@ export async function ocr(image: string, mediaType: string, hint: "handwriting" 
 /** Split uploaded past-paper text into questions with mark schemes. */
 export async function extractQuestions(subjectId: string, text: string) {
   return run(
-    z.object({ questions: z.array(generatedQuestionSchema).min(1).max(40) }),
+    RESPONSE_SCHEMAS["extract-questions"],
     EXAMINER_VOICE,
     [
       `The following is the text of a past paper for ${subjectLabel(subjectId)}.`,

@@ -79,7 +79,9 @@ describe("InsightHistory ledger", () => {
     const entries = history.history();
     expect(entries).toHaveLength(1);
     const entry = entries[0]!;
-    expect(entry.signature).toBe("exposure-window|study.accuracy|exercise.volume|1");
+    // Kind-qualified so different claims about one outcome stay separate,
+    // but direction-free so a sign flip reads as a reversal of this insight.
+    expect(entry.signature).toBe("exposure-window|study.accuracy|exercise.volume");
     expect(entry.title).toBe("Accuracy is higher after exercise");
     expect(entry.firstSeenAt).toBe("2025-07-01T00:00:00.000Z");
     expect(entry.lastSeenAt).toBe("2025-07-01T00:00:00.000Z");
@@ -112,6 +114,23 @@ describe("InsightHistory ledger", () => {
     expect(history.history()[0]!.episodes).toHaveLength(1);
   });
 
+  it("ignores a scan from an earlier session when a reload replays it", async () => {
+    const adapter = createMemoryInsightHistoryAdapter();
+    const first = new InsightHistory(adapter);
+    first.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    first.recordScan(scan("2025-08-01T00:00:00.000Z", [finding({ id: "f2", sampleSize: 70 })]));
+    await first.persist();
+
+    // A reload starts a fresh ledger from the adapter and replays the same
+    // scans (the demo boot does exactly this). The history must not grow.
+    const second = new InsightHistory(adapter);
+    await second.load();
+    second.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    second.recordScan(scan("2025-08-01T00:00:00.000Z", [finding({ id: "f2", sampleSize: 70 })]));
+    expect(second.size()).toBe(2);
+    expect(second.history()[0]!.appearances).toBe(2);
+  });
+
   it("tracks strengthening and weakening as the effect changes across scans", () => {
     const history = new InsightHistory();
     history.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1", sampleSize: 40 })]));
@@ -132,6 +151,24 @@ describe("InsightHistory ledger", () => {
     expect(entry.appearances).toBe(3);
     expect(entry.firstSeenAt).toBe("2025-07-01T00:00:00.000Z");
     expect(entry.lastSeenAt).toBe("2025-09-01T00:00:00.000Z");
+  });
+
+  it("treats a direction flip as a reversal of one insight, not a disappearance and reappearance", () => {
+    const history = new InsightHistory();
+    history.recordScan(scan("2025-07-01T00:00:00.000Z", [finding({ id: "f1" })]));
+    history.recordScan(
+      scan("2025-08-01T00:00:00.000Z", [
+        finding({ id: "f2", effect: { kind: "hedges_g", value: -0.5, magnitude: "small", label: "-0.50 SD" } }),
+      ]),
+    );
+
+    expect(history.history()).toHaveLength(1);
+    const entry = history.history()[0]!;
+    expect(entry.signature).toBe("exposure-window|study.accuracy|exercise.volume");
+    expect(entry.episodes.map((episode) => episode.change)).toEqual(["appeared", "reversed"]);
+    expect(entry.episodes[0]!.previousEffectLabel).toBeNull();
+    expect(entry.episodes[1]!.previousEffectLabel).toBe("+0.40 SD");
+    expect(entry.episodes[1]!.finding?.effect.label).toBe("-0.50 SD");
   });
 
   it("keeps sub-threshold movement as unchanged rather than manufacturing change", () => {
@@ -289,7 +326,7 @@ describe("Pulse integration", () => {
     expect(entries.length).toBeGreaterThan(0);
     const multiScan = entries.filter((entry) => entry.episodes.length > 1);
     expect(multiScan.length).toBeGreaterThan(0);
-    const allowed = new Set(["appeared", "disappeared", "strengthened", "weakened", "unchanged"]);
+    const allowed = new Set(["appeared", "disappeared", "strengthened", "weakened", "reversed", "unchanged"]);
     for (const entry of entries) {
       for (const episode of entry.episodes) expect(allowed.has(episode.change), episode.change).toBe(true);
     }

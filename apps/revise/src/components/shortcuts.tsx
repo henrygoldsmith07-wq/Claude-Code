@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { cx } from "./ui";
+import { useFocusTrap } from "./useFocusTrap";
+import { Button, cx } from "./ui";
 
 // ---------------------------------------------------------------------------
 // Keyboard shortcuts.
@@ -141,6 +142,7 @@ export function formatShortcut(shortcut: Shortcut): string {
 }
 
 function ShortcutHelp({ shortcuts, onClose }: { shortcuts: Shortcut[]; onClose: () => void }) {
+  const dialogRef = useFocusTrap(true, onClose);
   const groups = useMemo(() => {
     const map = new Map<string, Shortcut[]>();
     for (const shortcut of shortcuts) {
@@ -154,19 +156,26 @@ function ShortcutHelp({ shortcuts, onClose }: { shortcuts: Shortcut[]; onClose: 
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Keyboard shortcuts"
+      aria-labelledby="shortcut-help-title"
+      tabIndex={-1}
     >
       <div
         className="card elev-pop w-full max-w-2xl max-h-[80vh] overflow-y-auto nice-scroll fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-baseline justify-between px-5 py-4 border-b border-line sticky top-0 bg-surface">
-          <h2 className="text-sm font-semibold">Keyboard shortcuts</h2>
-          <span className="text-[11px] text-ink3">Esc to close · ? to reopen</span>
+          <h2 id="shortcut-help-title" className="text-sm font-semibold">Keyboard shortcuts</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-ink3">Esc to close · ? to reopen</span>
+            <Button size="sm" variant="ghost" type="button" onClick={onClose}>
+              Close
+            </Button>
+          </div>
         </div>
         <div className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-5">
           {groups.map(([group, list]) => (

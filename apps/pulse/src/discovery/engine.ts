@@ -23,6 +23,7 @@ import { causalityCaveat } from "../statistics/confidence.js";
 import { magnitudeForD, type EffectSize } from "../statistics/effects.js";
 import { mean } from "../statistics/descriptive.js";
 import { isAdequatelyPowered } from "../statistics/power.js";
+import { autocorrelationControl, effectStability, outlierSensitivity } from "../statistics/safeguards.js";
 import type { SourceQuality } from "../quality/score.js";
 import { qualityForSources } from "../quality/score.js";
 import {
@@ -44,9 +45,9 @@ export interface DiscoveryOptions {
   fdrLevel?: number;
   /** Minimum |standardised effect| worth reporting. */
   minEffect?: number;
-  exposureWindowsHours?: number[];
+  exposureWindowsHours?: readonly number[];
   maxLagDays?: number;
-  splitAttributes?: string[];
+  splitAttributes?: readonly string[];
   /** Deterministic clock. */
   now?: () => number;
   /** Cap on findings returned. */
@@ -234,6 +235,20 @@ function composeFinding(
     : result.correlation
       ? counterfactualForCorrelation(result, { pValue: result.pValue, adjustedP })
       : undefined;
+  const groupAValues = result.groupA.map((observation) => observation.value);
+  const groupBValues = result.groupB.map((observation) => observation.value);
+  const stability =
+    groupAValues.length >= 6 && groupBValues.length >= 6
+      ? effectStability(groupAValues, groupBValues)
+      : undefined;
+  const outlierCheck =
+    groupAValues.length >= 3 && groupBValues.length >= 3
+      ? outlierSensitivity(groupAValues, groupBValues)
+      : undefined;
+  const autocorrelation = result.alignedOutcome ? autocorrelationControl(result.alignedOutcome) : undefined;
+  const timestampUncertain = [...result.groupA, ...result.groupB].some(
+    (observation) => observation.attributes.time_estimated === true || Number(observation.attributes.timestamp_uncertainty_minutes ?? 0) > 0,
+  );
 
   const confidence = gradeConfidence({
     evidenceClass: "correlation",
@@ -245,6 +260,11 @@ function composeFinding(
     uncontrolledConfounders: uncontrolled + (adjustmentSurvived ? 0 : 1),
     replicatedOutOfSample: replicated,
     reverseCausationPlausible: result.candidate.kind === "lagged-correlation" && !result.forwardDominant,
+    ...(autocorrelation ? { effectiveSampleSize: autocorrelation.effectiveSampleSize } : {}),
+    ...(stability ? { effectStable: stability.stable } : {}),
+    ...(outlierCheck ? { outlierStable: outlierCheck.stable } : {}),
+    ...(options.qualities?.length ? { reliability: dataQuality } : {}),
+    timestampUncertain,
   });
 
   if (!powered) {

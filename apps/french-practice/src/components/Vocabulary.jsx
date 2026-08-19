@@ -343,9 +343,14 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
   const retention = cardSrs ? fsrsRetention(cardSrs) : null;
 
   const rate = (rating) => {
-    rateCard(entry.id, rating, { mode: cardMode });
+    rateCard(entry.id, rating, {
+      mode: cardMode,
+      skill: 'vocabulary',
+      itemLabel: entry.fr,
+      source: 'flashcard',
+    });
     onRated();
-    onActivity?.({ type: 'cards', rating });
+    onActivity?.({ type: 'cards', rating, itemId: entry.id, itemLabel: entry.fr, mode: cardMode });
     setTimeout(() => setIndex((i) => (i + 1) % deck.length), 250);
   };
 

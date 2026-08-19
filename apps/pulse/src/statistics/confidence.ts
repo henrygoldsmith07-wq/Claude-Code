@@ -33,6 +33,16 @@ export interface ConfidenceInput {
   replicatedOutOfSample?: boolean;
   /** True when the direction of causation cannot be separated from reverse causation. */
   reverseCausationPlausible?: boolean;
+  /** Effective n after accounting for serial correlation. */
+  effectiveSampleSize?: number;
+  /** Whether the estimated effect survives temporal block splitting. */
+  effectStable?: boolean;
+  /** Whether the estimated effect survives robust outlier removal. */
+  outlierStable?: boolean;
+  /** Minimum reliability of the observations behind the claim. */
+  reliability?: number;
+  /** Whether any contributing timestamps carry explicit uncertainty. */
+  timestampUncertain?: boolean;
 }
 
 export interface ConfidenceAssessment {
@@ -68,6 +78,12 @@ export function gradeConfidence(input: ConfidenceInput): ConfidenceAssessment {
   score += 0.2 * sampleScore;
   if (n < 20) limitations.push(`Small sample (n = ${n}); the estimate will move as more data arrives`);
   else reasons.push(`Based on ${n} observations`);
+
+  const effectiveN = input.effectiveSampleSize;
+  if (effectiveN !== undefined && Number.isFinite(effectiveN) && effectiveN < n * 0.8) {
+    score -= 0.05;
+    limitations.push(`Serial correlation reduces the effective sample to about ${Math.max(1, Math.round(effectiveN))} observations`);
+  }
 
   // Effect magnitude.
   const effect = Math.abs(input.effectMagnitude);
@@ -115,6 +131,26 @@ export function gradeConfidence(input: ConfidenceInput): ConfidenceAssessment {
   if (input.reverseCausationPlausible) {
     score -= 0.05;
     limitations.push("The effect could plausibly run in the opposite direction");
+  }
+
+  if (input.effectStable === false) {
+    score -= 0.08;
+    limitations.push("The effect is not stable across independent time blocks");
+  }
+
+  if (input.outlierStable === false) {
+    score -= 0.06;
+    limitations.push("The effect is sensitive to outlier handling");
+  }
+
+  if (input.reliability !== undefined && input.reliability < 0.6) {
+    score -= 0.05;
+    limitations.push("Some evidence comes from low-reliability sources or measurements");
+  }
+
+  if (input.timestampUncertain) {
+    score -= 0.05;
+    limitations.push("Timestamp uncertainty weakens temporal ordering");
   }
 
   score = clamp(score, 0, 1);

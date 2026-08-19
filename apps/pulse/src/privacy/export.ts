@@ -23,6 +23,8 @@ import type { ReplicationRecord } from "../discovery/replication.js";
 import type { ContradictionRecord } from "../discovery/contradictions.js";
 import type { RejectedClaim } from "../search/evidence-search.js";
 import type { InsightHistorySnapshot } from "../history/insight-history.js";
+import type { InsightCollection } from "../history/insight-collections.js";
+import type { CausalLibrarySnapshot } from "../hypotheses/library.js";
 import type { RecommendationValue } from "../recommendations/value.js";
 
 export const EXPORT_FORMAT_VERSION = 1;
@@ -45,6 +47,8 @@ export interface PulseExport {
   replication: ReplicationRecord[];
   contradictions: ContradictionRecord[];
   insightHistory: InsightHistorySnapshot;
+  insightCollections: InsightCollection[];
+  causalLibrary: CausalLibrarySnapshot;
   recommendationValue: RecommendationValue[];
   /** Questions the scan asked and declined to publish, with the reason each failed. */
   rejected: RejectedClaim[];
@@ -64,6 +68,8 @@ export interface ExportOptions {
   replication?: readonly ReplicationRecord[];
   contradictions?: readonly ContradictionRecord[];
   insightHistory?: InsightHistorySnapshot;
+  insightCollections?: readonly InsightCollection[];
+  causalLibrary?: CausalLibrarySnapshot;
   recommendationValue?: readonly RecommendationValue[];
   rejected?: readonly RejectedClaim[];
 }
@@ -119,6 +125,8 @@ export function buildExport(
     replication: [...(options.replication ?? [])],
     contradictions: [...(options.contradictions ?? [])],
     insightHistory: options.insightHistory ?? { version: 1 as const, scans: [] },
+    insightCollections: [...(options.insightCollections ?? [])],
+    causalLibrary: options.causalLibrary ?? { version: 1 as const, entries: [] },
     recommendationValue: [...(options.recommendationValue ?? [])],
     rejected: [...(options.rejected ?? [])],
   };

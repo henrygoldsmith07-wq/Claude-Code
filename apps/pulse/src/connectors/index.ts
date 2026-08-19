@@ -1,7 +1,8 @@
 export * from "./types.js";
 export * from "./sdk.js";
 export * from "./sync.js";
-export { createReviseConnector, mapReviseRecord } from "./revise.js";
+export { createReviseCloudConnector, createReviseConnector, mapReviseRecord } from "./revise.js";
+export { DEFAULT_REVISE_HISTORY_ENDPOINT } from "./revise.js";
 export type { ReviseRecord, ReviseReviewRecord, ReviseAttemptRecord, ReviseSessionRecord, ReviseGrade } from "./revise.js";
 export {
   ARISE_STORAGE_KEY,
@@ -17,16 +18,45 @@ export type { AriseRecord, AriseSessionRecord, AriseReadinessRecord, AriseBlock,
 export { createSameOriginReader, subscribeToSameOriginSource } from "./same-origin.js";
 export type { SameOriginReaderOptions, StorageLike, Unsubscribe } from "./same-origin.js";
 export {
+  FORQ_PULSE_OPT_IN_KEY,
   FORQ_STORAGE_KEY,
   createForqConnector,
   createForqSameOriginConnector,
+  forqPulseOptInGranted,
   mapForqRecord,
   selectForqRecords,
 } from "./forq.js";
 export type { ForqRecord, ForqMealRecord, ForqPlanRecord } from "./forq.js";
+
+export {
+  HABIT_PULSE_OPT_IN_KEY,
+  HABIT_STORAGE_KEY,
+  createHabitConnector,
+  createHabitSameOriginConnector,
+  createHabitSupabaseConnector,
+  habitPulseOptInGranted,
+  habitRecordTimestamp,
+  mapHabitRecord,
+  selectHabitRecords,
+} from "./habit.js";
+export type {
+  HabitCheckinRow,
+  HabitDayRecord,
+  HabitSupabaseConnectorOptions,
+  HabitSupabaseRow,
+  HabitSupabaseState,
+} from "./habit.js";
 export { createChronoConnector, mapChronoRecord } from "./chrono.js";
 export type { ChronoRecord, ChronoEventRecord, ChronoDayRecord } from "./chrono.js";
-export { createFrenchConnector, mapFrenchRecord } from "./french.js";
+export {
+  FRENCH_PULSE_OPT_IN_KEY,
+  FRENCH_STORAGE_KEY,
+  createFrenchConnector,
+  createFrenchSameOriginConnector,
+  frenchPulseOptInGranted,
+  mapFrenchRecord,
+  selectFrenchRecords,
+} from "./french.js";
 export type { FrenchRecord, FrenchSpeakingRecord, FrenchReviewRecord } from "./french.js";
 export {
   REFLECT_CONSENT_KEY,
@@ -38,8 +68,18 @@ export {
   selectReflectRecords,
 } from "./reflect.js";
 export type { ReflectRecord, ReflectEntryRecord } from "./reflect.js";
-export { createRapportConnector, mapRapportRecord } from "./rapport.js";
+export {
+  RAPPORT_STORAGE_KEY,
+  RAPPORT_PULSE_OPT_IN_KEY,
+  createRapportConnector,
+  createRapportSameOriginConnector,
+  mapRapportRecord,
+  rapportPulseOptInGranted,
+  selectRapportRecords,
+} from "./rapport.js";
 export type { RapportRecord, RapportDrillRecord, RapportChallengeRecord } from "./rapport.js";
+export { createSourceHistory, migrateSourceHistory, readSourceHistoryRecords } from "../events/source-history.js";
+export type { SourceHistoryEnvelope } from "../events/source-history.js";
 // --- The shared health vocabulary and the sources that speak it ------------
 export * from "./health-events.js";
 export {
@@ -141,3 +181,11 @@ export type {
   DashboardOptions,
   Freshness,
 } from "./dashboard.js";
+
+export { crossSourceAgreement } from "./agreement.js";
+export type {
+  CrossSourceAgreementOptions,
+  CrossSourceAgreementReport,
+  SourceAgreementPair,
+  SourceMeasurement,
+} from "./agreement.js";

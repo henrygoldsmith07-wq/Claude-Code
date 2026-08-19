@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import * as repo from "@/data/repository";
 import { SCORING_MODEL_VERSION } from "@/domain/events";
 import type { DomainEvent } from "@/domain/events";
+import { emptyHumanEvidence } from "@/domain/human-evidence";
 import type { Reflection } from "@/domain/types";
 
 const NOW = "2026-03-20T09:00:00.000Z";
@@ -84,6 +85,22 @@ describe("repository", () => {
     expect(exported.version).toBe(SCORING_MODEL_VERSION);
     // The export must be serialisable — it is downloaded as JSON.
     expect(() => JSON.stringify(exported)).not.toThrow();
+  });
+
+  it("persists, exports and restores the human evidence workspace", async () => {
+    const state = {
+      ...emptyHumanEvidence(),
+      raters: [{ id: "r1", displayName: "Rater A", role: "rater" as const, createdAt: NOW, active: true }],
+    };
+    await repo.saveHumanEvidence(state);
+    expect((await repo.getHumanEvidence()).raters[0]?.displayName).toBe("Rater A");
+
+    const exported = await repo.exportAll(NOW);
+    expect(exported.humanEvidence.raters).toHaveLength(1);
+
+    await freshDatabase();
+    await repo.importAll({ snapshot: exported.snapshot, events: exported.events, humanEvidence: exported.humanEvidence }, NOW);
+    expect((await repo.getHumanEvidence()).raters[0]?.id).toBe("r1");
   });
 
   it("round-trips an export through import", async () => {

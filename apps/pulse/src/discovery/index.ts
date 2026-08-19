@@ -1,4 +1,5 @@
 export * from "./finding.js";
+export * from "./relationship.js";
 export * from "./replication.js";
 export * from "./confounders.js";
 export * from "./contradictions.js";

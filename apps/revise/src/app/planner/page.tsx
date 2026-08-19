@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
 import { formatTime, planForDate } from "@/domain/planner";
@@ -9,7 +8,7 @@ import { todayIso, toDateOnly } from "@/domain/scheduling";
 import type { ExamDate, PlannedSession } from "@/domain/types";
 import { activityHref, formatMinutes, relativeDay } from "@/lib/activity";
 import { useStore, useSubjects } from "@/state/store";
-import { Button, EmptyState, Field, Panel, Pill, SectionHeading, StatTile, cx } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Field, Panel, Pill, SectionHeading, StatTile, cx } from "@/components/ui";
 
 // The timetable. It is derived state, not a document: pressing "rebuild" is
 // always safe, and missed blocks roll forward on their own so the plan never
@@ -22,6 +21,7 @@ export default function PlannerPage() {
   const subjects = useSubjects();
   const today = todayIso();
   const [busy, setBusy] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const days = useMemo(
     () =>
@@ -72,6 +72,20 @@ export default function PlannerPage() {
         </div>
       </header>
 
+      {store.replanSummary && !dismissed ? (
+        <div
+          role="status"
+          className="card border-review bg-reviewsoft px-4 py-3 flex items-start justify-between gap-3"
+        >
+          <p className="text-sm text-ink">
+            <span className="font-semibold">Plan adjusted.</span> {store.replanSummary}
+          </p>
+          <Button size="sm" variant="ghost" onClick={() => setDismissed(true)} aria-label="Dismiss plan update note">
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile label="Planned" value={formatMinutes(plannedMinutes)} sub="over the next two weeks" />
         <StatTile label="Completed" value={doneThisWeek} sub="sessions in the last 7 days" tone="success" />
@@ -84,7 +98,7 @@ export default function PlannerPage() {
           title="No plan yet"
           body="Set how much time you have on each weekday in settings, add your exam dates, then build the plan. It rebuilds from your latest mastery every time."
           action={
-            <Button variant="primary" onClick={() => void rebuild()}>
+            <Button onClick={() => void rebuild()}>
               Build my plan
             </Button>
           }
@@ -151,11 +165,9 @@ function SessionRow({ session }: { session: PlannedSession }) {
         <Pill tone="review">Missed</Pill>
       ) : (
         <div className="flex gap-1 shrink-0">
-          <Link href={activityHref(session.activity, session.subjectId, session.topicId, session.id)}>
-            <Button size="sm" variant="primary">
-              Start
-            </Button>
-          </Link>
+          <ButtonLink href={activityHref(session.activity, session.subjectId, session.topicId, session.id)} size="sm" variant="primary">
+            Start
+          </ButtonLink>
           <Button size="sm" variant="ghost" onClick={() => void store.completeSession(session.id, "skipped")}>
             Skip
           </Button>
@@ -186,9 +198,8 @@ function ExamDates({ subjects }: { subjects: { id: string; name: string; papers:
     await store.upsertExamDate(exam);
     setDate("");
     setLabel("");
-    // A new exam date changes every urgency weight, so the plan is stale the
-    // moment it is added.
-    await store.regeneratePlan();
+    // Adding an exam date changes every urgency weight, so the store replans
+    // automatically the moment it lands.
   }
 
   return (

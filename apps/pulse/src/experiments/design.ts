@@ -90,6 +90,8 @@ export interface ExperimentDesign {
   hypothesisId: string;
   createdAt: string;
   type: ExperimentType;
+  templateId?: string;
+  templateVersion?: number;
   title: string;
   /** Restated hypothesis, in the experiment's own terms. */
   hypothesis: string;
@@ -173,6 +175,8 @@ export interface DesignOptions {
   conditionA?: Partial<Condition>;
   conditionB?: Partial<Condition>;
   maxDurationDays?: number;
+  templateId?: string;
+  templateVersion?: number;
 }
 
 export function designExperiment(hypothesis: Hypothesis, options: DesignOptions): ExperimentDesign {
@@ -182,7 +186,7 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
   const blockDays = options.blockDays ?? 7;
   const washoutDays = options.washoutDays ?? 0;
   const baselineDays = options.baselineDays ?? 0;
-  const seed = options.seed ?? `${hypothesis.id}:${options.startDate}`;
+  const seed = options.seed ?? `${options.templateId ?? hypothesis.id}:${options.startDate}`;
 
   // Predicted effects below 0.2 SD would demand hundreds of sessions; clamp so
   // the design stays honest about what it can detect rather than proposing a
@@ -271,11 +275,16 @@ export function designExperiment(hypothesis: Hypothesis, options: DesignOptions)
         ? "Two-sample comparison of session values (Welch's t-test, or Mann-Whitney when samples are small or skewed)"
         : "Two-sample comparison of the before and after periods, with a trend check to separate the change from drift";
 
+  const designKey = [hypothesis.id, type, options.startDate, options.templateId, options.templateVersion].filter(Boolean).join(":");
+
   return {
-    id: `exp-${hash128(`${hypothesis.id}:${type}:${options.startDate}`).slice(0, 16)}`,
+    id: `exp-${hash128(designKey).slice(0, 16)}`,
     hypothesisId: hypothesis.id,
     createdAt: new Date(now()).toISOString(),
     type,
+    ...(options.templateId
+      ? { templateId: options.templateId, templateVersion: options.templateVersion ?? 1 }
+      : {}),
     title: `${type === "crossover" ? "Crossover" : type === "ab" ? "A/B" : "Before/after"} test: ${hypothesis.outcomeMetricId}`,
     hypothesis: hypothesis.statement,
     conditionA,

@@ -112,6 +112,18 @@
    "notes": "Marketing site is the Le Studio family hub (French + Forq + Chrono) at apps/le-studio-site."
   },
   {
+   "id": "habit-tracker",
+   "path": "apps/habit-tracker",
+   "site": null,
+   "name": "Habit",
+   "siteId": "habit",
+   "lifecycle": "active",
+   "kind": "product",
+   "stack": "Next.js + Supabase",
+   "workflow": ".github/workflows/habit-tracker.yml",
+   "description": "Quiet habit tracker — daily check-ins, weekly targets, streaks and an 8-week history."
+  },
+  {
    "id": "le-studio-site",
    "path": "apps/le-studio-site",
    "site": null,
@@ -208,15 +220,6 @@
   }
  ],
  "auxiliary": [
-  {
-   "id": "genetic-health",
-   "path": "apps/genetic-health",
-   "name": "Genetic Health",
-   "lifecycle": "active",
-   "kind": "workspace",
-   "stack": "Python (23andMe + ClinVar/PharmGKB pipeline)",
-   "description": "Offline genetic health analysis workspace (docs/pipeline, no hosted app)."
-  },
   {
    "id": "le-studio-tokens",
    "path": "packages/le-studio-tokens",

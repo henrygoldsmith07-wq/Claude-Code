@@ -1,5 +1,7 @@
 export type Role = "user" | "assistant";
 
+export type ReflectionMode = "quick" | "full";
+
 export interface Message {
   role: Role;
   content: string;
@@ -79,6 +81,8 @@ export interface Entry {
   messages: Message[];
   summary: ReflectionSummary | null;
   status: "in_progress" | "complete";
+  // Existing entries default to full mode when this field is absent.
+  mode?: ReflectionMode;
   // Full longitudinal loop — filled after followUpAt, separate from the original trace
   longitudinalReview?: LongitudinalReview | null;
 }

@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { recommendNext, isPlateau, isPlateauV2, isMeaningfulPR, classifyPR, rirFromRpe, readinessScore, readinessEMA, readinessWithUncertainty, personalisedRate, validateProgression, strengthTrendWithConfidence, sideImbalance, strategyForExercise } from "../src/lib/progression.js";
-import { scoreSubstitution, rankedSubstitutions, substitutionByPerformance } from "../src/lib/substitutions.js";
+import { scoreSubstitution, rankedSubstitutions, substitutionByPerformance, substitutionOptions } from "../src/lib/substitutions.js";
 import { weeklyVolume, frequencyByMuscleSync, strengthSeries, volumeLandmarks, volumeDistribution, extractNoteRecommendations } from "../src/lib/analytics.js";
 import { generateSession } from "../src/lib/sessionGenerator.js";
 import { runMigrations, prsHitBySession } from "../src/lib/store.js";
@@ -87,6 +87,12 @@ describe("substitutions", ()=>{
     const subs = substitutionByPerformance('bench-press-barbell', hist, ['dumbbells','bench','bodyweight']);
     assert.ok(subs.length>0);
   });
+  it("substitutionOptions explains an equipment-fit alternative", ()=>{
+    const options = substitutionOptions('bench-press-barbell', { availableEquipment:['dumbbells','bench','bodyweight'], limit:4 });
+    assert.ok(options.length>0);
+    assert.ok(options.every(o=> o.equipmentFit));
+    assert.ok(options.some(o=> o.id==='bench-press-dumbbell' && o.reason.length>5));
+  });
 });
 describe("analytics + generator + sync + migrations", ()=>{
   it("weeklyVolume groups", ()=>{
@@ -127,7 +133,7 @@ describe("analytics + generator + sync + migrations", ()=>{
     assert.ok(dur>=5);
     assert.ok(supersetScore('push-up','band-row', EXERCISE_BY_ID) > 0.5);
   });
-  it("runMigrations adds syncEnabled and bumps to v3", ()=>{ const m=runMigrations({ version:1, onboarding:null, history:[], preferences:{ units:"kg", theme:null }}); assert.equal(m.version,3); assert.equal(m.preferences.syncEnabled,false); });
+  it("runMigrations adds syncEnabled, activeWorkout and bumps to v4", ()=>{ const m=runMigrations({ version:1, onboarding:null, history:[], preferences:{ units:"kg", theme:null }}); assert.equal(m.version,4); assert.equal(m.preferences.syncEnabled,false); assert.equal(m.activeWorkout,null); assert.deepEqual(m.eventHistory,[]); assert.equal(m.preferences.healthSummaryEnabled,false); });
   it("prsHitBySession respects ROM guard", ()=>{
     const prior=[{dateISO:'2026-01-01', note:'', blocks:[{exerciseId:'bench-press-dumbbell', sets:[{reps:'8',weightKg:'20'}]}]}];
     const sess={dateISO:'2026-01-02', note:'partial ROM, not full depth', blocks:[{exerciseId:'bench-press-dumbbell', sets:[{reps:'8',weightKg:'30'}]}]};

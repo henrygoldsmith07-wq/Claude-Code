@@ -308,7 +308,7 @@ function isoWeekKey(dateInput: string | Date): string {
 function monthKey(dateInput: string): string {
   const d = new Date(dateInput);
   if (Number.isNaN(d.getTime())) return dateInput.slice(0, 7);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export function weeklyReviews(entries: Entry[]): PeriodReview[] {
@@ -509,7 +509,7 @@ export interface Insight {
   entryIds: string[]; // every insight must cite the entries it came from
 }
 
-export function summaryInsights(entries: Entry[], corrections: Correction[] = []): Insight[] {
+export function summaryInsights(entries: Entry[], corrections: Correction[] = [], now = new Date()): Insight[] {
   const out: Insight[] = [];
   for (const p of withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections)) {
     out.push({ kind: "pattern", key: p.key, title: p.label, detail: `${p.kind} recurring across ${p.count} reflections`, entryIds: p.entryIds });
@@ -529,7 +529,7 @@ export function summaryInsights(entries: Entry[], corrections: Correction[] = []
       entryIds: entries.filter((e) => e.longitudinalReview?.assumptionVerdict).map((e) => e.id),
     });
   }
-  for (const r of resurfacingQueue(entries).slice(0, 3)) {
+  for (const r of resurfacingQueue(entries, now).slice(0, 3)) {
     out.push({ kind: "unresolved", key: `unresolved:${r.entry.id}`, title: r.reason, detail: `Follow-up overdue — ${r.entry.title}`, entryIds: [r.entry.id] });
   }
   return out;

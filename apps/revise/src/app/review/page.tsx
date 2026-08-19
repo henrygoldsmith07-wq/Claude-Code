@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSubject, getTopic } from "@/domain/curriculum";
+import { buildPostSessionClosure } from "@/domain/post-session-closure";
 import { buildReviewQueue, buryCard, isDue, previewIntervals, reinsert, setSuspended, todayIso } from "@/domain/scheduling";
 import { CUSTOM_STUDY_KEY } from "@/components/CustomStudyDialog";
 import { useShortcuts } from "@/components/shortcuts";
 import type { Card, RecallGrade } from "@/domain/types";
 import { useStore } from "@/state/store";
-import { Button, EmptyState, Panel, Pill, ProgressBar, SectionHeading } from "@/components/ui";
+import { PostSessionClosure } from "@/components/PostSessionClosure";
+import { Button, ButtonLink, EmptyState, Panel, Pill, ProgressBar } from "@/components/ui";
 import { SpeakButton } from "@/components/SpeakButton";
 import { RichText } from "@/components/RichText";
 
@@ -35,16 +36,24 @@ export default function ReviewPage() {
 function ReviewSession() {
   const params = useSearchParams();
   const store = useStore();
+  const { saveRevisionCheckpoint, clearRevisionCheckpoint } = store;
   const subjectId = params.get("subject");
   const topicId = params.get("topic");
   const mode = params.get("mode");
   const sessionId = params.get("session");
+  const resumeRequested = params.get("resume") === "1";
+  const savedCheckpoint =
+    resumeRequested && store.revisionCheckpoint?.activity === "review" ? store.revisionCheckpoint : null;
 
   const [revealed, setRevealed] = useState(false);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   // Time is accumulated per card rather than measured against a wall clock, so
   // a session left open in a background tab does not report an hour of work.
-  const [done, setDone] = useState({ reviewed: 0, again: 0, totalMs: 0 });
+  const [done, setDone] = useState(() => ({
+    reviewed: savedCheckpoint?.position ?? 0,
+    again: savedCheckpoint?.repeatCount ?? 0,
+    totalMs: 0,
+  }));
   const cardShownAt = useRef(0);
 
   // A custom session hands over an explicit id list through sessionStorage.
@@ -71,14 +80,25 @@ function ReviewSession() {
       if (!store.settings.subjectIds.includes(card.subjectId)) return false;
       if (subjectId && card.subjectId !== subjectId) return false;
       if (topicId && card.topicId !== topicId) return false;
-      if (mode === "mistakes") return card.kind === "mistake" && !card.suspended;
+      if (mode === "mistakes") {
+        if (card.kind !== "mistake" || card.suspended) return false;
+        const sourceMistake = card.sourceMistakeId
+          ? store.mistakes.find((mistake) => mistake.id === card.sourceMistakeId)
+          : undefined;
+        return !sourceMistake?.resolved;
+      }
       return isDue(card, today);
     });
-  }, [store.cards, store.settings.subjectIds, subjectId, topicId, mode, custom]);
+  }, [store.cards, store.mistakes, store.settings.subjectIds, subjectId, topicId, mode, custom]);
 
   // The queue is built once, at mount: rebuilding it as cards are graded would
   // reshuffle the deck underneath the student mid-session.
   const [queue, setQueue] = useState<Card[]>(() => {
+    if (savedCheckpoint?.queueIds?.length) {
+      const byId = new Map(store.cards.map((card) => [card.id, card] as const));
+      const restored = savedCheckpoint.queueIds.map((id) => byId.get(id)).filter((card): card is Card => Boolean(card));
+      if (restored.length) return restored;
+    }
     // A custom session is already ordered and limited by the dialog; passing it
     // back through the scheduler's queue builder would undo both.
     if (custom) return pool;
@@ -86,13 +106,40 @@ function ReviewSession() {
     return buildReviewQueue(pool, limit);
   });
 
-  useEffect(() => {
-    cardShownAt.current = Date.now();
-  }, []);
-
   const current = queue[0];
   const total = queue.length + done.reviewed;
   const isPreview = Boolean(custom?.preview);
+
+  const checkpointHref = useMemo(() => {
+    const next = new URLSearchParams();
+    if (subjectId) next.set("subject", subjectId);
+    if (topicId) next.set("topic", topicId);
+    if (mode) next.set("mode", mode);
+    if (sessionId) next.set("session", sessionId);
+    next.set("resume", "1");
+    const query = next.toString();
+    return query ? `/review?${query}` : "/review?resume=1";
+  }, [mode, sessionId, subjectId, topicId]);
+
+  useEffect(() => {
+    if (!current) {
+      if (resumeRequested || done.reviewed > 0) void clearRevisionCheckpoint();
+      return;
+    }
+    void saveRevisionCheckpoint({
+      activity: "review",
+      title: custom ? "Custom study" : mode === "mistakes" ? "Mistake repair" : "Spaced repetition",
+      href: checkpointHref,
+      position: done.reviewed,
+      total,
+      queueIds: queue.map((card) => card.id),
+      repeatCount: done.again,
+    });
+  }, [checkpointHref, clearRevisionCheckpoint, custom, current, done, mode, queue, resumeRequested, saveRevisionCheckpoint, total]);
+
+  useEffect(() => {
+    cardShownAt.current = Date.now();
+  }, []);
 
   // useCallback rather than a plain declaration: these read the clock and the
   // card-shown ref, which only makes sense once an interaction has happened,
@@ -177,11 +224,7 @@ function ReviewSession() {
             {custom ? "Custom study" : mode === "mistakes" ? "Mistake repair" : "Spaced repetition"}
           </h1>
         </div>
-        <Link href="/">
-          <Button size="sm" variant="ghost">
-            End session
-          </Button>
-        </Link>
+        <ButtonLink href="/" size="sm" variant="ghost">End session</ButtonLink>
       </div>
 
       {isPreview ? (
@@ -225,6 +268,7 @@ function ReviewSession() {
                 {[1, 2, 3, 4, 5].map((value) => (
                   <button
                     key={value}
+                    type="button"
                     onClick={() => setConfidence(value as 1 | 2 | 3 | 4 | 5)}
                     aria-pressed={confidence === value}
                     className={`flex-1 min-h-[2.5rem] text-xs font-semibold rounded-[8px] border transition-colors ${
@@ -247,6 +291,7 @@ function ReviewSession() {
             {GRADES.map((option, i) => (
               <button
                 key={option.grade}
+                type="button"
                 onClick={() => void grade(option.grade)}
                 // min-h keeps these comfortably tappable on a phone, where
                 // this is the single most-used control in the app.
@@ -318,49 +363,24 @@ function SessionSummary({
         title="Nothing due here"
         body="Spaced repetition deliberately leaves gaps — reviewing early wastes the effect. Pick another activity and come back when cards fall due."
         action={
-          <Link href="/">
-            <Button variant="primary">Back to today</Button>
-          </Link>
+          <ButtonLink href="/" variant="primary">Back to today</ButtonLink>
         }
       />
     );
   }
 
-  const accuracy = reviewed ? Math.round(((reviewed - again) / reviewed) * 100) : 0;
+  const closure = buildPostSessionClosure({
+    session: "review",
+    attempted: reviewed,
+    total: reviewed,
+    retryCount: again,
+    elapsedMs: minutes * 60_000,
+  });
   return (
-    <div className="max-w-lg mx-auto space-y-5">
-      <SectionHeading title="Session complete" hint="Every card is rescheduled by FSRS from how you graded it." />
-      <Panel>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">{reviewed}</p>
-            <p className="text-[11px] text-ink3">reviewed</p>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">{accuracy}%</p>
-            <p className="text-[11px] text-ink3">recalled first time</p>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">{minutes}</p>
-            <p className="text-[11px] text-ink3">minutes</p>
-          </div>
-        </div>
-        <p className="text-xs text-ink3 mt-4">
-          {again > 0
-            ? `${again} card${again === 1 ? "" : "s"} came back this session and will return sooner than the rest.`
-            : "No lapses — those intervals just grew significantly."}
-        </p>
-      </Panel>
-      <div className="flex gap-2">
-        <Link href="/" className="flex-1">
-          <Button variant="primary" className="w-full">
-            What&apos;s next
-          </Button>
-        </Link>
-        <Link href="/practice" className="flex-1">
-          <Button className="w-full">Practise questions</Button>
-        </Link>
-      </div>
-    </div>
+    <PostSessionClosure
+      closure={closure}
+      hint="Every card has been rescheduled by FSRS from how you graded it."
+      secondary={{ href: "/practice", label: "Practise questions" }}
+    />
   );
 }

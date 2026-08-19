@@ -77,6 +77,16 @@ Forq does not configure or query undocumented consumer endpoints. Scheduled remi
 `/api/jobs/reminders` endpoint and Vercel Cron. Trigger.dev can invoke the same
 endpoint once its current vulnerable SDK dependency chain is patched.
 
+## Pulse connection
+
+Forq can be read by Pulse, the personal evidence engine in this ecosystem, when
+both apps are served from one origin. Sharing is **opt-in** and controlled
+here, where the data originates: Settings → Privacy has a "Share with Pulse"
+switch. Pulse reads Forq's own state (`forq-state-v2`) directly — it never
+receives or stores a copy — and its connector refuses to read anything unless
+this flag (`forq-pulse-opt-in`) is on. Turning the switch off clears only the
+flag; Forq's own data is never deleted or moved.
+
 ## Features
 
 - **First-run setup** — name, household size, weekly budget, how you eat, and
@@ -166,7 +176,10 @@ endpoint once its current vulnerable SDK dependency chain is patched.
   twice gets a cook-once schedule: which day, how many batches, how much time it
   saves. **Leftovers** you save after cooking sit in the fridge with a use-by
   date, cover planned meals, and drop out of the shopping list. The list itself
-  generates from whichever range you're looking at, minus your pantry
+  generates from whichever range you're looking at, minus your pantry. Planning
+  also surfaces use-soon and perishable ingredients, lets you replan around the
+  time and ingredients you actually have, records adherence and skip reasons,
+  and learns household preferences, repeat fatigue and real cooking times.
 - **Household** — name a household and add adult or child profiles, each with
   their own portions, dietary patterns, shopping/pantry/recipe permissions and
   notification preference. Shopping lines and chores can be assigned to a

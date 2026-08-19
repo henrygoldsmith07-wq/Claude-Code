@@ -1,11 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Entry, Message, ReflectionSummary } from "./types";
+import type { Entry, Message, ReflectionMode, ReflectionSummary } from "./types";
 import { validateSummary } from "./validation";
 import { diverseQuestionHint, personalAdaptationHint } from "./promptDiversity";
 
 const MODEL = "claude-sonnet-5";
 const MIN_QUESTIONS = 3;
 const MAX_QUESTIONS = 5;
+const QUICK_MIN_QUESTIONS = 1;
+const QUICK_MAX_QUESTIONS = 2;
 
 // Past surface but before that ("Rorie Butalia" Greta Gerwig's...)
 
@@ -163,15 +165,25 @@ const CONCLUDE_TOOL = {
   },
 };
 
-export function buildSystemPrompt(questionsAskedSoFar: number, opts?: { history?: Message[]; entries?: Entry[] }): string {
-  const remaining = Math.max(0, MIN_QUESTIONS - questionsAskedSoFar);
+export function buildSystemPrompt(
+  questionsAskedSoFar: number,
+  opts?: { history?: Message[]; entries?: Entry[]; mode?: ReflectionMode },
+): string {
+  const mode = opts?.mode ?? "full";
+  const minQuestions = mode === "quick" ? QUICK_MIN_QUESTIONS : MIN_QUESTIONS;
+  const maxQuestions = mode === "quick" ? QUICK_MAX_QUESTIONS : MAX_QUESTIONS;
+  const remaining = Math.max(0, minQuestions - questionsAskedSoFar);
   const diversityHint = opts?.history ? diverseQuestionHint(opts.history) : null;
   const personalHint = opts?.entries ? personalAdaptationHint(opts.entries) : null;
   const antiRepetition = diversityHint
     ? `\nPROMPT DIVERSITY — avoid repeating yourself: your next question should probe "${diversityHint}" (rephrase naturally, grounded in what the user just said; do not copy verbatim). Vary phrasing across turns.`
     : "\nPROMPT DIVERSITY — vary your phrasing turn to turn; don't ask the same question twice.";
   const personalSection = personalHint ? `\nPERSONAL ADAPTATION (hedged, tentative): ${personalHint}` : "";
+  const modeSection = mode === "quick"
+    ? "MODE — QUICK REFLECTION: keep this focused. Ask one high-value question, and conclude after no more than two questions once the trace is good enough."
+    : "MODE — FULL REFLECTION: take the time to examine the situation carefully, without asking beyond the point of useful insight.";
   return `You are a rigorous, compassionate reflection guide inside Reflect — a structured reflection tool (not a mood tracker, not a Bearable-style tracker). Your job is to challenge interpretations helpfully, not merely log a mood.
+${modeSection}
 ${antiRepetition}${personalSection}
 
 STRUCTURED PIPELINE — keep the conversation on this track:
@@ -195,7 +207,7 @@ RULES:
 1. Never simply affirm the user's initial framing as correct. Test blame, motive and proportion.
 2. If the situation is vague, get concrete facts first. Dig beneath the first label — anger is often hurt/fear/shame/insecurity.
 3. Even if the user was genuinely wronged, that does not make every subsequent reaction justified. Call retaliatory reasoning out plainly.
-4. Ask exactly one question per turn via ask_followup, specific to what the user just said. Never more than ${MAX_QUESTIONS} total. Before concluding, you MUST elicit a predicted outcome ("What do you think will happen if you take that step?") if the conversation hasn't already produced one — it becomes trace.predictedOutcome.
+4. Ask exactly one question per turn via ask_followup, specific to what the user just said. Never more than ${maxQuestions} total. Before concluding, you MUST elicit a predicted outcome ("What do you think will happen if you take that step?") if the conversation hasn't already produced one — it becomes trace.predictedOutcome.
 5. So far you have asked ${questionsAskedSoFar} question(s). ${
     remaining > 0
       ? `You must ask at least ${remaining} more question(s) before concluding — do not call conclude_reflection yet.`
@@ -216,7 +228,7 @@ export type ReflectStep =
 export async function getNextReflectionStep(
   messages: Message[],
   apiKey?: string,
-  opts?: { entries?: Entry[] },
+  opts?: { entries?: Entry[]; mode?: ReflectionMode },
 ): Promise<ReflectStep> {
   const anthropic = getClient(apiKey);
   const questionsAskedSoFar = messages.filter((m) => m.role === "assistant").length;
@@ -224,7 +236,7 @@ export async function getNextReflectionStep(
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1800,
-    system: buildSystemPrompt(questionsAskedSoFar, { history: messages, entries: opts?.entries }),
+    system: buildSystemPrompt(questionsAskedSoFar, { history: messages, entries: opts?.entries, mode: opts?.mode }),
     tools: [ASK_TOOL, CONCLUDE_TOOL],
     tool_choice: { type: "auto" },
     messages: toAnthropicMessages(messages),
@@ -268,4 +280,6 @@ export const __test = {
   MODEL,
   MIN_QUESTIONS,
   MAX_QUESTIONS,
+  QUICK_MIN_QUESTIONS,
+  QUICK_MAX_QUESTIONS,
 };

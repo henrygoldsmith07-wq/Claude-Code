@@ -522,4 +522,22 @@ describe("gradeCalibrationNarrative", () => {
     const n = gradeCalibrationNarrative(pred as never);
     expect(n.paragraphs.join(" ")).toContain("Confident");
   });
+
+  it("uses a plain-English evidence explanation and resolves the next lever", () => {
+    const pred = {
+      subjectId: "maths",
+      percent: 62,
+      grade: "B",
+      bestCase: "A",
+      worstCase: "C",
+      confidence: 0.3,
+      trend: 0,
+      headroom: [{ topicId: "t1", potentialPercent: 3 }],
+    };
+    const n = gradeCalibrationNarrative(pred as never, (id) => id === "t1" ? "Electrolysis" : id);
+    expect(n.paragraphs[0]).toContain("early estimate");
+    expect(n.paragraphs[0]).toContain("marked answers");
+    expect(n.bullets?.[2]).toContain("Electrolysis");
+    expect(n.bullets?.[2]).not.toContain("t1");
+  });
 });

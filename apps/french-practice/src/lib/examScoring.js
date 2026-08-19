@@ -6,13 +6,13 @@
 // exams/simulator.js.
 
 export {
-  BOARDS, CRITERIA, TASK_CRITERIA, TIER, bandFor, boardList, getBoard, getTask,
-  specCaveat, targetSeconds, taskMarks,
+  BOARDS, CRITERIA, EXAM_MODE, EXAM_MODES, TASK_CRITERIA, TIER, bandFor, boardList, getBoard, getTask,
+  specCaveat, targetSeconds, taskMarks, timingQa,
 } from './exams/boards.js';
 
 export {
   PHASE, buildPaper, initRun, beginPrep, beginSpeaking, phaseAllowance, timeLeft,
-  isExpired, notesAllowed, completeSection, scoreTask, scorePaper, gradeEstimate, examFeedback,
+  isExpired, notesAllowed, completeSection, scoreTask, scorePaper, scoreExamTechnique, gradeEstimate, examFeedback,
 } from './exams/simulator.js';
 
 import { getBoard, targetSeconds } from './exams/boards.js';

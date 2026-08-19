@@ -16,6 +16,8 @@ import axe from "axe-core";
 import { App } from "../src/ui/App.js";
 import { FindingCard } from "../src/ui/FindingCard.js";
 import { afterPaint, renderBootFailure } from "../src/ui/boot.js";
+import { createHabitSameOriginConnector } from "../src/connectors/habit.js";
+import { createRapportSameOriginConnector } from "../src/connectors/rapport.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import type { Pulse } from "../src/pulse.js";
 import type { Finding } from "../src/discovery/finding.js";
@@ -192,17 +194,53 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("surfaces the trust controls and routes the universal Ask entry", () => {
+    render(<App pulse={pulse} />);
+    for (const heading of [
+      "Confidence change history",
+      "Contradictory evidence",
+      "Automatic replication tracking",
+      "Full measurement lineage",
+      "Reliability profiles",
+      "Research measurement loop",
+    ]) {
+      expect(screen.getByRole("heading", { name: heading })).toBeTruthy();
+    }
+
+    fireEvent.change(screen.getByLabelText("Ask Pulse"), { target: { value: "What changed this week?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open Ask Pulse" }));
+    expect(screen.getByRole("tab", { name: "Ask Pulse" }).getAttribute("aria-selected")).toBe("true");
+    expect((screen.getByLabelText(/Ask a question about your own data/) as HTMLInputElement).value).toBe("What changed this week?");
+    cleanup();
+  });
+
   it("discloses the size of the search and the expected false discoveries", () => {
     render(<App pulse={pulse} />);
     expect(screen.getByText(/Expect roughly [\d.]+ of them to be false/)).toBeTruthy();
     cleanup();
   });
 
+  it("shows the insight history with each insight's journey across scans", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.getByRole("heading", { name: "Insight history" })).toBeTruthy();
+    expect(screen.getByText(/tracked across \d+ scan\(s\)/)).toBeTruthy();
+    expect(screen.getAllByText("appeared").length).toBeGreaterThan(0);
+    cleanup();
+  });
+
   it("exposes tabs with correct roles and selection state", () => {
     render(<App pulse={pulse} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.length).toBe(7);
+    expect(tabs.length).toBe(10);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Personal evidence graph" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Hypothesis library" }));
+    expect(screen.getByRole("tab", { name: "Hypothesis library" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Personal causal hypothesis library" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
     expect(screen.getByRole("tab", { name: "Sources & privacy" }).getAttribute("aria-selected")).toBe("true");
@@ -244,7 +282,11 @@ describe("the app shell", () => {
     render(<App pulse={pulse} />);
     // The card that produced the live run still offers to design it again;
     // asking again must explain the refusal instead of silently failing.
-    const card = screen.getAllByRole("article").find((entry) => entry.textContent?.includes(origin.title))!;
+    // The focus card and the history entry also carry the title; it is the
+    // finding card that offers to design the experiment.
+    const card = screen
+      .getAllByRole("article")
+      .find((entry) => entry.classList.contains("finding") && entry.textContent?.includes(origin.title))!;
     expect(card).toBeDefined();
     fireEvent.click(within(card).getByRole("button", { name: "Design this experiment" }));
 
@@ -302,6 +344,7 @@ describe("the app shell", () => {
     cleanup();
   });
 
+
   it("shows per-source consent, what would be read, and a revoke control", () => {
     render(<App pulse={pulse} />);
     fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
@@ -309,6 +352,68 @@ describe("the app shell", () => {
     expect(screen.getByRole("heading", { name: "Reflect" })).toBeTruthy();
     expect(screen.getByText(/must be granted on its own/)).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /Revoke and delete all/ }).length).toBeGreaterThan(0);
+    cleanup();
+  });
+
+  it("surfaces each source's app-side opt-in, marking revoked sources as paused at source", async () => {
+    const harness = await createSyntheticPulse({ days: 60, seed: "consent-overview" });
+    const fresh = harness.pulse;
+    const storage: Record<string, string> = {
+      "habit-tracker-state-v1": JSON.stringify({ day: "2026-08-17", mirroredAt: "2026-08-17T12:00:00.000Z", habits: [], checkins: [] }),
+      "habit-tracker-pulse-opt-in": "1",
+      "rapport.pulse-history.v2": JSON.stringify({
+        format: "le-studio.source-history",
+        schemaVersion: 2,
+        source: "rapport",
+        connectorVersion: "2.0.0",
+        generatedAt: "2026-08-17T12:00:00.000Z",
+        records: [],
+        cursor: null,
+      }),
+      "rapport-pulse-opt-in": "0",
+    };
+    const getItem = (key: string) => storage[key] ?? null;
+    fresh.registerConnector(createHabitSameOriginConnector({ storage: { getItem } }));
+    fresh.registerConnector(createRapportSameOriginConnector({ storage: { getItem } }));
+    fresh.connect("habit");
+    fresh.connect("rapport");
+
+    render(<App pulse={fresh} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
+
+    const cardOf = (name: string) => screen.getByRole("heading", { name }).closest("article")!;
+    const paragraphWith = (card: HTMLElement, needle: string) =>
+      within(card).getByText((_, node) => {
+        if (!node || node.tagName !== "P") return false;
+        return (node.textContent ?? "").replace(/\s+/g, " ").trim().includes(needle);
+      });
+    expect(paragraphWith(cardOf("Habit"), "App-side opt-in: granted")).toBeTruthy();
+    expect(paragraphWith(cardOf("Rapport"), "App-side opt-in: paused at source")).toBeTruthy();
+    // Sources without an app-side gate say so honestly.
+    expect(paragraphWith(cardOf("Forq"), "App-side opt-in: none")).toBeTruthy();
+    cleanup();
+  });
+
+  it("creates a collection and saves an active insight to it", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.change(screen.getByLabelText("New collection"), { target: { value: "Study focus" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+    expect(screen.getByRole("heading", { name: "Study focus" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    expect(screen.getByText("1 insight")).toBeTruthy();
+
+    const created = pulse.insightCollections.list().find((collection) => collection.title === "Study focus");
+    if (created) pulse.deleteInsightCollection(created.id);
+    cleanup();
+  });
+
+  it("offers a de-identified research export from the sources view", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Sources & privacy" }));
+    expect(screen.getByRole("heading", { name: "Research export" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download research export" })).toBeTruthy();
+    expect(screen.getByText(/no free text/)).toBeTruthy();
     cleanup();
   });
 
@@ -326,6 +431,24 @@ describe("the app shell", () => {
     empty.discover();
     render(<App pulse={empty} />);
     expect(screen.getByText(/Pulse would rather show you nothing/)).toBeTruthy();
+    cleanup();
+  });
+
+  it("lets a user apply a versioned experiment template to a hypothesis", async () => {
+    const { pulse: templatedPulse } = await createSyntheticPulse({ days: 30, seed: "ui-experiment-template" });
+    const hypothesis = templatedPulse.hypotheses.proposeFromFinding(finding);
+    expect(hypothesis).not.toBeNull();
+
+    render(<App pulse={templatedPulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Experiments" }));
+
+    expect(screen.getByRole("heading", { name: "Experiment templates" })).toBeTruthy();
+    expect(screen.getByLabelText("Hypothesis")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Template"), { target: { value: "balanced-daily-ab-v1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create experiment from template" }));
+
+    expect(screen.getByRole("heading", { name: /A\/B test:/ })).toBeTruthy();
+    expect(screen.getByText("balanced-daily-ab-v1 · v1")).toBeTruthy();
     cleanup();
   });
 
@@ -359,6 +482,13 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("has no accessibility violations on the statistical inspector", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Inspector" }));
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
   it("never shows a causal claim for an observational finding", () => {
     render(<App pulse={pulse} />);
     const body = document.body.textContent ?? "";
@@ -371,7 +501,7 @@ describe("the app shell", () => {
 
   it("searches findings, experiments, hypotheses and the rejection trail from the Evidence tab", () => {
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     expect(screen.getByRole("heading", { name: "Evidence search" })).toBeTruthy();
     expect(screen.getByLabelText(/Search the evidence/)).toBeTruthy();
 
@@ -388,7 +518,7 @@ describe("the app shell", () => {
 
   it("shows an honest empty state when the evidence search matches nothing", () => {
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "zzzz-no-match" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByText(/Nothing in the evidence matches/)).toBeTruthy();
@@ -397,7 +527,7 @@ describe("the app shell", () => {
 
   it("has no accessibility violations on the Evidence view, including an expanded rejection context", async () => {
     const { container } = render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     expect(screen.getByLabelText(/Search the evidence/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
@@ -408,7 +538,7 @@ describe("the app shell", () => {
 
   it("returns from a deep link to the exact query that started it", () => {
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
@@ -420,7 +550,7 @@ describe("the app shell", () => {
     expect(back.textContent).toContain("accuracy");
     fireEvent.click(back);
 
-    expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Evidence search" }).getAttribute("aria-selected")).toBe("true");
     expect((screen.getByLabelText(/Search the evidence/) as HTMLInputElement).value).toBe("accuracy");
     // The results are live again, not a fresh empty state.
     expect(screen.getByText("Question accuracy is higher within 4h of training effort")).toBeTruthy();
@@ -439,7 +569,7 @@ describe("the app shell", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const { container } = render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
@@ -477,7 +607,7 @@ describe("the app shell", () => {
     Element.prototype.scrollIntoView = scrollIntoView;
 
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
@@ -499,7 +629,7 @@ describe("the app shell", () => {
     Element.prototype.scrollIntoView = scrollIntoView;
 
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
@@ -521,7 +651,7 @@ describe("the app shell", () => {
     Element.prototype.scrollIntoView = scrollIntoView;
 
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
@@ -547,7 +677,7 @@ describe("the app shell", () => {
     vi.useFakeTimers();
     try {
       render(<App pulse={pulse} />);
-      fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+      fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
       fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
       fireEvent.click(screen.getByRole("button", { name: "Search" }));
       fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
@@ -575,7 +705,7 @@ describe("the app shell", () => {
     Element.prototype.scrollIntoView = scrollIntoView;
 
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
@@ -623,7 +753,7 @@ describe("the app shell", () => {
 
   it("has no accessibility violations on the scan view", async () => {
     const { container } = render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.click(screen.getAllByRole("button", { name: "View the scan that checked this" })[0]!);
@@ -634,7 +764,7 @@ describe("the app shell", () => {
 
   it("expands a rejection hit to show the family of questions it sat in", () => {
     render(<App pulse={pulse} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence search" }));
     fireEvent.change(screen.getByLabelText(/Search the evidence/), { target: { value: "accuracy" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
@@ -645,6 +775,97 @@ describe("the app shell", () => {
     expect(screen.getByText(/none of them were published/)).toBeTruthy();
     // The context names the whole family, not just this one question.
     expect(screen.getByText(/Failed because/)).toBeTruthy();
+    cleanup();
+  });
+});
+
+describe("ledger contradictions render side by side", () => {
+  let pulse: Pulse;
+  let targetTitle: string;
+  let targetEffectLabel: string;
+  let flippedId: string;
+
+  beforeAll(async () => {
+    const harness = await createSyntheticPulse({ days: 180, seed: "ui-contradiction-sides" });
+    pulse = harness.pulse;
+    const first = pulse.discover();
+    const target = first.findings.find((finding) => finding.nextAction?.kind === "run-experiment")!;
+    targetTitle = target.title;
+    targetEffectLabel = target.effect.label;
+    flippedId = `${target.id}-flipped`;
+    // A later sighting claims the same relationship the other way; the ledger
+    // records it even before any scan has produced it as a live finding.
+    pulse.contradictions.annotate([
+      {
+        ...target,
+        id: flippedId,
+        createdAt: "2025-07-08T00:00:00Z",
+        effect: { ...target.effect, value: -target.effect.value },
+      },
+    ]);
+    // The belief is promoted before the conflict lands, so the next scan
+    // withdraws it — the state the weekly brief must call out.
+    pulse.promoteFindingToLibrary(target);
+  });
+
+  it("shows every ledger contradiction as two provenance-bearing sides", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+
+    expect(screen.getByRole("heading", { name: "Contradictions to resolve" })).toBeTruthy();
+
+    // Each direction is a labelled side of the same relationship.
+    const positive = screen
+      .getByRole("heading", { name: /Observed positive/ })
+      .closest(".contradiction__side") as HTMLElement;
+    const negative = screen
+      .getByRole("heading", { name: /Observed negative/ })
+      .closest(".contradiction__side") as HTMLElement;
+
+    // The side backed by a live finding shows its provenance.
+    expect(within(positive).getByText(targetTitle)).toBeTruthy();
+    expect(within(positive).getByText(targetEffectLabel)).toBeTruthy();
+    expect(within(positive).getByText(/revise/)).toBeTruthy();
+
+    // The opposing sighting is shown even when its finding is not in the
+    // current scan, carrying what the record itself holds.
+    expect(within(negative).getByText(flippedId)).toBeTruthy();
+    expect(within(negative).getByText(/2025-07-08/)).toBeTruthy();
+    expect(within(negative).getByText(/not in the current findings/)).toBeTruthy();
+
+    cleanup();
+  });
+
+  it("shows the affected claim as contested above its own card", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    expect(screen.getAllByText("Contested").length).toBeGreaterThanOrEqual(1);
+    cleanup();
+  });
+
+  it("has no accessibility violations on the evidence view with a contradiction", async () => {
+    const { container } = render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    await expectNoAxeViolations(container);
+    cleanup();
+  });
+
+  it("calls out the withdrawn belief on the insights view", () => {
+    render(<App pulse={pulse} />);
+    expect(screen.getByRole("heading", { name: "Withdrawn beliefs" })).toBeTruthy();
+    expect(screen.getAllByText(/pointing both ways/).length).toBeGreaterThanOrEqual(1);
+    cleanup();
+  });
+
+  it("links a withdrawn belief to its side-by-side contradiction record", () => {
+    render(<App pulse={pulse} />);
+    fireEvent.click(screen.getByRole("button", { name: "View the contradictory evidence" }));
+
+    expect(screen.getByRole("tab", { name: "Evidence" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Contradictions to resolve" })).toBeTruthy();
+    // The specific record is reachable by anchor, ready for the scroll target.
+    const record = pulse.contradictions.list()[0]!;
+    expect(document.getElementById(`contradiction-${record.id}`)).toBeTruthy();
     cleanup();
   });
 });

@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ContradictionLedger } from "../src/discovery/contradictions.js";
+import { relationshipSubject } from "../src/discovery/relationship.js";
 import { createSyntheticPulse } from "../src/synthetic/harness.js";
 import { HypothesisTracker } from "../src/hypotheses/tracker.js";
 import { rankRecommendations } from "../src/recommendations/rank.js";
@@ -293,5 +294,34 @@ describe("recommendations under contradiction", () => {
     );
     expect(recs.some((r) => r.sourceId === "ok")).toBe(true);
     expect(recs.some((r) => r.sourceId === "conflicted")).toBe(false);
+  });
+});
+
+describe("relationship identity", () => {
+  it("is the same key the ledger uses for a finding", () => {
+    // The subject is qualified by candidate kind, so two different claims
+    // about the same metric pair never contradict each other.
+    expect(ContradictionLedger.subject(finding())).toBe("exposure-window|study.accuracy|exercise.volume");
+    expect(`exposure-window|${relationshipSubject("study.accuracy", "exercise.volume")}`).toBe(
+      ContradictionLedger.subject(finding()),
+    );
+  });
+
+  it("normalises a missing exposure to the empty string, however it is stored", () => {
+    expect(relationshipSubject("study.accuracy", null)).toBe("study.accuracy|");
+    expect(relationshipSubject("study.accuracy", "")).toBe("study.accuracy|");
+    expect(relationshipSubject("study.accuracy", undefined)).toBe("study.accuracy|");
+  });
+
+  it("keeps direction out of the identity so an opposing sighting is the same claim", () => {
+    const ledger = new ContradictionLedger(clock);
+    ledger.annotate([finding({ id: "a" }), finding({ id: "b", effect: negativeEffect })]);
+    const record = ledger.list()[0]!;
+    // Both directions of the same pair resolve to one record, keyed by the
+    // direction-free subject.
+    expect(record.sightings).toHaveLength(2);
+    expect(relationshipSubject(record.outcomeMetricId, record.exposureMetricId)).toBe(
+      "study.accuracy|exercise.volume",
+    );
   });
 });

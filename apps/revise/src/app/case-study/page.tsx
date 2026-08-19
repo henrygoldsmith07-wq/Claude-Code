@@ -102,7 +102,7 @@ export default function CaseStudyPage() {
           <ul className="text-sm text-ink2 space-y-1.5 list-disc list-inside">
             <li><strong>Recommendation quality</strong> — <code className="font-mono text-xs">syntheticOutcomePairs</code> + <code className="font-mono text-xs">benchmarkRecommendationQuality</code> → MAE / bias / correlation / hitRate(±5). Live on <Link className="underline" href="/benchmarks">/benchmarks</Link>.</li>
             <li><strong>Calibration</strong> — <code className="font-mono text-xs">calibrationReport</code> → Brier / ECE / bias; well-calibrated is ECE &lt; 0.08. Same harness, real pairs when ≥3 timed papers exist.</li>
-            <li><strong>Curriculum</strong> — <code className="font-mono text-xs">scripts/validate-curriculum.mjs</code> + <code className="font-mono text-xs">src/domain/coverage.ts</code> — 440 topics / 142 questions; every topic has specPoints; every specPointIds is paired with learningClaims.</li>
+            <li><strong>Curriculum</strong> — <code className="font-mono text-xs">scripts/validate-curriculum.mjs</code> + <code className="font-mono text-xs">src/domain/coverage.ts</code> — 440 topics / 302 questions; every topic has specPoints; every specPointIds is paired with learningClaims.</li>
             <li><strong>Offline & sync</strong> — <code className="font-mono text-xs">tests/sync.test.ts</code> (node smoke) + <code className="font-mono text-xs">e2e/offline.spec.ts</code> (Playwright) + <code className="font-mono text-xs">src/data/sync.ts</code> (IndexedDB truth, outbox, LWW).</li>
             <li><strong>Perf & security & WCAG</strong> — curriculum ≤100k / domain ≤120k, validation &lt;1.5s, build &lt;80MB; <code className="font-mono text-xs">/_next/static</code> immutable + <code className="font-mono text-xs">/api</code> no-store; RLS on every user table; skip-link + Main/Primary/banner landmarks + combobox/listbox/option + live regions; pinned in <code className="font-mono text-xs">tests/a11y.test.ts</code> + <code className="font-mono text-xs">tests/perf.test.ts</code>.</li>
           </ul>
@@ -122,7 +122,7 @@ npm --prefix apps/revise run build</pre>
           <ul className="text-sm text-ink2 mt-2 space-y-1 list-disc list-inside">
             <li><code className="font-mono text-xs">syntheticOutcomePairs → (simulatePaper.predictedMarks, laterTimedPaper.actualMarks)</code></li>
             <li><code className="font-mono text-xs">syntheticCalibrationOutcomes → (predictGrade.percent/100, laterPaperPercent/100)</code></li>
-            <li>Marking gold becomes <code className="font-mono text-xs">questionId → (rubricAward, aiAward, humanAward)</code> with <code className="font-mono text-xs">rubricVsHuman MAE vs aiVsHuman MAE</code>.</li>
+            <li>Marking gold is tracked per part as <code className="font-mono text-xs">questionId → (rubricAward, aiAward, humanAward)</code>; <code className="font-mono text-xs">scoreMarkerDisagreement</code> reports pairwise MAE, agreement and signed bias, while <code className="font-mono text-xs">mark-escalation.ts</code> sends low-confidence AI marks to the durable human-review queue.</li>
           </ul>
           <p className="text-xs text-ink3 mt-3">
             The benchmarks page will sprout a cohort table at that point; the synthetic curtain stays as the “CI provenance” panel so the ledger never loses its history.

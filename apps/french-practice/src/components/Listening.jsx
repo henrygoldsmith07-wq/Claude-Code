@@ -33,7 +33,7 @@ export default function Listening({ mode, onModeChange, ttsRate, onXp, onActivit
   if (mode === 'numbers') {
     return (
       <Shell title="Les nombres" onBack={() => onModeChange(null)}>
-        <NumberDash ttsRate={ttsRate} onXp={onXp} />
+        <NumberDash ttsRate={ttsRate} onXp={onXp} onActivity={onActivity} />
       </Shell>
     );
   }
@@ -200,8 +200,9 @@ function TrackPlayer({ track, baseRate, onXp, onActivity }) {
     } else {
       const gained = Math.max(1, quiz.correct * 5);
       onXp(gained);
-      recordSkillScore('listening', Math.round((quiz.correct / track.questions.length) * 100));
-      onActivity?.({ type: 'listening', trackId: track.id });
+      const score = Math.round((quiz.correct / track.questions.length) * 100);
+      recordSkillScore('listening', score);
+      onActivity?.({ type: 'listening', trackId: track.id, score, label: track.title, mode: 'track' });
       setQuiz({ ...quiz, done: true, gained });
     }
   };

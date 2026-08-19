@@ -3,7 +3,7 @@ import { allTopics, topicsFor } from "@/domain/curriculum";
 import { seedQuestions } from "@/content";
 import { seedCardsForTopic } from "@/content/seed-cards";
 import { coverageForSubject } from "@/domain/coverage";
-import { assessmentNarrative, dependencyNarrative, progressNarrative } from "@/domain/analytics";
+import { assessmentNarrative, dependencyNarrative, overallProgressNarrative, progressNarrative } from "@/domain/analytics";
 import { regressionReport } from "@/domain/content-review";
 import { nextMistakeLoop } from "@/domain/mistakes";
 import { buildPlan } from "@/domain/planner";
@@ -31,8 +31,25 @@ describe("phase 3 — analytics narratives", () => {
     expect(n.paragraphs.length).toBeGreaterThan(0);
     expect(n.cta).toContain("Enzymes");
   });
+  it("overallProgressNarrative turns evidence into a next move", () => {
+    const n = overallProgressNarrative({
+      mastery: [
+        { topicId: "t1", subjectId: "s", mastery: 0.42, retention: 0.4, confidence: 0.4, cardsTotal: 2, cardsDue: 1, attempts: 1, accuracy: 0.4, lastStudiedAt: null, weak: true },
+        { topicId: "t2", subjectId: "s", mastery: 0.84, retention: 0.8, confidence: 0.8, cardsTotal: 3, cardsDue: 0, attempts: 2, accuracy: 0.8, lastStudiedAt: null, weak: false },
+      ],
+      attempts: [{ awarded: 6, max: 10, createdAt: "2026-08-10T12:00:00Z" }],
+      dueCards: 4,
+      openMistakes: 2,
+      weakTop: "Kinetics",
+      now: new Date("2026-08-18T12:00:00Z"),
+    });
+    expect(n.headline).toContain("Steady progress");
+    expect(n.paragraphs.join(" ")).toContain("Kinetics");
+    expect(n.bullets?.join(" ")).toContain("1/2 topics");
+    expect(n.cta).toBe("Practise Kinetics");
+  });
   it("assessmentNarrative handles empty insight", () => {
-    const n = assessmentNarrative({ byCommand:{} as never, byMisconception:{} as never, marksLostByTopic:[], marksLostByAo:{}, repeatedWeakSubtopics:[], expectedMarksPerHour:[] }, ()=> "topic");
+    const n = assessmentNarrative({ byCommand:{} as never, byMisconception:{} as never, marksLostByTopic:[], marksLostByAo:{}, repeatedWeakSubtopics:[], expectedMarksPerHour:[], techniqueVsKnowledge: { knowledgeLost: 0, techniqueLost: 0, knowledgeShare: 0, techniqueShare: 0, totalLost: 0, reliable: false, narrative: "", drivers: [] } }, ()=> "topic");
     expect(n.headline).toMatch(/No marks/);
   });
   it("dependencyNarrative returns null when nothing blocked", () => {

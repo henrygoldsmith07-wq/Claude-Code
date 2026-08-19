@@ -46,12 +46,22 @@ export async function pushToPulse(session, history, adapter){
   if(adapter.pushVolume){
     try { await adapter.pushVolume(volume); results.volume = { ok: true }; } catch(e){ results.volume = { ok: false, error: String(e.message||e) }; }
   }
+  results.ok=Object.values(results).every(value=> value?.ok !== false);
   return results;
 }
 
 export async function pullFromPulse(adapter){
   if(!adapter || !adapter.pullMetrics) return null;
   try { return await adapter.pullMetrics(); } catch { return null; }
+}
+
+// Connector smoke path used by field tests and host integrations. It exercises
+// both writes and reads without making Arise depend on a Pulse SDK.
+export async function runPulseIntegrationE2E({ session, history, adapter } = {}){
+  const pushed=await pushToPulse(session, history, adapter);
+  const raw=await pullFromPulse(adapter);
+  const metrics=mergePulseMetrics(raw);
+  return { ok: pushed.ok === true && (raw == null || metrics != null), pushed, raw, metrics };
 }
 
 // Merge Pulse metrics into analytics context (e.g. steps, sleep)

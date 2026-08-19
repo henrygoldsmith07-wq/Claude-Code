@@ -19,8 +19,8 @@ event → observations → assumptions → emotion → alternative interpretatio
 
 ## How it works
 
-1. Describe the situation and your first read on it.
-2. Claude asks one careful question at a time (at least 3, at most 5), advancing the pipeline step-wise: separating observations from assumptions, naming the deeper emotion, proposing alternatives, clarifying outcome/action and a check-in date.
+1. Choose a **Quick reflection** (one focused question) or a **Full reflection** (up to five questions), then describe the situation and your first read on it.
+2. Claude asks one careful question at a time, advancing the pipeline step-wise: separating observations from assumptions, naming the deeper emotion, proposing alternatives, clarifying outcome/action and a check-in date.
 3. Then it concludes with a structured `trace` (the 8 stages above) plus: triggers, a hedged take on any reasoning patterns, the other side's perspective, an honest assessment, caution flags, next steps, and a follow-up checkpoint you can set or record an outcome on later.
 
 All data is stored locally in `localStorage` — no account or backend other than the reflection API.
@@ -37,11 +37,13 @@ So Reflect enforces a hedged style:
 
 This is validated in code (`src/lib/validation.ts`); the model is rejected if it violates the contract.
 
-## Insights
+## Product surfaces
 
-From **Insights** in the sidebar: completed count, streak, 14-day chart, most common core emotions, and the patterns flagged most often. Computed client-side from `localStorage`.
+The main navigation is deliberately small: **Reflect**, **History**, **Patterns** and **Settings**. History combines the former reflection list and timeline, while Patterns combines repeated signals, evidence over time, calibration and predicted-vs-actual reviews. Settings contains privacy, export, encryption, the optional API key and the optional outcome-study event log.
 
-## Longitudinal engine — calibration, not just counting
+The **evidence report** adds a dated, versioned view of the same local summaries: month-by-month evidence counts, linked findings, calibration and action trends, plus JSON or Markdown export. Conversation messages are excluded from the report; findings cite the local reflection IDs they came from.
+
+## Pattern engine — calibration, not just counting
 
 `src/lib/longitudinal.ts` turns the follow-up loop into measurable learning:
 
@@ -49,10 +51,10 @@ From **Insights** in the sidebar: completed count, streak, 14-day chart, most co
 - **Decision improvement** — `decisionImprovement()` splits reviewed reflections chronologically and measures whether the unsupported-assumption rate drops in the second half (reflection tracking reality better).
 - **Prioritised resurfacing** — `resurfacingQueue()` ranks open follow-ups by days-overdue + whether the intended action was ever logged; `suggestFollowUp()` picks the re-check interval from the verdict (unsupported → 3d, supported → 14d, missing action → sooner).
 - **Action tracking** — `actionFollowThrough()` measures how many reviewed reflections actually logged their action.
-- **Insights link to evidence** — `summaryInsights()` returns every pattern/contradiction/calibration/unresolved item with its supporting `entryIds`; weekly/monthly reviews carry the same linked `patterns`, `contradictions` and `actionsOutstanding`.
+- **Patterns link to evidence** — `summaryInsights()` returns every pattern/contradiction/calibration/unresolved item with its supporting `entryIds`; weekly/monthly reviews carry the same linked `patterns`, `contradictions` and `actionsOutstanding`.
 - **Users can correct the model** — `src/lib/corrections.ts`: rejecting an inferred pattern stores a stable key, and `withoutDismissed()` filters it out of summaries, insights and reviews forever (no resurfacing).
 - **Sharper detectors** — recurring-assumption grouping is stem-aware and stopword-aware (shared tokenisation with search, so the pattern engine and search agree); contradiction detection now catches always-vs-never oppositions and labels same-trigger emotion shifts as possible change.
-- **Search that agrees with the detectors** — `semanticSearch` ranks with stem-aware TF-IDF over a *weighted* document (title/emotion/trigger outrank buried message text), returns which fields matched per hit, and keeps the exact-phrase boost. Runs fully locally, so local-only mode stays local.
+- **Automatic search that agrees with the detectors** — `automaticSearch` ranks locally with stem-aware relevance over a weighted document (title/emotion/trigger outrank buried message text), then falls back to exact matching. Runs fully locally, so local-only mode stays local.
 - **Safe restore/import** — `src/lib/importExport.ts` is the trust boundary for imports: encrypted vault exports are rejected (they must be decrypted with the passphrase), malformed JSON/rows are skipped with warnings, ids are deduped (first wins), and imports are capped. Nothing imported can silently wipe the vault.
 - **Validated on realistic longitudinal data** — the benchmark now includes `runRealisticLongitudinalBenchmark()`: a multi-month corpus with paraphrased recurrences, a near-duplicate decoy that must NOT group, unrelated noise, a planted contradiction and a recurring emotion pattern — precision and recall checked together, not just clean planted fixtures.
 
@@ -61,6 +63,10 @@ From **Insights** in the sidebar: completed count, streak, 14-day chart, most co
 `src/lib/privacy.ts` states the contract in code: `localOnlyAudit()` inventories what runs locally vs the single network call (the current reflection's messages, only with a key present); `containsVerbatimEntryText()` proves Pulse snapshots and API entry hints never carry entry content. `crypto.ts` adds `verifyPassphrase()` (check the key before restoring) and `rekeyVault()` (change the passphrase without losing the vault). `emitPulseGuarded()` in `pulse.ts` enforces explicit opt-in at the API level — no opt-in, no dispatch.
 
 The longitudinal engine is benchmarked deterministically (`runLongitudinalBenchmark()` in `src/lib/benchmark.ts`): planted recurring patterns, contradictions, calibration improvement and resurfacing priority are all recovered, and a rejected pattern never resurfaces. `runRealisticLongitudinalBenchmark()` adds a noisy multi-month corpus to catch precision regressions (decoy and noise entries must stay out of planted groups).
+
+## Optional outcome study
+
+The Settings screen includes an explicit opt-in for a real user outcome study. When enabled, Reflect stores only local timestamps, reflection mode, completion/follow-up counts, outcome-review verdicts and correction events. It never records reflection text or uploads the event log; the user exports it deliberately if a study requires the data.
 
 ## Setup
 

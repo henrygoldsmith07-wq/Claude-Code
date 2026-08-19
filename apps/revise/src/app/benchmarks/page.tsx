@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { allSubjects } from "@/domain/curriculum";
 import { benchmarkRecommendationQuality, syntheticOutcomePairs } from "@/domain/recommender";
 import { calibrationReport, syntheticCalibrationOutcomes } from "@/domain/grades";
+import { markQuestion } from "@/domain/marking";
+import { HUMAN_MARKING_CORPUS, passesHumanMarkingFloor, scoreHumanMarkingCorpus } from "@/domain/human-marking-corpus";
+import { scoreMarkerDisagreement } from "@/domain/marker-disagreement";
 import { Panel, SectionHeading, Pill, ProgressBar } from "@/components/ui";
 
 // Public benchmark page — the honest ledger.
@@ -13,6 +16,14 @@ import { Panel, SectionHeading, Pill, ProgressBar } from "@/components/ui";
 // pairs) — the provenance row at the bottom says which is which.
 
 const SUBJECT_ID = "wjec-alevel-physics";
+
+function percent(value: number | null): string {
+  return value === null ? "—" : `${Math.round(value * 100)}%`;
+}
+
+function marks(value: number | null): string {
+  return value === null ? "—" : value.toFixed(3);
+}
 
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "success" | "review" | "danger" }) {
   return (
@@ -50,6 +61,17 @@ export default function BenchmarksPage() {
 
   const recOk = rec.stats.hitRate >= 0.6 && rec.stats.correlation >= 0.5;
   const calibOk = calib.report.ece < 0.08;
+  const marking = useMemo(
+    () => scoreHumanMarkingCorpus(HUMAN_MARKING_CORPUS, (question, answers) => markQuestion(question, answers)),
+    [],
+  );
+  const disagreement = useMemo(
+    () => scoreMarkerDisagreement(HUMAN_MARKING_CORPUS, { rubric: (question, answers) => markQuestion(question, answers) }),
+    [],
+  );
+  const humanRubric = disagreement.metrics.find((metric) => metric.pair === "human-vs-rubric")!;
+  const humanAi = disagreement.metrics.find((metric) => metric.pair === "human-vs-ai")!;
+  const markingOk = passesHumanMarkingFloor(marking);
 
   return (
     <div className="space-y-7">
@@ -162,12 +184,92 @@ export default function BenchmarksPage() {
       </section>
 
       <section className="space-y-3">
+        <SectionHeading title="Marker disagreement" hint="Pairwise per-part tracking across human, rubric and AI markers." />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Metric label="Human ↔ rubric MAE" value={marks(humanRubric.meanAbsoluteDifference)} hint={`${humanRubric.comparedParts} compared parts`} tone={humanRubric.meanAbsoluteDifference !== null && humanRubric.meanAbsoluteDifference <= 0.8 ? "success" : "review"} />
+          <Metric label="Human ↔ rubric agreement" value={percent(humanRubric.partAgreement)} hint={`${humanRubric.disagreementCount} disagreeing parts`} tone={humanRubric.partAgreement !== null && humanRubric.partAgreement >= 0.5 ? "success" : "review"} />
+          <Metric label="Rubric bias" value={marks(humanRubric.signedBias)} hint="rubric − human per part" />
+          <Metric label="AI coverage" value={`${humanAi.comparedRows}/${marking.rowCount}`} hint="labelled rows with AI awards" tone={humanAi.comparedRows ? "success" : "review"} />
+        </div>
+        <Panel>
+          <p className="text-xs text-ink2">
+            <code className="font-mono">scoreMarkerDisagreement</code> compares award arrays by part and reports
+            absolute error, agreement, disagreement count and signed bias. A missing marker is left unmeasured;
+            it is never treated as a zero mark.
+          </p>
+          <div className="mt-3 overflow-auto nice-scroll rounded-[8px] border border-line">
+            <table className="w-full text-xs">
+              <thead className="bg-surface2 text-ink3">
+                <tr>
+                  <th className="text-left px-2 py-1">pair</th>
+                  <th className="text-right px-2 py-1">rows</th>
+                  <th className="text-right px-2 py-1">parts</th>
+                  <th className="text-right px-2 py-1">agreement</th>
+                  <th className="text-right px-2 py-1">MAE</th>
+                  <th className="text-right px-2 py-1">bias</th>
+                </tr>
+              </thead>
+              <tbody>
+                {disagreement.metrics.map((metric) => (
+                  <tr key={metric.pair} className="border-t border-line">
+                    <td className="px-2 py-1">{metric.left} ↔ {metric.right}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{metric.comparedRows}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{metric.comparedParts}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{percent(metric.partAgreement)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{marks(metric.meanAbsoluteDifference)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{marks(metric.signedBias)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeading title="Human marking corpus" hint="Reusable teacher/examiner labels for the offline marking floor." />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Metric label="Rows" value={`${marking.rowCount}`} hint={`corpus ${marking.corpusVersion}`} />
+          <Metric label="Exact match" value={`${Math.round(marking.exactMatchAccuracy * 100)}%`} hint={`${marking.exactCount}/${marking.rowCount} scripts`} tone={markingOk ? "success" : "review"} />
+          <Metric label="Part MAE" value={marking.perPartMae.toFixed(3)} hint="mean absolute mark error" tone={marking.perPartMae <= 0.8 ? "success" : "danger"} />
+          <Metric label="Rubric floor" value={markingOk ? "Pass" : "Review"} hint="exact ≥50%, MAE ≤0.8" tone={markingOk ? "success" : "danger"} />
+        </div>
+        <Panel>
+          <p className="text-xs text-ink2">
+            Versioned internal fixture: teacher/examiner per-part awards, chemistry + maths, no learner-identifying data. The same scorer powers CI and this live view.
+          </p>
+          <div className="mt-3 max-h-52 overflow-auto nice-scroll rounded-[8px] border border-line">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-surface2 text-ink3">
+                <tr>
+                  <th className="text-left px-2 py-1">script</th>
+                  <th className="text-right px-2 py-1">human</th>
+                  <th className="text-right px-2 py-1">rubric</th>
+                  <th className="text-right px-2 py-1">part MAE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marking.rows.map((row) => (
+                  <tr key={row.rowId} className="border-t border-line">
+                    <td className="px-2 py-1 truncate max-w-[18rem]" title={row.label}>{row.label}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{row.humanTotal}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{row.predictedTotal}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{row.partMae.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </section>
+
+      <section className="space-y-3">
         <SectionHeading title="Provenance" hint="How this page stays honest" />
         <Panel>
           <ul className="text-xs text-ink2 space-y-1 list-disc list-inside">
             <li>Every number above is computed in-browser from the same functions CI calls — not hard-coded marketing.</li>
             <li>Source rows: <code className="font-mono">src/domain/recommender.ts :: syntheticOutcomePairs</code>, <code className="font-mono">benchmarkRecommendationQuality</code>, <code className="font-mono">src/domain/grades.ts :: calibrationReport</code>.</li>
-            <li>Real cohort tables will appear here as <code className="font-mono">questionId → (rubricAward, aiAward, humanAward)</code> and <code className="font-mono">(predicted, actual)</code> once provider-marked gold exists — same harnesses, real pairs.</li>
+            <li>Marker rows are keyed by <code className="font-mono">questionId</code> and compare per-part <code className="font-mono">(rubricAward, aiAward, humanAward)</code>; AI remains explicitly unmeasured until provider-marked gold exists.</li>
             <li>See also: <a className="underline" href="/case-study">Case study</a> · <a className="underline" href="/progress">Progress</a> · <code className="font-mono">docs/benchmark.md</code>.</li>
           </ul>
           <p className="text-[11px] text-ink3 mt-3">

@@ -11,6 +11,7 @@
 import { defineReaderConnector } from "./sdk.js";
 import type { Connector, ConnectorScope, EmittedEventSpec, SourceReader } from "./types.js";
 import type { RawEventInput } from "../events/normalise.js";
+import { migrateSourceHistory } from "../events/source-history.js";
 
 export type ReviseGrade = "again" | "hard" | "good" | "easy";
 
@@ -59,6 +60,8 @@ export interface ReviseSessionRecord {
 }
 
 export type ReviseRecord = ReviseReviewRecord | ReviseAttemptRecord | ReviseSessionRecord;
+
+export const DEFAULT_REVISE_HISTORY_ENDPOINT = "/revise/api/pulse/history";
 
 /** Grades map onto 0..1 so accuracy is comparable with question marks. */
 const GRADE_ACCURACY: Record<ReviseGrade, number> = { again: 0, hard: 0.34, good: 0.67, easy: 1 };
@@ -221,7 +224,7 @@ export function createReviseConnector(reader: SourceReader<ReviseRecord>): Conne
   return defineReaderConnector<ReviseRecord>({
     id: "revise",
     name: "Revise",
-    version: "1.0.0",
+    version: "2.0.0",
     category: "study",
     description: "Spaced-repetition reviews, exam-question attempts and study sessions.",
     scopes: SCOPES,
@@ -232,4 +235,64 @@ export function createReviseConnector(reader: SourceReader<ReviseRecord>): Conne
     timestampOf: (record) =>
       record.kind === "review" ? record.reviewedAt : record.kind === "attempt" ? record.createdAt : record.startedAt,
   });
+}
+
+export interface ReviseCloudConnectorOptions {
+  endpoint?: string;
+  fetcher?: typeof fetch;
+}
+
+/**
+ * Reader for Revise's authenticated cloud replica. The endpoint returns the
+ * same versioned envelope used by local sibling histories, so Pulse can
+ * migrate connector payloads before mapping them and can fail closed on a
+ * future schema.
+ */
+export function createReviseCloudConnector(options: ReviseCloudConnectorOptions = {}): Connector {
+  const endpoint = options.endpoint ?? DEFAULT_REVISE_HISTORY_ENDPOINT;
+  const fetcher = options.fetcher ?? globalThis.fetch;
+  const reader: SourceReader<ReviseRecord> = {
+    async read(since, limit) {
+      if (typeof fetcher !== "function") throw new Error("Fetch is unavailable in this environment");
+      const url = new URL(endpoint, globalThis.location?.origin ?? "http://localhost");
+      if (since) url.searchParams.set("since", since);
+      url.searchParams.set("limit", String(limit));
+      const response = await fetcher(url.toString(), { headers: { accept: "application/json" } });
+      if (!response.ok) throw new Error(`Revise history returned HTTP ${response.status}`);
+      const payload = (await response.json()) as unknown;
+      const envelope = migrateSourceHistory(payload, "revise");
+      return {
+        records: envelope.records as ReviseRecord[],
+        hasMore: Boolean((payload as { hasMore?: unknown })?.hasMore),
+      };
+    },
+    async probe() {
+      try {
+        const result = await this.read(null, 1);
+        const last = result.records[result.records.length - 1];
+        return {
+          ok: true,
+          message: "Authenticated Revise history is available",
+          latestAt: last
+            ? new Date(
+                Date.parse(last.kind === "review" ? last.reviewedAt : last.kind === "attempt" ? last.createdAt : last.startedAt),
+              ).toISOString()
+            : null,
+        };
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : String(error), latestAt: null };
+      }
+    },
+    // Revise's opt-in is enforced server-side: the /api/pulse/history route
+    // refuses unless the account's synced `pulseEnabled` flag is true, so
+    // there is no local flag Pulse can read. The overview says so explicitly
+    // rather than pretending the flag is granted.
+    consentStatus: () => ({
+      kind: "server",
+      key: null,
+      granted: null,
+      message: "Gated server-side — Revise refuses this endpoint unless “Share study history with Pulse” is on in its settings",
+    }),
+  };
+  return createReviseConnector(reader);
 }

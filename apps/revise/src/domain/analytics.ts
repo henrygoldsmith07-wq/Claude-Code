@@ -1,4 +1,4 @@
-import type { AssessmentInsight, TopicMastery } from "./types";
+import type { AssessmentInsight, Attempt, TopicMastery } from "./types";
 import type { SubjectCoverage } from "./coverage";
 import type { DependencyReport } from "./prerequisites";
 import type { RetentionReport, MarksPerHourReport, TechniqueVsKnowledge, PaperAnalytics } from "./retention-analytics";
@@ -40,6 +40,79 @@ export function progressNarrative(input: {
     `Gaps: ${cov.gaps.length} flagged — see coverage panel`,
   ];
   return { headline, paragraphs, bullets, cta: input.weakTop ? `Practise ${input.weakTop}` : undefined };
+}
+
+export function overallProgressNarrative(input: {
+  mastery: TopicMastery[];
+  attempts: Array<Pick<Attempt, "awarded" | "max" | "createdAt">>;
+  dueCards: number;
+  openMistakes: number;
+  weakTop?: string;
+  now?: Date;
+}): Narrative {
+  const now = input.now ?? new Date();
+  const recentStart = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+  const previousStart = recentStart - 30 * 24 * 60 * 60 * 1000;
+  const recent = input.attempts.filter((attempt) => {
+    const time = new Date(attempt.createdAt).getTime();
+    return time >= recentStart && time <= now.getTime();
+  });
+  const previous = input.attempts.filter((attempt) => {
+    const time = new Date(attempt.createdAt).getTime();
+    return time >= previousStart && time < recentStart;
+  });
+  const overallRate = markRate(input.attempts);
+  const recentRate = markRate(recent);
+  const previousRate = markRate(previous);
+  const delta = recentRate != null && previousRate != null ? Math.round((recentRate - previousRate) * 100) : null;
+  const secure = input.mastery.filter((row) => row.mastery >= 0.8).length;
+  const evidence = input.attempts.length;
+
+  let headline = "Your progress story starts with a baseline.";
+  if (evidence && delta != null && delta >= 5) {
+    headline = `Momentum is building: ${delta} percentage points up in the last 30 days.`;
+  } else if (evidence && delta != null && delta <= -5) {
+    headline = `Recent marks dipped ${Math.abs(delta)} percentage points — here is the recovery route.`;
+  } else if (evidence) {
+    headline = `Steady progress at ${Math.round((overallRate ?? 0) * 100)}% across ${evidence} marked answers.`;
+  }
+
+  const paragraphs: string[] = [];
+  if (!evidence) {
+    paragraphs.push("There is not enough marked exam evidence to show a trend yet. One timed question set will establish a useful baseline.");
+  } else {
+    paragraphs.push(
+      `You have earned ${Math.round((overallRate ?? 0) * 100)}% of the marks available so far, with ${secure} of ${input.mastery.length} topics at 80% mastery.`,
+    );
+    if (delta != null) {
+      paragraphs.push(
+        `Recent work is ${Math.round((recentRate ?? 0) * 100)}% versus ${Math.round((previousRate ?? 0) * 100)}% in the preceding 30-day window.`,
+      );
+    } else if (recentRate != null) {
+      paragraphs.push(`The last 30 days contain ${recent.length} marked answer${recent.length === 1 ? "" : "s"} at ${Math.round(recentRate * 100)}%; keep adding evidence to firm up the trend.`);
+    }
+  }
+  if (input.weakTop) {
+    paragraphs.push(`The next useful move is ${input.weakTop}, where focused practice can convert the most headroom into marks.`);
+  } else if (input.dueCards) {
+    paragraphs.push("There is no ranked weak topic yet, so protect the progress you have by clearing the cards due today.");
+  } else {
+    paragraphs.push("Keep alternating retrieval with timed questions so the next update reflects both memory and exam performance.");
+  }
+
+  const bullets = [
+    evidence ? `${evidence} marked answer${evidence === 1 ? "" : "s"} · ${Math.round((overallRate ?? 0) * 100)}% overall` : "No marked answers yet · baseline pending",
+    `${secure}/${input.mastery.length} topics at 80% mastery`,
+    `${input.openMistakes} open mistake${input.openMistakes === 1 ? "" : "s"} · ${input.dueCards} card${input.dueCards === 1 ? "" : "s"} due`,
+  ];
+  const cta = input.weakTop ? `Practise ${input.weakTop}` : input.dueCards ? "Review due cards" : "Start a timed set";
+  return { headline, paragraphs, bullets, cta };
+}
+
+function markRate(attempts: Array<Pick<Attempt, "awarded" | "max">>): number | null {
+  const marksAvailable = attempts.reduce((total, attempt) => total + attempt.max, 0);
+  if (!marksAvailable) return null;
+  return attempts.reduce((total, attempt) => total + attempt.awarded, 0) / marksAvailable;
 }
 
 export function assessmentNarrative(insight: AssessmentInsight, topicTitle: (id: string)=>string): Narrative {
@@ -132,18 +205,26 @@ export function paperBreakdownNarrative(papers: PaperAnalytics[], titleFor: (id:
   };
 }
 
-export function gradeCalibrationNarrative(pred: GradePrediction): Narrative {
+export function gradeCalibrationNarrative(pred: GradePrediction, titleFor: (topicId: string) => string = (id) => id): Narrative {
   const headline = `Predicted ${pred.grade} (${pred.percent}%) — range ${pred.worstCase}–${pred.bestCase}`;
   const paragraphs: string[] = [];
-  if (pred.confidence < 0.45) paragraphs.push(`Low confidence (${Math.round(pred.confidence * 100)}%) — add more timed attempts to tighten this. Headroom: ${pred.headroom.map((h) => `${h.topicId} +${h.potentialPercent}%`).slice(0, 2).join(", ") || "—"}.`);
-  else if (pred.confidence < 0.72) paragraphs.push(`Moderate confidence (${Math.round(pred.confidence * 100)}%). Best lever: ${pred.headroom[0] ? `${pred.headroom[0].topicId} (+${pred.headroom[0].potentialPercent}%)` : "a timed paper"}.`);
-  else paragraphs.push(`Confident (${Math.round(pred.confidence * 100)}%). Remaining headroom is small — switch to timed papers and technique work.`);
+  const confidence = Math.round(pred.confidence * 100);
+  if (pred.confidence < 0.45) {
+    paragraphs.push(`Low confidence (${confidence}%). This is still an early estimate, weighted more towards topic coverage than marked answers. Do more timed questions to tighten the range.`);
+  } else if (pred.confidence < 0.72) {
+    paragraphs.push(`Moderate confidence (${confidence}%). Your marked answers are starting to carry more weight; more timed work will make this range narrower.`);
+  } else {
+    paragraphs.push(`Confident (${confidence}%). Keep using timed papers to check that this grade holds under exam conditions.`);
+  }
   if (pred.trend > 4) paragraphs.push(`Trending up +${pred.trend}pp over the last 30 days.`);
   else if (pred.trend < -4) paragraphs.push(`Trending down ${pred.trend}pp — check whether recent topics are harder or revision slipped.`);
+  const next = pred.headroom[0];
   const bullets = [
-    `Confidence: ${Math.round(pred.confidence * 100)}%`,
-    `Best case: ${pred.bestCase} · Worst case: ${pred.worstCase}`,
-    ...pred.headroom.slice(0, 3).map((h) => `${h.topicId}: +${h.potentialPercent}% to grade`),
+    `Confidence: ${confidence}%`,
+    `Likely range: ${pred.worstCase}–${pred.bestCase}`,
+    next
+      ? `Next lever: ${titleFor(next.topicId)} could add up to +${next.potentialPercent} percentage points if fully mastered.`
+      : "Next lever: sit a timed paper to collect more evidence.",
   ];
   return { headline, paragraphs, bullets };
 }

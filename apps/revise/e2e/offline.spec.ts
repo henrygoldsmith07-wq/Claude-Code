@@ -74,6 +74,14 @@ test.describe("offline walk", () => {
     await expect(page.locator("main#main")).toBeVisible();
     await page.goto("/library");
     await expect(page.locator("main#main")).toBeVisible();
+    await page.goto("/question-evidence");
+    await expect(page.locator("main#main")).toContainText("Question Evidence Database");
+    await expect(page.locator("main#main")).toContainText(/Evidence records|No matching evidence records/);
+    const evidenceDetails = page.getByText("Inspect evidence and history").first();
+    if (await evidenceDetails.isVisible()) {
+      await evidenceDetails.click();
+      await expect(page.locator("main#main")).toContainText("Specification evidence");
+    }
   });
 
   test("offline banner appears when offline", async ({ page, context }) => {

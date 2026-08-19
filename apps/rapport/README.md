@@ -31,8 +31,22 @@ device, and practice conversations fall back to the built-in character engine.
 | **Coach** | Routes a problem to its underlying skill and teaches the principle. Refuses to hand over a script. |
 | **Analytics** | Insights carry observation, evidence, confidence, a hedged explanation and an action — and are suppressed below a minimum sample. |
 | **Experiments** | Personal A/B with both group sizes reported and a mandatory causation caveat. |
+| **Evidence lab** | Human-labelled behaviour corpus, independent raters, disagreement/adjudication, system calibration and real-world transfer outcomes. |
 | **Voice** | Pace, fillers, pauses, reply length and turn share. Nothing else is computable from what is stored. |
 | **Privacy** | Local-first. Every permission off by default. Optional end-to-end encrypted sync. |
+
+## Pulse connection
+
+Rapport can share a transcript-free history of its drills and challenges with
+Pulse, the personal evidence engine in this ecosystem, when both apps are
+served from one origin. Sharing is **opt-in** and controlled here, where the
+data originates: Settings → Data & permissions has a "Share with Pulse"
+toggle. While it is on, the app writes the derived history
+(`rapport.pulse-history.v2`) where Pulse's same-origin connector can read it.
+Turning it off deletes that copy immediately and clears the opt-in flag
+(`rapport-pulse-opt-in`) Pulse's connector checks, so the flow stops at the
+source — even a stale mirror is refused. Pulse never sees conversation
+transcripts; the shared history is scores, timings and skill ids only.
 
 ## Architecture
 
@@ -142,7 +156,13 @@ been checked against human judgement" rather than a number, uses only
 transcripts with two or more raters, and ignores any behaviour the raters
 themselves disagree about by more than 0.25 — rater disagreement means the
 behaviour is not well enough defined to serve as a reference, which is itself
-the finding.
+the finding. The local **Evidence lab** adds the operational layer around that
+primitive: it stores independent labels, rater confidence, exact evidence,
+disagreement rows, adjudications, inter-rater reliability, human-vs-system
+false-positive/false-negative analysis, score calibration and transfer-study
+outcomes. It makes no claim about real-world performance until a researcher
+records a real outcome. `/evidence` also shows the persistent event history and
+the transcript-free Pulse-compatible event-log sidecar.
 
 ## Configuration
 

@@ -3,7 +3,8 @@ import { recipeAllowed } from './goals.js';
 import { seasonScore } from '../data/seasons.js';
 import { seededPick } from './utils.js';
 import { tasteScore } from './taste.js';
-import { canonicalName } from './aliases.js';
+import { canonicalName, sameIngredient } from './aliases.js';
+import { isPantrySufficient } from './kitchen.js';
 
 /* ---------- Equipment ---------- */
 
@@ -65,7 +66,34 @@ export const varietyMeals = (pool, count, seed) => {
  * Dietary exclusions are the same rules the rest of the app uses — one
  * definition of what "vegan" or "gluten-free" means, in `data/goals.js`.
  */
-export const hardFilter = (recipes, { diets = [], goal = 'maintain', budget = 4, maxTime = null, equipment = null } = {}) =>
+/** Quantity-aware coverage for the strict "only what I have" replanner. */
+export const pantryCoverage = (recipe, pantry = []) => {
+  const ingredients = recipe?.ingredients || [];
+  if (!ingredients.length) return { have: 0, total: 0, pct: 100, missing: [] };
+  const rows = Array.isArray(pantry) ? pantry : [];
+  const have = [];
+  const missing = [];
+  for (const ingredient of ingredients) {
+    const hit = rows.find((item) => {
+      const name = typeof item === 'string' ? item : item?.name;
+      if (!sameIngredient(name, ingredient.name)) return false;
+      return typeof item === 'string' || isPantrySufficient(item, ingredient.qty);
+    });
+    if (hit) have.push(ingredient);
+    else missing.push(ingredient);
+  }
+  return {
+    have: have.length,
+    total: ingredients.length,
+    pct: Math.round((have.length / ingredients.length) * 100),
+    missing,
+  };
+};
+
+export const hardFilter = (recipes, {
+  diets = [], goal = 'maintain', budget = 4, maxTime = null, equipment = null,
+  pantry = [], availableOnly = false,
+} = {}) =>
   recipes.filter((r) => {
     if (!recipeAllowed(r, diets)) return false;
     if ((goal === 'muscle' || goal === 'recomp') && r.protein < 20) return false;
@@ -73,6 +101,7 @@ export const hardFilter = (recipes, { diets = [], goal = 'maintain', budget = 4,
     if (r.costPerServing > budget) return false;
     if (maxTime && r.time > maxTime) return false;
     if (equipment && !equipmentOk(r, equipment)) return false;
+    if (availableOnly && pantryCoverage(r, pantry).missing.length) return false;
     return true;
   });
 
@@ -126,7 +155,8 @@ export function buildPlan(
   {
     scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
     pantry = [], month = null, batch = false, days = null, recipes = RECIPES, taste = null,
-    leftovers = [], equipment = null, expiry = [], variety = false,
+    leftovers = [], equipment = null, expiry = [], variety = false, pantryItems = null,
+    availableOnly = false,
   },
   seed,
 ) {
@@ -162,8 +192,13 @@ export function buildPlan(
     let relaxedDay = false;
     const picks = slots.map((meal, i) => {
       const forSlot = recipes.filter((r) => r.meal === meal);
-      const mealPool = hardFilter(forSlot, { diets, goal, budget, maxTime, equipment });
-      if (!mealPool.length) relaxedDay = true;
+      const strictPool = hardFilter(forSlot, {
+        diets, goal, budget, maxTime, equipment, pantry: pantryItems || pantry, availableOnly,
+      });
+      const mealPool = strictPool.length || !availableOnly
+        ? strictPool
+        : hardFilter(forSlot, { diets, goal, budget, maxTime, equipment });
+      if (!mealPool.length || (availableOnly && !strictPool.length)) relaxedDay = true;
       const pool = mealPool.length ? narrow(mealPool, 1) : forSlot;
       return seededPick(pool, 1, seed + i * 17)[0];
     }).filter(Boolean);
@@ -176,7 +211,9 @@ export function buildPlan(
   }
 
   const dinners = recipes.filter((r) => r.meal === 'dinner');
-  let pool = hardFilter(dinners, { diets, goal, budget, maxTime, equipment });
+  let pool = hardFilter(dinners, {
+    diets, goal, budget, maxTime, equipment, pantry: pantryItems || pantry, availableOnly,
+  });
   let relaxed = false;
   if (pool.length === 0) {
     pool = hardFilter(dinners, { diets, goal, budget, maxTime });
@@ -237,7 +274,9 @@ export function buildPlan(
     : Array.from({ length: count }, (_, i) => unique[i % unique.length]);
 
   const note = relaxed
-    ? 'Nothing matched every filter — showing the closest fits instead.'
+    ? availableOnly
+      ? 'No complete pantry-only match was available — showing the closest fits instead.'
+      : 'Nothing matched every filter — showing the closest fits instead.'
     : unique.length < count
       ? `Only ${unique.length} recipe${unique.length === 1 ? '' : 's'} match your filters, so the plan repeats them.`
       : variety && new Set(meals.map((m) => m.id)).size < count

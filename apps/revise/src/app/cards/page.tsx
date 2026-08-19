@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useRef, useState } from "react";
 import { browse, easeFactor, SAVED_SEARCHES, sortCards, tagCounts } from "@/domain/browser";
@@ -19,7 +18,7 @@ import { deckNameFor, ExportDeckPanel, ImportDeckPanel } from "@/components/Deck
 import { ShareDeck } from "@/components/ShareDeck";
 import { useShortcuts } from "@/components/shortcuts";
 import { RichText } from "@/components/RichText";
-import { Button, EmptyState, Pill, SectionHeading, Segmented, cx } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Pill, SectionHeading, Segmented, cx } from "@/components/ui";
 import { BackIcon, ICON_SIZE, SearchIcon } from "@/components/icons";
 
 // ---------------------------------------------------------------------------
@@ -181,9 +180,9 @@ function CardBrowser() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/study?q=${encodeURIComponent(query)}${subjectId ? `&subject=${subjectId}` : ""}`}>
-            <Button size="sm">Study these</Button>
-          </Link>
+          <ButtonLink href={`/study?q=${encodeURIComponent(query)}${subjectId ? `&subject=${subjectId}` : ""}`} size="sm">
+            Study these
+          </ButtonLink>
           <Button size="sm" onClick={() => setCustomStudy(true)}>Custom study</Button>
           <Button size="sm" variant="primary" onClick={startNewCard}>New card</Button>
         </div>
@@ -238,6 +237,7 @@ function CardBrowser() {
               {SAVED_SEARCHES.map((saved) => (
                 <button
                   key={saved.query}
+                  type="button"
                   onClick={() => setQuery(saved.query)}
                   title={saved.hint}
                   className={cx("pill hover:border-ink3 transition-colors", query === saved.query && "border-ink3 text-ink")}
@@ -246,7 +246,7 @@ function CardBrowser() {
                 </button>
               ))}
               {query ? (
-                <button onClick={() => setQuery("")} className="pill text-ink3 hover:text-ink">
+                <button type="button" onClick={() => setQuery("")} className="pill text-ink3 hover:text-ink">
                   Clear
                 </button>
               ) : null}
@@ -257,6 +257,7 @@ function CardBrowser() {
                 {tags.slice(0, 14).map(({ tag, count }) => (
                   <button
                     key={tag}
+                    type="button"
                     onClick={() => setQuery(query.includes(`tag:${tag}`) ? query.replace(`tag:${tag}`, "").trim() : `${query} tag:${tag}`.trim())}
                     className={cx("pill hover:border-ink3 transition-colors", query.includes(`tag:${tag}`) && "bg-accent text-onaccent border-transparent")}
                   >
@@ -336,7 +337,7 @@ function CardBrowser() {
                       className="mt-1 accent-[var(--accent)]"
                       aria-label={`Select ${card.front.slice(0, 40)}`}
                     />
-                    <button onClick={() => openEditor(card)} className="min-w-0 flex-1 text-left">
+                    <button type="button" onClick={() => openEditor(card)} className="min-w-0 flex-1 text-left">
                       <RichText className="text-sm text-ink line-clamp-2">{card.front}</RichText>
                       <p className="text-[11px] text-ink3 mt-0.5 truncate">
                         {getTopic(card.topicId)?.title ?? card.topicId} · due {card.due} · ease{" "}

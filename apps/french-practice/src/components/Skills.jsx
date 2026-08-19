@@ -78,7 +78,7 @@ export default function Skills({ area, onAreaChange, speaking, listening, common
           <Reading apiKey={common.apiKey} mockMode={common.mockMode} onXp={common.onXp} onActivity={common.onActivity} />
         )}
         {area === 'writing' && (
-          <Writing apiKey={common.apiKey} mockMode={common.mockMode} level={common.level} onXp={common.onXp} />
+          <Writing apiKey={common.apiKey} mockMode={common.mockMode} level={common.level} onXp={common.onXp} onActivity={common.onActivity} />
         )}
       </div>
     </div>
