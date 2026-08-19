@@ -1,0 +1,92 @@
+# CODEOWNERS — security-sensitive and architecture-sensitive areas
+#
+# Ownership here is a review gate, not a routing hint. With "Require review
+# from Code Owners" enabled on main (see docs/branch-protection.md), a pull
+# request touching any path below cannot merge until the listed owner approves.
+#
+# Single-maintainer note: GitHub never requests review from the author of a
+# pull request. Because @henrygoldsmith07-wq authors nearly everything here,
+# code-owner review is intentionally NOT enabled on main today — it would be
+# unsatisfiable. This file is still the source of truth for which paths are
+# sensitive, it drives review-request routing for outside contributions, and
+# it is ready to be enforced the moment a second reviewer exists.
+#
+# Last match wins, so the most specific rules go last.
+
+# ---------------------------------------------------------------------------
+# Default owner for everything not matched below.
+# ---------------------------------------------------------------------------
+*                                   @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# CI/CD and repository automation.
+# Workflow files run with repository secrets and can publish packages or
+# deploy. A change here is a privilege change, not a config tweak.
+# ---------------------------------------------------------------------------
+/.github/                           @henrygoldsmith07-wq
+/.github/workflows/                 @henrygoldsmith07-wq
+/.github/CODEOWNERS                 @henrygoldsmith07-wq
+
+# The merge-safety gates themselves, plus deploy/smoke/perf enforcement.
+# Weakening a gate must be as visible as weakening the code it guards.
+/scripts/                           @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Agent and tooling configuration.
+# These decide what automation is allowed to do in this repository, including
+# which external services it may reach.
+# ---------------------------------------------------------------------------
+/CLAUDE.md                          @henrygoldsmith07-wq
+/.claude/                           @henrygoldsmith07-wq
+/.mcp.json                          @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Deployment contracts.
+# Every Vercel project reads the vercel.json in its own Root Directory; the
+# root file is inherited by any project left pointing at the repo root.
+# ---------------------------------------------------------------------------
+/vercel.json                        @henrygoldsmith07-wq
+/apps/*/vercel.json                 @henrygoldsmith07-wq
+/.nvmrc                             @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Architecture boundaries.
+# Shared packages and the app registry are consumed across the monorepo, so a
+# change here has blast radius well beyond the file being edited.
+# ---------------------------------------------------------------------------
+/packages/                          @henrygoldsmith07-wq
+/apps/registry.json                 @henrygoldsmith07-wq
+/apps/ecosystem-shell/              @henrygoldsmith07-wq
+/docs/architecture/                 @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Supply chain.
+# Lockfiles are the record of what actually gets installed in CI and in
+# production builds.
+# ---------------------------------------------------------------------------
+package-lock.json                   @henrygoldsmith07-wq
+/apps/*/package.json                @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Authentication, session handling and request middleware.
+# ---------------------------------------------------------------------------
+**/middleware.ts                    @henrygoldsmith07-wq
+**/middleware.js                    @henrygoldsmith07-wq
+/apps/food-shopping-os/src/server/auth.js          @henrygoldsmith07-wq
+/apps/food-shopping-os/src/server/auth-adapter.js  @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Data layer: schema migrations are irreversible in production, and the
+# Supabase clients carry the keys and row-level-security assumptions.
+# ---------------------------------------------------------------------------
+**/supabase/                        @henrygoldsmith07-wq
+**/supabase/migrations/             @henrygoldsmith07-wq
+**/scripts/migrations/              @henrygoldsmith07-wq
+**/src/lib/supabase.ts              @henrygoldsmith07-wq
+**/src/data/supabase.ts             @henrygoldsmith07-wq
+
+# ---------------------------------------------------------------------------
+# Secret surface. Committed examples define which secrets exist; a new entry
+# is a new thing that can leak.
+# ---------------------------------------------------------------------------
+**/.env.example                     @henrygoldsmith07-wq

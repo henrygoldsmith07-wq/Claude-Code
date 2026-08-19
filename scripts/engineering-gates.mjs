@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const gates = [
   ['repository smoke', ['scripts/smoke.mjs']],
+  ['CODEOWNERS coverage', ['scripts/check-codeowners.mjs']],
   ['deployment configuration', ['scripts/check-deploy-config.mjs']],
   ['deployment smoke', ['scripts/deployment-smoke.mjs']],
   ['hard-fail browser E2E policy', ['scripts/check-hard-fail-e2e.mjs']],
