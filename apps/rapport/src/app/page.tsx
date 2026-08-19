@@ -9,9 +9,11 @@ import { estimatedMinutes, homeSummary } from "@/domain/session";
 import { consistency } from "@/domain/progress";
 import { streakMessage } from "@/domain/gamification";
 import { stateFor } from "@/domain/mastery";
+import { challengeReminder } from "@/domain/training";
 import { Badge, Button, Card, Evidence, PageHeader, Skeleton } from "@/components/ui";
 import { LessonPanel } from "@/components/lesson-panel";
 import { ReflectionForm } from "@/components/reflection-form";
+import { useNow } from "@/state/clock";
 
 // ---------------------------------------------------------------------------
 // Today.
@@ -23,6 +25,7 @@ import { ReflectionForm } from "@/components/reflection-form";
 
 export default function TodayPage() {
   const store = useStore();
+  const now = useNow();
   const { todayPlan, ready, states, attempts } = store;
   const [openLesson, setOpenLesson] = useState(false);
   const [reflectingOn, setReflectingOn] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export default function TodayPage() {
   const summary = homeSummary(todayPlan, state);
   const skill = getSkill(todayPlan.session.focusSkillId);
   const openAttempt = attempts.find((item) => !item.completedAt && !item.skippedAt);
+  const reminder = openAttempt ? challengeReminder(openAttempt, now) : null;
   const streak = consistency(store.events, new Date().toISOString());
 
   const startChallenge = async () => {
@@ -171,7 +175,20 @@ export default function TodayPage() {
                 <X size={15} aria-hidden="true" /> Not today
               </Button>
             ) : null}
+            {openAttempt && reminder ? (
+              <Button
+                variant="ghost"
+                onClick={() => void store.postponeChallenge(openAttempt.id, reminder.due ? 1 : 0)}
+              >
+                {reminder.due ? "Remind me tomorrow" : "Bring it back today"}
+              </Button>
+            ) : null}
           </div>
+          {reminder ? (
+            <p className="mt-3 text-xs" style={{ color: "var(--text-faint)" }}>
+              {reminder.label}. {reminder.detail}
+            </p>
+          ) : null}
           <p className="mt-3 text-[11px]" style={{ color: "var(--text-faint)" }}>
             Swapping and skipping cost nothing — they tell the app which challenges suit you, and are never counted against you.
           </p>

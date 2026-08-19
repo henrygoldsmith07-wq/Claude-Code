@@ -13,6 +13,7 @@ import { canonicalName, sameIngredient } from './aliases.js';
 import {
   formatQuantity, parseQuantity, scaleQuantity, subtractQuantities, sufficientFor,
 } from './measure.js';
+import { pantryConfidenceLevel as pantryEvidenceConfidence } from './pantry-intelligence.js';
 
 export const dayStamp = (date = new Date()) => {
   const d = new Date(date);
@@ -60,6 +61,8 @@ export const pantryConfidence = (item) => {
   const v = String(item?.confidence || "definite").toLowerCase();
   return PANTRY_CONFIDENCE.includes(v) ? v : "definite";
 };
+export const pantryConfidenceLevel = pantryEvidenceConfidence;
+export const effectivePantryConfidence = (item, today = dayStamp()) => pantryEvidenceConfidence(item, today).level;
 export const amountConfidence = (item) => {
   const v = String(item?.amountConfidence || (item?.qty ? "approximate" : "unknown")).toLowerCase();
   return AMOUNT_CONFIDENCE.includes(v) ? v : "approximate";
@@ -76,8 +79,8 @@ export const PANTRY_AVAILABILITY = ["confirmed_sufficient", "confirmed_insuffici
  *
  * The need-aware variant compares parsed have qty vs need qty when both are countable.
  */
-export const pantryAvailability = (item) => {
-  const c = pantryConfidence(item);
+export const pantryAvailability = (item, today = dayStamp()) => {
+  const c = effectivePantryConfidence(item, today);
   const a = amountConfidence(item);
   if (c === "unknown") return "unknown";
   if (item?.low) return "running_low";
@@ -99,18 +102,18 @@ export const pantryAvailability = (item) => {
  * than 400 g. When the two genuinely cannot be put on one scale the answer
  * stays at the name-level truth rather than becoming a guess.
  */
-export const pantryTruthForNeed = (item, needQty) => {
-  const base = pantryAvailability(item);
+export const pantryTruthForNeed = (item, needQty, { today = dayStamp(), learnedAliases = {} } = {}) => {
+  const base = pantryAvailability(item, today);
   if (base !== "confirmed_sufficient") return base;
   if (!needQty) return base;
-  const ingredient = canonicalName(item?.name);
+  const ingredient = canonicalName(item?.name, learnedAliases);
   const enough = sufficientFor(item?.qty, needQty, { ingredient });
   if (enough === null) return base;
   return enough ? "confirmed_sufficient" : "confirmed_insufficient";
 };
 
-export const isPantrySufficient = (item, needQty) => {
-  const truth = needQty ? pantryTruthForNeed(item, needQty) : pantryAvailability(item);
+export const isPantrySufficient = (item, needQty, options = {}) => {
+  const truth = needQty ? pantryTruthForNeed(item, needQty, options) : pantryAvailability(item, options.today || dayStamp());
   return truth === "confirmed_sufficient" || truth === "probably_available";
 };
 
@@ -130,11 +133,12 @@ export const pantryTruthTone = (truth) => ({
   unknown: "faint",
 }[truth] || "muted");
 
-export const pantryUncertaintyLabel = (item) => {
-  const c = pantryConfidence(item);
+export const pantryUncertaintyLabel = (item, today = dayStamp()) => {
+  const evidence = pantryEvidenceConfidence(item, today);
+  const c = evidence.level;
   const a = amountConfidence(item);
   if (c === "unknown") return "unknown — not counted in coverage";
-  if (c === "probable") return "probably have" + (a === "unknown" ? " · amount unknown" : a === "approximate" ? " · amount approx." : "");
+  if (c === "probable") return "probably have" + (evidence.decayed ? " · confirm" : "") + (a === "unknown" ? " · amount unknown" : a === "approximate" ? " · amount approx." : "");
   if (item?.low) return "running low" + (a === "unknown" ? " · amount unknown" : "");
   return "definitely have" + (a === "exact" ? " · amount known" : a === "unknown" ? " · amount unknown" : " · amount approx.");
 };
@@ -370,6 +374,7 @@ export const consumePantryIngredients = (pantry = [], ingredients = [], {
   const used = [];
   const shortfalls = [];
   const assumed = [];
+  const confirmationNeeded = [];
   const factor = servings > 0 && recipeServings > 0 ? servings / recipeServings : 1;
 
   ingredients.forEach((ingredient) => {
@@ -390,6 +395,16 @@ export const consumePantryIngredients = (pantry = [], ingredients = [], {
       const have = pantryQty(item);
       const position = remaining.indexOf(item);
       if (position < 0) continue;
+
+      // Unknown or decayed stock is evidence to check, not permission to
+      // silently spend. A probable row can still be used, but is reported as
+      // an assumption so the cook result remains honest.
+      const confidence = effectivePantryConfidence(item, today);
+      if (confidence === 'unknown') {
+        confirmationNeeded.push({ name: item.name, itemId: item.id, reason: 'stock confidence is unknown' });
+        continue;
+      }
+      if (confidence === 'probable') assumed.push({ name: item.name, reason: 'stock confidence is probable' });
 
       // The recipe never said how much. Spend one unit — the smallest change
       // that is still true — rather than clearing the row on an assumption.
@@ -432,7 +447,23 @@ export const consumePantryIngredients = (pantry = [], ingredients = [], {
     }
   });
 
-  return { pantry: remaining, used, shortfalls, assumed, restore: pantry, at: today };
+  return {
+    pantry: remaining,
+    used,
+    shortfalls,
+    assumed,
+    confirmationNeeded,
+    inference: {
+      type: 'recipe_consumption',
+      confidence: shortfalls.length || confirmationNeeded.length ? 'low' : assumed.length ? 'medium' : 'high',
+      used: used.length,
+      shortfalls: shortfalls.length,
+      confirmationNeeded: confirmationNeeded.length,
+      at: today,
+    },
+    restore: pantry,
+    at: today,
+  };
 };
 
 const encodeUtf8 = (value) => btoa(unescape(encodeURIComponent(value)));

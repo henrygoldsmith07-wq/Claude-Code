@@ -81,6 +81,11 @@ export function ReflectionForm({ attemptId, onDone }: { attemptId: string; onDon
             </Button>
           ))}
         </div>
+        {attempted === "no-opportunity" || attempted === "wrong-situation" ? (
+          <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--text-faint)" }}>
+            This records the context, not a failure. It will not lower your skill estimate.
+          </p>
+        ) : null}
       </fieldset>
 
       <fieldset className="mt-4">

@@ -24,8 +24,9 @@ export default function PriceCompare() {
   const best = stores.length ? [...stores].sort((a, b) => b.covered - a.covered || a.total - b.total)[0] : null;
   const [observed, setObserved] = useState(null); // { byKey, checkedAt, fromCache, fetched, error } | null
   const [observedBusy, setObservedBusy] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
   const fetchObserved = async () => {
-    if (!app.shoppingList.length || observedBusy) return;
+    if (!app.shoppingList.length || observedBusy || app.shoppingPreferences?.offlineMode) return;
     setObservedBusy(true);
     try {
       const result = await fetchObservedForList(app.shoppingList);
@@ -75,13 +76,66 @@ export default function PriceCompare() {
         )}
       </Section>
 
+      {app.shoppingList.length > 0 && (
+        <Section className="rise rise-1">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[0.9375rem] font-bold tracking-tight">Price evidence on your list</h2>
+              <p className="mt-0.5 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>Receipt changes and like-for-like unit values</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowEvidence((value) => !value)}
+              aria-expanded={showEvidence}
+              className="press rounded-xl border px-3 py-2 text-[0.71875rem] font-extrabold"
+              style={{ borderColor: 'var(--line)', color: 'var(--accent)' }}
+            >
+              {showEvidence ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {showEvidence && (
+            <>
+              <Card className="mt-3 !p-0 divide-y" style={{ borderColor: 'var(--line)' }}>
+                {app.shoppingList.map((item) => {
+                  const insight = app.shoppingInsights?.byId?.[item.id] || {};
+                  const change = insight.priceChange;
+                  const unit = insight.unitPrices;
+                  const bestUnit = unit?.best?.unitPrice;
+                  const bestSource = unit?.best?.store || unit?.best?.source;
+                  const tone = insight.price?.level === 'high' ? 'good' : insight.price?.level === 'medium' ? 'accent' : insight.price?.level === 'low' ? 'warn' : 'muted';
+                  return (
+                    <div key={item.id} className="p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="min-w-0 truncate font-bold text-[0.84375rem]">{item.name}</p>
+                        <Pill tone={tone}>{insight.price?.label || 'No price'}</Pill>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                        {change?.status === 'tracked' && change.pct !== null
+                          ? <span style={{ color: change.direction === 'up' ? 'var(--danger)' : change.direction === 'down' ? 'var(--good)' : 'var(--muted)' }}>{change.direction === 'up' ? '↑' : change.direction === 'down' ? '↓' : '·'} {Math.abs(change.pct)}% since the previous receipt</span>
+                          : <span>{change?.observations === 1 ? 'One receipt — one more gives a price change.' : 'No recorded price change yet.'}</span>}
+                        {unit?.comparable > 1 && bestUnit
+                          ? <span>Best like-for-like: £{bestUnit.value.toFixed(2)} / {bestUnit.unit}{bestSource ? ` · ${bestSource}` : ''}</span>
+                          : <span>Unit value needs a matching, readable quantity.</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </Card>
+              <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+                Confidence separates recorded receipts from entered, observed and estimated prices. Unit comparisons never cross mass, volume or count scales.
+              </p>
+            </>
+          )}
+        </Section>
+      )}
+
       <Section className="rise rise-1" title="Community observed prices">
         <p className="text-[0.75rem] font-semibold mb-3" style={{ color: 'var(--muted)' }}>
           Honest, dated observations from Open Prices — people who shopped and reported what they paid. Not a live supermarket feed; dates and staleness are shown so you can judge.
         </p>
         <div className="flex gap-2 mb-3">
-          <button type="button" onClick={fetchObserved} disabled={observedBusy || !app.shoppingList.length} className="press rounded-2xl px-4 py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
-            <span className="inline-flex items-center gap-1.5"><Search size={14} /> {observedBusy ? 'Checking…' : observed ? 'Check again' : 'Check community prices for this list'}</span>
+          <button type="button" onClick={fetchObserved} disabled={observedBusy || !app.shoppingList.length || app.shoppingPreferences?.offlineMode} className="press rounded-2xl px-4 py-2.5 text-[0.8125rem] font-extrabold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+            <span className="inline-flex items-center gap-1.5"><Search size={14} /> {app.shoppingPreferences?.offlineMode ? 'Offline mode' : observedBusy ? 'Checking…' : observed ? 'Check again' : 'Check community prices for this list'}</span>
           </button>
           {observed && (
             <button type="button" onClick={() => { clearObservedPriceCache(); setObserved(null); }} className="press rounded-2xl border px-4 text-[0.8125rem] font-bold" style={{ borderColor: 'var(--line)' }}>Clear cache</button>
@@ -91,7 +145,7 @@ export default function PriceCompare() {
           <Card className="text-center py-6">
             <Info size={22} className="mx-auto mb-2" style={{ color: 'var(--faint)' }} />
             <p className="text-[0.8125rem] font-semibold" style={{ color: 'var(--muted)' }}>
-              {app.shoppingList.length ? 'Tap check to look up dated GBP observations for up to 12 items on this list. Nothing is fetched until you ask.' : 'Add items to your list first.'}
+              {app.shoppingPreferences?.offlineMode ? 'Offline shopping mode is on. Your recorded receipts and unit values remain available without a network lookup.' : app.shoppingList.length ? 'Tap check to look up dated GBP observations for up to 12 items on this list. Nothing is fetched until you ask.' : 'Add items to your list first.'}
             </p>
           </Card>
         )}

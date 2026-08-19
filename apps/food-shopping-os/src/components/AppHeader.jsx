@@ -1,7 +1,10 @@
-import { Cloud, CloudOff, Flame, LoaderCircle, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Cloud, CloudOff, Download, Flame, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { greeting, prettyDate } from '../lib/utils.js';
 import { setupProgress } from '../lib/setup.js';
+import { hasQueuedCloud } from '../lib/cloud.js';
+import { downloadFile } from '../lib/notify.js';
 import { Pill } from './ui.jsx';
 
 const TITLES = {
@@ -23,12 +26,42 @@ const TITLES = {
  */
 export default function AppHeader({ tab, onProfile, onGuidance }) {
   const app = useApp();
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  const [queued, setQueued] = useState(false);
   const screen = TITLES[tab];
   const setup = setupProgress(app);
-  const live = app.cloudStatus?.kind === 'live';
-  const reconnecting = app.cloudStatus?.kind === 'reconnecting' || app.cloudStatus?.kind === 'connecting';
+  const kind = app.cloudStatus?.kind || 'disabled';
+  const live = kind === 'live';
+  const reconnecting = kind === 'reconnecting' || kind === 'connecting';
   const hasSyncStatus = Boolean(app.cloudStatus?.kind && app.cloudStatus.kind !== 'checking');
+  const needsAttention = ['error', 'offline', 'conflict', 'reconnecting'].includes(kind)
+    || (!online && kind !== 'disabled' && kind !== 'signed-out');
   const SyncIcon = live ? Cloud : reconnecting ? LoaderCircle : CloudOff;
+
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      setQueued(typeof window !== 'undefined' && hasQueuedCloud());
+    } catch {
+      setQueued(false);
+    }
+  }, [kind]);
+
+  const refresh = () => window.dispatchEvent(new Event('forq-cloud-refresh'));
+  const exportBackup = () => {
+    const data = app.exportData?.();
+    if (data) downloadFile(`forq-${new Date().toISOString().slice(0, 10)}-sync-backup.json`, data, 'application/json');
+  };
 
   return (
     <header className="app-header px-5 pt-12 pb-3">
@@ -91,7 +124,45 @@ export default function AppHeader({ tab, onProfile, onGuidance }) {
         </div>
       )}
 
-      {hasSyncStatus && (
+      {needsAttention && (
+        <div
+          className="mt-2 rounded-2xl border px-3 py-2.5"
+          role="status"
+          aria-live="polite"
+          style={{ borderColor: kind === 'conflict' ? 'var(--warn)' : 'var(--line)', background: 'var(--card-2)' }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 text-[0.71875rem] font-bold leading-relaxed" style={{ color: kind === 'conflict' ? 'var(--warn)' : 'var(--muted)' }}>
+              {!online ? 'Offline — changes stay on this device.' : app.cloudStatus?.message || 'Sync needs attention.'}
+              {queued && <span> Queued locally.</span>}
+            </p>
+            <div className="flex shrink-0 items-center gap-1">
+              {kind === 'conflict' && (
+                <button
+                  type="button"
+                  onClick={exportBackup}
+                  aria-label="Export sync backup"
+                  className="press inline-flex min-h-9 items-center gap-1 rounded-xl px-2 text-[0.6875rem] font-extrabold"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  <Download size={12} /> Backup
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={refresh}
+                aria-label="Retry household sync"
+                className="press inline-flex min-h-9 items-center gap-1 rounded-xl px-2 text-[0.6875rem] font-extrabold"
+                style={{ color: 'var(--accent)' }}
+              >
+                <RefreshCw size={12} /> Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hasSyncStatus && !needsAttention && (
         <div className={live || reconnecting ? 'mt-2' : 'sr-only'} role="status" aria-label={app.cloudStatus.message}>
           {live || reconnecting ? (
             <Pill tone={live ? 'accent' : 'muted'}>

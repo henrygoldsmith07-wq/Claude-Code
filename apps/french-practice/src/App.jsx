@@ -33,7 +33,7 @@ import {
   getCoins, addCoins, getAvatar, bumpChallengeMetric, addEventXp,
   getPrefs, setPrefs, getSessions, addStudyTime,
   setApiKey as persistApiKey, setAvatar as persistAvatar, ownAvatar, setHabitList,
-  setOnboarded, setLastActivity, getLastActivity, recordLearningActivity,
+  setOnboarded, setLastActivity, getLastActivity, recordSpeakingGap, recordLearningActivity,
 } from './lib/storage';
 import { allEntries } from './lib/vocab';
 import { notebookAsEntries, dueEntries } from './lib/memory';
@@ -316,6 +316,12 @@ export default function App() {
 
   const handleTurn = (scores) => {
     setLastScores(scores);
+    recordSpeakingGap('conversation', {
+      label: 'Conversation turn',
+      score: scores?.overall ?? 0,
+      source: 'conversation',
+      context: { scenarioId: scenario.id },
+    });
     awardXp(Math.max(1, Math.round(scores.overall / 10)));
     setLastActivity('session', scenario.id, `Conversation: ${scenario.title}`);
   };

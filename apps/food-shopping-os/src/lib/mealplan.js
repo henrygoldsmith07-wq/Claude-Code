@@ -13,7 +13,8 @@ import { MEAL_SLOTS } from '../data/plan.js';
 import { itemsFromRecipes } from '../data/stores.js';
 import { addDays, dayStamp, pantryAvailability, pantryTruthForNeed, weekStart } from './kitchen.js';
 import { canonicalName } from './aliases.js';
-import { mergeQtys } from './pantry.js';
+import { mergeQtys, qtySuffices } from './pantry.js';
+import { explainPantryShortfall, shortfallQuantity } from './pantry-intelligence.js';
 
 export const SLOT_KEYS = MEAL_SLOTS.map((s) => s.key);
 
@@ -320,7 +321,9 @@ export const batchGroups = (plan = {}, dates = [], { people = 1 } = {}) =>
  * sufficient — they still generate a shopping item so the list reflects
  * what you truly need.
  */
-export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => {
+export const shoppingForPlan = (plan = {}, dates = [], {
+  pantry = [], today = dayStamp(), learnedAliases = {},
+} = {}) => {
   const coveredIds = coveredByLeftovers(plan, dates, pantry).map((e) => e.recipeId);
   const spend = [...coveredIds];
   const recipes = [];
@@ -338,18 +341,34 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
   // and "tin tomatoes" are recognised as the same thing.
   const sufficientNames = pantry
     .filter((item) => {
-      const avail = pantryAvailability(item);
+      const avail = pantryAvailability(item, today);
       return avail === "confirmed_sufficient" || avail === "probably_available";
     })
-    .map((p) => canonicalName(p.name));
+      .map((p) => canonicalName(p.name, learnedAliases));
   // quantity-aware pass: if an ingredient needs e.g. "500 g" but pantry has "100 g", treat as insufficient
   const byName = new Map();
   for (const item of pantry) {
-    const k = canonicalName(item.name);
+    const k = canonicalName(item.name, learnedAliases);
     if (!k) continue;
     if (!byName.has(k)) byName.set(k, []);
     byName.get(k).push(item);
   }
+  const usablePantryRows = (key) => (byName.get(key) || []).filter((item) => {
+    const truth = pantryAvailability(item, today);
+    return truth === 'confirmed_sufficient' || truth === 'probably_available';
+  });
+  const availableFor = (key) => usablePantryRows(key)
+    .reduce((total, item) => mergeQtys(total, item.qty || '', { ingredient: key }), '');
+  const pantryCoversNeed = (key, needQty) => {
+    const candidates = usablePantryRows(key);
+    if (!candidates.length) return false;
+    const combined = qtySuffices(availableFor(key), needQty, { ingredient: key });
+    if (combined !== null) return combined;
+    return candidates.some((item) => {
+      const truth = pantryTruthForNeed(item, needQty, { today, learnedAliases });
+      return truth === 'confirmed_sufficient' || truth === 'probably_available';
+    });
+  };
   const filteredRecipes = recipes; // itemsFromRecipes handles name-level de-dupe; quantity refinement happens per-ingredient below
   const raw = itemsFromRecipes(filteredRecipes, sufficientNames);
   // Second pass: re-add ingredients where qty is known insufficient.
@@ -357,10 +376,13 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
   // Keeping only the last recipe's amount — which is what this did — meant two
   // dinners each wanting 400 g of tomatoes were covered by a single 400 g tin.
   const needByKey = new Map();
+  const sourceRecipesByKey = new Map();
   for (const r of filteredRecipes) {
     for (const ing of r.ingredients) {
-      const k = canonicalName(ing.name);
+      const k = canonicalName(ing.name, learnedAliases);
       needByKey.set(k, mergeQtys(needByKey.get(k) || "", ing.qty || "", { ingredient: k }));
+      if (!sourceRecipesByKey.has(k)) sourceRecipesByKey.set(k, []);
+      if (!sourceRecipesByKey.get(k).includes(r.name)) sourceRecipesByKey.get(k).push(r.name);
     }
   }
   const insufficientKeys = new Set();
@@ -368,17 +390,43 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
     const candidates = byName.get(key) || [];
     if (!candidates.length) continue;
     // if any candidate is sufficient for this need, keep it covered
-    const anySufficient = candidates.some((c) => pantryTruthForNeed(c, needQty) === "confirmed_sufficient" || pantryTruthForNeed(c, needQty) === "probably_available");
+    const anySufficient = pantryCoversNeed(key, needQty);
     if (!anySufficient && sufficientNames.includes(key)) {
       // was considered sufficient by name, but qty shows insufficient -> needs shopping
       insufficientKeys.add(key);
     }
   }
-  if (!insufficientKeys.size) return raw;
-  const rawKeys = new Set(raw.map((i) => String(i.name).toLowerCase()));
+  const annotate = (rows) => rows.map((row) => {
+    const key = canonicalName(row.name, learnedAliases);
+    const requiredQty = needByKey.get(key);
+    if (!requiredQty) return row;
+    const availableQty = availableFor(key);
+    const sufficient = pantryCoversNeed(key, requiredQty);
+    const shortfallQty = sufficient ? '' : shortfallQuantity(availableQty, requiredQty, { ingredient: key });
+    return {
+      ...row,
+      qty: requiredQty || row.qty,
+      requiredQty,
+      pantryQty: availableQty,
+      shortfallQty,
+      sourceRecipes: sourceRecipesByKey.get(key) || [],
+      explanation: shortfallQty || !sufficient
+        ? explainPantryShortfall({
+          name: row.name,
+          needQty: requiredQty,
+          availableQty,
+          shortfallQty,
+          sourceRecipes: sourceRecipesByKey.get(key) || [],
+        })
+        : row.explanation,
+      pantryTruth: sufficient ? row.pantryTruth : 'confirmed_insufficient',
+    };
+  });
+  if (!insufficientKeys.size) return annotate(raw);
+  const rawKeys = new Set(raw.map((i) => canonicalName(i.name, learnedAliases)));
   for (const r of filteredRecipes) {
     for (const ing of r.ingredients) {
-      const k = canonicalName(ing.name);
+      const k = canonicalName(ing.name, learnedAliases);
       if (!insufficientKeys.has(k)) continue;
       if (rawKeys.has(k)) continue;
       raw.push({
@@ -395,5 +443,5 @@ export const shoppingForPlan = (plan = {}, dates = [], { pantry = [] } = {}) => 
       rawKeys.add(k);
     }
   }
-  return raw;
+  return annotate(raw);
 };

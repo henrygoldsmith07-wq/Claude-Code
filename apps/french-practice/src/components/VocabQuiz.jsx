@@ -107,6 +107,7 @@ export default function VocabQuiz({ deck, library, title, onRate, onXp, onActivi
       mode: cardMode,
       skill: 'vocabulary',
       itemLabel: entry.fr,
+      label: entry.fr,
       source: 'vocab-quiz',
     });
     onRate?.();

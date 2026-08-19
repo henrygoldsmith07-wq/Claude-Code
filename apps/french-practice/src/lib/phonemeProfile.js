@@ -1,6 +1,8 @@
 // Phoneme confusion profile — per phoneme weakness, confidence, and minimal-pair queue.
 // French phonemes that trip English speakers: r/ʁ, y/u, nasal ɛ̃/ɔ̃/ɑ̃, liaison, gn/ɲ.
 
+import { recordPronunciationGap } from './storage.js';
+
 export const PHONEMES = [
   { id: 'r', label: 'r (uvular ʁ)', tip: 'Gargle lightly — back of the throat, not the English r.' },
   { id: 'u-ou', label: 'u / ou (y vs u)', tip: 'u = lips tight like whistling; ou = relaxed like “oo”.' },
@@ -21,7 +23,7 @@ function writeRaw(v){ try{ localStorage.setItem(KEY, JSON.stringify(v)); }catch{
 
 export function getPhonemeProfile(){ return readRaw(); }
 
-export function recordPhonemeAttempt(phonemeId, { correct, confidence=0.7 }={}){
+export function recordPhonemeAttempt(phonemeId, { correct, confidence=0.7, label=phonemeId, trackGap=true }={}){
   if(!phonemeId) return null;
   const p = readRaw();
   const cur = p[phonemeId] || { attempts: 0, correct: 0, misses: 0, avgConf: 0.5, lastAt: null };
@@ -32,6 +34,14 @@ export function recordPhonemeAttempt(phonemeId, { correct, confidence=0.7 }={}){
   cur.weak = (cur.misses / Math.max(1, cur.attempts)) >= 0.33 || (cur.attempts>=3 && cur.avgConf < 0.6);
   p[phonemeId] = cur;
   writeRaw(p);
+  if (trackGap) {
+    recordPronunciationGap(phonemeId, {
+      label,
+      score: correct ? Math.round(Math.max(0, Math.min(1, confidence)) * 100) : 0,
+      source: 'phoneme-profile',
+      context: { confidence, attempts: cur.attempts, misses: cur.misses },
+    });
+  }
   return cur;
 }
 

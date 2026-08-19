@@ -7,8 +7,13 @@ import { transcribe, evaluateTurn, evaluateRedoTurn, getHint, explainMistake, fr
 import { scoreDelta, redoVerdict } from '../lib/redo';
 import { speechMetrics } from '../lib/analytics';
 import { activeLanguage } from '../lib/i18n';
-import { getSrs, recordGrammarError, recordWeaknessError, recordWeaknessRepair, getDueWeaknesses, getLearnerBrief } from '../lib/storage';
+import {
+  getSrs, getSessions, getMetrics, getReviewEvents, getGrammarProgress, getEvidenceLedgerModel,
+  getSettings, recordGrammarError, recordWeaknessError, recordWeaknessRepair, getDueWeaknesses, getLearnerBrief,
+} from '../lib/storage';
 import { allEntries } from '../lib/vocab';
+import { GRAMMAR_TOPICS } from '../lib/grammar';
+import { buildLearningPlan } from '../lib/learningAdaptation';
 import { Markdown, ScoreBadge, SpeakButton, RateSlider, Spinner } from './ui';
 import { speak } from '../lib/tts';
 import { ArrowRight, Book, Lightbulb, Mic, Square, scenarioIcon } from './icons';
@@ -77,17 +82,6 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   }, [history, phase]);
 
   const [reversed, setReversed] = useState(false);
-
-  // Comprehensible input: feed the model the learner's strongest SRS words so
-  // replies lean on vocabulary they actually know.
-  const knownWords = () => {
-    const srs = getSrs();
-    return allEntries()
-      .filter((e) => (srs[e.id]?.reps || 0) > 0)
-      .sort((a, b) => (srs[b.id].reps || 0) - (srs[a.id].reps || 0))
-      .slice(0, 40)
-      .map((e) => e.fr);
-  };
 
   const changeScenario = (id) => {
     const s = getScenarios().find((x) => x.id === id);
@@ -164,23 +158,51 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     const turnNumber = history.length + 1;
     try {
       const learner = getLearnerBrief();
+      const learningPlan = buildLearningPlan({
+        level,
+        entries: allEntries(),
+        srs: getSrs(),
+        sessions: getSessions(),
+        metrics: getMetrics(),
+        reviewEvents: getReviewEvents(),
+        grammarTopics: GRAMMAR_TOPICS,
+        grammarProgress: getGrammarProgress(),
+        errorModel: getEvidenceLedgerModel(),
+        correctionFrequency: getSettings().correctionFrequency,
+        confidence: learner.errorQueue?.length ? 0.45 : 0.55,
+        userRate: ttsRate,
+        userText,
+      });
       const evaluation = await evaluateTurn(apiKey, {
         scenario,
         history,
         userText,
         curveball: turnNumber === CURVEBALL_TURN ? scenario.curveball : null,
         level,
-        knownWords: knownWords(),
+        knownWords: learningPlan.input.knownWords,
+        learningPlan,
         reversed,
         learner,
         mock: mockMode,
       });
       if (evaluation.grammar_topic) recordWeaknessError(evaluation.grammar_topic, { scenarioId: scenario.id });
       if (evaluation.grammar_topic) recordGrammarError(evaluation.grammar_topic);
-      const turn = { userText, evaluation, reply: evaluation.reply, curveball: turnNumber === CURVEBALL_TURN };
+      const turn = {
+        userText,
+        evaluation,
+        reply: evaluation.reply,
+        curveball: turnNumber === CURVEBALL_TURN,
+        correctionPolicy: learningPlan.correction,
+        learningSnapshot: {
+          targetLevel: learningPlan.progression.targetLevel,
+          listeningStage: learningPlan.listening.stage,
+          newWords: learningPlan.input.newWords,
+          speechRate: learningPlan.speech.rate,
+        },
+      };
       setHistory((h) => [...h, turn]);
       onTurn(evaluation.scores);
-      speak(evaluation.reply, { rate: ttsRate });
+      speak(evaluation.reply, { rate: learningPlan.speech.rate });
     } catch (e) {
       setError(friendlyError(e));
       setDraft(userText); // don't lose their words
@@ -291,6 +313,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
               apiKey={apiKey}
               mockMode={mockMode}
               level={level}
+              correctionPolicy={turn.correctionPolicy}
             />
             {turn.curveball && (
               <p className="text-center text-[11px] text-ink/90 font-semibold tracking-wide uppercase">
@@ -459,9 +482,10 @@ function AiBubble({ text, translation, ttsRate }) {
   );
 }
 
-function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip, apiKey, mockMode, level }) {
+function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip, apiKey, mockMode, level, correctionPolicy }) {
   const [expanded, setExpanded] = useState(false);
   const { evaluation } = turn;
+  const feedbackOff = correctionPolicy?.preference === 'off';
   const redoHidden = redoActive && !expanded; // correction collapsed while redo active
   return (
     <div className="flex flex-col items-end gap-1.5 bubble-in">
@@ -472,12 +496,14 @@ function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip,
         <ScoreBadge value={evaluation.scores.overall} />
       </div>
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
-        >
-          {expanded ? 'Hide feedback' : 'Corrections & native version'}
-        </button>
+        {!feedbackOff ? (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[11px] text-ink2 hover:text-ink min-h-8 px-1"
+          >
+            {expanded ? 'Hide feedback' : correctionPolicy?.timing === 'delayed' ? 'Review saved feedback' : 'Corrections & native version'}
+          </button>
+        ) : <span className="text-[11px] text-ink3 min-h-8 px-1 grid place-items-center">Feedback off</span>}
         {!turn.redo && (
           redoActive ? (
             <button onClick={onCancelRedo} className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 min-h-8 px-2 rounded-lg bg-amber-50 border border-amber-200">Cancel redo</button>

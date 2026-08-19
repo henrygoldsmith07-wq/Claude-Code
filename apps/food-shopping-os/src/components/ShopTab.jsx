@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Banknote, Building2, Check, CloudOff, Copy, MapPin, Mic, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Star, Tag,
+  Banknote, Building2, Check, CloudOff, Copy, MapPin, Mic, Package, Plus, Receipt, RotateCcw, ScanLine, ShoppingCart, Star, Tag,
   Trash2, TrendingUp, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
@@ -52,6 +52,8 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
   const [observedError, setObservedError] = useState('');
   const [observedMeta, setObservedMeta] = useState(null); // { checkedAt, fromCache, fetched }
   const shoppingMode = shoppingSession.active;
+  const largeTouch = Boolean(app.shoppingPreferences?.largeTouch);
+  const offlineMode = Boolean(app.shoppingPreferences?.offlineMode);
 
   useEffect(() => {
     if (quickAddKey) {
@@ -161,7 +163,7 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
   };
 
   const checkObservedPrices = async () => {
-    if (!visibleList.length || observedBusy) return;
+    if (!visibleList.length || observedBusy || offlineMode || !isOnline) return;
     setObservedBusy(true);
     setObservedError('');
     try {
@@ -191,7 +193,7 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
   }
 
   return (
-    <div className="pb-6 space-y-6"><CloudSyncRow />
+    <div className={cx('pb-6 space-y-6', shoppingMode && largeTouch && 'shopping-large-touch')}><CloudSyncRow />
       {/* The shared header carries the title now. Five views don't fit a
           320px phone on one line, so this scrolls rather than pushing the
           whole page sideways. */}
@@ -234,11 +236,21 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
                       {gbp(basket.total, { always: true })} less {gbp(basket.saved, { always: true })} of your offers
                     </p>
                   )}
-                  {basket.unpriced > 0 && (
-                    <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                      {basket.unpriced} item{basket.unpriced === 1 ? '' : 's'} with no price yet — the total is only what you’ve typed in.
-                    </p>
-                  )}
+              {basket.unpriced > 0 && (
+                <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {basket.unpriced} item{basket.unpriced === 1 ? '' : 's'} with no price yet — the total is only what you’ve typed in.
+                </p>
+              )}
+              {onOpenPantry && app.pantry.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenPantry}
+                  className="press mt-3 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[0.71875rem] font-extrabold"
+                  style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+                >
+                  <Package size={13} /> Check pantry before buying <span className="font-semibold">· {app.pantry.length} items</span>
+                </button>
+              )}
                 </div>
                 {/* Starting a shop is the primary action at the bottom of the
                     screen now; only the way out of it belongs up here. */}
@@ -279,11 +291,40 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
               {shoppingMode && (
                 <p className="mt-2 inline-flex items-center gap-1.5 text-[0.71875rem] font-bold" style={{ color: isOnline ? 'var(--good)' : 'var(--warn)' }}>
                   {isOnline ? <Check size={12} /> : <CloudOff size={12} />}
-                  {isOnline ? 'Online · changes save locally and sync when available.' : 'Offline · changes save locally; sync resumes when you reconnect.'}
+                  {offlineMode
+                    ? 'Offline shopping mode · the list and aisle route stay available locally.'
+                    : isOnline ? 'Online · changes save locally and sync when available.' : 'Offline · changes save locally; sync resumes when you reconnect.'}
                 </p>
               )}
 
               {shoppingMode && <ShoppingProgress total={visibleList.length} checked={ticked} />}
+
+              {shoppingMode && (
+                <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--line)', background: 'var(--card-2)' }}>
+                  <div className="flex flex-wrap gap-2">
+                    <Chip active={largeTouch} onClick={() => app.setShoppingPreferences({ largeTouch: !largeTouch })}>
+                      {largeTouch ? 'Large-touch UI on' : 'Large-touch UI'}
+                    </Chip>
+                    <Chip active={offlineMode} onClick={() => app.setShoppingPreferences({ offlineMode: !offlineMode })}>
+                      {offlineMode ? 'Offline mode on' : 'Offline mode'}
+                    </Chip>
+                  </div>
+                  <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {app.shoppingInsights?.shared
+                      ? <>
+                        {app.cloudStatus?.kind === 'live' ? 'Shared live list · household changes appear here.' : 'Shared list · changes save locally and sync when available.'}
+                        {app.shoppingInsights.lastChangedBy && <span> · Last change by {app.members.find((member) => member.id === app.shoppingInsights.lastChangedBy)?.name || app.shoppingInsights.lastChangedBy}</span>}
+                      </>
+                      : 'Private list · add household members to share it live.'}
+                  </p>
+                </div>
+              )}
+              {!shoppingMode && app.shoppingInsights?.shared && (
+                <p className="mt-3 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Shared household list · changes sync when available.
+                  {app.shoppingInsights.lastChangedBy && <span> Last change by {app.members.find((member) => member.id === app.shoppingInsights.lastChangedBy)?.name || app.shoppingInsights.lastChangedBy}.</span>}
+                </p>
+              )}
 
               {ticked > 0 && (
                 <button
@@ -479,8 +520,8 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
                       Your receipts are primary. Community observations are dated context — never a live quote.
                     </p>
                   </div>
-                  <button type="button" onClick={checkObservedPrices} disabled={observedBusy} className="press shrink-0 rounded-2xl px-3.5 py-2 text-[0.78125rem] font-extrabold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
-                    {observedBusy ? 'Checking…' : observedByKey ? 'Check again' : 'Check community prices'}
+                  <button type="button" onClick={checkObservedPrices} disabled={observedBusy || offlineMode || !isOnline} className="press shrink-0 rounded-2xl px-3.5 py-2 text-[0.78125rem] font-extrabold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+                    {offlineMode ? 'Offline mode' : observedBusy ? 'Checking…' : observedByKey ? 'Check again' : 'Check community prices'}
                   </button>
                 </div>
                 {observedError && <p className="mt-2 text-[0.75rem] font-semibold" style={{ color: 'var(--danger)' }}>{observedError}</p>}
@@ -529,6 +570,7 @@ export default function ShopTab({ quickAddKey = 0, onOpenPantry }) {
                             dragging={dragging}
                             setDragging={setDragging}
                             observedPrice={observedByKey?.[shoppingNameKey(item.name)] || null}
+                            largeTouch={largeTouch}
                           />
                         ))}
                       </Card>

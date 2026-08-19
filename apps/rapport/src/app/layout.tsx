@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Rapport — social skills training",
   description:
     "A personal training system for practical communication skills: assess, learn, rehearse, practise for real, reflect, adapt.",
-  icons: { icon: "/logo.svg", apple: "/logo.svg" },
+  icons: { icon: "/logo.svg", apple: "/apple-touch-icon.png" },
   robots: { index: false, follow: false },
 };
 

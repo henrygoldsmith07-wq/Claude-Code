@@ -1,6 +1,8 @@
 // Error notebook — every correction is stored with why + recurrence and surfaced as drills.
 // Require learner correction (retype) rather than just showing the answer.
 
+import { recordWritingGap } from './storage.js';
+
 const KEY = 'fp.errorNotebook';
 
 function readRaw(){ try{ const v=localStorage.getItem(KEY); return v? JSON.parse(v): []; }catch{ return []; } }
@@ -10,6 +12,12 @@ export function getErrorNotebook(){ return readRaw(); }
 
 export function addErrorNotebook({ original, corrected, why, ruleId }){
   if(!original || !corrected || original===corrected) return readRaw();
+  recordWritingGap(ruleId || corrected, {
+    label: why || corrected,
+    score: 0,
+    source: 'error-notebook',
+    context: { original, corrected, ruleId: ruleId || null },
+  });
   const list = readRaw();
   const id = `${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
   const existing = list.find(e=> e.corrected===corrected && e.original===original);

@@ -123,3 +123,45 @@ export const retailerOffers = (selected, offers = []) => {
   if (!selected) return [];
   return offers.filter((offer) => !offer.store || sameRetailer(offer.store, selected.name));
 };
+
+/**
+ * A retailer link is a convenience, not a guarantee that the retailer is up.
+ * Keep a visible, ordered fallback plan so a failed shop never looks like a
+ * successful basket or an invented price quote.
+ */
+export const retailerFallbackPlan = (preferredId, {
+  failedIds = [], items = [], shops = [],
+} = {}) => {
+  const preferred = retailerById(preferredId);
+  const failed = new Set((failedIds || []).map((id) => retailerById(id)?.id || id));
+  const attempts = RETAILERS.map((entry, index) => {
+    const basket = retailerBasket(entry.id, items, shops);
+    const isPreferred = preferred?.id === entry.id;
+    const unavailable = failed.has(entry.id);
+    return {
+      id: entry.id,
+      name: entry.name,
+      url: entry.shopUrl,
+      searchUrl: items[0]?.name ? entry.search(items[0].name) : entry.shopUrl,
+      fulfilment: entry.fulfilment,
+      unavailable,
+      status: unavailable ? 'unavailable' : basket.covered ? 'recorded-prices' : 'browse',
+      covered: basket.covered,
+      of: basket.of,
+      total: basket.total,
+      score: (isPreferred ? 1000 : 0) + (unavailable ? -1000 : 0) + (basket.covered * 10) + (entry.fulfilment === 'delivery' ? 1 : 0) - index / 100,
+    };
+  }).sort((a, b) => b.score - a.score);
+  const primary = attempts.find((entry) => entry.id === preferred?.id) || attempts[0] || null;
+  const fallback = attempts.find((entry) => entry.id !== primary?.id && !entry.unavailable) || null;
+  return {
+    preferred: primary,
+    fallback,
+    attempts,
+    reason: primary?.unavailable
+      ? `${primary.name} is unavailable. Use ${fallback?.name || 'another retailer'} and confirm the basket there.`
+      : primary?.status === 'browse'
+        ? `${primary.name} has no recorded prices for this list. Use the official product search to confirm stock and price.`
+        : 'Recorded prices are reference only; confirm the basket at checkout.',
+  };
+};

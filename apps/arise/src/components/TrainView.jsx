@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { PROGRAMS, PROGRAM_BY_ID, PROGRAM_TEMPLATES, programHistory, availablePrograms, EXERCISE_BY_ID, plannedVsCompleted } from '../lib/data.js';
+import { PROGRAMS, PROGRAM_BY_ID, PROGRAM_TEMPLATES, programHistory as programVersionHistory, availablePrograms, EXERCISE_BY_ID, plannedVsCompleted } from '../lib/data.js';
 import { startProgram } from '../lib/schedule.js';
+import { adaptScheduleForEquipment, programAdherence, recordProgramStart, userProgramHistory } from '../lib/programming.js';
 
 export default function TrainView({ store, setStore, onStartSession, availableEquipment }){
   const [programId,setProgramId]=useState(store.activeSchedule?.programId || PROGRAMS[0].id);
@@ -8,14 +9,21 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
   const program = PROGRAM_BY_ID[programId];
   const active = store.activeSchedule;
   const pvc = useMemo(()=> active ? plannedVsCompleted(active, store.history||[]) : [], [active, store.history]);
+  const adaptation = useMemo(()=> active ? adaptScheduleForEquipment(active, availableEquipment, store.history || []) : null, [active, availableEquipment, store.history]);
+  const adherence = useMemo(()=> active ? programAdherence(active, store.history || []) : null, [active, store.history]);
+  const userHistory = useMemo(()=> userProgramHistory(store.programHistory || [], active, store.history || []), [store.programHistory, active, store.history]);
 
   const start = ()=>{
     const next = startProgram(store, programId);
-    // record version history
     const prog = PROGRAM_BY_ID[programId];
     const entry = { programId, version: prog.version||1, startDateISO: next.activeSchedule.startDateISO, endDateISO: null };
-    const hist = [...(store.programHistory||[]), entry];
-    setStore({ ...next, programHistory: hist });
+    const adapted = adaptScheduleForEquipment(next.activeSchedule, availableEquipment, store.history || []);
+    const hist = recordProgramStart(store.programHistory || [], entry);
+    setStore({ ...next, activeSchedule: adapted.schedule, programHistory: hist });
+  };
+
+  const applyEquipmentChanges = ()=>{
+    if(adaptation?.changed) setStore({ ...store, activeSchedule: adaptation.schedule });
   };
 
   return (
@@ -59,6 +67,17 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
         <p className="text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-3 py-2">This program needs kit you didn’t select in onboarding. You can still start it — exercises show substitutions — but recommendations in Today will bias toward what you actually have. Update kit in More → Onboarding.</p>
       )}
 
+      {active && adaptation?.changed && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 space-y-2">
+          <p className="text-xs font-bold text-amber-900">Equipment change detected</p>
+          <p className="text-xs text-amber-900">{adaptation.reason} Your completed history stays attached to the original exercise IDs.</p>
+          <ul className="text-[11px] text-amber-900 space-y-1">
+            {adaptation.substitutions.slice(0, 4).map((swap, i)=> <li key={`${swap.sessionId}-${i}`}>{swap.from} → {swap.to}</li>)}
+          </ul>
+          <button onClick={applyEquipmentChanges} className="btn btn-primary min-h-10 rounded-xl px-3 text-xs">Apply kit changes to schedule</button>
+        </div>
+      )}
+
       {program && program.mesocycle && (
         <p className="text-xs text-ink3">Mesocycle: {program.mesocycle.weeks} weeks • progression {program.mesocycle.progression} {program.mesocycle.deloadWeek?`• deload week ${program.mesocycle.deloadWeek}`:''}</p>
       )}
@@ -74,7 +93,7 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
           <details className="text-xs rounded-xl border border-line bg-surface2 px-3 py-2">
             <summary className="font-semibold cursor-pointer">Version history</summary>
             <ul className="mt-2 space-y-1">
-              {programHistory(program.id).map(h=> <li key={h.version}><span className="font-bold">v{h.version}</span> {h.date} — {h.changes}</li>)}
+              {programVersionHistory(program.id).map(h=> <li key={h.version}><span className="font-bold">v{h.version}</span> {h.date} — {h.changes}</li>)}
             </ul>
           </details>
           {program.weeks.map(wk=> (
@@ -104,7 +123,7 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
       {active && (
         <div className="rounded-2xl border border-line bg-surface p-4 space-y-2">
           <h3 className="text-sm font-bold">Your schedule</h3>
-          <p className="text-xs text-ink3">Start: {active.startDateISO} • {active.sessions.length} sessions • {store.history.length} completed</p>
+          <p className="text-xs text-ink3">Start: {active.startDateISO} • {active.sessions.length} sessions • {adherence?.completed || 0} completed • {adherence?.missed || 0} missed</p>
           <ul className="space-y-1.5 max-h-72 overflow-auto pr-1">
             {pvc.map(({ session, completed, delta, actual })=> (
               <li key={session.id} className="flex items-center gap-2 text-sm border border-line rounded-xl px-3 py-2 bg-surface2">
@@ -117,6 +136,22 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
             ))}
           </ul>
         </div>
+      )}
+
+      {!!userHistory.length && (
+        <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
+          <h3 className="text-sm font-bold">Your programme history</h3>
+          <p className="text-xs text-ink3">Starts and completions are kept separately from the built-in programme version changelog.</p>
+          <ul className="space-y-1.5">
+            {userHistory.slice(0, 8).map((entry, index)=> (
+              <li key={`${entry.programId}-${entry.startDateISO}-${index}`} className="flex items-center gap-2 text-xs border border-line rounded-xl px-3 py-2 bg-surface2">
+                <span className="font-bold">{PROGRAM_BY_ID[entry.programId]?.name || entry.programId}</span>
+                <span className="text-ink3">v{entry.version} • {entry.startDateISO}</span>
+                <span className={`ml-auto font-bold ${entry.active ? 'text-success' : 'text-ink3'}`}>{entry.active ? 'active' : entry.status} • {entry.completedSessions} logged</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

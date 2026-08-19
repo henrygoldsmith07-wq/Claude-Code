@@ -347,6 +347,7 @@ function Deck({ packId, onBack, srs, onRated, onSavedChange, apiKey, mockMode, o
       mode: cardMode,
       skill: 'vocabulary',
       itemLabel: entry.fr,
+      label: entry.fr,
       source: 'flashcard',
     });
     onRated();

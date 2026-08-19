@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   getMetrics, getSessions, getGrammarProgress, getSrs, getNotebook,
   getTimeLog, getXpLog, getReviewLog, getXp, getSettings,
+  getReviewEvents, getSessionHistoryMeta, getEvidenceLedgerModel, getErrorModelSummary,
   getLearnerErrors, getLearnerErrorSummary,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
@@ -36,6 +37,8 @@ export default function Analytics({ open, onClose }) {
     const timeLog = getTimeLog();
     const xpLog = getXpLog();
     const reviewLog = getReviewLog();
+    const reviewEvents = getReviewEvents();
+    const errorModel = getEvidenceLedgerModel();
     const breakdown = skillBreakdown(metrics, sessions, grammar);
     return {
       breakdown,
@@ -53,6 +56,10 @@ export default function Analytics({ open, onClose }) {
       month: periodReport(30, { xpLog, timeLog, metrics, sessions }),
       xpLog,
       sessions,
+      reviewEvents,
+      errorModel,
+      errorSummary: getErrorModelSummary(),
+      sessionHistoryMeta: getSessionHistoryMeta(),
       weeklyXp: weeklyXp(xpLog, 8),
       vocabGrowth: vocabGrowth(srs, 8),
       xp: getXp(),
@@ -98,6 +105,13 @@ export default function Analytics({ open, onClose }) {
           {/* week-over-week trend + forward projections */}
           <Trend thisWeek={d.thisWeekXp} lastWeek={d.lastWeekXp} />
           <Projections xp={d.xp} level={d.level} pace={d.pace} weeklyGoal={d.weeklyGoal} thisWeekXp={d.thisWeekXp} />
+          <EvidenceLedger
+            sessions={d.sessions}
+            reviewEvents={d.reviewEvents}
+            errorModel={d.errorModel}
+            summary={d.errorSummary}
+            historyMeta={d.sessionHistoryMeta}
+          />
 
           {/* charts over time */}
           <section className="space-y-2.5">
@@ -171,6 +185,67 @@ export default function Analytics({ open, onClose }) {
       </div>
     </div>
   );
+}
+
+function EvidenceLedger({ sessions, reviewEvents, errorModel, summary, historyMeta }) {
+  const byMode = Object.entries(summary.byMode || {}).sort((a, b) => b[1] - a[1]);
+  const active = errorModel.filter((entry) => entry.status !== 'resolved').slice(0, 6);
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-5 space-y-4">
+      <div>
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Evidence ledger</h3>
+        <p className="text-xs text-ink3 mt-1">Your history and mistakes stay available across practice modes.</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2 text-center">
+        <div><p className="text-lg font-bold text-ink tabular-nums">{sessions.length}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Sessions</p></div>
+        <div><p className="text-lg font-bold text-ink tabular-nums">{reviewEvents.length}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Review events</p></div>
+        <div><p className="text-lg font-bold text-ink tabular-nums">{summary.active}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Active gaps</p></div>
+        <div><p className="text-lg font-bold text-ink tabular-nums">{summary.recurrences}</p><p className="text-[9px] font-bold uppercase tracking-wider text-ink3">Recurrences</p></div>
+      </div>
+      {historyMeta?.migration === 'last-10-to-durable' && (
+        <p className="text-[11px] text-ink3 border-t border-line pt-3">
+          Session history migration complete: {historyMeta.recoveredSessions || 0} existing session{historyMeta.recoveredSessions === 1 ? '' : 's'} preserved. New sessions are retained without a recent-window limit.
+        </p>
+      )}
+      {byMode.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {byMode.map(([mode, count]) => (
+            <span key={mode} className="px-2 py-1 rounded-full border border-line bg-surface2 text-[10px] font-semibold text-ink2">
+              {modeLabel(mode)} · {count}
+            </span>
+          ))}
+        </div>
+      )}
+      {active.length > 0 ? (
+        <div className="space-y-2 border-t border-line pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-ink3">Recycle these gaps</p>
+          {active.map((entry) => (
+            <div key={entry.id} className="flex items-start gap-3">
+              <span className="flex-1 min-w-0">
+                <span className="block text-xs font-semibold text-ink truncate">{entry.label}</span>
+                <span className="block text-[10px] text-ink3">{modeLabel(entry.mode)} · {entry.errorCount} miss{entry.errorCount === 1 ? '' : 'es'} · revisit in {entry.recycleModes.map(modeLabel).join(' + ')}</span>
+              </span>
+              <span className="shrink-0 text-[10px] font-bold text-ink3 tabular-nums">{entry.status}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-ink3 border-t border-line pt-3">No active cross-mode gaps yet. Your first missed item will appear here with a recycling path.</p>
+      )}
+    </section>
+  );
+}
+
+function modeLabel(mode) {
+  return {
+    grammar: 'Grammar',
+    vocabulary: 'Vocabulary',
+    listening: 'Listening',
+    pronunciation: 'Pronunciation',
+    speaking: 'Speaking',
+    writing: 'Writing',
+    reading: 'Reading',
+  }[mode] || mode;
 }
 
 // Persistent weakness memory: error → repair → deliberate retest → recurrence.

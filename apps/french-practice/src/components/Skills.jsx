@@ -70,6 +70,7 @@ export default function Skills({ area, onAreaChange, speaking, listening, common
             mode={listening.mode}
             onModeChange={listening.onModeChange}
             ttsRate={common.ttsRate}
+            level={common.level}
             onXp={common.onXp}
             onActivity={common.onActivity}
           />

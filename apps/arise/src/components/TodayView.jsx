@@ -3,6 +3,14 @@ import { PROGRAM_BY_ID } from '../lib/data.js';
 import { deriveAttributes, levelFromAttributes } from '../lib/attributes.js';
 import { sessionForToday, nextSession, progress } from '../lib/schedule.js';
 import { EXERCISE_BY_ID } from '../lib/data.js';
+import {
+  isoToday,
+  missedWorkoutRecovery,
+  programAdherence,
+  progressionExplanation,
+  replanSchedule,
+  shortWorkoutMode,
+} from '../lib/programming.js';
 
 export default function TodayView({ store, setStore, onStartSession, onOpenTrain }){
   const attrs = useMemo(()=> deriveAttributes(store.history||[]), [store.history]);
@@ -12,6 +20,20 @@ export default function TodayView({ store, setStore, onStartSession, onOpenTrain
   const today = sessionForToday(sched);
   const nxt = nextSession(sched);
   const progProgress = progress(sched, store.history);
+  const adherence = useMemo(()=> programAdherence(sched, store.history || [], { today: isoToday() }), [sched, store.history]);
+  const recovery = useMemo(()=> missedWorkoutRecovery(sched, store.history || [], { today: isoToday() }), [sched, store.history]);
+  const explanations = useMemo(()=> today ? today.blocks.map(block=> progressionExplanation({ exerciseId: block.exerciseId, targetReps: block.reps, history: store.history || [] })) : [], [today, store.history]);
+
+  const applyReplan = ()=>{
+    const result = replanSchedule(sched, store.history || [], { today: isoToday() });
+    if(result.changed) setStore({ ...store, activeSchedule: result.schedule });
+  };
+
+  const startShort = ()=>{
+    if(!today) return;
+    const result = shortWorkoutMode(today, { minutes: 20 });
+    onStartSession(result.session);
+  };
 
   return (
     <div className="px-4 py-5 space-y-4">
@@ -55,6 +77,18 @@ export default function TodayView({ store, setStore, onStartSession, onOpenTrain
           <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-surface2 border border-line tabular-nums">{progProgress.done}/{progProgress.total} • {progProgress.pct}%</span>
         </div>
 
+        {sched && (
+          <p className="text-[11px] text-ink3">{adherence.toDateRate == null ? 'No sessions due yet' : `${Math.round(adherence.toDateRate * 100)}% adherence so far`} • {adherence.missed} missed • {adherence.upcoming} upcoming</p>
+        )}
+
+        {recovery.needed && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 space-y-2">
+            <p className="text-xs font-bold text-amber-900">Missed-workout recovery</p>
+            <p className="text-xs text-amber-900">{recovery.recommendation}</p>
+            <button onClick={applyReplan} className="btn btn-primary min-h-10 rounded-xl px-3 text-xs">Re-plan schedule</button>
+          </div>
+        )}
+
         {today ? (
           <div className="rounded-xl border border-line bg-surface2 p-3">
             <p className="text-xs font-bold">Today — {today.title} <span className="text-ink3 font-semibold">• {today.dateISO}</span></p>
@@ -64,7 +98,21 @@ export default function TodayView({ store, setStore, onStartSession, onOpenTrain
                 return <li key={i} className="flex gap-2"><span className="text-ink3 tabular-nums w-14 shrink-0">{b.sets}× {b.reps}</span><span className="font-medium">{ex?.name || b.exerciseId}</span><span className="ml-auto text-xs text-ink3">{b.loadHint}</span></li>
               })}
             </ul>
-            <button onClick={()=> onStartSession(today)} className="btn btn-primary w-full mt-3 min-h-11 rounded-xl">Start today’s session</button>
+            <details className="mt-3 rounded-xl border border-line bg-surface px-3 py-2">
+              <summary className="text-xs font-bold cursor-pointer">Why these prescriptions?</summary>
+              <ul className="mt-2 space-y-2">
+                {explanations.map(explanation=> (
+                  <li key={explanation.exerciseId} className="text-[11px] text-ink3">
+                    <span className="font-bold text-ink">{explanation.exerciseName}</span> — {explanation.summary}
+                    <span className="block mt-0.5">{explanation.rule} <span className="font-semibold">{explanation.confidence} confidence</span></span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+            <div className="flex gap-2 mt-3">
+              <button onClick={()=> onStartSession(today)} className="btn btn-primary flex-1 min-h-11 rounded-xl">Start today’s session</button>
+              <button onClick={startShort} className="btn btn-secondary min-h-11 rounded-xl px-3 text-xs">Short 20 min</button>
+            </div>
           </div>
         ) : nxt ? (
           <div className="rounded-xl border border-line bg-surface2 p-3">
