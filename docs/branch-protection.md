@@ -85,7 +85,7 @@ Assessed over 120 workflow runs (2026-08-18 → 2026-08-19).
 | `Revise` | 5/7 decided (2 failures, 4 cancelled) | Playwright E2E plus `npx playwright install --with-deps` on every run — a network and apt dependency on the critical path. Not stable enough to be mandatory. |
 | `Pulse` | 2/3 decided | Same Playwright install pattern in its `e2e` job. |
 | **`Food Shopping OS`** | **0/9 — fails 100%** | `npm test` fails on `main` itself, not just on branches. A real, currently-red test suite. **Must be fixed before it can be considered.** |
-| **`RTK`** | **0/22 — fails 100%** | Was a YAML syntax error, fixed in this change (see below). Needs a green run history before anyone trusts it. |
+| `RTK` | 0/22 before this change; **green on 18/20/22 after** | Was a YAML syntax error, fixed in this change (see below). Now passing, but it is path-filtered, so it still cannot be required. |
 
 ### `RTK` had no CI at all
 
@@ -103,14 +103,35 @@ read its `name:`, which is why the Actions list still shows this workflow as
 `.github/workflows/rtk.yml` rather than `RTK`.
 
 It is now block-form. Semantics are unchanged — the `release` job's conditions
-and the `chore(release)` publish guard are byte-for-byte identical. Expect
-`RTK / verify` to actually execute for the first time; it may well be red, and
-that is new information rather than a regression.
+and the `chore(release)` publish guard are byte-for-byte identical.
+
+Verified on PR #173: `verify (18)`, `verify (20)` and `verify (22)` all executed
+for the first time and **passed**, and `release` correctly skipped on a pull
+request. So `apps/rtk` was fine all along — only its CI was broken, which is the
+worse of the two failure modes because nothing was flagged.
 
 > Because the workflow could never run, its `release` job never ran either. Now
 > that it parses, a push to `main` whose commit message starts with
 > `chore(release)` will publish `apps/rtk` to npm. That was always the intent in
 > the file; it just could not fire. Worth knowing before writing that commit.
+
+### Never require the Vercel statuses
+
+This repository has ~22 Vercel projects, each posting a commit status on every
+pull request. On PR #173 **all 22 went red at once**:
+
+```
+Deployment rate limited — retry in 24 hours.  (api-deployments-free-per-day)
+```
+
+That is the free tier's 100-deployments-per-day ceiling, which 22 projects
+reach quickly. It is an account quota, unrelated to any diff, and it makes the
+PR's *combined* status `failure` while every GitHub Actions check is green.
+
+Requiring these statuses — or reaching for a "require all checks" switch — would
+hand an external billing limit the power to block merges to `main` for 24 hours
+at a time. The required list names three Actions checks explicitly, and nothing
+else, for exactly this reason.
 
 ---
 
