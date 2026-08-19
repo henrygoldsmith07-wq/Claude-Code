@@ -11,7 +11,7 @@ import { CATALOGUE } from '../data/foods.js';
 import { GLASS_ML } from '../data/nutrients.js';
 import { dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import {
-  groceryInflation, kitchenStats, pantryAvailability, pantryTruthLabel, pantryTruthTone, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom,
+  groceryInflation, kitchenStats, pantryAvailability, pantryTruthLabel, pantryTruthTone, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom, weekDates,
 } from './kitchen.js';
 import {
   defaultWeeklyKcal, goalSummary, resolveMaintenance, targetSafety, weekProgress,
@@ -46,6 +46,10 @@ import { periodFootprint, swapIdeas } from './footprint.js';
 import { fastingSummary } from './fasting.js';
 import { DEFAULT_PERMISSIONS, permissionsForRole } from './household.js';
 import { buildTasteProfile } from './taste.js';
+import {
+  cookingTimeLearning, householdPreferenceProfile, leftoverAwareness, mealPlanAdherence,
+  perishabilitySummary, repeatFatigue, useSoonIngredients,
+} from './planning-intelligence.js';
 import { YOUTH_COPY, youthPolicy } from './youth.js';
 
 export const deriveApp = (state) => {
@@ -92,7 +96,21 @@ export const deriveApp = (state) => {
 
   const catalogue = [...CATALOGUE, ...state.customFoods];
   const recipeBook = [...RECIPES, ...state.myRecipes];
-  const tasteProfile = buildTasteProfile(recipeBook, state.tasteRatings, state.favourites);
+  const tasteProfile = buildTasteProfile(recipeBook, state.tasteRatings, state.favourites, state.cooked);
+  const planningDates = weekDates(state.day);
+  const useSoon = useSoonIngredients(state.pantry, { today: state.day });
+  const leftoversAware = leftoverAwareness(state.pantry, { today: state.day });
+  const perishability = perishabilitySummary(state.pantry, { today: state.day });
+  const planningAdherence = mealPlanAdherence(state.plan, planningDates, state.mealPlanEvents, state.cooked);
+  const repeatFatigueSignal = repeatFatigue(state.plan, planningDates, state.cooked, { today: state.day });
+  const cookingTime = cookingTimeLearning(state.cookingTimeHistory, recipeBook);
+  const householdPreferences = householdPreferenceProfile({
+    recipes: recipeBook,
+    cooked: state.cooked,
+    ratings: state.tasteRatings,
+    favourites: state.favourites,
+    members: state.members,
+  });
   const entries = state.log[state.day] || [];
   const totals = dayTotals(entries);
   const glasses = state.water + state.waterExtraMl / GLASS_ML;
@@ -142,6 +160,13 @@ export const deriveApp = (state) => {
     householdAccess,
     leftovers: leftoverItems(state.pantry),
     leftoverPortions: leftoverPortions(state.pantry),
+    leftoverAwareness: leftoversAware,
+    useSoonIngredients: useSoon,
+    perishability,
+    planningAdherence,
+    repeatFatigue: repeatFatigueSignal,
+    cookingTimeLearning: cookingTime,
+    householdPreferences,
     body_: bodySummary(state, state.day),
     vitalsSummary: vitalSummary(state.vitals),
     sleepSummary: sleepSummary(state.sleep, { today: state.day }),
