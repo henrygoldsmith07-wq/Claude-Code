@@ -55,4 +55,5 @@ jobs:
       - run: npm publish --access public
         working-directory: apps/rtk
         if: startsWith(github.event.head_commit.message, 'chore(release)')
-        env: { NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} }
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

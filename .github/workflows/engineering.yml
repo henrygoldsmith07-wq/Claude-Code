@@ -1,16 +1,13 @@
 name: Engineering gates
 
+# Deliberately unfiltered. GitHub reports no status at all for a workflow that
+# a `paths:` filter excludes, and a required check that is never reported leaves
+# the pull request blocked on a status that can never arrive. Every job below is
+# therefore unconditional, which is what makes this workflow safe to require.
+# See docs/branch-protection.md.
 on:
   push:
-    paths:
-      - "apps/**"
-      - "scripts/**"
-      - ".github/workflows/**"
   pull_request:
-    paths:
-      - "apps/**"
-      - "scripts/**"
-      - ".github/workflows/**"
   workflow_dispatch:
 
 concurrency:
@@ -28,6 +25,7 @@ jobs:
       - run: node scripts/engineering-gates.mjs
 
   integration-contracts:
+    name: integration-contracts (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
