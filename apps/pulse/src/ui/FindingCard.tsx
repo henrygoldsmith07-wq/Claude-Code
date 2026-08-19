@@ -29,7 +29,7 @@ const CONFIDENCE_LABEL: Record<ConfidenceLevel, string> = {
   high: "High",
 };
 
-const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
+export const REPLICATION_LABEL: Record<ReplicationStatus, string> = {
   new: "New",
   replicated: "Replicated",
   "failed-to-replicate": "Failed to replicate",
@@ -44,16 +44,27 @@ export interface FindingCardProps {
     verdict: "useful" | "not-useful" | "already-knew" | "bad-data" | "stop-investigating",
   ) => void;
   onDesignExperiment?: (finding: Finding) => void;
+  /** When true the card flashes briefly — used when a search hit jumps here. */
+  highlight?: boolean;
 }
 
-export function FindingCard({ finding, onFeedback, onDesignExperiment }: FindingCardProps): React.JSX.Element {
+export function FindingCard({
+  finding,
+  onFeedback,
+  onDesignExperiment,
+  highlight = false,
+}: FindingCardProps): React.JSX.Element {
   const uncontrolled = finding.confounders.filter((confounder) => confounder.status === "uncontrolled");
   const headingId = `finding-title-${finding.id}`;
   const replicationStatus = finding.replicationStatus ?? "new";
   const uncertainty = uncertaintySummary(finding.confidence);
 
   return (
-    <article className="card finding" aria-labelledby={headingId}>
+    <article
+      id={`finding-${finding.id}`}
+      className={`card finding${highlight ? " finding--highlight" : ""}`}
+      aria-labelledby={headingId}
+    >
       <header className="finding__header">
         <span className={`pill pill--${finding.evidenceClass}`}>{EVIDENCE_LABEL[finding.evidenceClass]}</span>
         <span className={`pill pill--confidence-${finding.confidence.level}`}>
@@ -76,6 +87,12 @@ export function FindingCard({ finding, onFeedback, onDesignExperiment }: Finding
       <p className={`finding__uncertainty finding__uncertainty--${uncertainty.tone}`}>
         <strong>{uncertainty.label}.</strong> {uncertainty.sentence}
       </p>
+
+      {finding.counterfactual ? (
+        <p className={`finding__counterfactual finding__counterfactual--${finding.counterfactual.verdict}`}>
+          <strong>How fragile is this?</strong> {finding.counterfactual.statement}
+        </p>
+      ) : null}
 
       <p className="finding__caveat" role="note">
         {finding.causalityNote}

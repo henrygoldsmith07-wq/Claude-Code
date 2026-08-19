@@ -136,6 +136,25 @@ export function zScores(values: readonly number[]): number[] {
   return values.map((v) => (v - m) / s);
 }
 
+/**
+ * Least-squares slope of y on x (change in y per unit x). NaN when fewer
+ * than two points or when x has no variance — a flat series has no slope to
+ * report, and pretending one exists would be noise.
+ */
+export function slope(xs: readonly number[], ys: readonly number[]): number {
+  if (xs.length !== ys.length || xs.length < 2) return NaN;
+  const xMean = mean(xs);
+  const yMean = mean(ys);
+  let numerator = 0;
+  let denominator = 0;
+  for (let i = 0; i < xs.length; i += 1) {
+    numerator += (xs[i]! - xMean) * (ys[i]! - yMean);
+    denominator += (xs[i]! - xMean) ** 2;
+  }
+  if (denominator === 0) return NaN;
+  return numerator / denominator;
+}
+
 export function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }

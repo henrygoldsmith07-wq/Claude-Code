@@ -228,6 +228,130 @@ h4 {
   color: var(--warn);
 }
 
+.pill--kind-finding {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill--kind-experiment {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.pill--kind-hypothesis {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.pill--kind-rejection {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.evidence-hit__terms {
+  font-size: 0.82rem;
+}
+
+.evidence-hit__title-button,
+.scan-detail__finding-button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.evidence-hit__title-button:hover,
+.scan-detail__finding-button:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.evidence-hit__context {
+  border-top: 1px solid var(--line);
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+}
+
+.finding--highlight,
+.history-entry--highlight,
+.scan--highlight {
+  animation: destination-flash 2.2s ease-out;
+}
+
+@keyframes destination-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+.evidence-hit__history-button,
+.history-episode__finding-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.evidence-hit__history-button {
+  font-size: 0.85rem;
+}
+
+.evidence-hit__history-button:hover,
+.history-episode__finding-button:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.scan-detail__rejected--focused {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+}
+
+.destination-bar {
+  /* Sticky: a deep link lands scrolled to the destination card, and the
+     way back must still be in view. The pills share the bar so both can
+     be active at once (a search journey and a scan journey). */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 0.75rem;
+  z-index: 10;
+}
+
+.back-to-search,
+.back-to-scan {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.back-to-search:hover,
+.back-to-scan:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .finding__statement {
   font-size: 1.02rem;
   margin: 0 0 0.6rem;
@@ -264,6 +388,92 @@ h4 {
   color: var(--warn);
   margin: 0 0 0.9rem;
   padding-left: 0.7rem;
+}
+
+.finding__counterfactual {
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+  margin: 0 0 0.9rem;
+  padding-left: 0.7rem;
+}
+
+.finding__counterfactual--robust {
+  border-left-color: var(--ok);
+}
+
+.finding__counterfactual--fragile {
+  border-left-color: var(--warn);
+  color: var(--warn);
+}
+
+.calendar__conflict {
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
+  margin: 0.9rem 0;
+  padding-left: 0.7rem;
+}
+
+.calendar__conflict p {
+  margin: 0 0 0.4rem;
+}
+
+.calendar__conflict ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.calendar__conflict li {
+  margin-bottom: 0.25rem;
+}
+
+.history-entry__header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.history-entry__episodes {
+  border-left: 2px solid var(--line);
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.history-episode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  padding: 0.4rem 0 0.4rem 0.9rem;
+  position: relative;
+}
+
+.history-episode::before {
+  background: var(--line);
+  border-radius: 50%;
+  content: "";
+  height: 0.5rem;
+  left: -0.33rem;
+  position: absolute;
+  top: 0.8rem;
+  width: 0.5rem;
+}
+
+.history-episode--appeared::before,
+.history-episode--strengthened::before {
+  background: var(--ok);
+}
+
+.history-episode--weakened::before {
+  background: var(--warn);
+}
+
+.history-episode--disappeared::before {
+  background: var(--muted);
+}
+
+.history-episode__change {
+  font-weight: 600;
 }
 
 .finding__stats,

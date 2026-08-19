@@ -17,3 +17,19 @@ export function relationshipSubject(
 ): string {
   return `${outcomeMetricId ?? ""}|${exposureMetricId ?? ""}`;
 }
+
+/**
+ * The same key, qualified by the finding's candidate kind. "Higher in the
+ * evening" and "higher with method = practice" are different claims about one
+ * outcome, so they must never collapse into a single insight or contradict
+ * each other — but direction stays absent, so a claim that flips sign is a
+ * reversal of that insight rather than one insight vanishing and another
+ * appearing.
+ */
+export function findingSubject(finding: {
+  metricIds: readonly string[];
+  tags: readonly string[];
+}): string {
+  const kind = finding.tags[0] ?? "unknown";
+  return `${kind}|${relationshipSubject(finding.metricIds[0], finding.metricIds[1])}`;
+}

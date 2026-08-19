@@ -72,6 +72,13 @@ describe("replication ledger", () => {
     expect(later!.replicationStatus).toBe("new");
   });
 
+  it("does not treat different candidate kinds as the same claim", () => {
+    const ledger = new ReplicationLedger(clock);
+    ledger.annotate([finding({ id: "a", tags: ["time-of-day"] })]);
+    const [later] = ledger.annotate([finding({ id: "b", tags: ["attribute-split"] })]);
+    expect(later!.replicationStatus).toBe("new");
+  });
+
   it("records experiment verdicts as terminal replication states", () => {
     const ledger = new ReplicationLedger(clock);
     expect(ledger.recordExperimentResult("a", "supported")).toBe("experimentally-supported");
@@ -97,6 +104,8 @@ describe("experiment calendar", () => {
     experimentId: design.id,
     hypothesisId: hypothesis.id,
     analysedAt: "2025-07-20T00:00:00Z",
+    effectiveEndDate: design.endDate,
+    stopping: null,
     verdict: "supported",
     summary: "Accuracy was higher under the intervention.",
     reasons: [],
@@ -106,6 +115,10 @@ describe("experiment calendar", () => {
     observedEffect: 0.5,
     predictedEffect: 0.45,
     adherence: { assignedDays: 28, daysWithSessions: 25, adherence: 0.89, conditionASessions: 30, conditionBSessions: 28, outOfWindowSessions: 0 },
+    baseline: null,
+    washout: null,
+    family: null,
+    secondaryOutcomes: [],
     confidence: { level: "high", score: 0.8, reasons: [], limitations: [] },
     causalityNote: "Measured under controlled conditions you assigned.",
     blocks: [],

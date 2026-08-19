@@ -4,10 +4,18 @@
  * These check the things a DOM shim cannot: that the app really boots, that
  * colour contrast is genuinely sufficient in both light and dark schemes, and
  * that the whole interface can be reached with the keyboard alone.
+ *
+ * The synthetic user is booted once per worker and shared across the tests
+ * (they are all read-only by construction): the boot is the expensive part,
+ * and ten boots of the same deterministic demo prove nothing ten times.
+ *
+ * Run `npm run e2e:serve` once in a terminal for a persistent preview server:
+ * the playwright webServer block below then reuses it instead of rebuilding
+ * on every run.
  */
 
 import { createRequire } from "node:module";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 
 // axe is injected from the local install rather than a CDN: the app is
 // offline-first and the test suite should be too.
@@ -24,11 +32,40 @@ async function runAxe(page: Page): Promise<{ id: string; help: string; nodes: nu
   });
 }
 
+// One page, booted lazily by whichever test runs first, then shared by all of
+// them. The built-in `page` fixture cannot be re-scoped to a worker, so this
+// is a plain test-scoped override that simply never tears its page down — it
+// lives until the worker does. The tests must be read-only; they are, by
+// design.
+let sharedPage: Page | null = null;
+
+/* eslint-disable react-hooks/rules-of-hooks -- Playwright's fixture `use` callback is not a React hook */
+const test = base.extend<{ page: Page }>({
+  page: async ({ browser }, use) => {
+    if (!sharedPage) {
+      sharedPage = await browser.newPage();
+      await sharedPage.goto("/");
+      await expect(sharedPage.getByRole("heading", { name: "Pulse", level: 1 })).toBeVisible();
+      // The demo boots against a synthetic user; wait for the engine to finish.
+      await expect(sharedPage.getByRole("heading", { name: "What Pulse believes" })).toBeVisible({ timeout: 60_000 });
+    }
+    await use(sharedPage);
+  },
+});
+/* eslint-enable react-hooks/rules-of-hooks */
+
+// The suite is serial: tests share one booted page and run in order, so each
+// starts from the same deterministic demo state.
+test.describe.configure({ mode: "serial" });
+
+// Order-proofing: whatever the previous test left behind, the next one starts
+// on the Insights tab at the desktop viewport. This is a keyboard reset, not
+// a click: a mouse interaction would flip Chrome's :focus-visible heuristic
+// and starve the focus-visibility test below.
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Pulse", level: 1 })).toBeVisible();
-  // The demo boots against a synthetic user; wait for the engine to finish.
-  await expect(page.getByRole("heading", { name: "What Pulse believes" })).toBeVisible({ timeout: 60_000 });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole("tab", { name: "Insights" }).focus();
+  await page.keyboard.press("Enter");
 });
 
 test("boots against the synthetic user and shows evidence, not a dashboard", async ({ page }) => {
@@ -55,7 +92,7 @@ test("every tab is reachable and operable from the keyboard alone", async ({ pag
   }
   await expect(page.locator(":focus")).toHaveAttribute("role", "tab");
 
-  for (const label of ["Timeline", "Experiments", "Ask Pulse", "Sources & privacy"]) {
+  for (const label of ["History", "Timeline", "Experiments", "Ask Pulse", "Evidence", "Sources & privacy"]) {
     await page.getByRole("tab", { name: label }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("tab", { name: label })).toHaveAttribute("aria-selected", "true");
@@ -63,7 +100,12 @@ test("every tab is reachable and operable from the keyboard alone", async ({ pag
 });
 
 test("focus is always visible", async ({ page }) => {
+  // Activate with a real keyboard event: script focus alone does not reliably
+  // match :focus-visible, and the outline only needs to exist when a keyboard
+  // user could be looking for it.
   await page.getByRole("tab", { name: "Timeline" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(":focus")).toHaveAttribute("role", "tab");
   const outline = await page.evaluate(() => {
     const style = getComputedStyle(document.activeElement as Element);
     return { width: style.outlineWidth, style: style.outlineStyle };
@@ -101,4 +143,40 @@ test("does not scroll horizontally on a narrow viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("walks the whole evidence loop with the keyboard alone", async ({ page }) => {
+  // Search a metric that has both findings and a rejection trail.
+  await page.getByRole("tab", { name: "Evidence" }).focus();
+  await page.keyboard.press("Enter");
+  const search = page.getByLabel(/Search the evidence/);
+  await search.focus();
+  await page.keyboard.type("sleep");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Checked, not published").first()).toBeVisible();
+
+  // Drill into the scan that produced a rejection.
+  await page.getByRole("button", { name: "View the scan that checked this" }).first().focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/Findings published in this scan/)).toBeVisible();
+
+  // Open a finding from the scan card.
+  const scanFinding = page.locator(".scan-detail__finding-button").first();
+  await scanFinding.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("tab", { name: "Insights" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".finding--highlight")).toBeVisible();
+
+  // The scan survives the drill-in: return to it via the back-to-scan pill.
+  await page.getByRole("button", { name: /Back to scan/ }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".scan-detail")).toBeVisible();
+
+  // Return to the exact query that started the journey.
+  await page.getByRole("button", { name: /Back to search/ }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("tab", { name: "Evidence" })).toHaveAttribute("aria-selected", "true");
+  await expect(search).toHaveValue("sleep");
+  await expect(page.getByText("Checked, not published").first()).toBeVisible();
 });

@@ -36,6 +36,7 @@ import {
 import { daysBetween } from "../events/time.js";
 import { evaluateCandidate, generateCandidates, type Candidate, type CandidateContext, type EvaluatedCandidate } from "./candidates.js";
 import { compareFindings, validateFinding, type Confounder, type Finding, type NextAction } from "./finding.js";
+import { counterfactualForComparison, counterfactualForCorrelation } from "./counterfactuals.js";
 
 export interface DiscoveryOptions {
   registry: MetricRegistry;
@@ -226,6 +227,14 @@ function composeFinding(
     ? isAdequatelyPowered(result.comparison.nA, result.comparison.nB, 0.4)
     : result.sampleSize >= 20;
 
+  // Counterfactual stress test: would the claim survive losing the sittings
+  // that most support it? Run after the finding has already passed every
+  // gate, so fragility is reported about a real finding, never a would-be one.
+  const counterfactual = result.comparison
+    ? counterfactualForComparison(result, { pValue: result.pValue, adjustedP })
+    : result.correlation
+      ? counterfactualForCorrelation(result, { pValue: result.pValue, adjustedP })
+      : undefined;
   const groupAValues = result.groupA.map((observation) => observation.value);
   const groupBValues = result.groupB.map((observation) => observation.value);
   const stability =
@@ -287,6 +296,7 @@ function composeFinding(
       familySize,
       correctionMethod: "benjamini_hochberg",
     },
+    counterfactual,
     confidence,
     confounders,
     causalityNote: causalityCaveat("correlation") ?? "",

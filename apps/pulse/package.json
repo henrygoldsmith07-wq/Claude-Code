@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test --reporter=list",
+    "e2e:serve": "node scripts/e2e-server.mjs",
     "test:e2e:ci": "playwright test --reporter=github",
     "bench": "vitest run tests/e2e.test.ts",
     "verify": "npm run lint:check && npm run type-check && npm test && npm run build"

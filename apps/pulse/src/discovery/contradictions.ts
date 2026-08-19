@@ -21,7 +21,7 @@
 
 import { hash128 } from "../events/hash.js";
 import type { Finding, ReplicationStatus } from "./finding.js";
-import { relationshipSubject } from "./relationship.js";
+import { findingSubject } from "./relationship.js";
 
 export interface ContradictionSighting {
   findingId: string;
@@ -51,12 +51,15 @@ export class ContradictionLedger {
 
   /**
    * The identity of "the same relationship" for contradiction purposes:
-   * outcome and exposure, with direction deliberately absent. The replication
-   * signature includes direction; this one must not, or an opposing sighting
-   * would look like a different claim.
+   * candidate kind, outcome and exposure, with direction deliberately absent.
+   * The replication signature includes direction; this one must not, or an
+   * opposing sighting would look like a different claim. The kind is included
+   * for the same reason it is in the replication signature: "higher in the
+   * evening" and "higher with method = practice" are different claims and
+   * must never contradict each other.
    */
   static subject(finding: Finding): string {
-    return relationshipSubject(finding.metricIds[0], finding.metricIds[1]);
+    return findingSubject(finding);
   }
 
   /**
@@ -144,7 +147,7 @@ export class ContradictionLedger {
   private refreshRecord(subject: string, sightings: ContradictionSighting[], at: string): void {
     const id = `contradiction-${hash128(subject).slice(0, 16)}`;
     const existing = this.records.get(id);
-    const [outcome, exposure] = subject.split("|");
+    const [, outcome = "", exposure = ""] = subject.split("|");
     this.records.set(id, {
       id,
       outcomeMetricId: outcome ?? "",

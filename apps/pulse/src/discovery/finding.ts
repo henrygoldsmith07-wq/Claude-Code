@@ -11,6 +11,7 @@
 import type { SourceId } from "../events/schema.js";
 import type { EffectSize } from "../statistics/effects.js";
 import type { ConfidenceAssessment, EvidenceClass } from "../statistics/confidence.js";
+import type { CounterfactualExplanation } from "./counterfactuals.js";
 
 export type ConfounderStatus =
   /** Held constant or adjusted for in the estimate reported. */
@@ -86,6 +87,11 @@ export interface Finding {
   replicationStatus?: ReplicationStatus;
   /** Populated by the contradiction ledger when this claim has been observed pointing both ways. */
   contradictionNote?: string;
+  /**
+   * Counterfactual stress test: how many of the sittings most responsible
+   * for this effect would have to be removed for it to reverse or fade.
+   */
+  counterfactual?: CounterfactualExplanation;
   /** Short headline, e.g. "Study accuracy is higher after exercise". */
   title: string;
   /** Full sentence with the numbers in it. Generated deterministically. */

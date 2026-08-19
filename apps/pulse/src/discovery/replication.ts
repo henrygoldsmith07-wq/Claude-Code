@@ -43,15 +43,22 @@ export class ReplicationLedger {
 
   /**
    * The signature that identifies "the same claim" regardless of how many
-   * times discovery recomputes its id: outcome, driver and direction. Effect
-   * magnitude is deliberately absent — a replication that comes back at half
-   * the size is still a replication, just a weaker one.
+   * times discovery recomputes its id: the candidate kind, outcome, driver and
+   * direction. Effect magnitude is deliberately absent — a replication that
+   * comes back at half the size is still a replication, just a weaker one.
+   *
+   * The kind is part of the identity because it is what the engine actually
+   * asked: "accuracy is higher in the evening" and "accuracy is higher with
+   * method = practice" are different claims about the same outcome, and
+   * collapsing them would let one replicate or contradict the other.
    */
   static signature(finding: Finding): string {
     const outcome = finding.metricIds[0] ?? "";
     const exposure = finding.metricIds[1] ?? "";
     const direction = Math.sign(finding.effect.value);
-    return [outcome, exposure, direction].join("|");
+    // The engine always tags findings with their candidate kind first.
+    const kind = finding.tags[0] ?? "unknown";
+    return [kind, outcome, exposure, direction].join("|");
   }
 
   /**
@@ -110,8 +117,12 @@ export class ReplicationLedger {
     return this.records.get(findingId)?.status ?? "new";
   }
 
-  /** A completed experiment moves its origin finding to a terminal status. */
-  recordExperimentResult(findingId: string, verdict: ExperimentVerdict): ReplicationStatus {
+  /**
+   * A completed experiment moves its origin finding to a terminal status.
+   * `note` carries the retested path's paper trail (P1 #13): when the
+   * experiment was a replication, the record names the original run.
+   */
+  recordExperimentResult(findingId: string, verdict: ExperimentVerdict, note?: string): ReplicationStatus {
     const at = new Date(this.now()).toISOString();
     const status: ReplicationStatus =
       verdict === "supported"
@@ -119,12 +130,13 @@ export class ReplicationLedger {
         : verdict === "refuted"
           ? "failed-to-replicate"
           : this.statusOf(findingId);
-    const evidence =
+    const base =
       verdict === "supported"
         ? "A controlled experiment supported the claim"
         : verdict === "refuted"
           ? "A controlled experiment failed to reproduce the effect"
           : "An experiment was run but did not settle the claim";
+    const evidence = note ? `${base} (${note})` : base;
     this.records.set(findingId, { findingId, status, updatedAt: at, evidence });
     return status;
   }

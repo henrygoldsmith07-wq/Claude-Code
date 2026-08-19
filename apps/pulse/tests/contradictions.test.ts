@@ -69,6 +69,16 @@ describe("contradiction ledger", () => {
     expect(ledger.list()).toEqual([]);
   });
 
+  it("does not contradict across different candidate kinds", () => {
+    const ledger = new ContradictionLedger(clock);
+    ledger.annotate([finding({ id: "a", createdAt: "2025-06-01T00:00:00Z", tags: ["time-of-day"] })]);
+    const [later] = ledger.annotate([
+      finding({ id: "b", createdAt: "2025-06-15T00:00:00Z", tags: ["attribute-split"], effect: negativeEffect }),
+    ]);
+    expect(later!.replicationStatus).toBeUndefined();
+    expect(ledger.list()).toEqual([]);
+  });
+
   it("marks both sides contradicted when a later sighting points the other way", () => {
     const ledger = new ContradictionLedger(clock);
     ledger.annotate([finding({ id: "a", createdAt: "2025-06-01T00:00:00Z" })]);
@@ -289,8 +299,10 @@ describe("recommendations under contradiction", () => {
 
 describe("relationship identity", () => {
   it("is the same key the ledger uses for a finding", () => {
-    expect(ContradictionLedger.subject(finding())).toBe("study.accuracy|exercise.volume");
-    expect(relationshipSubject("study.accuracy", "exercise.volume")).toBe(
+    // The subject is qualified by candidate kind, so two different claims
+    // about the same metric pair never contradict each other.
+    expect(ContradictionLedger.subject(finding())).toBe("exposure-window|study.accuracy|exercise.volume");
+    expect(`exposure-window|${relationshipSubject("study.accuracy", "exercise.volume")}`).toBe(
       ContradictionLedger.subject(finding()),
     );
   });

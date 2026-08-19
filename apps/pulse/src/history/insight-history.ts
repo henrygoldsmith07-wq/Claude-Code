@@ -19,7 +19,7 @@
 import type { SourceId } from "../events/schema.js";
 import { hash128 } from "../events/hash.js";
 import { ReplicationLedger } from "../discovery/replication.js";
-import { relationshipSubject } from "../discovery/relationship.js";
+import { findingSubject } from "../discovery/relationship.js";
 import type { Finding, ReplicationStatus } from "../discovery/finding.js";
 
 /** How an insight moved between consecutive scans. */
@@ -64,6 +64,8 @@ export interface InsightScanRejection {
   outcomeMetricId: string;
   exposureMetricId: string | null;
   reason: string;
+  /** The question as the engine asked it, when the scan recorded it — so a scan view can show what was actually checked. */
+  question?: string;
 }
 
 export interface InsightScanTotals {
@@ -172,7 +174,7 @@ export class InsightHistory {
       const present = new Set<string>();
 
       for (const finding of scan.findings) {
-        const signature = relationshipSubject(finding.metricIds[0], finding.metricIds[1]);
+        const signature = findingSubject(finding);
         present.add(signature);
 
         const previousIndex = lastPresent.get(signature);
@@ -288,7 +290,7 @@ export class InsightHistory {
 
   private findingAt(scanIndex: number, signature: string): Finding {
     const finding = this.scans[scanIndex]!.findings.find(
-      (candidate) => relationshipSubject(candidate.metricIds[0], candidate.metricIds[1]) === signature,
+      (candidate) => findingSubject(candidate) === signature,
     );
     if (!finding) throw new Error(`InsightHistory invariant broken: ${signature} not present in scan ${scanIndex}`);
     return finding;
@@ -318,7 +320,9 @@ function changeBetween(previous: Finding, current: Finding): InsightChange {
 }
 
 function noteForDisappearance(scan: InsightScanRecord, signature: string): string | null {
-  const [outcome, exposure = ""] = signature.split("|");
+  // The signature is kind|outcome|exposure|direction; the kind is irrelevant
+  // when matching a rejection, which is keyed by outcome and exposure.
+  const [, outcome = "", exposure = ""] = signature.split("|");
   const match = scan.rejected.find(
     (rejection) =>
       rejection.outcomeMetricId === outcome && (rejection.exposureMetricId ?? "") === exposure,
