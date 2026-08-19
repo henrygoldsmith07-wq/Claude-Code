@@ -38,6 +38,7 @@ export function scoreSubstitution(target, candidate, opts={}){
   if(tUni === cUni) s+=0.5;
   // prefer candidates user has performed well on
   if(opts.historyCounts && opts.historyCounts[candidate.id]) s += Math.min(1, opts.historyCounts[candidate.id]/5);
+  if(opts.declared) s += 2;
   if(target.id===candidate.id) s-=10;
   return s;
 }
@@ -57,6 +58,37 @@ export function rankedSubstitutions(targetId, availableEquipment=null, limit=4, 
   const merged = [...declared];
   for(const ex of ranked) if(!merged.some(m=> m.id===ex.id)) merged.push(ex);
   return merged.slice(0, limit);
+}
+
+// UI-ready alternatives. Keep rankedSubstitutions' small exercise-only return
+// shape for existing callers, while exposing the evidence behind each choice
+// to the in-session swap control.
+export function substitutionOptions(targetId, { availableEquipment = null, history = null, limit = 4 } = {}){
+  const target = EXERCISE_BY_ID[targetId]; if(!target) return [];
+  const has = availableEquipment ? new Set(availableEquipment) : null;
+  const fits = ex => !has || ex.equipment.every(eq=> has.has(eq)) || (ex.equipment.length===1 && ex.equipment[0]==='bodyweight');
+  const historyCounts = {};
+  for(const h of history||[]) for(const b of h.blocks||[]) historyCounts[b.exerciseId]=(historyCounts[b.exerciseId]||0)+1;
+  const declared = new Set(target.substitution||[]);
+  return EXERCISES
+    .filter(ex=> ex.id!==targetId && fits(ex))
+    .map(ex=> {
+      const score = scoreSubstitution(target, ex, { historyCounts, declared: declared.has(ex.id) });
+      const reasons = [];
+      if(ex.muscle===target.muscle) reasons.push(`same ${target.muscle.toLowerCase()} focus`);
+      if(PATTERN[target.id] && PATTERN[target.id]===PATTERN[ex.id]) reasons.push('same movement pattern');
+      if(has) reasons.push('fits your available kit');
+      if(historyCounts[ex.id]) reasons.push('you have logged it before');
+      if(declared.has(ex.id)) reasons.push('listed programme alternative');
+      return {
+        ...ex,
+        score: Math.round(score*10)/10,
+        reason: reasons.slice(0,2).join(' · ') || 'closest movement match',
+        equipmentFit: !has || fits(ex),
+      };
+    })
+    .sort((a,b)=> b.score-a.score || a.name.localeCompare(b.name))
+    .slice(0, limit);
 }
 
 // Convenience: substitution based on historical user performance (prefers high-volume variants)
