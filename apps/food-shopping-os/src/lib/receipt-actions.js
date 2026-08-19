@@ -1,5 +1,6 @@
 import { householdPermission } from './household.js';
-import { emojiFor, uid } from './state.js';
+import { uid } from './state.js';
+import { reconcilePurchase } from './pantry-intelligence.js';
 
 const text = (value, max) => String(value || '').trim().slice(0, max);
 
@@ -28,25 +29,32 @@ export const receiptActions = (set) => ({
     const bought = receiptItems(items);
     if (!bought.length) return {};
     const shop = receiptShop(state, { store, date, total }, bought);
+    const reconciled = reconcilePurchase(state.pantry, bought.map((item) => ({
+      ...item,
+      cat: 'Fresh',
+      location: 'Cupboard',
+      store: shop.store,
+    })), {
+      learnedAliases: state.aliasMemory || {},
+      date: shop.date,
+      today: state.day,
+      idFactory: () => uid('p'),
+    });
+    const event = {
+      id: uid('pe'),
+      type: 'purchase_reconciliation',
+      date: state.day,
+      store: shop.store,
+      added: reconciled.added.length,
+      merged: reconciled.matches.filter((match) => match.action === 'merged').length,
+      conflicts: reconciled.conflicts.length,
+    };
     return {
       shops: [...state.shops, shop],
-      pantry: [...state.pantry, ...bought.map((item) => {
-        const qty = Number(item.qty);
-        return {
-          id: uid('p'),
-          emoji: item.emoji || emojiFor(item.name),
-          low: false,
-          addedAt: state.day,
-          purchaseDate: shop.date,
-          name: item.name,
-          cat: 'Fresh',
-          location: 'Cupboard',
-          qty: qty !== 1 ? `${qty}` : '',
-          cost: item.price,
-          store: shop.store,
-          expiry: null,
-        };
-      })],
+      pantry: reconciled.pantry,
+      pantryConflicts: [...(state.pantryConflicts || []), ...reconciled.conflicts].slice(-100),
+      pantryEvents: [...(state.pantryEvents || []), event].slice(-100),
+      lastPantryEvent: event,
     };
   }),
 });

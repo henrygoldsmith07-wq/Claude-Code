@@ -11,6 +11,7 @@ import {
 const KEYS = {
   apiKey: 'fp.groqKey',
   sessions: 'fp.sessions', // durable array of completed session summaries
+  sessionHistoryMeta: 'fp.sessionHistory.v2', // migration marker for unbounded session history
   sessionHistory: 'fp.sessionHistory.v1', // canonical, uncapped completed-session history
   studyEvents: 'fp.studyEvents.v1', // durable cross-mode activity/event trail
   learnerErrors: 'fp.learnerErrors.v1', // persistent grammar/vocab/listening/pronunciation gaps
@@ -18,6 +19,7 @@ const KEYS = {
   pulseHistory: 'fp.pulse-history.v2', // versioned, transcript-free history for Pulse
   pulseOptIn: 'fp.pulse-opt-in', // Le Studio's own Pulse opt-in, separate from the mirror it gates
   reviewEvents: 'fp.reviewEvents.v2', // durable per-review events; reviewLog remains a heatmap aggregate
+  evidenceLedger: 'fp.evidenceLedger.v1', // cross-mode evidence ledger (recycling queue)
   streak: 'fp.streak', // { count, lastDay }
   srs: 'fp.srs', // { [cardId]: { interval, due, reps } }
   settings: 'fp.settings', // { ttsRate, mockMode, devPanel, theme, level, dailyGoal }
@@ -55,6 +57,8 @@ const KEYS = {
   lastBackup: 'fp.lastBackup', // ISO time of the last export/sync-code created
   starred: 'fp.starredLines', // [{ id, fr, en, source, addedAt }] — favourited survival phrases
   weaknessMemory: 'fp.weaknessMemory', // persistent weakness memory: error → repair → retest → recurrence
+  errorNotebook: 'fp.errorNotebook', // detailed writing/speaking corrections
+  phonemeProfile: 'fp.phonemeProfile', // pronunciation attempts by phoneme
 };
 
 export { KEYS };
@@ -180,7 +184,7 @@ export function exportProgress() {
     const raw = localStorage.getItem(key);
     if (raw != null) data[key] = raw;
   }
-  return { app: 'le-studio', version: 1, exportedAt: new Date().toISOString(), data };
+  return { app: 'le-studio', version: 2, exportedAt: new Date().toISOString(), data };
 }
 
 export function importProgress(payload) {
@@ -225,6 +229,7 @@ const DEFAULT_SETTINGS = {
   dyslexiaFont: false,
   highContrast: false,
   examBoard: null, // null | gcse-aqa | gcse-edexcel | a-level-aqa | delf-b1 | delf-b2
+  correctionFrequency: 'adaptive', // adaptive | every-turn | important | end | off
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) });
 export const setSettings = (s) => write(KEYS.settings, s);
@@ -281,6 +286,14 @@ function migrateSessionHistory() {
   const legacy = read(KEYS.sessions, []);
   const sessions = (Array.isArray(legacy) ? legacy : []).map(normaliseSession).filter(Boolean);
   write(KEYS.sessionHistory, sessions);
+  write(KEYS.sessionHistoryMeta, {
+    schemaVersion: 1,
+    migratedAt: new Date().toISOString(),
+    migration: 'last-10-to-durable',
+    recoveredSessions: sessions.length,
+    retention: 'unbounded',
+    sourceKey: KEYS.sessions,
+  });
   markMigration('sessions.last-10-to-full-history.v1', {
     source: KEYS.sessions,
     imported: sessions.length,
@@ -331,6 +344,20 @@ export const getStudyEvents = () => {
   return Array.isArray(events) ? events : [];
 };
 
+export const getSessionHistoryMeta = () => read(KEYS.sessionHistoryMeta, null);
+
+function normalisePracticeMode(value) {
+  const mode = String(value || '').toLowerCase();
+  if (mode === 'vocab' || mode === 'vocabulary' || mode === 'cards' || mode === 'receptive' || mode === 'productive') return 'vocabulary';
+  if (mode === 'grammar') return 'grammar';
+  if (mode === 'listening' || mode === 'dictation') return 'listening';
+  if (mode === 'pronunciation' || mode === 'phoneme' || mode === 'shadow' || mode === 'shadowing') return 'pronunciation';
+  if (mode === 'writing') return 'writing';
+  if (mode === 'speaking' || mode === 'conversation') return 'speaking';
+  if (mode === 'reading') return 'reading';
+  return mode || 'vocabulary';
+}
+
 export function recordStudyEvent(event = {}) {
   if (!event || typeof event !== 'object') return null;
   const at = typeof event.at === 'string' ? event.at : new Date().toISOString();
@@ -346,9 +373,266 @@ export function recordStudyEvent(event = {}) {
   return stored;
 }
 
-function pulseSkill(value) {
-  return value === 'grammar' || value === 'listening' || value === 'reading' ? value : 'vocab';
+function isoOrNow(value) {
+  return typeof value === 'string' && !Number.isNaN(new Date(value).getTime())
+    ? value
+    : new Date().toISOString();
 }
+
+function pulseSkill(value) {
+  const mode = normalisePracticeMode(value);
+  return mode === 'grammar' || mode === 'listening' || mode === 'reading' ? mode : mode === 'pronunciation' ? 'speaking' : 'vocab';
+}
+
+
+export function recordReviewEvent(event = {}) {
+  const reviewedAt = isoOrNow(event.reviewedAt || event.at);
+  const mode = normalisePracticeMode(event.mode || event.skill);
+  const itemId = String(event.itemId || event.cardId || event.gapKey || 'unknown');
+  const record = {
+    ...(event && typeof event === 'object' ? event : {}),
+    kind: event.kind || 'review',
+    id: String(event.id || `review:${Date.now()}:${itemId}:${Math.random().toString(36).slice(2, 8)}`),
+    reviewedAt,
+    itemId,
+    mode,
+    skill: event.skill || pulseSkill(mode),
+  };
+  const events = getReviewEvents();
+  events.push(record);
+  write(KEYS.reviewEvents, events);
+  publishPulseHistory();
+  return record;
+}
+
+// ---- persistent learner error model --------------------------------------
+// One local model joins mistakes from conversation, grammar, vocabulary,
+// listening, pronunciation, writing, and reading. The raw review stream keeps
+// the evidence; this table keeps the durable, actionable summary.
+
+const LEARNER_ERROR_SCHEMA = 1;
+const RECYCLE_MODES = {
+  grammar: ['grammar', 'speaking'],
+  vocabulary: ['vocabulary', 'speaking'],
+  listening: ['listening', 'dictation'],
+  pronunciation: ['pronunciation', 'speaking'],
+  speaking: ['speaking', 'grammar'],
+  writing: ['writing', 'grammar'],
+  reading: ['reading', 'vocabulary'],
+};
+
+function clampScore(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
+}
+
+function compactText(value, length = 180) {
+  return String(value || '').trim().slice(0, length);
+}
+
+function compactContext(value) {
+  if (!value || typeof value !== 'object') return null;
+  const out = {};
+  for (const [key, item] of Object.entries(value).slice(0, 8)) {
+    if (item == null || typeof item === 'boolean' || typeof item === 'number') out[key] = item;
+    else if (typeof item === 'string') out[key] = item.slice(0, 180);
+    else if (Array.isArray(item)) out[key] = item.slice(0, 8).map((x) => String(x).slice(0, 80));
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function errorKey(mode, key) {
+  return `${mode}:${compactText(key, 120)}`;
+}
+
+export const getLedgerErrors = () => {
+  const raw = read(KEYS.evidenceLedger, []);
+  const entries = Array.isArray(raw) ? raw : raw && Array.isArray(raw.entries) ? raw.entries : [];
+  return entries.filter((entry) => entry && entry.key && entry.mode).map((entry) => ({
+    schemaVersion: LEARNER_ERROR_SCHEMA,
+    ...entry,
+    mode: normalisePracticeMode(entry.mode),
+    key: compactText(entry.key, 120),
+    label: compactText(entry.label || entry.key, 180),
+  }));
+};
+
+function writeLedgerErrors(entries) {
+  // Error summaries are deliberately generous; unlike the old recent-session
+  // window, this does not discard the learner's durable pattern history.
+  write(KEYS.evidenceLedger, entries);
+}
+
+function errorPriority(entry) {
+  const ageDays = Math.max(0, (Date.now() - new Date(entry.lastErrorAt || entry.lastAt || 0).getTime()) / 86400000);
+  const recency = Math.max(0, 1 - ageDays / 45);
+  const active = entry.status === 'active' ? 3 : entry.status === 'recovering' ? 1 : 0;
+  return Math.round((entry.errorCount * 2 + entry.recurrenceCount * 3 + active + recency) * 100) / 100;
+}
+
+const ERROR_RECYCLE_DAYS = [1, 3, 7, 14, 30];
+function errorRecycleAt(entry, from = entry?.lastErrorAt) {
+  if (entry?.nextReviewAt) return entry.nextReviewAt;
+  if (!from) return null;
+  const successes = Math.max(0, Number(entry.successCount) || 0);
+  const days = ERROR_RECYCLE_DAYS[Math.min(ERROR_RECYCLE_DAYS.length - 1, successes)];
+  return new Date(new Date(from).getTime() + days * 86400000).toISOString();
+}
+
+export function recordLedgerError({ mode, key, label, score = 0, source = 'practice', context = null } = {}) {
+  const normalisedMode = normalisePracticeMode(mode);
+  const cleanKey = compactText(key, 120);
+  if (!cleanKey) return null;
+  const now = new Date().toISOString();
+  const list = getLedgerErrors();
+  let entry = list.find((item) => item.mode === normalisedMode && item.key === cleanKey);
+  if (!entry) {
+    entry = {
+      schemaVersion: LEARNER_ERROR_SCHEMA,
+      id: errorKey(normalisedMode, cleanKey),
+      mode: normalisedMode,
+      key: cleanKey,
+      label: compactText(label || cleanKey),
+      firstSeen: now,
+      lastAt: now,
+      lastErrorAt: now,
+      lastSuccessAt: null,
+      errorCount: 0,
+      successCount: 0,
+      attempts: 0,
+      recurrenceCount: 0,
+      lastScore: 0,
+      lastSource: source,
+      nextReviewAt: null,
+      status: 'active',
+      context: null,
+    };
+    list.unshift(entry);
+  } else if (entry.lastSuccessAt && new Date(entry.lastSuccessAt).getTime() <= Date.now()) {
+    entry.recurrenceCount = (entry.recurrenceCount || 0) + 1;
+  }
+  entry.label = compactText(label || entry.label || cleanKey);
+  entry.lastAt = now;
+  entry.lastErrorAt = now;
+  entry.errorCount = (entry.errorCount || 0) + 1;
+  entry.attempts = (entry.attempts || 0) + 1;
+  entry.lastScore = clampScore(score);
+  entry.lastSource = compactText(source || 'practice', 80);
+  entry.context = compactContext(context);
+  const delayDays = ERROR_RECYCLE_DAYS[Math.min(ERROR_RECYCLE_DAYS.length - 1, Number(entry.successCount) || 0)];
+  entry.nextReviewAt = new Date(Date.now() + delayDays * 86400000).toISOString();
+  entry.status = 'active';
+  writeLedgerErrors(list);
+  return entry;
+}
+
+export function recordLedgerSuccess({ mode, key, label, score = 100, source = 'practice', context = null } = {}) {
+  const normalisedMode = normalisePracticeMode(mode);
+  const cleanKey = compactText(key, 120);
+  if (!cleanKey) return null;
+  const list = getLedgerErrors();
+  const entry = list.find((item) => item.mode === normalisedMode && item.key === cleanKey);
+  if (!entry) return null;
+  const now = new Date().toISOString();
+  entry.label = compactText(label || entry.label || cleanKey);
+  entry.lastAt = now;
+  entry.lastSuccessAt = now;
+  entry.successCount = (entry.successCount || 0) + 1;
+  entry.attempts = (entry.attempts || 0) + 1;
+  entry.lastScore = clampScore(score);
+  entry.lastSource = compactText(source || 'practice', 80);
+  entry.context = compactContext(context);
+  const delayDays = ERROR_RECYCLE_DAYS[Math.min(ERROR_RECYCLE_DAYS.length - 1, Number(entry.successCount) || 0)];
+  entry.nextReviewAt = new Date(Date.now() + delayDays * 86400000).toISOString();
+  entry.status = entry.successCount >= 2 && entry.successCount >= entry.errorCount ? 'resolved' : 'recovering';
+  writeLedgerErrors(list);
+  return entry;
+}
+
+function recordGapOutcome({ mode, key, label, score = 0, source, context, event = true }) {
+  const result = clampScore(score) >= 80
+    ? recordLedgerSuccess({ mode, key, label, score, source, context })
+    : recordLedgerError({ mode, key, label, score, source, context });
+  if (event) {
+    recordReviewEvent({
+      kind: 'assessment',
+      mode,
+      itemId: key,
+      gapKey: key,
+      label: compactText(label || key),
+      score: clampScore(score),
+      correct: clampScore(score) >= 80,
+      source,
+      context: compactContext(context),
+    });
+  }
+  return result;
+}
+
+export function recordGrammarGap(topicId, { score = 0, source = 'grammar', context = null } = {}) {
+  return recordGapOutcome({ mode: 'grammar', key: topicId, label: topicId, score, source, context });
+}
+
+export function recordVocabularyGap(itemId, { label = itemId, score = 0, source = 'vocabulary', context = null, event = false } = {}) {
+  return recordGapOutcome({ mode: 'vocabulary', key: itemId, label, score, source, context, event });
+}
+
+export function recordListeningGap(itemId, { label = itemId, score = 0, source = 'listening', context = null } = {}) {
+  return recordGapOutcome({ mode: 'listening', key: itemId, label, score, source, context });
+}
+
+export function recordPronunciationGap(itemId, { label = itemId, score = 0, source = 'pronunciation', context = null } = {}) {
+  return recordGapOutcome({ mode: 'pronunciation', key: itemId, label, score, source, context });
+}
+
+export function recordSpeakingGap(itemId, { label = itemId, score = 0, source = 'speaking', context = null } = {}) {
+  return recordGapOutcome({ mode: 'speaking', key: itemId, label, score, source, context });
+}
+
+export function recordWritingGap(itemId, { label = itemId, score = 0, source = 'writing', context = null } = {}) {
+  return recordGapOutcome({ mode: 'writing', key: itemId, label, score, source, context });
+}
+
+export function getEvidenceLedgerModel() {
+  return getLedgerErrors()
+    .map((entry) => ({
+      ...entry,
+      priority: errorPriority(entry),
+      recycleModes: RECYCLE_MODES[entry.mode] || [entry.mode],
+    }))
+    .sort((a, b) => b.priority - a.priority || b.errorCount - a.errorCount || (a.lastAt < b.lastAt ? 1 : -1));
+}
+
+export function getErrorModelSummary() {
+  const entries = getLedgerErrors();
+  const byMode = {};
+  for (const entry of entries) byMode[entry.mode] = (byMode[entry.mode] || 0) + 1;
+  return {
+    total: entries.length,
+    active: entries.filter((entry) => entry.status === 'active').length,
+    recovering: entries.filter((entry) => entry.status === 'recovering').length,
+    resolved: entries.filter((entry) => entry.status === 'resolved').length,
+    recurrences: entries.reduce((sum, entry) => sum + (entry.recurrenceCount || 0), 0),
+    byMode,
+  };
+}
+
+export function getCrossModePracticeQueue(limit = 12) {
+  return getEvidenceLedgerModel()
+    .filter((entry) => entry.status !== 'resolved')
+    .slice(0, Math.max(0, limit));
+}
+
+/** Errors become deliberate delayed retests instead of immediate recognition drills. */
+export function getDelayedErrorQueue(limit = 12, nowMs = Date.now()) {
+  return getEvidenceLedgerModel()
+    .filter((entry) => entry.status !== 'resolved')
+    .map((entry) => ({ ...entry, nextReviewAt: errorRecycleAt(entry) }))
+    .filter((entry) => entry.nextReviewAt && new Date(entry.nextReviewAt).getTime() <= nowMs)
+    .slice(0, Math.max(0, limit));
+}
+
+export const getCrossModeMistakeQueue = getCrossModePracticeQueue;
 
 function speakingRecord(session, index) {
   const report = session?.report || {};
@@ -468,6 +752,8 @@ export function recordGrammarError(topicId, { mode = 'conversation', score = nul
     source: 'grammar-classification',
     detail,
   });
+  recordGrammarGap(topicId, { source: 'conversation' });
+  return all[topicId];
 }
 
 function migrateLearnerErrors() {
@@ -747,7 +1033,15 @@ export function getLearnerBrief() {
   const mistakes = getHabits().filter((h) => (h.count || 0) > 1).slice(0, 3).map((h) => h.text);
   const weakGrammar = Object.entries(getGrammarErrors())
     .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([topic]) => topic);
+  const errorQueue = getCrossModePracticeQueue(3).map((entry) => ({
+    mode: entry.mode,
+    label: entry.label,
+    errors: entry.errorCount,
+    recurrences: entry.recurrenceCount,
+    recycleModes: entry.recycleModes,
+  }));
   const prefs = getPrefs();
+  const settings = getSettings();
   // Retest intent: nudge the tutor toward the next due weakness (if any)
   const due = getDueWeaknesses()[0] || null;
   const memory = due ? { focusTopic: due.topicId, status: due.status, errorCount: due.errorCount } : null;
@@ -757,6 +1051,15 @@ export function getLearnerBrief() {
     topics: (prefs.favouriteTopics || []).slice(0, 4),
     mistakes,
     weakGrammar,
+    errorQueue,
+    delayedErrorQueue: getDelayedErrorQueue(3).map((entry) => ({
+      mode: entry.mode,
+      label: entry.label,
+      errors: entry.errorCount,
+      recurrences: entry.recurrenceCount,
+      recycleModes: entry.recycleModes,
+    })),
+    correctionFrequency: settings.correctionFrequency,
     memory,
     errorGaps: errorGaps.map((entry) => ({
       category: entry.category,
@@ -1111,14 +1414,16 @@ export function cacheWord(word, translation) {
 export const getGrammarProgress = () => read(KEYS.grammar, {});
 
 export function recordGrammarQuiz(topicId, score) {
+  const scoreValue = clampScore(score);
   const all = getGrammarProgress();
   const prev = all[topicId] || { best: 0, attempts: 0 };
   all[topicId] = {
-    best: Math.max(prev.best, score),
+    best: Math.max(prev.best, scoreValue),
     attempts: prev.attempts + 1,
     lastAt: new Date().toISOString(),
   };
   write(KEYS.grammar, all);
+  recordGrammarGap(topicId, { score: scoreValue, source: 'grammar-quiz' });
   return all[topicId];
 }
 
@@ -1132,6 +1437,7 @@ const DEFAULT_EASE = 2.5;
 const MIN_EASE = 1.3;
 // Map the four rating buttons to SM-2 quality grades (0–5).
 const QUALITY = { again: 2, hard: 3, good: 4, easy: 5 };
+const VOCAB_SCORE = { again: 0, hard: 60, good: 85, easy: 100 };
 
 export const getSrs = () => read(KEYS.srs, {});
 export const getFsrs = () => read(KEYS.srs, {});
@@ -1277,6 +1583,14 @@ function logReview({ cardId, rating, elapsedMs, skill, intervalDays, mode, itemL
   };
   if (event.correct) recordLearnerSuccess(learnerError);
   else recordLearnerError(learnerError);
+  // The evidence ledger tracks the same miss under its own cross-mode
+  // vocabulary, so the delayed-retest queue keeps seeing card reviews.
+  recordVocabularyGap(cardId, {
+    label: itemLabel || cardId,
+    score: event.correct ? (VOCAB_SCORE[rating] ?? 100) : 0,
+    source: `vocabulary-${mode}`,
+    context: { rating, reviewMode: mode },
+  });
   publishPulseHistory();
 }
 

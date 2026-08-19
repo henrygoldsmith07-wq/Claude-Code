@@ -119,7 +119,24 @@ export function CommandPalette({ open, onClose, onRun }) {
   );
 }
 
-export function QuickAdd({ open, onClose, onRun }) {
+export function QuickAdd({ open, onClose, onRun, onAddShopping }) {
+  const [shoppingName, setShoppingName] = useState('');
+  const shoppingInput = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    setShoppingName('');
+    const timer = setTimeout(() => shoppingInput.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  const submitShopping = (event) => {
+    event.preventDefault();
+    const name = shoppingName.trim();
+    if (!name || !onAddShopping) return;
+    onAddShopping(name);
+  };
+
   const actions = [
     ['food', 'Food', 'Search, scan, photograph or speak', Utensils],
     ['shopping', 'Shopping item', 'Open your list and add an item', ShoppingCart],
@@ -131,7 +148,32 @@ export function QuickAdd({ open, onClose, onRun }) {
   ];
   return (
     <Sheet open={open} onClose={onClose} title="Quick add">
-      <div className="px-5 pb-8 grid grid-cols-2 gap-2.5">
+      <div className="px-5 pb-8 space-y-3">
+        <form onSubmit={submitShopping} className="rounded-2xl border p-3" style={{ background: 'var(--card-2)', borderColor: 'var(--line)' }}>
+          <label htmlFor="quick-shopping-item" className="block text-[0.75rem] font-extrabold">Add to shopping list</label>
+          <div className="mt-2 flex gap-2">
+            <input
+              ref={shoppingInput}
+              id="quick-shopping-item"
+              value={shoppingName}
+              onChange={(event) => setShoppingName(event.target.value)}
+              aria-label="Quick shopping item"
+              placeholder="Milk, bananas…"
+              className="min-w-0 flex-1 rounded-xl border px-3 py-2.5 text-[0.8125rem] font-semibold outline-none"
+              style={{ background: 'var(--card)', borderColor: 'var(--line)', color: 'var(--ink)' }}
+            />
+            <button
+              type="submit"
+              disabled={!shoppingName.trim() || !onAddShopping}
+              className="press rounded-xl px-3 py-2.5 text-[0.75rem] font-extrabold disabled:opacity-40"
+              style={{ background: 'var(--ink)', color: 'var(--bg)' }}
+            >
+              Add
+            </button>
+          </div>
+          <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>Press Enter to add it without opening another form.</p>
+        </form>
+        <div className="grid grid-cols-2 gap-2.5">
         {actions.map(([id, title, subtitle, Icon]) => (
           <button
             key={id}
@@ -144,6 +186,7 @@ export function QuickAdd({ open, onClose, onRun }) {
             <span className="mt-0.5 block text-[0.71875rem] font-semibold leading-snug" style={{ color: 'var(--muted)' }}>{subtitle}</span>
           </button>
         ))}
+        </div>
       </div>
     </Sheet>
   );

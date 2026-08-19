@@ -202,6 +202,34 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
               ))}
             </div>
           </div>
+          <div className="space-y-2">
+            <div>
+              <span className="block text-sm text-ink">Correction frequency</span>
+              <span className="block text-[11px] text-ink3">Choose how much feedback interrupts your conversation</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5" role="radiogroup" aria-label="Correction frequency">
+              {[
+                ['adaptive', 'Adaptive'],
+                ['every-turn', 'Every error'],
+                ['important', 'Important'],
+                ['end', 'At the end'],
+                ['off', 'Off'],
+              ].map(([value, label]) => {
+                const on = (settings.correctionFrequency || 'adaptive') === value;
+                return (
+                  <button
+                    key={value}
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => onSettingsChange({ ...settings, correctionFrequency: value })}
+                    className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition-colors ${on ? 'bg-accent text-onaccent border-accent' : 'bg-surface border-line text-ink2 hover:border-ink3'}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <ToggleRow
             label="Daily reminders"
             hint="One nudge a day when reviews pile up or your streak is at risk, plus a due-count badge on the app icon"

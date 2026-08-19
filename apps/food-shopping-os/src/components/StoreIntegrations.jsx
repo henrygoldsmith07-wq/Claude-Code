@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, PackageSearch, Store, Tag, Truck } from 'lucide-react';
-import { RETAILERS, retailerBasket, retailerById, retailerOffers } from '../data/retailers.js';
+import { RETAILERS, retailerBasket, retailerById, retailerFallbackPlan, retailerOffers } from '../data/retailers.js';
 import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
 import { Card, Chip, Pill, Section } from './ui.jsx';
@@ -22,10 +22,12 @@ const ExternalButton = ({ href, children, primary = false }) => (
 export default function StoreIntegrations() {
   const app = useApp();
   const [selectedId, setSelectedId] = useState('tesco');
+  const [failedIds, setFailedIds] = useState([]);
   const selected = retailerById(selectedId);
   const basket = retailerBasket(selectedId, app.shoppingList, app.shops);
   const savedOffers = retailerOffers(selected, app.offers);
   const canDeliver = selected.fulfilment === 'delivery';
+  const fallbackPlan = retailerFallbackPlan(selectedId, { failedIds, items: app.shoppingList, shops: app.shops });
 
   return (
     <>
@@ -66,6 +68,29 @@ export default function StoreIntegrations() {
             ) : (
               <ExternalButton href={selected.shopUrl} primary>Browse {selected.name} groceries</ExternalButton>
             )}
+          </div>
+          <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: fallbackPlan.preferred?.unavailable ? 'var(--warn)' : 'var(--line)', background: 'var(--card-2)' }}>
+            <p className="text-[0.71875rem] font-extrabold">
+              {fallbackPlan.preferred?.unavailable ? 'Retailer unavailable' : 'Retailer fallback ready'}
+            </p>
+            <p className="mt-1 text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{fallbackPlan.reason}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {fallbackPlan.fallback && (
+                <ExternalButton href={fallbackPlan.fallback.searchUrl} primary>
+                  Use {fallbackPlan.fallback.name} fallback
+                </ExternalButton>
+              )}
+              {!fallbackPlan.preferred?.unavailable && (
+                <button
+                  type="button"
+                  onClick={() => setFailedIds((current) => [...new Set([...current, selected.id])])}
+                  className="press rounded-xl border px-3 py-2 text-[0.75rem] font-extrabold"
+                  style={{ borderColor: 'var(--line)', color: 'var(--muted)' }}
+                >
+                  Mark {selected.name} unavailable
+                </button>
+              )}
+            </div>
           </div>
         </Card>
       </Section>

@@ -39,6 +39,7 @@ const OBSTACLE_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /\bchickened out|didn'?t (?:do|try) it|bottled it|avoided\b/i, label: "avoided" },
   { pattern: /\bnoisy|loud|couldn'?t hear\b/i, label: "environment" },
   { pattern: /\bno (?:one|body) (?:was )?(?:there|around)|nobody to\b/i, label: "no opportunity" },
+  { pattern: /\bwrong (?:context|situation|setting|person)\b/i, label: "wrong situation" },
   { pattern: /\bthey (?:were )?(?:busy|rushing|distracted)\b/i, label: "other person unavailable" },
   { pattern: /\bapologi[sz]ed too much|over[- ]?explained\b/i, label: "over-explained" },
 ];
@@ -94,6 +95,10 @@ export function performanceFromReflection(reflection: Reflection, signal: Reflec
   reliability: number;
   comfort: number;
 } | null {
+  // These are context outcomes, not evidence about competence. Keeping them
+  // in the attempt history helps the recommender improve fit without lowering
+  // the skill estimate.
+  if (reflection.attempted === "no-opportunity" || reflection.attempted === "wrong-situation") return null;
   if (reflection.attempted === "no") {
     // A non-attempt is real information about confidence, and none about
     // competence — so it updates only the comfort channel, at low weight.
@@ -130,6 +135,8 @@ export const REFLECTION_PROMPTS: ReflectionPrompt[] = [
       { value: "yes", label: "Yes" },
       { value: "partly", label: "Partly" },
       { value: "no", label: "No" },
+      { value: "no-opportunity", label: "No opportunity" },
+      { value: "wrong-situation", label: "Wrong situation" },
     ],
   },
   { id: "difficulty", question: "How difficult did it feel?", kind: "scale", optional: false },

@@ -11,7 +11,7 @@ import { CATALOGUE } from '../data/foods.js';
 import { GLASS_ML } from '../data/nutrients.js';
 import { dayTotals, hydration, nutrientCoverage } from './nutrition.js';
 import {
-  groceryInflation, kitchenStats, pantryAvailability, pantryTruthLabel, pantryTruthTone, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom, weekDates,
+  groceryInflation, kitchenStats, pantryAvailability, pantryConfidenceLevel, pantryTruthLabel, pantryTruthTone, pantryValue, savingsSummary, spentInMonth, spentInWeek, streakFrom, weekDates,
 } from './kitchen.js';
 import {
   defaultWeeklyKcal, goalSummary, resolveMaintenance, targetSafety, weekProgress,
@@ -21,10 +21,11 @@ import { progressSummary } from './progress.js';
 import { bodySummary, cycleSummary, sleepSummary, stressSummary, vitalSummary } from './health.js';
 import { activityAdjustment, weekSummary } from './exercise.js';
 import {
-  basketProjection, priceAlertMatches, restockSuggestions, recurringStaples, wasteSummary,
+  basketProjection, priceAlertMatches, restockSuggestions, recurringStaples, shoppingNameKey, wasteSummary,
 } from './shopping.js';
 import { couponVaultStats, couponsForList } from './coupons.js';
 import { derivePriceAnomalies, priceAnomalyForList } from './price-alerts.js';
+import { shoppingInsightFor } from './shopping-intelligence.js';
 import { recentFoodsFrom } from './state.js';
 import {
   evaluateFoodSuitability,
@@ -180,13 +181,29 @@ export const deriveApp = (state) => {
     streak: streakFrom(cookedDays, state.day),
     cookedToday: cookedDays.includes(state.day),
     cookedIds: state.cooked.map((c) => c.recipeId),
-    pantryValue: pantryValue(state.pantry),
-    pantryTruth: (() => {
-      const counts = { confirmed_sufficient: 0, probably_available: 0, running_low: 0, unknown: 0, confirmed_insufficient: 0 };
-      for (const item of state.pantry || []) counts[pantryAvailability(item)] = (counts[pantryAvailability(item)] || 0) + 1;
-      const byItem = (state.pantry || []).map((item) => ({ item, truth: pantryAvailability(item), label: pantryTruthLabel(pantryAvailability(item)), tone: pantryTruthTone(pantryAvailability(item)) }));
+     pantryValue: pantryValue(state.pantry),
+     pantryTruth: (() => {
+       const counts = { confirmed_sufficient: 0, probably_available: 0, running_low: 0, unknown: 0, confirmed_insufficient: 0 };
+      for (const item of state.pantry || []) counts[pantryAvailability(item, state.day)] = (counts[pantryAvailability(item, state.day)] || 0) + 1;
+      const byItem = (state.pantry || []).map((item) => {
+        const truth = pantryAvailability(item, state.day);
+        const confidence = pantryConfidenceLevel(item, state.day);
+        return { item, truth, label: pantryTruthLabel(truth), tone: pantryTruthTone(truth), confidence };
+      });
       return { counts, byItem, unknown: counts.unknown, low: counts.running_low, sufficient: counts.confirmed_sufficient + counts.probably_available };
-    })(),
+     })(),
+     pantryIntelligence: (() => {
+       const rows = (state.pantry || []).map((item) => ({
+         item,
+         confidence: pantryConfidenceLevel(item, state.day),
+       }));
+       return {
+         lowConfidence: rows.filter(({ confidence }) => confidence.requiresConfirmation),
+         confidence: rows,
+         openConflicts: (state.pantryConflicts || []).filter((conflict) => conflict.status !== 'resolved'),
+         recentEvents: (state.pantryEvents || []).slice(-10).reverse(),
+       };
+     })(),
     spentThisWeek: spentInWeek(state.shops, state.day),
     spentThisMonth: spentInMonth(state.shops, state.day),
     inflation: groceryInflation(state.shops),
@@ -194,6 +211,47 @@ export const deriveApp = (state) => {
     priceAlertStatus: priceAlertMatches(state.priceAlerts, state.shops),
     priceAnomalies: derivePriceAnomalies(state.shops, state.priceAlertConfig),
     priceAnomaliesForList: priceAnomalyForList(state.shoppingList, state.shops, state.priceAlertConfig),
+    shoppingInsights: (() => {
+      const sharedDiets = [...new Set([
+        ...(state.diets || []),
+        ...(state.members || []).flatMap((member) => member.diets || []),
+      ])];
+      const sharedAllergies = [...new Set([
+        ...(state.allergies || []),
+        ...(state.members || []).flatMap((member) => member.allergies || []),
+      ])];
+      const sharedIntolerances = [...new Set([
+        ...(state.intolerances || []),
+        ...(state.members || []).flatMap((member) => member.intolerances || []),
+      ])];
+      const byId = {};
+      const byKey = {};
+      for (const item of state.shoppingList || []) {
+        const insight = shoppingInsightFor(item, {
+          shops: state.shops,
+          pantry: state.pantry,
+          list: state.shoppingList,
+          diets: sharedDiets,
+          allergies: sharedAllergies,
+          intolerances: sharedIntolerances,
+          today: state.day,
+          learnedAliases: state.aliasMemory,
+          store: item.store || '',
+          routes: state.storeRoutes,
+          memory: state.aisleMemory,
+        });
+        byId[item.id] = insight;
+        byKey[shoppingNameKey(item.name)] = insight;
+      }
+      return {
+        byId,
+        byKey,
+        shared: Boolean(state.members?.length || state.householdName),
+        offlineMode: Boolean(state.shoppingPreferences?.offlineMode),
+        lastChangedAt: Number(state.shoppingMeta?.lastChangedAt || 0),
+        lastChangedBy: state.shoppingMeta?.lastChangedBy || '',
+      };
+    })(),
     couponVault: couponVaultStats(state.coupons, state.day),
     couponsForList: couponsForList(state.coupons, state.shoppingList, state.day),
     basket: basketProjection(state.shoppingList, {

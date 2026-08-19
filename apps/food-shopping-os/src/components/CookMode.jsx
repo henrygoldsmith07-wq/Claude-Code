@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Check, ExternalLink, Lightbulb, Mic, Pause, PartyPopper, Play, PlayCircle, Snowflake, X,
+  Check, ExternalLink, Lightbulb, Mic, Pause, PartyPopper, Play, PlayCircle, Snowflake, TriangleAlert, X,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { recordProductEvent } from '../lib/product-analytics.js';
@@ -59,6 +59,9 @@ export default function CookMode({ recipe, onExit, onClose }) {
   const s = recipe.steps[step];
   const last = step === recipe.steps.length - 1;
   const videoUrl = safeExternalUrl(recipe.video);
+  const pantryEvent = app.lastPantryEvent?.recipeId === recipe.id && app.lastPantryEvent?.date === app.day
+    ? app.lastPantryEvent
+    : null;
 
   useEffect(() => {
     if (finished) {
@@ -170,6 +173,32 @@ export default function CookMode({ recipe, onExit, onClose }) {
           <p className="mt-2 text-[0.90625rem] font-semibold" style={{ color: 'var(--muted)' }}>
             +60 XP · cooking streak: {app.streak} days.<br />Nutrition logged to today’s totals.
           </p>
+
+          {pantryEvent && (
+            <Card className="mt-5 w-full !p-3 text-left" style={{ borderColor: pantryEvent.shortfalls?.length ? 'var(--warn)' : 'var(--line)' }}>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: pantryEvent.shortfalls?.length ? 'var(--warn)' : 'var(--faint)' }}>
+                Pantry deduction
+              </p>
+              <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                {pantryEvent.explanation}
+              </p>
+              {pantryEvent.shortfalls?.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {pantryEvent.shortfalls.map((shortfall) => (
+                    <p key={shortfall.name} className="inline-flex items-start gap-1.5 text-[0.75rem] font-bold" style={{ color: 'var(--warn)' }}>
+                      <TriangleAlert size={13} className="mt-0.5 shrink-0" />
+                      {shortfall.name}: {shortfall.short || 'amount not covered'} short
+                    </p>
+                  ))}
+                </div>
+              )}
+              {pantryEvent.confirmationNeeded?.length > 0 && (
+                <p className="mt-2 text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {pantryEvent.confirmationNeeded.length} low-confidence item{pantryEvent.confirmationNeeded.length === 1 ? '' : 's'} need checking in the pantry.
+                </p>
+              )}
+            </Card>
+          )}
 
           {recipe.servings > 1 && (
             <Card className="mt-6 w-full !p-3 text-left">

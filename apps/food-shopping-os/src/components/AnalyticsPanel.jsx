@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import {
-  Apple, Banknote, CalendarDays, Leaf, Package, ShoppingCart, Store, Tag, Trash2,
+  Apple, Banknote, CalendarDays, Gauge, Leaf, Package, ShoppingCart, Store, Tag, Trash2,
 } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import {
   calendarAnalyticsReport, carbonAnalytics, nutritionAnalytics, pantryDashboard,
-  shoppingAnalytics, wasteAnalytics,
+  measurementAnalytics, shoppingAnalytics, wasteAnalytics,
 } from '../lib/analytics.js';
 import { gbp } from '../lib/utils.js';
 import { ANALYTICS_VIEW_TOOL } from '../data/optionalTools.js';
@@ -17,6 +17,7 @@ const VIEWS = [
   ['pantry', 'Pantry', Package],
   ['waste', 'Waste', Trash2],
   ['habits', 'Habits', ShoppingCart],
+  ['measurement', 'Measurement', Gauge],
   ['impact', 'Impact', Leaf],
   ['reports', 'Reports', CalendarDays],
 ];
@@ -258,6 +259,80 @@ function HabitsView({ report }) {
   );
 }
 
+const changeValue = (trend) => {
+  if (!trend || trend.reductionPct === null) return '—';
+  const direction = trend.reductionPct >= 0 ? '↓' : '↑';
+  return `${direction} ${Math.abs(trend.reductionPct)}%`;
+};
+
+const changeDetail = (metric, unit = 'recorded trips') => {
+  if (!metric.readyForTrend) return `${metric.minimumTrips} dated trips needed for a baseline`;
+  if (!metric.trend || metric.trend.reductionPct === null) return `No earlier ${unit} signal to compare`;
+  return `latest half vs earlier half · ${unit}`;
+};
+
+function MeasurementView({ report }) {
+  const time = report.householdTimeSaved;
+  const emergency = report.emergencyShopReduction;
+  const duplicate = report.duplicatePurchaseReduction;
+  const waste = report.foodWasteReduction;
+  const meals = report.plannedMealCompletion;
+  const pantry = report.pantryConfirmationBurden;
+  return (
+    <>
+      <Card>
+        <p className="font-extrabold text-[0.9375rem]">Household outcome measurement</p>
+        <p className="text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          Recorded actions only. Reductions compare the earlier and latest halves of dated shop history; a blank reduction means the baseline is not ready.
+        </p>
+      </Card>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Stat
+          label="Household time saved"
+          value={time.estimatedMinutes === null ? '—' : `~${time.estimatedMinutes} min`}
+          detail={time.estimatedMinutes === null ? 'No list-saving signal yet' : `${time.consolidatedLines} consolidated lines · proxy estimate`}
+        />
+        <Stat
+          label="Emergency shop reduction"
+          value={changeValue(emergency.trend)}
+          detail={emergency.trend ? changeDetail(emergency) : `${emergency.rate ?? '—'}% small-shop rate currently`}
+        />
+        <Stat
+          label="Duplicate purchase reduction"
+          value={changeValue(duplicate.trend)}
+          detail={duplicate.trend ? `${changeDetail(duplicate, 'item lines')} · ${duplicate.recentPurchaseWarnings} active warnings` : `${duplicate.recentPurchaseWarnings} recent-purchase warning${duplicate.recentPurchaseWarnings === 1 ? '' : 's'}`}
+        />
+        <Stat
+          label="Food waste reduction"
+          value={changeValue(waste.trend)}
+          detail={waste.trend ? `${changeDetail(waste, 'waste cost per shop')} · £${waste.window.cost.toFixed(2)} in 30 days` : `£${waste.observedCost.toFixed(2)} observed waste`}
+        />
+        <Stat
+          label="Planned meal completion"
+          value={meals.completionPct === null ? '—' : `${meals.completionPct}%`}
+          detail={`${meals.completed} of ${meals.planned} planned meals cooked · 30 days`}
+        />
+        <Stat
+          label="Pantry confirmation burden"
+          value={pantry.burdenPct === null ? '—' : `${pantry.burdenPct}%`}
+          detail={pantry.consumptionEvents ? `${pantry.confirmationRequests} confirmation request${pantry.confirmationRequests === 1 ? '' : 's'} across ${pantry.consumptionEvents} cooks` : 'No pantry consumption events yet'}
+        />
+      </div>
+      <Card>
+        <p className="font-bold text-[0.875rem]">How to read this</p>
+        <p className="mt-1 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+          Emergency shops mean two or fewer named items. Duplicate purchases are a seven-day repeat-purchase proxy. Time saved estimates two minutes per consolidated list line and one minute per recent-purchase warning; it is not a stopwatch measurement.
+        </p>
+        {pantry.openConflicts > 0 && (
+          <p className="mt-2 text-[0.75rem] font-bold" style={{ color: 'var(--warn)' }}>
+            {pantry.openConflicts} pantry conflict{pantry.openConflicts === 1 ? '' : 's'} still need a household decision.
+          </p>
+        )}
+      </Card>
+    </>
+  );
+}
+
 function ImpactView({ report }) {
   const categories = report.food.byCategory || [];
   return (
@@ -344,6 +419,7 @@ export default function AnalyticsPanel() {
   const nutrition = nutritionAnalytics(app, { days: 30, today: app.day });
   const pantry = pantryDashboard(app, app.day);
   const waste = wasteAnalytics(app, app.day);
+  const measurement = measurementAnalytics(app, app.day);
   const carbon = carbonAnalytics(app, app.day);
   const month = calendarAnalyticsReport(app, 'month', app.day);
   const year = calendarAnalyticsReport(app, 'year', app.day);
@@ -362,6 +438,7 @@ export default function AnalyticsPanel() {
       {active === 'pantry' && <PantryDashboard report={pantry} />}
       {active === 'waste' && <WasteView report={waste} />}
       {active === 'habits' && <HabitsView report={shopping} />}
+      {active === 'measurement' && <MeasurementView report={measurement} />}
       {active === 'impact' && <ImpactView report={carbon} />}
       {active === 'reports' && <ReportsView month={month} year={year} />}
     </div>

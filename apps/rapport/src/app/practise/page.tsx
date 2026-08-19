@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { SCENARIOS } from "@/domain/scenarios";
-import { buildScenario } from "@/domain/scenarios";
+import { buildScenario, SCENARIOS } from "@/domain/scenarios";
 import { getSkill } from "@/domain/skills";
 import { Badge, Button, Card, Field, PageHeader, TextArea } from "@/components/ui";
+import { TrainingPlan } from "@/components/training-plan";
 import { useStore } from "@/state/store";
 import * as repo from "@/data/repository";
 
@@ -43,6 +43,8 @@ export default function PractisePage() {
         title="Practise"
         subtitle="Rehearse a conversation before you have it. Characters keep track of what they have said and do not always make it easy."
       />
+
+      <TrainingPlan />
 
       <Card as="section">
         <h2 className="text-base font-semibold">Describe a situation</h2>

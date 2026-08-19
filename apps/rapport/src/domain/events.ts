@@ -1,7 +1,7 @@
 import { applyEvidence, applyUserCorrection, initialSkillState } from "./mastery";
 import type { Evidence } from "./mastery";
 import { SKILLS } from "./skills";
-import type { BehaviourKey, Id, IsoInstant, UserSkillState } from "./types";
+import type { BehaviourKey, ChallengeOutcome, Id, IsoInstant, UserSkillState } from "./types";
 
 // ---------------------------------------------------------------------------
 // Event log.
@@ -108,7 +108,7 @@ export type DomainEvent =
       studyId?: Id;
       challengeAttemptId?: Id;
       skillId: Id;
-      outcome: "yes" | "partly" | "no";
+      outcome: ChallengeOutcome;
       completed: boolean;
       comfort?: number;
       followUpScore?: number;

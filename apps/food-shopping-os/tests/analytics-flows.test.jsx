@@ -7,6 +7,7 @@ const savedState = {
   onboarded: true,
   name: 'Sam',
   day: '2026-07-28',
+  enabledTools: ['carbon', 'reports'],
   shops: [
     { id: 's1', date: '2026-07-02', store: 'Tesco', total: 20, saved: 2, items: [{ name: 'Milk', price: 2 }] },
     { id: 's2', date: '2026-07-10', store: 'Tesco', total: 30, saved: 1, items: [{ name: 'Milk', price: 2.1 }] },
@@ -56,6 +57,9 @@ describe('analytics dashboards', () => {
     fireEvent.click(within(analytics).getByText('Habits'));
     expect(within(analytics).getByText('Shopping habits')).toBeDefined();
     expect(within(analytics).getByText('Fage')).toBeDefined();
+
+    fireEvent.click(within(analytics).getByText('Measurement'));
+    expect(within(analytics).getByText('Household outcome measurement')).toBeDefined();
 
     fireEvent.click(within(analytics).getByText('Impact'));
     expect(within(analytics).getByText('Carbon footprint')).toBeDefined();

@@ -22,6 +22,7 @@ import type {
   ChallengeAttempt,
   Experiment,
   ExperimentObservation,
+  Exercise,
   Goal,
   Id,
   Insight,
@@ -78,11 +79,13 @@ interface StoreValue {
   recordEvidenceEvent(event: DomainEvent): Promise<void>;
   setFocus(skillId: Id): Promise<void>;
   recordLessonRead(skillId: Id, lessonId: Id): Promise<void>;
+  recordExercise(exercise: Exercise, performance: number): Promise<void>;
   saveSimulation(simulation: Simulation): Promise<SimulationEvaluation | null>;
   assignChallenge(skillId: Id): Promise<ChallengeAttempt>;
   completeChallenge(attemptId: Id, reflection: Omit<Reflection, "id" | "userId" | "createdAt" | "subject">): Promise<{ warning?: string }>;
   skipChallenge(attemptId: Id, reason?: string): Promise<void>;
   swapChallenge(attemptId: Id): Promise<ChallengeAttempt | null>;
+  postponeChallenge(attemptId: Id, days?: number): Promise<void>;
   correctSkill(skillId: Id, values: { mastery?: number; confidence?: number }): Promise<void>;
   updatePreference(patch: Partial<Preference>): Promise<void>;
   startExperiment(experiment: Experiment): Promise<void>;
@@ -211,9 +214,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       userId: LOCAL_USER_ID,
       recentScenarioIds: simulations.slice(-4).map((simulation) => simulation.scenarioId),
       challengeHistory: attempts,
+      evaluations,
       focusSkillId: focusOverride ?? undefined,
     });
-  }, [ready, states, recommendationInput, simulations, attempts, focusOverride]);
+  }, [ready, states, recommendationInput, simulations, attempts, evaluations, focusOverride]);
 
   // Insights and weekly reviews are derived from the event log rather than
   // accumulated and stored. Two consequences, both wanted: they can never go
@@ -366,6 +370,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [applyEvent, todayPlan]);
 
+  const recordExercise = useCallback<StoreValue["recordExercise"]>(async (exercise, performance) => {
+    const at = new Date().toISOString();
+    await applyEvent({
+      kind: "exercise-completed",
+      at,
+      exerciseId: exercise.id,
+      skillId: exercise.skillId,
+      performance: Math.min(1, Math.max(0, performance)),
+      difficulty: exercise.difficulty,
+    });
+    if (todayPlan) {
+      const updated = markStepComplete(todayPlan.session, "exercise", at);
+      await repo.put("sessions", updated);
+      setSessions((current) => [...current.filter((item) => item.id !== updated.id), updated]);
+    }
+  }, [applyEvent, todayPlan]);
+
   const saveSimulation = useCallback<StoreValue["saveSimulation"]>(async (simulation) => {
     const at = new Date().toISOString();
     await repo.put("simulations", simulation);
@@ -425,6 +446,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       challengeId: selection.challenge.id,
       challenge: selection.challenge,
       assignedAt: at,
+      reminderAt: at,
     };
     await repo.put("attempts", attempt);
     if (selection.challenge.generated) await repo.put("challenges", selection.challenge);
@@ -456,6 +478,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...attempt,
       completedAt: input.attempted === "no" ? undefined : at,
       skippedAt: input.attempted === "no" ? at : undefined,
+      postponedUntil: undefined,
+      reminderAt: undefined,
       outcome: input.attempted,
       perceivedDifficulty: input.difficulty,
     };
@@ -463,7 +487,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setAttempts((current) => current.map((item) => (item.id === attemptId ? updatedAttempt : item)));
 
     const performance = performanceFromReflection(reflection, signal);
-    if (performance) {
+    if (performance && input.attempted !== "no-opportunity" && input.attempted !== "wrong-situation") {
       await applyEvent({
         kind: "challenge-attempted",
         at,
@@ -509,6 +533,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await skipChallenge(attemptId, "swapped");
     return assignChallenge(attempt.challenge.skillId);
   }, [attempts, skipChallenge, assignChallenge]);
+
+  const postponeChallenge = useCallback<StoreValue["postponeChallenge"]>(async (attemptId, days = 1) => {
+    const attempt = attempts.find((item) => item.id === attemptId);
+    if (!attempt || attempt.completedAt || attempt.skippedAt) return;
+    const at = new Date().toISOString();
+    const reminder = new Date(at);
+    reminder.setUTCDate(reminder.getUTCDate() + Math.max(0, days));
+    const updated: ChallengeAttempt = {
+      ...attempt,
+      postponedUntil: days > 0 ? reminder.toISOString().slice(0, 10) : undefined,
+      reminderAt: reminder.toISOString(),
+    };
+    await repo.put("attempts", updated);
+    setAttempts((current) => current.map((item) => (item.id === attemptId ? updated : item)));
+  }, [attempts]);
 
   const correctSkill = useCallback<StoreValue["correctSkill"]>(async (skillId, values) => {
     const at = new Date().toISOString();
@@ -597,11 +636,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       recordEvidenceEvent,
       setFocus,
       recordLessonRead,
+      recordExercise,
       saveSimulation,
       assignChallenge,
       completeChallenge,
       skipChallenge,
       swapChallenge,
+      postponeChallenge,
       correctSkill,
       updatePreference,
       startExperiment,
@@ -614,9 +655,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [
       ready, user, preference, states, goals, events, attempts, reflections, simulations, evaluations,
       sessions, insights, experiments, observations, achievements, reviews, todayPlan, justUnlocked,
-      completeOnboarding, setFocus, recordLessonRead, saveSimulation, assignChallenge, completeChallenge,
-      recordEvidenceEvent,
-      skipChallenge, swapChallenge, correctSkill, updatePreference, startExperiment, recordObservation,
+      completeOnboarding, setFocus, recordLessonRead, recordExercise, saveSimulation, assignChallenge,
+      completeChallenge, skipChallenge, swapChallenge, postponeChallenge, correctSkill, updatePreference,
+      startExperiment, recordObservation, recordEvidenceEvent,
       endExperiment, dismissInsight, exportData, wipeData,
     ],
   );

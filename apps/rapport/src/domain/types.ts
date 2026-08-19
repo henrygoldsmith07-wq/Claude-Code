@@ -377,7 +377,7 @@ export interface Challenge {
   generated?: boolean;
 }
 
-export type ChallengeOutcome = "yes" | "partly" | "no";
+export type ChallengeOutcome = "yes" | "partly" | "no" | "no-opportunity" | "wrong-situation";
 
 export interface ChallengeAttempt {
   id: Id;
@@ -388,6 +388,10 @@ export interface ChallengeAttempt {
   assignedAt: IsoInstant;
   completedAt?: IsoInstant;
   skippedAt?: IsoInstant;
+  /** The user asked to try this later; postponement is never scored as failure. */
+  postponedUntil?: IsoDate;
+  /** In-app reminder time for the real-world challenge. */
+  reminderAt?: IsoInstant;
   /** Set when the user swapped this challenge out. Never counted against them. */
   replacedByAttemptId?: Id;
   outcome?: ChallengeOutcome;
