@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getNextReflectionStep } from "@/lib/gemini";
 import { checkRateLimit } from "@/lib/rateLimit";
-import type { Message } from "@/lib/types";
+import type { Message, ReflectionMode } from "@/lib/types";
 
 // Cap the conversation so a single request can't send an unbounded history
 // and drive up token usage (and cost) on the server fallback key.
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const limited = checkRateLimit(request, { name: "reflect", limit: 20, windowMs: 60_000 });
   if (limited) return limited;
 
-  let body: { messages?: Message[]; apiKey?: string; entries?: unknown };
+  let body: { messages?: Message[]; apiKey?: string; entries?: unknown; mode?: ReflectionMode };
   try {
     body = await request.json();
   } catch {
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
   if (messages[0].role !== "user") {
     return NextResponse.json({ error: "First message must describe the situation" }, { status: 400 });
   }
+  const mode: ReflectionMode = body.mode === "quick" ? "quick" : "full";
 
   try {
     const entries = Array.isArray(body.entries) ? (body.entries as { id: string; coreEmotion: string | null; triggers: string[] }[]).slice(0, 8) : undefined;
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
         otherPerspective: "", balancedAssessment: "", cautionFlags: [], suggestedNextSteps: [], hedgedDisclaimer: null,
       } : null,
     }));
-    const result = await getNextReflectionStep(messages, body.apiKey, { entries: entryHints as unknown as import("@/lib/types").Entry[] });
+    const result = await getNextReflectionStep(messages, body.apiKey, { entries: entryHints as unknown as import("@/lib/types").Entry[], mode });
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reflection step failed";

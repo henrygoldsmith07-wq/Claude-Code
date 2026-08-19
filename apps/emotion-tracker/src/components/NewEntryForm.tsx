@@ -1,18 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import type { ReflectionMode } from "@/lib/types";
 
 interface Props {
-  onSubmit: (situation: string) => void;
+  onSubmit: (situation: string, mode: ReflectionMode) => void;
+  initialMode?: ReflectionMode;
 }
 
-export default function NewEntryForm({ onSubmit }: Props) {
+export default function NewEntryForm({ onSubmit, initialMode = "full" }: Props) {
   const [situation, setSituation] = useState("");
+  const [mode, setMode] = useState<ReflectionMode>(initialMode);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!situation.trim()) return;
-    onSubmit(situation.trim());
+    onSubmit(situation.trim(), mode);
     setSituation("");
   }
 
@@ -30,6 +33,18 @@ export default function NewEntryForm({ onSubmit }: Props) {
         </p>
       </div>
 
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Reflection length">
+        {([
+          ["quick", "Quick reflection", "One focused question · about 2 minutes"],
+          ["full", "Full reflection", "A deeper pass · up to 5 questions"],
+        ] as const).map(([value, label, detail]) => (
+          <button key={value} type="button" role="radio" aria-checked={mode === value} onClick={() => setMode(value)} className={`rounded-xl border p-3 text-left transition-colors ${mode === value ? "border-accent bg-accent/8 ring-1 ring-accent/20" : "border-border bg-card hover:bg-card-hover"}`}>
+            <span className="text-sm font-medium">{label}</span>
+            <span className="mt-1 block text-xs text-muted">{detail}</span>
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <textarea
           value={situation}
@@ -44,7 +59,7 @@ export default function NewEntryForm({ onSubmit }: Props) {
           disabled={!situation.trim()}
           className="self-start rounded-xl bg-accent px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover disabled:opacity-40"
         >
-          Start reflecting →
+          Start {mode === "quick" ? "quick" : "full"} reflection →
         </button>
       </form>
 

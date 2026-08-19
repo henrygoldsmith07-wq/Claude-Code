@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Entry } from "@/lib/types";
+import type { Correction } from "@/lib/corrections";
 import {
   buildLongitudinalEvidenceReport,
   renderLongitudinalEvidenceReportMarkdown,
@@ -28,15 +29,17 @@ function download(filename: string, content: string, type: string): void {
 export default function EvidenceReportCard({
   entries,
   onSelect,
+  corrections = [],
 }: {
   entries: Entry[];
   onSelect: (id: string) => void;
+  corrections?: Correction[];
 }) {
   const [window, setWindow] = useState<ReportWindow>("all");
   const report = useMemo(() => {
     const from = window === "all" ? null : dateDaysAgo(Number(window));
-    return buildLongitudinalEvidenceReport(entries, { from });
-  }, [entries, window]);
+    return buildLongitudinalEvidenceReport(entries, { from, corrections });
+  }, [entries, window, corrections]);
 
   function exportJson(): void {
     download(
@@ -58,7 +61,7 @@ export default function EvidenceReportCard({
     <section className="rounded-xl border border-accent/20 bg-accent/5 p-4" aria-labelledby="evidence-report-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id="evidence-report-title" className="text-xs font-semibold uppercase tracking-wider text-accent">Longitudinal evidence report</h3>
+          <h3 id="evidence-report-title" className="text-xs font-semibold uppercase tracking-wider text-accent">Evidence report</h3>
           <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted">
             A dated, evidence-linked view of what changed across reflections. Conversation messages stay out of the report; each finding points back to local entries.
           </p>

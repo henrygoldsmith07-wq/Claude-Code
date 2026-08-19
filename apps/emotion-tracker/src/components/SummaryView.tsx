@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import type { LongitudinalReview, ReflectionSummary } from "@/lib/types";
+import type { BiasFlag, LongitudinalReview, ReflectionSummary } from "@/lib/types";
 import { evidenceLinksFor } from "@/lib/longitudinal";
-import { uncertaintySentence } from "@/lib/promptDiversity";
+import { patternKey } from "@/lib/corrections";
+import { confidenceLanguage } from "@/lib/confidence";
+import { dateAfterDays, FOLLOW_UP_DELAYS } from "@/lib/followUp";
 
 function Section({
   title,
@@ -51,12 +53,14 @@ export default function SummaryView({
   onFollowUp,
   onSaveReview,
   onClearReview,
+  onDismissPattern,
 }: {
   summary: ReflectionSummary;
   longitudinalReview?: LongitudinalReview | null;
   onFollowUp?: (at: string | null, note: string | null) => void;
   onSaveReview?: (patch: Partial<LongitudinalReview>) => void;
   onClearReview?: () => void;
+  onDismissPattern?: (bias: BiasFlag) => void;
 }) {
   const trace = summary.trace;
   const hasFollowUp = Boolean(trace?.followUpAt || trace?.followUpNote);
@@ -71,12 +75,16 @@ export default function SummaryView({
   const [draftNote, setDraftNote] = useState(review?.calibrationNote ?? "");
   const [editingReview, setEditingReview] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(Boolean(review));
+  const [showFollowUpOptions, setShowFollowUpOptions] = useState(false);
+  const [customFollowUpDate, setCustomFollowUpDate] = useState("");
+  const [dismissedPatterns, setDismissedPatterns] = useState<string[]>([]);
 
   // keep drafts in sync when review changes externally
   // (avoid effect loops: only sync when review identity changes via key)
   const reviewKey = review ? `${review.reviewedAt ?? ""}:${review.assumptionVerdict ?? ""}` : "none";
 
   const canSave = Boolean(draftOutcome.trim()) && Boolean(draftVerdict);
+  const visibleBiases = summary.possibleBiases.filter((bias) => !dismissedPatterns.includes(patternKey({ kind: "bias", label: bias.type })));
 
   return (
     <div className="flex flex-col gap-5" key={reviewKey}>
@@ -163,23 +171,21 @@ export default function SummaryView({
         </Section>
       )}
 
-      {summary.possibleBiases.length > 0 && (
+      {visibleBiases.length > 0 && (
         <div>
           <Section title="Patterns to consider (tentative, not diagnoses)">
             <ul className="flex flex-col gap-3">
-              {summary.possibleBiases.map((b, i) => (
+              {visibleBiases.map((b, i) => (
                 <li
                   key={i}
                   className="rounded-xl border border-review/30 bg-reviewsoft px-3.5 py-3"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-medium text-review">{b.type}</span>
-                    <span className="text-xs tabular-nums text-muted">
-                      confidence {(b.confidence * 100).toFixed(0)}%
-                    </span>
+                    <span className="text-xs font-medium text-muted">{confidenceLanguage(b.confidence).label}</span>
                   </div>
                   <p className="mt-1 text-sm text-foreground">{b.description}</p>
-                  <p className="mt-1 text-xs italic text-muted">{uncertaintySentence(b.confidence)}</p>
+                  <p className="mt-1 text-xs italic text-muted">{confidenceLanguage(b.confidence).detail}</p>
                   {b.evidenceFor.length > 0 && (
                     <div className="mt-2">
                       <p className="text-xs font-medium text-muted">Evidence for this reading</p>
@@ -200,6 +206,7 @@ export default function SummaryView({
                       </ul>
                     </div>
                   )}
+                  {onDismissPattern && <button type="button" onClick={() => { setDismissedPatterns((current) => [...current, patternKey({ kind: "bias", label: b.type })]); onDismissPattern(b); }} className="mt-3 text-xs text-muted underline decoration-dotted underline-offset-2 hover:text-foreground">Stop showing this pattern</button>}
                 </li>
               ))}
             </ul>
@@ -293,20 +300,7 @@ export default function SummaryView({
           )}
           {onFollowUp && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {!trace.followUpAt && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 2);
-                    const iso = d.toISOString().slice(0, 10);
-                    onFollowUp(iso, trace.followUpNote);
-                  }}
-                  className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-card-hover"
-                >
-                  Set check-in: 2 days
-                </button>
-              )}
+              {!trace.followUpAt && <button type="button" onClick={() => setShowFollowUpOptions((value) => !value)} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-card-hover">{showFollowUpOptions ? "Hide check-in options" : "Choose a delayed check-in"}</button>}
               {trace.followUpAt && (
                 <button
                   type="button"
@@ -334,6 +328,24 @@ export default function SummaryView({
                   Clear follow-up
                 </button>
               )}
+            </div>
+          )}
+
+          {onFollowUp && !trace.followUpAt && showFollowUpOptions && (
+            <div className="mt-3 rounded-xl border border-border bg-background p-3">
+              <p className="text-xs font-medium text-muted">Choose when to compare the prediction with reality.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {FOLLOW_UP_DELAYS.map((option) => (
+                  <button key={option.days} type="button" onClick={() => { onFollowUp(dateAfterDays(option.days), trace.followUpNote); setShowFollowUpOptions(false); }} className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-card-hover">{option.label}</button>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                  Pick a date
+                  <input type="date" value={customFollowUpDate} min={dateAfterDays(1)} onChange={(event) => setCustomFollowUpDate(event.target.value)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm font-normal text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/20" />
+                </label>
+                <button type="button" disabled={!customFollowUpDate} onClick={() => { onFollowUp(customFollowUpDate, trace.followUpNote); setShowFollowUpOptions(false); }} className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-40">Set date</button>
+              </div>
             </div>
           )}
 

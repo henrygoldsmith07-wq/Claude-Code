@@ -48,6 +48,10 @@ export function assumptionGroupKey(representative: string): string {
   return `assumption:${norm(representative).slice(0, 80)}`;
 }
 
+export function contradictionKey(entryA: string, entryB: string): string {
+  return `contradiction:${[entryA, entryB].sort().join(":")}`;
+}
+
 export function dismissedKeys(corrections: Correction[]): Set<string> {
   return new Set((corrections || []).map((c) => c.key));
 }

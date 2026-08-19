@@ -1,13 +1,18 @@
 "use client";
 
 import type { Entry } from "@/lib/types";
+import type { Correction } from "@/lib/corrections";
+import { patternKey } from "@/lib/corrections";
 
 interface Props {
   entries: Entry[];
-  onBack: () => void;
+  onBack?: () => void;
+  corrections?: Correction[];
+  onDismissPattern?: (key: string, label: string) => void;
+  embedded?: boolean;
 }
 
-export default function InsightsView({ entries, onBack }: Props) {
+export default function InsightsView({ entries, onBack, corrections = [], onDismissPattern, embedded = false }: Props) {
   const completed = entries.filter((e) => e.status === "complete" && e.summary);
 
   const emotionMap = new Map<string, number>();
@@ -30,6 +35,7 @@ export default function InsightsView({ entries, onBack }: Props) {
   const biases = Array.from(biasMap.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
+  const visibleBiases = biases.filter(([type]) => !corrections.some((correction) => correction.key === patternKey({ kind: "bias", label: type })));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -73,21 +79,21 @@ export default function InsightsView({ entries, onBack }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-6 animate-fade-in">
-      <div className="mb-8 flex items-center justify-between">
+    <div className={`flex flex-col overflow-y-auto animate-fade-in ${embedded ? "" : "h-full p-6"}`}>
+      {!embedded && <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Insights</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Patterns</h2>
           <p className="mt-0.5 text-xs text-muted">
             Patterns from your completed reflections
           </p>
         </div>
-        <button
+        {onBack && <button
           onClick={onBack}
           className="rounded-xl border border-border bg-card px-4 py-1.5 text-sm transition-colors hover:bg-card-hover"
         >
           ← Back
-        </button>
-      </div>
+        </button>}
+      </div>}
 
       {completed.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
@@ -177,19 +183,22 @@ export default function InsightsView({ entries, onBack }: Props) {
             </div>
           </div>
 
-          {biases.length > 0 && (
+          {visibleBiases.length > 0 && (
             <div>
               <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                Biases Claude noticed most often
+                Pattern signals seen repeatedly
               </h3>
               <div className="flex flex-wrap gap-2">
-                {biases.map(([type, count]) => (
+                {visibleBiases.map(([type, count]) => (
                   <span
                     key={type}
-                    className="rounded-full border border-review/30 bg-reviewsoft px-3 py-1 text-sm"
+                    className="inline-flex items-center gap-1 rounded-full border border-review/30 bg-reviewsoft px-3 py-1 text-sm"
                   >
                     {type}{" "}
                     <span className="text-muted">×{count}</span>
+                    {onDismissPattern && <button type="button" onClick={() => onDismissPattern(patternKey({ kind: "bias", label: type }), type)} className="ml-1 text-[11px] text-muted hover:text-foreground" aria-label={`Stop showing ${type}`}>
+                      hide
+                    </button>}
                   </span>
                 ))}
               </div>
