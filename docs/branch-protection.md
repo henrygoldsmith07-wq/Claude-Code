@@ -270,6 +270,61 @@ does not match the branch name.
 
 ---
 
+### Status read back on 2026-08-19: still not applied
+
+```
+GET /repos/henrygoldsmith07-wq/Claude-Code/branches/main
+  → "protected": false
+GET /repos/henrygoldsmith07-wq/Claude-Code/branches/main/protection
+  → 403 "Resource not accessible by integration"
+GET /repos/henrygoldsmith07-wq/Claude-Code/rulesets
+  → []   (no repository ruleset either)
+```
+
+`main` is unprotected. Nothing in this repository is wrong or missing — the
+rule described above has simply never been created in GitHub. The two places a
+protection rule can live are both empty: classic branch protection, and the
+newer rulesets API.
+
+Everything the rule *depends on* is in place and was re-verified on `main`'s
+head commit `0bd3a09`. GitHub reported exactly seven check runs on it:
+
+| Reported check run | Result | Required? |
+|---|---|---|
+| `repository-gates` | success | yes |
+| `integration-contracts (revise-content-and-ai)` | success | yes |
+| `integration-contracts (forq-cloud-and-migrations)` | success | yes |
+| `verify (18)`, `verify (20)`, `verify (22)` | success | no — path-filtered (`rtk.yml`) |
+| `release` | success | no — path-filtered, and publish-only |
+
+The three names in `REQUIRED_CHECKS` match GitHub's reported names character for
+character, so they will resolve when the rule is created.
+
+The same commit also carried **25 Vercel commit statuses**, 13 of them red on
+the deployment rate limit, which is what makes the commit's *combined* status
+`failure` while every Actions check is green. That is §3 reproducing itself
+exactly, and it is why the required list names three Actions checks and nothing
+else.
+
+### What is left, and who has to do it
+
+One step, and it needs an account with **admin** on the repository:
+
+```bash
+gh auth login                          # as henrygoldsmith07-wq
+./scripts/apply-branch-protection.sh   # creates the rule
+./scripts/apply-branch-protection.sh --show   # read it back
+```
+
+A Claude Code cloud session cannot run it. `PUT .../branches/main/protection`
+and `POST .../rulesets` are both refused by the sandbox's egress proxy —
+*"Write access to this GitHub API path is not permitted through this proxy"* —
+and the session's GitHub token carries no `administration` permission
+(`X-Accepted-Github-Permissions: administration=read` on the 403). Read-only
+GitHub calls do work, which is how the state above was verified.
+
+---
+
 ## 7. Keeping this honest
 
 `repository-gates` runs `scripts/check-codeowners.mjs`, which fails the build if
