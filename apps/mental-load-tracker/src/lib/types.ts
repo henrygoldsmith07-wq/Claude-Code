@@ -4,13 +4,36 @@ export type Item = {
   text: string;
   noticed_by: string;
   noticed_by_color: string;
+  created_by: string | null;
   created_at: string;
   resolved: boolean;
   resolved_by: string | null;
+  resolved_by_user_id: string | null;
   resolved_at: string | null;
 };
 
-export type Identity = {
+export type HouseholdRole = "owner" | "member";
+
+export type Membership = {
+  household_id: string;
+  household_name: string;
+  user_id: string;
+  role: HouseholdRole;
+  display_name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HouseholdInvitation = {
+  invitation_id: string;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+};
+
+export type Profile = {
   name: string;
   color: string;
 };

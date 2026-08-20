@@ -5,37 +5,25 @@ things you notice need doing — no categorizing, no assigning, no due date —
 and see it side by side, once a week, with what your partner noticed and
 what actually got resolved.
 
-## Why this exists
+## Security model
 
-The biggest driver of resentment in a household usually isn't unfinished
-chores, it's the *unequal noticing* — one person remembers the appointment
-needs booking, the fridge is nearly empty, the kid's shoes don't fit anymore,
-and that work is invisible until it becomes a fight. Chore-split apps track
-completed tasks; they don't capture the anticipatory work of noticing
-something before it becomes urgent.
+Noticed uses Supabase Auth email/password accounts. A signed-in user can see
+only households where `household_memberships.user_id = auth.uid()`; the
+browser never authorizes access by household code, UUID, or local storage.
 
-## How it's designed to avoid the obvious failure mode
+Household creation is an authenticated RPC that atomically creates the
+household and its owner membership. Owners can create one-time invitation
+links. Invitation tokens have 256 bits of entropy, are stored only as SHA-256
+digests, expire after seven days, and can be revoked. Accepting an invitation
+requires an authenticated account and creates a member row.
 
-Every "shared household app" dies the same way: logging something becomes
-more effort than just doing it, so nobody uses it past week one. This one is
-built around two constraints:
-
-- **Capture is a single text field.** No category, no assignee, no due date
-  required. If it takes more than a few seconds to log a thought, the whole
-  point is lost.
-- **No score, no leaderboard.** The weekly view shows noticed/resolved counts
-  side by side per person, framed neutrally — not a "fairness %" or a ranked
-  list. Turning this into a scoreboard is how the tool becomes ammunition in
-  an argument instead of a way to make invisible work visible.
-
-## How a household works
-
-There are no user accounts. Whoever starts a household gets a short join
-code; share it with your partner and they join with the same code from
-their own device. Each person picks a name and color once, stored locally
-on their device — that's the entire identity model. This keeps the whole
-thing usable in under a minute, at the cost of the join code being the only
-thing standing between someone and your board (see Security below).
+Items are protected by membership-derived RLS for select/insert/update; browser
+deletion is deliberately disabled because Supabase Postgres Changes cannot
+filter delete events by column. Their `household_id` and `created_by` values are immutable on update. The
+Realtime publication is not treated as a security boundary: Supabase
+evaluates the same RLS visibility for each Postgres Changes event, and the UI
+also refreshes membership state so removal takes effect without relying on
+client state.
 
 ## Setup
 
@@ -44,45 +32,50 @@ npm install
 cp .env.example .env.local
 ```
 
-This app needs a Supabase project — unlike a single-user tool, its entire
-value is a board shared live between two people, so it can't fall back to
-browser-only storage.
-
 1. Create a project at [supabase.com](https://supabase.com).
-2. Run `supabase/schema.sql` in the Supabase SQL editor.
-3. In the Supabase dashboard, go to Database → Replication and enable
-   Realtime for the `items` table (optional — the app still works without
-   it, polling every 20s as a fallback, just not instantly).
-4. Copy your project URL and anon public key into `.env.local`:
+2. Enable email/password signups in Authentication → Providers. Keep email
+   confirmation enabled in production.
+3. For a new database, run `supabase/schema.sql` in the Supabase SQL editor
+   or apply it through the Supabase CLI.
+4. For an existing v1 database, run the same idempotent schema once during a
+   maintenance window. It copies the old `households.code` into an internal
+   `legacy_code` column, removes its `NOT NULL` requirement, and keeps old
+   items in place. Each existing household must then be claimed once by an
+   authenticated user through the “Migrate an existing household code” flow;
+   the first claim creates the owner membership and permanently locks that
+   legacy claim. New households never use a code.
+5. Add the project URL and anon public key to `.env.local`:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+6. Enable Realtime for `public.items` in Database → Replication. Realtime is
+   optional for correctness; the app polls every 20 seconds as a fallback.
+
 ```bash
 npm run dev
 ```
 
-## Scripts
+## Verification
 
-- `npm run dev` — start the dev server
-- `npm run build` — production build
-- `npm run lint` — lint the app
+```bash
+npm run lint
+npm run type-check
+npm run test:app
+npm run test:db
+npm run test:e2e
+```
 
-## Security note
+`test:db` runs the SQL security suite when the Supabase CLI is installed.
+`test:security` runs the two-client Postgres/Realtime adversarial test when
+`SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` point at a disposable project. Full E2E account
+coverage additionally uses `E2E_TEST_EMAIL` and `E2E_TEST_PASSWORD`.
 
-This app has no authentication. A household is identified by a short join
-code, similar to a shared shopping-list app — anyone who has the code (or
-guesses the underlying UUID, which is intentionally hard) can read and write
-that household's board. This is an acceptable tradeoff for a low-stakes,
-two-person household tool, but don't put sensitive information into it.
+## Product scope
 
-## What's deliberately not built (v1 scope)
-
-- No email/push weekly digest — the in-app "This week" view covers the same
-  need without standing up a cron job and an email provider for an MVP.
-- No more than two active identities per household — the mechanic is
-  designed around a couple, not a larger shared household.
-- No historical trends/charts — the goal is visibility this week, not a
-  dashboard to obsess over.
+The weekly in-app view remains deliberately small: no scores, leaderboard,
+notifications, or historical analytics. Authentication, membership,
+invitation, and revocation exist only to make that shared board safe to use.

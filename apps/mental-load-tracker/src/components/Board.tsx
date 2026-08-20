@@ -1,65 +1,40 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import CaptureBar from "@/components/CaptureBar";
 import HouseholdBar from "@/components/HouseholdBar";
+import InvitePanel from "@/components/InvitePanel";
 import ItemsFeed from "@/components/ItemsFeed";
 import WeeklyDigest from "@/components/WeeklyDigest";
-import { useHouseholdRecord } from "@/lib/household";
 import { useHouseholdItems } from "@/lib/items";
-import type { Identity } from "@/lib/types";
+import type { Membership } from "@/lib/types";
 
 type Props = {
-  code: string;
-  identity: Identity;
-  onLeave: () => void;
+  membership: Membership;
+  onSignOut: () => void;
 };
 
-export default function Board({ code, identity, onLeave }: Props) {
-  const router = useRouter();
-  const { householdId, status } = useHouseholdRecord(code);
-  const { items, loading, addItem, resolveItem, reopenItem } = useHouseholdItems(householdId);
-
-  if (status === "not-found" || status === "error") {
-    return (
-      <div className="flex w-full max-w-md flex-col items-center gap-4 text-center">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          This household code no longer resolves to anything. It may have been
-          removed.
-        </p>
-        <button
-          onClick={() => {
-            onLeave();
-            router.replace("/");
-          }}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          Start over
-        </button>
-      </div>
-    );
-  }
+export default function Board({ membership, onSignOut }: Props) {
+  const { items, loading, error, addItem, resolveItem, reopenItem } = useHouseholdItems(membership);
 
   return (
     <div className="flex w-full max-w-2xl flex-col gap-6">
-      <HouseholdBar
-        code={code}
-        identity={identity}
-        onLeave={() => {
-          onLeave();
-          router.replace("/");
-        }}
-      />
-      <CaptureBar onCapture={(text) => addItem(text, identity.name, identity.color)} />
+      <HouseholdBar membership={membership} onSignOut={onSignOut} />
+      {membership.role === "owner" && <InvitePanel householdId={membership.household_id} />}
+      <CaptureBar onCapture={addItem} />
+      {error && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          We could not sync this household. Your access may have been removed; sign out and sign in again.
+        </p>
+      )}
       <WeeklyDigest items={items} />
       {loading ? (
         <p className="text-sm text-zinc-400">Loading board…</p>
       ) : (
         <ItemsFeed
           items={items}
-          onResolve={(id) => resolveItem(id, identity.name)}
+          onResolve={resolveItem}
           onReopen={reopenItem}
-          currentName={identity.name}
+          currentName={membership.display_name}
         />
       )}
     </div>
