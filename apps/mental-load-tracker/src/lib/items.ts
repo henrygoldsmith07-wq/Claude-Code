@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import type { Item } from "./types";
+import type { Item, Membership } from "./types";
 
 const POLL_INTERVAL_MS = 20_000;
 
-export function useHouseholdItems(householdId: string | null) {
+export function useHouseholdItems(membership: Membership | null) {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const householdId = membership?.household_id ?? null;
 
   const refresh = useCallback(async () => {
     if (!supabase || !householdId) {
@@ -16,23 +18,33 @@ export function useHouseholdItems(householdId: string | null) {
       setLoading(false);
       return;
     }
-    const { data } = await supabase
+
+    const { data, error: queryError } = await supabase
       .from("items")
       .select("*")
       .eq("household_id", householdId)
       .order("created_at", { ascending: false });
-    setItems((data ?? []) as Item[]);
+
+    if (queryError) {
+      setError(queryError.message);
+      setItems([]);
+    } else {
+      setError(null);
+      setItems((data ?? []) as Item[]);
+    }
     setLoading(false);
   }, [householdId]);
 
   useEffect(() => {
+    // Reset loading when the membership/household changes before fetching.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    refresh();
+    void refresh();
   }, [refresh]);
 
-  // Realtime keeps both partners' boards in sync live; polling is a fallback
-  // for households that haven't enabled Realtime replication on `items`.
+  // Realtime is an optimization, not the security boundary. The household
+  // membership-derived RLS policy is evaluated by Supabase for each event;
+  // polling keeps the UI responsive if Realtime is not enabled.
   useEffect(() => {
     const client = supabase;
     if (!client || !householdId) return;
@@ -41,12 +53,17 @@ export function useHouseholdItems(householdId: string | null) {
       .channel(`items:${householdId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "items", filter: `household_id=eq.${householdId}` },
-        () => refresh()
+        {
+          event: "*",
+          schema: "public",
+          table: "items",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => void refresh(),
       )
       .subscribe();
 
-    const interval = setInterval(refresh, POLL_INTERVAL_MS);
+    const interval = setInterval(() => void refresh(), POLL_INTERVAL_MS);
 
     return () => {
       client.removeChannel(channel);
@@ -55,42 +72,37 @@ export function useHouseholdItems(householdId: string | null) {
   }, [householdId, refresh]);
 
   const addItem = useCallback(
-    async (text: string, name: string, color: string) => {
+    async (text: string) => {
       if (!supabase || !householdId) return;
-      await supabase.from("items").insert({
-        household_id: householdId,
-        text,
-        noticed_by: name,
-        noticed_by_color: color,
+      const { error: insertError } = await supabase.rpc("create_item", {
+        p_household_id: householdId,
+        p_text: text,
       });
-      refresh();
+      if (insertError) setError(insertError.message);
+      await refresh();
     },
-    [householdId, refresh]
+    [householdId, refresh],
   );
 
-  const resolveItem = useCallback(
-    async (id: string, name: string) => {
+  const setResolved = useCallback(
+    async (id: string, resolved: boolean) => {
       if (!supabase) return;
-      await supabase
-        .from("items")
-        .update({ resolved: true, resolved_by: name, resolved_at: new Date().toISOString() })
-        .eq("id", id);
-      refresh();
+      const { error: updateError } = await supabase.rpc("set_item_resolved", {
+        p_item_id: id,
+        p_resolved: resolved,
+      });
+      if (updateError) setError(updateError.message);
+      await refresh();
     },
-    [refresh]
+    [refresh],
   );
 
-  const reopenItem = useCallback(
-    async (id: string) => {
-      if (!supabase) return;
-      await supabase
-        .from("items")
-        .update({ resolved: false, resolved_by: null, resolved_at: null })
-        .eq("id", id);
-      refresh();
-    },
-    [refresh]
-  );
-
-  return { items, loading, addItem, resolveItem, reopenItem };
+  return {
+    items,
+    loading,
+    error,
+    addItem,
+    resolveItem: (id: string) => setResolved(id, true),
+    reopenItem: (id: string) => setResolved(id, false),
+  };
 }
