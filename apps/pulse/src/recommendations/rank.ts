@@ -16,13 +16,22 @@
 import { hash128 } from "../events/hash.js";
 import { clamp } from "../statistics/descriptive.js";
 import { confidenceWeight } from "../statistics/confidence.js";
+import type { ConfidenceLevel, EvidenceClass } from "../statistics/confidence.js";
 import type { MetricRegistry } from "../metrics/registry.js";
 import type { EvidenceRef, Finding } from "../discovery/finding.js";
 import type { ExperimentResult } from "../experiments/analysis.js";
 import type { FeedbackStore } from "./feedback.js";
+import type { RecommendationValueTracker } from "./value.js";
 import { daysBetween } from "../events/time.js";
 
 export type RecommendationSource = "finding" | "experiment" | "data-quality";
+
+export type RecommendationCausalStatus = "experimental" | "association" | "hypothesis" | "observation";
+
+export interface RecommendationConfidence {
+  level: ConfidenceLevel;
+  score: number;
+}
 
 export interface RecommendationFactors {
   /** 0..1 — how much better things could plausibly get. */
@@ -51,12 +60,18 @@ export interface Recommendation {
   caveats: string[];
   /** What to actually do, phrased as an instruction. */
   nextStep: string;
+  /** Explicit provenance retained when the recommendation is filed. */
+  evidenceClass: EvidenceClass;
+  confidence: RecommendationConfidence;
+  causalStatus: RecommendationCausalStatus;
 }
 
 export interface RankOptions {
   registry: MetricRegistry;
   now?: () => number;
   feedback?: FeedbackStore;
+  /** Prior recommendation outcomes used for conservative adaptation. */
+  value?: RecommendationValueTracker;
   /** Today's date, for recency scoring. */
   today?: string;
   limit?: number;
@@ -86,7 +101,11 @@ export function rankRecommendations(
   }
 
   const ranked = recommendations
-    .map((recommendation) => ({ ...recommendation, score: scoreOf(recommendation.factors) }))
+    .filter(
+      (recommendation) =>
+        !options.value?.isSuppressed(recommendation.id) && !options.value?.isDeferred(recommendation.id, today),
+    )
+    .map((recommendation) => applyOutcomeLearning({ ...recommendation, score: scoreOf(recommendation.factors) }, options.value))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
   return options.limit ? ranked.slice(0, options.limit) : ranked;
@@ -128,6 +147,8 @@ function fromFinding(
     effortHours: Math.max(0.25, action.effortHours),
   };
 
+  const id = `rec-${hash128(`${finding.id}:${action.kind}`).slice(0, 16)}`;
+
   const caveats = [
     finding.causalityNote,
     ...finding.confidence.limitations,
@@ -135,7 +156,7 @@ function fromFinding(
   ].filter(Boolean);
 
   return {
-    id: `rec-${hash128(`${finding.id}:${action.kind}`).slice(0, 16)}`,
+    id,
     createdAt: new Date(nowMs).toISOString(),
     title: action.summary,
     statement: `${finding.statement} ${action.summary}.`,
@@ -148,11 +169,15 @@ function fromFinding(
     evidence: finding.evidence,
     caveats,
     nextStep: nextStepFor(finding),
+    evidenceClass: finding.evidenceClass,
+    confidence: { level: finding.confidence.level, score: finding.confidence.score },
+    causalStatus: causalStatusFor(finding.evidenceClass),
   };
 }
 
 function fromExperiment(experiment: ExperimentResult, nowMs: number): Recommendation | null {
   const now = new Date(nowMs).toISOString();
+  const metricIds = experiment.targetMetricId ? [experiment.targetMetricId] : [];
 
   if (experiment.verdict === "supported") {
     const factors: RecommendationFactors = {
@@ -170,14 +195,14 @@ function fromExperiment(experiment: ExperimentResult, nowMs: number): Recommenda
       rationale: "You tested this yourself under controlled conditions, which is the strongest evidence Pulse can offer.",
       sourceKind: "experiment",
       sourceId: experiment.experimentId,
-      metricIds: [],
+      metricIds,
       factors,
       score: scoreOf(factors),
       evidence: [
         {
           kind: "experiment",
           description: `${experiment.adherence.conditionASessions} vs ${experiment.adherence.conditionBSessions} sessions across the run`,
-          metricIds: [],
+          metricIds,
           sources: [],
           eventCount: experiment.adherence.conditionASessions + experiment.adherence.conditionBSessions,
           dateRange: null,
@@ -185,6 +210,9 @@ function fromExperiment(experiment: ExperimentResult, nowMs: number): Recommenda
       ],
       caveats: [experiment.causalityNote, ...experiment.confidence.limitations],
       nextStep: "Keep the winning condition and re-check in a month in case the effect fades.",
+      evidenceClass: "experiment",
+      confidence: { level: experiment.confidence.level, score: experiment.confidence.score },
+      causalStatus: "experimental",
     };
   }
 
@@ -203,16 +231,51 @@ function fromExperiment(experiment: ExperimentResult, nowMs: number): Recommenda
       rationale: `The run reached only ${Math.round(experiment.achievedPower * 100)}% power, so a real effect of the predicted size would probably have been missed.`,
       sourceKind: "experiment",
       sourceId: experiment.experimentId,
-      metricIds: [],
+      metricIds,
       factors,
       score: scoreOf(factors),
       evidence: [],
       caveats: ["Extending a run mid-flight risks stopping when the numbers look good — decide the new end date now, not later."],
       nextStep: "Set a new end date up front and run to it regardless of what the interim numbers show.",
+      evidenceClass: "experiment",
+      confidence: { level: experiment.confidence.level, score: experiment.confidence.score },
+      causalStatus: "experimental",
     };
   }
 
   return null;
+}
+
+function causalStatusFor(evidenceClass: EvidenceClass): RecommendationCausalStatus {
+  switch (evidenceClass) {
+    case "experiment":
+      return "experimental";
+    case "correlation":
+      return "association";
+    case "hypothesis":
+      return "hypothesis";
+    default:
+      return "observation";
+  }
+}
+
+function applyOutcomeLearning(
+  recommendation: Recommendation,
+  value: RecommendationValueTracker | undefined,
+): Recommendation {
+  if (!value) return recommendation;
+  const learning = value.learningFor(recommendation.id, recommendation.metricIds);
+  if (!learning) return recommendation;
+
+  const factors: RecommendationFactors = {
+    ...recommendation.factors,
+    relevance: clamp(recommendation.factors.relevance * learning.relevanceMultiplier, 0, 1),
+    evidenceConfidence: clamp(recommendation.factors.evidenceConfidence * learning.confidenceMultiplier, 0, 1),
+  };
+  const caveats = learning.contradictory
+    ? [...recommendation.caveats, "Earlier outcome reports were mixed, so Pulse has reduced confidence in this action."]
+    : recommendation.caveats;
+  return { ...recommendation, factors, caveats, score: scoreOf(factors) };
 }
 
 /**

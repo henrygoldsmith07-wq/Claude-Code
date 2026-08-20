@@ -9,7 +9,8 @@
 
 import { describe, expect, it } from "vitest";
 import { rankRecommendations, scoreOf } from "../src/recommendations/rank.js";
-import { FeedbackStore } from "../src/recommendations/feedback.js";
+import { createMemoryFeedbackAdapter, FeedbackStore } from "../src/recommendations/feedback.js";
+import { createMemoryRecommendationValueAdapter, RecommendationValueTracker } from "../src/recommendations/value.js";
 import { createDefaultRegistry } from "../src/metrics/catalogue.js";
 import type { Finding, NextAction } from "../src/discovery/finding.js";
 import type { ExperimentResult } from "../src/experiments/analysis.js";
@@ -48,6 +49,7 @@ function finding(overrides: Partial<Finding> = {}): Finding {
 const supportedExperiment: ExperimentResult = {
   experimentId: "e1",
   hypothesisId: "h1",
+  targetMetricId: "study.accuracy",
   analysedAt: "2025-06-30T00:00:00Z",
   effectiveEndDate: "2025-07-28",
   stopping: null,
@@ -100,6 +102,8 @@ describe("ranking formula", () => {
   it("ranks an experimental result above an observational one", () => {
     const ranked = rankRecommendations([finding()], [supportedExperiment], { registry, now: clock, today: "2025-06-29" });
     expect(ranked[0]!.sourceKind).toBe("experiment");
+    expect(ranked[0]!.metricIds).toEqual(["study.accuracy"]);
+    expect(ranked[0]!.evidence[0]!.metricIds).toEqual(["study.accuracy"]);
   });
 
   it("discounts stale evidence", () => {
@@ -240,5 +244,107 @@ describe("insight feedback", () => {
     const restored = FeedbackStore.fromSnapshot(feedback.toSnapshot(), clock);
     expect(restored.isTopicMuted("study.response_time")).toBe(true);
     expect(restored.list()).toHaveLength(1);
+  });
+
+  it("persists corrections so a reload does not resurrect a retired insight", async () => {
+    const adapter = createMemoryFeedbackAdapter();
+    const first = new FeedbackStore(clock, adapter);
+    await first.load();
+    first.record("f1", "not-useful", ["study.accuracy"]);
+    first.muteTopic("study.response_time");
+    await first.persist();
+
+    const second = new FeedbackStore(clock, adapter);
+    await second.load();
+    expect(second.isDismissed("f1")).toBe(true);
+    expect(second.isTopicMuted("study.response_time")).toBe(true);
+  });
+
+  it("removes feedback tied to a source during privacy deletion", () => {
+    const feedback = new FeedbackStore(clock);
+    feedback.record("f1", "not-useful", ["study.accuracy"]);
+    feedback.muteTopic("study.accuracy");
+    feedback.pruneByMetrics(["study.accuracy"], ["f1"]);
+    expect(feedback.list()).toHaveLength(0);
+    expect(feedback.isDismissed("f1")).toBe(false);
+    expect(feedback.isTopicMuted("study.accuracy")).toBe(false);
+  });
+});
+
+describe("recommendation outcome learning", () => {
+  it("files the shown recommendation, response, follow-through and later evidence", () => {
+    const [recommendation] = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01" });
+    const tracker = new RecommendationValueTracker(clock);
+    tracker.recommended(recommendation!.id, recommendation);
+    tracker.respond(recommendation!.id, "try-this");
+    tracker.followed(recommendation!.id);
+    tracker.recordOutcome(recommendation!.id, true, "Felt easier to focus");
+    tracker.recordEvidence(recommendation!.id, {
+      description: "Three later sessions stayed above the personal baseline",
+      metricIds: ["study.accuracy"],
+      sources: ["revise"],
+      eventCount: 3,
+      dateRange: { from: "2025-07-02", to: "2025-07-04" },
+    });
+
+    const value = tracker.valueOf(recommendation!.id)!;
+    expect(value.recommendation?.statement).toContain("8.7%");
+    expect(value.recommendation?.confidence.level).toBe("moderate");
+    expect(value.recommendation?.causalStatus).toBe("association");
+    expect(value.response).toBe("try-this");
+    expect(value.stage).toBe("measured");
+    expect(value.followedAt).toBeTruthy();
+    expect(value.outcomeHistory).toHaveLength(1);
+    expect(value.laterEvidence[0]?.eventCount).toBe(3);
+  });
+
+  it("uses a neutral prior so one outcome only moves ranking modestly", () => {
+    const [base] = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01" });
+    const tracker = new RecommendationValueTracker(clock);
+    tracker.recommended(base!.id, base);
+    tracker.recordOutcome(base!.id, false);
+
+    const [adapted] = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01", value: tracker });
+    expect(adapted!.score).toBeLessThan(base!.score);
+    expect(adapted!.score).toBeGreaterThan(base!.score * 0.5);
+  });
+
+  it("reduces confidence for contradictory outcomes and suppresses explicit opt-outs", () => {
+    const [base] = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01" });
+    const tracker = new RecommendationValueTracker(clock);
+    tracker.recommended(base!.id, base);
+    tracker.recordOutcome(base!.id, true);
+    tracker.recordOutcome(base!.id, false);
+    const mixed = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01", value: tracker })[0]!;
+    expect(mixed.confidence.level).toBe("moderate");
+    expect(mixed.factors.evidenceConfidence).toBeLessThan(base!.factors.evidenceConfidence);
+    expect(mixed.caveats.join(" ")).toMatch(/mixed/i);
+
+    tracker.respond(base!.id, "dont-suggest-again");
+    expect(rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01", value: tracker })).toEqual([]);
+  });
+
+  it("defers a not-today response only for the current local date", () => {
+    const [base] = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01" });
+    const tracker = new RecommendationValueTracker(clock);
+    tracker.recommended(base!.id, base);
+    tracker.respond(base!.id, "not-today");
+    expect(tracker.isDeferred(base!.id, "2025-07-01")).toBe(true);
+    expect(tracker.isDeferred(base!.id, "2025-07-02")).toBe(false);
+  });
+
+  it("round-trips the closed loop through its adapter", async () => {
+    const adapter = createMemoryRecommendationValueAdapter();
+    const [recommendation] = rankRecommendations([finding()], [], { registry, now: clock, today: "2025-07-01" });
+    const first = new RecommendationValueTracker(clock, adapter);
+    await first.load();
+    first.recommended(recommendation!.id, recommendation);
+    first.respond(recommendation!.id, "not-useful");
+    await first.persist();
+
+    const second = new RecommendationValueTracker(clock, adapter);
+    await second.load();
+    expect(second.valueOf(recommendation!.id)?.recommendation?.sourceId).toBe("f1");
+    expect(second.valueOf(recommendation!.id)?.responseHistory[0]?.response).toBe("not-useful");
   });
 });

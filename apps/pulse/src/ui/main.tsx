@@ -15,7 +15,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import { afterPaint, renderBootFailure } from "./boot.js";
-import { createSyntheticPulse } from "../synthetic/harness.js";
 import { addDays, localDayEnd } from "../events/time.js";
 import {
   createEncryptedAdapter,
@@ -24,6 +23,8 @@ import {
 } from "../privacy/encryption.js";
 import type { InsightHistorySnapshot } from "../history/insight-history.js";
 import type { CausalLibrarySnapshot } from "../hypotheses/library.js";
+import type { RecommendationValueSnapshot } from "../recommendations/value.js";
+import type { FeedbackSnapshot } from "../recommendations/feedback.js";
 import type { Pulse } from "../pulse.js";
 import "./styles.css";
 
@@ -41,11 +42,16 @@ async function boot(): Promise<void> {
   // waits on a blank page for the whole boot.
   await afterPaint();
 
+  // The synthetic harness pulls in every demo connector and generator. Keep
+  // that work out of the initial entry chunk so the fallback can paint before
+  // the demo engine is downloaded and constructed.
+  const { createSyntheticPulse } = await import("../synthetic/harness.js");
+
   // The demo carries synthetic data only, so the at-rest key is a fixed demo
-  // passphrase — a real deployment would prompt for one. The event store, the
-  // insight history and the causal library all go through the same AES-GCM
-  // adapter, so what reaches localStorage is ciphertext, never the events or
-  // snapshots.
+  // passphrase — a real deployment would prompt for one. The event store,
+  // insight history, causal library, recommendation outcomes and finding
+  // corrections all go through AES-GCM adapters, so localStorage receives
+  // ciphertext rather than events or snapshots.
   const eventsAdapter = createEncryptedAdapter(
     createLocalStorageBlobStorage("pulse.events"),
     "pulse-demo-synthetic-only",
@@ -58,11 +64,21 @@ async function boot(): Promise<void> {
     createLocalStorageBlobStorage("pulse.causal-library"),
     "pulse-demo-synthetic-only",
   );
+  const recommendationAdapter = createEncryptedBlobAdapter<RecommendationValueSnapshot>(
+    createLocalStorageBlobStorage("pulse.recommendation-value"),
+    "pulse-demo-synthetic-only",
+  );
+  const feedbackAdapter = createEncryptedBlobAdapter<FeedbackSnapshot>(
+    createLocalStorageBlobStorage("pulse.feedback"),
+    "pulse-demo-synthetic-only",
+  );
   const { pulse, user } = await createSyntheticPulse({
     days: 180,
     adapter: eventsAdapter,
     historyAdapter,
     libraryAdapter,
+    recommendationAdapter,
+    feedbackAdapter,
     includeHabit: true,
     // Planted so the demo's insight history shows the habit correlation the
     // connector exists to surface; see the generator's ground truth.

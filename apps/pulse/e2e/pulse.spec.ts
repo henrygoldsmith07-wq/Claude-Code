@@ -82,6 +82,20 @@ test("shows the causality note next to every finding, never a causal claim", asy
   }
 });
 
+test("shows the Today decision brief and closes the recommendation loop", async ({ page }) => {
+  await expect(page.getByText("Decision brief ·", { exact: false })).toBeVisible();
+  for (const label of ["What changed", "What looks normal", "What is unusual", "What matters", "Reasonable action", "Evidence strength"]) {
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+  }
+
+  const today = page.locator(".today-panel");
+  const recommendationCard = today.locator(".recommendation-card");
+  await recommendationCard.getByRole("button", { name: "Try this" }).click();
+  await expect(page.getByRole("status")).toContainText(/Recommendation accepted/);
+  await recommendationCard.getByRole("button", { name: "It helped" }).click();
+  await expect(page.getByRole("status")).toContainText(/Outcome recorded/);
+});
+
 test("every tab is reachable and operable from the keyboard alone", async ({ page }) => {
   await page.keyboard.press("Tab");
   // Walk forward until focus lands on the first tab, then activate each in turn.
@@ -93,9 +107,9 @@ test("every tab is reachable and operable from the keyboard alone", async ({ pag
   await expect(page.locator(":focus")).toHaveAttribute("role", "tab");
 
   for (const label of ["History", "Timeline", "Experiments", "Ask Pulse", "Evidence", "Sources & privacy"]) {
-    await page.getByRole("tab", { name: label }).focus();
+    await page.getByRole("tab", { name: label, exact: true }).focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("tab", { name: label })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: label, exact: true })).toHaveAttribute("aria-selected", "true");
   }
 });
 
@@ -147,7 +161,7 @@ test("does not scroll horizontally on a narrow viewport", async ({ page }) => {
 
 test("walks the whole evidence loop with the keyboard alone", async ({ page }) => {
   // Search a metric that has both findings and a rejection trail.
-  await page.getByRole("tab", { name: "Evidence" }).focus();
+  await page.getByRole("tab", { name: "Evidence search", exact: true }).focus();
   await page.keyboard.press("Enter");
   const search = page.getByLabel(/Search the evidence/);
   await search.focus();
@@ -176,7 +190,7 @@ test("walks the whole evidence loop with the keyboard alone", async ({ page }) =
   // Return to the exact query that started the journey.
   await page.getByRole("button", { name: /Back to search/ }).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("tab", { name: "Evidence" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Evidence search", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(search).toHaveValue("sleep");
   await expect(page.getByText("Checked, not published").first()).toBeVisible();
 });

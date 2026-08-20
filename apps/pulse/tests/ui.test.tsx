@@ -214,6 +214,23 @@ describe("the app shell", () => {
     cleanup();
   });
 
+  it("records the recommendation response and later outcome from Today", () => {
+    render(<App pulse={pulse} />);
+    const recommendation = pulse.recommendations()[0];
+    expect(recommendation).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try this" }));
+    expect(pulse.value.valueOf(recommendation!.id)?.response).toBe("try-this");
+    expect(pulse.value.valueOf(recommendation!.id)?.stage).toBe("accepted");
+
+    const recommendationCard = screen.getByText("Recommendation follow-up", { selector: "p" }).closest("article");
+    expect(recommendationCard).toBeTruthy();
+    fireEvent.click(within(recommendationCard!).getByRole("button", { name: "It helped" }));
+    expect(pulse.value.valueOf(recommendation!.id)?.stage).toBe("measured");
+    expect(pulse.value.valueOf(recommendation!.id)?.outcome).toBe("helped");
+    cleanup();
+  });
+
   it("discloses the size of the search and the expected false discoveries", () => {
     render(<App pulse={pulse} />);
     expect(screen.getByText(/Expect roughly [\d.]+ of them to be false/)).toBeTruthy();

@@ -21,6 +21,17 @@ export interface FeedbackEntry {
   note?: string;
 }
 
+export interface FeedbackSnapshot {
+  entries: FeedbackEntry[];
+  dismissed: string[];
+  mutedTopics: string[];
+}
+
+export interface FeedbackAdapter {
+  load(): Promise<FeedbackSnapshot | null>;
+  save(snapshot: FeedbackSnapshot): Promise<void>;
+}
+
 const VERDICT_WEIGHT: Record<FeedbackVerdict, number> = {
   "acted-on": 0.35,
   useful: 0.2,
@@ -33,8 +44,34 @@ export class FeedbackStore {
   private entries: FeedbackEntry[] = [];
   private dismissed = new Set<string>();
   private mutedTopics = new Set<string>();
+  private readonly adapter: FeedbackAdapter | null;
+  private persistQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly now: () => number = Date.now) {}
+  constructor(private readonly now: () => number = Date.now, adapter?: FeedbackAdapter) {
+    this.adapter = adapter ?? null;
+  }
+
+  async load(): Promise<void> {
+    if (!this.adapter) return;
+    const snapshot = await this.adapter.load();
+    if (!snapshot || !Array.isArray(snapshot.entries) || !Array.isArray(snapshot.dismissed) || !Array.isArray(snapshot.mutedTopics)) return;
+    this.entries = [...snapshot.entries];
+    this.dismissed = new Set(snapshot.dismissed);
+    this.mutedTopics = new Set(snapshot.mutedTopics);
+  }
+
+  async persist(): Promise<void> {
+    if (!this.adapter) return;
+    await this.adapter.save(this.toSnapshot());
+  }
+
+  private persistSoon(): void {
+    this.persistQueue = this.persistQueue
+      .then(() => this.persist())
+      .catch((error: unknown) => {
+        console.error("Pulse: failed to persist finding feedback", error);
+      });
+  }
 
   record(targetId: string, verdict: FeedbackVerdict, metricIds: readonly string[] = [], note?: string): FeedbackEntry {
     const entry: FeedbackEntry = {
@@ -47,19 +84,23 @@ export class FeedbackStore {
     this.entries.push(entry);
     // "Wrong" and "not useful" retire that specific insight; the topic stays open.
     if (verdict === "not-useful" || verdict === "wrong") this.dismissed.add(targetId);
+    this.persistSoon();
     return entry;
   }
 
   dismiss(targetId: string): void {
     this.dismissed.add(targetId);
+    this.persistSoon();
   }
 
   muteTopic(metricId: string): void {
     this.mutedTopics.add(metricId);
+    this.persistSoon();
   }
 
   unmuteTopic(metricId: string): void {
     this.mutedTopics.delete(metricId);
+    this.persistSoon();
   }
 
   isDismissed(targetId: string): boolean {
@@ -108,12 +149,24 @@ export class FeedbackStore {
       .sort((a, b) => b.negative - a.negative);
   }
 
-  toSnapshot(): { entries: FeedbackEntry[]; dismissed: string[]; mutedTopics: string[] } {
+  /** Privacy primitive: forget corrections that were about deleted metrics or findings. */
+  pruneByMetrics(metricIds: readonly string[], targetIds: readonly string[] = []): void {
+    const removedMetrics = new Set(metricIds);
+    const removedTargets = new Set(targetIds);
+    this.entries = this.entries.filter(
+      (entry) => !removedTargets.has(entry.targetId) && !entry.metricIds.some((metricId) => removedMetrics.has(metricId)),
+    );
+    for (const metricId of removedMetrics) this.mutedTopics.delete(metricId);
+    for (const targetId of removedTargets) this.dismissed.delete(targetId);
+    this.persistSoon();
+  }
+
+  toSnapshot(): FeedbackSnapshot {
     return { entries: this.list(), dismissed: [...this.dismissed], mutedTopics: [...this.mutedTopics] };
   }
 
   static fromSnapshot(
-    snapshot: { entries: FeedbackEntry[]; dismissed: string[]; mutedTopics: string[] },
+    snapshot: FeedbackSnapshot,
     now: () => number = Date.now,
   ): FeedbackStore {
     const store = new FeedbackStore(now);
@@ -122,4 +175,18 @@ export class FeedbackStore {
     store.mutedTopics = new Set(snapshot.mutedTopics);
     return store;
   }
+}
+
+export function createMemoryFeedbackAdapter(): FeedbackAdapter {
+  let snapshot: FeedbackSnapshot | null = null;
+  return {
+    async load(): Promise<FeedbackSnapshot | null> {
+      return snapshot
+        ? { entries: [...snapshot.entries], dismissed: [...snapshot.dismissed], mutedTopics: [...snapshot.mutedTopics] }
+        : null;
+    },
+    async save(next: FeedbackSnapshot): Promise<void> {
+      snapshot = { entries: [...next.entries], dismissed: [...next.dismissed], mutedTopics: [...next.mutedTopics] };
+    },
+  };
 }

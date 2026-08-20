@@ -8,7 +8,10 @@ import type { InsightCollection } from "../history/insight-collections.js";
 import { buildReliabilityProfiles, type ReliabilityProfile } from "../quality/profiles.js";
 import type { SourceQuality } from "../quality/score.js";
 import type { Recommendation } from "../recommendations/rank.js";
+import type { RecommendationResponse } from "../recommendations/value.js";
 import type { DiscoveryReport } from "../discovery/engine.js";
+import type { DiscoveryInboxItem } from "../discovery/inbox.js";
+import type { TodayBrief, TodayMatter } from "../reports/today.js";
 
 export type FeedbackAction = "useful" | "not-useful" | "already-knew" | "bad-data" | "stop-investigating";
 
@@ -18,8 +21,11 @@ export interface ProductTrustPanelProps {
   discovery: DiscoveryReport;
   quality: SourceQuality[];
   recommendations: Recommendation[];
+  todayBrief: TodayBrief;
+  discoveryInbox: DiscoveryInboxItem[];
   revision: number;
   onFeedback: (findingId: string, action: FeedbackAction) => void;
+  onRecommendationResponse: (recommendationId: string, response: RecommendationResponse) => void;
   onRecommendationOutcome: (recommendationId: string, helped: boolean) => void;
   onDesignExperiment: (finding: Finding) => void;
   onOpenAsk: () => void;
@@ -32,8 +38,11 @@ export function ProductTrustPanel({
   discovery,
   quality,
   recommendations,
+  todayBrief,
+  discoveryInbox,
   revision,
   onFeedback,
+  onRecommendationResponse,
   onRecommendationOutcome,
   onDesignExperiment,
   onOpenAsk,
@@ -121,6 +130,8 @@ export function ProductTrustPanel({
         </button>
       </div>
 
+      <TodayDecisionBrief brief={todayBrief} />
+
       <div className="metric-grid" aria-label="Today summary">
         <Metric label="Evidence confidence" value={`${Math.round(confidenceScore * 100)}%`} detail={`${findings.length} active finding${findings.length === 1 ? "" : "s"}`} tone="blue" />
         <Metric label="Data freshness" value={`${Math.round(freshnessScore * 100)}%`} detail={`${dashboard.summary.healthy} source${dashboard.summary.healthy === 1 ? "" : "s"} healthy`} tone="green" />
@@ -129,6 +140,8 @@ export function ProductTrustPanel({
       </div>
 
       <FreshnessStrip dashboard={dashboard} />
+
+      <DiscoveryInbox items={discoveryInbox} />
 
       <div className="today-grid">
         <article className="focus-card">
@@ -173,12 +186,26 @@ export function ProductTrustPanel({
             <>
               <p>{primaryRecommendation.statement}</p>
               <p className="muted">{primaryRecommendation.rationale}</p>
-              <div className="actions actions--wrap">
-                <button type="button" onClick={() => { pulse.acceptRecommendation(primaryRecommendation.id); onChange(); setNotice("Recommendation accepted — Pulse will ask for a follow-up."); }}>Accept</button>
-                <button type="button" onClick={() => { pulse.followRecommendation(primaryRecommendation.id); onChange(); setNotice("Follow-up recorded — measure the outcome when you can."); }}>I followed this</button>
-                <button type="button" onClick={() => onRecommendationOutcome(primaryRecommendation.id, true)}>It helped</button>
-                <button type="button" onClick={() => onRecommendationOutcome(primaryRecommendation.id, false)}>Not useful</button>
-              </div>
+              <p className="muted recommendation-card__evidence">
+                Evidence: {primaryRecommendation.evidenceClass} · {primaryRecommendation.confidence.level} confidence · {primaryRecommendation.causalStatus}
+              </p>
+              <fieldset className="recommendation-response">
+                <legend>What is your response?</legend>
+                <div className="actions actions--wrap">
+                  <button type="button" onClick={() => { onRecommendationResponse(primaryRecommendation.id, "try-this"); setNotice("Recommendation accepted — Pulse will ask for a follow-up."); }}>Try this</button>
+                  <button type="button" onClick={() => { onRecommendationResponse(primaryRecommendation.id, "already-doing-this"); setNotice("Already doing this recorded — Pulse will treat it as followed."); }}>Already doing this</button>
+                  <button type="button" onClick={() => { onRecommendationResponse(primaryRecommendation.id, "not-today"); setNotice("Not today recorded — Pulse will leave this open without treating it as a failure."); }}>Not today</button>
+                  <button type="button" onClick={() => { onRecommendationResponse(primaryRecommendation.id, "not-useful"); setNotice("Not useful recorded — future ranking will be more cautious."); }}>Not useful</button>
+                  <button type="button" onClick={() => { onRecommendationResponse(primaryRecommendation.id, "dont-suggest-again"); setNotice("Pulse will not suggest this recommendation again."); }}>Don't suggest this again</button>
+                </div>
+              </fieldset>
+              <fieldset className="recommendation-outcome">
+                <legend>After trying it</legend>
+                <div className="actions actions--wrap">
+                  <button type="button" onClick={() => { onRecommendationOutcome(primaryRecommendation.id, true); setNotice("Outcome recorded — thank you for closing the loop."); }}>It helped</button>
+                  <button type="button" onClick={() => { onRecommendationOutcome(primaryRecommendation.id, false); setNotice("Outcome recorded — Pulse will learn cautiously from it."); }}>It didn't help</button>
+                </div>
+              </fieldset>
             </>
           ) : <p className="empty">No recommendation is justified by the evidence available.</p>}
         </article>
@@ -262,6 +289,86 @@ export function ProductTrustPanel({
       </div>
     </section>
   );
+}
+
+function TodayDecisionBrief({ brief }: { brief: TodayBrief }): React.JSX.Element {
+  const emptyRecent = brief.dataState.status === "missing" ? "Unavailable: no recent measurements arrived." : "None cleared the evidence bar in this window.";
+  return (
+    <article className={`decision-brief decision-brief--${brief.dataState.status}`} aria-labelledby="today-brief-title">
+      <div className="decision-brief__header">
+        <div>
+          <p className="eyebrow">Decision brief · {brief.date}</p>
+          <h3 id="today-brief-title">{brief.headline}</h3>
+          <p className="muted">{brief.dataState.message}</p>
+        </div>
+        <span className={`pill pill--${brief.dataState.status}`}>{brief.dataState.status === "ready" ? "Enough recent data" : brief.dataState.status === "partial" ? "Partial coverage" : "Waiting for data"}</span>
+      </div>
+
+      <div className="decision-brief__grid">
+        <BriefColumn title="What changed">
+          {brief.whatChanged.length ? brief.whatChanged.map((entry) => <li key={entry.definition.id}>{entry.statement}</li>) : <li className="muted">{emptyRecent}</li>}
+        </BriefColumn>
+        <BriefColumn title="What looks normal">
+          {brief.normal.length ? brief.normal.map((entry) => <li key={entry.metricId}>{entry.statement}</li>) : <li className="muted">{emptyRecent}</li>}
+        </BriefColumn>
+        <BriefColumn title="What is unusual">
+          {brief.unusual.length ? brief.unusual.map((entry) => <li key={`${entry.metricId}-${entry.date}`}>{entry.date}: {entry.metricId} was {entry.direction} its usual level.</li>) : <li className="muted">{emptyRecent}</li>}
+        </BriefColumn>
+        <BriefColumn title="What matters">
+          {brief.matters.length ? brief.matters.map((matter) => <MatterRow key={matter.id} matter={matter} />) : <li className="muted">No finding or data-quality issue needs attention.</li>}
+        </BriefColumn>
+      </div>
+
+      <div className="decision-brief__footer">
+        <div><span className="eyebrow">Reasonable action</span><strong>{brief.action?.title ?? "Keep observing; no action is justified yet."}</strong></div>
+        <div><span className="eyebrow">Evidence strength</span><strong>{brief.evidence.level === "none" ? "No published evidence" : `${brief.evidence.level} · ${Math.round(brief.evidence.score * 100)}%`}</strong><small>{brief.evidence.basis.join(" · ") || "Pulse is still collecting comparable measurements."}</small></div>
+      </div>
+      {brief.evidence.caveats.length ? <p className="decision-brief__caveat"><strong>Keep in mind:</strong> {brief.evidence.caveats.join(" ")}</p> : null}
+    </article>
+  );
+}
+
+function BriefColumn({ title, children }: { title: string; children: React.ReactNode }): React.JSX.Element {
+  return <section className="decision-brief__column"><h4>{title}</h4><ul>{children}</ul></section>;
+}
+
+function MatterRow({ matter }: { matter: TodayMatter }): React.JSX.Element {
+  return <li><strong>{matter.title}</strong><span className="decision-brief__matter-meta">{matter.evidenceLevel === "not-a-claim" ? "Data quality" : `${matter.evidenceClass} · ${matter.evidenceLevel}`}</span><span className="muted">{matter.caveat ?? matter.statement}</span></li>;
+}
+
+function DiscoveryInbox({ items }: { items: DiscoveryInboxItem[] }): React.JSX.Element {
+  const counts = items.reduce<Record<string, number>>((result, item) => {
+    result[item.state] = (result[item.state] ?? 0) + 1;
+    return result;
+  }, {});
+  return (
+    <section className="trust-section discovery-inbox" aria-labelledby="discovery-inbox-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Discovery inbox · lifecycle view</p>
+          <h3 id="discovery-inbox-title">Insights with a next state</h3>
+        </div>
+          <span className="status status--controlled">{items.length} shown</span>
+      </div>
+      {items.length ? (
+        <>
+          <div className="discovery-inbox__counts" aria-label="Discovery lifecycle counts">
+            {Object.entries(counts).map(([state, count]) => <span key={state}><strong>{count}</strong> {lifecycleLabel(state)}</span>)}
+          </div>
+          <ol className="discovery-inbox__list">
+            {items.map((item) => <li key={item.id} className={`discovery-inbox__item discovery-inbox__item--${item.state}`}>
+              <div><strong>{item.finding.title}</strong><span className="muted">{item.finding.statement}</span><small>{item.stateReason}</small></div>
+              <span className="pill">{lifecycleLabel(item.state)} · {item.confidence.level}</span>
+            </li>)}
+          </ol>
+        </>
+      ) : <p className="empty-inline">The inbox is empty because no discovery has crossed the evidence bar yet.</p>}
+    </section>
+  );
+}
+
+function lifecycleLabel(state: string): string {
+  return state.replaceAll("-", " ");
 }
 
 function Metric({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: string }): React.JSX.Element {

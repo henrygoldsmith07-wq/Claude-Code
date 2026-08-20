@@ -28,6 +28,7 @@ import type { PulseEvent } from "../src/events/schema.js";
 import type { Finding } from "../src/discovery/finding.js";
 import type { InsightHistorySnapshot } from "../src/history/insight-history.js";
 import type { CausalLibrarySnapshot } from "../src/hypotheses/library.js";
+import type { FeedbackSnapshot } from "../src/recommendations/feedback.js";
 
 const clock = (): number => Date.parse("2025-07-01T12:00:00Z");
 
@@ -438,5 +439,20 @@ describe("encryption at rest", () => {
     await expect(createEncryptedBlobAdapter<CausalLibrarySnapshot>(storage, "wrong").load()).rejects.toThrow(
       /Could not decrypt/,
     );
+  });
+
+  it("stores finding corrections encrypted and rehydrates them transparently", async () => {
+    const storage = createMemoryBlobStorage();
+    const snapshot: FeedbackSnapshot = {
+      entries: [{ targetId: "finding-private", verdict: "not-useful", at: "2025-07-01T00:00:00Z", metricIds: ["study.accuracy"] }],
+      dismissed: ["finding-private"],
+      mutedTopics: ["study.accuracy"],
+    };
+    const adapter = createEncryptedBlobAdapter<FeedbackSnapshot>(storage, "passphrase");
+    await adapter.save(snapshot);
+    const raw = await storage.read();
+    expect(raw).toBeTruthy();
+    expect(raw!).not.toMatch(/finding-private|not-useful|study\.accuracy/);
+    await expect(adapter.load()).resolves.toEqual(snapshot);
   });
 });

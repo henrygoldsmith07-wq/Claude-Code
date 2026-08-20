@@ -16,6 +16,7 @@ import type { Finding } from "../discovery/finding.js";
 import type { InsightChange, InsightScanRecord } from "../history/insight-history.js";
 import type { MetricRegistry } from "../metrics/registry.js";
 import type { RejectedClaim } from "../search/evidence-search.js";
+import type { RecommendationResponse } from "../recommendations/value.js";
 import { relationshipSubject } from "../discovery/relationship.js";
 import { derivePeriods } from "../experiments/design.js";
 import { FindingCard, REPLICATION_LABEL } from "./FindingCard.js";
@@ -141,6 +142,8 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const discovery = useMemo(() => pulse.discover(), [pulse, revision]);
   const brief = useMemo(() => pulse.weeklyBrief(), [pulse, revision]);
   const recommendations = useMemo(() => pulse.recommendations(5), [pulse, revision]);
+  const todayBrief = useMemo(() => pulse.todayBrief(), [pulse, revision]);
+  const discoveryInbox = useMemo(() => pulse.discoveryInbox(8), [pulse, revision]);
   const funnel = useMemo(() => pulse.recommendationFunnel(), [pulse, revision]);
   const quality = useMemo(() => pulse.quality(), [pulse, revision]);
   const insightHistory = useMemo(() => pulse.insightHistory.history(), [pulse, revision]);
@@ -176,6 +179,14 @@ export function App({ pulse }: AppProps): React.JSX.Element {
   const onRecommendationOutcome = useCallback(
     (recommendationId: string, helped: boolean) => {
       pulse.recordRecommendationOutcome(recommendationId, helped);
+      refresh();
+    },
+    [pulse, refresh],
+  );
+
+  const onRecommendationResponse = useCallback(
+    (recommendationId: string, response: RecommendationResponse) => {
+      pulse.respondToRecommendation(recommendationId, response);
       refresh();
     },
     [pulse, refresh],
@@ -315,8 +326,11 @@ export function App({ pulse }: AppProps): React.JSX.Element {
               discovery={discovery}
               quality={quality}
               recommendations={recommendations}
+              todayBrief={todayBrief}
+              discoveryInbox={discoveryInbox}
               revision={revision}
               onFeedback={onFeedback}
+              onRecommendationResponse={onRecommendationResponse}
               onRecommendationOutcome={onRecommendationOutcome}
               onDesignExperiment={onDesignExperiment}
               onOpenAsk={() => openAsk()}

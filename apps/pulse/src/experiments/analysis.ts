@@ -104,6 +104,8 @@ export interface SecondaryOutcomeResult {
 export interface ExperimentResult {
   experimentId: string;
   hypothesisId: string;
+  /** Metric the design registered as its primary outcome. */
+  targetMetricId?: string;
   analysedAt: string;
   /** The window actually analysed: the design's end, or the adaptive-duration end (P1 #4). */
   effectiveEndDate: string;
@@ -413,6 +415,7 @@ export function analyseExperiment(
   return {
     experimentId: design.id,
     hypothesisId: design.hypothesisId,
+    targetMetricId: design.targetMetricId,
     analysedAt: new Date(now()).toISOString(),
     effectiveEndDate: effectiveEnd,
     verdict,
@@ -455,6 +458,7 @@ function invalidResult(
   return {
     experimentId: design.id,
     hypothesisId: design.hypothesisId,
+    targetMetricId: design.targetMetricId,
     analysedAt: new Date(nowMs).toISOString(),
     effectiveEndDate: design.endDate,
     verdict: "invalid",

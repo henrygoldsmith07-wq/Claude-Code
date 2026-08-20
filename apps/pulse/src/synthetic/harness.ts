@@ -9,6 +9,8 @@ import { Pulse } from "../pulse.js";
 import type { PersistenceAdapter } from "../events/store.js";
 import type { InsightHistoryAdapter } from "../history/insight-history.js";
 import type { CausalLibraryAdapter } from "../hypotheses/library.js";
+import type { RecommendationValueAdapter } from "../recommendations/value.js";
+import type { FeedbackAdapter } from "../recommendations/feedback.js";
 import { createArrayReader } from "../connectors/sdk.js";
 import { createReviseConnector, type ReviseRecord } from "../connectors/revise.js";
 import { createAriseConnector, type AriseRecord } from "../connectors/arise.js";
@@ -36,6 +38,10 @@ export interface HarnessOptions extends SyntheticOptions {
   historyAdapter?: InsightHistoryAdapter;
   /** Persistence for the causal hypothesis library, as with PulseOptions. */
   libraryAdapter?: CausalLibraryAdapter;
+  /** Persistence for recommendation snapshots and outcome learning. */
+  recommendationAdapter?: RecommendationValueAdapter;
+  /** Persistence for finding corrections and topic dismissals. */
+  feedbackAdapter?: FeedbackAdapter;
 }
 
 export interface Harness {
@@ -104,6 +110,8 @@ export async function createSyntheticPulse(options: HarnessOptions = {}): Promis
     adapter: options.adapter,
     historyAdapter: options.historyAdapter,
     libraryAdapter: options.libraryAdapter,
+    recommendationAdapter: options.recommendationAdapter,
+    feedbackAdapter: options.feedbackAdapter,
   });
 
   pulse.registerConnector(createReviseConnector(createArrayReader(user.revise, timestampOfRevise)));

@@ -18,9 +18,10 @@ import type { Connector } from "./connectors/types.js";
 import { buildConnectorDashboard, type ConnectorDashboard } from "./connectors/dashboard.js";
 import { ConsentRegistry } from "./privacy/consent.js";
 import { createDefaultRegistry } from "./metrics/catalogue.js";
-import type { MetricRegistry } from "./metrics/registry.js";
+import { sourcesOf, type MetricRegistry } from "./metrics/registry.js";
 import { scoreAll, type QualityContext, type SourceQuality } from "./quality/score.js";
 import { discoverRelationships, type DiscoveryReport } from "./discovery/engine.js";
+import { buildDiscoveryInbox, type DiscoveryInboxItem } from "./discovery/inbox.js";
 import { ReplicationLedger } from "./discovery/replication.js";
 import { ContradictionLedger } from "./discovery/contradictions.js";
 import { relationshipSubject } from "./discovery/relationship.js";
@@ -56,10 +57,16 @@ import {
   type ExperimentCalendar,
 } from "./experiments/calendar.js";
 import { rankRecommendations, type Recommendation } from "./recommendations/rank.js";
-import { FeedbackStore } from "./recommendations/feedback.js";
-import { RecommendationValueTracker } from "./recommendations/value.js";
+import { FeedbackStore, type FeedbackAdapter } from "./recommendations/feedback.js";
+import {
+  RecommendationValueTracker,
+  type RecommendationResponse,
+  type RecommendationValueAdapter,
+  type RecommendationEvidenceUpdate,
+} from "./recommendations/value.js";
 import { buildTimeline, type Timeline, type TimelineOptions } from "./timeseries/timeline.js";
 import { buildWeeklyBrief, type WeeklyBrief } from "./reports/brief.js";
+import { buildTodayBrief, type TodayBrief } from "./reports/today.js";
 import { buildKnowledgeGraph, type KnowledgeGraph } from "./knowledge/graph.js";
 import { buildClaimNode, buildEvidenceGraph, type AuthoredClaimInput, type EvidenceGraph } from "./evidence-graph/graph.js";
 import type { ClaimNode } from "./evidence-graph/types.js";
@@ -78,6 +85,10 @@ export interface PulseOptions {
   collectionsAdapter?: InsightCollectionsAdapter;
   /** Persists the causal hypothesis library; without one it lives for the process. */
   libraryAdapter?: CausalLibraryAdapter;
+  /** Persists recommendation snapshots, responses and outcome evidence. */
+  recommendationAdapter?: RecommendationValueAdapter;
+  /** Persists finding corrections, dismissals and muted topics. */
+  feedbackAdapter?: FeedbackAdapter;
   registry?: MetricRegistry;
   now?: () => number;
   /** Expected weekly cadence per source, used by the quality scorer. */
@@ -111,6 +122,8 @@ export class Pulse {
   private lastRejected: RejectedClaim[] = [];
   private historyPersistQueue: Promise<void> = Promise.resolve();
   private libraryPersistQueue: Promise<void> = Promise.resolve();
+  private recommendationPersistQueue: Promise<void> = Promise.resolve();
+  private recommendationPersistedRevision = 0;
 
   constructor(options: PulseOptions = {}) {
     this.timezone = options.timezone ?? "UTC";
@@ -118,11 +131,11 @@ export class Pulse {
     this.store = new MemoryEventStore(options.adapter);
     this.consent = new ConsentRegistry(this.now);
     this.registry = options.registry ?? createDefaultRegistry();
-    this.feedback = new FeedbackStore(this.now);
+    this.feedback = new FeedbackStore(this.now, options.feedbackAdapter ?? undefined);
     this.hypotheses = new HypothesisTracker(this.now);
     this.replication = new ReplicationLedger(this.now);
     this.contradictions = new ContradictionLedger(this.now);
-    this.value = new RecommendationValueTracker(this.now);
+    this.value = new RecommendationValueTracker(this.now, options.recommendationAdapter ?? null);
     this.insightHistory = new InsightHistory(options.historyAdapter);
     this.insightCollections = new InsightCollectionStore(this.now, options.collectionsAdapter);
     this.causalLibrary = new CausalHypothesisLibrary(options.libraryAdapter, this.now);
@@ -135,6 +148,8 @@ export class Pulse {
     await this.insightHistory.load();
     await this.insightCollections.load();
     await this.causalLibrary.load();
+    await this.value.load();
+    await this.feedback.load();
   }
 
   // --- COLLECT ----------------------------------------------------------
@@ -333,8 +348,33 @@ export class Pulse {
       });
   }
 
+  /** Serialised because the browser adapter encrypts the whole recommendation ledger. */
+  private persistRecommendationValue(): void {
+    this.recommendationPersistQueue = this.recommendationPersistQueue
+      .then(async () => {
+        if (this.value.revision <= this.recommendationPersistedRevision) return;
+        await this.value.persist();
+        this.recommendationPersistedRevision = this.value.revision;
+      })
+      .catch((error: unknown) => {
+        console.error("Pulse: failed to persist recommendation value", error);
+      });
+  }
+
   findings(): Finding[] {
     return this.cachedFindings;
+  }
+
+  discoveryInbox(limit?: number): DiscoveryInboxItem[] {
+    return buildDiscoveryInbox({
+      findings: this.cachedFindings,
+      recommendations: this.recommendations(),
+      feedback: this.feedback,
+      value: this.value,
+      hypotheses: this.hypotheses.list(),
+      history: this.insightHistory.history(),
+      ...(limit !== undefined ? { limit } : {}),
+    });
   }
 
   /** Re-runs selected statistical diagnostics without changing the finding ledger. */
@@ -551,11 +591,13 @@ export class Pulse {
     const ranked = rankRecommendations(this.cachedFindings, this.experimentResultsList(), {
       registry: this.registry,
       feedback: this.feedback,
+      value: this.value,
       now: this.now,
       today: localDate(this.now(), this.timezone),
       ...(limit !== undefined ? { limit } : {}),
     });
-    for (const recommendation of ranked) this.value.recommended(recommendation.id);
+    for (const recommendation of ranked) this.value.recommended(recommendation.id, recommendation);
+    this.persistRecommendationValue();
     return ranked;
   }
 
@@ -567,14 +609,30 @@ export class Pulse {
 
   acceptRecommendation(id: string): void {
     this.value.accepted(id);
+    this.persistRecommendationValue();
   }
 
   followRecommendation(id: string): void {
     this.value.followed(id);
+    this.persistRecommendationValue();
   }
 
-  recordRecommendationOutcome(id: string, helped: boolean): void {
-    this.value.recordOutcome(id, helped);
+  respondToRecommendation(id: string, response: RecommendationResponse, note?: string): void {
+    this.value.respond(id, response, undefined, note);
+    this.persistRecommendationValue();
+  }
+
+  recordRecommendationOutcome(id: string, helped: boolean, note?: string): void {
+    this.value.recordOutcome(id, helped, note);
+    this.persistRecommendationValue();
+  }
+
+  recordRecommendationEvidence(
+    id: string,
+    evidence: Omit<RecommendationEvidenceUpdate, "recordedAt">,
+  ): void {
+    this.value.recordEvidence(id, evidence);
+    this.persistRecommendationValue();
   }
 
   // --- EXPERIMENT CALENDAR -------------------------------------------------
@@ -641,6 +699,19 @@ export class Pulse {
       causalEntries: this.causalLibrary.list(),
       timezone: this.timezone,
       qualities: this.quality(),
+      now: this.now,
+    });
+  }
+
+  todayBrief(): TodayBrief {
+    return buildTodayBrief({
+      registry: this.registry,
+      today: localDate(this.now(), this.timezone),
+      events: this.store.all(),
+      findings: this.cachedFindings,
+      recommendations: this.recommendations(),
+      qualities: this.quality(),
+      timezone: this.timezone,
       now: this.now,
     });
   }
@@ -742,6 +813,12 @@ export class Pulse {
     this.causalLibrary.pruneEvidence(new Set(report.invalidatedFindings), new Set(report.invalidatedHypotheses));
     await this.causalLibrary.persist();
     await this.insightCollections.persist();
+    this.value.pruneBySource(source);
+    this.persistRecommendationValue();
+    await this.recommendationPersistQueue;
+    const deletedMetricIds = this.registry.list().filter((definition) => sourcesOf(definition).includes(source)).map((definition) => definition.id);
+    this.feedback.pruneByMetrics(deletedMetricIds, report.invalidatedFindings);
+    await this.feedback.persist();
     this.syncReports.delete(source);
     return report;
   }
