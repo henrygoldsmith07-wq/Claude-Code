@@ -1,5 +1,6 @@
 import { matchMisconception } from "./misconception-library";
 import { createCard } from "./scheduling";
+import { CALIBRATION_PRIOR_V1 } from "./calibration-priors";
 import type { Attempt, Card, Id, Misconception, Mistake, Question } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ export interface MistakeDraft {
 const COMMAND_WORD_RE = /\b(state|describe|explain|calculate|suggest|compare|evaluate|discuss|justify|deduce|predict|outline|show that)\b/i;
 export function commandWordOf(parts: Array<{ prompt: string }>): ReturnType<typeof classifyMistake> extends never ? never : string {
   // legacy shim handled in assessment.ts — kept here only for the fallback below
+  void parts;
   return "" as unknown as string;
 }
 function detectCommandWord(prompt: string): import("./types").CommandWord {
@@ -108,9 +110,9 @@ export function remediationFor(mistake: Pick<Mistake, "misconception" | "ao" | "
 function timingFor(attempt: Attempt, partId: string, marks: number): Mistake["timing"] {
   if (!attempt.elapsedMs || !attempt.marked.length) return "unknown";
   const perPartMs = attempt.elapsedMs / attempt.marked.length;
-  const budget = marks * 90_000;
-  if (perPartMs < budget * 0.5) return "rushed";
-  if (perPartMs > budget * 2) return "slow";
+  const budget = marks * CALIBRATION_PRIOR_V1.timing.secondsPerMark.mean * 1000;
+  if (perPartMs < budget * CALIBRATION_PRIOR_V1.timing.rushedRatio) return "rushed";
+  if (perPartMs > budget * CALIBRATION_PRIOR_V1.timing.slowRatio) return "slow";
   void partId;
   return "ok";
 }

@@ -124,7 +124,7 @@ mastery score is not mistaken for a measured one.
 ### Inputs & outputs
 
 `RecommendInput` takes the homework the engine needs — `topics`, `mastery`,
-`cards`, `mistakes`, `exams`, `plan`, `sessionLengthMinutes`, `subjectIds`,
+`cards`, `mistakes`, the optional aggregated `errorModel`, `exams`, `plan`, `sessionLengthMinutes`, `subjectIds`,
 plus optional `marksPerHour` (expected exam marks per hour per topic), an
 `outcomeHistory` of `(predicted, actual)` pairs, and
 `adaptiveDifficultyOffset` per topic. It returns `Recommendation[]` sorted
@@ -148,8 +148,8 @@ cards/topics), so the score reads as weighted marks per minute.
 | Candidate | examGain | Rationale |
 |-----------|----------|-----------|
 | Due flashcards | `count × (0.28 + (1 − retention)×0.35)` | Decayed memory is the cheapest thing to fix; value rises as retention falls. |
-| Mistake repair (≥3 open) | `marksLost × 0.7` | Marks the student has already proved they can lose. |
-| Weak-topic practice | `marksPerHour × block/60` or `(1 − mastery)×8` | Where revision converts into marks fastest. |
+| Mistake repair (≥3 open) | `marksLost × observed-or-prior recoverable fraction` | Marks the student has already proved they can lose; the fraction carries an interval and provenance. |
+| Weak-topic practice | `observed-or-prior marksPerHour × block/60` | Where revision converts into marks fastest; no `marksLost × guessed rate` fallback is used. |
 | First-pass learn | `2.2 + (6 − difficulty)×0.25` | Coverage matters, but not more than repairing what is broken. |
 | Timed paper | `(1 − avgMastery)×9 + nearExamBonus` | Only once broadly solid or exam ≤ 21 days. |
 | Today's plan | additive +12 to a match | The student's own commitment breaks ties. |
@@ -183,14 +183,14 @@ ensures breadth matters far from the exam and efficiency dominates near it.
 offset) to drift the score ±10% toward the right stretch. It never overrides
 weakness/urgency/forgetting.
 
-### Validated against learning outcomes — synthetic now, real later
+### Validated against learning outcomes — synthetic machinery tests, empirical outcomes in production
 
 - `syntheticOutcomePairs(seed, n, subjectId, topicIds)` — deterministic
   synthetic `(predicted, actual)` history so CI can run without real papers.
 - `benchmarkRecommendationQuality(pairs)` — reports `{ n, mae, bias,
   correlation, hitRate }` against those later timed-paper outcomes; `hitRate`
-is the share within ±5 marks. The real integration replaces synthetic pairs
-  with observed `(simulatePaper.predictedMarks, laterPaper.actualMarks)`.
+is the share within ±5 marks. These rows are test-only; they never enter the
+live learner model.
 - The 400-scenario benchmark harness (`recommender.benchmark.test.ts`) asserts
   total ordering, no duplicate keys, explanation present, and monotonicity of
 every factor across a seeded synthetic population.
@@ -213,15 +213,33 @@ fiction.
 - Blocks are split between subjects by `(0.15 + (1 − avg mastery)) × urgency`,
   allocated by **largest remainder** so nothing rounds away to nothing and the
   totals always add back up.
-- Every study day opens with due-card review.
-- Within a subject, topics are picked by projected deficit with a spacing
-  penalty — revisiting a topic the very next day wastes the spacing effect.
+- A day opens with real due-card review only when cards are actually due;
+  cold-start callers without card evidence retain the legacy recall-first
+  fallback, while a loaded empty due queue is never presented as overdue work.
+- Within a subject, topics are picked from independent signals: projected
+  deficit, due cards, open mistakes, marked application accuracy, timing and
+  command-word losses, recency-weighted error severity, and spacing.
 - Mastery is "spent" as the plan is built, so a topic scheduled on Monday looks
   less urgent by Wednesday.
-- Inside the last fortnight, every third block becomes a timed paper.
+- Inside the last fortnight, selected blocks become timed execution practice
+  once mastery is high enough to make the result diagnostic rather than merely
+  discouraging.
+
+Each session carries a structured `priority`, `intervention` and `purpose`.
+Those labels make the route inspectable: `misconception-correction` repairs an
+open error, `application` responds to weak marked performance,
+`exam-technique` responds to timing or command-word losses, `coverage` creates
+the first evidence point, and `retrieval`/`consolidation` protect memory.
+
+`src/domain/error-model.ts` aggregates mistakes by meaningful misconception,
+command word or fallback category. It preserves frequency, open/resolved
+counts, marks lost, recency-weighted severity, examples and retest
+improvement. The same model feeds the planner, recommender and `/progress`, so
+the product does not show one diagnosis while scheduling another.
 
 **Missed sessions.** Anything still pending on a past day is marked `missed` and
-its work is re-queued onto the next day with room, oldest first. Nothing
+its work is re-queued onto the next day with room, ordered by exam urgency ×
+mastery deficit rather than age alone. Nothing
 silently disappears, and the plan is never a list of things the student has
 already failed to do. This runs automatically at startup as well as on demand.
 
@@ -248,18 +266,14 @@ rubric-marked answer is labelled as rubric-marked in the UI.
 
 `src/domain/grades.ts`
 
-```
-trust    = min(1, attempts / 10)
-blended  = measured accuracy · trust + topic coverage · (1 − trust)
-percent  = blended · 92 + 4
-range    = ± (6 + 12 · (1 − trust)) percentage points
-confidence = trust·0.75·horizonPenalty + min(1, topics/12)·0.25
-```
-
-Mastery is not a mark — a student at 100% topic mastery does not score 100% —
-so the value is compressed into a realistic attainment range before banding.
-The output is always a band with an explicit confidence, because a single
-predicted letter carries far more certainty than the data supports.
+`predictGrade` blends measured marked-question accuracy with the empirical
+question-mark model using a declared evidence-strength prior. The question
+model is fitted only from timestamped later-unseen outcomes. A completed paper
+history, when available, applies a separate timestamp-safe paper calibration.
+Both uncertainty sources are propagated into percentage and grade ranges.
+There is no fixed `92 + 4` compression or deterministic range formula. With no
+outcomes the source is explicitly `population-prior`; sparse personal evidence
+is labelled `population-plus-personal-shrinkage`.
 
 **Headroom** is the actionable output: how many percentage points the whole
 subject would gain if this one topic were taken to full mastery. That answers
@@ -273,12 +287,13 @@ subject would gain if this one topic were taken to full mastery. That answers
 - `confidenceCalibration({ subject, mastery, attempts, exams, today, laterOutcomes })`
   — thin wrapper that treats each later timed paper's predicted/actual as a
   probability for the bucket check.
-- `syntheticCalibrationOutcomes(seed, n)` — deterministic synthetic outcomes
-  for benchmarking without real papers; replace with real
-  `(predictGrade.percent/100, laterPaperPercent/100)` once live.
-- Validated in `tests/grade-calibration.test.ts` (synthetic longitudinal
-histories; `simulatePaper` + `calibrateFromHistory` composizione; confidence
-  grows and band narrows as evidence accumulates).
+- `src/domain/calibration.ts` owns the empirical path: timestamped transfer
+  observations, completed pre-paper prediction history, chronological held-out
+  evaluation, shrinkage, interval coverage, MAE/ECE/bias and group-bias flags.
+- `syntheticCalibrationOutcomes(seed, n)` remains a deterministic machinery
+  fixture only. It is never loaded into the learner's calibration model.
+- The full protocol, gates, estimands and interpretation limits are documented
+  in `docs/calibration-benchmark.md` and exercised in `tests/calibration.test.ts`.
 
 ## Mistake loop
 

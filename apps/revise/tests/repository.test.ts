@@ -7,12 +7,15 @@ import {
   loadSnapshot,
   saveAttempt,
   saveCard,
+  saveCalibrationObservation,
   saveExamDate,
   savePlan,
+  savePredictionHistory,
 } from "@/data/repository";
 import { allTopics } from "@/domain/curriculum";
 import { isDue, todayIso } from "@/domain/scheduling";
-import type { Attempt, ExamDate, PlannedSession } from "@/domain/types";
+import { CALIBRATION_MODEL_VERSION, CALIBRATION_PRIOR_V1 } from "@/domain/calibration-priors";
+import type { Attempt, CalibrationObservation, ExamDate, PlannedSession, PredictionHistoryRecord } from "@/domain/types";
 
 // These exercise the real IndexedDB code path against an in-memory
 // implementation. They exist because a positional destructure of the store
@@ -44,6 +47,35 @@ describe("loadSnapshot", () => {
     const snapshot = await loadSnapshot(USER);
     const today = todayIso();
     expect(snapshot.cards.filter((c) => isDue(c, today)).length).toBe(snapshot.cards.length);
+  });
+
+  it("keeps user-owned learning history and seeded cards isolated between profiles", async () => {
+    const first = await loadSnapshot("user-a");
+    const second = await loadSnapshot("user-b");
+    const attempt: Attempt = {
+      id: "attempt-user-a",
+      userId: "user-a",
+      questionId: first.questions[0].id,
+      subjectId: first.questions[0].subjectId,
+      topicIds: first.questions[0].topicIds,
+      answers: {},
+      marked: [],
+      awarded: 0,
+      max: 1,
+      feedback: "",
+      markedBy: "rubric",
+      elapsedMs: 1000,
+      mode: "practice",
+      createdAt: new Date().toISOString(),
+    };
+    await saveAttempt(attempt);
+
+    const reloadedA = await loadSnapshot("user-a");
+    const reloadedB = await loadSnapshot("user-b");
+    expect(reloadedA.attempts.map((row) => row.id)).toContain(attempt.id);
+    expect(reloadedB.attempts).toEqual([]);
+    expect(second.cards.some((card) => card.id.startsWith("seed:user-b:"))).toBe(true);
+    expect(reloadedB.cards.some((card) => card.userId === "user-a")).toBe(false);
   });
 
   it("covers every topic in the registered curriculum", async () => {
@@ -84,6 +116,51 @@ describe("loadSnapshot", () => {
     };
     await saveAttempt(attempt);
 
+    const observedAt = "2026-03-01T12:00:00.000Z";
+    const observation: CalibrationObservation = {
+      id: "calibration-observation-1",
+      userId: USER,
+      subjectId: before.questions[0].subjectId,
+      topicId: before.questions[0].topicIds[0],
+      laterQuestionId: before.questions[1].id,
+      revisionAction: "practice",
+      revisionAt: "2026-02-28T12:00:00.000Z",
+      durationMinutes: 25,
+      baselineMastery: 0.3,
+      baselineEvidence: 4,
+      laterQuestionWasUnseen: true,
+      outcomeAt: observedAt,
+      actualMarks: 4,
+      maxMarks: 6,
+      createdAt: observedAt,
+      updatedAt: observedAt,
+      source: "observed",
+    };
+    await saveCalibrationObservation(observation);
+
+    const prediction: PredictionHistoryRecord = {
+      id: "prediction-history-1",
+      userId: USER,
+      subjectId: before.questions[0].subjectId,
+      paperSpecId: "paper-spec-1",
+      paperRunId: "paper-run-1",
+      predictedAt: "2026-02-28T12:00:00.000Z",
+      modelVersion: CALIBRATION_MODEL_VERSION,
+      priorVersion: CALIBRATION_PRIOR_V1.version,
+      source: "population-prior",
+      personalSampleSize: 0,
+      predictedMarks: 40,
+      predictedMarksLower: 20,
+      predictedMarksUpper: 60,
+      totalMarks: 60,
+      predictedPercent: 40 / 60,
+      predictedPercentLower: 20 / 60,
+      predictedPercentUpper: 1,
+      createdAt: "2026-02-28T12:00:00.000Z",
+      updatedAt: "2026-02-28T12:00:00.000Z",
+    };
+    await savePredictionHistory(prediction);
+
     const exam: ExamDate = {
       id: "exam-1",
       userId: USER,
@@ -110,6 +187,10 @@ describe("loadSnapshot", () => {
     expect(after.cards.find((c) => c.id === card.id)?.reps).toBe(7);
     expect(after.attempts).toHaveLength(1);
     expect(after.attempts[0].awarded).toBe(4);
+    expect(after.calibrationObservations).toHaveLength(1);
+    expect(after.calibrationObservations[0].laterQuestionId).toBe(before.questions[1].id);
+    expect(after.predictionHistory).toHaveLength(1);
+    expect(after.predictionHistory[0].modelVersion).toBe(CALIBRATION_MODEL_VERSION);
     expect(after.examDates).toHaveLength(1);
     expect(after.plannedSessions).toHaveLength(1);
     expect(after.plannedSessions[0].activity).toBe("flashcards");

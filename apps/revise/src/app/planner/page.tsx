@@ -146,18 +146,30 @@ function SessionRow({ session }: { session: PlannedSession }) {
   const store = useStore();
   const topic = session.topicId ? getTopic(session.topicId) : null;
   const done = session.status === "done";
+  const priorityTone: "neutral" | "success" | "review" | "danger" = session.priority === "critical"
+    ? "danger"
+    : session.priority === "high"
+      ? "review"
+      : session.priority === "maintenance"
+        ? "success"
+        : "neutral";
 
   return (
     <li className={cx("flex items-center gap-3 px-4 py-2.5", done && "opacity-60")}>
       <span className="text-xs tabular-nums text-ink3 w-11 shrink-0">{formatTime(session.startMinute)}</span>
       <div className="min-w-0 flex-1">
-        <p className={cx("text-sm truncate", done ? "line-through text-ink3" : "text-ink")}>
-          {ACTIVITY_LABEL[session.activity]}
-          {topic ? ` · ${topic.title}` : ""}
-        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className={cx("text-sm truncate", done ? "line-through text-ink3" : "text-ink")}>
+            {ACTIVITY_LABEL[session.activity]}
+            {topic ? ` · ${topic.title}` : ""}
+          </p>
+          {session.priority ? <Pill tone={priorityTone}>{session.priority}</Pill> : null}
+          {session.intervention ? <Pill>{session.intervention.replace(/-/g, " ")}</Pill> : null}
+        </div>
         <p className="text-[11px] text-ink3 truncate">
           {getSubject(session.subjectId)?.name} — {session.reason}
         </p>
+        {session.purpose ? <p className="text-[11px] text-ink3/80 truncate">Purpose: {session.purpose}</p> : null}
       </div>
       {done ? (
         <Pill tone="success">Done</Pill>

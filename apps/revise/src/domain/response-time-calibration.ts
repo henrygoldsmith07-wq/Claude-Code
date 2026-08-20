@@ -1,10 +1,11 @@
 import type { Attempt, Id, Paper, Question, Subject } from "./types";
+import { CALIBRATION_MODEL_VERSION, CALIBRATION_PRIOR_V1 } from "./calibration-priors";
 
-/** The existing mistake classifier uses the same exam-time baseline. */
-export const DEFAULT_SECONDS_PER_MARK = 90;
-const RUSHED_RATIO = 0.75;
-const SLOW_RATIO = 1.35;
-const MIN_SAMPLES = 3;
+/** Compatibility export; the value is owned by the versioned prior. */
+export const DEFAULT_SECONDS_PER_MARK = CALIBRATION_PRIOR_V1.timing.secondsPerMark.mean;
+const RUSHED_RATIO = CALIBRATION_PRIOR_V1.timing.rushedRatio;
+const SLOW_RATIO = CALIBRATION_PRIOR_V1.timing.slowRatio;
+const MIN_SAMPLES = CALIBRATION_PRIOR_V1.minimums.timingOutcomes;
 
 export type ResponseTimeStatus = "insufficient-data" | "rushed" | "calibrated" | "overthinking";
 export type ResponseTimeQuality = "insufficient" | "emerging" | "stable";
@@ -25,6 +26,8 @@ export interface ResponseTimeObservation {
   secondsPerMark: number;
   ratio: number;
   timing: ResponseTimeTiming;
+  targetSource: "paper-spec" | "population-prior";
+  modelVersion: string;
   paperId?: Id;
 }
 
@@ -63,6 +66,8 @@ export interface ResponseTimeCalibrationReport {
   rows: ResponseTimeSubjectSummary[];
   overall: ResponseTimeAggregate;
   totalAttempts: number;
+  modelVersion: string;
+  priorVersion: string;
 }
 
 export interface ResponseTimeCalibrationInput {
@@ -140,11 +145,11 @@ function aggregate(observations: ResponseTimeObservation[], defaultTarget: numbe
   };
 }
 
-function targetFor(question: Question, subject: Subject | undefined, papersById: Map<Id, Paper>): number {
+function targetFor(question: Question, subject: Subject | undefined, papersById: Map<Id, Paper>): { seconds: number; source: "paper-spec" | "population-prior" } {
   const paper = question.paperId ? papersById.get(question.paperId) : undefined;
   const paperSpec = subject?.papers.find((candidate) => candidate.id === paper?.paperSpecId) ?? subject?.papers[0];
-  if (!paper || !paper.totalMarks || !paperSpec?.durationMinutes) return DEFAULT_SECONDS_PER_MARK;
-  return (paperSpec.durationMinutes * 60) / paper.totalMarks;
+  if (!paper || !paper.totalMarks || !paperSpec?.durationMinutes) return { seconds: DEFAULT_SECONDS_PER_MARK, source: "population-prior" };
+  return { seconds: (paperSpec.durationMinutes * 60) / paper.totalMarks, source: "paper-spec" };
 }
 
 function recommendationFor(row: ResponseTimeSubjectSummary): string {
@@ -196,7 +201,8 @@ export function buildResponseTimeCalibration(input: ResponseTimeCalibrationInput
     if (!question || !Number.isFinite(marks) || marks <= 0 || !Number.isFinite(elapsedMs) || elapsedMs <= 0) continue;
     const seconds = elapsedMs / 1000;
     const secondsPerMark = seconds / marks;
-    const targetSecondsPerMark = targetFor(question, subjectsById.get(attempt.subjectId), papersById);
+      const target = targetFor(question, subjectsById.get(attempt.subjectId), papersById);
+      const targetSecondsPerMark = target.seconds;
     const ratio = secondsPerMark / targetSecondsPerMark;
     observations.push({
       attemptId: attempt.id,
@@ -213,6 +219,8 @@ export function buildResponseTimeCalibration(input: ResponseTimeCalibrationInput
       secondsPerMark,
       ratio,
       timing: timingFor(ratio),
+      targetSource: target.source,
+      modelVersion: CALIBRATION_MODEL_VERSION,
       paperId: question.paperId,
     });
   }
@@ -235,5 +243,7 @@ export function buildResponseTimeCalibration(input: ResponseTimeCalibrationInput
     rows,
     overall: aggregate(observations, DEFAULT_SECONDS_PER_MARK),
     totalAttempts: input.attempts.length,
+    modelVersion: CALIBRATION_MODEL_VERSION,
+    priorVersion: CALIBRATION_PRIOR_V1.version,
   };
 }

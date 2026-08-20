@@ -78,6 +78,8 @@ function PredictedGradeCard({
         <Pill tone={confidenceTone(prediction.confidence)}>{confidenceLabel(prediction.confidence)}</Pill>
         <span>{evidenceLabel}</span>
         <span>Range {prediction.worstCase}–{prediction.bestCase}</span>
+        <span>{prediction.percentLower ?? "—"}–{prediction.percentUpper ?? "—"}% interval</span>
+        <span>{prediction.source === "personal-calibrated" ? "Personally calibrated" : prediction.source === "population-plus-personal-shrinkage" ? "Personal data, shrunk to prior" : "Population prior"}</span>
         {trendLabel ? <span>{trendLabel}</span> : null}
       </div>
 
@@ -124,6 +126,10 @@ export default function ProgressPage() {
         .slice()
         .sort((a, b) => b.marksLost - a.marksLost || b.createdAt.localeCompare(a.createdAt)),
     [store.mistakes],
+  );
+  const actionableErrors = useMemo(
+    () => store.errorModel.filter((entry) => entry.openCount > 0).slice(0, 6),
+    [store.errorModel],
   );
   const patterns = useMemo(() => mistakePatterns(openMistakes), [openMistakes]);
   const forecast = useMemo(() => dueCountByDay(store.cards, 14, today), [store.cards, today]);
@@ -434,6 +440,43 @@ export default function ProgressPage() {
             />
           ))}
         </ul>
+      </section>
+
+      <section>
+        <SectionHeading
+          title="Your error model"
+          hint="Repeated misconceptions, command-word misses and execution habits are weighted toward recent evidence."
+        />
+        {actionableErrors.length ? (
+          <ul className="card divide-y divide-line">
+            {actionableErrors.map((entry) => (
+              <li key={entry.key} className="px-4 py-3 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-ink">{entry.label}</p>
+                    <Pill tone={entry.status === "improving" ? "success" : entry.status === "recurring" ? "danger" : "review"}>
+                      {entry.status}
+                    </Pill>
+                  </div>
+                  <p className="text-[11px] text-ink3 mt-1">
+                    {entry.frequency} occurrence{entry.frequency === 1 ? "" : "s"} · {entry.marksLost} marks lost · {entry.openCount} still open
+                    {entry.improvementRate != null ? ` · ${Math.round(entry.improvementRate * 100)}% retest success` : ""}
+                  </p>
+                  {entry.examples[0] ? <p className="text-xs text-ink2 mt-1 truncate">“{entry.examples[0]}”</p> : null}
+                </div>
+                {entry.topicIds[0] ? (
+                  <ButtonLink href={`/practice?topic=${encodeURIComponent(entry.topicIds[0])}`} size="sm" variant="secondary">
+                    Repair
+                  </ButtonLink>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Panel>
+            <p className="text-sm text-ink3">Your error model will appear after marked answers create evidence of a repeatable gap.</p>
+          </Panel>
+        )}
       </section>
 
       <NextGradeView />

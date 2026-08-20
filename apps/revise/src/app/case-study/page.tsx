@@ -85,8 +85,8 @@ export default function CaseStudyPage() {
           </Panel>
           <Panel>
             <h3 className="text-sm font-semibold">Grade prediction</h3>
-            <p className="text-xs text-ink2 mt-1">Coverage + measured accuracy blended by trust (n/10). Output is always a band + confidence + range, never a single letter. Headroom = “percent if this one topic went to 1.0”.</p>
-            <p className="text-[11px] text-ink3 mt-1">src/domain/grades.ts · calibrateFromHistory</p>
+            <p className="text-xs text-ink2 mt-1">Coverage + measured accuracy are blended with evidence-strength priors, then corrected only by completed pre-paper history. Output is always a band + confidence + range, never a single letter.</p>
+            <p className="text-[11px] text-ink3 mt-1">src/domain/grades.ts · src/domain/calibration.ts · PredictionHistoryRecord</p>
           </Panel>
           <Panel>
             <h3 className="text-sm font-semibold">Planning</h3>
@@ -101,7 +101,7 @@ export default function CaseStudyPage() {
         <Panel>
           <ul className="text-sm text-ink2 space-y-1.5 list-disc list-inside">
             <li><strong>Recommendation quality</strong> — <code className="font-mono text-xs">syntheticOutcomePairs</code> + <code className="font-mono text-xs">benchmarkRecommendationQuality</code> → MAE / bias / correlation / hitRate(±5). Live on <Link className="underline" href="/benchmarks">/benchmarks</Link>.</li>
-            <li><strong>Calibration</strong> — <code className="font-mono text-xs">calibrationReport</code> → Brier / ECE / bias; well-calibrated is ECE &lt; 0.08. Same harness, real pairs when ≥3 timed papers exist.</li>
+            <li><strong>Calibration</strong> — timestamped transfer/paper observations → held-out MAE / ECE / interval coverage / bias, with model/prior versions and no-future-data checks. Synthetic rows are machinery tests only; see <code className="font-mono text-xs">docs/calibration-benchmark.md</code>.</li>
             <li><strong>Curriculum</strong> — <code className="font-mono text-xs">scripts/validate-curriculum.mjs</code> + <code className="font-mono text-xs">src/domain/coverage.ts</code> — 440 topics / 302 questions; every topic has specPoints; every specPointIds is paired with learningClaims.</li>
             <li><strong>Offline & sync</strong> — <code className="font-mono text-xs">tests/sync.test.ts</code> (node smoke) + <code className="font-mono text-xs">e2e/offline.spec.ts</code> (Playwright) + <code className="font-mono text-xs">src/data/sync.ts</code> (IndexedDB truth, outbox, LWW).</li>
             <li><strong>Perf & security & WCAG</strong> — curriculum ≤100k / domain ≤120k, validation &lt;1.5s, build &lt;80MB; <code className="font-mono text-xs">/_next/static</code> immutable + <code className="font-mono text-xs">/api</code> no-store; RLS on every user table; skip-link + Main/Primary/banner landmarks + combobox/listbox/option + live regions; pinned in <code className="font-mono text-xs">tests/a11y.test.ts</code> + <code className="font-mono text-xs">tests/perf.test.ts</code>.</li>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { allocateBlocks, buildPlan, formatTime, planForDate, rescheduleMissed } from "@/domain/planner";
-import type { Availability, ExamDate, PlannedSession, Topic, TopicMastery } from "@/domain/types";
+import type { Attempt, Availability, Card, ExamDate, Mistake, PlannedSession, Topic, TopicMastery } from "@/domain/types";
 
 const NOW = new Date("2025-06-02T08:00:00.000Z"); // a Monday
 const TODAY = "2025-06-02";
@@ -203,6 +203,25 @@ describe("buildPlan", () => {
     const keys = plan.map((s) => `${s.date}:${String(s.startMinute).padStart(4, "0")}`);
     expect(keys).toEqual([...keys].sort());
   });
+
+  it("honours a one-day availability override without changing the weekly pattern", () => {
+    const plan = buildPlan({
+      userId: "u",
+      topics,
+      mastery: topics.map((t) => mastery(t.id, t.subjectId, 0.5)),
+      exams: [],
+      availability: everyDay(60),
+      availabilityOverrides: { [TODAY]: 0 },
+      sessionLengthMinutes: 30,
+      subjectIds: ["maths"],
+      horizonDays: 2,
+      now: NOW,
+      idFactory: ids(),
+    });
+
+    expect(planForDate(plan, TODAY)).toHaveLength(0);
+    expect(plan.some((session) => session.date === "2025-06-03")).toBe(true);
+  });
 });
 
 describe("rescheduleMissed", () => {
@@ -254,6 +273,116 @@ describe("rescheduleMissed", () => {
   it("is a no-op when nothing was missed", () => {
     const clean: PlannedSession[] = [{ ...stale[0], date: "2025-06-05" }];
     expect(rescheduleMissed(clean, TODAY, 6, ids())).toHaveLength(1);
+  });
+});
+
+describe("evidence-aware planning", () => {
+  const card = (topicId: string, due: string): Card => ({
+    id: `card-${topicId}`,
+    userId: "u",
+    subjectId: "maths",
+    topicId,
+    kind: "basic",
+    front: "front",
+    back: "back",
+    tags: [],
+    origin: "seed",
+    due,
+    stability: 10,
+    difficulty: 5,
+    reps: 1,
+    lapses: 0,
+    state: 2,
+    lastReviewedAt: null,
+    createdAt: NOW.toISOString(),
+    updatedAt: NOW.toISOString(),
+  });
+
+  const mistake = (topicId: string): Mistake => ({
+    id: `mistake-${topicId}`,
+    userId: "u",
+    subjectId: "maths",
+    topicId,
+    marksLost: 2,
+    description: "Confused the sign in the final step.",
+    category: "method",
+    misconception: "significant-figures",
+    resolved: false,
+    createdAt: NOW.toISOString(),
+  });
+
+  const attempt = (topicId: string): Attempt => ({
+    id: `attempt-${topicId}`,
+    userId: "u",
+    questionId: "q1",
+    subjectId: "maths",
+    topicIds: [topicId],
+    answers: {},
+    marked: [],
+    awarded: 1,
+    max: 5,
+    feedback: "",
+    markedBy: "rubric",
+    elapsedMs: 30_000,
+    mode: "practice",
+    createdAt: NOW.toISOString(),
+  });
+
+  it("does not invent a due-card block when card evidence says none are due", () => {
+    const plan = buildPlan({
+      userId: "u",
+      topics: [topic("t1", "maths"), topic("t2", "maths")],
+      mastery: [mastery("t1", "maths", 0.65), mastery("t2", "maths", 0.65)],
+      exams: [],
+      availability: everyDay(30),
+      sessionLengthMinutes: 30,
+      subjectIds: ["maths"],
+      cards: [card("t1", "2030-01-01")],
+      horizonDays: 1,
+      now: NOW,
+      idFactory: ids(),
+    });
+    expect(plan[0].activity).not.toBe("flashcards");
+    expect(plan[0].purpose).toBeTruthy();
+  });
+
+  it("routes an open misconception to a repair-and-retest intervention", () => {
+    const plan = buildPlan({
+      userId: "u",
+      topics: [topic("t1", "maths"), topic("t2", "maths")],
+      mastery: [mastery("t1", "maths", 0.65), mastery("t2", "maths", 0.8)],
+      exams: [],
+      availability: everyDay(30),
+      sessionLengthMinutes: 30,
+      subjectIds: ["maths"],
+      cards: [],
+      mistakes: [mistake("t1")],
+      horizonDays: 1,
+      now: NOW,
+      idFactory: ids(),
+    });
+    expect(plan[0].activity).toBe("mistakes");
+    expect(plan[0].intervention).toBe("misconception-correction");
+    expect(plan[0].topicId).toBe("t1");
+  });
+
+  it("uses poor marked application to choose practice over passive recall", () => {
+    const plan = buildPlan({
+      userId: "u",
+      topics: [topic("t1", "maths"), topic("t2", "maths")],
+      mastery: [mastery("t1", "maths", 0.65), mastery("t2", "maths", 0.8)],
+      exams: [],
+      availability: everyDay(30),
+      sessionLengthMinutes: 30,
+      subjectIds: ["maths"],
+      cards: [],
+      attempts: [attempt("t1")],
+      horizonDays: 1,
+      now: NOW,
+      idFactory: ids(),
+    });
+    expect(plan[0].activity).toBe("practice");
+    expect(plan[0].intervention).toBe("application");
   });
 });
 

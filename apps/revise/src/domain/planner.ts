@@ -1,11 +1,16 @@
 import { daysToExam, examUrgency } from "./recommender";
-import { toDateOnly } from "./scheduling";
+import { isDue, toDateOnly } from "./scheduling";
+import { actionableErrors, buildErrorModel, type ErrorModelEntry } from "./error-model";
+import { predictQuestionMarks, questionMarkModelForSubject, type CalibrationModel } from "./calibration";
 import type {
   ActivityKind,
+  Attempt,
   Availability,
+  Card,
   ExamDate,
   Id,
   IsoDate,
+  Mistake,
   PlannedSession,
   Subject,
   Topic,
@@ -39,8 +44,19 @@ export interface PlanInput {
   subjects?: Subject[];
   /** Per-subject target grade letters; boosts subjects that are furthest below target. */
   targetGrades?: Record<Id, string>;
+  /** As-of question-mark model used for target-grade gaps; defaults to the population prior. */
+  calibrationModel?: CalibrationModel;
   /** Existing plan; done/skipped entries are carried through untouched. */
   existing?: PlannedSession[];
+  /** Learner evidence used to select an intervention, not just a weak topic. */
+  cards?: Card[];
+  mistakes?: Mistake[];
+  attempts?: Attempt[];
+  errorModel?: ErrorModelEntry[];
+  /** Optional one-off time budgets for a date, e.g. illness or a free afternoon. */
+  availabilityOverrides?: Record<IsoDate, number>;
+  /** Completed minutes by date, used to avoid stacking unrealistic workload. */
+  recentWorkloadMinutes?: Record<IsoDate, number>;
   now?: Date;
   /** Injected so plans are reproducible in tests. */
   idFactory?: () => string;
@@ -53,15 +69,22 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
   const now = input.now ?? new Date();
   const today = toDateOnly(now);
   const horizon = input.horizonDays ?? DEFAULT_HORIZON;
-  const blockLength = input.sessionLengthMinutes;
+  const blockLength = Math.max(10, input.sessionLengthMinutes || 25);
   const nextId = input.idFactory ?? (() => crypto.randomUUID());
 
-  const kept = (input.existing ?? []).filter((s) => s.status !== "pending" || s.date < today);
-  const topicById = new Map(input.topics.map((t) => [t.id, t]));
+  const kept = (input.existing ?? [])
+    .filter((s) => s.status !== "pending" || s.date < today)
+    .map((s) => s.status === "pending" && s.date < today ? { ...s, status: "missed" as const } : s);
+  const cardsByTopic = groupBy(input.cards ?? [], (card) => card.topicId);
+  const mistakesByTopic = groupBy(input.mistakes ?? [], (mistake) => mistake.topicId);
+  const attemptsByTopic = groupByMany(input.attempts ?? [], (attempt) => attempt.topicIds);
+  const errorModel = input.errorModel ?? buildErrorModel({ mistakes: input.mistakes ?? [], now });
+  const cardsProvided = input.cards !== undefined;
 
   // Working copy of mastery so the planner can "spend" attention within one
   // build: a topic scheduled on Monday looks less urgent by Wednesday.
   const projected = new Map(input.mastery.map((m) => [m.topicId, m.mastery]));
+  const masteryByTopic = new Map(input.mastery.map((m) => [m.topicId, m]));
   const lastScheduled = new Map<Id, IsoDate>();
 
   const out: PlannedSession[] = [...kept];
@@ -69,7 +92,7 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
   for (let dayOffset = 0; dayOffset < horizon; dayOffset++) {
     const date = toDateOnly(new Date(new Date(`${today}T00:00:00Z`).getTime() + dayOffset * 86_400_000));
     const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-    let minutes = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+    let minutes = availableMinutes(input, date, weekday);
     if (input.dailyMinutesCap != null) minutes = Math.min(minutes, input.dailyMinutesCap);
     if (minutes < 10) continue;
 
@@ -80,17 +103,21 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
       for (let k = dayOffset - fatigueN; k < dayOffset; k++) {
         const d = toDateOnly(new Date(new Date(`${today}T00:00:00Z`).getTime() + k * 86_400_000));
         const wk = new Date(`${d}T00:00:00Z`).getUTCDay();
-        const m = Math.min(input.availability.find((a) => a.weekday === wk)?.minutes ?? 0, input.dailyMinutesCap ?? 9999);
+        const recordedWorkload = input.recentWorkloadMinutes
+          ? input.recentWorkloadMinutes[d] ?? 0
+          : availableMinutes(input, d, wk);
+        const m = Math.min(recordedWorkload, input.dailyMinutesCap ?? 9999);
         if (m >= 90) heavyStreak++;
       }
       if (heavyStreak >= fatigueN) minutes = Math.max(10, Math.round(minutes * 0.6));
     }
 
-    const blocks = Math.max(1, Math.floor(minutes / blockLength));
+    const blocks = Math.floor(minutes / blockLength);
+    if (blocks <= 0) continue;
     let cursor = input.dayStartMinute ?? DEFAULT_DAY_START;
 
     const shares = allocateBlocks(blocks, input.subjectIds, (subjectId) =>
-      subjectWeight(subjectId, input.mastery, input.exams, date, input.subjects, input.targetGrades),
+      subjectWeight(subjectId, input.mastery, input.exams, date, input.subjects, input.targetGrades, errorModel, input.calibrationModel),
     );
 
     for (const subjectId of input.subjectIds) {
@@ -105,7 +132,12 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
           projected,
           lastScheduled,
           exams: input.exams,
-          topicById,
+          masteryByTopic,
+          cardsByTopic,
+          mistakesByTopic,
+          attemptsByTopic,
+          errorModel,
+          cardsProvided,
         });
         out.push({
           id: nextId(),
@@ -118,10 +150,14 @@ export function buildPlan(input: PlanInput): PlannedSession[] {
           activity: pick.activity,
           reason: pick.reason,
           status: "pending",
+          priority: pick.priority,
+          intervention: pick.intervention,
+          purpose: pick.purpose,
         });
         cursor += blockLength + 5; // a five-minute breather between blocks
         if (pick.topicId) {
-          projected.set(pick.topicId, Math.min(1, (projected.get(pick.topicId) ?? 0) + 0.12));
+          const projectedGain = pick.activity === "learn" ? 0.12 : pick.activity === "flashcards" || pick.activity === "recall" ? 0.08 : 0.05;
+          projected.set(pick.topicId, Math.min(1, (projected.get(pick.topicId) ?? 0) + projectedGain));
           lastScheduled.set(pick.topicId, date);
         }
       }
@@ -143,6 +179,8 @@ function subjectWeight(
   date: IsoDate,
   subjects: Subject[] = [],
   targetGrades: Record<Id, string> = {},
+  errorModel: ErrorModelEntry[] = [],
+  calibrationModel?: CalibrationModel,
 ): number {
   const rows = mastery.filter((m) => m.subjectId === subjectId);
   const avg = rows.length ? rows.reduce((a, m) => a + m.mastery, 0) / rows.length : 0.3;
@@ -156,15 +194,37 @@ function subjectWeight(
   if (subject && target) {
     const boundary = subject.gradeBoundaries.find((b) => b.grade === target);
     if (boundary) {
-      // Same attainment model as predictGrade: mastery compresses into a
-      // realistic attainment percent, so the gap is in comparable units.
-      const predicted = avg * 92 + 4;
+      // Use the same question-mark model as grade/paper prediction. With no
+      // observations this is the explicitly labelled population prior; it is
+      // never a second hand-selected mastery→percent formula.
+      const questionModel = questionMarkModelForSubject(calibrationModel, subjectId);
+      const predicted = rows.length
+        ? rows.reduce((sum, row) => sum + predictQuestionMarks({
+            model: questionModel,
+            baselineMastery: row.mastery,
+            durationMinutes: 0,
+            action: "paper",
+          }).value, 0) / rows.length * 100
+        : 0;
       const gap = boundary.percent - predicted;
       if (gap > 0) weight *= 1 + Math.min(0.6, (gap / 100) * 2);
     }
   }
 
+  const errorSeverity = errorModel
+    .filter((entry) => entry.subjectIds.includes(subjectId) && entry.openCount > 0)
+    .slice(0, 4)
+    .reduce((sum, entry) => sum + entry.severity * entry.recencyWeight, 0);
+  if (errorSeverity > 0) weight *= 1 + Math.min(0.5, errorSeverity / 20);
+
   return weight;
+}
+
+function availableMinutes(input: PlanInput, date: IsoDate, weekday: number): number {
+  const value = input.availabilityOverrides?.[date]
+    ?? input.availability.find((availability) => availability.weekday === weekday)?.minutes
+    ?? 0;
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
 /**
@@ -210,61 +270,229 @@ interface ChooseInput {
   projected: Map<Id, number>;
   lastScheduled: Map<Id, IsoDate>;
   exams: ExamDate[];
-  topicById: Map<Id, Topic>;
+  masteryByTopic: Map<Id, TopicMastery>;
+  cardsByTopic: Map<Id, Card[]>;
+  mistakesByTopic: Map<Id, Mistake[]>;
+  attemptsByTopic: Map<Id, Attempt[]>;
+  errorModel: ErrorModelEntry[];
+  cardsProvided: boolean;
 }
 
-function chooseActivity(input: ChooseInput): { activity: ActivityKind; topicId?: Id; reason: string } {
+interface ActivityPick {
+  activity: ActivityKind;
+  topicId?: Id;
+  reason: string;
+  priority: PlannedSession["priority"];
+  intervention: PlannedSession["intervention"];
+  purpose: string;
+}
+
+function chooseActivity(input: ChooseInput): ActivityPick {
   const days = daysToExam(input.exams, input.subjectId, input.date);
-
-  // Every study day opens with due cards: reviews are time-sensitive in a way
-  // nothing else is, and clearing them first stops the backlog compounding.
-  if (input.blockIndex === 0) {
-    return {
-      activity: "flashcards",
-      reason: "Clear today's due cards first — spaced repetition only works on time.",
-    };
-  }
-
-  // Inside the last fortnight, alternate weak-topic practice with full papers.
-  if (days != null && days <= 14 && input.blockIndex % 3 === 2) {
-    return { activity: "paper", reason: `${days} days out — timed paper practice.` };
-  }
 
   const candidates = input.topics
     .filter((t) => t.subjectId === input.subjectId)
     .map((t) => {
       const mastery = input.projected.get(t.id) ?? 0;
+      const cards = input.cardsByTopic.get(t.id) ?? [];
+      const dueCards = cards.filter((card) => isDue(card, input.date));
+      const mistakes = (input.mistakesByTopic.get(t.id) ?? []).filter((mistake) => !mistake.resolved);
+      // Recall sessions prove retrieval but are not marked exam application;
+      // counting them here would make the planner prescribe practice based on
+      // evidence that never contained a mark scheme.
+      const attempts = (input.attemptsByTopic.get(t.id) ?? []).filter((attempt) => attempt.mode !== "recall");
+      const marksAvailable = attempts.reduce((sum, attempt) => sum + Math.max(0, attempt.max), 0);
+      const applicationAccuracy = marksAvailable
+        ? attempts.reduce((sum, attempt) => sum + Math.max(0, Math.min(attempt.max, attempt.awarded)), 0) / marksAvailable
+        : null;
+      const techniqueMarks = mistakes
+        .filter((mistake) => mistake.timing === "rushed" || mistake.timing === "slow" || mistake.category === "communication" || mistake.category === "interpretation" || mistake.misconception === "misread-command")
+        .reduce((sum, mistake) => sum + mistake.marksLost, 0);
+      const errorSeverity = actionableErrors(input.errorModel, input.subjectId, 8)
+        .filter((entry) => entry.topicIds.includes(t.id))
+        .reduce((sum, entry) => sum + entry.severity * entry.recencyWeight, 0);
       const last = input.lastScheduled.get(t.id);
       // Spacing penalty: revisiting a topic the very next day wastes the
       // spacing effect, so push it back unless nothing else needs the slot.
       const spacing = last === input.date ? 0.5 : last ? 0.85 : 1;
-      return { topic: t, score: (1 - mastery) * spacing * (1 + (t.intrinsicDifficulty - 3) * 0.05) };
+      const retention = input.masteryByTopic.get(t.id)?.retention ?? 0;
+      // The planner uses independent signals: due retrieval, known errors,
+      // application marks and exam technique should not all collapse into a
+      // single mastery number.
+      const signalScore =
+        (1 - mastery) * 1.1
+        + Math.min(2, dueCards.length * 0.35)
+        + Math.min(2.5, mistakes.reduce((sum, mistake) => sum + mistake.marksLost, 0) * 0.22)
+        + (applicationAccuracy != null ? Math.max(0, 0.75 - applicationAccuracy) * 1.4 : 0.4)
+        + Math.min(1.5, techniqueMarks * 0.18)
+        + Math.min(1.5, errorSeverity * 0.12)
+        + (t.intrinsicDifficulty - 3) * 0.05;
+      return {
+        topic: t,
+        mastery,
+        cards,
+        dueCards,
+        mistakes,
+        attempts,
+        applicationAccuracy,
+        techniqueMarks,
+        errorSeverity,
+        hasEvidence: cards.length > 0 || attempts.length > 0 || mistakes.length > 0,
+        retention,
+        score: signalScore * spacing,
+      };
     })
     .sort((a, b) => b.score - a.score);
 
   const pick = candidates[0];
-  if (!pick) return { activity: "flashcards", reason: "Keep recall warm." };
+  if (!pick) {
+    return {
+      activity: "flashcards",
+      reason: "Keep recall warm while you build your subject evidence.",
+      priority: "maintenance",
+      intervention: "retrieval",
+      purpose: "Keep the study habit active.",
+    };
+  }
 
-  const mastery = input.projected.get(pick.topic.id) ?? 0;
-  if (mastery === 0) {
+  const priority: PlannedSession["priority"] = days != null && days <= 7
+    ? "critical"
+    : pick.mistakes.length || pick.dueCards.length || pick.errorSeverity >= 1.5
+      ? "high"
+      : pick.mastery < 0.45
+        ? "high"
+        : pick.mastery >= 0.75
+          ? "maintenance"
+          : "standard";
+
+  // Every study day opens with due cards only when there are real due cards.
+  // The fallback preserves the old cold-start contract for callers that have
+  // not supplied card evidence yet.
+  if ((pick.dueCards.length > 0 && input.blockIndex === 0) || (!input.cardsProvided && input.blockIndex === 0)) {
+    const overdue = pick.dueCards.filter((card) => card.due < input.date).length;
+    return {
+      activity: "flashcards",
+      topicId: pick.dueCards.length ? pick.topic.id : undefined,
+      reason: overdue
+        ? `${pick.topic.title}: ${overdue} review${overdue === 1 ? " is" : "s are"} overdue, so retrieve it before it fades further.`
+        : `${pick.topic.title}: clear today's due retrieval before adding new material.`,
+      priority: overdue ? "critical" : "high",
+      intervention: "retrieval",
+      purpose: "Restore recall before it becomes a larger backlog.",
+    };
+  }
+
+  if (pick.mistakes.length > 0) {
+    const topError = actionableErrors(input.errorModel, input.subjectId, 8).find((entry) => entry.topicIds.includes(pick.topic.id));
+    return {
+      activity: "mistakes",
+      topicId: pick.topic.id,
+      reason: topError
+        ? `${pick.topic.title}: ${topError.label.toLowerCase()} are recurring — repair the example and retest it.`
+        : `${pick.topic.title}: ${pick.mistakes.length} open mistake${pick.mistakes.length === 1 ? "" : "s"} still cost marks.`,
+      priority,
+      intervention: topError?.misconception ? "misconception-correction" : "application",
+      purpose: "Turn a known lost mark into a reliable answer.",
+    };
+  }
+
+  // Near an exam, execution practice is useful once there is enough knowledge
+  // to make the result diagnostic rather than just discouraging.
+  if (days != null && days <= 14 && input.blockIndex % 3 === 2 && pick.mastery >= 0.55) {
+    return {
+      activity: "paper",
+      topicId: pick.topic.id,
+      reason: `${days} days to the exam: test ${pick.topic.title} under timed conditions and expose execution gaps.`,
+      priority: days <= 7 ? "critical" : "high",
+      intervention: "timed-execution",
+      purpose: "Convert topic knowledge into marks at exam pace.",
+    };
+  }
+
+  if (pick.applicationAccuracy != null && pick.applicationAccuracy < 0.6) {
+    return {
+      activity: "practice",
+      topicId: pick.topic.id,
+      reason: `${pick.topic.title}: marked application is ${Math.round(pick.applicationAccuracy * 100)}%, so practise the exam move rather than rereading notes.`,
+      priority,
+      intervention: "application",
+      purpose: "Raise marks on unseen exam questions.",
+    };
+  }
+
+  if (pick.techniqueMarks > 0) {
+    return {
+      activity: "practice",
+      topicId: pick.topic.id,
+      reason: `${pick.topic.title}: ${pick.techniqueMarks} mark${pick.techniqueMarks === 1 ? "" : "s"} were lost to timing or answer execution.`,
+      priority,
+      intervention: "exam-technique",
+      purpose: "Answer the command word accurately within the mark budget.",
+    };
+  }
+
+  if (!pick.hasEvidence || pick.mastery === 0) {
     return {
       activity: "learn",
       topicId: pick.topic.id,
       reason: `First pass over ${pick.topic.title}.`,
+      priority: "high",
+      intervention: "coverage",
+      purpose: "Create a first evidence point for this specification topic.",
     };
   }
-  if (mastery < 0.55) {
+
+  if (pick.mastery < 0.55 && pick.retention < 0.65) {
+    return {
+      activity: "recall",
+      topicId: pick.topic.id,
+      reason: `${pick.topic.title}: recall is fading, so prove the key points from a blank page before practising them.`,
+      priority,
+      intervention: "retrieval",
+      purpose: "Rebuild retrievability so later application is durable.",
+    };
+  }
+  if (pick.mastery < 0.55) {
     return {
       activity: "practice",
       topicId: pick.topic.id,
       reason: `${pick.topic.title} is below target — exam questions with marking.`,
+      priority,
+      intervention: "application",
+      purpose: "Find and repair the next mark-scheme gap.",
     };
   }
   return {
     activity: "recall",
     topicId: pick.topic.id,
     reason: `Blank-page recall on ${pick.topic.title} to prove it is secure.`,
+    priority: priority === "high" ? "standard" : priority,
+    intervention: "consolidation",
+    purpose: "Check that strong knowledge remains retrievable without cues.",
   };
+}
+
+function groupBy<T>(items: T[], key: (item: T) => Id): Map<Id, T[]> {
+  const result = new Map<Id, T[]>();
+  for (const item of items) {
+    const value = key(item);
+    const rows = result.get(value) ?? [];
+    rows.push(item);
+    result.set(value, rows);
+  }
+  return result;
+}
+
+function groupByMany<T>(items: T[], keys: (item: T) => Id[]): Map<Id, T[]> {
+  const result = new Map<Id, T[]>();
+  for (const item of items) {
+    for (const value of new Set(keys(item))) {
+      const rows = result.get(value) ?? [];
+      rows.push(item);
+      result.set(value, rows);
+    }
+  }
+  return result;
 }
 
 /**
@@ -284,7 +512,7 @@ export function rescheduleMissed(
 
   const countByDate = new Map<IsoDate, number>();
   for (const s of out) {
-    if (s.date >= today) countByDate.set(s.date, (countByDate.get(s.date) ?? 0) + 1);
+    if (s.date >= today && s.status === "pending") countByDate.set(s.date, (countByDate.get(s.date) ?? 0) + 1);
   }
 
   for (const session of stale) {
@@ -396,7 +624,7 @@ export function assessPlanRealism(input: PlanInput, plan: PlannedSession[]): Pla
   for (let i = 0; i < horizon; i++) {
     const d = toDateOnly(new Date(start.getTime() + i * 86_400_000));
     const weekday = new Date(`${d}T00:00:00Z`).getUTCDay();
-    let m = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+    let m = availableMinutes(input, d, weekday);
     if (input.dailyMinutesCap != null) m = Math.min(m, input.dailyMinutesCap);
     totalAvailable += m;
   }
@@ -440,7 +668,7 @@ export function assessPlanRealism(input: PlanInput, plan: PlannedSession[]): Pla
     for (let i = 0; i < horizon; i++) {
       const d = toDateOnly(new Date(start.getTime() + i * 86_400_000));
       const weekday = new Date(`${d}T00:00:00Z`).getUTCDay();
-      let m = input.availability.find((a) => a.weekday === weekday)?.minutes ?? 0;
+      let m = availableMinutes(input, d, weekday);
       if (input.dailyMinutesCap != null) m = Math.min(m, input.dailyMinutesCap);
       if (m < 10) z++;
     }
@@ -498,7 +726,7 @@ export function rescheduleMissedPrioritised(
   }
 
   const countByDate = new Map<IsoDate, number>();
-  for (const s of out) if (s.date >= today) countByDate.set(s.date, (countByDate.get(s.date) ?? 0) + 1);
+  for (const s of out) if (s.date >= today && s.status === "pending") countByDate.set(s.date, (countByDate.get(s.date) ?? 0) + 1);
 
   for (const session of stale) {
     let target = today;

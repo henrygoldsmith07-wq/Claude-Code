@@ -1,4 +1,4 @@
-import type { Attempt, Id, Question } from "./types";
+import type { Attempt, Id, Mistake, Question } from "./types";
 
 export const OVERPRACTICE_MIN_EXPOSURES = 4;
 
@@ -66,24 +66,82 @@ export function rankQuestionsForExposure(input: {
   questions: Question[];
   attempts: Attempt[];
   masteryByTopic?: Map<Id, number>;
+  mistakes?: Mistake[];
 }): Question[] {
   const report = questionExposureReport(input);
   const byId = new Map(report.rows.map((row) => [row.questionId, row] as const));
   const statusRank: Record<ExposureStatus, number> = { unseen: 0, balanced: 1, overpractised: 2 };
   const mastery = input.masteryByTopic;
-  return [...input.questions].sort((a, b) => {
-    const aRow = byId.get(a.id)!;
-    const bRow = byId.get(b.id)!;
-    const status = statusRank[aRow.status] - statusRank[bRow.status];
-    if (status !== 0) return status;
-    const aMastery = a.topicIds.length
-      ? Math.min(...a.topicIds.map((topicId) => mastery?.get(topicId) ?? 0.5))
-      : 0.5;
-    const bMastery = b.topicIds.length
-      ? Math.min(...b.topicIds.map((topicId) => mastery?.get(topicId) ?? 0.5))
-      : 0.5;
-    if (aMastery !== bMastery) return aMastery - bMastery;
-    if (aRow.exposures !== bRow.exposures) return aRow.exposures - bRow.exposures;
-    return a.id.localeCompare(b.id);
-  });
+  const mistakesByTopic = new Map<Id, Mistake[]>();
+  for (const mistake of input.mistakes ?? []) {
+    if (mistake.resolved) continue;
+    const rows = mistakesByTopic.get(mistake.topicId) ?? [];
+    rows.push(mistake);
+    mistakesByTopic.set(mistake.topicId, rows);
+  }
+  const recentAttempts = [...input.attempts]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+    .slice(-8);
+  const recentQuestionIds = new Set(recentAttempts.map((attempt) => attempt.questionId));
+  const recentTopics = recentAttempts.flatMap((attempt) => attempt.topicIds);
+  const specExposure = new Map<Id, number>();
+  const questionById = new Map(input.questions.map((question) => [question.id, question] as const));
+  for (const attempt of input.attempts) {
+    const question = questionById.get(attempt.questionId);
+    for (const specPointId of specPointsFor(question)) specExposure.set(specPointId, (specExposure.get(specPointId) ?? 0) + 1);
+  }
+
+  // Greedy selection adds diversity after the first choice. A plain sort can
+  // put ten near-identical questions from one topic at the front even when
+  // the learner has never seen other specification points in the pool.
+  const remaining = [...input.questions];
+  const ordered: Question[] = [];
+  while (remaining.length) {
+    let bestIndex = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (let index = 0; index < remaining.length; index++) {
+      const question = remaining[index]!;
+      const row = byId.get(question.id)!;
+      const topicMastery = question.topicIds.length
+        ? Math.min(...question.topicIds.map((topicId) => mastery?.get(topicId) ?? 0.5))
+        : 0.5;
+      const errorMarks = question.topicIds.reduce(
+        (sum, topicId) => sum + (mistakesByTopic.get(topicId) ?? []).reduce((marks, mistake) => marks + mistake.marksLost, 0),
+        0,
+      );
+      const specPoints = specPointsFor(question);
+      const specRepetition = specPoints.reduce((sum, id) => sum + (specExposure.get(id) ?? 0), 0);
+      const recentTopicPenalty = question.topicIds.some((topicId) => recentTopics.slice(-2).includes(topicId)) ? 9 : 0;
+      const repeatedSpecPenalty = Math.min(12, specRepetition * 2);
+      const recentQuestionPenalty = recentQuestionIds.has(question.id) ? 36 : 0;
+      const difficultyTarget = 1 + topicMastery * 4;
+      const difficultyFit = Math.max(0, 7 - Math.abs(question.difficulty - difficultyTarget) * 2);
+      const score =
+        (2 - statusRank[row.status]) * 42
+        + (1 - topicMastery) * 18
+        + Math.min(18, errorMarks * 2.5)
+        + difficultyFit
+        - row.exposures * 3
+        - recentTopicPenalty
+        - repeatedSpecPenalty
+        - recentQuestionPenalty;
+      if (score > bestScore || (score === bestScore && question.id.localeCompare(remaining[bestIndex]!.id) < 0)) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    }
+    const [selected] = remaining.splice(bestIndex, 1);
+    if (!selected) break;
+    ordered.push(selected);
+    for (const specPointId of specPointsFor(selected)) specExposure.set(specPointId, (specExposure.get(specPointId) ?? 0) + 1);
+  }
+  return ordered;
+}
+
+function specPointsFor(question: Question | undefined): Id[] {
+  if (!question) return [];
+  return [...new Set([
+    ...(question.specPointIds ?? []),
+    ...question.parts.flatMap((part) => part.specPointIds ?? []),
+  ])];
 }

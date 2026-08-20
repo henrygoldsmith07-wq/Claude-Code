@@ -116,6 +116,7 @@ function Practice() {
     return rankQuestionsForExposure({
       questions: pool,
       attempts: store.attempts,
+      mistakes: store.mistakes,
       masteryByTopic: new Map([...masteryByTopic.entries()].map(([id, row]) => [id, row.mastery])),
     })
       .map((q) => q.id);

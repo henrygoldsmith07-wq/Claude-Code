@@ -37,7 +37,10 @@ function buildWhyThis(
   explanation: RecommendationExplanation,
   target: string,
 ): { summary: string; evidence: string[] } {
-  const evidence = [`Estimated value: about ${formatMarks(explanation.recoverableMarks)} exam marks in ${formatMinutes(recommendation.minutes)}.`];
+  const recoverableEvidence = explanation.recoverableMarksLower != null && explanation.recoverableMarksUpper != null
+    ? `Estimated value: ${formatMarks(explanation.recoverableMarksLower)}–${formatMarks(explanation.recoverableMarksUpper)} exam marks in ${formatMinutes(recommendation.minutes)}${explanation.recoverableSource ? ` (${explanation.recoverableSource === "personal-calibrated" ? "personal outcome" : "prior-shrunk"})` : ""}.`
+    : `Estimated value: about ${formatMarks(explanation.recoverableMarks)} exam marks in ${formatMinutes(recommendation.minutes)}.`;
+  const evidence = [recoverableEvidence];
 
   switch (recommendation.activity) {
     case "flashcards": {
@@ -109,7 +112,15 @@ function RecommendationWhy({
   const evidence = [...copy.evidence];
 
   if (explanation.marksPerHour != null) {
-    evidence.push(`Expected return: about ${explanation.marksPerHour.toFixed(1)} marks per hour.`);
+    const hasRange = explanation.marksPerHourLower != null && explanation.marksPerHourUpper != null;
+    const source = explanation.marksPerHourSource === "personal-calibrated"
+      ? "personal outcome"
+      : explanation.marksPerHourSource
+        ? "prior-shrunk"
+        : "activity estimate";
+    evidence.push(hasRange
+      ? `Expected return: ${explanation.marksPerHourLower!.toFixed(1)}–${explanation.marksPerHourUpper!.toFixed(1)} marks per hour (${source}).`
+      : `Expected return: about ${explanation.marksPerHour.toFixed(1)} marks per hour (${source}).`);
   }
   if (explanation.lastEvidencePercent != null && recommendation.activity !== "practice") {
     evidence.push(`Latest marked evidence: ${explanation.lastEvidencePercent}% accuracy.`);

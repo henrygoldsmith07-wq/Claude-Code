@@ -12,7 +12,8 @@ import {
   questionHasAnswer,
 } from "@/domain/exam-conditions";
 import { markMcq } from "@/domain/marking";
-import type { Attempt, MarkedPart, Paper, PaperSpec, Question } from "@/domain/types";
+import { CALIBRATION_PRIOR_V1 } from "@/domain/calibration-priors";
+import type { Attempt, MarkedPart, Paper, PaperSpec, PredictionHistoryRecord, Question } from "@/domain/types";
 import { useStore } from "@/state/store";
 import { RichText } from "./RichText";
 import { Button, Panel, Pill, ProgressBar, SectionHeading, cx } from "./ui";
@@ -31,9 +32,13 @@ const FALLBACK_PAPER_SPEC: PaperSpec = {
   id: "default-exam-paper",
   name: "Timed paper",
   weight: 1,
-  durationMinutes: 90,
+  durationMinutes: CALIBRATION_PRIOR_V1.timing.defaultPaperDurationMinutes,
   calculatorAllowed: false,
 };
+
+function nowMs(): number {
+  return Date.now();
+}
 
 export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () => void }) {
   const store = useStore();
@@ -53,6 +58,8 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
   const [result, setResult] = useState<ExamResult | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [questionElapsed, setQuestionElapsed] = useState<Record<string, number>>({});
+  const [paperRunId] = useState(() => crypto.randomUUID());
+  const [predictionHistoryId, setPredictionHistoryId] = useState<string | null>(null);
   const questionStartedAt = useRef<number | null>(null);
   const finishing = useRef(false);
   const finishExamRef = useRef<(timedOut?: boolean) => Promise<void>>(async () => undefined);
@@ -144,6 +151,23 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
             markedBy: source === "ai" ? "ai" : "rubric",
             elapsedMs: elapsedByQuestion[question.id] ?? 0,
             mode: "paper",
+            paperId: paper.id,
+            paperSpecId,
+            paperRunId,
+            calibrationContext: {
+              action: "paper",
+              sessionId: paperRunId,
+              startedAt: new Date(startedAt).toISOString(),
+              durationMinutes: (elapsedByQuestion[question.id] ?? 0) / 60_000,
+              baselineMastery: question.topicIds.length
+                ? question.topicIds.reduce((sum, topicId) => sum + (store.mastery.find((row) => row.topicId === topicId)?.mastery ?? 0), 0) / question.topicIds.length
+                : 0,
+              baselineEvidence: question.topicIds.reduce((sum, topicId) => {
+                const row = store.mastery.find((candidate) => candidate.topicId === topicId);
+                return sum + (row ? row.cardsTotal + row.attempts * 2 : 0);
+              }, 0),
+              questionWasUnseen: !store.attempts.some((existing) => existing.questionId === question.id),
+            },
             createdAt: new Date().toISOString(),
           };
 
@@ -151,6 +175,15 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
           attempts.push(attempt);
         }
 
+        const actualMarks = attempts.reduce((total, attempt) => total + attempt.awarded, 0);
+        const actualTotalMarks = attempts.reduce((total, attempt) => total + attempt.max, 0);
+        if (predictionHistoryId) {
+          await store.completePredictionHistory(predictionHistoryId, {
+            marks: actualMarks,
+            totalMarks: actualTotalMarks,
+            at: new Date().toISOString(),
+          });
+        }
         await store.addPaper({ ...paper, paperSpecId, status: "practised" });
         setResult({
           attempts,
@@ -171,9 +204,42 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
     finishExamRef.current = finishExam;
   });
 
-  function startExam() {
-    const timestamp = Date.now();
+  async function startExam() {
+    const timestamp = nowMs();
     setSessionError(null);
+    const simulation = store.previewPaper(subject?.id ?? paper.subjectId, paperSpecId, paper.questionIds);
+    if (simulation) {
+      const predictedAt = new Date(timestamp).toISOString();
+      const record: PredictionHistoryRecord = {
+        id: crypto.randomUUID(),
+        userId: store.userId,
+        subjectId: paper.subjectId,
+        paperId: paper.id,
+        paperSpecId,
+        paperRunId,
+        predictedAt,
+        modelVersion: simulation.modelVersion ?? store.calibrationModel.modelVersion,
+        priorVersion: store.calibrationModel.priorVersion,
+        source: simulation.predictionSource ?? "population-prior",
+        personalSampleSize: simulation.personalSampleSize ?? 0,
+        predictedMarks: simulation.predictedMarks,
+        predictedMarksLower: simulation.predictedMarksLower ?? simulation.predictedMarks,
+        predictedMarksUpper: simulation.predictedMarksUpper ?? simulation.predictedMarks,
+        totalMarks: simulation.totalMarks,
+        predictedPercent: simulation.totalMarks ? simulation.predictedMarks / simulation.totalMarks : 0,
+        predictedPercentLower: simulation.totalMarks ? (simulation.predictedMarksLower ?? simulation.predictedMarks) / simulation.totalMarks : 0,
+        predictedPercentUpper: simulation.totalMarks ? (simulation.predictedMarksUpper ?? simulation.predictedMarks) / simulation.totalMarks : 0,
+        createdAt: predictedAt,
+        updatedAt: predictedAt,
+      };
+      try {
+        await store.recordPredictionHistory(record);
+        setPredictionHistoryId(record.id);
+      } catch (error) {
+        setSessionError(error instanceof Error ? error.message : "The prediction could not be recorded before the paper started.");
+        return;
+      }
+    }
     setStartedAt(timestamp);
     setNow(timestamp);
     setIndex(0);
@@ -256,7 +322,7 @@ export function ExamConditionMode({ paper, onExit }: { paper: Paper; onExit: () 
 
           <div className="flex flex-col-reverse sm:flex-row gap-2">
             <Button className="w-full sm:w-auto" onClick={onExit}>Back to papers</Button>
-            <Button variant="primary" onClick={startExam} className="w-full sm:flex-1 sm:min-w-48">Start full exam</Button>
+            <Button variant="primary" onClick={() => void startExam()} className="w-full sm:flex-1 sm:min-w-48">Start full exam</Button>
           </div>
         </Panel>
       </div>

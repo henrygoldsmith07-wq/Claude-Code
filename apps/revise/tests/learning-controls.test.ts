@@ -9,7 +9,7 @@ import {
 } from "@/domain/learning-controls";
 import { questionExposureReport, rankQuestionsForExposure } from "@/domain/question-exposure";
 import { rootPrerequisitePaths, rootPrerequisiteRemediation, type PrerequisiteEdge } from "@/domain/prerequisites";
-import type { Attempt, Card, Question, Topic, TopicMastery } from "@/domain/types";
+import type { Attempt, Card, Mistake, Question, Topic, TopicMastery } from "@/domain/types";
 
 const DATE = "2026-01-01T00:00:00.000Z";
 
@@ -152,6 +152,30 @@ describe("learning controls", () => {
     expect(report.overpractised).toBe(1);
     expect(report.rows.find((row) => row.questionId === "seen")?.status).toBe("overpractised");
     expect(ranked.map((row) => row.id)).toEqual(["new", "light", "seen"]);
+  });
+
+  it("raises unseen questions in topics carrying known lost marks", () => {
+    const questions = [question("steady", 3, ["t1"]), question("repair", 3, ["t2"])]
+      .map((row) => ({ ...row, id: row.id }));
+    const mistake: Mistake = {
+      id: "m1",
+      userId: "user-1",
+      subjectId: "subject-1",
+      topicId: "t2",
+      marksLost: 3,
+      description: "Method gap",
+      category: "method",
+      resolved: false,
+      createdAt: DATE,
+    };
+    const ranked = rankQuestionsForExposure({
+      questions,
+      attempts: [],
+      mistakes: [mistake],
+      masteryByTopic: new Map([["t1", 0.5], ["t2", 0.5]]),
+    });
+
+    expect(ranked[0].id).toBe("repair");
   });
 
   it("finds transitive root prerequisites and aggregates remediation impact", () => {

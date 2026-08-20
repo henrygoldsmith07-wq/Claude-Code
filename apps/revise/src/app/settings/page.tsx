@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { aiStatus } from "@/ai/client";
 import { allSubjects, subjectLabel } from "@/domain/curriculum";
+import { todayIso } from "@/domain/scheduling";
 import { buildPortabilitySnapshot, deletionPreview, portabilityFilename, privacyDisclosure } from "@/domain/portability";
 import { clearAll } from "@/data/db";
 import { getSupabase, isSupabaseConfigured } from "@/data/supabase";
@@ -22,6 +23,8 @@ export default function SettingsPage() {
   }, []);
 
   const totalWeeklyMinutes = settings.availability.reduce((a, row) => a + row.minutes, 0);
+  const today = todayIso();
+  const todayOverride = settings.availabilityOverrides?.[today];
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -133,6 +136,45 @@ export default function SettingsPage() {
           <Button className="mt-4" onClick={() => void store.regeneratePlan()}>
             Rebuild plan with these hours
           </Button>
+        </Panel>
+      </section>
+
+      <section>
+        <SectionHeading title="Today’s exception" hint="A one-day override helps the plan recover when today is unusually busy or free." />
+        <Panel className="flex flex-wrap items-end gap-3">
+          <Field label={`Minutes available on ${today}`} hint="Overrides the weekday amount for today only.">
+            <input
+              type="number"
+              min={0}
+              max={600}
+              step={15}
+              value={todayOverride ?? ""}
+              placeholder={String(settings.availability.find((row) => row.weekday === new Date().getDay())?.minutes ?? 0)}
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                const value = event.target.value === "" || !Number.isFinite(parsed)
+                  ? undefined
+                  : Math.max(0, Math.min(600, parsed));
+                const overrides = { ...(settings.availabilityOverrides ?? {}) };
+                if (value === undefined) delete overrides[today];
+                else overrides[today] = value;
+                void store.updateSettings({ availabilityOverrides: overrides });
+              }}
+              className="field text-sm w-40"
+              aria-label="Today's available study minutes"
+            />
+          </Field>
+          {todayOverride !== undefined ? (
+            <Button
+              onClick={() => {
+                const overrides = { ...(settings.availabilityOverrides ?? {}) };
+                delete overrides[today];
+                void store.updateSettings({ availabilityOverrides: overrides });
+              }}
+            >
+              Use weekday default
+            </Button>
+          ) : null}
         </Panel>
       </section>
 

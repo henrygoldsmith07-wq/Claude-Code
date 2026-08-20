@@ -346,6 +346,9 @@ export interface QuestionValidationRecord {
 
 export interface Question {
   id: Id;
+  /** Seed questions are shared content; generated/imported questions are
+   * tagged to their profile so one account cannot see another's bank. */
+  userId?: Id;
   subjectId: Id;
   topicIds: Id[];
   kind: QuestionKind;
@@ -407,6 +410,91 @@ export interface MarkedPart {
   comment: string;
   /** Per-point, answer-grounded rationale. Optional for older persisted attempts. */
   evidence?: MarkEvidence[];
+}
+
+/**
+ * The action observed before a later, unseen question. This is deliberately
+ * separate from Attempt.mode: mode describes where an answer was marked,
+ * while this describes the revision exposure whose later transfer is being
+ * calibrated.
+ */
+export type CalibrationAction = "learn" | "flashcards" | "recall" | "practice" | "mistakes" | "paper";
+
+export type CalibrationDataSource =
+  | "population-prior"
+  | "population-plus-personal-shrinkage"
+  | "personal-calibrated";
+
+/** Context captured before an answer is submitted. Missing context is not
+ * backfilled from current mastery because that would introduce look-ahead. */
+export interface AttemptCalibrationContext {
+  action: CalibrationAction;
+  sessionId?: Id;
+  startedAt?: IsoInstant;
+  durationMinutes?: number;
+  baselineMastery?: number;
+  baselineEvidence?: number;
+  /** True only when this question had not previously been attempted. */
+  questionWasUnseen?: boolean;
+}
+
+/** One observed revision exposure joined to a later unseen-question outcome. */
+export interface CalibrationObservation {
+  id: Id;
+  userId: Id;
+  subjectId: Id;
+  topicId: Id;
+  laterQuestionId: Id;
+  revisionAction: CalibrationAction;
+  revisionAt: IsoInstant;
+  durationMinutes: number;
+  /** Captured before the revision action started. */
+  baselineMastery: number;
+  baselineEvidence: number;
+  laterQuestionWasUnseen: boolean;
+  outcomeAt: IsoInstant;
+  actualMarks: number;
+  maxMarks: number;
+  /** Optional paired opportunity outcome for recoverability / marks-hour. */
+  opportunityMarks?: number;
+  improvementMarks?: number;
+  paperRunId?: Id;
+  paperActualMarks?: number;
+  paperMaxMarks?: number;
+  createdAt: IsoInstant;
+  updatedAt: IsoInstant;
+  source: "observed";
+}
+
+/**
+ * Immutable-at-prediction-time paper record. The outcome fields are filled in
+ * only after the sitting; modelVersion keeps old predictions reproducible
+ * after priors or fitting code changes.
+ */
+export interface PredictionHistoryRecord {
+  id: Id;
+  userId: Id;
+  subjectId: Id;
+  paperId?: Id;
+  paperSpecId: Id;
+  paperRunId: Id;
+  predictedAt: IsoInstant;
+  modelVersion: string;
+  priorVersion: string;
+  source: CalibrationDataSource;
+  personalSampleSize: number;
+  predictedMarks: number;
+  predictedMarksLower: number;
+  predictedMarksUpper: number;
+  totalMarks: number;
+  predictedPercent: number;
+  predictedPercentLower: number;
+  predictedPercentUpper: number;
+  outcomeMarks?: number;
+  outcomeTotalMarks?: number;
+  outcomeAt?: IsoInstant;
+  createdAt: IsoInstant;
+  updatedAt: IsoInstant;
 }
 
 export type MarkEscalationReason = "low-confidence" | "missing-confidence";
@@ -478,6 +566,8 @@ export interface Attempt {
   paperRunId?: Id;
   /** Links a targeted practice attempt back to the open mistake it is testing. */
   retestMistakeId?: Id;
+  /** Optional pre-answer context used to build transfer observations. */
+  calibrationContext?: AttemptCalibrationContext;
   createdAt: IsoInstant;
 }
 
@@ -563,13 +653,31 @@ export interface AssessmentInsight {
   /** Marks lost broken down by misconception. */
   byMisconception: Record<MisconceptionTag, number>;
   /** Marks lost per topic (total dropped, recoverable estimate). */
-  marksLostByTopic: Array<{ topicId: Id; subjectId: Id; lost: number; recoverable: number }>;
+  marksLostByTopic: Array<{
+    topicId: Id;
+    subjectId: Id;
+    lost: number;
+    recoverable: number;
+    recoverableLower?: number;
+    recoverableUpper?: number;
+    recoverableSampleSize?: number;
+    recoverableSource?: CalibrationDataSource;
+    modelVersion?: string;
+  }>;
   /** Marks lost per AO. */
   marksLostByAo: Record<string, number>;
   /** Repeated weak subtopics (topics where mistakes cluster and recur). */
   repeatedWeakSubtopics: Id[];
   /** Expected marks gained if 1 hour is spent on each listed topic. */
-  expectedMarksPerHour: Array<{ topicId: Id; value: number }>;
+  expectedMarksPerHour: Array<{
+    topicId: Id;
+    value: number;
+    lower?: number;
+    upper?: number;
+    sampleSize?: number;
+    source?: CalibrationDataSource;
+    modelVersion?: string;
+  }>;
   /** Estimated split between lost marks caused by knowledge and exam technique. */
   techniqueVsKnowledge: TechniqueVsKnowledge;
   /** Item-analysis measurements for questions with enough cohort evidence. */
@@ -627,8 +735,18 @@ export interface PaperSimulation {
   /** Scaled predicted total using current topic mastery + calibration. */
   predictedMarks: number;
   predictedGrade: string;
+  predictedMarksLower?: number;
+  predictedMarksUpper?: number;
+  predictedGradeLower?: string;
+  predictedGradeUpper?: string;
+  predictionConfidence?: number;
+  predictionSource?: CalibrationDataSource;
+  modelVersion?: string;
+  personalSampleSize?: number;
   /** Marks that are statistically recoverable (lost on weak but recently practised topics). */
   recoverableMarks: number;
+  recoverableMarksLower?: number;
+  recoverableMarksUpper?: number;
   /** Per-topic marks expected vs actual (from calibration). */
   marksByTopic: Array<{ topicId: Id; expected: number; available: number }>;
 }
@@ -642,6 +760,13 @@ export interface Calibration {
   sampleSize: number;
   /** Mean absolute error on known paper simulations. */
   mae: number;
+  modelVersion?: string;
+  priorVersion?: string;
+  source?: CalibrationDataSource;
+  biasLower?: number;
+  biasUpper?: number;
+  intervalCoverage?: number | null;
+  ece?: number | null;
 }
 
 // --- past papers -----------------------------------------------------------
@@ -680,6 +805,19 @@ export interface PlannedSession {
   reason: string;
   status: "pending" | "done" | "skipped" | "missed";
   completedAt?: IsoInstant;
+  /** Structured priority used to keep the timetable actionable, not just chronological. */
+  priority?: "critical" | "high" | "standard" | "maintenance";
+  /** The learner signal that caused this block to be selected. */
+  intervention?:
+    | "retrieval"
+    | "application"
+    | "exam-technique"
+    | "misconception-correction"
+    | "timed-execution"
+    | "coverage"
+    | "consolidation";
+  /** What should be measurably better after the block. */
+  purpose?: string;
 }
 
 export interface ExamDate {
@@ -702,6 +840,8 @@ export interface UserSettings {
   displayName: string;
   subjectIds: Id[];
   availability: Availability[];
+  /** Optional date-specific overrides for life events or an unusually free day. */
+  availabilityOverrides?: Record<IsoDate, number>;
   sessionLengthMinutes: number;
   targetGrades: Record<Id, string>;
   theme: "light" | "dark" | "system";
@@ -752,8 +892,15 @@ export interface RecommendationFactors {
 export interface RecommendationExplanation {
   /** Marks expected to be recovered by this activity (total, not per hour). */
   recoverableMarks: number;
+  /** Optional uncertainty interval for the recoverable-mark estimate. */
+  recoverableMarksLower?: number;
+  recoverableMarksUpper?: number;
+  recoverableSource?: CalibrationDataSource;
   /** Marks per hour for the same topic, when known. */
   marksPerHour: number | null;
+  marksPerHourLower?: number | null;
+  marksPerHourUpper?: number | null;
+  marksPerHourSource?: CalibrationDataSource;
   /** Last exam accuracy for the topic, 0–100, or null when no evidence. */
   lastEvidencePercent: number | null;
   /** Days since the last successful retrieval, or null when never studied. */
@@ -873,9 +1020,11 @@ export type SyncEntity =
   | "cards"
   | "reviewLogs"
   | "attempts"
+  | "calibrationObservations"
   | "mistakes"
   | "questions"
   | "papers"
+  | "predictionHistory"
   | "plannedSessions"
   | "examDates"
   | "settings"
@@ -883,6 +1032,9 @@ export type SyncEntity =
 
 export interface OutboxItem {
   id: Id;
+  /** Profile that created the change; prevents a queued offline row being
+   * attributed to whichever account signs in next on the same device. */
+  userId?: Id;
   entity: SyncEntity;
   op: "upsert" | "delete";
   payload: unknown;

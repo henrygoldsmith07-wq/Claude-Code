@@ -3,12 +3,14 @@ import type { DBSchema, IDBPDatabase } from "idb";
 import type {
   Attempt,
   Card,
+  CalibrationObservation,
   ExamDate,
   Id,
   Mistake,
   OutboxItem,
   Paper,
   PlannedSession,
+  PredictionHistoryRecord,
   Question,
   ReviewLog,
   StreakState,
@@ -23,15 +25,17 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const DB_NAME = "revise";
-export const DB_VERSION = 2;
+export const DB_VERSION = 4;
 
 interface ReviseSchema extends DBSchema {
   cards: { key: Id; value: Card; indexes: { byUser: Id; byTopic: Id; byDue: string; byTag: string } };
   reviewLogs: { key: Id; value: ReviewLog; indexes: { byUser: Id; byCard: Id } };
-  questions: { key: Id; value: Question; indexes: { bySubject: Id } };
+  questions: { key: Id; value: Question; indexes: { bySubject: Id; byUser: Id } };
   attempts: { key: Id; value: Attempt; indexes: { byUser: Id; byQuestion: Id } };
+  calibrationObservations: { key: Id; value: CalibrationObservation; indexes: { byUser: Id; bySubject: Id; byOutcomeAt: string } };
   mistakes: { key: Id; value: Mistake; indexes: { byUser: Id; byTopic: Id } };
   papers: { key: Id; value: Paper; indexes: { byUser: Id; bySubject: Id } };
+  predictionHistory: { key: Id; value: PredictionHistoryRecord; indexes: { byUser: Id; bySubject: Id; byPaperRun: Id } };
   plannedSessions: { key: Id; value: PlannedSession; indexes: { byUser: Id; byDate: string } };
   examDates: { key: Id; value: ExamDate; indexes: { byUser: Id } };
   settings: { key: Id; value: UserSettings };
@@ -53,7 +57,7 @@ export function getDb(): Promise<ReviseDB> {
       // v1 → v2 adds tags. Existing cards predate the field, and code all over
       // the app calls card.tags.something, so they are backfilled here rather
       // than defended against at every call site.
-      if (oldVersion >= 1) {
+      if (oldVersion >= 1 && oldVersion < 2) {
         const store = tx.objectStore("cards");
         store.createIndex("byTag", "tags", { multiEntry: true });
         let cursor = await store.openCursor();
@@ -62,9 +66,9 @@ export function getDb(): Promise<ReviseDB> {
           if (!Array.isArray(card.tags)) await cursor.update({ ...card, tags: [] });
           cursor = await cursor.continue();
         }
-        return;
       }
 
+      if (oldVersion < 1) {
       const cards = db.createObjectStore("cards", { keyPath: "id" });
       cards.createIndex("byUser", "userId");
       cards.createIndex("byTopic", "topicId");
@@ -79,6 +83,7 @@ export function getDb(): Promise<ReviseDB> {
 
       const questions = db.createObjectStore("questions", { keyPath: "id" });
       questions.createIndex("bySubject", "subjectId");
+      questions.createIndex("byUser", "userId");
 
       const attempts = db.createObjectStore("attempts", { keyPath: "id" });
       attempts.createIndex("byUser", "userId");
@@ -103,19 +108,39 @@ export function getDb(): Promise<ReviseDB> {
       db.createObjectStore("streak", { keyPath: "userId" });
       db.createObjectStore("outbox", { keyPath: "id" });
       db.createObjectStore("meta", { keyPath: "key" });
+      }
+
+      if (oldVersion < 3) {
+        const observations = db.createObjectStore("calibrationObservations", { keyPath: "id" });
+        observations.createIndex("byUser", "userId");
+        observations.createIndex("bySubject", "subjectId");
+        observations.createIndex("byOutcomeAt", "outcomeAt");
+
+        const predictions = db.createObjectStore("predictionHistory", { keyPath: "id" });
+        predictions.createIndex("byUser", "userId");
+        predictions.createIndex("bySubject", "subjectId");
+        predictions.createIndex("byPaperRun", "paperRunId");
+      }
+
+      if (oldVersion >= 1 && oldVersion < 4) {
+        tx.objectStore("questions").createIndex("byUser", "userId");
+      }
     },
   });
   return dbPromise;
 }
 
-/** Stores holding user-owned records, in the order sync should replay them. */
+/** Stores replayed by sync. Seed questions are shared locally; generated and
+ * imported questions carry a profile owner before they leave the device. */
 export const COLLECTION_STORES = [
   "questions",
   "cards",
   "reviewLogs",
   "attempts",
+  "calibrationObservations",
   "mistakes",
   "papers",
+  "predictionHistory",
   "plannedSessions",
   "examDates",
 ] as const;

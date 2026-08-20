@@ -1,5 +1,7 @@
 import { daysToExam } from "./recommender";
 import type { Attempt, ExamDate, Id, IsoDate, Subject, TopicMastery } from "./types";
+import { CALIBRATION_PRIOR_V1 } from "./calibration-priors";
+import { applyPaperCalibration, buildCalibrationModel, predictQuestionMarks, questionMarkModelForSubject, type CalibrationModel } from "./calibration";
 
 // ---------------------------------------------------------------------------
 // Grade prediction. Two signals, blended by how much evidence exists behind
@@ -17,6 +19,12 @@ export interface GradePrediction {
   /** Optimistic/pessimistic bounds from the evidence spread. */
   bestCase: string;
   worstCase: string;
+  percentLower?: number;
+  percentUpper?: number;
+  modelVersion?: string;
+  priorVersion?: string;
+  source?: "population-prior" | "population-plus-personal-shrinkage" | "personal-calibrated";
+  personalSampleSize?: number;
   /** 0–1: how much to trust this. Low until ~10 marked questions exist. */
   confidence: number;
   /** Percentage points gained (+) or lost (−) over the last 30 days. */
@@ -38,8 +46,6 @@ export interface NextGradeTarget {
   remainingPercent: number;
   route: NextGradeRoute[];
 }
-
-const MIN_ATTEMPTS_FOR_TRUST = 10;
 
 export function gradeForPercent(subject: Subject, percent: number): string {
   const sorted = [...subject.gradeBoundaries].sort((a, b) => b.percent - a.percent);
@@ -73,26 +79,50 @@ export function predictGrade(
   attempts: Attempt[],
   exams: ExamDate[] = [],
   today: IsoDate = new Date().toISOString().slice(0, 10),
+  calibrationModel?: CalibrationModel,
 ): GradePrediction {
   const rows = mastery.filter((m) => m.subjectId === subject.id);
-  const subjectAttempts = attempts.filter((a) => a.subjectId === subject.id);
-
-  const coverage = rows.length ? rows.reduce((a, m) => a + m.mastery, 0) / rows.length : 0;
+  const asOf = `${today}T23:59:59.999Z`;
+  const subjectAttempts = attempts.filter((a) => a.subjectId === subject.id && a.createdAt < asOf);
+  const model = calibrationModel ?? buildCalibrationModel({ observations: [], asOf });
+  const questionModel = questionMarkModelForSubject(model, subject.id);
+  const coverageEstimates = rows.map((row) => predictQuestionMarks({
+    model: questionModel,
+    baselineMastery: row.mastery,
+    durationMinutes: 0,
+    action: "paper",
+  }));
+  const coverage = coverageEstimates.length ? coverageEstimates.reduce((sum, estimate) => sum + estimate.value, 0) / coverageEstimates.length : 0;
+  const coverageLower = coverageEstimates.length ? coverageEstimates.reduce((sum, estimate) => sum + estimate.lower, 0) / coverageEstimates.length : 0;
+  const coverageUpper = coverageEstimates.length ? coverageEstimates.reduce((sum, estimate) => sum + estimate.upper, 0) / coverageEstimates.length : 1;
   const marksMax = subjectAttempts.reduce((a, x) => a + x.max, 0);
   const measured = marksMax ? subjectAttempts.reduce((a, x) => a + x.awarded, 0) / marksMax : 0;
 
-  const trust = Math.min(1, subjectAttempts.length / MIN_ATTEMPTS_FOR_TRUST);
+  const trust = subjectAttempts.length / (subjectAttempts.length + CALIBRATION_PRIOR_V1.grade.measuredEvidenceStrength);
   // Exam-question accuracy is the better predictor once there is enough of it.
   const blended = measured * trust + coverage * (1 - trust);
-
-  // Mastery is not a mark: a student at 100% topic mastery does not score
-  // 100%. Compress into a realistic attainment range before banding.
-  const percent = Math.round(clamp(blended * 92 + 4, 0, 100));
-
-  const spread = 6 + (1 - trust) * 12;
+  const measuredError = marksMax ? measurementStandardError(measured, marksMax) : 1;
+  const blendedLower = Math.max(0, measured - measuredError) * trust + coverageLower * (1 - trust);
+  const blendedUpper = Math.min(1, measured + measuredError) * trust + coverageUpper * (1 - trust);
+  // Paper-level outcomes are a separate calibration layer. It is fitted only
+  // from prediction records created before a completed sitting, so it can
+  // correct systematic optimism/pessimism without using the current paper's
+  // result. Its uncertainty is unioned with the question-level interval.
+  const paperModel = model.paperBySubject.get(subject.id);
+  const paperAdjusted = applyPaperCalibration({ model: paperModel, predictedMarks: blended, totalMarks: 1 });
+  const paperLower = applyPaperCalibration({ model: paperModel, predictedMarks: blendedLower, totalMarks: 1 });
+  const paperUpper = applyPaperCalibration({ model: paperModel, predictedMarks: blendedUpper, totalMarks: 1 });
+  const calibratedLower = Math.min(paperAdjusted.lower, paperLower.value, paperUpper.value);
+  const calibratedUpper = Math.max(paperAdjusted.upper, paperLower.value, paperUpper.value);
+  const horizonDays = daysToExam(exams, subject.id, today);
+  const horizonPenalty = horizonDays == null ? 0.85 : clamp(1 - horizonDays / CALIBRATION_PRIOR_V1.grade.horizonDays, CALIBRATION_PRIOR_V1.grade.horizonFloor, 1);
+  const horizonUncertainty = (1 - horizonPenalty) * CALIBRATION_PRIOR_V1.grade.horizonUncertaintyScale;
+  const percent = Math.round(clamp(paperAdjusted.value * 100, CALIBRATION_PRIOR_V1.grade.minimumPercent, CALIBRATION_PRIOR_V1.grade.maximumPercent));
+  const percentLower = Math.round(clamp((calibratedLower - horizonUncertainty) * 100, 0, 100));
+  const percentUpper = Math.round(clamp((calibratedUpper + horizonUncertainty) * 100, 0, 100));
   const grade = gradeForPercent(subject, percent);
-  const bestCase = gradeForPercent(subject, clamp(percent + spread, 0, 100));
-  const worstCase = gradeForPercent(subject, clamp(percent - spread, 0, 100));
+  const bestCase = gradeForPercent(subject, percentUpper);
+  const worstCase = gradeForPercent(subject, percentLower);
 
   // Trend: the last 30 days of marked work against the 30 before it.
   const cutoff = daysAgo(today, 30);
@@ -107,18 +137,19 @@ export function predictGrade(
   // one topic were taken to full mastery. That is the actionable number.
   const perTopic = rows.length ? 1 / rows.length : 0;
   const headroom = rows
-    .map((m) => ({ topicId: m.topicId, potentialPercent: Math.round((1 - m.mastery) * perTopic * 92) }))
+    .map((m) => {
+      const current = predictQuestionMarks({ model: questionModel, baselineMastery: m.mastery, durationMinutes: 0, action: "paper" }).value;
+      const secure = predictQuestionMarks({ model: questionModel, baselineMastery: 1, durationMinutes: 0, action: "paper" }).value;
+      return { topicId: m.topicId, potentialPercent: Math.round(Math.max(0, secure - current) * perTopic * 100) };
+    })
     .filter((h) => h.potentialPercent > 0)
     .sort((a, b) => b.potentialPercent - a.potentialPercent)
     .slice(0, 5);
 
-  // Confidence also falls when the exam is far away — a lot can change.
-  const days = daysToExam(exams, subject.id, today);
-  const horizonPenalty = days == null ? 0.85 : clamp(1 - days / 400, 0.6, 1);
-
-  // Honest confidence calibration by evidence bucket — used by confidenceCalibration()
-  // below and surfaced as calibrationCurve for "is 70% really 70%?" disclosure.
-  const confidence = clamp(trust * 0.75 * horizonPenalty + Math.min(1, rows.length / 12) * 0.25, 0, 1);
+  // This confidence is evidence support, not the probability that the grade is
+  // correct. The percentage interval above is the primary uncertainty output.
+  const topicEvidence = rows.length / (rows.length + CALIBRATION_PRIOR_V1.grade.topicEvidenceStrength);
+  const confidence = clamp(trust * CALIBRATION_PRIOR_V1.grade.measuredConfidenceWeight * horizonPenalty + topicEvidence * CALIBRATION_PRIOR_V1.grade.topicContributionWeight, 0, 1);
 
   return {
     subjectId: subject.id,
@@ -126,10 +157,26 @@ export function predictGrade(
     grade,
     bestCase,
     worstCase,
+    percentLower,
+    percentUpper,
+    modelVersion: model.modelVersion,
+    priorVersion: model.priorVersion,
+    source: paperModel?.sampleSize ? paperAdjusted.source : sourceForModel(model, subject.id),
+    personalSampleSize: model.questionMarksBySubject.get(subject.id)?.sampleSize ?? model.questionMarks.sampleSize,
     confidence,
     trend,
     headroom,
   };
+}
+
+function sourceForModel(model: CalibrationModel, subjectId: Id): "population-prior" | "population-plus-personal-shrinkage" | "personal-calibrated" {
+  const sampleSize = model.questionMarksBySubject.get(subjectId)?.sampleSize ?? 0;
+  if (!sampleSize) return "population-prior";
+  return sampleSize >= CALIBRATION_PRIOR_V1.minimums.personalOutcomes ? "personal-calibrated" : "population-plus-personal-shrinkage";
+}
+
+function measurementStandardError(rate: number, marks: number): number {
+  return CALIBRATION_PRIOR_V1.interval.z * Math.sqrt(Math.max(0.0001, rate * (1 - rate)) / Math.max(1, marks));
 }
 
 export interface CalibrationBin {

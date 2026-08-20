@@ -2,18 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { allSubjects } from "@/domain/curriculum";
+import { benchmarkCalibration, observationsFromAttempts } from "@/domain/calibration";
 import { benchmarkRecommendationQuality, syntheticOutcomePairs } from "@/domain/recommender";
 import { calibrationReport, syntheticCalibrationOutcomes } from "@/domain/grades";
 import { markQuestion } from "@/domain/marking";
 import { HUMAN_MARKING_CORPUS, passesHumanMarkingFloor, scoreHumanMarkingCorpus } from "@/domain/human-marking-corpus";
 import { scoreMarkerDisagreement } from "@/domain/marker-disagreement";
+import { useStore } from "@/state/store";
 import { Panel, SectionHeading, Pill, ProgressBar } from "@/components/ui";
 
 // Public benchmark page — the honest ledger.
-// Every number is computed live in the browser from the same deterministic
-// synthetic harnesses CI runs, so the page can never drift from the code. Real
-// cohort tables replace synthetic rows once outcomes ship (same harnesses, real
-// pairs) — the provenance row at the bottom says which is which.
+// The empirical section reads only observed local outcomes. The deterministic
+// synthetic sections are machinery tests and are never used by predictions.
 
 const SUBJECT_ID = "wjec-alevel-physics";
 
@@ -37,6 +37,7 @@ function Metric({ label, value, hint, tone }: { label: string; value: string; hi
 }
 
 export default function BenchmarksPage() {
+  const store = useStore();
   const [seed, setSeed] = useState(1);
   const [n, setN] = useState(120);
 
@@ -59,6 +60,17 @@ export default function BenchmarksPage() {
     return { pairs, report: calibrationReport(pairs) };
   }, [seed, n]);
 
+  const empirical = useMemo(() => {
+    const asOf = store.calibrationModel.asOf;
+    const byId = new Map(store.calibrationObservations.map((row) => [row.id, row] as const));
+    for (const row of observationsFromAttempts({ attempts: store.attempts, asOf })) byId.set(row.id, row);
+    return benchmarkCalibration({
+      observations: [...byId.values()],
+      predictionHistory: store.predictionHistory,
+      asOf,
+    });
+  }, [store]);
+
   const recOk = rec.stats.hitRate >= 0.6 && rec.stats.correlation >= 0.5;
   const calibOk = calib.report.ece < 0.08;
   const marking = useMemo(
@@ -78,9 +90,8 @@ export default function BenchmarksPage() {
       <header>
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Benchmarks & results</h1>
         <p className="text-sm text-ink3 mt-1">
-          The harnesses below run live in your browser from the same deterministic synthetic
-          data CI uses. Replace synthetic with real outcome pairs and the same numbers become
-          the leaderboard.
+          Empirical metrics use observed outcomes only. Deterministic synthetic harnesses remain
+          below as machinery tests and never feed Revise predictions.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 text-xs text-ink2">
@@ -110,7 +121,31 @@ export default function BenchmarksPage() {
       </header>
 
       <section className="space-y-3">
-        <SectionHeading title="Recommendation quality" hint="benchmarkRecommendationQuality — predicted vs actual marks" />
+        <SectionHeading title="Empirical calibration" hint="Held-out, as-of evaluation of observed transfer and paper outcomes." />
+        <Panel>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Metric label="Transfer outcomes" value={`${empirical.question.metrics.n}`} hint={`holdout n=${empirical.question.holdoutSize}`} />
+            <Metric label="Transfer MAE" value={`${Math.round(empirical.question.metrics.mae * 100)}pp`} hint="actual − predicted" />
+            <Metric label="Interval coverage" value={empirical.question.metrics.intervalCoverage == null ? "—" : `${Math.round(empirical.question.metrics.intervalCoverage * 100)}%`} hint="nominal 95% band" />
+            <Metric label="Paper outcomes" value={`${empirical.paper.metrics.n}`} hint={`MAE ${Math.round(empirical.paper.metrics.mae * 100)}pp`} />
+          </div>
+          <div className="mt-3 grid sm:grid-cols-2 gap-2 text-xs text-ink2">
+            <p>Transfer ECE {empirical.question.metrics.ece.toFixed(3)} · bias {empirical.question.metrics.bias >= 0 ? "+" : ""}{Math.round(empirical.question.metrics.bias * 100)}pp</p>
+            <p>Paper ECE {empirical.paper.metrics.ece.toFixed(3)} · bias {empirical.paper.metrics.bias >= 0 ? "+" : ""}{Math.round(empirical.paper.metrics.bias * 100)}pp</p>
+            <p>Future-data exclusion: {empirical.question.noFutureLeakage && empirical.paper.noFutureLeakage ? "passed" : "review"} · transfer future={empirical.question.excludedFutureCount}, paper future={empirical.paper.excludedFutureCount}</p>
+            <p>Paper prior fallback rows: {empirical.paper.priorFallbackCount} · minimum training n={empirical.paper.trainingMinimum}</p>
+            <p>Model <code className="font-mono">{empirical.modelVersion}</code> · prior <code className="font-mono">{empirical.priorVersion}</code></p>
+          </div>
+          {empirical.question.status === "insufficient-data" && empirical.paper.status === "insufficient-data" ? (
+            <p className="text-xs text-ink3 mt-3">No eligible observed outcomes meet the evaluation gates yet. No user result is inferred from the empty ledger.</p>
+          ) : (
+            <p className="text-xs text-ink3 mt-3">These metrics use only captured pre-revision states, later unseen-question marks, and completed paper records. Synthetic rows below are test-only.</p>
+          )}
+        </Panel>
+      </section>
+
+      <section className="space-y-3">
+        <SectionHeading title="Synthetic machinery benchmark: recommendation quality" hint="benchmarkRecommendationQuality — test-only predicted vs actual marks" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Metric label="MAE" value={`${rec.stats.mae.toFixed(1)}`} hint="mean |actual − predicted|" />
           <Metric label="Bias" value={`${rec.stats.bias >= 0 ? "+" : ""}${rec.stats.bias.toFixed(1)}`} hint="actual − predicted" />
@@ -119,7 +154,7 @@ export default function BenchmarksPage() {
         </div>
         <Panel>
           <p className="text-xs text-ink2">
-            Synthetic via <code className="font-mono">syntheticOutcomePairs(seed,{n})</code> →{" "}
+            Synthetic test-only harness via <code className="font-mono">syntheticOutcomePairs(seed,{n})</code> →{" "}
             <code className="font-mono">benchmarkRecommendationQuality(pairs)</code>. Real integration:
             <code className="font-mono"> simulatePaper.predictedMarks</code> vs later timed-paper actuals. See{" "}
             <code className="font-mono">docs/benchmark.md</code> and{" "}
@@ -153,7 +188,7 @@ export default function BenchmarksPage() {
       </section>
 
       <section className="space-y-3">
-        <SectionHeading title="Confidence calibration" hint="calibrationReport — Brier / ECE / bias" />
+        <SectionHeading title="Synthetic machinery benchmark: confidence calibration" hint="calibrationReport — test-only Brier / ECE / bias" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Metric label="Brier" value={calib.report.brier.toFixed(3)} hint="mean squared error" />
           <Metric label="ECE" value={calib.report.ece.toFixed(3)} hint="expected calibration error" tone={calibOk ? "success" : "review"} />
@@ -162,7 +197,7 @@ export default function BenchmarksPage() {
         </div>
         <Panel>
           <p className="text-xs text-ink2">
-            Well-calibrated is ECE &lt; 0.08. Synthetic via{" "}
+            Well-calibrated is ECE &lt; 0.08. Synthetic test-only harness via{" "}
             <code className="font-mono">syntheticCalibrationOutcomes(seed,{n})</code>. Real:{" "}
             <code className="font-mono">calibrateFromHistory({`{ subjectId, pairs }`})</code> over ≥3 timed papers (
             <code className="font-mono">src/domain/grades.ts</code>). Replace synthetic with{" "}
@@ -267,13 +302,14 @@ export default function BenchmarksPage() {
         <SectionHeading title="Provenance" hint="How this page stays honest" />
         <Panel>
           <ul className="text-xs text-ink2 space-y-1 list-disc list-inside">
-            <li>Every number above is computed in-browser from the same functions CI calls — not hard-coded marketing.</li>
+            <li>Empirical metrics come from the observed-outcome ledger; synthetic metrics are computed in-browser from deterministic test harnesses.</li>
+            <li>Empirical source rows: <code className="font-mono">calibrationObservations</code>, captured attempts and completed <code className="font-mono">predictionHistory</code>.</li>
             <li>Source rows: <code className="font-mono">src/domain/recommender.ts :: syntheticOutcomePairs</code>, <code className="font-mono">benchmarkRecommendationQuality</code>, <code className="font-mono">src/domain/grades.ts :: calibrationReport</code>.</li>
             <li>Marker rows are keyed by <code className="font-mono">questionId</code> and compare per-part <code className="font-mono">(rubricAward, aiAward, humanAward)</code>; AI remains explicitly unmeasured until provider-marked gold exists.</li>
             <li>See also: <a className="underline" href="/case-study">Case study</a> · <a className="underline" href="/progress">Progress</a> · <code className="font-mono">docs/benchmark.md</code>.</li>
           </ul>
           <p className="text-[11px] text-ink3 mt-3">
-            Dataset: synthetic · seed={seed} · n={n} · computed at render time.
+            Synthetic controls: seed={seed} · n={n} · computed at render time. Empirical rows: transfer={empirical.question.metrics.n}, papers={empirical.paper.metrics.n}.
           </p>
         </Panel>
       </section>

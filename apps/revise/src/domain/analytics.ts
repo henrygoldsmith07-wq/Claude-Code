@@ -117,13 +117,16 @@ function markRate(attempts: Array<Pick<Attempt, "awarded" | "max">>): number | n
 
 export function assessmentNarrative(insight: AssessmentInsight, topicTitle: (id: string)=>string): Narrative {
   const topTopic = insight.marksLostByTopic[0];
-  const headline = topTopic ? `Most marks are leaking in ${topicTitle(topTopic.topicId)} (${topTopic.lost} lost, ~${topTopic.recoverable} recoverable)` : "No marks lost yet — no mistakes recorded.";
+  const headline = topTopic ? `Most marks are leaking in ${topicTitle(topTopic.topicId)} (${topTopic.lost} lost, ${topTopic.recoverableLower ?? "—"}–${topTopic.recoverableUpper ?? "—"} recoverable range)` : "No marks lost yet — no mistakes recorded.";
   const paragraphs: string[] = [];
   if (!topTopic) { paragraphs.push("Answer a few exam questions and the diagnosis will populate — there is not enough evidence to rank topics yet."); return { headline, paragraphs }; }
-  paragraphs.push(`In one focused hour on ${topicTitle(topTopic.topicId)} you can expect ~${insight.expectedMarksPerHour.find((x)=>x.topicId===topTopic.topicId)?.value ?? topTopic.recoverable} marks back. That is the fastest lever you have.`);
+  const topRate = insight.expectedMarksPerHour.find((x)=>x.topicId===topTopic.topicId);
+  paragraphs.push(topRate
+    ? `For one focused hour on ${topicTitle(topTopic.topicId)}, the current estimate is ${topRate.value.toFixed(1)} marks/hour with a ${topRate.lower?.toFixed(1) ?? "—"}–${topRate.upper?.toFixed(1) ?? "—"} range (${topRate.source === "personal-calibrated" ? "personal" : "prior-shrunk"} evidence).`
+    : `There is not enough observed improvement data to estimate a marks/hour range for ${topicTitle(topTopic.topicId)} yet.`);
   const topAo = Object.entries(insight.marksLostByAo).sort((a,b)=>b[1]-a[1])[0];
   if (topAo && topAo[1] > 0) paragraphs.push(`By assessment objective the biggest loss is ${topAo[0]} (${topAo[1]} marks) — practise that AO's question types next.`);
-  const bullets = insight.expectedMarksPerHour.slice(0,4).map((r)=> `${topicTitle(r.topicId)}: ${r.value} marks/hour`);
+  const bullets = insight.expectedMarksPerHour.slice(0,4).map((r)=> `${topicTitle(r.topicId)}: ${r.lower?.toFixed(1) ?? "—"}–${r.upper?.toFixed(1) ?? "—"} marks/hour`);
   return { headline, paragraphs, bullets, cta: `Fix ${topicTitle(topTopic.topicId)}` };
 }
 

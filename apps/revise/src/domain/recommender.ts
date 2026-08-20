@@ -14,6 +14,9 @@ import type {
   Topic,
   TopicMastery,
 } from "./types";
+import type { CalibrationEstimate } from "./calibration";
+import { CALIBRATION_PRIOR_V1 } from "./calibration-priors";
+import type { ErrorModelEntry } from "./error-model";
 
 // ---------------------------------------------------------------------------
 // "What should I do right now?" — scored as
@@ -44,14 +47,18 @@ export interface RecommendInput {
   mastery: TopicMastery[];
   cards: Card[];
   mistakes: Mistake[];
+  /** Aggregated learner-specific errors; optional for backwards-compatible callers. */
+  errorModel?: ErrorModelEntry[];
   exams: ExamDate[];
   plan: PlannedSession[];
   sessionLengthMinutes: number;
   subjectIds: Id[];
   now?: Date;
   marksPerHour?: Map<Id, number>;
+  marksPerHourEstimates?: Map<Id, CalibrationEstimate>;
   /** Base recovery fraction for recoverable marks when marksPerHour is absent. */
   recoverableFraction?: number;
+  recoverableFractionEstimates?: Map<Id, CalibrationEstimate>;
   /** Real outcome pairs for recommendation-quality benchmarking (synthetic now, real later). */
   outcomeHistory?: OutcomePair[];
   /** Per-topic adaptive difficulty offset in [-1, 1] learned from rolling accuracy. */
@@ -329,6 +336,7 @@ export function recommend(input: RecommendInput): Recommendation[] {
 
   // --- 2. Unrepaired mistakes. Direct marks you have already dropped.
   const openMistakes = input.mistakes.filter((m) => !m.resolved);
+  const errorModel = input.errorModel ?? [];
   const mistakesBySubject = new Map<Id, Mistake[]>();
   for (const m of openMistakes) {
     if (!input.subjectIds.includes(m.subjectId)) continue;
@@ -337,9 +345,14 @@ export function recommend(input: RecommendInput): Recommendation[] {
     mistakesBySubject.set(m.subjectId, list);
   }
   for (const [subjectId, list] of mistakesBySubject) {
-    if (list.length < 3) continue;
+    const severeEmergingError = errorModel.some(
+      (entry) => entry.subjectIds.includes(subjectId) && entry.openCount > 0 && entry.severity >= 2,
+    );
+    if (list.length < 3 && !severeEmergingError) continue;
     const marksLost = list.reduce((a, m) => a + m.marksLost, 0);
-    const recoverable = marksLost * 0.7;
+    const recoveryEstimate = input.recoverableFractionEstimates?.get(subjectId);
+    const recoveryRate = recoveryEstimate?.value ?? input.recoverableFraction ?? CALIBRATION_PRIOR_V1.recoverableFraction.mean;
+    const recoverable = marksLost * recoveryRate;
     const examGain = recoverable;
     const u = urgency(subjectId);
     // Mistakes imply weakness; use the worst topic among them for forgetting/weakness.
@@ -358,6 +371,9 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const label = paperLabelFor(input.exams, subjectId);
     const explanation: RecommendationExplanation = {
       recoverableMarks: Math.round(recoverable * 10) / 10,
+      recoverableMarksLower: recoveryEstimate ? Math.round(marksLost * recoveryEstimate.lower * 10) / 10 : undefined,
+      recoverableMarksUpper: recoveryEstimate ? Math.round(marksLost * recoveryEstimate.upper * 10) / 10 : undefined,
+      recoverableSource: recoveryEstimate?.source,
       marksPerHour: Math.round((recoverable / Math.max(5, minutes)) * 60 * 10) / 10,
       lastEvidencePercent: worst ? Math.round(worst.accuracy * 100) : null,
       daysSinceRetrieval: daysSinceFor(worst),
@@ -382,10 +398,11 @@ export function recommend(input: RecommendInput): Recommendation[] {
     if (!input.subjectIds.includes(weakRow.subjectId)) continue;
     const topic = topicById.get(weakRow.topicId);
     if (!topic) continue;
-    const mph = input.marksPerHour?.get(weakRow.topicId) ?? null;
+    const mphEstimate = input.marksPerHourEstimates?.get(weakRow.topicId);
+    const mph = mphEstimate?.value ?? input.marksPerHour?.get(weakRow.topicId) ?? CALIBRATION_PRIOR_V1.marksPerHour.mean;
     // Expected time: practice questions take ~block minutes; scale recoverable to that block.
     const minutes = block;
-    const recoverable = mph != null ? mph * (minutes / 60) : (1 - weakRow.mastery) * 8;
+    const recoverable = mph * (minutes / 60);
     // For the "18 min" electrolysis spec, tests may pass 18 as block; keep honest.
     const examGain = recoverable;
     const u = urgency(weakRow.subjectId);
@@ -401,7 +418,13 @@ export function recommend(input: RecommendInput): Recommendation[] {
     const mphRounded = mph != null ? Math.round(mph * 10) / 10 : null;
     const explanation: RecommendationExplanation = {
       recoverableMarks: Math.round(recoverable * 10) / 10,
+      recoverableMarksLower: mphEstimate ? Math.round(mphEstimate.lower * (minutes / 60) * 10) / 10 : undefined,
+      recoverableMarksUpper: mphEstimate ? Math.round(mphEstimate.upper * (minutes / 60) * 10) / 10 : undefined,
+      recoverableSource: mphEstimate?.source,
       marksPerHour: mphRounded,
+      marksPerHourLower: mphEstimate ? Math.round(mphEstimate.lower * 10) / 10 : null,
+      marksPerHourUpper: mphEstimate ? Math.round(mphEstimate.upper * 10) / 10 : null,
+      marksPerHourSource: mphEstimate?.source,
       lastEvidencePercent: weakRow.attempts > 0 ? Math.round(weakRow.accuracy * 100) : null,
       daysSinceRetrieval: daysSinceFor(weakRow),
       daysToExam: daysTo,
@@ -409,9 +432,9 @@ export function recommend(input: RecommendInput): Recommendation[] {
       factors,
     };
     // Scale minutes for very small blocks: if block is 10, don't claim 8 marks; the mph path handles it.
-    const reason = mph != null
-      ? `${topic.title}: ~${mphRounded!.toFixed(1)} expected exam marks per hour. ${Math.round(weakRow.mastery * 100)}% mastery — fixing this converts fastest.`
-      : `${topic.title} is your weakest topic here (${Math.round(weakRow.mastery * 100)}% mastery). Exam questions on it will move your grade most.`;
+    const reason = mphEstimate
+      ? `${topic.title}: ${mphEstimate.lower.toFixed(1)}–${mphEstimate.upper.toFixed(1)} expected exam marks per hour (${mphEstimate.source === "personal-calibrated" ? "personal" : "prior-shrunk"} estimate). ${Math.round(weakRow.mastery * 100)}% mastery — fixing this converts fastest.`
+      : `${topic.title}: the versioned prior is ${mphRounded!.toFixed(1)} expected exam marks per hour until observed improvement data arrives. ${Math.round(weakRow.mastery * 100)}% mastery — fixing this converts fastest.`;
     out.push({
       activity: "practice",
       subjectId: weakRow.subjectId,

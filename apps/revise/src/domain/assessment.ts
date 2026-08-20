@@ -2,19 +2,30 @@
 // like exam prep rather than flashcard completion.
 // Pure functions: no React, no I/O.
 import type {
-  AoCode,
   AssessmentInsight,
   Attempt,
   Calibration,
+  CalibrationObservation,
   CommandWord,
   Id,
   MisconceptionTag,
   Mistake,
   PaperSimulation,
   Question,
-  Topic,
   TopicMastery,
 } from "./types";
+import {
+  applyPaperCalibration,
+  buildCalibrationModel,
+  estimateMarksPerHour,
+  estimateRecoverableMarks,
+  legacyCalibrationFromPairs,
+  paperCalibrationForSubject,
+  predictQuestionMarks,
+  questionMarkModelForSubject,
+  type CalibrationModel,
+} from "./calibration";
+import { CALIBRATION_PRIOR_V1 } from "./calibration-priors";
 import { gradeForPercent } from "./grades";
 import type { Subject } from "./types";
 import { measureQuestionBankDiscrimination } from "./question-discrimination";
@@ -70,10 +81,12 @@ export function misconceptionOf(missedPoints: string[]): MisconceptionTag {
 
 export function timingLabel(secondsSpent: number | undefined, marks: number): Mistake["timing"] {
   if (secondsSpent == null) return "unknown";
-  // 90s per mark is the honest A-level budget; <45 is rushed, >180 is stuck.
-  const budget = marks * 90;
-  if (secondsSpent < budget * 0.5) return "rushed";
-  if (secondsSpent > budget * 2) return "slow";
+  // Timing labels use the versioned prior until enough marked timing outcomes
+  // exist to fit a subject-specific timing model. The thresholds are not
+  // presented as learner outcomes.
+  const budget = marks * CALIBRATION_PRIOR_V1.timing.secondsPerMark.mean;
+  if (secondsSpent < budget * CALIBRATION_PRIOR_V1.timing.rushedRatio) return "rushed";
+  if (secondsSpent > budget * CALIBRATION_PRIOR_V1.timing.slowRatio) return "slow";
   return "ok";
 }
 
@@ -82,6 +95,9 @@ export function buildAssessmentInsight(input: {
   mistakes: Mistake[];
   mastery: TopicMastery[];
   questionsById: Map<Id, Question>;
+  calibrationModel?: CalibrationModel;
+  calibrationObservations?: CalibrationObservation[];
+  asOf?: string;
 }): AssessmentInsight {
   const byCommand = Object.fromEntries(COMMAND_WORDS.map((c) => [c, 0])) as Record<CommandWord, number>;
   const byMisconception = Object.fromEntries(MISCONCEPTIONS.map((m) => [m, 0])) as Record<MisconceptionTag, number>;
@@ -96,12 +112,26 @@ export function buildAssessmentInsight(input: {
     cur.lost += m.marksLost;
     lostByTopic.set(k, cur);
   }
+  const asOf = input.asOf ?? new Date().toISOString();
+  const model = input.calibrationModel ?? buildCalibrationModel({
+    observations: input.calibrationObservations ?? [],
+    asOf,
+  });
   const masteryById = new Map(input.mastery.map((m) => [m.topicId, m]));
   const marksLostByTopic = [...lostByTopic.entries()].map(([topicId, v]) => {
-    const mastery = masteryById.get(topicId)?.mastery ?? 0.4;
-    // Recoverable: higher when mastery is low (fixing works) but not zero (some learning exists).
-    const recoverable = Math.round(v.lost * (0.65 - mastery * 0.25));
-    return { topicId, subjectId: v.subjectId, lost: v.lost, recoverable: Math.max(0, recoverable) };
+    const estimate = estimateRecoverableMarks(model, topicId, v.subjectId);
+    const recoverable = Math.round(v.lost * estimate.value);
+    return {
+      topicId,
+      subjectId: v.subjectId,
+      lost: v.lost,
+      recoverable: Math.max(0, recoverable),
+      recoverableLower: Math.max(0, Math.floor(v.lost * estimate.lower)),
+      recoverableUpper: Math.max(0, Math.ceil(v.lost * estimate.upper)),
+      recoverableSampleSize: estimate.sampleSize,
+      recoverableSource: estimate.source,
+      modelVersion: estimate.modelVersion,
+    };
   }).sort((a, b) => b.lost - a.lost);
 
   const marksLostByAo = byAo;
@@ -111,17 +141,21 @@ export function buildAssessmentInsight(input: {
   const repeatedWeakSubtopics = [...countByTopic.entries()].filter(([, n]) => n >= 3).map(([id]) => id)
     .filter((id) => (masteryById.get(id)?.mastery ?? 1) < 0.65);
 
-  // Expected marks per study hour: recoverable / cost, cost = 60min * (1.5 - mastery).
-  const expectedMarksPerHour = marksLostByTopic.slice(0, 8).map((row) => ({
-    topicId: row.topicId,
-    value: Math.round((row.recoverable / 60) * 60 * 10) / 10, // ~marks per 60m for now; scale refined below
-  }));
-  // Normalise: scale so the best topic shows the true rate — use recoverable directly as 60m gain.
-  for (const r of expectedMarksPerHour) {
-    const row = marksLostByTopic.find((x) => x.topicId === r.topicId)!;
-    // 1h on a topic recovers ~60-80% of recoverable if mastery < 0.6
-    r.value = Math.round((row.recoverable * 0.75) * 10) / 10;
-  }
+  // Marks/hour is an expected improvement estimate, not recoverable marks
+  // divided by a guessed cost. With no observed improvement outcomes it stays
+  // explicitly on the wide population prior.
+  const expectedMarksPerHour = marksLostByTopic.slice(0, 8).map((row) => {
+    const estimate = estimateMarksPerHour(model, row.topicId, row.subjectId);
+    return {
+      topicId: row.topicId,
+      value: Math.round(estimate.value * 10) / 10,
+      lower: Math.round(estimate.lower * 10) / 10,
+      upper: Math.round(estimate.upper * 10) / 10,
+      sampleSize: estimate.sampleSize,
+      source: estimate.source,
+      modelVersion: estimate.modelVersion,
+    };
+  });
   expectedMarksPerHour.sort((a, b) => b.value - a.value);
 
   const questionDiscrimination = measureQuestionBankDiscrimination({
@@ -147,16 +181,26 @@ export function simulatePaper(input: {
   questions: Question[];
   topicMastery: Map<Id, number>;
   calibration?: Calibration;
+  calibrationModel?: CalibrationModel;
+  asOf?: string;
 }): PaperSimulation {
   const totalMarks = input.questions.reduce((a, q) => a + q.totalMarks, 0);
-  const timeMinutes = input.subject.papers.find((p) => p.id === input.paperSpecId)?.durationMinutes ?? 90;
-  // Naive prediction: sum over questions of (topic mastery avg for that question).
+  const timeMinutes = input.subject.papers.find((p) => p.id === input.paperSpecId)?.durationMinutes ?? CALIBRATION_PRIOR_V1.timing.defaultPaperDurationMinutes;
+  const model = input.calibrationModel ?? buildCalibrationModel({ observations: [], asOf: input.asOf ?? new Date().toISOString() });
+  const subjectModel = questionMarkModelForSubject(model, input.subject.id);
+  // The mark model is fitted on later unseen questions and includes the
+  // captured pre-revision mastery, action and duration features.
   let raw = 0;
+  let rawLower = 0;
+  let rawUpper = 0;
   const byTopic = new Map<string, { expected: number; available: number }>();
   for (const q of input.questions) {
-    const masteryAvg = q.topicIds.length ? q.topicIds.reduce((a, id) => a + (input.topicMastery.get(id) ?? 0.4), 0) / q.topicIds.length : 0.4;
-    const expected = q.totalMarks * (0.35 + masteryAvg * 0.6);
+    const masteryAvg = q.topicIds.length ? q.topicIds.reduce((a, id) => a + (input.topicMastery.get(id) ?? 0), 0) / q.topicIds.length : 0;
+    const estimate = predictQuestionMarks({ model: subjectModel, baselineMastery: masteryAvg, durationMinutes: 0, action: "paper" });
+    const expected = q.totalMarks * estimate.value;
     raw += expected;
+    rawLower += q.totalMarks * estimate.lower;
+    rawUpper += q.totalMarks * estimate.upper;
     for (const tid of q.topicIds) {
       const cur = byTopic.get(tid) ?? { expected: 0, available: 0 };
       cur.expected += expected / q.topicIds.length;
@@ -164,11 +208,27 @@ export function simulatePaper(input: {
       byTopic.set(tid, cur);
     }
   }
-  const calibrated = input.calibration ? raw * input.calibration.slope + input.calibration.bias : raw;
-  const predictedMarks = Math.round(Math.max(0, Math.min(totalMarks, calibrated)));
+  const paperModel = paperCalibrationForSubject(model, input.subject.id);
+  const calibrated = input.calibration
+    ? { value: (raw * input.calibration.slope + input.calibration.bias) / Math.max(1, totalMarks), lower: 0, upper: 1, sampleSize: input.calibration.sampleSize, source: input.calibration.source ?? "population-plus-personal-shrinkage", modelVersion: input.calibration.modelVersion ?? model.modelVersion, priorVersion: input.calibration.priorVersion ?? model.priorVersion, standardError: 0, personalWeight: 1 }
+    : applyPaperCalibration({ model: paperModel, predictedMarks: raw, totalMarks });
+  const rawLowerCalibration = applyPaperCalibration({ model: paperModel, predictedMarks: rawLower, totalMarks });
+  const rawUpperCalibration = applyPaperCalibration({ model: paperModel, predictedMarks: rawUpper, totalMarks });
+  const calibratedWithQuestionRange = {
+    ...calibrated,
+    lower: Math.min(calibrated.lower, rawLowerCalibration.value, rawUpperCalibration.value),
+    upper: Math.max(calibrated.upper, rawLowerCalibration.value, rawUpperCalibration.value),
+  };
+  const predictedMarks = Math.round(Math.max(0, Math.min(totalMarks, calibratedWithQuestionRange.value * totalMarks)));
+  const predictedMarksLower = Math.round(Math.max(0, Math.min(totalMarks, calibratedWithQuestionRange.lower * totalMarks)));
+  const predictedMarksUpper = Math.round(Math.max(0, Math.min(totalMarks, calibratedWithQuestionRange.upper * totalMarks)));
   const grade = gradeForPercent(input.subject, totalMarks ? (predictedMarks / totalMarks) * 100 : 0);
-  // Recoverable: 30% of the gap closes with one focused hour per weak topic.
-  const recoverableMarks = Math.round((totalMarks - predictedMarks) * 0.3);
+  const gradeLower = gradeForPercent(input.subject, totalMarks ? (predictedMarksLower / totalMarks) * 100 : 0);
+  const gradeUpper = gradeForPercent(input.subject, totalMarks ? (predictedMarksUpper / totalMarks) * 100 : 0);
+  const recoverableRate = averageRecoverableRate(model, input.subject.id, input.questions);
+  const recoverableMarks = Math.round(Math.max(0, (totalMarks - predictedMarks) * recoverableRate.value));
+  const recoverableMarksLower = Math.max(0, Math.floor((totalMarks - predictedMarksUpper) * recoverableRate.lower));
+  const recoverableMarksUpper = Math.max(0, Math.ceil((totalMarks - predictedMarksLower) * recoverableRate.upper));
   return {
     paperSpecId: input.paperSpecId,
     subjectId: input.subject.id,
@@ -177,7 +237,17 @@ export function simulatePaper(input: {
     timeMinutes,
     predictedMarks,
     predictedGrade: grade,
+    predictedMarksLower,
+    predictedMarksUpper,
+    predictedGradeLower: gradeLower,
+    predictedGradeUpper: gradeUpper,
+    predictionConfidence: 1 - Math.min(1, calibratedWithQuestionRange.upper - calibratedWithQuestionRange.lower),
+    predictionSource: calibratedWithQuestionRange.source,
+    modelVersion: calibratedWithQuestionRange.modelVersion,
+    personalSampleSize: calibratedWithQuestionRange.sampleSize,
     recoverableMarks,
+    recoverableMarksLower,
+    recoverableMarksUpper,
     marksByTopic: [...byTopic.entries()].map(([topicId, v]) => ({ topicId, expected: Math.round(v.expected), available: Math.round(v.available) })),
   };
 }
@@ -186,13 +256,15 @@ export function calibrateFromHistory(input: {
   subjectId: Id;
   pairs: Array<{ predicted: number; actual: number }>;
 }): Calibration {
-  const n = input.pairs.length;
-  if (n < 3) return { subjectId: input.subjectId, bias: 0, slope: 1, sampleSize: n, mae: 0 };
-  let sx = 0, sy = 0, sxx = 0, sxy = 0;
-  for (const p of input.pairs) { sx += p.predicted; sy += p.actual; sxx += p.predicted * p.predicted; sxy += p.predicted * p.actual; }
-  const denom = n * sxx - sx * sx;
-  const slope = denom === 0 ? 1 : (n * sxy - sx * sy) / denom;
-  const bias = (sy - slope * sx) / n;
-  const mae = input.pairs.reduce((a, p) => a + Math.abs(p.actual - (p.predicted * slope + bias)), 0) / n;
-  return { subjectId: input.subjectId, bias, slope: Number.isFinite(slope) ? slope : 1, sampleSize: n, mae };
+  return legacyCalibrationFromPairs(input.subjectId, input.pairs);
+}
+
+function averageRecoverableRate(model: CalibrationModel | undefined, subjectId: Id, questions: Question[]) {
+  const estimates = questions.flatMap((question) => question.topicIds.map((topicId) => estimateRecoverableMarks(model, topicId, subjectId)));
+  if (!estimates.length) return estimateRecoverableMarks(model, "", subjectId);
+  return {
+    value: estimates.reduce((sum, estimate) => sum + estimate.value, 0) / estimates.length,
+    lower: estimates.reduce((sum, estimate) => sum + estimate.lower, 0) / estimates.length,
+    upper: estimates.reduce((sum, estimate) => sum + estimate.upper, 0) / estimates.length,
+  };
 }

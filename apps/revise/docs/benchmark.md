@@ -2,11 +2,42 @@
 
 Revise owns its claims with numbers. This doc records the harnesses, the invariants and the honest limits.
 
-> **Live ledger:** the same harnesses run in the browser at [/benchmarks](/benchmarks) —
+> **Live ledger:** empirical calibration and the machinery harnesses run in the browser at [/benchmarks](/benchmarks) —
 > `syntheticOutcomePairs` → `benchmarkRecommendationQuality` and
 > `syntheticCalibrationOutcomes` → `calibrationReport`, with seed/n controls,
 > so the page can never drift from the code. The [/case-study](/case-study) narrates
 > the 6-engine design and links back here. See `src/app/benchmarks/page.tsx`.
+
+## Empirical calibration (observed outcomes only)
+
+*Source:* `src/domain/calibration.ts`, `src/domain/calibration-priors.ts`,
+`src/data/repository.ts`, `tests/calibration.test.ts`.
+
+- Transfer rows join captured pre-revision state, topic/action/duration and a
+  later unseen-question mark. Rows without complete timestamps or baseline
+  context are excluded rather than backfilled.
+- Paper rows are immutable predictions written before a sitting and completed
+  with the later actual marks. A paper is eligible only when
+  `predictedAt < outcomeAt < asOf`.
+- `evaluateHeldOutCalibration` performs chronological walk-forward fitting and
+  reports MAE, RMSE, bias, ECE, interval coverage/width, calibration slope and
+  intercept, plus action/group bias flags. `benchmarkCalibration` returns the
+  transfer and paper reports together with model/prior versions and leakage
+  status.
+- `CALIBRATION_PRIOR_V1` declares the minimums and wide population assumptions;
+  normal-normal shrinkage keeps sparse personal estimates near the prior and
+  retains an uncertainty interval. The UI labels population prior, shrunk
+  personal and personal-calibrated estimates separately.
+- Marks/hour is estimated only from explicit improvement-mark outcomes divided
+  by captured revision duration. Marks lost alone cannot create a productivity
+  result. When no improvement outcome exists, the displayed point/range is the
+  versioned population prior.
+- No benchmark numbers are fabricated for a user. The page says “insufficient
+  data” when the local ledger has not met its gates. Synthetic generators below
+  are test fixtures only and never feed the production model.
+
+The detailed protocol, thresholds, equations and limitations are in
+`docs/calibration-benchmark.md`.
 
 
 ## Recommendation quality (synthetic → real)
@@ -64,10 +95,15 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 *Source:* `src/domain/grades.ts`, `tests/grade-calibration.test.ts`.
 
-- `predictGrade` blends measured accuracy and coverage; band + confidence, never a single letter.
+- `predictGrade` blends measured accuracy and empirical question-mark coverage;
+  the output includes a percentage and grade band, never a single unsupported
+  letter.
 - `calibrationReport(pairs)` computes Brier score, ECE, per-bucket `meanPredicted vs meanActual`, bias; well-calibrated is ECE < 0.08.
-- `syntheticCalibrationOutcomes(seed, n)` benchmarks without real papers; production uses `(predictGrade.percent/100, laterPaperPercent/100)`.
-- `calibrateFromHistory({ subjectId, pairs })` fits `slope/bias/mae` over ≥3 timed papers; thin-sample path returns identity.
+- `syntheticCalibrationOutcomes(seed, n)` benchmarks machinery without real
+  papers; it is not production input.
+- `PredictionHistoryRecord` stores the pre-sitting prediction, ranges and model
+  versions, then records the actual sitting result. The timestamp-safe paper
+  calibrator fits `slope/bias/mae` from those records and reports uncertainty.
 
 ## Curriculum regression
 
@@ -91,7 +127,9 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 
 *Source:* `src/app/benchmarks/page.tsx` (`/benchmarks`), `src/app/case-study/page.tsx` (`/case-study`), `src/components/AppShell.tsx`, `src/domain/portability.ts`, `tests/phase8-public.test.ts`.
 
-- `/benchmarks` recomputes the recommendation-quality + calibration reports live from CI's deterministic harnesses; real `(predicted, actual)` replaces synthetic with no page change.
+- `/benchmarks` shows the empirical observed-outcome reports first, then the
+  deterministic recommendation/confidence harnesses as explicitly test-only
+  fixtures. The two datasets cannot silently mix.
 - `/case-study` is a static narrative (scoring, FSRS, mastery, marking, mistake loop, grades) with the reproduce block so a reader can verify locally.
 - `Settings → Data` offers `buildPortabilitySnapshot` (GDPR Art. 20, single JSON, scheduling intact) and `deletionPreview` + `privacyDisclosure` (Art. 17, local-only privacy). Pinned by 8 tests.
 
@@ -103,9 +141,11 @@ Revise owns its claims with numbers. This doc records the harnesses, the invaria
 - Lighthouse/PWA fences: `next.config.ts` pins `/_next/static` immutable, `/api/*` no-store, `/sw.js` no-cache; `public/sw.js` precaches the app shell and never caches `/api/*`.
 - Security: RLS enabled on every user-owned table (`with check user_id = auth.uid()`), plus `updated_at` trigger and hostile-import clamping (`deck-io`).
 
-## Case studies (synthetic now, real cohorts later)
+## Case studies (real outcomes only)
 
-The product ships with synthetic longitudinal histories *and* a live ledger that makes them checkable at `/benchmarks`. Once timetabled-paper → later-paper outcomes exist, this section (and that page) will carry:
+The product ships with synthetic machinery fixtures, not synthetic learner
+histories. Once timetabled-paper → later-paper outcomes exist, this section (and
+that page) will carry:
 
 - Cohort: n, weeks, board, grade movement, MAE/bias/correlation before and after each engine change.
 - The method will be the same harnesses above; numbers will be from observed `(predicted, actual)` rather than synthetic — same functions, real pairs.

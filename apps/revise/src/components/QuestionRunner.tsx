@@ -120,6 +120,13 @@ export function QuestionRunner({
       confidence: source === "ai" ? markConfidence : undefined,
     });
     const markEscalation = createMarkEscalationRecord(escalationDecision, createdAt);
+    const baselineRows = question.topicIds
+      .map((topicId) => store.mastery.find((row) => row.topicId === topicId))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row));
+    const baselineMastery = baselineRows.length
+      ? baselineRows.reduce((sum, row) => sum + row.mastery, 0) / baselineRows.length
+      : 0;
+    const baselineEvidence = baselineRows.reduce((sum, row) => sum + row.cardsTotal + row.attempts * 2, 0);
     const attempt: Attempt = {
       id: attemptId,
       userId: store.userId,
@@ -140,6 +147,15 @@ export function QuestionRunner({
       ...(paperSpecId ? { paperSpecId } : {}),
       ...(paperRunId ? { paperRunId } : {}),
       ...(retestMistake ? { retestMistakeId: retestMistake.id } : {}),
+      calibrationContext: {
+        action: mode === "paper" ? "paper" : mode === "recall" ? "recall" : "practice",
+        ...(paperRunId ? { sessionId: paperRunId } : {}),
+        startedAt: new Date(startedAt.current || Date.now()).toISOString(),
+        durationMinutes: elapsedMs / 60_000,
+        baselineMastery,
+        baselineEvidence,
+        questionWasUnseen: !store.attempts.some((existing) => existing.questionId === question.id),
+      },
       createdAt,
     };
 

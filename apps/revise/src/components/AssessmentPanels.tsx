@@ -131,7 +131,7 @@ export function ExpectedMarksCard() {
           title="Expected exam marks per study hour"
           hint="The headline metric. Answer a few exam questions and the numbers appear here."
         />
-        <EmptyHint>Do a set of marked questions in each subject — every dropped mark teaches the engine where an hour of work converts fastest.</EmptyHint>
+        <EmptyHint>Complete marked revision followed by later unseen questions. The marks/hour estimate uses explicit improvement outcomes; dropped marks alone do not create a productivity claim.</EmptyHint>
       </Panel>
     );
   }
@@ -162,7 +162,11 @@ export function ExpectedMarksCard() {
                   </div>
                 </div>
               </div>
-              <span className="text-sm font-semibold tabular-nums text-accent shrink-0">+{row.value.toFixed(1)}</span>
+                <span className="text-right text-sm font-semibold tabular-nums text-accent shrink-0">
+                <span className="block">+{row.value.toFixed(1)}/h</span>
+                <span className="block text-[10px] font-normal text-ink3">{row.lower?.toFixed(1) ?? "—"}–{row.upper?.toFixed(1) ?? "—"}</span>
+                <span className="block text-[10px] font-normal text-ink3">{row.source === "personal-calibrated" ? "personal" : row.source === "population-plus-personal-shrinkage" ? "shrunk" : "prior"} · n={row.sampleSize ?? 0}</span>
+              </span>
               <ButtonLink href={`/practice?topic=${encodeURIComponent(row.topicId)}`} size="sm">
                 Fix
               </ButtonLink>
@@ -171,7 +175,7 @@ export function ExpectedMarksCard() {
         })}
       </ul>
       <p className="text-[11px] text-ink3 mt-3">
-        Built from your real dropped marks and current mastery. A topic at 40% with 6 lost marks converts faster than one at 85% with one slip.
+        The point and range use observed improvement outcomes when available; otherwise they shrink to the versioned population prior. No user outcome is inferred from a dropped mark alone.
       </p>
     </Panel>
   );
@@ -864,9 +868,9 @@ export function PaperSimulationCard() {
       {!simulation ? <EmptyHint>Need at least one question in this subject to simulate a paper.</EmptyHint> : (
         <>
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <StatTile label="Predicted" value={`${simulation.predictedMarks}/${simulation.totalMarks}`} sub={`Grade ${simulation.predictedGrade}`} tone={simulation.predictedMarks / Math.max(1, simulation.totalMarks) >= 0.7 ? "success" : "review"} />
+            <StatTile label="Predicted" value={`${simulation.predictedMarks}/${simulation.totalMarks}`} sub={`${simulation.predictedGrade} · range ${simulation.predictedMarksLower ?? simulation.predictedMarks}–${simulation.predictedMarksUpper ?? simulation.predictedMarks}`} tone={simulation.predictedMarks / Math.max(1, simulation.totalMarks) >= 0.7 ? "success" : "review"} />
             <StatTile label="Time allowed" value={`${simulation.timeMinutes}m`} sub={subject?.papers.find((p) => p.id === paperSpecId)?.name ?? ""} />
-            <StatTile label="Recoverable" value={`+${simulation.recoverableMarks}`} sub="with 1h per weak topic" tone="success" />
+            <StatTile label="Recoverable" value={`+${simulation.recoverableMarks}`} sub={`range ${simulation.recoverableMarksLower ?? simulation.recoverableMarks}–${simulation.recoverableMarksUpper ?? simulation.recoverableMarks}`} tone="success" />
           </div>
           <div>
             <ProgressBar value={simulation.totalMarks ? simulation.predictedMarks / simulation.totalMarks : 0} tone={simulation.predictedMarks / Math.max(1, simulation.totalMarks) >= 0.7 ? "success" : "review"} />
@@ -882,7 +886,7 @@ export function PaperSimulationCard() {
             </ul>
           ) : null}
           <p className="text-[11px] text-ink3 mt-3">
-            Uses your current topic mastery, re-weighted by calibration (see below). <Link href="/papers" className="underline">Sit a real paper</Link> to tighten the prediction.
+            Uses the versioned question-mark prior plus any completed pre-paper predictions. Weak evidence is shown as a range; sitting a paper records the model version before the outcome arrives. <Link href="/papers" className="underline">Sit a real paper</Link> to tighten the prediction.
           </p>
         </>
       )}
@@ -906,10 +910,14 @@ export function CalibrationCard() {
               <li key={c.subjectId} className="px-4 py-3 flex flex-wrap items-center gap-2 text-xs">
                 <span className="font-semibold text-ink min-w-[7rem]">{subject?.name ?? c.subjectId}</span>
                 <Pill>n={c.sampleSize}</Pill>
-                <span className="text-ink2">bias {c.bias >= 0 ? "+" : ""}{c.bias.toFixed(1)}</span>
+                <span className="text-ink2">bias {c.bias >= 0 ? "+" : ""}{Math.round(c.bias * 100)}pp</span>
+                <span className="text-ink3">95% range {c.biasLower == null ? "—" : `${Math.round(c.biasLower * 100)}–${Math.round((c.biasUpper ?? c.biasLower) * 100)}pp`}</span>
                 <span className="text-ink2">slope {c.slope.toFixed(2)}</span>
-                <span className="text-ink3">MAE {c.mae.toFixed(1)}</span>
-                {Math.abs(c.bias) < 1 && Math.abs(c.slope - 1) < 0.15 ? <Pill tone="success">Well calibrated</Pill> : <Pill tone="review">Drifting</Pill>}
+                <span className="text-ink3">MAE {Math.round(c.mae * 100)}pp</span>
+                <span className="text-ink3">ECE {c.ece == null ? "—" : c.ece.toFixed(3)}</span>
+                <span className="text-ink3">coverage {c.intervalCoverage == null ? "—" : `${Math.round(c.intervalCoverage * 100)}%`}</span>
+                <span className="text-ink3">{c.source === "personal-calibrated" ? "personal" : "shrunk"}</span>
+                {Math.abs(c.bias) < 0.05 && Math.abs(c.slope - 1) < 0.15 && (c.ece == null || c.ece < 0.08) ? <Pill tone="success">Well calibrated</Pill> : <Pill tone="review">Drifting</Pill>}
               </li>
             );
           })}

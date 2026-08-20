@@ -7,12 +7,16 @@ import type { Card, Id, Topic } from "@/domain/types";
 // curriculum and content can never drift apart: add a topic and its deck
 // exists immediately, in every subject, with no AI call and no network.
 //
-// Card ids are deterministic (`seed:<topicId>:<kind>:<index>`) so re-seeding
-// an existing user is idempotent — their FSRS history survives.
+// Card ids are deterministic. Account-backed profiles use a user namespace
+// (`seed:<userId>:<topicId>:<kind>:<index>`); the local profile keeps the
+// legacy spelling for backwards compatibility. Re-seeding is idempotent and
+// never resets FSRS history.
 // ---------------------------------------------------------------------------
 
-export function seedCardId(topicId: Id, kind: string, index: number): Id {
-  return `seed:${topicId}:${kind}:${index}`;
+export function seedCardId(topicId: Id, kind: string, index: number, userId?: Id): Id {
+  return userId && userId !== "local"
+    ? `seed:${userId}:${topicId}:${kind}:${index}`
+    : `seed:${topicId}:${kind}:${index}`;
 }
 
 /** Turn a key point into a question. Statements make poor prompts. */
@@ -57,7 +61,7 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
     cards.push(
       createCard(
         {
-          id: seedCardId(topic.id, "kp", i),
+          id: seedCardId(topic.id, "kp", i, userId),
           userId,
           subjectId: topic.subjectId,
           topicId: topic.id,
@@ -87,7 +91,7 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
       cards.push(
         createCard(
           {
-            id: seedCardId(topic.id, "cloze", i),
+            id: seedCardId(topic.id, "cloze", i, userId),
             userId,
             subjectId: topic.subjectId,
             topicId: topic.id,
@@ -117,7 +121,7 @@ export function seedCardsForTopic(topic: Topic, userId: Id, now: Date = new Date
     cards.push(
       createCard(
         {
-          id: seedCardId(topic.id, "err", i),
+          id: seedCardId(topic.id, "err", i, userId),
           userId,
           subjectId: topic.subjectId,
           topicId: topic.id,

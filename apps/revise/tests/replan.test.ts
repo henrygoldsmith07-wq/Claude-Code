@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPlan } from "@/domain/planner";
-import { computeFingerprint, fingerprintKey, replanDynamically } from "@/domain/replan";
+import { computeFingerprint, fingerprintKey, learnerStateKey, replanDynamically } from "@/domain/replan";
 import type {
   Availability,
   ExamDate,
@@ -177,6 +177,29 @@ describe("replanDynamically", () => {
     expect(result.changed).toBe(true);
     expect(result.reasons).toContain("target-changed");
     expect(result.summary).toContain("target grade");
+  });
+
+  it("rebuilds when learner evidence changes, not only when settings change", () => {
+    const original = baseInput();
+    const previous = computeFingerprint({
+      ...original,
+      learnerStateKey: learnerStateKey({ mastery: original.mastery, cards: [], mistakes: [], attempts: [] }),
+    });
+    const nextMastery = original.mastery.map((row) =>
+      row.topicId === "m1" ? { ...row, mastery: 0.15, retention: 0.2, accuracy: 0.2 } : row,
+    );
+    const result = replanDynamically({
+      ...original,
+      mastery: nextMastery,
+      learnerStateKey: learnerStateKey({ mastery: nextMastery, cards: [], mistakes: [], attempts: [] }),
+      existing: [],
+      previous,
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.reasons).toContain("learner-evidence-changed");
+    expect(result.plan.some((session) => session.topicId === "m1")).toBe(true);
+    expect(result.summary).toContain("performance evidence");
   });
 });
 

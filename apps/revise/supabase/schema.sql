@@ -91,6 +91,22 @@ create table if not exists public.attempts (
 create index if not exists attempts_user_subject_idx on public.attempts (user_id, subject_id);
 create index if not exists attempts_user_updated_idx on public.attempts (user_id, updated_at);
 
+-- --- empirical calibration observations -----------------------------------
+-- Append-only joins of a captured pre-revision state to a later unseen
+-- question outcome. Raw observations stay available for refitting and audit.
+create table if not exists public.calibration_observations (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  subject_id text,
+  topic_id text,
+  due date,
+  date date,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+create index if not exists calibration_observations_user_subject_idx on public.calibration_observations (user_id, subject_id);
+create index if not exists calibration_observations_user_outcome_idx on public.calibration_observations (user_id, ((data->>'outcomeAt')));
+
 -- --- mistakes ---------------------------------------------------------------
 create table if not exists public.mistakes (
   id uuid primary key,
@@ -118,6 +134,23 @@ create table if not exists public.papers (
 );
 create index if not exists papers_user_subject_idx on public.papers (user_id, subject_id);
 create index if not exists papers_user_updated_idx on public.papers (user_id, updated_at);
+
+-- --- prediction history ----------------------------------------------------
+-- A prediction is recorded before a paper starts and completed only when the
+-- later result exists. Keeping model/prior versions here makes old numbers
+-- reproducible after a calibration release.
+create table if not exists public.prediction_history (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  subject_id text,
+  topic_id text,
+  due date,
+  date date,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+create index if not exists prediction_history_user_subject_idx on public.prediction_history (user_id, subject_id);
+create index if not exists prediction_history_user_paper_run_idx on public.prediction_history (user_id, ((data->>'paperRunId')));
 
 -- --- planned sessions -------------------------------------------------------
 create table if not exists public.planned_sessions (
@@ -179,8 +212,8 @@ declare
   target text;
 begin
   foreach target in array array[
-    'cards', 'review_logs', 'questions', 'attempts', 'mistakes',
-    'papers', 'planned_sessions', 'exam_dates', 'user_settings', 'streaks'
+    'cards', 'review_logs', 'questions', 'attempts', 'calibration_observations', 'mistakes',
+    'papers', 'prediction_history', 'planned_sessions', 'exam_dates', 'user_settings', 'streaks'
   ]
   loop
     execute format('alter table public.%I enable row level security', target);

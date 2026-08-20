@@ -17,12 +17,29 @@ import { computeApplicationMastery } from "@/domain/application-mastery";
 import { computeRecallMastery } from "@/domain/recall-mastery";
 import { masteryIntervals } from "@/domain/mastery-uncertainty";
 import { tallyMisconceptions, type MisconceptionTally } from "@/domain/misconception-library";
-import { buildPlan, rescheduleMissed } from "@/domain/planner";
-import { computeFingerprint, fingerprintKey, replanDynamically, type ReplanFingerprint } from "@/domain/replan";
+import { buildPlan, rescheduleMissedPrioritised } from "@/domain/planner";
+import { buildErrorModel, type ErrorModelEntry } from "@/domain/error-model";
+import {
+  computeFingerprint,
+  fingerprintKey,
+  learnerStateKey,
+  replanDynamically,
+  type ReplanFingerprint,
+} from "@/domain/replan";
 import { recommend } from "@/domain/recommender";
 import { gradeCard, isDue, todayIso } from "@/domain/scheduling";
 import { addXp, newlyUnlocked, touchStreak, unlockedAchievements, XP } from "@/domain/gamification";
-import { buildAssessmentInsight, calibrateFromHistory, simulatePaper } from "@/domain/assessment";
+import { buildAssessmentInsight, simulatePaper } from "@/domain/assessment";
+import { CALIBRATION_PRIOR_V1 } from "@/domain/calibration-priors";
+import {
+  buildCalibrationModel,
+  estimateMarksPerHour,
+  estimateRecoverableMarks,
+  evaluatePaperCalibration,
+  observationFromRevisionAndOutcome,
+  observationsFromAttempts,
+  type CalibrationModel,
+} from "@/domain/calibration";
 import { calibrateDifficulty, traceQuestions } from "@/domain/knowledge-tracing";
 import type { DifficultyCalibrationReport, QuestionTrace } from "@/domain/knowledge-tracing";
 import { calculateCalculationMastery } from "@/domain/calculation-mastery";
@@ -50,6 +67,7 @@ import type {
   AssessmentInsight,
   Attempt,
   Calibration,
+  CalibrationObservation,
   Card,
   ExamDate,
   GamificationStats,
@@ -58,6 +76,7 @@ import type {
   Paper,
   PaperSimulation,
   PlannedSession,
+  PredictionHistoryRecord,
   Question,
   Recommendation,
   RecallGrade,
@@ -73,7 +92,7 @@ import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
 import type { Snapshot } from "@/data/repository";
 import { SYNC_QUEUE_EVENT, outboxSize, sync } from "@/data/sync";
-import { isSupabaseConfigured } from "@/data/supabase";
+import { getSupabase, isSupabaseConfigured } from "@/data/supabase";
 import {
   createRevisionCheckpoint,
   type RevisionCheckpoint,
@@ -113,8 +132,12 @@ interface StoreValue extends Snapshot {
   assessment: AssessmentInsight | null;
   /** Expected exam marks gained per study hour, keyed by topic. The metric the brief asks for. */
   marksPerHour: Map<Id, number>;
+  /** Versioned empirical model and its explicit prior/data provenance. */
+  calibrationModel: CalibrationModel;
   /** Misconception-library entries the student keeps hitting, most frequent first. */
   recurringMisconceptions: MisconceptionTally[];
+  /** A recency-weighted error model used by planning, practice, and progress surfaces. */
+  errorModel: ErrorModelEntry[];
   /** Why the plan last changed itself, or null when nothing has. */
   replanSummary: string | null;
   calibrations: Map<Id, Calibration>;
@@ -135,6 +158,9 @@ interface StoreValue extends Snapshot {
   // actions
   reviewCard(card: Card, grade: RecallGrade, elapsedMs: number, confidence?: 1 | 2 | 3 | 4 | 5): Promise<void>;
   recordAttempt(attempt: Attempt, question: Question): Promise<Mistake[]>;
+  recordCalibrationObservation(observation: CalibrationObservation): Promise<void>;
+  recordPredictionHistory(record: PredictionHistoryRecord): Promise<void>;
+  completePredictionHistory(id: Id, outcome: { marks: number; totalMarks: number; at: string }): Promise<void>;
   addCards(cards: Card[]): Promise<void>;
   removeCard(id: Id): Promise<void>;
   /** Bulk save for the browser: tag edits, suspend, bury, field rewrites. */
@@ -161,7 +187,10 @@ export function useStore(): StoreValue {
   return value;
 }
 
-export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: ReactNode; userId?: Id }) {
+export function StoreProvider({ children, userId: requestedUserId }: { children: ReactNode; userId?: Id }) {
+  const [authUserId, setAuthUserId] = useState<Id | null>(requestedUserId ?? null);
+  const [authReady, setAuthReady] = useState(() => Boolean(requestedUserId) || !isSupabaseConfigured);
+  const userId = requestedUserId ?? (authReady ? authUserId ?? LOCAL_USER_ID : LOCAL_USER_ID);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [revisionCheckpoint, setRevisionCheckpoint] = useState<RevisionCheckpoint | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -173,39 +202,103 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     enabled: isSupabaseConfigured,
     syncing: false,
   });
-  const bootstrapped = useRef(false);
+  const bootstrappedUser = useRef<Id | null>(null);
   const [replanSummary, setReplanSummary] = useState<string | null>(null);
   const lastFingerprint = useRef<ReplanFingerprint | null>(null);
 
+  // Resolve the authenticated profile before loading IndexedDB. A configured
+  // Supabase client uses the auth UUID as the local key too, so queued writes
+  // and RLS rows cannot accidentally be stored under the anonymous "local"
+  // profile. Explicit userId remains available for embedded/test callers.
   useEffect(() => {
-    if (bootstrapped.current) return;
-    bootstrapped.current = true;
+    if (requestedUserId || !isSupabaseConfigured) {
+      setAuthReady(true);
+      return;
+    }
+    setAuthReady(false);
+    setAuthUserId(null);
+    const supabase = getSupabase();
+    if (!supabase) {
+      setAuthReady(true);
+      return;
+    }
+    let cancelled = false;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setAuthUserId(data.session?.user.id ?? null);
+      setAuthReady(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setSnapshot(null);
+      setRevisionCheckpoint(null);
+      setNeedsOnboarding(false);
+      lastFingerprint.current = null;
+      setAuthUserId(session?.user.id ?? null);
+      setAuthReady(true);
+    });
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
+  }, [requestedUserId]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (bootstrappedUser.current === userId) return;
+    bootstrappedUser.current = userId;
+    setSnapshot(null);
+    setRevisionCheckpoint(null);
+    setNeedsOnboarding(false);
+    lastFingerprint.current = null;
+    let cancelled = false;
     void (async () => {
       const [loaded, checkpoint] = await Promise.all([
         repo.loadSnapshot(userId),
         repo.loadRevisionCheckpoint(userId),
       ]);
+      if (cancelled) return;
       setRevisionCheckpoint(checkpoint ?? null);
       setSnapshot(loaded);
+      const loadedTopics = allTopics(loaded.settings.subjectIds);
+      const loadedMastery = computeTopicMastery({
+        topics: loadedTopics,
+        cards: loaded.cards,
+        reviewLogs: loaded.reviewLogs,
+        attempts: loaded.attempts,
+        mistakes: loaded.mistakes,
+      });
       lastFingerprint.current = computeFingerprint({
         exams: loaded.examDates,
         targetGrades: loaded.settings.targetGrades,
         availability: loaded.settings.availability,
+        availabilityOverrides: loaded.settings.availabilityOverrides,
         sessionLengthMinutes: loaded.settings.sessionLengthMinutes,
         subjectIds: loaded.settings.subjectIds,
+        learnerStateKey: learnerStateKey({
+          mastery: loadedMastery,
+          cards: loaded.cards,
+          mistakes: loaded.mistakes,
+          attempts: loaded.attempts,
+        }),
       });
-      setNeedsOnboarding(!(await repo.hasOnboarded()));
+      setNeedsOnboarding(!(await repo.hasOnboarded(userId)));
+      if (cancelled) return;
       // A plan that has drifted into the past is worse than no plan: fold
       // missed sessions forward before the dashboard renders anything.
       const today = todayIso();
       const stale = loaded.plannedSessions.some((s) => s.date < today && s.status === "pending");
       if (stale) {
-        const healed = rescheduleMissed(loaded.plannedSessions, today, 6);
+        const healed = rescheduleMissedPrioritised(loaded.plannedSessions, today, 6, loadedMastery, loaded.examDates);
         await repo.savePlan(healed);
+        if (cancelled) return;
         setSnapshot((prev) => (prev ? { ...prev, plannedSessions: healed } : prev));
       }
     })();
-  }, [userId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, userId]);
 
   // Network status drives the offline banner and gates sync attempts.
   useEffect(() => {
@@ -225,26 +318,26 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
   // Local writes enqueue after IndexedDB succeeds. Reflect that immediately so
   // offline work is visibly safe instead of waiting for the next retry timer.
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !authReady) return;
     const refreshPending = () => {
-      void outboxSize().then((pending) => setSyncStatus((s) => ({ ...s, pending })));
+      void outboxSize(userId).then((pending) => setSyncStatus((s) => ({ ...s, pending })));
     };
     refreshPending();
     window.addEventListener(SYNC_QUEUE_EVENT, refreshPending);
     return () => window.removeEventListener(SYNC_QUEUE_EVENT, refreshPending);
-  }, []);
+  }, [authReady, userId]);
 
   const completeOnboarding = useCallback(async () => {
-    await repo.markOnboarded();
+    await repo.markOnboarded(userId);
     setNeedsOnboarding(false);
-  }, []);
+  }, [userId]);
 
   const syncNow = useCallback(async () => {
     if (!isSupabaseConfigured) return;
     setSyncStatus((s) => ({ ...s, syncing: true }));
     try {
       const result = await sync(userId);
-      const pending = await outboxSize();
+      const pending = await outboxSize(userId);
       const error =
         result.failed > 0
           ? "Some changes are still waiting to sync. We’ll keep trying."
@@ -258,9 +351,12 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
         lastSyncedAt: result.skipped || result.failed > 0 ? s.lastSyncedAt : new Date().toISOString(),
         lastSyncError: error,
       }));
-      if (result.pulled > 0) setSnapshot(await repo.loadSnapshot(userId));
+      if (result.pulled > 0 && bootstrappedUser.current === userId) {
+        const loaded = await repo.loadSnapshot(userId);
+        if (bootstrappedUser.current === userId) setSnapshot(loaded);
+      }
     } catch {
-      const pending = await outboxSize();
+      const pending = await outboxSize(userId);
       setSyncStatus((s) => ({
         ...s,
         syncing: false,
@@ -365,6 +461,23 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     return snapshot.cards.filter((c) => subjectIds.includes(c.subjectId) && isDue(c, today));
   }, [snapshot, subjectIds]);
 
+  const calibrationModel = useMemo(() => {
+    if (!snapshot) {
+      return buildCalibrationModel({ observations: [], predictionHistory: [], asOf: new Date().toISOString() });
+    }
+    const asOf = new Date().toISOString();
+    const derivedObservations = observationsFromAttempts({ attempts: snapshot.attempts, asOf });
+    return buildCalibrationModel({
+      observations: [...snapshot.calibrationObservations, ...derivedObservations],
+      predictionHistory: snapshot.predictionHistory,
+      attempts: snapshot.attempts,
+      questions: snapshot.questions,
+      papers: snapshot.papers,
+      subjects: allSubjects(),
+      asOf,
+    });
+  }, [snapshot]);
+
   const assessment = useMemo(() => {
     if (!snapshot) return null;
     if (!snapshot.attempts.length && !snapshot.mistakes.length) return null;
@@ -374,8 +487,10 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       mistakes: snapshot.mistakes,
       mastery,
       questionsById,
+      calibrationModel,
+      asOf: calibrationModel.asOf,
     });
-  }, [snapshot, mastery]);
+  }, [snapshot, mastery, calibrationModel]);
 
   const questionTraces = useMemo(() => {
     if (!snapshot) return [];
@@ -436,6 +551,33 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     () => (snapshot ? tallyMisconceptions(snapshot.mistakes, seedMisconceptions) : []),
     [snapshot],
   );
+  const errorModel = useMemo(
+    () => (snapshot ? buildErrorModel({ mistakes: snapshot.mistakes }) : []),
+    [snapshot],
+  );
+  const recentWorkloadMinutes = useMemo<Record<string, number>>(() => {
+    if (!snapshot) return {};
+    const planned: Record<string, number> = {};
+    for (const session of snapshot.plannedSessions) {
+      if (session.status !== "done") continue;
+      const date = session.completedAt?.slice(0, 10) ?? session.date;
+      planned[date] = (planned[date] ?? 0) + session.minutes;
+    }
+    const observed: Record<string, number> = {};
+    for (const log of snapshot.reviewLogs) {
+      const date = log.reviewedAt.slice(0, 10);
+      observed[date] = (observed[date] ?? 0) + Math.max(0, log.elapsedMs) / 60_000;
+    }
+    for (const attempt of snapshot.attempts) {
+      const date = attempt.createdAt.slice(0, 10);
+      observed[date] = (observed[date] ?? 0) + Math.max(0, attempt.elapsedMs) / 60_000;
+    }
+    const totals: Record<string, number> = {};
+    for (const date of new Set([...Object.keys(planned), ...Object.keys(observed)])) {
+      totals[date] = Math.max(planned[date] ?? 0, observed[date] ?? 0);
+    }
+    return totals;
+  }, [snapshot]);
 
   // Dynamic replanning: when an input the plan depends on changes (exam date,
   // target grade, availability, session length or subject set), rebuild the
@@ -447,8 +589,15 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       exams: snapshot.examDates,
       targetGrades: snapshot.settings.targetGrades,
       availability: snapshot.settings.availability,
+      availabilityOverrides: snapshot.settings.availabilityOverrides,
       sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
       subjectIds: snapshot.settings.subjectIds,
+      learnerStateKey: learnerStateKey({
+        mastery,
+        cards: snapshot.cards,
+        mistakes: snapshot.mistakes,
+        attempts: snapshot.attempts,
+      }),
     });
     if (lastFingerprint.current === null) {
       lastFingerprint.current = current;
@@ -457,6 +606,7 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     if (fingerprintKey(current) === fingerprintKey(lastFingerprint.current)) return;
     const previous = lastFingerprint.current;
     lastFingerprint.current = current;
+    let cancelled = false;
     void (async () => {
       const result = replanDynamically({
         userId,
@@ -465,46 +615,79 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
         mastery,
         exams: snapshot.examDates,
         availability: snapshot.settings.availability,
+        availabilityOverrides: snapshot.settings.availabilityOverrides,
         sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
         subjectIds: snapshot.settings.subjectIds,
         targetGrades: snapshot.settings.targetGrades,
+        calibrationModel,
+        cards: snapshot.cards,
+        mistakes: snapshot.mistakes,
+        attempts: snapshot.attempts,
+        errorModel,
+        learnerStateKey: current.learner,
+        recentWorkloadMinutes,
+        fatigueThresholdDays: 3,
         existing: snapshot.plannedSessions,
         previous,
       });
+      if (cancelled) return;
       if (result.changed) {
         await repo.replacePlan(userId, result.plan);
+        if (cancelled) return;
         setSnapshot((prev) => (prev ? { ...prev, plannedSessions: result.plan } : prev));
       }
       setReplanSummary(result.summary);
     })();
-  }, [snapshot, userId, topics, mastery]);
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshot, userId, topics, mastery, calibrationModel, errorModel, recentWorkloadMinutes]);
 
-  // Calibration per subject from paper-mode attempts: predicted vs actual.
-  // Paper attempts are the only ones with a stable "total marks" denominator.
+  // Calibration is learned only from predictions captured before a paper and
+  // completed with its later result. Reconstructing a prediction from current
+  // mastery after the paper would leak future information, so it is excluded.
   const calibrations = useMemo(() => {
-    if (!snapshot) return new Map<Id, Calibration>();
-    const bySubject = new Map<Id, Array<{ predicted: number; actual: number }>>();
-    const masteryMap = new Map(mastery.map((m) => [m.topicId, m.mastery]));
-    // Group paper-mode attempts by subject; use current mastery as a proxy for predicted %
-    // until real simulations are stored. This still yields a meaningful bias once ≥3 papers exist.
-    for (const a of snapshot.attempts.filter((x) => x.mode === "paper")) {
-      const q = snapshot.questions.find((qq) => qq.id === a.questionId);
-      const subjectId = a.subjectId;
-      // predicted marks for this attempt: sum of topic mastery averaged across its topics
-      const qMastery = q ? q.topicIds.reduce((s, id) => s + (masteryMap.get(id) ?? 0.4), 0) / Math.max(1, q.topicIds.length) : 0.4;
-      const predicted = a.max * (0.35 + qMastery * 0.6);
-      const list = bySubject.get(subjectId) ?? [];
-      list.push({ predicted, actual: a.awarded });
-      bySubject.set(subjectId, list);
-    }
     const out = new Map<Id, Calibration>();
-    for (const [subjectId, pairs] of bySubject) {
-      out.set(subjectId, calibrateFromHistory({ subjectId, pairs }));
+    for (const [subjectId, paperModel] of calibrationModel.paperBySubject) {
+      const report = evaluatePaperCalibration({
+        records: snapshot?.predictionHistory ?? [],
+        asOf: calibrationModel.asOf,
+        subjectId,
+      });
+      out.set(subjectId, {
+        subjectId,
+        bias: report.sampleSize ? report.metrics.bias : paperModel.bias,
+        slope: report.metrics.calibrationSlope ?? paperModel.slope,
+        sampleSize: report.sampleSize,
+        mae: report.sampleSize ? report.metrics.mae : paperModel.mae,
+        modelVersion: paperModel.modelVersion,
+        priorVersion: paperModel.priorVersion,
+        source: paperModel.source,
+        biasLower: paperModel.biasLower,
+        biasUpper: paperModel.biasUpper,
+        intervalCoverage: report.metrics.intervalCoverage,
+        ece: report.metrics.ece,
+      });
     }
     // Ensure every enrolled subject has at least a neutral calibration
-    for (const sid of subjectIds) if (!out.has(sid)) out.set(sid, { subjectId: sid, bias: 0, slope: 1, sampleSize: 0, mae: 0 });
+    for (const sid of subjectIds) {
+      if (!out.has(sid)) {
+        out.set(sid, {
+          subjectId: sid,
+          bias: 0,
+          slope: 1,
+          sampleSize: 0,
+          mae: 0,
+          modelVersion: calibrationModel.modelVersion,
+          priorVersion: calibrationModel.priorVersion,
+          source: "population-prior",
+          biasLower: -CALIBRATION_PRIOR_V1.paperCalibration.residualStandardDeviation,
+          biasUpper: CALIBRATION_PRIOR_V1.paperCalibration.residualStandardDeviation,
+        });
+      }
+    }
     return out;
-  }, [snapshot, mastery, subjectIds]);
+  }, [calibrationModel, subjectIds, snapshot?.predictionHistory]);
 
   const responseTimeCalibration = useMemo(
     () =>
@@ -519,26 +702,35 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   const recommendations = useMemo(() => {
     if (!snapshot) return [];
+    const marksPerHourEstimates = new Map(
+      topics.map((topic) => [topic.id, estimateMarksPerHour(calibrationModel, topic.id, topic.subjectId)] as const),
+    );
+    const recoverableFractionEstimates = new Map(
+      subjectIds.map((subjectId) => [subjectId, estimateRecoverableMarks(calibrationModel, "", subjectId)] as const),
+    );
     return recommend({
       topics,
       mastery,
       cards: snapshot.cards,
       mistakes: snapshot.mistakes,
+      errorModel,
       exams: snapshot.examDates,
       plan: snapshot.plannedSessions,
       sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
       subjectIds,
       marksPerHour,
+      marksPerHourEstimates,
+      recoverableFractionEstimates,
     });
-  }, [snapshot, mastery, topics, subjectIds, marksPerHour]);
+  }, [snapshot, mastery, topics, subjectIds, marksPerHour, calibrationModel, errorModel]);
 
   const predictions = useMemo(() => {
     if (!snapshot) return [];
     return subjectIds
       .map((id) => getSubject(id))
       .filter((s): s is NonNullable<typeof s> => Boolean(s))
-      .map((subject) => predictGrade(subject, mastery, snapshot.attempts, snapshot.examDates));
-  }, [snapshot, mastery, subjectIds]);
+      .map((subject) => predictGrade(subject, mastery, snapshot.attempts, snapshot.examDates, calibrationModel.asOf.slice(0, 10), calibrationModel));
+  }, [snapshot, mastery, subjectIds, calibrationModel]);
 
   const previewPaper = useCallback(
     (subjectId: Id, paperSpecId: Id, questionIds: Id[]): PaperSimulation | null => {
@@ -548,9 +740,12 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       const questions = questionIds.map((id) => snapshot.questions.find((q) => q.id === id)).filter((q): q is Question => Boolean(q));
       if (!questions.length) return null;
       const topicMastery = new Map(mastery.map((m) => [m.topicId, m.mastery]));
-      return simulatePaper({ subject, paperSpecId, questions, topicMastery, calibration: calibrations.get(subjectId) });
+      // The timestamped calibration model is the production path. The
+      // `calibration` argument remains only as a compatibility adapter for
+      // older callers/tests and would discard the model's uncertainty band.
+      return simulatePaper({ subject, paperSpecId, questions, topicMastery, calibrationModel, asOf: calibrationModel.asOf });
     },
-    [snapshot, mastery, calibrations],
+    [snapshot, mastery, calibrationModel],
   );
 
   // --- actions -------------------------------------------------------------
@@ -645,6 +840,33 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       await repo.saveAttempt(attempt);
       if (updatedMistake) await repo.saveMistake(updatedMistake);
 
+      // Materialise a transfer observation when this outcome has a captured,
+      // earlier revision context. Missing context is intentionally ignored;
+      // current mastery is never used to reconstruct an old baseline.
+      const priorAttempts = snapshot?.attempts ?? [];
+      const revision = [...priorAttempts]
+        .reverse()
+        .find((candidate) =>
+          candidate.subjectId === attempt.subjectId &&
+          candidate.calibrationContext &&
+          candidate.createdAt < attempt.createdAt &&
+          candidate.topicIds.some((topicId) => attempt.topicIds.includes(topicId)),
+        );
+      if (revision) {
+        const topicId = revision.topicIds.find((candidate) => attempt.topicIds.includes(candidate)) ?? attempt.topicIds[0];
+        if (topicId) {
+          const observation = observationFromRevisionAndOutcome({
+            id: `${revision.id}:${attempt.id}:${topicId}`,
+            revision,
+            outcome: attempt,
+            topicId,
+          });
+          if (observation) {
+            await repo.saveCalibrationObservation(observation);
+          }
+        }
+      }
+
       // A failed retest updates the original mistake in place. It must not
       // create another card for the same gap.
       const misconceptions = [...new Set(question.topicIds.flatMap((id) => misconceptionsForTopic(id)))];
@@ -658,6 +880,17 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
         const next: Snapshot = {
           ...prev,
           attempts: [...prev.attempts, attempt],
+          calibrationObservations: revision
+            ? (() => {
+                const topicId = revision.topicIds.find((candidate) => attempt.topicIds.includes(candidate)) ?? attempt.topicIds[0];
+                if (!topicId) return prev.calibrationObservations;
+                const id = `${revision.id}:${attempt.id}:${topicId}`;
+                const observation = observationFromRevisionAndOutcome({ id, revision, outcome: attempt, topicId });
+                return observation
+                  ? [...prev.calibrationObservations.filter((row) => row.id !== observation.id), observation]
+                  : prev.calibrationObservations;
+              })()
+            : prev.calibrationObservations,
           mistakes: updatedMistake
             ? prev.mistakes.map((mistake) => (mistake.id === updatedMistake.id ? updatedMistake : mistake))
             : [...prev.mistakes, ...drafts.map((d) => d.mistake)],
@@ -674,6 +907,48 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     [bumpGamification, patch, snapshot],
   );
 
+  const recordCalibrationObservation = useCallback<StoreValue["recordCalibrationObservation"]>(
+    async (observation) => {
+      await repo.saveCalibrationObservation(observation);
+      patch((prev) => ({
+        ...prev,
+        calibrationObservations: [...prev.calibrationObservations.filter((row) => row.id !== observation.id), observation],
+      }));
+    },
+    [patch],
+  );
+
+  const recordPredictionHistory = useCallback<StoreValue["recordPredictionHistory"]>(
+    async (record) => {
+      await repo.savePredictionHistory(record);
+      patch((prev) => ({
+        ...prev,
+        predictionHistory: [...prev.predictionHistory.filter((row) => row.id !== record.id), record],
+      }));
+    },
+    [patch],
+  );
+
+  const completePredictionHistory = useCallback<StoreValue["completePredictionHistory"]>(
+    async (id, outcome) => {
+      const current = snapshot?.predictionHistory.find((record) => record.id === id);
+      if (!current || current.outcomeAt) return;
+      const updated: PredictionHistoryRecord = {
+        ...current,
+        outcomeMarks: Math.max(0, Math.min(outcome.marks, outcome.totalMarks)),
+        outcomeTotalMarks: Math.max(0, outcome.totalMarks),
+        outcomeAt: outcome.at,
+        updatedAt: outcome.at,
+      };
+      await repo.savePredictionHistory(updated);
+      patch((prev) => ({
+        ...prev,
+        predictionHistory: prev.predictionHistory.map((record) => (record.id === id ? updated : record)),
+      }));
+    },
+    [patch, snapshot],
+  );
+
   const addCards = useCallback<StoreValue["addCards"]>(
     async (cards) => {
       if (!cards.length) return;
@@ -685,10 +960,10 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   const removeCard = useCallback<StoreValue["removeCard"]>(
     async (id) => {
-      await repo.deleteCard(id);
+      await repo.deleteCard(id, userId);
       patch((prev) => ({ ...prev, cards: prev.cards.filter((c) => c.id !== id) }));
     },
-    [patch],
+    [patch, userId],
   );
 
   const updateCards = useCallback<StoreValue["updateCards"]>(
@@ -704,20 +979,23 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
   const removeCards = useCallback<StoreValue["removeCards"]>(
     async (ids) => {
       if (!ids.length) return;
-      await repo.deleteCards(ids);
+      await repo.deleteCards(ids, userId);
       const gone = new Set(ids);
       patch((prev) => ({ ...prev, cards: prev.cards.filter((c) => !gone.has(c.id)) }));
     },
-    [patch],
+    [patch, userId],
   );
 
   const addQuestions = useCallback<StoreValue["addQuestions"]>(
     async (questions) => {
       if (!questions.length) return;
-      await repo.saveQuestions(questions);
-      patch((prev) => ({ ...prev, questions: [...prev.questions, ...questions] }));
+      const ownedQuestions = questions.map((question) =>
+        question.origin === "seed" ? question : { ...question, userId },
+      );
+      await repo.saveQuestions(ownedQuestions, userId);
+      patch((prev) => ({ ...prev, questions: [...prev.questions, ...ownedQuestions] }));
     },
-    [patch],
+    [patch, userId],
   );
 
   const addPaper = useCallback<StoreValue["addPaper"]>(
@@ -740,22 +1018,36 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       mastery,
       exams: snapshot.examDates,
       availability: snapshot.settings.availability,
+      availabilityOverrides: snapshot.settings.availabilityOverrides,
       sessionLengthMinutes: snapshot.settings.sessionLengthMinutes,
       subjectIds: snapshot.settings.subjectIds,
       subjects,
       targetGrades: snapshot.settings.targetGrades,
+      calibrationModel,
+      cards: snapshot.cards,
+      mistakes: snapshot.mistakes,
+      attempts: snapshot.attempts,
+      errorModel,
+      recentWorkloadMinutes,
+      fatigueThresholdDays: 3,
       existing: snapshot.plannedSessions,
     });
     await repo.replacePlan(userId, plan);
     patch((prev) => ({ ...prev, plannedSessions: plan }));
-  }, [snapshot, userId, topics, mastery, patch]);
+  }, [snapshot, userId, topics, mastery, calibrationModel, errorModel, recentWorkloadMinutes, patch]);
 
   const rescheduleMissedSessions = useCallback<StoreValue["rescheduleMissedSessions"]>(async () => {
     if (!snapshot) return;
-    const healed = rescheduleMissed(snapshot.plannedSessions, todayIso(), 6);
+    const healed = rescheduleMissedPrioritised(
+      snapshot.plannedSessions,
+      todayIso(),
+      6,
+      mastery,
+      snapshot.examDates,
+    );
     await repo.replacePlan(userId, healed);
     patch((prev) => ({ ...prev, plannedSessions: healed }));
-  }, [snapshot, userId, patch]);
+  }, [snapshot, userId, mastery, patch]);
 
   const completeSession = useCallback<StoreValue["completeSession"]>(
     async (sessionId, status = "done") => {
@@ -797,10 +1089,10 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
 
   const removeExamDate = useCallback<StoreValue["removeExamDate"]>(
     async (id) => {
-      await repo.deleteExamDate(id);
+      await repo.deleteExamDate(id, userId);
       patch((prev) => ({ ...prev, examDates: prev.examDates.filter((e) => e.id !== id) }));
     },
-    [patch],
+    [patch, userId],
   );
 
   const updateSettings = useCallback<StoreValue["updateSettings"]>(
@@ -844,7 +1136,9 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       dueCards,
       assessment,
       marksPerHour,
+      calibrationModel,
       recurringMisconceptions,
+      errorModel,
       replanSummary,
       calibrations,
       questionTraces,
@@ -862,6 +1156,9 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
       syncStatus,
       reviewCard,
       recordAttempt,
+      recordCalibrationObservation,
+      recordPredictionHistory,
+      completePredictionHistory,
       addCards,
       removeCard,
       updateCards,
@@ -892,7 +1189,9 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     dueCards,
     assessment,
     marksPerHour,
+    calibrationModel,
     recurringMisconceptions,
+    errorModel,
     replanSummary,
     calibrations,
     questionTraces,
@@ -910,6 +1209,9 @@ export function StoreProvider({ children, userId = LOCAL_USER_ID }: { children: 
     syncStatus,
     reviewCard,
     recordAttempt,
+    recordCalibrationObservation,
+    recordPredictionHistory,
+    completePredictionHistory,
     addCards,
     removeCard,
     updateCards,

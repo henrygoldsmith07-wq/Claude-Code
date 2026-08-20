@@ -253,7 +253,7 @@ Beyond unit tests, Revise now pins these so regressions are caught before review
 
 The harnesses above are also published live so the numbers cannot drift from the code:
 
-- **Benchmarks page** (`src/app/benchmarks/page.tsx`, route `/benchmarks`) — live ledger that recomputes `benchmarkRecommendationQuality` + `calibrationReport` in the browser from the same deterministic synthetic harnesses CI runs (`syntheticOutcomePairs`, `syntheticCalibrationOutcomes`). Seed/n controls, provenance row, and the 40-row outcome table; real `(predicted, actual)` pairs drop in with no page change once provider-marked gold exists.
+- **Benchmarks page** (`src/app/benchmarks/page.tsx`, route `/benchmarks`) — live empirical calibration ledger for captured transfer/paper outcomes, with held-out MAE/ECE/interval/bias metrics and model/prior provenance. Seed/n controls and the 40-row deterministic recommendation harness remain explicitly synthetic machinery tests; they never feed learner predictions.
 - **Case study** (`src/app/case-study/page.tsx`, route `/case-study`) — the 6-engine narrative (scoring, FSRS, mastery, marking, mistake loop, grades) with a reproduce block; links back to `/benchmarks` and `docs/benchmark.md`.
 - **Navigation + data controls** — `AppShell` exposes `/benchmarks` + `/case-study` with `BenchmarkIcon`/`CaseStudyIcon`; `Settings → Data` wires `buildPortabilitySnapshot` / `deletionPreview` / `privacyDisclosure` for GDPR Art. 20/17 portability and local-only privacy. Pinned in `tests/phase8-public.test.ts` (8 tests).
 

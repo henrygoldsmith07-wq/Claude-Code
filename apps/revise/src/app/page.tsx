@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { getSubject, getTopic } from "@/domain/curriculum";
 import { planForDate } from "@/domain/planner";
 import { todayIso } from "@/domain/scheduling";
 import { useStore } from "@/state/store";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import { ResumeRevisionCard } from "@/components/ResumeRevisionCard";
-import { ButtonLink, EmptyState } from "@/components/ui";
+import { ButtonLink, EmptyState, Pill } from "@/components/ui";
+import { activityHref } from "@/lib/activity";
 
 // The whole product in one screen: what to do next, why, and how long it takes.
 // Everything below the primary card is context for overriding that choice —
@@ -69,6 +71,43 @@ export default function TodayPage() {
           note={streak.current === 1 ? "day" : "days"}
         />
       </div>
+
+      {todaysPlan.length ? (
+        <section className="card p-4" aria-labelledby="today-plan-heading">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <h2 id="today-plan-heading" className="text-sm font-semibold text-ink">Today’s route</h2>
+              <p className="text-xs text-ink3 mt-0.5">The next blocks adapt as your answers and mistakes come in.</p>
+            </div>
+            <Link href="/planner" className="text-xs text-accent hover:underline">Full plan →</Link>
+          </div>
+          <ol className="mt-3 divide-y divide-line">
+            {todaysPlan.slice(0, 4).map((session) => {
+              const topic = session.topicId ? getTopic(session.topicId) : null;
+              const done = session.status === "done";
+              return (
+                <li key={session.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="w-5 text-xs tabular-nums text-ink3">{todaysPlan.indexOf(session) + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className={done ? "text-sm text-ink3 line-through" : "text-sm text-ink"}>
+                      {session.activity.replace(/-/g, " ")}{topic ? ` · ${topic.title}` : ""}
+                    </p>
+                    <p className="text-[11px] text-ink3 truncate">
+                      {getSubject(session.subjectId)?.name} · {session.purpose ?? session.reason}
+                    </p>
+                  </div>
+                  {session.priority ? <Pill tone={session.priority === "critical" ? "danger" : session.priority === "high" ? "review" : "neutral"}>{session.priority}</Pill> : null}
+                  {!done && session.status === "pending" ? (
+                    <ButtonLink href={activityHref(session.activity, session.subjectId, session.topicId, session.id)} size="sm" variant="primary">
+                      Start
+                    </ButtonLink>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ) : null}
 
       <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-line pt-5">
         <div>

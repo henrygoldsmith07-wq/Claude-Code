@@ -1,7 +1,7 @@
 import type { Id, OutboxItem, SyncEntity } from "@/domain/types";
 import { getDb } from "./db";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import { readReviseMeta, writeReviseMeta } from "./storage-namespace";
+import { readReviseUserMeta, writeReviseUserMeta } from "./storage-namespace";
 
 // ---------------------------------------------------------------------------
 // Offline-first sync: a durable outbox plus a pull that merges by timestamp.
@@ -18,9 +18,11 @@ const TABLES: Record<SyncEntity, string> = {
   cards: "cards",
   reviewLogs: "review_logs",
   attempts: "attempts",
+  calibrationObservations: "calibration_observations",
   mistakes: "mistakes",
   questions: "questions",
   papers: "papers",
+  predictionHistory: "prediction_history",
   plannedSessions: "planned_sessions",
   examDates: "exam_dates",
   settings: "user_settings",
@@ -29,13 +31,14 @@ const TABLES: Record<SyncEntity, string> = {
 
 export const SYNC_QUEUE_EVENT = "revise:sync-queue";
 
-export async function enqueue(entity: SyncEntity, op: OutboxItem["op"], payload: unknown): Promise<void> {
+export async function enqueue(entity: SyncEntity, op: OutboxItem["op"], payload: unknown, ownerUserId?: Id): Promise<void> {
   // With no backend there is nothing to drain into, so queuing would only
   // grow unbounded on a device that is working perfectly well.
   if (!isSupabaseConfigured) return;
   const db = await getDb();
   await db.put("outbox", {
     id: crypto.randomUUID(),
+    userId: ownerUserId ?? ownerOf(payload),
     entity,
     op,
     payload,
@@ -45,10 +48,12 @@ export async function enqueue(entity: SyncEntity, op: OutboxItem["op"], payload:
   if (typeof window !== "undefined") window.dispatchEvent(new Event(SYNC_QUEUE_EVENT));
 }
 
-export async function outboxSize(): Promise<number> {
+export async function outboxSize(userId?: Id): Promise<number> {
   if (!isSupabaseConfigured) return 0;
   const db = await getDb();
-  return db.count("outbox");
+  if (!userId) return db.count("outbox");
+  const rows = (await db.getAll("outbox")) as OutboxItem[];
+  return rows.filter((item) => item.userId === userId || (!item.userId && ownerOf(item.payload) === userId)).length;
 }
 
 export interface SyncResult {
@@ -68,6 +73,7 @@ export async function sync(userId: Id): Promise<SyncResult> {
   if (!supabase) return { pushed: 0, pulled: 0, failed: 0, skipped: "unconfigured" };
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { pushed: 0, pulled: 0, failed: 0, skipped: "signed-out" };
+  if (auth.user.id !== userId) return { pushed: 0, pulled: 0, failed: 0, skipped: "signed-out" };
 
   const pushed = await drainOutbox(userId);
   const pulled = await pull(userId);
@@ -77,7 +83,12 @@ export async function sync(userId: Id): Promise<SyncResult> {
 async function drainOutbox(userId: Id): Promise<{ pushed: number; failed: number }> {
   const supabase = getSupabase();
   const db = await getDb();
-  const items = (await db.getAll("outbox")) as OutboxItem[];
+  // The outbox is shared by profiles in one browser. Only drain rows owned by
+  // the currently authenticated profile; otherwise signing into account B
+  // could upload account A's offline work under B's user_id.
+  const items = ((await db.getAll("outbox")) as OutboxItem[]).filter(
+    (item) => item.userId === userId || (!item.userId && ownerOf(item.payload) === userId),
+  );
   let pushed = 0;
   let failed = 0;
 
@@ -125,7 +136,7 @@ async function drainOutbox(userId: Id): Promise<{ pushed: number; failed: number
 async function pull(userId: Id): Promise<{ pulled: number; failed: number }> {
   const supabase = getSupabase();
   const db = await getDb();
-  const since = (await readReviseMeta<string>("lastPullAt")) ?? "1970-01-01T00:00:00.000Z";
+  const since = (await readReviseUserMeta<string>("lastPullAt", userId)) ?? "1970-01-01T00:00:00.000Z";
   const startedAt = new Date().toISOString();
   let pulled = 0;
   let failed = 0;
@@ -155,17 +166,19 @@ async function pull(userId: Id): Promise<{ pulled: number; failed: number }> {
 
   // Keep the old cursor when a table failed so reconnecting retries that
   // table instead of silently skipping rows that were never pulled.
-  if (failed === 0) await writeReviseMeta("lastPullAt", startedAt);
+  if (failed === 0) await writeReviseUserMeta("lastPullAt", userId, startedAt);
   return { pulled, failed };
 }
 
-const STORE_FOR: Record<SyncEntity, "cards" | "reviewLogs" | "attempts" | "mistakes" | "questions" | "papers" | "plannedSessions" | "examDates" | "settings" | "streak"> = {
+const STORE_FOR: Record<SyncEntity, "cards" | "reviewLogs" | "attempts" | "calibrationObservations" | "mistakes" | "questions" | "papers" | "predictionHistory" | "plannedSessions" | "examDates" | "settings" | "streak"> = {
   cards: "cards",
   reviewLogs: "reviewLogs",
   attempts: "attempts",
+  calibrationObservations: "calibrationObservations",
   mistakes: "mistakes",
   questions: "questions",
   papers: "papers",
+  predictionHistory: "predictionHistory",
   plannedSessions: "plannedSessions",
   examDates: "examDates",
   settings: "settings",
@@ -183,6 +196,11 @@ function pkFor(entity: SyncEntity): string {
 function rowId(payload: unknown): string {
   const row = payload as { id?: string; userId?: string };
   return row.id ?? row.userId ?? "";
+}
+
+function ownerOf(payload: unknown): Id | undefined {
+  const row = payload as { userId?: unknown };
+  return typeof row?.userId === "string" && row.userId ? row.userId : undefined;
 }
 
 /**

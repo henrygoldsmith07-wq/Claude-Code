@@ -3,11 +3,13 @@ import { allTopics, allSubjects } from "@/domain/curriculum";
 import type {
   Attempt,
   Card,
+  CalibrationObservation,
   ExamDate,
   Id,
   Mistake,
   Paper,
   PlannedSession,
+  PredictionHistoryRecord,
   Question,
   ReviewLog,
   StreakState,
@@ -20,7 +22,13 @@ import {
 import { COLLECTION_STORES, getAll, getDb, putAll, putOne, removeOne } from "./db";
 import type { CollectionStore } from "./db";
 import { enqueue } from "./sync";
-import { readReviseMeta, REVISE_META_KEYS, writeReviseMeta } from "./storage-namespace";
+import {
+  readReviseMeta,
+  readReviseUserMeta,
+  REVISE_META_KEYS,
+  writeReviseMeta,
+  writeReviseUserMeta,
+} from "./storage-namespace";
 
 // ---------------------------------------------------------------------------
 // The repository is the only thing the UI talks to. It writes IndexedDB, then
@@ -29,13 +37,17 @@ import { readReviseMeta, REVISE_META_KEYS, writeReviseMeta } from "./storage-nam
 // ---------------------------------------------------------------------------
 
 export const ONBOARDED_KEY = REVISE_META_KEYS.onboardedAt;
+export const LOCAL_USER_ID = "local";
 
-export async function hasOnboarded(): Promise<boolean> {
-  return Boolean(await readReviseMeta<string>("onboardedAt"));
+export async function hasOnboarded(userId: Id = LOCAL_USER_ID): Promise<boolean> {
+  const scoped = await readReviseUserMeta<string>("onboardedAt", userId);
+  if (scoped) return true;
+  // Migrate the original single-profile flag only for the local profile.
+  return userId === LOCAL_USER_ID && Boolean(await readReviseMeta<string>("onboardedAt"));
 }
 
-export async function markOnboarded(): Promise<void> {
-  await writeReviseMeta("onboardedAt", new Date().toISOString());
+export async function markOnboarded(userId: Id = LOCAL_USER_ID): Promise<void> {
+  await writeReviseUserMeta("onboardedAt", userId, new Date().toISOString());
 }
 
 export async function loadRevisionCheckpoint(userId: Id): Promise<RevisionCheckpoint | undefined> {
@@ -78,15 +90,15 @@ export interface Snapshot {
   reviewLogs: ReviewLog[];
   questions: Question[];
   attempts: Attempt[];
+  calibrationObservations: CalibrationObservation[];
   mistakes: Mistake[];
   papers: Paper[];
+  predictionHistory: PredictionHistoryRecord[];
   plannedSessions: PlannedSession[];
   examDates: ExamDate[];
   settings: UserSettings;
   streak: StreakState;
 }
-
-export const LOCAL_USER_ID = "local";
 
 export function defaultSettings(userId: Id): UserSettings {
   return {
@@ -120,6 +132,18 @@ export function defaultStreak(userId: Id): StreakState {
 
 const SEED_VERSION = 1;
 
+/** IndexedDB is shared by local profiles, so every user-owned collection must
+ * be filtered at the repository boundary. Keeping this here prevents a new
+ * surface from accidentally leaking another profile's learning history. */
+function rowsOwnedBy<T extends { userId?: Id }>(rows: unknown[], userId: Id): T[] {
+  return rows.filter(
+    (row): row is T =>
+      Boolean(row) &&
+      typeof row === "object" &&
+      (row as { userId?: unknown }).userId === userId,
+  );
+}
+
 /**
  * Install the authored curriculum content for a user. Deterministic ids make
  * this idempotent: a re-run adds topics that appeared since last time and
@@ -128,7 +152,7 @@ const SEED_VERSION = 1;
 export async function ensureSeeded(userId: Id): Promise<void> {
   const installed = await readReviseMeta<number>("seedVersion");
   const existing = await getAll<Card>("cards");
-  const known = new Set(existing.map((c) => c.id));
+  const known = new Set(existing.filter((c) => c.userId === userId).map((c) => c.id));
 
   const wanted = seedCards(allTopics(), userId);
   const missing = wanted.filter((c) => !known.has(c.id));
@@ -158,14 +182,21 @@ export async function loadSnapshot(userId: Id): Promise<Snapshot> {
   const streak = ((await db.get("streak", userId)) as StreakState | undefined) ?? defaultStreak(userId);
 
   return {
-    cards: rows.cards as Card[],
-    reviewLogs: rows.reviewLogs as ReviewLog[],
-    questions: rows.questions as Question[],
-    attempts: rows.attempts as Attempt[],
-    mistakes: rows.mistakes as Mistake[],
-    papers: rows.papers as Paper[],
-    plannedSessions: rows.plannedSessions as PlannedSession[],
-    examDates: rows.examDates as ExamDate[],
+    cards: rowsOwnedBy<Card>(rows.cards, userId),
+    reviewLogs: rowsOwnedBy<ReviewLog>(rows.reviewLogs, userId),
+    questions: (rows.questions as Question[]).filter(
+      (question) =>
+        (question.origin === "seed" && !question.userId) ||
+        question.userId === userId ||
+        (userId === LOCAL_USER_ID && !question.userId),
+    ),
+    attempts: rowsOwnedBy<Attempt>(rows.attempts, userId),
+    calibrationObservations: rowsOwnedBy<CalibrationObservation>(rows.calibrationObservations, userId),
+    mistakes: rowsOwnedBy<Mistake>(rows.mistakes, userId),
+    papers: rowsOwnedBy<Paper>(rows.papers, userId),
+    predictionHistory: rowsOwnedBy<PredictionHistoryRecord>(rows.predictionHistory, userId),
+    plannedSessions: rowsOwnedBy<PlannedSession>(rows.plannedSessions, userId),
+    examDates: rowsOwnedBy<ExamDate>(rows.examDates, userId),
     settings,
     streak,
   };
@@ -183,19 +214,28 @@ export async function saveCards(cards: Card[]): Promise<void> {
   for (const card of cards) await enqueue("cards", "upsert", card);
 }
 
-export async function deleteCard(id: Id): Promise<void> {
+export async function deleteCard(id: Id, userId?: Id): Promise<void> {
+  const db = await getDb();
+  const existing = (await db.get("cards", id)) as Card | undefined;
+  if (userId && existing?.userId !== userId) return;
   await removeOne("cards", id);
-  await enqueue("cards", "delete", { id });
+  await enqueue("cards", "delete", { id, userId: existing?.userId });
 }
 
 /** Bulk delete for the browser's multi-select. One transaction, one pass. */
-export async function deleteCards(ids: Id[]): Promise<void> {
+export async function deleteCards(ids: Id[], userId?: Id): Promise<void> {
   if (!ids.length) return;
   const db = await getDb();
+  const existing = await Promise.all(ids.map(async (id) => (await db.get("cards", id)) as Card | undefined));
+  const ownedIds = ids.filter((id, index) => Boolean(existing[index]) && (!userId || existing[index]?.userId === userId));
+  if (!ownedIds.length) return;
   const tx = db.transaction("cards", "readwrite");
-  await Promise.all(ids.map((id) => tx.store.delete(id)));
+  await Promise.all(ownedIds.map((id) => tx.store.delete(id)));
   await tx.done;
-  for (const id of ids) await enqueue("cards", "delete", { id });
+  for (const id of ownedIds) {
+    const index = ids.indexOf(id);
+    await enqueue("cards", "delete", { id, userId: existing[index]?.userId });
+  }
 }
 
 export async function saveReviewLog(log: ReviewLog): Promise<void> {
@@ -203,19 +243,31 @@ export async function saveReviewLog(log: ReviewLog): Promise<void> {
   await enqueue("reviewLogs", "upsert", log);
 }
 
-export async function saveQuestion(question: Question): Promise<void> {
-  await putOne("questions", question);
-  await enqueue("questions", "upsert", question);
+export async function saveQuestion(question: Question, userId?: Id): Promise<void> {
+  const owned = userId && question.origin !== "seed" ? { ...question, userId } : question;
+  await putOne("questions", owned);
+  await enqueue("questions", "upsert", owned, userId);
 }
 
-export async function saveQuestions(questions: Question[]): Promise<void> {
-  await putAll("questions", questions);
-  for (const q of questions) await enqueue("questions", "upsert", q);
+export async function saveQuestions(questions: Question[], userId?: Id): Promise<void> {
+  const owned = questions.map((question) => userId && question.origin !== "seed" ? { ...question, userId } : question);
+  await putAll("questions", owned);
+  for (const q of owned) await enqueue("questions", "upsert", q, userId);
 }
 
 export async function saveAttempt(attempt: Attempt): Promise<void> {
   await putOne("attempts", attempt);
   await enqueue("attempts", "upsert", attempt);
+}
+
+export async function saveCalibrationObservation(observation: CalibrationObservation): Promise<void> {
+  await putOne("calibrationObservations", observation);
+  await enqueue("calibrationObservations", "upsert", observation);
+}
+
+export async function savePredictionHistory(record: PredictionHistoryRecord): Promise<void> {
+  await putOne("predictionHistory", record);
+  await enqueue("predictionHistory", "upsert", record);
 }
 
 export async function saveMistake(mistake: Mistake): Promise<void> {
@@ -242,12 +294,14 @@ export async function replacePlan(userId: Id, sessions: PlannedSession[]): Promi
   const db = await getDb();
   const existing = (await db.getAll("plannedSessions")) as PlannedSession[];
   const keep = new Set(sessions.map((s) => s.id));
+  const removed = existing.filter((s) => s.userId === userId && !keep.has(s.id));
   const tx = db.transaction("plannedSessions", "readwrite");
   await Promise.all(
-    existing.filter((s) => s.userId === userId && !keep.has(s.id)).map((s) => tx.store.delete(s.id)),
+    removed.map((s) => tx.store.delete(s.id)),
   );
   await Promise.all(sessions.map((s) => tx.store.put(s)));
   await tx.done;
+  for (const session of removed) await enqueue("plannedSessions", "delete", { id: session.id, userId });
   for (const s of sessions) await enqueue("plannedSessions", "upsert", s);
 }
 
@@ -256,9 +310,12 @@ export async function saveExamDate(exam: ExamDate): Promise<void> {
   await enqueue("examDates", "upsert", exam);
 }
 
-export async function deleteExamDate(id: Id): Promise<void> {
+export async function deleteExamDate(id: Id, userId?: Id): Promise<void> {
+  const db = await getDb();
+  const existing = (await db.get("examDates", id)) as ExamDate | undefined;
+  if (userId && existing?.userId !== userId) return;
   await removeOne("examDates", id);
-  await enqueue("examDates", "delete", { id });
+  await enqueue("examDates", "delete", { id, userId: existing?.userId });
 }
 
 export async function saveSettings(settings: UserSettings): Promise<void> {

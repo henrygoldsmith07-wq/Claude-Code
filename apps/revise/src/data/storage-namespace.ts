@@ -1,4 +1,5 @@
 import { deleteMeta, readMeta, writeMeta } from "./db";
+import type { Id } from "@/domain/types";
 
 /** Revise-owned metadata keys. These are shared-origin names, not private globals. */
 export const REVISE_META_KEYS = {
@@ -30,4 +31,17 @@ export async function readReviseMeta<T>(name: keyof typeof REVISE_META_KEYS): Pr
 
 export async function writeReviseMeta(name: keyof typeof REVISE_META_KEYS, value: unknown): Promise<void> {
   await writeMeta(REVISE_META_KEYS[name], value);
+}
+
+/** Per-profile metadata for cursors and onboarding state. */
+export async function readReviseUserMeta<T>(name: keyof typeof REVISE_META_KEYS, userId: Id): Promise<T | undefined> {
+  return readMeta<T>(`${REVISE_META_KEYS[name]}:${encodeURIComponent(userId)}`);
+}
+
+export async function writeReviseUserMeta(
+  name: keyof typeof REVISE_META_KEYS,
+  userId: Id,
+  value: unknown,
+): Promise<void> {
+  await writeMeta(`${REVISE_META_KEYS[name]}:${encodeURIComponent(userId)}`, value);
 }
