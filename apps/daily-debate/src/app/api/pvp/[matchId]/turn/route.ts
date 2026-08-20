@@ -113,9 +113,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
       winner: "tie" as const,
       playerAScore: 0,
       playerBScore: 0,
-      rationale: "Judging failed; scored as a tie.",
+      rationale: "Judging failed; no score was assigned.",
       isTie: true,
       tieReason: "The judge could not complete — this result carries no confidence.",
+      scoreStatus: "insufficient_evidence",
     } as PvpVerdict;
   }
 
@@ -133,7 +134,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
     })
     .eq("id", matchId);
 
-  await Promise.all([awardPoints(match.player_a, verdict.playerAScore), awardPoints(match.player_b, verdict.playerBScore)]);
+  if (verdict.scoreStatus !== "insufficient_evidence") {
+    await Promise.all([awardPoints(match.player_a, verdict.playerAScore), awardPoints(match.player_b, verdict.playerBScore)]);
+  }
 
   return NextResponse.json({ turn, matchComplete: true, verdict });
 }
+

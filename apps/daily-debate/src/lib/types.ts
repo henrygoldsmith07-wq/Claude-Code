@@ -1,4 +1,5 @@
 import type { ArgGraph } from "./argGraph";
+import type { AssessmentStatus, ObservableAssessment } from "./observableAssessment";
 
 export type DebateSide = "for" | "against";
 export type InputMode = "text" | "voice";
@@ -20,6 +21,8 @@ export interface DailyTopic {
 }
 
 export interface TurnScores {
+  // Legacy display buckets. They are projected from observable graph features
+  // by observableAssessment.ts; model clients must not populate them directly.
   depth: number;
   evidence: number;
   logic: number;
@@ -49,6 +52,7 @@ export interface SoloDebateTurn {
   scores: TurnScores | null;
   turn_score: number | null;
   feedback: string | null;
+  assessment?: ObservableAssessment | null;
   created_at: string;
 }
 
@@ -94,6 +98,7 @@ export interface VerdictJudgeDetail {
   winner: "a" | "b" | "tie";
   playerAScore: number;
   playerBScore: number;
+  scoreStatus?: AssessmentStatus;
   latencyMs?: number;
 }
 
@@ -103,6 +108,9 @@ export interface PvpVerdict {
   playerBScore: number;
   rationale: string;
   argGraph?: ArgGraph;
+  /** `insufficient_evidence` means the numeric legacy fields are not a valid comparison. */
+  scoreStatus?: AssessmentStatus;
+  observableAssessment?: ObservableAssessment;
   breakdown?: {
     a: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number };
     b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number };
@@ -124,6 +132,8 @@ export interface DebateSummary {
   strengths: string[];
   improvements: string[];
   argGraph?: ArgGraph;
+  assessment?: ObservableAssessment;
 }
 
 export const MIN_ROUNDS = 5;
+

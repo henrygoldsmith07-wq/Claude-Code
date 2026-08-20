@@ -4,6 +4,7 @@
 // and by PvP when live keys are present; falls back to single-judge otherwise.
 
 import type { PvpJudgeResult, PvpVerdict } from "./types";
+import type { AssessmentStatus, ObservableAssessment } from "./observableAssessment";
 
 export type JudgeId = "gemini" | "anthropic";
 export interface JudgedVerdict extends PvpJudgeResult {
@@ -28,6 +29,8 @@ export interface EnsembleResult {
   argGraph?: PvpJudgeResult["argGraph"];
   rationale: string;
   decidingFactor?: string;
+  scoreStatus: AssessmentStatus;
+  observableAssessment?: ObservableAssessment;
 }
 
 const TIE_THRESHOLD = 5; // points: |A-B| < 5 => tie unless judges strongly agree
@@ -67,9 +70,34 @@ function confidenceFromGap(gap: number, agreement: number): number {
   return Math.max(0, Math.min(1, 0.35 + 0.5 * gapC + 0.15 * agreement)) ;
 }
 
+function isScoredJudge(judge: JudgedVerdict): boolean {
+  return judge.scoreStatus !== "insufficient_evidence" && judge.observableAssessment?.status !== "insufficient_evidence";
+}
+
 /** Combine 1-2 judge verdicts into an ensemble with uncertainty. Pure function — no I/O. */
 export function ensembleVerdicts(judges: JudgedVerdict[]): EnsembleResult {
   if (!judges.length) throw new Error("ensembleVerdicts: need at least one judge");
+  const scoredJudges = judges.filter(isScoredJudge);
+  if (!scoredJudges.length) {
+    const first = judges[0];
+    return {
+      winner: "tie",
+      playerAScore: 0,
+      playerBScore: 0,
+      scoreGap: 0,
+      confidence: 0,
+      isTie: true,
+      tieReason: "Insufficient evidence: no judge returned a scoreable argument graph.",
+      judges,
+      scoreCI: { lo: 0, hi: 0 },
+      winnerCI: { a: 0, b: 0, tie: 1 },
+      argGraph: first.argGraph,
+      rationale: first.rationale,
+      decidingFactor: "Insufficient evidence: no judge returned a scoreable argument graph.",
+      scoreStatus: "insufficient_evidence",
+      observableAssessment: first.observableAssessment,
+    };
+  }
   if (judges.length === 1) {
     const j = judges[0];
     const gap = Math.abs(j.playerAScore - j.playerBScore);
@@ -89,13 +117,15 @@ export function ensembleVerdicts(judges: JudgedVerdict[]): EnsembleResult {
       argGraph: j.argGraph,
       rationale: j.rationale,
       decidingFactor: j.decidingFactor,
+      scoreStatus: j.scoreStatus ?? j.observableAssessment?.status ?? "scored",
+      observableAssessment: j.observableAssessment,
     };
   }
   // Multi-judge
-  const avgA = Math.round(judges.reduce((s, j) => s + j.playerAScore, 0) / judges.length);
-  const avgB = Math.round(judges.reduce((s, j) => s + j.playerBScore, 0) / judges.length);
+  const avgA = Math.round(scoredJudges.reduce((s, j) => s + j.playerAScore, 0) / scoredJudges.length);
+  const avgB = Math.round(scoredJudges.reduce((s, j) => s + j.playerBScore, 0) / scoredJudges.length);
   const gap = Math.abs(avgA - avgB);
-  const post = winnerPosterior(judges);
+  const post = winnerPosterior(scoredJudges);
   const agree = Math.max(post.a, post.b, post.tie);
   const conf = confidenceFromGap(gap, agree);
   // Winner by majority vote; if no majority and gap small, tie.
@@ -112,7 +142,7 @@ export function ensembleVerdicts(judges: JudgedVerdict[]): EnsembleResult {
   }
   if (gap < TIE_THRESHOLD && !tieReason) { winner = "tie"; tieReason = `Score gap ${gap} < tie threshold ${TIE_THRESHOLD}`; }
   // Pick graph from majority winner (or first judge if tie)
-  const graphOwner = winner === "tie" ? judges[0].judgeId : judges.find((j) => j.winner === winner)?.judgeId ?? judges[0].judgeId;
+  const graphOwner = winner === "tie" ? scoredJudges[0].judgeId : scoredJudges.find((j) => j.winner === winner)?.judgeId ?? scoredJudges[0].judgeId;
   const graph = judges.find((j) => j.judgeId === graphOwner)?.argGraph ?? judges[0].argGraph;
   // Rationale: prefer the majority's rationale, else concatenate
   const majorityRationale = judges.find((j) => j.winner === winner)?.rationale;
@@ -127,11 +157,13 @@ export function ensembleVerdicts(judges: JudgedVerdict[]): EnsembleResult {
     isTie: winner === "tie",
     tieReason,
     judges,
-    scoreCI: ci95ForGap(judges.map((j) => ({ a: j.playerAScore, b: j.playerBScore }))),
+    scoreCI: ci95ForGap(scoredJudges.map((j) => ({ a: j.playerAScore, b: j.playerBScore }))),
     winnerCI: post,
     argGraph: graph,
     rationale,
     decidingFactor: judges.find((j) => j.winner === winner)?.decidingFactor ?? judges[0].decidingFactor,
+    scoreStatus: "scored",
+    observableAssessment: judges.find((j) => j.judgeId === graphOwner)?.observableAssessment,
   };
 }
 
@@ -206,7 +238,11 @@ export function verdictFromEnsemble(e: EnsembleResult): PvpVerdict {
       winner: j.winner,
       playerAScore: j.playerAScore,
       playerBScore: j.playerBScore,
+      scoreStatus: j.scoreStatus ?? j.observableAssessment?.status,
       latencyMs: j.latencyMs,
     })),
+    scoreStatus: e.scoreStatus,
+    observableAssessment: e.observableAssessment,
   };
 }
+

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { debateTurn } from "@/lib/gemini";
-import { pointsForTurn } from "@/lib/gamification";
+import { assessTurn } from "@/lib/observableAssessment";
 import type { InputMode } from "@/lib/types";
 
 export async function POST(request: Request, { params }: { params: Promise<{ debateId: string }> }) {
@@ -71,16 +71,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
     return NextResponse.json({ error: "Failed to evaluate your response." }, { status: 502 });
   }
 
-  const turnScore = pointsForTurn(result.scores);
+  // The model only supplies feedback and the next challenge. Scores are
+  // recomputed from a deterministic turn graph so verbosity cannot buy points
+  // and no model-authored 0–10 number is persisted as ground truth.
+  const observable = assessTurn({
+    userMessage: message,
+    opponentMessage: pendingTurn.ai_message,
+    round: pendingTurn.round_number,
+  });
+  const scores = observable.scores;
+  const turnScore = observable.turnScore;
 
   const { error: updateError } = await supabase
     .from("solo_debate_turns")
     .update({
       user_message: message,
       input_mode: inputMode,
-      scores: result.scores,
+      scores,
       turn_score: turnScore,
       feedback: result.feedback,
+      assessment: observable.assessment,
     })
     .eq("id", pendingTurn.id);
   if (updateError) {
@@ -102,8 +112,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
   await supabase.from("solo_debates").update({ round_count: nextRoundNumber }).eq("id", debateId);
 
   return NextResponse.json({
-    completedTurn: { ...pendingTurn, user_message: message, scores: result.scores, turn_score: turnScore, feedback: result.feedback },
+    completedTurn: { ...pendingTurn, user_message: message, scores, turn_score: turnScore, feedback: result.feedback, assessment: observable.assessment },
     nextTurn,
     roundCount: nextRoundNumber,
   });
 }
+

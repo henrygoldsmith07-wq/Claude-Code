@@ -2,8 +2,10 @@ import type { TurnScores } from "./types";
 
 export const POINTS_PER_LEVEL = 500;
 
-// Each category is scored 0-10 by the judge; summing them gives a 0-50 raw
-// point value per debate turn, so a strong 5-round debate nets ~150-250 pts.
+// Legacy display projection: observableAssessment.ts derives these five
+// buckets from graph features before this helper is called. Keeping the sum
+// here preserves the existing points scale (0-50 per turn) without allowing a
+// model to author the point value directly.
 export function pointsForTurn(scores: TurnScores): number {
   return scores.depth + scores.evidence + scores.logic + scores.rebuttal + scores.clarity;
 }
@@ -45,3 +47,4 @@ export function updateStreak(
     last_activity_date: today,
   };
 }
+

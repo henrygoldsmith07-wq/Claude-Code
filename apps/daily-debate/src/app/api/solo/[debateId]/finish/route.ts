@@ -4,6 +4,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { summarizeSoloDebate } from "@/lib/gemini";
 import { levelForPoints, updateStreak } from "@/lib/gamification";
 import { MIN_ROUNDS } from "@/lib/types";
+import { assessArgumentGraph, mergeAssessmentGraphs } from "@/lib/observableAssessment";
+import type { ObservableAssessment } from "@/lib/observableAssessment";
 
 export async function POST(request: Request, { params }: { params: Promise<{ debateId: string }> }) {
   const limited = await checkRateLimit(request, { name: "solo-finish", limit: 10, windowMs: 60_000 });
@@ -56,6 +58,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
     summary = { overallFeedback: "Great work completing the debate.", strengths: [], improvements: [] };
   }
 
+  const turnAssessments = answered
+    .map((turn) => turn.assessment as ObservableAssessment | null | undefined)
+    .filter((assessment): assessment is ObservableAssessment => !!assessment);
+  const finalAssessment = turnAssessments.length
+    ? assessArgumentGraph(
+        mergeAssessmentGraphs(turnAssessments.map((assessment) => assessment.graph)),
+        { sideA: "a", sideB: "ai", extractionSource: "deterministic", labelA: "You", labelB: "AI opponent" },
+      )
+    : null;
+  if (finalAssessment) summary = { ...summary, argGraph: finalAssessment.graph, assessment: finalAssessment };
+
   await supabase
     .from("solo_debates")
     .update({ status: "completed", total_score: totalScore, completed_at: new Date().toISOString() })
@@ -78,5 +91,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
       .eq("id", user.id);
   }
 
-  return NextResponse.json({ totalScore, summary });
+  return NextResponse.json({ totalScore, summary, assessment: finalAssessment });
 }
+

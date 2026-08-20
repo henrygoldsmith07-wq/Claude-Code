@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { DebateSide, DebateSummary, TopicSource, TurnScores } from "./types";
+import { finalizePvpAssessment } from "./observableAssessment";
 
 const MODEL = "gemini-2.5-flash";
 
@@ -69,25 +70,14 @@ export async function generateDailyTopic(recentTitles: string[]): Promise<Genera
 
 export interface DebateTurnResult {
   aiMessage: string;
-  scores: TurnScores;
+  /** Back-compat only. The route computes scores from observable features. */
+  scores?: TurnScores;
   feedback: string;
 }
 
 const TURN_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    scores: {
-      type: Type.OBJECT,
-      description: "Score the user's most recent message only, each 0-10.",
-      properties: {
-        depth: { type: Type.INTEGER, description: "How thoroughly the point was developed, beyond a surface-level take." },
-        evidence: { type: Type.INTEGER, description: "Use of concrete facts, examples, data, or credible reasoning to back the claim." },
-        logic: { type: Type.INTEGER, description: "Internal consistency and validity of the argument's structure." },
-        rebuttal: { type: Type.INTEGER, description: "How directly and effectively it engaged with the AI's prior challenge." },
-        clarity: { type: Type.INTEGER, description: "How clearly and concisely the point was communicated." },
-      },
-      required: ["depth", "evidence", "logic", "rebuttal", "clarity"],
-    },
     feedback: {
       type: Type.STRING,
       description: "One or two sentences of specific, constructive feedback on this response.",
@@ -98,7 +88,7 @@ const TURN_SCHEMA = {
         "The AI opponent's next move: a sharp counter-argument, a probing follow-up question, or a challenge to a weak point — 2-4 sentences, arguing the opposite side from the user.",
     },
   },
-  required: ["scores", "feedback", "aiMessage"],
+  required: ["feedback", "aiMessage"],
 };
 
 export async function debateTurn(params: {
@@ -117,7 +107,7 @@ export async function debateTurn(params: {
 
   const response = await ai.models.generateContent({
     model: MODEL,
-    contents: `You are an AI debate opponent in a critical-thinking training app. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nThe user is arguing the "${params.userSide}" side. You are arguing the "${aiSide}" side, and your job is to challenge the user's thinking as rigorously and fairly as possible so they sharpen their reasoning.\n\nTranscript so far:\n${transcript}\n\nUser's latest response: "${params.latestUserMessage}"\n\nScore that latest response, give brief feedback, and produce your next challenge.`,
+    contents: `You are an AI debate opponent in a critical-thinking training app. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nThe user is arguing the "${params.userSide}" side. You are arguing the "${aiSide}" side, and your job is to challenge the user's thinking as rigorously and fairly as possible so they sharpen their reasoning.\n\nTranscript so far:\n${transcript}\n\nUser's latest response: "${params.latestUserMessage}"\n\nGive brief, specific feedback and produce your next challenge. Do not assign numeric scores; the application computes those from observable argument evidence after this response.`,
     config: { responseMimeType: "application/json", responseSchema: TURN_SCHEMA },
   });
 
@@ -179,6 +169,8 @@ export interface PvpJudgeResult {
   decidingFactor?: string;
   breakdown?: { a: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number }; b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number } };
   argGraph?: import("./argGraph").ArgGraph;
+  scoreStatus?: import("./observableAssessment").AssessmentStatus;
+  observableAssessment?: import("./observableAssessment").ObservableAssessment;
 }
 
 const EVIDENCE_CITATION_SCHEMA = {
@@ -226,15 +218,12 @@ const ARG_GRAPH_SCHEMA = {
 const JUDGE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    playerAScore: { type: Type.INTEGER, description: "Player A's score out of 100 — weight grounded, cited evidence > asserted claims." },
-    playerBScore: { type: Type.INTEGER, description: "Player B's score out of 100." },
-    winner: { type: Type.STRING, enum: ["a", "b", "tie"], description: "Who made the stronger case overall." },
     rationale: { type: Type.STRING, description: "2-4 sentences, citing specific transcript moments." },
     decidingFactor: { type: Type.STRING, description: "One sentence naming the single biggest reason the winner won." },
     breakdown: { type: Type.OBJECT, properties: { a: { type: Type.OBJECT, properties: { claims: { type: Type.INTEGER }, evidence: { type: Type.INTEGER }, rebuttals: { type: Type.INTEGER }, impacts: { type: Type.INTEGER }, fallacies: { type: Type.INTEGER }, droppedSuffered: { type: Type.INTEGER } }, required: ["claims", "evidence", "rebuttals", "impacts", "fallacies", "droppedSuffered"] }, b: { type: Type.OBJECT, properties: { claims: { type: Type.INTEGER }, evidence: { type: Type.INTEGER }, rebuttals: { type: Type.INTEGER }, impacts: { type: Type.INTEGER }, fallacies: { type: Type.INTEGER }, droppedSuffered: { type: Type.INTEGER } }, required: ["claims", "evidence", "rebuttals", "impacts", "fallacies", "droppedSuffered"] } }, required: ["a", "b"] },
     argGraph: ARG_GRAPH_SCHEMA,
   },
-  required: ["playerAScore", "playerBScore", "winner", "rationale"],
+  required: ["rationale", "argGraph"],
 };
 
 export async function judgePvpMatch(params: {
@@ -246,9 +235,11 @@ export async function judgePvpMatch(params: {
   const ai = getClient();
   const response = await ai.models.generateContent({
     model: MODEL,
-    contents: `You are a neutral, rigorous debate judge. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nPlayer A argued "${params.playerASide}"; Player B argued the opposite side.\n\nTranscript:\n${params.transcript}\n\nJudge purely on the quality of reasoning, evidence, and clash — not on which side of the topic is "correct".\n- Score each player out of 100 (grounded, cited evidence counts more than asserted claims).\n- Pick a winner (or tie) and give a 2-4 sentence rationale citing specific moments.\n- Also produce decidingFactor, breakdown (claims/evidence/rebuttals/impacts/fallacies/droppedSuffered per side), and the full argGraph: nodes (c1,e1,k1,r1,i1, text ≤18 words), edges, dropped, contradictions, concessions, fallacies, evidenceStats (with unsupportedClaimIds), and impactComparison. Every cited/strong evidence node MUST include ≥1 citation {sourceName, homepage (root only), excerpt ≤200 chars} naming a real institution; never invent article URLs. Keep the graph faithful — do not invent arguments not in the transcript.`,
+    contents: `You are a neutral, rigorous debate analyst. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nPlayer A argued "${params.playerASide}"; Player B argued the opposite side.\n\nTranscript:\n${params.transcript}\n\nAnalyze the observable argument structure, not which side of the topic is "correct". Return a faithful argGraph with nodes (c1,e1,k1,r1,i1, text ≤18 words), edges, dropped arguments, contradictions, concessions, fallacies, evidenceStats, and impactComparison. Every cited/strong evidence node MUST include a citation object with a named source; never invent arguments or citations not present in the transcript. Also return a short rationale citing specific graph moments. Numeric scores and winner are computed by the application from the graph and must not be estimated here.`,
     config: { responseMimeType: "application/json", responseSchema: JUDGE_SCHEMA },
   });
 
-  return parseJson<PvpJudgeResult>(response.text);
+  const extracted = parseJson<{ rationale?: string; argGraph?: import("./argGraph").ArgGraph }>(response.text);
+  return finalizePvpAssessment(extracted, { extractionSource: "llm" });
 }
+

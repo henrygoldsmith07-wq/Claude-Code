@@ -1,5 +1,5 @@
 import AppHeader from "@/components/AppHeader";
-import { HUMAN_CORPUS, corpusStats, ratingMatrix, fleissKappa, syntheticCorpus } from "@/lib/humanCorpus";
+import { HUMAN_CORPUS, HUMAN_CORPUS_AUDIT, corpusStats, ratingMatrix, fleissKappa, syntheticCorpus } from "@/lib/humanCorpus";
 import { evaluateFallacyDetection, FALLACY_BENCHMARK_CASES } from "@/lib/fallacyBenchmark";
 import { runAllProbesOffline } from "@/lib/judgeInvariance";
 import { TRANSCRIPTS } from "@/lib/benchmark.fixtures";
@@ -8,13 +8,13 @@ export const dynamic = "force-dynamic";
 
 export default function BenchmarkPage() {
   const syn = syntheticCorpus({ n: 200, seed: 42, agreement: "medium" });
-  const statsReal = corpusStats(HUMAN_CORPUS);
+  const statsFixture = corpusStats(HUMAN_CORPUS);
   const statsSyn = corpusStats(syn);
   const probes = runAllProbesOffline(TRANSCRIPTS.map((t) => t.transcript));
   const mat = ratingMatrix(syn.slice(0, 40));
   const kappaHint = fleissKappa(mat);
   const fallacyReport = evaluateFallacyDetection(FALLACY_BENCHMARK_CASES);
-  const cohenMean = statsReal.byRaterPair.length ? statsReal.byRaterPair.reduce((a, p) => a + p.cohenKappa, 0) / statsReal.byRaterPair.length : null;
+  const cohenMean = statsFixture.byRaterPair.length ? statsFixture.byRaterPair.reduce((a, p) => a + p.cohenKappa, 0) / statsFixture.byRaterPair.length : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -32,15 +32,17 @@ export default function BenchmarkPage() {
         <section className="surface-card p-5">
           <h2 className="text-sm font-semibold">Corpus</h2>
           <p className="mt-1 text-sm text-ink3">
-            Human-labelled debates are the ground truth. The offline corpus ships with {HUMAN_CORPUS.length} real examples; the pipeline scales to
-            thousands (Supabase table <code className="text-xs">benchmark_corpus</code>) with per-rater verdicts.
+            The repository contains {HUMAN_CORPUS.length} labelled fixture debates. Their rater-shaped records are not independently proven human
+            annotations in this checkout, so they are useful for regression tests but do not establish judge validity. The pipeline scales to thousands
+            (Supabase table <code className="text-xs">benchmark_corpus</code>) once provenance is recorded.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
             <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
-              <p className="font-medium">Real corpus (offline)</p>
-              <p className="tabular text-ink3">n={statsReal.n} · Fleiss κ={statsReal.fleissKappa.toFixed(3)} · α={statsReal.krippendorffAlpha.toFixed(3)}</p>
-              <p className="tabular text-ink3">Cohen κ (mean pairwise)={cohenMean === null ? "—" : cohenMean.toFixed(3)}</p>
-              <p className="tabular text-ink3">Labels: a={statsReal.labelDist.a} b={statsReal.labelDist.b} tie={statsReal.labelDist.tie}</p>
+                <p className="font-medium">Labelled fixtures (offline)</p>
+                <p className="tabular text-ink3">n={statsFixture.n} · Fleiss κ={statsFixture.fleissKappa.toFixed(3)} · α={statsFixture.krippendorffAlpha.toFixed(3)}</p>
+                <p className="tabular text-ink3">Cohen κ (mean pairwise)={cohenMean === null ? "—" : cohenMean.toFixed(3)}</p>
+                <p className="tabular text-ink3">Labels: a={statsFixture.labelDist.a} b={statsFixture.labelDist.b} tie={statsFixture.labelDist.tie}</p>
+                <p className="mt-1 text-amber-700">Provenance: {HUMAN_CORPUS_AUDIT.status}; human-validity claim: {HUMAN_CORPUS_AUDIT.canClaimHumanValidity ? "allowed" : "not established"}</p>
             </div>
             <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3">
               <p className="font-medium">Synthetic scaffold (200, seed 42)</p>
@@ -147,7 +149,7 @@ export default function BenchmarkPage() {
         <section className="surface-card p-5">
           <h2 className="text-sm font-semibold">What&apos;s next</h2>
           <ul className="mt-2 list-disc pl-4 text-sm text-ink3">
-            <li>Grow the human corpus to hundreds/thousands (schema + migration 003 ready) and re-report κ/α + judge-vs-human r on real data.</li>
+            <li>Import hundreds/thousands of moderated annotations with provenance (migration 005) before reporting κ/α or judge-vs-human agreement as human-validity evidence.</li>
             <li>Run live bias harness across both judges and publish model-by-model deltas; ensemble where it improves reliability.</li>
             <li>Wire live fetch into the judge route and surface the per-claim evidence report in the verdict panel.</li>
           </ul>
@@ -156,3 +158,4 @@ export default function BenchmarkPage() {
     </div>
   );
 }
+

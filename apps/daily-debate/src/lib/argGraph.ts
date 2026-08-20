@@ -78,9 +78,9 @@ export interface FallacyTag {
 }
 
 export interface ImpactComparison {
-  a: number; // 0-100, judge's weighting of which impacts matter more
+  a: number; // 0-100 derived impact-handling signal for side A
   b: number;
-  rationale: string;
+  rationale: string; // must state the observable basis or insufficiency
 }
 
 export interface ArgGraph {
@@ -182,3 +182,4 @@ export function claimSupportMap(graph: ArgGraph): Map<string, boolean> {
   for (const id of graph.evidenceStats.unsupportedClaimIds) map.set(id, false);
   return map;
 }
+

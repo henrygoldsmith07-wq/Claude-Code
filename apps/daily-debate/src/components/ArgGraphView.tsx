@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ArgGraph, ArgNode } from "@/lib/argGraph";
 import type { PvpVerdict } from "@/lib/types";
-import { applyGraphEdits, type GraphEdit } from "@/lib/graphEnrichers";
+import { applyGraphEdits } from "@/lib/graphEnrichers";
 import { validateGraph } from "@/lib/argGraph";
 
 const KIND_LABEL: Record<ArgNode["kind"], string> = {
@@ -42,8 +42,11 @@ export function VerdictExplainPanel({ verdict, playerAName, playerBName }: { ver
         <p className="text-xs uppercase tracking-wide text-ink3">Why the debate was won</p>
         <p className="text-sm leading-relaxed">{deciding}</p>
         <p className="text-xs text-ink3 tabular">
-          {playerAName}: {verdict.playerAScore}/100 · {playerBName}: {verdict.playerBScore}/100
+          {verdict.scoreStatus === "insufficient_evidence"
+            ? "Scores unavailable — insufficient observable evidence"
+            : `${playerAName}: ${verdict.playerAScore}/100 · ${playerBName}: ${verdict.playerBScore}/100`}
         </p>
+        {verdict.observableAssessment && <ObservableFeaturePanel assessment={verdict.observableAssessment} playerAName={playerAName} playerBName={playerBName} />}
         {verdict.isTie && (
           <div className="rounded-xl border border-[var(--accent-soft)] bg-[var(--accent-soft)]/40 p-3">
             <p className="text-sm font-medium">Too close to call</p>
@@ -75,6 +78,31 @@ export function VerdictExplainPanel({ verdict, playerAName, playerBName }: { ver
       ) : (
         <p className="text-xs text-ink3 surface-card p-4">Structured breakdown will appear on newly judged matches. Older verdicts show only the rationale.</p>
       )}
+    </div>
+  );
+}
+
+function ObservableFeaturePanel({ assessment, playerAName, playerBName }: { assessment: NonNullable<PvpVerdict["observableAssessment"]>; playerAName: string; playerBName: string }) {
+  const rows = [
+    ["Claims supported", assessment.features.a.claimsDirectlySupported.value, assessment.features.b.claimsDirectlySupported.value],
+    ["Cited evidence nodes", assessment.features.a.evidenceActuallyCited.value, assessment.features.b.evidenceActuallyCited.value],
+    ["Evidence relevance", assessment.features.a.evidenceRelevance.value.toFixed(2), assessment.features.b.evidenceRelevance.value.toFixed(2)],
+    ["Rebuttal coverage", assessment.features.a.rebuttalCoverage.value.toFixed(2), assessment.features.b.rebuttalCoverage.value.toFixed(2)],
+    ["Argument responses", assessment.features.a.argumentResponses.value.rate.toFixed(2), assessment.features.b.argumentResponses.value.rate.toFixed(2)],
+    ["Unsupported assertions", assessment.features.a.unsupportedAssertions.value, assessment.features.b.unsupportedAssertions.value],
+    ["Confident fallacies", assessment.features.a.confidentlyDetectableFallacies.value, assessment.features.b.confidentlyDetectableFallacies.value],
+  ] as const;
+  return (
+    <div className="rounded-xl border border-[var(--rule)] bg-surface-2 p-3 text-xs">
+      <p className="font-medium">Observable score inputs</p>
+      <p className="mt-1 text-ink3">{assessment.scoreComposition.formula}</p>
+      <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1 tabular text-ink3">
+        <span />
+        <span>{playerAName}</span>
+        <span>{playerBName}</span>
+        {rows.map(([label, a, b]) => <span key={label} className="contents"><span>{label}</span><span>{a}</span><span>{b}</span></span>)}
+      </div>
+      {assessment.uncertainty.length > 0 && <p className="mt-2 text-amber-700">Uncertainty: {assessment.uncertainty.join(" ")}</p>}
     </div>
   );
 }
@@ -272,3 +300,4 @@ function TrackCard({ title, items, empty }: { title: string; items: string[]; em
     </div>
   );
 }
+

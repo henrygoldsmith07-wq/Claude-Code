@@ -1,4 +1,4 @@
--- Benchmark corpus for judge verification: stores human-labelled debates with
+-- Benchmark corpus for judge verification: stores labelled debates with
 -- per-rater verdicts so the pipeline scales to thousands. Mirrors
 -- src/lib/humanCorpus.ts's LabeledDebate shape.
 
@@ -58,3 +58,4 @@ create policy "Users can file reports" on public.reports
   for insert with check (auth.uid() = filed_by);
 create policy "Users can read own reports" on public.reports
   for select using (auth.uid() = filed_by);
+

@@ -45,6 +45,7 @@ export type SoloDebateTurnRow = {
   scores: unknown;
   turn_score: number | null;
   feedback: string | null;
+  assessment: unknown;
   created_at: string;
 };
 
@@ -96,6 +97,8 @@ export type BenchmarkCorpusRow = {
   human_rationale: string;
   topic: string | null;
   is_synthetic: boolean;
+  provenance: string;
+  provenance_record: unknown;
   created_at: string;
 };
 
@@ -148,3 +151,4 @@ export type Database = {
     CompositeTypes: Record<string, never>;
   };
 };
+

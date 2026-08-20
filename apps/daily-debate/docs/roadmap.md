@@ -3,15 +3,18 @@
 A backlog for growing Daily Debate from a daily game into a trustworthy
 debate-training and competition platform. The headline is **evidence**: before
 ranked play, tournaments, or classroom use can ship, the judge must be
-validated against a large, human-labelled corpus and shown to be unbiased.
+validated against a large, provenance-audited human-labelled corpus and shown
+to be unbiased.
 
 Items marked *(extend)* already have a working baseline in `src/lib/` and need
-depth rather than a new subsystem. Order within each group is not priority order.
+depth rather than a new subsystem. The current labelled fixture corpus is not
+provenance-audited human data; it is a regression scaffold until moderated
+annotations are imported. Order within each group is not priority order.
 
 ## Progress (2026-08-15)
 
-Shipped in the first implementation pass: rater guidance + consensus labels +
-adjudicated disagreements (`corpusAdjudication.ts`), source-date checking +
+Shipped in the first implementation pass: rater-guidance/consensus-label
+scaffolding + adjudication helpers (`corpusAdjudication.ts`), source-date checking +
 original-source detection (`citationVerifier.ts`), political-topic / ideological
 asymmetry / writing-complexity / source-prestige bias audit (`judgeInvariance.ts`),
 team debates / classroom debates / teacher-assigned motions (`classroom.ts`), and
@@ -47,7 +50,7 @@ those links to tangential, and docks its score for decorative citations
 | Source-grounded evidence + citation allowlist / quality score | `src/lib/citationVerifier.ts` |
 | User-attached evidence (URL inference) | `src/lib/evidence.ts` |
 | Judge invariance transforms (swap labels, strip names, verbosity, hedge, fake source) | `src/lib/judgeInvariance.ts` |
-| Human corpus (2 labelled debates, rater ids, agreement) | `src/lib/humanCorpus.ts` |
+| Labelled fixture corpus (provenance currently unverified) | `src/lib/humanCorpus.ts` |
 | Heuristic enrichers (repetition, rebuttal coverage, fallacy hints) | `src/lib/argHeuristics.ts` |
 | Targeted drills + weakness profile | `src/lib/drills.ts` |
 | Elo gating + matchmaking | `src/lib/competitive.ts` |
@@ -148,3 +151,4 @@ Daily Debate wins when a player can trust the judge more than the opponent —
 "the judge is calibrated, auditable, and can say *too close to call*." The corpus
 and bias benchmarks in Sections 1–2 are what earn that trust; the classroom and
 competition features in Sections 7–8 are what it unlocks.
+

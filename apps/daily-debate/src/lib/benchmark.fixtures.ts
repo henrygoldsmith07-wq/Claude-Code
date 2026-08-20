@@ -6,9 +6,9 @@ export type FixtureTranscript = {
   topicPrompt: string;
   playerASide: "for" | "against";
   transcript: string;
-  // Expected winner from a prior judged run (human-verified or model-verified).
-  // Used as ground truth for invariance: swapping player labels / rewording
-  // the judge prompt should not flip the winner.
+  // Expected winner for regression/invariance probes only. This repository
+  // does not carry independent provenance proving that these labels are human.
+  // Swapping player labels / rewording the judge prompt should not flip it.
   expectedWinner: "a" | "b" | "tie";
   // Which claims are expected to require grounded citations.
   expectedMinGroundedClaims: number;
@@ -56,3 +56,4 @@ export const TRANSCRIPTS: FixtureTranscript[] = [
     ].join("\n"),
   },
 ];
+

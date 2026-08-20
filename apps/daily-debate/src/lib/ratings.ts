@@ -8,8 +8,8 @@ export interface FactorRatings extends TurnScores {
 
 const FACTORS: (keyof TurnScores)[] = ["depth", "evidence", "logic", "rebuttal", "clarity"];
 
-// Averages each of the five judged factors across a user's scored solo-debate
-// turns, giving a rating profile rather than a single point total.
+// Averages the five observable-feature projections across a user's scored
+// solo-debate turns, giving a profile rather than a single point total.
 export async function getFactorRatings(
   supabase: SupabaseClient<Database>,
   userId: string,
@@ -36,3 +36,4 @@ export async function getFactorRatings(
 
   return { ...totals, roundsScored: scored.length };
 }
+

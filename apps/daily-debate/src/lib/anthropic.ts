@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ArgGraph } from "./argGraph";
 import type { DebateSide, DebateSummary, TopicSource, TurnScores } from "./types";
+import { finalizePvpAssessment } from "./observableAssessment";
 
 // Lazy import to avoid circular deps: types -> argGraph ok, but anthropic -> types is fine.
 // ArgGraph types are structural; runtime validation via argGraph.validateGraph.
@@ -77,7 +78,8 @@ export async function generateDailyTopic(recentTitles: string[]): Promise<Genera
 
 export interface DebateTurnResult {
   aiMessage: string;
-  scores: TurnScores;
+  /** Back-compat only. The route computes scores from observable features. */
+  scores?: TurnScores;
   feedback: string;
 }
 
@@ -87,25 +89,13 @@ const TURN_TOOL = {
   input_schema: {
     type: "object" as const,
     properties: {
-      scores: {
-        type: "object",
-        description: "Score the user's most recent message only, each 0-10.",
-        properties: {
-          depth: { type: "integer", description: "How thoroughly the point was developed, beyond a surface-level take." },
-          evidence: { type: "integer", description: "Use of concrete facts, examples, data, or credible reasoning to back the claim." },
-          logic: { type: "integer", description: "Internal consistency and validity of the argument's structure." },
-          rebuttal: { type: "integer", description: "How directly and effectively it engaged with the AI's prior challenge." },
-          clarity: { type: "integer", description: "How clearly and concisely the point was communicated." },
-        },
-        required: ["depth", "evidence", "logic", "rebuttal", "clarity"],
-      },
       feedback: { type: "string", description: "One or two sentences of specific, constructive feedback on this response." },
       aiMessage: {
         type: "string",
         description: "The AI opponent's next move: a sharp counter-argument, a probing follow-up question, or a challenge to a weak point — 2-4 sentences, arguing the opposite side from the user.",
       },
     },
-    required: ["scores", "feedback", "aiMessage"],
+    required: ["feedback", "aiMessage"],
   },
 };
 
@@ -129,7 +119,7 @@ export async function debateTurn(params: {
     messages: [
       {
         role: "user",
-        content: `You are an AI debate opponent in a critical-thinking training app. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nThe user is arguing the "${params.userSide}" side. You are arguing the "${aiSide}" side, and your job is to challenge the user's thinking as rigorously and fairly as possible so they sharpen their reasoning.\n\nTranscript so far:\n${transcript}\n\nUser's latest response: "${params.latestUserMessage}"\n\nScore that latest response, give brief feedback, and produce your next challenge.`,
+        content: `You are an AI debate opponent in a critical-thinking training app. Topic: "${params.topicTitle}" — ${params.topicPrompt}\nThe user is arguing the "${params.userSide}" side. You are arguing the "${aiSide}" side, and your job is to challenge the user's thinking as rigorously and fairly as possible so they sharpen their reasoning.\n\nTranscript so far:\n${transcript}\n\nUser's latest response: "${params.latestUserMessage}"\n\nGive brief, specific feedback and produce your next challenge. Do not assign numeric scores; the application computes those from observable argument evidence after this response.`,
       },
     ],
   });
@@ -211,6 +201,8 @@ export interface PvpJudgeResult {
   argGraph?: ArgGraph;
   breakdown?: { a: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number }; b: { claims: number; evidence: number; rebuttals: number; impacts: number; fallacies: number; droppedSuffered: number } };
   decidingFactor?: string;
+  scoreStatus?: import("./observableAssessment").AssessmentStatus;
+  observableAssessment?: import("./observableAssessment").ObservableAssessment;
 }
 
 const JUDGE_TOOL = {
@@ -219,9 +211,6 @@ const JUDGE_TOOL = {
   input_schema: {
     type: "object" as const,
     properties: {
-      playerAScore: { type: "integer", description: "Player A's score out of 100 for argument quality across the whole match." },
-      playerBScore: { type: "integer", description: "Player B's score out of 100 for argument quality across the whole match." },
-      winner: { type: "string", enum: ["a", "b", "tie"], description: "Who made the stronger case overall." },
       rationale: { type: "string", description: "2-4 sentences explaining the verdict, citing specific moments from the transcript." },
       decidingFactor: { type: "string", description: "One sentence naming the single biggest reason the winner won (e.g. 'Player A's strongest impact went unrebutted while Player B left two claims unsupported')." },
       breakdown: {
@@ -368,7 +357,7 @@ const JUDGE_TOOL = {
         required: ["nodes", "edges", "dropped", "contradictions", "concessions", "fallacies", "evidenceStats", "impactComparison"],
       },
     },
-    required: ["playerAScore", "playerBScore", "winner", "rationale"],
+    required: ["rationale", "argGraph"],
   },
 };
 
@@ -382,10 +371,8 @@ Player A argued "${params.playerASide}"; Player B argued the opposite side.
 Transcript:
 ${params.transcript}
 
-Judge purely on the quality of reasoning, evidence, and clash — not on which side of the topic is "correct".
-- Score each player out of 100 (grounded, cited evidence counts more than asserted claims).
-- Pick a winner (or tie) and give a 2-4 sentence rationale citing specific moments.
-- Also produce decidingFactor, breakdown (claims/evidence/rebuttals/impacts/fallacies/droppedSuffered per side), and the full argGraph: nodes (c1,e1,k1,r1,i1, text ≤18 words), edges, dropped, contradictions, concessions, fallacies, evidenceStats (with unsupportedClaimIds), and impactComparison. Every cited/strong evidence node MUST include ≥1 citation {sourceName, homepage (root only), excerpt ≤200 chars} naming a real institution; never invent article URLs. Keep the graph faithful — do not invent arguments not in the transcript.`;
+Analyze observable argument structure, not which side of the topic is "correct".
+Return a faithful argGraph with nodes (c1,e1,k1,r1,i1, text ≤18 words), edges, dropped arguments, contradictions, concessions, fallacies, evidenceStats, and impactComparison. Every cited/strong evidence node MUST include a citation object with a named source; never invent arguments or citations not present in the transcript. Also return a short rationale citing specific graph moments. Numeric scores and winner are computed by the application from the graph and must not be estimated here.`;
 
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -397,7 +384,7 @@ Judge purely on the quality of reasoning, evidence, and clash — not on which s
 
   const toolUse = message.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") throw new Error("Claude did not return structured output");
-  const result = toolUse.input as PvpJudgeResult;
-  // Normalize: if the model omitted optional structured fields, leave them undefined
-  return result;
+  const extracted = toolUse.input as { rationale?: string; argGraph?: ArgGraph };
+  return finalizePvpAssessment(extracted, { extractionSource: "llm" });
 }
+

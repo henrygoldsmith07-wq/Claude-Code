@@ -36,6 +36,23 @@ describe("ensembleVerdicts — uncertainty", () => {
     expect(e.isTie).toBe(true);
     expect(e.tieReason).toBeDefined();
   });
+
+  it("does not turn an insufficient graph into a zero-score vote", () => {
+    const insufficient = { ...judge("gemini", "tie", 0, 0), scoreStatus: "insufficient_evidence" as const };
+    const e = ensembleVerdicts([insufficient]);
+    expect(e.scoreStatus).toBe("insufficient_evidence");
+    expect(e.winner).toBe("tie");
+    expect(e.confidence).toBe(0);
+  });
+
+  it("ignores an insufficient judge when another judge has observable evidence", () => {
+    const insufficient = { ...judge("gemini", "tie", 0, 0), scoreStatus: "insufficient_evidence" as const };
+    const e = ensembleVerdicts([insufficient, judge("anthropic", "a", 72, 45)]);
+    expect(e.scoreStatus).toBe("scored");
+    expect(e.playerAScore).toBe(72);
+    expect(e.playerBScore).toBe(45);
+    expect(e.winner).toBe("a");
+  });
 });
 
 describe("verdictFromEnsemble — persists uncertainty onto the stored verdict", () => {
@@ -62,3 +79,4 @@ describe("verdictFromEnsemble — persists uncertainty onto the stored verdict",
     expect(v.tieReason).toBeDefined();
   });
 });
+

@@ -16,9 +16,12 @@ export interface ShareOpts {
 
 export function shareText(opts: ShareOpts): string {
   const v = opts.verdict;
+  const insufficient = v.scoreStatus === "insufficient_evidence";
   const winner =
     v.winner === "tie" ? "Tie" : v.winner === "a" ? opts.playerAName : opts.playerBName;
-  const line1 = `Debate: ${opts.topicTitle} — ${winner} won (${v.playerAScore}–${v.playerBScore}).`;
+  const line1 = insufficient
+    ? `Debate: ${opts.topicTitle} — insufficient evidence; no winner assigned.`
+    : `Debate: ${opts.topicTitle} — ${winner} won (${v.playerAScore}–${v.playerBScore}).`;
   const line2 = v.decidingFactor ? `Deciding factor: ${v.decidingFactor}` : v.rationale.slice(0, 180);
   const line3 = opts.evidenceReport
     ? `Evidence: coverage ${(opts.evidenceReport.coverage * 100).toFixed(0)}% · quality ${(opts.evidenceReport.avgQuality * 100).toFixed(0)}%`
@@ -29,12 +32,13 @@ export function shareText(opts: ShareOpts): string {
 
 export function shareMarkdown(opts: ShareOpts): string {
   const v = opts.verdict;
+  const insufficient = v.scoreStatus === "insufficient_evidence";
   const winner =
     v.winner === "tie" ? "**Tie**" : v.winner === "a" ? `**${opts.playerAName}**` : `**${opts.playerBName}**`;
   const rows: string[] = [
     `# ${opts.topicTitle}`,
     ``,
-    `${winner} won — ${v.playerAScore}–${v.playerBScore}.`,
+    insufficient ? `**Insufficient evidence** — no winner assigned.` : `${winner} won — ${v.playerAScore}–${v.playerBScore}.`,
     ``,
     `> ${v.rationale}`,
   ];
@@ -63,3 +67,4 @@ export function shareMarkdown(opts: ShareOpts): string {
 export function replayUrl(baseUrl: string, matchId: string): string {
   return `${baseUrl.replace(/\/$/, "")}/pvp/${matchId}`;
 }
+

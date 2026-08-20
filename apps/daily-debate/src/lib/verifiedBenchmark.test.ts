@@ -6,6 +6,8 @@ import { runAllProbesOffline, swapLabels, stripNames, inflateVerbosity, injectFa
 import { TRANSCRIPTS } from "./benchmark.fixtures";
 import {
   HUMAN_CORPUS,
+  HUMAN_CORPUS_AUDIT,
+  auditCorpusLabels,
   fleissKappa,
   cohenKappa,
   krippendorffAlpha,
@@ -52,6 +54,12 @@ function sampleGraph(): ArgGraph {
 }
 
 describe("corpus at scale — reliability", () => {
+  it("does not claim human validity without provenance evidence", () => {
+    expect(HUMAN_CORPUS_AUDIT.canClaimHumanValidity).toBe(false);
+    expect(HUMAN_CORPUS_AUDIT.status).toBe("unverified_fixture");
+    expect(auditCorpusLabels([{ ...HUMAN_CORPUS[0], provenance: "synthetic", isSynthetic: true }]).canClaimHumanValidity).toBe(false);
+  });
+
   it("synthetic corpus generates thousands with expected shape", () => {
     const syn = syntheticCorpus({ n: 1000, seed: 1, agreement: "medium" });
     expect(syn.length).toBe(1000);
@@ -290,3 +298,4 @@ describe("competitive / timed / tournament / seasonal", () => {
 });
 
 function drillAt(at: string, graph: ArgGraph) { return snapshotFromGraph(graph, { at }); }
+
