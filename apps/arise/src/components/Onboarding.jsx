@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { EQUIPMENT, LOCATIONS, GOALS, LEVELS } from '../lib/data.js';
+import { EQUIPMENT, LOCATIONS, GOALS, LEVELS, EXERCISES, exerciseAvailable } from '../lib/data.js';
+import { DEFAULT_PLATE_DENOMINATIONS_KG } from '../lib/plates.js';
 
 export default function Onboarding({ open, onClose, onComplete, initial }){
   const [step,setStep]=useState(0);
@@ -8,10 +9,26 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
   const [location,setLocation]=useState(initial?.location || 'home');
   const [level,setLevel]=useState(initial?.level || 'Beginner');
   const [days,setDays]=useState(initial?.daysPerWeek || 3);
+  const [minutes,setMinutes]=useState(initial?.availableMinutes || 45);
+  const [preferredExerciseIds,setPreferredExerciseIds]=useState(initial?.preferredExerciseIds || []);
+  const [dislikedExerciseIds,setDislikedExerciseIds]=useState(initial?.dislikedExerciseIds || []);
+  const [barWeightKg,setBarWeightKg]=useState(initial?.plateConfig?.barWeightKg ?? 20);
+  const [plateDenominationsKg,setPlateDenominationsKg]=useState(initial?.plateConfig?.platesKg || DEFAULT_PLATE_DENOMINATIONS_KG);
   const dialogRef = useRef(null);
 
   useEffect(()=>{
     if(!open) return;
+    setStep(0);
+    setGoal(initial?.goal || 'general');
+    setEquipment(initial?.equipment || ['bodyweight']);
+    setLocation(initial?.location || 'home');
+    setLevel(initial?.level || 'Beginner');
+    setDays(initial?.daysPerWeek || 3);
+    setMinutes(initial?.availableMinutes || 45);
+    setPreferredExerciseIds(initial?.preferredExerciseIds || []);
+    setDislikedExerciseIds(initial?.dislikedExerciseIds || []);
+    setBarWeightKg(initial?.plateConfig?.barWeightKg ?? 20);
+    setPlateDenominationsKg(initial?.plateConfig?.platesKg || DEFAULT_PLATE_DENOMINATIONS_KG);
     const onKey = (e)=>{ if(e.key==='Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     // focus close button for keyboard users
@@ -25,8 +42,35 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
     setEquipment(prev=> prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
   };
 
+  const togglePreference = (id, kind)=>{
+    if(kind==='preferred'){
+      setPreferredExerciseIds(prev=> prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
+      setDislikedExerciseIds(prev=> prev.filter(x=>x!==id));
+    } else {
+      setDislikedExerciseIds(prev=> prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
+      setPreferredExerciseIds(prev=> prev.filter(x=>x!==id));
+    }
+  };
+
+  const togglePlate = (kg)=>{
+    setPlateDenominationsKg(prev=> prev.includes(kg) ? prev.filter(value=> value!==kg) : [...prev, kg].sort((a, b)=> a - b));
+  };
+
+  const preferenceKit = [...new Set([...(equipment.length ? equipment : ['bodyweight']), 'bodyweight'])];
+  const preferenceExercises = EXERCISES.filter(ex=> exerciseAvailable(ex.id, preferenceKit));
+
   const complete = ()=>{
-    const payload = { goal, equipment: equipment.length? equipment : ['bodyweight'], location, level, daysPerWeek: days };
+    const payload = {
+      goal,
+      equipment: equipment.length ? equipment : ['bodyweight'],
+      location,
+      level,
+      daysPerWeek: days,
+      availableMinutes: Math.max(10, Number(minutes) || 45),
+      preferredExerciseIds,
+      dislikedExerciseIds,
+      plateConfig: equipment.includes('barbell') ? { barWeightKg: Number(barWeightKg) || 0, platesKg: plateDenominationsKg } : null,
+    };
     onComplete(payload);
     onClose();
   };
@@ -70,6 +114,24 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
             ))}
           </div>
           {!equipment.length && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Pick at least one — bodyweight is always an option.</p>}
+          {equipment.includes('barbell') && (
+            <div className="rounded-xl border border-line bg-surface2 p-3 space-y-2">
+              <div>
+                <p className="text-xs font-bold">Barbell load setup</p>
+                <p className="text-[11px] text-ink3">Used only to round barbell recommendations to loads you can actually build.</p>
+              </div>
+              <div className="flex gap-2">
+                {[20,15,0].map(weight=> (
+                  <button key={weight} onClick={()=> setBarWeightKg(weight)} className={`flex-1 min-h-9 rounded-lg border text-xs font-bold ${barWeightKg===weight ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{weight ? `${weight}kg bar` : 'No fixed bar'}</button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {DEFAULT_PLATE_DENOMINATIONS_KG.map(kg=> (
+                  <button key={kg} onClick={()=> togglePlate(kg)} aria-pressed={plateDenominationsKg.includes(kg)} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${plateDenominationsKg.includes(kg) ? 'bg-ink text-bg border-ink' : 'bg-surface border-line text-ink3'}`}>{kg}kg</button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )
     },
@@ -94,6 +156,15 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
             </div>
             <p className="text-xs text-ink3 mt-2">Used to rank programs. Your schedule still follows the program you pick in Train.</p>
           </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-ink3">Time per session</p>
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {[20,30,45,60].map(n=> (
+                <button key={n} onClick={()=> setMinutes(n)} className={`min-h-10 rounded-xl border text-sm font-bold ${minutes===n ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{n} min</button>
+              ))}
+            </div>
+            <p className="text-xs text-ink3 mt-2">Shorter caps preserve the highest-value blocks and reduce sets when needed.</p>
+          </div>
           <div className="rounded-xl border border-line bg-surface2 p-3 text-xs">
             <p className="font-bold">How this affects recommendations</p>
             <ul className="list-disc pl-5 mt-1 text-ink3 space-y-1">
@@ -102,6 +173,35 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
               <li>Location biases conditioning picks (outdoor → runs/walks, small space → bodyweight circuits).</li>
             </ul>
           </div>
+        </div>
+      )
+    },
+    {
+      title: 'Preferences (optional)',
+      body: (
+        <div className="space-y-3">
+          <p className="text-xs text-ink3">Tell us which movements you like or want to avoid. These choices only influence generated programmes; they never erase logged history.</p>
+          <div className="flex gap-2 text-[11px] text-ink3">
+            <span className="rounded-full border border-success/40 bg-success/10 px-2 py-1">Like = prefer when substituting</span>
+            <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1">Avoid = do not prescribe</span>
+          </div>
+          <div className="max-h-72 overflow-auto space-y-1.5 pr-1">
+            {preferenceExercises.map(ex=> {
+              const liked = preferredExerciseIds.includes(ex.id);
+              const avoided = dislikedExerciseIds.includes(ex.id);
+              return (
+                <div key={ex.id} className="flex items-center gap-2 rounded-xl border border-line bg-surface2 px-3 py-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold truncate">{ex.name}</span>
+                    <span className="block text-[11px] text-ink3">{ex.muscle} • {ex.equipment.join(', ')}</span>
+                  </span>
+                  <button onClick={()=> togglePreference(ex.id, 'preferred')} aria-pressed={liked} className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${liked ? 'bg-success text-white border-success' : 'bg-surface border-line text-ink3'}`}>Like</button>
+                  <button onClick={()=> togglePreference(ex.id, 'disliked')} aria-pressed={avoided} className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${avoided ? 'bg-amber-200 text-amber-900 border-amber-300' : 'bg-surface border-line text-ink3'}`}>Avoid</button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-ink3">{preferredExerciseIds.length} liked • {dislikedExerciseIds.length} avoided. You can change these choices by editing onboarding.</p>
         </div>
       )
     },

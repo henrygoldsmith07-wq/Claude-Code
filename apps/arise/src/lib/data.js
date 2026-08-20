@@ -413,7 +413,7 @@ export function plannedVsCompleted(schedule, history){
 // can move a midnight schedule back one day on devices west of UTC.
 function toISO(d){
   const pad = value=> String(value).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
 }
 
 // Simple content validation used by scripts/lint-content.mjs

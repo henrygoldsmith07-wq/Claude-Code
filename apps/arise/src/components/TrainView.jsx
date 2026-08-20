@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { PROGRAMS, PROGRAM_BY_ID, PROGRAM_TEMPLATES, programHistory as programVersionHistory, availablePrograms, EXERCISE_BY_ID, plannedVsCompleted } from '../lib/data.js';
 import { startProgram } from '../lib/schedule.js';
 import { adaptScheduleForEquipment, programAdherence, recordProgramStart, userProgramHistory } from '../lib/programming.js';
+import { generateProgramme } from '../lib/programmeGenerator.js';
 
 export default function TrainView({ store, setStore, onStartSession, availableEquipment }){
   const [programId,setProgramId]=useState(store.activeSchedule?.programId || PROGRAMS[0].id);
@@ -24,6 +25,19 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
 
   const applyEquipmentChanges = ()=>{
     if(adaptation?.changed) setStore({ ...store, activeSchedule: adaptation.schedule });
+  };
+
+  const generateFromProfile = ()=>{
+    if(!store.onboarding) return;
+    const generated = generateProgramme({
+      ...store.onboarding,
+      availableEquipment: store.onboarding.equipment || [],
+      history: store.history || [],
+      startDateISO: new Date().toISOString().slice(0, 10),
+    });
+    const next = { ...store, activeSchedule: generated, programHistory: recordProgramStart(store.programHistory || [], { programId: generated.programId, version: generated.programVersion || 1, startDateISO: generated.startDateISO }) };
+    setProgramId(generated.programId);
+    setStore(next);
   };
 
   return (
@@ -78,11 +92,38 @@ export default function TrainView({ store, setStore, onStartSession, availableEq
         </div>
       )}
 
+      {active?.generationReasons?.length > 0 && (
+        <details className="rounded-xl border border-line bg-surface2 px-3 py-3">
+          <summary className="cursor-pointer text-xs font-bold">Why this programme was generated</summary>
+          <ul className="mt-2 list-disc pl-5 text-[11px] text-ink3 space-y-1">
+            {active.generationReasons.map((reason, index)=> <li key={`reason-${index}`}>{reason}</li>)}
+          </ul>
+          {!!active.substitutions?.length && (
+            <div className="mt-3">
+              <p className="text-[11px] font-bold">Recorded substitutions</p>
+              <ul className="mt-1 space-y-1 text-[11px] text-ink3">
+                {active.substitutions.slice(0, 6).map((swap, index)=> (
+                  <li key={`${swap.sessionId}-${swap.from}-${index}`}>{EXERCISE_BY_ID[swap.from]?.name || swap.from} → {EXERCISE_BY_ID[swap.to]?.name || swap.to}</li>
+                ))}
+              </ul>
+              {active.substitutions.length > 6 && <p className="mt-1 text-[11px] text-ink3">…and {active.substitutions.length - 6} more in the schedule record.</p>}
+            </div>
+          )}
+          {!!active.generationWarnings?.length && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+              <p className="font-bold">Needs review</p>
+              <ul className="mt-1 list-disc pl-4 space-y-1">{active.generationWarnings.map((warning, index)=> <li key={`${warning.sessionId}-${index}`}>{warning.reason}</li>)}</ul>
+            </div>
+          )}
+        </details>
+      )}
+
       {program && program.mesocycle && (
         <p className="text-xs text-ink3">Mesocycle: {program.mesocycle.weeks} weeks • progression {program.mesocycle.progression} {program.mesocycle.deloadWeek?`• deload week ${program.mesocycle.deloadWeek}`:''}</p>
       )}
 
       <div className="flex gap-2">
+        {store.onboarding && <button onClick={generateFromProfile} className="btn btn-secondary flex-1 min-h-11 rounded-xl">Generate from profile</button>}
         <button onClick={start} className="btn btn-primary flex-1 min-h-11 rounded-xl">{active?.programId===programId ? 'Restart schedule from today' : 'Schedule this program'}</button>
         {active && <button onClick={()=> setStore({...store, activeSchedule:null})} className="btn btn-secondary min-h-11 rounded-xl px-4">Clear schedule</button>}
       </div>

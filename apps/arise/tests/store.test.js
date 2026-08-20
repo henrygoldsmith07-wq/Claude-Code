@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { lastExerciseSets, prsHitBySession } from '../src/lib/store.js';
+import { lastExerciseSets, prsHitBySession, normaliseHistory, upsertHistory } from '../src/lib/store.js';
 
 describe('store — lastExerciseSets / prsHitBySession (Life OS port)', () => {
   const hist = [
@@ -33,5 +33,14 @@ describe('store — lastExerciseSets / prsHitBySession (Life OS port)', () => {
     const session = { id: 'c', dateISO: '2026-01-05', title: 'Legs', blocks: [{ exerciseId: 'bodyweight-squat', sets: [{ reps: '15', weightKg: '' }] }] };
     const hits = prsHitBySession(session, hist);
     assert.ok(!hits.some(h => h.exerciseId === 'bodyweight-squat'));
+  });
+
+  it('upserts duplicate session ids and keeps the newer edited record', () => {
+    const older = { id: 'same', dateISO: '2026-01-05', savedAt: '2026-01-05T10:00:00Z', blocks: [] };
+    const newer = { id: 'same', dateISO: '2026-01-05', savedAt: '2026-01-05T11:00:00Z', blocks: [{ exerciseId: 'push-up', sets: [] }] };
+    assert.equal(upsertHistory([older], newer).length, 1);
+    assert.equal(upsertHistory([older], newer)[0].blocks[0].exerciseId, 'push-up');
+    assert.equal(normaliseHistory([newer, older]).length, 1);
+    assert.equal(normaliseHistory([newer, older])[0].savedAt, newer.savedAt);
   });
 });

@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   adaptScheduleForEquipment,
+  adaptActiveSchedule,
   exerciseHistorySummary,
   missedWorkoutRecovery,
   plateauDetection,
@@ -89,6 +90,49 @@ describe('programming layer', ()=>{
     assert.equal(result.changed, true);
     assert.equal(result.substitutions.length, 1);
     assert.notEqual(result.schedule.sessions[0].blocks[0].exerciseId, 'barbell-squat');
+  });
+
+  it('feeds repeated performance into the next programme session and is idempotent', ()=>{
+    const schedule = {
+      programId: 'starter-3x',
+      startDateISO: '2026-01-01',
+      sessions: [
+        { id: 'p1', dateISO: '2026-01-01', status: 'done', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+        { id: 'p2', dateISO: '2026-01-08', status: 'done', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+        { id: 'p3', dateISO: '2026-01-15', status: 'planned', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+      ],
+    };
+    const history = [
+      { id: 'p1', dateISO: '2026-01-01', programId: 'starter-3x', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: [{ reps: '12', weightKg: '20', rpe: '7' }, { reps: '12', weightKg: '20', rpe: '7' }, { reps: '12', weightKg: '20', rpe: '7' }] }] },
+      { id: 'p2', dateISO: '2026-01-08', programId: 'starter-3x', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: [{ reps: '12', weightKg: '20', rpe: '7' }, { reps: '12', weightKg: '20', rpe: '7' }, { reps: '12', weightKg: '20', rpe: '7' }] }] },
+    ];
+    const result = adaptActiveSchedule(schedule, history, { availableEquipment: ['dumbbells', 'bench'] });
+    assert.equal(result.changed, true);
+    assert.equal(result.schedule.sessions.find(s=> s.id === 'p3').blocks[0].sets, 4);
+    assert.equal(result.changes[0].kind, 'volume');
+    assert.match(result.changes[0].reason, /two sessions/i);
+    const replay = adaptActiveSchedule(result.schedule, history, { availableEquipment: ['dumbbells', 'bench'] });
+    assert.equal(replay.changed, false);
+  });
+
+  it('reduces the next block after repeated high-effort difficulty', ()=>{
+    const schedule = {
+      programId: 'starter-3x',
+      startDateISO: '2026-01-01',
+      sessions: [
+        { id: 'p1', dateISO: '2026-01-01', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+        { id: 'p2', dateISO: '2026-01-08', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+        { id: 'p3', dateISO: '2026-01-15', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+      ],
+    };
+    const history = [
+      { id: 'p1', dateISO: '2026-01-01', programId: 'starter-3x', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: [{ reps: '8', weightKg: '20', rpe: '8', failed: true }, { reps: '8', weightKg: '20', rpe: '8' }] }] },
+      { id: 'p2', dateISO: '2026-01-08', programId: 'starter-3x', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: [{ reps: '8', weightKg: '20', rpe: '8', failed: true }, { reps: '8', weightKg: '20', rpe: '8' }] }] },
+    ];
+    const result = adaptActiveSchedule(schedule, history);
+    assert.equal(result.changed, true);
+    assert.equal(result.schedule.sessions.find(s=> s.id === 'p3').blocks[0].sets, 2);
+    assert.equal(result.changes[0].kind, 'repeated-difficulty');
   });
 
   it('summarises exercise history and keeps programme runs separate', ()=>{

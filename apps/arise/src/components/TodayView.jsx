@@ -12,7 +12,7 @@ import {
   shortWorkoutMode,
 } from '../lib/programming.js';
 
-export default function TodayView({ store, setStore, onStartSession, onOpenTrain }){
+export default function TodayView({ store, setStore, onStartSession, onOpenTrain, plateConfig = null }){
   const attrs = useMemo(()=> deriveAttributes(store.history||[]), [store.history]);
   const lvl = useMemo(()=> levelFromAttributes(attrs), [attrs]);
   const sched = store.activeSchedule;
@@ -22,7 +22,7 @@ export default function TodayView({ store, setStore, onStartSession, onOpenTrain
   const progProgress = progress(sched, store.history);
   const adherence = useMemo(()=> programAdherence(sched, store.history || [], { today: isoToday() }), [sched, store.history]);
   const recovery = useMemo(()=> missedWorkoutRecovery(sched, store.history || [], { today: isoToday() }), [sched, store.history]);
-  const explanations = useMemo(()=> today ? today.blocks.map(block=> progressionExplanation({ exerciseId: block.exerciseId, targetReps: block.reps, history: store.history || [] })) : [], [today, store.history]);
+  const explanations = useMemo(()=> today ? today.blocks.map(block=> progressionExplanation({ exerciseId: block.exerciseId, targetReps: block.reps, asOfDateISO: today.dateISO, history: store.history || [], plateConfig })) : [], [today, store.history, plateConfig]);
 
   const applyReplan = ()=>{
     const result = replanSchedule(sched, store.history || [], { today: isoToday() });
@@ -80,6 +80,20 @@ export default function TodayView({ store, setStore, onStartSession, onOpenTrain
         {sched && (
           <p className="text-[11px] text-ink3">{adherence.toDateRate == null ? 'No sessions due yet' : `${Math.round(adherence.toDateRate * 100)}% adherence so far`} • {adherence.missed} missed • {adherence.upcoming} upcoming</p>
         )}
+
+        {sched?.lastAdaptation?.changes?.length ? (
+          <details className="rounded-xl border border-line bg-surface2 px-3 py-2" open>
+            <summary className="text-xs font-bold cursor-pointer">Programme adjusted from your last session</summary>
+            <p className="text-[11px] text-ink3 mt-1">{sched.lastAdaptation.dateISO} · deterministic rules, based on repeated performance evidence</p>
+            <ul className="mt-2 space-y-1.5">
+              {sched.lastAdaptation.changes.slice(0, 4).map((change, index)=> (
+                <li key={`${change.sessionId}-${change.exerciseId}-${index}`} className="text-[11px] text-ink3">
+                  <span className="font-bold text-ink">{change.exerciseId}</span> · {change.reason}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
 
         {recovery.needed && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 space-y-2">

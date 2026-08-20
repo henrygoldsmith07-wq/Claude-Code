@@ -3,7 +3,7 @@ export const STORE_SCHEMA_VERSION = 4;
 
 const DEFAULT = {
   version: STORE_SCHEMA_VERSION,
-  onboarding: null, // { goal, equipment:[], location, level, daysPerWeek }
+  onboarding: null, // { goal, equipment:[], location, level, daysPerWeek, availableMinutes, preferredExerciseIds:[], dislikedExerciseIds:[], plateConfig? }
   activeSchedule: null, // { programId, startDateISO, sessions:[{id,dateISO,status,blocks,...}] }
   activeWorkout: null, // recoverable runner draft: { session, blocks, note, noteTags, restEndsAt, restLabel, updatedAt }
   eventHistory: [], // imported/exported event snapshot; live telemetry remains append-only in its own local key
@@ -26,12 +26,42 @@ export function loadStore(){
     if(j.activeWorkout === undefined) j.activeWorkout = null;
     if(j.eventHistory === undefined) j.eventHistory=[];
     if(j.healthSummary === undefined) j.healthSummary=null;
+    j.history = normaliseHistory(j.history);
     return { ...structuredClone(DEFAULT), ...j };
   }catch{ return structuredClone(DEFAULT); }
 }
 
 export function saveStore(s){
   try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch{}
+}
+
+function historyTimestamp(entry){
+  const saved = Date.parse(entry?.savedAt || '');
+  if(Number.isFinite(saved)) return saved;
+  const date = Date.parse(`${entry?.dateISO || ''}T00:00:00Z`);
+  return Number.isFinite(date) ? date : 0;
+}
+
+// History is keyed by scheduled session id. Retrying a save or importing an
+// edited copy should replace that row, not create a second completion that
+// inflates adherence and feeds duplicate evidence into progression.
+export function upsertHistory(history = [], entry = null){
+  if(!entry) return normaliseHistory(history);
+  const existing = (history || []).find(item=> item?.id && item.id === entry.id);
+  const winner = !existing || historyTimestamp(entry) >= historyTimestamp(existing) ? entry : existing;
+  const without = (history || []).filter(item=> !entry.id || item?.id !== entry.id);
+  return [...without, winner].sort((a, b)=> String(a?.dateISO || '').localeCompare(String(b?.dateISO || '')) || historyTimestamp(a) - historyTimestamp(b));
+}
+
+export function normaliseHistory(history = []){
+  const byId = new Map();
+  const loose = [];
+  for(const entry of history || []){
+    if(!entry?.id){ loose.push(entry); continue; }
+    const existing = byId.get(entry.id);
+    if(!existing || historyTimestamp(entry) >= historyTimestamp(existing)) byId.set(entry.id, entry);
+  }
+  return [...loose, ...byId.values()].sort((a, b)=> String(a?.dateISO || '').localeCompare(String(b?.dateISO || '')) || historyTimestamp(a) - historyTimestamp(b));
 }
 
 export function clearStore(){ try{ localStorage.removeItem(KEY);}catch{} }
@@ -82,6 +112,7 @@ export function runMigrations(raw){
   if(j.preferences.telemetryEnabled==null) j.preferences.telemetryEnabled=null;
   if(j.preferences.pulseEnabled==null) j.preferences.pulseEnabled=false;
   if(j.preferences.healthSummaryEnabled==null) j.preferences.healthSummaryEnabled=false;
+  j.history = normaliseHistory(j.history || []);
   return j;
 }
 

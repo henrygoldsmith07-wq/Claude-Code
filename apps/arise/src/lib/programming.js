@@ -92,8 +92,9 @@ function exerciseLogs(history, exerciseId){
 
 // A machine-readable explanation for every next-load decision. The UI can
 // show this without exposing implementation details or inventing a reason.
-export function transparentProgressionDecision({ exerciseId, history = [], targetReps = '8–12', recommendation = null, config = null, asOfDateISO = null, calibration = null } = {}){
-  const rec = recommendation || recommendNext({ exerciseId, history, targetReps, config, asOfDateISO, calibration });
+export function transparentProgressionDecision({ exerciseId, history = [], targetReps = '8–12', recommendation = null, config = null, asOfDateISO = null, calibration = null, plateConfig = null } = {}){
+  const isBarbell = EXERCISE_BY_ID[exerciseId]?.equipment?.includes('barbell');
+  const rec = recommendation || recommendNext({ exerciseId, history, targetReps, config, asOfDateISO, calibration, plateConfig: isBarbell ? plateConfig : null });
   const logs = exerciseLogs(history, exerciseId);
   const last = logs[logs.length - 1] || null;
   const ex = EXERCISE_BY_ID[exerciseId];
@@ -106,6 +107,7 @@ export function transparentProgressionDecision({ exerciseId, history = [], targe
   }
   evidence.push(`${logs.length} exercise session${logs.length === 1 ? '' : 's'} inform this decision.`);
   if(rec.trainingBreak?.hasBreak) evidence.push(`The last logged exposure was ${rec.trainingBreak.daysSinceLast} days ago, so the return target is deliberately reduced.`);
+  if(rec.plateLoad && !rec.plateLoad.exact) evidence.push(`The selected plate setup makes ${rec.plateLoad.loadKg}kg achievable instead of the raw ${rec.plateLoad.targetKg}kg target.`);
   if(rec.personalised) evidence.push(`Your observed rate is ${Math.round(rec.personalised.weeklyLoadPct * 1000) / 10}% load per week across ${rec.personalised.n} logged sets.`);
   if(age.phase !== 'unknown') evidence.push(`Training age is treated as ${age.phase}; the default rate is scaled accordingly.`);
 

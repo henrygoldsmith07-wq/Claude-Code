@@ -10,7 +10,7 @@ A game-like, offline-first training companion. Not a nutrition app.
 2. **Exercise browser** — search + filters (muscle / equipment / level) plus an **Only my kit** toggle gated by onboarding. Always shows a substitution when kit is missing; never pretends a barbell lift is “recommended” to a bodyweight-only user.
 3. **Export / restore / import** — validated, schema-versioned JSON backup (`{ app:'arise', version, schemaVersion, exportedAt, data }`) plus CSV and event-history export. `Merge` de-dupes by session `id` and event id; `Replace` overwrites. No cloud sync — the user owns the file.
 4. **Programs are scheduled training** — picking a program in **Train** creates dated sessions (`activeSchedule.sessions[]`) via `scheduleProgram()`. Today shows the session for today (or up next); progress is `done/total`.
-5. **Onboarding shapes recommendations** — goal + location + equipment + level/days. `recommendExercises()` and `availablePrograms()` are deterministic and re-sort visibly when onboarding changes (minimal kit → beginner-friendly first; location biases conditioning).
+5. **Onboarding shapes recommendations** — goal + location + equipment + level/days/time + optional liked/avoided movements + barbell plate setup. `recommendExercises()` and `availablePrograms()` are deterministic and re-sort visibly when onboarding changes (minimal kit → beginner-friendly first; location biases conditioning).
 6. **Resistance / load tracking** — every logged set is `{ reps, weightKg, rpe }`. Leave weight blank for bodyweight. Session volume (`kg`) is derived live; `SessionRunner` enforces reps-filled before save.
 7. **Attributes derive from history** — `deriveAttributes(history)` computes Strength / Endurance / Consistency / Technique from logged volume, loads (Epley 1RM), variety, cardio minutes, streak and logging discipline. Level is `avg/7`. Nothing derives from program labels.
 8. **PWA** — `manifest.webmanifest` + `sw.js` (cache-first navigations, stale-while-revalidate assets, same-origin only). Icons use the Arise rising-A mark. Install → airplane mode → reload keeps Today / Exercises / schedule from cache.
@@ -23,10 +23,14 @@ A game-like, offline-first training companion. Not a nutrition app.
 15. **Volume balance advice (`analytics.js`)** — `volumeBalanceAdvice()` compares each goal-priority muscle's weekly sets against an even share and flags under/over-trained muscles *relatively* (rough context, not a prescription), with a concrete rebalance suggestion.
 16. **Better fatigue-aware ordering (`warmup.js`)** — `fatigueAwareOrder()` is now greedy: heavy compounds first, **least-trained muscles early while fresh** (`weakPointMuscles()` from history), same-muscle/family exercises kept apart (`muscleOverlap()`), cardio last. `sessionGenerator` uses it automatically.
 17. **Session quality & recovery (`sessionQuality.js`)** — `noteSignals()` extracts sentiment/technique signals from workout notes; `sessionQuality()` classifies each session good/ok/bad (readiness, RPE, failed reps, notes); `plateauAttribution()` tells a **real plateau from a run of bad sessions**; `deloadReadinessAssessment()` adds deload triggers that never fire on a **single-day readiness dip** (only a sustained EMA trend + other fatigue signals); `scanPRs()` walks history and flags **fake PRs** — technique/ROM changes, sub-2% jitter, low-readiness days.
-18. **Durable measurements & consent** — local event history records set logging time, session abandonment and recommendation acceptance only after explicit local-measurement consent. More provides event export/clear, Pulse sharing consent, optional health-summary consent and validated import feedback.
-19. **Pulse and health adapters** — `runPulseIntegrationE2E()` exercises workout/volume writes plus metric reads against an injected adapter; `health.js` supports an optional small summary adapter without requiring a platform SDK or raw health history.
-20. **Field validation** — deterministic progression and logging benchmarks are runnable; the real-gym protocol is in [`e2e/REAL_GYM_FIELD_TESTS.md`](e2e/REAL_GYM_FIELD_TESTS.md).
-21. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+18. **Programme-level adaptation (`programming.js`)** — after a completed session, repeated evidence can add one set to the next exposure, reduce the next block after repeated difficulty, apply a bounded recovery/deload window, or select a kit-compatible variation after a genuine plateau. Each change stores its basis, evidence and reason; the same history is idempotent.
+19. **Long-break recovery and duplicate-safe history** — recommendations restart conservatively after an explicit six-week gap, without erasing training age. Session saves upsert by ID and prefer newer edited records so adherence and progression are not inflated by duplicate rows.
+20. **Profile-to-programme generation** — `programmeGenerator.js` turns the captured profile plus prior history into a dated, equipment-honest schedule. It resamples weekly frequency, applies the time cap, ranks substitutions, preserves liked movements when they are viable, excludes avoided movements and returns every reason and swap.
+21. **Plate-aware loadability** — `plates.js` finds the nearest achievable barbell load and per-side stack. When onboarding includes a barbell setup, `recommendNext()` rounds only barbell recommendations and explains any under/overshoot in the runner.
+22. **Durable measurements & consent** — local event history records set logging time, session abandonment and recommendation acceptance only after explicit local-measurement consent. More provides event export/clear, Pulse sharing consent, optional health-summary consent and validated import feedback.
+23. **Pulse and health adapters** — `runPulseIntegrationE2E()` exercises workout/volume writes plus metric reads against an injected adapter; `health.js` supports an optional small summary adapter without requiring a platform SDK or raw health history.
+24. **Field validation** — deterministic progression and logging benchmarks are runnable; the real-gym protocol is in [`e2e/REAL_GYM_FIELD_TESTS.md`](e2e/REAL_GYM_FIELD_TESTS.md).
+25. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
 
 ## Roadmap
 
@@ -59,7 +63,7 @@ No env vars. Data is local — clear via **More → Clear local data** (or expor
 ```js
 {
   version: 4,
-  onboarding: { goal, equipment:[], location, level, daysPerWeek } | null,
+  onboarding: { goal, equipment:[], location, level, daysPerWeek, availableMinutes, preferredExerciseIds:[], dislikedExerciseIds:[], plateConfig?: { barWeightKg, platesKg:[] } } | null,
   activeSchedule: { programId, startDateISO, sessions:[{ id, dateISO, week, day, title, blocks, status }] } | null,
   activeWorkout: { session, blocks, note, noteTags, restEndsAt, startedAt, updatedAt } | null,
   history: [{ id, dateISO, programId, week, day, title, blocks:[{ exerciseId, sets:[{reps,weightKg,rpe}] }], note?, savedAt }],
@@ -98,6 +102,8 @@ src/lib/schedule.js    today/next/progress + startProgram
 src/lib/progression.js progression + plateau/deload + RIR/RPE + bodyweight/unilateral + readiness
 src/lib/substitutions.js pattern/muscle/equipment/difficulty scoring + rankedSubstitutions
 src/lib/templates.js   template engine: equipment-honest instantiation + profile recommendation + versions
+src/lib/programmeGenerator.js profile → dated schedule generation with time, frequency, preference and history-aware substitutions
+src/lib/plates.js       nearest achievable barbell load + per-side plate stack
 src/lib/analytics.js   weekly volume + frequency + strength series + volume-balance advice + actionable advice
 src/lib/warmup.js      warm-ups + rest/duration + supersets + fatigue-aware ordering + weak points
 src/lib/sessionGenerator.js equipment-aware, history-aware session builder + superset hints

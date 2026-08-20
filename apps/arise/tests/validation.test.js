@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  recommendNext, recommendSets, romProgression, trainingAgeMonths, trainingPhase,
+  recommendNext, recommendSets, romProgression, trainingAgeMonths, trainingPhase, trainingBreakInfo,
   ageRateMultiplier, trainingAgeInfo,
 } from "../src/lib/progression.js";
 import {
@@ -71,6 +71,15 @@ describe("assisted progression", ()=>{
 });
 
 describe("set progression", ()=>{
+  it("requires two distinct sessions, not two sets from one session", ()=>{
+    const hist = [
+      { dateISO:'2026-01-01', blocks:[{exerciseId:'bench-press-dumbbell', sets:[{reps:'12', weightKg:'20', rpe:'7'},{reps:'12', weightKg:'20', rpe:'7'},{reps:'12', weightKg:'20', rpe:'7'}]}] },
+    ];
+    const r = recommendSets(hist, 'bench-press-dumbbell');
+    assert.equal(r.add, false);
+    assert.equal(r.sets, 3);
+  });
+
   it("adds a set after two top-of-range sessions with room", ()=>{
     const hist = [
       { dateISO:'2026-01-01', blocks:[{exerciseId:'bench-press-dumbbell', sets:[{reps:'12', weightKg:'20', rpe:'7'},{reps:'12', weightKg:'20', rpe:'7'},{reps:'12', weightKg:'20', rpe:'7'}]}] },
@@ -96,6 +105,24 @@ describe("set progression", ()=>{
     const r = recommendSets(mk(5), 'bench-press-dumbbell', { maxSets: 5 });
     assert.equal(r.sets, 5);
     assert.equal(r.add, false);
+  });
+});
+
+describe("long-break recovery", ()=>{
+  it("restarts conservatively after a long gap without erasing training age", ()=>{
+    const hist = [{ dateISO:'2026-01-01', blocks:[{exerciseId:'bench-press-dumbbell', sets:[{reps:'10', weightKg:'20', rpe:'7'}]}] }];
+    const info = trainingBreakInfo(hist, { asOfDateISO:'2026-03-01' });
+    assert.equal(info.hasBreak, true);
+    const rec = recommendNext({ exerciseId:'bench-press-dumbbell', history:hist, targetReps:'8–12', asOfDateISO:'2026-03-01' });
+    assert.equal(rec.reps, 8);
+    assert.equal(rec.load, 16);
+    assert.match(rec.reason, /break/i);
+    assert.equal(rec.trainingAge.phase, 'novice');
+  });
+
+  it("does not trigger a return plan for a normal training gap", ()=>{
+    const hist = [{ dateISO:'2026-01-01', blocks:[{exerciseId:'bench-press-dumbbell', sets:[{reps:'10', weightKg:'20', rpe:'7'}]}] }];
+    assert.equal(trainingBreakInfo(hist, { asOfDateISO:'2026-01-21' }).hasBreak, false);
   });
 });
 

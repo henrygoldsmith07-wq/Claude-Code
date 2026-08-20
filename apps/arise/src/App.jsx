@@ -7,10 +7,11 @@ import ProgressView from './components/ProgressView.jsx';
 import MoreView from './components/MoreView.jsx';
 import SessionRunner from './components/SessionRunner.jsx';
 import Onboarding from './components/Onboarding.jsx';
-import { loadStore, saveStore } from './lib/store.js';
+import { loadStore, saveStore, upsertHistory } from './lib/store.js';
 import { recommendExercises } from './lib/data.js';
 import { recordEvent } from './lib/telemetry.js';
 import { pushToPulse } from './lib/pulse.js';
+import { adaptActiveSchedule } from './lib/programming.js';
 
 export default function App(){
   const [store,setStoreState]=useState(()=> loadStore());
@@ -103,17 +104,25 @@ export default function App(){
 
   const handleSaveSession = (payload)=>{
     let next = { ...store };
-    const hist = [...(next.history||[]), payload];
+    const hist = upsertHistory(next.history || [], payload);
     let activeSchedule = next.activeSchedule;
     if(activeSchedule){
       activeSchedule = { ...activeSchedule, sessions: activeSchedule.sessions.map(s=> s.id===payload.id ? { ...s, status:'done' } : s) };
     }
+    const adaptation = activeSchedule ? adaptActiveSchedule(activeSchedule, hist, {
+      readinessLog: next.readinessLog || [],
+      availableEquipment: next.onboarding?.equipment || [],
+    }) : null;
+    if(adaptation?.changed) activeSchedule = adaptation.schedule;
     next = { ...next, history: hist, activeSchedule, activeWorkout: null };
     setStore(next);
     setActiveSession(null);
     setRecoveryOpen(false);
     setTab('progress');
     try { recordEvent('session:complete', { sessionId: payload.id, blocks: payload.blocks.length }); } catch {}
+    if(adaptation?.changed){
+      try { recordEvent('programme:adapt', { sessionId: payload.id, changes: adaptation.changes, decision: adaptation.decision }); } catch {}
+    }
     // Pulse push if enabled and adapter present (adapter injected via window.__PULSE_ADAPTER__ for now)
     try {
       const adapter = typeof window !== 'undefined' ? window.__PULSE_ADAPTER__ : null;
@@ -207,6 +216,7 @@ export default function App(){
           setStore={setStore}
           onStartSession={handleStartSession}
           onOpenTrain={()=> setTab('train')}
+          plateConfig={store.onboarding?.plateConfig || null}
         />
       )}
       {tab==='train' && (
@@ -242,6 +252,7 @@ export default function App(){
           session={activeSession}
           history={store.history || []}
           availableEquipment={store.onboarding?.equipment || []}
+          plateConfig={store.onboarding?.plateConfig || null}
           draft={store.activeWorkout?.session?.id===activeSession.id ? store.activeWorkout : null}
           onDraftChange={handleDraftChange}
           onSave={handleSaveSession}

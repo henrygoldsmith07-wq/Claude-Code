@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EXERCISE_BY_ID } from '../lib/data.js';
 import { lastExerciseSets } from '../lib/store.js';
 import { recommendNext } from '../lib/progression.js';
+import { formatPlateStack } from '../lib/plates.js';
 import { substitutionOptions } from '../lib/substitutions.js';
 import { recordEvent } from '../lib/telemetry.js';
 
@@ -61,8 +62,11 @@ function suggestedTarget(rec, block){
   return `${reps} reps`;
 }
 
-function getRecommendation(block, history){
-  try{ return recommendNext({ exerciseId:block.exerciseId, history, targetReps:block.reps || '8–12' }); }catch{ return null; }
+function getRecommendation(block, history, asOfDateISO, plateConfig = null){
+  try{
+    const isBarbell = EXERCISE_BY_ID[block.exerciseId]?.equipment?.includes('barbell');
+    return recommendNext({ exerciseId:block.exerciseId, history, targetReps:block.reps || '8–12', asOfDateISO, plateConfig: isBarbell ? plateConfig : null });
+  }catch{ return null; }
 }
 
 function hasUnfinishedSet(blocks, bi, si){
@@ -73,7 +77,7 @@ function hasUnfinishedSet(blocks, bi, si){
   return false;
 }
 
-export default function SessionRunner({ session, history = [], availableEquipment = [], draft = null, onDraftChange, onSave, onCancel }){
+export default function SessionRunner({ session, history = [], availableEquipment = [], plateConfig = null, draft = null, onDraftChange, onSave, onCancel }){
   const [blocks,setBlocks]=useState(()=> session.blocks.map((b,i)=> normaliseBlock(b, history, draft?.blocks?.[i])));
   const [note,setNote]=useState(()=> draft?.note || '');
   const [noteTags,setNoteTags]=useState(()=> draft?.noteTags || []);
@@ -139,11 +143,11 @@ export default function SessionRunner({ session, history = [], availableEquipmen
   useEffect(()=>{
     for(const block of blocks){
       if(shownRecommendationRef.current.has(block.exerciseId)) continue;
-      const recommendation=getRecommendation(block,history);
+      const recommendation=getRecommendation(block,history,session.dateISO,plateConfig);
       shownRecommendationRef.current.add(block.exerciseId);
       recordEvent('recommendation:shown', { sessionId:session.id, exerciseId:block.exerciseId, target:suggestedTarget(recommendation,block) });
     }
-  }, [blocks, history, session.id]);
+  }, [blocks, history, session.id, session.dateISO, plateConfig]);
 
   const startRest=(seconds,label)=>{
     const sec=Number(seconds)||0;
@@ -298,7 +302,7 @@ export default function SessionRunner({ session, history = [], availableEquipmen
           const prev=lastExerciseSets(history,b.exerciseId);
           const supportsWeighted=ex?.supportsWeighted;
           const supportsAssisted=ex?.supportsAssisted;
-          const recommendation=getRecommendation(b,history);
+          const recommendation=getRecommendation(b,history,session.dateISO,plateConfig);
           const target=suggestedTarget(recommendation,b);
           const options=swapOpen===bi ? substitutionOptions(b.exerciseId,{ availableEquipment, history, limit:5 }) : [];
           return (
@@ -316,6 +320,7 @@ export default function SessionRunner({ session, history = [], availableEquipmen
                   {b.warmups?.length ? <p className="text-[11px] text-ink3 mt-1">Warm-ups: {b.warmups.map(w=> `${w.reps}×${w.weightKg||'bw'}${w.note?` (${w.note})`:''}`).join(' • ')}</p> : null}
                   {b.restSec ? <p className="text-[11px] text-ink3">Rest {fmtRest(b.restSec)} · load hint: {b.loadHint || '—'}</p> : null}
                   <div className="flex items-center gap-2 mt-1"><p className="text-[11px]"><span className="font-bold">Suggested target</span> · {target}</p>{recommendation && <button onClick={()=> applyRecommendation(bi,recommendation)} className="text-[10px] font-bold underline underline-offset-2 shrink-0">Use target</button>}</div>
+                  {recommendation?.plateLoad && <p className="text-[11px] text-ink3">Plate check · {recommendation.plateLoad.exact ? `${recommendation.plateLoad.loadKg}kg exact` : `${recommendation.plateLoad.targetKg}kg → ${recommendation.plateLoad.loadKg}kg ${recommendation.plateLoad.direction}`} · per side: {formatPlateStack(recommendation.plateLoad.platesPerSide)}</p>}
                   <p className="text-[11px] text-ink3 italic">{b.substitutionReason ? `Swap rationale: ${b.substitutionReason}` : `Why: ${b.why || recommendation?.reason || 'Follow the prescribed range and stop with good form.'}`}</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0 flex-wrap justify-end max-w-[190px]">
