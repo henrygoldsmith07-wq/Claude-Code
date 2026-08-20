@@ -10,6 +10,7 @@ import { rankedSubstitutions } from './substitutions.js';
 import { applyEquipmentSubstitutions } from './templates.js';
 import {
   e1rm,
+  recommendSets,
   recommendNext,
   strengthTrendWithConfidence,
   trainingAgeInfo,
@@ -18,26 +19,27 @@ import {
 } from './progression.js';
 import { plateauAttribution, deloadReadinessAssessment } from './sessionQuality.js';
 import { weeklyVolume, deloadOutcomes, recommendationFollowThrough } from './analytics.js';
+import { resolveArisePriors } from './priors.js';
+import { backtestHistory } from './backtesting.js';
 
 const DAY_MS = 86400000;
-const DEFAULT_SPACING_DAYS = 2;
 
 export function isoToday(){
   return toISO(new Date());
 }
 
 function dateAt(iso){
-  return new Date(`${iso}T00:00:00`);
+  return new Date(`${iso}T00:00:00Z`);
 }
 
 function toISO(date){
   const pad = value=> String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth()+1)}-${pad(date.getUTCDate())}`;
 }
 
 function addDays(iso, days){
   const date = dateAt(iso);
-  date.setDate(date.getDate() + days);
+  date.setUTCDate(date.getUTCDate() + days);
   return toISO(date);
 }
 
@@ -90,12 +92,12 @@ function exerciseLogs(history, exerciseId){
 
 // A machine-readable explanation for every next-load decision. The UI can
 // show this without exposing implementation details or inventing a reason.
-export function transparentProgressionDecision({ exerciseId, history = [], targetReps = '8–12', recommendation = null } = {}){
-  const rec = recommendation || recommendNext({ exerciseId, history, targetReps });
+export function transparentProgressionDecision({ exerciseId, history = [], targetReps = '8–12', recommendation = null, config = null, asOfDateISO = null, calibration = null } = {}){
+  const rec = recommendation || recommendNext({ exerciseId, history, targetReps, config, asOfDateISO, calibration });
   const logs = exerciseLogs(history, exerciseId);
   const last = logs[logs.length - 1] || null;
   const ex = EXERCISE_BY_ID[exerciseId];
-  const age = rec.trainingAge || trainingAgeInfo(history);
+  const age = rec.trainingAge || trainingAgeInfo(history, { asOfDateISO, config });
   const evidence = [];
   if(last){
     evidence.push(`Last best logged set: ${last.weightKg > 0 ? `${last.weightKg}kg × ` : ''}${last.reps} reps${last.rpe != null && String(last.rpe).trim() ? ` at RPE ${last.rpe}` : ''}.`);
@@ -103,17 +105,20 @@ export function transparentProgressionDecision({ exerciseId, history = [], targe
     evidence.push('No prior logged set for this exercise.');
   }
   evidence.push(`${logs.length} exercise session${logs.length === 1 ? '' : 's'} inform this decision.`);
+  if(rec.trainingBreak?.hasBreak) evidence.push(`The last logged exposure was ${rec.trainingBreak.daysSinceLast} days ago, so the return target is deliberately reduced.`);
   if(rec.personalised) evidence.push(`Your observed rate is ${Math.round(rec.personalised.weeklyLoadPct * 1000) / 10}% load per week across ${rec.personalised.n} logged sets.`);
   if(age.phase !== 'unknown') evidence.push(`Training age is treated as ${age.phase}; the default rate is scaled accordingly.`);
 
   let rule = 'Use the programme prescription until enough evidence is logged.';
-  if(rec.plateau?.isPlateau || /plateau/i.test(rec.reason || '')) rule = 'Plateau guard: hold the current prescription and recover or vary the movement before adding load.';
+  if(rec.trainingBreak?.hasBreak) rule = 'Return-after-break rule: restart below the last logged load, then rebuild only after the first session is comfortable.';
+  else if(rec.plateau?.isPlateau || /plateau/i.test(rec.reason || '')) rule = 'Plateau guard: hold the current prescription and recover or vary the movement before adding load.';
   else if(rec.assistKg != null) rule = 'Assistance rule: add reps through the range, then reduce assistance in a small step.';
   else if(rec.suggestWeighted) rule = 'Bodyweight rule: after the top of the rep range, use a harder variation or add load if the movement supports it.';
   else if(rec.reps != null && rec.load != null) rule = 'Double-progression rule: build reps within the target range, then add a small load step and reset to the lower bound.';
   else if(rec.reps != null) rule = 'Reps-first rule: add one controlled rep while the target range is not full.';
 
-  const confidence = logs.length >= 6 ? 'high' : logs.length >= 3 ? 'medium' : 'low';
+  const confidenceCfg = resolveArisePriors(config).progression.confidence;
+  const confidence = logs.length >= confidenceCfg.highSessions ? 'high' : logs.length >= confidenceCfg.mediumSessions ? 'medium' : 'low';
   const name = ex?.name || exerciseId || 'this exercise';
   return {
     ...rec,
@@ -172,10 +177,11 @@ export function exerciseHistorySummary(history = [], exerciseId){
 
 // Plateau detection with attribution. A flat line after consistently good
 // sessions is treated differently from a flat line caused by fatigue or noise.
-export function plateauDetection(history = [], exerciseId, { readinessLog = [], window = 4 } = {}){
-  const attribution = plateauAttribution(history, exerciseId, { readinessLog, window });
-  const logs = exerciseLogs(history, exerciseId).slice(-window);
-  const v2 = isPlateauV2(logs);
+export function plateauDetection(history = [], exerciseId, { readinessLog = [], window = null, config = null } = {}){
+  const plateauWindow = window == null ? resolveArisePriors(config).sessionQuality.plateau.window : window;
+  const attribution = plateauAttribution(history, exerciseId, { readinessLog, window, config });
+  const logs = exerciseLogs(history, exerciseId).slice(-plateauWindow);
+  const v2 = isPlateauV2(logs, { config });
   const detected = attribution.kind === 'genuine' || (v2.isPlateau && attribution.kind !== 'bad-sessions');
   const status = detected ? 'plateau' : attribution.kind === 'bad-sessions' ? 'fatigue' : attribution.kind;
   const confidence = attribution.kind === 'genuine' ? 'high' : attribution.kind === 'insufficient' ? 'low' : 'medium';
@@ -244,28 +250,29 @@ export function missedWorkoutRecovery(schedule, history = [], { today = isoToday
   };
 }
 
-function scheduleSpacing(schedule){
+function scheduleSpacing(schedule, config = null){
+  const defaultSpacingDays = resolveArisePriors(config).programming.defaultSpacingDays;
   const dates = (schedule?.sessions || []).map(session=> Date.parse(`${session.dateISO}T00:00:00`)).filter(Number.isFinite).sort((a, b)=> a - b);
   const gaps = [];
   for(let i = 1; i < dates.length; i++){
     const days = Math.round((dates[i] - dates[i - 1]) / DAY_MS);
     if(days > 0) gaps.push(days);
   }
-  if(!gaps.length) return DEFAULT_SPACING_DAYS;
+  if(!gaps.length) return defaultSpacingDays;
   const sorted = gaps.sort((a, b)=> a - b);
-  return Math.max(1, sorted[Math.floor(sorted.length / 2)] || DEFAULT_SPACING_DAYS);
+  return Math.max(1, sorted[Math.floor(sorted.length / 2)] || defaultSpacingDays);
 }
 
 // Shift unfinished sessions forward as a sequence. Completed sessions keep
 // their original IDs and dates, so history remains attached to the right work.
-export function replanSchedule(schedule, history = [], { today = isoToday(), spacingDays = null } = {}){
+export function replanSchedule(schedule, history = [], { today = isoToday(), spacingDays = null, config = null } = {}){
   if(!schedule?.sessions?.length) return { schedule, changed: false, moved: [], reason: 'No active schedule.' };
   const historyIds = new Set(history.map(session=> session.id));
   const original = schedule.sessions.slice().sort(sessionDateSort);
   const pending = original.filter(session=> !isDone(session, historyIds));
   const missed = pending.filter(session=> session.dateISO < today);
   if(!missed.length) return { schedule, changed: false, moved: [], reason: 'No overdue sessions to re-plan.' };
-  const step = Math.max(1, Number(spacingDays) || scheduleSpacing(schedule));
+  const step = Math.max(1, Number(spacingDays) || scheduleSpacing(schedule, config));
   let cursor = today;
   const moved = [];
   const pendingById = new Map();
@@ -285,26 +292,29 @@ export function replanSchedule(schedule, history = [], { today = isoToday(), spa
   };
 }
 
-function blockDurationMinutes(block){
+function blockDurationMinutes(block, config = null){
+  const cfg = resolveArisePriors(config).programming.shortWorkout;
   const timed = parseTimeMinutes(block.reps);
-  if(timed != null) return Math.max(1, timed);
+  if(timed != null) return Math.max(cfg.minimumBlockMinutes, timed);
   const sets = Math.max(1, numeric(block.sets));
   const rest = Math.max(0, numeric(block.restSec)) / 60;
-  return sets * 1.4 + Math.max(0, sets - 1) * rest;
+  return sets * cfg.minutesPerSet + Math.max(0, sets - 1) * rest;
 }
 
-function blockPriority(block, index){
+function blockPriority(block, index, config = null){
+  const cfg = resolveArisePriors(config).programming.shortWorkout;
   const ex = EXERCISE_BY_ID[block.exerciseId];
   const muscle = ex?.muscle || '';
   const compound = ['Legs', 'Back', 'Chest', 'Glutes', 'Full body'].includes(muscle);
   const cardio = muscle === 'Cardio';
-  return (compound ? 4 : cardio ? 2 : 3) + (index === 0 ? 0.5 : 0);
+  return (compound ? cfg.compoundPriority : cardio ? cfg.cardioPriority : cfg.isolationPriority) + (index === 0 ? cfg.firstBlockBonus : 0);
 }
 
-function shortenBlock(block, ratio, targetMinutes){
+function shortenBlock(block, ratio, targetMinutes, config = null){
+  const cfg = resolveArisePriors(config).programming.shortWorkout;
   const timed = parseTimeMinutes(block.reps);
   if(timed != null){
-    const minutes = Math.max(5, Math.min(timed, Math.round(timed * ratio), targetMinutes));
+    const minutes = Math.max(cfg.timedBlockMinimumMinutes, Math.min(timed, Math.round(timed * ratio), targetMinutes));
     return { ...block, reps: `${minutes} min`, shortOriginalReps: block.reps };
   }
   const originalSets = Math.max(1, numeric(block.sets));
@@ -312,14 +322,15 @@ function shortenBlock(block, ratio, targetMinutes){
   return { ...block, sets, shortOriginalSets: originalSets };
 }
 
-export function shortWorkoutMode(session, { minutes = 20 } = {}){
+export function shortWorkoutMode(session, { minutes = null, config = null } = {}){
+  const cfg = resolveArisePriors(config).programming.shortWorkout;
   if(!session?.blocks?.length) return { session, changed: false, reason: 'No workout blocks to shorten.' };
-  const target = Math.max(10, Number(minutes) || 20);
-  const originalDurationMin = Math.ceil(session.blocks.reduce((total, block)=> total + blockDurationMinutes(block), 0));
+  const target = Math.max(cfg.minimumMinutes, Number(minutes) || cfg.defaultMinutes);
+  const originalDurationMin = Math.ceil(session.blocks.reduce((total, block)=> total + blockDurationMinutes(block, config), 0));
   if(originalDurationMin <= target){
     return { session: { ...session, mode: 'standard', estimatedDurationMin: originalDurationMin }, changed: false, originalDurationMin, estimatedDurationMin: originalDurationMin, omittedExerciseIds: [], reason: 'The planned session already fits the requested time.' };
   }
-  const ranked = session.blocks.map((block, index)=> ({ block, index, duration: blockDurationMinutes(block), priority: blockPriority(block, index) }))
+  const ranked = session.blocks.map((block, index)=> ({ block, index, duration: blockDurationMinutes(block, config), priority: blockPriority(block, index, config) }))
     .sort((a, b)=> b.priority - a.priority || a.index - b.index);
   const selected = [];
   let selectedDuration = 0;
@@ -332,8 +343,8 @@ export function shortWorkoutMode(session, { minutes = 20 } = {}){
   if(!selected.length) selected.push(ranked[0]);
   const ratio = Math.min(1, target / Math.max(originalDurationMin, 1));
   const selectedIds = new Set(selected.map(item=> item.index));
-  const blocks = session.blocks.filter((_, index)=> selectedIds.has(index)).map(block=> shortenBlock(block, ratio, target));
-  const estimatedDurationMin = Math.max(1, Math.ceil(blocks.reduce((total, block)=> total + blockDurationMinutes(block), 0)));
+  const blocks = session.blocks.filter((_, index)=> selectedIds.has(index)).map(block=> shortenBlock(block, ratio, target, config));
+  const estimatedDurationMin = Math.max(cfg.minimumBlockMinutes, Math.ceil(blocks.reduce((total, block)=> total + blockDurationMinutes(block, config), 0)));
   return {
     session: { ...session, blocks, mode: 'short', targetMinutes: target, estimatedDurationMin, originalDurationMin },
     changed: true,
@@ -365,6 +376,191 @@ export function adaptScheduleForEquipment(schedule, availableEquipment = [], his
   };
 }
 
+// Programme-level adaptation closes the loop between a completed session and
+// the next prescription. It is deliberately conservative: a single rough
+// workout can hold a target, but it cannot rewrite the programme. Volume is
+// changed only after repeated evidence, a deload is limited to the next
+// recovery window, and an exercise swap requires a genuine plateau plus a
+// kit-compatible alternative.
+function sortedSessions(history){
+  return (history || []).map((session, index)=> ({ session, index }))
+    .sort((a, b)=> sessionDateSort(a.session, b.session) || a.index - b.index)
+    .map(item=> item.session);
+}
+
+function scheduleHistory(schedule, history){
+  const sessionIds = new Set((schedule?.sessions || []).map(session=> session.id));
+  const startDateISO = schedule?.startDateISO || '';
+  return sortedSessions(history).filter(session=> {
+    if(sessionIds.has(session.id)) return true;
+    return session.programId === schedule?.programId && (!startDateISO || String(session.dateISO || '') >= startDateISO);
+  });
+}
+
+function repeatedDifficulty(history, exerciseId, config = null){
+  const cfg = resolveArisePriors(config).programming.adaptation;
+  const sessions = sortedSessions(history).filter(session=> (session.blocks || []).some(block=> block.exerciseId === exerciseId)).slice(-cfg.difficultySessions);
+  if(sessions.length < cfg.difficultySessions) return null;
+  const evidence = sessions.map(session=> {
+    const sets = (session.blocks || []).filter(block=> block.exerciseId === exerciseId).flatMap(block=> block.sets || []);
+    const rpes = sets.map(set=> Number(set.rpe)).filter(value=> Number.isFinite(value));
+    const failed = sets.some(set=> set.failed === true || set.incomplete === true || parseReps(set.reps) <= 0);
+    const avgRpe = rpes.length ? rpes.reduce((sum, value)=> sum + value, 0) / rpes.length : null;
+    return { sessionId: session.id, dateISO: session.dateISO, failed, avgRpe: avgRpe == null ? null : Math.round(avgRpe * 10) / 10 };
+  });
+  const repeated = evidence.every(row=> row.failed || (row.avgRpe != null && row.avgRpe >= 9));
+  if(!repeated) return null;
+  return {
+    kind: 'repeated-difficulty',
+    evidence,
+    reason: `Held volume because the last ${evidence.length} ${exerciseId} exposures included failed sets or average RPE ≥9.`,
+  };
+}
+
+function addBlockAdaptation(block, { kind, reason, basisKey }){
+  return {
+    ...block,
+    why: reason,
+    adaptation: { kind, reason, basisKey },
+  };
+}
+
+function adaptationNoop(schedule, reason, { basisKey = null, decision = null } = {}){
+  return { schedule, changed: false, changes: [], decision, basisKey, reason };
+}
+
+// Use actual history to adapt only unfinished schedule sessions. The returned
+// schedule is safe to apply on every save: lastAdaptationBasis makes the same
+// completed session idempotent, while savedAt/history count lets edited or
+// duplicated history be treated as a new observation.
+export function adaptActiveSchedule(schedule, history = [], { readinessLog = [], availableEquipment = null, config = null } = {}){
+  if(!schedule?.sessions?.length) return adaptationNoop(schedule, 'No active schedule to adapt.');
+  const cfg = resolveArisePriors(config);
+  const activeHistory = scheduleHistory(schedule, history);
+  if(!activeHistory.length) return adaptationNoop(schedule, 'No completed sessions from this programme yet.');
+  const last = activeHistory[activeHistory.length - 1];
+  const basisKey = `${last.id || last.dateISO}|${last.savedAt || last.dateISO}|${activeHistory.length}`;
+  if(schedule.lastAdaptationBasis === basisKey) return adaptationNoop(schedule, 'This completed session has already informed the programme.', { basisKey, decision: schedule.lastAdaptation?.decision || null });
+
+  const completedIds = new Set(activeHistory.map(session=> session.id).filter(Boolean));
+  const ordered = schedule.sessions.slice().sort(sessionDateSort);
+  const lastIndex = ordered.findIndex(session=> session.id === last.id);
+  const future = ordered.filter((session, index)=> index > lastIndex && !isDone(session, completedIds));
+  if(!future.length) return adaptationNoop(schedule, 'The programme has no unfinished sessions after the latest completed session.', { basisKey });
+
+  const logs = allSetLogs(activeHistory);
+  const volume = weeklyVolume(activeHistory);
+  const weeklyVolumeTrend = volume.slice(1).map((week, index)=> week.vol / Math.max(1, volume[index].vol));
+  const recentRpes = logs.slice(-cfg.recovery.recentSetWindow).map(log=> log.rpe).filter(value=> value != null && String(value).trim() !== '');
+  const deload = deloadReadinessAssessment({
+    logs,
+    recentRpes,
+    weeklyVolumeTrend,
+    readinessHistory: readinessLog,
+    history: activeHistory,
+    config: cfg,
+  });
+
+  const kit = [...new Set([...(availableEquipment || schedule.availableEquipment || []), 'bodyweight'])];
+  const changes = [];
+  const updatedById = new Map();
+  const touchedExercises = new Set();
+  const maxChanges = cfg.programming.adaptation.maxChangesPerSave;
+  const updateBlock = (session, blockIndex, nextBlock)=> {
+    const current = updatedById.get(session.id) || session;
+    const blocks = (current.blocks || []).map((block, index)=> index === blockIndex ? nextBlock : block);
+    updatedById.set(session.id, { ...current, blocks });
+  };
+  const canChange = ()=> changes.length < maxChanges;
+
+  if(deload.yes){
+    const horizonEnd = addDays(last.dateISO, cfg.programming.adaptation.deloadHorizonDays);
+    for(const session of future){
+      if(String(session.dateISO || '') > horizonEnd || !canChange()) continue;
+      for(const [blockIndex, block] of (session.blocks || []).entries()){
+        const originalSets = Math.max(1, Number(block.sets) || 1);
+        const nextSets = Math.max(1, Math.min(originalSets, Math.round(originalSets * deload.cut)));
+        if(nextSets >= originalSets) continue;
+        const reason = `Reduced to ${nextSets} set${nextSets === 1 ? '' : 's'} for the next recovery window because ${deload.signals.join('; ')}.`;
+        updateBlock(session, blockIndex, addBlockAdaptation({ ...block, sets: nextSets }, { kind: 'deload', reason, basisKey }));
+        changes.push({ sessionId: session.id, dateISO: session.dateISO, exerciseId: block.exerciseId, kind: 'deload', from: { sets: originalSets }, to: { sets: nextSets }, reason, evidence: deload.signals.slice() });
+        if(!canChange()) break;
+      }
+    }
+  } else {
+    // Only the next occurrence of an exercise is changed. This prevents one
+    // observation from silently inflating an entire mesocycle.
+    for(const session of future){
+      for(const [blockIndex, block] of (session.blocks || []).entries()){
+        if(!canChange() || touchedExercises.has(block.exerciseId)) continue;
+        touchedExercises.add(block.exerciseId);
+
+        const plateau = plateauAttribution(activeHistory, block.exerciseId, { readinessLog, config: cfg });
+        if(plateau.kind === 'genuine' && plateau.n >= cfg.programming.adaptation.plateauMinimumSessions && kit.length){
+          const [candidate] = rankedSubstitutions(block.exerciseId, kit, 1, activeHistory);
+          if(candidate){
+            const reason = `Changed to ${candidate.name} after ${plateau.n} exposures with a genuine plateau: ${plateau.reason}`;
+            const nextBlock = addBlockAdaptation({
+              ...block,
+              exerciseId: candidate.id,
+              substitutionFrom: block.substitutionFrom || block.exerciseId,
+              substitutionReason: reason,
+            }, { kind: 'plateau-substitution', reason, basisKey });
+            updateBlock(session, blockIndex, nextBlock);
+            changes.push({ sessionId: session.id, dateISO: session.dateISO, exerciseId: block.exerciseId, kind: 'plateau-substitution', from: block.exerciseId, to: candidate.id, reason, evidence: [plateau.reason] });
+            continue;
+          }
+        }
+
+        const difficulty = repeatedDifficulty(activeHistory, block.exerciseId, cfg);
+        const originalSets = Math.max(1, Number(block.sets) || 1);
+        if(difficulty && originalSets > 1){
+          const nextSets = Math.max(1, originalSets - cfg.programming.adaptation.setReduction);
+          const reason = `Reduced volume from ${originalSets} to ${nextSets} sets; repeated difficulty is evidence to recover before adding more.`;
+          updateBlock(session, blockIndex, addBlockAdaptation({ ...block, sets: nextSets }, { kind: 'repeated-difficulty', reason, basisKey }));
+          changes.push({ sessionId: session.id, dateISO: session.dateISO, exerciseId: block.exerciseId, kind: 'repeated-difficulty', from: { sets: originalSets }, to: { sets: nextSets }, reason, evidence: difficulty.evidence });
+          continue;
+        }
+
+        const setDecision = recommendSets(activeHistory, block.exerciseId, { targetReps: block.reps, maxSets: cfg.progression.sets.defaultMaxSets, config: cfg });
+        if(setDecision.add && setDecision.sets > originalSets){
+          const reason = `${setDecision.reason} Applied to the next ${block.exerciseId} session only; future volume will wait for more evidence.`;
+          updateBlock(session, blockIndex, addBlockAdaptation({ ...block, sets: setDecision.sets }, { kind: 'volume', reason, basisKey }));
+          changes.push({ sessionId: session.id, dateISO: session.dateISO, exerciseId: block.exerciseId, kind: 'volume', from: { sets: originalSets }, to: { sets: setDecision.sets }, reason, evidence: [setDecision.reason] });
+        }
+      }
+    }
+  }
+
+  const decision = {
+    deload: deload.yes,
+    deloadSignals: deload.signals || [],
+    confidence: deload.confidence || 'low',
+  };
+  if(!changes.length) return adaptationNoop(schedule, deload.yes ? 'Recovery signals were present, but unfinished blocks were already at the minimum volume.' : 'No repeated evidence supports a programme-level change yet.', { basisKey, decision });
+
+  const entry = { basisKey, basisSessionId: last.id || null, dateISO: last.dateISO, decision, changes };
+  const adaptationHistory = [...(schedule.adaptationHistory || []), entry].slice(-30);
+  const sessions = schedule.sessions.map(session=> updatedById.get(session.id) || session);
+  const nextSchedule = {
+    ...schedule,
+    sessions,
+    adaptationHistory,
+    lastAdaptation: entry,
+    lastAdaptationBasis: basisKey,
+  };
+  return {
+    schedule: nextSchedule,
+    changed: true,
+    changes,
+    decision,
+    basisKey,
+    reason: changes.map(change=> change.reason).join(' '),
+  };
+}
+
+export const adaptProgramme = adaptActiveSchedule;
+
 export function recordProgramStart(entries = [], { programId, version = 1, startDateISO } = {}){
   const next = entries.map(entry=> entry.endDateISO ? entry : { ...entry, endDateISO: addDays(startDateISO, -1) });
   return [...next, { programId, version, startDateISO, endDateISO: null }];
@@ -387,12 +583,13 @@ function allSetLogs(history){
   return logs;
 }
 
-export function validateDeloadLogic({ history = [], readinessLog = [] } = {}){
+export function validateDeloadLogic({ history = [], readinessLog = [], config = null } = {}){
+  const cfg = resolveArisePriors(config);
   const volume = weeklyVolume(history);
   const weeklyVolumeTrend = volume.slice(1).map((week, index)=> week.vol / Math.max(1, volume[index].vol));
   const logs = allSetLogs(history);
-  const recentRpes = logs.slice(-12).map(log=> log.rpe).filter(value=> value != null && String(value).trim() !== '');
-  const decision = deloadReadinessAssessment({ logs, recentRpes, weeklyVolumeTrend, readinessHistory: readinessLog, history });
+  const recentRpes = logs.slice(-cfg.recovery.recentSetWindow).map(log=> log.rpe).filter(value=> value != null && String(value).trim() !== '');
+  const decision = deloadReadinessAssessment({ logs, recentRpes, weeklyVolumeTrend, readinessHistory: readinessLog, history, config: cfg });
   const outcomes = deloadOutcomes(history);
   const sample = outcomes.n;
   return {
@@ -400,26 +597,35 @@ export function validateDeloadLogic({ history = [], readinessLog = [] } = {}){
     outcomes,
     weeks: volume.length,
     sample,
-    confidence: sample >= 3 ? 'high' : sample >= 1 ? 'medium' : 'low',
+    confidence: sample >= cfg.recovery.validationHighOutcomes ? 'high' : sample >= cfg.recovery.validationMediumOutcomes ? 'medium' : 'low',
     note: sample ? `Validated against ${sample} observed volume-cut week${sample === 1 ? '' : 's'}.` : 'No observed deload outcomes yet — treat the trigger as a conservative rule, not proof.',
   };
 }
 
-export function recommendationCalibration(history = [], { minimumSamples = 5 } = {}){
-  const validation = validateProgression(history);
+export function recommendationCalibration(history = [], { minimumSamples = null, config = null, readinessLog = [], schedule = null, profile = null } = {}){
+  const cfg = resolveArisePriors(config);
+  const minimum = minimumSamples == null ? cfg.backtest.minimumComparisons : minimumSamples;
+  const backtest = backtestHistory({ kind: 'real-history', history, readinessLog, schedule, profile, config: cfg });
+  const rawValidation = backtest.metrics?.recommendation || validateProgression(history, { config: cfg });
+  const validation = {
+    ...rawValidation,
+    meanAbsErrorKg: rawValidation.loadRecommendationError?.meanAbsKg ?? rawValidation.meanAbsErrorKg ?? null,
+    meanAbsErrorReps: rawValidation.repRecommendationError?.meanAbsReps ?? rawValidation.meanAbsErrorReps ?? null,
+  };
   const followThrough = recommendationFollowThrough(history);
-  const samples = validation.n;
-  const status = samples >= minimumSamples ? 'calibrated' : samples > 0 ? 'warming' : 'insufficient';
-  const confidence = samples >= minimumSamples * 2 ? 'high' : samples >= minimumSamples ? 'medium' : 'low';
+  const samples = backtest.comparisons ?? validation.n;
+  const status = samples >= minimum ? 'calibrated' : samples > 0 ? 'warming' : 'insufficient';
+  const confidence = samples >= minimum * 2 ? 'high' : samples >= minimum ? 'medium' : 'low';
   return {
     ...validation,
     samples,
-    minimumSamples,
+    minimumSamples: minimum,
     status,
     confidence,
     followThrough,
+    backtest,
     note: status === 'calibrated'
-      ? `Calibration is based on ${samples} next-session comparisons.`
-      : `Need ${Math.max(0, minimumSamples - samples)} more next-session comparison${minimumSamples - samples === 1 ? '' : 's'} before tuning the rule.`,
+      ? `Calibration is based on ${samples} point-in-time next-session comparisons.`
+      : `Need ${Math.max(0, minimum - samples)} more next-session comparison${minimum - samples === 1 ? '' : 's'} before tuning the rule.`,
   };
 }
