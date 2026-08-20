@@ -31,7 +31,11 @@ export default function ProgressView({ store }){
   const exerciseSummary = useMemo(()=> exerciseId ? exerciseHistorySummary(history, exerciseId) : null, [history, exerciseId]);
   const plateau = useMemo(()=> exerciseId ? plateauDetection(history, exerciseId, { readinessLog: store.readinessLog || [] }) : null, [history, exerciseId, store.readinessLog]);
   const deloadValidation = useMemo(()=> validateDeloadLogic({ history, readinessLog: store.readinessLog || [] }), [history, store.readinessLog]);
-  const calibration = useMemo(()=> recommendationCalibration(history), [history]);
+  const calibration = useMemo(()=> recommendationCalibration(history, {
+    readinessLog: store.readinessLog || [],
+    schedule: store.activeSchedule || null,
+    profile: { availableEquipment: store.onboarding?.equipment || [] },
+  }), [history, store.readinessLog, store.activeSchedule, store.onboarding?.equipment]);
   const badAttribution = useMemo(()=> badSessionAttribution(history, { readinessLog: store.readinessLog || [] }), [history, store.readinessLog]);
   const plateauRows = useMemo(()=>{
     const ids=[...new Set(history.flatMap(h=> (h.blocks||[]).map(b=> b.exerciseId)))];
@@ -238,15 +242,21 @@ export default function ProgressView({ store }){
 
       <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold">Recommendation calibration</h3>
+          <h3 className="text-sm font-bold">Historical recommendation backtest</h3>
           <span className="text-[11px] font-bold px-2 py-1 rounded-full border border-line bg-surface2">{calibration.status}</span>
         </div>
-        <p className="text-xs text-ink3">{calibration.note}</p>
+        <p className="text-xs text-ink3">{calibration.backtest?.comparisons || 0} point-in-time comparisons. Future sessions are hidden while each recommendation is reconstructed; observed outcomes are scored afterward.</p>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-          <span>{calibration.samples} comparisons</span>
-          <span>{calibration.hitRate == null ? '—' : `${Math.round(calibration.hitRate * 100)}% within target`}</span>
-          <span>{calibration.followThrough.followedPct == null ? '—' : `${calibration.followThrough.followedPct}% followed`}</span>
-          <span className="text-ink3">{calibration.confidence} confidence</span>
+          <span>{calibration.backtest?.metrics?.loadRecommendationError?.meanAbsKg == null ? '—' : `${calibration.backtest.metrics.loadRecommendationError.meanAbsKg}kg load MAE`}</span>
+          <span>{calibration.backtest?.metrics?.repRecommendationError?.meanAbsReps == null ? '—' : `${calibration.backtest.metrics.repRecommendationError.meanAbsReps} rep MAE`}</span>
+          <span>{calibration.backtest?.metrics?.completionProbability?.brier == null ? '—' : `completion Brier ${calibration.backtest.metrics.completionProbability.brier}`}</span>
+          <span>{calibration.backtest?.metrics?.progressionTiming?.actionAgreement == null ? '—' : `${Math.round(calibration.backtest.metrics.progressionTiming.actionAgreement * 100)}% timing agreement`}</span>
+          <span className="text-ink3">{calibration.backtest?.calibration?.empiricalReplacementCount || 0} empirical replacements</span>
+        </div>
+        <div className="text-[11px] text-ink3 space-y-1">
+          <p>Plateau accuracy: {calibration.backtest?.metrics?.plateauClassification?.accuracy == null ? '—' : `${Math.round(calibration.backtest.metrics.plateauClassification.accuracy * 100)}%`} • bad-session Brier: {calibration.backtest?.metrics?.fatigueClassification?.brier == null ? '—' : calibration.backtest.metrics.fatigueClassification.brier}</p>
+          <p>Deload evidence: {calibration.backtest?.metrics?.deloadRecommendation?.evaluable || 0} observed volume cuts • missed-session recovery: {calibration.backtest?.metrics?.missedSessionRecovery?.available ? `${Math.round((calibration.backtest.metrics.missedSessionRecovery.sequenceAdherence || 0) * 100)}% sequence adherence` : 'schedule not supplied'}</p>
+          <p>{calibration.backtest?.calibration?.note || calibration.note}</p>
         </div>
       </section>
 

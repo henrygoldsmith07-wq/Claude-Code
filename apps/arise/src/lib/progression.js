@@ -1,45 +1,42 @@
-// progression.js — real progression engine.
-// Pure: takes history + current schedule/exercise and returns next-load advice,
-// plateau/deload signals, and explanations. Offline, no AI.
+// progression.js — deterministic progression engine.
+// Pure: takes only the history visible to the caller plus explicit priors and
+// returns next-load advice, plateau/deload signals, and explanations. Offline,
+// no AI.
+
+import { DEFAULT_ARISE_PRIORS, resolveArisePriors, clamp } from './priors.js';
+import { nearestLoadToPlates } from './plates.js';
 
 export function e1rm(weightKg, reps){ if(!(weightKg>0 && reps>0)) return 0; return weightKg * (1 + reps/30); }
 export function epleyToLoad(e1rmVal, reps){ return e1rmVal / (1 + reps/30); }
 
-// Exercise-specific progression strategies (conservative defaults)
-// strength = load-first, hypertrophy = double progression, endurance = reps-first
-export const PROGRESSION_STRATEGY = {
-  strength: { repRange: '3–6', incPct: 0.05, prefer: 'load' },
-  hypertrophy: { repRange: '8–12', incPct: 0.025, prefer: 'double' },
-  endurance: { repRange: '12–20', incPct: 0.02, prefer: 'reps' },
-};
-const STRATEGY_BY_EXERCISE = {
-  'barbell-squat': 'strength', 'bench-press-barbell': 'strength', 'romanian-deadlift': 'strength',
-  'barbell-bench-press': 'strength',
-  'plank': 'endurance', 'run-easy': 'endurance', 'brisk-walk': 'endurance', 'cycle': 'endurance', 'jump-rope': 'endurance', 'burpee': 'endurance', 'dead-bug': 'endurance',
-};
-export function strategyForExercise(exerciseId){
+// These aliases are kept for existing consumers. The values now come from the
+// explicit, versioned priors object rather than a decision-local constant.
+export const PROGRESSION_STRATEGY = DEFAULT_ARISE_PRIORS.progression.strategies;
+
+export function strategyForExercise(exerciseId, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression;
   if(!exerciseId) return 'hypertrophy';
-  if(STRATEGY_BY_EXERCISE[exerciseId]) return STRATEGY_BY_EXERCISE[exerciseId];
+  if(cfg.strategyByExercise[exerciseId]) return cfg.strategyByExercise[exerciseId];
   // fallback by name/muscle heuristic — keep deterministic
-  if(/squat|deadlift|bench|press/.test(exerciseId) && !/lateral|band/.test(exerciseId)) return 'strength';
+  if(new RegExp(cfg.fallback.strengthPattern).test(exerciseId) && !new RegExp(cfg.fallback.strengthExcludePattern).test(exerciseId)) return 'strength';
   return 'hypertrophy';
 }
 
 // Personalised progression rate: learned weekly rep/load deltas per exercise.
 // Returns { weeklyLoadPct, weeklyRepGain, n, spanDays } or null if insufficient data.
-export function personalisedRate(history, exerciseId){
+export function personalisedRate(history, exerciseId, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.personalisedRate;
   const logs = logsFor(history, exerciseId);
-  if(logs.length < 4) return null;
+  if(logs.length < cfg.minSessions) return null;
   const pts = logs.map(l=> ({ t: Date.parse(l.dateISO || '2026-01-01'), y: e1rm(l.weightKg||0,l.reps)||l.reps }));
   pts.sort((a,b)=> a.t - b.t);
   const spanDays = Math.max(1, (pts[pts.length-1].t - pts[0].t)/86400000);
-  if(spanDays < 7) return null;
-  const k = Math.max(1, Math.ceil(pts.length/3));
+  if(spanDays < cfg.minSpanDays) return null;
+  const k = Math.max(1, Math.ceil(pts.length/cfg.trimParts));
   const first = pts.slice(0,k).reduce((a,b)=> a+b.y,0)/k;
   const last = pts.slice(-k).reduce((a,b)=> a+b.y,0)/k;
   const weeks = spanDays/7;
-  // clamp to realistic: -2% .. +10% per week
-  const weeklyLoadPct = Math.max(-0.02, Math.min(0.10, (last/Math.max(1,first) - 1)/weeks));
+  const weeklyLoadPct = clamp((last/Math.max(1,first) - 1)/weeks, cfg.weeklyLoadPctMin, cfg.weeklyLoadPctMax);
   const weeklyRepGain = (last - first)/weeks;
   return { weeklyLoadPct: Math.round(weeklyLoadPct*1000)/1000, weeklyRepGain: Math.round(weeklyRepGain*10)/10, n: logs.length, spanDays: Math.round(spanDays) };
 }
@@ -47,55 +44,87 @@ export function personalisedRate(history, exerciseId){
 // Training age: months since the user's first logged session. Personalises cold-start
 // progression rates — novices adapt faster, advanced lifters slower (rate-limiting factor
 // shifts from adaptation to recovery/technique).
-export function trainingAgeMonths(history){
+export function trainingAgeMonths(history, { asOfDateISO = null, config = null } = {}){
   if(!history || !history.length) return 0;
-  const dates = history.map(h=> Date.parse(h.dateISO)).filter(Number.isFinite).sort((a,b)=> a-b);
+  const end = asOfDateISO ? Date.parse(`${asOfDateISO}T00:00:00`) : Date.now();
+  if(!Number.isFinite(end)) return 0;
+  const dates = history.map(h=> Date.parse(h.dateISO)).filter(value=> Number.isFinite(value) && value <= end).sort((a,b)=> a-b);
   if(!dates.length) return 0;
-  return Math.max(0, (Date.now() - dates[0]) / (30.44 * 86400000));
+  return Math.max(0, (end - dates[0]) / (resolveArisePriors(config).progression.daysPerMonth * 86400000));
 }
-export function trainingPhase(months){
+export function trainingPhase(months, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.trainingAge;
   if(months <= 0) return 'unknown';
-  if(months < 6) return 'novice';
-  if(months < 18) return 'intermediate';
+  if(months < cfg.noviceMaxMonths) return 'novice';
+  if(months < cfg.intermediateMaxMonths) return 'intermediate';
   return 'advanced';
 }
-export function ageRateMultiplier(months){
+export function ageRateMultiplier(months, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.trainingAge;
   if(months <= 0) return 1;
-  if(months < 6) return 1.5;   // novice — newbie adaptation
-  if(months < 18) return 1.0;  // intermediate
-  return 0.5;                  // advanced — slower, technique-bound
+  if(months < cfg.noviceMaxMonths) return cfg.noviceMultiplier;
+  if(months < cfg.intermediateMaxMonths) return cfg.intermediateMultiplier;
+  return cfg.advancedMultiplier;
 }
-export function trainingAgeInfo(history){
-  const months = trainingAgeMonths(history);
-  return { months: Math.round(months*10)/10, phase: trainingPhase(months), multiplier: ageRateMultiplier(months) };
+export function trainingAgeInfo(history, { asOfDateISO = null, config = null } = {}){
+  const months = trainingAgeMonths(history, { asOfDateISO, config });
+  return { months: Math.round(months*10)/10, phase: trainingPhase(months, { config }), multiplier: ageRateMultiplier(months, { config }) };
+}
+
+// A long gap is not a diagnosis and does not erase training age, but it is a
+// reason to restart the next exposure conservatively. The caller supplies the
+// point-in-time date so historical replay cannot look into the future.
+export function trainingBreakInfo(history, { asOfDateISO = null, config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.trainingAge;
+  // Without an explicit as-of date there is no stable point-in-time boundary;
+  // leave the legacy recommendation path unchanged rather than using the
+  // wall-clock and making historical results drift.
+  if(!asOfDateISO) return { hasBreak: false, daysSinceLast: null, longBreakDays: cfg.longBreakDays };
+  const end = Date.parse(`${asOfDateISO}T00:00:00Z`);
+  const dates = (history || []).map(session=> Date.parse(`${session?.dateISO || ''}T00:00:00Z`))
+    .filter(value=> Number.isFinite(value) && value <= end)
+    .sort((a, b)=> a - b);
+  if(!dates.length || !Number.isFinite(end)) return { hasBreak: false, daysSinceLast: null, longBreakDays: cfg.longBreakDays };
+  const daysSinceLast = Math.max(0, Math.floor((end - dates[dates.length - 1]) / 86400000));
+  return {
+    hasBreak: daysSinceLast >= cfg.longBreakDays,
+    daysSinceLast,
+    longBreakDays: cfg.longBreakDays,
+    lastSessionDateISO: new Date(dates[dates.length - 1]).toISOString().slice(0, 10),
+  };
 }
 
 // Longitudinal validation: how well would recommendNext have predicted the next logged set?
 // Returns { n, meanAbsErrorKg, meanAbsErrorReps, hitRate }
-export function validateProgression(history){
+export function validateProgression(history, { config = null } = {}){
+  const cfg = resolveArisePriors(config);
+  const ordered = orderedHistory(history);
   const byEx = new Map();
-  for(const h of history||[]) for(const b of h.blocks||[]) {
-    if(!byEx.has(b.exerciseId)) byEx.set(b.exerciseId, []);
-    // flatten to session-level best e1RM per exercise
-    const sets = b.sets||[];
-    const best = sets.map(s=> ({ w:Number(s.weightKg)||0, r:Number(String(s.reps).match(/\d+/)?.[0]||s.reps)||0 })).filter(x=> x.w>0||x.r>0);
-    if(best.length) byEx.get(b.exerciseId).push({ dateISO:h.dateISO, sets: best });
+  for(let orderIndex = 0; orderIndex < ordered.length; orderIndex++){
+    const h = ordered[orderIndex];
+    for(const b of h.blocks||[]) {
+      if(!byEx.has(b.exerciseId)) byEx.set(b.exerciseId, []);
+      // flatten to session-level best e1RM per exercise
+      const sets = b.sets||[];
+      const best = sets.map(s=> ({ w:Number(s.weightKg)||0, r:Number(String(s.reps).match(/\d+/)?.[0]||s.reps)||0 })).filter(x=> x.w>0||x.r>0);
+      if(best.length) byEx.get(b.exerciseId).push({ dateISO:h.dateISO, sets: best, orderIndex });
+    }
   }
   let errsKg=[], errsReps=[], hits=0, total=0;
   for(const [exId, sessions] of byEx){
-    if(sessions.length<3) continue;
+    if(sessions.length < cfg.progression.validation.minimumSessions) continue;
     for(let i=1;i<sessions.length;i++){
-      const historySlice = history.filter(h=> h.dateISO < sessions[i].dateISO);
+      const historySlice = ordered.slice(0, sessions[i].orderIndex);
       // need at least 1 prior session for this exercise
       if(!historySlice.some(h=> (h.blocks||[]).some(b=> b.exerciseId===exId))) continue;
-      const rec = recommendNext({ exerciseId: exId, history: historySlice });
+      const rec = recommendNext({ exerciseId: exId, history: historySlice, asOfDateISO: sessions[i].dateISO, config: cfg });
       const actual = sessions[i].sets[0];
       if(rec.load!=null && actual.w) errsKg.push(Math.abs((rec.load||actual.w) - actual.w));
       if(rec.reps!=null && actual.r) errsReps.push(Math.abs(rec.reps - actual.r));
       total++;
       // hit if within 1 rep or 5% load
-      const loadOk = rec.load==null || rec.load===0 || Math.abs((rec.load||actual.w)-actual.w)/Math.max(1,actual.w) < 0.05;
-      const repOk = Math.abs((rec.reps||actual.r)-actual.r) <=1;
+      const loadOk = rec.load==null || rec.load===0 || Math.abs((rec.load||actual.w)-actual.w)/Math.max(1,actual.w) < cfg.progression.validation.loadTolerancePct;
+      const repOk = Math.abs((rec.reps||actual.r)-actual.r) <= cfg.progression.validation.repTolerance;
       if(loadOk && repOk) hits++;
     }
   }
@@ -105,48 +134,69 @@ export function validateProgression(history){
     meanAbsErrorKg: mean(errsKg)!=null? Math.round(mean(errsKg)*10)/10 : null,
     meanAbsErrorReps: mean(errsReps)!=null? Math.round(mean(errsReps)*10)/10 : null,
     hitRate: total? Math.round(hits/total*100)/100 : null,
+    leakageSafe: true,
+    priorsVersion: cfg.version,
   };
 }
 
 // Recommend next load/reps from last N sessions for an exercise.
 // Conservative double-progression: first add reps, then add load.
 // Now strategy-aware + personalised + plateau-aware.
-export function recommendNext({ exerciseId, history, targetReps = "8–12", conservative = true, strategy }){
-  const logs = logsFor(history, exerciseId).slice(-6);
+export function recommendNext({ exerciseId, history, targetReps = null, conservative = true, strategy, config = null, asOfDateISO = null, calibration = null, plateConfig = null }){
+  const cfg = resolveArisePriors(config);
+  targetReps = targetReps || cfg.progression.defaultTargetReps;
+  const logs = logsFor(history, exerciseId).slice(-cfg.progression.historyWindow);
   if(!logs.length) {
-    const strat = strategy || strategyForExercise(exerciseId);
-    return { load: null, reps: parseLow(targetReps), reason: "No history — use program prescription.", strategy: strat, trainingAge: trainingAgeInfo(history) };
+    const strat = strategy || strategyForExercise(exerciseId, { config: cfg });
+    return { load: null, reps: parseLow(targetReps, cfg), reason: "No history — use program prescription.", strategy: strat, trainingAge: trainingAgeInfo(history, { asOfDateISO, config: cfg }), priorsVersion: cfg.version };
   }
   const last = logs[logs.length-1];
   const reps = last.reps, load = last.weightKg || 0;
   const [lo, hi] = parseRange(targetReps);
-  const strat = strategy || strategyForExercise(exerciseId);
-  const sCfg = PROGRESSION_STRATEGY[strat] || PROGRESSION_STRATEGY.hypertrophy;
-  const prate = personalisedRate(history, exerciseId);
-  const trainingAge = trainingAgeInfo(history);
+  const strat = strategy || strategyForExercise(exerciseId, { config: cfg });
+  const sCfg = cfg.progression.strategies[strat] || cfg.progression.strategies.hypertrophy;
+  const prate = personalisedRate(history, exerciseId, { config: cfg });
+  const trainingAge = trainingAgeInfo(history, { asOfDateISO, config: cfg });
+  const trainingBreak = trainingBreakInfo(history, { asOfDateISO, config: cfg });
+  if(trainingBreak.hasBreak){
+    const returnLoad = load > 0 ? snapLoad(load * cfg.progression.trainingAge.returnLoadMultiplier, cfg) : null;
+    return plateAware({
+      load: returnLoad,
+      reps: lo,
+      reason: `After a ${trainingBreak.daysSinceLast}-day break, restart at ${lo} reps and ${returnLoad != null ? `${returnLoad}kg` : 'a conservative bodyweight target'} before rebuilding.`,
+      trainingBreak,
+      strategy: strat,
+      personalised: prate,
+      trainingAge,
+      priorsVersion: cfg.version,
+    }, plateConfig);
+  }
   // Plateau v2 check (real vs noise) — if true, hold
-  const plat = isPlateauV2(logs);
-  if(plat.isPlateau) return { load, reps, reason: plat.reason, plateau: plat, strategy: strat, personalised: prate, trainingAge };
+  const plat = isPlateauV2(logs, { config: cfg });
+  if(plat.isPlateau) return plateAware({ load, reps, reason: plat.reason, plateau: plat, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig);
   // also keep original 3-session plateau as conservative fallback
-  if(!plat.isPlateau && isPlateau(logs)) return { load, reps, reason: "Plateau — hold load, consider deload.", plateau: plat, strategy: strat, personalised: prate, trainingAge };
+  if(!plat.isPlateau && isPlateau(logs, { config: cfg })) return plateAware({ load, reps, reason: "Plateau — hold load, consider deload.", plateau: plat, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig);
 
   // Assisted progression (e.g. pull-up with band/assist): add reps first, then REDUCE assist.
   const assist = last.assistedKg != null && last.assistedKg !== '' ? Number(last.assistedKg) : null;
   if(assist != null && assist > 0){
-    if(reps < hi) return { load: null, reps: reps + 1, assistKg: assist, reason: `Assisted — add a rep (${reps}→${reps+1}) before cutting assist.`, strategy: strat, personalised: prate, trainingAge };
-    const nextAssist = Math.max(0, snapLoad(assist - 2.5));
-    return { load: null, reps: lo, assistKg: nextAssist, reason: nextAssist===0 ? `Top of ${lo}–${hi} at ${assist}kg assist — drop the assist, you're ready.` : `Top of ${lo}–${hi} — reduce assist ${assist}→${nextAssist}kg.`, strategy: strat, personalised: prate, trainingAge };
+    if(reps < hi) return { load: null, reps: reps + 1, assistKg: assist, reason: `Assisted — add a rep (${reps}→${reps+1}) before cutting assist.`, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version };
+    const nextAssist = Math.max(0, snapLoad(assist - cfg.progression.assistedStepKg, cfg));
+    return { load: null, reps: lo, assistKg: nextAssist, reason: nextAssist===0 ? `Top of ${lo}–${hi} at ${assist}kg assist — drop the assist, you're ready.` : `Top of ${lo}–${hi} — reduce assist ${assist}→${nextAssist}kg.`, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version };
   }
-  if(load === 0 && isBodyweight(exerciseId)){
-    if(reps < hi) return { load: null, reps: reps + 1, reason: `Bodyweight: add a rep (${reps}→${reps+1}).`, strategy: strat, personalised: prate, trainingAge };
-    return { load: null, reps, reason: "Top of range — try harder variant (decline/weighted/tempo).", strategy: strat, personalised: prate, suggestWeighted: true, trainingAge };
+  if(load === 0 && isBodyweight(exerciseId, cfg)){
+    if(reps < hi) return { load: null, reps: reps + 1, reason: `Bodyweight: add a rep (${reps}→${reps+1}).`, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version };
+    return { load: null, reps, reason: "Top of range — try harder variant (decline/weighted/tempo).", strategy: strat, personalised: prate, suggestWeighted: true, trainingAge, priorsVersion: cfg.version };
   }
   const rpe = last.rpe != null && String(last.rpe).trim()!=='' ? Number(last.rpe) : null;
   const rir = rpe !== null && Number.isFinite(rpe) ? Math.max(0, 10 - rpe) : 2;
   // Personalised rate when learned; otherwise strategy base rate scaled by training age.
-  const incPct = prate
-    ? Math.max(0.015, Math.min(0.06, prate.weeklyLoadPct || sCfg.incPct))
-    : Math.max(0.01, Math.min(0.06, sCfg.incPct * trainingAge.multiplier));
+  const empiricalRate = calibration?.progressionRatePct;
+  const incPct = empiricalRate != null && Number.isFinite(Number(empiricalRate))
+    ? clamp(Number(empiricalRate), cfg.progression.personalisedRate.appliedLoadPctMin, cfg.progression.personalisedRate.appliedLoadPctMax)
+    : prate
+      ? clamp(prate.weeklyLoadPct || sCfg.incPct, cfg.progression.personalisedRate.appliedLoadPctMin, cfg.progression.personalisedRate.appliedLoadPctMax)
+      : clamp(sCfg.incPct * trainingAge.multiplier, cfg.progression.coldLoadPctFloor, cfg.progression.personalisedRate.appliedLoadPctMax);
 
   // Strategy-aware
   if(sCfg.prefer === 'load' && load>0){
@@ -155,51 +205,50 @@ export function recommendNext({ exerciseId, history, targetReps = "8–12", cons
     }
   }
   if(sCfg.prefer === 'reps'){
-    if(reps < hi) return { load, reps: Math.min(hi, reps+1), reason: `Endurance — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge };
+    if(reps < hi) return plateAware({ load, reps: Math.min(hi, reps+1), reason: `Endurance — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig);
   }
   // Double progression (default for hypertrophy, and fallback)
   if(reps < hi) {
-    if(rir >= 2) return { load, reps: Math.min(hi, reps + 1), reason: `Room at RPE ${rpe ?? "/"} — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge };
-    const nextLoad = snapLoad(load * (1 + incPct));
-    return { load: nextLoad, reps: lo, reason: `Close to failure (RIR ~${rir}) — add a little load, reset to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge };
+    if(rir >= 2) return plateAware({ load, reps: Math.min(hi, reps + 1), reason: `Room at RPE ${rpe ?? "/"} — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge }, plateConfig);
+    const nextLoad = snapLoad(load * (1 + incPct), cfg);
+    return plateAware({ load: nextLoad, reps: lo, reason: `Close to failure (RIR ~${rir}) — add a little load, reset to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge }, plateConfig);
   }
-  const nextLoad = snapLoad(load > 0 ? load * (conservative ? (1 + incPct) : (1 + incPct*1.6)) : 0);
-  return { load: nextLoad || load, reps: lo, reason: `Hit top of ${lo}–${hi} — nudge load, back to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge };
+  const nextLoad = snapLoad(load > 0 ? load * (conservative ? (1 + incPct) : (1 + incPct*cfg.progression.nonConservativeMultiplier)) : 0, cfg);
+  return plateAware({ load: nextLoad || load, reps: lo, reason: `Hit top of ${lo}–${hi} — nudge load, back to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge }, plateConfig);
 }
 
 // Set progression: add a set only after 2 consecutive sessions at the top of the rep
 // range with room at the end (RIR ≥2). Conservative cap so volume never balloons.
-export function recommendSets(history, exerciseId, { targetReps = '8–12', maxSets = 5 } = {}){
-  const logs = logsFor(history, exerciseId).slice(-4);
-  const current = lastSessionSetCount(history, exerciseId);
-  if(!logs.length) return { sets: 3, reason: 'No history — start with 3 sets.', add: false };
-  const [lo, hi] = parseRange(targetReps);
-  if(logs.length < 2) return { sets: current, reason: 'Log another session before judging set count.', add: false };
-  const recent = logs.slice(-2);
+export function recommendSets(history, exerciseId, { targetReps = '8–12', maxSets = null, config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.sets;
+  const cap = maxSets == null ? cfg.defaultMaxSets : maxSets;
+  const exposures = sessionSetSummaries(history, exerciseId).slice(-cfg.historyWindow);
+  const current = exposures[exposures.length - 1]?.sets || lastSessionSetCount(history, exerciseId, cfg.defaultSets);
+  if(!exposures.length) return { sets: cfg.defaultSets, reason: `No history — start with ${cfg.defaultSets} sets.`, add: false };
+  const [lo, hi] = parseRange(targetReps, cfg);
+  if(exposures.length < cfg.minimumSessions) return { sets: current, reason: 'Log another session before judging set count.', add: false };
+  const recent = exposures.slice(-cfg.topSessionsRequired);
   const atTop = recent.every(l=> l.reps >= hi);
-  const room = recent.every(l=> l.rpe == null || String(l.rpe).trim()==='' || Number(l.rpe) <= 8);
-  if(atTop && room && current < maxSets) return { sets: current + 1, reason: `Two sessions at top of ${lo}–${hi} with reps in tank — add a set (${current}→${current+1}).`, add: true };
-  if(atTop) return { sets: current, reason: current >= maxSets ? `At ${maxSets} sets — cap reached; progress load or reps instead.` : 'At top of rep range but RPE was high — hold sets, add load first.', add: false };
+  const room = recent.every(l=> l.rpe == null || String(l.rpe).trim()==='' || Number(l.rpe) <= cfg.roomRpeMax);
+  if(atTop && room && current < cap) return { sets: current + 1, reason: `Two sessions at top of ${lo}–${hi} with reps in tank — add a set (${current}→${current+1}).`, add: true };
+  if(atTop) return { sets: current, reason: current >= cap ? `At ${cap} sets — cap reached; progress load or reps instead.` : 'At top of rep range but RPE was high — hold sets, add load first.', add: false };
   return { sets: current, reason: `Not at the top of ${lo}–${hi} yet — keep building reps before adding sets.`, add: false };
 }
 
 // ROM progression: depth ladders for squat/hinge/push families. Nudge deeper only when
 // reps have been at the top of the range for 2 sessions at the current depth.
-const ROM_LADDERS = {
-  squat: ['partial', 'parallel', 'full'],
-  hinge: ['partial', 'full'],
-  push: ['partial', 'full'],
-};
-function romLadderFor(exerciseId){
-  if(/squat|split|lunge/.test(exerciseId||'')) return ROM_LADDERS.squat;
-  if(/deadlift|rdl|hinge|swing/.test(exerciseId||'')) return ROM_LADDERS.hinge;
-  if(/push-up|press|dip/.test(exerciseId||'')) return ROM_LADDERS.push;
+function romLadderFor(exerciseId, config = null){
+  const cfg = resolveArisePriors(config).progression.rom;
+  if(new RegExp(cfg.squatPattern).test(exerciseId||'')) return cfg.ladders.squat;
+  if(new RegExp(cfg.hingePattern).test(exerciseId||'')) return cfg.ladders.hinge;
+  if(new RegExp(cfg.pushPattern).test(exerciseId||'')) return cfg.ladders.push;
   return null;
 }
-export function romProgression(history, exerciseId, { targetReps = '8–12' } = {}){
-  const ladder = romLadderFor(exerciseId);
+export function romProgression(history, exerciseId, { targetReps = '8–12', config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.rom;
+  const ladder = romLadderFor(exerciseId, config);
   if(!ladder) return { supported: false, next: null, reason: 'No ROM ladder defined for this exercise — progress load/reps instead.' };
-  const logs = logsFor(history, exerciseId).slice(-2);
+  const logs = logsFor(history, exerciseId).slice(-cfg.historyWindow);
   const withRom = logs.filter(l=> l.rom != null && String(l.rom).trim()!=='');
   if(!withRom.length) return { supported: true, next: null, reason: 'Log depth (partial / parallel / full) to get ROM advice.' };
   const [lo, hi] = parseRange(targetReps);
@@ -207,47 +256,57 @@ export function romProgression(history, exerciseId, { targetReps = '8–12' } = 
   const idx = ladder.indexOf(cur);
   if(idx === -1) return { supported: true, next: null, reason: `Unrecognised depth "${withRom[withRom.length-1].rom}" — use ${ladder.join(' / ')}.` };
   if(idx === ladder.length - 1) return { supported: true, next: null, reason: 'Already at full ROM — progress load or reps instead.' };
-  if(logs.length < 2 || !logs.slice(-2).every(l=> l.reps >= hi)) return { supported: true, next: null, reason: `Hit ${lo}–${hi} reps at ${cur} depth first, then aim deeper.` };
+  if(logs.length < cfg.topSessionsRequired || !logs.slice(-cfg.topSessionsRequired).every(l=> l.reps >= hi)) return { supported: true, next: null, reason: `Hit ${lo}–${hi} reps at ${cur} depth first, then aim deeper.` };
   const next = ladder[idx+1];
   return { supported: true, next, reason: `Reps at top of ${lo}–${hi} at ${cur} depth — aim for ${next} next session.` };
 }
 
 // Plateau: last 3 sessions no meaningful e1RM gain (<1%) and >=3 sessions (kept for backwards compat)
-export function isPlateau(logs){ if(!logs || logs.length < 3) return false; const last3 = logs.slice(-3).map(l=> e1rm(l.weightKg||0,l.reps)|| l.reps); const best = Math.max(...last3.slice(0,2).map(v=>v)); const last = last3[last3.length-1]; return (last - best)/Math.max(1,best) < 0.01; }
+export function isPlateau(logs, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.plateau;
+  if(!logs || logs.length < cfg.legacyMinSessions) return false;
+  const last3 = logs.slice(-cfg.legacyMinSessions).map(l=> e1rm(l.weightKg||0,l.reps)|| l.reps);
+  const best = Math.max(...last3.slice(0,-1).map(v=>v));
+  const last = last3[last3.length-1];
+  return (last - best)/Math.max(1,best) < cfg.legacyGainPct;
+}
 
 // Plateau v2: distinguishes real plateau from poor sessions/noise.
 // Requires >=4 sessions, flat best-gain + flat trend, and not explained by high RPE variance or single bad session.
-export function isPlateauV2(logs){
-  if(!logs || logs.length < 4) return { isPlateau: false, reason: logs?.length < 4 ? 'Need 4+ sessions to judge plateau.' : '', gain: 0, trend: strengthTrend(logs||[]) };
-  const vals = logs.slice(-4).map(l=> e1rm(l.weightKg||0,l.reps)|| l.reps);
-  const bestRecent = Math.max(...vals.slice(-2));
-  const bestPrior = Math.max(...vals.slice(0,2));
+export function isPlateauV2(logs, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.plateau;
+  if(!logs || logs.length < cfg.minSessions) return { isPlateau: false, reason: logs?.length < cfg.minSessions ? `Need ${cfg.minSessions}+ sessions to judge plateau.` : '', gain: 0, trend: strengthTrend(logs||[], { config }) };
+  const vals = logs.slice(-cfg.minSessions).map(l=> e1rm(l.weightKg||0,l.reps)|| l.reps);
+  const bestRecent = Math.max(...vals.slice(-cfg.recentHalfWindow));
+  const bestPrior = Math.max(...vals.slice(0,cfg.recentHalfWindow));
   const gain = (bestRecent - bestPrior)/Math.max(1,bestPrior);
-  const trend = strengthTrend(logs.slice(-6));
-  const rpes = logs.slice(-4).map(l=> Number(l.rpe)).filter(n=> Number.isFinite(n));
-  const highVariance = rpes.length>=3 ? (Math.max(...rpes)-Math.min(...rpes) >=3) : false;
+  const trend = strengthTrend(logs.slice(-cfg.trendWindow), { config });
+  const rpes = logs.slice(-cfg.minSessions).map(l=> Number(l.rpe)).filter(n=> Number.isFinite(n));
+  const highVariance = rpes.length>=cfg.rpeMinObservations ? (Math.max(...rpes)-Math.min(...rpes) >= cfg.rpeSpread) : false;
   const minVal = Math.min(...vals), maxVal = Math.max(...vals);
-  const singleBad = vals.length>=3 ? (minVal < maxVal*0.85 && vals[vals.length-1] > maxVal*0.88) : false;
+  const singleBad = vals.length>=3 ? (minVal < maxVal*cfg.badSessionDropPct && vals[vals.length-1] > maxVal*cfg.recoveryReboundPct) : false;
   // need both flat gain and flat/negative trend to call plateau
-  if(gain < 0.015 && Math.abs(trend) < 0.6){
+  if(gain < cfg.gainPct && Math.abs(trend) < cfg.trendAbsMax){
     if(highVariance || singleBad) return { isPlateau: false, reason: 'Flat on average but sessions are noisy — not a real plateau yet.', gain: Math.round(gain*1000)/1000, trend: Math.round(trend*100)/100, noisy: true };
-    return { isPlateau: true, reason: '4 sessions with <1.5% gain and flat trend — real plateau.', gain: Math.round(gain*1000)/1000, trend: Math.round(trend*100)/100 };
+    return { isPlateau: true, reason: `${cfg.minSessions} sessions with <${cfg.gainPct*100}% gain and flat trend — real plateau.`, gain: Math.round(gain*1000)/1000, trend: Math.round(trend*100)/100 };
   }
   return { isPlateau: false, reason: 'Still progressing.', gain: Math.round(gain*1000)/1000, trend: Math.round(trend*100)/100 };
 }
 
 // Deload: conservative 2-of-3 + readiness EMA as 4th signal
-export function shouldDeload({ logs, recentRpes, weeklyVolumeTrend, readinessHistory }){
+export function shouldDeload({ logs, recentRpes, weeklyVolumeTrend, readinessHistory, config = null }){
+  const cfg = resolveArisePriors(config);
+  const recovery = cfg.recovery;
   let flags=0; const signals=[];
-  if((recentRpes||[]).filter(r=> Number(r)>=9).length >= 2){ flags++; signals.push('high RPE ≥9 twice'); }
-  const plat = isPlateauV2(logs||[]);
-  if(plat.isPlateau || isPlateau(logs||[])){ flags++; signals.push('plateau'); }
-  if((weeklyVolumeTrend||[]).slice(-2).some(v=> v > 1.15)){ flags++; signals.push('volume +15% spike'); }
-  if(readinessHistory && readinessHistory.length>=3){
-    const ema = readinessEMA(readinessHistory);
-    if(ema.value < 35 && ema.confidence !== 'low'){ flags++; signals.push(`readiness EMA ${ema.value} (low)`); }
+  if((recentRpes||[]).filter(r=> Number(r)>=recovery.highRpe).length >= recovery.highRpeCount){ flags++; signals.push(`high RPE ≥${recovery.highRpe} twice`); }
+  const plat = isPlateauV2(logs||[], { config: cfg });
+  if(plat.isPlateau || isPlateau(logs||[], { config: cfg })){ flags++; signals.push('plateau'); }
+  if((weeklyVolumeTrend||[]).slice(-recovery.signalWindow).some(v=> v > recovery.volumeSpikeRatio)){ flags++; signals.push(`volume +${Math.round((recovery.volumeSpikeRatio-1)*100)}% spike`); }
+  if(readinessHistory && readinessHistory.length>=recovery.readinessHistoryMin){
+    const ema = readinessEMA(readinessHistory, { config: cfg });
+    if(ema.value < recovery.readinessLowEma && ema.confidence !== 'low'){ flags++; signals.push(`readiness EMA ${ema.value} (low)`); }
   }
-  if(flags >= 2) return { yes: true, cut: 0.6, reason: `Multiple fatigue signals (${signals.join(', ')}) — cut volume ~40% next week, keep loads moderate.`, signals };
+  if(flags >= recovery.minimumFlags) return { yes: true, cut: recovery.deloadVolumeCut, reason: `Multiple fatigue signals (${signals.join(', ')}) — cut volume ~${Math.round((1-recovery.deloadVolumeCut)*100)}% next week, keep loads moderate.`, signals };
   return { yes: false, signals };
 }
 
@@ -259,18 +318,20 @@ export function explainAdaptation({ original, recommended }){
 }
 
 // Strength trend (linear slope over e1RM series)
-export function strengthTrend(logs){
-  if(!logs || logs.length < 3) return 0;
+export function strengthTrend(logs, { config = null } = {}){
+  const minimum = resolveArisePriors(config).progression.trend.minimumObservations;
+  if(!logs || logs.length < minimum) return 0;
   const ys = logs.map(l=> e1rm(l.weightKg||0, l.reps) || l.reps);
   const n = ys.length; const xs = ys.map((_,i)=>i);
   const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
   let num=0, den=0; for(let i=0;i<n;i++){ num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)**2; }
   return den ? num/den : 0;
 }
-export function strengthTrendWithConfidence(logs){
-  if(!logs || logs.length < 3) return { slope: 0, r2: 0, confidence: 'low', n: logs?.length||0 };
+export function strengthTrendWithConfidence(logs, { config = null } = {}){
+  const cfg = resolveArisePriors(config).progression.trend;
+  if(!logs || logs.length < cfg.minimumObservations) return { slope: 0, r2: 0, confidence: 'low', n: logs?.length||0 };
   const ys = logs.map(l=> e1rm(l.weightKg||0,l.reps)||l.reps);
-  const slope = strengthTrend(logs);
+  const slope = strengthTrend(logs, { config });
   const mean = ys.reduce((a,b)=>a+b,0)/ys.length;
   const ssTot = ys.reduce((a,y)=> a + (y-mean)**2, 0);
   if(ssTot===0) return { slope: Math.round(slope*100)/100, r2: 1, confidence: 'high', n: logs.length };
@@ -280,20 +341,21 @@ export function strengthTrendWithConfidence(logs){
   const yhat = xs.map(x=> mean + b*(x - mx));
   const ssRes = ys.reduce((a,y,i)=> a + (y - yhat[i])**2, 0);
   const r2 = Math.max(0, 1 - ssRes/ssTot);
-  const confidence = r2 > 0.6 ? 'high' : r2 > 0.3 ? 'medium' : 'low';
+  const confidence = r2 > cfg.highR2 ? 'high' : r2 > cfg.mediumR2 ? 'medium' : 'low';
   return { slope: Math.round(slope*100)/100, r2: Math.round(r2*100)/100, confidence, n: logs.length };
 }
 
 // Meaningful PR vs noise: require >2% above prior best and not a one-rep jitter
 // opts.techniqueChange — if true, PR is invalid (ROM/technique change)
 export function isMeaningfulPR(priorBestE1rm, newE1rm, opts={}){
+  const cfg = resolveArisePriors(opts.config).sessionQuality.pr;
   if(opts && opts.techniqueChange) return false;
-  return newE1rm > priorBestE1rm * 1.02;
+  return newE1rm >= priorBestE1rm * (1 + cfg.meaningfulGainPct) && newE1rm >= priorBestE1rm + cfg.minimumAbsoluteKg;
 }
-export function classifyPR({ priorBestE1rm, newE1rm, note, priorNote }){
+export function classifyPR({ priorBestE1rm, newE1rm, note, priorNote, config = null }){
   const text = `${note||''} ${priorNote||''}`.toLowerCase();
   const techniqueChange = /rom|depth|range|technique|form|paused|tempo|assisted|band|partial/.test(text);
-  const meaningful = isMeaningfulPR(priorBestE1rm, newE1rm, { techniqueChange });
+  const meaningful = isMeaningfulPR(priorBestE1rm, newE1rm, { techniqueChange, config });
   return { meaningful, techniqueChange, reason: techniqueChange ? 'Technique/ROM change — not a like-for-like PR.' : meaningful ? 'Genuine overload.' : 'Within noise (<2%).' };
 }
 
@@ -309,32 +371,36 @@ export function proximityLabel(rir){
 }
 
 // Recovery/readiness: 3 light signals (sleep, soreness, motivation) → readiness 0..100
-export function readinessScore({ sleep=3, soreness=3, motivation=3 }={}){
-  const s = ((Number(sleep)-1)/4), so=((5-Number(soreness))/4), m=((Number(motivation)-1)/4);
-  return Math.round(Math.max(0, Math.min(100, (s*0.4 + so*0.3 + m*0.3)*100)));
+export function readinessScore({ sleep=3, soreness=3, motivation=3, config = null }={}){
+  const cfg = resolveArisePriors(config).sessionQuality.readiness;
+  const range = Math.max(1, cfg.scaleMax - cfg.scaleMin);
+  const s = ((Number(sleep)-cfg.scaleMin)/range), so=((cfg.scaleMax-Number(soreness))/range), m=((Number(motivation)-cfg.scaleMin)/range);
+  return Math.round(Math.max(0, Math.min(100, (s*cfg.sleepWeight + so*cfg.sorenessWeight + m*cfg.motivationWeight)*100)));
 }
-export function readinessEMA(scores){
+export function readinessEMA(scores, { config = null } = {}){
+  const cfg = resolveArisePriors(config).recovery;
   if(!scores || !scores.length) return { value: 50, confidence: 'low' };
   if(scores.length === 1) return { value: scores[0], confidence: 'low' };
   let ema = scores[0];
-  const alpha = 0.35;
+  const alpha = cfg.readinessEmaAlpha;
   for(let i=1;i<scores.length;i++) ema = alpha*scores[i] + (1-alpha)*ema;
   const v = Math.round(ema);
-  const slice = scores.slice(-5);
+  const slice = scores.slice(-cfg.readinessHistoryWindow);
   const spread = Math.max(...slice) - Math.min(...slice);
-  const confidence = spread > 40 ? 'low' : spread > 20 ? 'medium' : 'high';
+  const confidence = spread > cfg.readinessSpreadLow ? 'low' : spread > cfg.readinessSpreadMedium ? 'medium' : 'high';
   const last = scores[scores.length-1];
-  if(Math.abs(last - v) > 30 && confidence==='high' && scores.length>=4){
-    const damped = Math.round(ema*0.8 + last*0.2);
+  if(Math.abs(last - v) > cfg.readinessDampThreshold && confidence==='high' && scores.length>=cfg.readinessMinimumForDamping){
+    const damped = Math.round(ema*cfg.readinessDampWeight + last*(1-cfg.readinessDampWeight));
     return { value: damped, confidence: 'medium', dampened: true, raw: last };
   }
   return { value: v, confidence };
 }
-export function readinessWithUncertainty(args, history){
-  const now = readinessScore(args);
-  if(!history || history.length<2) return { score: now, ema: { value: now, confidence: 'low' }, uncertainty: 'insufficient data — treat as estimate' };
+export function readinessWithUncertainty(args, history, { config = null } = {}){
+  const cfg = resolveArisePriors(config).recovery;
+  const now = readinessScore({ ...args, config });
+  if(!history || history.length<cfg.readinessMinimumForUncertainty) return { score: now, ema: { value: now, confidence: 'low' }, uncertainty: 'insufficient data — treat as estimate' };
   const all = [...history, now];
-  const ema = readinessEMA(all);
+  const ema = readinessEMA(all, { config });
   const uncertainty = ema.confidence==='low' ? 'high — recent readiness is volatile' : ema.confidence==='medium' ? 'moderate — trend is forming' : 'low — stable trend';
   return { score: now, ema, uncertainty };
 }
@@ -351,12 +417,12 @@ export function sideImbalance(sets){
 }
 
 // Helpers
-function lastSessionSetCount(history, exerciseId){
+function lastSessionSetCount(history, exerciseId, fallback = 3){
   for(let i = (history||[]).length - 1; i >= 0; i--){
     const b = (history[i].blocks||[]).find(b=> b.exerciseId===exerciseId);
     if(b?.sets?.length) return b.sets.length;
   }
-  return 3;
+  return fallback;
 }
 function logsFor(history, exerciseId){
   const out=[];
@@ -366,7 +432,60 @@ function logsFor(history, exerciseId){
   }
   return out;
 }
-function parseLow(s){ const m=String(s).match(/\d+/); return m? Number(m[0]) : 8; }
-function parseRange(s){ const nums = (String(s).match(/\d+/g)||[]).map(Number); if(nums.length>=2) return [nums[0], nums[1]]; if(nums.length===1) return [nums[0], nums[0]]; return [8,12]; }
-function snapLoad(v){ if(v<=0) return 0; if(v<20) return Math.round(v/1)*1; if(v<60) return Math.round(v/2.5)*2.5; return Math.round(v/5)*5; }
-function isBodyweight(id){ return id?.includes("bodyweight") || id==="push-up" || id==="plank" || id==="dead-bug" || id==="glute-bridge" || id==="lunge" || id==="burpee" || id==="pull-up" || id==="pike-push-up" || id==="incline-push-up"; }
+
+// Set progression is a session-level decision. Looking at the last two flat
+// set logs would mistake two sets from one workout for two separate successful
+// exposures, so summarise each session before applying the evidence threshold.
+function sessionSetSummaries(history, exerciseId){
+  const out=[];
+  for(const session of orderedHistory(history)){
+    const sets = (session.blocks||[])
+      .filter(block=> block.exerciseId===exerciseId)
+      .flatMap(block=> block.sets||[])
+      .map(set=> ({ reps: Number(String(set.reps).match(/\d+/)?.[0] || set.reps)||0, rpe: set.rpe ?? null }))
+      .filter(set=> set.reps > 0);
+    if(!sets.length) continue;
+    const rpes = sets.map(set=> Number(set.rpe)).filter(value=> Number.isFinite(value));
+    out.push({
+      dateISO: session.dateISO,
+      sessionId: session.id,
+      sets: sets.length,
+      reps: Math.max(...sets.map(set=> set.reps)),
+      rpe: rpes.length ? Math.max(...rpes) : null,
+    });
+  }
+  return out;
+}
+function parseLow(s, config = null){ const m=String(s).match(/\d+/); return m? Number(m[0]) : resolveArisePriors(config).progression.defaultLowReps; }
+function parseRange(s, config = null){ const nums = (String(s).match(/\d+/g)||[]).map(Number); if(nums.length>=2) return [nums[0], nums[1]]; if(nums.length===1) return [nums[0], nums[0]]; const defaults = (String(resolveArisePriors(config).progression.defaultTargetReps).match(/\d+/g)||[]).map(Number); return defaults.length>=2 ? [defaults[0], defaults[1]] : [8,12]; }
+function snapLoad(v, config = null){
+  if(v<=0) return 0;
+  const cfg = resolveArisePriors(config).progression.loadRounding;
+  const step = v < 20 ? cfg.under20KgStep : v < 60 ? cfg.under60KgStep : cfg.defaultStep;
+  return Math.round(v/step)*step;
+}
+function plateAware(result, plateConfig){
+  if(!plateConfig || !(result?.load > 0)) return result;
+  const plateLoad = nearestLoadToPlates(result.load, plateConfig);
+  if(!plateLoad) return result;
+  if(plateLoad.exact) return { ...result, plateLoad };
+  return {
+    ...result,
+    load: plateLoad.loadKg,
+    plateLoad,
+    reason: `${result.reason} Plate setup rounds ${plateLoad.targetKg}kg to ${plateLoad.loadKg}kg (${plateLoad.direction}).`,
+  };
+}
+function isBodyweight(id, config = null){
+  const pattern = resolveArisePriors(config).progression.bodyweightPattern;
+  return new RegExp(`(?:^|-)(${pattern})(?:-|$)`, 'i').test(id || '') || id === 'bodyweight-squat';
+}
+
+// Stable chronology is part of the backtest contract. Dates are the only
+// available event time in exported history; original order breaks ties so a
+// later record on the same date can never become prior knowledge accidentally.
+function orderedHistory(history){
+  return (history || []).map((session, originalIndex)=> ({ session, originalIndex }))
+    .sort((a, b)=> String(a.session?.dateISO || '').localeCompare(String(b.session?.dateISO || '')) || a.originalIndex - b.originalIndex)
+    .map(item=> item.session);
+}

@@ -7,32 +7,20 @@
 // get treated as a trend.
 
 import { e1rm, readinessEMA, isPlateauV2 } from "./progression.js";
+import { resolveArisePriors } from "./priors.js";
 
 // ── Workout-note signals ───────────────────────────────────────────────
 // Turns free-text notes into structured signals: sentiment (−1..1), tags, and
 // whether the note implies a technique/ROM change (which invalidates PRs).
-const NEGATIVE_WORDS = {
-  sore: "soreness", tired: "fatigue", fatigue: "fatigue", exhausted: "fatigue", drained: "fatigue",
-  sick: "illness", ill: "illness", nauseous: "illness", dizzy: "illness",
-  pain: "pain", hurt: "pain", injured: "pain",
-  failed: "missed", miss: "missed", skipped: "missed",
-  poor: "underperformed", weak: "underperformed", struggled: "underperformed", awful: "underperformed", bad: "underperformed", heavy: "fatigue",
-};
-const POSITIVE_WORDS = {
-  great: "strong", easy: "strong", strong: "strong", fresh: "strong", awesome: "strong",
-  best: "pr", pr: "pr", pb: "pr", good: "positive", solid: "positive",
-  energized: "recovered", recovered: "recovered",
-};
-const TECHNIQUE_WORDS = ["rom", "depth", "form", "technique", "paused", "tempo", "assisted", "band", "partial", "shallow"];
-
-export function noteSignals(note, noteTags = []){
+export function noteSignals(note, noteTags = [], { config = null } = {}){
+  const cfg = resolveArisePriors(config).sessionQuality.noteWords;
   const tagText = Array.isArray(noteTags) ? noteTags.join(' ') : '';
   if((!note || !String(note).trim()) && !tagText.trim()) return { sentiment: 0, tags: [], techniqueChange: false };
   const text = `${String(note||'')} ${tagText}`.toLowerCase();
   const tags = [];
-  for(const [word, tag] of Object.entries(NEGATIVE_WORDS)) if(text.includes(word)) tags.push("negative:"+tag);
-  for(const [word, tag] of Object.entries(POSITIVE_WORDS)) if(text.includes(word)) tags.push("positive:"+tag);
-  const techniqueChange = TECHNIQUE_WORDS.some(w=> text.includes(w));
+  for(const [word, tag] of Object.entries(cfg.negative)) if(text.includes(word)) tags.push("negative:"+tag);
+  for(const [word, tag] of Object.entries(cfg.positive)) if(text.includes(word)) tags.push("positive:"+tag);
+  const techniqueChange = cfg.techniqueWords.some(w=> text.includes(w));
   if(techniqueChange) tags.push("technique-change");
   const scored = tags.filter(t=> t.startsWith("positive") || t.startsWith("negative"));
   let sentiment = 0;
@@ -45,7 +33,8 @@ export function noteSignals(note, noteTags = []){
 // 'bad' means underperformance (low readiness, failed reps, negative note, or
 // near-failure effort on a day that should have been manageable). Effort alone
 // (high RPE on a high-readiness day with a positive note) stays 'ok'.
-export function sessionQuality(h, { readinessLog = [] } = {}){
+export function sessionQuality(h, { readinessLog = [], config = null } = {}){
+  const cfg = resolveArisePriors(config).sessionQuality.score;
   const rpes = [], failed = [];
   for(const b of h.blocks||[]) for(const s of b.sets||[]){
     const r = Number(String(s.reps).match(/\d+/)?.[0] || s.reps)||0;
@@ -54,33 +43,34 @@ export function sessionQuality(h, { readinessLog = [] } = {}){
     if(r === 0 || s.failed) failed.push(true);
   }
   const avgRpe = rpes.length ? rpes.reduce((a,b)=> a+b,0)/rpes.length : null;
-  const ns = noteSignals(h.note, h.noteTags);
-  const readinessScore = readinessFor(h.dateISO, readinessLog);
+  const ns = noteSignals(h.note, h.noteTags, { config });
+  const readinessScore = readinessFor(h.dateISO, readinessLog, config);
   const reasons = [];
-  let score = 50;
-  if(readinessScore != null && readinessScore < 35){ score -= 22; reasons.push(`low readiness ${readinessScore}`); }
-  else if(readinessScore != null && readinessScore >= 70){ score += 6; reasons.push("high readiness"); }
-  if(failed.length){ score -= 18; reasons.push("failed/missed reps"); }
-  if(ns.sentiment < 0){ score -= 12; reasons.push("negative note"); }
-  if(avgRpe != null && avgRpe >= 9 && readinessScore != null && readinessScore >= 60){
-    score -= 12; reasons.push(`near-failure RPE ${avgRpe.toFixed(1)} despite good readiness`);
-  } else if(avgRpe != null && avgRpe <= 6 && rpes.length >= 2){
-    score += 8; reasons.push(`comfortable RPE ${avgRpe.toFixed(1)}`);
+  let score = cfg.start;
+  if(readinessScore != null && readinessScore < cfg.readinessLow){ score -= cfg.lowReadinessPenalty; reasons.push(`low readiness ${readinessScore}`); }
+  else if(readinessScore != null && readinessScore >= cfg.readinessHigh){ score += cfg.highReadinessBonus; reasons.push("high readiness"); }
+  if(failed.length){ score -= cfg.failedPenalty; reasons.push("failed/missed reps"); }
+  if(ns.sentiment < 0){ score -= cfg.negativeNotePenalty; reasons.push("negative note"); }
+  if(avgRpe != null && avgRpe >= cfg.nearFailureRpe && readinessScore != null && readinessScore >= cfg.nearFailureReadinessMin){
+    score -= cfg.nearFailurePenalty; reasons.push(`near-failure RPE ${avgRpe.toFixed(1)} despite good readiness`);
+  } else if(avgRpe != null && avgRpe <= cfg.comfortableRpe && rpes.length >= cfg.comfortableMinObservations){
+    score += cfg.comfortableBonus; reasons.push(`comfortable RPE ${avgRpe.toFixed(1)}`);
   }
-  if(ns.sentiment > 0) score += 10;
+  if(ns.sentiment > 0) score += cfg.positiveNoteBonus;
   score = Math.max(0, Math.min(100, Math.round(score)));
   return {
-    quality: score >= 60 ? "good" : score >= 40 ? "ok" : "bad",
+    quality: score >= cfg.goodCutoff ? "good" : score >= cfg.badCutoff ? "ok" : "bad",
     score, reasons, avgRpe: avgRpe != null ? Math.round(avgRpe*10)/10 : null,
     readinessScore, noteTags: ns.tags, techniqueChange: ns.techniqueChange,
   };
 }
 
 // Fraction of the last N sessions classified 'bad' (0..1).
-export function badSessionRatio(history, { window = 5, readinessLog = [] } = {}){
-  const recent = (history||[]).slice(-window);
+export function badSessionRatio(history, { window = null, readinessLog = [], config = null } = {}){
+  const cfg = resolveArisePriors(config).sessionQuality.badSession;
+  const recent = (history||[]).slice(-(window == null ? cfg.window : window));
   if(!recent.length) return { ratio: 0, bad: 0, total: 0, quality: [] };
-  const quality = recent.map(h=> sessionQuality(h, { readinessLog }));
+  const quality = recent.map(h=> sessionQuality(h, { readinessLog, config }));
   const bad = quality.filter(q=> q.quality === "bad").length;
   return { ratio: Math.round(bad/recent.length*100)/100, bad, total: recent.length, quality };
 }
@@ -88,23 +78,25 @@ export function badSessionRatio(history, { window = 5, readinessLog = [] } = {})
 // Explains whether a rough patch is isolated or a repeatable recovery signal.
 // This deliberately reports evidence separately from the recommendation so the
 // user can disagree with the classification without losing the raw context.
-export function badSessionAttribution(history, { window = 5, readinessLog = [] } = {}){
-  const summary = badSessionRatio(history, { window, readinessLog });
+export function badSessionAttribution(history, { window = null, readinessLog = [], config = null } = {}){
+  const rootCfg = resolveArisePriors(config);
+  const cfg = resolveArisePriors(config).sessionQuality.badSession;
+  const summary = badSessionRatio(history, { window, readinessLog, config });
   if(!summary.total) return {
     ...summary, kind: 'insufficient', confidence: 'low', evidence: [],
     reason: 'No completed sessions to compare yet.',
     action: 'Log a few sessions with RPE and a short note before changing the plan.',
   };
-  const lowReadiness = summary.quality.filter(q=> q.readinessScore != null && q.readinessScore < 35).length;
-  const highRpe = summary.quality.filter(q=> q.avgRpe != null && q.avgRpe >= 9).length;
+  const lowReadiness = summary.quality.filter(q=> q.readinessScore != null && q.readinessScore < rootCfg.recovery.readinessLowEma).length;
+  const highRpe = summary.quality.filter(q=> q.avgRpe != null && q.avgRpe >= rootCfg.recovery.highRpe).length;
   const negativeNotes = summary.quality.filter(q=> q.noteTags?.some(t=> t.startsWith('negative:'))).length;
   const evidence = [];
   if(summary.bad) evidence.push(`${summary.bad}/${summary.total} sessions classified as underperforming`);
   if(lowReadiness) evidence.push(`${lowReadiness} low-readiness day${lowReadiness===1?'':'s'}`);
   if(highRpe) evidence.push(`${highRpe} near-failure effort${highRpe===1?'':'s'}`);
   if(negativeNotes) evidence.push(`${negativeNotes} negative note${negativeNotes===1?'':'s'}`);
-  if(summary.ratio >= 0.5 && summary.total >= 3) return {
-    ...summary, kind: 'cluster', confidence: summary.total >= 4 ? 'high' : 'medium', evidence,
+  if(summary.ratio >= cfg.ratio && summary.total >= cfg.minSessionsForCluster) return {
+    ...summary, kind: 'cluster', confidence: summary.total >= cfg.window - 1 ? 'high' : 'medium', evidence,
     reason: 'The recent dip is a pattern, not just one bad day.',
     action: 'Recover first: keep the next session easy, then consider a short deload if the pattern continues.',
   };
@@ -124,30 +116,34 @@ export function badSessionAttribution(history, { window = 5, readinessLog = [] }
 // When strength is flat, is it a real plateau (consistent effort, decent
 // readiness) or a run of bad sessions (low readiness / near-failure RPE /
 // negative notes)? Different advice follows — recover first, then deload.
-export function plateauAttribution(history, exerciseId, { readinessLog = [], window = 4 } = {}){
+export function plateauAttribution(history, exerciseId, { readinessLog = [], window = null, config = null } = {}){
+  const cfg = resolveArisePriors(config);
+  const plateauCfg = cfg.sessionQuality.plateau;
+  const progressionCfg = cfg.progression.plateau;
   const sessions = (history||[])
     .filter(h=> (h.blocks||[]).some(b=> b.exerciseId === exerciseId))
     .sort((a,b)=> a.dateISO.localeCompare(b.dateISO));
-  if(sessions.length < 4) return { kind: "insufficient", reason: `Need 4+ sessions for this exercise to judge (have ${sessions.length}).`, action: "Keep logging like-for-like sets.", confidence: "low", n: sessions.length };
-  const last = sessions.slice(-window);
+  if(sessions.length < plateauCfg.minimumSessions) return { kind: "insufficient", reason: `Need ${plateauCfg.minimumSessions}+ sessions for this exercise to judge (have ${sessions.length}).`, action: "Keep logging like-for-like sets.", confidence: "low", n: sessions.length };
+  const last = sessions.slice(-(window == null ? plateauCfg.window : window));
   const logs = last.map(h=> bestSetFor(h, exerciseId)).filter(Boolean);
-  if(logs.length < 3) return { kind: "insufficient", reason: "Need 3+ logged sets for this exercise to judge.", action: "Keep logging like-for-like sets.", confidence: "low", n: sessions.length };
+  if(logs.length < plateauCfg.minimumLoggedSets) return { kind: "insufficient", reason: `Need ${plateauCfg.minimumLoggedSets}+ logged sets for this exercise to judge.`, action: "Keep logging like-for-like sets.", confidence: "low", n: sessions.length };
   // Flatness trigger (same formula isPlateauV2 uses): <1.5% best-gain across
   // the window. Attribution below decides whether that flatness is fatigue or
   // a genuine ceiling — isPlateauV2's noise exemption would pre-empt that.
   const vals = logs.map(l=> e1rm(l.weightKg||0, l.reps) || l.reps);
-  const bestRecent = Math.max(...vals.slice(-2));
-  const bestPrior = Math.max(...vals.slice(0,2));
+  const recentHalfWindow = progressionCfg.recentHalfWindow;
+  const bestRecent = Math.max(...vals.slice(-recentHalfWindow));
+  const bestPrior = Math.max(...vals.slice(0,recentHalfWindow));
   const gain = (bestRecent - bestPrior)/Math.max(1,bestPrior);
-  if(gain >= 0.015) return { kind: "progressing", reason: "Still progressing.", action: "Keep the current progression while form and recovery hold.", confidence: "medium", n: sessions.length };
-  const quality = last.map(h=> sessionQuality(h, { readinessLog }));
+  if(gain >= progressionCfg.gainPct) return { kind: "progressing", reason: "Still progressing.", action: "Keep the current progression while form and recovery hold.", confidence: "medium", n: sessions.length };
+  const quality = last.map(h=> sessionQuality(h, { readinessLog, config }));
   const bad = quality.filter(q=> q.quality === "bad").length;
-  const highRpe = quality.filter(q=> q.avgRpe != null && q.avgRpe >= 9).length;
-  const lowReadiness = quality.filter(q=> q.readinessScore != null && q.readinessScore < 35).length;
-  if(bad >= Math.ceil(last.length/2) || (lowReadiness >= 2 && highRpe >= 2)){
+  const highRpe = quality.filter(q=> q.avgRpe != null && q.avgRpe >= cfg.recovery.highRpe).length;
+  const lowReadiness = quality.filter(q=> q.readinessScore != null && q.readinessScore < cfg.recovery.readinessLowEma).length;
+  if(bad >= Math.ceil(last.length*plateauCfg.badFraction) || (lowReadiness >= plateauCfg.minLowReadiness && highRpe >= plateauCfg.minHighRpe)){
     return { kind: "bad-sessions", reason: `Flat performance driven by poor sessions (${bad}/${last.length} bad, ${lowReadiness} low-readiness, ${highRpe} near-failure) — recover first; this isn't a real plateau yet.`, action: "Recover first, then reassess before changing the exercise or load target.", confidence: "high", n: sessions.length, bad, highRpe, lowReadiness };
   }
-  if(highRpe >= 2){
+  if(highRpe >= plateauCfg.minHighRpe){
     return { kind: "mixed", reason: "Flat with several near-failure sessions — fatigue may be a factor, but effort was high. A short deload could help.", action: "Reduce effort or volume briefly, then test the same movement again.", confidence: "medium", n: sessions.length, bad, highRpe };
   }
   return { kind: "genuine", reason: "Flat with consistent effort and decent readiness — real plateau; consider a deload or exercise variation.", action: "Try a short deload or a closely matched variation, then rebuild gradually.", confidence: "medium", n: sessions.length, bad, highRpe };
@@ -158,31 +154,33 @@ export function plateauAttribution(history, exerciseId, { readinessLog = [], win
 //  - readiness only counts when the LOW is a sustained EMA trend, not one bad
 //    day (a single dip is reported but never triggers by itself);
 //  - a run of bad-quality sessions counts as its own fatigue signal.
-export function deloadReadinessAssessment({ logs, recentRpes, weeklyVolumeTrend, readinessHistory, history, window = 5 } = {}){
+export function deloadReadinessAssessment({ logs, recentRpes, weeklyVolumeTrend, readinessHistory, history, window = null, config = null } = {}){
+  const cfg = resolveArisePriors(config);
+  const recovery = cfg.recovery;
   const signals = [];
   let flags = 0;
-  if((recentRpes||[]).filter(r=> Number(r) >= 9).length >= 2){ flags++; signals.push("high RPE ≥9 twice"); }
-  const plat = isPlateauV2(logs||[]);
+  if((recentRpes||[]).filter(r=> Number(r) >= recovery.highRpe).length >= recovery.highRpeCount){ flags++; signals.push(`high RPE ≥${recovery.highRpe} twice`); }
+  const plat = isPlateauV2(logs||[], { config: cfg });
   if(plat.isPlateau){ flags++; signals.push("plateau"); }
-  if((weeklyVolumeTrend||[]).slice(-2).some(v=> v > 1.15)){ flags++; signals.push("volume +15% spike"); }
+  if((weeklyVolumeTrend||[]).slice(-recovery.signalWindow).some(v=> v > recovery.volumeSpikeRatio)){ flags++; signals.push(`volume +${Math.round((recovery.volumeSpikeRatio-1)*100)}% spike`); }
   let oneDayDip = false;
   const nums = (readinessHistory||[]).map(r=> typeof r === "object" ? Number(r.score) : Number(r)).filter(n=> Number.isFinite(n));
-  if(nums.length >= 3){
-    const ema = readinessEMA(nums);
+  if(nums.length >= recovery.readinessHistoryMin){
+    const ema = readinessEMA(nums, { config: cfg });
     const last = nums[nums.length-1];
-    if(ema.value < 35 && last < 40 && ema.confidence !== "low"){
+    if(ema.value < recovery.readinessLowEma && last < recovery.readinessLowLatest && ema.confidence !== "low"){
       flags++; signals.push(`readiness sustained low (EMA ${ema.value})`);
-    } else if(last < 35){
+    } else if(last < recovery.oneDayDip){
       oneDayDip = true; signals.push("readiness dipped today only — not a trend");
     }
   }
-  if(history && history.length >= 3){
-    const br = badSessionRatio(history, { window, readinessLog: null });
-    if(br.ratio >= 0.5){ flags++; signals.push(`${br.bad}/${br.total} recent sessions bad quality`); }
+  if(history && history.length >= cfg.sessionQuality.badSession.minSessionsForCluster){
+    const br = badSessionRatio(history, { window, readinessLog: null, config: cfg });
+    if(br.ratio >= cfg.sessionQuality.badSession.ratio){ flags++; signals.push(`${br.bad}/${br.total} recent sessions bad quality`); }
   }
-  const confidence = flags >= 3 ? "high" : flags === 2 ? "medium" : "low";
-  if(flags >= 2){
-    return { yes: true, cut: 0.6, reason: `Fatigue accumulating (${signals.join("; ")}) — cut volume ~40% next week, keep loads moderate.`, signals, confidence, oneDayDip };
+  const confidence = flags >= recovery.highConfidenceFlags ? "high" : flags >= recovery.mediumConfidenceFlags ? "medium" : "low";
+  if(flags >= recovery.minimumFlags){
+    return { yes: true, cut: recovery.deloadVolumeCut, reason: `Fatigue accumulating (${signals.join("; ")}) — cut volume ~${Math.round((1-recovery.deloadVolumeCut)*100)}% next week, keep loads moderate.`, signals, confidence, oneDayDip };
   }
   return { yes: false, signals, confidence, oneDayDip, reason: oneDayDip ? "One-day readiness dip only — no deload; re-check after recovery." : "Not enough fatigue signals for a deload." };
 }
@@ -192,7 +190,8 @@ export function deloadReadinessAssessment({ logs, recentRpes, weeklyVolumeTrend,
 //  - meaningful: ≥2% over the prior best AND no technique/ROM change in the note;
 //  - flagged: technique/ROM change (invalid), sub-2% jitter, or set on a
 //    low-readiness day (caution — could be a false PR from effort, not gains).
-export function scanPRs(history, { readinessLog = [] } = {}){
+export function scanPRs(history, { readinessLog = [], config = null } = {}){
+  const cfg = resolveArisePriors(config).sessionQuality.pr;
   const bestByEx = new Map();
   const prs = [];
   for(const h of (history||[]).slice().sort((a,b)=> a.dateISO.localeCompare(b.dateISO))){
@@ -204,12 +203,12 @@ export function scanPRs(history, { readinessLog = [] } = {}){
         const st = bestByEx.get(b.exerciseId) || { best: 0 };
         if(e > st.best){
           if(st.best > 0){
-            const ns = noteSignals(h.note, h.noteTags);
+            const ns = noteSignals(h.note, h.noteTags, { config });
             const flags = [];
             if(ns.techniqueChange) flags.push("technique/ROM change");
-            const rd = readinessFor(h.dateISO, readinessLog);
-            if(rd != null && rd < 40) flags.push(`low readiness ${rd}`);
-            const meaningful = (e >= st.best*1.02) && !ns.techniqueChange;
+            const rd = readinessFor(h.dateISO, readinessLog, config);
+            if(rd != null && rd < cfg.lowReadiness) flags.push(`low readiness ${rd}`);
+            const meaningful = (e >= st.best*(1+cfg.meaningfulGainPct)) && e >= st.best + cfg.minimumAbsoluteKg && !ns.techniqueChange;
             prs.push({
               exerciseId: b.exerciseId, dateISO: h.dateISO,
               e1rm: Math.round(e), prevBest: Math.round(st.best),
@@ -245,12 +244,13 @@ function bestSetFor(h, exerciseId){
 }
 
 // Readiness for a date: exact match, else nearest prior log within 3 days.
-function readinessFor(dateISO, readinessLog){
+function readinessFor(dateISO, readinessLog, config = null){
+  const lookbackDays = resolveArisePriors(config).sessionQuality.readinessLookbackDays;
   const byDate = new Map((readinessLog||[]).map(r=> [r.dateISO, Number(r.score)]));
   if(byDate.has(dateISO)) return byDate.get(dateISO);
   const t = Date.parse(dateISO + "T00:00:00");
   if(!Number.isFinite(t)) return null;
-  let best = null, bestD = 3*86400000;
+  let best = null, bestD = lookbackDays*86400000;
   for(const [d, s] of byDate){
     const diff = t - Date.parse(d + "T00:00:00");
     if(diff >= 0 && diff <= bestD){ bestD = diff; best = s; }
