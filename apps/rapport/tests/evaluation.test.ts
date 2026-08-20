@@ -3,6 +3,7 @@ import {
   evaluateSimulation,
   extractFeatures,
   performanceFrom,
+  replayFor,
   scoreTranscript,
   selectImprovement,
 } from "@/domain/evaluation";
@@ -100,6 +101,29 @@ describe("transcript features", () => {
     expect(features.openQuestions + features.closedQuestions).toBe(4);
   });
 
+  it("does not treat a substring as a question opener or filler", () => {
+    const text = build([
+      ["user", "Whatsoever happens, likely outcomes are manageable."],
+      ["character", "That is one way to see it."],
+      ["user", "Likely outcomes are manageable."],
+    ]);
+    const features = extractFeatures(text);
+    expect(features.openQuestions).toBe(0);
+    expect(features.fillers).toBe(0);
+  });
+
+  it("recognises plain acknowledgement as listening evidence", () => {
+    const text = build([
+      ["user", "How was the week?"],
+      ["character", "It was stressful and I am exhausted."],
+      ["user", "I hear you — that sounds like a hard week."],
+      ["character", "It really was."],
+      ["user", "What made it so tiring?"],
+    ]);
+    const features = extractFeatures(text);
+    expect(features.acknowledgements).toBeGreaterThan(0);
+  });
+
   it("notices a run of questions with nothing offered back", () => {
     const features = extractFeatures(INTERVIEW);
     expect(features.questionRuns).toBeGreaterThan(0);
@@ -134,6 +158,15 @@ describe("behaviour scoring", () => {
       expect(score.score).toBeGreaterThanOrEqual(0);
       expect(score.score).toBeLessThanOrEqual(1);
     }
+  });
+
+  it("attaches exact transcript spans for replay", () => {
+    const evaluation = evaluateSimulation(TOPIC_HOPPING, "eval.replay", "2026-01-01T11:00:00.000Z");
+    const replay = replayFor(evaluation);
+    expect(replay.length).toBeGreaterThan(0);
+    expect(replay.some((item) => item.role === "missed-opportunity")).toBe(true);
+    expect(replay.every((item) => item.quote.length > 0 && item.possibleStrategy.length > 20)).toBe(true);
+    expect(replay.map((item) => item.quote)).toContain("I watched a documentary about deep sea creatures last night, it was incredible.");
   });
 
   it("marks scores unreliable when the transcript is too short", () => {
@@ -196,3 +229,4 @@ describe("feedback selection", () => {
     expect(evaluation.source).toBe("deterministic");
   });
 });
+

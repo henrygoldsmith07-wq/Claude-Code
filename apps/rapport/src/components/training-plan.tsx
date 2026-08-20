@@ -52,6 +52,15 @@ export function TrainingPlan() {
         You can always choose another situation.
       </p>
 
+      <section className="mt-4 rounded-[10px] border p-4" style={{ borderColor: "var(--accent)" }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={guidance.stage.stage === "delayed-retest" ? "warn" : "accent"}>{guidance.stage.label}</Badge>
+          <span className="text-xs" style={{ color: "var(--text-faint)" }}>Current training stage</span>
+        </div>
+        <p className="mt-2 text-sm leading-relaxed">{guidance.stage.reason}</p>
+        <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>{guidance.stage.next}</p>
+      </section>
+
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <section className="rounded-[10px] border p-4" style={{ borderColor: "var(--border)" }}>
           <Badge>Assistance fading</Badge>
@@ -184,3 +193,4 @@ function selectionLabel(selection: "personalised" | "error-recycle" | "maintenan
       return "Personalised";
   }
 }
+

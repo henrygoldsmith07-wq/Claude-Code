@@ -1,6 +1,7 @@
 import { nextDifficulty, suggestedAssistLevel } from "./recommender";
 import { atDifficulty, scenariosForSkill } from "./scenarios";
 import { getSkill, unmetPrerequisites } from "./skills";
+import { exerciseFor } from "./evaluation";
 import type {
   AssistLevel,
   BehaviourKey,
@@ -58,6 +59,68 @@ export function assistancePlan(state: UserSkillState, preference: AssistLevel = 
   return { level, ...ASSISTANCE_COPY[level] };
 }
 
+export type TrainingStage = "guided" | "fading-assistance" | "unassisted" | "delayed-retest" | "real-world-mission";
+
+export interface TrainingStagePlan {
+  stage: TrainingStage;
+  label: string;
+  reason: string;
+  next: string;
+}
+
+/**
+ * The loop is a progression, not a bag of independent features. This stage is
+ * a user-facing projection of the current evidence and keeps the next step
+ * explicit without treating a low sample as mastery.
+ */
+export function trainingStageFor(
+  state: UserSkillState,
+  assistance: AssistancePlan,
+  retest: RetestPlan | null,
+  recentPerformances: number[],
+): TrainingStagePlan {
+  const recent = recentPerformances.slice(0, 3);
+  const recentMean = recent.length ? recent.reduce((sum, value) => sum + value, 0) / recent.length : 0;
+  if (retest?.due) {
+    return {
+      stage: "delayed-retest",
+      label: "Delayed retest",
+      reason: "A gap has been left deliberately so retrieval is tested without immediate feedback.",
+      next: "If the behaviour holds, the next exposure is a real-world mission.",
+    };
+  }
+  if (assistance.level === "full" || state.attemptCount < 2) {
+    return {
+      stage: "guided",
+      label: "Full guidance",
+      reason: "There is not yet enough reliable evidence to remove the first cues.",
+      next: "Build two reliable attempts, then the prompt can fade.",
+    };
+  }
+  if (assistance.level !== "none") {
+    return {
+      stage: "fading-assistance",
+      label: "Fading assistance",
+      reason: "The behaviour has appeared, so the next situation keeps only a smaller cue.",
+      next: "The scenario will become less familiar as the cue reduces.",
+    };
+  }
+  if (recentMean >= 0.65 && state.retentionEstimate >= 0.5) {
+    return {
+      stage: "real-world-mission",
+      label: "Real-world mission",
+      reason: "Recent unassisted practice is strong enough to test outside the simulator.",
+      next: "Take a real-world mission now and record what you actually did; the report keeps that evidence separate from simulation.",
+    };
+  }
+  return {
+    stage: "unassisted",
+    label: "Unassisted practice",
+    reason: "Prompts are off, so the next scenario checks whether you can retrieve the behaviour yourself.",
+    next: "A harder or unfamiliar situation is the next useful test.",
+  };
+}
+
 export interface RecurringError {
   behaviour: BehaviourKey;
   count: number;
@@ -80,11 +143,14 @@ export function recurringErrorFor(
   const byBehaviour = new Map<BehaviourKey, { ids: Id[]; exercise: Exercise }>();
 
   for (const evaluation of relevant) {
-    const weak = evaluation.scores.find((score) => score.reliable && score.score < 0.55);
-    if (!weak) continue;
-    const current = byBehaviour.get(weak.key) ?? { ids: [], exercise: evaluation.nextExercise };
-    if (!current.ids.includes(evaluation.id)) current.ids.push(evaluation.id);
-    byBehaviour.set(weak.key, current);
+    for (const weak of evaluation.scores.filter((score) => score.reliable && score.score < 0.55)) {
+      const exercise = evaluation.nextExercise.generatedFrom?.behaviour === weak.key
+        ? evaluation.nextExercise
+        : exerciseFor(weak.key, evaluation.nextExercise.skillId, evaluation.id, evaluation.nextExercise.difficulty);
+      const current = byBehaviour.get(weak.key) ?? { ids: [], exercise };
+      if (!current.ids.includes(evaluation.id)) current.ids.push(evaluation.id);
+      byBehaviour.set(weak.key, current);
+    }
   }
 
   const recurring = [...byBehaviour.entries()]
@@ -265,6 +331,7 @@ export function overpracticeStatus(
 export interface TrainingGuidance {
   skillId: Id;
   assistance: AssistancePlan;
+  stage: TrainingStagePlan;
   scenario: ScenarioTrainingPlan | null;
   recurringError: RecurringError | null;
   prerequisite: PrerequisiteRoute | null;
@@ -288,9 +355,12 @@ export function buildTrainingGuidance(input: TrainingGuidanceInput): TrainingGui
   const state = input.states.find((item) => item.skillId === input.skillId);
   if (!state) return null;
   const masteryOf = (skillId: Id) => input.states.find((item) => item.skillId === skillId)?.mastery ?? 0;
+  const assistance = assistancePlan(state, input.preferenceAssistLevel);
+  const retest = delayedRetestFor(input.skillId, input.evaluations, input.now);
   return {
     skillId: input.skillId,
-    assistance: assistancePlan(state, input.preferenceAssistLevel),
+    assistance,
+    stage: trainingStageFor(state, assistance, retest, input.recentPerformances),
     scenario: selectTrainingScenario({
       skillId: input.skillId,
       state,
@@ -302,7 +372,7 @@ export function buildTrainingGuidance(input: TrainingGuidanceInput): TrainingGui
     recurringError: recurringErrorFor(input.evaluations, input.skillId),
     prerequisite: prerequisiteRoute(input.skillId, masteryOf),
     maintenance: maintenancePlan(state),
-    retest: delayedRetestFor(input.skillId, input.evaluations, input.now),
+    retest,
     overpractice: overpracticeStatus(input.skillId, input.focusHistory, input.now),
   };
 }
@@ -354,8 +424,10 @@ function labelForBehaviour(behaviour: BehaviourKey): string {
     topicTransitions: "signposted topic changes",
     questionQuality: "question quality",
     contribution: "contribution",
+    interruptionHandling: "handling interruptions",
     inclusion: "including others",
     floorEntry: "entering the floor",
   };
   return labels[behaviour];
 }
+

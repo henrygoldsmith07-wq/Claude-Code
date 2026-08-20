@@ -20,6 +20,7 @@ import type {
   VoiceTurnMetrics,
 } from "@/domain/types";
 import { FeedbackPanel } from "@/components/feedback-panel";
+import { ConversationReplay } from "@/components/conversation-replay";
 
 // ---------------------------------------------------------------------------
 // The practice conversation.
@@ -317,6 +318,7 @@ export function SimulationRunner({
     return (
       <>
         <FeedbackPanel evaluation={evaluation} skillName={skill?.name ?? "this skill"} />
+        <ConversationReplay evaluation={evaluation} />
         {voice ? (
           <Card className="mt-4">
             <h3 className="text-base font-semibold">How you sounded</h3>
@@ -382,7 +384,9 @@ export function SimulationRunner({
             }}
           >
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-faint)" }}>
-              {turn.speaker === "user" ? "You" : character.name}
+              {turn.speaker === "user"
+                ? "You"
+                : scenario.characters.find((item) => item.id === turn.characterId)?.name ?? character.name}
             </span>
             {turn.text}
           </div>
@@ -436,3 +440,4 @@ export function SimulationRunner({
     </>
   );
 }
+

@@ -10,6 +10,7 @@ import { consistency } from "@/domain/progress";
 import { streakMessage } from "@/domain/gamification";
 import { stateFor } from "@/domain/mastery";
 import { challengeReminder } from "@/domain/training";
+import { behaviourLabel } from "@/domain/behaviours";
 import { Badge, Button, Card, Evidence, PageHeader, Skeleton } from "@/components/ui";
 import { LessonPanel } from "@/components/lesson-panel";
 import { ReflectionForm } from "@/components/reflection-form";
@@ -78,6 +79,7 @@ export default function TodayPage() {
       <Card className="rise">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="accent">Today&apos;s focus</Badge>
+          {todayPlan.trainingStage ? <Badge>{todayPlan.trainingStage.label}</Badge> : null}
           {state && state.attemptCount > 0 ? <Badge>{stateFor(state.mastery)}</Badge> : <Badge>New</Badge>}
         </div>
         <h2 className="mt-3 text-xl font-semibold tracking-tight">{summary.practising}</h2>
@@ -145,6 +147,14 @@ export default function TodayPage() {
       {todayPlan.challenge ? (
         <Card className="mt-4">
           <h3 className="text-base font-semibold">Apply · a real conversation</h3>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {todayPlan.challenge.challenge.behaviour ? (
+              <Badge tone="accent">Target: {behaviourLabel(todayPlan.challenge.challenge.behaviour)}</Badge>
+            ) : null}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Why this mission: {todayPlan.challenge.reason}
+          </p>
           <p className="mt-2 text-[15px] leading-relaxed">{todayPlan.challenge.objectiveText}</p>
           <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
             {todayPlan.challenge.challenge.context}
@@ -213,3 +223,4 @@ export default function TodayPage() {
     </>
   );
 }
+

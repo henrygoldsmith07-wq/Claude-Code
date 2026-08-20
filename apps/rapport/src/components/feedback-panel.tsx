@@ -162,6 +162,8 @@ function label(key: string): string {
     topicTransitions: "Topic changes",
     questionQuality: "Question quality",
     contribution: "Share of the conversation",
+    interruptionHandling: "Handling interruptions",
   };
   return labels[key] ?? key;
 }
+

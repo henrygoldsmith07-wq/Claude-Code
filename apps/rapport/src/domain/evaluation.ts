@@ -2,9 +2,11 @@ import { BEHAVIOUR_KEYS, MULTI_PARTY_BEHAVIOURS } from "./types";
 import { addressee, namesAddressed } from "./addressing";
 import { participation } from "./floor";
 import { summariseInterruptions } from "./interruption";
+import { behaviourLabel } from "./behaviours";
 import type {
   BehaviourKey,
   BehaviourScore,
+  EvidenceSpan,
   Exercise,
   Id,
   Simulation,
@@ -39,7 +41,6 @@ const STOP_WORDS = new Set([
 ]);
 
 const OPEN_QUESTION_STARTERS = ["what", "how", "which", "why", "tell me", "what's", "how's"];
-const CLOSED_QUESTION_STARTERS = ["did", "do", "does", "is", "are", "was", "were", "have", "has", "will", "can", "could you"];
 
 const REFLECTION_MARKERS = [
   "so you", "sounds like", "so it", "you're saying", "youre saying", "it seems like", "so that means",
@@ -48,6 +49,10 @@ const REFLECTION_MARKERS = [
 const VALIDATION_MARKERS = [
   "that makes sense", "makes sense", "of course you", "no wonder", "i'd be", "id be", "that sounds",
   "fair enough", "understandable", "i can see why",
+];
+const ACKNOWLEDGEMENT_MARKERS = [
+  "i hear you", "i get that", "i understand", "thanks for telling me", "right, i see", "okay, i see",
+  "got it", "i see what you mean",
 ];
 const MINIMISING_MARKERS = ["at least", "could be worse", "it's not that bad", "you'll be fine", "don't worry about it"];
 /** Things the other person says that invite acknowledgement of a feeling. */
@@ -124,16 +129,18 @@ function overlap(a: Set<string>, b: Set<string>): number {
 }
 
 function containsAny(text: string, markers: string[]): boolean {
-  const lower = text.toLowerCase();
-  return markers.some((marker) => lower.includes(marker));
+  return markers.some((marker) => markerRegex(marker).test(text));
 }
 
 function countAny(text: string, markers: string[]): number {
-  const lower = text.toLowerCase();
   return markers.reduce((total, marker) => {
-    const matches = lower.split(marker).length - 1;
-    return total + matches;
+    return total + (text.match(markerRegex(marker, true))?.length ?? 0);
   }, 0);
+}
+
+function markerRegex(marker: string, global = false): RegExp {
+  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, global ? "gi" : "i");
 }
 
 function isQuestion(text: string): boolean {
@@ -144,11 +151,32 @@ function questionCount(text: string): number {
   return (text.match(/\?/g) ?? []).length;
 }
 
+function questionKinds(text: string): { open: number; closed: number; total: number } {
+  const segments = text
+    .split("?")
+    .slice(0, -1)
+    .map((segment) => segment.trim().replace(/^[^a-z]+/i, ""))
+    .filter(Boolean);
+  let open = 0;
+  let closed = 0;
+  for (const segment of segments) {
+    const isOpen = OPEN_QUESTION_STARTERS.some((starter) => {
+      const pattern = new RegExp(`^${starter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\b|['’])`, "i");
+      return pattern.test(segment);
+    });
+    if (isOpen) open += 1;
+    else closed += 1;
+  }
+  return { open, closed, total: open + closed };
+}
+
 function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 export interface TranscriptFeatures {
+  /** Ordered transcript retained internally so evidence spans can point back to exact turns. */
+  turns: SimulationTurn[];
   userTurns: SimulationTurn[];
   characterTurns: SimulationTurn[];
   userWords: number;
@@ -160,6 +188,7 @@ export interface TranscriptFeatures {
   /** Character turns that invited acknowledgement of a feeling. */
   emotionalCues: number;
   reflections: number;
+  acknowledgements: number;
   openQuestions: number;
   closedQuestions: number;
   stackedQuestions: number;
@@ -180,6 +209,8 @@ export interface TranscriptFeatures {
   characterCount: number;
   /** Characters the user addressed by name at least once. */
   charactersAddressed: number;
+  /** User turn ids that named a participant, for replay evidence. */
+  addressedTurnIds: Id[];
   /** How evenly the user spread named attention, 0-1. */
   attentionBalance: number;
   /** Characters who never spoke and were never brought in by the user. */
@@ -188,6 +219,12 @@ export interface TranscriptFeatures {
   selfSelections: number;
   /** Stretches where the group held the floor and the user could have come in. */
   entryOpportunities: number;
+  /** Interruption facts are only populated as far as the transcript supports. */
+  interruptionEvents: ReturnType<typeof summariseInterruptions>["events"];
+  timesCutOff: number;
+  timesCuttingOff: number;
+  reclaims: number;
+  overlapUnavailable: boolean;
 }
 
 export function extractFeatures(simulation: Simulation): TranscriptFeatures {
@@ -198,6 +235,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
   let referencingReplies = 0;
   let judgeableReplies = 0;
   let reflections = 0;
+  let acknowledgements = 0;
   let openQuestions = 0;
   let closedQuestions = 0;
   let stackedQuestions = 0;
@@ -213,6 +251,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
 
   let consecutiveQuestions = 0;
   const emotionalCues = characterTurns.filter((turn) => containsAny(turn.text, EMOTIONAL_CUE_MARKERS)).length;
+  const interruptionSummary = summariseInterruptions(simulation);
 
   for (let i = 0; i < turns.length; i += 1) {
     const turn = turns[i];
@@ -224,7 +263,6 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
     const previous = findPrevious(turns, i, "character");
     const context = previousCharacterWords(turns, i, 2);
     const text = turn.text;
-    const lower = text.toLowerCase();
 
     // A reply can only be judged for relevance if the character actually gave
     // something to pick up on. Two words of "Mm." is not material, and marking
@@ -251,6 +289,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
     }
 
     if (containsAny(text, REFLECTION_MARKERS)) reflections += 1;
+    if (containsAny(text, ACKNOWLEDGEMENT_MARKERS)) acknowledgements += 1;
     if (containsAny(text, VALIDATION_MARKERS)) validations += 1;
     if (containsAny(text, MINIMISING_MARKERS)) minimisings += 1;
     if (containsAny(text, ASSERTIVE_MARKERS)) assertiveStatements += 1;
@@ -259,10 +298,9 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
 
     const questions = questionCount(text);
     if (questions > 0) {
-      const opens = OPEN_QUESTION_STARTERS.filter((starter) => lower.includes(starter)).length;
-      const closes = CLOSED_QUESTION_STARTERS.filter((starter) => lower.startsWith(starter)).length;
-      if (opens > 0) openQuestions += 1;
-      else if (closes > 0 || questions > 0) closedQuestions += 1;
+      const kinds = questionKinds(text);
+      openQuestions += kinds.open;
+      closedQuestions += kinds.closed;
       if (questions >= 2) stackedQuestions += 1;
       consecutiveQuestions += 1;
       if (consecutiveQuestions >= 3) questionRuns += 1;
@@ -282,6 +320,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
   const replyLengths = userTurns.map((turn) => wordCount(turn.text));
 
   return {
+    turns,
     userTurns,
     characterTurns,
     userWords,
@@ -290,6 +329,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
     judgeableReplies,
     emotionalCues,
     reflections,
+    acknowledgements,
     openQuestions,
     closedQuestions,
     stackedQuestions,
@@ -304,6 +344,11 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
     fillers,
     averageReplyWords: replyLengths.length ? replyLengths.reduce((a, b) => a + b, 0) / replyLengths.length : 0,
     longestReplyWords: replyLengths.length ? Math.max(...replyLengths) : 0,
+    interruptionEvents: interruptionSummary.events,
+    timesCutOff: interruptionSummary.timesCutOff,
+    timesCuttingOff: interruptionSummary.timesCuttingOff,
+    reclaims: interruptionSummary.reclaims,
+    overlapUnavailable: interruptionSummary.overlapUnavailable,
     ...groupFeatures(simulation),
   };
 }
@@ -319,7 +364,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
  */
 function groupFeatures(simulation: Simulation): Pick<
   TranscriptFeatures,
-  "characterCount" | "charactersAddressed" | "attentionBalance" | "leftOut" | "selfSelections" | "entryOpportunities"
+  "characterCount" | "charactersAddressed" | "addressedTurnIds" | "attentionBalance" | "leftOut" | "selfSelections" | "entryOpportunities"
 > {
   const characters = simulation.scenario.characters;
   const summary = participation(simulation);
@@ -332,6 +377,9 @@ function groupFeatures(simulation: Simulation): Pick<
       .filter((t) => t.speaker === "user")
       .flatMap((t) => namesAddressed(t.text, simulation.scenario)),
   );
+  const addressedTurnIds = simulation.turns
+    .filter((turn) => turn.speaker === "user" && namesAddressed(turn.text, simulation.scenario).length > 0)
+    .map((turn) => turn.id);
 
   // A stretch where the group held the floor and did *not* hand it over.
   //
@@ -359,6 +407,7 @@ function groupFeatures(simulation: Simulation): Pick<
   return {
     characterCount: characters.length,
     charactersAddressed: addressed.size,
+    addressedTurnIds,
     attentionBalance: summary.attentionBalance,
     leftOut: characters.filter((c) => !spoke.has(c.id) && !addressed.has(c.id)).length,
     selfSelections: interruptions.selfSelections,
@@ -399,6 +448,7 @@ const RELIABILITY_MIN_TURNS: Record<BehaviourKey, number> = {
   topicTransitions: 4,
   questionQuality: 2,
   contribution: 2,
+  interruptionHandling: 2,
   inclusion: 3,
   floorEntry: 3,
 };
@@ -409,6 +459,11 @@ function clamp01(value: number): number {
 
 /** Score one behaviour from the features, with the counts that justify it. */
 function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures): BehaviourScore {
+  const score = scoreBehaviourBase(key, f);
+  return { ...score, evidenceSpans: evidenceSpansFor(key, f, score) };
+}
+
+function scoreBehaviourBase(key: BehaviourKey, f: TranscriptFeatures): BehaviourScore {
   const turns = f.userTurns.length;
   const reliable = turns >= RELIABILITY_MIN_TURNS[key];
   const denom = Math.max(1, turns);
@@ -432,11 +487,11 @@ function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures): BehaviourScor
       // Uptake, not vocabulary: reflecting, acknowledging, or asking about
       // something they said. Showing it in half your turns is full marks —
       // reflecting every turn would be strange rather than excellent.
-      const uptake = f.reflections + f.validations + Math.min(f.referencingReplies, f.openQuestions + f.closedQuestions);
+      const uptake = f.reflections + f.acknowledgements + f.validations + Math.min(f.referencingReplies, f.openQuestions + f.closedQuestions);
       return build(
         key,
         clamp01(uptake / (denom * 0.5)),
-        `${uptake} of ${turns} replies showed you had taken in what they said`,
+        `${uptake} acknowledgement, reflection or relevant question${uptake === 1 ? "" : "s"} across ${turns} replies`,
         reliable,
       );
     }
@@ -541,6 +596,30 @@ function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures): BehaviourScor
         share > 0.78 || share < 0.18 ? 1 : 0,
       );
     }
+    case "interruptionHandling": {
+      if (f.overlapUnavailable && f.selfSelections === 0) {
+        return build(
+          key,
+          0.5,
+          "Overlapping speech was not measurable in this text transcript",
+          false,
+        );
+      }
+      if (f.interruptionEvents.length === 0) {
+        return build(key, 0.5, "No interruption opportunity was captured", false);
+      }
+      const positive = f.reclaims + f.selfSelections;
+      const negative = f.timesCuttingOff + Math.max(0, f.timesCutOff - f.reclaims);
+      const opportunities = positive + negative;
+      const score = opportunities === 0 ? 0.5 : positive / opportunities;
+      return build(
+        key,
+        score,
+        `${f.reclaims} calm reclaim${f.reclaims === 1 ? "" : "s"}, ${f.timesCuttingOff} cut-off${f.timesCuttingOff === 1 ? "" : "s"} caused, ${f.timesCutOff} time${f.timesCutOff === 1 ? "" : "s"} cut off`,
+        reliable && opportunities > 0,
+        f.timesCuttingOff > 0 ? Math.min(1, f.timesCuttingOff * 0.5) : 0,
+      );
+    }
     case "inclusion": {
       // Only reachable for group scenarios; scoreTranscript filters it out
       // otherwise. Guarded anyway so a direct call cannot invent a score.
@@ -586,6 +665,157 @@ function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures): BehaviourScor
     default:
       return build(key, 0, "", false);
   }
+}
+
+function span(turn: SimulationTurn, role: EvidenceSpan["role"]): EvidenceSpan {
+  return {
+    turnId: turn.id,
+    turnIndex: turn.index,
+    speaker: turn.speaker,
+    quote: turn.text.trim(),
+    role,
+  };
+}
+
+function uniqueSpans(spans: EvidenceSpan[]): EvidenceSpan[] {
+  const seen = new Set<string>();
+  return spans.filter((item) => {
+    const key = `${item.turnId}:${item.role}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function indexOfTurn(turn: SimulationTurn, f: TranscriptFeatures): number {
+  return f.turns.findIndex((candidate) => candidate.id === turn.id);
+}
+
+function previousCharacterFor(turn: SimulationTurn, f: TranscriptFeatures): SimulationTurn | null {
+  const index = indexOfTurn(turn, f);
+  return index < 0 ? null : findPrevious(f.turns, index, "character");
+}
+
+function referencesCharacter(turn: SimulationTurn, f: TranscriptFeatures): boolean {
+  const index = indexOfTurn(turn, f);
+  if (index < 0) return false;
+  const previous = findPrevious(f.turns, index, "character");
+  const context = previousCharacterWords(f.turns, index, 2);
+  if (!previous || context.size < 2) return false;
+  return overlap(contentWords(turn.text), context) >= 0.15 || containsAny(turn.text, ANAPHORIC_MARKERS) || isElliptical(turn.text);
+}
+
+function hasJudgeableContext(turn: SimulationTurn, f: TranscriptFeatures): boolean {
+  const index = indexOfTurn(turn, f);
+  return index >= 0 && previousCharacterWords(f.turns, index, 2).size >= 2;
+}
+
+function continuesOwnThread(turn: SimulationTurn, f: TranscriptFeatures): boolean {
+  const index = indexOfTurn(turn, f);
+  const previous = index < 0 ? null : findPrevious(f.turns, index, "user");
+  return previous !== null && overlap(contentWords(turn.text), contentWords(previous.text)) >= 0.12;
+}
+
+function evidenceSpansFor(key: BehaviourKey, f: TranscriptFeatures, score: BehaviourScore): EvidenceSpan[] {
+  const support: EvidenceSpan[] = [];
+  const missed: EvidenceSpan[] = [];
+  const users = f.userTurns;
+  const add = (target: EvidenceSpan[], turn: SimulationTurn | undefined, role: EvidenceSpan["role"]) => {
+    if (turn) target.push(span(turn, role));
+  };
+
+  switch (key) {
+    case "relevance":
+      users.forEach((turn) => add(referencesCharacter(turn, f) ? support : missed, hasJudgeableContext(turn, f) ? turn : undefined, referencesCharacter(turn, f) ? "support" : "missed-opportunity"));
+      break;
+    case "listening":
+      users.forEach((turn) => {
+        const takenIn = referencesCharacter(turn, f) || containsAny(turn.text, REFLECTION_MARKERS) || containsAny(turn.text, ACKNOWLEDGEMENT_MARKERS) || containsAny(turn.text, VALIDATION_MARKERS);
+        add(takenIn ? support : missed, hasJudgeableContext(turn, f) ? turn : undefined, takenIn ? "support" : "missed-opportunity");
+      });
+      break;
+    case "followUpQuality":
+      users.forEach((turn) => {
+        const kind = questionKinds(turn.text);
+        const good = kind.open > 0 && referencesCharacter(turn, f);
+        add(good ? support : missed, kind.total > 0 ? turn : undefined, good ? "support" : "missed-opportunity");
+      });
+      break;
+    case "reciprocity":
+      users.forEach((turn) => {
+        if (FIRST_PERSON.test(turn.text) && wordCount(turn.text) >= 5) add(support, turn, "support");
+        else if (questionKinds(turn.text).total > 0 && f.questionRuns > 0) add(missed, turn, "missed-opportunity");
+      });
+      break;
+    case "clarity":
+      users.forEach((turn) => {
+        const long = wordCount(turn.text) > 60;
+        const hasFillers = countAny(turn.text, FILLERS) > 0;
+        add(long || hasFillers ? missed : support, turn, long || hasFillers ? "missed-opportunity" : "support");
+      });
+      break;
+    case "assertiveness":
+      users.forEach((turn) => {
+        const clear = containsAny(turn.text, ASSERTIVE_MARKERS);
+        const hedged = countAny(turn.text, HEDGE_MARKERS) > 0;
+        if (clear && !hedged) add(support, turn, "support");
+        else if (hedged) add(missed, turn, "missed-opportunity");
+      });
+      break;
+    case "empathy":
+      users.forEach((turn) => {
+        const previous = previousCharacterFor(turn, f);
+        const emotional = previous !== null && containsAny(previous.text, EMOTIONAL_CUE_MARKERS);
+        const response = containsAny(turn.text, VALIDATION_MARKERS) || containsAny(turn.text, REFLECTION_MARKERS);
+        if (response) add(support, turn, "support");
+        else if (emotional || containsAny(turn.text, MINIMISING_MARKERS)) add(missed, turn, "missed-opportunity");
+      });
+      break;
+    case "topicTransitions":
+      users.forEach((turn) => {
+        if (containsAny(turn.text, TRANSITION_MARKERS)) add(support, turn, "support");
+        else if (!referencesCharacter(turn, f) && !continuesOwnThread(turn, f) && wordCount(turn.text) > 5) add(missed, turn, "missed-opportunity");
+      });
+      break;
+    case "questionQuality":
+      users.forEach((turn) => {
+        const kind = questionKinds(turn.text);
+        if (kind.open > 0 && kind.total === 1) add(support, turn, "support");
+        else if (kind.total > 0) add(missed, turn, "missed-opportunity");
+      });
+      break;
+    case "contribution": {
+      const share = f.userWords / Math.max(1, f.userWords + f.characterWords);
+      const candidate = users.find((turn) => wordCount(turn.text) >= 5);
+      if (share >= 0.18 && share <= 0.78) add(support, candidate, "support");
+      if (share > 0.78 || share < 0.18) add(missed, users.reduce((longest, turn) => wordCount(turn.text) > wordCount(longest?.text ?? "") ? turn : longest, users[0]), "missed-opportunity");
+      break;
+    }
+    case "interruptionHandling":
+      for (const event of f.interruptionEvents) {
+        const turn = f.turns.find((candidate) => candidate.index === event.turnIndex);
+        const positive = event.kind === "self-selection" || (event.kind === "cut-off" && f.reclaims > 0);
+        add(positive ? support : missed, turn, positive ? "support" : "missed-opportunity");
+      }
+      break;
+    case "inclusion":
+      users.forEach((turn) => add(f.addressedTurnIds.includes(turn.id) ? support : missed, turn, f.addressedTurnIds.includes(turn.id) ? "support" : "missed-opportunity"));
+      break;
+    case "floorEntry":
+      for (const event of f.interruptionEvents.filter((item) => item.kind === "self-selection")) {
+        const turn = f.turns.find((candidate) => candidate.index === event.turnIndex);
+        add(support, turn, "support");
+      }
+      if (support.length === 0) add(missed, f.characterTurns[f.characterTurns.length - 1], "missed-opportunity");
+      break;
+    default:
+      break;
+  }
+
+  const selected = uniqueSpans([...support.slice(0, 3), ...missed.slice(0, 3)]);
+  if (selected.length > 0 || !score.reliable) return selected;
+  const fallback = users[0] ?? f.characterTurns[0];
+  return fallback ? [span(fallback, score.score >= 0.55 ? "support" : "missed-opportunity")] : [];
 }
 
 function build(key: BehaviourKey, score: number, evidence: string, reliable: boolean, severity = 0): BehaviourScore {
@@ -704,6 +934,13 @@ const PRINCIPLES: Record<BehaviourKey, { principle: string; example: string; exe
     prompt: "You have said very little in a group for ten minutes. Plan your first contribution: what do you build on, and how do you keep it short?",
     criteria: ["Builds on someone else's point", "Under three sentences", "Hands back rather than trailing off"],
   },
+  interruptionHandling: {
+    principle: "Overlap is not all the same. Let a supportive noise pass, but if someone cuts across a point, return to the sentence once without apologising for taking your turn.",
+    example: "I’ll finish that thought — the risk is highest in the handover, not the planning.",
+    exerciseKind: "rewrite",
+    prompt: "Someone cuts you off just before your main point. Write one calm line that reclaims the floor without attacking them or apologising.",
+    criteria: ["Returns to the unfinished point", "Keeps the tone level", "Does not label the other person"],
+  },
 };
 
 /**
@@ -743,6 +980,8 @@ function describeStrength(score: BehaviourScore, f: TranscriptFeatures): string 
       return `The exchange stayed two-way: ${score.evidence.toLowerCase()}.`;
     case "contribution":
       return `You held up your side without taking over — ${score.evidence.toLowerCase()}.`;
+    case "interruptionHandling":
+      return `You handled the floor rather than treating every overlap as a failure — ${score.evidence.toLowerCase()}.`;
     case "assertiveness":
       return `You stated your position clearly: ${score.evidence.toLowerCase()}.`;
     case "empathy":
@@ -806,3 +1045,54 @@ export function evaluateSimulation(simulation: Simulation, evaluationId: Id, now
     createdAt: now,
   };
 }
+
+export interface ReplayEvidence {
+  behaviour: BehaviourKey;
+  score: number;
+  role: "support" | "missed-opportunity";
+  turnId: Id;
+  turnIndex: number;
+  speaker: "user" | "character";
+  quote: string;
+  observation: string;
+  possibleStrategy: string;
+}
+
+const REPLAY_STRATEGIES: Record<BehaviourKey, string> = {
+  relevance: "Reply to one concrete detail in their last line before adding a new thought.",
+  listening: "Try one short acknowledgement or reflection before moving on.",
+  followUpQuality: "Pick one detail they mentioned and ask how, what or which about it.",
+  reciprocity: "After a question, offer one relevant piece of your own before asking again.",
+  clarity: "Trim the build-up, remove filler and land the point in one or two sentences.",
+  assertiveness: "State your position in the first sentence and keep to one reason.",
+  empathy: "Name that the reaction makes sense before offering advice or a solution.",
+  topicTransitions: "Bridge the new subject to the current one and signal the change.",
+  questionQuality: "Use one open question at a time rather than stacking yes/no questions.",
+  contribution: "Build on what is already being discussed, then hand the floor back.",
+  interruptionHandling: "If cut off, return to the unfinished point once without apologising for taking a turn.",
+  inclusion: "Invite a quieter participant by name with a specific, easy-to-answer question.",
+  floorEntry: "Come in on the end of a point with a connected contribution instead of waiting indefinitely.",
+};
+
+/**
+ * Turn score evidence into an inspectable replay. It deliberately offers a
+ * strategy, not a single perfect replacement line.
+ */
+export function replayFor(evaluation: SimulationEvaluation): ReplayEvidence[] {
+  return evaluation.scores.flatMap((score) =>
+    (score.evidenceSpans ?? []).map((evidence) => ({
+      behaviour: score.key,
+      score: score.score,
+      role: evidence.role,
+      turnId: evidence.turnId,
+      turnIndex: evidence.turnIndex,
+      speaker: evidence.speaker,
+      quote: evidence.quote,
+      observation: evidence.role === "support"
+        ? `This turn supports ${behaviourLabel(score.key)}: ${score.evidence}.`
+        : `This turn is a missed opportunity for ${behaviourLabel(score.key)}: ${score.evidence}.`,
+      possibleStrategy: REPLAY_STRATEGIES[score.key],
+    })),
+  );
+}
+

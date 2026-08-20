@@ -1,5 +1,7 @@
 import { requireSkill } from "./skills";
 import type { Challenge, ChallengeAttempt, Id, TrainingContext, UserSkillState } from "./types";
+import type { BehaviourKey } from "./types";
+import { behaviourForSkill, behaviourLabel } from "./behaviours";
 
 // ---------------------------------------------------------------------------
 // Real-world challenges — the part that decides whether any of this transfers.
@@ -20,7 +22,8 @@ function challenge(
   difficulty: 1 | 2 | 3 | 4 | 5,
   fields: Omit<Challenge, "id" | "skillId" | "difficulty">,
 ): Challenge {
-  return { id, skillId, difficulty, ...fields };
+  const behaviour = fields.behaviour ?? behaviourForSkill(skillId);
+  return { id, skillId, difficulty, ...fields, ...(behaviour ? { behaviour } : {}) };
 }
 
 const SOCIAL: TrainingContext[] = ["social", "work", "study"];
@@ -304,6 +307,7 @@ export function selectChallenge(
   state: UserSkillState,
   history: ChallengeAttempt[],
   contexts: TrainingContext[],
+  targetBehaviour?: BehaviourKey,
 ): ChallengeSelection {
   const recent = new Set(
     history
@@ -314,15 +318,19 @@ export function selectChallenge(
 
   const target = Math.round(Math.min(5, Math.max(1, state.difficultyTolerance)));
   const candidates = challengesForSkill(skillId);
-  const relevant = candidates.filter((item) => item.contexts.some((c) => contexts.includes(c)));
-  const pool = (relevant.length > 0 ? relevant : candidates).filter((item) => !recent.has(item.id));
-  const usable = pool.length > 0 ? pool : candidates;
+  const behaviourMatched = targetBehaviour ? candidates.filter((item) => item.behaviour === targetBehaviour) : candidates;
+  const candidatePool = behaviourMatched.length > 0 ? behaviourMatched : candidates;
+  const relevant = candidatePool.filter((item) => item.contexts.some((c) => contexts.includes(c)));
+  const pool = (relevant.length > 0 ? relevant : candidatePool).filter((item) => !recent.has(item.id));
+  const usable = pool.length > 0 ? pool : candidatePool;
 
   if (usable.length === 0) {
     return {
       challenge: deriveChallenge(skillId, target as 1 | 2 | 3 | 4 | 5),
       variant: "standard",
-      reason: "Built from this skill's behaviours — there is no fixed challenge for it yet.",
+      reason: targetBehaviour
+        ? `Built from this skill's behaviours to practise ${behaviourLabel(targetBehaviour)} — there is no fixed mission for it yet.`
+        : "Built from this skill's behaviours — there is no fixed challenge for it yet.",
     };
   }
 
@@ -331,12 +339,30 @@ export function selectChallenge(
   );
 
   if (best.difficulty > target + 1 && best.easierVariant) {
-    return { challenge: best, variant: "easier", reason: "Slightly scaled down to match where you are with this skill." };
+    return {
+      challenge: best,
+      variant: "easier",
+      reason: targetBehaviour && best.behaviour === targetBehaviour
+        ? `Targets ${behaviourLabel(targetBehaviour)} with a slightly smaller step.`
+        : "Slightly scaled down to match where you are with this skill.",
+    };
   }
   if (best.difficulty < target - 1 && best.harderVariant) {
-    return { challenge: best, variant: "harder", reason: "Stepped up — you have been handling this level comfortably." };
+    return {
+      challenge: best,
+      variant: "harder",
+      reason: targetBehaviour && best.behaviour === targetBehaviour
+        ? `Steps up ${behaviourLabel(targetBehaviour)} because the last level looked comfortable.`
+        : "Stepped up — you have been handling this level comfortably.",
+    };
   }
-  return { challenge: best, variant: "standard", reason: "Matches the level you have been managing recently." };
+  return {
+    challenge: best,
+    variant: "standard",
+    reason: targetBehaviour && best.behaviour === targetBehaviour
+      ? `Targets the measured weakness: ${behaviourLabel(targetBehaviour)}.`
+      : "Matches the level you have been managing recently.",
+  };
 }
 
 /** Text actually shown, honouring the chosen variant. */
@@ -357,6 +383,7 @@ export function deriveChallenge(skillId: Id, difficulty: 1 | 2 | 3 | 4 | 5): Cha
   return {
     id: `ch.derived.${skillId}.${difficulty}`,
     skillId,
+    behaviour: behaviourForSkill(skillId),
     difficulty,
     objective: first ? `Today, do this once: ${lowerFirst(first)}.` : `Practise ${skill.name.toLowerCase()} once today.`,
     context: `Wherever it fits naturally: ${skill.contexts.join(", ")}.`,
@@ -385,3 +412,4 @@ export function replaceChallenge(
   const excluded = [...history, { ...attempt, skippedAt: new Date().toISOString() }];
   return selectChallenge(attempt.challenge.skillId, state, excluded, contexts);
 }
+

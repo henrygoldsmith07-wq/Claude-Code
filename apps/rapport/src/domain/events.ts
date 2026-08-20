@@ -28,6 +28,8 @@ export type DomainEvent =
       difficulty: number;
       reliability: number;
       behaviours: { key: BehaviourKey; score: number }[];
+      /** Per-skill evidence when the evaluator can trace a behaviour to a skill. */
+      skillEvidence?: { skillId: Id; performance: number; reliability: number }[];
     }
   | {
       kind: "challenge-attempted";
@@ -118,14 +120,17 @@ export type DomainEvent =
 function evidenceFrom(event: DomainEvent): Evidence[] {
   switch (event.kind) {
     case "simulation-evaluated":
-      return event.skillIds.map((skillId) => ({
-        skillId,
-        performance: event.performance,
-        difficulty: event.difficulty,
-        kind: "simulation" as const,
-        reliability: event.reliability,
-        at: event.at,
-      }));
+      return (event.skillEvidence?.length
+        ? event.skillEvidence
+        : event.skillIds.map((skillId) => ({ skillId, performance: event.performance, reliability: event.reliability })))
+        .map((item) => ({
+          skillId: item.skillId,
+          performance: item.performance,
+          difficulty: event.difficulty,
+          kind: "simulation" as const,
+          reliability: item.reliability,
+          at: event.at,
+        }));
     case "challenge-attempted":
       return [
         {
@@ -236,4 +241,7 @@ export function eventsBetween(events: DomainEvent[], fromIso: IsoInstant, toIso:
 // 4: added the multi-party behaviours (inclusion, floorEntry). Existing skill
 // states were produced by a model that could not score them, so the projection
 // is recomputed rather than left to mix two scales in one history.
-export const SCORING_MODEL_VERSION = 4;
+// 5: added interruption handling, turn-level replay evidence, and per-skill
+// evidence projection so historical mastery is recomputed from traceable data.
+export const SCORING_MODEL_VERSION = 5;
+

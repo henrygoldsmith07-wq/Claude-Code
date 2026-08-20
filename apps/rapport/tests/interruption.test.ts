@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { detectInterruptions, summariseInterruptions } from "@/domain/interruption";
+import { scoreTranscript } from "@/domain/evaluation";
 import type { SimulatedCharacter, Simulation, SimulationScenario, SimulationTurn, VoiceTurnMetrics } from "@/domain/types";
 
 const SAM: SimulatedCharacter = {
@@ -159,3 +160,18 @@ describe("summary", () => {
     expect(summariseInterruptions(sim([])).events).toEqual([]);
   });
 });
+
+describe("evaluation integration", () => {
+  it("scores a reclaim only when timing supplies an interruption opportunity", () => {
+    const simulation = sim([
+      ["user", "I think the timeline is the bigger risk because we still haven't", 0, 6000],
+      ["ch.alex", "The timeline's fine.", 2500, 2000],
+      ["user", "Still — I'd like to finish the point.", 5000, 2500],
+    ]);
+    const score = scoreTranscript(simulation).find((item) => item.key === "interruptionHandling");
+    expect(score?.reliable).toBe(true);
+    expect(score?.score).toBeGreaterThan(0.5);
+    expect(score?.evidenceSpans?.some((item) => item.quote.includes("finish the point"))).toBe(true);
+  });
+});
+

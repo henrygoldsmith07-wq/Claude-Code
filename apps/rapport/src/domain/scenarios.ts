@@ -365,7 +365,7 @@ export const SCENARIOS: SimulationScenario[] = [
       ], ["running"]),
     ],
     branches: ["the interruption", "reclaiming the point", "the decision"],
-    evaluationCriteria: ["assertiveness", "contribution", "clarity"],
+    evaluationCriteria: ["assertiveness", "contribution", "clarity", "interruptionHandling"],
     authoredBy: "system",
   },
   {
@@ -494,7 +494,7 @@ const DESCRIPTION_RULES: { pattern: RegExp; skillIds: Id[]; criteria: BehaviourK
   { pattern: /\bsmall talk|start(?:ing)? (?:a )?conversation|new people|networking\b/i, skillIds: ["conv.start", "conv.open-questions"], criteria: ["questionQuality", "reciprocity", "relevance"], template: "sc.new-person" },
   { pattern: /\bshort answers|conversation (?:dies|dries up)|run out of things\b/i, skillIds: ["conv.follow-up"], criteria: ["followUpQuality", "questionQuality", "listening"], template: "sc.short-answers" },
   { pattern: /\bjoin(?:ing)? (?:a )?(?:group|conversation)|break the ice at\b/i, skillIds: ["grp.joining"], criteria: ["relevance", "contribution"], template: "sc.join-group" },
-  { pattern: /\binterrupt|talk over|cut off\b/i, skillIds: ["grp.recover-interrupt"], criteria: ["assertiveness", "contribution"], template: "sc.interrupted" },
+  { pattern: /\binterrupt|talk over|cut off\b/i, skillIds: ["grp.recover-interrupt"], criteria: ["assertiveness", "contribution", "interruptionHandling"], template: "sc.interrupted" },
   { pattern: /\bask(?:ing)? for help|stuck\b/i, skillIds: ["asrt.requests"], criteria: ["clarity", "assertiveness"], template: "sc.asking-help" },
   { pattern: /\bmessage|text|email|chat|tone\b/i, skillIds: ["dig.tone"], criteria: ["clarity", "empathy"], template: "sc.messaging" },
   { pattern: /\bpresent(?:ation|ing)?|questions after|q&a\b/i, skillIds: ["lead.clarity"], criteria: ["clarity", "listening", "assertiveness"], template: "sc.presentation-questions" },
@@ -559,3 +559,4 @@ function hash(text: string): string {
   }
   return (value >>> 0).toString(36);
 }
+

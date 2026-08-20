@@ -23,7 +23,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: `npm run build && PORT=${PORT} npm run start -- --port ${PORT} --hostname 127.0.0.1`,
+    command: `npm run build && npm run start -- --port ${PORT} --hostname 127.0.0.1`,
+    env: { PORT: String(PORT) },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
@@ -33,3 +34,4 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["Pixel 7"], launchOptions: { executablePath } } },
   ],
 });
+

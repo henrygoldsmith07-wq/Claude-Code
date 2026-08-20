@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { buildInitialProfile, sessionMinutesFor } from "@/domain/assessment";
 import type { AssessmentResult } from "@/domain/assessment";
+import { behaviourForSkill } from "@/domain/behaviours";
 import { generateInsights } from "@/domain/analytics";
 import { selectChallenge } from "@/domain/challenges";
 import { evaluateSimulation, performanceFrom } from "@/domain/evaluation";
@@ -399,6 +400,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     const performance = performanceFrom(evaluation.scores);
     if (performance) {
+      const skillEvidence = simulation.scenario.skillIds.map((skillId) => {
+        const behaviour = behaviourForSkill(skillId);
+        const score = behaviour ? evaluation.scores.find((item) => item.key === behaviour && item.reliable) : undefined;
+        return {
+          skillId,
+          performance: score?.score ?? performance.performance,
+          reliability: score ? 1 : performance.reliability,
+        };
+      });
       await applyEvent({
         kind: "simulation-evaluated",
         at,
@@ -408,6 +418,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         difficulty: simulation.deliveredDifficulty,
         reliability: performance.reliability,
         behaviours: evaluation.scores.map((score) => ({ key: score.key, score: score.score })),
+        skillEvidence,
       });
     }
 
@@ -439,6 +450,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       attempts,
       preference.contexts,
+      todayPlan?.challenge?.challenge.behaviour,
     );
     const attempt: ChallengeAttempt = {
       id: `attempt.${at}`,
@@ -452,7 +464,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (selection.challenge.generated) await repo.put("challenges", selection.challenge);
     setAttempts((current) => [...current, attempt]);
     return attempt;
-  }, [states, attempts, preference.contexts]);
+  }, [states, attempts, preference.contexts, todayPlan]);
 
   const completeChallenge = useCallback<StoreValue["completeChallenge"]>(async (attemptId, input) => {
     const at = new Date().toISOString();
@@ -676,3 +688,4 @@ export function useStore(): StoreValue {
   if (!value) throw new Error("useStore must be used inside StoreProvider");
   return value;
 }
+

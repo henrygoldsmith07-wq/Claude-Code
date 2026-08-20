@@ -299,6 +299,7 @@ export const BEHAVIOUR_KEYS = [
   "topicTransitions",
   "questionQuality",
   "contribution",
+  "interruptionHandling",
   // Group only — see MULTI_PARTY_BEHAVIOURS below.
   "inclusion",
   "floorEntry",
@@ -316,6 +317,20 @@ export type BehaviourKey = (typeof BEHAVIOUR_KEYS)[number];
  */
 export const MULTI_PARTY_BEHAVIOURS: readonly BehaviourKey[] = ["inclusion", "floorEntry"];
 
+/**
+ * A small, exact transcript excerpt that lets a person inspect a score.
+ * `role` describes how the excerpt relates to the behaviour, not whether the
+ * speaker was good or bad: a character turn can be a missed opportunity that
+ * the user had the chance to answer.
+ */
+export interface EvidenceSpan {
+  turnId: Id;
+  turnIndex: number;
+  speaker: "user" | "character";
+  quote: string;
+  role: "support" | "missed-opportunity";
+}
+
 export interface BehaviourScore {
   key: BehaviourKey;
   /** 0-1, computed from countable transcript features — not asked of a model. */
@@ -329,8 +344,10 @@ export interface BehaviourScore {
    * a feeling, talking over the whole exchange) rather than something merely
    * absent. Used only to break ties when choosing which single improvement to
    * name — "you did X" is more useful feedback than "you didn't do Y".
-   */
+  */
   severity?: number;
+  /** Exact transcript spans supporting the count, when the transcript exposes them. */
+  evidenceSpans?: EvidenceSpan[];
 }
 
 export interface SimulationEvaluation {
@@ -361,6 +378,8 @@ export interface SimulationEvaluation {
 export interface Challenge {
   id: Id;
   skillId: Id;
+  /** The observable behaviour this mission is meant to exercise, when known. */
+  behaviour?: BehaviourKey;
   difficulty: 1 | 2 | 3 | 4 | 5;
   /** What to do, in one line, phrased as an action the user controls. */
   objective: string;
@@ -596,3 +615,4 @@ export interface Snapshot {
   generatedChallenges: Challenge[];
   savedScenarios: SimulationScenario[];
 }
+

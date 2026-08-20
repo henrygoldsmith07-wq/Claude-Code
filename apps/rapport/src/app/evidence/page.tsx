@@ -6,6 +6,7 @@ import { SKILLS } from "@/domain/skills";
 import type { DomainEvent } from "@/domain/events";
 import { BEHAVIOUR_KEYS } from "@/domain/types";
 import type { BehaviourKey, ChallengeOutcome } from "@/domain/types";
+import { buildEvidenceLedger } from "@/domain/evidence";
 import {
   clampEvidenceScore,
   detectRaterDisagreements,
@@ -29,8 +30,9 @@ import {
 import { buildRapportPulseHistory, readRapportPulseOptIn } from "@/data/pulse-history";
 import * as repo from "@/data/repository";
 import { useStore } from "@/state/store";
+import { EvidenceLedger } from "@/components/evidence-ledger";
 
-const TABS = ["Corpus", "Adjudicate", "Transfer", "Event history"] as const;
+const TABS = ["Ledger", "Corpus", "Adjudicate", "Transfer", "Event history"] as const;
 type Tab = (typeof TABS)[number];
 
 const selectStyle = {
@@ -107,6 +109,13 @@ export default function EvidencePage() {
   const systemAgreement = useMemo(() => humanVsSystemAgreement({ ...evidence, items }), [evidence, items]);
   const calibration = useMemo(() => scoreCalibration({ ...evidence, items }), [evidence, items]);
   const transfers = useMemo(() => transferReports(evidence), [evidence]);
+  const ledger = useMemo(() => buildEvidenceLedger({
+    evaluations: store.evaluations,
+    simulations: store.simulations,
+    attempts: store.attempts,
+    states: store.states,
+    humanEvidence: evidence,
+  }), [evidence, store.attempts, store.evaluations, store.simulations, store.states]);
   const pulseHistory = useMemo(() => buildRapportPulseHistory(store.events, store.simulations), [store.events, store.simulations]);
 
   if (!store.ready) {
@@ -346,6 +355,8 @@ export default function EvidencePage() {
       </div>
 
       {notice ? <p className="mb-4 text-sm" role="status" style={{ color: "var(--text-muted)" }}>{notice}</p> : null}
+
+      {tab === "Ledger" ? <EvidenceLedger profiles={ledger} title="Source-separated evidence ledger" /> : null}
 
       {tab === "Corpus" ? (
         <CorpusTab
@@ -938,3 +949,4 @@ interface TransferProps {
   setOutcomeEvidence: (value: string) => void;
   addOutcome: () => Promise<void>;
 }
+

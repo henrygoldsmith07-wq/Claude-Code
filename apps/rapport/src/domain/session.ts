@@ -5,6 +5,7 @@ import { nextDifficulty, selectDailyFocus, suggestedAssistLevel } from "./recomm
 import type { RecommendationInput } from "./recommender";
 import { atDifficulty, selectScenario } from "./scenarios";
 import { buildTrainingGuidance } from "./training";
+import type { TrainingStagePlan } from "./training";
 import { todayIso } from "./scheduling";
 import { getSkill } from "./skills";
 import type {
@@ -41,6 +42,8 @@ export interface SessionPlan {
   challenge: { challenge: Challenge; objectiveText: string; reason: string } | null;
   /** Suggestion density for this session's simulation. */
   assistLevel: "full" | "partial" | "minimal" | "none";
+  /** Where this skill currently sits in the guided-to-transfer loop. */
+  trainingStage: TrainingStagePlan | null;
 }
 
 export interface BuildSessionInput extends RecommendationInput {
@@ -84,7 +87,13 @@ export function buildSession(input: BuildSessionInput): SessionPlan | null {
   const lesson = lessonFor(skill.id);
   const baseScenario = selectScenario(skill.id, state, input.recentScenarioIds);
   const scenario = training?.scenario?.scenario ?? (baseScenario ? atDifficulty(baseScenario, difficulty) : null);
-  const challengeSelection = selectChallenge(skill.id, state, input.challengeHistory, input.preference.contexts);
+  const challengeSelection = selectChallenge(
+    skill.id,
+    state,
+    input.challengeHistory,
+    input.preference.contexts,
+    training?.recurringError?.behaviour,
+  );
 
   const steps: SessionStep[] = [];
   let spent = 0;
@@ -165,6 +174,7 @@ export function buildSession(input: BuildSessionInput): SessionPlan | null {
       reason: challengeSelection.reason,
     },
     assistLevel: training?.assistance.level ?? (input.preference.assistLevel === "none" ? "none" : suggestedAssistLevel(state)),
+    trainingStage: training?.stage ?? null,
   };
 }
 
@@ -215,3 +225,4 @@ export function homeSummary(plan: SessionPlan, state: UserSkillState | undefined
     next: first ? nextLabel[first.kind] : state && state.mastery > 0.7 ? "Done for today — the challenge is still open" : "Done for today",
   };
 }
+

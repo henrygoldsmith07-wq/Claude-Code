@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { BarChart3, CalendarCheck, ClipboardCheck, MessageCircle, Network, Sparkles } from "lucide-react";
 
@@ -36,7 +37,7 @@ export function Nav() {
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <Link href="/" className="mb-6 flex items-center gap-2 px-3 text-lg font-semibold tracking-tight">
-          <img src="/logo.svg" alt="" width={24} height={24} className="rounded-md" aria-hidden="true" />
+          <Image src="/logo.svg" alt="" width={24} height={24} className="rounded-md" aria-hidden="true" />
           Rapport
         </Link>
         <ul className="flex flex-1 flex-col gap-1">
@@ -100,3 +101,4 @@ export function Nav() {
     </>
   );
 }
+

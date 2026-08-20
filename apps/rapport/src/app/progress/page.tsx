@@ -8,7 +8,9 @@ import { consistency, countActivity, difficultyTrends, domainSummaries, realWorl
 import { getSkill } from "@/domain/skills";
 import { analyse, EXPERIMENT_TEMPLATES, createExperiment, progressOf, MEASURE_LABELS } from "@/domain/experiments";
 import { domainCoverage } from "@/domain/gamification";
+import { buildEvidenceLedger } from "@/domain/evidence";
 import { Badge, Button, Card, EmptyState, Evidence, Hedged, Meter, PageHeader, Skeleton } from "@/components/ui";
+import { EvidenceLedger } from "@/components/evidence-ledger";
 import { useStore } from "@/state/store";
 import { useNow } from "@/state/clock";
 
@@ -21,7 +23,7 @@ import { useNow } from "@/state/clock";
 // (experiments).
 // ---------------------------------------------------------------------------
 
-const TABS = ["Activity", "Skills", "Insights", "Review", "Experiments"] as const;
+const TABS = ["Activity", "Skills", "Evidence", "Insights", "Review", "Experiments"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ProgressPage() {
@@ -50,6 +52,12 @@ export default function ProgressPage() {
   const trends = difficultyTrends(store.attempts);
   const domains = domainSummaries(store.states);
   const coverage = domainCoverage(store.states);
+  const evidenceLedger = buildEvidenceLedger({
+    evaluations: store.evaluations,
+    simulations: store.simulations,
+    attempts: store.attempts,
+    states: store.states,
+  });
   const latestReview = [...store.reviews].sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 
   return (
@@ -221,6 +229,8 @@ export default function ProgressPage() {
           )}
         </div>
       ) : null}
+
+      {tab === "Evidence" ? <EvidenceLedger profiles={evidenceLedger} /> : null}
 
       {tab === "Review" ? (
         <div className="space-y-4">
@@ -416,3 +426,4 @@ function Experiments() {
     </div>
   );
 }
+

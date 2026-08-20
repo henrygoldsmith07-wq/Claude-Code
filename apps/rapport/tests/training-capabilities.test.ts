@@ -8,8 +8,10 @@ import {
   prerequisiteRoute,
   recurringErrorFor,
   selectTrainingScenario,
+  trainingStageFor,
 } from "@/domain/training";
 import { initialSkillState } from "@/domain/mastery";
+import { selectChallenge } from "@/domain/challenges";
 import { extractSignals, performanceFromReflection, REFLECTION_PROMPTS } from "@/domain/reflection";
 import { SCENARIOS } from "@/domain/scenarios";
 import type { ChallengeAttempt, Reflection, SimulationEvaluation } from "@/domain/types";
@@ -49,6 +51,20 @@ describe("adaptive training policy", () => {
     expect(assistancePlan(fresh).level).toBe("full");
     expect(assistancePlan({ ...fresh, attemptCount: 3, mastery: 0.6 }).level).toBe("minimal");
     expect(assistancePlan({ ...fresh, attemptCount: 8, mastery: 0.8 }).level).toBe("none");
+  });
+
+  it("names the next stage instead of treating practice and transfer as one step", () => {
+    const state = { ...initialSkillState("u", "conv.follow-up", NOW), attemptCount: 4, mastery: 0.8, retentionEstimate: 0.8 };
+    const stage = trainingStageFor(state, assistancePlan({ ...state, mastery: 0.8 }), null, [0.8, 0.85]);
+    expect(stage.stage).toBe("real-world-mission");
+    expect(stage.next).toMatch(/real-world mission|outside the simulator/i);
+  });
+
+  it("marks a mission with the behaviour it is meant to transfer", () => {
+    const state = initialSkillState("u", "conv.follow-up", NOW);
+    const selection = selectChallenge("conv.follow-up", state, [], ["social"], "followUpQuality");
+    expect(selection.challenge.behaviour).toBe("followUpQuality");
+    expect(selection.reason).toMatch(/follow-up/i);
   });
 
   it("recycles an error only after it recurs", () => {
@@ -161,3 +177,4 @@ describe("adaptive training policy", () => {
     expect(guidance?.scenario?.selection).toBe("error-recycle");
   });
 });
+

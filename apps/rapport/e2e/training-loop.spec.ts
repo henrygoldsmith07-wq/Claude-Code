@@ -61,6 +61,7 @@ test.describe("core training loop", () => {
     await expect(page.getByRole("heading", { name: "What worked" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "The one thing worth changing" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Next exercise" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "What the transcript shows" })).toBeVisible();
 
     // The measurements must be inspectable, and labelled as computed locally.
     await page.getByRole("button", { name: /Show the measurements/ }).click();
@@ -85,6 +86,14 @@ test.describe("core training loop", () => {
     // The attempt should now show up in progress.
     await page.getByRole("link", { name: "Progress" }).first().click();
     await expect(page.getByText("Real-world attempts")).toBeVisible();
+  });
+
+  test("the evidence workspace exposes source-separated behaviour evidence", async ({ page }) => {
+    await completeOnboarding(page);
+    await page.goto("/evidence");
+    await page.getByRole("tab", { name: "Ledger" }).click();
+    await expect(page.getByRole("heading", { name: "Source-separated evidence ledger" })).toBeVisible();
+    await expect(page.getByText(/These channels stay separate/)).toBeVisible();
   });
 
   test("the coach teaches a principle rather than handing over a line", async ({ page }) => {
@@ -167,3 +176,4 @@ test.describe("accessibility and responsiveness", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 });
+
