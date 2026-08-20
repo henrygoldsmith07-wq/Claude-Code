@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo 'No install at the repository root.'",
-  "buildCommand": "echo 'This repository root is not deployable. Set the Vercel project Root Directory to the app you want to deploy (for example apps/french-practice or apps/world-news-site) - see apps/registry.json for the full list.' >&2; exit 1",
-  "outputDirectory": "."
+  "buildCommand": "echo 'This repository root is not deployable. Set the Vercel project Root Directory to the app you want to deploy (for example apps/french-practice or apps/le-studio-site) - see apps/registry.json for the full list.' >&2; exit 1",
+  "outputDirectory": ".",
+  "ignoreCommand": "node \"$(git rev-parse --show-toplevel)/scripts/vercel-ignore.mjs\" --project root"
 }

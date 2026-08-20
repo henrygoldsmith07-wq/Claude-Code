@@ -4,7 +4,7 @@
   "installCommand": "echo 'No install: the shell routes, it does not build.'",
   "buildCommand": "echo 'No build: a static index.html plus the rewrites below.'",
   "outputDirectory": ".",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  "ignoreCommand": "node \"$(git rev-parse --show-toplevel)/scripts/vercel-ignore.mjs\" --project ecosystem-shell",
   "redirects": [
     { "source": "/pulse", "destination": "/pulse/", "permanent": false },
     { "source": "/arise", "destination": "/arise/", "permanent": false },

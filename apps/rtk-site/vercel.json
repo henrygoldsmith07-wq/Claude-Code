@@ -4,5 +4,5 @@
   "outputDirectory": ".",
   "cleanUrls": true,
   "trailingSlash": false,
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ."
+  "ignoreCommand": "node \"$(git rev-parse --show-toplevel)/scripts/vercel-ignore.mjs\" --project rtk-site"
 }

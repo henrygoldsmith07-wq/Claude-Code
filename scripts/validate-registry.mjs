@@ -86,7 +86,8 @@ for (const dir of appDirs) {
 let readme = "";
 try { readme = fs.readFileSync(readmePath, "utf8"); } catch {}
 const activeAppIds = (reg.apps ?? []).filter(a => a.lifecycle === "active" && a.kind === "product").map(a => a.id);
-// also include non-site auxiliary marked active but product-like (agent-os-control-room was the offence)
+// Also include non-site auxiliary entries marked active and product-like if a
+// future app is intentionally registered in the auxiliary section.
 const activeAuxProductLike = (reg.auxiliary ?? []).filter(a => a.lifecycle === "active" && a.path.startsWith("apps/") && !a.path.includes("packages") && a.kind !== "tooling");
 for (const extra of activeAuxProductLike) if (!activeAppIds.includes(extra.id)) activeAppIds.push(extra.id);
 

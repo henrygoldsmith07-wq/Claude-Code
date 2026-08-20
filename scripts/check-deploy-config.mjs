@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appsDir = path.join(root, 'apps');
+const dependencyMapPath = path.join(root, 'config', 'affected-deployments.json');
 
 const errors = [];
 const warnings = [];
@@ -33,6 +34,9 @@ const readJson = (p) => {
     return null;
   }
 };
+
+const expectedIgnoreCommand = (projectId) =>
+  `node \"$(git rev-parse --show-toplevel)/scripts/vercel-ignore.mjs\" --project ${projectId}`;
 
 /**
  * A lockfile that merely *exists* is not enough: Vercel installs with `npm ci`,
@@ -91,14 +95,11 @@ function checkLockInSync(rel, pkg, lock) {
 // serve files as they are.
 const VITE = 'vite';
 const NEXT = 'nextjs';
-const IGNORE_COMMAND = 'git diff --quiet HEAD^ HEAD -- .';
 
 // Apps that are deliberately not web-deployable. Listing them explicitly means
 // a new app is never silently assumed to be one of these.
 const NOT_DEPLOYABLE = {
   rtk: 'Node CLI',
-  'dictation-typer': 'Python desktop app',
-  'meeting-recorder': 'Electron desktop app',
 };
 
 // Apps that deploy as plain files with no build step, like the `-site` projects
@@ -108,6 +109,11 @@ const NOT_DEPLOYABLE = {
 const STATIC_ONLY = {
   'ecosystem-shell': 'routing shell: one index.html plus rewrites',
 };
+
+const dependencyMap = existsSync(dependencyMapPath) ? readJson(dependencyMapPath) : null;
+if (!dependencyMap) {
+  fail('config/affected-deployments.json is required so every Vercel project has a reviewable dependency contract.');
+}
 
 // ---- 1. the repository root must not claim to be an app ---------------------
 
@@ -126,6 +132,9 @@ if (!existsSync(rootConfigPath)) {
     }
     if (!rootConfig.buildCommand || !/exit 1/.test(rootConfig.buildCommand)) {
       fail('Root vercel.json should fail fast with a build command that names the fix (set Root Directory to an app).');
+    }
+    if (rootConfig.ignoreCommand !== expectedIgnoreCommand('root')) {
+      fail(`Root vercel.json: expected ignoreCommand ${JSON.stringify(expectedIgnoreCommand('root'))}, found ${JSON.stringify(rootConfig.ignoreCommand ?? null)}.`);
     }
   }
 }
@@ -162,11 +171,18 @@ for (const app of apps) {
   const config = readJson(configPath);
   if (!config) continue;
 
+  const project = dependencyMap?.projects?.[app];
+  if (!project) {
+    fail(`${rel}: no entry in config/affected-deployments.json.`);
+  } else if (project.rootDirectory !== rel) {
+    fail(`${rel}: dependency map rootDirectory should be ${JSON.stringify(rel)}, found ${JSON.stringify(project.rootDirectory)}.`);
+  }
+
   // Every deployable app skips the build when its own directory is untouched.
   // Without this, a one-line change to one app rebuilds every project in the
   // monorepo and posts a deploy comment for each.
-  if (config.ignoreCommand !== IGNORE_COMMAND) {
-    fail(`${rel}/vercel.json: expected ignoreCommand ${JSON.stringify(IGNORE_COMMAND)}, found ${JSON.stringify(config.ignoreCommand ?? null)}.`);
+  if (config.ignoreCommand !== expectedIgnoreCommand(app)) {
+    fail(`${rel}/vercel.json: expected ignoreCommand ${JSON.stringify(expectedIgnoreCommand(app))}, found ${JSON.stringify(config.ignoreCommand ?? null)}.`);
   }
 
   if (isStatic) {
@@ -229,7 +245,32 @@ for (const app of apps) {
   }
 }
 
-// ---- 3. the registry agrees that these apps exist ---------------------------
+// ---- 3. the dependency map agrees with the checked-in Vercel projects ------
+
+if (dependencyMap) {
+  for (const [projectId, project] of Object.entries(dependencyMap.projects || {})) {
+    if (projectId === 'root' || project.deploy === false || project.kind === 'retired') continue;
+    const projectRoot = path.join(root, project.rootDirectory || '');
+    if (!existsSync(projectRoot)) {
+      fail(`config/affected-deployments.json: ${projectId} points at missing ${project.rootDirectory}.`);
+    } else if (!existsSync(path.join(projectRoot, 'vercel.json'))) {
+      fail(`config/affected-deployments.json: ${projectId} has no vercel.json under ${project.rootDirectory}.`);
+    }
+  }
+
+  for (const [sharedId, shared] of Object.entries(dependencyMap.shared || {})) {
+    for (const consumer of shared.consumers || []) {
+      const project = dependencyMap.projects?.[consumer];
+      if (!project) {
+        fail(`config/affected-deployments.json: shared dependency ${sharedId} names unknown consumer ${consumer}.`);
+      } else if (!(project.shared || []).includes(sharedId)) {
+        fail(`config/affected-deployments.json: ${consumer} is listed as a ${sharedId} consumer but does not declare it in project.shared.`);
+      }
+    }
+  }
+}
+
+// ---- 4. the registry agrees that these apps exist ---------------------------
 
 const registryPath = path.join(appsDir, 'registry.json');
 if (existsSync(registryPath)) {

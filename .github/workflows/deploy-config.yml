@@ -13,7 +13,13 @@ on:
       - "apps/*/package.json"
       - "apps/*/package-lock.json"
       - "apps/registry.json"
+      - "config/affected-deployments.json"
+      - "packages/theme/**"
+      - "packages/le-studio-tokens/**"
       - "scripts/check-deploy-config.mjs"
+      - "scripts/vercel-ignore.mjs"
+      - "scripts/vercel-ignore.test.mjs"
+      - "scripts/sync-theme.sh"
       - ".github/workflows/deploy-config.yml"
   pull_request:
     paths:
@@ -22,7 +28,13 @@ on:
       - "apps/*/package.json"
       - "apps/*/package-lock.json"
       - "apps/registry.json"
+      - "config/affected-deployments.json"
+      - "packages/theme/**"
+      - "packages/le-studio-tokens/**"
       - "scripts/check-deploy-config.mjs"
+      - "scripts/vercel-ignore.mjs"
+      - "scripts/vercel-ignore.test.mjs"
+      - "scripts/sync-theme.sh"
       - ".github/workflows/deploy-config.yml"
 
 concurrency:
@@ -38,3 +50,6 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/check-deploy-config.mjs
+      - run: node --test scripts/vercel-ignore.test.mjs
+      - run: bash scripts/sync-theme.sh --check
+      - run: node packages/le-studio-tokens/check-tokens.mjs

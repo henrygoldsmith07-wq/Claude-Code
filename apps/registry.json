@@ -14,16 +14,6 @@
  "siteConvention": "Each active app's marketing landing lives in <app>-site (static Next export, vercel.json framework=Other). Sites inherit lifecycle from their app unless overridden. Each site deploys as its own Vercel project (Root Directory apps/<app>-site), so cross-site links must be absolute: siteUrl is the source of truth and every site page carries it as rel=canonical.",
  "apps": [
   {
-   "id": "agent-os-control-room",
-   "path": "apps/agent-os-control-room",
-   "site": null,
-   "name": "Agent OS Control Room",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js",
-   "description": "Control-room dashboard for agent OS orchestration."
-  },
-  {
    "id": "arise",
    "path": "apps/arise",
    "site": "apps/arise-site",
@@ -47,17 +37,6 @@
    "stack": "Next.js + Supabase + Anthropic",
    "workflow": ".github/workflows/daily-debate.yml",
    "description": "Daily critical-thinking debates (solo vs AI and PvP) with an argument graph."
-  },
-  {
-   "id": "dictation-typer",
-   "path": "apps/dictation-typer",
-   "site": "apps/dictation-typer-site",
-   "siteUrl": "https://dictation-typer-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Dictation Typer",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Python (Groq Whisper) — Windows-native, cross-platform fallback",
-   "description": "Hold-hotkey speech-to-text typer that pastes the transcript into the focused window."
   },
   {
    "id": "ecosystem-shell",
@@ -108,7 +87,7 @@
    "stack": "Vite + React + Tailwind — local-first",
    "workflow": ".github/workflows/french-practice.yml",
    "description": "French speaking/study PWA (Today/Speak/Review/Learn/Progress, Groq STT/TTS arena).",
-   "designSystemOrigin": "packages/le-studio-tokens",
+    "designSystemOrigin": "packages/theme",
    "notes": "Marketing site is the Le Studio family hub (French + Forq + Chrono) at apps/le-studio-site."
   },
   {
@@ -136,17 +115,6 @@
     "french-practice",
     "food-shopping-os"
    ]
-  },
-  {
-   "id": "meeting-recorder",
-   "path": "apps/meeting-recorder",
-   "site": "apps/meeting-recorder-site",
-   "siteUrl": "https://meeting-recorder-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Meeting Recorder",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Electron (desktop) + Next.js (web) + R2 + Groq + Anthropic",
-   "description": "Fathom-style recorder (screen+audio capture, R2 upload, Whisper transcript, Claude chat)."
   },
   {
    "id": "mental-load-tracker",
@@ -205,18 +173,6 @@
    "stack": "Node CLI",
    "workflow": ".github/workflows/rtk.yml",
    "description": "Token-saving CLI that filters noisy tool output to what an LLM/human actually needs."
-  },
-  {
-   "id": "world-news",
-   "path": "apps/world-news",
-   "site": "apps/world-news-site",
-   "siteUrl": "https://world-news-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "World News Globe",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Gemini/GDELT + react-globe.gl",
-   "workflow": ".github/workflows/world-news.yml",
-   "description": "Globe-based world news with story clustering and source-mix provenance panels."
   }
  ],
  "auxiliary": [

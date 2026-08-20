@@ -1,12 +1,12 @@
 /* ============================================================================
    Le Studio design system — the single source of truth for every app's theme.
-   Canonical origin: apps/french-practice (the Le Studio app itself).
+   Canonical origin: packages/theme/le-studio.css.
 
    DO NOT EDIT the copies inside apps/. Each app carries a generated
    src/le-studio.css; edit this file and run scripts/sync-theme.sh to
    propagate. The copies exist because each Vercel project builds with its
-   root directory set to its own app, and world-news pins turbopack.root,
-   so a CSS @import reaching outside the app directory is not reliable.
+   root directory set to its own app, so a CSS @import reaching outside the
+   app directory is not reliable.
 
    Requires Tailwind v4. Each app's stylesheet should read:
 
@@ -228,7 +228,8 @@ html { -webkit-text-size-adjust: 100%; }
   transition: border-color 0.15s ease;
 }
 .field::placeholder { color: var(--ink-3); }
-.field:focus { outline: none; border-color: var(--ink-3); }
+.field:focus { border-color: var(--ink-3); }
+.field:focus:not(:focus-visible) { outline: none; }
 
 /* ---- pills / badges ---- */
 .pill {
