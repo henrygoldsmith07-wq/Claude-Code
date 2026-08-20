@@ -42,6 +42,7 @@ import { AVATARS, activeEvent, levelFromXp } from './lib/game';
 import { syncLanguage } from './lib/i18n';
 import { getLanguage } from './lib/languages';
 import { setTelemetrySink } from './lib/groq';
+import { relayEnabled } from './lib/relay';
 import { Flame, Bolt, Sun, Moon, Gear, Key, ArrowRight, Home, MessageCircle, Layers, BookOpen, BarChart, Search, Target, Coins as CoinsIcon, X, Download } from './components/icons';
 import LearnHub from './components/LearnHub';
 import ProgressHub from './components/ProgressHub';
@@ -61,7 +62,7 @@ export default function App() {
   const [apiKey, setApiKey] = useState(getApiKey);
   const [settings, setSettings] = useState(() => {
     const current = getSettings();
-    return getApiKey() ? current : { ...current, mockMode: true };
+    return getApiKey() || relayEnabled ? { ...current, mockMode: relayEnabled ? false : current.mockMode } : { ...current, mockMode: true };
   });
   const [tab, _setTab] = useState('today');
   const [learnView, setLearnView] = useState(null);
@@ -258,7 +259,7 @@ export default function App() {
       dailyGoal: d.dailyGoal,
       weeklyGoal: d.weeklyGoal,
       smartReminders: d.reminders,
-      mockMode: d.mock || (!d.apiKey.trim() && settings.mockMode),
+      mockMode: relayEnabled ? false : (d.mock || (!d.apiKey.trim() && settings.mockMode)),
     });
     syncLanguage(d.language);
     updatePrefs({ learningStyle: d.learningStyle, lessonLength: d.lessonLength, favouriteTopics: d.favouriteTopics });
@@ -285,7 +286,7 @@ export default function App() {
   const toggleTheme = () =>
     updateSettings({ ...settings, theme: isDark ? 'light' : 'dark' });
 
-  const ready = Boolean(apiKey) || settings.mockMode;
+  const ready = Boolean(apiKey) || relayEnabled || settings.mockMode;
   const streak = getStreak();
   void streakTick;
 

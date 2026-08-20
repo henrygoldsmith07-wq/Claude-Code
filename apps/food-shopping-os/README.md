@@ -521,6 +521,7 @@ src/
   lib/kitchen.js       # pantry/shop/plan/achievement maths derived from your data
   lib/utils.js         # currency/date/expiry helpers
   lib/planner.js       # pure plan generation (hard constraints + soft preferences)
+  lib/waste-planner.js # ingredient fragmentation, pack fit, expiry and waste scoring
   lib/mealplan.js      # calendar maths, moves/swaps, batch groups, leftovers,
                        # and the shopping list for any range
   lib/recipe-tools.js  # scaling, substitutions, full nutrition, search, sharing

@@ -12,17 +12,23 @@
 const RELAY_URL = String(import.meta.env.VITE_GROQ_RELAY_URL || '').trim();
 export const relayEnabled = Boolean(RELAY_URL);
 
-// Lightweight auth header for the relay. The app already stores no server
-// session; this is a placeholder for whatever your host provides (Supabase
-// auth, Clerk, next-auth session cookie, etc.). If you already have a
-// session cookie, the relay can read it — no client header needed.
+// The host is responsible for injecting a verified identity token. The relay
+// verifies it server-side; this browser helper never creates or signs tokens.
 function relayHeaders() {
   const headers = { 'Content-Type': 'application/json' };
+  const injected = globalThis.__LE_STUDIO_AUTH_TOKEN__;
+  if (typeof injected === 'string' && injected.trim()) {
+    headers.Authorization = `Bearer ${injected.trim()}`;
+    return headers;
+  }
   try {
-    const token = localStorage.getItem('fp.relayToken');
-    if (token) headers.Authorization = `Bearer ${JSON.parse(token)}`;
+    const stored = localStorage.getItem('fp.relayToken');
+    if (stored) {
+      let token = stored;
+      try { token = JSON.parse(stored); } catch { /* raw token */ }
+      if (typeof token === 'string' && token.trim()) headers.Authorization = `Bearer ${token.trim()}`;
+    }
   } catch { /* ignore */ }
-  // CSRF-safe: relay should also accept the browser's session cookie.
   return headers;
 }
 
@@ -31,25 +37,24 @@ export function getRelayConfig() {
     enabled: relayEnabled,
     url: RELAY_URL || null,
     note: relayEnabled
-      ? 'Live AI calls go through your authenticated server relay (key never leaves the server).'
+      ? 'Live AI calls go through the authenticated server relay (the Groq key never reaches the browser).'
       : 'Direct Groq calls — your key stays in this browser’s localStorage only. Fine for a private tool; wire VITE_GROQ_RELAY_URL for a public launch.',
   };
 }
 
-// Wrap a direct Groq call with quota + optional relay.
-// `direct` is an async function that performs the direct fetch; `relayPath`
-// is the relay endpoint path (e.g. "/chat/completions").
-// When relay is enabled, we POST to `${RELAY_URL}${relayPath}` with the same
-// JSON body. The relay forwards to Groq, applies quota, and returns Groq's
-// JSON. The client contract is identical either way.
-export async function withRelay({ label, body, direct }) {
+function relayEndpoint(path) {
+  const suffix = String(path || '').startsWith('/') ? String(path) : `/${path}`;
+  return RELAY_URL.replace(/\/+$/, '') + suffix;
+}
+
+export async function withRelay({ label, path = label, body, direct }) {
   if (!relayEnabled) return direct();
 
-  const res = await fetch(`${RELAY_URL}${label.startsWith('/') ? label : `/${label}`}`, {
+  const res = await fetch(relayEndpoint(path), {
     method: 'POST',
     headers: relayHeaders(),
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(45000),
+    signal: AbortSignal.timeout(30_000),
   });
 
   const text = await res.text();
@@ -71,4 +76,15 @@ export async function withRelay({ label, body, direct }) {
   } catch { /* ignore */ }
 
   return JSON.parse(text);
+}
+
+export async function pingRelay() {
+  if (!relayEnabled) throw new Error('Relay is not enabled.');
+  const res = await fetch(relayEndpoint('/healthz'), {
+    method: 'GET',
+    headers: relayHeaders(),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`Relay health check failed (${res.status})`);
+  return res.json();
 }

@@ -1,97 +1,356 @@
-// Example Node server relay for Groq — keeps the API key off the client.
-// Deploy separately (Vercel / Fly / Render) and set env: GROQ_API_KEY.
-// The client enables the relay by setting VITE_GROQ_RELAY_URL to this origin
-// (e.g. "https://studio-relay.example.com/api/groq").
-//
-// This is a minimal reference implementation — wire your real auth (next-auth,
-// Supabase, etc.) into `authenticate` and tighten quotas as needed. The client
-// still works without a relay (private personal-tool mode) — this is only for
-// the public-consumer path.
+/*
+ * Production requires:
+ *   RELAY_MODE=production, GROQ_API_KEY, ALLOWED_ORIGINS
+ *   AUTH_ISSUER + AUTH_AUDIENCE + one of AUTH_JWT_SECRET, AUTH_PUBLIC_KEY,
+ *   or AUTH_JWKS_URL
+ *   RELAY_QUOTA_NAMESPACE_SECRET and UPSTASH_REDIS_REST_URL/TOKEN
+ *
+ * Local mode is explicit (RELAY_MODE=local, NODE_ENV != production) and
+ * requires LOCAL_RELAY_TOKEN. It is the only mode that uses memory quotas.
+ */
+
+import { createHash, randomUUID } from 'node:crypto';
+
+import { loadRelayConfig } from './relay-config.js';
+import { createAuthenticator } from './relay-auth.js';
+import { createInMemoryQuotaStore, createUpstashQuotaStore, quotaIdentityKey } from './relay-quota.js';
+import {
+  mediaType,
+  RELAY_ROUTES,
+  resolveRelayRoute,
+  validateAudioRequest,
+  validateChatRequest,
+} from './relay-validation.js';
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 
-// ---- auth placeholder ----
-// Replace with your real session check. Return { ok: true, userId } or
-// { ok: false, status, message }. For a demo we allow anonymous with a tight
-// quota; for a public launch require auth and return 401.
-async function authenticate(req) {
-  const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  return { ok: true, userId: token ? `token:${token.slice(0, 8)}` : 'anon', anon: !token };
+function requestId() {
+  try { return randomUUID(); } catch { return createHash('sha256').update(`${Date.now()}:${Math.random()}`).digest('hex').slice(0, 16); }
 }
 
-// ---- per-user daily quota (in-memory — swap for Redis/Upstash in prod) ----
-const buckets = new Map(); // userId -> { day, count }
-const LIMIT_AUTHED = Number(process.env.GROQ_DAILY_LIMIT_AUTHED || 120);
-const LIMIT_ANON = Number(process.env.GROQ_DAILY_LIMIT_ANON || 20);
-const dayStamp = (d = new Date()) => d.toISOString().slice(0, 10);
-
-function checkQuota(userId, anon) {
-  const limit = anon ? LIMIT_ANON : LIMIT_AUTHED;
-  const day = dayStamp();
-  let b = buckets.get(userId);
-  if (!b || b.day !== day) { b = { day, count: 0 }; buckets.set(userId, b); }
-  if (b.count >= limit) return { ok: false, limit, remaining: 0 };
-  b.count += 1;
-  return { ok: true, limit, remaining: Math.max(0, limit - b.count) };
+function header(req, name) {
+  const value = req.headers?.[name.toLowerCase()] ?? req.headers?.[name];
+  return Array.isArray(value) ? null : value;
 }
 
-function corsHeaders(origin) {
-  const allowed = process.env.ALLOWED_ORIGIN || '*';
-  return {
-    'Access-Control-Allow-Origin': allowed === '*' ? '*' : (origin || ''),
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+function hasHeader(req, name) {
+  const headers = req.headers || {};
+  return Object.prototype.hasOwnProperty.call(headers, name.toLowerCase())
+    || Object.prototype.hasOwnProperty.call(headers, name);
+}
+
+function defaultLogger(entry) {
+  console.info(JSON.stringify(entry));
+}
+
+function setHeader(res, name, value) {
+  if (typeof res.setHeader === 'function') res.setHeader(name, value);
+}
+
+function sendJson(res, status, body) {
+  if (typeof res.status === 'function') {
+    const response = res.status(status);
+    if (typeof response.json === 'function') return response.json(body);
+    if (typeof response.end === 'function') return response.end(JSON.stringify(body));
+  }
+  res.statusCode = status;
+  setHeader(res, 'Content-Type', 'application/json; charset=utf-8');
+  return typeof res.end === 'function' ? res.end(JSON.stringify(body)) : undefined;
+}
+
+function sendEmpty(res, status) {
+  if (typeof res.status === 'function') {
+    const response = res.status(status);
+    if (typeof response.end === 'function') return response.end();
+    if (typeof response.send === 'function') return response.send('');
+  }
+  res.statusCode = status;
+  return typeof res.end === 'function' ? res.end() : undefined;
+}
+
+function errorResponse(res, status, code, retryAfter) {
+  if (retryAfter) setHeader(res, 'Retry-After', String(Math.ceil(retryAfter)));
+  return sendJson(res, status, { error: code });
+}
+
+function applyBaseHeaders(res, origin, allowedOrigins) {
+  setHeader(res, 'Cache-Control', 'no-store');
+  setHeader(res, 'Vary', 'Origin');
+  if (origin && allowedOrigins.includes(origin)) {
+    setHeader(res, 'Access-Control-Allow-Origin', origin);
+    setHeader(res, 'Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    setHeader(res, 'Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    setHeader(res, 'Access-Control-Max-Age', '600');
+  }
+}
+
+function isAllowedOrigin(origin, allowedOrigins) {
+  return !origin || allowedOrigins.includes(origin);
+}
+
+function contentLengthTooLarge(req, maxBytes) {
+  const raw = header(req, 'content-length');
+  if (raw === undefined || raw === null || raw === '') return false;
+  if (!/^\d+$/.test(String(raw))) return true;
+  return Number(raw) > maxBytes;
+}
+
+async function readBody(req, maxBytes) {
+  if (req.body !== undefined) {
+    if (Buffer.isBuffer(req.body)) {
+      if (req.body.byteLength > maxBytes) return { ok: false, code: 'request_too_large' };
+      return { ok: true, raw: req.body.toString('utf8') };
+    }
+    if (typeof req.body === 'string') {
+      if (Buffer.byteLength(req.body, 'utf8') > maxBytes) return { ok: false, code: 'request_too_large' };
+      return { ok: true, raw: req.body };
+    }
+    let serialized;
+    try { serialized = JSON.stringify(req.body); } catch { return { ok: false, code: 'request_schema_invalid' }; }
+    if (Buffer.byteLength(serialized, 'utf8') > maxBytes) return { ok: false, code: 'request_too_large' };
+    return { ok: true, parsed: req.body };
+  }
+
+  if (!req || typeof req[Symbol.asyncIterator] !== 'function') return { ok: true, raw: '' };
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.byteLength;
+    if (total > maxBytes) return { ok: false, code: 'request_too_large' };
+    chunks.push(buffer);
+  }
+  return { ok: true, raw: Buffer.concat(chunks).toString('utf8') };
+}
+
+function parseJsonBody(body) {
+  if (body.parsed !== undefined) return body.parsed;
+  if (!body.raw || !body.raw.trim()) return null;
+  try { return JSON.parse(body.raw); } catch { return undefined; }
+}
+
+function addQuotaHeaders(res, config, quota, nowMs) {
+  setHeader(res, 'X-RateLimit-Limit', String(config.dailyLimit));
+  setHeader(res, 'X-RateLimit-Remaining', String(quota.dailyRemaining));
+  setHeader(res, 'X-RateLimit-Reset', String(Math.floor(Number(nowMs) / 1000) + Math.max(0, quota.retryAfterSeconds || 0)));
+  setHeader(res, 'X-Relay-RateLimit-Limit', String(config.rateLimitPerMinute));
+  setHeader(res, 'X-Relay-RateLimit-Remaining', String(quota.rateRemaining));
+}
+
+function mapProviderError(status) {
+  if (status === 400 || status === 422) return { status: 400, code: 'provider_rejected_request' };
+  if (status === 401 || status === 403) return { status: 503, code: 'relay_provider_unavailable' };
+  if (status === 429) return { status: 429, code: 'provider_rate_limited' };
+  return { status: 502, code: 'provider_unavailable' };
+}
+
+function providerSignal(timeoutMs) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  return { controller, timer, didTimeout: () => timedOut };
+}
+
+function audioExtension(mimeType) {
+  if (mimeType === 'audio/mp4') return 'mp4';
+  if (mimeType === 'audio/ogg') return 'ogg';
+  if (mimeType === 'audio/mpeg') return 'mp3';
+  if (mimeType === 'audio/wav' || mimeType === 'audio/x-wav') return 'wav';
+  return 'webm';
+}
+
+async function callProvider(route, body, config, fetchImpl) {
+  const signal = providerSignal(config.providerTimeoutMs);
+  let requestBody = JSON.stringify(body);
+  const headers = {
+    Authorization: `Bearer ${config.groqKey}`,
+    Accept: 'application/json',
   };
+  if (route === RELAY_ROUTES.chat) {
+    headers['Content-Type'] = 'application/json';
+  } else {
+    const form = new FormData();
+    form.append('file', new Blob([Buffer.from(body.audio_base64, 'base64')], { type: body.mime_type }), `recording.${audioExtension(body.mime_type)}`);
+    form.append('model', body.model);
+    if (body.language) form.append('language', body.language);
+    form.append('response_format', 'json');
+    requestBody = form;
+  }
+  try {
+    const response = await fetchImpl(`${GROQ_BASE}/${route.upstreamPath}`, {
+      method: 'POST',
+      headers,
+      body: requestBody,
+      signal: signal.controller.signal,
+    });
+    if (signal.didTimeout()) {
+      const error = new Error('provider_timeout');
+      error.code = 'PROVIDER_TIMEOUT';
+      throw error;
+    }
+    return response;
+  } catch (error) {
+    if (signal.didTimeout() || error?.code === 'PROVIDER_TIMEOUT') {
+      const timeout = new Error('provider_timeout');
+      timeout.code = 'PROVIDER_TIMEOUT';
+      throw timeout;
+    }
+    throw error;
+  } finally {
+    clearTimeout(signal.timer);
+  }
 }
 
-// Export as a Node http handler *and* a Vercel-style (req,res) handler.
-// Mount tip for Vite: add a dev proxy `'/api/groq' -> relay origin` in vite.config.js
-// when testing with a local relay. In prod set VITE_GROQ_RELAY_URL to the deployed origin.
+async function readProviderJson(response, maxBytes) {
+  const text = await response.text();
+  if (Buffer.byteLength(text, 'utf8') > maxBytes) {
+    const error = new Error('provider_response_too_large');
+    error.code = 'PROVIDER_RESPONSE_TOO_LARGE';
+    throw error;
+  }
+  try { return JSON.parse(text); } catch {
+    const error = new Error('provider_response_invalid');
+    error.code = 'PROVIDER_RESPONSE_INVALID';
+    throw error;
+  }
+}
+
+function createRuntime(options = {}) {
+  const env = options.env || process.env;
+  const configResult = options.configResult || loadRelayConfig(env, { allowInjectedStore: Boolean(options.store) });
+  const config = configResult.config;
+  const logger = typeof options.logger === 'function' ? options.logger : defaultLogger;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const now = options.now || (() => Date.now());
+  const store = options.store || (configResult.ok
+    ? (config.mode === 'local'
+      ? createInMemoryQuotaStore()
+      : createUpstashQuotaStore({ url: config.redisUrl, token: config.redisToken, fetchImpl }))
+    : null);
+  const authenticate = options.authenticate || (configResult.ok ? createAuthenticator(config, { fetchImpl, now, logger }) : null);
+
+  async function handle(req, res) {
+    const started = now();
+    const id = requestId();
+    const origin = header(req, 'origin');
+    applyBaseHeaders(res, origin, config.allowedOrigins || []);
+    const route = resolveRelayRoute(req);
+
+    if ((hasHeader(req, 'origin') && !origin) || !isAllowedOrigin(origin, config.allowedOrigins || [])) {
+      logger({ event: 'request_rejected', requestId: id, reason: 'origin_not_allowed' });
+      return errorResponse(res, 403, 'origin_not_allowed');
+    }
+    if (!configResult.ok) {
+      logger({ event: 'relay_misconfigured', requestId: id, issueCount: configResult.issues.length });
+      return errorResponse(res, 503, 'relay_unavailable');
+    }
+    if (!route) {
+      logger({ event: 'request_rejected', requestId: id, reason: 'route_not_allowed' });
+      return errorResponse(res, 404, 'route_not_allowed');
+    }
+    if (req.method === 'OPTIONS') {
+      if (!origin) return errorResponse(res, 403, 'origin_required');
+      return sendEmpty(res, 204);
+    }
+    if (route === RELAY_ROUTES.health) {
+      if (req.method !== 'GET') return errorResponse(res, 405, 'method_not_allowed');
+      const auth = await authenticate(req);
+      if (!auth.ok) return errorResponse(res, auth.status || 401, 'unauthorized');
+      return sendJson(res, 200, { ok: true, relay: 'groq' });
+    }
+    if (req.method !== 'POST') return errorResponse(res, 405, 'method_not_allowed');
+    if (contentLengthTooLarge(req, config.maxBodyBytes)) return errorResponse(res, 413, 'request_too_large');
+
+    const type = mediaType(header(req, 'content-type'));
+    if (type !== 'application/json') return errorResponse(res, 415, 'content_type_not_supported');
+
+    const auth = await authenticate(req);
+    if (!auth.ok) {
+      logger({ event: 'request_rejected', requestId: id, reason: auth.code || 'unauthorized' });
+      return errorResponse(res, auth.status || 401, 'unauthorized');
+    }
+
+    const rawBody = await readBody(req, config.maxBodyBytes);
+    if (!rawBody.ok) return errorResponse(res, 413, rawBody.code);
+    const body = parseJsonBody(rawBody);
+    if (body === undefined || body === null) return errorResponse(res, 400, 'request_schema_invalid');
+
+    const validation = route === RELAY_ROUTES.chat
+      ? validateChatRequest(body, config)
+      : validateAudioRequest(body, config);
+    if (!validation.ok) return errorResponse(res, 400, validation.code);
+
+    const key = quotaIdentityKey(config.quotaNamespaceSecret, auth.userId);
+    let quota;
+    try {
+      quota = await store.consume({
+        key,
+        rateLimit: config.rateLimitPerMinute,
+        dailyLimit: config.dailyLimit,
+        nowMs: Number(now()),
+      });
+    } catch {
+      logger({ event: 'quota_store_unavailable', requestId: id });
+      return errorResponse(res, 503, 'relay_unavailable');
+    }
+    addQuotaHeaders(res, config, quota, Number(now()));
+    if (!quota.allowed) {
+      logger({ event: 'request_rejected', requestId: id, reason: quota.reason === 'rate' ? 'rate_limited' : 'daily_quota_exhausted' });
+      return errorResponse(res, 429, quota.reason === 'rate' ? 'rate_limited' : 'daily_quota_exhausted', quota.retryAfterSeconds);
+    }
+
+    let upstream;
+    try {
+      upstream = await callProvider(route, validation.body, config, fetchImpl);
+    } catch (error) {
+      const isTimeout = error?.code === 'PROVIDER_TIMEOUT';
+      const isOversize = error?.code === 'PROVIDER_RESPONSE_TOO_LARGE';
+      logger({ event: isTimeout ? 'provider_timeout' : 'provider_fetch_error', requestId: id, route: route.operation });
+      return errorResponse(res, isTimeout ? 504 : 502, isOversize ? 'provider_response_too_large' : (isTimeout ? 'provider_timeout' : 'provider_unavailable'));
+    }
+
+    if (!upstream || !upstream.ok) {
+      const mapped = mapProviderError(upstream?.status);
+      logger({ event: 'provider_rejected', requestId: id, route: route.operation, providerStatus: Number(upstream?.status) || 0 });
+      return errorResponse(res, mapped.status, mapped.code, mapped.status === 429 ? 5 : 0);
+    }
+    try {
+      const payload = await readProviderJson(upstream, config.maxResponseBytes);
+      logger({ event: 'request_completed', requestId: id, route: route.operation, status: 200, latencyMs: Math.max(0, Number(now()) - Number(started)) });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      logger({ event: 'provider_response_invalid', requestId: id, route: route.operation });
+      return errorResponse(res, 502, error?.code === 'PROVIDER_RESPONSE_TOO_LARGE' ? 'provider_response_too_large' : 'provider_unavailable');
+    }
+  }
+
+  return { handle, configResult };
+}
+
+export function createRelayHandler(options = {}) {
+  return createRuntime(options).handle;
+}
+
+export { loadRelayConfig } from './relay-config.js';
+export { createInMemoryQuotaStore, createUpstashQuotaStore, QUOTA_SCRIPT } from './relay-quota.js';
+export { RELAY_ROUTES, resolveRelayRoute, validateAudioRequest, validateChatRequest } from './relay-validation.js';
+
+let defaultRuntime;
+let defaultFingerprint = '';
+
+function defaultConfigFingerprint(env) {
+  return [
+    env.RELAY_MODE, env.NODE_ENV, env.GROQ_API_KEY, env.ALLOWED_ORIGINS, env.ALLOWED_ORIGIN,
+    env.AUTH_ISSUER, env.AUTH_AUDIENCE, env.AUTH_JWT_SECRET, env.AUTH_PUBLIC_KEY, env.AUTH_JWKS_URL,
+    env.RELAY_QUOTA_NAMESPACE_SECRET, env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN,
+  ].map((value) => String(value || '')).join('\u0000');
+}
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
-  for (const [k, v] of Object.entries(corsHeaders(origin))) res.setHeader(k, v);
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, relay: 'groq', anonLimit: LIMIT_ANON, authedLimit: LIMIT_AUTHED });
+  const fingerprint = defaultConfigFingerprint(process.env);
+  if (!defaultRuntime || defaultFingerprint !== fingerprint) {
+    defaultRuntime = createRuntime();
+    defaultFingerprint = fingerprint;
   }
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) return res.status(500).json({ error: 'GROQ_API_KEY not configured on the server' });
-
-  const auth = await authenticate(req);
-  if (!auth.ok) return res.status(auth.status || 401).json({ error: auth.message || 'Unauthorized' });
-
-  const quota = checkQuota(auth.userId, auth.anon);
-  res.setHeader('x-ratelimit-limit', String(auth.anon ? LIMIT_ANON : LIMIT_AUTHED));
-  res.setHeader('x-ratelimit-remaining', String(quota.remaining));
-  if (!quota.ok) return res.status(429).json({ error: `Daily quota reached (${quota.limit} calls). Try again tomorrow.` });
-
-  // Subpath after /api/groq — e.g. /chat/completions — defaults to chat.
-  const subpath = (req.query?.path ? [].concat(req.query.path).join('/') : '') || 'chat/completions';
-  const alt = req.url?.split('?')[0]?.replace(/^\/api\/groq\/?/, '') || '';
-  const path = subpath !== 'chat/completions' ? subpath : (alt || 'chat/completions');
-  const url = `${GROQ_BASE}/${path}`;
-
-  let groqRes;
-  try {
-    const isJson = (req.headers['content-type'] || '').includes('json');
-    const body = isJson ? JSON.stringify(req.body) : req.body;
-    groqRes = await fetch(url, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${groqKey}`, ...(isJson ? { 'Content-Type': 'application/json' } : {}) },
-      body,
-      signal: AbortSignal.timeout(45000),
-    });
-  } catch (e) {
-    return res.status(502).json({ error: `Upstream Groq fetch failed: ${String(e.message).slice(0, 200)}` });
-  }
-
-  const text = await groqRes.text();
-  res.status(groqRes.status);
-  const ct = groqRes.headers.get('content-type');
-  if (ct) res.setHeader('content-type', ct);
-  return res.send(text);
+  return defaultRuntime.handle(req, res);
 }

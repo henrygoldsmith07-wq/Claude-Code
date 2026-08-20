@@ -5,6 +5,11 @@ import { seededPick } from './utils.js';
 import { tasteScore } from './taste.js';
 import { canonicalName, sameIngredient } from './aliases.js';
 import { isPantrySufficient } from './kitchen.js';
+import { chooseWasteMinimisingPlan, scoreWastePlan } from './waste-planner.js';
+
+export {
+  chooseWasteMinimisingPlan, learnWasteProfile, rankWastePlans, scoreWastePlan,
+} from './waste-planner.js';
 
 /* ---------- Equipment ---------- */
 
@@ -136,6 +141,32 @@ const GOAL_PREFS = {
 export const BATCH_TAGS = ['batch', 'freezer', 'one-pot', 'meal-prep'];
 const batchable = (r) => r.servings >= 4 || r.tags.some((t) => BATCH_TAGS.includes(t));
 
+const candidateCount = (enabled) => enabled ? 18 : 1;
+
+const candidatePlans = (pool, count, seed, variety, candidates = 1) => Array.from({ length: candidates }, (_, index) => {
+  const candidateSeed = seed + index * 7919;
+  // Keep the first candidate faithful to the variety preference, but let the
+  // waste candidates reuse a useful ingredient when that fills a pack or
+  // prevents a fragmented purchase.
+  if (variety && index === 0) return varietyMeals(pool, count, candidateSeed);
+  const unique = seededPick(pool, Math.min(count, pool.length), candidateSeed);
+  return Array.from({ length: count }, (_, i) => unique[i % unique.length]).filter(Boolean);
+});
+
+const finishPlan = (meals, note, wasteOptions) => {
+  const wastePlan = scoreWastePlan(meals, wasteOptions);
+  return { meals, note, wasteScore: wastePlan.score, wastePlan };
+};
+
+const chooseCandidate = (candidates, wasteOptions, optimise) => {
+  if (!candidates.length) return { meals: [], wastePlan: scoreWastePlan([], wasteOptions) };
+  if (!optimise || candidates.length === 1) {
+    return { meals: candidates[0], wastePlan: scoreWastePlan(candidates[0], wasteOptions) };
+  }
+  const selected = chooseWasteMinimisingPlan(candidates, wasteOptions);
+  return selected || { meals: candidates[0], wastePlan: scoreWastePlan(candidates[0], wasteOptions) };
+};
+
 export const scopeCount = (scope) =>
   (scope === '1 meal' ? 1 : scope === 'A day' ? 3 : scope === 'A month' ? 28 : 7);
 
@@ -156,12 +187,24 @@ export function buildPlan(
     scope = 'A week', diets = [], goal, budget, maxTime, occasion = 'Everyday', people = 2,
     pantry = [], month = null, batch = false, days = null, recipes = RECIPES, taste = null,
     leftovers = [], equipment = null, expiry = [], variety = false, pantryItems = null,
-    availableOnly = false,
+    availableOnly = false, wasteOptimisation = true, wasteHistory = [], wasteProfile = null,
+    packageSizes = {}, dates = [], today = '', learnedAliases = {},
   },
   seed,
 ) {
   const count = Math.max(1, days || scopeCount(scope));
   const slots = scopeMeals(scope);
+  const wasteOptions = {
+    pantry: pantryItems || pantry,
+    people,
+    dates,
+    today,
+    wasteHistory,
+    wasteProfile,
+    packageSizes,
+    learnedAliases,
+  };
+  const candidates = candidateCount(wasteOptimisation);
 
   /** Preferences applied in order, each kept only while the pool stays usable. */
   const narrow = (pool, wanted) => {
@@ -190,7 +233,7 @@ export function buildPlan(
   // A day's plan takes one dish from each meal; everything else is dinners.
   if (slots.length > 1) {
     let relaxedDay = false;
-    const picks = slots.map((meal, i) => {
+    const pools = slots.map((meal) => {
       const forSlot = recipes.filter((r) => r.meal === meal);
       const strictPool = hardFilter(forSlot, {
         diets, goal, budget, maxTime, equipment, pantry: pantryItems || pantry, availableOnly,
@@ -199,15 +242,20 @@ export function buildPlan(
         ? strictPool
         : hardFilter(forSlot, { diets, goal, budget, maxTime, equipment });
       if (!mealPool.length || (availableOnly && !strictPool.length)) relaxedDay = true;
-      const pool = mealPool.length ? narrow(mealPool, 1) : forSlot;
-      return seededPick(pool, 1, seed + i * 17)[0];
-    }).filter(Boolean);
-    return {
-      meals: picks,
-      note: relaxedDay || picks.length < slots.length
+      return mealPool.length ? narrow(mealPool, 1) : forSlot;
+    });
+    const dayCandidates = Array.from({ length: candidates }, (_, candidateIndex) => pools
+      .map((pool, i) => seededPick(pool, 1, seed + i * 17 + candidateIndex * 7919)[0])
+      .filter(Boolean));
+    const selected = chooseCandidate(dayCandidates, wasteOptions, wasteOptimisation);
+    const picks = selected.meals;
+    return finishPlan(
+      picks,
+      relaxedDay || picks.length < slots.length
         ? 'Nothing matched every filter — showing the closest fits instead.'
         : null,
-    };
+      wasteOptions,
+    );
   }
 
   const dinners = recipes.filter((r) => r.meal === 'dinner');
@@ -240,12 +288,17 @@ export function buildPlan(
       remaining,
     );
     const fillPool = ranked.length ? ranked : pool;
-    const unique = seededPick(fillPool, Math.min(remaining, fillPool.length), seed);
-    const fill = Array.from({ length: remaining }, (_, index) => unique[index % unique.length]).filter(Boolean);
-    return {
-      meals: [...leftoverMeals, ...fill],
-      note: `Leftover-first plan: ${leftoverMeals.length} meal${leftoverMeals.length === 1 ? '' : 's'} use portions already in the fridge; the rest favour seasonal, lower-cost dishes.`,
-    };
+    const fillCandidates = candidatePlans(fillPool, remaining, seed, variety, candidates);
+    const selectedFill = chooseCandidate(fillCandidates, {
+      ...wasteOptions,
+      dates: dates.slice(leftoverMeals.length),
+    }, wasteOptimisation);
+    const meals = [...leftoverMeals, ...selectedFill.meals];
+    return finishPlan(
+      meals,
+      `Leftover-first plan: ${leftoverMeals.length} meal${leftoverMeals.length === 1 ? '' : 's'} use portions already in the fridge; the rest favour seasonal, lower-cost dishes.`,
+      wasteOptions,
+    );
   }
 
   // Batch mode asks for fewer dishes on purpose: cook once, eat three times.
@@ -253,25 +306,31 @@ export function buildPlan(
     const keepers = pool.filter(batchable);
     const batchPool = narrow(keepers.length >= 3 ? keepers : pool, 3);
     const cooks = Math.max(2, Math.round(count / 3));
-    const unique = seededPick(batchPool, Math.min(cooks, batchPool.length), seed);
-    if (unique.length) {
-      const meals = Array.from({ length: count }, (_, i) => unique[Math.floor((i * unique.length) / count)]);
-      const each = Math.round(count / unique.length);
-      return {
+    const batchCandidates = Array.from({ length: candidates }, (_, candidateIndex) => {
+      const unique = seededPick(batchPool, Math.min(cooks, batchPool.length), seed + candidateIndex * 7919);
+      return Array.from({ length: count }, (_, i) => unique[Math.floor((i * unique.length) / count)]).filter(Boolean);
+    });
+    if (batchCandidates.some((candidate) => candidate.length)) {
+      const selected = chooseCandidate(batchCandidates, wasteOptions, wasteOptimisation);
+      const meals = selected.meals;
+      const distinct = new Set(meals.map((meal) => meal.id)).size;
+      const each = Math.round(count / Math.max(1, distinct));
+      return finishPlan(
         meals,
-        note: relaxed
+        relaxed
           ? 'Nothing matched every filter — showing the closest fits instead.'
-          : `Batch plan: cook ${unique.length} dish${unique.length === 1 ? '' : 'es'}, each covering about ${each} meal${each === 1 ? '' : 's'}.`,
-      };
+          : `Batch plan: cook ${distinct} dish${distinct === 1 ? '' : 'es'}, each covering about ${each} meal${each === 1 ? '' : 's'}.`,
+        wasteOptions,
+      );
     }
   }
 
   pool = narrow(pool, count);
 
+  const rankedCandidates = candidatePlans(pool, count, seed, variety, candidates);
+  const selected = chooseCandidate(rankedCandidates, wasteOptions, wasteOptimisation);
+  const meals = selected.meals;
   const unique = seededPick(pool, Math.min(count, pool.length), seed);
-  const meals = variety
-    ? varietyMeals(pool, count, seed)
-    : Array.from({ length: count }, (_, i) => unique[i % unique.length]);
 
   const note = relaxed
     ? availableOnly
@@ -282,5 +341,5 @@ export function buildPlan(
       : variety && new Set(meals.map((m) => m.id)).size < count
         ? 'Variety on: dishes repeat only once the kitchen runs out of distinct options.'
         : null;
-  return { meals, note };
+  return finishPlan(meals, note, wasteOptions);
 }

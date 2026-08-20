@@ -51,6 +51,7 @@ import {
   cookingTimeLearning, householdPreferenceProfile, leftoverAwareness, mealPlanAdherence,
   perishabilitySummary, repeatFatigue, useSoonIngredients,
 } from './planning-intelligence.js';
+import { learnWasteProfile } from './waste-planner.js';
 import { YOUTH_COPY, youthPolicy } from './youth.js';
 
 export const deriveApp = (state) => {
@@ -112,6 +113,7 @@ export const deriveApp = (state) => {
     favourites: state.favourites,
     members: state.members,
   });
+  const wasteProfile = learnWasteProfile(state.waste, { learnedAliases: state.aliasMemory });
   const entries = state.log[state.day] || [];
   const totals = dayTotals(entries);
   const glasses = state.water + state.waterExtraMl / GLASS_ML;
@@ -168,6 +170,7 @@ export const deriveApp = (state) => {
     repeatFatigue: repeatFatigueSignal,
     cookingTimeLearning: cookingTime,
     householdPreferences,
+    wasteProfile,
     body_: bodySummary(state, state.day),
     vitalsSummary: vitalSummary(state.vitals),
     sleepSummary: sleepSummary(state.sleep, { today: state.day }),

@@ -5,9 +5,10 @@ import { validateKey } from '../lib/groq';
 import { readPulseOptIn, setApiKey, clearApiKey, setPulseOptIn } from '../lib/storage';
 import { LANGUAGE_LIST } from '../lib/languages';
 import { getQuota, formatQuota } from '../lib/quota';
-import { getRelayConfig } from '../lib/relay';
+import { getRelayConfig, pingRelay, relayEnabled } from '../lib/relay';
 
-// Captures + validates the Groq API key before committing it to localStorage.
+// In relay mode the browser never accepts or stores a Groq key. The host's
+// authenticated identity is sent to the relay, which holds the provider key.
 
 export default function SettingsModal({ open, onClose, apiKey, onKeyChange, settings, onSettingsChange, onReplayOnboarding }) {
   const [draft, setDraft] = useState('');
@@ -17,6 +18,20 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
 
   const save = async () => {
     const key = draft.trim();
+    if (relayEnabled && !key) {
+      setState('checking');
+      setMessage('');
+      try {
+        const started = performance.now();
+        await pingRelay();
+        setState('ok');
+        setMessage(`Server relay verified in ${Math.round(performance.now() - started)} ms`);
+      } catch (e) {
+        setState('bad');
+        setMessage(`Could not verify the server relay: ${e.message}`);
+      }
+      return;
+    }
     if (!key) return;
     setState('checking');
     setMessage('');
@@ -50,7 +65,7 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-ink">Settings</h2>
-            <p className="text-xs text-ink2 mt-0.5">Everything stays in your browser — no server.</p>
+            <p className="text-xs text-ink2 mt-0.5">{relayEnabled ? 'AI requests use the authenticated server relay.' : 'Everything stays in your browser — no server.'}</p>
           </div>
           <button
             onClick={onClose}
@@ -65,9 +80,21 @@ export default function SettingsModal({ open, onClose, apiKey, onKeyChange, sett
           <RelayBanner />
           <QuotaStrip />
           <label htmlFor="groq-key" className="text-sm font-semibold text-ink">
-            Live AI key <span className="font-normal text-ink3">(optional)</span>
+            {relayEnabled ? 'Server relay' : 'Live AI key'} <span className="font-normal text-ink3">(optional)</span>
           </label>
-          {apiKey ? (
+          {relayEnabled ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              <p className="font-semibold">Provider key stays on the relay</p>
+              <p className="mt-1 text-xs">Your host supplies the authenticated session. The browser does not accept or store a Groq key.</p>
+              <button
+                onClick={save}
+                disabled={state === 'checking'}
+                className="btn btn-secondary mt-3 rounded-xl px-3 text-xs min-h-10"
+              >
+                {state === 'checking' ? 'Checking…' : 'Check relay'}
+              </button>
+            </div>
+          ) : apiKey ? (
             <div className="flex items-center justify-between gap-3 bg-surface2 rounded-xl px-4 py-3">
               <span className="text-sm text-ink font-mono">
                 ●●●●{apiKey.slice(-4)} <span className="text-ink3">connected</span>

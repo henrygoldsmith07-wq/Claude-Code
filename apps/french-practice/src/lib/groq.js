@@ -10,7 +10,7 @@ import {
 
 import { getLanguage, DEFAULT_LANG } from './languages.js';
 import { consume, getRemaining } from './quota.js';
-import { relayEnabled } from './relay.js';
+import { pingRelay, relayEnabled, withRelay } from './relay.js';
 
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';
@@ -113,9 +113,21 @@ async function timedFetch(label, url, options, { rawBody } = {}) {
   throw lastError; // unreachable, but keeps the control flow explicit
 }
 
-// ---- key validation (lightweight models-list ping) ----
+async function relayFetch(label, path, body) {
+  const t0 = performance.now();
+  const data = await withRelay({ label, path, body, direct: async () => { throw new Error('relay_not_enabled'); } });
+  const latency = Math.round(performance.now() - t0);
+  report({ label, latency, status: 200, usage: data.usage || null, payload: body, response: data, attempt: 0 });
+  return { data, latency };
+}
+
+// ---- key / relay validation ----
 
 export async function validateKey(apiKey) {
+  if (relayEnabled) {
+    const { latency } = await relayHealth();
+    return { ok: true, latency };
+  }
   const { data, latency } = await timedFetch('validate-key', `${BASE}/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
@@ -123,6 +135,7 @@ export async function validateKey(apiKey) {
 }
 
 export async function pingLatency(apiKey) {
+  if (relayEnabled) return (await relayHealth()).latency;
   const t0 = performance.now();
   const res = await fetch(`${BASE}/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -131,11 +144,38 @@ export async function pingLatency(apiKey) {
   return Math.round(performance.now() - t0);
 }
 
+async function relayHealth() {
+  const t0 = performance.now();
+  await pingRelay();
+  return { latency: Math.round(performance.now() - t0) };
+}
+
 // ---- transcription (Whisper) ----
+
+async function toBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
 
 export async function transcribe(apiKey, blob, { mock } = {}) {
   if (mock) return mockTurn().transcript;
   assertQuota('whisper');
+  if (relayEnabled) {
+    const mimeType = String(blob.type || 'audio/webm').split(';')[0].toLowerCase();
+    const { data } = await relayFetch('whisper', '/audio/transcriptions', {
+      model: WHISPER_MODEL,
+      audio_base64: await toBase64(blob),
+      mime_type: mimeType,
+      language: LANG.whisper,
+      response_format: 'json',
+    });
+    return (data.text || '').trim();
+  }
   const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
   const form = new FormData();
   form.append('file', blob, `recording.${ext}`);
@@ -170,14 +210,16 @@ async function chatJson(apiKey, messages, { temperature = 0.7, label = 'chat' } 
     response_format: { type: 'json_object' },
     max_tokens: 1024,
   };
-  const { data } = await timedFetch(label, `${BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  }, { rawBody: body });
+  const { data } = relayEnabled
+    ? await relayFetch(label, '/chat/completions', body)
+    : await timedFetch(label, `${BASE}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }, { rawBody: body });
   return extractJson(data.choices[0].message.content);
 }
 
@@ -200,11 +242,13 @@ async function chatVisionJson(apiKey, { system, prompt, imageDataUrl, temperatur
     response_format: { type: 'json_object' },
     max_tokens: 1024,
   };
-  const { data } = await timedFetch(label, `${BASE}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }, { rawBody: body });
+  const { data } = relayEnabled
+    ? await relayFetch(label, '/chat/completions', body)
+    : await timedFetch(label, `${BASE}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }, { rawBody: body });
   return extractJson(data.choices[0].message.content);
 }
 
@@ -212,11 +256,13 @@ async function chatVisionJson(apiKey, { system, prompt, imageDataUrl, temperatur
 async function chatPlain(apiKey, messages, { temperature = 0.6, label = 'chat-plain', maxTokens = 700 } = {}) {
   assertQuota(label);
   const body = { model: CHAT_MODEL, messages, temperature, max_tokens: maxTokens };
-  const { data } = await timedFetch(label, `${BASE}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }, { rawBody: body });
+  const { data } = relayEnabled
+    ? await relayFetch(label, '/chat/completions', body)
+    : await timedFetch(label, `${BASE}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }, { rawBody: body });
   return data.choices[0].message.content.trim();
 }
 

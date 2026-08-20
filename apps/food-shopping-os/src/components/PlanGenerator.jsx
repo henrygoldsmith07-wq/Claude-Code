@@ -38,6 +38,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const [seasonal, setSeasonal] = useState(true);
   const [leftoverFirst, setLeftoverFirst] = useState(app.leftovers.length > 0);
   const [variety, setVariety] = useState(true);
+  const [minimiseWaste, setMinimiseWaste] = useState(true);
   const [seed, setSeed] = useState(() => (app.calendarBusy?.length ? Date.now() % 100000 : 0));
   const [generating, setGenerating] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
@@ -58,9 +59,9 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const tasteKey = JSON.stringify(app.tasteProfile);
   const leftoversKey = app.leftovers.map((item) => `${item.recipeId}:${item.portions}:${item.expiry || ''}`).join(',');
   const generatorKey = [
-    scope, people, budget, occasion, quick, timeAvailable, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety,
+    scope, people, budget, occasion, quick, timeAvailable, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety, minimiseWaste,
     planDates.join(','), pantryNames.join(','), (app.equipment || []).join(','), app.planDiets.join(','), app.goal, month,
-    recipeKey, tasteKey, leftoversKey,
+    recipeKey, tasteKey, leftoversKey, JSON.stringify(app.wasteProfile), JSON.stringify(app.aliasMemory || {}),
   ].join('|');
 
   useEffect(() => {
@@ -90,12 +91,19 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
         availableOnly: availabilityOnly,
         expiry: usePantry ? expiringNames : [],
         variety,
+        wasteOptimisation: minimiseWaste,
+        wasteProfile: app.wasteProfile,
+        dates: scope === 'A day'
+          ? [app.day, app.day, app.day]
+          : scope === '1 meal' ? [app.day] : planDates,
+        today: app.day,
+        learnedAliases: app.aliasMemory || {},
       },
       seed,
     );
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, timeAvailable, occasion, people, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety, app.leftovers, app.pantry, month, planDates.length, (app.equipment || []).join(',')]);
+  }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, timeAvailable, occasion, people, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety, minimiseWaste, app.leftovers, app.pantry, app.wasteProfile, app.aliasMemory, month, planDates.length, (app.equipment || []).join(',')]);
 
   const generated = plan?.meals ?? null;
 
@@ -142,6 +150,8 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
   const cost = generated ? generated.reduce((s, r) => s + r.costPerServing * people, 0) : 0;
   const kcal = generated ? Math.round(generated.reduce((s, r) => s + r.kcal, 0) / generated.length) : 0;
   const distinct = generated ? new Set(generated.map((r) => r.id)).size : 0;
+  const wastePlan = plan?.wastePlan || null;
+  const wasteMetric = (value) => value === null || value === undefined ? '—' : `${Math.round(value)}%`;
   const planNotes = [
     plan?.note,
     generated && busyInScope > 0
@@ -242,6 +252,7 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
             { on: seasonal, set: setSeasonal, icon: <Leaf size={14} />, label: 'Favour what’s in season' },
             { on: leftoverFirst, set: setLeftoverFirst, icon: <Snowflake size={14} />, label: 'Use fridge leftovers before cooking again' },
             { on: variety, set: setVariety, icon: <Sparkles size={14} />, label: 'Vary it up — avoid repeats where it can' },
+            { on: minimiseWaste, set: setMinimiseWaste, icon: <Leaf size={14} />, label: 'Minimise waste before I buy' },
           ].map(({ on, set, icon, label }) => (
             <div key={label} className="flex items-center justify-between gap-3">
               <p className="text-[0.8125rem] font-bold flex items-center gap-1.5">{icon} {label}</p>
@@ -358,6 +369,47 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
               </p>
             </div>
           </Card>
+          {wastePlan && (
+            <Card className="!p-3 space-y-3" style={{ background: 'var(--card-2)' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Waste-minimising plan</p>
+                  <p className="mt-0.5 text-[0.75rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {wastePlan.expectedUnusedCount === 0
+                      ? 'No expected unused ingredients from the known quantities.'
+                      : `${wastePlan.expectedUnusedCount} ingredient${wastePlan.expectedUnusedCount === 1 ? '' : 's'} may be left over.`}
+                  </p>
+                </div>
+                <Pill tone={wastePlan.score >= 80 ? 'good' : wastePlan.score >= 60 ? 'accent' : 'muted'}>{wastePlan.score}/100</Pill>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[0.9375rem] font-extrabold">{wasteMetric(wastePlan.pantryUtilisation)}</p>
+                  <p className="text-[0.625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Pantry</p>
+                </div>
+                <div>
+                  <p className="text-[0.9375rem] font-extrabold">{wasteMetric(wastePlan.perishableUtilisation)}</p>
+                  <p className="text-[0.625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Perishables</p>
+                </div>
+                <div>
+                  <p className="text-[0.9375rem] font-extrabold">{wasteMetric(wastePlan.packUtilisation)}</p>
+                  <p className="text-[0.625rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Packs</p>
+                </div>
+              </div>
+              {wastePlan.purchaseRows?.length > 0 && (
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  Buy: {wastePlan.purchaseRows.slice(0, 3).map((row) => row.packs
+                    ? `${row.packs} ${row.packUnit || 'pack'} of ${row.name}`
+                    : `${row.qty} ${row.name}`).join(' · ')}.
+                </p>
+              )}
+              {wastePlan.recommendations?.length > 0 && (
+                <p className="text-[0.71875rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  {wastePlan.recommendations.slice(0, 2).join(' ')}
+                </p>
+              )}
+            </Card>
+          )}
           <div className="space-y-2.5">
             {generated.map((r, i) => {
               const date = slotDates[i] || app.day;

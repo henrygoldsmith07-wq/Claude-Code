@@ -72,7 +72,7 @@ export const ALIAS_GROUPS = [
   ['Prawns', ['prawns', 'king prawns', 'cooked prawns', 'raw prawns', 'shrimp']],
   ['Firm tofu', ['firm tofu', 'tofu', 'extra firm tofu', 'tofu block']],
   ['Tempeh', ['tempeh', 'tempeh block']],
-  ['Greek yogurt', ['greek yogurt', 'greek yoghurt', 'greek style yogurt', 'natural yogurt', 'plain yogurt', 'yogurt']],
+  ['Greek yogurt', ['greek yogurt', 'greek yoghurt', 'greek style yogurt', 'natural yogurt', 'natural yoghurt', 'plain yogurt', 'plain yoghurt', 'yogurt', 'yoghurt']],
   ['Coconut yogurt', ['coconut yogurt', 'coconut yoghurt', 'soy yogurt']],
   ['Semi-skimmed milk', ['semi-skimmed milk', 'milk', 'semi skimmed milk', 'whole milk', 'skimmed milk', 'oat milk', 'almond milk', 'soya milk']],
   ['Cheddar', ['cheddar', 'cheddar cheese', 'mature cheddar']],

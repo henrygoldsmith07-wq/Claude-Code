@@ -15,6 +15,7 @@ export default function PlanningSignals({ app }) {
   const hasPerishability = perishability.soon > 0 || perishability.past > 0 || perishability.unknown > 0;
   const hasSignals = app.useSoonIngredients?.length > 0
     || app.leftoverAwareness?.length > 0
+    || app.wasteProfile?.repeated?.length > 0
     || adherence.planned > 0
     || app.repeatFatigue?.hasFatigue
     || app.cookingTimeLearning?.samples > 0
@@ -52,6 +53,14 @@ export default function PlanningSignals({ app }) {
               {perishability.soon > 0 ? `${perishability.soon} need using soon` : 'No items due soon'}
               {perishability.past > 0 ? ` · ${perishability.past} past its recorded date` : ''}
               {perishability.unknown > 0 ? ` · ${perishability.unknown} without a date` : ''}.
+            </p>
+          </div>
+        )}
+        {app.wasteProfile?.repeated?.length > 0 && (
+          <div className="border-t pt-3" style={{ borderColor: 'var(--line)' }}>
+            <p className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: 'var(--faint)' }}>Learned waste pattern</p>
+            <p className="mt-1 text-[0.78125rem] font-semibold" style={{ color: 'var(--muted)' }}>
+              {app.wasteProfile.repeated.slice(0, 3).map((row) => `${row.name} binned ${row.count} times`).join(' · ')}. The generator now favours plans that use these fully or avoids buying a remainder.
             </p>
           </div>
         )}
