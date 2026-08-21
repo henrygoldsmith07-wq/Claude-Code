@@ -54,6 +54,8 @@ export interface ConnectorCard {
   source: SourceId;
   name: string;
   connected: boolean;
+  /** Whether the connector is authenticated (consent granted). */
+  authenticated: boolean;
   status: HealthStatus;
   statusMessage: string;
   cadence: SyncCadence;
@@ -61,9 +63,16 @@ export interface ConnectorCard {
   /** Null when the source has never produced an event. */
   hoursSinceLastEvent: number | null;
   lastSyncedAt: string | null;
+  lastAttemptedSync: string | null;
+  lastSuccessfulSync: string | null;
   lastEventAt: string | null;
+  latestSourceRecordAt: string | null;
   firstEventAt: string | null;
   eventCount: number;
+  recordsReceived: number;
+  recordsAccepted: number;
+  recordsRejected: number;
+  duplicatesRemoved: number;
   daysWithData: number;
   coverageDays: number;
   /** Days with no data, ignoring days when every source was quiet. */
@@ -74,6 +83,8 @@ export interface ConnectorCard {
   rejectionRate: number;
   warnings: string[];
   attention: AttentionItem[];
+  failureReason: string | null;
+  recoveryAction: string | null;
 }
 
 export interface ConnectorDashboard {
@@ -262,19 +273,44 @@ export function buildConnectorDashboard(
       ? findGaps(covered, coverageWindow, blackoutSet)
       : [];
 
+    const authenticated = connected.has(connector.id);
+    const lastAttemptedSync = report?.finishedAt ?? null;
+    const lastSuccessfulSync = report && !report.error ? report.finishedAt : null;
+    const latestSourceRecordAt = report?.health.latestSourceEventAt ?? (lastEventMs === null ? null : new Date(lastEventMs).toISOString());
+    const recordsReceived = report?.fetched ?? 0;
+    const recordsAccepted = report?.inserted ?? 0;
+    const recordsRejected = report?.rejected ?? 0;
+    const duplicatesRemoved = report?.duplicates ?? 0;
+    const failureReason = report?.error ?? (report?.health.status === "failing" ? report.health.message : null);
+    const recoveryAction = !authenticated
+      ? `Connect ${connector.name} to authenticate and start syncing.`
+      : report?.health.status === "failing"
+        ? "Reconnect the source and run a sync."
+        : report?.health.status === "degraded"
+          ? "Check the source app and sync again; a staleness downgrade may apply."
+          : null;
+
     const base: Omit<ConnectorCard, "attention"> = {
       source: connector.id,
       name: connector.name,
       connected: connected.has(connector.id),
+      authenticated,
       status: report?.health.status ?? (connected.has(connector.id) ? "unknown" : "failing"),
       statusMessage: report?.health.message ?? (connected.has(connector.id) ? "Not synced yet" : "Not connected"),
       cadence,
       freshness: connected.has(connector.id) ? freshnessFor(cadence, hoursSinceLastEvent) : "unknown",
       hoursSinceLastEvent: hoursSinceLastEvent === null ? null : Math.round(hoursSinceLastEvent * 10) / 10,
       lastSyncedAt: report?.finishedAt ?? null,
+      lastAttemptedSync,
+      lastSuccessfulSync,
       lastEventAt: lastEventMs === null ? null : new Date(lastEventMs).toISOString(),
+      latestSourceRecordAt,
       firstEventAt: firstEventMs === null ? null : new Date(firstEventMs).toISOString(),
       eventCount: sourceEvents.length,
+      recordsReceived,
+      recordsAccepted,
+      recordsRejected,
+      duplicatesRemoved,
       daysWithData: coverageWindow.filter((date) => covered.has(date)).length,
       coverageDays: coverageWindow.length,
       missingDays: gaps.reduce((total, gap) => total + gap.days, 0),
@@ -282,6 +318,8 @@ export function buildConnectorDashboard(
       gaps,
       rejectionRate: report && report.fetched > 0 ? report.rejected / report.fetched : 0,
       warnings: report?.warnings ?? [],
+      failureReason,
+      recoveryAction,
     };
 
     return { ...base, attention: attentionFor(base) };

@@ -401,7 +401,7 @@ export function analyseExperiment(
     }
   }
 
-  const confidence = gradeConfidence({
+  let confidence = gradeConfidence({
     evidenceClass: "experiment",
     sampleSize: groupA.length + groupB.length,
     effectMagnitude: Math.abs(observedEffect),
@@ -411,6 +411,14 @@ export function analyseExperiment(
     // Before/after cannot rule out drift or anything else that changed with it.
     uncontrolledConfounders: design.type === "before-after" ? 2 : 0,
   });
+  // Before/after is uncontrolled: never present as high confidence, however good the numbers look.
+  if (design.type === "before-after" && confidence.level === "high") {
+    confidence = { ...confidence, level: "moderate" as const, score: Math.min(confidence.score, 0.74), limitations: [...confidence.limitations, "Before/after comparisons are uncontrolled — treat as suggestive, not causal proof"], reasons: confidence.reasons };
+  }
+  // Missing-data honesty: if adherence is modest, cap confidence accordingly
+  if (adherence.adherence < 0.6 && confidence.level === "high") {
+    confidence = { ...confidence, level: "moderate" as const, score: Math.min(confidence.score, 0.74), limitations: [...confidence.limitations, "Adherence was modest, so the dose actually received is uncertain"] };
+  }
 
   return {
     experimentId: design.id,

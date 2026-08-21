@@ -23,7 +23,7 @@ import { causalityCaveat } from "../statistics/confidence.js";
 import { magnitudeForD, type EffectSize } from "../statistics/effects.js";
 import { mean } from "../statistics/descriptive.js";
 import { isAdequatelyPowered } from "../statistics/power.js";
-import { autocorrelationControl, effectStability, outlierSensitivity } from "../statistics/safeguards.js";
+import { autocorrelationControl, effectStability, independentHoldoutPeriods, outlierSensitivity } from "../statistics/safeguards.js";
 import type { SourceQuality } from "../quality/score.js";
 import { qualityForSources } from "../quality/score.js";
 import {
@@ -214,6 +214,8 @@ function composeFinding(
   }
 
   const replicated = checkReplication(result);
+  const holdout = checkHoldout(result);
+  const replicatedOutOfSample = replicated && holdout.holdoutReplicates;
   const uncontrolled = countUncontrolled(confounders);
   const dataQuality = qualityForSources(options.qualities ?? [], sources);
 
@@ -258,7 +260,7 @@ function composeFinding(
     dataQuality,
     familySize,
     uncontrolledConfounders: uncontrolled + (adjustmentSurvived ? 0 : 1),
-    replicatedOutOfSample: replicated,
+    replicatedOutOfSample: replicatedOutOfSample,
     reverseCausationPlausible: result.candidate.kind === "lagged-correlation" && !result.forwardDominant,
     ...(autocorrelation ? { effectiveSampleSize: autocorrelation.effectiveSampleSize } : {}),
     ...(stability ? { effectStable: stability.stable } : {}),
@@ -273,10 +275,27 @@ function composeFinding(
   if (!adjustmentSurvived) {
     confidence.limitations.push("Most of the difference disappears once time of day is held constant");
   }
+  if (!holdout.independent) {
+    confidence.limitations.push(`Holdout check: ${holdout.reason ?? "not enough holdout data"} — treat as exploratory until a later window confirms it`);
+  } else if (!holdout.holdoutReplicates) {
+    confidence.limitations.push("Effect did not hold in the independent holdout window (last 20% of days); exploratory, not confirmatory");
+  }
+  if (stability && !stability.stable) {
+    confidence.limitations.push("Effect direction varied across time blocks — robustness check flags instability");
+  }
+  if (outlierCheck && !outlierCheck.stable) {
+    confidence.limitations.push("Effect is sensitive to outliers — a few extreme days drive the signal");
+  }
+  if (autocorrelation && autocorrelation.effectiveSampleSize < result.sampleSize * 0.6) {
+    confidence.limitations.push(`Autocorrelation detected (effective n ≈ ${Math.round(autocorrelation.effectiveSampleSize)} vs ${result.sampleSize}) — sample is less independent than it looks`);
+  }
 
   const { title, statement, sampleDescription } = phrase(result, outcome.name, driver?.name);
   const dateRange = rangeOf([...result.groupA, ...result.groupB]);
 
+  // Exploratory vs confirmatory: replicated across halves and holdout is confirmatory
+  const exploratory = !(replicatedOutOfSample && powered && adjustmentSurvived);
+  const stageTag = exploratory ? "exploratory" : "confirmatory";
   return {
     id: `finding-${hash128(`${result.candidate.id}:${result.sampleSize}`).slice(0, 16)}`,
     createdAt: new Date(nowMs).toISOString(),
@@ -311,7 +330,7 @@ function composeFinding(
         dateRange,
       },
     ],
-    tags: [result.candidate.kind, outcome.category, ...(driver ? [driver.category] : [])],
+    tags: [result.candidate.kind, outcome.category, ...(driver ? [driver.category] : []), stageTag],
   };
 }
 
@@ -337,6 +356,26 @@ function checkReplication(result: EvaluatedCandidate): boolean {
     result.groupB.filter((o) => o.localDate >= midpoint).map((o) => o.value),
   );
   return early !== 0 && early === late;
+}
+
+function checkHoldout(result: EvaluatedCandidate): { independent: boolean; holdoutReplicates: boolean; reason?: string } {
+  if (result.groupA.length < 16 || result.groupB.length < 16) return { independent: false, holdoutReplicates: false, reason: "Not enough days for a holdout split" };
+  const allDates = [...new Set([...result.groupA, ...result.groupB].map((o) => o.localDate))].sort();
+  const holdoutInfo = independentHoldoutPeriods(allDates, { holdoutFraction: 0.2, holdoutDays: 7 });
+  if (!holdoutInfo.independent) return { independent: false, holdoutReplicates: false, reason: holdoutInfo.reason };
+  const holdoutSet = new Set(holdoutInfo.holdoutDates);
+  const trainSet = new Set(holdoutInfo.trainDates);
+  const direction = (aValues: number[], bValues: number[]): number =>
+    aValues.length >= 4 && bValues.length >= 4 ? Math.sign(mean(aValues) - mean(bValues)) : 0;
+  const train = direction(
+    result.groupA.filter((o) => trainSet.has(o.localDate)).map((o) => o.value),
+    result.groupB.filter((o) => trainSet.has(o.localDate)).map((o) => o.value),
+  );
+  const holdout = direction(
+    result.groupA.filter((o) => holdoutSet.has(o.localDate)).map((o) => o.value),
+    result.groupB.filter((o) => holdoutSet.has(o.localDate)).map((o) => o.value),
+  );
+  return { independent: true, holdoutReplicates: train !== 0 && train === holdout };
 }
 
 interface Phrasing {
