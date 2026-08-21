@@ -1,0 +1,117 @@
+ M .github/workflows/rtk.yml
+ M apps/revise/e2e/answer-corpus.spec.ts
+ M apps/revise/e2e/command-word-validation.spec.ts
+ M apps/revise/e2e/explanation-mastery.spec.ts
+ M apps/revise/e2e/full-exam-condition.spec.ts
+ M apps/revise/e2e/mistake-root-cause.spec.ts
+ M apps/revise/e2e/offline.spec.ts
+ M apps/revise/e2e/question-evidence.spec.ts
+ M apps/revise/e2e/quick-session.spec.ts
+ M apps/revise/e2e/response-time-calibration.spec.ts
+ M apps/revise/e2e/retention-mastery.spec.ts
+ M apps/revise/e2e/visual.spec.ts
+ M apps/revise/playwright.config.ts
+ M apps/rtk/.gitignore
+ M apps/rtk/README.md
+ M apps/rtk/benchmark/agent-live.js
+ M apps/rtk/benchmark/corpus-builder.js
+ M apps/rtk/benchmark/corpus/ansi.log
+ M apps/rtk/benchmark/corpus/cargo-build-fail.log
+ M apps/rtk/benchmark/corpus/diff-4files.log
+ M apps/rtk/benchmark/corpus/eslint-scan.log
+ M apps/rtk/benchmark/corpus/generic-fail.log
+ M apps/rtk/benchmark/corpus/gha-fail.log
+ M apps/rtk/benchmark/corpus/gha-real-fail.log
+ M apps/rtk/benchmark/corpus/json-search.log
+ M apps/rtk/benchmark/corpus/ndjson.log
+ M apps/rtk/benchmark/corpus/next-fail.log
+ M apps/rtk/benchmark/corpus/npm-ci-fail.log
+ M apps/rtk/benchmark/corpus/playwright-fail.log
+ M apps/rtk/benchmark/corpus/pytest-traceback.log
+ M apps/rtk/benchmark/corpus/sarif.json
+ M apps/rtk/benchmark/corpus/stack.log
+ M apps/rtk/benchmark/corpus/tsc-fail.log
+ M apps/rtk/benchmark/corpus/unicode.log
+ M apps/rtk/benchmark/corpus/vitest-fail.log
+ M apps/rtk/benchmark/corpus/vitest-pass.log
+ M apps/rtk/benchmark/evidence.js
+ M apps/rtk/benchmark/evidence.json
+ M apps/rtk/benchmark/evidence.md
+ M apps/rtk/package.json
+ M apps/rtk/src/ansi.js
+ M apps/rtk/src/parsers/eslint.js
+ M apps/rtk/src/parsers/generic.js
+ M apps/rtk/src/parsers/gotest.js
+ M apps/rtk/src/parsers/maven.js
+ M apps/rtk/src/parsers/ruff.js
+ M apps/rtk/src/structural.js
+?? apps/revise/e2e/__screenshots__/
+?? apps/revise/e2e/helpers.ts
+?? apps/revise/src/domain/answer-corpus.test.ts
+?? apps/revise/src/domain/answer-corpus.ts
+?? apps/revise/src/domain/confidence.test.ts
+?? apps/revise/src/domain/confidence.ts
+?? apps/revise/src/domain/coverage-audit.test.ts
+?? apps/revise/src/domain/coverage-audit.ts
+?? apps/revise/src/domain/double-marking-agreement.test.ts
+?? apps/revise/src/domain/double-marking-agreement.ts
+?? apps/revise/src/domain/explainability.test.ts
+?? apps/revise/src/domain/explainability.ts
+?? apps/revise/src/domain/knowledge-tracing-validation.test.ts
+?? apps/revise/src/domain/knowledge-tracing-validation.ts
+?? apps/revise/src/domain/learner-outcomes.test.ts
+?? apps/revise/src/domain/learner-outcomes.ts
+?? apps/revise/src/domain/learning-loop.test.ts
+?? apps/revise/src/domain/learning-loop.ts
+?? apps/revise/src/domain/marking-validation.test.ts
+?? apps/revise/src/domain/marking-validation.ts
+?? apps/revise/src/domain/mastery-calibration.test.ts
+?? apps/revise/src/domain/mastery-calibration.ts
+?? apps/revise/src/domain/scheduler-validation.test.ts
+?? apps/revise/src/domain/scheduler-validation.ts
+?? apps/rtk/benchmark/corpus/ansi-heavy.log
+?? apps/rtk/benchmark/corpus/docker-fail.log
+?? apps/rtk/benchmark/corpus/duplicate-messages.log
+?? apps/rtk/benchmark/corpus/git-conflict.log
+?? apps/rtk/benchmark/corpus/go-fail.log
+?? apps/rtk/benchmark/corpus/gradle-fail.log
+?? apps/rtk/benchmark/corpus/huge-log.log
+?? apps/rtk/benchmark/corpus/interleaved-parallel.log
+?? apps/rtk/benchmark/corpus/invalid-utf8.log
+?? apps/rtk/benchmark/corpus/k8s-crash.log
+?? apps/rtk/benchmark/corpus/malformed-json.log
+?? apps/rtk/benchmark/corpus/malformed-output.log
+?? apps/rtk/benchmark/corpus/manifest.json
+?? apps/rtk/benchmark/corpus/massive-stack.log
+?? apps/rtk/benchmark/corpus/maven-fail.log
+?? apps/rtk/benchmark/corpus/nested-failure.log
+?? apps/rtk/benchmark/corpus/next-pass.log
+?? apps/rtk/benchmark/corpus/partial-truncated.log
+?? apps/rtk/benchmark/corpus/real-git-diff.log
+?? apps/rtk/benchmark/corpus/real-git-log.log
+?? apps/rtk/benchmark/corpus/real-git-status.log
+?? apps/rtk/benchmark/corpus/real-node-test-fail.log
+?? apps/rtk/benchmark/corpus/real-npm-version.log
+?? apps/rtk/benchmark/corpus/real-tsc-fail.log
+?? apps/rtk/benchmark/corpus/terraform-fail.log
+?? apps/rtk/benchmark/corpus/truncated-log.log
+?? apps/rtk/benchmark/corpus/tsc-pass.log
+?? apps/rtk/benchmark/corpus/unix-paths.log
+?? apps/rtk/benchmark/corpus/unusual-unicode.log
+?? apps/rtk/benchmark/corpus/windows-paths.log
+?? apps/rtk/benchmark/failure-corpus.js
+?? apps/rtk/benchmark/levels.js
+?? apps/rtk/benchmark/levels.json
+?? apps/rtk/benchmark/levels.md
+?? apps/rtk/benchmark/paired.js
+?? apps/rtk/benchmark/paired.json
+?? apps/rtk/benchmark/paired.md
+?? apps/rtk/benchmark/retention-fields.js
+?? apps/rtk/benchmark/retention-fields.json
+?? apps/rtk/benchmark/retention-fields.md
+?? apps/rtk/src/failure.js
+?? apps/rtk/src/fields.js
+?? apps/rtk/src/provenance.js
+?? apps/rtk/src/providers.js
+?? apps/rtk/test/cross-platform.test.js
+?? apps/rtk/test/pathological.test.js

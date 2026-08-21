@@ -1,0 +1,2 @@
+/home/runner/project/src/app.ts:10:5 - error TS2322: Type string not assignable
+Error at ./src/app/page.tsx:42:10

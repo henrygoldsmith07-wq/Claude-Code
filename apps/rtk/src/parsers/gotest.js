@@ -4,7 +4,7 @@ const MAX_LINES = 60;
 const rules = [
   { re: /^--- FAIL:/i, keep: true, reason: 'go: FAIL' },
   { re: /^FAIL\s/i, keep: true, reason: 'go: FAIL package' },
-  { re: /.*\.go:\d+:/i, keep: true, reason: 'go: file:line' },
+  { re: /\.go:\d+:/i, keep: true, reason: 'go: file:line' },
   { re: /\bok\b|\bFAIL\b/i, keep: true, reason: 'go: summary' },
 ];
 function filter(output, exitCode, opts={}) {
@@ -15,7 +15,7 @@ function filter(output, exitCode, opts={}) {
     const emitted = summary.length ? summary.join('\n') : `✓ go test — ok (${lines.length} lines suppressed)`;
     return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };
   }
-  const kept = lines.filter(l => /^--- FAIL:|^FAIL\s|.*\.go:\d+:|\bok\b|\bFAIL\b/i.test(l)).slice(0,maxLines);
+  const kept = lines.filter(l => /^--- FAIL:|^FAIL\s|\.go:\d+:|\bok\b|\bFAIL\b/i.test(l)).slice(0,maxLines);
   const emitted = (kept.length?kept:lines.slice(-Math.min(30,maxLines))).join('\n');
   return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };
 }
