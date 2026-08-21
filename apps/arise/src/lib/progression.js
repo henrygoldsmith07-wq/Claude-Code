@@ -4,7 +4,8 @@
 // no AI.
 
 import { DEFAULT_ARISE_PRIORS, resolveArisePriors, clamp } from './priors.js';
-import { nearestLoadToPlates } from './plates.js';
+import { nearestLoadToPlates, nearestAchievableLoad } from './plates.js';
+import { EXERCISE_BY_ID } from './data.js';
 
 export function e1rm(weightKg, reps){ if(!(weightKg>0 && reps>0)) return 0; return weightKg * (1 + reps/30); }
 export function epleyToLoad(e1rmVal, reps){ return e1rmVal / (1 + reps/30); }
@@ -169,13 +170,21 @@ export function recommendNext({ exerciseId, history, targetReps = null, conserva
       personalised: prate,
       trainingAge,
       priorsVersion: cfg.version,
-    }, plateConfig);
+    }, plateConfig, exerciseId);
   }
   // Plateau v2 check (real vs noise) — if true, hold
   const plat = isPlateauV2(logs, { config: cfg });
-  if(plat.isPlateau) return plateAware({ load, reps, reason: plat.reason, plateau: plat, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig);
+  if(plat.isPlateau) return plateAware({ load, reps, reason: plat.reason, plateau: plat, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig, exerciseId);
   // also keep original 3-session plateau as conservative fallback
-  if(!plat.isPlateau && isPlateau(logs, { config: cfg })) return plateAware({ load, reps, reason: "Plateau — hold load, consider deload.", plateau: plat, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig);
+  if(!plat.isPlateau && isPlateau(logs, { config: cfg })) return plateAware({ load, reps, reason: "Plateau — hold load, consider deload.", plateau: plat, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig, exerciseId);
+  // Noisy session conservatism: a flagged last session (short, painful, missed
+  // sets, unusual drop, kit/order change) holds the prescription. Holding is
+  // deliberately the mildest response — heavier changes (deload, programme
+  // rewrite) still require multiple independent signals elsewhere.
+  const noisy = noisyFlagsForLastSession(history, exerciseId, cfg);
+  if(noisy.length >= 2 || noisy.includes('unusualPerformance') || noisy.includes('pain')){
+    return plateAware({ load, reps, reason: `Hold load because last session had noisy context (${noisy.join(', ')}) — need a clean exposure before progressing.`, noisy, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig, exerciseId);
+  }
 
   // Assisted progression (e.g. pull-up with band/assist): add reps first, then REDUCE assist.
   const assist = last.assistedKg != null && last.assistedKg !== '' ? Number(last.assistedKg) : null;
@@ -205,16 +214,16 @@ export function recommendNext({ exerciseId, history, targetReps = null, conserva
     }
   }
   if(sCfg.prefer === 'reps'){
-    if(reps < hi) return plateAware({ load, reps: Math.min(hi, reps+1), reason: `Endurance — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig);
+    if(reps < hi) return plateAware({ load, reps: Math.min(hi, reps+1), reason: `Endurance — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge, priorsVersion: cfg.version }, plateConfig, exerciseId);
   }
   // Double progression (default for hypertrophy, and fallback)
   if(reps < hi) {
-    if(rir >= 2) return plateAware({ load, reps: Math.min(hi, reps + 1), reason: `Room at RPE ${rpe ?? "/"} — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge }, plateConfig);
+    if(rir >= 2) return plateAware({ load, reps: Math.min(hi, reps + 1), reason: `Room at RPE ${rpe ?? "/"} — add a rep (${reps}→${Math.min(hi, reps+1)}).`, strategy: strat, personalised: prate, trainingAge }, plateConfig, exerciseId);
     const nextLoad = snapLoad(load * (1 + incPct), cfg);
-    return plateAware({ load: nextLoad, reps: lo, reason: `Close to failure (RIR ~${rir}) — add a little load, reset to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge }, plateConfig);
+    return plateAware({ load: nextLoad, reps: lo, reason: `Close to failure (RIR ~${rir}) — add a little load, reset to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge }, plateConfig, exerciseId);
   }
   const nextLoad = snapLoad(load > 0 ? load * (conservative ? (1 + incPct) : (1 + incPct*cfg.progression.nonConservativeMultiplier)) : 0, cfg);
-  return plateAware({ load: nextLoad || load, reps: lo, reason: `Hit top of ${lo}–${hi} — nudge load, back to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge }, plateConfig);
+  return plateAware({ load: nextLoad || load, reps: lo, reason: `Hit top of ${lo}–${hi} — nudge load, back to ${lo} reps.`, strategy: strat, personalised: prate, trainingAge }, plateConfig, exerciseId);
 }
 
 // Set progression: add a set only after 2 consecutive sessions at the top of the rep
@@ -456,6 +465,38 @@ function sessionSetSummaries(history, exerciseId){
   }
   return out;
 }
+function noisyFlagsForLastSession(history, exerciseId, config = null){
+  const cfg = resolveArisePriors(config).programming.noisySession;
+  const last = history && history.length ? history[history.length - 1] : null;
+  if(!last) return [];
+  const flags = [];
+  if(last.durationMinutes != null && Number(last.durationMinutes) < cfg.shortDurationMinutes) flags.push('shortSession');
+  if(last.painDiscomfort) flags.push('pain');
+  const skipped = Number(last.skippedSetsCount) || (last.blocks||[]).reduce((n,b)=> n + (b.sets||[]).filter(s=> s.skipped || s.failed).length, 0);
+  if(skipped >= cfg.missedSetsThreshold) flags.push('missedSets');
+  if(last.exerciseOrder && history.length >= 2){
+    const prev = history[history.length - 2];
+    const prevOrder = Array.isArray(prev.exerciseOrder) ? prev.exerciseOrder.join(',') : (prev.blocks||[]).map(b=> b.exerciseId).join(',');
+    const curOrder = Array.isArray(last.exerciseOrder) ? last.exerciseOrder.join(',') : (last.blocks||[]).map(b=> b.exerciseId).join(',');
+    if(prevOrder && curOrder && prevOrder !== curOrder) flags.push('changedOrder');
+  }
+  if(last.equipmentSnapshot && history.length >= 2){
+    const prevEquip = history[history.length - 2]?.equipmentSnapshot;
+    if(Array.isArray(prevEquip) && Array.isArray(last.equipmentSnapshot) && prevEquip.sort().join('|') !== [...last.equipmentSnapshot].sort().join('|')) flags.push('equipmentChange');
+  }
+  // unusual performance: compare last e1rm to prior best
+  if(exerciseId){
+    const logs = logsFor(history, exerciseId);
+    if(logs.length >= 3){
+      const lastLog = logs[logs.length - 1];
+      const priorBest = Math.max(...logs.slice(0,-1).map(l=> e1rm(l.weightKg||0,l.reps)||l.reps));
+      const lastE1 = e1rm(lastLog.weightKg||0,lastLog.reps)||lastLog.reps;
+      if(priorBest > 0 && (priorBest - lastE1)/priorBest >= cfg.unusualDropPct) flags.push('unusualPerformance');
+    }
+  }
+  return flags;
+}
+
 function parseLow(s, config = null){ const m=String(s).match(/\d+/); return m? Number(m[0]) : resolveArisePriors(config).progression.defaultLowReps; }
 function parseRange(s, config = null){ const nums = (String(s).match(/\d+/g)||[]).map(Number); if(nums.length>=2) return [nums[0], nums[1]]; if(nums.length===1) return [nums[0], nums[0]]; const defaults = (String(resolveArisePriors(config).progression.defaultTargetReps).match(/\d+/g)||[]).map(Number); return defaults.length>=2 ? [defaults[0], defaults[1]] : [8,12]; }
 function snapLoad(v, config = null){
@@ -464,16 +505,34 @@ function snapLoad(v, config = null){
   const step = v < 20 ? cfg.under20KgStep : v < 60 ? cfg.under60KgStep : cfg.defaultStep;
   return Math.round(v/step)*step;
 }
-function plateAware(result, plateConfig){
+function equipmentForExercise(exerciseId){
+  const ex = EXERCISE_BY_ID[exerciseId];
+  if(!ex) return 'barbell';
+  const eq = (ex.equipment || []).join(' ');
+  if(eq.includes('dumbbell') || eq.includes('dumbbells')) return 'dumbbell';
+  if(eq.includes('machine') || eq.includes('cable')) return 'machine';
+  if(eq.includes('barbell')) return 'barbell';
+  return ex.progression === 'load' ? 'barbell' : 'dumbbell';
+}
+
+function plateAware(result, plateConfig, exerciseId = null){
   if(!plateConfig || !(result?.load > 0)) return result;
-  const plateLoad = nearestLoadToPlates(result.load, plateConfig);
+  const equipment = exerciseId ? equipmentForExercise(exerciseId) : 'barbell';
+  // Legacy barbell-only path uses nearestLoadToPlates directly; newer equipment types use dispatcher.
+  const plateLoad = equipment === 'barbell'
+    ? nearestLoadToPlates(result.load, plateConfig)
+    : nearestAchievableLoad(result.load, { equipment, config: plateConfig });
   if(!plateLoad) return result;
-  if(plateLoad.exact) return { ...result, plateLoad };
+  if(plateLoad.exact) return { ...result, plateLoad, plateEquipment: equipment };
+  const suffix = equipment === 'barbell'
+    ? ` Plate setup rounds ${plateLoad.targetKg}kg to ${plateLoad.loadKg}kg (${plateLoad.direction}).`
+    : ` Available ${equipment} loads round ${plateLoad.targetKg}kg to ${plateLoad.loadKg}kg (${plateLoad.direction}).`;
   return {
     ...result,
     load: plateLoad.loadKg,
     plateLoad,
-    reason: `${result.reason} Plate setup rounds ${plateLoad.targetKg}kg to ${plateLoad.loadKg}kg (${plateLoad.direction}).`,
+    plateEquipment: equipment,
+    reason: `${result.reason}${suffix}`,
   };
 }
 function isBodyweight(id, config = null){

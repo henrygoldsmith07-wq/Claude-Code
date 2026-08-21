@@ -1,0 +1,355 @@
+{
+  "generatedAt": "2026-08-21T14:56:34.068Z",
+  "count": 49,
+  "files": [
+    {
+      "file": "vitest-fail.log",
+      "provenance": "synthetic",
+      "tool": "vitest",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.182Z"
+    },
+    {
+      "file": "vitest-pass.log",
+      "provenance": "synthetic",
+      "tool": "vitest",
+      "category": "successful",
+      "capturedAt": "2026-08-21T14:56:32.184Z"
+    },
+    {
+      "file": "tsc-fail.log",
+      "provenance": "synthetic",
+      "tool": "tsc",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.184Z"
+    },
+    {
+      "file": "tsc-pass.log",
+      "provenance": "synthetic",
+      "tool": "tsc",
+      "category": "successful",
+      "capturedAt": "2026-08-21T14:56:32.185Z"
+    },
+    {
+      "file": "next-fail.log",
+      "provenance": "synthetic",
+      "tool": "next",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.186Z"
+    },
+    {
+      "file": "next-pass.log",
+      "provenance": "synthetic",
+      "tool": "next",
+      "category": "successful",
+      "capturedAt": "2026-08-21T14:56:32.186Z"
+    },
+    {
+      "file": "gha-fail.log",
+      "provenance": "synthetic",
+      "tool": "gha",
+      "category": "github-actions",
+      "capturedAt": "2026-08-21T14:56:32.187Z"
+    },
+    {
+      "file": "diff-4files.log",
+      "provenance": "synthetic",
+      "tool": "git",
+      "category": "diff",
+      "capturedAt": "2026-08-21T14:56:32.189Z"
+    },
+    {
+      "file": "stack.log",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "stack-trace",
+      "capturedAt": "2026-08-21T14:56:32.189Z"
+    },
+    {
+      "file": "json-search.log",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "json",
+      "capturedAt": "2026-08-21T14:56:32.190Z"
+    },
+    {
+      "file": "ndjson.log",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "ndjson",
+      "capturedAt": "2026-08-21T14:56:32.191Z"
+    },
+    {
+      "file": "junit.xml",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "junit",
+      "capturedAt": "2026-08-21T14:56:32.192Z"
+    },
+    {
+      "file": "sarif.json",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "sarif",
+      "capturedAt": "2026-08-21T14:56:32.193Z"
+    },
+    {
+      "file": "ansi.log",
+      "provenance": "synthetic",
+      "tool": "vitest",
+      "category": "ansi",
+      "capturedAt": "2026-08-21T14:56:32.194Z"
+    },
+    {
+      "file": "unicode.log",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "unicode",
+      "capturedAt": "2026-08-21T14:56:32.194Z"
+    },
+    {
+      "file": "generic-fail.log",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.195Z"
+    },
+    {
+      "file": "npm-ci-fail.log",
+      "provenance": "synthetic",
+      "tool": "pm",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.196Z"
+    },
+    {
+      "file": "cargo-build-fail.log",
+      "provenance": "synthetic",
+      "tool": "cargo",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.196Z"
+    },
+    {
+      "file": "playwright-fail.log",
+      "provenance": "synthetic",
+      "tool": "generic",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.197Z"
+    },
+    {
+      "file": "eslint-scan.log",
+      "provenance": "synthetic",
+      "tool": "eslint",
+      "category": "warnings",
+      "capturedAt": "2026-08-21T14:56:32.197Z"
+    },
+    {
+      "file": "gha-real-fail.log",
+      "provenance": "synthetic",
+      "tool": "gha",
+      "category": "github-actions",
+      "capturedAt": "2026-08-21T14:56:32.198Z"
+    },
+    {
+      "file": "pytest-traceback.log",
+      "provenance": "synthetic",
+      "tool": "pytest",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.198Z"
+    },
+    {
+      "file": "maven-fail.log",
+      "provenance": "synthetic",
+      "tool": "maven",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.198Z"
+    },
+    {
+      "file": "gradle-fail.log",
+      "provenance": "synthetic",
+      "tool": "gradle",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.199Z"
+    },
+    {
+      "file": "docker-fail.log",
+      "provenance": "synthetic",
+      "tool": "docker",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.199Z"
+    },
+    {
+      "file": "k8s-crash.log",
+      "provenance": "synthetic",
+      "tool": "k8s",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.200Z"
+    },
+    {
+      "file": "terraform-fail.log",
+      "provenance": "synthetic",
+      "tool": "terraform",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.201Z"
+    },
+    {
+      "file": "go-fail.log",
+      "provenance": "synthetic",
+      "tool": "go",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.202Z"
+    },
+    {
+      "file": "git-conflict.log",
+      "provenance": "synthetic",
+      "tool": "git",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:32.202Z"
+    },
+    {
+      "file": "massive-stack.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "massive-stack",
+      "capturedAt": "2026-08-21T14:56:32.203Z"
+    },
+    {
+      "file": "nested-failure.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "nested-failure",
+      "capturedAt": "2026-08-21T14:56:32.204Z"
+    },
+    {
+      "file": "malformed-json.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "malformed",
+      "capturedAt": "2026-08-21T14:56:32.204Z"
+    },
+    {
+      "file": "malformed-output.log",
+      "provenance": "adversarial",
+      "tool": "vitest",
+      "category": "malformed",
+      "capturedAt": "2026-08-21T14:56:32.206Z"
+    },
+    {
+      "file": "duplicate-messages.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "duplicate",
+      "capturedAt": "2026-08-21T14:56:32.207Z"
+    },
+    {
+      "file": "interleaved-parallel.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "interleaved-parallel",
+      "capturedAt": "2026-08-21T14:56:32.208Z"
+    },
+    {
+      "file": "partial-truncated.log",
+      "provenance": "adversarial",
+      "tool": "vitest",
+      "category": "partial",
+      "capturedAt": "2026-08-21T14:56:32.209Z"
+    },
+    {
+      "file": "truncated-log.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "truncated",
+      "capturedAt": "2026-08-21T14:56:32.210Z"
+    },
+    {
+      "file": "ansi-heavy.log",
+      "provenance": "adversarial",
+      "tool": "vitest",
+      "category": "ansi",
+      "capturedAt": "2026-08-21T14:56:32.211Z"
+    },
+    {
+      "file": "windows-paths.log",
+      "provenance": "adversarial",
+      "tool": "tsc",
+      "category": "windows-paths",
+      "capturedAt": "2026-08-21T14:56:32.212Z"
+    },
+    {
+      "file": "unix-paths.log",
+      "provenance": "adversarial",
+      "tool": "tsc",
+      "category": "unix-paths",
+      "capturedAt": "2026-08-21T14:56:32.213Z"
+    },
+    {
+      "file": "invalid-utf8.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "invalid-utf8",
+      "capturedAt": "2026-08-21T14:56:32.214Z"
+    },
+    {
+      "file": "unusual-unicode.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "unicode",
+      "capturedAt": "2026-08-21T14:56:32.214Z"
+    },
+    {
+      "file": "huge-log.log",
+      "provenance": "adversarial",
+      "tool": "generic",
+      "category": "huge",
+      "capturedAt": "2026-08-21T14:56:32.215Z"
+    },
+    {
+      "file": "real-git-status.log",
+      "provenance": "captured",
+      "tool": "git",
+      "category": "successful",
+      "capturedAt": "2026-08-21T14:56:32.485Z",
+      "command": "git status"
+    },
+    {
+      "file": "real-git-log.log",
+      "provenance": "captured",
+      "tool": "git",
+      "category": "successful",
+      "capturedAt": "2026-08-21T14:56:32.580Z",
+      "command": "git log"
+    },
+    {
+      "file": "real-git-diff.log",
+      "provenance": "captured",
+      "tool": "git",
+      "category": "diff",
+      "capturedAt": "2026-08-21T14:56:32.767Z",
+      "command": "git diff"
+    },
+    {
+      "file": "real-tsc-fail.log",
+      "provenance": "captured",
+      "tool": "tsc",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:33.754Z",
+      "command": "tsc --noEmit"
+    },
+    {
+      "file": "real-npm-version.log",
+      "provenance": "captured",
+      "tool": "pm",
+      "category": "successful",
+      "capturedAt": "2026-08-21T14:56:33.958Z",
+      "command": "npm --version"
+    },
+    {
+      "file": "real-node-test-fail.log",
+      "provenance": "captured",
+      "tool": "generic",
+      "category": "simple-failure",
+      "capturedAt": "2026-08-21T14:56:34.066Z",
+      "command": "node --test"
+    }
+  ]
+}

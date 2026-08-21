@@ -354,6 +354,66 @@ export function completionByExercise(schedule, history){
 // Recommendation follow-through: when the user logs at least what recommendNext advised,
 // did their e1RM gain on that exercise beat sessions where they under-delivered?
 // Measures both acceptance and whether recommendations improve future performance.
+export function longitudinalOutcomes(history, schedule = null, { weeks = 4 } = {}){
+  const sessions = (history||[]).slice().sort((a,b)=> String(a.dateISO).localeCompare(b.dateISO));
+  if(!sessions.length) return { note: 'No history yet — log sessions to measure longitudinal outcomes.', n: 0 };
+  // strength progression: slope of e1rm over time per exercise, aggregated
+  const byEx = new Map();
+  for(const h of sessions) for(const b of h.blocks||[]) for(const s of b.sets||[]){
+    const w=Number(s.weightKg)||0, r=Number(String(s.reps).match(/\d+/)?.[0]||s.reps)||0;
+    if(!(w>0 && r>0)) continue;
+    const e1=w*(1+r/30);
+    if(!byEx.has(b.exerciseId)) byEx.set(b.exerciseId, []);
+    byEx.get(b.exerciseId).push({ dateISO: h.dateISO, e1 });
+  }
+  const strengthProgression = [...byEx.entries()].map(([exerciseId, pts])=> {
+    const ys = pts.map(p=> p.e1);
+    const xs = ys.map((_,i)=> i);
+    const n = ys.length;
+    if(n < 2) return { exerciseId, n, slope: 0, changePct: null };
+    const mx = xs.reduce((a,b)=> a+b,0)/n, my = ys.reduce((a,b)=> a+b,0)/n;
+    let num=0, den=0; for(let i=0;i<n;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
+    const slope = den ? num/den : 0;
+    const changePct = ys[0] ? Math.round((ys[ys.length-1]/ys[0]-1)*1000)/10 : null;
+    return { exerciseId, n, slope: Math.round(slope*100)/100, changePct };
+  });
+  // workout completion & adherence
+  const adherence = schedule ? (()=> {
+    const total = schedule.sessions?.length || 0;
+    const done = new Set(sessions.map(h=> h.id));
+    const completed = (schedule.sessions||[]).filter(s=> done.has(s.id)).length;
+    return { total, completed, adherencePct: total ? Math.round(completed/total*1000)/10 : null };
+  })() : { total: null, completed: sessions.length, adherencePct: null, note: 'Provide a schedule to measure planned vs completed adherence.' };
+  // volume progression
+  const wv = weeklyVolume(history);
+  const volumeProgression = wv.length >= 2 ? { weeks: wv, first: wv[0]?.vol || 0, last: wv[wv.length-1]?.vol || 0, changePct: wv[0]?.vol ? Math.round((wv[wv.length-1].vol / wv[0].vol - 1)*1000)/10 : null } : { weeks: wv, changePct: null, note: 'Need 2+ weeks to judge volume trend.' };
+  // exercise retention: how many exercises introduced still appear in last 2 weeks
+  const allExercises = new Set(sessions.flatMap(h=> (h.blocks||[]).map(b=> b.exerciseId)));
+  const recent = new Set(sessions.slice(-6).flatMap(h=> (h.blocks||[]).map(b=> b.exerciseId)));
+  const retention = allExercises.size ? { introduced: allExercises.size, retained: recent.size, retentionPct: Math.round(recent.size / allExercises.size * 1000)/10 } : { introduced: 0, retained: 0, retentionPct: null };
+  // progression failures: hold decisions that preceded regression?
+  const progressionFailures = (()=> {
+    let failures = 0, total = 0;
+    for(const [exerciseId, pts] of byEx.entries()){
+      if(pts.length < 3) continue;
+      for(let i=1;i<pts.length;i++){
+        total++;
+        if(pts[i].e1 < pts[i-1].e1 * 0.95) failures++;
+      }
+    }
+    return { n: total, failures, failureRate: total ? Math.round(failures/total*1000)/10 : null };
+  })();
+  return {
+    coverage: { sessions: sessions.length, weeks: wv.length, exercises: allExercises.size },
+    strengthProgression,
+    workoutCompletion: { completed: sessions.length, adherence },
+    volumeProgression,
+    exerciseRetention: retention,
+    progressionFailures,
+    note: 'Descriptive trends only; do not claim superior hypertrophy or strength without controlled real evidence. Use these series as longitudinal inputs to future validation.',
+  };
+}
+
 export function recommendationFollowThrough(history){
   const byEx = new Map();
   for(const h of history||[]) for(const b of h.blocks||[]) {

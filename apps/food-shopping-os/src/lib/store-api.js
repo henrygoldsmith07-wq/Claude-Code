@@ -220,6 +220,8 @@ export function useStoreApi({
             emoji: emojiFor(item.name),
             low: false,
             addedAt: s.day,
+            lifecycleState: item.lifecycleState || 'purchased',
+            openedDate: item.openedDate || null,
             ...item,
             name: String(item.name || '').trim(),
             // The day it went into the cupboard is the purchase day when no
@@ -532,31 +534,136 @@ export function useStoreApi({
         set((s) => ({
           coupons: (s.coupons || []).map((c) => c.id === id ? { ...c, used: !c.used, usedAt: !c.used ? s.day : null } : c),
         })),
-      binPantryItem: (id) =>
+      binPantryItem: (id, { qty, value, reason } = {}) =>
         set((s) => {
           const item = householdPermission(s, 'pantry') ? s.pantry.find((p) => p.id === id) : null;
           if (!item) return {};
+          const wasteValue = value != null ? Number(value) : Number(item.cost) || 0;
+          const lifecycleEvent = {
+            id: uid('pe'),
+            type: 'pantry_lifecycle',
+            itemId: item.id,
+            name: item.name,
+            from: item.lifecycleState || 'purchased',
+            to: 'discarded',
+            qty: qty || item.qty || '',
+            value: Math.round(wasteValue * 100) / 100,
+            cat: item.cat || 'Other',
+            reason: reason || 'discarded',
+            date: s.day,
+            at: Date.now(),
+          };
+          return {
+            pantry: s.pantry
+              .map((p) => (p.id === id ? { ...p, lifecycleState: 'discarded', discardedAt: s.day } : p))
+              .filter((p) => p.id !== id),
+            waste: [...s.waste, {
+              name: item.name,
+              cost: Math.round(wasteValue * 100) / 100,
+              qty: qty || item.qty || '',
+              cat: item.cat || 'Other',
+              reason: reason || 'discarded',
+              lifecycleState: 'discarded',
+              date: s.day,
+            }],
+            pantryEvents: [...(s.pantryEvents || []), lifecycleEvent].slice(-100),
+            lastPantryEvent: lifecycleEvent,
+          };
+        }),
+      consumePantryItem: (id, { qty } = {}) =>
+        set((s) => {
+          const item = householdPermission(s, 'pantry') ? s.pantry.find((p) => p.id === id) : null;
+          if (!item) return {};
+          const event = {
+            id: uid('pe'),
+            type: 'pantry_lifecycle',
+            itemId: item.id,
+            name: item.name,
+            from: item.lifecycleState || 'purchased',
+            to: 'consumed',
+            qty: qty || item.qty || '',
+            value: Number(item.cost) || 0,
+            cat: item.cat || 'Other',
+            reason: 'consumed',
+            date: s.day,
+            at: Date.now(),
+          };
           return {
             pantry: s.pantry.filter((p) => p.id !== id),
-            waste: [...s.waste, { name: item.name, cost: Number(item.cost) || 0, date: s.day }],
+            pantryEvents: [...(s.pantryEvents || []), event].slice(-100),
+            lastPantryEvent: event,
+          };
+        }),
+      updatePantryLifecycle: (id, toState, { qty, value, note } = {}) =>
+        set((s) => {
+          const item = s.pantry.find((p) => p.id === id);
+          if (!item || !['opened', 'partially_consumed', 'leftover', 'expired', 'consumed', 'discarded'].includes(toState)) return {};
+          const event = {
+            id: uid('pe'),
+            type: 'pantry_lifecycle',
+            itemId: item.id,
+            name: item.name,
+            from: item.lifecycleState || 'purchased',
+            to: toState,
+            qty: qty || item.qty || '',
+            value: value != null ? Number(value) : Number(item.cost) || 0,
+            note: note || '',
+            date: s.day,
+            at: Date.now(),
+          };
+          const patch = { lifecycleState: toState };
+          if (toState === 'opened') patch.openedDate = s.day;
+          if (toState === 'expired') patch.expiredAt = s.day;
+          if (toState === 'consumed' || toState === 'discarded') return {
+            pantry: s.pantry.filter((p) => p.id !== id),
+            waste: toState === 'discarded' ? [...s.waste, { name: item.name, cost: event.value, qty: event.qty, cat: item.cat || 'Other', reason: note || 'discarded', lifecycleState: toState, date: s.day }] : s.waste,
+            pantryEvents: [...(s.pantryEvents || []), event].slice(-100),
+            lastPantryEvent: event,
+          };
+          return {
+            pantry: s.pantry.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+            pantryEvents: [...(s.pantryEvents || []), event].slice(-100),
+            lastPantryEvent: event,
           };
         }),
       markMealPlanOutcome: ({ date, slot, status = 'skipped', reason = null, actualRecipeId = null } = {}) =>
         set((s) => {
           const plannedRecipeId = s.plan?.[date]?.[slot];
-          if (!date || !slot || !plannedRecipeId || !['cooked', 'skipped', 'substituted'].includes(status)) return {};
+          const allowed = ['cooked', 'skipped', 'substituted', 'unplanned', 'takeaway'];
+          if (!date || !slot || !plannedRecipeId || !allowed.includes(status)) return {};
+          // Validate reason against full list — including new leftovers-available, plan-too-complex, takeaway
+          const validReasons = ['no-time', 'missing-ingredients', 'ingredients-missing', 'changed-preference', 'leftovers-available', 'plan-too-complex', 'not-in-the-mood', 'plans-changed', 'ate-something-else', 'takeaway', 'cooked-a-different-meal', 'other'];
+          const cleanReason = validReasons.includes(reason) ? reason : (status === 'skipped' ? 'other' : null);
           const event = {
             id: uid('mpe'),
             date,
             slot,
             plannedRecipeId,
-            actualRecipeId: actualRecipeId || (status === 'cooked' ? plannedRecipeId : null),
-            status,
-            reason: status === 'skipped' ? (reason || 'other') : null,
+            actualRecipeId: actualRecipeId || (status === 'cooked' ? plannedRecipeId : status === 'substituted' ? actualRecipeId : null),
+            status: status === 'takeaway' ? 'skipped' : status,
+            reason: status === 'skipped' || status === 'takeaway' ? (cleanReason === 'takeaway' ? 'takeaway' : cleanReason) : (cleanReason === 'cooked-a-different-meal' ? 'cooked-a-different-meal' : null),
+            isTakeaway: status === 'takeaway',
+            leftoverUsed: reason === 'leftovers-available',
             at: Date.now(),
           };
           const existing = (s.mealPlanEvents || []).filter((item) => !(item.date === date && item.slot === slot));
           return { mealPlanEvents: [...existing, event].slice(-500) };
+        }),
+      recordTakeaway: ({ date = null, reason = 'takeaway', note = '' } = {}) =>
+        set((s) => {
+          const d = date || s.day;
+          const event = {
+            id: uid('mpe'),
+            date: d,
+            slot: 'unplanned',
+            plannedRecipeId: null,
+            actualRecipeId: null,
+            status: 'unplanned',
+            reason: reason || 'takeaway',
+            note: String(note || '').slice(0, 120),
+            at: Date.now(),
+          };
+          return { mealPlanEvents: [...(s.mealPlanEvents || []), event].slice(-500) };
         }),
       setPlanSlot: (date, slot, recipeId) =>
         set((s) => {

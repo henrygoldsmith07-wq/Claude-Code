@@ -3,7 +3,7 @@ const name = 'ruff';
 const MAX_LINES = 60;
 const rules = [
   { re: /\b[A-Z]\d{3}\b|error|warning/i, keep: true, reason: 'ruff: rule code' },
-  { re: /.*:\d+:\d+.*\b[A-Z]\d{3}\b/i, keep: true, reason: 'ruff: file:line code' },
+  { re: /:\d+:\d+.*\b[A-Z]\d{3}\b/i, keep: true, reason: 'ruff: file:line code' },
   { re: /Found \d+ error/i, keep: true, reason: 'ruff: summary' },
 ];
 function filter(output, exitCode, opts={}) {

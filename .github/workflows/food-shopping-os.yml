@@ -28,8 +28,19 @@ jobs:
           cache: npm
           cache-dependency-path: apps/food-shopping-os/package-lock.json
       - run: npm ci
-      - name: Security audit (advisory, does not block tests)
-        run: npm audit --audit-level=high
+      - name: Security audit (high-severity production deps block CI)
+        run: |
+          echo "Running production audit — high or critical vulnerabilities will block CI."
+          if npm audit --omit=dev --audit-level=high; then
+            echo "No high/critical production vulnerabilities."
+          else
+            code=$?
+            echo "::error::High-severity production vulnerability found (exit $code). Fix before merging."
+            echo "Tip: dev-only advisories do not block — production audit is scoped with --omit=dev."
+            exit $code
+          fi
+      - name: Advisory dev audit (informational)
+        run: npm audit --audit-level=moderate || true
         continue-on-error: true
       - run: npm test
       - run: npm run build

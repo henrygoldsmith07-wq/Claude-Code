@@ -16,13 +16,22 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: apps/rtk
     strategy:
+      fail-fast: false
       matrix:
-        node: [18, 20, 22]
+        # Cross-platform quality: every OS runs the full suite; the Node
+        # version matrix runs on Linux to keep the matrix bounded.
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20]
+        include:
+          - os: ubuntu-latest
+            node: 18
+          - os: ubuntu-latest
+            node: 22
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +44,9 @@ jobs:
       - run: node benchmark/families.js
       - run: node benchmark/detection.js
       - run: node benchmark/retention.js
+      - run: node benchmark/retention-fields.js
+      - run: node benchmark/paired.js --count=250
+      - run: node benchmark/levels.js --count=250
       - run: node benchmark/agent-solve.js
       - run: node benchmark/agent-live.js
       - run: node benchmark/perf.js
