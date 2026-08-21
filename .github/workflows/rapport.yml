@@ -38,7 +38,7 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm run test:e2e -- --reporter=github,html
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: rapport-playwright-report
