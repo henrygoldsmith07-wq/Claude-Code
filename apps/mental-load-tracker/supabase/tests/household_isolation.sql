@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(23);
+select plan(33);
 
 select set_config('test.user_a', gen_random_uuid()::text, false);
 select set_config('test.user_b', gen_random_uuid()::text, false);
@@ -39,6 +39,7 @@ begin
   values (v_household_b, 'B item', 'User B', current_setting('test.user_b')::uuid)
   returning id into v_item_b;
 
+  -- Expired invitation with a known token (all ones).
   insert into public.household_invitations (
     household_id, invited_by, token_hash, expires_at
   ) values (
@@ -46,6 +47,16 @@ begin
     current_setting('test.user_a')::uuid,
     digest(repeat('1', 64), 'sha256'),
     now() - interval '1 hour'
+  );
+
+  -- Valid invitation with a known token (all twos) for the double-acceptance test.
+  insert into public.household_invitations (
+    household_id, invited_by, token_hash, expires_at
+  ) values (
+    v_household_a,
+    current_setting('test.user_a')::uuid,
+    digest(repeat('2', 64), 'sha256'),
+    now() + interval '7 days'
   );
 
   perform set_config('test.household_a', v_household_a::text, false);
@@ -112,6 +123,62 @@ select is(
   'guessing an item UUID does not grant access'
 );
 
+select is(
+  (select count(*) from public.households where id = '00000000-0000-0000-0000-000000000002'::uuid),
+  0::bigint,
+  'guessing a household UUID does not grant access'
+);
+
+select is(
+  (
+    select count(*)
+    from public.household_memberships
+    where household_id = current_setting('test.household_b')::uuid
+  ),
+  0::bigint,
+  'user A cannot enumerate household B members'
+);
+
+select throws_ok(
+  format(
+    'update public.household_memberships set role = ''owner'' where household_id = %L',
+    current_setting('test.household_b')
+  ),
+  '42501',
+  null,
+  'user A cannot alter household B memberships'
+);
+
+select throws_ok(
+  format(
+    'insert into public.household_memberships (household_id, user_id, role, display_name, color) values (%L, %L, ''member'', ''Intruder'', ''#6366f1'')',
+    current_setting('test.household_b'), current_setting('test.user_a')
+  ),
+  '42501',
+  null,
+  'user A cannot insert itself into household B'
+);
+
+select throws_ok(
+  format(
+    'select * from public.create_household_invitation(%L)',
+    current_setting('test.household_b')
+  ),
+  '42501',
+  null,
+  'a non-owner cannot create invitations for household B'
+);
+
+select throws_ok(
+  format(
+    'select public.remove_household_member(%L, %L)',
+    current_setting('test.household_b'), current_setting('test.user_b')
+  ),
+  '42501',
+  null,
+  'user A cannot remove members from household B'
+);
+
 select throws_ok(
   format(
     'update public.items set household_id = %L where id = %L',
@@ -141,12 +208,31 @@ select set_config('request.jwt.claim.sub', current_setting('test.user_a'), true)
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.user_a'), 'role', 'authenticated')::text, true);
 
 select set_config(
-  'test.invitation_id',
-  (select invitation_id::text from public.create_household_invitation(current_setting('test.household_a')::uuid)),
+  'test.invite_first',
+  (
+    select invitation_id::text || '|' || token
+    from public.create_household_invitation(current_setting('test.household_a')::uuid)
+  ),
   false
 );
+
+do $$
+begin
+  perform set_config(
+    'test.invitation_id',
+    split_part(current_setting('test.invite_first'), '|', 1),
+    false
+  );
+  perform set_config(
+    'test.revoked_token',
+    split_part(current_setting('test.invite_first'), '|', 2),
+    false
+  );
+end
+$$;
+
 select is(
-  length((select token from public.create_household_invitation(current_setting('test.household_a')::uuid))),
+  length(current_setting('test.revoked_token')),
   64,
   'owner invitations return a high-entropy token'
 );
@@ -185,6 +271,32 @@ select throws_ok(
   null,
   null,
   'expired invitations cannot be accepted'
+);
+
+select throws_ok(
+  format(
+    'select * from public.accept_household_invitation(%L, ''User B'', ''#ec4899'')',
+    current_setting('test.revoked_token')
+  ),
+  null,
+  null,
+  'revoked invitations cannot be accepted'
+);
+
+select is(
+  (
+    select household_id
+    from public.accept_household_invitation(repeat('2', 64), 'User B', '#ec4899')
+  ),
+  current_setting('test.household_a')::uuid,
+  'a valid invitation is accepted exactly once'
+);
+
+select throws_ok(
+  'select * from public.accept_household_invitation(repeat(''2'', 64), ''User B'', ''#ec4899'')',
+  null,
+  null,
+  'double acceptance is refused'
 );
 
 select set_config('request.jwt.claim.sub', current_setting('test.user_a'), true);
@@ -250,6 +362,13 @@ select throws_ok(
   '42501',
   null,
   'anonymous users cannot create households'
+);
+
+select throws_ok(
+  'select * from public.accept_household_invitation(repeat(''3'', 64), ''Anon'', ''#6366f1'')',
+  '42501',
+  null,
+  'anonymous visitors cannot accept invitations'
 );
 
 reset role;

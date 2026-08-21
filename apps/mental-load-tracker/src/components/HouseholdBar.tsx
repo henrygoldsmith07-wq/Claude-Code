@@ -14,6 +14,7 @@ export default function HouseholdBar({ membership, onSignOut }: Props) {
         <span
           className="h-6 w-6 shrink-0 rounded-full"
           style={{ backgroundColor: membership.color }}
+          aria-hidden="true"
         />
         <div>
           <p className="text-sm font-medium">{membership.display_name}</p>
@@ -23,8 +24,9 @@ export default function HouseholdBar({ membership, onSignOut }: Props) {
         </div>
       </div>
       <button
+        type="button"
         onClick={onSignOut}
-        className="text-sm text-zinc-400 underline-offset-2 hover:underline dark:text-zinc-500"
+        className="min-h-11 px-1 text-sm text-zinc-600 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:text-zinc-300 dark:focus-visible:outline-zinc-100"
       >
         Sign out
       </button>
