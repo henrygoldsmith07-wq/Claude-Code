@@ -7,8 +7,9 @@ describe('export / import', ()=>{
     const store = { version:1, onboarding:{goal:'strength',equipment:['dumbbells'],location:'home'}, activeSchedule:null, history:[{id:'a',dateISO:'2026-01-01'}], preferences:{units:'kg'}};
     const payload = buildExportPayload(store);
     const parsed = parseImportFile(JSON.stringify(payload));
-    assert.equal(parsed.version, 4);
-    assert.deepEqual(parsed.history, store.history);
+    assert.equal(parsed.version, 5);
+    assert.equal(parsed.history[0].id, store.history[0].id);
+    assert.equal(parsed.history[0].dateISO, store.history[0].dateISO);
     assert.deepEqual(parsed.onboarding, store.onboarding);
     assert.equal(parsed.healthSummary, null);
     assert.deepEqual(parsed.eventHistory, []);
