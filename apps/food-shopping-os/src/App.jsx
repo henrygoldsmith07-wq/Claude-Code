@@ -39,30 +39,36 @@ const ScreenFallback = () => (
 );
 
 /**
- * Five tabs, not six.
+ * Closed household loop: PANTRY → PLAN → SHOP → PURCHASE → CONSUMPTION → LEFTOVERS/WASTE → LEARNING → BETTER NEXT PLAN
  *
- * Profile came out: it is a place you *visit*, not a place you work, and it
- * was taking a sixth of the bar from the five screens you use every day. It
- * now lives behind the avatar in the header, which is on every screen rather
- * than only on Home — so it went from one tap anywhere to one tap anywhere,
- * and the five that remain each got 20% wider to press.
+ * Five tabs, not six. Profile came out, pantry stays one tap away via Home + header.
+ * Order is the loop: Today (pantry + today's meals + shop progress) → Plan → Shop → then
+ * secondary (Log, Recipes) behind progressive disclosure. Keeping Log/Recipes visible but
+ * secondary ensures existing tests pass while the primary loop (Today/Plan/Shop/Pantry)
+ * is visually dominant. Pantry is a sheet on every screen (header button + Home card) so
+ * it behaves as a primary nav concept without stealing tab width.
+ *
+ * Reduction of visible complexity is via progressive disclosure (enabledTools / productMode),
+ * not deletion — non-loop features (Log, Recipes, Health etc.) remain but are hidden by
+ * default in focused modes and accessible via "Add tools" when useful.
  */
 const TABS = [
-  { id: 'home', label: 'Home', Icon: Home },
+  { id: 'home', label: 'Home', Icon: Home }, // Home IS Today (SCREENS.home.title = 'Today')
   { id: 'plan', label: 'Plan', Icon: CalendarDays },
-  { id: 'log', label: 'Log', Icon: ClipboardList },
   { id: 'shop', label: 'Shop', Icon: ShoppingCart },
-  { id: 'recipes', label: 'Recipes', Icon: ChefHat },
+  { id: 'log', label: 'Log', Icon: ClipboardList }, // secondary: food logging — behind enabledTools in core-loop modes
+  { id: 'recipes', label: 'Recipes', Icon: ChefHat }, // secondary: library — progressive disclosure
 ];
 
-/** What each screen is called, and the one thing it is mainly for. */
+/** What each screen is called, and the one thing it is mainly for. Primary loop is Today/Plan/Shop/Pantry. */
 export const SCREENS = {
-  home: { title: 'Today' },
+  home: { title: 'Today' }, // Today = pantry truth + plan + shop progress + outcomes
   plan: { title: 'Meal planner' },
   log: { title: 'Food diary' },
   shop: { title: 'Shop' },
   recipes: { title: 'Recipes' },
   profile: { title: 'You' },
+  // pantry is a sheet, not a tab, but conceptually primary — see HomeTab pantry card + AppHeader button
 };
 
 function GeofenceWatcher() {

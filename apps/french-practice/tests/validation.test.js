@@ -1,11 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { makePlacementValidationEntry, placementValidationMetrics } from '../src/lib/placementValidation.js';
-import { makeProgressionEntry, progressionValidationMetrics } from '../src/lib/progressionValidation.js';
+import { makeProgressionEntry, progressionValidationMetrics, buildTransferCheck } from '../src/lib/progressionValidation.js';
 import { makeCorpusEntry, corpusMetrics } from '../src/lib/writingSpeakingCorpus.js';
 import { assistanceMetrics, makeAssistanceEvent } from '../src/lib/assistanceValidation.js';
 import { auditContentItem, auditLibrary } from '../src/lib/contentCalibration.js';
-import { validateTurnEvaluation, validateWritingFeedback, validateRelayChatResponse } from '../src/lib/schemas.ts';
+import {
+  validateTurnEvaluation, validateWritingFeedback, normalizeCorrectionsDetailed,
+} from '../src/lib/aiValidate.js';
 
 describe('placement validation infrastructure', () => {
   it('stores known level + placement result + ability + interval + items', () => {
@@ -146,20 +148,99 @@ describe('content calibration', () => {
 });
 
 describe('type-safe schemas for AI structured outputs', () => {
-  it('validates turn evaluation shape', () => {
-    const ok = validateTurnEvaluation({ reply: 'Salut !', corrections: 'ok', scores: { grammar: 80, naturalness: 80, relevance: 80, fluency: 80, overall: 80 } });
-    assert.equal(ok.ok, true);
-    const bad = validateTurnEvaluation({ reply: '', corrections: '', scores: { grammar: 999, naturalness: 80, relevance: 80, fluency: 80, overall: 80 } });
+  const good = { reply: 'Salut !', corrections: 'ok', scores: { grammar: 80, naturalness: 80, relevance: 80, fluency: 80, overall: 80 } };
+
+  it('accepts a well-formed turn evaluation', () => {
+    const r = validateTurnEvaluation(good);
+    assert.equal(r.ok, true);
+    assert.equal(r.scores.overall, 80);
+  });
+
+  it('rejects an empty reply instead of rendering a blank turn', () => {
+    const r = validateTurnEvaluation({ ...good, reply: '  ' });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /reply/);
+  });
+
+  it('rejects a missing overall score', () => {
+    const r = validateTurnEvaluation({ reply: 'x', corrections: '', scores: {} });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /overall/);
+  });
+
+  it('falls back missing sub-scores to overall rather than zero', () => {
+    const r = validateTurnEvaluation({ reply: 'x', corrections: '', scores: { overall: 66 } });
+    assert.equal(r.ok, true);
+    assert.equal(r.scores.grammar, 66);
+    assert.equal(r.scores.fluency, 66);
+  });
+
+  it('rejects out-of-range scores', () => {
+    assert.equal(validateTurnEvaluation({ ...good, scores: { ...good.scores, overall: 999 } }).ok, false);
+  });
+
+  it('validates writing feedback shape and coerces scores', () => {
+    assert.equal(validateWritingFeedback({ corrections: 'a', strengths: [], suggestions: [], scores: { grammar: 70, overall: 75 } }).ok, true);
+    const bad = validateWritingFeedback({ corrections: 'a', strengths: 'nope', suggestions: [], scores: { overall: 50 } });
     assert.equal(bad.ok, false);
+    const noScores = validateWritingFeedback({ corrections: 'a', strengths: [], suggestions: [], scores: {} });
+    assert.equal(noScores.ok, false);
   });
 
-  it('validates relay chat response', () => {
-    assert.equal(validateRelayChatResponse({ choices: [{ message: { content: 'hi' } }] }), true);
-    assert.equal(validateRelayChatResponse({ choices: [] }), false);
+  it('normalises corrections_detailed and maps bad levels to uncertain', () => {
+    const out = normalizeCorrectionsDetailed([
+      { original: 'je suis 20 ans', correction: "j'ai 20 ans", level: 'definite_error', note: 'avoir for age' },
+      { original: 'x', correction: 'y', level: 'bogus' },
+      { original: '', correction: 'dropped' },
+      'not an object',
+    ]);
+    assert.equal(out.length, 2);
+    assert.equal(out[0].level, 'definite_error');
+    assert.equal(out[1].level, 'uncertain');
+  });
+});
+
+describe('transfer-check builder (post-promotion unseen tasks)', () => {
+  const banks = {
+    reading: [
+      { id: 'r-a2-1', cefr: 'A2' }, { id: 'r-b1-1', cefr: 'B1' }, { id: 'r-seen', cefr: 'B1' },
+    ],
+    listening: [{ id: 'l-b1-1', cefr: 'B1' }],
+    grammar: [{ id: 'g-b1-1', cefr: 'B1' }, { id: 'g-c1-skip', cefr: 'C1' }],
+  };
+
+  it('picks unseen items at or below the new level, one per skill', () => {
+    const t = buildTransferCheck({ level: 'B1', banks, excludeIds: ['r-seen'] });
+    assert.equal(t.level, 'B1');
+    // Default perSkill=1; the closest item under the cap wins deterministically
+    assert.deepEqual(t.tasks.reading.map((i) => i.id), ['r-b1-1']);
+    assert.deepEqual(t.tasks.listening.map((i) => i.id), ['l-b1-1']);
+    // C1 item is above the new level — never used to validate a B1 promotion
+    assert.deepEqual(t.tasks.grammar.map((i) => i.id), ['g-b1-1']);
+    assert.ok(!t.missing.includes('reading'));
   });
 
-  it('validates writing feedback', () => {
-    const ok = validateWritingFeedback({ corrections: 'a', strengths: [], suggestions: [] });
-    assert.equal(ok.ok, true);
+  it('reports skills with no unseen material as missing', () => {
+    const t = buildTransferCheck({ level: 'A2', banks: { reading: [{ id: 'r-b2', cefr: 'B2' }] } });
+    assert.equal(t.total, 0);
+    assert.ok(t.missing.includes('reading'));
+    assert.ok(t.missing.includes('speaking'));
+  });
+
+  it('honours the exclusion list and perSkill count', () => {
+    const t = buildTransferCheck({
+      level: 'B1',
+      banks: { vocabulary: [{ id: 'v1', cefr: 'A2' }, { id: 'v2', cefr: 'B1' }, { id: 'v3', cefr: 'B1' }] },
+      excludeIds: ['v1'],
+      perSkill: 2,
+    });
+    assert.equal(t.tasks.vocabulary.length, 2);
+    assert.ok(!t.tasks.vocabulary.some((i) => i.id === 'v1'));
+  });
+
+  it('rejects an invalid level', () => {
+    const t = buildTransferCheck({ level: 'Z9', banks });
+    assert.equal(t.total, 0);
+    assert.equal(t.error, 'invalid level');
   });
 });

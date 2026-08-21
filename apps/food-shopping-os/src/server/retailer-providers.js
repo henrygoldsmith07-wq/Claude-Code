@@ -56,24 +56,78 @@ export const openDataStatus = () => {
   return { openFoodFacts, openPrices };
 };
 
-const getJson = async (endpoint, options = {}, failureMessage = 'Provider data is temporarily unavailable.', { allowNotFound = false } = {}) => {
+const RETAILER_TIMEOUTS = { openFoodFacts: 6000, openPrices: 5000, fallback: 8000 };
+const STALE_DAYS = 30;
+
+export const priceFreshness = (observedAt) => {
+  if (!observedAt) return { level: 'unknown', label: 'date unknown', stale: true };
+  const d = new Date(observedAt);
+  if (Number.isNaN(d.getTime())) return { level: 'unknown', label: 'invalid date', stale: true };
+  const age = (Date.now() - d.getTime()) / 86400000;
+  if (age < 0) return { level: 'future', label: 'future date', stale: true };
+  if (age <= 2) return { level: 'fresh', label: 'observed today', stale: false };
+  if (age <= 7) return { level: 'fresh', label: `observed ${Math.round(age)}d ago`, stale: false };
+  if (age <= STALE_DAYS) return { level: 'ageing', label: `observed ${Math.round(age)}d ago`, stale: false };
+  return { level: 'stale', label: `observed ${Math.round(age)}d ago · stale`, stale: true };
+};
+
+export const dedupeProducts = (rows = []) => {
+  const byBarcode = new Map();
+  for (const row of rows) {
+    const key = row.barcode || row.id || row.name?.toLowerCase();
+    if (!key) continue;
+    const existing = byBarcode.get(key);
+    if (!existing) byBarcode.set(key, row);
+    else {
+      // keep fresher price, or cheaper if same date
+      const aFresh = priceFreshness(existing.observedAt || existing.checkedAt);
+      const bFresh = priceFreshness(row.observedAt || row.checkedAt);
+      if (bFresh.level === 'fresh' && aFresh.level !== 'fresh') byBarcode.set(key, row);
+      else if (existing.price != null && row.price != null && row.price < existing.price && aFresh.level === bFresh.level) byBarcode.set(key, row);
+    }
+  }
+  return [...byBarcode.values()];
+};
+
+export const detectPackageMismatch = (listedQty, observedQty) => {
+  if (!listedQty || !observedQty) return { mismatch: false, reason: 'no package data' };
+  const a = String(listedQty).replace(/\s+/g, '').toLowerCase();
+  const b = String(observedQty).replace(/\s+/g, '').toLowerCase();
+  if (a === b) return { mismatch: false };
+  // heuristic: numbers differ -> possible mismatch
+  const num = (s) => Number(s.replace(/[^0-9.]/g, ''));
+  const na = num(a), nb = num(b);
+  if (Number.isFinite(na) && Number.isFinite(nb) && Math.abs(na - nb) / Math.max(na, nb) > 0.25) {
+    return { mismatch: true, reason: `Package sizes differ (${listedQty} vs ${observedQty}) — compare per 100g.` };
+  }
+  return { mismatch: false };
+};
+
+const getJson = async (endpoint, options = {}, failureMessage = 'Provider data is temporarily unavailable.', { allowNotFound = false, timeoutMs = REQUEST_TIMEOUT_MS } = {}) => {
   let response;
+  const signal = options.signal || AbortSignal.timeout(timeoutMs);
   try {
     response = await fetch(endpoint, {
       ...options,
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal,
     });
-  } catch {
+  } catch (error) {
+    const isTimeout = error?.name === 'TimeoutError' || String(error).includes('Timeout') || String(error).includes('abort');
+    if (isTimeout) throw new ApiError(504, `${failureMessage} (timeout after ${timeoutMs}ms)`);
     throw new ApiError(502, failureMessage);
   }
   if (response.status === 404 && allowNotFound) return null;
+  if (response.status === 429) throw new ApiError(429, 'Provider rate limit reached — try again shortly.');
+  if (response.status >= 500) throw new ApiError(502, `${failureMessage} (provider ${response.status})`);
   if (!response.ok) throw new ApiError(502, failureMessage);
+  const textBody = await response.text().catch(() => '');
+  if (!textBody) throw new ApiError(502, `${failureMessage} (empty response)`);
   try {
-    return await response.json();
+    return JSON.parse(textBody);
   } catch {
-    throw new ApiError(502, failureMessage);
+    throw new ApiError(502, `${failureMessage} (malformed payload — not JSON)`);
   }
 };
 
@@ -107,7 +161,7 @@ const openDataHeaders = () => ({
   'user-agent': process.env.OPEN_FOOD_FACTS_USER_AGENT || DEFAULT_USER_AGENT,
 });
 
-export const lookupOpenFoodFactsProduct = async (value) => {
+export const lookupOpenFoodFactsProduct = async (value, { signal } = {}) => {
   const code = barcode(value);
   if (!code || process.env.OPEN_FOOD_FACTS_ENABLED === 'false') return null;
   const base = openFoodFactsBase();
@@ -121,7 +175,7 @@ export const lookupOpenFoodFactsProduct = async (value) => {
     'product_quantity_unit', 'image_front_url', 'image_front_small_url', 'ingredients_text',
     'allergens', 'labels', 'nutriscore_grade', 'ecoscore_grade', 'nutriments',
   ].join(','));
-  const payload = await getJson(endpoint, { headers: openDataHeaders() }, 'Open Food Facts is temporarily unavailable.', { allowNotFound: true });
+  const payload = await getJson(endpoint, { headers: openDataHeaders(), signal }, 'Open Food Facts is temporarily unavailable.', { allowNotFound: true, timeoutMs: RETAILER_TIMEOUTS.openFoodFacts });
   if (payload?.status === 0 || !payload?.product) return null;
   const product = payload.product;
   const nutrients = {
@@ -178,7 +232,7 @@ const normaliseObservedPrice = (raw) => {
   });
 };
 
-export const lookupOpenPrices = async (input) => {
+export const lookupOpenPrices = async (input, { signal } = {}) => {
   const parsed = priceLookupSchema.parse(input);
   if (process.env.OPEN_PRICES_ENABLED === 'false') return [];
   const base = openPricesBase();
@@ -188,21 +242,53 @@ export const lookupOpenPrices = async (input) => {
   endpoint.searchParams.set('currency', 'GBP');
   if (parsed.barcode) endpoint.searchParams.set('product_code', parsed.barcode);
   if (!parsed.barcode && parsed.query) endpoint.searchParams.set('product_name', parsed.query);
-  const payload = await getJson(endpoint, { headers: openDataHeaders() }, 'Open Prices is temporarily unavailable.');
-  return rowsFrom(payload).slice(0, 30).map(normaliseObservedPrice).filter(Boolean);
+  const payload = await getJson(endpoint, { headers: openDataHeaders(), signal }, 'Open Prices is temporarily unavailable.', { timeoutMs: RETAILER_TIMEOUTS.openPrices });
+  const rows = rowsFrom(payload).slice(0, 30).map(normaliseObservedPrice).filter(Boolean);
+  // Enrich with freshness + fallback labeling
+  const enriched = rows.map((row) => {
+    const freshness = priceFreshness(row.observedAt);
+    return {
+      ...row,
+      freshness: freshness.level,
+      freshnessLabel: freshness.label,
+      isStale: freshness.stale,
+      fallbackLabel: freshness.stale ? 'Stale price — confirm at shelf' : null,
+      unavailable: false,
+    };
+  });
+  const deduped = dedupeProducts(enriched);
+  // Handle missing price: rows without price already filtered; if none remain, signal unavailable but don't throw
+  if (!deduped.length) return [];
+  return deduped.slice(0, 30);
 };
 
-export const lookupProductWithPrices = async (value) => {
+export const lookupProductWithPrices = async (value, { signal } = {}) => {
   const code = barcode(value);
-  const product = await lookupOpenFoodFactsProduct(code);
-  if (!product) return { product: null, prices: [], priceStatus: 'not-requested' };
+  const product = await lookupOpenFoodFactsProduct(code, { signal });
+  if (!product) return { product: null, prices: [], priceStatus: 'not-requested', fallback: 'no-product' };
   let prices = [];
   let priceStatus = 'available';
+  let fallback = null;
   try {
-    prices = await lookupOpenPrices({ barcode: code });
+    prices = await lookupOpenPrices({ barcode: code }, { signal });
+    if (!prices.length) {
+      priceStatus = 'unavailable';
+      fallback = 'missing-price — no community observation for this barcode';
+    } else if (prices.every((p) => p.isStale)) {
+      fallback = 'stale-price — observations >30d old, confirm at shelf';
+    } else if (prices.length !== dedupeProducts(prices).length) {
+      fallback = 'duplicate-products deduped';
+    }
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
-    priceStatus = 'unavailable';
+    priceStatus = error.status === 429 ? 'rate-limited' : error.status === 504 ? 'timeout' : 'unavailable';
+    fallback = error.message;
+    // Always label fallback data correctly — never present stale/cached as live
+    prices = [];
   }
-  return { product, prices, priceStatus };
+  // Duplicate / package mismatch detection for barcode products
+  const mismatches = prices
+    .map((p) => ({ price: p, mismatch: detectPackageMismatch(product.quantity, p.packageSize || p.quantity) }))
+    .filter((m) => m.mismatch.mismatch);
+  return { product, prices, priceStatus, fallback, mismatches, isLive: false, sourceLabel: 'Open Prices (community observed) — not live' };
 };

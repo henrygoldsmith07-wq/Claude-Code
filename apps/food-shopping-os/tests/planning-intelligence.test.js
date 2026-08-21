@@ -34,7 +34,12 @@ describe('planning intelligence', () => {
     expect(result.pending).toBe(0);
     expect(result.rate).toBe(50);
     expect(skipReasonLabel('no-time')).toBe('Not enough time');
-    expect(SKIP_REASONS).toHaveLength(6);
+    // Expanded reason set: the original six plus leftovers-available,
+    // plan-too-complex, changed-preference, takeaway and cooked-a-different-meal.
+    expect(SKIP_REASONS).toHaveLength(11);
+    for (const id of ['leftovers-available', 'plan-too-complex', 'changed-preference', 'takeaway', 'cooked-a-different-meal']) {
+      expect(SKIP_REASONS.map((r) => r.id)).toContain(id);
+    }
   });
 
   it('does not count one cooked meal twice when the same recipe fills two slots', () => {

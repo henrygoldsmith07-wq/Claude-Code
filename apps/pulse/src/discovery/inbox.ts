@@ -24,6 +24,7 @@ export type DiscoveryLifecycleState =
   | "contradicted"
   | "experiment-candidate"
   | "acted-upon"
+  | "dormant"
   | "retired";
 
 export interface DiscoveryInboxItem {
@@ -54,7 +55,8 @@ const STATE_ORDER: Record<DiscoveryLifecycleState, number> = {
   emerging: 3,
   replicated: 4,
   "acted-upon": 5,
-  retired: 6,
+  dormant: 6,
+  retired: 7,
 };
 
 export function buildDiscoveryInbox(options: DiscoveryInboxOptions): DiscoveryInboxItem[] {
@@ -139,6 +141,11 @@ function stateFor(
   }
   const latestEpisode = history?.episodes.at(-1);
   if (latestEpisode && !latestEpisode.present) {
+    const disappearedCount = history?.episodes.filter((e) => !e.present).length ?? 1;
+    const appearances = history?.appearances ?? 1;
+    if (disappearedCount >= 2 && appearances >= 2) {
+      return { state: "dormant", reason: "This relationship has not appeared in the last scans; it is dormant until fresh supporting data returns. No action is implied." };
+    }
     return { state: "needs-more-data", reason: latestEpisode.note ?? "This relationship no longer crossed the evidence bar in the latest scan; collect more data before calling it gone." };
   }
   return { state: "emerging", reason: "First seen; waiting for a later scan to establish whether it persists." };

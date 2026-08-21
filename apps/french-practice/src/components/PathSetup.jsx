@@ -1,56 +1,45 @@
 import { useState } from 'react';
 import { Modal } from './ui';
-import { GOALS, PLACEMENT_QUESTIONS, CEFR_LEVELS, createPath, getPath, retakePlacement } from '../lib/path';
+import { GOALS, createPath, getPath, retakePlacement } from '../lib/path';
+import { startPlacement, selectItem, answerItem, placementResultFrom } from '../lib/placement';
+import { saveLastPlacement } from '../lib/storage';
 import { Plane, GraduationCap, Briefcase, MessageCircle, Check, X } from './icons';
 
 const GOAL_ICONS = { travel: Plane, school: GraduationCap, business: Briefcase, fluency: MessageCircle };
 
 // Wizard: pick a goal → adaptive placement test → path created at your level.
-// The test is a CAT-style staircase: it starts at B1, moves up a level on a
-// correct answer and down on a wrong one, drawing each question from the
-// current level — 8 questions instead of a fixed 12, converging faster.
-
-const TOTAL = 8;
-const START_IDX = 2; // B1
-
-function pickQuestion(levelIdx, askedQs) {
-  // Nearest unasked question to the current level.
-  for (let d = 0; d < CEFR_LEVELS.length; d += 1) {
-    for (const idx of d === 0 ? [levelIdx] : [levelIdx - d, levelIdx + d]) {
-      if (idx < 0 || idx >= CEFR_LEVELS.length) continue;
-      const q = PLACEMENT_QUESTIONS.find((x) => x.level === CEFR_LEVELS[idx] && !askedQs.includes(x));
-      if (q) return q;
-    }
-  }
-  return null;
-}
+//
+// The test is the real computer-adaptive engine from lib/placement.js (Rasch
+// IRT): every answer moves a maximum-likelihood ability estimate, the next
+// item is chosen where it is most informative, and the test stops on a
+// standard-error rule — usually 8–18 items. The result reports an honest
+// ±1 SE range rather than a single false point, and is stored locally so a
+// teacher can later pair it against an independently known level
+// (recordPlacementValidation) to measure placement accuracy.
 
 export default function PathSetup({ open, onClose, onCreated }) {
   const [step, setStep] = useState('goal'); // goal | test | result
   const [goal, setGoal] = useState(null);
-  const [levelIdx, setLevelIdx] = useState(START_IDX);
-  const [asked, setAsked] = useState([]); // question objects, in order
-  const [count, setCount] = useState(0);
-  const [nCorrect, setNCorrect] = useState(0);
+  const [testState, setTestState] = useState(null);
   const [question, setQuestion] = useState(null);
   const [picked, setPicked] = useState(null); // currently selected option, pre-confirm
+  const [result, setResult] = useState(null);
   const [level, setLevel] = useState(null);
 
   const reset = () => {
     setStep('goal');
     setGoal(null);
-    setLevelIdx(START_IDX);
-    setAsked([]);
-    setCount(0);
-    setNCorrect(0);
+    setTestState(null);
     setQuestion(null);
     setPicked(null);
+    setResult(null);
     setLevel(null);
   };
 
   const close = () => { reset(); onClose(); };
 
   const finish = (cefr) => {
+    if (result) saveLastPlacement(result);
     const existing = getPath();
     const path = existing
       ? retakePlacement(goal, cefr, existing)
@@ -60,28 +49,30 @@ export default function PathSetup({ open, onClose, onCreated }) {
   };
 
   const startTest = (g) => {
+    const s = startPlacement();
     setGoal(g);
-    setQuestion(pickQuestion(START_IDX, []));
+    setTestState(s);
+    setQuestion(selectItem(s));
     setStep('test');
   };
 
   const answer = () => {
-    const correct = picked === question.answer;
-    const nextIdx = Math.max(0, Math.min(CEFR_LEVELS.length - 1, levelIdx + (correct ? 1 : -1)));
-    const nextAsked = [...asked, question];
-    const done = count + 1 >= TOTAL;
-    setAsked(nextAsked);
-    setCount(count + 1);
-    setNCorrect(nCorrect + (correct ? 1 : 0));
-    setLevelIdx(nextIdx);
+    if (!question || picked == null) return;
+    const next = answerItem(testState, question, picked);
+    setTestState(next);
     setPicked(null);
-    if (done) {
-      setLevel(CEFR_LEVELS[nextIdx]);
+    if (next.done) {
+      const r = placementResultFrom(next);
+      setResult(r);
+      setLevel(r.level);
       setStep('result');
     } else {
-      setQuestion(pickQuestion(nextIdx, nextAsked));
+      setQuestion(selectItem(next));
     }
   };
+
+  const answered = testState ? testState.asked.length : 0;
+  const maxItems = testState ? Math.min(testState.config.maxItems, 43) : 18;
 
   return (
     <Modal open={open} onClose={close}>
@@ -95,7 +86,7 @@ export default function PathSetup({ open, onClose, onCreated }) {
               {step === 'goal'
                 ? 'What are you learning French for?'
                 : step === 'test'
-                  ? `Question ${count + 1} of ${TOTAL} — it adapts to your answers`
+                  ? `Question ${answered + 1} — it adapts and stops once it is confident`
                   : 'Based on your answers'}
             </p>
           </div>
@@ -129,11 +120,14 @@ export default function PathSetup({ open, onClose, onCreated }) {
 
         {step === 'test' && question && (
           <div className="space-y-4">
-            <div className="h-1 rounded-full bg-surface2 overflow-hidden" aria-hidden="true">
-              <div
-                className="h-full bg-ink transition-all duration-300"
-                style={{ width: `${(count / TOTAL) * 100}%` }}
-              />
+            <div>
+              <div className="h-1 rounded-full bg-surface2 overflow-hidden" aria-hidden="true">
+                <div
+                  className="h-full bg-ink transition-all duration-300"
+                  style={{ width: `${Math.min(100, (answered / maxItems) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-ink3 mt-1">{answered} answered — ends early once your level is pinned down</p>
             </div>
             <p className="text-[15px] text-ink leading-relaxed" lang="fr">{question.q}</p>
             <div className="space-y-2" role="radiogroup" aria-label="Answer options">
@@ -166,22 +160,25 @@ export default function PathSetup({ open, onClose, onCreated }) {
                 disabled={picked == null}
                 className="btn btn-primary flex-1 min-h-11 rounded-xl text-sm"
               >
-                {count + 1 < TOTAL ? 'Next' : 'See my level'}
+                Next
               </button>
             </div>
           </div>
         )}
 
-        {step === 'result' && (
+        {step === 'result' && result && (
           <div className="space-y-4 text-center">
             <div className="w-20 h-20 mx-auto grid place-items-center rounded-full border-2 border-ink text-2xl font-bold text-ink">
               {level}
             </div>
             <p className="text-sm text-ink2">
-              You answered {nCorrect} of {TOTAL} correctly and the test converged on
-              <span className="font-semibold text-ink"> CEFR {level}</span>.
-              Your path starts calibrated to it — conversations, hints and scoring will all
-              match. Checkpoints move you up as you improve.
+              After {result.itemsAsked} adaptive questions you are placed at
+              <span className="font-semibold text-ink"> CEFR {result.level}</span>
+              {result.range && result.range !== result.level ? (
+                <> — honest range <span className="font-semibold text-ink">{result.range}</span></>
+              ) : null}
+              {' '}({Math.round(result.confidence * 100)}% confidence). Your path starts calibrated to it —
+              conversations, hints and scoring will all match. Checkpoints move you up as you improve.
             </p>
             <button onClick={() => finish(level)} className="btn btn-primary w-full min-h-12 rounded-xl text-sm">
               <Check size={14} /> Start my path

@@ -26,15 +26,18 @@
 
 ## How to populate (and not to)
 
-1. Export a `fp.placementValidations.v1` entry via Settings → Dev → “Add placement validation” (teacher supplies `knownLevel`, `rater`, `source`).
-2. For writing/speaking, store the AI turn first (`recordCorpusEntry`), then later add the human mark (`updateCorpusHumanMark`). Do not overwrite the AI side.
-3. For progression, after a level-up, assign a short held-out quiz (one per skill) with support off and record `recordProgressionValidation`.
-4. Never paste synthetic “example” rows into the live store to make the dashboard look validated; the test suite guards this with `ships empty` assertions.
+1. **Placement**: take the adaptive test (Learning path → placement — it stores the result locally), then Settings → Dev Panel → *Placement validation — teacher entry* pairs it with an independently known level (`knownLevel`, rater, source). The Analytics screen surfaces agreement/calibration status.
+2. For writing/speaking, every Writing-studio review now seeds the AI side of a corpus entry automatically; later add the human mark via `updateCorpusHumanMark`. Do not overwrite the AI side.
+3. For progression, after a level-up use `buildTransferCheck({ level, banks, excludeIds })` to draw one unseen task per skill from CEFR-tagged banks, score it with support off, and record `recordProgressionValidation`.
+4. Conversation turns automatically log assistance evidence (hints used → with/without support + score) to `fp.assistanceLog.v1`, feeding the dependence check.
+5. Never paste synthetic "example" rows into the live store to make the dashboard look validated; the test suite guards this with `ships empty` assertions.
 
 ## Code locations
 
-- `src/lib/placementValidation.js`, `progressionValidation.js`, `writingSpeakingCorpus.js`, `contentCalibration.js`, `assistanceValidation.js`
-- `src/lib/storage.js` keys: `fp.placementValidations.v1`, `fp.progressionValidations.v1`, `fp.writingSpeakingCorpus.v1`, `fp.assistanceLog.v1`, `fp.contentCalibration.v1`
+- `src/lib/placementValidation.js`, `progressionValidation.js` (+ `buildTransferCheck`), `writingSpeakingCorpus.js`, `contentCalibration.js`, `assistanceValidation.js`
+- `src/lib/aiValidate.js` — runtime authority for AI structured-output shape (used by `groq.js`; re-exported through `schemas.ts`)
+- `src/lib/storage.js` keys: `fp.placementValidations.v1`, `fp.progressionValidations.v1`, `fp.writingSpeakingCorpus.v1`, `fp.assistanceLog.v1`, `fp.contentCalibration.v1`, `fp.lastPlacement.v1`
+- UI surfacing: Analytics → *Learner validation → External validation* rows; DevPanel → *Placement validation — teacher entry*; ChatArena tiered corrections
 - `src/lib/intelligibility.js` protocol + `HUMAN_BENCHMARK`
 - `src/lib/exams/simulator.js` `benchmarkExaminer` / `validateAgainstResults`
 - `src/lib/fsrsValidation.js` scoring + `fitParameters` with held-out split

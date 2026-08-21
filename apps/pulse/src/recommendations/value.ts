@@ -42,10 +42,38 @@ export interface RecommendationEvidenceUpdate {
   dateRange: { from: string; to: string } | null;
 }
 
+export interface RecommendationOutcomeRecord {
+  helped: boolean;
+  at: string;
+  note: string | null;
+  /** Optional evaluation window for this outcome observation. */
+  window?: { from: string; to: string } | null;
+  /** Uncertainty of the outcome (user-reported confidence or measurement noise). */
+  uncertainty?: string | null;
+}
+
 export interface RecommendationValue {
   recommendationId: string;
   /** The exact recommendation snapshot first shown to the user. */
   recommendation: Recommendation | null;
+  /** Finding ids that support this recommendation (for traceability). */
+  discoveryIds: string[];
+  /** Expected outcome at issue time, e.g. "increase accuracy by ~0.4 SD". */
+  expectedOutcome: string | null;
+  /** Confidence at issue time. */
+  confidenceAtIssue: { level: string; score: number } | null;
+  /** When issued. */
+  issuedAt: string;
+  /** Adherence 0..1 when measured. */
+  adherence: number | null;
+  /** Evaluation window for measuring outcome. */
+  evaluationWindow: { from: string; to: string } | null;
+  /** Observed outcome description. */
+  observedOutcome: string | null;
+  /** Outcome uncertainty label. */
+  outcomeUncertainty: string | null;
+  /** Whether later evidence strengthened/weakened the claim. */
+  evidenceDelta: "strengthened" | "weakened" | "unchanged" | null;
   stage: RecommendationStage;
   /** Latest reported outcome, retained for compatibility and quick display. */
   outcome: "helped" | "did-not-help" | null;
@@ -159,12 +187,33 @@ export class RecommendationValueTracker {
     return value;
   }
 
-  recordOutcome(id: string, helped: boolean, note?: string): RecommendationValue {
+  recordOutcome(
+    id: string,
+    helped: boolean,
+    note?: string,
+    options: {
+      window?: { from: string; to: string } | null;
+      uncertainty?: string | null;
+      adherence?: number | null;
+      observedOutcome?: string | null;
+    } = {},
+  ): RecommendationValue {
     const value = this.ensure(id);
     const at = new Date(this.now()).toISOString();
     value.outcome = helped ? "helped" : "did-not-help";
     value.measuredAt = value.measuredAt ?? at;
-    value.outcomeHistory.push({ helped, at, note: note ?? null });
+    value.observedOutcome = options.observedOutcome ?? (helped ? "helped" : "did-not-help");
+    value.outcomeUncertainty = options.uncertainty ?? null;
+    if (options.window !== undefined) value.evaluationWindow = options.window;
+    if (options.adherence !== undefined && options.adherence !== null) value.adherence = options.adherence;
+    // Determine evidence delta based on history: helped strengthens, mixed weakens
+    const helpedCount = value.outcomeHistory.filter((o) => o.helped).length + (helped ? 1 : 0);
+    const notHelpedCount = value.outcomeHistory.filter((o) => !o.helped).length + (helped ? 0 : 1);
+    if (helpedCount > 0 && notHelpedCount > 0) value.evidenceDelta = "weakened";
+    else if (helpedCount > 1 || notHelpedCount > 1) value.evidenceDelta = helped ? "strengthened" : "weakened";
+    else if (helped) value.evidenceDelta = "strengthened";
+    else value.evidenceDelta = "weakened";
+    value.outcomeHistory.push({ helped, at, note: note ?? null, window: options.window ?? null, uncertainty: options.uncertainty ?? null });
     this.advanceInPlace(value, "measured", at);
     this.changed();
     return value;
@@ -291,6 +340,15 @@ export class RecommendationValueTracker {
       value = {
         recommendationId: id,
         recommendation: recommendation ? cloneRecommendation(recommendation) : null,
+        discoveryIds: recommendation ? [...recommendation.metricIds] : [],
+        expectedOutcome: recommendation ? `${recommendation.title} — ${recommendation.confidence.level} confidence` : null,
+        confidenceAtIssue: recommendation ? { level: recommendation.confidence.level, score: recommendation.confidence.score } : null,
+        issuedAt: at,
+        adherence: null,
+        evaluationWindow: null,
+        observedOutcome: null,
+        outcomeUncertainty: null,
+        evidenceDelta: null,
         stage: "recommended",
         outcome: null,
         response: null,
@@ -305,6 +363,11 @@ export class RecommendationValueTracker {
       };
       this.values.set(id, value);
       this.changed();
+    }
+    if (recommendation && value.discoveryIds.length === 0) {
+      value.discoveryIds = [...recommendation.metricIds];
+      value.expectedOutcome = `${recommendation.title} — ${recommendation.confidence.level} confidence`;
+      value.confidenceAtIssue = { level: recommendation.confidence.level, score: recommendation.confidence.score };
     }
     return value;
   }
@@ -347,6 +410,15 @@ function normaliseValue(value: RecommendationValue): RecommendationValue {
   const responseHistory = value.responseHistory ?? (value.response ? [{ response: value.response, at: value.respondedAt ?? value.recommendedAt, note: null }] : []);
   return {
     ...value,
+    discoveryIds: value.discoveryIds ?? (value.recommendation ? [...value.recommendation.metricIds] : []),
+    expectedOutcome: value.expectedOutcome ?? null,
+    confidenceAtIssue: value.confidenceAtIssue ?? null,
+    issuedAt: value.issuedAt ?? value.recommendedAt,
+    adherence: value.adherence ?? null,
+    evaluationWindow: value.evaluationWindow ?? null,
+    observedOutcome: value.observedOutcome ?? null,
+    outcomeUncertainty: value.outcomeUncertainty ?? null,
+    evidenceDelta: value.evidenceDelta ?? null,
     recommendation: value.recommendation ?? null,
     response: value.response ?? null,
     respondedAt: value.respondedAt ?? null,
@@ -370,6 +442,9 @@ function cloneRecommendation(recommendation: Recommendation): Recommendation {
 function cloneValue(value: RecommendationValue): RecommendationValue {
   return {
     ...value,
+    discoveryIds: [...(value.discoveryIds ?? [])],
+    confidenceAtIssue: value.confidenceAtIssue ? { ...value.confidenceAtIssue } : null,
+    evaluationWindow: value.evaluationWindow ? { ...value.evaluationWindow } : null,
     recommendation: value.recommendation ? cloneRecommendation(value.recommendation) : null,
     responseHistory: value.responseHistory.map((entry) => ({ ...entry })),
     outcomeHistory: value.outcomeHistory.map((entry) => ({ ...entry })),
