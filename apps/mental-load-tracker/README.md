@@ -63,16 +63,35 @@ npm run dev
 ```bash
 npm run lint
 npm run type-check
-npm run test:app
-npm run test:db
+npm run test:app        # static guarantees + reliability unit tests
+npm run test:db         # pgTAP isolation + governance suites (Supabase CLI)
+npm run test:security   # two-client Postgres/Realtime adversarial suite
+npm run build
 npm run test:e2e
 ```
 
-`test:db` runs the SQL security suite when the Supabase CLI is installed.
-`test:security` runs the two-client Postgres/Realtime adversarial test when
+`test:db` runs `supabase/tests/household_isolation.sql` and
+`supabase/tests/governance.sql` when the Supabase CLI is installed.
+`test:security` runs the two-client Postgres/Realtime adversarial suites when
 `SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY`, and
 `SUPABASE_SERVICE_ROLE_KEY` point at a disposable project. Full E2E account
 coverage additionally uses `E2E_TEST_EMAIL` and `E2E_TEST_PASSWORD`.
+
+`.github/workflows/noticed.yml` runs all of the above as blocking merge
+gates, including applying the migration twice against a live local stack to
+prove idempotence.
+
+## Migrations and recovery
+
+`supabase/schema.sql` is the canonical schema; the file in
+`supabase/migrations/` must stay a byte-identical copy (an application test
+enforces this). The schema is idempotent by construction — policy drop
+guards, `if not exists` DDL, and guarded publication membership — so it can
+be re-applied to recover from a partially applied migration. To roll back a
+bad release, redeploy the previous app version; the schema is additive and
+keeps v1-era data intact. Household deletion intentionally purges that
+household's audit history with it; there is no server-side undo beyond
+restoring the project from Supabase backups.
 
 ## Product scope
 

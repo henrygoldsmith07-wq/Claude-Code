@@ -16,6 +16,12 @@ const PATTERN = {
 };
 const DIFF = { Beginner: 1, Intermediate: 2, Advanced: 3 };
 
+// Public read-only access to the movement-pattern map (e.g. for longitudinal
+// segmentation). Returns null for unknown exercises.
+export function movementPatternFor(exerciseId){
+  return PATTERN[exerciseId] || null;
+}
+
 function patternScore(a, b){
   if(!a || !b) return 0;
   if(a===b) return 3;
