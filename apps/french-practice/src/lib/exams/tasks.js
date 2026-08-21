@@ -1,13 +1,12 @@
 // Practice task bank for the exam simulators.
 //
-// All material here is original, written against the published *theme* lists
-// (which are factual) rather than copied from any board's papers. Photo cards
-// describe a scene in words instead of shipping a licensed photograph — the
-// task a candidate performs is the same, and the description is what the
-// simulator reads to the AI examiner.
-//
-// Each task carries the theme it sits under and a tier, so the simulator can
-// draw a paper that looks like the real thing rather than a random pile.
+// All material here is ORIGINAL practice written against the published *theme*
+// lists (which are factual) — not past papers, not official board questions.
+// Every item carries `provenance: 'generated'` and `official: false`; the
+// simulator surfaces `boardStyle` + `specVersion` + `verifyAt` so the UI must
+// show "Generated practice — not an official exam paper. Verify timings at …"
+// Photo cards describe a scene in words instead of shipping a licensed
+// photograph.
 
 import { TIER } from './boards.js';
 
@@ -719,4 +718,13 @@ export function taskBankStats() {
     readingTasks: READING_TASKS.length,
     themes: availableThemes().length,
   };
+}
+
+// ---- provenance hardening: every task is generated practice, not official ----
+for (const pool of [ROLEPLAYS, PHOTOCARDS, CONVERSATIONS, READING_PASSAGES, WRITING_TASKS, LISTENING_TASKS, READING_TASKS]) {
+  for (const item of pool) {
+    if (!('provenance' in item)) item.provenance = 'generated';
+    if (!('official' in item)) item.official = false;
+    if (!item.boardStyle) item.boardStyle = `${item.boards ? item.boards.join('/') : 'generic'}-style original practice (generated)`;
+  }
 }

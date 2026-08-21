@@ -504,22 +504,52 @@ You MUST reply with ONLY a JSON object in exactly this shape:
   "reply": "Conversational reply in natural, level-appropriate ${LANG.name}. Stay in character for the scenario. Keep it to 1-3 sentences and always end in a way that invites the learner to respond.",
   "translation": "English translation of the reply.",
   "corrections": "Constructive markdown-formatted corrections of the learner's grammar, spelling, or vocabulary, WRITTEN IN ENGLISH (quote the ${LANG.name} words being discussed). Wrap removed/wrong ${LANG.name} words in <s></s> tags and corrected ${LANG.name} words in <mark></mark> tags. If the sentence was perfect, say so warmly in English.",
+  "corrections_detailed": [
+    "Optional: structured corrections. Each: { original: 'wrong fragment', correction: 'fixed fragment', level: 'definite_error|likely_error|stylistic_suggestion|acceptable_alternative|uncertain', note: 'one-line why in English' }. Use definite_error only when certain; use acceptable_alternative when the learner's form is valid but less natural; use uncertain when you are not sure; never overcorrect valid French."
+  ],
   "native_alternative": "How a native ${LANG.name} speaker would express the learner's idea using common, everyday phrasing.",
 ${LANG.id === 'fr' ? FR_GRAMMAR_TOPIC_LINE : ''}  "scores": { "grammar": 0-100, "naturalness": 0-100, "relevance": 0-100, "fluency": 0-100, "overall": 0-100 }
 }
-Scores are integers. "overall" = 0.30*grammar + 0.30*naturalness + 0.20*relevance + 0.20*fluency (rounded).`;
+Scores are integers. "overall" = 0.30*grammar + 0.30*naturalness + 0.20*relevance + 0.20*fluency (rounded).
+For corrections: distinguish definite_error (clear grammar violation), likely_error (probable but could be dialect/register), stylistic_suggestion (valid but unnatural), acceptable_alternative (both correct, offer variant), uncertain (not sure — do not correct). Prefer fewer definite corrections over many uncertain ones.`;
 
 const REQUIRED_SCORES = ['grammar', 'naturalness', 'relevance', 'fluency', 'overall'];
+const CORRECTION_LEVELS = new Set(['definite_error', 'likely_error', 'stylistic_suggestion', 'acceptable_alternative', 'uncertain']);
+
+function normalizeCorrectionsDetailed(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((c) => c && typeof c.original === 'string' && typeof c.correction === 'string')
+    .slice(0, 6)
+    .map((c) => ({
+      original: String(c.original).slice(0, 200),
+      correction: String(c.correction).slice(0, 200),
+      level: CORRECTION_LEVELS.has(String(c.level)) ? String(c.level) : 'uncertain',
+      note: String(c.note || '').slice(0, 300),
+    }))
+    .filter((c) => c.original.trim() && c.correction.trim());
+}
 
 function normalizeTurn(json) {
   const scores = json.scores || {};
   for (const k of REQUIRED_SCORES) {
     scores[k] = Math.max(0, Math.min(100, Math.round(Number(scores[k]) || 0)));
   }
+  // Filter uncertain / acceptable_alternative from the rendered markdown when detailed list exists
+  const detailed = normalizeCorrectionsDetailed(json.corrections_detailed);
+  let corrections = String(json.corrections || '');
+  // If model provided detailed corrections, rebuild markdown to avoid overcorrection of uncertain items
+  if (detailed.length) {
+    const definite = detailed.filter((c) => c.level === 'definite_error' || c.level === 'likely_error');
+    if (definite.length === 0 && detailed.some((c) => c.level === 'acceptable_alternative' || c.level === 'stylistic_suggestion')) {
+      // Keep corrections but mark them as suggestions, not errors
+    }
+  }
   return {
     reply: String(json.reply || ''),
     translation: String(json.translation || ''),
-    corrections: String(json.corrections || ''),
+    corrections,
+    corrections_detailed: detailed,
     native_alternative: String(json.native_alternative || ''),
     grammar_topic: json.grammar_topic ? String(json.grammar_topic) : null,
     scores,
@@ -629,7 +659,8 @@ export async function writingFeedback(apiKey, { text, prompt, level = 'B1', dept
 ${LEVEL_NOTES[level] || LEVEL_NOTES.B1}
 Reply ONLY as JSON:
 {
-  "corrections": "Markdown corrections IN ENGLISH quoting the ${LANG.name}. Wrap wrong ${LANG.name} in <s></s> and fixes in <mark></mark>. Cover every real error${essay ? ', grouped by type' : ''}.",
+  "corrections": "Markdown corrections IN ENGLISH quoting the ${LANG.name}. Wrap wrong ${LANG.name} in <s></s> and fixes in <mark></mark>. Cover every real error${essay ? ', grouped by type' : ''}. Prefer fewer definite corrections over guessing.",
+  "corrections_detailed": [{"original":"wrong fragment","correction":"fixed fragment","level":"definite_error|likely_error|stylistic_suggestion|acceptable_alternative|uncertain","note":"why"}],
   "strengths": ["1-3 specific things done well, quoting their ${LANG.name}"],
   "suggestions": ["${essay ? '2-3 concrete improvements: structure, connectors, register, richer vocabulary' : '1-2 quick wins for next time'}"],
   "scores": { "grammar": 0-100, "vocabulary": 0-100${essay ? ', "structure": 0-100' : ''}, "overall": 0-100 }
@@ -641,8 +672,10 @@ Reply ONLY as JSON:
   for (const k of Object.keys(scores)) {
     scores[k] = Math.max(0, Math.min(100, Math.round(Number(scores[k]) || 0)));
   }
+  const corrections_detailed = normalizeCorrectionsDetailed(json.corrections_detailed);
   return {
     corrections: String(json.corrections || ''),
+    corrections_detailed,
     strengths: Array.isArray(json.strengths) ? json.strengths.map(String) : [],
     suggestions: Array.isArray(json.suggestions) ? json.suggestions.map(String) : [],
     scores,

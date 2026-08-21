@@ -6,6 +6,22 @@ import {
   prioritiseLearnerErrors,
   learnerErrorSummary,
 } from './learnerErrors.js';
+import {
+  makePlacementValidationEntry as _makePlacementEntry,
+  placementValidationMetrics as _placementMetrics,
+} from './placementValidation.js';
+import {
+  makeProgressionEntry as _makeProgEntry,
+  progressionValidationMetrics as _progMetrics,
+} from './progressionValidation.js';
+import {
+  makeCorpusEntry as _makeCorpusEntry,
+  corpusMetrics as _corpusMetrics,
+} from './writingSpeakingCorpus.js';
+import {
+  makeAssistanceEvent as _makeAsst,
+  assistanceMetrics as _asstMetrics,
+} from './assistanceValidation.js';
 // Thin localStorage wrapper — the app's only persistence layer (no backend).
 
 const KEYS = {
@@ -59,6 +75,12 @@ const KEYS = {
   weaknessMemory: 'fp.weaknessMemory', // persistent weakness memory: error → repair → retest → recurrence
   errorNotebook: 'fp.errorNotebook', // detailed writing/speaking corrections
   phonemeProfile: 'fp.phonemeProfile', // pronunciation attempts by phoneme
+  // ---- validation & corpus infrastructure (empty until externally supplied) ----
+  placementValidations: 'fp.placementValidations.v1', // [{ knownLevel, placedLevel, theta, se, itemsAsked, at, rater, source }]
+  progressionValidations: 'fp.progressionValidations.v1', // [{ from, to, unseen:{}, transfer }]
+  writingSpeakingCorpus: 'fp.writingSpeakingCorpus.v1', // human-marked writing/speaking pairs
+  assistanceLog: 'fp.assistanceLog.v1', // with/without support events
+  contentCalibration: 'fp.contentCalibration.v1', // cached audit results
 };
 
 export { KEYS };
@@ -1698,3 +1720,101 @@ export function addEventXp(eventId, amount) {
   write(KEYS.eventXp, all);
   return all[eventId];
 }
+
+// ---- placement validation store (requires external known levels) ----
+
+export const getPlacementValidations = () => {
+  const v = read(KEYS.placementValidations, []);
+  return Array.isArray(v) ? v : [];
+};
+
+export function recordPlacementValidation(entry) {
+  const made = _makePlacementEntry(entry);
+  if (!made) return null;
+  const list = getPlacementValidations();
+  list.push(made);
+  write(KEYS.placementValidations, list.slice(-500));
+  return made;
+}
+
+export const getPlacementValidationMetrics = () =>
+  _placementMetrics(getPlacementValidations());
+
+// ---- progression validation store ----
+
+export const getProgressionValidations = () => {
+  const v = read(KEYS.progressionValidations, []);
+  return Array.isArray(v) ? v : [];
+};
+
+export function recordProgressionValidation(entry) {
+  const made = _makeProgEntry(entry);
+  if (!made) return null;
+  const list = getProgressionValidations();
+  list.push(made);
+  write(KEYS.progressionValidations, list.slice(-500));
+  return made;
+}
+
+export const getProgressionValidationMetrics = () =>
+  _progMetrics(getProgressionValidations());
+
+// ---- writing/speaking human-marked corpus ----
+
+export const getWritingSpeakingCorpus = () => {
+  const v = read(KEYS.writingSpeakingCorpus, []);
+  return Array.isArray(v) ? v : [];
+};
+
+export function recordCorpusEntry(entry) {
+  const made = _makeCorpusEntry(entry);
+  if (!made) return null;
+  const list = getWritingSpeakingCorpus();
+  list.push(made);
+  write(KEYS.writingSpeakingCorpus, list.slice(-1000));
+  return made;
+}
+
+export function updateCorpusHumanMark(id, { humanScore, humanCorrections, rater, consensus }) {
+  const list = getWritingSpeakingCorpus();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx < 0) return null;
+  const entry = list[idx];
+  const score = Number.isFinite(Number(humanScore)) ? Math.max(0, Math.min(100, Math.round(Number(humanScore)))) : entry.humanScore;
+  list[idx] = {
+    ...entry,
+    humanScore: score,
+    humanCorrections: humanCorrections != null ? String(humanCorrections).slice(0, 8000) : entry.humanCorrections,
+    rater: rater != null ? String(rater).slice(0, 80) : entry.rater,
+    consensus: consensus != null ? String(consensus).slice(0, 200) : entry.consensus,
+    hasHuman: true,
+    paired: entry.aiScore != null && score != null,
+  };
+  write(KEYS.writingSpeakingCorpus, list);
+  return list[idx];
+}
+
+export const getCorpusMetrics = () => _corpusMetrics(getWritingSpeakingCorpus());
+
+// ---- assistance fading log ----
+
+export const getAssistanceLog = () => {
+  const v = read(KEYS.assistanceLog, []);
+  return Array.isArray(v) ? v : [];
+};
+
+export function recordAssistanceEvent(entry) {
+  const made = _makeAsst(entry);
+  if (!made) return null;
+  const list = getAssistanceLog();
+  list.push(made);
+  write(KEYS.assistanceLog, list.slice(-1000));
+  return made;
+}
+
+export const getAssistanceMetrics = () => _asstMetrics(getAssistanceLog());
+
+// ---- content calibration cache ----
+
+export const getContentCalibration = () => read(KEYS.contentCalibration, null);
+export const setContentCalibration = (v) => write(KEYS.contentCalibration, v);

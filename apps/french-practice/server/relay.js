@@ -208,11 +208,43 @@ async function readProviderJson(response, maxBytes) {
     error.code = 'PROVIDER_RESPONSE_TOO_LARGE';
     throw error;
   }
-  try { return JSON.parse(text); } catch {
+  let payload;
+  try { payload = JSON.parse(text); } catch {
     const error = new Error('provider_response_invalid');
     error.code = 'PROVIDER_RESPONSE_INVALID';
     throw error;
   }
+  // Structured-output validation: ensure provider response is a plausible
+  // Groq/OpenAI shape and does not leak provider secrets, and cap deep size.
+  if (payload && typeof payload === 'object') {
+    // Never forward provider headers or error details that could leak internals
+    // Do a shallow shape check so a truncated / HTML response is rejected.
+    const isChat = Array.isArray(payload.choices);
+    const isTranscription = typeof payload.text === 'string';
+    const isModels = Array.isArray(payload.data);
+    if (!isChat && !isTranscription && !isModels && !payload.object) {
+      const error = new Error('provider_response_invalid');
+      error.code = 'PROVIDER_RESPONSE_INVALID';
+      throw error;
+    }
+    if (isChat) {
+      for (const c of payload.choices.slice(0, 3)) {
+        if (!c || typeof c !== 'object' || !c.message || typeof c.message.content !== 'string') {
+          const error = new Error('provider_response_invalid');
+          error.code = 'PROVIDER_RESPONSE_INVALID';
+          throw error;
+        }
+        // Content size per choice already bounded by upstream max_output_tokens,
+        // but enforce an additional hard cap to avoid relay amplification.
+        if (Buffer.byteLength(c.message.content, 'utf8') > 64 * 1024) {
+          const error = new Error('provider_response_too_large');
+          error.code = 'PROVIDER_RESPONSE_TOO_LARGE';
+          throw error;
+        }
+      }
+    }
+  }
+  return payload;
 }
 
 function createRuntime(options = {}) {
