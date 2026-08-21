@@ -46,12 +46,29 @@ const CLIENT_SURFACE = /[\\\/](components[\\\/]|app[\\\/][^\\\/]*page\.|app[\\\/
 
 const apps = readdirSync(path.join(root, "apps")).filter((name) => existsSync(path.join(root, "apps", name, "src")));
 
+// CLI / service packages have no browser bundle: reading provider keys from
+// the environment is their designed interface, so the client-surface secret
+// check applies only to web apps.
+const WEB_APP_MARKERS = ["next", "react", "vue", "svelte", "preact", "vite"];
+const isWebApp = new Map(
+  apps.map((name) => {
+    try {
+      const pkg = JSON.parse(readFileSync(path.join(root, "apps", name, "package.json"), "utf8"));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      return [name, WEB_APP_MARKERS.some((marker) => Object.keys(deps).some((dep) => dep === marker || dep.startsWith(marker + "/")))];
+    } catch {
+      return [name, true]; // unreadable package.json: keep the strict check
+    }
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // 1. Provider secrets must not be readable from any client surface
 // ---------------------------------------------------------------------------
 {
   const leaks = [];
   for (const app of apps) {
+    if (!isWebApp.get(app)) continue;
     for (const file of walkSrc(app)) {
       const rel = path.relative(root, file);
       if (!SECRET_ENV.test(readFileSync(file, "utf8"))) continue;

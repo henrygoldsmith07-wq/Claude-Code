@@ -6,6 +6,7 @@ import type { ArgGraph, ArgNode } from "./argGraph";
 import { graphSourceQuality, verifyGraphCitations, KNOWN_SOURCES } from "./citationVerifier";
 import { verifyEvidenceQuotes, claimSourceMatch } from "./quoteVerification";
 import { hostnameFor } from "./evidence";
+import { isPrivateHost, validateRetrievalUrl } from "./sourceRetrieval";
 
 // ---------------------------------------------------------------------------
 // Fetch & freshness (live, best-effort)
@@ -27,6 +28,10 @@ const FETCH_TIMEOUT_MS = 8_000;
 
 export async function fetchSource(url: string): Promise<FetchedSource> {
   const at = new Date().toISOString();
+  const validation = validateRetrievalUrl(url);
+  if (!validation.ok) {
+    return { url, ok: false, fetchedAt: at, error: validation.details ?? "url rejected" };
+  }
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
