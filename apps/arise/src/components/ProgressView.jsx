@@ -6,6 +6,7 @@ import { weeklyVolume, frequencyByMuscleSync, volumeLandmarks, volumeDistributio
 import { strengthTrendWithConfidence, classifyPR } from '../lib/progression.js';
 import { exerciseHistorySummary, plateauDetection, programAdherence, recommendationCalibration, validateDeloadLogic } from '../lib/programming.js';
 import { badSessionAttribution, plateauAttribution } from '../lib/sessionQuality.js';
+import { longitudinalSummary } from '../lib/longitudinal.js';
 
 export default function ProgressView({ store }){
   const attrs = useMemo(()=> deriveAttributes(store.history), [store.history]);
@@ -37,6 +38,13 @@ export default function ProgressView({ store }){
     profile: { availableEquipment: store.onboarding?.equipment || [] },
   }), [history, store.readinessLog, store.activeSchedule, store.onboarding?.equipment]);
   const badAttribution = useMemo(()=> badSessionAttribution(history, { readinessLog: store.readinessLog || [] }), [history, store.readinessLog]);
+  const longitudinal = useMemo(()=> longitudinalSummary({ preferences: store.preferences }), [store.preferences]);
+  const evaluation = longitudinal?.evaluation || null;
+  const formatSegment = segment=> {
+    if(!segment || !segment.resolved) return '—';
+    if(!segment.conclusive) return `${segment.resolved} pairs (need ${evaluation.minimumSegmentSamples}+ for conclusions)`;
+    return `${Math.round((segment.progressionSuccessRate ?? 0) * 100)}% progression success • ${Math.round((segment.adherenceRate ?? 0) * 100)}% adherence • n=${segment.resolved}`;
+  };
   const plateauRows = useMemo(()=>{
     const ids=[...new Set(history.flatMap(h=> (h.blocks||[]).map(b=> b.exerciseId)))];
     return ids.map(exerciseId=> ({ exerciseId, result: plateauAttribution(history, exerciseId, { readinessLog: store.readinessLog || [] }) }))
@@ -259,6 +267,46 @@ export default function ProgressView({ store }){
           <p>{calibration.backtest?.calibration?.note || calibration.note}</p>
         </div>
       </section>
+
+      {evaluation && evaluation.totalRecords > 0 && (
+        <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold">Real-world validation (longitudinal)</h3>
+            <span className="text-[11px] font-bold px-2 py-1 rounded-full border border-line bg-surface2">{evaluation.resolvedCount ?? `${evaluation.overall.resolved}/${evaluation.totalRecords}`}</span>
+          </div>
+          <p className="text-xs text-ink3">{evaluation.overall.resolved} resolved recommendation→outcome pair{evaluation.overall.resolved === 1 ? '' : 's'} recorded before each workout. Stored separately from training history; recommendations are never calibrated on future sessions.</p>
+          <div className="rounded-xl border border-line bg-surface2 px-3 py-2.5">
+            <p className="text-xs font-bold">Overall</p>
+            <p className="text-[11px] text-ink3 mt-1">{formatSegment(evaluation.overall)}</p>
+          </div>
+          <details>
+            <summary className="cursor-pointer text-[11px] font-semibold">Segments — training age, movement, equipment, exercise</summary>
+            <div className="mt-2 space-y-2 text-[11px] text-ink3">
+              {[['By training age', evaluation.byTrainingAge], ['By movement pattern', evaluation.byMovementPattern], ['By equipment', evaluation.byEquipmentClass]].map(([label, groups])=> (
+                <div key={label}>
+                  <p className="font-bold text-ink">{label}</p>
+                  <ul className="mt-0.5 space-y-0.5">
+                    {Object.values(groups || {}).map(segment=> (
+                      <li key={segment.key}>{segment.key}: {formatSegment(segment)}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {!!Object.keys(evaluation.byExercise || {}).length && (
+                <div>
+                  <p className="font-bold text-ink">By exercise</p>
+                  <ul className="mt-0.5 space-y-0.5">
+                    {Object.values(evaluation.byExercise).slice(0, 6).map(segment=> (
+                      <li key={segment.key}>{EXERCISE_BY_ID[segment.key]?.name || segment.key}: {formatSegment(segment)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </details>
+          <p className="text-[11px] text-ink3">{evaluation.note}</p>
+        </section>
+      )}
 
       {history.length ? (
         <section className="rounded-2xl border border-line bg-surface p-4">

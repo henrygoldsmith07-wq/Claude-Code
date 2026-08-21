@@ -254,6 +254,13 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
       equipmentChangeFlag: true,
     },
   },
+  longitudinal: {
+    // Segment-level conclusions (rates) are withheld until a segment has this
+    // many resolved recommendation→outcome pairs.
+    minimumSegmentSamples: 5,
+    maxOpenRecordsPerExercise: 3,
+    retentionLimit: 500,
+  },
   backtest: {
     minimumComparisons: 5,
     minimumStratumSamples: 8,
