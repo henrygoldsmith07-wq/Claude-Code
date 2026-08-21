@@ -1,4 +1,0 @@
-Step 3/5 : RUN npm ci
- ---> Running in abc123
-npm error code ERESOLVE
-ERROR: failed to solve: process "/bin/sh -c npm ci" did not complete successfully: exit code: 1

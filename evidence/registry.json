@@ -60,11 +60,11 @@
       "product": "pulse",
       "claim": "Relationship discovery (correlations → findings) controls confounders and guards causal language.",
       "status": "internally-benchmarked",
-      "evidenceSource": "apps/pulse/src/discovery/engine.ts, apps/pulse/src/discovery/finding.ts validateFinding, apps/pulse/tests/evidence-graph.test.ts",
+      "evidenceSource": "apps/pulse/src/discovery/engine.ts, apps/pulse/src/discovery/finding.ts validateFinding, apps/pulse/src/validation/ (corruption, naive-baseline comparison with precision/recall, confidence calibration, validation ledger), apps/pulse/tests/evidence-graph.test.ts, apps/pulse/tests/validation.test.ts",
       "sampleSize": 0,
-      "benchmark": "Synthetic data; validateFinding rejects causal language for non-experimental evidence and high-confidence correlation.",
-      "lastUpdated": "2026-08-19",
-      "limitations": "No real user long-term dataset; confounder control not validated against ground truth."
+      "benchmark": "Synthetic planted-effect datasets: precision/recall vs four uncorrected baselines on clean and corrupted data; null-user specificity; confidence-grade reliability tables. Real-data protocols defined in docs/pulse-methodology-review.md but not yet executed.",
+      "lastUpdated": "2026-08-21",
+      "limitations": "No real user long-term dataset; confounder control validated only against synthetic ground truth; replication/reversal, adherence and usefulness rates await months of real use (validation ledger exists but is empty)."
     },
     {
       "id": "daily-debate-observable-scoring",

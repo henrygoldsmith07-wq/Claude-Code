@@ -1,6 +1,0 @@
-Error: outer failure
-Caused by: Error: inner failure at src/inner.ts:42:10
-  at inner (src/inner.ts:42:10)
-Caused by: Error: root cause at src/root.ts:10:5
-  at root (src/root.ts:10:5)
-Failed to compile: 3 errors

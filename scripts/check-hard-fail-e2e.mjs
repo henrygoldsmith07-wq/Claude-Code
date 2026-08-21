@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workflowDir = path.join(root, '.github', 'workflows');
-const required = ['revise.yml', 'pulse.yml', 'rapport.yml', 'food-shopping-os.yml'];
+// Apps moved to standalone repos on 2026-08-21; each repo enforces this
+// policy on its own workflow now. Add in-repo app workflows here if any
+// ever return to this repository.
+const required = [];
 const failures = [];
 
 for (const file of required) {

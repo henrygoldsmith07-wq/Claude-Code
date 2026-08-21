@@ -1,5 +1,0 @@
-ok line 1
-ok line 2
-Error: something broke at step 2
-  at foo.js:10:5
-Tests  1 failed

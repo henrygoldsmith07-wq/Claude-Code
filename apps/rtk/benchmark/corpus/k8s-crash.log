@@ -1,6 +1,0 @@
-NAME READY STATUS RESTARTS AGE
-my-pod 0/1 CrashLoopBackOff 5 2m
-Events:
-  Type Reason Age From Message
-  Warning BackOff 5s kubelet Back-off restarting failed container
-  Warning Failed 5s kubelet Error: container failed

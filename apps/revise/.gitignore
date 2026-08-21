@@ -1,8 +1,0 @@
-node_modules
-.next
-out
-.env.local
-*.tsbuildinfo
-next-env.d.ts
-coverage
-public/pdf.worker.min.mjs

@@ -1,3 +1,0 @@
-[31mFAIL[0m src/app.test.ts > boom
-[31mAssertionError: expected 1 to equal 2[0m
-  at [33msrc/app.ts:10:5[0m

@@ -8,10 +8,9 @@ const gates = [
   ['repository smoke', ['scripts/smoke.mjs']],
   ['CODEOWNERS coverage', ['scripts/check-codeowners.mjs']],
   ['deployment configuration', ['scripts/check-deploy-config.mjs']],
-  ['deployment smoke', ['scripts/deployment-smoke.mjs']],
+  // 'deployment smoke' and 'ecosystem smoke' moved with ecosystem-shell to its
+  // own repo on 2026-08-21; app E2E/lint/curriculum gates moved with their apps.
   ['hard-fail browser E2E policy', ['scripts/check-hard-fail-e2e.mjs']],
-  ['ecosystem smoke', ['scripts/ecosystem-smoke.mjs']],
-  ['rollback and collision tests', ['--test', 'scripts/ecosystem-rollback.test.mjs', 'apps/ecosystem-shell/tests/storage-collision.test.mjs']],
   ['performance budget configuration', ['scripts/check-performance-budgets.mjs']],
   ['security static audit', ['scripts/security-audit.mjs']],
 ];
