@@ -244,6 +244,15 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
       cardioPriority: 2,
       firstBlockBonus: 0.5,
     },
+    noisySession: {
+      shortDurationMinutes: 15,
+      longGapDays: 14,
+      missedSetsThreshold: 2,
+      unusualDropPct: 0.15,
+      poorAdherenceThreshold: 0.5,
+      orderChangeFlag: true,
+      equipmentChangeFlag: true,
+    },
   },
   backtest: {
     minimumComparisons: 5,

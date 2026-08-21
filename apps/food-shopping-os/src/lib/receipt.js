@@ -33,6 +33,20 @@ const money = (text) => {
   return Number((match[1] || match[2]).replace(',', '.'));
 };
 
+/**
+ * The price a line is actually charging. On a "2 x £1.20  £2.40" line the
+ * last figure is the line total; a single-price line is just its price.
+ */
+const linePrice = (text) => {
+  const matches = [...String(text).matchAll(new RegExp(CURRENCY.source, 'g'))];
+  if (!matches.length) return null;
+  // Quantity-prefixed or weighed lines ("2 x £1.20  £2.40", "0.482 kg @ £4.99/kg £2.41")
+  // charge the last figure; a single-price line is just its price.
+  const prefixed = /^\s*\d+\s*(?:x|@)/i.test(String(text)) || /\d+(?:\.\d+)?\s*kg\s*@/i.test(String(text));
+  const pick = matches.length > 1 && prefixed ? matches[matches.length - 1] : matches[0];
+  return Number((pick[1] || pick[2]).replace(',', '.'));
+};
+
 /** "2 @ £1.50" and "0.482 kg @ £4.99/kg" both mean a quantity. */
 const QTY_PATTERNS = [
   /^(\d+)\s*(?:x|@)\s*/i,
@@ -111,15 +125,16 @@ export const parseReceipt = (text) => {
   const items = [];
   const unread = [];
   let lastItem = null;
+  let pendingName = null; // a wrapped name line waiting for its price on the next line
   for (const line of lines) {
     if (isNoise(line)) continue;
-    const price = money(line);
+    const price = linePrice(line);
     const name = nameOf(line);
     if (price === null) {
       // A line with words but no price is usually a wrapped item name; a line
       // with neither is furniture we already skipped.
       if (isName(name) && name.length > 2) {
-        unread.push(line.trim());
+        pendingName = name;
         lastItem = null;
       }
       continue;
@@ -127,7 +142,15 @@ export const parseReceipt = (text) => {
     if (!isName(name)) {
       const quantity = quantityOf(line);
       if (lastItem && quantity !== null) lastItem.qty = quantity;
-      continue; // a price with no description belongs to the preceding item when it has a quantity
+      else if (pendingName) {
+        // Weighed goods: the name sat on its own line, the price+qty on the next.
+        lastItem = { name: pendingName.slice(0, 60), price, qty: quantity || 1 };
+        items.push(lastItem);
+        pendingName = null;
+      } else {
+        unread.push(line.trim()); // a priced line with no product above it is unread, never dropped
+      }
+      continue;
     }
     lastItem = {
       name: name.slice(0, 60),
@@ -135,7 +158,10 @@ export const parseReceipt = (text) => {
       qty: quantityOf(line) || 1,
     };
     items.push(lastItem);
+    pendingName = null;
   }
+  // A wrapped name that never got its price is still unread, not dropped.
+  if (pendingName) unread.push(pendingName);
 
   const printed = totalFrom(lines);
   const summed = Math.round(items.reduce((sum, i) => sum + i.price, 0) * 100) / 100;

@@ -1,5 +1,5 @@
 const KEY = 'arise.store.v1';
-export const STORE_SCHEMA_VERSION = 4;
+export const STORE_SCHEMA_VERSION = 5;
 
 const DEFAULT = {
   version: STORE_SCHEMA_VERSION,
@@ -8,7 +8,7 @@ const DEFAULT = {
   activeWorkout: null, // recoverable runner draft: { session, blocks, note, noteTags, restEndsAt, restLabel, updatedAt }
   eventHistory: [], // imported/exported event snapshot; live telemetry remains append-only in its own local key
   healthSummary: null, // optional user-approved health-platform summary
-  history: [], // completed sessions: { id, dateISO, programId, week, day, title, blocks:[{exerciseId, sets:[{reps,weightKg,rpe,side,rom,assistedKg,tempo}]}] }
+  history: [], // completed sessions: see normaliseHistoryEntry for full shape
   preferences: { units: 'kg', theme: null, syncEnabled: false, telemetryEnabled: null, pulseEnabled: false, healthSummaryEnabled: false }, // theme null follows OS; telemetry null = prompt
   readinessLog: [], // [{ dateISO, score, sleep, soreness, motivation }]
   programHistory: [], // [{ programId, version, startDateISO, endDateISO }]
@@ -53,10 +53,56 @@ export function upsertHistory(history = [], entry = null){
   return [...without, winner].sort((a, b)=> String(a?.dateISO || '').localeCompare(String(b?.dateISO || '')) || historyTimestamp(a) - historyTimestamp(b));
 }
 
+export function normaliseHistoryEntry(entry){
+  if(!entry || typeof entry !== 'object') return entry;
+  const out = { ...entry };
+  if(!Array.isArray(out.blocks)) out.blocks = [];
+  out.blocks = out.blocks.map((block, index)=> {
+    if(!block || typeof block !== 'object') return block;
+    const b = { ...block };
+    if(b.exerciseOrder == null) b.exerciseOrder = index;
+    if(!Array.isArray(b.sets)) b.sets = [];
+    b.sets = b.sets.map(set=> {
+      if(!set || typeof set !== 'object') return set;
+      const s = { ...set };
+      if(s.side == null) s.side = null;
+      if(s.rom == null) s.rom = null;
+      if(s.assistedKg == null) s.assistedKg = null;
+      if(s.tempo == null) s.tempo = null;
+      if(s.rpe == null) s.rpe = '';
+      if(s.reps == null) s.reps = '';
+      if(s.weightKg == null) s.weightKg = '';
+      if(s.failed == null) s.failed = false;
+      if(s.skipped == null) s.skipped = false;
+      if(s.pain == null) s.pain = false;
+      if(s.completed == null && s.skipped === false) s.completed = true;
+      return s;
+    });
+    if(b.substitutionFrom == null) b.substitutionFrom = null;
+    if(b.substitutionReason == null) b.substitutionReason = null;
+    if(b.equipment == null) b.equipment = null;
+    return b;
+  });
+  if(out.durationMinutes == null) out.durationMinutes = null;
+  if(out.startedAt == null) out.startedAt = null;
+  if(out.finishedAt == null) out.finishedAt = out.savedAt || null;
+  if(out.equipmentSnapshot == null) out.equipmentSnapshot = out.equipment || out.availableEquipment || null;
+  if(out.programVersion == null) out.programVersion = out.version || null;
+  if(out.templateVersion == null) out.templateVersion = null;
+  if(out.mode == null) out.mode = 'standard';
+  if(out.noteTags == null) out.noteTags = [];
+  if(out.painDiscomfort == null) out.painDiscomfort = Array.isArray(out.noteTags) ? out.noteTags.includes('pain-discomfort') : false;
+  if(out.substitutions == null) out.substitutions = out.blocks.filter(b=> b.substitutionFrom).map(b=> ({ from: b.substitutionFrom, to: b.exerciseId, reason: b.substitutionReason }));
+  if(out.skippedSetsCount == null) out.skippedSetsCount = out.blocks.reduce((n,b)=> n + (b.sets||[]).filter(s=> s.skipped || s.failed).length, 0);
+  if(out.exerciseOrder == null) out.exerciseOrder = out.blocks.map(b=> b.exerciseId);
+  return out;
+}
+
 export function normaliseHistory(history = []){
+  const normalised = (history || []).map(normaliseHistoryEntry);
   const byId = new Map();
   const loose = [];
-  for(const entry of history || []){
+  for(const entry of normalised || []){
     if(!entry?.id){ loose.push(entry); continue; }
     const existing = byId.get(entry.id);
     if(!existing || historyTimestamp(entry) >= historyTimestamp(existing)) byId.set(entry.id, entry);
@@ -102,6 +148,16 @@ export function runMigrations(raw){
     if(j.healthSummary === undefined) j.healthSummary=null;
     if(!j.preferences) j.preferences={};
     if(j.preferences.healthSummaryEnabled==null) j.preferences.healthSummaryEnabled=false;
+    j.version = 4;
+  }
+  if(j.version === 4){
+    // v4 -> v5: real-history capture (duration, equipment snapshot, substitutions, pain flags, programme versions)
+    if(j.history){
+      for(const h of j.history) {
+        const normalised = normaliseHistoryEntry(h);
+        Object.assign(h, normalised);
+      }
+    }
     j.version = STORE_SCHEMA_VERSION;
   }
   if(j.activeWorkout === undefined) j.activeWorkout = null;

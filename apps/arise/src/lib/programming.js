@@ -107,13 +107,22 @@ export function transparentProgressionDecision({ exerciseId, history = [], targe
   }
   evidence.push(`${logs.length} exercise session${logs.length === 1 ? '' : 's'} inform this decision.`);
   if(rec.trainingBreak?.hasBreak) evidence.push(`The last logged exposure was ${rec.trainingBreak.daysSinceLast} days ago, so the return target is deliberately reduced.`);
-  if(rec.plateLoad && !rec.plateLoad.exact) evidence.push(`The selected plate setup makes ${rec.plateLoad.loadKg}kg achievable instead of the raw ${rec.plateLoad.targetKg}kg target.`);
+  if(rec.noisy && rec.noisy.length) evidence.push(`Last session had noisy context (${rec.noisy.join(', ')}) — holding load requires a clean exposure before progressing.`);
+  if(history.length && history[history.length-1]?.durationMinutes != null) evidence.push(`Last session duration was ${history[history.length-1].durationMinutes}min; short or interrupted sessions are treated conservatively.`);
+  if(history.length && history[history.length-1]?.equipmentSnapshot) evidence.push(`Last session used kit: ${history[history.length-1].equipmentSnapshot.join(', ')}; kit changes adjust substitution evidence.`);
+  if(history.length && Number(history[history.length-1]?.skippedSetsCount)) evidence.push(`${history[history.length-1].skippedSetsCount} skipped/failed sets in last session — incomplete exposures do not count as evidence to progress.`);
+  if(history.length && history[history.length-1]?.painDiscomfort) evidence.push('Pain/discomfort was flagged last session — hold load and check form before progressing.');
+  if(history.length && history[history.length-1]?.exerciseOrder) evidence.push(`Exercise order last time: ${history[history.length-1].exerciseOrder.slice(0,4).join(' → ')}; order changes affect fatigue and are noted.`);
+  if(rec.plateLoad && !rec.plateLoad.exact) evidence.push(`The selected plate setup makes ${rec.plateLoad.loadKg}kg achievable instead of the raw ${rec.plateLoad.targetKg}kg target (${rec.plateLoad.direction}); target is always physically achievable.`);
+  if(rec.plateLoad && rec.plateLoad.exact) evidence.push(`Plate check: ${rec.plateLoad.loadKg}kg is exactly buildable with your ${rec.plateEquipment || 'available'} kit.`);
   if(rec.personalised) evidence.push(`Your observed rate is ${Math.round(rec.personalised.weeklyLoadPct * 1000) / 10}% load per week across ${rec.personalised.n} logged sets.`);
   if(age.phase !== 'unknown') evidence.push(`Training age is treated as ${age.phase}; the default rate is scaled accordingly.`);
 
   let rule = 'Use the programme prescription until enough evidence is logged.';
   if(rec.trainingBreak?.hasBreak) rule = 'Return-after-break rule: restart below the last logged load, then rebuild only after the first session is comfortable.';
+  else if(rec.noisy && rec.noisy.length) rule = 'Noisy-session guard: hold the current prescription until a clean session without pain, missed sets, or unusual performance confirms readiness.';
   else if(rec.plateau?.isPlateau || /plateau/i.test(rec.reason || '')) rule = 'Plateau guard: hold the current prescription and recover or vary the movement before adding load.';
+  else if(/Hold load because/.test(rec.reason||'')) rule = 'Conservatism guard: insufficient evidence or unstable recent performance — hold load and collect another observation.';
   else if(rec.assistKg != null) rule = 'Assistance rule: add reps through the range, then reduce assistance in a small step.';
   else if(rec.suggestWeighted) rule = 'Bodyweight rule: after the top of the rep range, use a harder variation or add load if the movement supports it.';
   else if(rec.reps != null && rec.load != null) rule = 'Double-progression rule: build reps within the target range, then add a small load step and reset to the lower bound.';

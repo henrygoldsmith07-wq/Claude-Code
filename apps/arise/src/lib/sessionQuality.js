@@ -243,6 +243,89 @@ function bestSetFor(h, exerciseId){
   return best;
 }
 
+// ── Noisy session handling ───────────────────────────────────────────────
+// A single odd session (short, long gap, different kit, missed sets, unusual
+// drop, poor adherence, pain) should not drive a major programme change.
+// This helper surfaces contextual flags; callers should require multiple
+// observations before acting.
+export function noisySessionContext(session, historyBefore = [], { readinessLog = [], schedule = null, config = null } = {}){
+  const cfg = resolveArisePriors(config).programming.noisySession;
+  const flags = [];
+  const details = {};
+  if(session?.durationMinutes != null && Number(session.durationMinutes) < cfg.shortDurationMinutes){
+    flags.push('shortSession');
+    details.shortSession = `${session.durationMinutes}min vs ${cfg.shortDurationMinutes}min threshold`;
+  }
+  if(session?.painDiscomfort || session?.noteTags?.includes('pain-discomfort') || (session?.blocks||[]).some(b=> (b.sets||[]).some(s=> s.pain))){
+    flags.push('painDiscomfort');
+    details.painDiscomfort = 'pain/discomfort flagged';
+  }
+  if(historyBefore && historyBefore.length){
+    const last = historyBefore[historyBefore.length - 1];
+    if(last?.dateISO && session?.dateISO){
+      const gap = (Date.parse(`${session.dateISO}T00:00:00`) - Date.parse(`${last.dateISO}T00:00:00`)) / 86400000;
+      if(Number.isFinite(gap) && gap >= cfg.longGapDays){
+        flags.push('longGap');
+        details.longGap = `${Math.round(gap)} days since last session`;
+      }
+    }
+    const prevEquipment = Array.isArray(last?.equipmentSnapshot) ? [...last.equipmentSnapshot].sort().join('|') : '';
+    const curEquipment = Array.isArray(session.equipmentSnapshot) ? [...session.equipmentSnapshot].sort().join('|') : '';
+    if(cfg.equipmentChangeFlag && prevEquipment && curEquipment && prevEquipment !== curEquipment){
+      flags.push('equipmentChange');
+      details.equipmentChange = `${prevEquipment} → ${curEquipment}`;
+    }
+    const prevOrder = Array.isArray(last?.exerciseOrder) ? last.exerciseOrder.join(',') : (last?.blocks||[]).map(b=> b.exerciseId).join(',');
+    const curOrder = Array.isArray(session.exerciseOrder) ? session.exerciseOrder.join(',') : (session.blocks||[]).map(b=> b.exerciseId).join(',');
+    if(cfg.orderChangeFlag && prevOrder && curOrder && prevOrder !== curOrder){
+      flags.push('changedOrder');
+      details.changedOrder = 'exercise order differed from previous session';
+    }
+    // unusual performance: e1rm drop > threshold vs prior best for any exercise
+    for(const block of session.blocks||[]){
+      const best = bestSetFor(session, block.exerciseId);
+      if(!best) continue;
+      const priorBest = Math.max(0, ...historyBefore.flatMap(h=> (h.blocks||[]).filter(b=> b.exerciseId===block.exerciseId).flatMap(b=> (b.sets||[]).map(s=> {
+        const w=Number(s.weightKg)||0, r=Number(String(s.reps).match(/\d+/)?.[0]||s.reps)||0;
+        return w>0 && r>0 ? e1rm(w,r) : 0;
+      }))));
+      if(priorBest > 0){
+        const drop = (priorBest - best.e) / priorBest;
+        if(drop >= cfg.unusualDropPct){
+          flags.push('unusualPerformance');
+          details.unusualPerformance = `${block.exerciseId} e1rm ${Math.round(best.e)} vs prior ${Math.round(priorBest)} (${Math.round(drop*100)}% drop)`;
+          break;
+        }
+      }
+    }
+  }
+  const skipped = Number(session.skippedSetsCount) || (session.blocks||[]).reduce((n,b)=> n + (b.sets||[]).filter(s=> s.skipped || s.failed).length, 0);
+  if(skipped >= cfg.missedSetsThreshold){
+    flags.push('missedSets');
+    details.missedSets = `${skipped} skipped/failed sets`;
+  }
+  // poor adherence period: adherence over last 5 planned sessions < threshold
+  if(schedule && historyBefore){
+    const planned = (schedule.sessions||[]).filter(s=> s.dateISO <= session.dateISO).length;
+    const completed = historyBefore.filter(h=> h.dateISO <= session.dateISO).length;
+    const adherence = planned ? completed / planned : 1;
+    if(adherence < cfg.poorAdherenceThreshold && planned >= 3){
+      flags.push('poorAdherence');
+      details.poorAdherence = `adherence ${(adherence*100).toFixed(0)}% over last ${planned} planned sessions`;
+    }
+  }
+  return { isNoisy: flags.length > 0, flags, details, requiresConfirmation: flags.length >= 1 };
+}
+
+export function shouldDeferProgressionForNoisy(history, exerciseId, { window = 3, config = null } = {}){
+  const cfg = resolveArisePriors(config).programming.noisySession;
+  const recent = (history||[]).slice(-window);
+  if(recent.length < 2) return { defer: false, reason: 'Not enough history to judge noisy context' };
+  const noisyCount = recent.filter(session=> noisySessionContext(session, history.slice(0, history.indexOf(session))).isNoisy).length;
+  if(noisyCount >= 2) return { defer: true, reason: `${noisyCount}/${recent.length} recent sessions have noisy context — defer progression, collect a clean exposure` };
+  return { defer: false, reason: 'Recent sessions are not consistently noisy' };
+}
+
 // Readiness for a date: exact match, else nearest prior log within 3 days.
 function readinessFor(dateISO, readinessLog, config = null){
   const lookbackDays = resolveArisePriors(config).sessionQuality.readinessLookbackDays;
