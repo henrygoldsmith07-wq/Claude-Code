@@ -316,6 +316,41 @@ export function feedback(target, heard) {
  */
 export const HUMAN_BENCHMARK = [];
 
+/**
+ * Validate one human-labelled benchmark sample before it may enter the store.
+ *
+ * Shape follows the collection protocol above: the target text, what the
+ * recogniser heard, and the listeners' mean 1–5 intelligibility rating (never
+ * an accent rating). Returns null for anything malformed or out of range —
+ * invalid rows are dropped, not coerced, so a bulk import cannot smuggle in
+ * fabricated labels.
+ */
+export function makeBenchmarkSample({ id, target, transcript, humanMean, raters, at } = {}) {
+  const t = String(target || '').trim();
+  const h = String(transcript || '').trim();
+  const m = Number(humanMean);
+  if (!t || !h) return null;
+  if (!Number.isFinite(m) || m < 1 || m > 5) return null;
+  const raterList = Array.isArray(raters) ? raters.filter((r) => r && String(r).trim()).map((r) => String(r).trim().slice(0, 80)) : [];
+  return {
+    id: String(id || `bench-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`),
+    target: t.slice(0, 2000),
+    transcript: h.slice(0, 2000),
+    humanMean: Math.round(m * 100) / 100,
+    ...(raterList.length ? { raters: raterList.slice(0, 10) } : {}),
+    at: at && !Number.isNaN(new Date(at).getTime()) ? new Date(at).toISOString() : new Date().toISOString(),
+  };
+}
+
+/**
+ * Combined benchmark view: the (empty by design) in-source array plus any
+ * samples ingested at runtime through the validation store. Callers pass
+ * this to runBenchmark/benchmarkStatus.
+ */
+export function mergeBenchmarkItems(stored = [], sourceItems = HUMAN_BENCHMARK) {
+  return [...(Array.isArray(sourceItems) ? sourceItems : []), ...(Array.isArray(stored) ? stored : [])];
+}
+
 /** Pearson correlation, the headline number for a scorer against humans. */
 export function correlation(pairs) {
   const n = pairs.length;

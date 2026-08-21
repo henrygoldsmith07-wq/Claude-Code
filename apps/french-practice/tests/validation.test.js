@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { makePlacementValidationEntry, placementValidationMetrics } from '../src/lib/placementValidation.js';
 import { makeProgressionEntry, progressionValidationMetrics, buildTransferCheck } from '../src/lib/progressionValidation.js';
-import { makeCorpusEntry, corpusMetrics } from '../src/lib/writingSpeakingCorpus.js';
+import { makeCorpusEntry, corpusMetrics, corpusInterRaterMetrics } from '../src/lib/writingSpeakingCorpus.js';
 import { assistanceMetrics, makeAssistanceEvent } from '../src/lib/assistanceValidation.js';
 import { auditContentItem, auditLibrary } from '../src/lib/contentCalibration.js';
 import {
@@ -103,6 +103,41 @@ describe('writing/speaking corpus', () => {
     ];
     const m = corpusMetrics(entries);
     assert.ok(typeof m.scores.meanAbsoluteError === 'number');
+  });
+
+  it('flags double-marked entries and reports inter-rater agreement', () => {
+    const single = makeCorpusEntry({ mode: 'writing', prompt: 'P', response: 'R', aiScore: 70, humanScore: 72, rater: 'A' });
+    assert.equal(single.doubleMarked, false);
+    const double = makeCorpusEntry({ mode: 'writing', prompt: 'P', response: 'R', aiScore: 70, humanScore: 72, rater: 'A', humanScore2: 74, rater2: 'B' });
+    assert.equal(double.doubleMarked, true);
+
+    const m = corpusInterRaterMetrics([
+      double,
+      makeCorpusEntry({ mode: 'writing', prompt: 'P', response: 'R', aiScore: 82, humanScore: 80, rater: 'A', humanScore2: 50, rater2: 'B' }),
+    ]);
+    assert.equal(m.n, 2);
+    assert.equal(m.status, 'provisional');
+    assert.equal(m.exactAgreement, 0);
+    assert.equal(m.within5, 0.5);
+    assert.ok(typeof m.kappa === 'number');
+  });
+
+  it('reports no-data for inter-rater until a second mark exists', () => {
+    const m = corpusInterRaterMetrics([
+      makeCorpusEntry({ mode: 'writing', prompt: 'P', response: 'R', aiScore: 70, humanScore: 72 }),
+    ]);
+    assert.equal(m.status, 'no-data');
+    assert.match(m.message, /second qualified rater/);
+  });
+
+  it('counts paired and double-marked items in the corpus summary', () => {
+    const m = corpusMetrics([
+      makeCorpusEntry({ mode: 'writing', prompt: 'P1', response: 'R1', aiScore: 70, humanScore: 72 }),
+      makeCorpusEntry({ mode: 'speaking', prompt: 'P2', response: 'R2', aiScore: 60, humanScore: 61, humanScore2: 63 }),
+    ]);
+    assert.equal(m.paired, 2);
+    assert.equal(m.doubleMarked, 1);
+    assert.equal(m.byMode.speaking, 1);
   });
 });
 

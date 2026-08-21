@@ -22,6 +22,7 @@ import {
   makeAssistanceEvent as _makeAsst,
   assistanceMetrics as _asstMetrics,
 } from './assistanceValidation.js';
+import { makeBenchmarkSample as _makeBenchmarkSample } from './intelligibility.js';
 // Thin localStorage wrapper — the app's only persistence layer (no backend).
 
 const KEYS = {
@@ -82,6 +83,7 @@ const KEYS = {
   assistanceLog: 'fp.assistanceLog.v1', // with/without support events
   contentCalibration: 'fp.contentCalibration.v1', // cached audit results
   lastPlacement: 'fp.lastPlacement.v1', // most recent adaptive placement result, for teacher pairing
+  intelligibilityBenchmark: 'fp.intelligibilityBenchmark.v1', // human-rated recordings { target, transcript, humanMean, raters }
 };
 
 export { KEYS };
@@ -1790,12 +1792,57 @@ export function updateCorpusHumanMark(id, { humanScore, humanCorrections, rater,
     consensus: consensus != null ? String(consensus).slice(0, 200) : entry.consensus,
     hasHuman: true,
     paired: entry.aiScore != null && score != null,
+    doubleMarked: score != null && entry.humanScore2 != null,
+  };
+  write(KEYS.writingSpeakingCorpus, list);
+  return list[idx];
+}
+
+// Independent second marker (double-marking): must be a different rater than
+// the first mark, otherwise agreement is measured against itself.
+export function updateCorpusSecondMark(id, { humanScore2, humanCorrections2, rater2 }) {
+  const list = getWritingSpeakingCorpus();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx < 0) return null;
+  const entry = list[idx];
+  if (entry.rater && rater2 && String(rater2).trim() === String(entry.rater).trim()) return null;
+  const score = Number.isFinite(Number(humanScore2)) ? Math.max(0, Math.min(100, Math.round(Number(humanScore2)))) : null;
+  if (score == null) return null;
+  list[idx] = {
+    ...entry,
+    humanScore2: score,
+    humanCorrections2: humanCorrections2 != null ? String(humanCorrections2).slice(0, 8000) : entry.humanCorrections2,
+    rater2: rater2 != null ? String(rater2).slice(0, 80) : entry.rater2,
+    consensus: score != null && entry.humanScore != null
+      ? String(Math.round((Number(entry.humanScore) + score) / 2))
+      : entry.consensus,
+    doubleMarked: entry.humanScore != null,
   };
   write(KEYS.writingSpeakingCorpus, list);
   return list[idx];
 }
 
 export const getCorpusMetrics = () => _corpusMetrics(getWritingSpeakingCorpus());
+
+// ---- pronunciation intelligibility benchmark (human-labelled samples) ----
+//
+// The in-source HUMAN_BENCHMARK array stays empty by design; real labelled
+// recordings enter here, one validated sample at a time. Nothing generates a
+// humanMean — it arrives only from listeners.
+
+export const getIntelligibilityBenchmark = () => {
+  const v = read(KEYS.intelligibilityBenchmark, []);
+  return Array.isArray(v) ? v : [];
+};
+
+export function recordBenchmarkSample(sample) {
+  const made = _makeBenchmarkSample(sample);
+  if (!made) return null;
+  const list = getIntelligibilityBenchmark();
+  const next = [...list.filter((s) => s.id !== made.id), made].slice(-2000);
+  write(KEYS.intelligibilityBenchmark, next);
+  return made;
+}
 
 // ---- assistance fading log ----
 
