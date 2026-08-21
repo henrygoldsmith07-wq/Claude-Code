@@ -1,9 +1,17 @@
 import { useMemo, useState } from 'react';
 import { pingLatency } from '../lib/groq';
+import {
+  recordPlacementValidation, getPlacementValidationMetrics, getLastPlacement,
+} from '../lib/storage';
 import { ChevronRight } from './icons';
 
 // Developer & utility panel: token usage totals, latency pings, raw API
-// payload log, and the Mock Mode toggle (settings-backed).
+// payload log, the Mock Mode toggle (settings-backed), and the teacher entry
+// point for placement validation — where a known CEFR level (teacher
+// assessment or external exam) is paired against a real placement result.
+// Nothing here fabricates data: every field comes from a human.
+
+const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onClear }) {
   const [ping, setPing] = useState(null);
@@ -73,6 +81,8 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
           </button>
         </div>
 
+        <PlacementValidationCard />
+
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">
             Request log ({telemetry.length})
@@ -137,7 +147,104 @@ function Metric({ label, value }) {
   return (
     <div className="bg-surface border border-line rounded-2xl px-3 py-3 text-center">
       <div className="text-xl font-bold text-ink tabular-nums truncate">{value}</div>
-      <div className="text-[10px] text-ink3 mt-0.5">{label}</div>
+      <div className="text-[10px] font-bold uppercase tracking-wider text-ink3 mt-0.5">{label}</div>
     </div>
+  );
+}
+
+// Teacher/assessment entry: pair a known CEFR level with a real placement
+// result. The store starts empty and stays honest — this form is the only
+// way entries appear, and every field is human-supplied.
+function PlacementValidationCard() {
+  const last = getLastPlacement();
+  const [form, setForm] = useState({
+    knownLevel: '', placedLevel: last?.level || '', theta: last?.theta ?? '', se: last?.se ?? '',
+    itemsAsked: last?.itemsAsked ?? '', rater: '', source: '',
+  });
+  const [saved, setSaved] = useState(null);
+  const metrics = getPlacementValidationMetrics();
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const useLast = () => {
+    if (!last) return;
+    setForm((f) => ({
+      ...f,
+      placedLevel: last.level || f.placedLevel,
+      theta: last.theta ?? f.theta,
+      se: last.se ?? f.se,
+      itemsAsked: last.itemsAsked ?? f.itemsAsked,
+    }));
+  };
+
+  const save = () => {
+    const made = recordPlacementValidation({
+      knownLevel: form.knownLevel,
+      placedLevel: form.placedLevel,
+      theta: Number(form.theta),
+      se: Number(form.se),
+      itemsAsked: Number(form.itemsAsked),
+      rater: form.rater || undefined,
+      source: form.source || undefined,
+    });
+    setSaved(made ? 'Saved.' : 'Could not save — check the fields.');
+  };
+
+  const inputCls = 'w-full bg-surface2 border border-line rounded-lg px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-ink';
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">Placement validation — teacher entry</h3>
+        {last && (
+          <button onClick={useLast} className="text-[11px] font-semibold text-ink2 hover:text-ink underline shrink-0">
+            Use last test result
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] text-ink3">
+        Pair a learner’s independently known CEFR level (your assessment, a DELF/TCF/GCSE result) with the
+        placement this app produced. Entries measure exact/within-one agreement, ability error and calibration —
+        nothing is generated. Currently: <span className="font-semibold text-ink2">{metrics.label}</span>
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Known level</span>
+          <select value={form.knownLevel} onChange={set('knownLevel')} className={inputCls}>
+            <option value="">—</option>
+            {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </label>
+        <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Placed level</span>
+          <select value={form.placedLevel} onChange={set('placedLevel')} className={inputCls}>
+            <option value="">—</option>
+            {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </label>
+        <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Ability θ</span>
+          <input type="number" step="0.1" value={form.theta} onChange={set('theta')} className={inputCls} placeholder="e.g. 0.2" />
+        </label>
+        <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">SE</span>
+          <input type="number" step="0.05" min="0" value={form.se} onChange={set('se')} className={inputCls} placeholder="e.g. 0.45" />
+        </label>
+        <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Items asked</span>
+          <input type="number" min="1" max="100" value={form.itemsAsked} onChange={set('itemsAsked')} className={inputCls} placeholder="e.g. 12" />
+        </label>
+        <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Rater</span>
+          <input value={form.rater} onChange={set('rater')} className={inputCls} placeholder="who assessed" />
+        </label>
+        <label className="col-span-2 sm:col-span-3 space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Source</span>
+          <input value={form.source} onChange={set('source')} className={inputCls} placeholder="e.g. DELF B1, June sitting" />
+        </label>
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={save}
+          disabled={!form.knownLevel || !form.placedLevel}
+          className="btn btn-primary min-h-9 px-4 rounded-lg text-xs disabled:opacity-40"
+        >
+          Record pair
+        </button>
+        {saved && <span className="text-[11px] text-ink2">{saved}</span>}
+        <span className="ml-auto text-[11px] text-ink3">{metrics.message}</span>
+      </div>
+    </section>
   );
 }

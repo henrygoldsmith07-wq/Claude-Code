@@ -71,6 +71,7 @@ export function FindingCard({
           Confidence: {CONFIDENCE_LABEL[finding.confidence.level]}
         </span>
         <span className={`pill pill--replication-${replicationStatus}`}>{REPLICATION_LABEL[replicationStatus]}</span>
+        {finding.tags.includes("confirmatory") ? <span className="pill pill--confirmatory">Confirmatory</span> : finding.tags.includes("exploratory") ? <span className="pill pill--exploratory" title="Exploratory — needs a holdout to confirm">Exploratory</span> : null}
       </header>
 
       <h3 id={headingId} className="finding__title">
@@ -193,6 +194,18 @@ export function FindingCard({
             </ul>
           </>
         ) : null}
+      </details>
+
+      <details className="finding__detail">
+        <summary>Why am I seeing this?</summary>
+        <p className="muted">
+          Samples: {finding.sampleDescription} · Effect magnitude: {finding.effect.magnitude} · Consistency:{" "}
+          {finding.counterfactual ? finding.counterfactual.verdict : "unknown"} · Evidence: {finding.evidenceClass} · Confidence {finding.confidence.level}
+          {finding.replicationStatus ? ` · ${finding.replicationStatus}` : ""} · Sources {finding.sources.join(", ") || "unknown"}
+        </p>
+        <p className="muted">
+          Samples are distinct sittings (2-hour bands), not raw rows. Missing days are not counted as zero. Proprietary vendor scores (Readiness, Body Battery) are never pooled.
+        </p>
       </details>
 
       {finding.nextAction ? (

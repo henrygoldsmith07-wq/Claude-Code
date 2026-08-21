@@ -81,6 +81,7 @@ const KEYS = {
   writingSpeakingCorpus: 'fp.writingSpeakingCorpus.v1', // human-marked writing/speaking pairs
   assistanceLog: 'fp.assistanceLog.v1', // with/without support events
   contentCalibration: 'fp.contentCalibration.v1', // cached audit results
+  lastPlacement: 'fp.lastPlacement.v1', // most recent adaptive placement result, for teacher pairing
 };
 
 export { KEYS };
@@ -1818,3 +1819,22 @@ export const getAssistanceMetrics = () => _asstMetrics(getAssistanceLog());
 
 export const getContentCalibration = () => read(KEYS.contentCalibration, null);
 export const setContentCalibration = (v) => write(KEYS.contentCalibration, v);
+
+// ---- last adaptive placement result (input to teacher pairing) ----
+
+export const getLastPlacement = () => read(KEYS.lastPlacement, null);
+
+export function saveLastPlacement(result) {
+  if (!result || !result.level) return null;
+  const saved = {
+    level: String(result.level),
+    theta: Number.isFinite(Number(result.theta)) ? Number(result.theta) : null,
+    se: Number.isFinite(Number(result.se)) ? Number(result.se) : null,
+    itemsAsked: Number.isFinite(Number(result.itemsAsked)) ? Math.round(Number(result.itemsAsked)) : null,
+    confidence: Number.isFinite(Number(result.confidence)) ? Number(result.confidence) : null,
+    range: result.range != null ? String(result.range) : null,
+    at: new Date().toISOString(),
+  };
+  write(KEYS.lastPlacement, saved);
+  return saved;
+}

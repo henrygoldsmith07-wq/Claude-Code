@@ -75,6 +75,10 @@ import { createPersonalEvidenceApi, type PersonalEvidenceApi } from "./evidence-
 import { buildExport, deleteSource, type DeletionReport, type PulseExport } from "./privacy/export.js";
 import { buildResearchExport, type ResearchExport } from "./privacy/research-export.js";
 import { buildStatisticalInspection, type StatisticalInspection, type StatisticalInspectorOptions } from "./statistics/inspector.js";
+import { diagnoseLongitudinal, type LongitudinalDiagnostics } from "./quality/longitudinal.js";
+import { explainFinding, explainRecommendation, type ProvenanceExplanation } from "./provenance/explain.js";
+import { buildEvidenceMetrics, type EvidenceMetrics } from "./reports/evidence-metrics.js";
+import { reconcileEvents } from "./connectors/reconcile.js";
 
 export interface PulseOptions {
   timezone?: string;
@@ -622,8 +626,23 @@ export class Pulse {
     this.persistRecommendationValue();
   }
 
-  recordRecommendationOutcome(id: string, helped: boolean, note?: string): void {
-    this.value.recordOutcome(id, helped, note);
+  recordRecommendationOutcome(
+    id: string,
+    helped: boolean,
+    note?: string,
+    options: { window?: { from: string; to: string } | null; uncertainty?: string | null; adherence?: number | null; observedOutcome?: string | null } = {},
+  ): void {
+    this.value.recordOutcome(id, helped, note, options);
+    this.persistRecommendationValue();
+  }
+
+  /** Direct adherence update for a recommendation (e.g., pill taken 5/7 days). */
+  setRecommendationAdherence(id: string, adherence: number): void {
+    const v = this.value.valueOf(id);
+    if (!v) return;
+    // Reuse internal ensure via valueOf clone is not mutable, so fetch live and update
+    const live = (this.value as unknown as { values: Map<string, unknown> }).values.get(id) as { adherence: number | null } | undefined;
+    if (live) live.adherence = Math.max(0, Math.min(1, adherence));
     this.persistRecommendationValue();
   }
 
@@ -749,6 +768,64 @@ export class Pulse {
 
   deleteInsightCollection(id: string): boolean {
     return this.insightCollections.delete(id);
+  }
+
+  // --- LONGITUDINAL & PROVENANCE --------------------------------------
+
+  longitudinalDiagnostics(): LongitudinalDiagnostics {
+    return diagnoseLongitudinal(this.store.all(), {
+      syncReports: [...this.syncReports.values()],
+      connectors: this.listConnectors(),
+      connectedSources: this.listConnectors().filter((c) => this.consent.isGranted(c.id)).map((c) => c.id),
+      timezone: this.timezone,
+      now: this.now,
+    });
+  }
+
+  explainFinding(findingId: string): ProvenanceExplanation | null {
+    const finding = this.cachedFindings.find((f) => f.id === findingId);
+    if (!finding) return null;
+    return explainFinding(finding, {
+      events: this.store.all(),
+      registry: this.registry,
+      qualities: this.quality(),
+      dashboard: this.connectorDashboard(),
+    });
+  }
+
+  explainRecommendation(recommendationId: string): ProvenanceExplanation | null {
+    const rec = this.recommendations().find((r) => r.id === recommendationId);
+    if (!rec) return null;
+    const finding = rec.sourceKind === "finding" ? this.cachedFindings.find((f) => f.id === rec.sourceId) ?? null : null;
+    const findingExpl = finding ? this.explainFinding(finding.id) : null;
+    return explainRecommendation(rec, findingExpl);
+  }
+
+  evidenceMetrics(): EvidenceMetrics {
+    const lastReport = this.cachedFindings.length ? this.discover({ limit: 1 }) : null;
+    const inbox = this.discoveryInbox();
+    const retired = inbox.filter((i) => i.state === "retired").length;
+    return buildEvidenceMetrics({
+      findings: this.cachedFindings,
+      replication: this.replication.list(),
+      contradictions: this.contradictions.list(),
+      inboxTotal: inbox.length,
+      retiredCount: retired,
+      value: this.value,
+      designs: this.listDesigns(),
+      results: this.experimentResultsList(),
+      syncReports: [...this.syncReports.values()],
+      connectedCount: this.listConnectors().filter((c) => this.consent.isGranted(c.id)).length,
+      familySize: lastReport?.familySize ?? this.cachedFindings.length,
+      expectedFalseDiscoveries: lastReport?.expectedFalseDiscoveries ?? 0,
+    });
+  }
+
+  reconciledEvents(options: { sourcePrecedence?: readonly SourceId[] } = {}): ReturnType<typeof reconcileEvents> {
+    return reconcileEvents(this.store.all(), {
+      sourcePrecedence: options.sourcePrecedence,
+      connectedSources: this.listConnectors().filter((c) => this.consent.isGranted(c.id)).map((c) => c.id),
+    });
   }
 
   // --- PRIVACY ----------------------------------------------------------
