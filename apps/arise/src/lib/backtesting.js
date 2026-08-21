@@ -607,6 +607,7 @@ export function backtestHistory(input = [], options = {}){
         stratum,
         recommendation: { load: recommendation.load, reps: recommendation.reps, assistKg: recommendation.assistKg, reason: recommendation.reason },
         actual: { load: actual.weightKg, reps: actual.reps, e1rm: best.e1rm },
+        previousBest: { reps: previousAction.reps, weightKg: previousAction.weightKg, assistedKg: previousAction.assistedKg, e1rm: previousAction.e1rm },
         loadErrorKg,
         loadErrorPct,
         repError,
