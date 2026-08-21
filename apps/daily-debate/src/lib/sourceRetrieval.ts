@@ -86,10 +86,35 @@ export function validateRetrievalUrl(url: string): { ok: boolean; reason?: Failu
     const u = new URL(url);
     if (u.protocol !== "https:") return { ok: false, reason: "not_https", details: "URL must be https" };
     if (url.length > 600) return { ok: false, reason: "invalid_url", details: "URL too long" };
+    if (u.username || u.password) return { ok: false, reason: "invalid_url", details: "URL must not embed credentials" };
+    if (isPrivateHost(u.hostname)) return { ok: false, reason: "invalid_url", details: "URL must not point at a private or link-local host" };
     return { ok: true };
   } catch {
     return { ok: false, reason: "invalid_url", details: "Not a valid URL" };
   }
+}
+
+// Hosts that must never be fetched server-side: loopback, RFC1918 private
+// ranges, link-local (incl. the 169.254.169.254 metadata endpoint), IPv6
+// unique-local, and mDNS names. SSRF guard for every outbound fetch.
+const PRIVATE_HOST_PATTERNS: RegExp[] = [
+  /^localhost$/,
+  /\.local$/,
+  /\.internal$/,
+  /^127\./,
+  /^10\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^0\.0\.0\.0$/,
+  /^::1$/,
+  /^::$/,
+  /^f[cd][0-9a-f]{2}:/i,
+];
+
+export function isPrivateHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return PRIVATE_HOST_PATTERNS.some((re) => re.test(host));
 }
 
 function extractMeta(html: string, key: string): string | undefined {
