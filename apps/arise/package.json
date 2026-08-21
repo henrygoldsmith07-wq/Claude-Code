@@ -16,13 +16,16 @@
     "lint:content": "node scripts/lint-content.mjs",
     "check": "npm run lint:content && npm test",
     "type-check": "tsc --noEmit",
-    "verify": "npm run lint:content && npm run type-check && npm test && npm run build"
+    "verify": "npm run lint:content && npm run type-check && npm test && npm run build",
+    "e2e": "playwright test",
+    "e2e:ci": "playwright test --reporter=list"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.0.0",

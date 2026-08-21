@@ -33,9 +33,11 @@ test('adversarial: ANSI escapes around every token do not hide failures', () => 
 });
 
 test('adversarial: deeply nested JSON compresses without throwing and keeps the error', () => {
-  let leaf = { error: 'deep boom' };
-  for (let i = 0; i < 2000; i++) leaf = { level: i, empty: '', next: leaf }; // prunable `empty` at every depth
-  const input = JSON.stringify(leaf);
+  // Built as text, not via JSON.stringify: recursive serialisation of deep
+  // nesting blows the call stack on runners with small stacks (Windows CI).
+  // Depth stays well under every engine's recursion budget.
+  let input = '{"error":"deep boom"}';
+  for (let i = 0; i < 500; i++) input = `{"level":${i},"empty":"","next":${input}}`;
   const out = compressJson(input);
   assert.ok(typeof out === 'string', 'should return a string, got null');
   assert.ok(out.includes('deep boom'));

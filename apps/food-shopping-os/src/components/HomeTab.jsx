@@ -20,6 +20,7 @@ import WaterGlasses from './WaterGlasses.jsx';
 import { DueList } from './RemindersPanel.jsx';
 import { Glyph } from './icons.jsx';
 import RecommendationExplanation from './RecommendationExplanation.jsx';
+import OutcomeDashboard from './OutcomeDashboard.jsx';
 
 /** Capture routes that open straight into the diary's matching sheet. */
 const LOG_SHORTCUTS = [
@@ -561,6 +562,9 @@ export default function HomeTab({ openRecipe, openPantry, openGuidance, goTab, g
         </div>
       )}
       {customising ? orderedWidgets.map(renderWidget) : coreWidgets.map(renderWidget)}
+      <div className="px-5">
+        <OutcomeDashboard />
+      </div>
 
       {!customising && moreWidgets.length > 0 && (
         <details className="home-more group">

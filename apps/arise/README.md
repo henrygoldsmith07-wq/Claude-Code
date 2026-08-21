@@ -30,7 +30,8 @@ A game-like, offline-first training companion. Not a nutrition app.
 22. **Durable measurements & consent** — local event history records set logging time, session abandonment and recommendation acceptance only after explicit local-measurement consent. More provides event export/clear, Pulse sharing consent, optional health-summary consent and validated import feedback.
 23. **Pulse and health adapters** — `runPulseIntegrationE2E()` exercises workout/volume writes plus metric reads against an injected adapter; `health.js` supports an optional small summary adapter without requiring a platform SDK or raw health history.
 24. **Field validation** — deterministic progression and logging benchmarks are runnable; the real-gym protocol is in [`e2e/REAL_GYM_FIELD_TESTS.md`](e2e/REAL_GYM_FIELD_TESTS.md).
-25. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
+25. **Real longitudinal validation (`longitudinal.js`)** — with local-measurement consent, every recommendation is snapshotted *before* the workout it targets (with a prior-only basis: visible session count, previous best, training-age phase, priors version), and the real outcome is attached when that workout completes. Pairs are aggregated into progression-success / regression / stagnation / adherence rates segmented by training age, exercise, movement pattern and equipment class (free weights / machines / cables / bodyweight). Segment conclusions are withheld below a minimum sample size; the evaluation ledger lives under its own storage key, never feeds back into recommendations, and no recommendation is ever recomputed from later sessions.
+26. **Before any public/commercial release — rename franchise-adjacent terminology.** The codebase is already neutral fitness language (no hero/avenger/marvel/power-level terms). Audit app name, copy, icon and store listing for any remaining franchise-adjacent branding before publishing.
 
 ## Roadmap
 
@@ -54,6 +55,7 @@ npm test           # node:test (data / attributes / export / store / validation)
 npm run benchmark  # seeded progression-validation harness → benchmark/results.md (also in CI)
 npm run benchmark:logging # deterministic logging-time metric smoke benchmark
 npm run verify     # lint:content && type-check && test && build  (also in CI)
+npm run e2e        # Playwright browser E2E (new-user journey + mobile layout)
 ```
 
 No env vars. Data is local — clear via **More → Clear local data** (or export first). Cross-device sync is an optional `sync.js` layer (`syncUp`/`syncDown` + pluggable `pull/push`) — offline-first preserved, sync is Merge/Replace over export JSON.
@@ -62,11 +64,17 @@ No env vars. Data is local — clear via **More → Clear local data** (or expor
 
 ```js
 {
-  version: 4,
-  onboarding: { goal, equipment:[], location, level, daysPerWeek, availableMinutes, preferredExerciseIds:[], dislikedExerciseIds:[], plateConfig?: { barWeightKg, platesKg:[] } } | null,
+  version: 5,
+  onboarding: { goal, equipment:[], location, level, daysPerWeek, availableMinutes, preferredExerciseIds:[], dislikedExerciseIds:[], plateConfig?: { barWeightKg, platesKg:[], dumbbellsKg?:[], machineIncrementKg? } } | null,
   activeSchedule: { programId, startDateISO, sessions:[{ id, dateISO, week, day, title, blocks, status }] } | null,
   activeWorkout: { session, blocks, note, noteTags, restEndsAt, startedAt, updatedAt } | null,
-  history: [{ id, dateISO, programId, week, day, title, blocks:[{ exerciseId, sets:[{reps,weightKg,rpe}] }], note?, savedAt }],
+  // v5 real-history fields (added by normaliseHistoryEntry on read/migration):
+  history: [{ id, dateISO, programId, programVersion?, templateVersion?, week, day, title,
+              durationMinutes?, startedAt?, finishedAt?, savedAt,
+              equipmentSnapshot?: [], substitutions?: [{ from, to, reason }],
+              exerciseOrder?: [exerciseId], painDiscomfort?, skippedSetsCount?,
+              blocks:[{ exerciseId, exerciseOrder?, substitutionFrom?, substitutionReason?, equipment?,
+                        sets:[{ reps, weightKg, rpe, side, rom, assistedKg, tempo, completed?, skipped?, failed?, pain? }] }], note?, noteTags? }],
   eventHistory: [{ id, schemaVersion, type, at, ...payload }],
   healthSummary: { source, asOf, steps?, sleepHours?, weightKg?, restingHeartRate? } | null,
   preferences: { units:'kg', theme: null, syncEnabled: false, telemetryEnabled: null, pulseEnabled: false, healthSummaryEnabled: false }
@@ -103,6 +111,8 @@ src/lib/progression.js progression + plateau/deload + RIR/RPE + bodyweight/unila
 src/lib/substitutions.js pattern/muscle/equipment/difficulty scoring + rankedSubstitutions
 src/lib/templates.js   template engine: equipment-honest instantiation + profile recommendation + versions
 src/lib/programmeGenerator.js profile → dated schedule generation with time, frequency, preference and history-aware substitutions
+src/lib/backtesting.js point-in-time replay validation of recommendations against later outcomes
+src/lib/longitudinal.js consent-gated prospective recommendation→outcome ledger + segmented real-world validation
 src/lib/plates.js       nearest achievable barbell load + per-side plate stack
 src/lib/analytics.js   weekly volume + frequency + strength series + volume-balance advice + actionable advice
 src/lib/warmup.js      warm-ups + rest/duration + supersets + fatigue-aware ordering + weak points

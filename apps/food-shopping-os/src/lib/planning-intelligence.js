@@ -4,9 +4,14 @@ import { planEntries } from './mealplan.js';
 export const SKIP_REASONS = [
   { id: 'no-time', label: 'Not enough time' },
   { id: 'ingredients-missing', label: 'Ingredients missing' },
+  { id: 'changed-preference', label: 'Changed preference' },
+  { id: 'leftovers-available', label: 'Leftovers available' },
+  { id: 'plan-too-complex', label: 'Plan too complex' },
   { id: 'not-in-the-mood', label: 'Not in the mood' },
   { id: 'plans-changed', label: 'Plans changed' },
   { id: 'ate-something-else', label: 'Ate something else' },
+  { id: 'takeaway', label: 'Takeaway / ate out' },
+  { id: 'cooked-a-different-meal', label: 'Cooked a different meal' },
   { id: 'other', label: 'Something else' },
 ];
 

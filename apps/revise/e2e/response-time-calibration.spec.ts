@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { todayOrOnboarding } from "./helpers";
 
 test("response-time calibration explains the first data threshold", async ({ page }) => {
   await page.goto("/");
 
-  const onboarding = page.getByText(/Revision that knows what to do next/i);
   const today = page.locator("main#main");
-  await expect(onboarding.or(today).first()).toBeVisible({ timeout: 15_000 });
-  if (await onboarding.isVisible()) {
+  if ((await todayOrOnboarding(page)) === "onboarding") {
     await page.getByRole("button", { name: /Continue/i }).first().click();
     await page.waitForTimeout(300);
     const subjectCard = page.locator("button.card").first();

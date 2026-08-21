@@ -20,15 +20,24 @@ strata retain the prior and expose `source: "prior"` in the observation.
 The backtester reports:
 
 - load and rep error, hit rate, and progression-action timing;
+- progression validation: successful vs failed progression rates, regression
+  following a progression, stagnation, and unnecessary conservatism — broken
+  down by exercise, training age, rep range, movement type, equipment and
+  consistency strata;
+- noisy-session handling: how often noisy context (short session, long gap,
+  kit/order change, missed sets, pain) results in a conservative hold rather
+  than an overreaction to one bad day;
 - completion-probability Brier/log loss and calibration bins;
 - plateau classification against later progression/recovery outcomes;
 - fatigue/bad-session classification against the next session;
 - deload decisions against observed volume cuts, explicitly labelled as
-  behaviour/adherence outcomes rather than physiological truth;
+  behaviour/adherence outcomes rather than physiological truth (a single bad
+  workout never triggers a deload alone — two or more independent signals are
+  required);
 - missed-session recovery sequence adherence when a schedule with stable IDs is
   provided; and
-- strata by exercise, available-history band, training age, equipment, and
-  consistency.
+- strata by exercise, available-history band, training age, equipment,
+  consistency, rep range, and movement type.
 
 ## Dataset format
 

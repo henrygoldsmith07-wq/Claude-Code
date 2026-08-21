@@ -1,9 +1,11 @@
-// plates.js — deterministic barbell loadability helpers.
+// plates.js — deterministic loadability helpers for barbell, dumbbell and machine work.
 // Plate denominations are treated as available pairs. The calculator never
 // invents a load: it returns the nearest achievable total and the per-side
-// stack used to get there.
+// stack (barbell) or single increment (dumbbell/machine) used to get there.
 
 export const DEFAULT_PLATE_DENOMINATIONS_KG = [1.25, 2.5, 5, 10, 15, 20, 25];
+export const DEFAULT_DUMBBELL_WEIGHTS_KG = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22.5, 25, 27.5, 30];
+export const DEFAULT_MACHINE_INCREMENT_KG = 2.5;
 
 const SCALE = 100;
 
@@ -19,7 +21,14 @@ function normaliseConfig(config = {}){
   const platesKg = [...new Set(source.map(value=> Number(typeof value === 'object' ? value.kg : value))
     .filter(value=> Number.isFinite(value) && value > 0)
     .map(value=> Math.round(value * SCALE) / SCALE))].sort((a, b)=> a - b);
-  return { barWeightKg, platesKg };
+  const dumbbellSource = Array.isArray(input.dumbbellsKg) ? input.dumbbellsKg : (Array.isArray(input.dumbbellWeightsKg) ? input.dumbbellWeightsKg : DEFAULT_DUMBBELL_WEIGHTS_KG);
+  const dumbbellsKg = [...new Set(dumbbellSource.map(value=> Number(value))
+    .filter(value=> Number.isFinite(value) && value > 0)
+    .map(value=> Math.round(value * SCALE) / SCALE))].sort((a, b)=> a - b);
+  const machineIncrementKg = Number.isFinite(Number(input.machineIncrementKg)) ? Math.round(Number(input.machineIncrementKg) * SCALE) / SCALE : DEFAULT_MACHINE_INCREMENT_KG;
+  const machineMinKg = Number.isFinite(Number(input.machineMinKg)) ? Number(input.machineMinKg) : 5;
+  const machineMaxKg = Number.isFinite(Number(input.machineMaxKg)) ? Number(input.machineMaxKg) : 120;
+  return { barWeightKg, platesKg, dumbbellsKg, machineIncrementKg, machineMinKg, machineMaxKg };
 }
 
 function betterStack(candidate, current){
@@ -83,6 +92,91 @@ export function nearestLoadToPlates(targetKg, config = {}){
     platesPerSide: bestStack.slice().sort((a, b)=> b - a),
     platesKg,
   };
+}
+
+export function nearestDumbbellLoad(targetKg, config = {}){
+  const target = Number(targetKg);
+  if(!Number.isFinite(target) || target < 0) return null;
+  const { dumbbellsKg } = normaliseConfig(config);
+  if(!dumbbellsKg.length) return null;
+  let best = dumbbellsKg[0];
+  let bestError = Math.abs(best - target);
+  for(const weight of dumbbellsKg){
+    const error = Math.abs(weight - target);
+    if(error < bestError || (error === bestError && weight < best)){
+      best = weight;
+      bestError = error;
+    }
+  }
+  const deltaKg = Math.round((best - target) * SCALE) / SCALE;
+  return {
+    targetKg: Math.round(target * SCALE) / SCALE,
+    loadKg: best,
+    deltaKg,
+    exact: deltaKg === 0,
+    direction: deltaKg === 0 ? 'exact' : deltaKg > 0 ? 'over' : 'under',
+    dumbbellsKg,
+  };
+}
+
+export function nearestMachineLoad(targetKg, config = {}){
+  const target = Number(targetKg);
+  if(!Number.isFinite(target) || target < 0) return null;
+  const { machineIncrementKg, machineMinKg, machineMaxKg } = normaliseConfig(config);
+  const step = Math.max(0.5, machineIncrementKg);
+  const clamped = Math.max(machineMinKg, Math.min(machineMaxKg, target));
+  const steps = Math.round((clamped - machineMinKg) / step);
+  const loadKg = Math.round((machineMinKg + steps * step) * SCALE) / SCALE;
+  const deltaKg = Math.round((loadKg - target) * SCALE) / SCALE;
+  if(loadKg < machineMinKg || loadKg > machineMaxKg) return null;
+  return {
+    targetKg: Math.round(target * SCALE) / SCALE,
+    loadKg,
+    deltaKg,
+    exact: deltaKg === 0,
+    direction: deltaKg === 0 ? 'exact' : deltaKg > 0 ? 'over' : 'under',
+    machineIncrementKg: step,
+    machineMinKg,
+    machineMaxKg,
+  };
+}
+
+export function nearestAchievableLoad(targetKg, { equipment = 'barbell', config = {} } = {}){
+  const equip = String(equipment || '').toLowerCase();
+  if(equip.includes('dumbbell')) return nearestDumbbellLoad(targetKg, config);
+  if(equip.includes('machine') || equip.includes('cable')) return nearestMachineLoad(targetKg, config);
+  return nearestLoadToPlates(targetKg, config);
+}
+
+export function minimumAchievableJump(currentKg, { equipment = 'barbell', config = {} } = {}){
+  const current = Number(currentKg) || 0;
+  const equip = String(equipment || '').toLowerCase();
+  const normalised = normaliseConfig(config);
+  if(equip.includes('dumbbell')){
+    const sorted = normalised.dumbbellsKg;
+    if(!sorted.length) return null;
+    const next = sorted.find(w=> w > current);
+    if(next == null) return null;
+    const prevIdx = sorted.findIndex(w=> w > current) - 1;
+    const prev = prevIdx >= 0 ? sorted[prevIdx] : current;
+    const jumps = sorted.slice(1).map((w,i)=> w - sorted[i]);
+    const minJump = jumps.length ? Math.min(...jumps) : null;
+    return { nextLoadKg: next, jumpKg: Math.round((next - Math.max(prev, current)) * SCALE) / SCALE, minimumJumpKg: minJump != null ? Math.round(minJump*SCALE)/SCALE : null };
+  }
+  if(equip.includes('machine') || equip.includes('cable')){
+    const step = normalised.machineIncrementKg;
+    return { nextLoadKg: Math.round((current + step)*SCALE)/SCALE, jumpKg: step, minimumJumpKg: step };
+  }
+  // barbell: smallest per-side plate determines total jump (×2)
+  const smallestPlate = normalised.platesKg[0];
+  if(!smallestPlate) return null;
+  const jumpKg = Math.round(smallestPlate * 2 * SCALE)/SCALE;
+  return { nextLoadKg: Math.round((current + jumpKg)*SCALE)/SCALE, jumpKg, minimumJumpKg: jumpKg };
+}
+
+export function isLoadAchievable(targetKg, equipment, config){
+  const result = nearestAchievableLoad(targetKg, { equipment, config });
+  return !!(result && result.exact);
 }
 
 export function formatPlateStack(stack = []){

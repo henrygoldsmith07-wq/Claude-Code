@@ -17,8 +17,10 @@ import {
   deloadReadinessAssessment,
   sessionQuality,
   plateauAttribution,
+  noisySessionContext,
 } from './sessionQuality.js';
 import { empiricalOrPrior, resolveArisePriors, clamp } from './priors.js';
+import { EXERCISE_BY_ID } from './data.js';
 
 export const BENCHMARK_FORMAT_VERSION = 1;
 
@@ -158,9 +160,33 @@ function consistencyBand(history, config){
 }
 
 function equipmentBand(profile, session, exerciseId){
-  const equipment = profile?.availableEquipment || profile?.equipment || session?.availableEquipment || session?.equipment || [];
+  const equipment = profile?.availableEquipment || profile?.equipment || session?.availableEquipment || session?.equipment || session?.equipmentSnapshot || [];
   if(!Array.isArray(equipment) || !equipment.length) return 'unknown';
   return [...new Set(equipment.map(value=> String(value).trim()).filter(Boolean))].sort().join('+') || 'unknown';
+}
+
+function repRangeBand(targetReps){
+  const nums = (String(targetReps||'').match(/\d+/g)||[]).map(Number);
+  const lo = nums[0] || 8;
+  const hi = nums[1] || lo;
+  const avg = (lo + hi) / 2;
+  if(avg <= 5) return 'low (1-5)';
+  if(avg <= 12) return 'mid (6-12)';
+  return 'high (13+)';
+}
+
+function movementTypeFor(exerciseId){
+  const ex = EXERCISE_BY_ID[exerciseId];
+  if(!ex) return 'unknown';
+  const muscle = ex.muscle || 'unknown';
+  const patternMap = {
+    'push-up': 'push', 'bench-press-barbell': 'push', 'bench-press-dumbbell': 'push', 'chest-press-machine': 'push', 'incline-push-up': 'push',
+    'pull-up': 'pull', 'band-row': 'pull', 'dumbbell-row': 'pull', 'lat-pulldown': 'pull', 'cable-row': 'pull',
+    'bodyweight-squat': 'squat', 'goblet-squat': 'squat', 'barbell-squat': 'squat', 'split-squat': 'squat', 'bulgarian-split-squat': 'squat', 'lunge': 'lunge',
+    'romanian-deadlift': 'hinge', 'hip-thrust': 'hinge', 'glute-bridge': 'hinge',
+  };
+  const pattern = patternMap[exerciseId] || ex.muscle?.toLowerCase() || 'general';
+  return `${muscle}:${pattern}`;
 }
 
 function profileAtPoint(baseProfile, profileHistory, asOfDateISO){
@@ -170,17 +196,21 @@ function profileAtPoint(baseProfile, profileHistory, asOfDateISO){
   return visible.length ? { ...(baseProfile || {}), ...visible[visible.length - 1] } : (baseProfile || {});
 }
 
-function stratumFor({ exerciseId, history, profile, session, asOfDateISO, config }){
+function stratumFor({ exerciseId, history, profile, session, asOfDateISO, config, targetReps = null }){
   const age = trainingAgeInfo(history, { asOfDateISO, config });
   const count = priorExerciseCount(history, exerciseId);
+  const repRange = repRangeBand(targetReps || session?.blocks?.find(b=> b.exerciseId===exerciseId)?.reps || '8-12');
+  const movementType = movementTypeFor(exerciseId);
   const stratum = {
     exercise: exerciseId || 'unknown',
     availableHistory: historyBand(count, config),
     trainingAge: age.phase,
     equipment: equipmentBand(profile, session, exerciseId),
     consistency: consistencyBand(history, config),
+    repRange,
+    movementType,
   };
-  return { ...stratum, key: [stratum.exercise, stratum.availableHistory, stratum.trainingAge, stratum.equipment, stratum.consistency].join('|') };
+  return { ...stratum, key: [stratum.exercise, stratum.availableHistory, stratum.trainingAge, stratum.equipment, stratum.consistency, stratum.repRange, stratum.movementType].join('|') };
 }
 
 function stratumKeys(stratum){
@@ -188,6 +218,9 @@ function stratumKeys(stratum){
     `exact:${stratum.key}`,
     `exercise-history:${stratum.exercise}|${stratum.availableHistory}`,
     `exercise-age:${stratum.exercise}|${stratum.trainingAge}`,
+    `repRange:${stratum.repRange}`,
+    `movementType:${stratum.movementType}`,
+    `exercise-rep:${stratum.exercise}|${stratum.repRange}`,
     `exercise:${stratum.exercise}`,
     'global',
   ];
@@ -366,7 +399,7 @@ function metricForRows(rows){
 }
 
 function buildStrata(rows){
-  const dimensions = ['exercise', 'availableHistory', 'trainingAge', 'equipment', 'consistency'];
+  const dimensions = ['exercise', 'availableHistory', 'trainingAge', 'equipment', 'consistency', 'repRange', 'movementType'];
   const output = {};
   for(const dimension of dimensions){
     const groups = new Map();
@@ -485,9 +518,10 @@ export function backtestHistory(input = [], options = {}){
     const model = fitEmpiricalModel(comparisonRows, config);
     const stratumCache = new Map();
 
-    const getStratum = exerciseId=> {
-      if(!stratumCache.has(exerciseId)) stratumCache.set(exerciseId, stratumFor({ exerciseId, history: historyBefore, profile: pointProfile, session: item.session, asOfDateISO: item.session.dateISO, config }));
-      return stratumCache.get(exerciseId);
+    const getStratum = (exerciseId, targetReps = null)=> {
+      const cacheKey = `${exerciseId}|${targetReps||''}`;
+      if(!stratumCache.has(cacheKey)) stratumCache.set(cacheKey, stratumFor({ exerciseId, history: historyBefore, profile: pointProfile, session: item.session, asOfDateISO: item.session.dateISO, config, targetReps }));
+      return stratumCache.get(cacheKey);
     };
 
     // Fatigue/bad-session forecast: its input is prior quality only. The
@@ -568,13 +602,9 @@ export function backtestHistory(input = [], options = {}){
       if(!exerciseId || !actual) continue;
       const previous = lastExposure(historyBefore, exerciseId);
       if(!previous?.best) continue; // A first exposure has no next-session target to score.
-      const stratum = getStratum(exerciseId);
-      const strategy = config.progression.strategies[strategyForExercise(exerciseId, { config })] || config.progression.strategies.hypertrophy;
-      // The logged block is the outcome row and must not supply hidden
-      // prescription data. A planned block is valid context only when it is
-      // carried in the benchmark schedule; otherwise use the configured
-      // strategy range as Arise's cold-start prescription.
       const targetReps = plannedTargetReps(schedule, item.session, exerciseId, config.progression.defaultTargetReps) || config.progression.defaultTargetReps;
+      const stratum = getStratum(exerciseId, targetReps);
+      const strategy = config.progression.strategies[strategyForExercise(exerciseId, { config })] || config.progression.strategies.hypertrophy;
       const completionPrior = config.backtest.completion.priorProbability;
       const progressionPrior = strategy.incPct;
       const completionEstimate = model.lookup('completionProbability', stratum, completionPrior);
@@ -599,12 +629,15 @@ export function backtestHistory(input = [], options = {}){
       const futureForTiming = futureExposures(timeline, item.orderIndex, exerciseId, config.backtest.maxOutcomeHorizonExposures);
       const observedProgressionOffset = futureForTiming.findIndex(future=> isProgressionAction(observedAction(future.best, previousAction, config)));
       const observedLoadPct = previous.best.weightKg > 0 && best.weightKg > previous.best.weightKg ? best.weightKg / previous.best.weightKg - 1 : null;
+      const noisy = noisySessionContext(item.session, historyBefore, { readinessLog: readinessBefore, schedule, config });
       const probability = completionEstimate.value;
       const row = {
         asOfDateISO: item.session.dateISO,
         sessionId: item.session.id || null,
         exerciseId,
         stratum,
+        noisyFlags: noisy.flags,
+        noisyContext: noisy.details,
         recommendation: { load: recommendation.load, reps: recommendation.reps, assistKg: recommendation.assistKg, reason: recommendation.reason },
         actual: { load: actual.weightKg, reps: actual.reps, e1rm: best.e1rm },
         previousBest: { reps: previousAction.reps, weightKg: previousAction.weightKg, assistedKg: previousAction.assistedKg, e1rm: previousAction.e1rm },
@@ -671,6 +704,50 @@ export function backtestHistory(input = [], options = {}){
     classificationAccuracy: completionRows.length ? round(mean(completionRows.map(row=> row.predictedCompleted === row.completed ? 1 : 0)), 3) : null,
     calibrationBins: calibrationBins(completionRows),
   };
+  // Progression validation breakdown: success, failed, regression, stagnation, conservatism
+  const progressionValidation = (()=> {
+    const predicted = progressionRows.filter(r=> r.predictedProgression);
+    const successful = predicted.filter(r=> r.actualProgression && r.loadHit && r.repHit);
+    const failed = predicted.filter(r=> !r.actualProgression || !r.loadHit);
+    const holdRows = progressionRows.filter(r=> !r.predictedProgression);
+    const regressions = predicted.filter(r=> {
+      const future = timeline.find(item=> item.session.dateISO > r.asOfDateISO);
+      if(!future) return false;
+      const futureBlocks = (future.session.blocks||[]).filter(b=> b.exerciseId===r.exerciseId);
+      if(!futureBlocks.length) return false;
+      const futureBest = Math.max(...futureBlocks.flatMap(b=> (b.sets||[]).map(s=> e1rm(Number(s.weightKg)||0, parseReps(s.reps))||0)));
+      return futureBest < (r.actual?.e1rm || 0) * 0.95;
+    });
+    const stagnation = holdRows.filter(r=> !r.actualProgression && r.observedProgressionOffset == null).length;
+    const unnecessary = holdRows.filter(r=> r.actualProgression).length;
+    return {
+      n: progressionRows.length,
+      predictedProgressions: predicted.length,
+      successfulProgressions: successful.length,
+      failedProgressions: failed.length,
+      successfulProgressionRate: predicted.length ? round(successful.length / predicted.length, 3) : null,
+      failedProgressionRate: predicted.length ? round(failed.length / predicted.length, 3) : null,
+      regressionFollowingProgression: predicted.length ? round(regressions.length / predicted.length, 3) : null,
+      regressionFollowingProgressionCount: regressions.length,
+      stagnationRate: holdRows.length ? round(stagnation / holdRows.length, 3) : null,
+      stagnationCount: stagnation,
+      unnecessaryConservatismRate: holdRows.length ? round(unnecessary / holdRows.length, 3) : null,
+      unnecessaryConservatismCount: unnecessary,
+      note: 'Rates are descriptive; sparse strata remain on priors and are not presented as calibrated evidence.',
+    };
+  })();
+  // Noisy session handling: multiple observations before progression
+  const noisyHandling = (()=> {
+    const rowsWithNoise = comparisonRows.filter(r=> r.noisyFlags && r.noisyFlags.length);
+    const heldDueToNoise = rowsWithNoise.filter(r=> !r.predictedProgression && /noisy|Hold load/i.test(r.recommendation?.reason||''));
+    return {
+      n: comparisonRows.length,
+      noisySessions: rowsWithNoise.length,
+      heldDueToNoise: heldDueToNoise.length,
+      holdRateWhenNoisy: rowsWithNoise.length ? round(heldDueToNoise.length / rowsWithNoise.length, 3) : null,
+      note: 'Conservative holds after noisy context require multiple observations, not a single bad session.',
+    };
+  })();
   const deloadEvaluable = deloadRows.filter(row=> row.observedCut != null);
   const deload = {
     n: deloadRows.length,
@@ -695,10 +772,17 @@ export function backtestHistory(input = [], options = {}){
     loadRecommendationError: recommendation.loadRecommendationError,
     repRecommendationError: recommendation.repRecommendationError,
     progressionTiming: timing,
+    progressionValidation,
+    noiseHandling: noisyHandling,
     completionProbability: completion,
     plateauClassification: { ...confusion(plateauRows, 'predicted', 'actual'), rows: plateauRows.length },
     fatigueClassification: classificationMetrics(fatigueRows),
     deloadRecommendation: deload,
+    deloadFatigueValidation: {
+      ...deload,
+      validationNote: 'Evaluate whether deload decisions precede persistent decline, repeated missed targets, fatigue trends and adherence drops; single bad workout never triggers deload alone (requires 2+ signals).',
+      noisyHandling,
+    },
     missedSessionRecovery: recovery,
   };
 

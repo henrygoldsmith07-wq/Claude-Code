@@ -244,6 +244,22 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
       cardioPriority: 2,
       firstBlockBonus: 0.5,
     },
+    noisySession: {
+      shortDurationMinutes: 15,
+      longGapDays: 14,
+      missedSetsThreshold: 2,
+      unusualDropPct: 0.15,
+      poorAdherenceThreshold: 0.5,
+      orderChangeFlag: true,
+      equipmentChangeFlag: true,
+    },
+  },
+  longitudinal: {
+    // Segment-level conclusions (rates) are withheld until a segment has this
+    // many resolved recommendation→outcome pairs.
+    minimumSegmentSamples: 5,
+    maxOpenRecordsPerExercise: 3,
+    retentionLimit: 500,
   },
   backtest: {
     minimumComparisons: 5,

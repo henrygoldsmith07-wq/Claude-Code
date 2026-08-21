@@ -5,6 +5,7 @@ import { recommendNext } from '../lib/progression.js';
 import { formatPlateStack } from '../lib/plates.js';
 import { substitutionOptions } from '../lib/substitutions.js';
 import { recordEvent } from '../lib/telemetry.js';
+import { recordRecommendation } from '../lib/longitudinal.js';
 
 const NOTE_PROMPTS = [
   { id: 'felt-strong', label: 'Felt strong' },
@@ -77,7 +78,7 @@ function hasUnfinishedSet(blocks, bi, si){
   return false;
 }
 
-export default function SessionRunner({ session, history = [], availableEquipment = [], plateConfig = null, draft = null, onDraftChange, onSave, onCancel }){
+export default function SessionRunner({ session, history = [], availableEquipment = [], plateConfig = null, draft = null, measurementConsent = false, onDraftChange, onSave, onCancel }){
   const [blocks,setBlocks]=useState(()=> session.blocks.map((b,i)=> normaliseBlock(b, history, draft?.blocks?.[i])));
   const [note,setNote]=useState(()=> draft?.note || '');
   const [noteTags,setNoteTags]=useState(()=> draft?.noteTags || []);
@@ -146,8 +147,19 @@ export default function SessionRunner({ session, history = [], availableEquipmen
       const recommendation=getRecommendation(block,history,session.dateISO,plateConfig);
       shownRecommendationRef.current.add(block.exerciseId);
       recordEvent('recommendation:shown', { sessionId:session.id, exerciseId:block.exerciseId, target:suggestedTarget(recommendation,block) });
+      // Prospective evaluation record: snapshot the recommendation BEFORE the
+      // workout. Consent-gated; stored separately from training history.
+      try{
+        recordRecommendation({
+          exerciseId: block.exerciseId,
+          recommendation,
+          history,
+          dueDateISO: session.dateISO,
+          preferences: measurementConsent === true ? { telemetryEnabled: true } : null,
+        });
+      }catch{}
     }
-  }, [blocks, history, session.id, session.dateISO, plateConfig]);
+  }, [blocks, history, session.id, session.dateISO, plateConfig, measurementConsent]);
 
   const startRest=(seconds,label)=>{
     const sec=Number(seconds)||0;
@@ -243,17 +255,25 @@ export default function SessionRunner({ session, history = [], availableEquipmen
   };
 
   const toggleNoteTag=(id)=> setNoteTags(prev=> prev.includes(id) ? prev.filter(x=>x!==id) : [...prev,id]);
-  const canSave = blocks.length>0 && blocks.every(b=> b.sets.length>0 && b.sets.every(s=> String(s.reps).trim()!=='' && s.completed));
+  const canSave = blocks.length>0 && blocks.every(b=> b.sets.length>0 && b.sets.every(s=> String(s.reps).trim()!=='')) && completedSets > 0;
   const pendingSets = totalSets-completedSets;
 
   const save = ()=>{
     if(!canSave) return;
     const labels=noteTags.map(id=> NOTE_PROMPTS.find(t=> t.id===id)?.label).filter(Boolean);
     const finalNote=[labels.join(', '), note.trim()].filter(Boolean).join(' · ');
+    const nowISO = new Date().toISOString();
+    const startedAt = startedAtRef.current;
+    const durationMinutes = Math.max(1, Math.round((Date.parse(nowISO) - Date.parse(startedAt)) / 60000));
+    const painDiscomfort = noteTags.includes('pain-discomfort');
+    const substitutions = blocks.filter(b=> b.substitutionFrom).map(b=> ({ from: b.substitutionFrom, to: b.exerciseId, reason: b.substitutionReason }));
+    const exerciseOrder = blocks.map(b=> b.exerciseId);
     const payload = {
       id: session.id,
       dateISO: session.dateISO,
       programId: session.programId,
+      programVersion: session.programVersion || null,
+      templateVersion: session.templateVersion || null,
       week: session.week,
       day: session.day,
       title: session.title,
@@ -261,11 +281,25 @@ export default function SessionRunner({ session, history = [], availableEquipmen
       targetMinutes: session.targetMinutes || null,
       originalDurationMin: session.originalDurationMin || null,
       rescheduledFrom: session.rescheduledFrom || null,
-      blocks: blocks.map(b=> ({
+      durationMinutes,
+      startedAt,
+      finishedAt: nowISO,
+      savedAt: nowISO,
+      equipmentSnapshot: [...(availableEquipment || [])],
+      substitutions: substitutions.length ? substitutions : undefined,
+      exerciseOrder,
+      painDiscomfort,
+      blocks: blocks.map((b, index)=> ({
         exerciseId: b.exerciseId,
+        exerciseOrder: index,
         ...(b.substitutionFrom ? { substitutionFrom: b.substitutionFrom, substitutionReason: b.substitutionReason } : {}),
+        equipment: EXERCISE_BY_ID[b.exerciseId]?.equipment || null,
         sets: b.sets.map(s=>{
-          const out={ reps:String(s.reps).trim(), weightKg:String(s.weightKg).trim(), rpe:String(s.rpe).trim() };
+          const completed = !!s.completed;
+          const skipped = !completed && String(s.reps).trim() !== '';
+          const failed = !!s.failed;
+          const out={ reps:String(s.reps).trim(), weightKg:String(s.weightKg).trim(), rpe:String(s.rpe).trim(), completed, skipped, failed };
+          if(painDiscomfort) out.pain = true;
           if(b.unilateral && s.side) out.side=s.side;
           if(s.rom && String(s.rom).trim()) out.rom=String(s.rom).trim();
           if(s.assistedKg && String(s.assistedKg).trim()) out.assistedKg=String(s.assistedKg).trim();
@@ -273,9 +307,10 @@ export default function SessionRunner({ session, history = [], availableEquipmen
           return out;
         }),
       })),
+      skippedSetsCount: blocks.reduce((n,b)=> n + b.sets.filter(s=> !s.completed).length, 0),
       note: finalNote || undefined,
       noteTags: noteTags.length ? noteTags : undefined,
-      savedAt: new Date().toISOString(),
+      sessionDuration: durationMinutes,
     };
     onSave(payload);
   };

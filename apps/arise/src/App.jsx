@@ -12,6 +12,7 @@ import { recommendExercises } from './lib/data.js';
 import { recordEvent } from './lib/telemetry.js';
 import { pushToPulse } from './lib/pulse.js';
 import { adaptActiveSchedule } from './lib/programming.js';
+import { attachOutcome } from './lib/longitudinal.js';
 
 export default function App(){
   const [store,setStoreState]=useState(()=> loadStore());
@@ -105,6 +106,18 @@ export default function App(){
   const handleSaveSession = (payload)=>{
     let next = { ...store };
     const hist = upsertHistory(next.history || [], payload);
+    // Longitudinal evaluation: resolve open recommendation records against this
+    // real outcome. Uses the pre-save history as "before" context; consent-gated
+    // and stored separately from training history.
+    try{
+      attachOutcome({
+        sessionId: payload.id,
+        dateISO: payload.dateISO,
+        blocks: payload.blocks,
+        historyBefore: next.history || [],
+        preferences: next.preferences?.telemetryEnabled === true ? { telemetryEnabled: true } : null,
+      });
+    }catch{}
     let activeSchedule = next.activeSchedule;
     if(activeSchedule){
       activeSchedule = { ...activeSchedule, sessions: activeSchedule.sessions.map(s=> s.id===payload.id ? { ...s, status:'done' } : s) };
@@ -254,6 +267,7 @@ export default function App(){
           availableEquipment={store.onboarding?.equipment || []}
           plateConfig={store.onboarding?.plateConfig || null}
           draft={store.activeWorkout?.session?.id===activeSession.id ? store.activeWorkout : null}
+          measurementConsent={store.preferences?.telemetryEnabled === true}
           onDraftChange={handleDraftChange}
           onSave={handleSaveSession}
           onCancel={handleCancelSession}
