@@ -5,7 +5,7 @@ const rules = [
   { re: /error/i, keep: true, reason: 'eslint: error' },
   { re: /warning/i, keep: true, reason: 'eslint: warning' },
   { re: /✖|problem.*\(.*\)/i, keep: true, reason: 'eslint: summary' },
-  { re: /.*:\d+:\d+.*\b(error|warning)\b/i, keep: true, reason: 'eslint: file:line diag' },
+  { re: /:\d+:\d+.*\b(error|warning)\b/i, keep: true, reason: 'eslint: file:line diag' },
 ];
 const MAX_LINES = 60;
 function filter(output, exitCode, opts = {}) {

@@ -4,7 +4,13 @@
 // - stripAnsi: removes SGR/CSI/OSC sequences so parsers see plain text.
 // - safeDecode: repairs lone surrogates / replacement chars that would throw.
 
-const ANSI_RE = /\u001b\[[0-9;]*[A-Za-z]|\u001b\].*?(?:\u0007|\u001b\\)|\u001b\[[^A-Za-z]*[A-Za-z]|\u001b\([A-Z]/g;
+// CSI: ESC [ + parameter bytes (0x30-0x3F: digits ; ? < = >) + optional
+// non-space intermediates + final byte (0x40-0x7E). Space intermediates are
+// deliberately NOT accepted: a greedy variant swallowed the first character
+// after a broken escape (`ESC[31 FAIL` → `AIL …`), hiding the failure marker.
+// Broken escapes fall through to the lone-ESC cleanup below, which strips
+// only the ESC and keeps the text (a stray `[31 ` beats a lost FAIL).
+const ANSI_RE = /\u001b\[[0-9;?<>=]*[A-Za-z]|\u001b\].*?(?:\u0007|\u001b\\)|\u001b([MNOD78=>c]|\[[A-Za-z])/g;
 const TRAILING_ESC_RE = /\u001b\[[0-9;]*$/;
 
 function stripAnsi(s) {

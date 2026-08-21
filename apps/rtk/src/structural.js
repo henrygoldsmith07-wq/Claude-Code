@@ -194,20 +194,32 @@ function compressAnnotations(output) {
   const lines = output.split('\n');
   const kept = lines.filter(l => /::(error|warning|notice).*::/i.test(l) || /::(group|endgroup)::/i.test(l) || /Error:|Failed/i.test(l));
   if (!kept.length) return null;
-  // Keep surrounding group context for each annotation
+  // Keep surrounding group context for each annotation + critical Error/Failed lines nearby
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     if (/::(error|warning|notice).*::/i.test(lines[i])) {
       if (i > 0 && /::group::/.test(lines[i-1])) out.push(lines[i-1]);
       out.push(lines[i]);
-      if (i + 1 < lines.length && /at\s+.*:\d+:\d+/.test(lines[i+1])) out.push(lines[i+1]);
+      // Keep immediate next line if it is a stack frame or a critical process failure line
+      if (i + 1 < lines.length && (/at\s+.*:\d+:\d+/.test(lines[i+1]) || /Error:.*exit code/i.test(lines[i+1]))) out.push(lines[i+1]);
+      // Also keep the next Error: line within 2 lines if it is the process completion marker
+      if (i + 2 < lines.length && /Error:.*exit code/i.test(lines[i+2]) && !out.includes(lines[i+2])) out.push(lines[i+2]);
     }
   }
-  // Deduplicate while preserving order
+  // Ensure any Error:.*exit code or Process completed lines are never lost
+  for (const l of kept) {
+    if (/Error:.*exit code|Process completed with exit code/i.test(l) && !out.includes(l)) out.push(l);
+  }
+  // Deduplicate while preserving order, then restore original input order
   const seen = new Set();
   const deduped = out.filter(l => { const k=l.trim(); if(seen.has(k)) return false; seen.add(k); return true; });
+  deduped.sort((a,b) => lines.indexOf(a) - lines.indexOf(b));
   const merged = deduped.length ? deduped : kept;
   if (merged.length >= lines.length * 0.9) return null;
+  // Final safety: if kept has an Error:.*exit code line missing from merged, use kept
+  const hasCritical = kept.some(l => /Error:.*exit code/i.test(l));
+  const mergedHasCritical = merged.some(l => /Error:.*exit code/i.test(l));
+  if (hasCritical && !mergedHasCritical) return kept.join('\n');
   return merged.join('\n');
 }
 

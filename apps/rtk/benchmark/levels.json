@@ -1,0 +1,191 @@
+{
+  "generatedAt": "2026-08-21T14:27:32.078Z",
+  "provenance": {
+    "rtkCommit": "8caf81ce61662952bb1f10581eac3d80e0575b07",
+    "rtkShortCommit": "8caf81c",
+    "benchmarkVersion": "0.3.0",
+    "corpusVersion": "corpus-50-777a244a",
+    "repositoryCommit": "8caf81ce61662952bb1f10581eac3d80e0575b07",
+    "taskId": null,
+    "model": null,
+    "modelSettings": null,
+    "environment": {
+      "node": "v24.16.0",
+      "platform": "win32",
+      "arch": "x64",
+      "osRelease": "10.0.26200",
+      "osType": "Windows_NT",
+      "cpus": 12,
+      "totalMemMB": 15666,
+      "shell": "C:\\Windows\\system32\\cmd.exe",
+      "ci": false
+    },
+    "operatingSystem": "Windows_NT 10.0.26200 x64",
+    "executionDate": "2026-08-21T14:27:32.078Z",
+    "nodeVersion": "v24.16.0",
+    "benchmarkName": "levels"
+  },
+  "count": 300,
+  "seed": 12648430,
+  "levels": {
+    "conservative": {
+      "stats": {
+        "total": 300,
+        "rawSuccesses": 291,
+        "rtkSuccesses": 291,
+        "rawSuccessRate": 0.97,
+        "rtkSuccessRate": 0.97,
+        "pairedDifference": 0,
+        "discordant": 0,
+        "discordantPairs": {
+          "b": 0,
+          "c": 0
+        },
+        "confidenceInterval": {
+          "lower": -0.01,
+          "upper": 0.01
+        },
+        "margin": 0.05,
+        "equivalent": true,
+        "rawToolTokens": 1256853,
+        "rtkToolTokens": 31857,
+        "avgRawTokens": 4190,
+        "avgRtkTokens": 106,
+        "avgReduction": 97,
+        "totalLatencyRaw": 2071.6844000000037,
+        "totalLatencyRtk": 663.836500000001,
+        "avgLatencyRaw": 6.905614666666679,
+        "avgLatencyRtk": 2.2127883333333367
+      },
+      "equivalence": {
+        "n": 300,
+        "a": 291,
+        "b": 0,
+        "c": 0,
+        "d": 9,
+        "discordant": 0,
+        "difference": 0,
+        "lower": -0.01,
+        "upper": 0.01,
+        "equivalent": true,
+        "margin": 0.05,
+        "alpha": 0.05,
+        "p": 0,
+        "reason": null,
+        "note": "Equivalent: the difference in task success is within ±5 points (90% CI -1.0 to 1.0, n=300)."
+      },
+      "economics": {
+        "grossSaved": 1224996,
+        "extraRetries": 0,
+        "net": 1224996
+      },
+      "losses": []
+    },
+    "balanced": {
+      "stats": {
+        "total": 300,
+        "rawSuccesses": 291,
+        "rtkSuccesses": 291,
+        "rawSuccessRate": 0.97,
+        "rtkSuccessRate": 0.97,
+        "pairedDifference": 0,
+        "discordant": 0,
+        "discordantPairs": {
+          "b": 0,
+          "c": 0
+        },
+        "confidenceInterval": {
+          "lower": -0.01,
+          "upper": 0.01
+        },
+        "margin": 0.05,
+        "equivalent": true,
+        "rawToolTokens": 1256853,
+        "rtkToolTokens": 31857,
+        "avgRawTokens": 4190,
+        "avgRtkTokens": 106,
+        "avgReduction": 97,
+        "totalLatencyRaw": 2135.2809999999977,
+        "totalLatencyRtk": 914.7965999999974,
+        "avgLatencyRaw": 7.117603333333325,
+        "avgLatencyRtk": 3.049321999999991
+      },
+      "equivalence": {
+        "n": 300,
+        "a": 291,
+        "b": 0,
+        "c": 0,
+        "d": 9,
+        "discordant": 0,
+        "difference": 0,
+        "lower": -0.01,
+        "upper": 0.01,
+        "equivalent": true,
+        "margin": 0.05,
+        "alpha": 0.05,
+        "p": 0,
+        "reason": null,
+        "note": "Equivalent: the difference in task success is within ±5 points (90% CI -1.0 to 1.0, n=300)."
+      },
+      "economics": {
+        "grossSaved": 1224996,
+        "extraRetries": 0,
+        "net": 1224996
+      },
+      "losses": []
+    },
+    "aggressive": {
+      "stats": {
+        "total": 300,
+        "rawSuccesses": 291,
+        "rtkSuccesses": 291,
+        "rawSuccessRate": 0.97,
+        "rtkSuccessRate": 0.97,
+        "pairedDifference": 0,
+        "discordant": 0,
+        "discordantPairs": {
+          "b": 0,
+          "c": 0
+        },
+        "confidenceInterval": {
+          "lower": -0.01,
+          "upper": 0.01
+        },
+        "margin": 0.05,
+        "equivalent": true,
+        "rawToolTokens": 1256853,
+        "rtkToolTokens": 31857,
+        "avgRawTokens": 4190,
+        "avgRtkTokens": 106,
+        "avgReduction": 97,
+        "totalLatencyRaw": 2062.7543999999934,
+        "totalLatencyRtk": 1159.943599999996,
+        "avgLatencyRaw": 6.875847999999978,
+        "avgLatencyRtk": 3.8664786666666533
+      },
+      "equivalence": {
+        "n": 300,
+        "a": 291,
+        "b": 0,
+        "c": 0,
+        "d": 9,
+        "discordant": 0,
+        "difference": 0,
+        "lower": -0.01,
+        "upper": 0.01,
+        "equivalent": true,
+        "margin": 0.05,
+        "alpha": 0.05,
+        "p": 0,
+        "reason": null,
+        "note": "Equivalent: the difference in task success is within ±5 points (90% CI -1.0 to 1.0, n=300)."
+      },
+      "economics": {
+        "grossSaved": 1224996,
+        "extraRetries": 0,
+        "net": 1224996
+      },
+      "losses": []
+    }
+  }
+}
