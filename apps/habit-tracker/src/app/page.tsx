@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { AccountBar } from "@/components/AccountBar";
+import { AuthForm } from "@/components/AuthForm";
+import { ExportImport } from "@/components/ExportImport";
 import { HistoryTable } from "@/components/HistoryTable";
 import { ManageList } from "@/components/ManageList";
 import { PulseSettings } from "@/components/PulseSettings";
 import { SetupNotice } from "@/components/SetupNotice";
 import { TodayList } from "@/components/TodayList";
+import { useAuth } from "@/lib/auth";
 import { isSupabaseConfigured, useHabitData } from "@/lib/supabase";
 
 type Tab = "today" | "history" | "manage";
@@ -18,6 +22,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Home() {
   const data = useHabitData();
+  const auth = useAuth();
   const [tab, setTab] = useState<Tab>("today");
 
   if (!isSupabaseConfigured) {
@@ -27,10 +32,25 @@ export default function Home() {
           <div className="flex flex-col items-center gap-3 text-center">
             <img src="/logo.svg" alt="" width={48} height={48} className="rounded-xl" aria-hidden="true" />
             <h1 className="text-3xl font-semibold tracking-tight">Habit</h1>
-            <p className="max-w-sm text-ink2">
-              A quiet habit tracker — do the thing, keep the streak.
-            </p>
+            <p className="max-w-sm text-ink2">A quiet habit tracker — do the thing, keep the streak.</p>
           </div>
+          <SetupNotice />
+        </main>
+      </div>
+    );
+  }
+
+  // Auth gate: secure by default. Anonymous users see only the sign-in form.
+  if (!auth.loading && !auth.user) {
+    return (
+      <div className="flex flex-1 flex-col items-center bg-bg px-6 py-16">
+        <main className="flex w-full max-w-md flex-col items-center gap-8 text-ink">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <img src="/logo.svg" alt="" width={48} height={48} className="rounded-xl" aria-hidden="true" />
+            <h1 className="text-3xl font-semibold tracking-tight">Habit</h1>
+            <p className="max-w-sm text-ink2">Sign in to track your habits. Each account is isolated — RLS is the boundary.</p>
+          </div>
+          <AuthForm onSuccess={() => window.location.reload()} />
           <SetupNotice />
         </main>
       </div>
@@ -55,9 +75,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setTab(entry.id)}
                     aria-current={tab === entry.id ? "page" : undefined}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                      tab === entry.id ? "bg-surface text-ink" : "text-ink3 hover:text-ink"
-                    }`}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${tab === entry.id ? "bg-surface text-ink" : "text-ink3 hover:text-ink"}`}
                   >
                     {entry.label}
                   </button>
@@ -69,27 +87,27 @@ export default function Home() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        {data.loading ? <p className="text-ink3">Loading your habits…</p> : null}
-        {data.error ? (
-          <p className="rounded-lg border border-line bg-dangersoft p-3 text-sm text-danger">
-            {data.error}
-          </p>
-        ) : null}
-        {!data.loading && data.error === null ? (
+        <div className="mb-4 flex flex-col gap-2">
+          <AccountBar />
+          {data.isOffline ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Offline — changes queued ({data.queueSize} pending). Will sync on reconnect without duplicates.</p>
+          ) : data.queueSize > 0 ? (
+            <p className="rounded-lg border border-line bg-surface p-2 text-xs text-ink3">
+              {data.queueSize} queued change{data.queueSize === 1 ? "" : "s"} — <button type="button" onClick={() => void data.flushQueue()} className="underline">retry now</button>
+            </p>
+          ) : null}
+        </div>
+        {auth.loading || data.loading ? <p className="text-ink3">Loading your habits…</p> : null}
+        {data.error ? <p className="rounded-lg border border-line bg-dangersoft p-3 text-sm text-danger">{data.error}</p> : null}
+        {!data.loading && !auth.loading ? (
           <>
             {tab === "today" ? <TodayList views={active} toggle={data.toggle} /> : null}
             {tab === "history" ? <HistoryTable views={data.views} /> : null}
             {tab === "manage" ? (
               <div className="space-y-6">
                 <PulseSettings enabled={data.pulseOptIn} onChange={data.setPulseOptIn} />
-                <ManageList
-                  active={active}
-                  archived={archived}
-                  addHabit={data.addHabit}
-                  updateHabit={data.updateHabit}
-                  setArchived={data.setArchived}
-                  removeHabit={data.removeHabit}
-                />
+                <ExportImport exportData={data.exportData} importData={data.importData} />
+                <ManageList active={active} archived={archived} addHabit={data.addHabit} updateHabit={data.updateHabit} setArchived={data.setArchived} removeHabit={data.removeHabit} />
               </div>
             ) : null}
           </>

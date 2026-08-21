@@ -127,11 +127,23 @@ export function advanceWinners(tournament: Tournament, results: Array<{ matchId:
 }
 
 // Seasonal rankings — only meaningful when participation supports it
-export interface SeasonalEntry { userId: string; rating: number; games: number; }
+export interface SeasonalEntry { userId: string; rating: number; games: number; rd?: number; }
 export function seasonalLeaderboard(entries: SeasonalEntry[], minGames = 5): SeasonalEntry[] {
   const qualified = entries.filter((e) => e.games >= minGames);
   if (qualified.length < 8) return []; // not enough participation — don't publish a sparse board
-  return [...qualified].sort((a, b) => b.rating - a.rating);
+  // Provisional players (rd high or games < 20) sort after established at same rating
+  return [...qualified].sort((a, b) => {
+    if (a.rating !== b.rating) return b.rating - a.rating;
+    const aProv = (a.rd ?? 350) > 150 || a.games < 20;
+    const bProv = (b.rd ?? 350) > 150 || b.games < 20;
+    if (aProv !== bProv) return aProv ? 1 : -1;
+    return 0;
+  });
+}
+
+export function isSeasonalLeaderboardProvisional(entries: SeasonalEntry[]): boolean {
+  const qualified = entries.filter((e) => e.games >= 5);
+  return qualified.length < 8 || qualified.some((e) => e.games < 20);
 }
 
 export function seasonIdFor(date = new Date()): string {

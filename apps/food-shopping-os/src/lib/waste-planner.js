@@ -268,6 +268,11 @@ export const scoreWastePlan = (
   let packageNeed = 0;
   let packagePurchased = 0;
   let learnedWasteRisk = 0;
+  // Servings that use only part of a whole fresh item (half a pepper, a third
+  // of an onion). Even when the plan fills every pack exactly, each partial
+  // use leaves an opened remainder between meals, so it is scored as its own
+  // fragmentation vector alongside pack remainder.
+  let fractionalUses = 0;
 
   // Start with all dated stock, including ingredients no candidate uses. The
   // denominator must include an ignored spinach bag or yoghurt pot, otherwise
@@ -301,6 +306,22 @@ export const scoreWastePlan = (
     let unusedPackAmount = 0;
     let packUtilisation = null;
     if (pack && primary && pack.dim === primary.dim && purchaseAmount > 0) {
+      if (
+        primary.dim === 'count'
+        && FRESH_COUNT_UNITS.has(primary.unit)
+        && primary.amount > 0
+        && primary.amount < pack.amount - 0.001
+      ) {
+        fractionalUses += requirement.occurrences;
+        fragmentationRisks.push({
+          key: requirement.key,
+          name: requirement.name,
+          amount: round(primary.amount),
+          remainder: round(pack.amount - primary.amount),
+          recipes: requirement.recipes,
+          reason: `Each use needs only ${round(primary.amount)} ${primary.unit} of a whole one, so part of it sits opened between meals.`,
+        });
+      }
       packs = Math.max(1, Math.ceil((purchaseAmount - 0.0001) / pack.amount));
       purchasedAmount = round(packs * pack.amount);
       unusedPackAmount = round(Math.max(0, purchasedAmount - purchaseAmount));
@@ -496,7 +517,8 @@ export const scoreWastePlan = (
   const learnedRows = uniqueUnused.filter((row) => wasteByKey.get(row.key)?.repeated);
   const unusedPenalty = uniqueUnused.reduce((sum, row) => sum + (row.severity === 'high' ? 18 : 10), 0);
   const learnedPenalty = Math.min(35, learnedWasteRisk * 3 + learnedRows.length * 6);
-  const unusedScore = clamp(100 - unusedPenalty - learnedPenalty);
+  const fractionalPenalty = Math.min(12, fractionalUses * 4);
+  const unusedScore = clamp(100 - unusedPenalty - learnedPenalty - fractionalPenalty);
   const leftoversScore = clamp(100 - leftoversGenerated * 25);
   const expiryScore = metric(urgentUsed, urgentDatedStock);
   const scored = [
@@ -534,6 +556,7 @@ export const scoreWastePlan = (
     leftoversGenerated,
     expectedUnusedIngredients: uniqueUnused,
     expectedUnusedCount: uniqueUnused.length,
+    fractionalUses,
     fragmentationRisks: fragmentationRisks.sort((a, b) => b.remainder - a.remainder),
     expiryMisses,
     expiryPriority: expiryScore,

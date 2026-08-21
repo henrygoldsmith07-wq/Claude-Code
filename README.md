@@ -34,6 +34,22 @@ Source of truth: [`apps/registry.json`](apps/registry.json) (machine-readable, v
 
 Also in this repo (not product apps, but tracked so the registry doesn't drift): `packages/le-studio-tokens` (shared design tokens), `src/workspace_daemon` (background sync service), `.claude` (skills/agents/helpers incl. prompt-improver), `vendor/life-os-scrape` (**archived** — frozen Life OS build, superseded by `arise`; see its README). External: **Chrono** (`henrygoldsmith07-wq/chrono-calendar`, ICS/JSON interop).
 
+## Engineering standards
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/definition-of-done.md`](docs/definition-of-done.md) | Minimum quality gates per product (install, lint, type-check, tests, build, E2E, security, perf) |
+| [`docs/ci-coverage-audit.md`](docs/ci-coverage-audit.md) | Which workflow runs which gate for which app; live gap list |
+| [`docs/ai-standard.md`](docs/ai-standard.md) | Shared AI pipeline: validation → context → provider → schema → deterministic gates → confidence → provenance → output |
+| [`docs/security-standard.md`](docs/security-standard.md) | Auth/RLS/tenancy/secrets/SSRF/rate-limit audit + enforcement |
+| [`docs/observability.md`](docs/observability.md) · [`packages/observability/`](packages/observability/) | Privacy-safe AI telemetry & error records (no user content by construction) |
+| [`docs/data-provenance.md`](docs/data-provenance.md) | Source/timestamp/freshness/transformation/confidence/version for derived insights |
+| [`docs/migration-backup.md`](docs/migration-backup.md) | Migration re-runnability, RLS re-verification, backup/export/recovery per DB-backed app |
+| [`docs/a11y-baseline.md`](docs/a11y-baseline.md) · [`docs/a11y.md`](docs/a11y.md) | Accessibility baseline + Le Studio family checklist |
+| [`docs/perf-budgets.md`](docs/perf-budgets.md) · `scripts/performance-budgets.json` | Bundle budgets enforced in CI |
+| [`docs/evidence-registry.md`](docs/evidence-registry.md) · [`evidence/registry.json`](evidence/registry.json) | Durable claim ledger: `demonstrated` → `externally validated`, never auto-upgraded |
+| [`docs/validation-state.md`](docs/validation-state.md) | Per product: **implemented** vs **proven effective** — kept strictly separate |
+
 ## Knowledge Base & Self-Improvement
 
 See `CLAUDE.md` for the full contract. Key commands:

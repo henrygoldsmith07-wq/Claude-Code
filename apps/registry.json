@@ -116,17 +116,18 @@
     "food-shopping-os"
    ]
   },
-  {
-   "id": "mental-load-tracker",
-   "path": "apps/mental-load-tracker",
-   "site": null,
-   "name": "Noticed",
-   "siteId": "noticed",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Supabase Realtime",
-   "description": "Shared board for the invisible labor of running a household — capture what you notice, compare side-by-side weekly."
-  },
+   {
+    "id": "mental-load-tracker",
+    "path": "apps/mental-load-tracker",
+    "site": null,
+    "name": "Noticed",
+    "siteId": "noticed",
+    "lifecycle": "active",
+    "kind": "product",
+    "stack": "Next.js + Supabase Realtime",
+    "workflow": ".github/workflows/mental-load-tracker.yml",
+    "description": "Shared board for the invisible labor of running a household — capture what you notice, compare side-by-side weekly."
+   },
   {
    "id": "pulse",
    "path": "apps/pulse",

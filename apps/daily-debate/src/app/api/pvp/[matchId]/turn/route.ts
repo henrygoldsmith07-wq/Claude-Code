@@ -37,7 +37,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
   const body = await request.json().catch(() => null);
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   const inputMode: InputMode = body?.inputMode === "voice" ? "voice" : "text";
+  const idempotencyKey = typeof body?.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0, 80) : null;
   if (!message) return NextResponse.json({ error: "message is required." }, { status: 400 });
+
+  // Moderation: flag but do not distort scoring — block only high-severity (harassment/malicious/unsafe)
+  const { moderateContent } = await import("@/lib/moderation");
+  const moderation = moderateContent(message);
+  if (moderation.blocked) {
+    return NextResponse.json({ error: `Message blocked: ${moderation.flags.map((f) => f.note).join(" ")}`, moderation: moderation.flags }, { status: 400 });
+  }
 
   const { data: match, error: matchError } = await supabase
     .from("pvp_matches")
@@ -49,8 +57,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
   if (match.player_a !== user.id && match.player_b !== user.id) {
     return NextResponse.json({ error: "Not a participant in this match." }, { status: 403 });
   }
+  // Scoring-once guard: if verdict already present, do not re-judge
+  if (match.judge_verdict) {
+    return NextResponse.json({ error: "Match already has a verdict (scoring once only).", verdict: match.judge_verdict }, { status: 409 });
+  }
   if (match.current_turn_player !== user.id) {
     return NextResponse.json({ error: "Not your turn." }, { status: 409 });
+  }
+
+  // Idempotency / duplicate event: if same round+player already has this exact message, return existing without re-scoring
+  const { data: existingTurns } = await supabase.from("pvp_turns").select("*").eq("match_id", matchId).order("created_at", { ascending: true });
+  if (idempotencyKey && existingTurns?.some((t) => t.player_id === user.id && t.round_number === match.current_round && (t as any).message === message)) {
+    const dup = existingTurns.find((t) => t.player_id === user.id && t.round_number === match.current_round && (t as any).message === message);
+    return NextResponse.json({ turn: dup, matchComplete: false, duplicate: true });
+  }
+  // Late submission: round mismatch already checked; timer expiry is best-effort (client sends startedAt optional)
+  if (typeof body?.turnDeadline === "string") {
+    const deadline = new Date(body.turnDeadline).getTime();
+    if (!isNaN(deadline) && Date.now() > deadline) {
+      return NextResponse.json({ error: "Turn deadline exceeded (late submission)." }, { status: 400 });
+    }
   }
 
   const { data: turn, error: turnError } = await supabase
@@ -59,6 +85,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
     .select("*")
     .single();
   if (turnError || !turn) {
+    // Race: simultaneous submission — the loser gets a turn conflict due to DB ordering
+    const msg = String(turnError?.message ?? "");
+    if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")) {
+      return NextResponse.json({ error: "Simultaneous submission — turn already taken." }, { status: 409 });
+    }
     console.error("Failed to save PvP turn:", turnError);
     return NextResponse.json({ error: "Failed to save your response." }, { status: 500 });
   }
@@ -70,10 +101,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
   const matchComplete = roundJustCompleted && nextRound > match.round_limit;
 
   if (!matchComplete) {
-    await supabase
+    // Use optimistic concurrency: only advance if still on expected round (prevents simultaneous submission race)
+    const { error: advError } = await supabase
       .from("pvp_matches")
       .update({ current_round: nextRound, current_turn_player: nextTurnPlayer })
-      .eq("id", matchId);
+      .eq("id", matchId)
+      .eq("current_round", match.current_round)
+      .eq("current_turn_player", user.id);
+    if (advError) console.error("Advancing turn (concurrency) failed:", advError);
     return NextResponse.json({ turn, matchComplete: false });
   }
 
@@ -122,7 +157,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
 
   const winnerId = verdict.winner === "a" ? match.player_a : verdict.winner === "b" ? match.player_b : null;
 
-  await service
+  // Scoring once only: only write verdict if still active (concurrency guard)
+  const { data: updated } = await service
     .from("pvp_matches")
     .update({
       status: "completed",
@@ -132,7 +168,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
       judge_verdict: verdict,
       completed_at: new Date().toISOString(),
     })
-    .eq("id", matchId);
+    .eq("id", matchId)
+    .eq("status", "active")
+    .select("*")
+    .maybeSingle();
+  // If another request already completed scoring, return existing result for consistency
+  if (!updated) {
+    const { data: existing } = await service.from("pvp_matches").select("*").eq("id", matchId).single();
+    return NextResponse.json({ turn, matchComplete: true, verdict: (existing?.judge_verdict as any) ?? verdict, alreadyScored: true });
+  }
 
   if (verdict.scoreStatus !== "insufficient_evidence") {
     await Promise.all([awardPoints(match.player_a, verdict.playerAScore), awardPoints(match.player_b, verdict.playerBScore)]);
