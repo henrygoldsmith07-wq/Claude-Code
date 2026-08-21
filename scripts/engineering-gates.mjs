@@ -13,6 +13,7 @@ const gates = [
   ['ecosystem smoke', ['scripts/ecosystem-smoke.mjs']],
   ['rollback and collision tests', ['--test', 'scripts/ecosystem-rollback.test.mjs', 'apps/ecosystem-shell/tests/storage-collision.test.mjs']],
   ['performance budget configuration', ['scripts/check-performance-budgets.mjs']],
+  ['security static audit', ['scripts/security-audit.mjs']],
 ];
 const failures = [];
 

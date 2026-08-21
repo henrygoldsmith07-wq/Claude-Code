@@ -5,7 +5,7 @@ import {
   getReviewEvents, getSessionHistoryMeta, getEvidenceLedgerModel, getErrorModelSummary,
   getLearnerErrors, getLearnerErrorSummary,
   getPlacementValidationMetrics, getProgressionValidationMetrics,
-  getCorpusMetrics, getAssistanceMetrics,
+  getCorpusMetrics, getAssistanceMetrics, getIntelligibilityBenchmark,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { getGrammarErrors } from '../lib/storage';
@@ -15,6 +15,7 @@ import { levelFromXp } from '../lib/game';
 import { errorNotebookStats } from '../lib/errorNotebook';
 import { retentionPredictionVsActual, speakingImprovement } from '../lib/learnerValidation';
 import { benchmarkExaminer, validateAgainstResults } from '../lib/examBenchmark';
+import { benchmarkStatus, mergeBenchmarkItems } from '../lib/intelligibility';
 import { getExaminerScripts, getRealExamResults } from '../lib/storage';
 import { allEntries as vocabAllEntries } from '../lib/vocab';
 import { notebookAsEntries, heatmapWeeks, totalReviews } from '../lib/memory';
@@ -479,6 +480,7 @@ function LearnerValidation(){
     ['Placement accuracy', getPlacementValidationMetrics()],
     ['Progression transfer', getProgressionValidationMetrics()],
     ['AI vs human marking', getCorpusMetrics()],
+    ['Pronunciation vs humans', benchmarkStatus(mergeBenchmarkItems(getIntelligibilityBenchmark()))],
     ['Assistance fading', getAssistanceMetrics()],
   ];
   return (

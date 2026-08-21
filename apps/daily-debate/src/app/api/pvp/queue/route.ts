@@ -21,6 +21,18 @@ export async function POST(request: Request) {
   const topic = await getOrCreateTodayTopic();
   const service = createServiceClient();
 
+  // Duplicate join: if already queued or already in active match, return waiting/active without double-join
+  const { data: existingQueue } = await service.from("pvp_queue").select("*").eq("user_id", user.id).maybeSingle();
+  if (existingQueue) return NextResponse.json({ waiting: true, duplicate: true });
+  const { data: activeMatch } = await service
+    .from("pvp_matches")
+    .select("*")
+    .or(`player_a.eq.${user.id},player_b.eq.${user.id}`)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (activeMatch) return NextResponse.json({ match: activeMatch, alreadyMatched: true });
+
   const { data: opponentRow } = await service
     .from("pvp_queue")
     .select("*")
@@ -31,7 +43,8 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!opponentRow) {
-    await service.from("pvp_queue").upsert({ user_id: user.id, topic_id: topic.id, joined_at: new Date().toISOString() });
+    // Upsert with unique user_id prevents rare race double-enqueue
+    await service.from("pvp_queue").upsert({ user_id: user.id, topic_id: topic.id, joined_at: new Date().toISOString() }, { onConflict: "user_id" });
     return NextResponse.json({ waiting: true });
   }
 

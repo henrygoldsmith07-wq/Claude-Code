@@ -1,0 +1,7 @@
+{
+  "name": "@ruflo/observability",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy-safe telemetry interfaces shared across AI-enabled apps. No runtime dependency — copy or import the types.",
+  "type": "module"
+}

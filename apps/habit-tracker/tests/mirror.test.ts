@@ -24,6 +24,7 @@ function fakeStorage(): { store: Map<string, string>; getItem: (k: string) => st
 const habits: DbHabit[] = [
   {
     id: "h1",
+    user_id: "u1",
     name: "Read 20 pages",
     target_per_week: 5,
     colour: "#6366f1",

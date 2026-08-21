@@ -10,7 +10,7 @@ import { activeLanguage } from '../lib/i18n';
 import {
   getSrs, getSessions, getMetrics, getReviewEvents, getGrammarProgress, getEvidenceLedgerModel,
   getSettings, recordGrammarError, recordWeaknessError, recordWeaknessRepair, getDueWeaknesses, getLearnerBrief,
-  recordAssistanceEvent,
+  recordAssistanceEvent, recordCorpusEntry,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { GRAMMAR_TOPICS } from '../lib/grammar';
@@ -204,6 +204,20 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
           taskId: scenario.id,
         });
       } catch { /* logging must never break a turn */ }
+      // Speaking corpus seed: store the AI side of this turn so a human rater
+      // can pair their mark against it later (updateCorpusHumanMark, then a
+      // second rater via updateCorpusSecondMark). Never fabricates the human
+      // half — the entry waits as AI-only until raters add theirs.
+      try {
+        recordCorpusEntry({
+          mode: 'speaking',
+          prompt: scenario.title || scenario.id,
+          response: userText,
+          aiScore: evaluation.scores.overall,
+          aiCorrections: evaluation.corrections || null,
+          criterion: 'communication',
+        });
+      } catch { /* corpus logging must never break a turn */ }
       const turn = {
         userText,
         evaluation,
