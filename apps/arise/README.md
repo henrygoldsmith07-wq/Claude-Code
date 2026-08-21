@@ -54,6 +54,7 @@ npm test           # node:test (data / attributes / export / store / validation)
 npm run benchmark  # seeded progression-validation harness → benchmark/results.md (also in CI)
 npm run benchmark:logging # deterministic logging-time metric smoke benchmark
 npm run verify     # lint:content && type-check && test && build  (also in CI)
+npm run e2e        # Playwright browser E2E (new-user journey + mobile layout)
 ```
 
 No env vars. Data is local — clear via **More → Clear local data** (or export first). Cross-device sync is an optional `sync.js` layer (`syncUp`/`syncDown` + pluggable `pull/push`) — offline-first preserved, sync is Merge/Replace over export JSON.
@@ -62,11 +63,17 @@ No env vars. Data is local — clear via **More → Clear local data** (or expor
 
 ```js
 {
-  version: 4,
-  onboarding: { goal, equipment:[], location, level, daysPerWeek, availableMinutes, preferredExerciseIds:[], dislikedExerciseIds:[], plateConfig?: { barWeightKg, platesKg:[] } } | null,
+  version: 5,
+  onboarding: { goal, equipment:[], location, level, daysPerWeek, availableMinutes, preferredExerciseIds:[], dislikedExerciseIds:[], plateConfig?: { barWeightKg, platesKg:[], dumbbellsKg?:[], machineIncrementKg? } } | null,
   activeSchedule: { programId, startDateISO, sessions:[{ id, dateISO, week, day, title, blocks, status }] } | null,
   activeWorkout: { session, blocks, note, noteTags, restEndsAt, startedAt, updatedAt } | null,
-  history: [{ id, dateISO, programId, week, day, title, blocks:[{ exerciseId, sets:[{reps,weightKg,rpe}] }], note?, savedAt }],
+  // v5 real-history fields (added by normaliseHistoryEntry on read/migration):
+  history: [{ id, dateISO, programId, programVersion?, templateVersion?, week, day, title,
+              durationMinutes?, startedAt?, finishedAt?, savedAt,
+              equipmentSnapshot?: [], substitutions?: [{ from, to, reason }],
+              exerciseOrder?: [exerciseId], painDiscomfort?, skippedSetsCount?,
+              blocks:[{ exerciseId, exerciseOrder?, substitutionFrom?, substitutionReason?, equipment?,
+                        sets:[{ reps, weightKg, rpe, side, rom, assistedKg, tempo, completed?, skipped?, failed?, pain? }] }], note?, noteTags? }],
   eventHistory: [{ id, schemaVersion, type, at, ...payload }],
   healthSummary: { source, asOf, steps?, sleepHours?, weightKg?, restingHeartRate? } | null,
   preferences: { units:'kg', theme: null, syncEnabled: false, telemetryEnabled: null, pulseEnabled: false, healthSummaryEnabled: false }

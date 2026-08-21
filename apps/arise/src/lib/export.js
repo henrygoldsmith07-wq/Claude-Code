@@ -91,9 +91,9 @@ export function portableJson(store){
   return JSON.stringify(buildExportPayload(store), null, 2);
 }
 export function portableCsv(history){
-  const rows = [['dateISO','exerciseId','reps','weightKg','rpe','side','rom']];
+  const rows = [['dateISO','exerciseId','reps','weightKg','rpe','side','rom','assistedKg','failed','skipped','durationMinutes','programVersion','equipmentSnapshot']];
   for(const h of history||[]) for(const b of h.blocks||[]) for(const s of b.sets||[]){
-    rows.push([h.dateISO, b.exerciseId, s.reps||'', s.weightKg||'', s.rpe||'', s.side||'', s.rom||'']);
+    rows.push([h.dateISO, b.exerciseId, s.reps||'', s.weightKg||'', s.rpe||'', s.side||'', s.rom||'', s.assistedKg||'', s.failed?'1':'', s.skipped?'1':'', h.durationMinutes||'', h.programVersion||'', Array.isArray(h.equipmentSnapshot)? h.equipmentSnapshot.join('|') : '']);
   }
   return rows.map(r=> r.map(v=> `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
 }
