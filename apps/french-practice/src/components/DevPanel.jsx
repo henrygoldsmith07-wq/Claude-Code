@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react';
 import { pingLatency } from '../lib/groq';
 import {
   recordPlacementValidation, getPlacementValidationMetrics, getLastPlacement,
+  getWritingSpeakingCorpus, updateCorpusHumanMark, updateCorpusSecondMark,
+  getIntelligibilityBenchmark, recordBenchmarkSample,
 } from '../lib/storage';
+import { benchmarkStatus, mergeBenchmarkItems } from '../lib/intelligibility';
 import { ChevronRight } from './icons';
 
 // Developer & utility panel: token usage totals, latency pings, raw API
@@ -82,6 +85,10 @@ export default function DevPanel({ telemetry, apiKey, mockMode, onMockMode, onCl
         </div>
 
         <PlacementValidationCard />
+
+        <CorpusMarkingCard />
+
+        <IntelligibilityCard />
 
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">
@@ -244,6 +251,153 @@ function PlacementValidationCard() {
         </button>
         {saved && <span className="text-[11px] text-ink2">{saved}</span>}
         <span className="ml-auto text-[11px] text-ink3">{metrics.message}</span>
+      </div>
+    </section>
+  );
+}
+
+// Human-marking entry for the writing/speaking corpus. Entries arrive AI-only
+// (seeded automatically by Writing Studio and Arena turns); this is where a
+// qualified rater adds their mark — and a second rater re-marks for the
+// double-marking agreement check. Nothing here invents a score.
+function CorpusMarkingCard() {
+  const corpus = getWritingSpeakingCorpus();
+  const recent = [...corpus].reverse().slice(0, 8);
+  const [selectedId, setSelectedId] = useState('');
+  const selected = recent.find((e) => e.id === selectedId) || null;
+  const [form, setForm] = useState({ score: '', corrections: '', rater: '' });
+  const [saved, setSaved] = useState(null);
+
+  const needsFirst = selected && !selected.hasHuman;
+  const needsSecond = selected && selected.hasHuman && !selected.doubleMarked;
+
+  const save = () => {
+    if (!selected) return;
+    const payload = {
+      humanScore: Number(form.score),
+      humanCorrections: form.corrections || null,
+      rater: form.rater || undefined,
+    };
+    const made = needsSecond
+      ? updateCorpusSecondMark(selected.id, { humanScore2: payload.humanScore, humanCorrections2: payload.humanCorrections, rater2: payload.rater })
+      : updateCorpusHumanMark(selected.id, payload);
+    setSaved(made ? 'Saved.' : 'Could not save — check the fields.');
+    if (made) setForm({ score: '', corrections: '', rater: '' });
+  };
+
+  const inputCls = 'w-full bg-surface2 border border-line rounded-lg px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-ink';
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-4 space-y-3">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">Corpus marking — human rater entry</h3>
+      <p className="text-[11px] text-ink3">
+        Writing-studio reviews and arena turns seed the AI side of a corpus entry automatically. Add your independent
+        mark here; when a second rater re-marks the same response, inter-rater agreement (exact, within-5, κ over bands)
+        is measured. Scores are never generated.
+      </p>
+      {!recent.length ? (
+        <p className="text-xs text-ink3 italic">No corpus entries yet — complete a writing review or arena turn first.</p>
+      ) : (
+        <>
+          <label className="space-y-1 block"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Response to mark</span>
+            <select value={selectedId} onChange={(e) => { setSelectedId(e.target.value); setSaved(null); }} className={inputCls}>
+              <option value="">—</option>
+              {recent.map((e) => (
+                <option key={e.id} value={e.id}>
+                  [{e.mode}] {String(e.prompt).slice(0, 40)} — AI {e.aiScore ?? '—'}{e.hasHuman ? `, marked (${e.rater || 'rater'})` : ', unmarked'}{e.doubleMarked ? ' +2nd' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selected && (
+            <div className="space-y-2">
+              <p className="text-[11px] bg-surface2 border border-line rounded-lg px-2 py-1.5 whitespace-pre-wrap max-h-24 overflow-y-auto nice-scroll" lang="fr">{selected.response}</p>
+              <p className="text-[11px] text-ink3">
+                {needsFirst && 'This entry has no human mark yet — add the first one.'}
+                {needsSecond && `First mark: ${selected.humanScore} (${selected.rater || 'unnamed'}). Add an independent second mark.`}
+                {selected.doubleMarked && `Double-marked: ${selected.humanScore} vs ${selected.humanScore2}.`}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Score (0–100)</span>
+                  <input type="number" min="0" max="100" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} className={inputCls} placeholder="e.g. 68" />
+                </label>
+                <label className="space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Rater</span>
+                  <input value={form.rater} onChange={(e) => setForm((f) => ({ ...f, rater: e.target.value }))} className={inputCls} placeholder="who marked" />
+                </label>
+                <label className="col-span-2 sm:col-span-3 space-y-1"><span className="text-[10px] font-bold uppercase tracking-wider text-ink3">Corrections (optional)</span>
+                  <input value={form.corrections} onChange={(e) => setForm((f) => ({ ...f, corrections: e.target.value }))} className={inputCls} placeholder="what you would correct" />
+                </label>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={save}
+                  disabled={form.score === ''}
+                  className="btn btn-primary min-h-9 px-4 rounded-lg text-xs disabled:opacity-40"
+                >
+                  {needsSecond ? 'Record second mark' : 'Record mark'}
+                </button>
+                {saved && <span className="text-[11px] text-ink2">{saved}</span>}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+// Ingestion point for human intelligibility ratings (see the protocol in
+// intelligibility.js): paste labelled samples as JSON — target, transcript,
+// humanMean (1–5 listener scale), optional raters. Rows that fail validation
+// are rejected and counted, never coerced.
+function IntelligibilityCard() {
+  const stored = getIntelligibilityBenchmark();
+  const status = benchmarkStatus(mergeBenchmarkItems(stored));
+  const [raw, setRaw] = useState('');
+  const [result, setResult] = useState(null);
+
+  const ingest = () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      setResult('That is not valid JSON.');
+      return;
+    }
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    let ok = 0;
+    let bad = 0;
+    for (const item of list) {
+      if (recordBenchmarkSample(item)) ok += 1;
+      else bad += 1;
+    }
+    setResult(`Imported ${ok} sample${ok === 1 ? '' : 's'}${bad ? ` · rejected ${bad} invalid row${bad === 1 ? '' : 's'}` : ''}.`);
+    setRaw('');
+  };
+
+  const inputCls = 'w-full bg-surface2 border border-line rounded-lg px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-ink';
+  return (
+    <section className="bg-surface border border-line rounded-2xl p-4 space-y-3">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-ink2">Pronunciation benchmark — human ratings</h3>
+      <p className="text-[11px] text-ink3">
+        Feed in recordings rated by native listeners on the 1–5 intelligibility scale (“how much did you understand?”,
+        not accent): <code className="font-mono">{'[{ target, transcript, humanMean, raters }]'}</code>. The scorer stays
+        unvalidated until real labels exist. Currently:{' '}
+        <span className="font-semibold text-ink2">{status.label}</span> · stored: {stored.length}
+      </p>
+      <textarea
+        value={raw}
+        onChange={(e) => { setRaw(e.target.value); setResult(null); }}
+        rows={4}
+        className={`${inputCls} font-mono resize-y`}
+        placeholder='[{"target":"Je voudrais un café","transcript":"Je voudrai un café","humanMean":4,"raters":["L1","L2","L3"]}]'
+        aria-label="Benchmark samples JSON"
+      />
+      <div className="flex items-center gap-3">
+        <button onClick={ingest} disabled={!raw.trim()} className="btn btn-primary min-h-9 px-4 rounded-lg text-xs disabled:opacity-40">
+          Import samples
+        </button>
+        {result && <span className="text-[11px] text-ink2">{result}</span>}
+        {status.n > 0 && <span className="ml-auto text-[11px] text-ink3">{status.message}</span>}
       </div>
     </section>
   );
