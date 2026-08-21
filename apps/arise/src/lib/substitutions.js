@@ -22,6 +22,10 @@ export function movementPatternFor(exerciseId){
   return PATTERN[exerciseId] || null;
 }
 
+// Exported so the real-world validation layer can audit pattern preservation
+// without duplicating the mapping. Read-only consumers; keep keys in sync.
+export const MOVEMENT_PATTERNS = PATTERN;
+
 function patternScore(a, b){
   if(!a || !b) return 0;
   if(a===b) return 3;
