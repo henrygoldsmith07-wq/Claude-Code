@@ -28,6 +28,12 @@ function clampScore(v) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+// Stored entries carry explicit nulls for absent marks; Number(null) is 0,
+// which would smuggle them into agreement maths as real zero scores.
+function markValue(v) {
+  return v == null ? null : clampScore(v);
+}
+
 /**
  * @typedef {Object} CorpusEntry
  * @property {string} id
@@ -41,11 +47,15 @@ function clampScore(v) {
  * @property {string} criterion
  * @property {string} [rater]     // human rater id
  * @property {string} [consensus] // consensus score if multiple raters
+ * @property {number|null} humanScore2  // independent second marker (double-marking)
+ * @property {string|null} humanCorrections2
+ * @property {string} [rater2]
  * @property {string} at          // ISO time
  */
 
 export function makeCorpusEntry({
-  id, mode, prompt, response, aiScore, aiCorrections, humanScore, humanCorrections, criterion, rater, consensus, at,
+  id, mode, prompt, response, aiScore, aiCorrections, humanScore, humanCorrections, criterion, rater, consensus,
+  humanScore2, humanCorrections2, rater2, at,
 } = {}) {
   const m = String(mode || '').toLowerCase();
   if (!['writing', 'speaking'].includes(m)) return null;
@@ -68,10 +78,14 @@ export function makeCorpusEntry({
     criterion: clampCriterion(criterion),
     rater: rater ? String(rater).slice(0, 80) : null,
     consensus: consensus != null ? String(consensus).slice(0, 200) : null,
+    humanScore2: markValue(humanScore2),
+    humanCorrections2: humanCorrections2 != null ? String(humanCorrections2).slice(0, 8000) : null,
+    rater2: rater2 ? String(rater2).slice(0, 80) : null,
     at: at && !Number.isNaN(new Date(at).getTime()) ? new Date(at).toISOString() : new Date().toISOString(),
     hasHuman: human != null || (humanCorrections && String(humanCorrections).trim()),
     hasAI: ai != null || (aiCorrections && String(aiCorrections).trim()),
     paired: ai != null && human != null,
+    doubleMarked: human != null && markValue(humanScore2) != null,
   };
 }
 
@@ -79,7 +93,9 @@ export function makeCorpusEntry({
  * Score agreement metrics over paired entries (those with both scores).
  */
 export function corpusScoreAgreement(entries = []) {
-  const usable = (Array.isArray(entries) ? entries : []).filter((e) => e && Number.isFinite(Number(e.aiScore)) && Number.isFinite(Number(e.humanScore)));
+  const usable = (Array.isArray(entries) ? entries : [])
+    .map((e) => (e ? { ...e, aiScore: markValue(e.aiScore), humanScore: markValue(e.humanScore) } : null))
+    .filter((e) => e && e.aiScore != null && e.humanScore != null);
   if (!usable.length) {
     return { n: 0, status: 'no-data', meanAbsoluteError: null, within5: null, within10: null, correlation: null, message: 'No paired AI/human scores yet.' };
   }
@@ -160,12 +176,68 @@ export function corpusCorrectionMetrics(entries = []) {
 }
 
 /**
+ * Inter-rater agreement over double-marked entries (rater A vs rater B).
+ * Exact agreement, within-5, and Cohen's κ over five score bands. This is
+ * the number that says whether a human mark is reproducible at all — if two
+ * qualified raters cannot agree, AI-vs-human comparisons are noise.
+ */
+export function corpusInterRaterMetrics(entries = []) {
+  const usable = (Array.isArray(entries) ? entries : [])
+    .map((e) => (e ? { ...e, humanScore: markValue(e.humanScore), humanScore2: markValue(e.humanScore2) } : null))
+    .filter((e) => e && e.humanScore != null && e.humanScore2 != null);
+  if (!usable.length) {
+    return {
+      n: 0,
+      status: 'no-data',
+      exactAgreement: null,
+      within5: null,
+      kappa: null,
+      message: 'No double-marked samples yet. Have a second qualified rater independently re-mark entries already scored once.',
+    };
+  }
+  const band = (s) => Math.min(4, Math.floor(Number(s) / 20)); // 0–20, 21–40, … 81–100
+  let exact = 0;
+  let w5 = 0;
+  const pairs = [];
+  for (const e of usable) {
+    const a = Number(e.humanScore);
+    const b = Number(e.humanScore2);
+    if (a === b) exact += 1;
+    if (Math.abs(a - b) <= 5) w5 += 1;
+    pairs.push([band(a), band(b)]);
+  }
+  // Cohen's κ over bands (chance-corrected agreement)
+  const n = pairs.length;
+  let observed = 0;
+  for (const [a, b] of pairs) if (a === b) observed += 1;
+  const po = observed / n;
+  let pe = 0;
+  for (const label of [0, 1, 2, 3, 4]) {
+    const pa = pairs.filter(([a]) => a === label).length / n;
+    const pb = pairs.filter(([, b]) => b === label).length / n;
+    pe += pa * pb;
+  }
+  const kappa = pe >= 1 ? null : Math.round(((po - pe) / (1 - pe)) * 1000) / 1000;
+  return {
+    n,
+    status: n < MIN_CORPUS_N ? 'provisional' : 'validated',
+    exactAgreement: Math.round((exact / n) * 100) / 100,
+    within5: Math.round((w5 / n) * 100) / 100,
+    kappa,
+    message: n < MIN_CORPUS_N
+      ? `Provisional (n=${n} double-marked; need ${MIN_CORPUS_N}).`
+      : `Inter-rater agreement over ${n} double-marked samples.`,
+  };
+}
+
+/**
  * Full corpus health check — both score and correction metrics, plus counts.
  */
 export function corpusMetrics(entries = []) {
   const list = Array.isArray(entries) ? entries : [];
   const scores = corpusScoreAgreement(list);
   const corrections = corpusCorrectionMetrics(list);
+  const interRater = corpusInterRaterMetrics(list);
   const byCriterion = {};
   for (const e of list) {
     const c = e.criterion || 'cefr';
@@ -178,11 +250,16 @@ export function corpusMetrics(entries = []) {
   const n = list.length;
   return {
     n,
-    status: n === 0 ? 'no-data' : scores.status === 'validated' && corrections.status === 'validated' ? 'validated' : 'provisional',
+    status: n === 0 ? 'no-data' : scores.status === 'validated' && corrections.status === 'validated' && interRater.status === 'validated' ? 'validated' : 'provisional',
     byMode,
     byCriterion,
+    paired: list.filter((e) => e.paired).length,
+    doubleMarked: list.filter((e) => e.doubleMarked).length,
     scores,
     corrections,
-    message: n === 0 ? 'Corpus empty — add human-marked responses to validate AI marking.' : `Corpus holds ${n} items (${byMode.writing} writing, ${byMode.speaking} speaking).`,
+    interRater,
+    message: n === 0
+      ? 'Corpus empty — add human-marked responses to validate AI marking.'
+      : `Corpus holds ${n} items (${byMode.writing} writing, ${byMode.speaking} speaking; ${list.filter((e) => e.paired).length} AI+human paired, ${list.filter((e) => e.doubleMarked).length} double-marked).`,
   };
 }
