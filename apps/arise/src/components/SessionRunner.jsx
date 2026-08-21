@@ -5,6 +5,7 @@ import { recommendNext } from '../lib/progression.js';
 import { formatPlateStack } from '../lib/plates.js';
 import { substitutionOptions } from '../lib/substitutions.js';
 import { recordEvent } from '../lib/telemetry.js';
+import { recordRecommendation } from '../lib/longitudinal.js';
 
 const NOTE_PROMPTS = [
   { id: 'felt-strong', label: 'Felt strong' },
@@ -77,7 +78,7 @@ function hasUnfinishedSet(blocks, bi, si){
   return false;
 }
 
-export default function SessionRunner({ session, history = [], availableEquipment = [], plateConfig = null, draft = null, onDraftChange, onSave, onCancel }){
+export default function SessionRunner({ session, history = [], availableEquipment = [], plateConfig = null, draft = null, measurementConsent = false, onDraftChange, onSave, onCancel }){
   const [blocks,setBlocks]=useState(()=> session.blocks.map((b,i)=> normaliseBlock(b, history, draft?.blocks?.[i])));
   const [note,setNote]=useState(()=> draft?.note || '');
   const [noteTags,setNoteTags]=useState(()=> draft?.noteTags || []);
@@ -146,8 +147,19 @@ export default function SessionRunner({ session, history = [], availableEquipmen
       const recommendation=getRecommendation(block,history,session.dateISO,plateConfig);
       shownRecommendationRef.current.add(block.exerciseId);
       recordEvent('recommendation:shown', { sessionId:session.id, exerciseId:block.exerciseId, target:suggestedTarget(recommendation,block) });
+      // Prospective evaluation record: snapshot the recommendation BEFORE the
+      // workout. Consent-gated; stored separately from training history.
+      try{
+        recordRecommendation({
+          exerciseId: block.exerciseId,
+          recommendation,
+          history,
+          dueDateISO: session.dateISO,
+          preferences: measurementConsent === true ? { telemetryEnabled: true } : null,
+        });
+      }catch{}
     }
-  }, [blocks, history, session.id, session.dateISO, plateConfig]);
+  }, [blocks, history, session.id, session.dateISO, plateConfig, measurementConsent]);
 
   const startRest=(seconds,label)=>{
     const sec=Number(seconds)||0;
