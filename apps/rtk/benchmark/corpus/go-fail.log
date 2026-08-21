@@ -1,5 +1,0 @@
---- FAIL: TestFoo (0.00s)
-    foo_test.go:10: expected 1 got 2
-    foo_test.go:11: extra context
-FAIL	github.com/foo/bar 0.012s
-FAIL

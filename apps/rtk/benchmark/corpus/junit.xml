@@ -1,1 +1,0 @@
-<?xml version="1.0"?><testsuite name="foo"><testcase classname="a" name="t1"/><testcase classname="a" name="t2"><failure message="boom">at src/app.ts:10:5</failure></testcase></testsuite>

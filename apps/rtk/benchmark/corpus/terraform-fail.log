@@ -1,6 +1,0 @@
-Error: Invalid value for variable
- on main.tf line 10, in resource "aws_instance" "web":
-  10: instance_type = var.instance_type
-The given value is not suitable for aws_instance.web: must be one of t2.micro, t2.small.
-
-Error: Error locking state: Error acquiring the state lock

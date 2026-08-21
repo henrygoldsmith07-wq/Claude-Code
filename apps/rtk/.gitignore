@@ -1,4 +1,0 @@
-.rtk/
-*.tgz
-node_modules/
-benchmark/.tmp-capture/

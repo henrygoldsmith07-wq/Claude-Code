@@ -1,9 +1,0 @@
-src/components/Foo.tsx:10:5 - error TS2322: Type 'string' is not assignable to type 'number'.
-  const x: number = "oops 0";
-src/components/Foo.tsx:11:5 - error TS2322: Type 'string' is not assignable to type 'number'.
-  const x: number = "oops 1";
-src/components/Foo.tsx:12:5 - error TS2322: Type 'string' is not assignable to type 'number'.
-  const x: number = "oops 2";
-src/components/Foo.tsx:13:5 - error TS2322: Type 'string' is not assignable to type 'number'.
-  const x: number = "oops 3";
-Found 4 errors in 4 files.

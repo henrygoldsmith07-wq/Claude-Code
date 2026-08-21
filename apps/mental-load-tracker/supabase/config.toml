@@ -1,9 +1,0 @@
-project_id = "noticed"
-
-[auth]
-enabled = true
-site_url = "http://127.0.0.1:3100"
-additional_redirect_urls = ["http://127.0.0.1:3100/**"]
-
-[realtime]
-enabled = true
