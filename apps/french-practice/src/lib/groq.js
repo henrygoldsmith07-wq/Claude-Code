@@ -11,6 +11,11 @@ import {
 import { getLanguage, DEFAULT_LANG } from './languages.js';
 import { consume, getRemaining } from './quota.js';
 import { pingRelay, relayEnabled, withRelay } from './relay.js';
+import {
+  validateTurnEvaluation, validateWritingFeedback,
+  normalizeCorrectionsDetailed as normalizeCorrectionsDetailedStrict,
+} from './aiValidate.js';
+
 
 const BASE = 'https://api.groq.com/openai/v1';
 const CHAT_MODEL = 'llama-3.1-8b-instant';
@@ -514,41 +519,26 @@ Scores are integers. "overall" = 0.30*grammar + 0.30*naturalness + 0.20*relevanc
 For corrections: distinguish definite_error (clear grammar violation), likely_error (probable but could be dialect/register), stylistic_suggestion (valid but unnatural), acceptable_alternative (both correct, offer variant), uncertain (not sure — do not correct). Prefer fewer definite corrections over many uncertain ones.`;
 
 const REQUIRED_SCORES = ['grammar', 'naturalness', 'relevance', 'fluency', 'overall'];
-const CORRECTION_LEVELS = new Set(['definite_error', 'likely_error', 'stylistic_suggestion', 'acceptable_alternative', 'uncertain']);
 
+// Runtime authority for structured-output shape. A structurally invalid
+// response throws here so callers get friendlyError's retry copy instead of a
+// blank partner turn rendered from coerced zeros.
 function normalizeCorrectionsDetailed(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter((c) => c && typeof c.original === 'string' && typeof c.correction === 'string')
-    .slice(0, 6)
-    .map((c) => ({
-      original: String(c.original).slice(0, 200),
-      correction: String(c.correction).slice(0, 200),
-      level: CORRECTION_LEVELS.has(String(c.level)) ? String(c.level) : 'uncertain',
-      note: String(c.note || '').slice(0, 300),
-    }))
-    .filter((c) => c.original.trim() && c.correction.trim());
+  return normalizeCorrectionsDetailedStrict(list);
 }
 
 function normalizeTurn(json) {
-  const scores = json.scores || {};
-  for (const k of REQUIRED_SCORES) {
-    scores[k] = Math.max(0, Math.min(100, Math.round(Number(scores[k]) || 0)));
+  const check = validateTurnEvaluation(json);
+  if (!check.ok) {
+    // "generation failed" wording maps to the calm retry message in friendlyError.
+    throw new Error(`Model generation failed validation: ${check.error}`);
   }
-  // Filter uncertain / acceptable_alternative from the rendered markdown when detailed list exists
+  const scores = { ...check.scores };
   const detailed = normalizeCorrectionsDetailed(json.corrections_detailed);
-  let corrections = String(json.corrections || '');
-  // If model provided detailed corrections, rebuild markdown to avoid overcorrection of uncertain items
-  if (detailed.length) {
-    const definite = detailed.filter((c) => c.level === 'definite_error' || c.level === 'likely_error');
-    if (definite.length === 0 && detailed.some((c) => c.level === 'acceptable_alternative' || c.level === 'stylistic_suggestion')) {
-      // Keep corrections but mark them as suggestions, not errors
-    }
-  }
   return {
-    reply: String(json.reply || ''),
+    reply: String(json.reply),
     translation: String(json.translation || ''),
-    corrections,
+    corrections: String(json.corrections),
     corrections_detailed: detailed,
     native_alternative: String(json.native_alternative || ''),
     grammar_topic: json.grammar_topic ? String(json.grammar_topic) : null,
@@ -668,10 +658,11 @@ Reply ONLY as JSON:
     },
     { role: 'user', content: text },
   ], { label: essay ? 'essay-feedback' : 'writing-feedback', temperature: 0.4 });
-  const scores = json.scores || {};
-  for (const k of Object.keys(scores)) {
-    scores[k] = Math.max(0, Math.min(100, Math.round(Number(scores[k]) || 0)));
-  }
+  const scores = (() => {
+    const check = validateWritingFeedback(json);
+    if (!check.ok) throw new Error(`Model generation failed validation: ${check.error}`);
+    return check.scores;
+  })();
   const corrections_detailed = normalizeCorrectionsDetailed(json.corrections_detailed);
   return {
     corrections: String(json.corrections || ''),

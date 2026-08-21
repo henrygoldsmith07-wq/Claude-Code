@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { WRITING_PROMPTS, ESSAY_PROMPTS, randomFrom } from '../lib/writing';
 import { writingFeedback, friendlyError } from '../lib/groq';
-import { recordSkillScore, recordLearnerError } from '../lib/storage';
+import { recordSkillScore, recordLearnerError, recordCorpusEntry } from '../lib/storage';
 import { addErrorNotebook } from '../lib/errorNotebook';
 import { explainCorrection } from '../lib/writing';
 import { Markdown, Spinner } from './ui';
@@ -33,6 +33,19 @@ export default function WritingStudio({ depth, apiKey, mockMode, level, onXp, on
       onXp(Math.max(2, Math.round(overall / 10)));
       recordSkillScore('writing', overall);
       onActivity?.({ type: 'writing', score: overall, mode: essay ? 'essay' : 'free-writing', label: essay ? 'Essay studio' : 'Free writing' });
+      // Corpus seed: store the AI side now so a human rater can pair their
+      // mark against it later (updateCorpusHumanMark). Never fabricates the
+      // human half — the entry simply waits as AI-only until a rater adds one.
+      try {
+        recordCorpusEntry({
+          mode: 'writing',
+          prompt: prompt.fr,
+          response: text.trim(),
+          aiScore: overall,
+          aiCorrections: r.corrections,
+          criterion: 'accuracy',
+        });
+      } catch { /* corpus logging must never break feedback */ }
       // Seed error notebook from corrections (each line becomes a retype task)
       try{
         const lines = String(r.corrections||'').split(/\n+/).slice(0,5);

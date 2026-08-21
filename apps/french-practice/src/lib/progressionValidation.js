@@ -118,3 +118,58 @@ export function progressionValidationStatus(entries) {
     label: m.status === 'no-data' ? 'Not validated' : m.status === 'provisional' ? `Provisional (n=${m.n})` : `Validated (n=${m.n})`,
   };
 }
+
+// ---- transfer-check builder ----
+//
+// After a promotion, general competence is checked on tasks the learner has
+// NOT seen, one per skill, drawn from caller-supplied CEFR-tagged banks.
+// Pure: the caller owns the banks (placement items, reading texts, grammar
+// quizzes…) and the exclusion list (everything already answered). The result
+// feeds makeProgressionEntry once scored, closing the loop.
+
+const ORDER = Object.fromEntries(ALL_LEVELS.map((l, i) => [l, i]));
+
+function unseenFromBank(bank, capIndex, exclude, limit) {
+  const skip = new Set(exclude);
+  const usable = (Array.isArray(bank) ? bank : [])
+    .filter((item) => item && item.id && !skip.has(item.id))
+    .filter((item) => {
+      const idx = ORDER[String(item.cefr || '').toUpperCase()];
+      return idx !== undefined && idx <= capIndex;
+    });
+  // Deterministic: stable sort by level distance below the cap, then id.
+  usable.sort((a, b) =>
+    (ORDER[String(b.cefr).toUpperCase()] - ORDER[String(a.cefr).toUpperCase()])
+    || String(a.id).localeCompare(String(b.id)));
+  return usable.slice(0, Math.max(0, limit));
+}
+
+/**
+ * Build a post-promotion transfer check.
+ * @param {object} opts
+ * @param {string} opts.level            the NEW CEFR level after promotion
+ * @param {object} [opts.banks]          { [skill]: [{id, cefr}] } — at least the skills you want to probe
+ * @param {string[]} [opts.excludeIds]   item ids the learner has already seen/answered
+ * @param {number}  [opts.perSkill=1]    how many unseen items per skill
+ * @returns {{ level, tasks: object, missing: string[], total: number }}
+ */
+export function buildTransferCheck({ level, banks = {}, excludeIds = [], perSkill = 1 } = {}) {
+  const target = clampLevel(level);
+  if (!target) {
+    return { level: null, tasks: {}, missing: UNSEEN_SKILLS.slice(), total: 0, error: 'invalid level' };
+  }
+  const capIndex = ORDER[target];
+  const tasks = {};
+  const missing = [];
+  let total = 0;
+  for (const skill of UNSEEN_SKILLS) {
+    const picked = unseenFromBank(banks[skill], capIndex, excludeIds, perSkill);
+    if (picked.length) {
+      tasks[skill] = picked.map(({ id, cefr }) => ({ id, cefr }));
+      total += picked.length;
+    } else {
+      missing.push(skill);
+    }
+  }
+  return { level: target, tasks, missing, total };
+}
