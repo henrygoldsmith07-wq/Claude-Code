@@ -65,4 +65,28 @@ test.describe('Le Studio happy path', () => {
       await expect(page.locator('body')).not.toContainText(/Error: Something went wrong/i);
     }
   });
+
+  test('mock-mode typed conversation turn gets scored and logs assistance evidence', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('fp.settings', JSON.stringify({ mockMode: true, level: 'A1', ttsRate: 1, theme: null }));
+    });
+    await page.reload();
+    const speak = page.getByRole('button', { name: /^Speak/i });
+    await expect(speak).toBeVisible({ timeout: 5000 });
+    await speak.click();
+    // Type a reply (mock mode evaluates instantly, no network)
+    const input = page.getByRole('textbox', { name: /Typed reply/i });
+    await expect(input).toBeVisible({ timeout: 5000 });
+    await input.fill('Bonjour, je voudrais un café.');
+    await input.press('Enter');
+    // Partner reply + score badge appear
+    await expect(page.getByText(/mock/i).first()).toBeVisible({ timeout: 10000 });
+    // Assistance evidence was recorded for the completed turn
+    const log = await page.evaluate(() => JSON.parse(localStorage.getItem('fp.assistanceLog.v1') || '[]'));
+    expect(log.length).toBeGreaterThan(0);
+    expect(log[0]).toMatchObject({ skill: 'speaking' });
+    expect(typeof log[0].score).toBe('number');
+  });
 });

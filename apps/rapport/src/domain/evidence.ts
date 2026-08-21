@@ -27,6 +27,8 @@ export interface EvidenceSourceSummary {
   lastAt: IsoInstant | null;
 }
 
+export type ConfidenceLevel = "high" | "moderate" | "low" | "insufficient evidence";
+
 export interface BehaviourEvidenceProfile {
   behaviour: BehaviourKey;
   /** The skill the evidence most directly maps to, when the link is known. */
@@ -35,6 +37,10 @@ export interface BehaviourEvidenceProfile {
   amountOfEvidence: number;
   /** A sampling-confidence estimate, not competence. */
   confidence: number;
+  /** Categorical confidence considering amount, consistency, transcript quality, rubric reliability, extraction uncertainty. */
+  confidenceLevel: ConfidenceLevel;
+  /** Why that confidence level, for inspectability. */
+  confidenceReasons: string[];
   /** Most recent observed performance across the separate evidence channels. */
   recentPerformance: number | null;
   /** Distinct simulator situations that exercised this behaviour. */
@@ -188,6 +194,49 @@ function observationsFor(
   return byBehaviour;
 }
 
+function confidenceLevelFor(params: {
+  amountOfEvidence: number;
+  uncertainty: number;
+  consistency: number | null;
+  scenarioDiversity: number;
+  rubricReliabilityApprox: number;
+}): { level: ConfidenceLevel; reasons: string[] } {
+  const { amountOfEvidence, uncertainty, consistency, scenarioDiversity, rubricReliabilityApprox } = params;
+  const reasons: string[] = [];
+  if (amountOfEvidence === 0) return { level: "insufficient evidence", reasons: ["No independent observations yet for this behaviour."] };
+  if (amountOfEvidence === 1) reasons.push("Only one observation — not enough to be sure.");
+  if (consistency !== null && consistency < 0.55) reasons.push(`Observations disagree (consistency ${consistency.toFixed(2)}).`);
+  if (scenarioDiversity <= 1 && amountOfEvidence >= 3) reasons.push("Observations come from very few situations — variety is low.");
+  if (rubricReliabilityApprox < 0.5) reasons.push("Human raters disagree on this behaviour — scores are tentative.");
+  // uncertainty directly from amount
+  const confidence = 1 - uncertainty;
+  let level: ConfidenceLevel;
+  if (amountOfEvidence < 2 || confidence < 0.32) level = "low";
+  else if (confidence < 0.58 || amountOfEvidence < 4) level = "moderate";
+  else if (confidence >= 0.72 && amountOfEvidence >= 4) level = "high";
+  else level = "moderate";
+  if (amountOfEvidence === 1 && confidence < 0.45) level = "insufficient evidence";
+  if (level === "high" && rubricReliabilityApprox < 0.55) {
+    level = "moderate";
+    reasons.push("Capped at moderate because rubric reliability is limited.");
+  }
+  if (reasons.length === 0) {
+    if (level === "high") reasons.push("Multiple consistent observations with good rubric reliability.");
+    else if (level === "moderate") reasons.push("Some evidence, broadly consistent.");
+    else reasons.push("Limited or mixed evidence — more observations would clarify.");
+  }
+  return { level, reasons };
+}
+
+function consistencyFor(observations: Observation[]): number | null {
+  if (observations.length < 2) return null;
+  const scores = observations.map((o) => o.performance);
+  const meanVal = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const variance = scores.reduce((sum, v) => sum + (v - meanVal) ** 2, 0) / scores.length;
+  const sd = Math.sqrt(variance);
+  return Math.max(0, 1 - sd * 2);
+}
+
 function profileFor(
   behaviour: BehaviourKey,
   observations: Observation[],
@@ -203,12 +252,19 @@ function profileFor(
   const uncertainty = independentCount === 0 ? 0.75 : Math.max(0.15, Math.min(0.75, 0.7 / Math.sqrt(independentCount)));
   const simulator = ordered.filter((item) => item.source === "simulator");
   const recent = ordered[ordered.length - 1];
+  const consistency = consistencyFor(ordered);
+  const scenarioDiversity = new Set(simulator.flatMap((item) => (item.scenarioId ? [item.scenarioId] : []))).size;
+  // Rubric reliability placeholder: if we have human-rated data for this behaviour, treat as moderate-high, otherwise default to 0.6
+  const rubricReliabilityApprox = sources["human-rated"].count > 0 ? 0.65 : 0.6;
+  const conf = confidenceLevelFor({ amountOfEvidence: independentCount, uncertainty, consistency, scenarioDiversity, rubricReliabilityApprox });
   const profile: BehaviourEvidenceProfile = {
     behaviour,
     amountOfEvidence: independentCount,
     confidence: Number((1 - uncertainty).toFixed(3)),
+    confidenceLevel: conf.level,
+    confidenceReasons: conf.reasons,
     recentPerformance: recent?.performance ?? null,
-    scenarioDiversity: new Set(simulator.flatMap((item) => (item.scenarioId ? [item.scenarioId] : []))).size,
+    scenarioDiversity,
     assistance: simulator[simulator.length - 1]?.assistance ?? null,
     retention: state?.retentionEstimate ?? null,
     uncertainty: Number(uncertainty.toFixed(3)),

@@ -4,6 +4,8 @@ import {
   getTimeLog, getXpLog, getReviewLog, getXp, getSettings,
   getReviewEvents, getSessionHistoryMeta, getEvidenceLedgerModel, getErrorModelSummary,
   getLearnerErrors, getLearnerErrorSummary,
+  getPlacementValidationMetrics, getProgressionValidationMetrics,
+  getCorpusMetrics, getAssistanceMetrics,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { getGrammarErrors } from '../lib/storage';
@@ -470,11 +472,34 @@ function LearnerValidation(){
   const entries = (()=>{ try{ return vocabAllEntries(); }catch{ return []; } })();
   const retention = retentionPredictionVsActual(srs, entries.slice(0,40));
   const speaking = (()=>{ try{ return speakingImprovement([]); }catch{ return { slope:null }; } })();
+
+  // External-validation harnesses: every one starts empty and says so until a
+  // human supplies the other side (known level, held-out tasks, human marks).
+  const external = [
+    ['Placement accuracy', getPlacementValidationMetrics()],
+    ['Progression transfer', getProgressionValidationMetrics()],
+    ['AI vs human marking', getCorpusMetrics()],
+    ['Assistance fading', getAssistanceMetrics()],
+  ];
   return (
-    <section className="bg-surface border border-line rounded-2xl p-4 space-y-2">
+    <section className="bg-surface border border-line rounded-2xl p-4 space-y-3">
       <h3 className="text-[11px] font-bold uppercase tracking-wider text-ink2">Learner validation</h3>
       <p className="text-xs text-ink2">Retention prediction: {retention.accuracy==null ? '—' : `${Math.round(retention.accuracy*100)}%`} (n={retention.n}) · Speaking slope: {speaking.slope==null ? '—' : `${speaking.slope}/day`}</p>
       <p className="text-[11px] text-ink3">Predicted vs actual recall on due cards; slope from recent speaking scores.</p>
+      <div className="border-t border-line pt-2 space-y-1.5">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-ink3">External validation</p>
+        {external.map(([name, m]) => (
+          <div key={name} className="flex items-baseline gap-2">
+            <span className="w-36 shrink-0 text-xs text-ink">{name}</span>
+            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+              m.status === 'validated' ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : m.status === 'provisional' ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : 'border-line bg-surface2 text-ink3'
+            }`}>{m.label || m.status}</span>
+            <span className="min-w-0 flex-1 truncate text-[11px] text-ink3" title={m.message}>{m.message}</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

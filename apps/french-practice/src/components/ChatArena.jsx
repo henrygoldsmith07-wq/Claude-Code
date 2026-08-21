@@ -10,6 +10,7 @@ import { activeLanguage } from '../lib/i18n';
 import {
   getSrs, getSessions, getMetrics, getReviewEvents, getGrammarProgress, getEvidenceLedgerModel,
   getSettings, recordGrammarError, recordWeaknessError, recordWeaknessRepair, getDueWeaknesses, getLearnerBrief,
+  recordAssistanceEvent,
 } from '../lib/storage';
 import { allEntries } from '../lib/vocab';
 import { GRAMMAR_TOPICS } from '../lib/grammar';
@@ -45,6 +46,9 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
   const [pickerOpen, setPickerOpen] = useState(false);
   const [weaknessDue, setWeaknessDue] = useState(() => getDueWeaknesses()[0] || null);
   const scrollRef = useRef(null);
+  // Assistance-fading evidence: how many hints the learner burned on the turn
+  // in flight. Recorded with the turn's score once the evaluation lands.
+  const hintsUsedRef = useRef(0);
 
   // Honour Home's 5/10/15 min presets: countdown only, never auto-sends speech.
   useEffect(() => {
@@ -153,6 +157,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     setSpoken(null);
     setHint('');
     setHintLevel(0);
+    hintsUsedRef.current = 0;
     setPhase('thinking');
     setError(null);
     const turnNumber = history.length + 1;
@@ -187,6 +192,18 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
       });
       if (evaluation.grammar_topic) recordWeaknessError(evaluation.grammar_topic, { scenarioId: scenario.id });
       if (evaluation.grammar_topic) recordGrammarError(evaluation.grammar_topic);
+      // Assistance-fading evidence: did this score happen with scaffolding or
+      // without? Feeds the dependence check in assistanceValidation.
+      try {
+        recordAssistanceEvent({
+          skill: 'speaking',
+          support: hintsUsedRef.current > 0 ? 'with' : 'without',
+          score: evaluation.scores.overall,
+          hintsUsed: hintsUsedRef.current,
+          retries: 0,
+          taskId: scenario.id,
+        });
+      } catch { /* logging must never break a turn */ }
       const turn = {
         userText,
         evaluation,
@@ -216,6 +233,7 @@ export default function ChatArena({ apiKey, mockMode, ttsRate, level, onTtsRate,
     const depth = Math.min(3, hintLevel + 1);
     setHintLoading(true);
     setHintLevel(depth);
+    hintsUsedRef.current = depth;
     try {
       const lastAiReply = history.length ? history[history.length - 1].reply : scenario.opener;
       const h = await getHint(apiKey, { scenario, lastAiReply, level: depth, cefr: level, mock: mockMode });
@@ -516,7 +534,11 @@ function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip,
         <div className="w-full sm:max-w-[85%] fade-in bg-surface2 border border-line rounded-2xl p-4 space-y-3 text-left">
           <div>
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-ink2 mb-1">Corrections</h4>
-            <Markdown className="text-[13px] text-ink leading-relaxed">{evaluation.corrections}</Markdown>
+            {evaluation.corrections_detailed?.length ? (
+              <TieredCorrections detailed={evaluation.corrections_detailed} />
+            ) : (
+              <Markdown className="text-[13px] text-ink leading-relaxed">{evaluation.corrections}</Markdown>
+            )}
             <ExplainRule turn={turn} apiKey={apiKey} mockMode={mockMode} level={level} />
           </div>
           <div>
@@ -551,8 +573,66 @@ function UserBubble({ turn, idx, redoActive, onRedo, onCancelRedo, onGrammarTip,
   );
 }
 
-function RedoCompare({ redo, before, idx }) {
-  const sign = (n) => (n > 0 ? `+${n}` : String(n));
+// Correction confidence tiers: definite errors lead, valid-but-less-natural
+// forms are offered as suggestions, and "uncertain" items stay collapsed
+// unless asked for — the anti-overcorrection rule made visible.
+const STRONG_LEVELS = new Set(['definite_error', 'likely_error']);
+const SOFT_LEVELS = new Set(['stylistic_suggestion', 'acceptable_alternative']);
+const LEVEL_LABEL = {
+  definite_error: 'Error',
+  likely_error: 'Likely error',
+  stylistic_suggestion: 'More natural',
+  acceptable_alternative: 'Also correct',
+  uncertain: 'Not sure',
+};
+
+function TieredCorrections({ detailed }) {
+  const [showUncertain, setShowUncertain] = useState(false);
+  const strong = detailed.filter((c) => STRONG_LEVELS.has(c.level));
+  const soft = detailed.filter((c) => SOFT_LEVELS.has(c.level));
+  const unsure = detailed.filter((c) => c.level === 'uncertain');
+  const Row = ({ c, tone }) => (
+    <li className="space-y-0.5">
+      <p className="text-[13px] leading-relaxed">
+        <span lang="fr" className={tone === 'strong' ? 'text-ink line-through decoration-ink3' : 'text-ink2'}>{c.original}</span>
+        <span className="text-ink3 mx-1.5" aria-hidden="true">→</span>
+        <span lang="fr" className={`font-semibold ${tone === 'strong' ? 'text-ink' : 'text-ink2'}`}>{c.correction}</span>
+        <span className={`ml-2 align-middle text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+          tone === 'strong' ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-line bg-surface text-ink3'
+        }`}>{LEVEL_LABEL[c.level]}</span>
+      </p>
+      {c.note && <p className="text-[11px] text-ink3">{c.note}</p>}
+    </li>
+  );
+  return (
+    <div className="space-y-2">
+      {strong.length > 0 && (
+        <ul className="space-y-2">{strong.map((c, i) => <Row key={`s${i}`} c={c} tone="strong" />)}</ul>
+      )}
+      {soft.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Suggestions — your version already works</p>
+          <ul className="space-y-2">{soft.map((c, i) => <Row key={`o${i}`} c={c} tone="soft" />)}</ul>
+        </div>
+      )}
+      {unsure.length > 0 && (
+        <div>
+          <button onClick={() => setShowUncertain((v) => !v)} className="text-[11px] text-ink3 hover:text-ink2 min-h-8">
+            {showUncertain ? 'Hide' : `Show ${unsure.length}`} the tutor wasn’t sure about
+          </button>
+          {showUncertain && (
+            <ul className="space-y-2 pt-1">{unsure.map((c, i) => <Row key={`u${i}`} c={c} tone="soft" />)}</ul>
+          )}
+        </div>
+      )}
+      {strong.length === 0 && soft.length === 0 && unsure.length === 0 && (
+        <p className="text-[13px] text-ink">No corrections — that landed cleanly.</p>
+      )}
+    </div>
+  );
+}
+
+function RedoCompare({ redo, before, idx }) {  const sign = (n) => (n > 0 ? `+${n}` : String(n));
   const tone = redo.deltaOverall > 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : redo.deltaOverall < 0 ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-ink2 bg-surface2 border-line';
   return (
     <div className={`fade-in rounded-2xl border px-4 py-3 space-y-2 text-left sm:max-w-[85%] ml-auto w-full ${tone}`}> 
