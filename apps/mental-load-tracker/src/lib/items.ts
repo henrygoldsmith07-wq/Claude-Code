@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -30,9 +30,11 @@ export function useHouseholdItems(membership: Membership | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [confirmedNonces, setConfirmedNonces] = useState<Set<string>>(
+    () => new Set<string>(),
+  );
 
   const householdId = membership?.household_id ?? null;
-  const confirmedNonces = useRef<Set<string>>(new Set());
   const pendingRef = useRef<PendingWrite[]>([]);
   const resubscribeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resubscribeAttempt = useRef(0);
@@ -43,9 +45,18 @@ export function useHouseholdItems(membership: Membership | null) {
     setPendingWrites(next);
   }, []);
 
+  const confirmNonce = useCallback((nonce: string) => {
+    setConfirmedNonces((previous) => {
+      if (previous.has(nonce)) return previous;
+      const next = new Set(previous);
+      next.add(nonce);
+      return next;
+    });
+  }, []);
+
   const items = useMemo(
-    () => convergeItems(serverItems, pendingWrites, confirmedNonces.current),
-    [serverItems, pendingWrites],
+    () => convergeItems(serverItems, pendingWrites, confirmedNonces),
+    [serverItems, pendingWrites, confirmedNonces],
   );
 
   const refresh = useCallback(async () => {
@@ -99,16 +110,17 @@ export function useHouseholdItems(membership: Membership | null) {
       });
 
       if (!writeError) {
-        confirmedNonces.current.add(entry.nonce);
+        confirmNonce(entry.nonce);
         remaining = remaining.slice(1);
         setPending(remaining);
         continue;
       }
 
+      const retryable = isRetryableWriteError(writeError.message);
       diagnostics.record({
-        class: isRetryableWriteError(writeError.message) ? "write-failure" : "write-failure",
+        class: "write-failure",
         context: "items:create",
-        outcome: isRetryableWriteError(writeError.message) ? "retryable" : "permanent",
+        outcome: retryable ? "retryable" : "permanent",
         attempt: resubscribeAttempt.current,
         pendingCount: remaining.length,
       });
@@ -119,7 +131,7 @@ export function useHouseholdItems(membership: Membership | null) {
           outcome: "throttled",
         });
       }
-      if (isRetryableWriteError(writeError.message)) {
+      if (retryable) {
         setOffline(true);
         break;
       }
@@ -131,9 +143,11 @@ export function useHouseholdItems(membership: Membership | null) {
     }
 
     if (pendingRef.current.length === 0) await refresh();
-  }, [householdId, refresh, setPending]);
+  }, [householdId, refresh, setPending, confirmNonce]);
 
   useEffect(() => {
+    // Reset loading when the membership/household changes before fetching.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     void refresh();
   }, [refresh]);
@@ -146,7 +160,7 @@ export function useHouseholdItems(membership: Membership | null) {
     if (!client || !householdId) return;
 
     const connect = () => {
-      const channel = client
+      return client
         .channel(`items:${householdId}`)
         .on(
           "postgres_changes",
@@ -176,14 +190,16 @@ export function useHouseholdItems(membership: Membership | null) {
             });
             setOffline(true);
             if (resubscribeTimer.current) clearTimeout(resubscribeTimer.current);
-            resubscribeTimer.current = setTimeout(connect, nextBackoffMs(resubscribeAttempt.current));
+            resubscribeTimer.current = setTimeout(
+              connect,
+              nextBackoffMs(resubscribeAttempt.current),
+            );
             resubscribeAttempt.current += 1;
           }
         });
-      return channel;
     };
 
-    let channel = connect();
+    const channel = connect();
     const interval = setInterval(() => void refresh(), POLL_INTERVAL_MS);
 
     // Sleep/wake and network switches do not always emit channel errors;
@@ -231,7 +247,7 @@ export function useHouseholdItems(membership: Membership | null) {
       });
 
       if (!insertError) {
-        confirmedNonces.current.add(nonce);
+        confirmNonce(nonce);
         setPending(pendingRef.current.filter((candidate) => candidate.nonce !== nonce));
         await refresh();
         return;
@@ -252,7 +268,14 @@ export function useHouseholdItems(membership: Membership | null) {
       setError(insertError.message);
       await refresh();
     },
-    [householdId, membership?.color, membership?.display_name, refresh, setPending],
+    [
+      householdId,
+      membership?.color,
+      membership?.display_name,
+      refresh,
+      setPending,
+      confirmNonce,
+    ],
   );
 
   const setResolved = useCallback(

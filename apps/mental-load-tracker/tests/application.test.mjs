@@ -220,6 +220,7 @@ test("diagnostics structurally cannot record user content", async () => {
   diagnostics.record({ class: "rls-denied", context: "items:refresh" });
   assert.deepEqual(diagnostics.snapshot(), {
     "write-failure|items:create|queued": 1,
+    "supabase-query-failure|x|": 1,
     "rls-denied|items:refresh|": 1,
   });
 });
