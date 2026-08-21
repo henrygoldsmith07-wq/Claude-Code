@@ -21,7 +21,7 @@
     "e2e:ci": "playwright test --reporter=list"
   },
   "dependencies": {
-    "react": "^18.3.1",
+    "react": "^19.2.8",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
