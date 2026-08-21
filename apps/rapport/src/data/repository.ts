@@ -43,6 +43,8 @@ import type {
 
 export const LOCAL_USER_ID = "local";
 export const HUMAN_EVIDENCE_META_KEY = "humanEvidence";
+export const CORPUS_BENCHMARK_META_KEY = "corpusBenchmark";
+export const BENCHMARK_CONSENT_KEY = "benchmarkConsent";
 const DB_NAME = "rapport";
 const DB_VERSION = 1;
 
@@ -160,6 +162,64 @@ export async function getHumanEvidence(): Promise<HumanEvidenceState> {
 export async function saveHumanEvidence(state: HumanEvidenceState): Promise<void> {
   const database = await db();
   await database.put("meta", state, HUMAN_EVIDENCE_META_KEY);
+}
+
+// --- Benchmark corpus (research data, separable, opt-in, deletable) ------------
+
+import type { CorpusBenchmark } from "@/domain/corpus";
+import { emptyCorpus } from "@/domain/corpus";
+
+export async function getCorpusBenchmark(): Promise<CorpusBenchmark> {
+  const database = await db();
+  return ((await database.get("meta", CORPUS_BENCHMARK_META_KEY)) as CorpusBenchmark | undefined) ?? emptyCorpus(new Date().toISOString());
+}
+
+export async function saveCorpusBenchmark(corpus: CorpusBenchmark): Promise<void> {
+  const database = await db();
+  await database.put("meta", corpus, CORPUS_BENCHMARK_META_KEY);
+}
+
+export async function deleteCorpusBenchmark(): Promise<void> {
+  const database = await db();
+  await database.delete("meta", CORPUS_BENCHMARK_META_KEY);
+  await database.delete("meta", BENCHMARK_CONSENT_KEY);
+}
+
+/** Whether benchmark sharing is opted-in. Default false. */
+export async function getBenchmarkConsent(): Promise<{ optedIn: boolean; at?: string; version?: string }> {
+  const database = await db();
+  return ((await database.get("meta", BENCHMARK_CONSENT_KEY)) as { optedIn: boolean; at?: string; version?: string } | undefined) ?? { optedIn: false };
+}
+
+export async function setBenchmarkConsent(optedIn: boolean, version = "2026-08-20.1"): Promise<void> {
+  const database = await db();
+  if (optedIn) await database.put("meta", { optedIn: true, at: new Date().toISOString(), version }, BENCHMARK_CONSENT_KEY);
+  else {
+    await database.delete("meta", BENCHMARK_CONSENT_KEY);
+    // Opting out deletes the separable research copy but leaves normal product data untouched
+    await deleteCorpusBenchmark();
+  }
+}
+
+/**
+ * Export benchmark/research data separately from normal product export.
+ * Benchmark export is opt-in only; if not opted in, returns null.
+ * The export is user-controlled — the user holds the file, not the server.
+ */
+export async function exportBenchmark(): Promise<{ exportedAt: string; corpus: CorpusBenchmark } | null> {
+  const consent = await getBenchmarkConsent();
+  if (!consent.optedIn) return null;
+  const corpus = await getCorpusBenchmark();
+  return { exportedAt: new Date().toISOString(), corpus };
+}
+
+/**
+ * Totally separable: normal export excludes benchmark data. The benchmark
+ * must be exported via exportBenchmark(). This prevents accidental linkage.
+ */
+export async function exportNormalExcludingBenchmark(now: string): Promise<{ exportedAt: string; version: number; snapshot: Snapshot; events: DomainEvent[] }> {
+  const [data, events] = await Promise.all([snapshot(now), allEvents()]);
+  return { exportedAt: now, version: SCORING_MODEL_VERSION, snapshot: data, events };
 }
 
 let eventCounter = 0;

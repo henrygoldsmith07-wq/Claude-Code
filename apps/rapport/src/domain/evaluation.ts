@@ -457,9 +457,129 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-/** Score one behaviour from the features, with the counts that justify it. */
-function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures): BehaviourScore {
+/**
+ * Gaming-adjusted scoring: detect 8 score-gaming strategies and penalise the
+ * affected behaviours. Penalties are capped and behaviour-specific — gaming
+ * the metric should not raise a score, even when the countable feature that
+ * the gaming exploits would otherwise look good.
+ *
+ * This runs inline (rather than via a separate module) so the evaluator's
+ * deterministic path cannot be bypassed by a caller who forgets a wrapper.
+ */
+function gamingPenaltyFor(key: BehaviourKey, f: TranscriptFeatures, simulation: { scenario: { characters: { name: string }[] }; turns: { speaker: "user" | "character"; text: string }[] }): number {
+  const turns = f.userTurns.length;
+  if (turns === 0) return 0;
+
+  let penalty = 0;
+
+  // --- Excessive questions: penalise questionQuality / reciprocity when asking too much
+  const totalQ = f.openQuestions + f.closedQuestions;
+  const perTurnQ = turns > 0 ? totalQ / turns : 0;
+  if ((key === "questionQuality" || key === "reciprocity" || key === "followUpQuality") && perTurnQ > 1.0 && totalQ >= 4) {
+    const severity = Math.min(1, (perTurnQ - 0.8) / 0.9);
+    penalty = Math.max(penalty, severity * 0.35);
+  }
+  if ((key === "questionQuality" || key === "reciprocity") && f.stackedQuestions > 0 && totalQ >= 3) {
+    const stackSeverity = Math.min(1, f.stackedQuestions / Math.max(1, totalQ * 0.5));
+    penalty = Math.max(penalty, stackSeverity * 0.3);
+  }
+
+  // --- Repetitive acknowledgements: same phrase repeated
+  if ((key === "listening" || key === "empathy") && f.acknowledgements >= 3) {
+    // Count repeated ack phrases across user turns
+    const ackMarkers = ["i hear you", "i get that", "i understand", "thanks for telling me", "got it", "i see what you mean"];
+    const counts = new Map<string, number>();
+    for (const turn of f.userTurns) {
+      const lower = turn.text.toLowerCase();
+      for (const m of ackMarkers) if (lower.includes(m)) counts.set(m, (counts.get(m) ?? 0) + 1);
+    }
+    const maxRep = Math.max(...[...counts.values()], 0);
+    if (maxRep >= 3) penalty = Math.max(penalty, Math.min(0.35, maxRep * 0.12));
+    else if (f.acknowledgements / Math.max(1, turns) > 0.7) penalty = Math.max(penalty, 0.2);
+  }
+
+  // --- Unnatural name repetition
+  if ((key === "inclusion" || key === "listening") && simulation.scenario.characters.length > 0) {
+    let totalNames = 0;
+    for (const turn of f.userTurns) {
+      for (const ch of simulation.scenario.characters) {
+        const re = new RegExp(`\\b${ch.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+        totalNames += (turn.text.match(re) ?? []).length;
+      }
+    }
+    if (totalNames >= 4 && totalNames / Math.max(1, turns) > 0.6) penalty = Math.max(penalty, Math.min(0.3, totalNames * 0.07));
+  }
+
+  // --- Formulaic empathy: validations without emotional opportunity, or repeated validation phrase
+  if (key === "empathy" && f.validations > 0) {
+    const withoutOpp = f.emotionalCues === 0 && f.validations >= 2;
+    if (withoutOpp) penalty = Math.max(penalty, Math.min(0.35, f.validations * 0.12));
+    // Repeated validation phrase check
+    const valMarkers = ["that makes sense", "makes sense", "of course you", "no wonder", "that sounds"];
+    const counts = new Map<string, number>();
+    for (const turn of f.userTurns) {
+      const lower = turn.text.toLowerCase();
+      for (const m of valMarkers) if (lower.includes(m)) counts.set(m, (counts.get(m) ?? 0) + 1);
+    }
+    const maxRep = Math.max(...[...counts.values()], 0);
+    if (maxRep >= 3) penalty = Math.max(penalty, Math.min(0.35, maxRep * 0.12));
+  }
+
+  // --- Unnaturally short responses (< =3 words in >40% of turns)
+  if ((key === "clarity" || key === "reciprocity" || key === "contribution") && turns >= 3) {
+    const shorts = f.userTurns.filter((t) => t.text.trim().split(/\s+/).filter(Boolean).length <= 3).length;
+    const ratio = shorts / turns;
+    if (ratio > 0.4 && f.averageReplyWords < 8) penalty = Math.max(penalty, Math.min(0.3, ratio * 0.5));
+  }
+
+  // --- Mechanical mirroring: high overlap but low acknowledgements/reflections (copy without uptake)
+  if ((key === "relevance" || key === "listening") && f.referencingReplies >= 2 && f.acknowledgements === 0 && f.reflections === 0 && f.validations === 0) {
+    // If referencing is high purely via word overlap with no reflective language, treat as potential mirroring
+    // Check for exact word copy of >=2 content words in short replies
+    // Simplified: referencing with no acknowledgement = mechanical suspicion, but only penalise if replies are very short (<10 words)
+    const shortWithOverlap = f.userTurns.filter((t) => t.text.trim().split(/\s+/).length < 10).length;
+    if (shortWithOverlap >= 2 && f.referencingReplies / Math.max(1, f.judgeableReplies) > 0.6) {
+      const mechanical = Math.min(1, shortWithOverlap / 3);
+      penalty = Math.max(penalty, mechanical * 0.25);
+    }
+  }
+
+  // --- Forced topic references: same rare topic word repeated >=4 times
+  if ((key === "relevance" || key === "topicTransitions") && turns >= 3) {
+    const allText = f.userTurns.map((t) => t.text.toLowerCase()).join(" ");
+    const words = allText.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 5);
+    const freq = new Map<string, number>();
+    for (const w of words) freq.set(w, (freq.get(w) ?? 0) + 1);
+    const maxRep = Math.max(...[...freq.values()], 0);
+    if (maxRep >= 4 && f.referencingReplies >= 2) penalty = Math.max(penalty, Math.min(0.25, (maxRep - 3) * 0.1));
+  }
+
+  // --- Artificial conversational balance: exactly 1:1 questions:disclosures with templated disclosures (5-8 words)
+  if ((key === "reciprocity" || key === "contribution") && turns >= 4) {
+    const totalQ2 = f.openQuestions + f.closedQuestions;
+    const disc = f.disclosures;
+    if (totalQ2 >= 3 && totalQ2 === disc) {
+      const shortDisc = f.userTurns.filter((t) => /\b(i|i'm|im|i've|my)\b/i.test(t.text) && t.text.trim().split(/\s+/).length <= 8 && t.text.trim().split(/\s+/).length >= 5).length;
+      if (shortDisc / Math.max(1, disc) > 0.5) penalty = Math.max(penalty, 0.28);
+    }
+  }
+
+  return clamp01(penalty);
+}
+
+/** Score one behaviour from the features, with the counts that justify it and gaming resistance. */
+function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures, simulation?: Simulation): BehaviourScore {
   const score = scoreBehaviourBase(key, f);
+  // Apply gaming penalty where a simulation is available to derive pattern context
+  let penalty = 0;
+  if (simulation) {
+    penalty = gamingPenaltyFor(key, f, simulation as never);
+    if (penalty > 0) {
+      const penalised = clamp01(score.score - penalty);
+      const evidence = penalty > 0.15 ? `${score.evidence} — pattern flagged as score-gaming, penalised` : score.evidence;
+      return { ...score, score: Number(penalised.toFixed(3)), evidence, evidenceSpans: evidenceSpansFor(key, f, score) };
+    }
+  }
   return { ...score, evidenceSpans: evidenceSpansFor(key, f, score) };
 }
 
@@ -837,7 +957,7 @@ export function scoreTranscript(simulation: Simulation): BehaviourScore[] {
     // not get to produce evidence about one — in either direction.
     if (!multiParty && MULTI_PARTY_BEHAVIOURS.includes(key)) return false;
     return focus.size === 0 || focus.has(key);
-  }).map((key) => scoreBehaviour(key, features));
+  }).map((key) => scoreBehaviour(key, features, simulation));
 }
 
 /** Overall performance for the mastery engine: reliable scores only, or null. */
