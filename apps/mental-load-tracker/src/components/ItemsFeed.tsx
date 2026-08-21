@@ -1,3 +1,5 @@
+"use client";
+
 import type { Item } from "@/lib/types";
 import { isSameDay, isSameWeek, relativeTime } from "@/lib/date";
 
@@ -39,33 +41,63 @@ function ItemRow({
   onReopen: (id: string) => void;
   currentName: string;
 }) {
+  const pending = Boolean(item.pending);
+  const resolved = item.resolved && !pending;
+  const stateLabel = pending
+    ? "Not saved yet"
+    : resolved
+      ? "Mark as not done"
+      : "Mark as done";
+
   return (
-    <li className="flex items-start gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+    <li
+      className={`flex items-start gap-3 rounded-lg border p-3 ${
+        pending
+          ? "border-dashed border-amber-400 dark:border-amber-600"
+          : "border-zinc-200 dark:border-zinc-800"
+      }`}
+    >
       <button
-        onClick={() => (item.resolved ? onReopen(item.id) : onResolve(item.id))}
-        aria-label={item.resolved ? "Mark as not done" : "Mark as done"}
-        className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 transition ${
-          item.resolved
-            ? "border-zinc-900 bg-zinc-900 dark:border-zinc-100 dark:bg-zinc-100"
-            : "border-zinc-300 dark:border-zinc-700"
+        type="button"
+        onClick={() => !pending && (item.resolved ? onReopen(item.id) : onResolve(item.id))}
+        disabled={pending}
+        aria-label={stateLabel}
+        aria-pressed={resolved}
+        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100 ${
+          resolved
+            ? "bg-zinc-900 dark:bg-zinc-100"
+            : "border-2 border-zinc-300 dark:border-zinc-700"
         }`}
-      />
+      >
+        <span
+          aria-hidden="true"
+          className={`block h-5 w-5 rounded-full border-2 ${
+            resolved ? "border-white dark:border-black" : ""
+          }`}
+        />
+      </button>
       <div className="flex-1">
         <p
           className={`text-sm ${
-            item.resolved ? "text-zinc-400 line-through dark:text-zinc-600" : ""
+            resolved ? "text-zinc-500 line-through dark:text-zinc-400" : ""
           }`}
         >
           {item.text}
+          {pending && (
+            <span className="ml-2 align-middle text-xs font-medium text-amber-700 dark:text-amber-400">
+              saving…
+            </span>
+          )}
         </p>
-        <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+        <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
           <span
             className="h-2 w-2 rounded-full"
             style={{ backgroundColor: item.noticed_by_color }}
+            aria-hidden="true"
           />
           {item.noticed_by === currentName ? "You" : item.noticed_by} noticed &middot;{" "}
           {relativeTime(item.created_at)}
-          {item.resolved && item.resolved_by && (
+          {resolved && item.resolved_by && (
             <>
               {" "}
               &middot; {item.resolved_by === currentName ? "you" : item.resolved_by} resolved it
@@ -99,7 +131,7 @@ export default function ItemsFeed({ items, onResolve, onReopen, currentName }: P
         .filter(([, list]) => list.length > 0)
         .map(([label, list]) => (
           <div key={label} className="flex flex-col gap-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {label}
             </h3>
             <ul className="flex flex-col gap-2">

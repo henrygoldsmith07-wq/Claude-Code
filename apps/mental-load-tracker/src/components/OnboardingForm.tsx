@@ -77,12 +77,17 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
       onSubmit={handleSubmit}
       className="flex w-full max-w-md flex-col gap-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"
     >
-      <div className="flex rounded-lg bg-zinc-100 p-1 text-sm font-medium dark:bg-zinc-900">
+      <div
+        className="flex rounded-lg bg-zinc-100 p-1 text-sm font-medium dark:bg-zinc-900"
+        role="group"
+        aria-label="Choose how to set up your household"
+      >
         <button
           type="button"
           onClick={() => setMode("start")}
-          className={`flex-1 rounded-md py-2 transition ${
-            mode === "start" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-500 dark:text-zinc-400"
+          aria-pressed={mode === "start"}
+          className={`flex-1 rounded-md py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100 ${
+            mode === "start" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"
           }`}
         >
           Start
@@ -90,8 +95,9 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
         <button
           type="button"
           onClick={() => setMode("invite")}
-          className={`flex-1 rounded-md py-2 transition ${
-            mode === "invite" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-500 dark:text-zinc-400"
+          aria-pressed={mode === "invite"}
+          className={`flex-1 rounded-md py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100 ${
+            mode === "invite" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"
           }`}
         >
           Join with invite
@@ -105,7 +111,7 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
             value={invitationToken}
             onChange={(e) => setInvitationToken(e.target.value)}
             placeholder="Paste the invite link token"
-            className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 font-mono text-xs focus:border-zinc-500 focus:outline-none dark:border-zinc-700"
+            className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 font-mono text-xs focus-visible:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-500 dark:border-zinc-700"
             maxLength={64}
             required
           />
@@ -122,7 +128,7 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
             value={legacyCode}
             onChange={(e) => setLegacyCode(e.target.value.toUpperCase())}
             placeholder="Only for an existing v1 household"
-            className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 uppercase tracking-widest focus:border-zinc-500 focus:outline-none dark:border-zinc-700"
+            className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 uppercase tracking-widest focus-visible:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-500 dark:border-zinc-700"
             maxLength={32}
             required
           />
@@ -138,22 +144,23 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Jordan"
-          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 focus:border-zinc-500 focus:outline-none dark:border-zinc-700"
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 focus-visible:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-500 dark:border-zinc-700"
           maxLength={30}
           required
         />
       </label>
 
-      <div className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">Your color</span>
-        <div className="flex gap-2">
+      <fieldset className="flex flex-col gap-1.5 text-sm">
+        <legend className="font-medium">Your color</legend>
+        <div className="mt-1.5 flex gap-2">
           {IDENTITY_COLORS.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setColor(c)}
               aria-label={`Choose color ${c}`}
-              className={`h-8 w-8 rounded-full transition ${
+              aria-pressed={color === c}
+              className={`h-11 w-11 rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100 ${
                 color === c
                   ? "ring-2 ring-offset-2 ring-zinc-900 dark:ring-offset-black dark:ring-zinc-100"
                   : ""
@@ -162,19 +169,23 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
             />
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {mode !== "legacy" && (
         <button
           type="button"
           onClick={() => setMode("legacy")}
-          className="self-start text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+          className="self-start text-xs text-zinc-600 underline underline-offset-2 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 dark:focus-visible:outline-zinc-100"
         >
           Migrate an existing household code
         </button>
       )}
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"
@@ -184,7 +195,7 @@ export default function OnboardingForm({ initialInvitationToken, onComplete }: P
           (mode === "invite" && !invitationToken.trim()) ||
           (mode === "legacy" && !legacyCode.trim())
         }
-        className="rounded-md bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="min-h-11 rounded-md bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-zinc-100"
       >
         {submitting ? "One sec…" : buttonLabel}
       </button>

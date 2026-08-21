@@ -115,6 +115,10 @@ create table if not exists public.items (
   noticed_by text not null,
   noticed_by_color text not null default '#6366f1',
   created_by uuid references auth.users (id) on delete set null default auth.uid(),
+  -- Client-generated idempotency key. A retried create_item with the same
+  -- (created_by, client_nonce) returns the original row instead of writing a
+  -- duplicate. Never exposed as an authorization surface.
+  client_nonce uuid,
   created_at timestamptz not null default now(),
   resolved boolean not null default false,
   resolved_by text,
@@ -131,11 +135,17 @@ alter table public.items add column if not exists created_by uuid
   references auth.users (id) on delete set null;
 alter table public.items add column if not exists resolved_by_user_id uuid
   references auth.users (id) on delete set null;
+alter table public.items add column if not exists client_nonce uuid;
 
 alter table public.items alter column created_by set default auth.uid();
 
 create index if not exists items_household_id_idx on public.items (household_id);
 create index if not exists items_created_by_idx on public.items (created_by);
+create index if not exists items_creator_created_at_idx
+  on public.items (created_by, created_at desc);
+create unique index if not exists items_creator_nonce_uidx
+  on public.items (created_by, client_nonce)
+  where client_nonce is not null;
 
 -- Realtime must be enabled for the table, but the publication is not an
 -- authorization boundary. Postgres Changes evaluates the subscriber's RLS
@@ -146,6 +156,22 @@ begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     begin
       alter publication supabase_realtime add table public.items;
+    exception
+      when duplicate_object then null;
+    end;
+  end if;
+end
+$$;
+
+-- Membership rows are published too so a removal or role change reaches the
+-- affected user's client immediately (the UI subscribes to them); RLS on this
+-- table limits every event to its own row owner.
+alter table public.household_memberships replica identity full;
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin
+      alter publication supabase_realtime add table public.household_memberships;
     exception
       when duplicate_object then null;
     end;
@@ -183,6 +209,10 @@ begin
 
   if tg_op = 'UPDATE' and new.created_by is distinct from old.created_by then
     raise exception 'item created_by is immutable' using errcode = '23514';
+  end if;
+
+  if tg_op = 'UPDATE' and new.client_nonce is distinct from old.client_nonce then
+    raise exception 'item client_nonce is immutable' using errcode = '23514';
   end if;
 
   return new;
@@ -234,6 +264,79 @@ revoke all on function public.is_household_owner(uuid) from public, anon, authen
 revoke all on function public.set_membership_updated_at() from public, anon, authenticated;
 revoke all on function public.prevent_item_tenant_change() from public, anon, authenticated;
 
+-- Membership audit trail. Rows are written only by the SECURITY DEFINER
+-- membership RPCs below; there is deliberately no INSERT policy, so clients
+-- cannot forge events. The detail payload is limited to role/relationship
+-- metadata — never item text or other household content.
+create table if not exists public.household_audit_events (
+  id uuid primary key default extensions.gen_random_uuid(),
+  household_id uuid not null references public.households (id) on delete cascade,
+  actor_user_id uuid references auth.users (id) on delete set null,
+  action text not null,
+  target_user_id uuid references auth.users (id) on delete set null,
+  detail jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint household_audit_events_action check (
+    action in (
+      'invite_created',
+      'invite_accepted',
+      'invite_revoked',
+      'member_joined',
+      'member_removed',
+      'role_changed',
+      'ownership_transferred',
+      'household_created',
+      'household_deleted'
+    )
+  ),
+  -- Keep audit payloads small and structurally incapable of carrying content.
+  constraint household_audit_events_detail_size
+    check (pg_column_size(detail) <= 512)
+);
+
+create index if not exists household_audit_events_household_idx
+  on public.household_audit_events (household_id, created_at desc);
+
+alter table public.household_audit_events enable row level security;
+alter table public.household_audit_events force row level security;
+
+drop policy if exists "Household owners can read audit events" on public.household_audit_events;
+create policy "Household owners can read audit events"
+  on public.household_audit_events for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.household_memberships m
+      where m.household_id = household_audit_events.household_id
+        and m.user_id = auth.uid()
+        and m.role = 'owner'
+    )
+  );
+
+revoke all on public.household_audit_events from public, anon, authenticated;
+grant select on public.household_audit_events to authenticated;
+
+-- Private helper used by the membership RPCs. Never executable by clients.
+create or replace function public.record_household_event(
+  p_household_id uuid,
+  p_action text,
+  p_actor uuid,
+  p_target uuid default null,
+  p_detail jsonb default '{}'::jsonb
+)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into public.household_audit_events (
+    household_id, action, actor_user_id, target_user_id, detail
+  ) values (p_household_id, p_action, p_actor, p_target, p_detail);
+$$;
+
+revoke all on function public.record_household_event(uuid, text, uuid, uuid, jsonb)
+  from public, anon, authenticated;
+
 -- Household creation is atomic: a new household is never visible without its
 -- first owner membership. There is no direct INSERT policy on households.
 create or replace function public.create_household(
@@ -273,6 +376,13 @@ begin
     v_household_id, auth.uid(), 'owner', v_display_name, v_color
   );
 
+  perform public.record_household_event(
+    v_household_id,
+    'household_created',
+    auth.uid(),
+    auth.uid()
+  );
+
   return query select v_household_id, v_name;
 end
 $$;
@@ -296,11 +406,43 @@ begin
     raise exception 'only the household owner can create invitations' using errcode = '42501';
   end if;
 
+  -- Abuse guards: a household cannot accumulate open invitations and cannot
+  -- hammer invitation creation. Both checks are bounded by indexes.
+  if (
+    select count(*)
+    from public.household_invitations i
+    where i.household_id = p_household_id
+      and i.accepted_at is null
+      and i.revoked_at is null
+      and i.expires_at > now()
+  ) >= 5 then
+    raise exception 'invitation limit reached: revoke an active invitation first'
+      using errcode = 'raise_exception';
+  end if;
+
+  if exists (
+    select 1
+    from public.household_invitations i
+    where i.household_id = p_household_id
+      and i.created_at > now() - interval '60 seconds'
+  ) then
+    raise exception 'please wait before creating another invitation'
+      using errcode = 'raise_exception';
+  end if;
+
   insert into public.household_invitations (
     household_id, invited_by, token_hash, expires_at
   ) values (
     p_household_id, auth.uid(), extensions.digest(v_token, 'sha256'), v_expires_at
   ) returning id into v_invitation_id;
+
+  perform public.record_household_event(
+    p_household_id,
+    'invite_created',
+    auth.uid(),
+    null,
+    jsonb_build_object('invitation_id', v_invitation_id)
+  );
 
   return query select v_invitation_id, v_token, v_expires_at;
 end
@@ -357,6 +499,15 @@ begin
     and revoked_at is null;
 
   get diagnostics v_updated = row_count;
+  if v_updated = 1 then
+    perform public.record_household_event(
+      p_household_id,
+      'invite_revoked',
+      auth.uid(),
+      null,
+      jsonb_build_object('invitation_id', p_invitation_id)
+    );
+  end if;
   return v_updated = 1;
 end
 $$;
@@ -423,11 +574,27 @@ begin
       v_invitation.household_id, auth.uid(), 'member', v_display_name, v_color
     );
     v_existing_role := 'member';
+
+    perform public.record_household_event(
+      v_invitation.household_id,
+      'member_joined',
+      auth.uid(),
+      auth.uid(),
+      jsonb_build_object('invitation_id', v_invitation.id)
+    );
   end if;
 
   update public.household_invitations
   set accepted_at = now(), accepted_by = auth.uid()
   where id = v_invitation.id;
+
+  perform public.record_household_event(
+    v_invitation.household_id,
+    'invite_accepted',
+    auth.uid(),
+    auth.uid(),
+    jsonb_build_object('invitation_id', v_invitation.id)
+  );
 
   return query select v_invitation.household_id, v_household_name, v_existing_role;
 end
@@ -455,6 +622,14 @@ begin
     and role = 'member';
 
   get diagnostics v_deleted = row_count;
+  if v_deleted = 1 then
+    perform public.record_household_event(
+      p_household_id,
+      'member_removed',
+      auth.uid(),
+      p_user_id
+    );
+  end if;
   return v_deleted = 1;
 end
 $$;
@@ -464,7 +639,8 @@ $$;
 -- table policies below remain restrictive for direct and adversarial calls.
 create or replace function public.create_item(
   p_household_id uuid,
-  p_text text
+  p_text text,
+  p_client_nonce uuid default null
 )
 returns public.items
 language plpgsql
@@ -480,6 +656,17 @@ begin
     raise exception 'not a household member' using errcode = '42501';
   end if;
 
+  -- Abuse guard: bounded write rate per account.
+  if (
+    select count(*)
+    from public.items i
+    where i.created_by = auth.uid()
+      and i.created_at > now() - interval '1 minute'
+  ) >= 30 then
+    raise exception 'rate limit exceeded: too many items created'
+      using errcode = 'raise_exception';
+  end if;
+
   if char_length(v_text) not between 1 and 280 then
     raise exception 'item text must be between 1 and 280 characters';
   end if;
@@ -490,10 +677,27 @@ begin
     and m.user_id = auth.uid();
 
   insert into public.items (
-    household_id, text, noticed_by, noticed_by_color, created_by
+    household_id, text, noticed_by, noticed_by_color, created_by, client_nonce
   ) values (
-    p_household_id, v_text, v_membership.display_name, v_membership.color, auth.uid()
-  ) returning * into v_item;
+    p_household_id, v_text, v_membership.display_name, v_membership.color,
+    auth.uid(), p_client_nonce
+  )
+  on conflict (created_by, client_nonce) where client_nonce is not null
+  do nothing
+  returning * into v_item;
+
+  if v_item.id is null then
+    -- A retry raced the original insert; return the existing row so the
+    -- duplicate network attempt converges instead of duplicating content.
+    select i.* into v_item
+    from public.items i
+    where i.created_by = auth.uid()
+      and i.client_nonce = p_client_nonce;
+
+    if v_item.id is null or v_item.household_id is distinct from p_household_id then
+      raise exception 'retry did not match the original item' using errcode = 'raise_exception';
+    end if;
+  end if;
 
   return v_item;
 end
@@ -597,7 +801,169 @@ begin
 end
 $$;
 
+-- Owners hand the household to an existing member. The demote/promote pair is
+-- ordered so the one-owner-per-household index is never violated, even under
+-- concurrent calls.
+create or replace function public.transfer_household_ownership(
+  p_household_id uuid,
+  p_new_owner_user_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_promoted integer;
+begin
+  if not public.is_household_owner(p_household_id) then
+    raise exception 'only the household owner can transfer ownership' using errcode = '42501';
+  end if;
+
+  if p_new_owner_user_id = auth.uid() then
+    raise exception 'the household already belongs to you' using errcode = 'raise_exception';
+  end if;
+
+  update public.household_memberships
+  set role = 'member'
+  where household_id = p_household_id
+    and user_id = auth.uid()
+    and role = 'owner';
+
+  update public.household_memberships
+  set role = 'owner'
+  where household_id = p_household_id
+    and user_id = p_new_owner_user_id
+    and role = 'member';
+
+  get diagnostics v_promoted = row_count;
+  if v_promoted <> 1 then
+    raise exception 'ownership transfer requires an existing member'
+      using errcode = 'raise_exception';
+  end if;
+
+  perform public.record_household_event(
+    p_household_id,
+    'role_changed',
+    auth.uid(),
+    p_new_owner_user_id,
+    jsonb_build_object('from', 'member', 'to', 'owner')
+  );
+  perform public.record_household_event(
+    p_household_id,
+    'role_changed',
+    auth.uid(),
+    auth.uid(),
+    jsonb_build_object('from', 'owner', 'to', 'member')
+  );
+  perform public.record_household_event(
+    p_household_id,
+    'ownership_transferred',
+    auth.uid(),
+    p_new_owner_user_id
+  );
+
+  return true;
+end
+$$;
+
+-- Members can leave on their own. An owner with no other members dissolves
+-- the household; an owner with members must transfer or delete explicitly.
+create or replace function public.leave_household(
+  p_household_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_role public.household_role;
+  v_member_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '42501';
+  end if;
+
+  select m.role into v_role
+  from public.household_memberships m
+  where m.household_id = p_household_id
+    and m.user_id = auth.uid();
+
+  if v_role is null then
+    raise exception 'not a household member' using errcode = '42501';
+  end if;
+
+  if v_role = 'owner' then
+    select count(*) into v_member_count
+    from public.household_memberships m
+    where m.household_id = p_household_id;
+
+    if v_member_count > 1 then
+      raise exception
+        'transfer ownership or delete the household before leaving'
+        using errcode = 'raise_exception';
+    end if;
+
+    perform public.record_household_event(
+      p_household_id,
+      'household_deleted',
+      auth.uid(),
+      auth.uid(),
+      jsonb_build_object('reason', 'owner left')
+    );
+    delete from public.households where id = p_household_id;
+    return true;
+  end if;
+
+  perform public.record_household_event(
+    p_household_id,
+    'member_removed',
+    auth.uid(),
+    auth.uid(),
+    jsonb_build_object('how', 'left')
+  );
+  delete from public.household_memberships
+  where household_id = p_household_id
+    and user_id = auth.uid();
+
+  return true;
+end
+$$;
+
+-- Owner-initiated teardown. The audit event is written first and is then
+-- removed by the same cascade: deleting a household intentionally purges its
+-- audit history instead of leaving tenant metadata behind.
+create or replace function public.delete_household(
+  p_household_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_household_owner(p_household_id) then
+    raise exception 'only the household owner can delete the household'
+      using errcode = '42501';
+  end if;
+
+  perform public.record_household_event(
+    p_household_id,
+    'household_deleted',
+    auth.uid(),
+    null,
+    jsonb_build_object('reason', 'deleted by owner')
+  );
+
+  delete from public.households where id = p_household_id;
+  return true;
+end
+$$;
+
 -- Remove every old policy before installing the authenticated policy set.
+-- The drop-if-exists lines make repeated application safe: the canonical
+-- migration is idempotent by construction, not only on a fresh database.
 drop policy if exists "Anyone with the anon key can read households" on public.households;
 drop policy if exists "Anyone with the anon key can create households" on public.households;
 drop policy if exists "Anyone with the anon key can manage items" on public.items;
@@ -698,9 +1064,12 @@ revoke all on function public.list_household_invitations(uuid) from public, anon
 revoke all on function public.revoke_household_invitation(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.accept_household_invitation(text, text, text) from public, anon, authenticated;
 revoke all on function public.remove_household_member(uuid, uuid) from public, anon, authenticated;
-revoke all on function public.create_item(uuid, text) from public, anon, authenticated;
+revoke all on function public.create_item(uuid, text, uuid) from public, anon, authenticated;
 revoke all on function public.set_item_resolved(uuid, boolean) from public, anon, authenticated;
 revoke all on function public.claim_legacy_household(text, text, text) from public, anon, authenticated;
+revoke all on function public.transfer_household_ownership(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.leave_household(uuid) from public, anon, authenticated;
+revoke all on function public.delete_household(uuid) from public, anon, authenticated;
 
 grant execute on function public.create_household(text, text) to authenticated;
 grant execute on function public.create_household_invitation(uuid) to authenticated;
@@ -708,8 +1077,11 @@ grant execute on function public.list_household_invitations(uuid) to authenticat
 grant execute on function public.revoke_household_invitation(uuid, uuid) to authenticated;
 grant execute on function public.accept_household_invitation(text, text, text) to authenticated;
 grant execute on function public.remove_household_member(uuid, uuid) to authenticated;
-grant execute on function public.create_item(uuid, text) to authenticated;
+grant execute on function public.create_item(uuid, text, uuid) to authenticated;
 grant execute on function public.set_item_resolved(uuid, boolean) to authenticated;
 grant execute on function public.claim_legacy_household(text, text, text) to authenticated;
+grant execute on function public.transfer_household_ownership(uuid, uuid) to authenticated;
+grant execute on function public.leave_household(uuid) to authenticated;
+grant execute on function public.delete_household(uuid) to authenticated;
 
 commit;

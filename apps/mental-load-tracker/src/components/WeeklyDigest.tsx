@@ -50,6 +50,7 @@ export default function WeeklyDigest({ items }: { items: Item[] }) {
             <span
               className="h-3 w-3 shrink-0 rounded-full"
               style={{ backgroundColor: s.color }}
+              aria-hidden="true"
             />
             <div className="text-sm">
               <p className="font-medium">{s.name}</p>
@@ -60,7 +61,7 @@ export default function WeeklyDigest({ items }: { items: Item[] }) {
           </div>
         ))}
       </div>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         No score, no leaderboard — just what showed up this week.
       </p>
     </div>
