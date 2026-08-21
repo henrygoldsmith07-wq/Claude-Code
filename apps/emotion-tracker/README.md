@@ -89,6 +89,7 @@ npm run dev
 - `npm run type-check` — `tsc --noEmit`
 - `npm test` — Vitest (prompt/model regression tests are the priority for this product)
 - `npm run test:watch` — Vitest watch
+- `npm run test:e2e` — Playwright browser flows (reflection → structured output → evidence → correction → export/delete → provider failure)
 
 ## Tests — the trust layer
 
@@ -99,3 +100,33 @@ For this product, prompt/model regression tests matter more than another chart:
 - `src/lib/rateLimit.test.ts`, `src/lib/useEntries.test.ts` — guardrails + persistence shape including follow-up mutation.
 
 Run them on every change to the prompts or `types.ts`.
+
+## Trust infrastructure
+
+Beyond the hedged-language contract, Reflect ships explicit machinery for trustworthiness:
+
+- **Human review corpus** (`src/lib/humanReview.ts`) — storage, validation and anonymisation for external review of system interpretations. Labels: *directly supported observation / reasonable inference / weak inference / unsupported claim / contradiction / useful / not useful / misleading / insufficient evidence*. No human review is ever fabricated — records only rehydrate labels that real reviewers produced. Anonymised records carry counts and confidence bands, never verbatim entry text.
+- **Confidence calibration** (`src/lib/confidenceCalibration.ts`) — pairs stored confidence with later human support and reports per-band supported rate, sample size, calibration error and an ordering check (high > moderate > low). Thin bands are flagged rather than over-claimed.
+- **Correction propagation** (`src/lib/corrections.ts`, extended) — rejecting an interpretation now stores the rejected text, reason, timestamp, affected facts/patterns and an optional replacement understanding. The system prompt receives a "do not reintroduce" section, and `getNextReflectionStep` hard-fails if the model returns a previously rejected assumption without new evidence.
+- **Longitudinal pattern evidence** (`src/lib/patternEvidence.ts`) — every pattern carries evidence instances, contradictory instances, observation count, timespan, recency, strength and confidence. Patterns are not generated from minimal data (< 3 observations or near-zero timespan).
+- **Observation vs inference** (`src/lib/observationVsInference.ts`) — five tiers (user-stated fact → direct observation → computed pattern → hypothesis → user-confirmed) with distinct labels, styles and certainty language; hypotheses always carry for/against evidence.
+- **Adversarial input** (`src/lib/adversarial.ts`) — flags sarcasm, quoted messages, third-person content, fiction, copied articles, lyrics, contradictions and prompt injection. Pure injection is rejected at the route; other flagged content is never auto-converted into user facts — the model is told to ask first.
+- **Context/memory architecture** (`src/lib/memory.ts`) — separates recent raw entries, validated facts, corrections, patterns and summaries; retrieves only query-relevant context and caps provider hints to 5 lightweight entries instead of sending journal history.
+- **Output validation** (`src/lib/outputValidation.ts`) — structured accept/retry/reject verdicts covering invalid structure, unsupported certainty, missing evidence, contradictory output (assumption duplicating an observation) and malformed confidence.
+- **Privacy audit** (`src/lib/privacyAudit.ts`) — programmatic checks across encryption, export, deletion, key handling, logs, analytics, server storage and AI-provider payloads; any verbatim leak in diagnostics fails the audit.
+- **Outcome evidence** (`src/lib/outcomeEvidence.ts`) — descriptive measures of whether insights are later confirmed, rejected, stable over time, and whether action-logged suggestions correlate with supported outcomes. Descriptive only.
+
+## Remaining limits of AI interpretation
+
+These are inherent to the design and **not** fixed by anything above:
+
+1. **Single-account bias** — every interpretation is built from one person's self-report. There is no access to how others experienced the same event, so "the other perspective" is speculation, however carefully hedged.
+2. **No ground truth** — confidence numbers are model-generated estimates, not measured probabilities. Calibration reporting can only show whether they *correlate* with human support after the fact.
+3. **Lexical pattern detection** — recurring-assumption grouping uses stemming + Jaccard similarity. It will miss paraphrases with different wording and may group surface-similar but meaning-different statements despite decoy tests.
+4. **Contradiction detection is shallow** — negation/always-vs-never heuristics catch obvious oppositions only; semantic contradictions pass unnoticed.
+5. **Corrections are lexical too** — a rejected interpretation is blocked by key/text matching. A genuinely new phrasing of the same rejected idea can still resurface until reviewed again.
+6. **The model can be wrong about emotions** — named emotions and bias labels are plausible readings, not assessments. A confident-sounding misread is still a misread.
+7. **No clinical validity** — Reflect is a reflection aid. Nothing here is diagnosis, therapy, or evidence of psychological benefit; outcome metrics describe usage, not efficacy.
+8. **Provider dependence** — interpretation quality varies with the model behind the API; validation enforces structure and hedging, not accuracy.
+
+## Setup
