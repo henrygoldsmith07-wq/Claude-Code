@@ -53,6 +53,12 @@ import {
 } from './planning-intelligence.js';
 import { learnWasteProfile } from './waste-planner.js';
 import { YOUTH_COPY, youthPolicy } from './youth.js';
+import { savingsSnapshot } from './savings.js';
+import { wasteOutcome } from './pantry-lifecycle.js';
+import { planOutcome } from './plan-outcome.js';
+import { outcomeDashboard } from './outcome-dashboard.js';
+import { optimiseShopping } from './shopping-optimisation.js';
+import { weeklyFoodLoop } from './food-loop.js';
 
 export const deriveApp = (state) => {
   const activeMember = state.members.find((member) => member.id === state.activeMemberId) || null;
@@ -114,6 +120,11 @@ export const deriveApp = (state) => {
     members: state.members,
   });
   const wasteProfile = learnWasteProfile(state.waste, { learnedAliases: state.aliasMemory });
+  const honestSavings = savingsSnapshot(state, state.day, 30);
+  const wasteOutcome30 = wasteOutcome(state.pantry, state.waste, state.pantryEvents);
+  const closedLoop = weeklyFoodLoop(state, state.day).closedLoop;
+  const planOutcome30 = planOutcome(state.plan, weekDates(state.day), state.mealPlanEvents, state.cooked, state.pantry);
+  const dashboard = outcomeDashboard(state, { today: state.day, windowDays: 30 });
   const entries = state.log[state.day] || [];
   const totals = dayTotals(entries);
   const glasses = state.water + state.waterExtraMl / GLASS_ML;
@@ -266,6 +277,14 @@ export const deriveApp = (state) => {
     restock: restockSuggestions(state.shops, state.pantry, state.shoppingList),
     staples: recurringStaples(state.shops, state.pantry, state.shoppingList, { today: state.day }),
     wasted: wasteSummary(state.waste),
+    honestSavings,
+    wasteOutcome: wasteOutcome30,
+    closedLoop,
+    planOutcome: planOutcome30,
+    dashboard,
+    shoppingOptimisation: (mode = 'balanced') => optimiseShopping(state.shoppingList, {
+      shops: state.shops, pantry: state.pantry, mode, today: state.day, learnedAliases: state.aliasMemory,
+    }),
     stats: kitchenStats({ ...state, xp: progress.xp }, state.day),
     personaTier,
 
