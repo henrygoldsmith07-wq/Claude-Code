@@ -94,7 +94,16 @@ export default function Home() {
   }
 
   function handleDismissBias(bias: BiasFlag): void {
-    handleDismissCorrection({ key: patternKey({ kind: "bias", label: bias.type }), kind: "pattern", rejectedAt: new Date().toISOString(), reason: "User asked to stop showing this pattern." });
+    handleDismissCorrection({
+      key: patternKey({ kind: "bias", label: bias.type }),
+      kind: "pattern",
+      rejectedAt: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
+      reason: "User asked to stop showing this pattern.",
+      rejectedInterpretation: bias.description,
+      affectedPatterns: [bias.type],
+      replacementUnderstanding: null,
+    });
   }
 
   return (
@@ -113,7 +122,7 @@ export default function Home() {
 
       <main className="flex-1 overflow-y-auto">
         {selectedEntry ? (
-          <ReflectionSession key={selectedEntry.id} entry={selectedEntry} entries={entries} apiKey={apiKey} onAppendMessage={appendMessage} onCompleteEntry={handleCompleteEntry} onUpdateFollowUp={handleUpdateFollowUp} onSaveReview={handleSaveReview} onClearReview={clearLongitudinalReview} onDismissPattern={handleDismissBias} onError={(message) => setToast({ message })} />
+          <ReflectionSession key={selectedEntry.id} entry={selectedEntry} entries={entries} corrections={corrections} apiKey={apiKey} onAppendMessage={appendMessage} onCompleteEntry={handleCompleteEntry} onUpdateFollowUp={handleUpdateFollowUp} onSaveReview={handleSaveReview} onClearReview={clearLongitudinalReview} onDismissPattern={handleDismissBias} onError={(message) => setToast({ message })} />
         ) : creatingNew ? (
           <NewEntryForm initialMode={newMode} onSubmit={handleStart} />
         ) : view === "history" ? (

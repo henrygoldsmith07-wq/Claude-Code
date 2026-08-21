@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { BiasFlag, Entry, LongitudinalReview, Message, ReflectionSummary } from "@/lib/types";
+import type { Correction } from "@/lib/corrections";
 import { logOutcomeStudyEvent } from "@/lib/outcomeStudy";
+import { buildProviderContext } from "@/lib/memory";
 import SummaryView from "./SummaryView";
 
 interface Props {
   entry: Entry;
   entries?: Entry[];
+  corrections?: Correction[];
   apiKey: string;
   onAppendMessage: (id: string, message: Message) => void;
   onCompleteEntry: (id: string, summary: ReflectionSummary) => void;
@@ -21,6 +24,7 @@ interface Props {
 export default function ReflectionSession({
   entry,
   entries,
+  corrections,
   apiKey,
   onAppendMessage,
   onCompleteEntry,
@@ -33,6 +37,10 @@ export default function ReflectionSession({
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [quietFocus, setQuietFocus] = useState(false);
+  // Retry: after a provider failure the session would otherwise be stuck
+  // (awaitingAi stays true, messages.length unchanged). A nonce re-runs the
+  // request effect without duplicating the user's message.
+  const [retryNonce, setRetryNonce] = useState(0);
   const requestedForRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +68,8 @@ export default function ReflectionSession({
     // external fetch rather than an input event.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
+    const query = entry.messages[entry.messages.length - 1]?.content ?? "";
+    const providerContext = buildProviderContext(entries ?? [], corrections ?? [], entry.messages, query);
     fetch("/api/reflect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,7 +77,8 @@ export default function ReflectionSession({
         messages: entry.messages,
         apiKey: apiKey || undefined,
         mode: entry.mode ?? "full",
-        entries: entries ? entries.slice(0, 5).map((e) => ({ id: e.id, coreEmotion: e.summary?.coreEmotion ?? null, triggers: e.summary?.underlyingTriggers ?? [] })) : undefined,
+        entries: providerContext.entryHints,
+        corrections: corrections?.slice(-10) ?? undefined,
       }),
     })
       .then(async (res) => {
@@ -85,10 +96,11 @@ export default function ReflectionSession({
       .catch((err) => {
         onError(err instanceof Error ? err.message : "Something went wrong");
         requestedForRef.current = null;
+        setRetryNonce((n) => n + 1);
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [awaitingAi, entry.id, entry.messages.length]);
+  }, [awaitingAi, entry.id, entry.messages.length, retryNonce]);
 
   function submitAnswer() {
     if (!answer.trim()) return;
