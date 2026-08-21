@@ -3,6 +3,12 @@
     { "name": "Revise browser assets", "path": "apps/revise/.next/static", "maxBytes": 16000000 },
     { "name": "Rapport browser assets", "path": "apps/rapport/.next/static", "maxBytes": 16000000 },
     { "name": "Forq browser assets", "path": "apps/food-shopping-os/.next/static", "maxBytes": 16000000 },
-    { "name": "Pulse browser assets", "path": "apps/pulse/dist", "maxBytes": 5000000 }
+    { "name": "Pulse browser assets", "path": "apps/pulse/dist", "maxBytes": 5000000 },
+    { "name": "Daily Debate browser assets", "path": "apps/daily-debate/.next/static", "maxBytes": 16000000 },
+    { "name": "Reflect browser assets", "path": "apps/emotion-tracker/.next/static", "maxBytes": 16000000 },
+    { "name": "Noticed browser assets", "path": "apps/mental-load-tracker/.next/static", "maxBytes": 12000000 },
+    { "name": "Habit browser assets", "path": "apps/habit-tracker/.next/static", "maxBytes": 12000000 },
+    { "name": "Arise browser assets", "path": "apps/arise/dist", "maxBytes": 2000000 },
+    { "name": "Le Studio French browser assets", "path": "apps/french-practice/dist", "maxBytes": 3000000 }
   ]
 }

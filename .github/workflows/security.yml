@@ -1,0 +1,55 @@
+name: Security
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC
+  workflow_dispatch:
+  push:
+    paths:
+      - "package-lock.json"
+      - "apps/*/package.json"
+      - "apps/*/package-lock.json"
+      - "scripts/security-audit.mjs"
+      - ".github/workflows/security.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Static security checks
+        run: node scripts/security-audit.mjs
+      - name: Production dependency audit (non-blocking, triage)
+        run: |
+          for dir in apps/*/; do
+            if [ -f "$dir/package-lock.json" ]; then
+              echo "::group::npm audit $dir (prod only, high+)"
+              (cd "$dir" && npm audit --omit=dev --audit-level=high || echo "advisory findings — triage required") 2>&1 | tail -n 40
+              echo "::endgroup::"
+            fi
+          done
+        continue-on-error: true
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

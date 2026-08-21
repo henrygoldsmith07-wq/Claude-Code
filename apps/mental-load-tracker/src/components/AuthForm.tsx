@@ -52,12 +52,17 @@ export default function AuthForm({ hasInvitation }: Props) {
         </p>
       </div>
 
-      <div className="flex rounded-lg bg-zinc-100 p-1 text-sm font-medium dark:bg-zinc-900">
+      <div
+        className="flex rounded-lg bg-zinc-100 p-1 text-sm font-medium dark:bg-zinc-900"
+        role="group"
+        aria-label="Choose sign in or create account"
+      >
         <button
           type="button"
           onClick={() => setMode("sign-in")}
-          className={`flex-1 rounded-md py-2 transition ${
-            mode === "sign-in" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-500 dark:text-zinc-400"
+          aria-pressed={mode === "sign-in"}
+          className={`flex-1 rounded-md py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100 ${
+            mode === "sign-in" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"
           }`}
         >
           Sign in
@@ -65,8 +70,9 @@ export default function AuthForm({ hasInvitation }: Props) {
         <button
           type="button"
           onClick={() => setMode("sign-up")}
-          className={`flex-1 rounded-md py-2 transition ${
-            mode === "sign-up" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-500 dark:text-zinc-400"
+          aria-pressed={mode === "sign-up"}
+          className={`flex-1 rounded-md py-2 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100 ${
+            mode === "sign-up" ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"
           }`}
         >
           Create account
@@ -81,7 +87,7 @@ export default function AuthForm({ hasInvitation }: Props) {
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
           required
-          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 focus:border-zinc-500 focus:outline-none dark:border-zinc-700"
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 focus-visible:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-500 dark:border-zinc-700"
         />
       </label>
 
@@ -94,17 +100,25 @@ export default function AuthForm({ hasInvitation }: Props) {
           autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
           minLength={8}
           required
-          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 focus:border-zinc-500 focus:outline-none dark:border-zinc-700"
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 focus-visible:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-zinc-500 dark:border-zinc-700"
         />
       </label>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {notice && <p className="text-sm text-emerald-700 dark:text-emerald-400">{notice}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="text-sm text-emerald-800 dark:text-emerald-400">
+          {notice}
+        </p>
+      )}
 
       <button
         type="submit"
         disabled={submitting || !email.trim() || password.length < 8}
-        className="rounded-md bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="min-h-11 rounded-md bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-zinc-100"
       >
         {submitting ? "One sec…" : mode === "sign-in" ? "Sign in" : "Create account"}
       </button>

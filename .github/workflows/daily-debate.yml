@@ -28,7 +28,33 @@ jobs:
           cache: npm
           cache-dependency-path: apps/daily-debate/package-lock.json
       - run: npm ci
+      # Type-check where appropriate (tsc --noEmit over the app)
+      - run: npm run type-check
+      # Unit + regression tests, including source-verification regressions
+      # (misleading-evidence adversarial cases, entailment, retrieval contracts)
       - run: npm test
       - run: npm run build
-      - run: du -sh .next 2>/dev/null || du -sh dist 2>/dev/null || du -sh build 2>/dev/null || echo "no build artifact to measure"
-      - run: node -e "const fs=require('fs');try{const s=require('child_process').execSync('du -sk .next 2>/dev/null || du -sk dist 2>/dev/null || echo 0',{encoding:'utf8'}).trim();console.log('SIZE_KB:'+s.split(/\s+/)[0])}catch(e){console.log('size check skipped')}"
+
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/daily-debate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/daily-debate/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --reporter=github,html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daily-debate-playwright-report
+          path: |
+            apps/daily-debate/playwright-report
+            apps/daily-debate/test-results
+          if-no-files-found: ignore

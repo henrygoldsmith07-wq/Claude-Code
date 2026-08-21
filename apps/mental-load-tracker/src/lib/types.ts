@@ -10,6 +10,9 @@ export type Item = {
   resolved_by: string | null;
   resolved_by_user_id: string | null;
   resolved_at: string | null;
+  client_nonce?: string | null;
+  /** Set for optimistic local rows that have not been confirmed yet. */
+  pending?: boolean;
 };
 
 export type HouseholdRole = "owner" | "member";

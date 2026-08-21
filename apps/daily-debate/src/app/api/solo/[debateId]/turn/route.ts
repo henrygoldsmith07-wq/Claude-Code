@@ -21,6 +21,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ deb
   const inputMode: InputMode = body?.inputMode === "voice" ? "voice" : "text";
   if (!message) return NextResponse.json({ error: "message is required." }, { status: 400 });
 
+  // Moderation: block high-severity only; do not alter scoring
+  const { moderateContent } = await import("@/lib/moderation");
+  const mod = moderateContent(message);
+  if (mod.blocked) {
+    return NextResponse.json({ error: `Message blocked: ${mod.flags.map((f) => f.note).join(" ")}`, moderation: mod.flags }, { status: 400 });
+  }
+
   const { data: debate, error: debateError } = await supabase
     .from("solo_debates")
     .select("*")

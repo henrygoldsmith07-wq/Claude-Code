@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Repository-level evidence registry. Each claim is graded separately from implementation size. Status never auto-upgrades from test count.",
+  "version": 1,
+  "statusValues": {
+    "demonstrated": "End-to-end behaviour shown with cited external or internal benchmark and sample.",
+    "partially-demonstrated": "Core path demonstrated; edge cases, scale, or replication not yet shown.",
+    "internally-benchmarked": "Measured on curated or synthetic data by the team; not yet tested with real users or third-party data.",
+    "infrastructure-only": "Plumbing exists (types, schema, fallbacks) but no user-facing behaviour has been exercised.",
+    "insufficient-evidence": "Claim made or implied in copy/site but no measurement exists.",
+    "externally-validated": "Independent replication or audit confirms the claim."
+  },
+  "claims": [
+    {
+      "id": "revise-marking-accuracy",
+      "product": "revise",
+      "claim": "Marks exam answers against the mark scheme accurately without a model.",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/revise/tests/marking.test.ts (32 fixtures), apps/revise/tests/double-marked-corpus.test.ts",
+      "sampleSize": 32,
+      "benchmark": "Internal double-marked corpus; agreement vs rubric — no external examiner audit.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No external examiner blind study; short-answer only; maths/latex equivalence internal."
+    },
+    {
+      "id": "revise-fsrs-scheduling",
+      "product": "revise",
+      "claim": "FSRS scheduler spaces cards effectively for retention.",
+      "status": "infrastructure-only",
+      "evidenceSource": "apps/revise/src/domain/scheduling.ts (ts-fsrs), apps/revise/tests/scheduling.test.ts",
+      "sampleSize": 0,
+      "benchmark": "ts-fsrs library; no within-product retention study.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No human trial; params not calibrated on product data."
+    },
+    {
+      "id": "rapport-transfer",
+      "product": "rapport",
+      "claim": "Simulator practice transfers to real-world behaviour change.",
+      "status": "infrastructure-only",
+      "evidenceSource": "apps/rapport/src/domain/evidence.ts (evidence ledger), apps/rapport/tests/evidence-ledger.test.ts",
+      "sampleSize": 0,
+      "benchmark": "Ledger separates simulator / self-reported / human-rated / validated-transfer; validated-transfer requires adjudicated multi-rater.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No longitudinal field study; human-rated pipeline exists but has zero external ratings."
+    },
+    {
+      "id": "rapport-safety-gate",
+      "product": "rapport",
+      "claim": "Safety gate blocks manipulation, isolation, and distress mishandling deterministically.",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/rapport/src/domain/safety.ts, apps/rapport/tests/safety.test.ts",
+      "sampleSize": 0,
+      "benchmark": "Pattern suite covering manipulation/isolation/distress; no red-team external audit.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "Regex / heuristic patterns; no third-party adversarial evaluation."
+    },
+    {
+      "id": "pulse-discovery",
+      "product": "pulse",
+      "claim": "Relationship discovery (correlations → findings) controls confounders and guards causal language.",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/pulse/src/discovery/engine.ts, apps/pulse/src/discovery/finding.ts validateFinding, apps/pulse/tests/evidence-graph.test.ts",
+      "sampleSize": 0,
+      "benchmark": "Synthetic data; validateFinding rejects causal language for non-experimental evidence and high-confidence correlation.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No real user long-term dataset; confounder control not validated against ground truth."
+    },
+    {
+      "id": "daily-debate-observable-scoring",
+      "product": "daily-debate",
+      "claim": "Debate scores derived from observable argument features are consistent across transcripts (invariance).",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/daily-debate/src/lib/observableAssessment.ts, apps/daily-debate/src/lib/judgeInvariance.ts, benchmarks.test.ts",
+      "sampleSize": 0,
+      "benchmark": "Invariance fixtures; judge output validated via finalizePvpAssessment.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "Synthetic transcripts; no inter-rater agreement against human judges."
+    },
+    {
+      "id": "emotion-tracker-reflection-quality",
+      "product": "emotion-tracker",
+      "claim": "Reflection pipeline produces hedged, non-diagnostic summaries with calibrated bias flags.",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/emotion-tracker/src/lib/validation.ts, confidence.ts, promptDiversity.ts, longitudinal.ts",
+      "sampleSize": 0,
+      "benchmark": "validateSummary rejects unhedged bias language; confidence <0.45 omits flags.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No user study; no clinician review of hedged language appropriateness."
+    },
+    {
+      "id": "arise-progression",
+      "product": "arise",
+      "claim": "Progression model prescribes training load accurately (levelled attributes, leakage-safe backtest).",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/arise/benchmark/validate.js, apps/arise/benchmark/backtest.js",
+      "sampleSize": 0,
+      "benchmark": "Internal backtest with leakage controls; 140 tests in app.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No training outcome data; not validated against coach prescription."
+    },
+    {
+      "id": "rtk-token-saving",
+      "product": "rtk",
+      "claim": "Filters noisy tool output to ≥60% size reduction while preserving task-relevant information.",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/rtk/benchmark/run.js, benchmark/evidence.json, evidence.md",
+      "sampleSize": 0,
+      "benchmark": "Corpus builder + families/detection/retention benchmarks; internally curated tool outputs.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No independent corpus; LLM task success measured on narrow rtk-specific benchmarks."
+    },
+    {
+      "id": "noticed-household-isolation",
+      "product": "mental-load-tracker",
+      "claim": "Household data is isolated by authenticated membership (RLS + RPC) and invitation tokens are not enumerable.",
+      "status": "internally-benchmarked",
+      "evidenceSource": "apps/mental-load-tracker/supabase/schema.sql (RLS, token_hash), tests/application.test.mjs, tests/security.integration.mjs",
+      "sampleSize": 0,
+      "benchmark": "RLS policies, membership RPCs, token_hash uniqueness; integration test expects RLS.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No external pentest; no brute-force rate-limit load test on invitations."
+    },
+    {
+      "id": "french-practice-fluency",
+      "product": "french-practice",
+      "claim": "Daily practice improves French speaking/listening fluency.",
+      "status": "insufficient-evidence",
+      "evidenceSource": "apps/french-practice content tests; no user study",
+      "sampleSize": 0,
+      "benchmark": "Content lint only.",
+      "lastUpdated": "2026-08-19",
+      "limitations": "No learner progress study; Groq STT/TTS not benchmarked for correction accuracy."
+    }
+  ]
+}

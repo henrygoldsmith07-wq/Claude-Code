@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   createHouseholdInvitation,
   listHouseholdInvitations,
@@ -26,6 +26,7 @@ export default function InvitePanel({ householdId }: Props) {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelId = useId();
 
   async function loadInvitations() {
     const result = await listHouseholdInvitations(householdId);
@@ -80,16 +81,20 @@ export default function InvitePanel({ householdId }: Props) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between text-left text-sm font-medium"
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex w-full items-center justify-between text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-100"
         data-testid="invite-toggle"
       >
         <span>Invite someone to this household</span>
-        <span className="text-zinc-400">{open ? "−" : "+"}</span>
+        <span className="text-zinc-500 dark:text-zinc-400" aria-hidden="true">
+          {open ? "−" : "+"}
+        </span>
       </button>
 
       {open && (
-        <div className="mt-4 flex flex-col gap-4 text-sm">
-          <p className="text-zinc-500 dark:text-zinc-400">
+        <div id={panelId} className="mt-4 flex flex-col gap-4 text-sm">
+          <p className="text-zinc-600 dark:text-zinc-400">
             The link grants one authenticated account access as a member. It
             expires after 7 days and can be revoked here.
           </p>
@@ -97,7 +102,7 @@ export default function InvitePanel({ householdId }: Props) {
             type="button"
             onClick={createInvite}
             disabled={loading}
-            className="self-start rounded-md bg-zinc-900 px-3 py-2 font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="min-h-11 self-start rounded-md bg-zinc-900 px-3 py-2 font-semibold text-white transition hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-zinc-100"
             data-testid="create-invite"
           >
             {loading ? "Creating…" : "Create invitation link"}
@@ -119,7 +124,7 @@ export default function InvitePanel({ householdId }: Props) {
                 <button
                   type="button"
                   onClick={copyInvite}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium dark:border-zinc-700"
+                  className="min-h-11 rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:border-zinc-700 dark:focus-visible:outline-zinc-100"
                 >
                   {copied ? "Copied" : "Copy"}
                 </button>
@@ -133,15 +138,21 @@ export default function InvitePanel({ householdId }: Props) {
               {invitations.map((invitation) => {
                 const status = invitationStatus(invitation);
                 return (
-                  <div key={invitation.invitation_id} className="flex items-center justify-between gap-3 text-xs">
-                    <span className="text-zinc-500 dark:text-zinc-400">
+                  <div
+                    key={invitation.invitation_id}
+                    className="flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span className="text-zinc-600 dark:text-zinc-400">
                       {status} · expires {new Date(invitation.expires_at).toLocaleDateString()}
                     </span>
                     {status === "Active" && (
                       <button
                         type="button"
                         onClick={() => revoke(invitation.invitation_id)}
-                        className="text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                        aria-label={`Revoke the invitation expiring ${new Date(
+                          invitation.expires_at,
+                        ).toLocaleDateString()}`}
+                        className="min-h-11 px-1 font-medium text-red-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 dark:text-red-400"
                       >
                         Revoke
                       </button>
@@ -152,7 +163,11 @@ export default function InvitePanel({ householdId }: Props) {
             </div>
           )}
 
-          {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
+          {error && (
+            <p role="alert" className="text-red-700 dark:text-red-400">
+              {error}
+            </p>
+          )}
         </div>
       )}
     </section>
