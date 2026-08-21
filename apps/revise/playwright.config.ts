@@ -8,7 +8,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  // Match CI's worker count everywhere: unbounded local workers starve app
+  // boot ("Loading your revision data…") and turn timing into flakes.
+  workers: 2,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   timeout: 45_000,
   expect: { timeout: 10_000 },
@@ -26,7 +28,8 @@ export default defineConfig({
     env: { PORT: String(PORT) },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // build && start comfortably exceeds 120s on cold caches / slower disks.
+    timeout: 300_000,
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },

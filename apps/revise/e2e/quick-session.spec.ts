@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { todayOrOnboarding } from "./helpers";
 
 test("Practice exposes five- and ten-minute question sprints", async ({ page }) => {
   await page.goto("/");
 
-  const onboarding = page.getByText(/Revision that knows what to do next/i);
   const today = page.locator("main#main");
-  await expect(onboarding.or(today).first()).toBeVisible({ timeout: 15_000 });
-  if (await onboarding.isVisible()) {
+  if ((await todayOrOnboarding(page)) === "onboarding") {
     await page.getByText(/Skip — I will set this up later/i).click();
     await expect(today).toBeVisible({ timeout: 15_000 });
   }

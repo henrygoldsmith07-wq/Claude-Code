@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { todayOrOnboarding } from "./helpers";
 
 /**
  * Offline walk — the core user journey without a network or AI key.
@@ -19,17 +20,13 @@ test.describe("offline walk", () => {
   test("landing → onboarding or Today → review → practice → progress loads", async ({ page }) => {
     await page.goto("/");
 
-    // AppShell: skip link is the first tab stop (WCAG 2.4.1).
-    const skipLink = page.locator("a.skip-link");
-    await expect(skipLink).toHaveCount(1);
-
-    // Either onboarding (fresh install) or Today shell.
+    // Either onboarding (fresh install) or Today shell — decided post-hydration.
     const onboarding = page.getByText(/Revision that knows what to do next/i);
     const today = page.locator("main#main");
     await expect(onboarding.or(today).first()).toBeVisible({ timeout: 15_000 });
 
     // If onboarding is showing, walk it then land on Today.
-    if (await onboarding.isVisible()) {
+    if ((await todayOrOnboarding(page)) === "onboarding") {
       // Step 0: optional name → Continue
       const continueBtn = page.getByRole("button", { name: /Continue/i });
       await expect(continueBtn.first()).toBeVisible();
@@ -60,10 +57,16 @@ test.describe("offline walk", () => {
     // Today should now have content (recommendations or empty-state CTA).
     await expect(page.locator("main#main")).toContainText(/Today|Review|Practice|Progress|Begin|Start/i, { timeout: 10_000 });
 
+    // AppShell: skip link is the first tab stop (WCAG 2.4.1) — present on the
+    // Today shell. Onboarding renders only its dialog, so assert after landing.
+    await expect(page.locator("a.skip-link")).toHaveCount(1);
+
     // Review route loads (even when no due cards).
     await page.goto("/review");
     await expect(page.locator("main#main")).toBeVisible();
-    await expect(page.locator("main#main")).toContainText(/Review|Due|card|No cards|empty/i, { timeout: 10_000 });
+    // Fresh profiles have due seed cards, so /review may open an active
+    // spaced-repetition session rather than an empty state — accept either.
+    await expect(page.locator("main#main")).toContainText(/Review|Due|card|No cards|empty|repetition|session|confident/i, { timeout: 10_000 });
 
     // Practice → progress both render without network errors.
     await page.goto("/practice");
@@ -89,15 +92,25 @@ test.describe("offline walk", () => {
     await page.waitForTimeout(500);
     await context.setOffline(true);
     await page.reload();
+    // A fresh profile re-opens onboarding after reload; the banner lives in the
+    // app shell, so settle past onboarding before asserting either state.
+    if ((await todayOrOnboarding(page)) === "onboarding") {
+      await page.getByText(/Skip — I will set this up later/i).click();
+      await expect(page.locator("main#main")).toBeVisible({ timeout: 15_000 });
+    }
     // AppShell offline notice (also proves syncStatus.online wiring).
     const offlineNotice = page.getByText(/Offline — everything still works/i);
-    // Allow either the banner or at least a successful offline render (SW cached shell).
     await expect(offlineNotice.or(page.locator("main#main")).first()).toBeVisible({ timeout: 10_000 });
     await context.setOffline(false);
   });
 
   test("keyboard: skip link is first focusable and nav has Main landmark", async ({ page }) => {
     await page.goto("/");
+    // Land on Today first: onboarding renders only its dialog (no skip link).
+    if ((await todayOrOnboarding(page)) === "onboarding") {
+      await page.getByText(/Skip — I will set this up later/i).click();
+      await expect(page.locator("main#main")).toBeVisible({ timeout: 15_000 });
+    }
     await page.keyboard.press("Tab");
     await expect(page.locator("a.skip-link")).toBeFocused();
     await expect(page.getByRole("navigation", { name: "Main" }).first()).toBeVisible();
