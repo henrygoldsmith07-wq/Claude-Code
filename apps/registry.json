@@ -195,6 +195,14 @@
    "sitePath": "rtk-site",
    "siteUrl": "https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app",
    "description": "Token-saving CLI that filters noisy tool output to what an LLM/human actually needs."
+  },
+  {
+   "id": "road-ready",
+   "repo": "henrygoldsmith07-wq/road-ready",
+   "name": "Road Ready",
+   "lifecycle": "external",
+   "kind": "product",
+   "description": "Offline-first DMV study PWA — adaptive practice, blueprint-stratified mock exams, sign flashcards and hazard perception. Vanilla JS, zero-build; Vitest unit tests, automated content-QA/provenance system and Playwright E2E."
   }
  ]
 }

@@ -104,11 +104,11 @@
       "product": "rtk",
       "claim": "Filters noisy tool output to ≥60% size reduction while preserving task-relevant information.",
       "status": "internally-benchmarked",
-      "evidenceSource": "apps/rtk/benchmark/run.js, benchmark/evidence.json, evidence.md",
+      "evidenceSource": "apps/rtk/benchmark/run.js, benchmark/evidence.json, evidence.md, benchmark/paired.js (raw-vs-RTK paired runs with retry accounting), benchmark/families.json, detection.json, retention.json; corpus pipeline: benchmark/capture.js (33-tool live-capture catalog, provenance sha256/host/command per item, synthetic/adversarial/captured-real separation, --ingest for contributed logs); external harness: benchmark/external-eval.js (independent-task manifest schema, seeded randomization, blind judging scrubber, model tiers, framework adapters, Wilson/TOST reporting), public dashboard: benchmark/dashboard.js",
       "sampleSize": 0,
-      "benchmark": "Corpus builder + families/detection/retention benchmarks; internally curated tool outputs.",
-      "lastUpdated": "2026-08-19",
-      "limitations": "No independent corpus; LLM task success measured on narrow rtk-specific benchmarks."
+      "benchmark": "Internal: curated + fuzzed tool outputs (223 tests incl. parser fuzz harness); paired raw-vs-RTK agent-solve benchmarks with net-retry honesty gates. Corpus capture infrastructure now spans 33 tools with per-item provenance and contribution ingest, but captured-real volume is still small (single digits).",
+      "lastUpdated": "2026-08-21",
+      "limitations": "No independent corpus at scale yet (captured-real logs remain few; target is hundreds/thousands via live capture + contributor ingest). External harness exists but zero independent tasks sourced and zero third-party framework/model runs executed. LLM task success measured on narrow rtk-specific internal benchmarks."
     },
     {
       "id": "noticed-household-isolation",
