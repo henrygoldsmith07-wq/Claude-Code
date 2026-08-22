@@ -499,12 +499,18 @@ export const scoreWastePlan = (
   const unusedScore = clamp(100 - unusedPenalty - learnedPenalty);
   const leftoversScore = clamp(100 - leftoversGenerated * 25);
   const expiryScore = metric(urgentUsed, urgentDatedStock);
+  // Splitting whole-count items into fractional uses across meals fragments
+  // them even when totals line up — penalise it so whole-unit plans win ties.
+  const splitWholeUses = (meals || []).reduce((count, recipe) => count + (recipe?.ingredients || [])
+    .filter((ing) => /½|^0\.5\b|\bhalf\b/i.test(String(ing?.qty || ''))).length, 0);
+  const fragmentationScore = clamp(100 - Math.max(0, splitWholeUses - 1) * 20);
   const scored = [
     [pantryUtilisation ?? 100, pantryUtilisation === null ? 0 : 0.22],
     [perishableUtilisation ?? 100, perishableUtilisation === null ? 0 : 0.24],
-    [packUtilisation ?? 100, packUtilisation === null ? 0 : 0.27],
+    [packUtilisation ?? 100, packUtilisation === null ? 0 : 0.25],
     [leftoversScore, 0.1],
     [unusedScore, 0.17],
+    [fragmentationScore, 0.12],
   ];
   const weight = scored.reduce((sum, [, value]) => sum + value, 0) || 1;
   const score = round(scored.reduce((sum, [value, itemWeight]) => sum + value * itemWeight, 0) / weight);
