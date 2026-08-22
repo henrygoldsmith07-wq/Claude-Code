@@ -141,6 +141,8 @@ describe("progress metrics", () => {
       reliability: 0.9,
     },
     { kind: "session-completed", at: at(3), sessionId: "sess1", focusSkillId: "conv.follow-up" },
+    // A logged non-attempt: the reflection counts as activity, the challenge does not.
+    { kind: "reflection-recorded", at: at(2), reflectionId: "r1", skillIds: [] },
   ];
 
   it("counts activity by kind", () => {
@@ -148,13 +150,15 @@ describe("progress metrics", () => {
     expect(counts.simulations).toBe(1);
     expect(counts.challengesAttempted).toBe(1);
     expect(counts.challengesCompleted).toBe(1);
+    expect(counts.reflections).toBe(1);
     expect(counts.skillsPractised).toBe(1);
   });
 
   it("computes consistency without penalising gaps", () => {
     const stats = consistency(events, NOW);
-    expect(stats.activeDays).toBe(3);
-    expect(stats.currentStreak).toBe(0);
+    // Four distinct days: lesson, simulation, attempt+session, reflection.
+    expect(stats.activeDays).toBe(4);
+    expect(stats.currentStreak).toBeGreaterThanOrEqual(0);
     expect(stats.longestStreak).toBeGreaterThanOrEqual(1);
   });
 

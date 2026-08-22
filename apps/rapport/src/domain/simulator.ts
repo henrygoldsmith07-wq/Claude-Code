@@ -388,7 +388,7 @@ export function composeReply(
     }
     case "answer-short":
     default:
-      return topic ? `${pick(ACKNOWLEDGEMENTS) ?? "Yeah."} ${topic ? `${capitalise(topic)}, yeah.` : ""}`.trim() : pick(ACKNOWLEDGEMENTS) ?? "Yeah.";
+      return topic ? `${pick(ACKNOWLEDGEMENTS) ?? "Yeah."} ${capitalise(topic)}, yeah.`.trim() : pick(ACKNOWLEDGEMENTS) ?? "Yeah.";
   }
 }
 

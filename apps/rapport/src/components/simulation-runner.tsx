@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Send, Square } from "lucide-react";
 import { Badge, Button, Card, Evidence, Hedged, SourceNote, TextArea } from "@/components/ui";
 import { useStore } from "@/state/store";
-import { nowIso, useNow } from "@/state/clock";
+import { nowIso } from "@/state/clock";
 import { getSkill } from "@/domain/skills";
 import { newMemory, planTurn, seededRng, shouldEnd, updateEngagement } from "@/domain/simulator";
 import { floorSnapshot, maxConsecutiveCharacterTurns, nextSpeaker } from "@/domain/floor";
@@ -88,9 +88,28 @@ export function SimulationRunner({
   const speechStartedAt = useRef<number>(0);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
   const transcriptEnd = useRef<HTMLDivElement | null>(null);
+  // Mirror of `draft` for event handlers that fire outside React's lifecycle
+  // (speech onend), so they read the current text without a stale closure.
+  const draftRef = useRef("");
+  const applyDraft = useCallback((value: string) => {
+    draftRef.current = value;
+    setDraft(value);
+  }, []);
+
+  // Leaving the page must release the microphone.
+  useEffect(
+    () => () => {
+      recognition.current?.stop();
+      recognition.current = null;
+    },
+    [],
+  );
 
   const character = scenario.characters[0];
-  const startedAt = useNow();
+  // Fixed when the component mounts, not re-read from the shared clock: the
+  // clock ticks every minute, and a moving timestamp would reseed the
+  // simulation id — and with it the rng — mid-conversation.
+  const [startedAt] = useState(() => nowIso());
   const simulationId = useMemo(() => `sim.${scenario.id}.${startedAt}`, [scenario.id, startedAt]);
   const rng = useMemo(() => seededRng(simulationId), [simulationId]);
 
@@ -128,7 +147,7 @@ export function SimulationRunner({
     async (text: string, voice?: VoiceTurnMetrics) => {
       if (!text.trim() || busy || !character) return;
       setBusy(true);
-      setDraft("");
+      applyDraft("");
 
       const userTurn: SimulationTurn = {
         id: `${simulationId}.${turns.length}`,
@@ -251,7 +270,7 @@ export function SimulationRunner({
 
       setBusy(false);
     },
-    [asSimulation, busy, character, difficulty, rng, scenario, simulationId, turns],
+    [applyDraft, asSimulation, busy, character, difficulty, rng, scenario, simulationId, turns],
   );
 
   const finish = useCallback(async () => {
@@ -290,18 +309,16 @@ export function SimulationRunner({
         .map((result) => result[0]?.transcript ?? "")
         .join(" ")
         .trim();
-      setDraft(text);
+      applyDraft(text);
     };
     instance.onend = () => {
       setListening(false);
       const durationMs = Date.now() - speechStartedAt.current;
-      setDraft((current) => {
-        if (current.trim()) {
-          const metrics = analyseTurn(wordsFromTranscript(current, durationMs), durationMs);
-          setVoiceMetrics((existing) => [...existing, metrics]);
-        }
-        return current;
-      });
+      const current = draftRef.current;
+      if (current.trim()) {
+        const metrics = analyseTurn(wordsFromTranscript(current, durationMs), durationMs);
+        setVoiceMetrics((existing) => [...existing, metrics]);
+      }
     };
     recognition.current = instance;
     speechStartedAt.current = Date.now();
@@ -405,7 +422,7 @@ export function SimulationRunner({
           id="reply"
           rows={3}
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => applyDraft(event.target.value)}
           placeholder="Type what you would actually say…"
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void send(draft);

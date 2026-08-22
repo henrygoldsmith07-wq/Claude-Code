@@ -27,9 +27,16 @@ export default function SettingsPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ provider: { available: boolean; name: string | null }; stats: { calls: number; fallbackRate: number; estimatedCostUsd: number } } | null>(null);
-  const [pulseShared, setPulseShared] = useState(() => readRapportPulseOptIn());
+  // Start false and read after mount: localStorage differs between server and
+  // client, and reading it during the hydration render would mismatch markup.
+  const [pulseShared, setPulseShared] = useState(false);
 
   useEffect(() => {
+    // Shared storage is read-only here and the log stays in IndexedDB either
+    // way; reading it after mount is the hydration-safe pattern this file uses
+    // for every localStorage-derived flag.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPulseShared(readRapportPulseOptIn());
     void (async () => setSignedInAs(await currentEmail()))();
     void fetch("/api/ai")
       .then((response) => response.json())
@@ -180,6 +187,32 @@ export default function SettingsPage() {
                 variant={store.preference.retentionDays === option.value ? "primary" : "secondary"}
                 aria-pressed={store.preference.retentionDays === option.value}
                 onClick={() => void store.updatePreference({ retentionDays: option.value })}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="mt-4">
+          <legend className="text-sm font-medium">Keep practice transcripts for</legend>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+            After this, old practice conversations are deleted automatically the next time you open Rapport.
+            Scores, progress and your event history stay; only the replayable transcripts go.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[
+              { label: "Forever", value: 0 },
+              { label: "1 year", value: 365 },
+              { label: "3 months", value: 90 },
+              { label: "30 days", value: 30 },
+            ].map((option) => (
+              <Button
+                key={option.value}
+                size="sm"
+                variant={store.preference.transcriptRetentionDays === option.value ? "primary" : "secondary"}
+                aria-pressed={store.preference.transcriptRetentionDays === option.value}
+                onClick={() => void store.updatePreference({ transcriptRetentionDays: option.value })}
               >
                 {option.label}
               </Button>

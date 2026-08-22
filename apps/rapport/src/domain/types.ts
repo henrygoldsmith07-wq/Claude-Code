@@ -110,6 +110,11 @@ export interface Preference {
   allowModelTraining: boolean;
   /** Days after which raw reflection text is deleted locally. 0 = keep indefinitely. */
   retentionDays: number;
+  /**
+   * Days after which whole practice transcripts are deleted locally.
+   * Scores and the event log are kept; only replayable transcripts go. 0 = off.
+   */
+  transcriptRetentionDays: number;
   theme: "system" | "light" | "dark";
   reducedMotion: boolean;
   /** Voice practice needs microphone access; kept off until asked for. */

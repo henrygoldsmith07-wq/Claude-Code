@@ -234,12 +234,15 @@ function practiceRhythm(input: InsightInput): Insight | null {
  * that scrolls stops being read, and the marginal insight is always the weakest.
  */
 export function generateInsights(input: InsightInput, limit = 4): Insight[] {
+  const groupSolo = groupVsOneToOne(input);
+  const simImprovement = simulationImprovement(input);
+  const rhythm = practiceRhythm(input);
   const candidates: Insight[] = [
-    ...(groupVsOneToOne(input) ? [groupVsOneToOne(input) as Insight] : []),
+    ...(groupSolo ? [groupSolo as Insight] : []),
     ...confidenceVsMastery(input),
-    ...(simulationImprovement(input) ? [simulationImprovement(input) as Insight] : []),
+    ...(simImprovement ? [simImprovement as Insight] : []),
     ...decayWarnings(input),
-    ...(practiceRhythm(input) ? [practiceRhythm(input) as Insight] : []),
+    ...(rhythm ? [rhythm as Insight] : []),
   ];
 
   return candidates

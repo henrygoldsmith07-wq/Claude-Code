@@ -23,6 +23,20 @@ export function todayIso(now: Date = new Date()): IsoDate {
   return iso.slice(0, 10);
 }
 
+/**
+ * The local calendar day of an instant, given the user's UTC offset in minutes
+ * (`Date#getTimezoneOffset` convention: positive west of Greenwich).
+ *
+ * `IsoDate` is defined as a local day, so slicing an instant at characters
+ * 0-10 — which is the UTC day — mislabels evenings for anyone not at offset
+ * zero: a 21:00 session at UTC−5 becomes "tomorrow" and drops out of
+ * streaks and week windows. All event-day bucketing goes through here.
+ */
+export function localDateFrom(instant: IsoInstant | IsoDate, timezoneOffsetMinutes = 0): IsoDate {
+  const ms = Date.parse(instant) - timezoneOffsetMinutes * 60_000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
 export function daysBetween(from: IsoInstant | IsoDate, to: IsoInstant | IsoDate): number {
   const ms = new Date(to).getTime() - new Date(from).getTime();
   return ms / 86_400_000;

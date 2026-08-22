@@ -42,16 +42,37 @@ export interface AiProvider {
 
 const TIMEOUT_MS = 30_000;
 
-async function postJson(url: string, headers: Record<string, string>, body: unknown): Promise<Response> {
+/**
+ * POST JSON with the whole call — headers *and* body — under one timeout.
+ *
+ * Clearing the abort timer when `fetch` resolves only bounds the time to the
+ * response headers; a provider that sends headers and then stalls the body
+ * would otherwise hang the caller indefinitely. The body is consumed inside
+ * this function so the deadline covers it.
+ */
+async function postJson(url: string, headers: Record<string, string>, body: unknown): Promise<{ status: number; ok: boolean; text: string; json: () => unknown }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+    const text = await res.text();
+    let parsed: unknown;
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      parsed = null;
+    }
+    return {
+      status: res.status,
+      ok: res.ok,
+      text,
+      json: () => parsed,
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -78,8 +99,8 @@ function anthropicProvider(): AiProvider | null {
           messages: request.messages,
         },
       );
-      if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      const json = (await res.json()) as {
+      if (!res.ok) throw new Error(`anthropic ${res.status}: ${res.text.slice(0, 200)}`);
+      const json = res.json() as {
         content?: { type: string; text?: string }[];
         usage?: { input_tokens?: number; output_tokens?: number };
       };
@@ -126,8 +147,8 @@ function openAiCompatibleProvider(): AiProvider | null {
           ],
         },
       );
-      if (!res.ok) throw new Error(`openai-compatible ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      const json = (await res.json()) as {
+      if (!res.ok) throw new Error(`openai-compatible ${res.status}: ${res.text.slice(0, 200)}`);
+      const json = res.json() as {
         choices?: { message?: { content?: string } }[];
         usage?: { prompt_tokens?: number; completion_tokens?: number };
       };
@@ -181,6 +202,8 @@ export async function completeWithRetry(
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
+      // A timeout will not fix itself on retry — it would only double the wait.
+      if (error instanceof Error && error.name === "AbortError") break;
       // 4xx other than 429 will not fix themselves.
       if (/\b4\d\d\b/.test(message) && !message.includes("429")) break;
       if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));

@@ -159,7 +159,12 @@ export function detectInterruptions(simulation: Simulation): InterruptionEvent[]
 
     // No overlap. The only thing left to detect is taking a gap uninvited,
     // which only means anything when the floor was not being offered.
-    if (by === "user") {
+    //
+    // One-to-one conversations are excluded by design: there the character
+    // always replies after each user turn, so the floor comes back for free and
+    // almost every reply would be miscounted as an uninvited bid. The skill
+    // only exists where others can hold the floor — in groups.
+    if (by === "user" && simulation.scenario.characters.length > 1) {
       const invited = addressee(previous.text, simulation.scenario, previous.speaker === "user") === "user";
       if (!invited) {
         events.push({

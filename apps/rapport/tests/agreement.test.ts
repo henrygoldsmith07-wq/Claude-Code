@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cohenKappa, fleissKappa, krippendorffAlphaNominal, meanAbsoluteScoreDisagreement, scoreAgreementRate, agreementReport, bandScore } from "../src/domain/agreement";
+import { cohenKappa, fleissKappa, krippendorffAlphaNominal, meanAbsoluteScoreDisagreement, scoreAgreementRate, agreementReport, bandScore, rubricHealth } from "../src/domain/agreement";
+import type { BehaviourReliability } from "../src/domain/agreement";
 
 describe("cohenKappa", () => {
   it("is 1 for perfect agreement", () => {
@@ -111,3 +112,49 @@ describe("agreementReport", () => {
     expect(bandScore(0.2)).toBe("very-low");
   });
 });
+
+describe("rubricHealth", () => {
+  const reliability = (overrides: Partial<BehaviourReliability>): BehaviourReliability => ({
+    behaviour: "listening",
+    items: 10,
+    exactAgreement: null,
+    weightedAgreement: null,
+    cohenKappa: null,
+    meanAbsDisagreement: null,
+    pearsonR: null,
+    verdict: "",
+    ...overrides,
+  });
+
+  it("keeps a rubric raters agree on", () => {
+    const [entry] = rubricHealth([reliability({ cohenKappa: 0.75, meanAbsDisagreement: 0.08 })]);
+    expect(entry!.decision).toBe("keep");
+  });
+
+  it("retires a behaviour humans fundamentally cannot rate", () => {
+    const [entry] = rubricHealth([reliability({ behaviour: "charisma", cohenKappa: 0.1, meanAbsDisagreement: 0.12 })]);
+    expect(entry!.decision).toBe("retire");
+    expect(entry!.reason).toContain("kappa");
+  });
+
+  it("calls for redesign at borderline agreement rather than dropping it", () => {
+    const [entry] = rubricHealth([reliability({ cohenKappa: 0.45, meanAbsDisagreement: 0.2 })]);
+    expect(entry!.decision).toBe("redesign");
+    expect(entry!.reason).toContain("sharpen");
+  });
+
+  it("withholds judgement when too few items were rated", () => {
+    const [entry] = rubricHealth([reliability({ items: 2, cohenKappa: 0.1, meanAbsDisagreement: 0.4 })]);
+    expect(entry!.decision).toBe("gather-more");
+  });
+
+  it("sorts nothing silently � every behaviour passed in gets a decision", () => {
+    const entries = rubricHealth([
+      reliability({ behaviour: "a", cohenKappa: 0.8, meanAbsDisagreement: 0.05 }),
+      reliability({ behaviour: "b", cohenKappa: 0.1, meanAbsDisagreement: 0.35 }),
+      reliability({ behaviour: "c" }),
+    ]);
+    expect(entries.map((e) => e.decision)).toEqual(["keep", "retire", "gather-more"]);
+  });
+});
+

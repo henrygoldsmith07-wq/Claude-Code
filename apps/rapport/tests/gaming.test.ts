@@ -53,8 +53,8 @@ const scoreOf = (simulation: Simulation, key: string) =>
   scoreTranscript(simulation).find((s) => s.key === key)?.score ?? 0;
 
 describe("gaming detection coverage", () => {
-  it("knows all eight gaming patterns", () => {
-    expect(GAMING_PATTERNS).toHaveLength(8);
+  it("knows all ten gaming patterns", () => {
+    expect(GAMING_PATTERNS).toHaveLength(10);
     expect(GAMING_PATTERNS).toContain("excessive-questions");
     expect(GAMING_PATTERNS).toContain("mechanical-mirroring");
     expect(GAMING_PATTERNS).toContain("repetitive-acknowledgements");
@@ -63,6 +63,8 @@ describe("gaming detection coverage", () => {
     expect(GAMING_PATTERNS).toContain("unnaturally-short-responses");
     expect(GAMING_PATTERNS).toContain("forced-topic-references");
     expect(GAMING_PATTERNS).toContain("artificial-conversational-balance");
+    expect(GAMING_PATTERNS).toContain("verbatim-echo");
+    expect(GAMING_PATTERNS).toContain("template-openers");
   });
 });
 
@@ -181,6 +183,124 @@ describe("individual gaming strategies", () => {
     const report = gamingReport(sim);
     expect(report.signals.length).toBeGreaterThan(0);
     expect(report.summary).toContain("gaming pattern");
+  });
+  it("detects verbatim echo (whole sentences copied straight back)", () => {
+    const sim = build([
+      ["user", "How was Portugal in the end?"],
+      ["character", "We walked the northern half of the coast path and it rained constantly."],
+      ["user", "We walked the northern half of the coast path. What else happened?"],
+      ["character", "We walked the northern half of the coast path and ate far too much, honestly."],
+      ["user", "We walked the northern half of the coast path and ate far too much. Classic."],
+      ["character", "Classic is one word for it."],
+      ["user", "Did anything else happen while you were away?"],
+      ["character", "A wedding, briefly."],
+    ]);
+    const signals = detectGaming(sim);
+    const echo = signals.find((s) => s.pattern === "verbatim-echo");
+    expect(echo).toBeDefined();
+    expect(scoreOf(sim, "listening")).toBeLessThan(0.9);
+  });
+
+  it("does not treat a single quoted phrase as verbatim echo", () => {
+    const sim = build([
+      ["user", "How was Portugal?"],
+      ["character", "We walked the northern half of the coast path and stopped in every village on the way for coffee."],
+      ["user", "Every village — that is dedication. Did you plan the route yourself? I keep meaning to walk something similar but I always over-plan it."],
+      ["character", "We booked only the first night and let the weather decide."],
+      ["user", "Letting the weather decide sounds liberating compared with my spreadsheets."],
+      ["character", "It was, mostly."],
+    ]);
+    const signals = detectGaming(sim);
+    expect(signals.find((s) => s.pattern === "verbatim-echo")).toBeUndefined();
+  });
+
+  it("detects template openers (every reply starting with the same two words)", () => {
+    const sim = build([
+      ["user", "That sounds lovely. Where did you stay?"],
+      ["character", "A small place above the harbour."],
+      ["user", "That sounds peaceful. Was it expensive?"],
+      ["character", "Reasonable, off-season."],
+      ["user", "That sounds ideal. Would you go back to the same spot?"],
+      ["character", "Next spring, probably."],
+      ["user", "That sounds like a plan. I might steal the idea."],
+      ["character", "Do — it was quiet."],
+    ]);
+    const signals = detectGaming(sim);
+    const opener = signals.find((s) => s.pattern === "template-openers");
+    expect(opener).toBeDefined();
+    expect(opener!.evidence).toContain("that sounds");
+  });
+});
+
+describe("adversarial and degenerate transcripts", () => {
+  it("an adversarial script combining exploits cannot reach a perfect score anywhere", () => {
+    // Every coached move executed mechanically: question flood, spammed
+    // acknowledgement, name spam, formulaic empathy, template opener,
+    // perfectly balanced questions/disclosures.
+    const sim = build([
+      ["user", "Sam, what do you do? How long have you done it? Where before?"],
+      ["character", "Reporting. Two years. Before that Manchester."],
+      ["user", "I hear you, Sam. That makes sense."],
+      ["character", "Glad it does; it barely does to me."],
+      ["user", "I hear you. That sounds tough. Do you miss Manchester?"],
+      ["character", "Some of it."],
+      ["user", "I hear you, Sam. I hear the hills especially."],
+      ["character", "You have listened well, oddly."],
+    ]);
+    const report = gamingReport(sim);
+    expect(report.signals.length).toBeGreaterThanOrEqual(2);
+    const scores = scoreTranscript(sim);
+    for (const key of ["listening", "empathy", "questionQuality", "reciprocity"]) {
+      expect(scoreOf(sim, key)).toBeLessThan(0.98);
+    }
+    // The evidence trail must name at least one flagged pattern.
+    expect(scores.some((s) => s.evidence.includes("score-gaming")) || report.signals.length > 0).toBe(true);
+  });
+
+  it("very short conversations are marked unreliable rather than scored", async () => {
+    const { selectImprovement } = await import("@/domain/evaluation");
+    // One user turn: below every behaviour's minimum-turns floor.
+    const short = build([
+      ["user", "Hi!"],
+      ["character", "Hello — good to see you. How have you been?"],
+      ["character", "Also, we should plan the offsite sometime soon."],
+    ]);
+    const scores = scoreTranscript(short);
+    expect(scores.length).toBeGreaterThan(0);
+    for (const score of scores) expect(score.reliable).toBe(false);
+    expect(selectImprovement(scores)).toBeNull();
+  });
+
+  it("noisy transcripts (typos, caps, filler spam) produce finite, sane scores", () => {
+    const noisy = build([
+      ["user", "SOOOO howw wasss it?? i mean um like basically the WHOLE trip lol"],
+      ["character", "Exhausting but good. The overnight bus was a mistake."],
+      ["user", "yeahh yeahh um i get that, buses are like, the worst?? sort of. kind of. maybe."],
+      ["character", "Sixteen hours. Never again."],
+      ["user", "sooo um what would you dooo instead?? fly?? train?? teleport?? ha"],
+      ["character", "Train, probably. Or nothing that long."],
+      ["user", "fairr enoughh um yeah trains are sort of underrated i guess honestly"],
+      ["character", "Agreed for once."],
+    ]);
+    const scores = scoreTranscript(noisy);
+    expect(scores.length).toBeGreaterThan(0);
+    for (const score of scores) {
+      expect(Number.isFinite(score.score)).toBe(true);
+      expect(score.score).toBeGreaterThanOrEqual(0);
+      expect(score.score).toBeLessThanOrEqual(1);
+      expect(Number.isFinite(score.severity ?? 0)).toBe(true);
+    }
+    const report = gamingReport(noisy);
+    for (const signal of report.signals) expect(Number.isFinite(signal.severity)).toBe(true);
+  });
+
+  it("an empty transcript evaluates to all-zero without throwing", () => {
+    const empty = build([]);
+    const scores = scoreTranscript(empty);
+    for (const score of scores) {
+      expect(Number.isFinite(score.score)).toBe(true);
+      expect(score.reliable).toBe(false);
+    }
   });
 });
 

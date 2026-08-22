@@ -25,21 +25,26 @@ export default function ScenarioPage({ params }: { params: Promise<{ scenarioId:
   const store = useStore();
   const [scenario, setScenario] = useState<SimulationScenario | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [replay, setReplay] = useState<{ count: number; difficulty: number | null }>({ count: 0, difficulty: null });
 
   const id = decodeURIComponent(scenarioId);
 
   useEffect(() => {
     const load = async () => {
-      const builtIn = getScenario(id);
-      if (builtIn) {
-        setScenario(builtIn);
+      try {
+        const builtIn = getScenario(id);
+        if (builtIn) {
+          setScenario(builtIn);
+          return;
+        }
+        setScenario((await repo.get("scenarios", id)) ?? null);
+      } catch {
+        // Blocked storage must not strand the page on skeletons forever.
+        setError(true);
+      } finally {
         setLoading(false);
-        return;
       }
-      const saved = await repo.get("scenarios", id);
-      setScenario(saved ?? null);
-      setLoading(false);
     };
     void load();
   }, [id]);
@@ -50,6 +55,25 @@ export default function ScenarioPage({ params }: { params: Promise<{ scenarioId:
         <Skeleton className="h-8 w-56" />
         <Skeleton className="h-32 w-full" />
       </div>
+    );
+  }
+
+  if (error && !scenario) {
+    return (
+      <>
+        <PageHeader title="Could not load this scenario" />
+        <Card>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Local storage is unavailable, so saved scenarios cannot be read. Built-in scenarios are still available
+            from the practise page.
+          </p>
+          <div className="mt-4">
+            <Link href="/practise">
+              <Button variant="secondary">Back to practise</Button>
+            </Link>
+          </div>
+        </Card>
+      </>
     );
   }
 

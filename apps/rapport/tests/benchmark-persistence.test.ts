@@ -48,6 +48,34 @@ describe("benchmark persistence and separation", () => {
     expect(exported?.corpus.items).toHaveLength(1);
   });
 
+  it("scrubs contact details from every transcript at export time", async () => {
+    await repo.setBenchmarkConsent(true);
+    const corpus = emptyCorpus(NOW);
+    corpus.items.push({
+      id: "item-contact",
+      title: "Contact test",
+      transcript: [
+        { turnId: "t0", index: 0, speaker: "user", text: "Email me at jane.doe@example.com or ring +44 20 7946 0958." },
+        { turnId: "t1", index: 1, speaker: "character", text: "Sure, the site is https://example.org/invite — see you there." },
+      ],
+      provenance: { kind: "researcher-entered", enteredAt: NOW },
+      rubricVersion: "2026-08-20.1",
+      createdAt: NOW,
+    });
+    await repo.saveCorpusBenchmark(corpus);
+
+    const exported = await repo.exportBenchmark();
+    expect(exported).not.toBeNull();
+    const text = JSON.stringify(exported);
+    expect(text).not.toContain("jane.doe@example.com");
+    expect(text).not.toContain("+44 20 7946 0958");
+    expect(text).not.toContain("https://example.org/invite");
+    expect(text).toContain("[removed]");
+    // The stored copy is untouched — scrubbing happens on the way out.
+    const stored = await repo.getCorpusBenchmark();
+    expect(stored.items[0]?.transcript[0]?.text).toContain("jane.doe@example.com");
+  });
+
   it("keeps benchmark data out of the normal product export", async () => {
     await repo.setBenchmarkConsent(true);
     await repo.saveCorpusBenchmark(corpusWithItem());

@@ -77,6 +77,7 @@ const PREFERENCE: Preference = {
   aiMayReadReflections: false,
   allowModelTraining: false,
   retentionDays: 0,
+  transcriptRetentionDays: 0,
   theme: "system",
   reducedMotion: false,
   voiceEnabled: false,

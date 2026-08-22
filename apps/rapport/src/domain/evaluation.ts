@@ -349,7 +349,7 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
     timesCuttingOff: interruptionSummary.timesCuttingOff,
     reclaims: interruptionSummary.reclaims,
     overlapUnavailable: interruptionSummary.overlapUnavailable,
-    ...groupFeatures(simulation),
+    ...groupFeatures(simulation, interruptionSummary),
   };
 }
 
@@ -362,13 +362,15 @@ export function extractFeatures(simulation: Simulation): TranscriptFeatures {
  * person the whole time" is not a claim this evaluator is entitled to make, and
  * it does not make it.
  */
-function groupFeatures(simulation: Simulation): Pick<
+function groupFeatures(
+  simulation: Simulation,
+  interruptions: ReturnType<typeof summariseInterruptions>,
+): Pick<
   TranscriptFeatures,
   "characterCount" | "charactersAddressed" | "addressedTurnIds" | "attentionBalance" | "leftOut" | "selfSelections" | "entryOpportunities"
 > {
   const characters = simulation.scenario.characters;
   const summary = participation(simulation);
-  const interruptions = summariseInterruptions(simulation);
   const spoke = new Set(
     simulation.turns.filter((t) => t.speaker === "character" && t.characterId).map((t) => t.characterId as Id),
   );
@@ -458,7 +460,7 @@ function clamp01(value: number): number {
 }
 
 /**
- * Gaming-adjusted scoring: detect 8 score-gaming strategies and penalise the
+ * Gaming-adjusted scoring: detect score-gaming strategies and penalise the
  * affected behaviours. Penalties are capped and behaviour-specific — gaming
  * the metric should not raise a score, even when the countable feature that
  * the gaming exploits would otherwise look good.
@@ -564,6 +566,49 @@ function gamingPenaltyFor(key: BehaviourKey, f: TranscriptFeatures, simulation: 
     }
   }
 
+  // --- Verbatim echo: long word-for-word copies of what was just said.
+  // Overlap-based mirroring detection misses wholesale copying, which raises
+  // referencing counts while demonstrating no listening at all.
+  if (key === "listening" || key === "relevance") {
+    const RUN = 6;
+    let echoWeight = 0;
+    for (const uTurn of f.userTurns) {
+      const idx = indexOfTurn(uTurn, f);
+      if (idx < 0) continue;
+      const prevChar = findPrevious(f.turns, idx, "character");
+      if (!prevChar) continue;
+      const tokens = (text: string) => text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+      const charGrams = new Set<string>();
+      const prevWords = tokens(prevChar.text);
+      for (let i = 0; i + RUN <= prevWords.length; i += 1) charGrams.add(prevWords.slice(i, i + RUN).join(" "));
+      if (charGrams.size === 0) continue;
+      const userWords = tokens(uTurn.text);
+      let echoed = false;
+      for (let i = 0; i + RUN <= userWords.length; i += 1) {
+        if (charGrams.has(userWords.slice(i, i + RUN).join(" "))) echoed = true;
+      }
+      if (!echoed) continue;
+      // An echo that IS the whole reply is stronger evidence than one quoted
+      // inside an otherwise fresh turn.
+      echoWeight += userWords.length <= RUN + 3 ? 2 : 1;
+    }
+    if (echoWeight >= 2) penalty = Math.max(penalty, Math.min(0.3, echoWeight * 0.12));
+  }
+
+  // --- Template openers: half the replies starting with the same two words is
+  // a script being executed rather than a response being chosen.
+  if ((key === "listening" || key === "empathy") && turns >= 4) {
+    const openers = new Map<string, number>();
+    for (const turn of f.userTurns) {
+      const words = turn.text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+      if (words.length < 3) continue;
+      const opener = words.slice(0, 2).join(" ");
+      openers.set(opener, (openers.get(opener) ?? 0) + 1);
+    }
+    const maxOpener = Math.max(...[...openers.values()], 0);
+    if (maxOpener >= 3 && maxOpener / turns >= 0.5) penalty = Math.max(penalty, Math.min(0.25, maxOpener * 0.06));
+  }
+
   return clamp01(penalty);
 }
 
@@ -573,7 +618,7 @@ function scoreBehaviour(key: BehaviourKey, f: TranscriptFeatures, simulation?: S
   // Apply gaming penalty where a simulation is available to derive pattern context
   let penalty = 0;
   if (simulation) {
-    penalty = gamingPenaltyFor(key, f, simulation as never);
+    penalty = gamingPenaltyFor(key, f, simulation);
     if (penalty > 0) {
       const penalised = clamp01(score.score - penalty);
       const evidence = penalty > 0.15 ? `${score.evidence} — pattern flagged as score-gaming, penalised` : score.evidence;
@@ -721,12 +766,12 @@ function scoreBehaviourBase(key: BehaviourKey, f: TranscriptFeatures): Behaviour
         return build(
           key,
           0.5,
-          "Overlapping speech was not measurable in this text transcript",
+          `0 measurable overlaps across ${turns} repl${turns === 1 ? "y" : "ies"} — text mode cannot detect them`,
           false,
         );
       }
       if (f.interruptionEvents.length === 0) {
-        return build(key, 0.5, "No interruption opportunity was captured", false);
+        return build(key, 0.5, `0 interruption opportunities across ${turns} repl${turns === 1 ? "y" : "ies"}`, false);
       }
       const positive = f.reclaims + f.selfSelections;
       const negative = f.timesCuttingOff + Math.max(0, f.timesCutOff - f.reclaims);
@@ -779,7 +824,9 @@ function scoreBehaviourBase(key: BehaviourKey, f: TranscriptFeatures): Behaviour
         clamp01(taken / f.entryOpportunities),
         `You came in unprompted ${taken} of ${f.entryOpportunities} time(s) the group had the floor`,
         reliable,
-        taken === 0 ? 0 : 0,
+        // Had real openings and took none is the tie-break-worthy half of this
+        // behaviour; taking them removes it.
+        taken === 0 ? 1 : 0,
       );
     }
     default:
@@ -846,7 +893,10 @@ function evidenceSpansFor(key: BehaviourKey, f: TranscriptFeatures, score: Behav
 
   switch (key) {
     case "relevance":
-      users.forEach((turn) => add(referencesCharacter(turn, f) ? support : missed, hasJudgeableContext(turn, f) ? turn : undefined, referencesCharacter(turn, f) ? "support" : "missed-opportunity"));
+      users.forEach((turn) => {
+        const referenced = referencesCharacter(turn, f);
+        add(referenced ? support : missed, hasJudgeableContext(turn, f) ? turn : undefined, referenced ? "support" : "missed-opportunity");
+      });
       break;
     case "listening":
       users.forEach((turn) => {
@@ -949,7 +999,10 @@ function gaussianFit(value: number, ideal: number, tolerance: number): number {
 }
 
 export function scoreTranscript(simulation: Simulation): BehaviourScore[] {
-  const features = extractFeatures(simulation);
+  return scoreTranscriptWith(simulation, extractFeatures(simulation));
+}
+
+function scoreTranscriptWith(simulation: Simulation, features: TranscriptFeatures): BehaviourScore[] {
   const focus = new Set(simulation.scenario.evaluationCriteria);
   const multiParty = simulation.scenario.characters.length > 1;
   return BEHAVIOUR_KEYS.filter((key) => {
@@ -1079,13 +1132,13 @@ export function selectImprovement(scores: BehaviourScore[]): BehaviourScore | nu
   return reliable.reduce((worst, score) => (rank(score) < rank(worst) ? score : worst));
 }
 
-export function whatWorked(simulation: Simulation, scores: BehaviourScore[], limit = 2): string[] {
+export function whatWorked(simulation: Simulation, scores: BehaviourScore[], limit = 2, features?: TranscriptFeatures): string[] {
   const strong = scores
     .filter((score) => score.reliable && score.score >= 0.55)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
-  const features = extractFeatures(simulation);
-  return strong.map((score) => describeStrength(score, features));
+  const f = features ?? extractFeatures(simulation);
+  return strong.map((score) => describeStrength(score, f));
 }
 
 function describeStrength(score: BehaviourScore, f: TranscriptFeatures): string {
@@ -1141,7 +1194,9 @@ export function principleFor(behaviour: BehaviourKey): { principle: string; exam
  * decorates, so the numbers never depend on a model being available.
  */
 export function evaluateSimulation(simulation: Simulation, evaluationId: Id, now: string): SimulationEvaluation {
-  const scores = scoreTranscript(simulation);
+  // Extract once: the same features feed the scores and the strengths summary.
+  const features = extractFeatures(simulation);
+  const scores = scoreTranscriptWith(simulation, features);
   const improvement = selectImprovement(scores);
   const focusSkill = simulation.scenario.skillIds[0] ?? "conv.follow-up";
   const behaviour: BehaviourKey = improvement?.key ?? "followUpQuality";
@@ -1153,7 +1208,7 @@ export function evaluateSimulation(simulation: Simulation, evaluationId: Id, now
     simulationId: simulation.id,
     userId: simulation.userId,
     scores,
-    whatWorked: whatWorked(simulation, scores),
+    whatWorked: whatWorked(simulation, scores, 2, features),
     highestImpactImprovement: {
       behaviour,
       observation: improvement?.evidence ?? "Not enough of the conversation to judge this yet.",

@@ -109,6 +109,7 @@ export const DEFAULT_PREFERENCE: Omit<Preference, "userId" | "updatedAt"> = {
   aiMayReadReflections: false,
   allowModelTraining: false,
   retentionDays: 0,
+  transcriptRetentionDays: 0,
   theme: "system",
   reducedMotion: false,
   voiceEnabled: false,
@@ -128,7 +129,11 @@ export async function saveUser(user: User): Promise<void> {
 export async function getPreference(): Promise<Preference> {
   const database = await db();
   const stored = (await database.get("meta", "preference")) as Preference | undefined;
-  if (stored) return stored;
+  if (stored) {
+    // Defaults underneath so preferences saved by an older version pick up
+    // fields introduced since, instead of arriving undefined at runtime.
+    return { ...DEFAULT_PREFERENCE, ...stored, userId: LOCAL_USER_ID };
+  }
   return { ...DEFAULT_PREFERENCE, userId: LOCAL_USER_ID, updatedAt: new Date().toISOString() };
 }
 
@@ -168,6 +173,7 @@ export async function saveHumanEvidence(state: HumanEvidenceState): Promise<void
 
 import type { CorpusBenchmark } from "@/domain/corpus";
 import { emptyCorpus } from "@/domain/corpus";
+import { scrubContactDetails } from "@/domain/donation";
 
 export async function getCorpusBenchmark(): Promise<CorpusBenchmark> {
   const database = await db();
@@ -205,12 +211,26 @@ export async function setBenchmarkConsent(optedIn: boolean, version = "2026-08-2
  * Export benchmark/research data separately from normal product export.
  * Benchmark export is opt-in only; if not opted in, returns null.
  * The export is user-controlled — the user holds the file, not the server.
+ *
+ * Contact-like spans (emails, phones, URLs, postcodes) are scrubbed here
+ * unconditionally, on the way out. Donation redaction was user-reviewed; this
+ * pass is not, and it is what keeps an approved-as-is transcript from carrying
+ * contact details into a shared corpus.
  */
 export async function exportBenchmark(): Promise<{ exportedAt: string; corpus: CorpusBenchmark } | null> {
   const consent = await getBenchmarkConsent();
   if (!consent.optedIn) return null;
   const corpus = await getCorpusBenchmark();
-  return { exportedAt: new Date().toISOString(), corpus };
+  const scrubbed: CorpusBenchmark = {
+    ...corpus,
+    items: corpus.items.map((item) => ({
+      ...item,
+      title: scrubContactDetails(item.title).text,
+      transcript: item.transcript.map((turn) => ({ ...turn, text: scrubContactDetails(turn.text).text })),
+      evidenceSpans: item.evidenceSpans?.map((spanItem) => ({ ...spanItem, quote: scrubContactDetails(spanItem.quote).text })),
+    })),
+  };
+  return { exportedAt: new Date().toISOString(), corpus: scrubbed };
 }
 
 /**
@@ -444,42 +464,93 @@ export async function applyRetention(retentionDays: number, now: string): Promis
   return stale.length;
 }
 
+/**
+ * Automatic transcript deletion: remove practice conversations older than the
+ * window. Scores, evaluations and the event log are kept — the analysis
+ * survives; only the raw transcripts (and with them the ability to replay
+ * those sessions) go.
+ */
+export async function purgeOldTranscripts(retentionDays: number, now: string): Promise<number> {
+  if (retentionDays <= 0) return 0;
+  const cutoffMs = Date.parse(now) - retentionDays * 86_400_000;
+  if (!Number.isFinite(cutoffMs)) return 0;
+  const database = await db();
+  const sims = await database.getAll("simulations");
+  const stale = sims.filter((sim) => Date.parse(sim.endedAt ?? sim.startedAt) < cutoffMs);
+  for (const sim of stale) {
+    await database.delete("simulations", sim.id);
+  }
+  return stale.length;
+}
+
 /** Replace local data with an imported export. Used by restore and by sync pull. */
 export async function importAll(
   payload: { snapshot: Snapshot; events: DomainEvent[]; humanEvidence?: HumanEvidenceState },
   now: string,
 ): Promise<void> {
-  await wipe();
   const database = await db();
-  await saveUser(payload.snapshot.user);
-  await savePreference(payload.snapshot.preference);
+  // Clear + rewrite in ONE multi-store transaction: a quota error or tab
+  // discard halfway through must not leave the user with neither their old
+  // data nor the import. Everything here commits together or not at all.
+  type StoreNames = (Collection | "meta" | "events" | "skillStates")[];
+  const stores: StoreNames = [
+    "meta",
+    "events",
+    "skillStates",
+    "goals",
+    "simulations",
+    "evaluations",
+    "attempts",
+    "reflections",
+    "signals",
+    "sessions",
+    "insights",
+    "experiments",
+    "observations",
+    "reviews",
+    "achievements",
+    "exercises",
+    "challenges",
+    "scenarios",
+  ];
+  const tx = database.transaction(stores, "readwrite");
+  for (const store of stores) {
+    void tx.objectStore(store as never).clear();
+  }
+  tx.objectStore("meta" as never).put(payload.snapshot.user, "user");
+  tx.objectStore("meta" as never).put(payload.snapshot.preference, "preference");
+  if (payload.humanEvidence) {
+    tx.objectStore("meta" as never).put(payload.humanEvidence, HUMAN_EVIDENCE_META_KEY);
+  }
 
   let counter = 0;
-  const tx = database.transaction("events", "readwrite");
-  await Promise.all(
-    payload.events.map((event) => {
-      counter += 1;
-      return tx.store.put({ ...event, id: `${event.at}.${counter.toString(36)}` });
-    }),
-  );
-  await tx.done;
+  const eventsStore = tx.objectStore("events" as never);
+  for (const event of payload.events) {
+    counter += 1;
+    void eventsStore.put({ ...event, id: `${event.at}.${counter.toString(36)}` });
+  }
 
-  await putMany("goals", payload.snapshot.goals);
-  await putMany("simulations", payload.snapshot.simulations);
-  await putMany("evaluations", payload.snapshot.evaluations);
-  await putMany("attempts", payload.snapshot.challengeAttempts);
-  await putMany("reflections", payload.snapshot.reflections);
-  await putMany("signals", payload.snapshot.reflectionSignals);
-  await putMany("sessions", payload.snapshot.sessions);
-  await putMany("insights", payload.snapshot.insights);
-  await putMany("experiments", payload.snapshot.experiments);
-  await putMany("observations", payload.snapshot.observations);
-  await putMany("reviews", payload.snapshot.reviews);
-  await putMany("achievements", payload.snapshot.achievements);
-  await putMany("exercises", payload.snapshot.generatedExercises);
-  await putMany("challenges", payload.snapshot.generatedChallenges);
-  await putMany("scenarios", payload.snapshot.savedScenarios);
-  if (payload.humanEvidence) await saveHumanEvidence(payload.humanEvidence);
+  const putAll = <K extends Collection>(collection: K, values: RapportSchema[K]["value"][]) => {
+    const store = tx.objectStore(collection as never);
+    for (const value of values) void store.put(value);
+  };
+  putAll("goals", payload.snapshot.goals);
+  putAll("simulations", payload.snapshot.simulations);
+  putAll("evaluations", payload.snapshot.evaluations);
+  putAll("attempts", payload.snapshot.challengeAttempts);
+  putAll("reflections", payload.snapshot.reflections);
+  putAll("signals", payload.snapshot.reflectionSignals);
+  putAll("sessions", payload.snapshot.sessions);
+  putAll("insights", payload.snapshot.insights);
+  putAll("experiments", payload.snapshot.experiments);
+  putAll("observations", payload.snapshot.observations);
+  putAll("reviews", payload.snapshot.reviews);
+  putAll("achievements", payload.snapshot.achievements);
+  putAll("exercises", payload.snapshot.generatedExercises);
+  putAll("challenges", payload.snapshot.generatedChallenges);
+  putAll("scenarios", payload.snapshot.savedScenarios);
+
+  await tx.done;
   await refreshStates(now);
 }
 

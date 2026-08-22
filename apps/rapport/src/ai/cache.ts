@@ -94,6 +94,13 @@ export interface RateLimitResult {
  */
 export function checkRateLimit(key: string, limitPerHour = defaultLimit()): RateLimitResult {
   const now = Date.now();
+  // Callers that never come back would otherwise pin their bucket forever.
+  // Sweeping past a bound keeps memory flat even under key rotation.
+  if (buckets.size > 5_000) {
+    for (const [bucketKey, bucket] of buckets) {
+      if (bucket.resetsAt < now) buckets.delete(bucketKey);
+    }
+  }
   const bucket = buckets.get(key);
   if (!bucket || bucket.resetsAt < now) {
     buckets.set(key, { count: 1, resetsAt: now + 3_600_000 });

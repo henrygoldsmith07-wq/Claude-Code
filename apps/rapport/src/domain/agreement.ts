@@ -510,3 +510,85 @@ export function bandScore(score: number): string {
   if (score >= 0.35) return "low";
   return "very-low";
 }
+
+// ---------------------------------------------------------------------------
+// Rubric health.
+//
+// Per-behaviour reliability says which behaviours humans judge consistently.
+// The step after measurement is a decision about the rubric itself: if
+// independent raters who share the definitions cannot agree on a behaviour,
+// the behaviour is not well-enough defined to validate anything against, and
+// no amount of extra system scoring fixes that. Each weak rubric gets an
+// explicit verdict — redesign it, or retire the behaviour from validation.
+// ---------------------------------------------------------------------------
+
+export type RubricDecision = "keep" | "redesign" | "retire" | "gather-more";
+
+export interface RubricHealthEntry {
+  behaviour: string;
+  decision: RubricDecision;
+  reason: string;
+}
+
+/** Below this many rated items per behaviour, no verdict is defensible yet. */
+const RUBRIC_MIN_ITEMS = 5;
+
+/**
+ * Turn per-behaviour reliability into rubric-level decisions.
+ *
+ *   keep        — raters agree well enough to use as a validation reference;
+ *   redesign    — agreement is borderline: sharpen the definition and re-rate;
+ *   retire      — raters fundamentally disagree: the behaviour cannot serve as
+ *                 ground truth in its current form;
+ *   gather-more — too few items rated to say anything at all.
+ */
+export function rubricHealth(
+  reliabilities: BehaviourReliability[],
+  options?: { minItems?: number },
+): RubricHealthEntry[] {
+  const minItems = options?.minItems ?? RUBRIC_MIN_ITEMS;
+  return reliabilities.map((r) => {
+    const kappa = r.cohenKappa;
+    const mad = r.meanAbsDisagreement;
+    const measurable = kappa !== null || mad !== null;
+
+    if (!measurable || r.items < minItems) {
+      return {
+        behaviour: r.behaviour,
+        decision: "gather-more",
+        reason: `Only ${r.items} rated item${r.items === 1 ? "" : "s"} so far — collect more human ratings before judging the rubric.`,
+      };
+    }
+
+    // Strong on both axes → reference-quality.
+    const categoricalStrong = kappa === null || kappa >= 0.6;
+    const continuousStrong = mad === null || mad <= 0.15;
+    if (categoricalStrong && continuousStrong) {
+      return { behaviour: r.behaviour, decision: "keep", reason: "Raters agree closely — usable as a validation reference." };
+    }
+
+    // Fundamentally unreliable → the rubric, not the raters, is the problem.
+    const categoricalHopeless = kappa !== null && kappa < 0.2;
+    const continuousHopeless = mad !== null && mad > 0.3;
+    if (categoricalHopeless || continuousHopeless) {
+      const detail = categoricalHopeless
+        ? `kappa ${kappa!.toFixed(2)} means raters barely beat chance`
+        : `mean disagreement ${mad!.toFixed(2)} exceeds what any threshold can survive`;
+      return {
+        behaviour: r.behaviour,
+        decision: "retire",
+        reason: `Humans cannot rate this reliably (${detail}). Redefine the behaviour in observable terms, or drop it from validation.`,
+      };
+    }
+
+    // Everything else is borderline: worth fixing rather than dropping.
+    const details: string[] = [];
+    if (kappa !== null && kappa < 0.6) details.push(`kappa ${kappa.toFixed(2)}`);
+    if (mad !== null && mad > 0.15) details.push(`mean disagreement ${mad.toFixed(2)}`);
+    return {
+      behaviour: r.behaviour,
+      decision: "redesign",
+      reason: `Borderline agreement (${details.join(", ")}) — sharpen the definition and examples, then re-rate.`,
+    };
+  });
+}

@@ -4,7 +4,7 @@ import { selectDailyFocus } from "./recommender";
 import type { RecommendationInput } from "./recommender";
 import { getSkill } from "./skills";
 import { difficultyTrends, countActivity } from "./progress";
-import { scheduleFor } from "./scheduling";
+import { localDateFrom, scheduleFor } from "./scheduling";
 import type { ChallengeAttempt, Id, IsoDate, UserSkillState, WeeklyReview } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -41,13 +41,17 @@ export interface WeeklyReviewInput {
   /** Everything the recommender needs to justify next week's focus. */
   recommendation: Omit<RecommendationInput, "states" | "now">;
   now: string;
+  /** User's UTC offset, so weeks are bounded by local days rather than UTC ones. */
+  timezoneOffsetMinutes?: number;
 }
 
 export function buildWeeklyReview(input: WeeklyReviewInput): WeeklyReview {
+  const tz = input.timezoneOffsetMinutes ?? 0;
   const weekEnd = addDays(input.weekStart, 7);
-  const before = input.events.filter((event) => event.at.slice(0, 10) < input.weekStart);
+  const dayOf = (instant: string) => localDateFrom(instant, tz);
+  const before = input.events.filter((event) => dayOf(event.at) < input.weekStart);
   const during = input.events.filter(
-    (event) => event.at.slice(0, 10) >= input.weekStart && event.at.slice(0, 10) < weekEnd,
+    (event) => dayOf(event.at) >= input.weekStart && dayOf(event.at) < weekEnd,
   );
 
   const statesBefore = recomputeStates(input.userId, before, `${input.weekStart}T00:00:00.000Z`);
@@ -69,7 +73,7 @@ export function buildWeeklyReview(input: WeeklyReviewInput): WeeklyReview {
     })
     .filter((entry) => entry.attemptsThisWeek > 0);
 
-  const strongest = strongestEvidence(movements, during, input.attempts, input.weekStart, weekEnd);
+  const strongest = strongestEvidence(movements, during, input.attempts, input.weekStart, weekEnd, tz);
 
   const needsReinforcement = statesAfter
     .filter((state) => state.attemptCount > 0)
@@ -153,12 +157,13 @@ function strongestEvidence(
   attempts: ChallengeAttempt[],
   weekStart: IsoDate,
   weekEnd: IsoDate,
+  timezoneOffsetMinutes = 0,
 ): WeeklyReview["strongestEvidence"] {
   const realWorld = attempts.filter(
     (attempt) =>
       attempt.completedAt &&
-      attempt.completedAt.slice(0, 10) >= weekStart &&
-      attempt.completedAt.slice(0, 10) < weekEnd,
+      localDateFrom(attempt.completedAt, timezoneOffsetMinutes) >= weekStart &&
+      localDateFrom(attempt.completedAt, timezoneOffsetMinutes) < weekEnd,
   );
 
   const candidates = movements

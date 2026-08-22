@@ -1,3 +1,4 @@
+import { scrubContactDetails } from "../src/domain/donation";
 import { describe, expect, it } from "vitest";
 import {
   applyRedactions,
@@ -177,5 +178,26 @@ describe("corpus eligibility", () => {
     const result = ratedCorpusEligibility(emptyRatedCorpus());
     expect(result.eligible).toBe(false);
     expect(result.reasons.join(" ")).toContain("0 donated transcripts");
+  });
+});
+
+describe("scrubContactDetails", () => {
+  it("removes emails, phones, urls and postcodes unconditionally", () => {
+    const { text, removed } = scrubContactDetails(
+      "Write to jane.doe@example.com or call +44 20 7946 0958; details at https://example.org/invite, SW1A 1AA.",
+    );
+    expect(removed).toBe(4);
+    expect(text).not.toContain("@");
+    expect(text).not.toContain("7946");
+    expect(text).not.toContain("example.org");
+    expect(text).not.toContain("SW1A");
+    expect(text).toContain("[removed]");
+  });
+
+  it("leaves ordinary sentences untouched", () => {
+    const original = "They moved house in March and the commute is longer now.";
+    const { text, removed } = scrubContactDetails(original);
+    expect(text).toBe(original);
+    expect(removed).toBe(0);
   });
 });

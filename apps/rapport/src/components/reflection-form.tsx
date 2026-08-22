@@ -31,21 +31,25 @@ export function ReflectionForm({ attemptId, onDone }: { attemptId: string; onDon
   const outcomeOptions = REFLECTION_PROMPTS[0]?.options ?? [];
 
   const submit = async () => {
-    if (!attempted || difficulty === null) return;
+    if (!attempted || difficulty === null || saving) return;
     setSaving(true);
-    const result = await store.completeChallenge(attemptId, {
-      attempted,
-      difficulty,
-      wentWell: wentWell.trim() || undefined,
-      wouldChange: wouldChange.trim() || undefined,
-      skillIds: attempt ? [attempt.challenge.skillId] : [],
-    });
-    setSaving(false);
-    if (result.warning) {
-      setWarning(result.warning);
-      return;
+    try {
+      const result = await store.completeChallenge(attemptId, {
+        attempted,
+        difficulty,
+        wentWell: wentWell.trim() || undefined,
+        wouldChange: wouldChange.trim() || undefined,
+        skillIds: attempt ? [attempt.challenge.skillId] : [],
+      });
+      if (result.warning) {
+        setWarning(result.warning);
+        return;
+      }
+      onDone();
+    } finally {
+      // A rejected save must never leave the button stuck on "Saving…".
+      setSaving(false);
     }
-    onDone();
   };
 
   if (warning) {

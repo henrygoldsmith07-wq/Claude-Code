@@ -31,8 +31,15 @@ const MAX_BODY_BYTES = 64 * 1024;
  * cannot become a record of who used the app when.
  */
 function callerKey(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for") ?? "";
-  const ip = forwarded.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "local";
+  // Platform-set headers win because our proxy overwrites them. The *rightmost*
+  // x-forwarded-for entry is the one the trusted chain appended; the leftmost
+  // is client-supplied, so trusting it lets a caller rotate a fresh bucket per
+  // request and bypass the ceiling entirely.
+  const ip =
+    request.headers.get("x-real-ip") ??
+    request.headers.get("cf-connecting-ip") ??
+    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
+    "";
   const agent = request.headers.get("user-agent") ?? "";
   let value = 2166136261;
   const text = `${ip}|${agent}`;

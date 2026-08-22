@@ -28,9 +28,10 @@ export default function TodayPage() {
   const store = useStore();
   const now = useNow();
   const { todayPlan, ready, states, attempts } = store;
-  const [openLesson, setOpenLesson] = useState(false);
-  const [reflectingOn, setReflectingOn] = useState<string | null>(null);
-  const [challengeAttemptId, setChallengeAttemptId] = useState<string | null>(null);
+const [openLesson, setOpenLesson] = useState(false);
+const [reflectingOn, setReflectingOn] = useState<string | null>(null);
+const [challengeAttemptId, setChallengeAttemptId] = useState<string | null>(null);
+const [assigning, setAssigning] = useState(false);
 
   if (!ready) {
     return (
@@ -61,11 +62,19 @@ export default function TodayPage() {
   const skill = getSkill(todayPlan.session.focusSkillId);
   const openAttempt = attempts.find((item) => !item.completedAt && !item.skippedAt);
   const reminder = openAttempt ? challengeReminder(openAttempt, now) : null;
-  const streak = consistency(store.events, new Date().toISOString());
+  const streak = consistency(store.events, new Date().toISOString(), 28, store.user?.timezoneOffsetMinutes ?? 0);
 
   const startChallenge = async () => {
-    const attempt = openAttempt ?? (await store.assignChallenge(todayPlan.session.focusSkillId));
-    setChallengeAttemptId(attempt.id);
+    // Double-click guard: `openAttempt` is stale inside the second closure, so
+    // two rapid clicks would assign two challenges.
+    if (assigning) return;
+    setAssigning(true);
+    try {
+      const attempt = openAttempt ?? (await store.assignChallenge(todayPlan.session.focusSkillId));
+      setChallengeAttemptId(attempt.id);
+    } finally {
+      setAssigning(false);
+    }
   };
 
   return (
@@ -167,7 +176,9 @@ export default function TodayPage() {
                 <Check size={16} aria-hidden="true" /> Log how it went
               </Button>
             ) : (
-              <Button onClick={startChallenge}>Take this one</Button>
+              <Button onClick={() => void startChallenge()} disabled={assigning}>
+                {assigning ? "Assigning…" : "Take this one"}
+              </Button>
             )}
             {openAttempt ? (
               <Button

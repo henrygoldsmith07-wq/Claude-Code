@@ -56,6 +56,12 @@ export interface Evidence {
   at: IsoInstant;
   /** Optional self-reported comfort on this occasion, 0-1. Updates confidence only. */
   comfort?: number;
+  /**
+   * True when the occasion carries no information about competence at all
+   * (e.g. the user did not attempt the challenge). Mastery, success evidence
+   * and difficulty tolerance are left untouched; only comfort moves.
+   */
+  comfortOnly?: boolean;
 }
 
 /** Real-world attempts are the point of the product, so they carry the most weight. */
@@ -124,6 +130,22 @@ export function applyEvidence(state: UserSkillState, evidence: Evidence): UserSk
   if (weight <= 0) return state;
 
   const decayed = decay(state, evidence.at);
+
+  // A comfort-only observation (a logged non-attempt) is information about
+  // confidence, and none about competence — so it must not move mastery,
+  // success evidence or difficulty tolerance in either direction.
+  if (evidence.comfortOnly) {
+    if (evidence.comfort === undefined) return state;
+    const cVariance = decayed.confidenceUncertainty ** 2;
+    const cGain = cVariance / (cVariance + (0.3 / Math.max(weight, 0.2)) ** 2);
+    const confidence = clamp01(decayed.confidence + cGain * (clamp01(evidence.comfort) - decayed.confidence));
+    return {
+      ...decayed,
+      confidence,
+      confidenceUncertainty: Math.max(MIN_UNCERTAINTY, Math.sqrt(cVariance * (1 - cGain))),
+    };
+  }
+
   const target = evidenceTarget(clamp01(evidence.performance), evidence.difficulty);
 
   // Kalman-style gain: uncertainty relative to observation noise. Confident
@@ -184,7 +206,7 @@ export function applyEvidence(state: UserSkillState, evidence: Evidence): UserSk
  * estimate of whether they would do it *today* is.
  */
 export function decay(state: UserSkillState, now: IsoInstant): UserSkillState {
-  if (!state.lastPractisedAt) return { ...state, retentionEstimate: state.retentionEstimate };
+  if (!state.lastPractisedAt) return state;
   const days = daysBetween(state.lastPractisedAt, now);
   if (days <= 0) return state;
 

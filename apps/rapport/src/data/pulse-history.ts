@@ -94,6 +94,10 @@ export function buildRapportPulseEventLog(events: readonly DomainEvent[]): Rappo
         return { kind: "exercise", id: event.exerciseId, at: event.at, subject: event.skillId, metrics: { performance: event.performance, difficulty: event.difficulty } };
       case "lesson-read":
         return { kind: "lesson", id: event.lessonId, at: event.at, subject: event.skillId };
+      case "reflection-recorded":
+        // Mapped onto the existing "session" kind so the sidecar schema stays
+        // at v2; the label carries the distinction.
+        return { kind: "session", id: event.reflectionId, at: event.at, labels: ["reflection"] };
       case "session-completed":
         return { kind: "session", id: event.sessionId, at: event.at, subject: event.focusSkillId };
       case "human-rating-recorded":
@@ -216,9 +220,45 @@ interface StorageLike {
   removeItem(key: string): void;
 }
 
+const NULL_STORAGE: StorageLike = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+
+/**
+ * A localStorage wrapper whose every operation — including first access — is
+ * guarded. Some browsers (cookies blocked, certain private modes) throw on
+ * merely touching `window.localStorage`, and that exception would otherwise
+ * escape into whatever effect happened to be publishing.
+ */
 function defaultStorage(): StorageLike {
-  if (typeof window === "undefined") return { getItem: () => null, setItem: () => {}, removeItem: () => {} };
-  return window.localStorage;
+  if (typeof window === "undefined") return NULL_STORAGE;
+  try {
+    const storage = window.localStorage;
+    void storage.length; // Probe: access itself can throw.
+    return {
+      getItem: (key) => {
+        try {
+          return storage.getItem(key);
+        } catch {
+          return null;
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          storage.setItem(key, value);
+        } catch {
+          // IndexedDB remains the source of truth when shared storage is unavailable.
+        }
+      },
+      removeItem: (key) => {
+        try {
+          storage.removeItem(key);
+        } catch {
+          // IndexedDB remains the source of truth when shared storage is unavailable.
+        }
+      },
+    };
+  } catch {
+    return NULL_STORAGE;
+  }
 }
 
 function parseFlag(value: string | null): unknown {
@@ -240,8 +280,8 @@ export function publishRapportPulseHistory(
   simulations: readonly Simulation[] = [],
   storage: StorageLike = defaultStorage(),
 ): void {
-  if (!readRapportPulseOptIn(storage)) return;
   try {
+    if (!readRapportPulseOptIn(storage)) return;
     storage.setItem(RAPPORT_PULSE_HISTORY_KEY, JSON.stringify(buildRapportPulseHistory(events, simulations)));
   } catch {
     // IndexedDB remains the source of truth when shared storage is unavailable.

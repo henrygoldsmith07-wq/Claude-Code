@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { buildInitialProfile, sessionMinutesFor } from "@/domain/assessment";
 import type { AssessmentResult } from "@/domain/assessment";
@@ -39,7 +39,7 @@ import type {
 import * as repo from "@/data/repository";
 import { LOCAL_USER_ID } from "@/data/repository";
 import { useNow } from "@/state/clock";
-import { publishRapportPulseHistory } from "@/data/pulse-history";
+import { publishRapportPulseHistory, setRapportPulseOptIn } from "@/data/pulse-history";
 
 // ---------------------------------------------------------------------------
 // One store for the whole app.
@@ -55,6 +55,8 @@ import { publishRapportPulseHistory } from "@/data/pulse-history";
 
 interface StoreValue {
   ready: boolean;
+  /** Set when the local database could not be opened; the app still renders. */
+  loadError: string | null;
   needsOnboarding: boolean;
   user: User | null;
   preference: Preference;
@@ -107,6 +109,7 @@ const EMPTY_PREFERENCE: Preference = {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [preference, setPreference] = useState<Preference>(EMPTY_PREFERENCE);
   const [states, setStates] = useState<UserSkillState[]>([]);
@@ -122,61 +125,83 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [observations, setObservations] = useState<ExperimentObservation[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [justUnlocked, setJustUnlocked] = useState<Achievement[]>([]);
+  // Mirror of `achievements` updated synchronously with every unlock. Two
+  // events can be applied within one user action (an attempt, then the session
+  // that contains it), and both would otherwise read the same stale closure
+  // and unlock the same milestone twice.
+  const achievementsRef = useRef<Achievement[]>([]);
   const [focusOverride, setFocusOverride] = useState<Id | null>(null);
 
   const load = useCallback(async () => {
-    const now = new Date().toISOString();
-    const [
-      loadedUser,
-      loadedPreference,
-      loadedStates,
-      loadedEvents,
-      loadedGoals,
-      loadedAttempts,
-      loadedReflections,
-      loadedSimulations,
-      loadedEvaluations,
-      loadedSessions,
-      loadedDismissed,
-      loadedExperiments,
-      loadedObservations,
-      loadedAchievements,
-    ] = await Promise.all([
-      repo.getUser(),
-      repo.getPreference(),
-      repo.getSkillStates(now),
-      repo.allEvents(),
-      repo.all("goals"),
-      repo.all("attempts"),
-      repo.all("reflections"),
-      repo.all("simulations"),
-      repo.all("evaluations"),
-      repo.all("sessions"),
-      repo.dismissedInsightIds(),
-      repo.all("experiments"),
-      repo.all("observations"),
-      repo.all("achievements"),
-    ]);
+    try {
+      const now = new Date().toISOString();
+      const [
+        loadedUser,
+        loadedPreference,
+        loadedStates,
+        loadedEvents,
+        loadedGoals,
+        loadedAttempts,
+        loadedReflections,
+        loadedSimulations,
+        loadedEvaluations,
+        loadedSessions,
+        loadedDismissed,
+        loadedExperiments,
+        loadedObservations,
+        loadedAchievements,
+      ] = await Promise.all([
+        repo.getUser(),
+        repo.getPreference(),
+        repo.getSkillStates(now),
+        repo.allEvents(),
+        repo.all("goals"),
+        repo.all("attempts"),
+        repo.all("reflections"),
+        repo.all("simulations"),
+        repo.all("evaluations"),
+        repo.all("sessions"),
+        repo.dismissedInsightIds(),
+        repo.all("experiments"),
+        repo.all("observations"),
+        repo.all("achievements"),
+      ]);
 
-    setUser(loadedUser);
-    setPreference(loadedPreference);
-    setStates(loadedStates);
-    setEvents(loadedEvents);
-    setGoals(loadedGoals);
-    setAttempts(loadedAttempts);
-    setReflections(loadedReflections);
-    setSimulations(loadedSimulations);
-    setEvaluations(loadedEvaluations);
-    setSessions(loadedSessions);
-    setDismissedInsightIds(loadedDismissed);
-    setExperiments(loadedExperiments);
-    setObservations(loadedObservations);
-    setAchievements(loadedAchievements);
-    setReady(true);
+      setUser(loadedUser);
+      setPreference(loadedPreference);
+      setStates(loadedStates);
+      setEvents(loadedEvents);
+      setGoals(loadedGoals);
+      setAttempts(loadedAttempts);
+      setReflections(loadedReflections);
+      setSimulations(loadedSimulations);
+      setEvaluations(loadedEvaluations);
+      setSessions(loadedSessions);
+      setDismissedInsightIds(loadedDismissed);
+      setExperiments(loadedExperiments);
+      setObservations(loadedObservations);
+      setAchievements(loadedAchievements);
+      achievementsRef.current = loadedAchievements;
 
-    if (loadedPreference.retentionDays > 0) {
-      const redacted = await repo.applyRetention(loadedPreference.retentionDays, now);
-      if (redacted > 0) setReflections(await repo.all("reflections"));
+      if (loadedPreference.retentionDays > 0) {
+        const redacted = await repo.applyRetention(loadedPreference.retentionDays, now);
+        if (redacted > 0) setReflections(await repo.all("reflections"));
+      }
+      // Automatic transcript deletion runs on load, so a chosen window is
+      // honoured even when the app is opened infrequently.
+      if (loadedPreference.transcriptRetentionDays > 0) {
+        const purged = await repo.purgeOldTranscripts(loadedPreference.transcriptRetentionDays, now);
+        if (purged > 0) {
+          const keptIds = new Set((await repo.all("simulations")).map((sim) => sim.id));
+          setSimulations((current) => current.filter((sim) => keptIds.has(sim.id)));
+        }
+      }
+    } catch {
+      // Blocked or corrupted storage (private mode, quota) must not leave the
+      // app on a loading screen forever: render with defaults and say so.
+      setLoadError("Your training data could not be loaded. Progress will not be saved until this is fixed.");
+    } finally {
+      setReady(true);
     }
   }, []);
 
@@ -196,16 +221,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const now = useNow();
 
+  // Streaks, weeks and focus history bucket days by the user's local calendar,
+  // not the UTC day the instant was stamped with.
+  const timezoneOffsetMinutes = user?.timezoneOffsetMinutes ?? 0;
+
   const recommendationInput = useMemo(
     () => ({
       states,
       goals,
       preference,
-      focusHistory: focusHistoryFrom(events),
+      focusHistory: focusHistoryFrom(events, timezoneOffsetMinutes),
       recentEvidence: recentEvidence(events),
       now,
     }),
-    [states, goals, preference, events, now],
+    [states, goals, preference, events, now, timezoneOffsetMinutes],
   );
 
   const todayPlan = useMemo(() => {
@@ -225,9 +254,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // stale relative to the evidence, and a change to the scoring model
   // regenerates the whole history rather than leaving old conclusions behind.
   // The only thing persisted is which insights the user dismissed.
+  //
+  // Insight generation buckets by day, so the clock feeding it is quantized to
+  // the hour — the shared one-minute tick would otherwise re-scan the whole log
+  // sixty times more often than the output could change.
+  const insightNow = useMemo(() => `${now.slice(0, 13)}:00:00.000Z`, [now]);
   const insights = useMemo(() => {
     if (!ready || events.length < 3) return [];
-    const weekAgo = new Date(new Date(now).getTime() - 7 * 86_400_000).toISOString();
+    const weekAgo = new Date(new Date(insightNow).getTime() - 7 * 86_400_000).toISOString();
     const previousStates = recomputeStates(
       LOCAL_USER_ID,
       events.filter((event) => event.at < weekAgo),
@@ -240,9 +274,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       previousStates,
       attempts,
       events,
-      now,
+      now: insightNow,
     }).filter((item) => !dismissed.has(item.id));
-  }, [ready, events, states, attempts, now, dismissedInsightIds]);
+  }, [ready, events, states, attempts, insightNow, dismissedInsightIds]);
 
   const reviews = useMemo(() => {
     if (!ready || events.length === 0) return [];
@@ -263,10 +297,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           recommendation: {
             goals,
             preference,
-            focusHistory: focusHistoryFrom(events),
+            focusHistory: focusHistoryFrom(events, timezoneOffsetMinutes),
             recentEvidence: recentEvidence(events),
           },
           now,
+          timezoneOffsetMinutes,
         }),
       )
       .filter(
@@ -276,7 +311,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             review.trainingCompleted.sessions >
           0,
       );
-  }, [ready, events, attempts, goals, preference, now]);
+  }, [ready, events, attempts, goals, preference, now, timezoneOffsetMinutes]);
 
   const applyEvent = useCallback(async (event: DomainEvent): Promise<UserSkillState[]> => {
     const at = event.at;
@@ -286,14 +321,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setEvents(nextEvents);
 
     const context = buildContext(nextStates, nextEvents);
-    const unlocked = newlyUnlocked(LOCAL_USER_ID, context, achievements, at);
+    const unlocked = newlyUnlocked(LOCAL_USER_ID, context, achievementsRef.current, at);
     if (unlocked.length > 0) {
+      achievementsRef.current = [...achievementsRef.current, ...unlocked];
+      setAchievements(achievementsRef.current);
       await repo.putMany("achievements", unlocked);
-      setAchievements((current) => [...current, ...unlocked]);
       setJustUnlocked(unlocked);
     }
     return nextStates;
-  }, [achievements]);
+  }, []);
 
   const recordEvidenceEvent = useCallback<StoreValue["recordEvidenceEvent"]>(async (event) => {
     await applyEvent(event);
@@ -486,6 +522,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await repo.put("signals", signal);
     setReflections((current) => [...current, reflection]);
 
+    // The reflection is activity in its own right and is counted
+    // independently of whether the underlying attempt happened.
+    await applyEvent({
+      kind: "reflection-recorded",
+      at,
+      reflectionId: reflection.id,
+      skillIds: input.skillIds ?? [],
+    });
+
     const updatedAttempt: ChallengeAttempt = {
       ...attempt,
       completedAt: input.attempted === "no" ? undefined : at,
@@ -606,6 +651,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const wipeData = useCallback<StoreValue["wipeData"]>(async () => {
     await repo.wipe();
+    // "Delete everything" must include the Pulse share: the opt-in flag lives
+    // in localStorage, outside the IndexedDB wipe, and a surviving flag would
+    // silently re-publish a fresh mirror without ever asking again.
+    setRapportPulseOptIn(false);
     setUser(null);
     setStates([]);
     setEvents([]);
@@ -618,6 +667,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDismissedInsightIds([]);
     setExperiments([]);
     setObservations([]);
+    achievementsRef.current = [];
     setAchievements([]);
     setPreference(EMPTY_PREFERENCE);
   }, []);
@@ -625,6 +675,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreValue>(
     () => ({
       ready,
+      loadError,
       needsOnboarding: ready && user === null,
       user,
       preference,
@@ -665,7 +716,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       wipeData,
     }),
     [
-      ready, user, preference, states, goals, events, attempts, reflections, simulations, evaluations,
+      ready, loadError, user, preference, states, goals, events, attempts, reflections, simulations, evaluations,
       sessions, insights, experiments, observations, achievements, reviews, todayPlan, justUnlocked,
       completeOnboarding, setFocus, recordLessonRead, recordExercise, saveSimulation, assignChallenge,
       completeChallenge, skipChallenge, swapChallenge, postponeChallenge, correctSkill, updatePreference,
@@ -674,7 +725,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return (
+    <StoreContext.Provider value={value}>
+      {loadError ? (
+        <p role="alert" className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
+          {loadError}
+        </p>
+      ) : null}
+      {children}
+    </StoreContext.Provider>
+  );
 }
 
 function shiftDays(date: string, days: number): string {

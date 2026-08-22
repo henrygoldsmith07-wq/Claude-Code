@@ -18,6 +18,7 @@ export function TrainingPlan() {
   const store = useStore();
   const now = useNow();
   const [exerciseDone, setExerciseDone] = useState(false);
+const [recording, setRecording] = useState(false);
   if (!store.ready) return null;
 
   const focusSkillId = store.todayPlan?.session.focusSkillId ?? store.states[0]?.skillId;
@@ -31,7 +32,7 @@ export function TrainingPlan() {
     recentScenarioIds: store.simulations.slice(-6).map((simulation) => simulation.scenarioId),
     recentPerformances: evidence.map((item) => item.performance),
     evaluations: store.evaluations,
-    focusHistory: focusHistoryFrom(store.events),
+    focusHistory: focusHistoryFrom(store.events, store.user?.timezoneOffsetMinutes ?? 0),
     now,
     preferenceAssistLevel: store.preference.assistLevel,
   });
@@ -110,9 +111,15 @@ export function TrainingPlan() {
               <Button
                 size="sm"
                 variant="secondary"
+                disabled={recording}
                 onClick={async () => {
-                  await store.recordExercise(guidance.recurringError!.exercise, 0.7);
-                  setExerciseDone(true);
+                  setRecording(true);
+                  try {
+                    await store.recordExercise(guidance.recurringError!.exercise, 0.7);
+                    setExerciseDone(true);
+                  } finally {
+                    setRecording(false);
+                  }
                 }}
               >
                 I practised it
@@ -120,9 +127,15 @@ export function TrainingPlan() {
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={recording}
                 onClick={async () => {
-                  await store.recordExercise(guidance.recurringError!.exercise, 0.9);
-                  setExerciseDone(true);
+                  setRecording(true);
+                  try {
+                    await store.recordExercise(guidance.recurringError!.exercise, 0.9);
+                    setExerciseDone(true);
+                  } finally {
+                    setRecording(false);
+                  }
                 }}
               >
                 It felt solid

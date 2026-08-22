@@ -3,6 +3,7 @@ import { checkCriticismBalance, checkFeedbackLanguage, checkGeneratedContent } f
 import * as cache from "./cache";
 import { JSON_HINTS, MAX_TOKENS, PROMPT_VERSIONS, SYSTEM_PROMPTS, TEMPERATURES } from "./prompts";
 import { completeWithRetry, extractJson, getProvider } from "./provider";
+import type { CompletionRequest } from "./provider";
 import * as telemetry from "./telemetry";
 import { RESPONSE_SCHEMAS } from "./types";
 import type { AiEnvelope, AiRequest, AiTask } from "./types";
@@ -29,6 +30,24 @@ export interface RunOptions<T> {
   rateLimitKey: string;
   /** Extra validation for this specific task, run on the model's output. */
   validate?: (value: T) => boolean;
+}
+
+/**
+ * Single-flight for identical provider calls. Cache lookup and cache set are
+ * separated by the awaited provider call, so N simultaneous requests with the
+ * same payload would all miss, all burn rate-limit budget, and all pay the
+ * provider. Sharing one in-flight promise collapses them into one call.
+ * Cacheable tasks only: simulate-turn is deliberately uncached for product
+ * reasons, so it keeps one call per request.
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+function dedupe<T>(key: string, execute: () => Promise<T>): Promise<T> {
+  const existing = inFlight.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
+  const promise = execute().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
 }
 
 export async function run<T>(options: RunOptions<T>): Promise<AiEnvelope<T>> {
@@ -85,13 +104,15 @@ export async function run<T>(options: RunOptions<T>): Promise<AiEnvelope<T>> {
   }
 
   try {
-    const result = await completeWithRetry(provider, {
+    const requestPayload: CompletionRequest = {
       system: SYSTEM_PROMPTS[task],
       messages: [{ role: "user", content: JSON.stringify(stripForPrompt(request)) }],
       temperature: TEMPERATURES[task],
       maxTokens: MAX_TOKENS[task],
       jsonHint: JSON_HINTS[task],
-    });
+    };
+    const call = () => completeWithRetry(provider, requestPayload);
+    const result = await (cache.isCacheable(task) ? dedupe(`call:${key}`, call) : call());
 
     const parsed = extractJson<unknown>(result.text);
     const schema = RESPONSE_SCHEMAS[task];

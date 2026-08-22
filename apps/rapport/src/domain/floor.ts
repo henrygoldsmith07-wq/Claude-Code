@@ -55,17 +55,25 @@ export function floorSnapshot(simulation: Simulation): FloorSnapshot {
   const turns = [...simulation.turns].sort((a, b) => a.index - b.index);
   const characters = simulation.scenario.characters;
   const lastIndexOf = new Map<Participant, number>();
+  /** Characters who actually spoke — tracked directly rather than inferred. */
+  const spoke = new Set<Id>();
 
   let consecutive = 0;
   let userTurns = 0;
 
   turns.forEach((turn, i) => {
-    const who: Participant = turn.speaker === "user" ? "user" : (turn.characterId ?? "user");
-    lastIndexOf.set(who, i);
     if (turn.speaker === "user") {
+      lastIndexOf.set("user", i);
       userTurns += 1;
       consecutive = 0;
     } else {
+      // A character turn without an id cannot be attributed to anyone. It
+      // still counts towards the exclusion run, but booking it as the user
+      // would make the floor look returned when nobody addressed them.
+      if (turn.characterId) {
+        lastIndexOf.set(turn.characterId, i);
+        spoke.add(turn.characterId);
+      }
       consecutive += 1;
     }
   });
@@ -88,7 +96,7 @@ export function floorSnapshot(simulation: Simulation): FloorSnapshot {
     turnsSince,
     userTurnShare: turns.length === 0 ? 0 : userTurns / turns.length,
     addressedByLast: last ? addressee(last.text, simulation.scenario, last.speaker === "user") : null,
-    silent: characters.filter((c) => !lastIndexOf.has(c.id)).map((c) => c.id),
+    silent: characters.filter((c) => !spoke.has(c.id)).map((c) => c.id),
   };
 }
 

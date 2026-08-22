@@ -1,5 +1,6 @@
 import { applyEvidence, applyUserCorrection, initialSkillState } from "./mastery";
 import type { Evidence } from "./mastery";
+import { localDateFrom } from "./scheduling";
 import { SKILLS } from "./skills";
 import type { BehaviourKey, ChallengeOutcome, Id, IsoInstant, UserSkillState } from "./types";
 
@@ -63,6 +64,13 @@ export type DomainEvent =
       at: IsoInstant;
       lessonId: Id;
       skillId: Id;
+    }
+  | {
+      kind: "reflection-recorded";
+      at: IsoInstant;
+      reflectionId: Id;
+      /** Skills the reflection named. Reflections are activity, never competence evidence. */
+      skillIds: Id[];
     }
   | {
       kind: "assessment-completed";
@@ -141,6 +149,9 @@ function evidenceFrom(event: DomainEvent): Evidence[] {
           reliability: event.reliability,
           at: event.at,
           comfort: event.comfort,
+          // A logged non-attempt is confidence information only — it must
+          // never pull the competence estimate in either direction.
+          comfortOnly: event.outcome === "no",
         },
       ];
     case "exercise-completed":
@@ -210,10 +221,10 @@ export function recomputeStates(userId: Id, events: DomainEvent[], now: IsoInsta
 }
 
 /** Focus history for the recommender's variety and fatigue factors. */
-export function focusHistoryFrom(events: DomainEvent[]): { skillId: Id; date: string }[] {
+export function focusHistoryFrom(events: DomainEvent[], timezoneOffsetMinutes = 0): { skillId: Id; date: string }[] {
   return events
     .filter((event): event is Extract<DomainEvent, { kind: "session-completed" }> => event.kind === "session-completed")
-    .map((event) => ({ skillId: event.focusSkillId, date: event.at.slice(0, 10) }));
+    .map((event) => ({ skillId: event.focusSkillId, date: localDateFrom(event.at, timezoneOffsetMinutes) }));
 }
 
 /** Recent evidence, newest first, for the recommender's momentum factor. */

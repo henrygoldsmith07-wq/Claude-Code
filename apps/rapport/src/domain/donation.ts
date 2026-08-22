@@ -155,6 +155,29 @@ export function applyRedactions(text: string, remove: string[]): string {
   return output;
 }
 
+/**
+ * Unconditional removal of contact-like spans — email, web address, phone,
+ * postcode — applied at benchmark export time.
+ *
+ * Donation redaction is user-reviewed and optional per item; this pass is
+ * neither. It is the defence-in-depth layer for research data: even a donated
+ * transcript the user approved "as is" must not carry contact details into an
+ * exported corpus.
+ */
+export function scrubContactDetails(text: string): { text: string; removed: number } {
+  let output = text;
+  let removed = 0;
+  for (const { kind } of PATTERNS) {
+    const pattern = PATTERNS.find((p) => p.kind === kind)!;
+    pattern.re.lastIndex = 0;
+    output = output.replace(pattern.re, () => {
+      removed += 1;
+      return "[removed]";
+    });
+  }
+  return { text: output, removed };
+}
+
 export const DONATION_WARNINGS = [
   "These suggestions are a text search, not a guarantee. They will miss things.",
   "A conversation can identify you by what it describes, even with every name removed. Read it as a stranger would.",

@@ -40,6 +40,9 @@ export default function CoachPage() {
   const [busy, setBusy] = useState(false);
 
   const ask = async (text: string) => {
+    // One request at a time: two overlapping answers would race their
+    // setRouting/setExplanation and the older could overwrite the newer.
+    if (busy) return;
     setBusy(true);
     setRefusal(null);
     setExplanation(null);
@@ -117,11 +120,12 @@ export default function CoachPage() {
           {SUGGESTIONS.map((item) => (
             <button
               key={item}
+              disabled={busy}
               onClick={() => {
                 setQuestion(item);
                 void ask(item);
               }}
-              className="rounded-full border px-3 py-1.5 text-xs"
+              className="rounded-full border px-3 py-1.5 text-xs disabled:opacity-50"
               style={{ borderColor: "var(--border-strong)", color: "var(--text-muted)" }}
             >
               {item}

@@ -3,12 +3,13 @@
 //
 // The evaluator rewards genuine conversational quality. A user who optimises
 // the metric — asking 12 questions, mirroring vocabulary, spamming "I hear
-// you" — should not get a high score. This module detects 8 gaming strategies
+// you" — should not get a high score. This module detects 10 gaming strategies
 // and converts them into penalties that lower the relevant behaviour scores.
 //
 // Every detector is deterministic, explainable, and calibrated to avoid
 // punishing normal conversation: a single acknowledgement is fine, five in four
-// turns is not; one open question is good, eight is an interview.
+// turns is not; one open question is good, eight is an interview; quoting a
+// phrase back once is normal, echoing whole sentences every turn is not.
 //
 // Detected patterns are surfaced as a `GamingSignal` so the UI can explain why
 // a transcript that looks "high effort" was still scored low — transparency is
@@ -28,6 +29,8 @@ export const GAMING_PATTERNS = [
   "unnaturally-short-responses",
   "forced-topic-references",
   "artificial-conversational-balance",
+  "verbatim-echo",
+  "template-openers",
 ] as const;
 export type GamingPattern = (typeof GAMING_PATTERNS)[number];
 
@@ -47,6 +50,18 @@ function clamp01(v: number): number {
 
 function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Lowercase word tokens with punctuation stripped — the unit for echo detection. */
+function normaliseWords(text: string): string[] {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+}
+
+/** All contiguous n-word runs of a token list. */
+function wordNgrams(words: string[], n: number): Set<string> {
+  const grams = new Set<string>();
+  for (let i = 0; i + n <= words.length; i += 1) grams.add(words.slice(i, i + n).join(" "));
+  return grams;
 }
 
 // --- 1. Excessive questions -------------------------------------------------
@@ -282,6 +297,81 @@ function detectArtificialBalance(features: TranscriptFeatures): GamingSignal | n
   };
 }
 
+// --- 9. Verbatim echo ---------------------------------------------------------
+
+/** A copied run this long is a quote, not a listening move. */
+const ECHO_RUN_WORDS = 6;
+
+/**
+ * Repeating someone's words straight back at them scores like active listening
+ * on an overlap counter while being neither reflection nor response. Distinct
+ * from mechanical mirroring, which catches short scattered vocabulary reuse;
+ * this catches wholesale copying of what was just said.
+ */
+function detectVerbatimEcho(simulation: Simulation, features: TranscriptFeatures): GamingSignal | null {
+  const userTurns = features.userTurns;
+  if (userTurns.length < 2) return null;
+
+  let echoes = 0;
+  let dominantEcho = false;
+  for (const uTurn of userTurns) {
+    const idx = features.turns.findIndex((t) => t.id === uTurn.id);
+    const prevChar = [...features.turns].slice(0, idx).reverse().find((t) => t.speaker === "character");
+    if (!prevChar) continue;
+    const charGrams = wordNgrams(normaliseWords(prevChar.text), ECHO_RUN_WORDS);
+    if (charGrams.size === 0) continue;
+    const userWords = normaliseWords(uTurn.text);
+    const echoed = [...wordNgrams(userWords, ECHO_RUN_WORDS)].some((gram) => charGrams.has(gram));
+    if (!echoed) continue;
+    echoes += 1;
+    // One echo only counts when it IS the reply — quoting a phrase inside an
+    // otherwise fresh turn is ordinary conversation, not gaming.
+    if (userWords.length <= ECHO_RUN_WORDS + 3) dominantEcho = true;
+  }
+
+  if (echoes < 2 && !dominantEcho) return null;
+  const severity = clamp01(echoes / Math.max(2, Math.ceil(userTurns.length * 0.5)));
+  if (severity < 0.25) return null;
+  return {
+    pattern: "verbatim-echo",
+    severity,
+    evidence: `${echoes} repl${echoes === 1 ? "y" : "ies"} repeated a run of ${ECHO_RUN_WORDS}+ words verbatim from what had just been said — reflection means restating in your own words`,
+    affectedBehaviours: ["listening", "relevance"],
+  };
+}
+
+// --- 10. Template openers -----------------------------------------------------
+
+/**
+ * Every turn starting with the same two words is a script being executed.
+ *
+ * Coached phrasings ("That sounds…", "I hear you…") are meant as examples of a
+ * move, not incantations; a transcript where half the replies share an opener
+ * shows the form was copied without the judgement behind it.
+ */
+function detectTemplateOpeners(features: TranscriptFeatures): GamingSignal | null {
+  const turns = features.userTurns;
+  if (turns.length < 4) return null;
+  const openers = new Map<string, number>();
+  for (const turn of turns) {
+    const words = normaliseWords(turn.text);
+    if (words.length < 3) continue;
+    const opener = words.slice(0, 2).join(" ");
+    openers.set(opener, (openers.get(opener) ?? 0) + 1);
+  }
+  const [topOpener, count] = [...openers.entries()].sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
+  const share = count / turns.length;
+  if (count < 3 || share < 0.5) return null;
+  const severity = clamp01(share * 0.8);
+  if (severity < 0.25) return null;
+  return {
+    pattern: "template-openers",
+    severity,
+    evidence: `${count} of ${turns.length} replies opened with "${topOpener}" — coached phrases are examples of a move, not a script to repeat`,
+    affectedBehaviours: ["listening", "empathy"],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -298,6 +388,8 @@ export function detectGaming(simulation: Simulation): GamingSignal[] {
     detectUnnaturallyShortResponses(features),
     detectForcedTopicReferences(simulation, features),
     detectArtificialBalance(features),
+    detectVerbatimEcho(simulation, features),
+    detectTemplateOpeners(features),
   ];
   for (const signal of checks) if (signal && signal.severity >= 0.25) signals.push(signal);
   return signals;

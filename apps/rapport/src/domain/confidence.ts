@@ -180,6 +180,8 @@ export function ledgerConfidence(input: {
   amountOfEvidence: number;
   recentScores: number[];
   simulation?: Simulation;
+  /** Behaviour scores from the most recent evaluation, for extraction uncertainty. */
+  recentBehaviourScores?: BehaviourScore[];
   rubricReliability?: number | null;
   behaviourReliability?: BehaviourReliability | null;
   reliable: boolean;
@@ -191,7 +193,13 @@ export function ledgerConfidence(input: {
     consistency: consistencyFromScores(input.recentScores),
     transcriptQuality: input.simulation ? transcriptQualityFromSimulation(input.simulation) : null,
     rubricReliability: input.rubricReliability ?? null,
-    extractionUncertainty: input.simulation ? extractionUncertaintyFromEvaluation([]) : 0.1,
+    // With no scores supplied the extractor's sharpness is simply unknown —
+    // a mild default, not a penalty pretending to be a measurement.
+    extractionUncertainty: input.simulation
+      ? input.recentBehaviourScores
+        ? extractionUncertaintyFromEvaluation(input.recentBehaviourScores)
+        : 0.1
+      : 0.1,
     reliable: input.reliable,
     behaviourReliability: input.behaviourReliability ?? null,
   });

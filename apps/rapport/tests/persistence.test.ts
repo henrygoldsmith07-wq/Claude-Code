@@ -201,4 +201,81 @@ describe("repository", () => {
     await repo.saveDismissedInsightIds(["insight.a"]);
     expect(await repo.dismissedInsightIds()).toEqual(["insight.a"]);
   });
+
+  it("purges old transcripts but keeps scores and events", async () => {
+    const scenario = {
+      id: "sc.purge",
+      title: "Purge test",
+      context: "A conversation.",
+      skillIds: ["conv.follow-up"],
+      objective: "Talk.",
+      difficulty: 3 as const,
+      characters: [],
+      branches: [],
+      evaluationCriteria: [],
+    };
+    const makeSim = (id: string, startedAt: string) => ({
+      id,
+      userId: "local",
+      scenarioId: scenario.id,
+      scenario,
+      mode: "text" as const,
+      startedAt,
+      deliveredDifficulty: 3,
+      assistLevel: "none" as const,
+      turns: [{ id: `${id}-t0`, simulationId: id, index: 0, speaker: "user" as const, text: "hello there", createdAt: startedAt }],
+    });
+    await repo.put("simulations", makeSim("sim-old", at(120)));
+    await repo.put("simulations", makeSim("sim-recent", at(2)));
+    const evaluation = (id: string, simulationId: string) => ({
+      id,
+      simulationId,
+      userId: "local",
+      scores: [],
+      whatWorked: [],
+      highestImpactImprovement: { behaviour: "relevance" as const, observation: "o", principle: "p", exampleAlternative: "e" },
+      nextExercise: { id: `ex-${id}`, skillId: "conv.follow-up", kind: "rewrite" as const, prompt: "p", criteria: ["c"], difficulty: 3 as const },
+      source: "deterministic" as const,
+      createdAt: NOW,
+    });
+    await repo.put("evaluations", evaluation("eval-old", "sim-old"));
+    await repo.appendEvent(evidenceEvent, NOW);
+
+    const purged = await repo.purgeOldTranscripts(30, NOW);
+    expect(purged).toBe(1);
+
+    const sims = await repo.all("simulations");
+    expect(sims.map((s) => s.id)).toEqual(["sim-recent"]);
+    // The score survives the transcript.
+    expect((await repo.all("evaluations")).map((e) => e.id)).toEqual(["eval-old"]);
+    expect(await repo.allEvents()).toHaveLength(1);
+  });
+
+  it("restores atomically: a fresh import replaces everything in one transaction", async () => {
+    await repo.appendEvent(evidenceEvent, NOW);
+    await repo.put("reflections", {
+      id: "stale",
+      userId: "local",
+      subject: { kind: "freeform" },
+      attempted: "yes",
+      difficulty: 3,
+      wentWell: "leftover from before",
+      skillIds: [],
+      createdAt: NOW,
+    });
+
+    const exported = await repo.exportAll(NOW);
+    await freshDatabase();
+    // A restore/sync-pull whose payload has no reflections must leave none
+    // behind — clearing and writing commit together or not at all.
+    await repo.importAll(
+      { snapshot: { ...exported.snapshot, reflections: [] }, events: exported.events },
+      NOW,
+    );
+
+    // The imported state is exactly the export — nothing stale survives.
+    expect((await repo.all("reflections")).map((r) => r.id)).toEqual([]);
+    expect(await repo.allEvents()).toHaveLength(1);
+    expect((await repo.getUser())?.displayName).toBe("");
+  });
 });

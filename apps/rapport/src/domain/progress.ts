@@ -1,5 +1,5 @@
 import { stateFor, stateIsConfident } from "./mastery";
-import { daysBetween, todayIso } from "./scheduling";
+import { daysBetween, localDateFrom, todayIso } from "./scheduling";
 import { DOMAIN_LABELS, getSkill } from "./skills";
 import type { DomainEvent } from "./events";
 import type { ChallengeAttempt, Id, IsoDate, SkillDomain, UserSkillState } from "./types";
@@ -27,12 +27,15 @@ export interface ActivityCounts {
   skillsPractised: number;
 }
 
-export function countActivity(events: DomainEvent[], since?: IsoDate): ActivityCounts {
-  const inWindow = since ? events.filter((event) => event.at.slice(0, 10) >= since) : events;
+export function countActivity(events: DomainEvent[], since?: IsoDate, timezoneOffsetMinutes = 0): ActivityCounts {
+  const inWindow = since
+    ? events.filter((event) => localDateFrom(event.at, timezoneOffsetMinutes) >= since)
+    : events;
   const skills = new Set<Id>();
   let simulations = 0;
   let challengesAttempted = 0;
   let challengesCompleted = 0;
+  let reflections = 0;
   let lessons = 0;
   let sessions = 0;
 
@@ -51,6 +54,9 @@ export function countActivity(events: DomainEvent[], since?: IsoDate): ActivityC
         lessons += 1;
         skills.add(event.skillId);
         break;
+      case "reflection-recorded":
+        reflections += 1;
+        break;
       case "session-completed":
         sessions += 1;
         break;
@@ -63,7 +69,7 @@ export function countActivity(events: DomainEvent[], since?: IsoDate): ActivityC
     simulations,
     challengesAttempted,
     challengesCompleted,
-    reflections: inWindow.filter((event) => event.kind === "challenge-attempted").length,
+    reflections,
     lessons,
     sessions,
     skillsPractised: skills.size,
@@ -81,11 +87,11 @@ export interface ConsistencyStats {
   usualDay: string | null;
 }
 
-export function consistency(events: DomainEvent[], now: string, windowDays = 28): ConsistencyStats {
+export function consistency(events: DomainEvent[], now: string, windowDays = 28, timezoneOffsetMinutes = 0): ConsistencyStats {
   const today = todayIso(new Date(now));
   const days = new Set(
     events
-      .map((event) => event.at.slice(0, 10))
+      .map((event) => localDateFrom(event.at, timezoneOffsetMinutes))
       .filter((date) => daysBetween(date, today) <= windowDays && daysBetween(date, today) >= 0),
   );
   const sorted = [...days].sort();

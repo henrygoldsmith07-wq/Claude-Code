@@ -28,6 +28,7 @@
 // ---------------------------------------------------------------------------
 
 import type { BehaviourKey, ChallengeAttempt, Id, IsoInstant, Reflection, Simulation, SimulationEvaluation } from "./types";
+import { BEHAVIOUR_KEYS } from "./types";
 import { extractSignals } from "./reflection";
 
 export type TransferPhase = "baseline" | "practice" | "challenge" | "reflection" | "unseen-practice" | "analysis";
@@ -247,4 +248,239 @@ export function challengeLifecycle(attempt: ChallengeAttempt, reflection: Reflec
     events.push({ kind: "follow-up-scored", at: followUpEvaluation.createdAt, attemptId: attempt.id, detail: `Unseen practice scored (${followUpEvaluation.scores.length} behaviours, ${followUpEvaluation.scores.filter((s) => s.reliable).length} reliable).` });
   }
   return events.sort((a, b) => a.at.localeCompare(b.at));
+}
+
+// ---------------------------------------------------------------------------
+// Delayed transfer and persistence.
+//
+// An immediate gain can be session warmth — the same conversation, minutes
+// later, with the technique still loaded. Whether practice stuck is a question
+// about a *later* conversation, on a scenario that is unseen again, after real
+// time has passed. Until that check exists the loop reports "in progress"
+// rather than claiming persistence it cannot see.
+// ---------------------------------------------------------------------------
+
+/** Minimum days between unseen practice and a later check for delay to be meaningful. */
+export const DELAYED_CHECK_DAYS = 14;
+/** Gain over baseline considered retained at the delayed check (noise floor). */
+const PERSISTENCE_MARGIN = 0.03;
+
+export interface DelayedCheck {
+  behaviour: BehaviourKey;
+  baselineScore: number | null;
+  unseenScore: number | null;
+  laterScore: number | null;
+  /** Days between unseen practice and the later check; null when no check yet. */
+  daysLater: number | null;
+  /**
+   * true = improvement over baseline held at the delayed check;
+   * false = it faded back to baseline or below; null = not yet checkable.
+   */
+  persisted: boolean | null;
+  note: string;
+}
+
+/**
+ * Re-check a completed transfer loop at a delay.
+ *
+ * The later conversation must be on a scenario different from both the
+ * baseline and the unseen-practice scenarios — otherwise the second gain could
+ * be memory of the first rather than the skill.
+ */
+export function delayedTransferCheck(
+  input: { evaluations: SimulationEvaluation[]; simulations: Simulation[] },
+  record: TransferRecord,
+  minDays = DELAYED_CHECK_DAYS,
+): DelayedCheck {
+  const base = { behaviour: record.behaviour, baselineScore: record.baselineScore, unseenScore: record.unseenScore };
+  if (record.unseenPracticeEvaluationId === null || record.unseenScore === null) {
+    return { ...base, laterScore: null, daysLater: null, persisted: null, note: "No unseen practice yet — nothing to re-check at a delay." };
+  }
+  const unseen = input.evaluations.find((e) => e.id === record.unseenPracticeEvaluationId);
+  if (!unseen) {
+    return { ...base, laterScore: null, daysLater: null, persisted: null, note: "Unseen-practice evaluation missing — delayed check unavailable." };
+  }
+  const unseenSim = findSimulation(input.simulations, unseen.simulationId);
+  const unseenScenarioId = unseenSim?.scenarioId ?? null;
+  const baselineEval = input.evaluations.find((e) => e.id === record.baselineEvaluationId);
+  const baselineScenarioId = baselineEval ? findSimulation(input.simulations, baselineEval.simulationId)?.scenarioId ?? null : null;
+
+  const cutoffMs = Date.parse(unseen.createdAt) + minDays * 86_400_000;
+  const later = input.evaluations
+    .filter((e) => e.createdAt >= unseen.createdAt)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .find((e) => {
+      if (Date.parse(e.createdAt) < cutoffMs) return false;
+      const sim = findSimulation(input.simulations, e.simulationId);
+      if (!sim) return false;
+      // Different from the unseen scenario, and from the baseline's when known.
+      if (sim.scenarioId === unseenScenarioId) return false;
+      if (baselineScenarioId !== null && sim.scenarioId === baselineScenarioId) return false;
+      return behaviourScore(e, record.behaviour) !== null;
+    });
+
+  const laterScore = later ? behaviourScore(later, record.behaviour) : null;
+  if (!later || laterScore === null) {
+    return {
+      ...base,
+      laterScore: null,
+      daysLater: null,
+      persisted: null,
+      note: `Awaiting another new-scenario conversation at least ${minDays} days later to check whether the change held.`,
+    };
+  }
+
+  const daysLater = Math.round((Date.parse(later.createdAt) - Date.parse(unseen.createdAt)) / 86_400_000);
+  if (record.baselineScore === null) {
+    return { ...base, laterScore, daysLater, persisted: null, note: `Delayed score exists (${daysLater} days later) but the baseline was never established.` };
+  }
+  const heldVsBaseline = laterScore - record.baselineScore >= PERSISTENCE_MARGIN;
+  return {
+    ...base,
+    laterScore,
+    daysLater,
+    persisted: heldVsBaseline,
+    note: heldVsBaseline
+      ? `${record.behaviour} was still above baseline ${daysLater} days later (${laterScore.toFixed(2)} vs ${record.baselineScore.toFixed(2)}) — the change persisted.`
+      : `${record.behaviour} returned to around baseline by the ${daysLater}-day check (${laterScore.toFixed(2)} vs ${record.baselineScore.toFixed(2)}) — the gain did not persist.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Specificity: trained vs untrained behaviours.
+//
+// If every behaviour improves together, the likely cause is comfort with the
+// simulator or with being observed — not the training. Transfer is credible
+// when the trained behaviour moves more than behaviours the loop never aimed
+// at, measured over the same attempts.
+// ---------------------------------------------------------------------------
+
+export interface SpecificityReport {
+  skillId: Id;
+  behaviour: BehaviourKey;
+  /** Mean baseline→unseen gain on the trained behaviour. */
+  trainedMeanGain: number | null;
+  /** Mean gain across other measurable behaviours over the same attempts. */
+  untrainedMeanGain: number | null;
+  /** Trained exceeds untrained by at least the margin. Null when not computable. */
+  specific: boolean | null;
+  note: string;
+}
+
+const SPECIFICITY_MARGIN = 0.05;
+
+export function trainedVersusUntrained(input: TransferLoopInput): SpecificityReport {
+  const trainedRecords = buildTransferRecords(input);
+  const gains = trainedRecords.flatMap((r) => (r.gain === null ? [] : [r.gain]));
+  const trainedMeanGain = gains.length ? Number((gains.reduce((a, b) => a + b, 0) / gains.length).toFixed(3)) : null;
+
+  const untrainedGains: number[] = [];
+  for (const behaviour of BEHAVIOUR_KEYS) {
+    if (behaviour === input.behaviour) continue;
+    const records = buildTransferRecords({ ...input, behaviour });
+    for (const r of records) if (r.gain !== null) untrainedGains.push(r.gain);
+  }
+  const untrainedMeanGain = untrainedGains.length
+    ? Number((untrainedGains.reduce((a, b) => a + b, 0) / untrainedGains.length).toFixed(3))
+    : null;
+
+  let specific: boolean | null = null;
+  let note = "Not enough paired scores yet to compare trained and untrained movement.";
+  if (trainedMeanGain !== null && untrainedMeanGain !== null) {
+    specific = trainedMeanGain - untrainedMeanGain >= SPECIFICITY_MARGIN;
+    note = specific
+      ? `Trained behaviour moved +${trainedMeanGain.toFixed(2)} versus +${untrainedMeanGain.toFixed(2)} on untrained ones — the change tracks what was practised.`
+      : `Trained behaviour (+${trainedMeanGain.toFixed(2)}) did not move more than untrained ones (+${untrainedMeanGain.toFixed(2)}) — treat the gain cautiously until it does.`;
+  } else if (trainedMeanGain !== null) {
+    note = "Trained-behaviour gain exists but no untrained behaviour produced comparable scores yet.";
+  }
+  return { skillId: input.skillId, behaviour: input.behaviour, trainedMeanGain, untrainedMeanGain, specific, note };
+}
+
+// ---------------------------------------------------------------------------
+// Over-formulaic drift.
+//
+// Coaching names example phrases. Some users then run every conversation as a
+// sequence of those examples — the metric rises while the underlying skill
+// stiffens. This measures the stiffness from transcripts alone: opener
+// repetition, coached-marker density and reply-length uniformity.
+// ---------------------------------------------------------------------------
+
+const FORMULAIC_MARKERS = [
+  "that sounds", "i hear you", "that makes sense", "no wonder",
+  "speaking of", "fair enough", "i can see why", "so you're saying",
+];
+
+/** 0-1 per transcript; high means scripted-feeling replies. Pure heuristic, labelled as one. */
+export function formulaicityIndex(simulation: Simulation): number {
+  const userTurns = [...simulation.turns]
+    .filter((turn) => turn.speaker === "user")
+    .sort((a, b) => a.index - b.index);
+  if (userTurns.length < 3) return 0;
+
+  const tokens = (text: string) => text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+
+  // Opener repetition: share of turns starting with the same two words.
+  const openers = new Map<string, number>();
+  for (const turn of userTurns) {
+    const words = tokens(turn.text);
+    if (words.length < 3) continue;
+    const opener = words.slice(0, 2).join(" ");
+    openers.set(opener, (openers.get(opener) ?? 0) + 1);
+  }
+  const topOpenerShare = openers.size === 0 ? 0 : Math.max(...openers.values()) / userTurns.length;
+
+  // Coached-marker density: share of turns containing any stock phrase.
+  const markerTurns = userTurns.filter((turn) => {
+    const lower = turn.text.toLowerCase();
+    return FORMULAIC_MARKERS.some((marker) => lower.includes(marker));
+  }).length / userTurns.length;
+
+  // Length uniformity: near-identical reply lengths suggest a template.
+  const lengths = userTurns.map((turn) => tokens(turn.text).length);
+  const meanLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+  const sd = Math.sqrt(lengths.reduce((sum, len) => sum + (len - meanLength) ** 2, 0) / lengths.length);
+  const uniformity = Math.max(0, Math.min(1, 1 - sd / 10));
+
+  const index = 0.4 * topOpenerShare + 0.4 * markerTurns + 0.2 * uniformity;
+  return Number(Math.max(0, Math.min(1, index)).toFixed(3));
+}
+
+export interface FormulaicTrend {
+  recentMean: number | null;
+  earlierMean: number | null;
+  direction: "rising" | "falling" | "stable" | "unknown";
+  flagged: boolean;
+  note: string;
+}
+
+/**
+ * Whether formulaicity is rising across the session history.
+ *
+ * Flagged deliberately conservatively — a rising index is a prompt to vary the
+ * coaching examples, never an accusation, and it needs both halves of the
+ * history before it says anything.
+ */
+export function overFormulaicTrend(simulations: Simulation[], riseThreshold = 0.1): FormulaicTrend {
+  const ordered = [...simulations].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  if (ordered.length < 4) {
+    return { recentMean: null, earlierMean: null, direction: "unknown", flagged: false, note: "Not enough conversations yet to see any pattern." };
+  }
+  const half = Math.floor(ordered.length / 2);
+  const earlier = ordered.slice(0, half).map(formulaicityIndex);
+  const recent = ordered.slice(half).map(formulaicityIndex);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+  const earlierMean = Number(mean(earlier).toFixed(3));
+  const recentMean = Number(mean(recent).toFixed(3));
+  const delta = recentMean - earlierMean;
+  const direction = delta > riseThreshold ? "rising" : delta < -riseThreshold ? "falling" : "stable";
+  const flagged = direction === "rising" && recentMean >= 0.5;
+  const note = flagged
+    ? "Recent conversations have become noticeably more templated. Worth varying how you open and respond — the aim is judgement, not recitation."
+    : direction === "rising"
+      ? "Replies are getting somewhat more uniform, though not worryingly so."
+      : direction === "falling"
+        ? "Replies are becoming less templated over time."
+        : "Reply style shows no strong drift toward templates.";
+  return { recentMean, earlierMean, direction, flagged, note };
 }

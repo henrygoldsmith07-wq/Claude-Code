@@ -31,10 +31,14 @@ export default function ProgressPage() {
   const [tab, setTab] = useState<Tab>("Activity");
   const now = useNow();
 
+  // The comparison window only has day granularity, so the clock is quantized
+  // to the hour: the shared one-minute tick no longer re-folds the whole event
+  // log sixty times as often as the answer could change.
+  const hourBucket = useMemo(() => now.slice(0, 13), [now]);
   const previousStates = useMemo(() => {
-    const weekAgo = new Date(new Date(now).getTime() - 7 * 86_400_000).toISOString();
+    const weekAgo = new Date(new Date(`${hourBucket}:00:00.000Z`).getTime() - 7 * 86_400_000).toISOString();
     return recomputeStates("local", store.events.filter((event) => event.at < weekAgo), weekAgo);
-  }, [store.events, now]);
+  }, [store.events, hourBucket]);
 
   if (!store.ready) {
     return (
@@ -45,8 +49,10 @@ export default function ProgressPage() {
     );
   }
 
+  const timezoneOffsetMinutes = store.user?.timezoneOffsetMinutes ?? 0;
   const counts = countActivity(store.events);
-  const streak = consistency(store.events, now);
+  // Streaks and activity windows bucket by the user's local day.
+  const streak = consistency(store.events, now, 28, timezoneOffsetMinutes);
   const realWorld = realWorldFrequency(store.attempts, now);
   const progress = skillProgress(store.states, previousStates);
   const trends = difficultyTrends(store.attempts);
@@ -67,12 +73,12 @@ export default function ProgressPage() {
         subtitle="Separate measures, not one score. Where a number is an estimate rather than a count, it says so."
       />
 
-      <div className="mb-5 flex gap-1 overflow-x-auto" role="tablist" aria-label="Progress sections">
+      {/* Toggle group, not ARIA tabs — see the note in evidence/page.tsx. */}
+      <div className="mb-5 flex gap-1 overflow-x-auto" role="group" aria-label="Progress sections">
         {TABS.map((item) => (
           <button
             key={item}
-            role="tab"
-            aria-selected={tab === item}
+            aria-pressed={tab === item}
             onClick={() => setTab(item)}
             className="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors"
             style={{
