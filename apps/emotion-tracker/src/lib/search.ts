@@ -98,8 +98,18 @@ export function semanticSearch(entries: Entry[], q: string, topK = 20): Semantic
   const qTokens = simTokens(q); // stemmed, stopword-free — "ignoring" hits "ignore"
   const qPhrase = norm(q);
   if (qTokens.length === 0 || entries.length === 0) return [];
-  // Cap: beyond ~500 entries, shard or require more specific query
-  const capped = entries.length > 500 ? entries.slice(0, 500) : entries;
+  // Shard large corpora instead of silently dropping the oldest entries:
+  // each shard gets its own IDF basis, scores are normalised cosines so
+  // shards are comparable enough to merge and re-rank globally.
+  const SHARD = 500;
+  if (entries.length > SHARD) {
+    const merged: SemanticHit[] = [];
+    for (let i = 0; i < entries.length; i += SHARD) {
+      merged.push(...semanticSearch(entries.slice(i, i + SHARD), q, topK));
+    }
+    return merged.sort((a, b) => b.score - a.score).slice(0, topK);
+  }
+  const capped = entries;
   const docs = capped.map(buildWeightedDoc);
   const docTokens: string[][] = docs.map((d) => simTokens(d));
   const docSets: Set<string>[] = docTokens.map((arr) => new Set(arr));

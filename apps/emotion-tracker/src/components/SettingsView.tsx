@@ -11,6 +11,7 @@ import {
   outcomeStudySummary,
   setOutcomeStudyOptIn,
 } from "@/lib/outcomeStudy";
+import { applyRetention, getRetentionDays, RETENTION_CHOICES, setRetentionDays } from "@/lib/retention";
 
 function downloadStudyData(): void {
   const blob = new Blob([JSON.stringify(getOutcomeStudyEvents(), null, 2)], { type: "application/json" });
@@ -25,9 +26,13 @@ function downloadStudyData(): void {
 export default function SettingsView({ entries, setEntries, apiKey, setApiKey }: { entries: Entry[]; setEntries: Dispatch<SetStateAction<Entry[]>>; apiKey: string; setApiKey: (value: string) => void }) {
   const [studyOn, setStudyOn] = useState(false);
   const [, refreshMetrics] = useState(0);
+  const [retentionDays, setRetentionDaysState] = useState(0);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setStudyOn(isOutcomeStudyOptIn()), 0);
+    const timer = window.setTimeout(() => {
+      setStudyOn(isOutcomeStudyOptIn());
+      setRetentionDaysState(getRetentionDays());
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
   const metrics = outcomeStudySummary(getOutcomeStudyEvents());
@@ -36,6 +41,19 @@ export default function SettingsView({ entries, setEntries, apiKey, setApiKey }:
     setOutcomeStudyOptIn(value);
     setStudyOn(value);
     refreshMetrics((current) => current + 1);
+  }
+
+  function chooseRetention(days: number): void {
+    setRetentionDays(days);
+    setRetentionDaysState(days);
+  }
+
+  function applyRetentionNow(): void {
+    if (retentionDays <= 0) return;
+    const { kept, purged } = applyRetention(entries, new Date(), retentionDays);
+    if (purged.length === 0) return;
+    if (!window.confirm(`Delete ${purged.length} reflection${purged.length === 1 ? "" : "s"} older than ${retentionDays} days? This cannot be undone — export first if needed.`)) return;
+    setEntries(kept);
   }
 
   return (
@@ -54,6 +72,35 @@ export default function SettingsView({ entries, setEntries, apiKey, setApiKey }:
         </section>
 
         <PrivacyBar entries={entries} setEntries={setEntries} />
+
+        <section className="rounded-2xl border border-border bg-card p-4" aria-labelledby="retention-title">
+          <h2 id="retention-title" className="text-sm font-semibold">Data retention</h2>
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted">Automatically clear reflections older than the chosen window. Nothing is removed until you apply it here — deletion is explicit and confirmed.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-muted" htmlFor="retention-select">
+              Keep reflections for
+            </label>
+            <select
+              id="retention-select"
+              value={retentionDays}
+              onChange={(event) => chooseRetention(Number(event.target.value))}
+              className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            >
+              {RETENTION_CHOICES.map((days) => (
+                <option key={days} value={days}>{days === 0 ? "Forever (default)" : `${days} days`}</option>
+              ))}
+            </select>
+            {retentionDays > 0 && (
+              <button
+                type="button"
+                onClick={applyRetentionNow}
+                className="rounded-lg border border-danger/30 bg-dangersoft px-3 py-1.5 text-xs font-medium text-danger hover:brightness-95"
+              >
+                Apply now — delete older entries
+              </button>
+            )}
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-border bg-card p-4" aria-labelledby="study-title">
           <div className="flex flex-wrap items-start justify-between gap-3">

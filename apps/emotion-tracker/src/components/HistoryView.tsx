@@ -64,7 +64,7 @@ export default function HistoryView({ entries, selectedId, onSelect, onDelete, o
                   const selected = selectedId === entry.id;
                   const verdict = entry.longitudinalReview?.assumptionVerdict;
                   return (
-                    <div key={entry.id} className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${selected ? "border-accent/40 bg-accent/5" : "border-border bg-card hover:bg-card-hover"}`}>
+                    <div key={entry.id} className={`group flex items-start gap-3 rounded-2xl border p-4 transition-colors ${selected ? "border-accent/40 bg-accent/5" : "border-border bg-card hover:bg-card-hover"}`}>
                       <button type="button" onClick={() => onSelect(entry.id)} className="min-w-0 flex-1 text-left">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-medium">{entry.title}</p>
@@ -77,7 +77,19 @@ export default function HistoryView({ entries, selectedId, onSelect, onDelete, o
                         {entry.summary?.trace.predictedOutcome && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-foreground/80"><span className="font-medium">Prediction:</span> {entry.summary.trace.predictedOutcome}</p>}
                         {entry.longitudinalReview?.actualOutcome && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted"><span className="font-medium text-foreground/80">Actual:</span> {entry.longitudinalReview.actualOutcome}</p>}
                       </button>
-                      <button type="button" onClick={() => onDelete(entry.id)} className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted opacity-60 hover:bg-dangersoft hover:text-danger sm:opacity-0 sm:group-hover:opacity-100" aria-label={`Delete ${entry.title}`}>×</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Journal entries are unrecoverable — confirm first.
+                          if (window.confirm(`Delete “${entry.title || "Untitled reflection"}”? This cannot be undone.`)) {
+                            onDelete(entry.id);
+                          }
+                        }}
+                        className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted opacity-60 focus-visible:opacity-100 hover:bg-dangersoft hover:text-danger sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                        aria-label={`Delete ${entry.title || "Untitled reflection"}`}
+                      >
+                        ×
+                      </button>
                     </div>
                   );
                 })}

@@ -333,9 +333,16 @@ describe("weekly/monthly + summary", () => {
   });
 
   it("monthlyReviews parses ISO strings without relying on slice alone", () => {
+    // Months bucket by the LOCAL calendar day — the same anchor isoWeekKey
+    // uses — so weekly and monthly groupings can never disagree about which
+    // period an entry belongs to.
     const e = entry({ createdAt: "2026-03-31T23:59:59.000Z" });
-    expect(monthlyReviews([e])[0].period).toBe("2026-03");
+    const parsed = new Date("2026-03-31T23:59:59.000Z");
+    const expectedMonth = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+    expect(monthlyReviews([e])[0].period).toBe(expectedMonth);
     const off = entry({ createdAt: "2026-12-01T00:00:00.000Z" });
-    expect(monthlyReviews([off])[0].period).toBe("2026-12");
+    const offParsed = new Date("2026-12-01T00:00:00.000Z");
+    const offExpected = `${offParsed.getFullYear()}-${String(offParsed.getMonth() + 1).padStart(2, "0")}`;
+    expect(monthlyReviews([off])[0].period).toBe(offExpected);
   });
 });

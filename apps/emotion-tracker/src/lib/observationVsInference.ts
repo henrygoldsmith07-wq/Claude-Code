@@ -58,8 +58,9 @@ export function validateTierSeparation(items: TieredInterpretation[]): string[] 
   for (const it of items) {
     if (it.tier === "hypothesis" && it.confidence == null) errors.push(`hypothesis "${it.text.slice(0, 40)}" should carry confidence`);
     if (it.tier === "direct_observation" && it.confidence != null && it.confidence > 0.9) errors.push(`observation should not carry high confidence as fact`);
-    if (it.tier === "user_stated_fact" && /may involve|might|could/i.test(it.text) && it.text.length < 80) {
-      // hedged language belongs in hypothesis, not fact
+    // hedged language in a "fact" means it is actually an inference — flag the mislabel
+    if ((it.tier === "user_stated_fact" || it.tier === "direct_observation") && /may involve|might|could/i.test(it.text)) {
+      errors.push(`"${it.text.slice(0, 40)}" uses hedged language and should be tiered as a hypothesis, not a fact`);
     }
   }
   return errors;

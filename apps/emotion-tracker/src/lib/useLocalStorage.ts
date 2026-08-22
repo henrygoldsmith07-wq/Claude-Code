@@ -11,21 +11,35 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   // render after mount; that's the standard tradeoff for SSR-safe
   // localStorage-backed state, not a bug.
   useEffect(() => {
-    const stored = window.localStorage.getItem(key);
-    if (stored) {
-      try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setValue(JSON.parse(stored) as T);
-      } catch {
-        // ignore corrupt storage
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (stored) {
+        try {
+          const parsed: unknown = JSON.parse(stored);
+          // Guard against corrupt-but-valid JSON of the wrong shape.
+          const shapeOk = Array.isArray(initialValue) ? Array.isArray(parsed) : parsed !== null && typeof parsed === "object";
+          if (shapeOk) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setValue(parsed as T);
+          }
+        } catch {
+          // ignore corrupt storage
+        }
       }
+    } catch {
+      // blocked storage (e.g. Safari private mode) — run in memory only
     }
     setLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   useEffect(() => {
-    if (loaded) {
+    if (!loaded) return;
+    try {
       window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // quota exceeded or blocked storage — keep state in memory
+      console.warn(`Could not persist "${key}" to localStorage; changes stay in this session only.`);
     }
   }, [key, value, loaded]);
 

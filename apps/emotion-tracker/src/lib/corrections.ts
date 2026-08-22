@@ -116,24 +116,24 @@ export function correctionPromptHint(corrections: Correction[], max = 6): string
   return `USER CORRECTIONS — the user previously rejected these interpretations; do not reintroduce them without new evidence:\n${lines.join("\n")}`;
 }
 
+/** Minimum normalised length before substring matching is allowed —
+ *  shorter strings match too broadly and would veto unrelated assumptions. */
+const MIN_CONTAINMENT_LENGTH = 12;
+
 /** Check if a candidate assumption would violate a stored correction. */
 export function violatesCorrection(candidate: string, corrections: Correction[]): Correction | null {
-  const n = candidate.trim().toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  const n = norm(candidate);
   for (const c of corrections || []) {
     const keys = [c.key, c.rejectedInterpretation ?? "", ...(c.affectedPatterns ?? []), ...(c.affectedFacts ?? [])]
-      .map((s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim())
+      .map((s) => norm(s))
       .filter(Boolean);
     for (const k of keys) {
-      if (n.includes(k) || k.includes(n)) return c;
-      // also check assumptionGroupKey-style containment
-      if (k.length >= 12 && n.length >= 12 && (n.includes(k.slice(0, 20)) || k.includes(n.slice(0, 20)))) {
-        // weak containment already checked; no extra
-      }
+      if (n.length >= MIN_CONTAINMENT_LENGTH && k.length >= MIN_CONTAINMENT_LENGTH && (n.includes(k) || k.includes(n))) return c;
     }
     // direct key comparison: assumption:${norm}
     const normCand = `assumption:${n.slice(0, 80)}`;
     if (c.key === normCand) return c;
-    if (c.key.includes(n.slice(0, 20)) && n.length >= 20) return c;
+    if (n.length >= 20 && c.key.includes(n.slice(0, 20))) return c;
   }
   return null;
 }

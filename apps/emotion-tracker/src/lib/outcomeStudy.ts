@@ -24,16 +24,40 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined";
 }
 
+function readStorageItem(storageKey: string): string | null {
+  try {
+    return window.localStorage.getItem(storageKey);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorageItem(storageKey: string, value: string): void {
+  try {
+    window.localStorage.setItem(storageKey, value);
+  } catch {
+    console.warn("Outcome-study storage is unavailable; event not saved.");
+  }
+}
+
+function removeStorageItem(storageKey: string): void {
+  try {
+    window.localStorage.removeItem(storageKey);
+  } catch {
+    // blocked storage — nothing to clean up
+  }
+}
+
 export function isOutcomeStudyOptIn(): boolean {
-  return canUseStorage() && window.localStorage.getItem(OUTCOME_STUDY_OPT_IN_KEY) === "1";
+  return canUseStorage() && readStorageItem(OUTCOME_STUDY_OPT_IN_KEY) === "1";
 }
 
 export function setOutcomeStudyOptIn(value: boolean): void {
   if (!canUseStorage()) return;
-  if (value) window.localStorage.setItem(OUTCOME_STUDY_OPT_IN_KEY, "1");
+  if (value) writeStorageItem(OUTCOME_STUDY_OPT_IN_KEY, "1");
   else {
-    window.localStorage.removeItem(OUTCOME_STUDY_OPT_IN_KEY);
-    window.localStorage.removeItem(OUTCOME_STUDY_EVENTS_KEY);
+    removeStorageItem(OUTCOME_STUDY_OPT_IN_KEY);
+    removeStorageItem(OUTCOME_STUDY_EVENTS_KEY);
   }
 }
 
@@ -62,11 +86,11 @@ export function logOutcomeStudyEvent(
     at: event.at ?? new Date().toISOString(),
   };
   const events = [...getOutcomeStudyEvents(), next].slice(-MAX_STUDY_EVENTS);
-  window.localStorage.setItem(OUTCOME_STUDY_EVENTS_KEY, JSON.stringify(events));
+  writeStorageItem(OUTCOME_STUDY_EVENTS_KEY, JSON.stringify(events));
 }
 
 export function clearOutcomeStudyEvents(): void {
-  if (canUseStorage()) window.localStorage.removeItem(OUTCOME_STUDY_EVENTS_KEY);
+  if (canUseStorage()) removeStorageItem(OUTCOME_STUDY_EVENTS_KEY);
 }
 
 export function outcomeStudySummary(events: OutcomeStudyEvent[] = getOutcomeStudyEvents()) {

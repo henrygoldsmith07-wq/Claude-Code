@@ -5,6 +5,7 @@ import {
   calibrationFor,
   decisionImprovement,
   evidenceLinksFor,
+  monthKey,
   predictionAccuracy,
   summaryInsights,
   unresolvedEntries,
@@ -127,12 +128,8 @@ function generatedDate(value: string | Date | undefined): Date {
   return new Date(time ?? Date.now());
 }
 
-function monthKey(value: string): string {
-  const time = parsedTime(value);
-  if (time === null) return value.slice(0, 7);
-  const date = new Date(time);
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
+// monthKey is shared with longitudinal.ts so weekly/monthly groupings and the
+// evidence report bucket entries into identical periods.
 
 function sortEntries(entries: Entry[]): Entry[] {
   return entries.slice().sort((a, b) => {
@@ -263,6 +260,8 @@ export function buildLongitudinalEvidenceReport(
   if (completed.length < 4) caveats.push("Decision-improvement comparisons need at least four reviewed reflections.");
   if (calibration.totalReviewed === 0) caveats.push("No reviewed predictions fall in this window yet.");
 
+  const timeline = buildTimeline(completed, generated);
+
   return {
     format: LONGITUDINAL_EVIDENCE_REPORT_FORMAT,
     schemaVersion: LONGITUDINAL_EVIDENCE_REPORT_SCHEMA_VERSION,
@@ -272,14 +271,14 @@ export function buildLongitudinalEvidenceReport(
       totalEntries: scoped.length,
       completedEntries: completed.length,
       reviewedEntries: calibration.totalReviewed,
-      periodCount: buildTimeline(completed, generated).length,
+      periodCount: timeline.length,
     },
     evidence,
     calibration,
     predictionAccuracy: predictionAccuracy(completed),
     actionFollowThrough: actionFollowThrough(completed),
     decisionImprovement: decisionImprovement(completed),
-    timeline: buildTimeline(completed, generated),
+    timeline,
     findings: buildFindings(completed, options.corrections ?? [], generated),
     caveats,
   };

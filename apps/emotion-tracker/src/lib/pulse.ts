@@ -3,7 +3,7 @@
 // to the Pulse aggregator via a CustomEvent. No content is sent by default.
 
 import type { Entry } from "./types";
-import { calibrationFor, longitudinalSummary } from "./longitudinal";
+import { calibrationFor, pulseSafeSummary, dueFollowUps } from "./longitudinal";
 
 export const PULSE_EVENT = "reflect:pulse";
 
@@ -13,7 +13,7 @@ export interface ReflectPulseSnapshot {
   completed: number;
   reviewed: number;
   calibration: ReturnType<typeof calibrationFor>;
-  summary: string; // longitudinalSummary — counts only, no verbatim entry text
+  summary: string; // pulseSafeSummary — counts only, no verbatim entry text
   unresolvedDue: number;
 }
 
@@ -22,14 +22,10 @@ export function reflectSnapshot(entries: Entry[], now = new Date()): ReflectPuls
   const completed = entries.filter((e) => e.status === "complete" && e.summary).length;
   const reviewed = entries.filter((e) => e.longitudinalReview?.assumptionVerdict).length;
   const calibration = calibrationFor(entries);
-  const summary = longitudinalSummary(entries);
-  const unresolvedDue = entries.filter((e) => {
-    if (!e.summary || e.longitudinalReview?.assumptionVerdict) return false;
-    const d = e.summary.trace.followUpAt ? new Date(e.summary.trace.followUpAt) : null;
-    if (!d || Number.isNaN(d.getTime())) return false;
-    const t = new Date(now); t.setHours(0,0,0,0); d.setHours(0,0,0,0);
-    return d.getTime() <= t.getTime();
-  }).length;
+  const summary = pulseSafeSummary(entries);
+  // Same counting rule as the Patterns panel (dueFollowUps), so Pulse and UI
+  // can never disagree about what's outstanding.
+  const unresolvedDue = dueFollowUps(entries, now).length;
   return { at: new Date(now).toISOString(), totalReflections, completed, reviewed, calibration, summary, unresolvedDue };
 }
 

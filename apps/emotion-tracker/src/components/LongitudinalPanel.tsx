@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { Entry } from "@/lib/types";
 import type { Correction } from "@/lib/corrections";
 import { annotateAssumptionGroups, annotatePatterns, contradictionKey, withoutDismissed } from "@/lib/corrections";
@@ -39,28 +40,39 @@ export default function LongitudinalPanel({
   onDismissPattern?: (correction: Correction) => void;
   embedded?: boolean;
 }) {
-  const completed = entries.filter((e) => e.summary);
+  // All hooks run unconditionally, before any early return.
+  const completed = useMemo(() => entries.filter((e) => e.summary), [entries]);
+  const emptySummary = useMemo(() => longitudinalSummary(entries, corrections), [entries, corrections]);
+  // Eight independent O(entries²)-ish passes — memoized so parent re-renders
+  // don't re-run the whole pattern engine on every keystroke.
+  const analytics = useMemo(
+    () => ({
+      cal: calibrationFor(entries),
+      recurring: withoutDismissed(annotateAssumptionGroups(detectRecurringAssumptions(entries)), corrections),
+      patterns: withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections),
+      contras: detectContradictions(entries).filter((item) => !corrections.some((correction) => correction.key === contradictionKey(item.entryA, item.entryB))),
+      unresolved: unresolvedEntries(entries),
+      topics: allTopics(entries),
+      links: entryRelationships(entries),
+      series: predictionAccuracySeries(entries),
+      weeks: weeklyReviews(entries).slice(-6),
+      months: monthlyReviews(entries).slice(-6),
+    }),
+    [entries, corrections],
+  );
+
   if (completed.length === 0) {
     return (
       <div className={`flex flex-col gap-6 ${embedded ? "pt-0" : ""}`}>
         <EvidenceReportCard entries={entries} onSelect={onSelect} corrections={corrections} />
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted">{longitudinalSummary(entries, corrections)}</p>
+          <p className="text-sm text-muted">{emptySummary}</p>
         </div>
       </div>
     );
   }
 
-  const cal = calibrationFor(entries);
-  const recurring = withoutDismissed(annotateAssumptionGroups(detectRecurringAssumptions(entries)), corrections);
-  const patterns = withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections);
-  const contras = detectContradictions(entries).filter((item) => !corrections.some((correction) => correction.key === contradictionKey(item.entryA, item.entryB)));
-  const unresolved = unresolvedEntries(entries);
-  const topics = allTopics(entries);
-  const links = entryRelationships(entries);
-  const series = predictionAccuracySeries(entries);
-  const weeks = weeklyReviews(entries).slice(-6);
-  const months = monthlyReviews(entries).slice(-6);
+  const { cal, recurring, patterns, contras, unresolved, topics, links, series, weeks, months } = analytics;
 
   return (
     <div className={`flex flex-col gap-6 ${embedded ? "pt-0" : ""}`}>

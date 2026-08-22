@@ -9,7 +9,13 @@ const IV_LEN = 12;
 function enc(s: string): Uint8Array { return new TextEncoder().encode(s); }
 function dec(b: Uint8Array): string { return new TextDecoder().decode(b); }
 function b64(b: Uint8Array): string {
-  let s = ""; for (const x of b) s += String.fromCharCode(x);
+  // Chunked conversion — per-byte concatenation is painfully slow on
+  // multi-hundred-KB vault payloads.
+  let s = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < b.length; i += CHUNK) {
+    s += String.fromCharCode.apply(null, Array.from(b.subarray(i, i + CHUNK)) as unknown as number[]);
+  }
   return btoa(s);
 }
 function fromB64(s: string): Uint8Array {

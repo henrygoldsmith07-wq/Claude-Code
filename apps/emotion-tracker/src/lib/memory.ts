@@ -48,6 +48,9 @@ export interface RelevantContext {
   correctionsHint: string | null;
   patternHint: string | null;
   query: string;
+  // entries behind the relevance hits, newest-relevance first — lets callers
+  // reuse the retrieval result instead of re-running the same search
+  relatedEntries: Entry[];
 }
 
 // Retrieve only relevant context for a given user message (local relevance search)
@@ -55,11 +58,9 @@ export function retrieveRelevantContext(entries: Entry[], corrections: Correctio
   const snapshot = buildMemorySnapshot(entries, corrections);
   // validated facts relevant: search entries, then collect their observations
   const q = query.trim();
+  const hits = q.length >= 8 ? automaticSearch(entries.filter((e) => e.summary), q, 5) : [];
   let facts: string[] = [];
-  if (q.length >= 8) {
-    const hits = automaticSearch(entries.filter((e) => e.summary), q, 5);
-    for (const h of hits) facts.push(...(h.summary?.trace.observations ?? []).slice(0, 1));
-  }
+  for (const h of hits) facts.push(...(h.summary?.trace.observations ?? []).slice(0, 1));
   if (facts.length === 0) facts = snapshot.validatedFacts.slice(0, 3);
 
   // corrections hint: surface rejected interpretations so the model respects them
@@ -76,7 +77,15 @@ export function retrieveRelevantContext(entries: Entry[], corrections: Correctio
     }
   }
 
-  return { facts: [...new Set(facts)].slice(0, 6), relatedSummaries: [] as unknown as MemorySnapshot["summaries"], correctionsHint, patternHint, query: q };
+  const hitIds = new Set(hits.map((h) => h.id));
+  return {
+    facts: [...new Set(facts)].slice(0, 6),
+    relatedSummaries: snapshot.summaries.filter((s) => hitIds.has(s.id)),
+    correctionsHint,
+    patternHint,
+    query: q,
+    relatedEntries: hits,
+  };
 }
 
 // What actually gets sent to the provider for a turn — minimal
@@ -87,7 +96,7 @@ export function buildProviderContext(entries: Entry[], corrections: Correction[]
   if (relevant.patternHint) hints.push(relevant.patternHint);
   if (relevant.facts.length) hints.push(`Relevant validated facts: ${relevant.facts.slice(0, 3).join(" | ")}`);
   // entry hints: lightweight, no verbatim, capped 5, only those relevant to query (not entire history)
-  const candidates = automaticSearch(entries.filter((e) => e.summary), query, 5);
+  const candidates = relevant.relatedEntries;
   const source = candidates.length ? candidates : entries.filter((e) => e.summary).slice(0, 5);
   const entryHints = source.slice(0, 5).map((e) => ({ id: e.id, coreEmotion: e.summary?.coreEmotion ?? null, triggers: e.summary?.underlyingTriggers.slice(0, 3) ?? [] }));
   return { hints, entryHints };

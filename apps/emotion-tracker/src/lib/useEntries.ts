@@ -2,6 +2,10 @@ import type { Entry, LongitudinalReview, Message, ReflectionMode, ReflectionSumm
 
 type SetEntries = (value: Entry[] | ((current: Entry[]) => Entry[])) => void;
 
+function newId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function deriveTitle(situation: string): string {
   const firstLine = situation.trim().split("\n")[0];
   return firstLine.length > 60 ? `${firstLine.slice(0, 60)}...` : firstLine || "Untitled reflection";
@@ -10,7 +14,7 @@ function deriveTitle(situation: string): string {
 export function useEntries(entries: Entry[], setEntries: SetEntries) {
   function startEntry(situation: string, mode: ReflectionMode = "full"): Entry {
     const entry: Entry = {
-      id: crypto.randomUUID(),
+      id: newId(),
       createdAt: new Date().toISOString(),
       title: deriveTitle(situation),
       messages: [{ role: "user", content: situation }],

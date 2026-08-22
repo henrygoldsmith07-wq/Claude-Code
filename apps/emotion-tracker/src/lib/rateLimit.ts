@@ -55,11 +55,15 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   return { ok: true, remaining: limit - existing.count, retryAfterSeconds: 0 };
 }
 
-// Best-effort client identifier. Behind a proxy/CDN (Vercel, etc.) the real
-// client IP arrives in x-forwarded-for; fall back to x-real-ip, then a shared
-// bucket so the limit still applies even when no IP header is present.
+// Best-effort client identifier.
+//
+// Security note: x-forwarded-for's first value is client-controlled unless a
+// trusted proxy overwrites it. Only honour it when TRUST_PROXY=1 is set
+// (i.e. the deployment actually sits behind such a proxy); otherwise callers
+// fall back to x-real-ip / a shared bucket so a spoofed header can't mint
+// unlimited fresh buckets against the paid-API route.
 export function getClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
+  const forwarded = process.env.TRUST_PROXY === "1" ? request.headers.get("x-forwarded-for") : null;
   if (forwarded) return forwarded.split(",")[0].trim();
   return request.headers.get("x-real-ip")?.trim() || "unknown";
 }

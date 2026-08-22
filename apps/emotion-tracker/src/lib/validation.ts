@@ -50,8 +50,8 @@ export function validateTrace(t: StructuredTrace): string[] {
   if (!t.intendedAction || !t.intendedAction.trim()) errors.push("trace.intendedAction is required");
   if (!t.predictedOutcome || !String(t.predictedOutcome).trim()) errors.push("trace.predictedOutcome is required (what did I think would happen?)");
   // Check false certainty in observation vs assumption leakage — observations shouldn't contain mind-reading
-  const obsText = t.observations.join(" ");
-  if (/\b(they think|they believe|they want to make me)\b/i.test(obsText)) {
+  const obsText = Array.isArray(t.observations) ? t.observations.join(" ") : "";
+  if (obsText && /\b(they think|they believe|they want to make me)\b/i.test(obsText)) {
     errors.push("observations should be factual, not mind-reading; move inferences to assumptions");
   }
   return errors;
@@ -62,15 +62,16 @@ export function validateSummary(s: ReflectionSummary): string[] {
   if (!s.trace) errors.push("summary.trace is required");
   else errors.push(...validateTrace(s.trace));
   if (!s.coreEmotion || !s.coreEmotion.trim()) errors.push("coreEmotion is required");
-  if (!Array.isArray(s.possibleBiases)) errors.push("possibleBiases must be an array");
-  else {
+  if (!Array.isArray(s.possibleBiases)) {
+    errors.push("possibleBiases must be an array");
+  } else {
     for (const b of s.possibleBiases) errors.push(...validateBiasFlag(b));
-  }
-  if (s.possibleBiases.length > 0) {
-    if (!s.hedgedDisclaimer || !s.hedgedDisclaimer.trim()) {
-      errors.push("hedgedDisclaimer is required when biases are flagged");
-    } else if (containsFalseCertainty(s.hedgedDisclaimer)) {
-      errors.push("hedgedDisclaimer must not assert false certainty");
+    if (s.possibleBiases.length > 0) {
+      if (!s.hedgedDisclaimer || !s.hedgedDisclaimer.trim()) {
+        errors.push("hedgedDisclaimer is required when biases are flagged");
+      } else if (containsFalseCertainty(s.hedgedDisclaimer)) {
+        errors.push("hedgedDisclaimer must not assert false certainty");
+      }
     }
   }
   if (!s.balancedAssessment || !s.balancedAssessment.trim()) errors.push("balancedAssessment is required");

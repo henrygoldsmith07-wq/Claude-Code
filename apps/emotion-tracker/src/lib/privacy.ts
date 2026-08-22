@@ -76,3 +76,64 @@ export function containsVerbatimEntryText(text: string, entries: Entry[]): strin
   }
   return null;
 }
+
+// ── export / deletion verification ─────────────────────────────────────
+// Destructive and trust-critical actions are verified after the fact: an
+// export must round-trip to exactly the entries on device, and a delete must
+// leave nothing behind. Failures are reported, never assumed away.
+
+export interface ExportVerification {
+  ok: boolean;
+  expectedCount: number;
+  foundCount: number;
+  missingIds: string[];
+  extraIds: string[];
+  error?: string;
+}
+
+/** Verify a plaintext export contains every entry currently held locally. */
+export function verifyExport(exportedText: string, entries: Entry[]): ExportVerification {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(exportedText);
+  } catch {
+    return { ok: false, expectedCount: entries.length, foundCount: 0, missingIds: [], extraIds: [], error: "Export is not valid JSON." };
+  }
+  if (!Array.isArray(parsed)) {
+    return { ok: false, expectedCount: entries.length, foundCount: 0, missingIds: [], extraIds: [], error: "Export is not an entry array." };
+  }
+  const exportedIds = new Set<string>();
+  for (const row of parsed) {
+    if (typeof row === "object" && row !== null && typeof (row as Record<string, unknown>).id === "string") {
+      exportedIds.add((row as Record<string, unknown>).id as string);
+    }
+  }
+  const expectedIds = entries.map((e) => e.id);
+  const missingIds = expectedIds.filter((id) => !exportedIds.has(id));
+  return {
+    ok: missingIds.length === 0,
+    expectedCount: entries.length,
+    foundCount: exportedIds.size,
+    missingIds,
+    extraIds: [...exportedIds].filter((id) => !expectedIds.includes(id)),
+  };
+}
+
+export interface DeleteVerification {
+  ok: boolean;
+  keysStillPresent: string[];
+}
+
+/** Verify the given localStorage keys were actually removed. */
+export function verifyDeletion(keys: string[]): DeleteVerification {
+  if (typeof window === "undefined") return { ok: true, keysStillPresent: [] };
+  const stillPresent: string[] = [];
+  for (const k of keys) {
+    try {
+      if (window.localStorage.getItem(k) !== null) stillPresent.push(k);
+    } catch {
+      // blocked storage — nothing was ever written there
+    }
+  }
+  return { ok: stillPresent.length === 0, keysStillPresent: stillPresent };
+}

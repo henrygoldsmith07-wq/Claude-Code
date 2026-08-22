@@ -120,7 +120,7 @@ export default function Home() {
 
       {unresolved.length > 0 && <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs"><div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2"><span className="font-medium text-amber-800">{unresolved.length} follow-up{unresolved.length === 1 ? "" : "s"} due</span><span className="text-amber-700/80">— compare what you predicted with what actually happened.</span>{unresolved.slice(0, 3).map((entry) => <button key={entry.id} type="button" onClick={() => handleSelect(entry.id)} className="rounded-full border border-amber-500/30 bg-card px-2 py-0.5 hover:bg-card-hover">{entry.title.slice(0, 28)}</button>)}<button type="button" onClick={() => switchView("patterns")} className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 font-medium text-white hover:bg-amber-700">Review all →</button></div></div>}
 
-      <main className="flex-1 overflow-y-auto">
+      <main id="main-content" className="flex-1 overflow-y-auto">
         {selectedEntry ? (
           <ReflectionSession key={selectedEntry.id} entry={selectedEntry} entries={entries} corrections={corrections} apiKey={apiKey} onAppendMessage={appendMessage} onCompleteEntry={handleCompleteEntry} onUpdateFollowUp={handleUpdateFollowUp} onSaveReview={handleSaveReview} onClearReview={clearLongitudinalReview} onDismissPattern={handleDismissBias} onError={(message) => setToast({ message })} />
         ) : creatingNew ? (

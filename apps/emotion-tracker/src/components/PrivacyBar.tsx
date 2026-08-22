@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Entry } from "@/lib/types";
 import { encryptJson, decryptJson, passphraseStrength, type EncryptedBlob } from "@/lib/crypto";
 import { isPulseOptIn, setPulseOptIn, emitPulse } from "@/lib/pulse";
 import { parseImport } from "@/lib/importExport";
+import { verifyDeletion, verifyExport } from "@/lib/privacy";
 
 const VAULT_KEY = "reflectVault";
 const ENTRIES_KEY = "reflectEntries";
@@ -25,13 +26,23 @@ export default function PrivacyBar({
   setEntries: (v: Entry[] | ((c: Entry[]) => Entry[])) => void;
 }) {
   const [passphrase, setPassphrase] = useState("");
-  const [localOnly, setLocalOnly] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("reflectLocalOnly") === "1";
-  });
-  const [pulseOn, setPulseOn] = useState(() => isPulseOptIn());
+  // Storage-backed flags start neutral and sync after mount — reading
+  // localStorage during the initial render causes hydration mismatches.
+  // Deferred like SettingsView does, so state isn't set synchronously in the effect.
+  const [localOnly, setLocalOnly] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
+  const [hasVault, setHasVault] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        setLocalOnly(window.localStorage.getItem("reflectLocalOnly") === "1");
+        setPulseOn(isPulseOptIn());
+        setHasVault(!!window.localStorage.getItem(VAULT_KEY));
+      } catch { /* blocked storage */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const strength = useMemo(() => passphraseStrength(passphrase), [passphrase]);
-  const hasVault = typeof window !== "undefined" && !!window.localStorage.getItem(VAULT_KEY);
 
   function persistLocalOnly(v: boolean) {
     setLocalOnly(v);
@@ -48,6 +59,7 @@ export default function PrivacyBar({
       window.localStorage.setItem(VAULT_KEY, JSON.stringify(blob));
       // keep entries in place too — vault is a backup/encryption layer for export hygiene;
       // clearing plaintext is the "Encrypt & clear" action below.
+      setHasVault(true);
     } catch (e) {
       alert(`Could not save vault: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -66,7 +78,15 @@ export default function PrivacyBar({
   }
 
   function handleExport() {
+    const payload = JSON.stringify(entries, null, 2);
     downloadJson(`reflect-export-${new Date().toISOString().slice(0, 10)}.json`, entries);
+    // Trust but verify: confirm what just left the device matches what's on it.
+    const check = verifyExport(payload, entries);
+    if (check.ok) {
+      alert(`Export verified: all ${check.foundCount} reflection${check.foundCount === 1 ? "" : "s"} included.`);
+    } else {
+      alert(`Export incomplete — ${check.missingIds.length} entr${check.missingIds.length === 1 ? "y" : "ies"} missing (${check.error ?? "ids not found in file"}). Please re-export before deleting anything.`);
+    }
   }
 
   async function handleExportEncrypted() {
@@ -97,7 +117,13 @@ export default function PrivacyBar({
     try {
       window.localStorage.removeItem(ENTRIES_KEY);
       window.localStorage.removeItem(VAULT_KEY);
+      setHasVault(false);
     } catch {}
+    // Verify the wipe actually took — a failed removal must not pass silently.
+    const check = verifyDeletion([ENTRIES_KEY, VAULT_KEY]);
+    if (!check.ok) {
+      alert(`Warning: deletion could not be verified for: ${check.keysStillPresent.join(", ")}. Storage may be blocked — check Settings or try again.`);
+    }
   }
 
   function handleEncryptAndClear() {

@@ -5,6 +5,7 @@ import type { BiasFlag, Entry, LongitudinalReview, Message, ReflectionSummary } 
 import type { Correction } from "@/lib/corrections";
 import { logOutcomeStudyEvent } from "@/lib/outcomeStudy";
 import { buildProviderContext } from "@/lib/memory";
+import { containsSensitiveData } from "@/lib/adversarial";
 import SummaryView from "./SummaryView";
 
 interface Props {
@@ -20,6 +21,10 @@ interface Props {
   onDismissPattern?: (bias: BiasFlag) => void;
   onError: (message: string) => void;
 }
+
+// Client-side ceiling for one provider turn — the server already bounds its
+// upstream call; this stops the spinner if the network itself stalls.
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export default function ReflectionSession({
   entry,
@@ -37,9 +42,10 @@ export default function ReflectionSession({
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [quietFocus, setQuietFocus] = useState(false);
-  // Retry: after a provider failure the session would otherwise be stuck
-  // (awaitingAi stays true, messages.length unchanged). A nonce re-runs the
-  // request effect without duplicating the user's message.
+  // Request lifecycle: a failed step surfaces an inline Try-again button —
+  // failures never auto-retry (a transient error must not loop against the
+  // paid API), and switching away aborts the in-flight request.
+  const [failed, setFailed] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const requestedForRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -51,6 +57,13 @@ export default function ReflectionSession({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [entry.messages.length, loading]);
+
+  function retryRequest() {
+    setFailed(false);
+    requestedForRef.current = null;
+    // Re-run the request effect without duplicating the user's message.
+    setRetryNonce((n) => n + 1);
+  }
 
   useEffect(() => {
     if (!awaitingAi) return;
@@ -68,6 +81,16 @@ export default function ReflectionSession({
     // external fetch rather than an input event.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
+    setFailed(false);
+
+    const controller = new AbortController();
+    let cancelled = false;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
+
     const query = entry.messages[entry.messages.length - 1]?.content ?? "";
     const providerContext = buildProviderContext(entries ?? [], corrections ?? [], entry.messages, query);
     fetch("/api/reflect", {
@@ -80,6 +103,7 @@ export default function ReflectionSession({
         entries: providerContext.entryHints,
         corrections: corrections?.slice(-10) ?? undefined,
       }),
+      signal: controller.signal,
     })
       .then(async (res) => {
         const data = await res.json();
@@ -94,16 +118,39 @@ export default function ReflectionSession({
         }
       })
       .catch((err) => {
+        if (cancelled) return; // unmounted — nothing left to update
+        setFailed(true);
+        if (timedOut) {
+          onError("The reflection service took too long to respond — try again.");
+          return;
+        }
         onError(err instanceof Error ? err.message : "Something went wrong");
-        requestedForRef.current = null;
-        setRetryNonce((n) => n + 1);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingAi, entry.id, entry.messages.length, retryNonce]);
 
   function submitAnswer() {
     if (!answer.trim()) return;
+    // Local-only mode never transmits, so no provider-warning is needed there.
+    const localOnly = typeof window !== "undefined" && window.localStorage.getItem("reflectLocalOnly") === "1";
+    if (!localOnly && containsSensitiveData(answer)) {
+      const proceed = window.confirm(
+        "This answer looks like it contains personal data (an email, phone number or credential).\n" +
+        "It would be sent to the AI provider with your next reflection step.\n\n" +
+        "Send anyway, or edit it out first?",
+      );
+      if (!proceed) return;
+    }
     onAppendMessage(entry.id, { role: "user", content: answer.trim() });
     setAnswer("");
   }
@@ -129,7 +176,10 @@ export default function ReflectionSession({
 
           {visibleMessages.map((m, i) => (
             <div
-              key={`${entry.messages.length}-${i}`}
+              // Stable per message: appending never changes earlier keys (no
+              // full-transcript remount), and turns strictly alternate roles
+              // so role+index is unique within the rendered list.
+              key={`${m.role}-${i}`}
               className={`${quietFocus && m.role === "assistant" ? "max-w-full px-5 py-5 text-base sm:text-lg" : "max-w-[85%] px-4 py-2.5 text-sm"} rounded-2xl leading-relaxed whitespace-pre-wrap animate-fade-in ${
                 m.role === "user"
                   ? "self-end bg-accent text-white shadow-sm"
@@ -141,8 +191,12 @@ export default function ReflectionSession({
           ))}
 
           {loading && (
-            <div className="self-start flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted">
-              <span className="flex gap-1">
+            <div
+              role="status"
+              aria-live="polite"
+              className="self-start flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted"
+            >
+              <span aria-hidden="true" className="flex gap-1">
                 <span className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-accent" />
                 <span
                   className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-accent"
@@ -157,11 +211,28 @@ export default function ReflectionSession({
             </div>
           )}
 
+          {failed && !loading && awaitingAi && (
+            <div
+              role="alert"
+              className="self-start flex items-center gap-3 rounded-2xl border border-danger/30 bg-dangersoft px-4 py-3 text-sm text-danger"
+            >
+              <span>The last reflection step didn&apos;t complete.</span>
+              <button
+                type="button"
+                onClick={retryRequest}
+                className="rounded-lg border border-danger/40 px-3 py-1.5 text-xs font-medium hover:bg-danger/10"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
           {entry.status === "complete" && entry.summary && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm animate-fade-in">
               <SummaryView
                 summary={entry.summary}
                 longitudinalReview={entry.longitudinalReview ?? null}
+                corrections={corrections}
                 onFollowUp={
                   onUpdateFollowUp
                     ? (at, note) => onUpdateFollowUp(entry.id, at, note)

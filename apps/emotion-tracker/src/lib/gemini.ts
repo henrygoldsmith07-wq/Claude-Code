@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Entry, Message, ReflectionMode, ReflectionSummary } from "./types";
 import { validateSummary } from "./validation";
 import { diverseQuestionHint, personalAdaptationHint } from "./promptDiversity";
-import { correctionPromptHint } from "./corrections";
+import { correctionPromptHint, violatesCorrection } from "./corrections";
 import { detectAdversarial } from "./adversarial";
 import { validateProviderOutput, formatValidationErrors } from "./outputValidation";
 import type { Correction } from "./corrections";
@@ -13,14 +13,24 @@ const MAX_QUESTIONS = 5;
 const QUICK_MIN_QUESTIONS = 1;
 const QUICK_MAX_QUESTIONS = 2;
 
-// Past surface but before that ("Rorie Butalia" Greta Gerwig's...)
+/** Errors that are part of the product contract (key handling, hedging rules,
+ *  correction enforcement, malformed model output). Safe to show verbatim to
+ *  the client — unlike SDK/internal failures, they carry no infrastructure
+ *  details. */
+export class ProviderContractError extends Error {}
+
+function fail(message: string): never {
+  throw new ProviderContractError(message);
+}
 
 function getClient(apiKey?: string): Anthropic {
   const key = apiKey || process.env.ANTHROPIC_API_KEY;
   if (!key) {
-    throw new Error("No Anthropic API key provided. Add your own key to continue the reflection.");
+    fail("No Anthropic API key provided. Add your own key to continue the reflection.");
   }
-  return new Anthropic({ apiKey: key });
+  // Bound the upstream call: a stalled provider must not hold the HTTP request
+  // open for the SDK default of 10 minutes.
+  return new Anthropic({ apiKey: key, timeout: 30_000, maxRetries: 1 });
 }
 
 const ASK_TOOL = {
@@ -256,14 +266,22 @@ export async function getNextReflectionStep(
 
   const toolUse = response.content.find((block: { type: string }) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("Claude did not return a structured response");
+    fail("Claude did not return a structured response");
   }
 
   if (toolUse.name === "ask_followup") {
     const input = toolUse.input as { question: string };
-    if (typeof input.question !== "string" || !input.question.trim()) throw new Error("Claude returned an empty follow-up question");
-    if (input.question.length > 600) throw new Error("Follow-up question too long — malformed provider response");
+    if (typeof input.question !== "string" || !input.question.trim()) fail("Claude returned an empty follow-up question");
+    if (input.question.length > 600) {
+      return { step: "question", question: `${input.question.trim().slice(0, 597)}…` };
+    }
     return { step: "question", question: input.question.trim() };
+  }
+
+  if (toolUse.name !== CONCLUDE_TOOL.name) {
+    // The model emitted a tool outside the declared contract — reject clearly
+    // instead of misreading it as a summary.
+    fail(`Claude returned an unexpected tool (${String(toolUse.name)})`);
   }
 
   const summary = toolUse.input as ReflectionSummary;
@@ -280,18 +298,17 @@ export async function getNextReflectionStep(
   // Stronger validation: catches missing evidence, contradictory output, malformed confidence etc.
   const out = validateProviderOutput(summary);
   if (out.outcome !== "accept") {
-    throw new Error(formatValidationErrors(out.errors));
+    fail(formatValidationErrors(out.errors));
   }
   // Respect corrections: never return a rejected assumption without new evidence
   if (opts?.corrections && opts.corrections.length) {
-    const { violatesCorrection } = await import("./corrections");
     for (const a of summary.trace.assumptions ?? []) {
       const hit = violatesCorrection(a, opts.corrections);
-      if (hit) throw new Error(`Reflection returned a previously rejected interpretation ("${a.slice(0, 60)}") — correction ${hit.key} violated. Retry without reintroducing it.`);
+      if (hit) fail(`Reflection returned a previously rejected interpretation ("${a.slice(0, 60)}") — correction ${hit.key} violated. Retry without reintroducing it.`);
     }
   }
   const legacyErrors = validateSummary(summary);
-  if (legacyErrors.length > 0) throw new Error(`Reflection did not meet structured/hedged requirements: ${legacyErrors.join(" · ")}`);
+  if (legacyErrors.length > 0) fail(`Reflection did not meet structured/hedged requirements: ${legacyErrors.join(" · ")}`);
 
   return { step: "summary", summary };
 }

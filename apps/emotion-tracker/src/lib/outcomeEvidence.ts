@@ -47,9 +47,11 @@ export function buildOutcomeMetrics(entries: Entry[], corrections: Correction[] 
   const supported = entries.filter(e=>e.longitudinalReview?.assumptionVerdict==="supported").length;
   const supportedRate = rate(supported, reviewed);
 
-  // rejected rate: how many shown patterns were corrected
+  // rejected rate: how many shown patterns were corrected — count only
+  // pattern-kind corrections (calibration/unresolved rejections aren't patterns)
   const patterns = buildPatternEvidences(entries);
-  const rejectedRate = patterns.length ? rate(corrections.length, patterns.length + corrections.length) : null;
+  const patternCorrections = corrections.filter((c) => c.kind === "pattern" || c.key.startsWith("pattern:") || c.key.startsWith("assumption:"));
+  const rejectedRate = patterns.length ? rate(patternCorrections.length, patterns.length + patternCorrections.length) : null;
 
   const stability = patternStability(entries);
 

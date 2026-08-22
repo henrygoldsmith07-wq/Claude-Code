@@ -33,12 +33,14 @@ export default function NewEntryForm({ onSubmit, initialMode = "full" }: Props) 
         </p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Reflection length">
+      {/* Toggle buttons (aria-pressed) rather than a fake radiogroup — real
+          radio semantics require arrow-key roving focus we don't implement. */}
+      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Reflection length">
         {([
           ["quick", "Quick reflection", "One focused question · about 2 minutes"],
           ["full", "Full reflection", "A deeper pass · up to 5 questions"],
         ] as const).map(([value, label, detail]) => (
-          <button key={value} type="button" role="radio" aria-checked={mode === value} onClick={() => setMode(value)} className={`rounded-xl border p-3 text-left transition-colors ${mode === value ? "border-accent bg-accent/8 ring-1 ring-accent/20" : "border-border bg-card hover:bg-card-hover"}`}>
+          <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)} className={`rounded-xl border p-3 text-left transition-colors ${mode === value ? "border-accent bg-accent/8 ring-1 ring-accent/20" : "border-border bg-card hover:bg-card-hover"}`}>
             <span className="text-sm font-medium">{label}</span>
             <span className="mt-1 block text-xs text-muted">{detail}</span>
           </button>
@@ -46,7 +48,9 @@ export default function NewEntryForm({ onSubmit, initialMode = "full" }: Props) 
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <label htmlFor="situation-input" className="sr-only">Describe the situation and your first read on it</label>
         <textarea
+          id="situation-input"
           value={situation}
           onChange={(e) => setSituation(e.target.value)}
           rows={7}

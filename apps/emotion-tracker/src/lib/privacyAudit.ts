@@ -57,8 +57,18 @@ export function auditLogs(entries: Entry[], logLines: string[]): PrivacySurface 
   return { area: "logs", status: "pass", detail: "No verbatim entry text in log lines" };
 }
 
+// The audit must never be the thing that crashes: circular or otherwise
+// unserialisable payloads degrade to a placeholder instead of throwing.
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? "";
+  } catch {
+    return "[unserialisable payload]";
+  }
+}
+
 export function auditAnalytics(payload: unknown, entries: Entry[]): PrivacySurface {
-  const str = JSON.stringify(payload);
+  const str = safeStringify(payload);
   for (const e of entries) {
     const leak = containsVerbatimEntryText(str, [e]);
     if (leak) return { area: "analytics", status: "fail", detail: `Analytics payload leaks verbatim entry text: "${leak.slice(0, 40)}" — must be counts-only` };
@@ -68,7 +78,7 @@ export function auditAnalytics(payload: unknown, entries: Entry[]): PrivacySurfa
 
 export function auditServerStorage(payload: unknown, entries: Entry[]): PrivacySurface {
   // server should never persist verbatim messages long-term — check what would be stored
-  const str = JSON.stringify(payload);
+  const str = safeStringify(payload);
   for (const e of entries) {
     const leak = containsVerbatimEntryText(str, [e]);
     if (leak) return { area: "serverStorage", status: "fail", detail: `Server storage leaks verbatim text: "${leak.slice(0, 40)}"` };
@@ -77,7 +87,7 @@ export function auditServerStorage(payload: unknown, entries: Entry[]): PrivacyS
 }
 
 export function auditAiProviderPayload(payload: unknown, entries: Entry[]): PrivacySurface {
-  const str = JSON.stringify(payload);
+  const str = safeStringify(payload);
   // AI payload is allowed to contain *current* reflection messages, but not entire history verbatim as context
   // Here we check that lightweight hints don't leak verbatim event/assumptions
   for (const e of entries) {

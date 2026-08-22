@@ -2,6 +2,7 @@ import type { Entry, LongitudinalReview } from "./types";
 import { withoutDismissed, annotatePatterns, annotateAssumptionGroups } from "./corrections";
 import type { Correction, AnnotatedPattern } from "./corrections";
 import { norm, tokens, jaccard, simTokens } from "./tokens";
+import { localIsoDate } from "./followUp";
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -13,6 +14,21 @@ function assumptionSim(a: string, b: string): number {
   for (const t of ta) if (tb.has(t)) inter++;
   const union = ta.size + tb.size - inter;
   return union === 0 ? 0 : inter / union;
+}
+
+const POLARITY_WORDS = ["not", "never", "always"] as const;
+
+/** Coarse polarity signature: which polarity words appear (word-bounded).
+ *  Assumptions with different signatures must not group together —
+ *  "they will never help me" and "they will always help me" are opposites,
+ *  even though their stemmed tokens are near-identical. */
+function polaritySignature(s: string): string {
+  const n = ` ${norm(s)} `;
+  return POLARITY_WORDS.filter((w) => n.includes(` ${w} `)).join("+");
+}
+
+function hasWord(s: string, word: string): boolean {
+  return s.includes(` ${word} `);
 }
 
 function parseDate(s: string | null | undefined): number | null {
@@ -44,8 +60,10 @@ export function detectRecurringAssumptions(entries: Entry[], threshold = 0.4): R
     if (used.has(i)) continue;
     const g: RecurringAssumption = { representative: all[i].assumption, members: [all[i]], count: 1 };
     used.add(i);
+    const polarityI = polaritySignature(all[i].assumption);
     for (let j = i + 1; j < all.length; j++) {
       if (used.has(j)) continue;
+      if (polaritySignature(all[j].assumption) !== polarityI) continue; // opposites never group
       const sim = assumptionSim(all[i].assumption, all[j].assumption);
       const sub =
         norm(all[i].assumption).includes(norm(all[j].assumption)) ||
@@ -141,13 +159,15 @@ export function detectContradictions(entries: Entry[]): Contradiction[] {
         for (const bb of bAss) {
           const na = norm(aa);
           const nb = norm(bb);
-          // simple negation detection
+          const naP = ` ${na} `;
+          const nbP = ` ${nb} `;
+          // simple negation detection (word-bounded so "noted"/"nothing"/"another" don't count)
           if (
-            (na.includes("not") !== nb.includes("not") && jaccard(aa, bb) >= 0.45) ||
-            (na.includes("always") && nb.includes("sometimes") && jaccard(aa, bb) >= 0.35) ||
-            (na.includes("never") && nb.includes("sometimes") && jaccard(aa, bb) >= 0.35) ||
-            (na.includes("always") && nb.includes("never") && jaccard(aa, bb) >= 0.35) ||
-            (na.includes("never") && nb.includes("always") && jaccard(aa, bb) >= 0.35)
+            (hasWord(naP, "not") !== hasWord(nbP, "not") && jaccard(aa, bb) >= 0.45) ||
+            (hasWord(naP, "always") && hasWord(nbP, "sometimes") && jaccard(aa, bb) >= 0.35) ||
+            (hasWord(naP, "never") && hasWord(nbP, "sometimes") && jaccard(aa, bb) >= 0.35) ||
+            (hasWord(naP, "always") && hasWord(nbP, "never") && jaccard(aa, bb) >= 0.35) ||
+            (hasWord(naP, "never") && hasWord(nbP, "always") && jaccard(aa, bb) >= 0.35)
           ) {
             out.push({ entryA: a.id, entryB: b.id, reason: "Opposing assumptions about a similar situation", assumptions: [aa, bb] });
           }
@@ -160,13 +180,17 @@ export function detectContradictions(entries: Entry[]): Contradiction[] {
       if (emoA && emoB && emoA !== emoB) {
         const trigA = a.summary!.underlyingTriggers.map(norm);
         const trigB = b.summary!.underlyingTriggers.map(norm);
-        if (trigA.some((t) => trigB.includes(t))) {
+        const sharedTrigger = trigA.find((t) => trigB.includes(t));
+        if (sharedTrigger !== undefined) {
           const shifted =
             (NEGATIVE_EMOTIONS.has(emoA) && POSITIVE_EMOTIONS.has(emoB)) ||
             (NEGATIVE_EMOTIONS.has(emoB) && POSITIVE_EMOTIONS.has(emoA));
+          // cite a trigger both entries actually share (display text, not normalised)
+          const sharedDisplay =
+            a.summary!.underlyingTriggers.find((t) => norm(t) === sharedTrigger) ?? a.summary!.underlyingTriggers[0] ?? sharedTrigger;
           const reason = shifted
-            ? `Same trigger (“${a.summary!.underlyingTriggers[0]}”) but emotion shifted between ${emoA} and ${emoB} — possible change worth noting`
-            : `Same trigger (“${a.summary!.underlyingTriggers[0]}”) but different emotion: ${emoA} vs ${emoB}`;
+            ? `Same trigger (“${sharedDisplay.slice(0, 80)}”) but emotion shifted between ${emoA} and ${emoB} — possible change worth noting`
+            : `Same trigger (“${sharedDisplay.slice(0, 80)}”) but different emotion: ${emoA} vs ${emoB}`;
           out.push({ entryA: a.id, entryB: b.id, reason, assumptions: [emoA, emoB] });
         }
       }
@@ -305,10 +329,14 @@ function isoWeekKey(dateInput: string | Date): string {
   return `${isoYear}-W${String(week).padStart(2, "0")}`;
 }
 
-function monthKey(dateInput: string): string {
+/** YYYY-MM by LOCAL calendar day — same day-anchor as isoWeekKey, so an entry
+ *  lands in the same period whether grouped by week or month. Shared with the
+ *  evidence report to keep period counts reconcilable. */
+export function monthKey(dateInput: string | Date): string {
   const d = new Date(dateInput);
-  if (Number.isNaN(d.getTime())) return dateInput.slice(0, 7);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  if (Number.isNaN(d.getTime())) return typeof dateInput === "string" ? dateInput.slice(0, 7) : "";
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  return `${utc.getUTCFullYear()}-${String(utc.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export function weeklyReviews(entries: Entry[]): PeriodReview[] {
@@ -336,8 +364,23 @@ export function monthlyReviews(entries: Entry[]): PeriodReview[] {
 // Shared period-review enrichment: patterns + contradictions + outstanding
 // actions, each insight still linked to the entries that produced it.
 function enrichPeriodReview(period: string, list: Entry[]): PeriodReview {
-  const assumptions = list.flatMap((e) => e.summary!.trace.assumptions);
-  const topAssumption = assumptions.length ? assumptions.sort((a, b) => b.length - a.length)[0] : null;
+  const assumptions = list.flatMap((e) => e.summary!.trace.assumptions).filter((a) => norm(a));
+  // "Top" means most frequent (consistent with the other detectors), not longest
+  const counts = new Map<string, { text: string; n: number }>();
+  for (const a of assumptions) {
+    const k = norm(a);
+    const cur = counts.get(k);
+    counts.set(k, { text: cur?.text ?? a, n: (cur?.n ?? 0) + 1 });
+  }
+  let topAssumption: string | null = null;
+  let bestN = 1; // require at least 2 occurrences to call something "top"
+  for (const { text, n } of counts.values()) {
+    if (n > bestN) { bestN = n; topAssumption = text; }
+  }
+  if (!topAssumption && assumptions.length > 0) {
+    // no repeats this period — surface the first assumption rather than nothing
+    topAssumption = assumptions[0];
+  }
   return {
     period,
     entries: list,
@@ -392,8 +435,14 @@ export interface ResurfaceItem {
 
 // Rank open follow-ups: oldest overdue first, then those where no action was
 // ever logged, then ones with no follow-up date at all (sitting in limbo).
+// Reviews that ended "unclear" also resurface — the question is still open.
 export function resurfacingQueue(entries: Entry[], now = new Date(), topK = 8): ResurfaceItem[] {
-  const open = unresolvedEntries(entries, now);
+  const open = [
+    ...unresolvedEntries(entries, now),
+    // "unclear"-verdict entries never appear in unresolvedEntries (it excludes
+    // any reviewed entry), but their question is still open — resurface them.
+    ...entries.filter((e) => e.summary && e.longitudinalReview?.assumptionVerdict === "unclear"),
+  ];
   const t = new Date(now); t.setHours(0, 0, 0, 0);
   return open
     .map((e) => {
@@ -437,8 +486,11 @@ export function suggestFollowUp(entry: Entry, now = new Date()): FollowUpSuggest
     reason += " Action wasn't logged — checking sooner closes the loop.";
   }
   const date = new Date(now);
+  // local calendar day (with noon guard) so the suggested day matches the
+  // follow-up picker everywhere, regardless of UTC offset — see followUp.ts
+  date.setHours(12, 0, 0, 0);
   date.setDate(date.getDate() + dueInDays);
-  return { dueInDays, followUpAt: date.toISOString().slice(0, 10), reason };
+  return { dueInDays, followUpAt: localIsoDate(date), reason };
 }
 
 // ── action tracking ────────────────────────────────────────────────────
@@ -554,5 +606,30 @@ export function longitudinalSummary(entries: Entry[], corrections: Correction[] 
   if (unresolved.length) parts.push(`${unresolved.length} unresolved follow-up${unresolved.length === 1 ? "" : "s"} due.`);
   if (improvement.improved) parts.push(`Calibration improving over time (unsupported ${improvement.before}% → ${improvement.after}%).`);
   if (actions.actionLoggedPct != null && actions.actionLoggedPct < 50) parts.push(`Only ${actions.actionLoggedPct}% of reviewed reflections logged an action — tracking actions closes the loop.`);
+  return parts.join(" ");
+}
+
+/** Counts-only summary for Pulse snapshots — the privacy contract for Pulse is
+ *  "counts not content" (privacy.ts), so no verbatim entry text, quotes,
+ *  triggers or pattern labels may appear here. */
+export function pulseSafeSummary(entries: Entry[], corrections: Correction[] = []): string {
+  const total = entries.filter((e) => e.summary).length;
+  if (total === 0) return "No completed reflections yet.";
+  const cal = calibrationFor(entries);
+  const recurring = withoutDismissed(annotateAssumptionGroups(detectRecurringAssumptions(entries)), corrections);
+  const patterns = withoutDismissed(annotatePatterns(detectRecurringPatterns(entries)), corrections).length;
+  const contras = detectContradictions(entries).length;
+  const unresolved = unresolvedEntries(entries).length;
+  const improvement = decisionImprovement(entries);
+  const actions = actionFollowThrough(entries);
+  const parts: string[] = [];
+  parts.push(`${total} reflection${total === 1 ? "" : "s"} · ${cal.totalReviewed} reviewed.`);
+  if (cal.totalReviewed > 0) parts.push(`Calibration: ${cal.unsupported} unsupported / ${cal.supported} supported.`);
+  if (recurring.length) parts.push(`${recurring.length} recurring assumption group${recurring.length === 1 ? "" : "s"}.`);
+  if (patterns) parts.push(`${patterns} common pattern${patterns === 1 ? "" : "s"}.`);
+  if (contras) parts.push(`${contras} possible contradiction${contras === 1 ? "" : "s"} detected.`);
+  if (unresolved) parts.push(`${unresolved} unresolved follow-up${unresolved === 1 ? "" : "s"} due.`);
+  if (improvement.improved) parts.push("Calibration improving over time.");
+  if (actions.actionLoggedPct != null && actions.actionLoggedPct < 50) parts.push(`Only ${actions.actionLoggedPct}% of reviewed reflections logged an action.`);
   return parts.join(" ");
 }

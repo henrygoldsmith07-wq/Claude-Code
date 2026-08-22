@@ -55,14 +55,9 @@ export function sanitizeEntry(raw: unknown, index: number): Entry | null {
         .filter((m) => m.content.trim() !== "")
     : [];
 
-  // summary: keep only if it has a structured trace
-  const summaryRaw = r.summary;
-  const summary: ReflectionSummary | null =
-    typeof summaryRaw === "object" &&
-    summaryRaw !== null &&
-    typeof (summaryRaw as Record<string, unknown>).trace === "object"
-      ? (summaryRaw as ReflectionSummary)
-      : null;
+  // summary: keep only if it has a structured trace; normalise every field so
+  // downstream analyzers never iterate undefined (imported rows are untrusted)
+  const summary = sanitizeSummary(r.summary);
 
   // longitudinalReview: keep only if it's an object with at least one field
   const lrRaw = r.longitudinalReview;
@@ -86,6 +81,61 @@ export function sanitizeEntry(raw: unknown, index: number): Entry | null {
   const finalStatus: Entry["status"] = status === "in_progress" && messages.length === 0 ? "complete" : status;
 
   return { id, createdAt, title, messages, status: finalStatus, mode, summary, longitudinalReview };
+}
+
+function asStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === "string").map((s) => s.slice(0, MAX_MESSAGE_CHARS));
+}
+
+function asNonEmptyString(v: unknown): string {
+  return typeof v === "string" ? v.slice(0, MAX_MESSAGE_CHARS) : "";
+}
+
+/** Normalise an untrusted summary into a structurally safe ReflectionSummary. */
+function sanitizeSummary(raw: unknown): ReflectionSummary | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const s = raw as Record<string, unknown>;
+  const traceRaw = s.trace;
+  if (typeof traceRaw !== "object" || traceRaw === null || Array.isArray(traceRaw)) return null;
+  const t = traceRaw as Record<string, unknown>;
+
+  const biases: ReflectionSummary["possibleBiases"] = Array.isArray(s.possibleBiases)
+    ? (s.possibleBiases as unknown[]).flatMap((b) => {
+        if (typeof b !== "object" || b === null || Array.isArray(b)) return [];
+        const bias = b as Record<string, unknown>;
+        return [{
+          type: asNonEmptyString(bias.type),
+          description: asNonEmptyString(bias.description),
+          evidenceFor: asStringArray(bias.evidenceFor),
+          evidenceAgainst: asStringArray(bias.evidenceAgainst),
+          confidence: typeof bias.confidence === "number" && Number.isFinite(bias.confidence) ? Math.min(Math.max(bias.confidence, 0), 1) : 0,
+        }];
+      })
+    : [];
+
+  return {
+    trace: {
+      event: asNonEmptyString(t.event),
+      observations: asStringArray(t.observations),
+      assumptions: asStringArray(t.assumptions),
+      namedEmotion: asNonEmptyString(t.namedEmotion),
+      alternativeInterpretations: asStringArray(t.alternativeInterpretations),
+      intendedOutcome: asNonEmptyString(t.intendedOutcome),
+      intendedAction: asNonEmptyString(t.intendedAction),
+      predictedOutcome: asNonEmptyString(t.predictedOutcome),
+      followUpAt: validDate(t.followUpAt) ? (t.followUpAt as string) : null,
+      followUpNote: t.followUpNote === null || t.followUpNote === undefined ? null : asNonEmptyString(t.followUpNote) || null,
+    },
+    coreEmotion: asNonEmptyString(s.coreEmotion),
+    underlyingTriggers: asStringArray(s.underlyingTriggers),
+    possibleBiases: biases,
+    otherPerspective: asNonEmptyString(s.otherPerspective),
+    balancedAssessment: asNonEmptyString(s.balancedAssessment),
+    cautionFlags: asStringArray(s.cautionFlags),
+    suggestedNextSteps: asStringArray(s.suggestedNextSteps),
+    hedgedDisclaimer: s.hedgedDisclaimer === null || s.hedgedDisclaimer === undefined ? null : asNonEmptyString(s.hedgedDisclaimer) || null,
+  };
 }
 
 /**

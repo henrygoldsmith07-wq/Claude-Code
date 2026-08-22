@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { BiasFlag, LongitudinalReview, ReflectionSummary } from "@/lib/types";
 import { evidenceLinksFor } from "@/lib/longitudinal";
-import { patternKey } from "@/lib/corrections";
+import { patternKey, type Correction } from "@/lib/corrections";
 import { confidenceLanguage } from "@/lib/confidence";
 import { dateAfterDays, FOLLOW_UP_DELAYS } from "@/lib/followUp";
 
@@ -50,6 +50,7 @@ function isDue(dateStr: string | null): boolean {
 export default function SummaryView({
   summary,
   longitudinalReview,
+  corrections = [],
   onFollowUp,
   onSaveReview,
   onClearReview,
@@ -57,6 +58,8 @@ export default function SummaryView({
 }: {
   summary: ReflectionSummary;
   longitudinalReview?: LongitudinalReview | null;
+  // persisted dismissals — hidden patterns must survive remounts
+  corrections?: Correction[];
   onFollowUp?: (at: string | null, note: string | null) => void;
   onSaveReview?: (patch: Partial<LongitudinalReview>) => void;
   onClearReview?: () => void;
@@ -79,15 +82,30 @@ export default function SummaryView({
   const [customFollowUpDate, setCustomFollowUpDate] = useState("");
   const [dismissedPatterns, setDismissedPatterns] = useState<string[]>([]);
 
-  // keep drafts in sync when review changes externally
-  // (avoid effect loops: only sync when review identity changes via key)
+  // keep drafts in sync when the review changes externally (saved or cleared)
+  // — no remount-key hack, so local UI state survives the update. Adjusting
+  // state during render (React's recommended "derive from prop change" pattern)
+  // avoids a cascading-render effect.
   const reviewKey = review ? `${review.reviewedAt ?? ""}:${review.assumptionVerdict ?? ""}` : "none";
+  const [syncedReviewKey, setSyncedReviewKey] = useState(reviewKey);
+  if (syncedReviewKey !== reviewKey) {
+    setSyncedReviewKey(reviewKey);
+    setDraftAction(review?.actualActionTaken ?? "");
+    setDraftOutcome(review?.actualOutcome ?? "");
+    setDraftVerdict(review?.assumptionVerdict ?? null);
+    setDraftNote(review?.calibrationNote ?? "");
+    setShowFollowUpOptions(false);
+  }
 
   const canSave = Boolean(draftOutcome.trim()) && Boolean(draftVerdict);
-  const visibleBiases = summary.possibleBiases.filter((bias) => !dismissedPatterns.includes(patternKey({ kind: "bias", label: bias.type })));
+  // A bias is hidden if dismissed this session OR previously rejected and persisted.
+  const visibleBiases = summary.possibleBiases.filter((bias) => {
+    const key = patternKey({ kind: "bias", label: bias.type });
+    return !dismissedPatterns.includes(key) && !corrections.some((c) => c.key === key);
+  });
 
   return (
-    <div className="flex flex-col gap-5" key={reviewKey}>
+    <div className="flex flex-col gap-5">
       <div className="rounded-xl bg-accent/8 px-4 py-3">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent">
           What&apos;s actually underneath it
@@ -322,7 +340,11 @@ export default function SummaryView({
               {hasFollowUp && (
                 <button
                   type="button"
-                  onClick={() => onFollowUp(null, null)}
+                  onClick={() => {
+                    if (window.confirm("Clear this follow-up schedule? The check-in date and note will be removed.")) {
+                      onFollowUp(null, null);
+                    }
+                  }}
                   className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-card-hover"
                 >
                   Clear follow-up
@@ -385,6 +407,7 @@ export default function SummaryView({
                           <button
                             key={v}
                             type="button"
+                            aria-pressed={draftVerdict === v}
                             onClick={() => setDraftVerdict(v)}
                             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${draftVerdict === v ? verdictTone(v) + " ring-2 ring-offset-1 ring-accent/20" : "border-border bg-card text-muted hover:bg-card-hover"}`}
                           >
@@ -471,7 +494,17 @@ export default function SummaryView({
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => setEditingReview(true)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-card-hover">Edit review</button>
                     {onClearReview && (
-                      <button type="button" onClick={onClearReview} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-card-hover">Clear review</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm("Clear this review? The recorded outcome and verdict will be removed.")) {
+                            onClearReview();
+                          }
+                        }}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-card-hover"
+                      >
+                        Clear review
+                      </button>
                     )}
                   </div>
                 </div>

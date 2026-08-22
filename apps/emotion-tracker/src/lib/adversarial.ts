@@ -11,6 +11,9 @@ export type AdversarialFlag =
   | "lyrics_or_quote"
   | "sarcasm"
   | "contradictory"
+  | "hypothetical"
+  | "changing_opinion"
+  | "ambiguous_reference"
   | "misleading";
 
 export interface AdversarialCheck {
@@ -27,6 +30,25 @@ const FICTION_RE = /\b(once upon a time|chapter \d+|novel|story about|fictional 
 const ARTICLE_RE = /\b(according to (the )?article|research shows|study found|copyright ©|all rights reserved)\b/i;
 const LYRICS_RE = /\[verse|\[chorus\]|\[bridge\]|\(chorus\)|lyrics:/i;
 const SARCASM_RE = /(yeah right|sure,? (jan|buddy)|obviously.*not|great,? (just )?great|as if|totally (not )?)/i;
+// Hypotheticals explore counterfactuals — they must not be stored as events.
+const HYPOTHETICAL_RE = /\b(what if|suppose (that|i|we|they)|hypothetically|imagine (if|this)|let's say|in theory)\b/i;
+// Opinion reversals: a newer stance that supersedes an earlier one.
+const CHANGING_OPINION_RE = /\b(i('ve)? changed my mind|i no longer (think|believe|feel)|i used to think but|actually,? i now think|i was wrong about)\b/i;
+// Unresolved references: pronoun-heavy fragments with nothing concrete to anchor to.
+const PRONOUN_RE = /\b(it|they|them|he|she|that|this)\b/gi;
+// Sensitive data that should never reach an AI provider unnoticed.
+const SENSITIVE_PATTERNS: { kind: string; re: RegExp }[] = [
+  { kind: "email", re: /[\w.+-]+@[\w-]+\.[\w.]{2,}/ },
+  { kind: "number-sequence", re: /\b(?:\d[ -]?){9,16}\d\b/ }, // phone/card-like
+  { kind: "government-id", re: /\b\d{3}-\d{2}-\d{4}\b/ },
+  { kind: "credential", re: /\b(sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]{10,})/ },
+  { kind: "secret", re: /\b(password|passphrase|api[_ ]?key|secret)\s*[:=]\s*\S+/i },
+];
+
+export interface SensitiveDataHit {
+  kind: string;
+  excerpt: string;
+}
 
 // Very conservative: flag only when multiple signals coincide
 export function detectAdversarial(text: string, opts: { previousEntries?: string[] } = {}): AdversarialCheck[] {
@@ -55,6 +77,26 @@ export function detectAdversarial(text: string, opts: { previousEntries?: string
   }
   if (SARCASM_RE.test(lower) && /!|\bactually\b/i.test(s)) {
     out.push({ flag: "sarcasm", confidence: 0.5, reason: "Possible sarcasm — literal reading may be opposite", excerpt });
+  }
+  if (HYPOTHETICAL_RE.test(s)) {
+    out.push({ flag: "hypothetical", confidence: 0.65, reason: "Hypothetical framing — a thought experiment, not something that happened", excerpt });
+  }
+  if (CHANGING_OPINION_RE.test(s)) {
+    out.push({ flag: "changing_opinion", confidence: 0.6, reason: "Supersedes an earlier stance — reconcile with previous entries before inferring patterns", excerpt });
+  }
+  // ambiguous reference: pronoun-heavy, short, nothing concrete to anchor to.
+  // Sentence-initial capitals are stripped before the proper-noun probe, so
+  // "They did that thing" isn't mistaken for a named entity.
+  const words = s.trim().split(/\s+/);
+  const pronouns = s.match(PRONOUN_RE)?.length ?? 0;
+  const withoutSentenceCaps = s.replace(/(?:^|[.!?]\s+)[A-Z]/g, "");
+  if (words.length <= 15 && pronouns >= 2 && !/\b[A-Z][a-z]{2,}\b/.test(withoutSentenceCaps)) {
+    out.push({
+      flag: "ambiguous_reference",
+      confidence: 0.55,
+      reason: "References are unresolved ('it', 'they') — ask who or what specifically before interpreting",
+      excerpt,
+    });
   }
   if (opts.previousEntries && opts.previousEntries.length) {
     // contradictory: same trigger opposite valence quick heuristic
@@ -91,6 +133,28 @@ export function shouldNotAutoConvert(text: string, opts?: { previousEntries?: st
   const flags = detectAdversarial(text, opts);
   // Block auto-conversion if injection, fiction, copied article, or high-confidence contradictory
   return flags.some((f) => f.flag === "prompt_injection" || f.flag === "fictional" || f.flag === "copied_article" || (f.flag === "quoted_content" && f.confidence >= 0.6));
+}
+
+// ── accidental sensitive-data ingestion ───────────────────────────────
+// Journal text is easy to over-share (an email pasted mid-vent, a card number,
+// a credential). These are detected locally and surfaced as a warning before
+// the entry's content is sent to the AI provider. Nothing here blocks writing;
+// it informs the user so they can redact deliberately.
+
+export function detectSensitiveData(text: string): SensitiveDataHit[] {
+  const s = String(text);
+  const hits: SensitiveDataHit[] = [];
+  for (const { kind, re } of SENSITIVE_PATTERNS) {
+    const m = re.exec(s);
+    if (m) hits.push({ kind, excerpt: m[0].slice(0, 24) });
+    if (hits.length >= 4) break; // enough to warn; don't enumerate exhaustively
+  }
+  return hits;
+}
+
+/** True when the user should be warned before this text goes to the provider. */
+export function containsSensitiveData(text: string): boolean {
+  return detectSensitiveData(text).length > 0;
 }
 
 export function adversarialSummary(flags: AdversarialCheck[]): string | null {
