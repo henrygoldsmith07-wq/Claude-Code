@@ -12,8 +12,13 @@ function extractSummaryLine(lines) {
 }
 
 function extractFailureLines(lines) {
-  const matched = lines.filter((line) => FAILURE_PATTERN.test(line)).slice(0, MAX_FAILURE_LINES);
-  const totals = lines.filter((line) => TOTALS_PATTERN.test(line) && !matched.includes(line));
+  const allMatched = lines.filter((line) => FAILURE_PATTERN.test(line));
+  const matched = allMatched.slice(0, MAX_FAILURE_LINES);
+  const matchedSet = new Set(matched);
+  const totals = lines.filter((line) => TOTALS_PATTERN.test(line) && !matchedSet.has(line));
+  if (allMatched.length > matched.length) {
+    matched.push(`… ${allMatched.length - matched.length} more failure lines omitted …`);
+  }
   return [...matched, ...totals];
 }
 

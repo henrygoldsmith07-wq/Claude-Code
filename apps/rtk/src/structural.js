@@ -79,10 +79,14 @@ function compressJson(output) {
 function compressNdjson(output) {
   const lines = output.split('\n');
   if (lines.length < 2) return null;
+  // Parse each line once up front and reuse — re-parsing in the emit loop,
+  // plus a full stringify per line just to substring-test for errors, made
+  // this quadratic on large NDJSON logs.
+  const parsedLines = new Array(lines.length);
   let jsonLines = 0;
-  for (const l of lines) {
-    if (!l.trim()) continue;
-    try { JSON.parse(l); jsonLines++; } catch { /* not json */ }
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    try { parsedLines[i] = JSON.parse(lines[i]); jsonLines++; } catch { /* not json */ }
   }
   if (jsonLines < Math.max(2, Math.min(lines.length * 0.6, lines.length - 1))) return null;
   const out = [];
@@ -92,13 +96,14 @@ function compressNdjson(output) {
   }
   // Keep errors, cap long runs of ok lines
   let okRun = 0;
-  for (const l of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
     if (!l.trim()) { flushRun(); out.push(l); continue; }
-    let parsed;
-    try { parsed = JSON.parse(l); } catch { flushRun(); out.push(l); continue; }
-    const str = JSON.stringify(parsed);
-    // Heuristic: error-ish json is always kept
-    const isError = /error|fail|warn/i.test(str);
+    const parsed = parsedLines[i];
+    if (!parsed) { flushRun(); out.push(l); continue; }
+    // Heuristic: error-ish json is always kept (test the raw line — the
+    // keys themselves are often the signal, e.g. "errorCount":1)
+    const isError = /error|fail|warn/i.test(l);
     if (isError) {
       if (okRun > 6) { out.push(`… ${okRun - 6} ok lines omitted …`); okRun = 0; }
       else if (okRun > 0) { /* keep tail of run */ }
@@ -130,6 +135,7 @@ function compressXml(output) {
   // Keep failure/error blocks + nearest testcase wrapper; collapse success testcase runs
   const lines = output.split('\n');
   const kept = [];
+  const pushedIdx = new Set();
   let successRun = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -139,19 +145,24 @@ function compressXml(output) {
     if (isFailureLine) {
       if (successRun > 6) kept.push(`  … ${successRun - 6} passing testcases omitted …`);
       successRun = 0;
-      // Include context: previous testcase line if near
-      const ctx = lines.slice(Math.max(0, i - 2), Math.min(lines.length, i + 8));
-      for (const c of ctx) if (!kept.includes(c)) kept.push(c);
+      // Include context: previous testcase line if near. Track by index —
+      // value-based `includes` both went quadratic and swallowed a second
+      // occurrence of identical content from a different testcase.
+      const start = Math.max(0, i - 2);
+      const end = Math.min(lines.length, i + 8);
+      for (let j = start; j < end; j++) {
+        if (!pushedIdx.has(j)) { pushedIdx.add(j); kept.push(lines[j]); }
+      }
       i += 7;
     } else if (isSuccessCase) {
       successRun++;
-      if (successRun <= 3) kept.push(line);
+      if (successRun <= 3) { kept.push(line); pushedIdx.add(i); }
     } else {
       if (successRun > 6) { kept.push(`  … ${successRun - 6} passing testcases omitted …`); successRun = 0; }
       else if (successRun > 0 && successRun <= 6) { /* keep pending */ }
       // Keep class/testsuite headers
-      if (/^<\?xml|<testsuite|<testsuites/i.test(line.trim())) kept.push(line);
-      else if (!isSuccessCase) kept.push(line);
+      if (/^<\?xml|<testsuite|<testsuites/i.test(line.trim())) { kept.push(line); pushedIdx.add(i); }
+      else if (!isSuccessCase) { kept.push(line); pushedIdx.add(i); }
     }
   }
   if (successRun > 3) kept.push(`  … ${successRun - 3} passing testcases omitted …`);
@@ -210,10 +221,14 @@ function compressAnnotations(output) {
   for (const l of kept) {
     if (/Error:.*exit code|Process completed with exit code/i.test(l) && !out.includes(l)) out.push(l);
   }
-  // Deduplicate while preserving order, then restore original input order
+  // Deduplicate while preserving order, then restore original input order.
+  // Precompute first-occurrence indices once — `indexOf` per comparison was
+  // O(n²) on large CI logs and unstable for duplicate lines.
   const seen = new Set();
   const deduped = out.filter(l => { const k=l.trim(); if(seen.has(k)) return false; seen.add(k); return true; });
-  deduped.sort((a,b) => lines.indexOf(a) - lines.indexOf(b));
+  const firstIdx = new Map();
+  for (let i = lines.length - 1; i >= 0; i--) firstIdx.set(lines[i], i);
+  deduped.sort((a, b) => (firstIdx.get(a) ?? -1) - (firstIdx.get(b) ?? -1));
   const merged = deduped.length ? deduped : kept;
   if (merged.length >= lines.length * 0.9) return null;
   // Final safety: if kept has an Error:.*exit code line missing from merged, use kept

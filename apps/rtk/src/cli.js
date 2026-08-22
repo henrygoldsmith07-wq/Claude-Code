@@ -18,31 +18,74 @@ function commandLabel(argv) {
   return argv.slice(0, 2).join(' ') || argv[0];
 }
 
+// Machine-readable account of what was removed vs preserved, per rule
+// category. Lets agents/consumers audit filtering without diffing.
+function removalSummary(rawText, rules, emittedText) {
+  const emittedSet = new Set(String(emittedText || '').split('\n').map((l) => l.trim()));
+  const byReason = {};
+  let rawNonEmptyLines = 0;
+  let kept = 0;
+  let dropped = 0;
+  for (const line of String(rawText).split('\n')) {
+    if (!line.trim()) continue;
+    rawNonEmptyLines++;
+    let reason = 'unmatched';
+    for (const r of rules) {
+      if (r && r.re && typeof r.re.test === 'function' && r.re.test(line)) { reason = r.reason || 'matched'; break; }
+    }
+    const isKept = emittedSet.has(line.trim());
+    if (!byReason[reason]) byReason[reason] = { kept: 0, dropped: 0 };
+    if (isKept) { kept++; byReason[reason].kept++; } else { dropped++; byReason[reason].dropped++; }
+  }
+  return { rawNonEmptyLines, kept, dropped, byReason };
+}
+
 function parseFlags(argv) {
   const flags = {
     json: false, explain: false, raw: false, redact: true, stats: false, stdin: false,
-    level: null, aggressive: false, conservative: false, balanced: false,
+    level: null, aggressive: false, conservative: false, balanced: false, auto: false,
     dryRun: false, preset: null, contextWindow: null, otel: false,
+    exitCode: null, help: false,
   };
   const rest = [];
-  for (const a of argv) {
-    if (a === '--json') flags.json = true;
-    else if (a === '--explain') flags.explain = true;
-    else if (a === '--raw') flags.raw = true;
-    else if (a === '--no-redact') flags.redact = false;
-    else if (a === '--stats') flags.stats = true;
-    else if (a === '--stdin') flags.stdin = true;
-    else if (a === '--dry-run') flags.dryRun = true;
-    else if (a === '--otel') flags.otel = true;
-    else if (a === '--aggressive') flags.aggressive = true;
-    else if (a === '--conservative') flags.conservative = true;
-    else if (a === '--balanced') flags.balanced = true;
-    else if (a.startsWith('--level=')) flags.level = a.split('=')[1];
-    else if (a.startsWith('--preset=')) flags.preset = a.split('=')[1];
-    else if (a.startsWith('--context-window=')) flags.contextWindow = parseInt(a.split('=')[1], 10);
-    else if (a.startsWith('--window=')) flags.contextWindow = parseInt(a.split('=')[1], 10);
-    else rest.push(a);
+  // rtk owns flags up to the wrapped command; the subcommand is allowed one
+  // non-flag token, and everything after that belongs to the child verbatim.
+  // Scanning the whole argv stole the child's flags (`rtk err npx vitest run
+  // --json` consumed --json instead of passing it to vitest).
+  let i = 0;
+  let sawSub = false;
+  while (i < argv.length) {
+    const a = argv[i];
+    if (a === '--') { i++; break; }
+    if (a.startsWith('--')) {
+      if (a === '--json') flags.json = true;
+      else if (a === '--explain') flags.explain = true;
+      else if (a === '--raw') flags.raw = true;
+      else if (a === '--no-redact') flags.redact = false;
+      else if (a === '--stats') flags.stats = true;
+      else if (a === '--stdin') flags.stdin = true;
+      else if (a === '--dry-run') flags.dryRun = true;
+      else if (a === '--otel') flags.otel = true;
+      else if (a === '--aggressive') flags.aggressive = true;
+      else if (a === '--conservative') flags.conservative = true;
+      else if (a === '--balanced') flags.balanced = true;
+      else if (a === '--auto') flags.auto = true;
+      else if (a === '--help' || a === '-h') flags.help = true;
+      else if (a.startsWith('--level=')) flags.level = a.split('=')[1];
+      else if (a.startsWith('--preset=')) flags.preset = a.split('=')[1];
+      else if (a.startsWith('--context-window=')) flags.contextWindow = parseInt(a.split('=')[1], 10);
+      else if (a.startsWith('--window=')) flags.contextWindow = parseInt(a.split('=')[1], 10);
+      else if (a.startsWith('--exit-code=')) {
+        const n = parseInt(a.split('=')[1], 10);
+        flags.exitCode = isNaN(n) ? null : n;
+      }
+      i++;
+      continue;
+    }
+    if (!sawSub) { sawSub = true; rest.push(a); i++; continue; }
+    break;
   }
+  for (; i < argv.length; i++) rest.push(argv[i]);
   return { flags, rest };
 }
 
@@ -66,10 +109,12 @@ Flags:
   --raw         also write full unfiltered output to .rtk/raw/<timestamp>__<cmd>.log
   --no-redact   disable secret redaction (default: on)
   --stats       include { rawLines, emittedLines, tokens, tokensSaved, costSaved, latencyMs } in --json
-  --level=X     conservative | balanced | aggressive (also: .rtk/config.json, env RTK_AGGRESSIVENESS)
-  --aggressive / --conservative / --balanced  shorthand for --level
-  --stdin       read output from stdin instead of running a command
-  --dry-run     show what rtk would do without running the command
+   --level=X     conservative | balanced | aggressive (also: .rtk/config.json, env RTK_AGGRESSIVENESS)
+   --aggressive / --conservative / --balanced  shorthand for --level
+   --auto        pick the level from output shape (small→pass-through, huge→aggressive)
+   --stdin       read output from stdin instead of running a command
+   --exit-code=N force the exit code in --stdin mode (default: sniffed from output)
+   --dry-run     show what rtk would do without running the command
   --preset=X    agent preset: claude-code | codex | cursor | generic (also: env RTK_PRESET, config.preset)
   --context-window=N  lines of context around each error (also: config.contextWindow, env RTK_CONTEXT_WINDOW)
   --otel        force OTel/metrics emission for this run (also: config.otel.enabled, env OTEL_EXPORTER_OTLP_ENDPOINT)
@@ -107,7 +152,13 @@ function main(argv) {
   const { flags: globalFlags, rest: afterGlobal } = parseFlags(argv);
   const [sub, ...restRaw] = afterGlobal;
 
-  if (!sub || sub === '--help' || sub === '-h' || sub === 'help') {
+  if (globalFlags.level && !VALID_LEVELS.includes(globalFlags.level)) {
+    console.error(`[rtk] unknown level "${globalFlags.level}" (expected: conservative|balanced|aggressive)`);
+    process.exitCode = 2;
+    return;
+  }
+
+  if (!sub || sub === '--help' || sub === '-h' || sub === 'help' || (globalFlags.help && !restRaw.length)) {
     printHelp();
     return;
   }
@@ -130,11 +181,13 @@ function main(argv) {
   }
 
   if (sub === 'init') {
+    if (restRaw.includes('--help') || restRaw.includes('-h')) { printHelp(); return; }
     init(process.cwd());
     return;
   }
 
   if (sub === 'gain') {
+    if (restRaw.includes('--help') || restRaw.includes('-h')) { printHelp(); return; }
     const wantJson = globalFlags.json || restRaw.includes('--json');
     const data = load(process.cwd());
     // Enrich with tokenizer info when --json
@@ -171,7 +224,13 @@ function main(argv) {
   const effLevel = resolveLevel(globalFlags, baseConfig);
 
   if (sub === 'err') {
+    if (restRaw.includes('--help') || restRaw.includes('-h') || globalFlags.help) { printHelp(); return; }
     const { flags, rest } = parseFlags(restRaw);
+    if (flags.level && !VALID_LEVELS.includes(flags.level)) {
+      console.error(`[rtk] unknown level "${flags.level}" (expected: conservative|balanced|aggressive)`);
+      process.exitCode = 2;
+      return;
+    }
     if (globalFlags.json) flags.json = true;
     if (globalFlags.raw) flags.raw = true;
     if (globalFlags.explain) flags.explain = true;
@@ -181,6 +240,7 @@ function main(argv) {
     if (globalFlags.aggressive) flags.aggressive = true;
     if (globalFlags.conservative) flags.conservative = true;
     if (globalFlags.balanced) flags.balanced = true;
+    if (globalFlags.auto) flags.auto = true;
     if (globalFlags.level) flags.level = globalFlags.level;
     if (globalFlags.dryRun) flags.dryRun = true;
     if (globalFlags.preset) flags.preset = globalFlags.preset;
@@ -244,7 +304,11 @@ function main(argv) {
         try { stdin = fs.readFileSync(0, 'utf8'); } catch { stdin = ''; }
       }
       output = stdin;
-      exitCode = /FAIL|Error|error TS\d+|Failed to compile|::error::|BUILD (FAILURE|FAILED)/i.test(output) ? 1 : 0;
+      // Fabricated by content sniffing — stdin has no real exit status. An
+      // explicit --exit-code=<n> overrides the guess; a log merely containing
+      // the word "error" no longer has to fail silently.
+      exitCode = flags.exitCode != null ? flags.exitCode
+        : (/FAIL|Error|error TS\d+|Failed to compile|::error::|BUILD (FAILURE|FAILED)/i.test(output) ? 1 : 0);
       label = 'stdin';
       if (output.includes('\u0000')) output = output.replace(/\u0000/g, '[NUL]');
     } else {
@@ -269,6 +333,25 @@ function main(argv) {
     } catch { var outputStripped = output; }
 
     const rawChars = outputStripped.length;
+    // Adaptive strength: choose the level from the captured output itself,
+    // overriding any pre-run level decision.
+    if (flags.auto) {
+      try {
+        const { pickAutoLevel } = require('./autoLevel');
+        finalLevel = pickAutoLevel(outputStripped, exitCode);
+        config.aggressiveness = finalLevel;
+        const bound = finalLevel === 'conservative' ? 80 : 25;
+        for (const k of Object.keys(config.parsers)) {
+          config.parsers[k].maxLines = finalLevel === 'conservative'
+            ? Math.max(config.parsers[k].maxLines, bound)
+            : Math.min(config.parsers[k].maxLines, bound);
+        }
+        config.truncate.headLines = finalLevel === 'conservative' ? Math.max(config.truncate.headLines, 30)
+          : finalLevel === 'aggressive' ? Math.min(config.truncate.headLines, 12) : config.truncate.headLines;
+        config.truncate.tailLines = finalLevel === 'conservative' ? Math.max(config.truncate.tailLines, 10)
+          : finalLevel === 'aggressive' ? Math.min(config.truncate.tailLines, 3) : config.truncate.tailLines;
+      } catch {}
+    }
     let parser = flags.stdin ? pickParser(['npm', 'test'], outputStripped) : pickParser(rest.length ? rest : ['npm', 'test'], outputStripped);
     let effectiveParser = parser;
     if (flags.stdin) {
@@ -294,9 +377,12 @@ function main(argv) {
       preservationRules = loadPreservationRules(cwd, config);
     } catch {}
 
-    // Tokenizer + latency
-    let countTokens, encodingName, costForTokens;
-    try { ({ countTokens, encodingName, costForTokens } = require('./tokens')); } catch { countTokens = (s)=>Math.round(String(s).length/4); encodingName=()=>'chars/4'; costForTokens=()=>0; }
+    // Tokenizer + latency (formatCost captured too — bare re-requires inside
+    // template strings turned a broken tokenizer install into a mid-print crash)
+    let countTokens, encodingName, costForTokens, formatCost;
+    try { ({ countTokens, encodingName, costForTokens, formatCost } = require('./tokens')); } catch {
+      countTokens = (s)=>Math.round(String(s).length/4); encodingName=()=>'chars/4'; costForTokens=()=>0; formatCost = () => '$0';
+    }
     const rawTokens = countTokens(outputStripped);
 
     // Filter
@@ -383,12 +469,15 @@ function main(argv) {
         emittedTokens,
         tokensSaved,
         costSaved,
-        costSavedFormatted: costForTokens ? require('./tokens').formatCost(costSaved) : undefined,
+        costSavedFormatted: formatCost(costSaved),
         tokenizer,
         latencyMs,
         latencyFormatted: `${latencyMs}ms`,
         contextWindow: config.contextWindow,
         preset: config.preset || null,
+        level: finalLevel,
+        parserBehaviorVersion: require('./parsers').PARSER_BEHAVIOR_VERSION,
+        removals: removalSummary(outputStripped, (effectiveParser.rules || []).concat(preservationRules.map(r=>({re:r.re, keep:r.keep, reason:r.reason}))), redactedCore),
         redacted: redactions.length > 0,
         redactions,
         rawLog: rawInfo ? rawInfo.path : null,
@@ -411,7 +500,7 @@ function main(argv) {
       } catch {}
       const trace = formatExplain(explained);
       console.log(redactedCore + '\n\n' + trace);
-      if (flags.stats) console.error(`[rtk] stats: raw ${rawChars} chars / ${rawLines} lines → emitted ${redactedCore.length} chars / ${emittedLines} lines (~${tokensSaved} tokens saved, ${require('./tokens').formatCost ? require('./tokens').formatCost(costSaved) : ''}) level=${finalLevel} preset=${config.preset||'none'} window=${config.contextWindow} tok=${tokenizer} ${latencyMs}ms`);
+      if (flags.stats) console.error(`[rtk] stats: raw ${rawChars} chars / ${rawLines} lines → emitted ${redactedCore.length} chars / ${emittedLines} lines (~${tokensSaved} tokens saved, ${formatCost(costSaved)}) level=${finalLevel} preset=${config.preset||'none'} window=${config.contextWindow} tok=${tokenizer} ${latencyMs}ms`);
       if (flags.raw) writeRaw(cwd, label, output);
       record(cwd, flags.stdin ? 'stdin' : label, rawChars, redactedCore.length);
       process.exitCode = exitCode;
@@ -435,6 +524,9 @@ function main(argv) {
         costSaved,
         tokenizer,
         latencyMs,
+        level: finalLevel,
+        parserBehaviorVersion: require('./parsers').PARSER_BEHAVIOR_VERSION,
+        removals: removalSummary(outputStripped, (effectiveParser.rules || []).concat(preservationRules.map(r=>({re:r.re, keep:r.keep, reason:r.reason}))), redactedCore),
         contextWindow: config.contextWindow,
         preset: config.preset || null,
         redacted: redactions.length > 0,
@@ -446,7 +538,7 @@ function main(argv) {
       console.log(JSON.stringify(payload));
     } else {
       if (redactedCore) console.log(redactedCore);
-      if (flags.stats) console.error(`[rtk] stats: ${rawChars}→${redactedCore.length} chars (${rawChars ? Math.round((1 - redactedCore.length / rawChars) * 100) : 0}% saved, ~${tokensSaved} tokens ${tokenizer}, ${require('./tokens').formatCost ? require('./tokens').formatCost(costSaved) : ''} saved, ${rawLines}→${emittedLines} lines, ${latencyMs}ms) level=${finalLevel}`);
+      if (flags.stats) console.error(`[rtk] stats: ${rawChars}→${redactedCore.length} chars (${rawChars ? Math.round((1 - redactedCore.length / rawChars) * 100) : 0}% saved, ~${tokensSaved} tokens ${tokenizer}, ${formatCost(costSaved)} saved, ${rawLines}→${emittedLines} lines, ${latencyMs}ms) level=${finalLevel}`);
       if (rawPath) console.error(`[rtk] raw log: ${rawPath}`);
     }
     record(cwd, flags.stdin ? 'stdin' : label, rawChars, redactedCore.length);

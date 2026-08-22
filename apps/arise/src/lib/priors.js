@@ -254,6 +254,13 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
       equipmentChangeFlag: true,
     },
   },
+  longitudinal: {
+    // Segment-level conclusions (rates) are withheld until a segment has this
+    // many resolved recommendation→outcome pairs.
+    minimumSegmentSamples: 5,
+    maxOpenRecordsPerExercise: 3,
+    retentionLimit: 500,
+  },
   backtest: {
     minimumComparisons: 5,
     minimumStratumSamples: 8,
@@ -288,16 +295,11 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
   },
 });
 
-// Public aliases make the intent clear to callers that only need the default
-// progression policy, while keeping one source of truth.
-export const DEFAULT_CALIBRATION_PRIORS = DEFAULT_ARISE_PRIORS;
 export const PROGRESSION_PRIORS = DEFAULT_ARISE_PRIORS.progression;
 
 export function resolveArisePriors(overrides = null){
   return deepMerge(DEFAULT_ARISE_PRIORS, overrides || {});
 }
-
-export const resolveCalibrationConfig = resolveArisePriors;
 
 // Empirical estimates are allowed to replace a prior only after the caller's
 // explicit minimum sample count is met. This is intentionally not a shrinkage

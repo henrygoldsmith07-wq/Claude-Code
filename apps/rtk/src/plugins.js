@@ -16,10 +16,13 @@ function loadPlugins(cwd, config) {
       if (mod && typeof mod.filter === 'function' && typeof mod.name === 'string') plugins.push(mod);
     } catch (_) { /* ignore broken plugin */ }
   }
-  // Also auto-load .rtk/plugins/**/*.js if present
+  // Auto-load .rtk/plugins/**/*.js only with explicit consent: requiring
+  // arbitrary JS from a cloned repo would run attacker code on every
+  // `rtk err` inside it. Config-listed plugins are already explicit user
+  // choices and load without the env flag.
   const autoDir = path.join(cwd, '.rtk', 'plugins');
   try {
-    if (fs.existsSync(autoDir)) {
+    if (process.env.RTK_ALLOW_PLUGINS === '1' && fs.existsSync(autoDir)) {
       for (const f of fs.readdirSync(autoDir)) {
         if (!f.endsWith('.js')) continue;
         const full = path.join(autoDir, f);

@@ -1,0 +1,636 @@
+{
+  "generatedAt": "2026-08-21T20:38:10.564Z",
+  "provenance": {
+    "rtkCommit": "8caf81ce61662952bb1f10581eac3d80e0575b07",
+    "benchmarkVersion": "0.3.0",
+    "corpusVersion": "corpus-50-777a244a"
+  },
+  "headline": {
+    "overallReductionPct": 99,
+    "tokenizer": "o200k_base",
+    "cases": 35,
+    "detectionRatePct": 100,
+    "pairedEquivalent": true,
+    "pairedCount": 300,
+    "failureCount": 0
+  },
+  "reduction": {
+    "tokenizer": "o200k_base",
+    "generatedAt": "2026-08-13T15:08:57.699Z",
+    "cases": 35,
+    "totals": {
+      "rawTokens": 117086,
+      "emittedTokens": 1664,
+      "overallReductionPct": 99
+    },
+    "rows": [
+      {
+        "label": "Vitest pass (200 tests)",
+        "parser": "vitest",
+        "rawTokens": 22966,
+        "emittedTokens": 26,
+        "tokenReductionPct": 100,
+        "tokensSaved": 22940,
+        "criticalRetained": true
+      },
+      {
+        "label": "Vitest failure (2 fails)",
+        "parser": "vitest",
+        "rawTokens": 20012,
+        "emittedTokens": 168,
+        "tokenReductionPct": 99,
+        "tokensSaved": 19844,
+        "criticalRetained": true
+      },
+      {
+        "label": "tsc pass (clean)",
+        "parser": "tsc",
+        "rawTokens": 6,
+        "emittedTokens": 11,
+        "tokenReductionPct": -83,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "tsc failure (4 errors)",
+        "parser": "tsc",
+        "rawTokens": 169,
+        "emittedTokens": 169,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Next build failure",
+        "parser": "next",
+        "rawTokens": 61,
+        "emittedTokens": 46,
+        "tokenReductionPct": 25,
+        "tokensSaved": 15,
+        "criticalRetained": true
+      },
+      {
+        "label": "Next build pass",
+        "parser": "next",
+        "rawTokens": 81,
+        "emittedTokens": 59,
+        "tokenReductionPct": 27,
+        "tokensSaved": 22,
+        "criticalRetained": true
+      },
+      {
+        "label": "Generic failure",
+        "parser": "generic",
+        "rawTokens": 33,
+        "emittedTokens": 23,
+        "tokenReductionPct": 30,
+        "tokensSaved": 10,
+        "criticalRetained": true
+      },
+      {
+        "label": "ESLint errors",
+        "parser": "eslint",
+        "rawTokens": 51,
+        "emittedTokens": 51,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Pytest failure",
+        "parser": "pytest",
+        "rawTokens": 57,
+        "emittedTokens": 57,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Ruff",
+        "parser": "ruff",
+        "rawTokens": 36,
+        "emittedTokens": 36,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "mypy",
+        "parser": "mypy",
+        "rawTokens": 28,
+        "emittedTokens": 20,
+        "tokenReductionPct": 29,
+        "tokensSaved": 8,
+        "criticalRetained": true
+      },
+      {
+        "label": "Cargo error",
+        "parser": "cargo",
+        "rawTokens": 45,
+        "emittedTokens": 22,
+        "tokenReductionPct": 51,
+        "tokensSaved": 23,
+        "criticalRetained": true
+      },
+      {
+        "label": "Go test FAIL",
+        "parser": "go-test",
+        "rawTokens": 36,
+        "emittedTokens": 36,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Maven BUILD FAILURE",
+        "parser": "maven",
+        "rawTokens": 41,
+        "emittedTokens": 41,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Gradle BUILD FAILED",
+        "parser": "gradle",
+        "rawTokens": 36,
+        "emittedTokens": 36,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Docker ERROR",
+        "parser": "docker",
+        "rawTokens": 29,
+        "emittedTokens": 29,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "K8s CrashLoop",
+        "parser": "k8s",
+        "rawTokens": 30,
+        "emittedTokens": 23,
+        "tokenReductionPct": 23,
+        "tokensSaved": 7,
+        "criticalRetained": true
+      },
+      {
+        "label": "Terraform Error",
+        "parser": "terraform",
+        "rawTokens": 21,
+        "emittedTokens": 21,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "npm ERR!",
+        "parser": "pm",
+        "rawTokens": 20,
+        "emittedTokens": 20,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Git CONFLICT",
+        "parser": "git",
+        "rawTokens": 26,
+        "emittedTokens": 26,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "GHA annotation",
+        "parser": "gha",
+        "rawTokens": 32,
+        "emittedTokens": 28,
+        "tokenReductionPct": 13,
+        "tokensSaved": 4,
+        "criticalRetained": true
+      },
+      {
+        "label": "Truncate (2k-line verbose log)",
+        "parser": "generic",
+        "rawTokens": 26999,
+        "emittedTokens": 8,
+        "tokenReductionPct": 100,
+        "tokensSaved": 26991,
+        "criticalRetained": true
+      },
+      {
+        "label": "GitHub Actions log (failure)",
+        "parser": "generic",
+        "rawTokens": 699,
+        "emittedTokens": 30,
+        "tokenReductionPct": 96,
+        "tokensSaved": 669,
+        "criticalRetained": true
+      },
+      {
+        "label": "Search results JSON (120 hits)",
+        "parser": "generic",
+        "rawTokens": 17077,
+        "emittedTokens": 8,
+        "tokenReductionPct": 100,
+        "tokensSaved": 17069,
+        "criticalRetained": true
+      },
+      {
+        "label": "CLI verbose (2k lines)",
+        "parser": "generic",
+        "rawTokens": 26079,
+        "emittedTokens": 8,
+        "tokenReductionPct": 100,
+        "tokensSaved": 26071,
+        "criticalRetained": true
+      },
+      {
+        "label": "Diff (4 files)",
+        "parser": "generic",
+        "rawTokens": 1451,
+        "emittedTokens": 236,
+        "tokenReductionPct": 84,
+        "tokensSaved": 1215,
+        "criticalRetained": true
+      },
+      {
+        "label": "Stack trace",
+        "parser": "vitest",
+        "rawTokens": 67,
+        "emittedTokens": 67,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "NDJSON logs",
+        "parser": "generic",
+        "rawTokens": 558,
+        "emittedTokens": 19,
+        "tokenReductionPct": 97,
+        "tokensSaved": 539,
+        "criticalRetained": true
+      },
+      {
+        "label": "JUnit XML",
+        "parser": "generic",
+        "rawTokens": 60,
+        "emittedTokens": 60,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "SARIF",
+        "parser": "generic",
+        "rawTokens": 54,
+        "emittedTokens": 54,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "ANSI escapes",
+        "parser": "vitest",
+        "rawTokens": 53,
+        "emittedTokens": 53,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Unicode + emoji",
+        "parser": "generic",
+        "rawTokens": 26,
+        "emittedTokens": 26,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Nested JSON",
+        "parser": "generic",
+        "rawTokens": 107,
+        "emittedTokens": 107,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "CRLF vitest failure",
+        "parser": "vitest",
+        "rawTokens": 24,
+        "emittedTokens": 24,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      },
+      {
+        "label": "Truncated mid-error (no trailing newline)",
+        "parser": "vitest",
+        "rawTokens": 16,
+        "emittedTokens": 16,
+        "tokenReductionPct": 0,
+        "tokensSaved": 0,
+        "criticalRetained": true
+      }
+    ]
+  },
+  "families": {
+    "cases": 35,
+    "families": [
+      {
+        "id": "o200k",
+        "label": "GPT-4o / GPT-4.1 / o1 family",
+        "encoding": "o200k_base",
+        "model": "gpt-4o",
+        "reductionPct": 99,
+        "tokensSaved": 115427,
+        "costSaved": 0.28856750000000003,
+        "price": "gpt-4o @ $2.5/1M input"
+      },
+      {
+        "id": "cl100k",
+        "label": "GPT-4 / GPT-3.5 family",
+        "encoding": "cl100k_base",
+        "model": "gpt-4",
+        "reductionPct": 99,
+        "tokensSaved": 115442,
+        "costSaved": 3.46326,
+        "price": "gpt-4 @ $30/1M input"
+      },
+      {
+        "id": "p50k",
+        "label": "Codex / code models",
+        "encoding": "p50k_base",
+        "model": "code-davinci-002",
+        "reductionPct": 99,
+        "tokensSaved": 125903,
+        "costSaved": 0.015108359999999998,
+        "price": "code-davinci-002 @ $0.12/1M input"
+      },
+      {
+        "id": "r50k",
+        "label": "GPT-3 / text-davinci family",
+        "encoding": "r50k_base",
+        "model": "text-davinci-003",
+        "reductionPct": 99,
+        "tokensSaved": 135550,
+        "costSaved": 0.2711,
+        "price": "text-davinci-003 @ $2/1M input"
+      },
+      {
+        "id": "gpt2",
+        "label": "GPT-2 base",
+        "encoding": "gpt2",
+        "model": "gpt-3.5-turbo",
+        "reductionPct": 99,
+        "tokensSaved": 135550,
+        "costSaved": 0.067775,
+        "price": "gpt-3.5-turbo @ $0.5/1M input"
+      }
+    ],
+    "stability": {
+      "reductions": [
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
+      "spreadPct": 0,
+      "minPct": 99,
+      "maxPct": 99,
+      "avgPct": 99
+    }
+  },
+  "detection": {
+    "total": 32,
+    "okCount": 32,
+    "ratePct": 100,
+    "failures": []
+  },
+  "levels": {
+    "count": 300,
+    "seed": 12648430,
+    "levels": [
+      {
+        "level": "aggressive",
+        "total": 300,
+        "rawSuccessRate": 0.97,
+        "rtkSuccessRate": 0.97,
+        "avgReduction": 97,
+        "equivalent": true
+      },
+      {
+        "level": "balanced",
+        "total": 300,
+        "rawSuccessRate": 0.97,
+        "rtkSuccessRate": 0.97,
+        "avgReduction": 97,
+        "equivalent": true
+      },
+      {
+        "level": "conservative",
+        "total": 300,
+        "rawSuccessRate": 0.97,
+        "rtkSuccessRate": 0.97,
+        "avgReduction": 97,
+        "equivalent": true
+      }
+    ]
+  },
+  "paired": {
+    "count": 300,
+    "level": "balanced",
+    "seed": 12648430,
+    "stats": {
+      "total": 300,
+      "rawSuccesses": 291,
+      "rtkSuccesses": 291,
+      "rawSuccessRate": 0.97,
+      "rtkSuccessRate": 0.97,
+      "pairedDifference": 0,
+      "discordant": 0,
+      "confidenceInterval": {
+        "lower": -0.01,
+        "upper": 0.01
+      },
+      "margin": 0.05,
+      "equivalent": true,
+      "avgRawTokens": 4190,
+      "avgRtkTokens": 106,
+      "avgReduction": 97
+    },
+    "equivalence": {
+      "n": 300,
+      "a": 291,
+      "b": 0,
+      "c": 0,
+      "d": 9,
+      "difference": 0,
+      "lower": -0.01,
+      "upper": 0.01,
+      "equivalent": true,
+      "margin": 0.05,
+      "note": "Equivalent: the difference in task success is within ±5 points (90% CI -1.0 to 1.0, n=300)."
+    },
+    "economics": {
+      "net": 1224996,
+      "netPct": 0.9747,
+      "extraRetries": 0,
+      "profitable": true,
+      "note": "Saved 1225.0k tokens with no additional retries."
+    },
+    "wilson": {
+      "alpha": 0.05,
+      "raw": {
+        "point": 0.97,
+        "lower": 0.944,
+        "upper": 0.9841
+      },
+      "rtk": {
+        "point": 0.97,
+        "lower": 0.944,
+        "upper": 0.9841
+      }
+    }
+  },
+  "evidence": {
+    "corpusInventory": {
+      "total": 49,
+      "byProvenance": {
+        "synthetic": 29,
+        "adversarial": 14,
+        "captured": 6
+      }
+    },
+    "pairedCount": 300
+  },
+  "retention": {
+    "cases": 19,
+    "criticalRetained": 19,
+    "missed": []
+  },
+  "retentionFields": {
+    "fields": [
+      {
+        "field": "failed_test_name",
+        "label": "failed test name",
+        "retentionPct": 100,
+        "casesPerfectRate": 100,
+        "casesApplicable": 10
+      },
+      {
+        "field": "error_type",
+        "label": "error type",
+        "retentionPct": 96,
+        "casesPerfectRate": 95,
+        "casesApplicable": 44
+      },
+      {
+        "field": "exit_status",
+        "label": "exit status",
+        "retentionPct": 94,
+        "casesPerfectRate": 92,
+        "casesApplicable": 13
+      },
+      {
+        "field": "warning_type",
+        "label": "warning type",
+        "retentionPct": 82,
+        "casesPerfectRate": 67,
+        "casesApplicable": 6
+      },
+      {
+        "field": "expected_value",
+        "label": "expected value",
+        "retentionPct": 80,
+        "casesPerfectRate": 80,
+        "casesApplicable": 5
+      },
+      {
+        "field": "actual_value",
+        "label": "actual value",
+        "retentionPct": 75,
+        "casesPerfectRate": 67,
+        "casesApplicable": 3
+      },
+      {
+        "field": "command",
+        "label": "command",
+        "retentionPct": 67,
+        "casesPerfectRate": 63,
+        "casesApplicable": 8
+      },
+      {
+        "field": "remediation",
+        "label": "actionable remediation clues",
+        "retentionPct": 60,
+        "casesPerfectRate": 50,
+        "casesApplicable": 8
+      },
+      {
+        "field": "path",
+        "label": "path",
+        "retentionPct": 57,
+        "casesPerfectRate": 82,
+        "casesApplicable": 33
+      },
+      {
+        "field": "line_number",
+        "label": "line number",
+        "retentionPct": 41,
+        "casesPerfectRate": 76,
+        "casesApplicable": 37
+      },
+      {
+        "field": "column",
+        "label": "column",
+        "retentionPct": 40,
+        "casesPerfectRate": 73,
+        "casesApplicable": 33
+      },
+      {
+        "field": "stack_frame",
+        "label": "relevant stack frame",
+        "retentionPct": 36,
+        "casesPerfectRate": 78,
+        "casesApplicable": 23
+      },
+      {
+        "field": "root_cause",
+        "label": "root-cause context",
+        "retentionPct": 36,
+        "casesPerfectRate": 50,
+        "casesApplicable": 6
+      },
+      {
+        "field": "filename",
+        "label": "filename",
+        "retentionPct": 35,
+        "casesPerfectRate": 77,
+        "casesApplicable": 48
+      }
+    ]
+  },
+  "failureCorpus": {
+    "count": 0,
+    "byCategory": {}
+  },
+  "sources": {
+    "results": "ok",
+    "families": "ok",
+    "detection": "ok",
+    "levels": "ok",
+    "paired": "ok",
+    "evidence": "ok",
+    "retention": "ok",
+    "retention-fields": "ok"
+  }
+}

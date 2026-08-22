@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-21T14:56:34.068Z",
-  "count": 49,
+  "generatedAt": "2026-08-21T18:57:11.540Z",
+  "count": 51,
   "files": [
     {
       "file": "vitest-fail.log",
@@ -350,6 +350,42 @@
       "category": "simple-failure",
       "capturedAt": "2026-08-21T14:56:34.066Z",
       "command": "node --test"
+    },
+    {
+      "file": "npm-pass.log",
+      "provenance": "captured",
+      "tool": "npm",
+      "category": "captured-real",
+      "scenario": "pass",
+      "capturedAt": "2026-08-21T18:57:06.655Z",
+      "source": "live-run",
+      "command": "npm.cmd --version",
+      "exitCode": 0,
+      "bytes": 9,
+      "sha256": "5a2590bbaca72018bec67856d6b2d52e3ecb7f024e6522d301703fe462575ce6",
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "node": "v24.16.0"
+      }
+    },
+    {
+      "file": "npm-fail.log",
+      "provenance": "captured",
+      "tool": "npm",
+      "category": "captured-real",
+      "scenario": "fail",
+      "capturedAt": "2026-08-21T18:57:07.240Z",
+      "source": "live-run",
+      "command": "npm.cmd run rtk-missing-script-xyz",
+      "exitCode": 4294963238,
+      "bytes": 556,
+      "sha256": "c631abd349d6f4efc55c902eaef47cbfe3f1f5ec136fa570cb499cb95ab95688",
+      "host": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "node": "v24.16.0"
+      }
     }
   ]
 }

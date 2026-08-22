@@ -10,10 +10,17 @@ function truncate(output, options = {}) {
     return { emitted: output, truncated: false };
   }
 
-  const head = lines.slice(0, headLines);
-  const tail = tailLines > 0 ? lines.slice(-tailLines) : [];
+  // Clamp the windows so short-but-wide outputs can't overlap and duplicate lines.
+  const headEnd = Math.min(headLines, lines.length);
+  const tailStart = Math.max(headEnd, tailLines > 0 ? lines.length - tailLines : lines.length);
+  const head = lines.slice(0, headEnd);
+  const tail = tailLines > 0 ? lines.slice(tailStart) : [];
   const omitted = lines.length - head.length - tail.length;
+  if (omitted <= 0) return { emitted: output, truncated: false };
+
   const emitted = [...head, `… ${omitted} lines omitted …`, ...tail].join('\n');
+  // Never emit more than we were given — this is a token saver.
+  if (emitted.length >= output.length) return { emitted: output, truncated: false };
   return { emitted, truncated: true };
 }
 

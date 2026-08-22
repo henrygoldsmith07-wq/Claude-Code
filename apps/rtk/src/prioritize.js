@@ -3,7 +3,7 @@
 // Semantic error prioritization + causal context + cross-command dedup + configurable windows.
 // Usage: prioritizeLines(linesWithMeta, { window: 2, maxLines, dedupAcross: Map })
 
-const FILE_REF_RE = /(?:^|\s)([A-Za-z0-9_./-]+\.(?:ts|js|tsx|jsx|py|rs|go|java|kt|tf|yaml|yml|json|toml)):(\d+)(?::(\d+))?/;
+const FILE_REF_RE = /(?:^|\s)((?:[A-Za-z]:)?[A-Za-z0-9_./\\-]+\.(?:ts|js|tsx|jsx|py|rs|go|java|kt|tf|yaml|yml|json|toml)):(\d+)(?::(\d+))?/;
 const SEVERITY = {
   error: 100,
   fail: 90,
@@ -50,9 +50,21 @@ function prioritizeLines(lines, opts = {}) {
   scored.sort((a, b) => b.score - a.score || a.i - b.i);
   // Collect top until maxLines, always include highest scored + totals
   const keep = new Set();
+  const MIN_KEEP_SCORE = SEVERITY.warn;
   for (const s of scored) {
     if (keep.size >= maxLines) break;
-    if (s.score >= SEVERITY.reference || s.score >= SEVERITY.warn) keep.add(s.i);
+    if (s.score >= MIN_KEEP_SCORE) keep.add(s.i);
+  }
+  // Budget left over? Fill with the best remaining lines regardless of
+  // threshold so summaries ("5 passed") and references survive when possible.
+  // Ties break toward later lines: tails carry the freshest state.
+  if (keep.size < maxLines) {
+    const rest = scored.filter((s) => !keep.has(s.i));
+    rest.sort((a, b) => b.score - a.score || b.i - a.i);
+    for (const s of rest) {
+      if (keep.size >= maxLines) break;
+      keep.add(s.i);
+    }
   }
   // If nothing scored high (e.g. unknown tool), fallback to tail
   if (!keep.size) {

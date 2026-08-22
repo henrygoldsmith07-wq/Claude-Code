@@ -53,6 +53,25 @@ const PATTERNS = [
     replace: '[REDACTED-STRIPE-KEY]',
     reason: 'stripe-key',
   },
+  // JWTs (header.payload.signature) — the bearer regex above requires the
+  // literal `bearer ` prefix; raw eyJ… tokens in logs went out unredacted.
+  {
+    re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
+    replace: '[REDACTED-JWT]',
+    reason: 'jwt',
+  },
+  // PEM private keys — multi-line blocks
+  {
+    re: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+    replace: '[REDACTED-PRIVATE-KEY]',
+    reason: 'private-key',
+  },
+  // Google API keys
+  {
+    re: /\bAIza[0-9A-Za-z_-]{35}\b/g,
+    replace: '[REDACTED-GOOGLE-KEY]',
+    reason: 'google-api-key',
+  },
   // Generic long hex / base64 that looks like a secret when labeled
   // Already covered above; keep conservative — do not redact random hashes in stack traces.
 ];

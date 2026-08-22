@@ -68,7 +68,14 @@ function loadConfig(cwd) {
   const cfgPath = findConfig(cwd);
   let user = {};
   if (cfgPath) {
-    try { user = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch { user = {}; }
+    try {
+      user = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    } catch (e) {
+      // A typo'd config silently reverting every setting is worse than an
+      // honest warning — the user believes aggressive/preservation rules are active.
+      console.error(`[rtk] warning: ignoring unreadable config ${cfgPath}: ${e.message}`);
+      user = {};
+    }
   }
   const merged = {
     ...DEFAULTS,

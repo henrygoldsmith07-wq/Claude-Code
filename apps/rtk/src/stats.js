@@ -12,9 +12,13 @@ function findRtkDir(startDir) {
     if (parent === dir) break;
     dir = parent;
   }
-  const fallback = path.join(startDir, '.rtk');
-  fs.mkdirSync(fallback, { recursive: true });
-  return fallback;
+  return path.join(startDir, '.rtk');
+}
+
+// Only writes create .rtk/ — read-only commands (gain) must not mutate the tree.
+function ensureRtkDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 function statsPath(cwd) {
@@ -32,7 +36,19 @@ function load(cwd) {
 }
 
 function save(cwd, data) {
-  fs.writeFileSync(statsPath(cwd), JSON.stringify(data, null, 2));
+  const dir = ensureRtkDir(findRtkDir(cwd));
+  const file = path.join(dir, 'stats.json');
+  // Atomic replace: a crash mid-write must never leave a torn stats.json
+  // (a torn file would parse-fail on next load and wipe all history).
+  const tmp = file + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    // Stats are best-effort telemetry — never crash the wrapped command
+    // (and never clobber its exit code) because stats can't be written.
+    console.error(`[rtk] warning: could not save stats (${e.message})`);
+  }
 }
 
 function record(cwd, label, rawChars, emittedChars) {
@@ -109,4 +125,4 @@ function formatGain(data) {
   return lines.join('\n');
 }
 
-module.exports = { findRtkDir, statsPath, load, save, record, formatGain };
+module.exports = { findRtkDir, ensureRtkDir, statsPath, load, save, record, formatGain };

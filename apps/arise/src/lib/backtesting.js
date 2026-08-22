@@ -598,6 +598,9 @@ export function backtestHistory(input = [], options = {}){
     for(const block of item.session.blocks || []){
       const exerciseId = block.exerciseId;
       const actual = firstSet(block);
+      // Score against the session's BEST set, not its first: recommendations
+      // describe what to achieve next exposure, and first-set order (warm-up
+      // ramp) is noise rather than prediction error.
       const best = bestSet(block) || actual;
       if(!exerciseId || !actual) continue;
       const previous = lastExposure(historyBefore, exerciseId);
@@ -617,12 +620,16 @@ export function backtestHistory(input = [], options = {}){
         asOfDateISO: item.session.dateISO,
         calibration: progressionEstimate.source === 'empirical' ? { progressionRatePct: progressionEstimate.value } : null,
       });
-      const loadErrorKg = recommendation.load != null && actual.weightKg > 0 ? Math.abs(Number(recommendation.load) - actual.weightKg) : null;
-      const loadErrorPct = loadErrorKg != null ? loadErrorKg / Math.max(1, actual.weightKg) : null;
-      const repError = recommendation.reps != null ? Math.abs(Number(recommendation.reps) - actual.reps) : null;
-      const loadHit = recommendation.load == null || recommendation.load <= 0 || (loadErrorPct != null && loadErrorPct <= config.backtest.loadTolerancePct);
+      const loadErrorKg = recommendation.load != null && best.weightKg > 0 ? Math.abs(Number(recommendation.load) - best.weightKg) : null;
+      const loadErrorPct = loadErrorKg != null ? loadErrorKg / Math.max(1, best.weightKg) : null;
+      const repError = recommendation.reps != null ? Math.abs(Number(recommendation.reps) - best.reps) : null;
+      // A bodyweight/null-load recommendation only hits when the logged set was
+      // actually unweighted; crediting it against weighted work inflates hit rates.
+      const loadHit = recommendation.load > 0
+        ? (loadErrorPct != null && loadErrorPct <= config.backtest.loadTolerancePct)
+        : !(best.weightKg > 0);
       const repHit = recommendation.reps == null || (repError != null && repError <= config.backtest.repTolerance);
-      const completed = targetMet(recommendation, actual);
+      const completed = targetMet(recommendation, best);
       const previousAction = previous.best;
       const predictedAction = progressionAction(recommendation, previousAction, config);
       const actualAction = observedAction(best, previousAction, config);
@@ -640,6 +647,7 @@ export function backtestHistory(input = [], options = {}){
         noisyContext: noisy.details,
         recommendation: { load: recommendation.load, reps: recommendation.reps, assistKg: recommendation.assistKg, reason: recommendation.reason },
         actual: { load: actual.weightKg, reps: actual.reps, e1rm: best.e1rm },
+        scored: { load: best.weightKg, reps: best.reps, assistedKg: best.assistedKg ?? null },
         loadErrorKg,
         loadErrorPct,
         repError,

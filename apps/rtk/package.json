@@ -1,6 +1,6 @@
 {
   "name": "rtk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Cut tool-call tokens by filtering noisy command output \u2014 per-tool parsers (15+ tools), structural compression (JSON/NDJSON/diff/stack/JUnit/SARIF/GHA), tokenizer-accurate tokens, preservation guarantees",
   "license": "MIT",
   "author": "henrygoldsmith07-wq",
@@ -50,7 +50,7 @@
     "benchmark:paired": "node benchmark/paired.js --count=300 --write",
     "benchmark:levels": "node benchmark/levels.js --count=300 --write",
     "benchmark:evidence": "node benchmark/evidence.js --write",
-    "prepublishOnly": "npm test && node benchmark/run.js && node benchmark/families.js && node benchmark/detection.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/paired.js --count=250 && node benchmark/levels.js --count=250 && node benchmark/retention-fields.js",
+    "prepublishOnly": "npm run type-check && npm test && node benchmark/run.js && node benchmark/detection.js",
     "type-check": "tsc --noEmit",
     "verify": "npm run type-check && npm test && node benchmark/run.js && node benchmark/families.js && node benchmark/detection.js && node benchmark/agent-solve.js && node benchmark/retention.js && node benchmark/retention-fields.js && node benchmark/paired.js --count=250 && node benchmark/levels.js --count=250 && node benchmark/agent-live.js && node benchmark/evidence.js && npm pack --dry-run"
   },

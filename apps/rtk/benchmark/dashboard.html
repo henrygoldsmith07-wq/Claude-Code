@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTK benchmark dashboard @ 8caf81c</title>
+<style>
+:root{color-scheme:dark light;--bg:#0b0f14;--panel:#131a22;--fg:#dbe4ee;--muted:#8aa0b4;--accent:#4cc38a;--warn:#e3b341;--bad:#f85149;--line:#22303d}
+@media (prefers-color-scheme:light){:root{--bg:#f6f8fa;--panel:#ffffff;--fg:#1f2428;--muted:#57606a;--line:#d0d7de}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px 64px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:34px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 22px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card .l{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+.card .v{font-size:25px;font-weight:650;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--panel);border:1px solid var(--line)}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.ok{color:var(--accent)}.bad{color:var(--bad)}.warn{color:var(--warn)}.muted{color:var(--muted)}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:var(--panel);border:1px solid var(--line);margin:2px 4px 2px 0}
+.missing{color:var(--muted);font-style:italic}
+.note{background:var(--panel);border:1px solid var(--line);padding:12px 14px;color:var(--muted);font-size:13px}
+code{background:var(--panel);padding:1px 5px;border-radius:4px;font-size:12.5px}
+footer{margin-top:44px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px}
+footer code{word-break:break-all}
+</style>
+</head>
+<body><div class="wrap">
+<header>
+<h1>RTK benchmark dashboard</h1>
+<p class="sub">Token savings and safety of RTK output filtering &mdash; generated 2026-08-21T20:38:10.564Z</p>
+</header>
+<section id="headline"><div class="cards">
+<div class="card"><div class="l">Overall token reduction</div><div class="v ok">99%</div></div>
+<div class="card"><div class="l">Tokenizer</div><div class="v">o200k_base</div></div>
+<div class="card"><div class="l">Benchmark cases</div><div class="v">35</div></div>
+<div class="card"><div class="l">Parser detection</div><div class="v">100%</div></div>
+<div class="card"><div class="l">Paired eval (300 tasks)</div><div class="v ok">&#10003; equivalent</div></div>
+<div class="card"><div class="l">Known failures captured</div><div class="v ok">0</div></div>
+</div></section>
+<h2 id="reduction">Per-case token reduction</h2>
+<p class="sub">35 cases &middot; 117,086 &rarr; 1,664 tokens overall (99% saved)</p>
+<table><thead><tr><th>Case</th><th>Parser</th><th class="n">Raw tok</th><th class="n">Emitted tok</th><th class="n">Saved</th><th>Needles kept</th></tr></thead><tbody>
+<tr><td>Vitest pass (200 tests)</td><td class="muted">vitest</td><td class="n">22,966</td><td class="n">26</td><td class="n ok">100%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Vitest failure (2 fails)</td><td class="muted">vitest</td><td class="n">20,012</td><td class="n">168</td><td class="n ok">99%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>tsc pass (clean)</td><td class="muted">tsc</td><td class="n">6</td><td class="n">11</td><td class="n ok">-83%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>tsc failure (4 errors)</td><td class="muted">tsc</td><td class="n">169</td><td class="n">169</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Next build failure</td><td class="muted">next</td><td class="n">61</td><td class="n">46</td><td class="n ok">25%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Next build pass</td><td class="muted">next</td><td class="n">81</td><td class="n">59</td><td class="n ok">27%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Generic failure</td><td class="muted">generic</td><td class="n">33</td><td class="n">23</td><td class="n ok">30%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>ESLint errors</td><td class="muted">eslint</td><td class="n">51</td><td class="n">51</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Pytest failure</td><td class="muted">pytest</td><td class="n">57</td><td class="n">57</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Ruff</td><td class="muted">ruff</td><td class="n">36</td><td class="n">36</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>mypy</td><td class="muted">mypy</td><td class="n">28</td><td class="n">20</td><td class="n ok">29%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Cargo error</td><td class="muted">cargo</td><td class="n">45</td><td class="n">22</td><td class="n ok">51%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Go test FAIL</td><td class="muted">go-test</td><td class="n">36</td><td class="n">36</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Maven BUILD FAILURE</td><td class="muted">maven</td><td class="n">41</td><td class="n">41</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Gradle BUILD FAILED</td><td class="muted">gradle</td><td class="n">36</td><td class="n">36</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Docker ERROR</td><td class="muted">docker</td><td class="n">29</td><td class="n">29</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>K8s CrashLoop</td><td class="muted">k8s</td><td class="n">30</td><td class="n">23</td><td class="n ok">23%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Terraform Error</td><td class="muted">terraform</td><td class="n">21</td><td class="n">21</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>npm ERR!</td><td class="muted">pm</td><td class="n">20</td><td class="n">20</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Git CONFLICT</td><td class="muted">git</td><td class="n">26</td><td class="n">26</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>GHA annotation</td><td class="muted">gha</td><td class="n">32</td><td class="n">28</td><td class="n ok">13%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Truncate (2k-line verbose log)</td><td class="muted">generic</td><td class="n">26,999</td><td class="n">8</td><td class="n ok">100%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>GitHub Actions log (failure)</td><td class="muted">generic</td><td class="n">699</td><td class="n">30</td><td class="n ok">96%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Search results JSON (120 hits)</td><td class="muted">generic</td><td class="n">17,077</td><td class="n">8</td><td class="n ok">100%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>CLI verbose (2k lines)</td><td class="muted">generic</td><td class="n">26,079</td><td class="n">8</td><td class="n ok">100%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Diff (4 files)</td><td class="muted">generic</td><td class="n">1,451</td><td class="n">236</td><td class="n ok">84%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Stack trace</td><td class="muted">vitest</td><td class="n">67</td><td class="n">67</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>NDJSON logs</td><td class="muted">generic</td><td class="n">558</td><td class="n">19</td><td class="n ok">97%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>JUnit XML</td><td class="muted">generic</td><td class="n">60</td><td class="n">60</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>SARIF</td><td class="muted">generic</td><td class="n">54</td><td class="n">54</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>ANSI escapes</td><td class="muted">vitest</td><td class="n">53</td><td class="n">53</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Unicode + emoji</td><td class="muted">generic</td><td class="n">26</td><td class="n">26</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Nested JSON</td><td class="muted">generic</td><td class="n">107</td><td class="n">107</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>CRLF vitest failure</td><td class="muted">vitest</td><td class="n">24</td><td class="n">24</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>Truncated mid-error (no trailing newline)</td><td class="muted">vitest</td><td class="n">16</td><td class="n">16</td><td class="n ok">0%</td><td><span class="ok">&#10003;</span></td></tr>
+</tbody></table>
+<h2 id="families">Tokenizer family coverage</h2>
+<p class="sub">Spread across encodings: 99%&ndash;99% (avg 99%) over 35 cases</p>
+<table><thead><tr><th>Family</th><th>Encoding</th><th>Model</th><th class="n">Reduction</th><th class="n">Tokens saved</th><th>Price basis</th></tr></thead><tbody>
+<tr><td>GPT-4o / GPT-4.1 / o1 family</td><td class="muted">o200k_base</td><td class="muted">gpt-4o</td><td class="n ok">99%</td><td class="n">115,427</td><td class="muted">gpt-4o @ $2.5/1M input</td></tr>
+<tr><td>GPT-4 / GPT-3.5 family</td><td class="muted">cl100k_base</td><td class="muted">gpt-4</td><td class="n ok">99%</td><td class="n">115,442</td><td class="muted">gpt-4 @ $30/1M input</td></tr>
+<tr><td>Codex / code models</td><td class="muted">p50k_base</td><td class="muted">code-davinci-002</td><td class="n ok">99%</td><td class="n">125,903</td><td class="muted">code-davinci-002 @ $0.12/1M input</td></tr>
+<tr><td>GPT-3 / text-davinci family</td><td class="muted">r50k_base</td><td class="muted">text-davinci-003</td><td class="n ok">99%</td><td class="n">135,550</td><td class="muted">text-davinci-003 @ $2/1M input</td></tr>
+<tr><td>GPT-2 base</td><td class="muted">gpt2</td><td class="muted">gpt-3.5-turbo</td><td class="n ok">99%</td><td class="n">135,550</td><td class="muted">gpt-3.5-turbo @ $0.5/1M input</td></tr>
+</tbody></table>
+<h2 id="detection">Parser detection accuracy</h2>
+<p class="sub">32/32 labeled commands detected correctly (100%)</p>
+<p class="note">No mis-detections in the current labeled set.</p>
+<h2 id="paired">Paired evaluation (raw vs RTK)</h2>
+<p class="sub">300 tasks, level balanced, seed 12,648,430 &mdash; both arms attempt every task; only discordant pairs carry signal.</p>
+<table><thead><tr><th>Arm</th><th class="n">Tasks</th><th class="n">Success rate</th><th>Wilson 95% CI</th></tr></thead><tbody>
+<tr><td>Raw tool output</td><td class="n">300</td><td class="n">97.0%</td><td>94.4% &ndash; 98.4%</td></tr>
+<tr><td>RTK-filtered output</td><td class="n">300</td><td class="n">97.0%</td><td>94.4% &ndash; 98.4%</td></tr>
+</tbody></table>
+<p><span class="badge ok">equivalent &#10003;</span> Difference 0.0pp (90% CI -1.0% &ndash; 1.0%) within &plusmn;5pp margin. <span class="muted">Equivalent: the difference in task success is within ±5 points (90% CI -1.0 to 1.0, n=300).</span></p>
+<p class="note">Net economics: 1,224,996 tokens saved per run (<span class="ok">profitable</span>), 0 extra retries attributed to filtering. Saved 1225.0k tokens with no additional retries.</p>
+<h2 id="levels">Filtering levels sweep</h2>
+<table><thead><tr><th>Level</th><th class="n">Tasks</th><th class="n">RTK success</th><th class="n">Avg reduction</th><th>Equivalent</th></tr></thead><tbody>
+<tr><td>aggressive</td><td class="n">300</td><td class="n">97.0%</td><td class="n">97%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>balanced</td><td class="n">300</td><td class="n">97.0%</td><td class="n">97%</td><td><span class="ok">&#10003;</span></td></tr>
+<tr><td>conservative</td><td class="n">300</td><td class="n">97.0%</td><td class="n">97%</td><td><span class="ok">&#10003;</span></td></tr>
+</tbody></table>
+<h2 id="corpus">Failure corpus</h2>
+<p><strong>0</strong> confirmed failure(s) captured where the raw tool succeeded but RTK did not.
+</p>
+<p class="note">Public sanitized export: <code>public/failure-corpus.json</code> and <code>public/failure-corpus.md</code> (secrets redacted, local paths stripped via <code>benchmark/export-failure-corpus.js</code>).</p>
+<footer id="provenance">
+<p>rtk commit <code>8caf81c</code> (<code>8caf81ce61662952bb1f10581eac3d80e0575b07</code>) &middot; benchmark version <code>0.3.0</code> &middot; corpus version <code>corpus-50-777a244a</code></p>
+<p>Generated 2026-08-21T20:38:10.564Z &middot; sources: <span class="badge ok">results: ok</span><span class="badge ok">families: ok</span><span class="badge ok">detection: ok</span><span class="badge ok">levels: ok</span><span class="badge ok">paired: ok</span><span class="badge ok">evidence: ok</span><span class="badge ok">retention: ok</span><span class="badge ok">retention-fields: ok</span></p>
+</footer>
+</div>
+<script type="application/json" id="dashboard-data">{"generatedAt":"2026-08-21T20:38:10.564Z","provenance":{"rtkCommit":"8caf81ce61662952bb1f10581eac3d80e0575b07","benchmarkVersion":"0.3.0","corpusVersion":"corpus-50-777a244a"},"headline":{"overallReductionPct":99,"tokenizer":"o200k_base","cases":35,"detectionRatePct":100,"pairedEquivalent":true,"pairedCount":300,"failureCount":0},"reduction":{"tokenizer":"o200k_base","generatedAt":"2026-08-13T15:08:57.699Z","cases":35,"totals":{"rawTokens":117086,"emittedTokens":1664,"overallReductionPct":99},"rows":[{"label":"Vitest pass (200 tests)","parser":"vitest","rawTokens":22966,"emittedTokens":26,"tokenReductionPct":100,"tokensSaved":22940,"criticalRetained":true},{"label":"Vitest failure (2 fails)","parser":"vitest","rawTokens":20012,"emittedTokens":168,"tokenReductionPct":99,"tokensSaved":19844,"criticalRetained":true},{"label":"tsc pass (clean)","parser":"tsc","rawTokens":6,"emittedTokens":11,"tokenReductionPct":-83,"tokensSaved":0,"criticalRetained":true},{"label":"tsc failure (4 errors)","parser":"tsc","rawTokens":169,"emittedTokens":169,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Next build failure","parser":"next","rawTokens":61,"emittedTokens":46,"tokenReductionPct":25,"tokensSaved":15,"criticalRetained":true},{"label":"Next build pass","parser":"next","rawTokens":81,"emittedTokens":59,"tokenReductionPct":27,"tokensSaved":22,"criticalRetained":true},{"label":"Generic failure","parser":"generic","rawTokens":33,"emittedTokens":23,"tokenReductionPct":30,"tokensSaved":10,"criticalRetained":true},{"label":"ESLint errors","parser":"eslint","rawTokens":51,"emittedTokens":51,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Pytest failure","parser":"pytest","rawTokens":57,"emittedTokens":57,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Ruff","parser":"ruff","rawTokens":36,"emittedTokens":36,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"mypy","parser":"mypy","rawTokens":28,"emittedTokens":20,"tokenReductionPct":29,"tokensSaved":8,"criticalRetained":true},{"label":"Cargo error","parser":"cargo","rawTokens":45,"emittedTokens":22,"tokenReductionPct":51,"tokensSaved":23,"criticalRetained":true},{"label":"Go test FAIL","parser":"go-test","rawTokens":36,"emittedTokens":36,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Maven BUILD FAILURE","parser":"maven","rawTokens":41,"emittedTokens":41,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Gradle BUILD FAILED","parser":"gradle","rawTokens":36,"emittedTokens":36,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Docker ERROR","parser":"docker","rawTokens":29,"emittedTokens":29,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"K8s CrashLoop","parser":"k8s","rawTokens":30,"emittedTokens":23,"tokenReductionPct":23,"tokensSaved":7,"criticalRetained":true},{"label":"Terraform Error","parser":"terraform","rawTokens":21,"emittedTokens":21,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"npm ERR!","parser":"pm","rawTokens":20,"emittedTokens":20,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Git CONFLICT","parser":"git","rawTokens":26,"emittedTokens":26,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"GHA annotation","parser":"gha","rawTokens":32,"emittedTokens":28,"tokenReductionPct":13,"tokensSaved":4,"criticalRetained":true},{"label":"Truncate (2k-line verbose log)","parser":"generic","rawTokens":26999,"emittedTokens":8,"tokenReductionPct":100,"tokensSaved":26991,"criticalRetained":true},{"label":"GitHub Actions log (failure)","parser":"generic","rawTokens":699,"emittedTokens":30,"tokenReductionPct":96,"tokensSaved":669,"criticalRetained":true},{"label":"Search results JSON (120 hits)","parser":"generic","rawTokens":17077,"emittedTokens":8,"tokenReductionPct":100,"tokensSaved":17069,"criticalRetained":true},{"label":"CLI verbose (2k lines)","parser":"generic","rawTokens":26079,"emittedTokens":8,"tokenReductionPct":100,"tokensSaved":26071,"criticalRetained":true},{"label":"Diff (4 files)","parser":"generic","rawTokens":1451,"emittedTokens":236,"tokenReductionPct":84,"tokensSaved":1215,"criticalRetained":true},{"label":"Stack trace","parser":"vitest","rawTokens":67,"emittedTokens":67,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"NDJSON logs","parser":"generic","rawTokens":558,"emittedTokens":19,"tokenReductionPct":97,"tokensSaved":539,"criticalRetained":true},{"label":"JUnit XML","parser":"generic","rawTokens":60,"emittedTokens":60,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"SARIF","parser":"generic","rawTokens":54,"emittedTokens":54,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"ANSI escapes","parser":"vitest","rawTokens":53,"emittedTokens":53,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Unicode + emoji","parser":"generic","rawTokens":26,"emittedTokens":26,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Nested JSON","parser":"generic","rawTokens":107,"emittedTokens":107,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"CRLF vitest failure","parser":"vitest","rawTokens":24,"emittedTokens":24,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true},{"label":"Truncated mid-error (no trailing newline)","parser":"vitest","rawTokens":16,"emittedTokens":16,"tokenReductionPct":0,"tokensSaved":0,"criticalRetained":true}]},"families":{"cases":35,"families":[{"id":"o200k","label":"GPT-4o / GPT-4.1 / o1 family","encoding":"o200k_base","model":"gpt-4o","reductionPct":99,"tokensSaved":115427,"costSaved":0.28856750000000003,"price":"gpt-4o @ $2.5/1M input"},{"id":"cl100k","label":"GPT-4 / GPT-3.5 family","encoding":"cl100k_base","model":"gpt-4","reductionPct":99,"tokensSaved":115442,"costSaved":3.46326,"price":"gpt-4 @ $30/1M input"},{"id":"p50k","label":"Codex / code models","encoding":"p50k_base","model":"code-davinci-002","reductionPct":99,"tokensSaved":125903,"costSaved":0.015108359999999998,"price":"code-davinci-002 @ $0.12/1M input"},{"id":"r50k","label":"GPT-3 / text-davinci family","encoding":"r50k_base","model":"text-davinci-003","reductionPct":99,"tokensSaved":135550,"costSaved":0.2711,"price":"text-davinci-003 @ $2/1M input"},{"id":"gpt2","label":"GPT-2 base","encoding":"gpt2","model":"gpt-3.5-turbo","reductionPct":99,"tokensSaved":135550,"costSaved":0.067775,"price":"gpt-3.5-turbo @ $0.5/1M input"}],"stability":{"reductions":[99,99,99,99,99],"spreadPct":0,"minPct":99,"maxPct":99,"avgPct":99}},"detection":{"total":32,"okCount":32,"ratePct":100,"failures":[]},"levels":{"count":300,"seed":12648430,"levels":[{"level":"aggressive","total":300,"rawSuccessRate":0.97,"rtkSuccessRate":0.97,"avgReduction":97,"equivalent":true},{"level":"balanced","total":300,"rawSuccessRate":0.97,"rtkSuccessRate":0.97,"avgReduction":97,"equivalent":true},{"level":"conservative","total":300,"rawSuccessRate":0.97,"rtkSuccessRate":0.97,"avgReduction":97,"equivalent":true}]},"paired":{"count":300,"level":"balanced","seed":12648430,"stats":{"total":300,"rawSuccesses":291,"rtkSuccesses":291,"rawSuccessRate":0.97,"rtkSuccessRate":0.97,"pairedDifference":0,"discordant":0,"confidenceInterval":{"lower":-0.01,"upper":0.01},"margin":0.05,"equivalent":true,"avgRawTokens":4190,"avgRtkTokens":106,"avgReduction":97},"equivalence":{"n":300,"a":291,"b":0,"c":0,"d":9,"difference":0,"lower":-0.01,"upper":0.01,"equivalent":true,"margin":0.05,"note":"Equivalent: the difference in task success is within ±5 points (90% CI -1.0 to 1.0, n=300)."},"economics":{"net":1224996,"netPct":0.9747,"extraRetries":0,"profitable":true,"note":"Saved 1225.0k tokens with no additional retries."},"wilson":{"alpha":0.05,"raw":{"point":0.97,"lower":0.944,"upper":0.9841},"rtk":{"point":0.97,"lower":0.944,"upper":0.9841}}},"evidence":{"corpusInventory":{"total":49,"byProvenance":{"synthetic":29,"adversarial":14,"captured":6}},"pairedCount":300},"retention":{"cases":19,"criticalRetained":19,"missed":[]},"retentionFields":{"fields":[{"field":"failed_test_name","label":"failed test name","retentionPct":100,"casesPerfectRate":100,"casesApplicable":10},{"field":"error_type","label":"error type","retentionPct":96,"casesPerfectRate":95,"casesApplicable":44},{"field":"exit_status","label":"exit status","retentionPct":94,"casesPerfectRate":92,"casesApplicable":13},{"field":"warning_type","label":"warning type","retentionPct":82,"casesPerfectRate":67,"casesApplicable":6},{"field":"expected_value","label":"expected value","retentionPct":80,"casesPerfectRate":80,"casesApplicable":5},{"field":"actual_value","label":"actual value","retentionPct":75,"casesPerfectRate":67,"casesApplicable":3},{"field":"command","label":"command","retentionPct":67,"casesPerfectRate":63,"casesApplicable":8},{"field":"remediation","label":"actionable remediation clues","retentionPct":60,"casesPerfectRate":50,"casesApplicable":8},{"field":"path","label":"path","retentionPct":57,"casesPerfectRate":82,"casesApplicable":33},{"field":"line_number","label":"line number","retentionPct":41,"casesPerfectRate":76,"casesApplicable":37},{"field":"column","label":"column","retentionPct":40,"casesPerfectRate":73,"casesApplicable":33},{"field":"stack_frame","label":"relevant stack frame","retentionPct":36,"casesPerfectRate":78,"casesApplicable":23},{"field":"root_cause","label":"root-cause context","retentionPct":36,"casesPerfectRate":50,"casesApplicable":6},{"field":"filename","label":"filename","retentionPct":35,"casesPerfectRate":77,"casesApplicable":48}]},"failureCorpus":{"count":0,"byCategory":{}},"sources":{"results":"ok","families":"ok","detection":"ok","levels":"ok","paired":"ok","evidence":"ok","retention":"ok","retention-fields":"ok"}}</script>
+</body></html>

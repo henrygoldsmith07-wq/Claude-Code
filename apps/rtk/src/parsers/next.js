@@ -19,7 +19,8 @@ const rules = [
   { re: /warning/i, keep: false, reason: 'next: warning — dropped on success' },
 ];
 
-function filter(output, exitCode) {
+function filter(output, exitCode, opts = {}) {
+  const maxLines = opts.maxLines ?? 60;
   const lines = output.split('\n').filter((l) => l.length > 0);
   if (exitCode === 0) {
     const kept = lines.filter((l) => NEXT_SUCCESS_RE.test(l) || NEXT_SUMMARY_RE.test(l));
@@ -27,12 +28,18 @@ function filter(output, exitCode) {
     return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };
   }
   // On failure keep errors + any context line that looks like a file reference
-  const kept = lines.filter((l) => NEXT_ERROR_RE.test(l) || /error/i.test(l) || /^\s*at\s|\.\/|\.tsx?:\d+:\d+/.test(l));
-  const summary = lines.filter((l) => NEXT_SUMMARY_RE.test(l));
-  const merged = [...kept, ...summary.filter((l) => !kept.includes(l))];
-  // Order by original position
-  merged.sort((a, b) => lines.indexOf(a) - lines.indexOf(b));
-  const emitted = (merged.length ? merged : lines.slice(-30)).join('\n');
+  const keepIdx = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    if (NEXT_ERROR_RE.test(lines[i]) || /error/i.test(lines[i]) || /^\s*at\s|\.\/|\.tsx?:\d+:\d+/.test(lines[i])) {
+      keepIdx.add(i);
+    }
+  }
+  const summaryIdx = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!keepIdx.has(i) && NEXT_SUMMARY_RE.test(lines[i])) summaryIdx.push(i);
+  }
+  const merged = [...keepIdx, ...summaryIdx].sort((a, b) => a - b).map((i) => lines[i]);
+  const emitted = (merged.length ? merged.slice(0, maxLines) : lines.slice(-30)).join('\n');
   return { emitted, parser: name, lines: emitted.split('\n').length, rawLines: lines.length };
 }
 

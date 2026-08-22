@@ -250,7 +250,7 @@ npm i -g rtk
 npx rtk err npm test
 ```
 
-Requires Node ≥ 18. No dependencies. Cross-platform (Windows/macOS/Linux); `bin/rtk.js` uses `spawnSync` with `maxBuffer` 64MB and binary-safe NUL handling. Startup is < 30ms (single `require`, no async).
+Requires Node ≥ 18. One dependency (`js-tiktoken`, loaded lazily for tokenizer-accurate counts — falls back to chars/4 if unavailable). Cross-platform (Windows/macOS/Linux); `bin/rtk.js` uses `spawnSync` with `maxBuffer` 64MB and binary-safe NUL handling. Startup is < 30ms (single `require`, no async).
 
 ## Compatibility
 
