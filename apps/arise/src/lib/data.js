@@ -31,61 +31,27 @@ export const GOALS = [
   { id: 'general', label: 'Feel better', hint: 'Balanced, sustainable' },
 ];
 
-// Keep the list hand-curated and small to stay trustworthy.
-// Each exercise declares equipment so onboarding can gate recommendations honestly.
-// videoUrl is optional — when present, lint:content checks it is https and reachable shape.
-// unilateral, supportsWeighted/Assisted, progression, rom flag help the engine pick the right strategy.
+// Exercise library: one module per muscle group under data/exercises/,
+// re-exported here so data.js remains the single source of truth for every
+// consumer. Split ahead of library expansion to stay well under 500 lines.
+import { CHEST_EXERCISES } from './data/exercises/chest.js';
+import { BACK_EXERCISES } from './data/exercises/back.js';
+import { LEGS_EXERCISES } from './data/exercises/legs.js';
+import { GLUTES_EXERCISES } from './data/exercises/glutes.js';
+import { SHOULDERS_EXERCISES } from './data/exercises/shoulders.js';
+import { ARMS_EXERCISES } from './data/exercises/arms.js';
+import { CORE_EXERCISES } from './data/exercises/core.js';
+import { CONDITIONING_EXERCISES } from './data/exercises/conditioning.js';
+
 export const EXERCISES = [
-  // Chest
-  { id: 'push-up', name: 'Push-up', muscle: 'Chest', equipment: ['bodyweight'], level: 'Beginner', cues: ['Hands under shoulders','Body in a straight line','Chest to floor'], substitution: ['bench-press-dumbbell','chest-press-machine','bench-press-barbell','incline-push-up','overhead-press-dumbbell','tricep-dip-bench','incline-dumbbell-press'], unilateral: false, supportsWeighted: true, supportsAssisted: false, progression: 'reps', rom: true },
-  { id: 'bench-press-barbell', name: 'Barbell Bench Press', muscle: 'Chest', equipment: ['barbell','bench'], level: 'Intermediate', cues: ['Feet planted','Retract shoulder blades','Bar to chest, press to lockout'], substitution: ['push-up','bench-press-dumbbell'], unilateral: false, progression: 'load', rom: true },
-  { id: 'bench-press-dumbbell', name: 'Dumbbell Bench Press', muscle: 'Chest', equipment: ['dumbbells','bench'], level: 'Beginner', cues: ['Neutral wrists','Control the descent'], substitution: ['push-up','bench-press-barbell','incline-dumbbell-press'], unilateral: false, progression: 'load', rom: true },
-  { id: 'incline-push-up', name: 'Incline Push-up', muscle: 'Chest', equipment: ['bodyweight','bench'], level: 'Beginner', cues: ['Hands elevated','Easier than floor push-ups'], substitution: ['push-up'], unilateral: false, supportsWeighted: true, progression: 'reps' },
-  { id: 'chest-press-machine', name: 'Chest Press (Machine)', muscle: 'Chest', equipment: ['machine'], level: 'Beginner', cues: ['Seat height so handles at chest'], substitution: ['push-up'], progression: 'load' },
-
-  // Back
-  { id: 'pull-up', name: 'Pull-up', muscle: 'Back', equipment: ['pullup-bar'], level: 'Intermediate', cues: ['Dead hang start','Chest to bar','No swinging'], substitution: ['band-row','dumbbell-row','lat-pulldown'], supportsWeighted: true, supportsAssisted: true, progression: 'reps', rom: true },
-  { id: 'band-row', name: 'Banded Row', muscle: 'Back', equipment: ['bands'], level: 'Beginner', cues: ['Hinge slightly','Pull elbows past torso'], substitution: ['dumbbell-row','pull-up','lat-pulldown','face-pull','cable-row'], progression: 'reps' },
-  { id: 'dumbbell-row', name: 'Single-Arm Dumbbell Row', muscle: 'Back', equipment: ['dumbbells','bench'], level: 'Beginner', cues: ['Flat back','Pull to hip'], substitution: ['band-row','pull-up','face-pull','cable-row'], unilateral: true, progression: 'load', rom: true },
-  { id: 'lat-pulldown', name: 'Lat Pulldown', muscle: 'Back', equipment: ['cable'], level: 'Beginner', cues: ['Lean slightly back','Pull to upper chest'], substitution: ['pull-up','band-row'], progression: 'load' },
-
-  // Legs / Glutes
-  { id: 'bodyweight-squat', name: 'Bodyweight Squat', muscle: 'Legs', equipment: ['bodyweight'], level: 'Beginner', cues: ['Knees track toes','Depth to hip below knee if comfortable'], substitution: ['goblet-squat','barbell-squat','split-squat','burpee'], supportsWeighted: true, progression: 'reps', rom: true },
-  { id: 'goblet-squat', name: 'Goblet Squat', muscle: 'Legs', equipment: ['dumbbells','kettlebell'], level: 'Beginner', cues: ['Elbows inside knees','Chest tall'], substitution: ['bodyweight-squat','barbell-squat','bulgarian-split-squat'], progression: 'load', rom: true },
-  { id: 'barbell-squat', name: 'Barbell Back Squat', muscle: 'Legs', equipment: ['barbell'], level: 'Advanced', cues: ['Brace hard','Hip hinge then knee bend'], substitution: ['goblet-squat','bodyweight-squat'], progression: 'load', rom: true },
-  { id: 'romanian-deadlift', name: 'Romanian Deadlift', muscle: 'Glutes', equipment: ['dumbbells','barbell'], level: 'Intermediate', cues: ['Soft knee','Hinge, hamstrings stretch','Neutral spine'], substitution: ['glute-bridge','kettlebell-swing'], progression: 'load', rom: true },
-  { id: 'hip-thrust', name: 'Hip Thrust', muscle: 'Glutes', equipment: ['bench'], level: 'Beginner', cues: ['Shoulders on bench','Squeeze glutes at top'], substitution: ['glute-bridge'], progression: 'load', rom: true },
-  { id: 'glute-bridge', name: 'Glute Bridge', muscle: 'Glutes', equipment: ['bodyweight'], level: 'Beginner', cues: ['Feet flat','Drive hips up'], substitution: ['hip-thrust','romanian-deadlift'], supportsWeighted: true, progression: 'reps', rom: true },
-  { id: 'lunge', name: 'Forward Lunge', muscle: 'Legs', equipment: ['bodyweight','dumbbells'], level: 'Beginner', cues: ['Front knee over ankle','Torso upright'], substitution: ['split-squat','bulgarian-split-squat'], unilateral: true, supportsWeighted: true, progression: 'reps', rom: true },
-  { id: 'split-squat', name: 'Split Squat', muscle: 'Legs', equipment: ['bench','dumbbells'], level: 'Intermediate', cues: ['Torso upright','Back knee lowers toward floor'], substitution: ['lunge','bodyweight-squat'], unilateral: true, supportsWeighted: true, progression: 'load', rom: true },
-
-  // Shoulders / Arms
-  { id: 'overhead-press-dumbbell', name: 'Dumbbell Overhead Press', muscle: 'Shoulders', equipment: ['dumbbells'], level: 'Beginner', cues: ['Ribs down','Press overhead without arching'], substitution: ['push-up','pike-push-up'], progression: 'load', rom: true },
-  { id: 'pike-push-up', name: 'Pike Push-up', muscle: 'Shoulders', equipment: ['bodyweight'], level: 'Intermediate', cues: ['Hips high','Head between arms'], substitution: ['overhead-press-dumbbell'], supportsWeighted: true, progression: 'reps' },
-  { id: 'lateral-raise', name: 'Lateral Raise', muscle: 'Shoulders', equipment: ['dumbbells'], level: 'Beginner', cues: ['Slight lean','Lead with elbows'], substitution: ['band-lateral-raise'], progression: 'load' },
-  { id: 'band-lateral-raise', name: 'Banded Lateral Raise', muscle: 'Shoulders', equipment: ['bands'], level: 'Beginner', cues: ['Slow tempo'], substitution: ['lateral-raise'], progression: 'reps' },
-  { id: 'bicep-curl', name: 'Dumbbell Bicep Curl', muscle: 'Arms', equipment: ['dumbbells'], level: 'Beginner', cues: ['Elbows pinned','No swinging'], substitution: ['band-curl'], unilateral: true, progression: 'load' },
-  { id: 'band-curl', name: 'Banded Bicep Curl', muscle: 'Arms', equipment: ['bands'], level: 'Beginner', cues: ['Step on band','Control up and down'], substitution: ['bicep-curl'], progression: 'reps' },
-  { id: 'tricep-dip-bench', name: 'Bench Dip', muscle: 'Arms', equipment: ['bench'], level: 'Beginner', cues: ['Shoulders down','Elbows back'], substitution: ['push-up'], supportsWeighted: true, progression: 'reps', rom: true },
-  { id: 'plank', name: 'Plank', muscle: 'Core', equipment: ['bodyweight'], level: 'Beginner', cues: ['Forearms & toes','Hips level'], substitution: ['dead-bug','hanging-knee-raise','leg-raise','farmer-carry'], progression: 'time' },
-  { id: 'dead-bug', name: 'Dead Bug', muscle: 'Core', equipment: ['bodyweight'], level: 'Beginner', cues: ['Lower back pressed to floor','Opposite arm/leg'], substitution: ['plank','hanging-knee-raise'], progression: 'reps' },
-  { id: 'hanging-knee-raise', name: 'Hanging Knee Raise', muscle: 'Core', equipment: ['pullup-bar'], level: 'Intermediate', cues: ['No swinging','Knees to chest'], substitution: ['plank','dead-bug','leg-raise'], progression: 'reps', rom: true },
-
-  // Conditioning
-  { id: 'run-easy', name: 'Easy Run', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Conversational pace','Nasal breathing'], substitution: ['brisk-walk','cycle'], progression: 'time' },
-  { id: 'brisk-walk', name: 'Brisk Walk', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Arms pumping','Uphill if available'], substitution: ['run-easy','jump-rope'], progression: 'time' },
-  { id: 'cycle', name: 'Cycle', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Steady cadence'], substitution: ['run-easy'], progression: 'time' },
-  { id: 'kettlebell-swing', name: 'Kettlebell Swing', muscle: 'Full body', equipment: ['kettlebell'], level: 'Intermediate', cues: ['Hip hinge power','Arms guide, hips drive'], substitution: ['romanian-deadlift','farmer-carry'], progression: 'reps' },
-  { id: 'burpee', name: 'Burpee', muscle: 'Full body', equipment: ['bodyweight'], level: 'Intermediate', cues: ['Chest to floor','Jump or step up'], substitution: ['bodyweight-squat'], progression: 'reps' },
-  { id: 'jump-rope', name: 'Jump Rope', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Light on toes','Elbows tucked'], substitution: ['brisk-walk'], progression: 'time' },
-
-  // Added for broader muscle/equipment coverage
-  { id: 'incline-dumbbell-press', name: 'Incline Dumbbell Press', muscle: 'Chest', equipment: ['dumbbells','bench'], level: 'Intermediate', cues: ['Bench at 30°','Palms forward','Control stretch at bottom'], substitution: ['bench-press-dumbbell','push-up'], progression: 'load', rom: true },
-  { id: 'face-pull', name: 'Face Pull', muscle: 'Shoulders', equipment: ['cable','bands'], level: 'Beginner', cues: ['Elbows high','Pull to forehead','Squeeze rear delts'], substitution: ['band-row','dumbbell-row'], progression: 'load' },
-  { id: 'bulgarian-split-squat', name: 'Bulgarian Split Squat', muscle: 'Legs', equipment: ['bench','dumbbells'], level: 'Intermediate', cues: ['Front shin vertical','Back knee hovers','Torso tall'], substitution: ['lunge','goblet-squat'], unilateral: true, supportsWeighted: true, progression: 'load', rom: true },
-  { id: 'cable-row', name: 'Seated Cable Row', muscle: 'Back', equipment: ['cable'], level: 'Beginner', cues: ['Chest proud','Elbows to ribs','Squeeze shoulder blades'], substitution: ['band-row','dumbbell-row'], progression: 'load' },
-  { id: 'leg-raise', name: 'Hanging Leg Raise', muscle: 'Core', equipment: ['pullup-bar'], level: 'Advanced', cues: ['Dead hang','Legs straight','Control down'], substitution: ['hanging-knee-raise','plank'], progression: 'reps', rom: true },
-  { id: 'farmer-carry', name: 'Farmer Carry', muscle: 'Full body', equipment: ['dumbbells'], level: 'Beginner', cues: ['Heavy pair','Shoulders packed','Walk tall'], substitution: ['plank','kettlebell-swing'], progression: 'time' },
+  ...CHEST_EXERCISES,
+  ...BACK_EXERCISES,
+  ...LEGS_EXERCISES,
+  ...GLUTES_EXERCISES,
+  ...SHOULDERS_EXERCISES,
+  ...ARMS_EXERCISES,
+  ...CORE_EXERCISES,
+  ...CONDITIONING_EXERCISES,
 ];
 
 export const EXERCISE_BY_ID = Object.fromEntries(EXERCISES.map(e => [e.id, e]));
@@ -424,6 +390,9 @@ function toISO(d){
 }
 
 // Simple content validation used by scripts/lint-content.mjs
+const PROGRESSION_MODES = ['load', 'reps', 'time'];
+const MIN_EXERCISES_PER_MUSCLE = 3;
+
 export function validateContent(){
   const errors=[];
   const ids = new Set();
@@ -440,6 +409,8 @@ export function validateContent(){
     for(const eq of e.equipment){
       if(!EQUIPMENT.some(x=>x.id===eq)) errors.push(`Exercise ${e.id} has unknown equipment ${eq}`);
     }
+    if(!PROGRESSION_MODES.includes(e.progression)) errors.push(`Exercise ${e.id} has invalid progression "${e.progression}" (expected one of ${PROGRESSION_MODES.join('|')})`);
+    if(!Array.isArray(e.cues) || e.cues.length===0) errors.push(`Exercise ${e.id} declares no cues — every exercise needs at least one form cue`);
     if(e.videoUrl && !/^https:\/\//.test(e.videoUrl)) errors.push(`Exercise ${e.id} has non-https videoUrl`);
     if(!Array.isArray(e.substitution) || e.substitution.length===0) errors.push(`Exercise ${e.id} declares no substitutions — every exercise needs an alternative chain`);
   }
@@ -452,6 +423,18 @@ export function validateContent(){
       if(!target){ errors.push(`Exercise ${e.id} substitutes unknown exercise ${targetId}`); continue; }
       if(!(target.substitution||[]).includes(e.id)) errors.push(`Substitution not reciprocal: ${e.id} → ${targetId}, but ${targetId} does not list ${e.id}`);
     }
+  }
+  // Coverage floors: a bulk-authored library is only useful if every muscle is
+  // trainable, and bodyweight-only users must never hit a dead end (roadmap P1 #4).
+  const perMuscle = {};
+  const bodyweightMuscles = new Set();
+  for(const e of EXERCISES){
+    perMuscle[e.muscle] = (perMuscle[e.muscle]||0) + 1;
+    if(e.equipment.includes('bodyweight')) bodyweightMuscles.add(e.muscle);
+  }
+  for(const m of MUSCLES){
+    if((perMuscle[m]||0) < MIN_EXERCISES_PER_MUSCLE) errors.push(`Muscle ${m} has only ${perMuscle[m]||0} exercise(s) — minimum is ${MIN_EXERCISES_PER_MUSCLE}`);
+    if(!bodyweightMuscles.has(m)) errors.push(`Muscle ${m} has no bodyweight option — bodyweight-only users hit a dead end`);
   }
   for(const p of PROGRAMS){
     for(const w of p.weeks) for(const wk of w.workouts) for(const b of wk.blocks){

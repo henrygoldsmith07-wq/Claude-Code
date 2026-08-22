@@ -111,7 +111,7 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
       body: (
         <div className="grid gap-2">
           {GOALS.map(g=> (
-            <button key={g.id} onClick={()=> setGoal(g.id)} className={`text-left rounded-2xl border p-4 ${goal===g.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink3'}`}>
+            <button key={g.id} onClick={()=> setGoal(g.id)} aria-pressed={goal===g.id} className={`text-left rounded-2xl border p-4 ${goal===g.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink3'}`}>
               <span className="block font-bold">{g.label}</span><span className={`block text-xs ${goal===g.id ? 'text-bg/80' : 'text-ink3'}`}>{g.hint}</span>
             </button>
           ))}
@@ -123,7 +123,7 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
       body: (
         <div className="grid gap-2">
           {LOCATIONS.map(l=> (
-            <button key={l.id} onClick={()=> setLocation(l.id)} className={`text-left rounded-2xl border p-4 ${location===l.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink3'}`}>
+            <button key={l.id} onClick={()=> setLocation(l.id)} aria-pressed={location===l.id} className={`text-left rounded-2xl border p-4 ${location===l.id ? 'bg-ink text-bg border-ink' : 'bg-surface border-line hover:border-ink3'}`}>
               <span className="block font-bold">{l.label}</span><span className={`block text-xs ${location===l.id ? 'text-bg/80' : 'text-ink3'}`}>{l.hint}</span>
             </button>
           ))}
@@ -189,7 +189,7 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
             <p className="text-xs font-bold uppercase tracking-widest text-ink3">Your level</p>
             <div className="mt-2 flex gap-2">
               {LEVELS.map(l=> (
-                <button key={l} onClick={()=> setLevel(l)} className={`flex-1 min-h-10 rounded-xl border text-sm font-bold ${level===l ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{l}</button>
+                <button key={l} onClick={()=> setLevel(l)} aria-pressed={level===l} className={`flex-1 min-h-10 rounded-xl border text-sm font-bold ${level===l ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{l}</button>
               ))}
             </div>
           </div>
@@ -197,7 +197,7 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
             <p className="text-xs font-bold uppercase tracking-widest text-ink3">Days per week</p>
             <div className="mt-2 flex gap-2">
               {[2,3,4,5].map(n=> (
-                <button key={n} onClick={()=> setDays(n)} className={`flex-1 min-h-10 rounded-xl border text-sm font-bold ${days===n ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{n}×</button>
+                <button key={n} onClick={()=> setDays(n)} aria-pressed={days===n} className={`flex-1 min-h-10 rounded-xl border text-sm font-bold ${days===n ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{n}×</button>
               ))}
             </div>
             <p className="text-xs text-ink3 mt-2">Used to rank programs. Your schedule still follows the program you pick in Train.</p>
@@ -206,7 +206,7 @@ export default function Onboarding({ open, onClose, onComplete, initial }){
             <p className="text-xs font-bold uppercase tracking-widest text-ink3">Time per session</p>
             <div className="mt-2 grid grid-cols-4 gap-2">
               {[20,30,45,60].map(n=> (
-                <button key={n} onClick={()=> setMinutes(n)} className={`min-h-10 rounded-xl border text-sm font-bold ${minutes===n ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{n} min</button>
+                <button key={n} onClick={()=> setMinutes(n)} aria-pressed={minutes===n} className={`min-h-10 rounded-xl border text-sm font-bold ${minutes===n ? 'bg-ink text-bg border-ink' : 'bg-surface border-line'}`}>{n} min</button>
               ))}
             </div>
             <p className="text-xs text-ink3 mt-2">Shorter caps preserve the highest-value blocks and reduce sets when needed.</p>

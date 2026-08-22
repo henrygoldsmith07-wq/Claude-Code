@@ -1,0 +1,16 @@
+// Back exercises — rows, vertical pulls and spinal-erector work. Includes the
+// bodyweight options (inverted row, superman hold) so no-kit users can train
+// back, which was a dead end in the original library.
+export const BACK_EXERCISES = [
+  { id: 'pull-up', name: 'Pull-up', muscle: 'Back', equipment: ['pullup-bar'], level: 'Intermediate', cues: ['Dead hang start','Chest to bar','No swinging'], substitution: ['band-row','dumbbell-row','lat-pulldown','chin-up','assisted-pull-up'], supportsWeighted: true, supportsAssisted: true, progression: 'reps', rom: true },
+  { id: 'band-row', name: 'Banded Row', muscle: 'Back', equipment: ['bands'], level: 'Beginner', cues: ['Hinge slightly','Pull elbows past torso'], substitution: ['dumbbell-row','pull-up','lat-pulldown','face-pull','cable-row','inverted-row'], progression: 'reps' },
+  { id: 'dumbbell-row', name: 'Single-Arm Dumbbell Row', muscle: 'Back', equipment: ['dumbbells','bench'], level: 'Beginner', cues: ['Flat back','Pull to hip'], substitution: ['band-row','pull-up','face-pull','cable-row','barbell-row'], unilateral: true, progression: 'load', rom: true },
+  { id: 'lat-pulldown', name: 'Lat Pulldown', muscle: 'Back', equipment: ['cable'], level: 'Beginner', cues: ['Lean slightly back','Pull to upper chest'], substitution: ['pull-up','band-row','inverted-row','assisted-pull-up','straight-arm-pulldown'], progression: 'load' },
+  { id: 'cable-row', name: 'Seated Cable Row', muscle: 'Back', equipment: ['cable'], level: 'Beginner', cues: ['Chest proud','Elbows to ribs','Squeeze shoulder blades'], substitution: ['band-row','dumbbell-row','barbell-row'], progression: 'load' },
+  { id: 'barbell-row', name: 'Barbell Row', muscle: 'Back', equipment: ['barbell'], level: 'Intermediate', cues: ['Hinge to ~45°','Pull to lower ribs','Neutral spine'], substitution: ['dumbbell-row','cable-row'], unilateral: false, progression: 'load', rom: true },
+  { id: 'chin-up', name: 'Chin-up', muscle: 'Back', equipment: ['pullup-bar'], level: 'Intermediate', cues: ['Underhand grip','Drive elbows down','Chin over bar'], substitution: ['pull-up'], supportsWeighted: true, supportsAssisted: true, progression: 'reps', rom: true },
+  { id: 'assisted-pull-up', name: 'Assisted Pull-up', muscle: 'Back', equipment: ['bands','pullup-bar'], level: 'Beginner', cues: ['Band under knee/foot','Full hang each rep','Control the descent'], substitution: ['pull-up','lat-pulldown'], supportsWeighted: false, supportsAssisted: true, progression: 'reps', rom: true },
+  { id: 'straight-arm-pulldown', name: 'Straight-Arm Pulldown', muscle: 'Back', equipment: ['cable'], level: 'Beginner', cues: ['Arms locked long','Sweep to thighs','Ribs down'], substitution: ['lat-pulldown'], unilateral: false, progression: 'load' },
+  { id: 'inverted-row', name: 'Inverted Row', muscle: 'Back', equipment: ['bodyweight','bench'], level: 'Beginner', cues: ['Body in one line','Chest to bar edge','No shrugging'], substitution: ['lat-pulldown','band-row','superman-hold'], unilateral: false, supportsWeighted: true, progression: 'reps', rom: true },
+  { id: 'superman-hold', name: 'Superman Hold', muscle: 'Back', equipment: ['bodyweight'], level: 'Beginner', cues: ['Lift arms and legs','Long neck','Breathe through the hold'], substitution: ['inverted-row'], unilateral: false, progression: 'time' },
+];

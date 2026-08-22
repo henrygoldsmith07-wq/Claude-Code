@@ -14,12 +14,29 @@ breaking one of those constraints — that gate is applied first, before priorit
 | Engine | `progression.js` 283 lines, `analytics.js` 143, `substitutions.js` 67 |
 | UI | 8 components, 997 lines total |
 | Bundle | ~268K (`docs/perf.md`) |
-| Rest timer | Exists, **manual start** (`SessionRunner.jsx:125` — tap "Rest") |
-| Substitutions | `rankedSubstitutions()` exists but is **only** called by `sessionGenerator.js`; not reachable mid-session |
-| Progression models | `PROGRESSION_STRATEGY` (strength/hypertrophy/endurance) with an 11-exercise hardcoded map + regex fallback |
-| Plate calculator | None |
+| Rest timer | Exists; **auto-starts** when a set completes (`preferences.autoRest`, default on, toggle in More) |
+| Substitutions | `rankedSubstitutions()` wired into session generation **and** an in-session Swap UI with reason strings |
+| Plate calculator | `plates.js`: barbell stacks, dumbbell and machine increments; recommendations round through it for every equipment type |
 | Strength standards | None |
 | Videos, wearables, Health sync, watch app, marketplace, coach sharing | None |
+
+> **Update 2026-08-21:** P0 #1–#3 shipped (auto rest timer with `preferences.autoRest`,
+> in-session swap UI, plate calculator across barbell/dumbbell/machine).
+> P2 #8 partially landed: `backtesting.js` produces a plateau confusion matrix,
+> deload agreement metrics and best-set-anchored scoring; recovery-speed
+> precision/recall framing is still open. Content lint now enforces substitution
+> existence + reciprocity + unique display names.
+>
+> **Update 2026-08-22 (library expansion):** #4 step 1–3 landed — `lint:content`
+> additionally enforces progression enums, per-record cues, a ≥3-per-muscle
+> coverage floor and ≥1 pure-bodyweight option per muscle; the library grew
+> **39 → 77** exercises authored into `src/lib/data/exercises/*` (one module per
+> muscle group, re-exported from `data.js`), every new record carrying a
+> reciprocal substitution chain, explicit strategies in priors, and bodyweight
+> coverage where gaps existed (Back, Arms). Still open: growing toward 150+,
+> and deleting `strategyForExercise`'s regex fallback once every exercise has an
+> explicit strategy (the vocabulary collision between `progression:
+> 'load'|'reps'|'time'` and strategy names remains a precondition of #5).
 
 ## The architecture gate
 

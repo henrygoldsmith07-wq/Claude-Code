@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildExportPayload, parseImportFile, mergeStores, validateStoreData } from '../src/lib/export.js';
+import { buildExportPayload, parseImportFile, mergeStores, validateStoreData, portableCsv } from '../src/lib/export.js';
 import { STORE_SCHEMA_VERSION } from '../src/lib/store.js';
 
 describe('export / import', ()=>{
@@ -40,5 +40,25 @@ describe('export / import', ()=>{
     const merged=mergeStores(current, imported, 'merge');
     assert.equal(merged.eventHistory.length, 2);
     assert.equal(merged.healthSummary.steps, 1000);
+  });
+
+  it('rejects history items with missing or invalid dateISO (analytics are date-keyed)', ()=>{
+    const result=validateStoreData({ version:5, history:[{ id:'no-date', blocks:[] }] });
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some(error=> error.includes('dateISO')));
+    const badDate=validateStoreData({ version:5, history:[{ id:'bad-date', dateISO:'not-a-date', blocks:[] }] });
+    assert.equal(badDate.ok, false);
+  });
+
+  it('drops unknown top-level keys instead of persisting them forever', ()=>{
+    const parsed=parseImportFile(JSON.stringify({ app:'arise', data:{ version:5, history:[], preferences:{}, rogueKey:{ injected:true } } }));
+    assert.ok(!('rogueKey' in parsed));
+  });
+
+  it('neutralises spreadsheet formula injection in CSV cells', ()=>{
+    const csv=portableCsv([{ id:'h', dateISO:'2026-01-01', blocks:[{ exerciseId:'@SUM(A1)', sets:[{ reps:'=cmd|/c calc!', weightKg:'+5', rpe:'7' }] }] }]);
+    assert.ok(!csv.includes('"=cmd'));
+    assert.ok(!csv.includes('"@SUM'));
+    assert.ok(csv.includes("'"));
   });
 });

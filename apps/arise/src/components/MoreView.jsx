@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { buildExportPayload, downloadJson, parseImportFile, mergeStores, portableCsv, deletionPreview } from '../lib/export.js';
-import { clearStore } from '../lib/store.js';
+import { clearStore, STORE_SCHEMA_VERSION } from '../lib/store.js';
 import { clearTelemetry, telemetrySummary, getEventHistory, mergeEventHistory, replaceEventHistory, recordEvent } from '../lib/telemetry.js';
 import { mergeHealthSummary, pullHealthSummary } from '../lib/health.js';
 import { LOCATIONS, GOALS } from '../lib/data.js';
@@ -146,7 +146,7 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
         {msg && <p role="status" className="text-xs bg-surface2 border border-line rounded-xl px-3 py-2">{msg}</p>}
         <details className="text-xs">
           <summary className="font-semibold cursor-pointer">What’s in the backup?</summary>
-          <pre className="mt-2 overflow-auto rounded-xl bg-surface2 border border-line p-3 text-[11px] leading-relaxed">{JSON.stringify({ app:'arise', version:3, schemaVersion:4, exportedAt:'…', data:{ onboarding:'{goal,equipment,location,level,daysPerWeek,availableMinutes,preferredExerciseIds,dislikedExerciseIds,plateConfig}', activeSchedule:'{programId,sessions}', activeWorkout:'recoverable draft or null', history:'[{id,date,blocks:[{exerciseId,sets:[{reps,weightKg,rpe,side,rom}]}]}]', preferences:'{units,theme,telemetryEnabled,pulseEnabled,healthSummaryEnabled}', eventHistory:'[{id,type,at,payload}]', healthSummary:'optional summary or null' }}, null, 2)}</pre>
+          <pre className="mt-2 overflow-auto rounded-xl bg-surface2 border border-line p-3 text-[11px] leading-relaxed">{JSON.stringify({ app:'arise', version:3, schemaVersion:STORE_SCHEMA_VERSION, exportedAt:'…', data:{ onboarding:'{goal,equipment,location,level,daysPerWeek,availableMinutes,preferredExerciseIds,dislikedExerciseIds,plateConfig}', activeSchedule:'{programId,sessions}', activeWorkout:'recoverable draft or null', history:'[{id,dateISO,blocks:[{exerciseId,sets:[{reps,weightKg,rpe,side,rom}]}]}]', preferences:'{units,theme,telemetryEnabled,pulseEnabled,healthSummaryEnabled,autoRest}', eventHistory:'[{id,type,at,payload}]', healthSummary:'optional summary or null' }}, null, 2)}</pre>
         </details>
       </section>
 
@@ -167,6 +167,13 @@ export default function MoreView({ store, setStore, setTab, onboardingOpen, setO
           )}
         </div>
         <button onClick={()=> setOnboardingOpen(true)} className="btn btn-secondary w-full min-h-11 rounded-xl">{store.onboarding ? 'Edit onboarding' : 'Start onboarding'}</button>
+        <div className="rounded-xl border border-line bg-surface2 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2"><p className="text-xs font-bold">Automatic rest timer</p><span className="ml-auto text-[11px] text-ink3">{store.preferences?.autoRest === false ? 'manual' : 'automatic'}</span></div>
+          <p className="text-[11px] text-ink3">Starts the rest countdown as soon as you complete a set. Turn it off to start rests manually.</p>
+          <button onClick={()=> setStore({ ...store, preferences:{ ...(store.preferences||{}), autoRest: store.preferences?.autoRest === false } })} aria-pressed={store.preferences?.autoRest !== false} className="btn btn-secondary min-h-9 rounded-xl px-3 text-xs">
+            {store.preferences?.autoRest === false ? 'Enable automatic rest timer' : 'Use manual rest timer'}
+          </button>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-line bg-surface p-4 space-y-2">

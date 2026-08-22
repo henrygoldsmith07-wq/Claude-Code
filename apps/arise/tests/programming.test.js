@@ -157,4 +157,37 @@ describe('programming layer', ()=>{
     assert.equal(calibration.status, 'insufficient');
     assert.equal(calibration.samples, 0);
   });
+
+  it('cuts future volume when the deload rule fires, bounded by horizon, and stays idempotent', ()=>{
+    // Two fatigue flags: two RPE≥9 sets in the last window, plus a >1.15×
+    // weekly volume spike (light week → heavy week).
+    const schedule = {
+      programId: 'deload-check',
+      startDateISO: '2026-05-25',
+      sessions: [
+        { id: 'w1', dateISO: '2026-05-25', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+        { id: 'w2', dateISO: '2026-06-01', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+        { id: 'w3', dateISO: '2026-06-03', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }, { exerciseId: 'bodyweight-squat', sets: 4, reps: '12–15' }] },
+        { id: 'far', dateISO: '2026-06-20', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: 3, reps: '8–12' }] },
+      ],
+    };
+    const history = [
+      { id: 'w1', dateISO: '2026-05-25', programId: 'deload-check', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: [{ reps: '10', weightKg: '20', rpe: '7' }] }] },
+      { id: 'w2', dateISO: '2026-06-01', programId: 'deload-check', blocks: [{ exerciseId: 'bench-press-dumbbell', sets: [{ reps: '8', weightKg: '40', rpe: '9.5' }, { reps: '8', weightKg: '40', rpe: '9.5' }, { reps: '8', weightKg: '40', rpe: '9.5' }, { reps: '8', weightKg: '40', rpe: '9' }] }] },
+    ];
+    const first = adaptActiveSchedule(schedule, history);
+    assert.equal(first.changed, true);
+    assert.equal(first.decision.deload, true);
+    assert.ok(first.changes.length >= 2);
+    assert.ok(first.changes.every(change=> change.kind === 'deload'));
+    const w3 = first.schedule.sessions.find(s=> s.id === 'w3');
+    assert.equal(w3.blocks[0].sets, 2);   // round(3 × 0.6)
+    assert.equal(w3.blocks[1].sets, 2);   // round(4 × 0.6) = 2
+    assert.equal(w3.blocks[0].adaptation.kind, 'deload');
+    // The session beyond the deload horizon (7 days) is untouched.
+    assert.equal(first.schedule.sessions.find(s=> s.id === 'far').blocks[0].sets, 3);
+    // Replaying the same save must not re-cut volume.
+    const second = adaptActiveSchedule(first.schedule, history);
+    assert.equal(second.changed, false);
+  });
 });

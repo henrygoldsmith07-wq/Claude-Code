@@ -42,3 +42,46 @@ describe('arise data', ()=>{
     assert.ok(sched.sessions.every(s=> s.status==='planned'));
   });
 });
+
+describe('expanded exercise library', ()=>{
+  const MUSCLES = [...new Set(EXERCISES.map(e=> e.muscle))];
+
+  it('grew past the original 39-exercise library with no duplicate identities', ()=>{
+    assert.ok(EXERCISES.length >= 75, `library has ${EXERCISES.length} exercises`);
+    const ids = new Set(EXERCISES.map(e=> e.id));
+    assert.equal(ids.size, EXERCISES.length);
+    const names = new Set(EXERCISES.map(e=> e.name));
+    assert.equal(names.size, EXERCISES.length);
+  });
+
+  it('covers every muscle with a floor and a bodyweight option', ()=>{
+    for(const muscle of MUSCLES){
+      const inMuscle = EXERCISES.filter(e=> e.muscle===muscle);
+      assert.ok(inMuscle.length >= 3, `${muscle} has only ${inMuscle.length}`);
+      assert.ok(inMuscle.some(e=> e.equipment.includes('bodyweight')), `${muscle} has no bodyweight option`);
+    }
+  });
+
+  it('declares valid progression modes and cues on every record', ()=>{
+    for(const e of EXERCISES){
+      assert.ok(['load','reps','time'].includes(e.progression), `${e.id}: ${e.progression}`);
+      assert.ok(Array.isArray(e.cues) && e.cues.length > 0, `${e.id}: no cues`);
+      assert.ok(Array.isArray(e.equipment) && e.equipment.length > 0, `${e.id}: no equipment`);
+    }
+  });
+
+  it('keeps the substitution graph fully reciprocal after expansion', ()=>{
+    const byId = new Map(EXERCISES.map(e=> [e.id, e]));
+    for(const e of EXERCISES) for(const t of e.substitution||[]){
+      assert.ok(byId.has(t), `${e.id} → unknown ${t}`);
+      assert.ok(byId.get(t).substitution.includes(e.id), `${e.id} → ${t} is one-way`);
+    }
+  });
+
+  it('bodyweight-only users keep at least one pure-bodyweight option per muscle', ()=>{
+    for(const muscle of MUSCLES){
+      const bw = EXERCISES.filter(e=> e.muscle===muscle && e.equipment.every(eq=> eq==='bodyweight'));
+      assert.ok(bw.length >= 1, `${muscle}: bodyweight-only users stuck with ${bw.length}`);
+    }
+  });
+});

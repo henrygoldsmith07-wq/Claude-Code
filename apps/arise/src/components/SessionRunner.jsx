@@ -99,18 +99,21 @@ export default function SessionRunner({ session, history = [], availableEquipmen
   const shownRecommendationRef=useRef(new Set());
   const dismissedRecommendationRef=useRef(new Set());
 
+  // Single layered exit path for Esc, ✕ and Cancel: dismiss the topmost
+  // surface first, then confirm before destroying a workout with logged work.
+  const requestCancel = ()=>{
+    if(swapOpen!==null){ setSwapOpen(null); return; }
+    if(discardConfirmOpen){ setDiscardConfirmOpen(false); return; }
+    const progressed = blocks.some(b=> b.sets.some(s=> s.completed || String(s.reps).trim()!==''));
+    if(progressed){ setDiscardConfirmOpen(true); return; }
+    onCancel();
+  };
+
   // Escape dismisses only the topmost layer — a stray Esc must never silently
   // destroy a workout with logged sets (a11y baseline: dialogs confirm before
   // destructive action).
   useEffect(()=>{
-    const onKey = (e)=>{
-      if(e.key!=='Escape') return;
-      if(swapOpen!==null){ setSwapOpen(null); return; }
-      if(discardConfirmOpen){ setDiscardConfirmOpen(false); return; }
-      const progressed = blocks.some(b=> b.sets.some(s=> s.completed || String(s.reps).trim()!==''));
-      if(progressed){ setDiscardConfirmOpen(true); return; }
-      onCancel();
-    };
+    const onKey = (e)=>{ if(e.key==='Escape') requestCancel(); };
     window.addEventListener('keydown', onKey);
     return ()=> window.removeEventListener('keydown', onKey);
   }, [onCancel, swapOpen, discardConfirmOpen, blocks]);
@@ -378,7 +381,7 @@ export default function SessionRunner({ session, history = [], availableEquipmen
     <div ref={rootRef} onKeyDown={trapTab} className="fixed inset-0 z-40 bg-bg flex flex-col" role="dialog" aria-modal="true" aria-label={`Session — ${session.title}`}>
       <span className="sr-only" role="status" aria-live="polite">{restAnnouncement || `${completedSets} of ${totalSets} sets completed`}</span>
       <div className="sticky top-0 flex items-center gap-3 px-4 py-3 border-b border-line bg-surface">
-        <button ref={closeRef} onClick={onCancel} className="w-11 h-11 grid place-items-center rounded-full border border-line bg-surface2" aria-label="Close session">✕</button>
+        <button ref={closeRef} onClick={requestCancel} className="w-11 h-11 grid place-items-center rounded-full border border-line bg-surface2" aria-label="Close session">✕</button>
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-widest text-ink3">{session.mode === 'short' ? 'Short session' : 'Session'}</p>
           <p className="font-bold truncate">{session.title} • {session.dateISO}</p>
@@ -503,7 +506,7 @@ export default function SessionRunner({ session, history = [], availableEquipmen
         )}
 
         <div className="flex gap-2 pb-6">
-          <button onClick={onCancel} className="btn btn-secondary flex-1 min-h-11 rounded-xl">Cancel</button>
+          <button onClick={requestCancel} className="btn btn-secondary flex-1 min-h-11 rounded-xl">Cancel</button>
           <button onClick={save} disabled={!canSave} className="btn btn-primary flex-1 min-h-11 rounded-xl disabled:opacity-40">Save session</button>
         </div>
         {!canSave && (()=> {

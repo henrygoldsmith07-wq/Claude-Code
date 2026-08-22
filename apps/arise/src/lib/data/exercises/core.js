@@ -1,0 +1,12 @@
+// Core — anti-extension (plank family), anti-rotation (Pallof) and hip flexion.
+export const CORE_EXERCISES = [
+  { id: 'plank', name: 'Plank', muscle: 'Core', equipment: ['bodyweight'], level: 'Beginner', cues: ['Forearms & toes','Hips level'], substitution: ['dead-bug','hanging-knee-raise','leg-raise','farmer-carry','side-plank','mountain-climbers','hollow-hold'], progression: 'time' },
+  { id: 'dead-bug', name: 'Dead Bug', muscle: 'Core', equipment: ['bodyweight'], level: 'Beginner', cues: ['Lower back pressed to floor','Opposite arm/leg'], substitution: ['plank','hanging-knee-raise','bird-dog','pallof-press'], progression: 'reps' },
+  { id: 'hanging-knee-raise', name: 'Hanging Knee Raise', muscle: 'Core', equipment: ['pullup-bar'], level: 'Intermediate', cues: ['No swinging','Knees to chest'], substitution: ['plank','dead-bug','leg-raise','hollow-hold'], progression: 'reps', rom: true },
+  { id: 'leg-raise', name: 'Hanging Leg Raise', muscle: 'Core', equipment: ['pullup-bar'], level: 'Advanced', cues: ['Dead hang','Legs straight','Control down'], substitution: ['hanging-knee-raise','plank'], progression: 'reps', rom: true },
+  { id: 'side-plank', name: 'Side Plank', muscle: 'Core', equipment: ['bodyweight'], level: 'Beginner', cues: ['Stack the shoulders','Hips high and forward','Breathe laterally'], substitution: ['plank'], unilateral: true, progression: 'time' },
+  { id: 'mountain-climbers', name: 'Mountain Climbers', muscle: 'Core', equipment: ['bodyweight'], level: 'Intermediate', cues: ['Hips below shoulders','Knees drive fast','Shoulders over wrists'], substitution: ['burpee','plank','bear-crawl'], unilateral: true, progression: 'time' },
+  { id: 'hollow-hold', name: 'Hollow Hold', muscle: 'Core', equipment: ['bodyweight'], level: 'Intermediate', cues: ['Low back glued to floor','Arms and legs long','Stop if the back arches'], substitution: ['plank','hanging-knee-raise'], unilateral: false, progression: 'time' },
+  { id: 'bird-dog', name: 'Bird Dog', muscle: 'Core', equipment: ['bodyweight'], level: 'Beginner', cues: ['Opposite arm and leg','Hips square to floor','Reach long, don\u2019t lift high'], substitution: ['dead-bug','pallof-press'], unilateral: true, progression: 'reps' },
+  { id: 'pallof-press', name: 'Pallof Press', muscle: 'Core', equipment: ['cable','bands'], level: 'Beginner', cues: ['Stand side-on to the anchor','Press and resist rotation','Ribs stacked'], substitution: ['dead-bug','bird-dog'], unilateral: false, progression: 'load' },
+];

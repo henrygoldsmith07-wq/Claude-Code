@@ -164,13 +164,10 @@ export default function App(){
     } catch {}
   };
   const handleCancelSession = ()=>{
+    // Confirmation for logged progress lives in SessionRunner's discard dialog,
+    // which every cancel path (Esc, ✕, Cancel) routes through — a second
+    // window.confirm here would double-prompt.
     const draft=store.activeWorkout;
-    if(activeSession && draft){
-      const completedSets=draft.blocks?.reduce((n,b)=> n+(b.sets||[]).filter(s=> s.completed).length,0) || 0;
-      // The draft is crash-insurance for logged sets — discarding it needs a
-      // deliberate confirmation once real work is on the line.
-      if(completedSets>0 && !window.confirm(`Discard this workout? ${completedSets} completed set${completedSets===1?'':'s'} will be lost.`)) return;
-    }
     if(activeSession) try {
       const totalSets=draft?.blocks?.reduce((n,b)=> n+(b.sets||[]).length,0) || 0;
       const completedSets=draft?.blocks?.reduce((n,b)=> n+(b.sets||[]).filter(s=> s.completed).length,0) || 0;
@@ -223,6 +220,13 @@ export default function App(){
           <span className="font-bold">Update available</span>
           <span className="text-ink3">New version cached — reload to apply.</span>
           <button onClick={applyUpdate} className="ml-auto btn btn-primary min-h-8 rounded-xl px-3 text-xs">Update</button>
+        </div>
+      )}
+      {persistFailed && (
+        <div className="mx-4 mt-2 rounded-xl border border-danger/30 bg-red-50 px-3 py-2 flex items-center gap-2 text-xs" role="alert">
+          <span className="font-bold text-danger">Storage full or unavailable</span>
+          <span className="text-ink3">Recent changes may not be saved — export a backup from More, then clear space.</span>
+          <button onClick={()=> setPersistFailed(false)} className="ml-auto btn btn-secondary min-h-8 rounded-xl px-3 text-xs shrink-0" aria-label="Dismiss storage warning">Dismiss</button>
         </div>
       )}
       {recoveryOpen && store.activeWorkout && !activeSession && (
@@ -293,7 +297,7 @@ export default function App(){
           history={store.history || []}
           availableEquipment={store.onboarding?.equipment || []}
           plateConfig={store.onboarding?.plateConfig || null}
-          preferences={store.onboarding || null}
+          preferences={store.preferences || null}
           draft={store.activeWorkout?.session?.id===activeSession.id ? store.activeWorkout : null}
           measurementConsent={store.preferences?.telemetryEnabled === true}
           onDraftChange={handleDraftChange}

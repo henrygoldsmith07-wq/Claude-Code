@@ -12,9 +12,15 @@ export default function ProgressView({ store }){
   const attrs = useMemo(()=> deriveAttributes(store.history), [store.history]);
   const lvl = useMemo(()=> levelFromAttributes(attrs), [attrs]);
   const history = store.history || [];
-  const vol = totalVolumeKg(history);
-  const streak = streakDays(history);
+  const vol = useMemo(()=> totalVolumeKg(history), [history]);
+  const streak = useMemo(()=> streakDays(history), [history]);
   const prs = useMemo(()=> computePRs(history), [history]);
+  // Trend confidence per PR row: one history scan per exercise, not per render.
+  const trendConfidence = useMemo(()=> {
+    const byExercise=new Map();
+    for(const r of prs.slice(0,8)) byExercise.set(r.exerciseId, strengthSeriesWithConfidence(history, r.exerciseId));
+    return byExercise;
+  },[prs, history]);
   const wv = useMemo(()=> weeklyVolume(history), [history]);
   const freq = useMemo(()=> frequencyByMuscleSync(history, EXERCISE_BY_ID), [history]);
   const landmarks = useMemo(()=> volumeLandmarks(history, EXERCISE_BY_ID), [history]);
@@ -168,7 +174,7 @@ export default function ProgressView({ store }){
         ) : (
           <ul className="mt-3 space-y-2">
             {prs.slice(0,8).map(r=> {
-              const conf = strengthSeriesWithConfidence(history, r.exerciseId);
+              const conf = trendConfidence.get(r.exerciseId);
               return (
                 <li key={r.exerciseId} className="flex items-center gap-3 text-sm border border-line rounded-xl px-3 py-2 bg-surface2">
                   <span className="font-bold truncate">{EXERCISE_BY_ID[r.exerciseId]?.name || r.exerciseId}</span>

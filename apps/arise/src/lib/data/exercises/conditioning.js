@@ -1,0 +1,17 @@
+// Conditioning — cardio and full-body drivers. Time-based entries are
+// endurance-strategised via priors.strategyByExercise.
+export const CONDITIONING_EXERCISES = [
+  { id: 'run-easy', name: 'Easy Run', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Conversational pace','Nasal breathing'], substitution: ['brisk-walk','cycle','high-knees'], progression: 'time' },
+  { id: 'brisk-walk', name: 'Brisk Walk', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Arms pumping','Uphill if available'], substitution: ['run-easy','jump-rope','stair-climb'], progression: 'time' },
+  { id: 'cycle', name: 'Cycle', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Steady cadence'], substitution: ['run-easy','stair-climb'], progression: 'time' },
+  { id: 'kettlebell-swing', name: 'Kettlebell Swing', muscle: 'Full body', equipment: ['kettlebell'], level: 'Intermediate', cues: ['Hip hinge power','Arms guide, hips drive'], substitution: ['romanian-deadlift','farmer-carry','turkish-get-up'], progression: 'reps' },
+  { id: 'burpee', name: 'Burpee', muscle: 'Full body', equipment: ['bodyweight'], level: 'Intermediate', cues: ['Chest to floor','Jump or step up'], substitution: ['bodyweight-squat','mountain-climbers','thruster','bear-crawl'], progression: 'reps' },
+  { id: 'jump-rope', name: 'Jump Rope', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Light on toes','Elbows tucked'], substitution: ['brisk-walk','jumping-jacks'], progression: 'time' },
+  { id: 'farmer-carry', name: 'Farmer Carry', muscle: 'Full body', equipment: ['dumbbells'], level: 'Beginner', cues: ['Heavy pair','Shoulders packed','Walk tall'], substitution: ['plank','kettlebell-swing','calf-raise','turkish-get-up'], progression: 'time' },
+  { id: 'high-knees', name: 'High Knees', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Knees above hip height','Quick ground contact','Tall posture'], substitution: ['jumping-jacks','run-easy'], unilateral: true, progression: 'time' },
+  { id: 'jumping-jacks', name: 'Jumping Jacks', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Full arm sweep','Land softly'], substitution: ['jump-rope','high-knees'], unilateral: false, progression: 'time' },
+  { id: 'stair-climb', name: 'Stair Climb', muscle: 'Cardio', equipment: ['bodyweight'], level: 'Beginner', cues: ['Whole foot on each step','Drive through the glute'], substitution: ['brisk-walk','cycle'], unilateral: true, progression: 'time' },
+  { id: 'thruster', name: 'Thruster', muscle: 'Full body', equipment: ['dumbbells'], level: 'Intermediate', cues: ['Squat to full depth','Drive the press off the legs','One fluid motion'], substitution: ['burpee','goblet-squat'], unilateral: false, supportsWeighted: true, progression: 'load' },
+  { id: 'turkish-get-up', name: 'Turkish Get-up', muscle: 'Full body', equipment: ['kettlebell'], level: 'Advanced', cues: ['Eyes on the bell','Slow segment by segment','Switch sides evenly'], substitution: ['farmer-carry','kettlebell-swing'], unilateral: true, progression: 'load' },
+  { id: 'bear-crawl', name: 'Bear Crawl', muscle: 'Full body', equipment: ['bodyweight'], level: 'Beginner', cues: ['Knees hover under hips','Opposite hand and foot','Hips low and level'], substitution: ['mountain-climbers','burpee'], unilateral: false, progression: 'time' },
+];

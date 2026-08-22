@@ -63,6 +63,15 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
       'bench-press-barbell': 'strength',
       'romanian-deadlift': 'strength',
       'barbell-bench-press': 'strength',
+      // Expanded-library compounds: declared explicitly so correctness does not
+      // lean on the name regex.
+      'front-squat': 'strength',
+      'sumo-deadlift': 'strength',
+      'leg-press': 'strength',
+      // Name-regex would misfire on these ('press' → strength); they are
+      // controlled hypertrophy/core-stability work.
+      'arnold-press': 'hypertrophy',
+      'pallof-press': 'hypertrophy',
       'plank': 'endurance',
       'run-easy': 'endurance',
       'brisk-walk': 'endurance',
@@ -70,6 +79,17 @@ export const DEFAULT_ARISE_PRIORS = deepFreeze({
       'jump-rope': 'endurance',
       'burpee': 'endurance',
       'dead-bug': 'endurance',
+      // Time-based / steady-state additions from the library expansion.
+      'wall-sit': 'endurance',
+      'superman-hold': 'endurance',
+      'side-plank': 'endurance',
+      'mountain-climbers': 'endurance',
+      'hollow-hold': 'endurance',
+      'bird-dog': 'endurance',
+      'bear-crawl': 'endurance',
+      'high-knees': 'endurance',
+      'jumping-jacks': 'endurance',
+      'stair-climb': 'endurance',
     },
     fallback: {
       strengthPattern: 'squat|deadlift|bench|press',
