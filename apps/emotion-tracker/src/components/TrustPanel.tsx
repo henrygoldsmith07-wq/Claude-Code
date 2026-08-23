@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/lib/types";
 import type { Correction } from "@/lib/corrections";
 import {
@@ -8,12 +8,15 @@ import {
   calibrationSampleSizeWarning,
 } from "@/lib/confidenceCalibration";
 import {
+  createReviewRecord,
   evidenceAttribution,
+  groupByInterpretation,
   interpretationQuality,
   HUMAN_REVIEW_CORPUS_VERSION,
   loadCorpus,
   reviewedRecords,
   saveCorpus,
+  upsertRecord,
   validateCorpus,
 } from "@/lib/humanReview";
 import type { HumanReviewRecord } from "@/lib/humanReview";
@@ -21,7 +24,10 @@ import {
   correctionPersistence,
   longitudinalValidation,
 } from "@/lib/validationMetrics";
+import { interRaterReliability } from "@/lib/reviewAgreement";
 import { buildPatternEvidences } from "@/lib/patternEvidence";
+import { downloadText } from "@/lib/download";
+import { selfCalibration } from "@/lib/selfCalibration";
 
 // TrustPanel — one honest surface for every self-measurement Reflect makes.
 // Everything here is descriptive and computed locally. Thin samples say so;
@@ -58,13 +64,7 @@ export default function TrustPanel({ entries, corrections }: { entries: Entry[];
       return;
     }
     const payload = JSON.stringify({ ...corpus, version: HUMAN_REVIEW_CORPUS_VERSION }, null, 2);
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `reflect-review-corpus-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadText(`reflect-review-corpus-${new Date().toISOString().slice(0, 10)}.json`, payload);
   }
 
   /** Re-import the corpus after reviewers have labelled it, so precision,
@@ -108,14 +108,45 @@ export default function TrustPanel({ entries, corrections }: { entries: Entry[];
   const reviewed = reviewedRecords({ version: 2, createdAt: "", records: corpusRecords });
   const quality = interpretationQuality(reviewed);
   const attribution = evidenceAttribution(reviewed);
+  const reliability = interRaterReliability(reviewed);
   const calibration = buildCalibrationReport(reviewed);
   const calibrationWarning = calibrationSampleSizeWarning(calibration);
   const persistence = correctionPersistence(entries, corrections);
   const validation = longitudinalValidation(entries, corrections);
+  const self = selfCalibration(entries);
   const evidences = buildPatternEvidences(entries);
   const staleCount = evidences.filter((e) => e.status === "expired").length;
   const thinCount = evidences.filter((e) => e.status === "insufficient").length;
   const contradictedCount = evidences.filter((e) => e.contradictoryInstances.length > 0).length;
+
+  // Adjudication queue: conflicted interpretations with their reviewer sides.
+  // Plain derivation — the compiler memoizes; a narrowed dep array would not.
+  const corpusGroups = useMemo(() => groupByInterpretation(corpusRecords), [corpusRecords]);
+  const adjudicationQueue = reliability.needsAdjudication
+    .map((id) => ({ id, reviews: (corpusGroups.get(id) ?? []).filter((r) => r.role !== "adjudicator") }))
+    .filter((g) => g.reviews.length >= 2);
+
+  /** Record an in-app adjudication adopting one side's labels — the resulting
+   *  adjudicator record becomes authoritative for all metrics. */
+  function adjudicateAs(interpretationId: string, source: HumanReviewRecord): void {
+    const saved = upsertRecord(
+      createReviewRecord({
+        interpretationId,
+        anonymizedInterpretation: source.anonymizedInterpretation,
+        confidence: source.confidence,
+        labels: [...source.labels],
+        reviewer: "in-app-adjudicator",
+        reviewedAt: new Date().toISOString(),
+        notes: `Adopted ${(source.reviewer ?? "reviewer")}'s labelling.`,
+        role: "adjudicator",
+      }),
+    );
+    if (!saved) {
+      alert("Could not save the adjudication — storage is unavailable.");
+      return;
+    }
+    setCorpusRecords(loadCorpus().records);
+  }
 
   return (
     <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="trust-title" aria-describedby="trust-desc">
@@ -147,6 +178,50 @@ export default function TrustPanel({ entries, corrections }: { entries: Entry[];
           </div>
         )}
         {quality.note && quality.reviewed > 0 && <p className="mt-2 text-[11px] text-muted">{quality.note}</p>}
+        {/* Double review & inter-rater reliability */}
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Stat
+            label="Inter-rater agreement"
+            value={reliability.reliabilityTier === "insufficient data" ? "—" : pct(reliability.meanLabelJaccard)}
+            hint={reliability.doubleReviewed > 0 ? `${reliability.doubleReviewed} double-reviewed · tier ${reliability.reliabilityTier}` : "double-review to measure"}
+          />
+          <Stat
+            label="Reviewer conflicts"
+            value={reliability.conflicts ? `${reliability.conflicts}` : String(quality.unadjudicatedConflicts || reliability.conflicts)}
+            tone={reliability.needsAdjudication.length > 0 ? "warn" : "default"}
+            hint={reliability.needsAdjudication.length > 0 ? "await adjudication — excluded from rates" : "no unresolved disagreements"}
+          />
+          <Stat label="Support-pole agreement" value={pct(reliability.supportAgreementRate)} hint={`${reliability.pairsCompared} reviewer pairs compared`} />
+        </div>
+
+        {adjudicationQueue.length > 0 && (
+          <div className="mt-3 rounded-xl border border-danger/30 bg-dangersoft p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-danger">Adjudication queue</p>
+            <p className="mt-1 text-[11px] leading-snug text-muted">Reviewers disagreed on these. Pick the reading you find defensible — your call becomes authoritative and unblocks the rates above.</p>
+            <ul className="mt-2 flex flex-col gap-2">
+              {adjudicationQueue.map(({ id, reviews }) => (
+                <li key={id} className="rounded-lg border border-border bg-background px-3 py-2">
+                  <p className="text-[11px] text-muted">
+                    {reviews[0].anonymizedInterpretation.coreEmotion ?? "interpretation"} · confidence band {reviews[0].confidenceBand} · fingerprint {reviews[0].anonymizedInterpretation.fingerprint}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    {reviews.slice(0, 3).map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => adjudicateAs(id, r)}
+                        title={`Adopt ${r.reviewer ?? "anonymous"}'s labels`}
+                        className="rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium hover:bg-card-hover"
+                      >
+                        {(r.reviewer ?? "anon")}: {r.labels.join(", ")}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {/* Reviewer round-trip: anonymised corpus out, labelled records back in. */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
@@ -190,7 +265,19 @@ export default function TrustPanel({ entries, corrections }: { entries: Entry[];
             hint={calibration.weightedCalibrationError != null ? `weighted error ${Math.round(calibration.weightedCalibrationError * 100)}%` : undefined}
           />
           <Stat label="Pattern contradiction rate" value={pct(validation.contradictionRate)} hint={`${contradictedCount} pattern${contradictedCount === 1 ? "" : "s"} carry contradictory evidence`} />
+          <Stat
+            label="Self-calibration ordering"
+            value={self.ordering}
+            tone={self.ordering === "inverted" ? "warn" : self.ordering === "correct" ? "good" : "default"}
+            hint={self.weightedCalibrationError != null ? `weighted error ${Math.round(self.weightedCalibrationError * 100)}%` : undefined}
+          />
+          <Stat
+            label="Self-calibration n"
+            value={String(self.totalReviewed)}
+            hint={self.skippedNoConfidence > 0 ? `${self.skippedNoConfidence} legacy entries without confidence` : "confidence × user verdict"}
+          />
         </div>
+        {self.note && <p className="mt-2 text-[11px] text-muted">{self.note}</p>}
         {calibrationWarning && <p className="mt-2 text-[11px] text-amber-700">{calibrationWarning}</p>}
       </div>
 
@@ -210,6 +297,17 @@ export default function TrustPanel({ entries, corrections }: { entries: Entry[];
             value={String(thinCount)}
             tone={thinCount > 0 ? "warn" : "default"}
             hint={thinCount > 0 ? "shown below as tentative, never settled" : "all shown patterns clear the floor"}
+          />
+          <Stat
+            label="Median pattern lifespan"
+            value={validation.medianLifespanDays != null ? `${validation.medianLifespanDays}d` : "—"}
+            hint="first → last supporting evidence"
+          />
+          <Stat
+            label="User-confirmed patterns"
+            value={pct(validation.userConfirmedShare)}
+            tone={validation.userConfirmedShare != null && validation.userConfirmedShare < 0.25 && validation.patternsTracked > 0 ? "warn" : "default"}
+            hint={`${validation.userConfirmedBacked} user-verified · ${validation.systemInferredOnly} system-inferred only`}
           />
         </div>
       </div>

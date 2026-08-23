@@ -13,11 +13,6 @@ const MAX_MESSAGE_LENGTH = 8000;
 const MAX_BODY_BYTES = 256 * 1024;
 
 export async function POST(request: Request) {
-  // Calls the paid Anthropic API — rate limit per client so it can't be
-  // spammed to run up the account owner's bill.
-  const limited = checkRateLimit(request, { name: "reflect", limit: 20, windowMs: 60_000 });
-  if (limited) return limited;
-
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
     return NextResponse.json({ error: "Request body too large" }, { status: 413 });
@@ -29,6 +24,11 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
+  // Rate limit per client: the OpenRouter account is free-models-only (no
+  // spend risk), so the ceiling is generous while still stopping spam.
+  const limited = checkRateLimit(request, { name: "reflect", limit: 120, windowMs: 60_000 });
+  if (limited) return limited;
 
   const messages = body.messages;
   if (!Array.isArray(messages) || messages.length === 0) {

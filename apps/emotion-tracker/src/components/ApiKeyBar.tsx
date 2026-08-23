@@ -16,12 +16,12 @@ export default function ApiKeyBar({ apiKey, onChange }: Props) {
         value={apiKey}
         onChange={(e) => onChange(e.target.value)}
         type="password"
-        placeholder="sk-ant-… (optional if server key is set)"
+        placeholder="sk-or-… or sk-ant-… (optional if server key is set)"
         autoComplete="off"
         className="w-full max-w-md rounded-lg border border-border bg-background px-2.5 py-1 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent focus:ring-1 focus:ring-accent/20"
       />
       <span className="hidden text-[10px] text-muted sm:inline">
-        Stored in this browser; sent only with each reflection request
+        Stored in this browser · OpenRouter (sk-or-) or Anthropic (sk-ant) — sent only with each reflection request
       </span>
     </div>
   );

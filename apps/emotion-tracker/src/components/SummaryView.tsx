@@ -107,9 +107,19 @@ export default function SummaryView({
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-xl bg-accent/8 px-4 py-3">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent">
-          What&apos;s actually underneath it
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent">
+            What&apos;s actually underneath it
+          </h3>
+          {typeof summary.overallConfidence === "number" && (
+            <span
+              className="rounded-full border border-border bg-background px-2.5 py-0.5 text-[10px] font-medium text-muted"
+              title={`System confidence ${Math.round(summary.overallConfidence * 100)}% — measured against follow-up outcomes in Patterns`}
+            >
+              {confidenceLanguage(summary.overallConfidence).label} · {Math.round(summary.overallConfidence * 100)}%
+            </span>
+          )}
+        </div>
         <p className="mt-1 text-xl font-semibold tracking-tight text-foreground">
           {summary.coreEmotion}
         </p>
@@ -142,6 +152,19 @@ export default function SummaryView({
                     <li key={i}>{a}</li>
                   ))}
                 </ul>
+                {(trace.assumptionChecks?.length ?? 0) > 0 && (
+                  <div className="mt-2 rounded-lg border border-border bg-background px-3 py-2">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted">How each reading could be proven wrong</p>
+                    <ul className="mt-1 space-y-1 text-xs leading-relaxed">
+                      {trace.assumptionChecks!.map((c, i) => (
+                        <li key={i}>
+                          <span className="font-medium">If {c.falsifier}</span>
+                          <span className="text-muted"> — then “{c.assumption.slice(0, 80)}” weakens.</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
             <div>

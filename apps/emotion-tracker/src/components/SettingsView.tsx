@@ -12,15 +12,13 @@ import {
   setOutcomeStudyOptIn,
 } from "@/lib/outcomeStudy";
 import { applyRetention, getRetentionDays, RETENTION_CHOICES, setRetentionDays } from "@/lib/retention";
+import { downloadText } from "@/lib/download";
 
 function downloadStudyData(): void {
-  const blob = new Blob([JSON.stringify(getOutcomeStudyEvents(), null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `reflect-outcome-study-${new Date().toISOString().slice(0, 10)}.json`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  downloadText(
+    `reflect-outcome-study-${new Date().toISOString().slice(0, 10)}.json`,
+    JSON.stringify(getOutcomeStudyEvents(), null, 2),
+  );
 }
 
 export default function SettingsView({ entries, setEntries, apiKey, setApiKey }: { entries: Entry[]; setEntries: Dispatch<SetStateAction<Entry[]>>; apiKey: string; setApiKey: (value: string) => void }) {

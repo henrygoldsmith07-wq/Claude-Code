@@ -11,7 +11,7 @@
 import type { Entry } from "./types";
 import type { Correction } from "./corrections";
 import { norm, simTokens } from "./tokens";
-import { buildPatternEvidences, DEFAULT_EXPIRY_DAYS } from "./patternEvidence";
+import { buildPatternEvidences, DEFAULT_EXPIRY_DAYS, type PatternEvidence } from "./patternEvidence";
 import { detectRecurringAssumptions } from "./longitudinal";
 
 // ── 4. does a correction permanently stop the rejected interpretation? ──
@@ -115,6 +115,12 @@ export interface LongitudinalValidation {
   retiredStale: number;
   active: number;
   retirementShare: number | null;
+  /** median days from first to last supporting evidence */
+  medianLifespanDays: number | null;
+  /** user-confirmed vs system-inferred backing */
+  userConfirmedBacked: number;
+  systemInferredOnly: number;
+  userConfirmedShare: number | null;
   note: string;
 }
 
@@ -156,6 +162,9 @@ export function longitudinalValidation(
   const reviewedSignals = remainedSupported + contradicted;
   const totalEver = active + staleCount + retiredByUser;
 
+  const lifespans = patternLifespans(entries, now, opts);
+  const separation = confirmationSeparation(entries, now, opts);
+
   return {
     patternsTracked: evidences.length,
     remainedSupported,
@@ -166,8 +175,12 @@ export function longitudinalValidation(
     retiredStale: staleCount,
     active,
     retirementShare: totalEver ? (staleCount + retiredByUser) / totalEver : null,
+    medianLifespanDays: medianLifespanDays(lifespans),
+    userConfirmedBacked: separation.userConfirmedBacked,
+    systemInferredOnly: separation.systemInferredOnly,
+    userConfirmedShare: separation.userConfirmedShare,
     note: evidences.length
-      ? `${remainedSupported}/${reviewedSignals || 0} reviewed patterns stayed supported · ${contraTotal} contradictory instance${contraTotal === 1 ? "" : "s"} across ${supportingTotal} evidence points · ${retiredByUser} rejected by user, ${staleCount} gone stale.`
+      ? `${remainedSupported}/${reviewedSignals || 0} reviewed patterns stayed supported · ${contraTotal} contradictory instance${contraTotal === 1 ? "" : "s"} across ${supportingTotal} evidence points · median lifespan ${medianLifespanDays(lifespans) ?? "—"}d · ${retiredByUser} rejected by user, ${staleCount} gone stale.`
       : "Not enough longitudinal data yet — patterns appear after several reflections over multiple days.",
   };
 }
@@ -175,4 +188,84 @@ export function longitudinalValidation(
 /** Convenience wrapper so callers can see assumption-group churn directly. */
 export function recurringAssumptionGroups(entries: Entry[]) {
   return detectRecurringAssumptions(entries);
+}
+
+// ── pattern lifespan ───────────────────────────────────────────────────
+// How long a pattern survives: from its first supporting evidence to its last,
+// plus how stale it has gone since. A short lifespan with an early contradiction
+// is exactly the signal that the detector over-generalised.
+
+export interface PatternLifespan {
+  key: string;
+  kind: string;
+  label: string;
+  firstEvidenceAt: string | null;
+  lastEvidenceAt: string | null;
+  spanDays: number | null; // first → last evidence
+  ageSinceLastDays: number | null; // last evidence → now
+  status: PatternEvidence["status"];
+}
+
+function isoTime(value: string): number | null {
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+export function patternLifespans(entries: Entry[], now = new Date(), opts: { expiryDays?: number } = {}): PatternLifespan[] {
+  return buildPatternEvidences(entries, now, opts).map((ev) => {
+    const times = ev.evidenceInstances.map((i) => isoTime(i.createdAt)).filter((t): t is number => t !== null).sort((a, b) => a - b);
+    const first = times.length ? times[0] : null;
+    const last = times.length ? times[times.length - 1] : null;
+    return {
+      key: ev.key,
+      kind: ev.kind,
+      label: ev.label,
+      firstEvidenceAt: first !== null ? new Date(first).toISOString() : null,
+      lastEvidenceAt: last !== null ? new Date(last).toISOString() : null,
+      spanDays: first !== null && last !== null ? Math.round((last - first) / 86400000) : null,
+      ageSinceLastDays: last !== null ? Math.max(0, Math.round((now.getTime() - last) / 86400000)) : null,
+      status: ev.status,
+    };
+  });
+}
+
+export function medianLifespanDays(lifespans: PatternLifespan[]): number | null {
+  const spans = lifespans.map((l) => l.spanDays).filter((d): d is number => d != null).sort((a, b) => a - b);
+  if (!spans.length) return null;
+  const mid = Math.floor(spans.length / 2);
+  return spans.length % 2 ? spans[mid] : Math.round(((spans[mid - 1] + spans[mid]) / 2));
+}
+
+// ── user-confirmed vs system-inferred separation ───────────────────────
+// Patterns backed by entries the user actually followed up and verdicted are a
+// different evidence class from patterns inferred purely by the system. They
+// are counted separately — never merged into one "supported" number.
+
+export interface ConfirmationSeparation {
+  patternsTotal: number;
+  /** ≥1 member entry carries a user-recorded follow-up verdict */
+  userConfirmedBacked: number;
+  systemInferredOnly: number;
+  userConfirmedShare: number | null;
+  note: string;
+}
+
+export function confirmationSeparation(
+  entries: Entry[],
+  now = new Date(),
+  opts: { expiryDays?: number } = {},
+): ConfirmationSeparation {
+  const verdictIds = new Set(entries.filter((e) => e.longitudinalReview?.assumptionVerdict).map((e) => e.id));
+  const evidences = buildPatternEvidences(entries, now, opts);
+  const confirmed = evidences.filter((ev) => ev.entryIds.some((id) => verdictIds.has(id)));
+  const share = evidences.length ? confirmed.length / evidences.length : null;
+  return {
+    patternsTotal: evidences.length,
+    userConfirmedBacked: confirmed.length,
+    systemInferredOnly: evidences.length - confirmed.length,
+    userConfirmedShare: share,
+    note: evidences.length
+      ? `${confirmed.length}/${evidences.length} patterns have at least one user-verified reflection; the rest rest on system inference alone.`
+      : "No patterns yet — nothing to separate.",
+  };
 }

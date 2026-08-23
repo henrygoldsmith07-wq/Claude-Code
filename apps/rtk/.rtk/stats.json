@@ -1,0 +1,9 @@
+{
+  "commands": {
+    "stdin": {
+      "invocations": 1,
+      "rawChars": 4134,
+      "emittedChars": 296
+    }
+  }
+}

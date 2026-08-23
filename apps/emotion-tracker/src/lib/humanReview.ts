@@ -89,8 +89,13 @@ export interface HumanReviewRecord {
   reviewedAt: string | null; // ISO when human reviewed, null = pending
   notes: string | null; // optional reviewer notes, no PII
   // Human support derived from labels — not invented, computed
-  humanSupport: "supported" | "unsupported" | "mixed" | "pending" | "insufficient";
+  humanSupport: HumanReviewRecordSupport;
+  // Double-review workflow: an "adjudicator" record overrides reviewer
+  // disagreement and becomes the authoritative labelling.
+  role?: "reviewer" | "adjudicator";
 }
+
+type HumanReviewRecordSupport = "supported" | "unsupported" | "mixed" | "pending" | "insufficient";
 
 export const HUMAN_REVIEW_CORPUS_KEY = "reflectHumanReviewCorpus";
 export const HUMAN_REVIEW_CORPUS_VERSION = 2 as const;
@@ -180,6 +185,7 @@ export function createReviewRecord(params: {
   reviewer?: string | null;
   reviewedAt?: string | null;
   notes?: string | null;
+  role?: "reviewer" | "adjudicator";
 }): HumanReviewRecord {
   const conf = params.confidence ?? params.anonymizedInterpretation.confidence ?? null;
   const labels = params.labels ?? [];
@@ -195,6 +201,7 @@ export function createReviewRecord(params: {
     reviewedAt,
     notes: params.notes ?? null,
     humanSupport: deriveSupport(labels),
+    role: params.role ?? "reviewer",
   };
 }
 
@@ -235,6 +242,74 @@ export function corpusContainsVerbatimText(corpus: HumanReviewCorpus, verbatim: 
   if (!verbatim || verbatim.trim().length < 12) return false;
   const hay = JSON.stringify(corpus).toLowerCase();
   return hay.includes(verbatim.trim().toLowerCase());
+}
+
+// ── multi-reviewer resolution (double review & adjudication) ───────────
+// One record per reviewer-review; interpretationId is the grouping key.
+
+export type LabelResolutionSource = "adjudicated" | "consensus" | "single" | "conflict";
+
+/** Reviewed records only — pending rows never participate in resolution. */
+export function groupByInterpretation(records: HumanReviewRecord[]): Map<string, HumanReviewRecord[]> {
+  const map = new Map<string, HumanReviewRecord[]>();
+  for (const r of records) {
+    if (!r.reviewedAt || r.labels.length === 0) continue;
+    const arr = map.get(r.interpretationId) ?? [];
+    arr.push(r);
+    map.set(r.interpretationId, arr);
+  }
+  return map;
+}
+
+/** Authoritative labels for one interpretation:
+ *  adjudicator > agreeing reviewers (union) > single reviewer > unresolved. */
+export function resolveGroupLabels(group: HumanReviewRecord[]): { labels: HumanReviewLabel[]; source: LabelResolutionSource } {
+  const reviewed = group.filter((r) => r.reviewedAt && r.labels.length > 0);
+  if (reviewed.length === 0) return { labels: [], source: "conflict" };
+  const adjudicators = reviewed.filter((r) => r.role === "adjudicator");
+  if (adjudicators.length > 0) {
+    const latest = adjudicators.reduce((a, b) => ((a.reviewedAt ?? "") >= (b.reviewedAt ?? "") ? a : b));
+    return { labels: [...latest.labels], source: "adjudicated" };
+  }
+  const supportPoles = new Set(reviewed.map((r) => r.humanSupport));
+  if (reviewed.length === 1) return { labels: [...reviewed[0].labels], source: "single" };
+  if (supportPoles.size === 1) return { labels: [...new Set(reviewed.flatMap((r) => r.labels))], source: "consensus" };
+  return { labels: [], source: "conflict" };
+}
+
+export interface EffectiveResolution {
+  /** one record per interpretation, carrying authoritative labels */
+  resolved: HumanReviewRecord[];
+  /** interpretations whose reviewers disagree with no adjudication yet */
+  conflictedIds: string[];
+  sourceCounts: Record<LabelResolutionSource, number>;
+}
+
+export function resolveEffectiveRecords(records: HumanReviewRecord[]): EffectiveResolution {
+  const resolved: HumanReviewRecord[] = [];
+  const conflictedIds: string[] = [];
+  const sourceCounts: Record<LabelResolutionSource, number> = { adjudicated: 0, consensus: 0, single: 0, conflict: 0 };
+  for (const [, group] of groupByInterpretation(records)) {
+    const { labels, source } = resolveGroupLabels(group);
+    sourceCounts[source] += 1;
+    if (source === "conflict") {
+      conflictedIds.push(group[0].interpretationId);
+      continue;
+    }
+    let base: HumanReviewRecord;
+    if (source === "adjudicated") {
+      base = group
+        .filter((r) => r.role === "adjudicator" && r.reviewedAt)
+        .sort((a, b) => (a.reviewedAt ?? "").localeCompare(b.reviewedAt ?? ""))
+        .pop()!;
+    } else {
+      base = group
+        .filter((r) => r.reviewedAt && r.labels.length > 0)
+        .sort((a, b) => (a.reviewedAt ?? "").localeCompare(b.reviewedAt ?? ""))[0];
+    }
+    resolved.push({ ...base, labels, humanSupport: deriveSupport(labels), role: base.role });
+  }
+  return { resolved, conflictedIds, sourceCounts };
 }
 
 // No synthetic generation: this helper only rehydrates records that already exist.
@@ -319,6 +394,8 @@ export interface InterpretationQuality {
   /** high-confidence interpretations later judged misleading/unsupported */
   harmfulConfidentMisreads: HarmfulMisread[];
   harmfulConfidentRate: number | null; // of high-band reviewed
+  /** double-reviewed interpretations whose reviewers disagree with no adjudication yet — excluded from rates */
+  unadjudicatedConflicts: number;
   note: string;
 }
 
@@ -327,8 +404,11 @@ function hasAny(labels: HumanReviewLabel[], set: ReadonlySet<HumanReviewLabel>):
 }
 
 export function interpretationQuality(records: HumanReviewRecord[]): InterpretationQuality {
-  const reviewed = records.filter((r) => Boolean(r.reviewedAt) && r.labels.length > 0);
-  const scored = reviewed.filter((r) => r.humanSupport !== "insufficient");
+  // Multi-reviewer resolution: an adjudicator's labels override disagreement,
+  // agreeing reviewers merge, unresolved conflicts are EXCLUDED from scoring
+  // rather than silently counted twice.
+  const { resolved, conflictedIds } = resolveEffectiveRecords(records);
+  const scored = resolved.filter((r) => r.humanSupport !== "insufficient");
   const total = scored.length;
 
   const factual = scored.filter((r) => hasAny(r.labels, FACTUAL_LABELS));
@@ -347,9 +427,10 @@ export function interpretationQuality(records: HumanReviewRecord[]): Interpretat
 
   const rate = (n: number) => (total ? n / total : null);
   let note: string;
-  if (total === 0) note = "No reviewed interpretations yet — precision cannot be measured.";
+  if (total === 0 && conflictedIds.length === 0) note = "No reviewed interpretations yet — precision cannot be measured.";
   else if (total < 10) note = `Only ${total} reviewed — treat these rates as indicative, not measured.`;
   else note = `${factual.length} grounded · ${plausible.length} plausible · ${falseInferences.length} outran the evidence across ${total} reviews.${harmful.length ? ` ${harmful.length} confident misread${harmful.length === 1 ? "" : "s"} flagged for priority review.` : ""}`;
+  if (conflictedIds.length > 0) note += ` ${conflictedIds.length} interpretation${conflictedIds.length === 1 ? "" : "s"} await${conflictedIds.length === 1 ? "s" : ""} adjudication and ${conflictedIds.length === 1 ? "is" : "are"} excluded from these rates.`;
 
   return {
     reviewed: total,
@@ -358,6 +439,7 @@ export function interpretationQuality(records: HumanReviewRecord[]): Interpretat
     falseInferenceRate: rate(falseInferences.length),
     harmfulConfidentMisreads: harmful,
     harmfulConfidentRate: highBand.length ? harmful.length / highBand.length : null,
+    unadjudicatedConflicts: conflictedIds.length,
     note,
   };
 }

@@ -6,17 +6,12 @@ import { encryptJson, decryptJson, passphraseStrength, type EncryptedBlob } from
 import { isPulseOptIn, setPulseOptIn, emitPulse } from "@/lib/pulse";
 import { parseImport } from "@/lib/importExport";
 import { verifyDeletion, verifyExport } from "@/lib/privacy";
+import { downloadJson } from "@/lib/download";
 
 const VAULT_KEY = "reflectVault";
 const ENTRIES_KEY = "reflectEntries";
 
-function downloadJson(filename: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
+// downloadJson comes from lib/download (shared with the study/evidence exports)
 
 export default function PrivacyBar({
   entries,

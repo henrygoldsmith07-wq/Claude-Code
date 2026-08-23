@@ -1,13 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { Entry, Message, ReflectionMode, ReflectionSummary } from "./types";
 import { validateSummary } from "./validation";
 import { diverseQuestionHint, personalAdaptationHint } from "./promptDiversity";
 import { correctionPromptHint, violatesCorrection } from "./corrections";
 import { detectAdversarial } from "./adversarial";
 import { validateProviderOutput, formatValidationErrors } from "./outputValidation";
+import { callOpenRouterStep } from "./openrouter";
 import type { Correction } from "./corrections";
 
-const MODEL = "claude-sonnet-5";
 const MIN_QUESTIONS = 3;
 const MAX_QUESTIONS = 5;
 const QUICK_MIN_QUESTIONS = 1;
@@ -23,14 +22,10 @@ function fail(message: string): never {
   throw new ProviderContractError(message);
 }
 
-function getClient(apiKey?: string): Anthropic {
-  const key = apiKey || process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    fail("No Anthropic API key provided. Add your own key to continue the reflection.");
-  }
-  // Bound the upstream call: a stalled provider must not hold the HTTP request
-  // open for the SDK default of 10 minutes.
-  return new Anthropic({ apiKey: key, timeout: 30_000, maxRetries: 1 });
+function normalizeQuestion(question: string): ReflectStep {
+  if (typeof question !== "string" || !question.trim()) fail("The model returned an empty follow-up question");
+  if (question.length > 600) return { step: "question", question: `${question.trim().slice(0, 597)}…` };
+  return { step: "question", question: question.trim() };
 }
 
 const ASK_TOOL = {
@@ -239,7 +234,7 @@ RULES:
 7. When you conclude, you MUST fill every trace field — including predictedOutcome (what the user thinks will happen if they take the action; ask directly if not yet stated), include at least one alternative interpretation, one observation, one assumption (or state \"none identified — assumptions were minimal\"), and propose a follow-up checkpoint (ask the user for a date; default to null only if they declined).`;
 }
 
-function toAnthropicMessages(messages: Message[]) {
+function toChatMessages(messages: Message[]) {
   return messages.map((m) => ({ role: m.role, content: m.content }));
 }
 
@@ -247,44 +242,47 @@ export type ReflectStep =
   | { step: "question"; question: string }
   | { step: "summary"; summary: ReflectionSummary };
 
+/** This build runs exclusively on OpenRouter's free-tier models — the
+ *  operator's account has paid models disabled, so there is no spend risk and
+ *  no Anthropic path. */
+function resolveOpenRouterKey(explicitKey?: string): string {
+  if (explicitKey) {
+    if (!explicitKey.startsWith("sk-or-")) {
+      fail("This build uses OpenRouter free models only — paste an sk-or-… key (or clear the field to use the server key).");
+    }
+    return explicitKey;
+  }
+  const env = process.env.OPENROUTER_API_KEY;
+  if (!env) fail("No OpenRouter API key provided. Set OPENROUTER_API_KEY on the server, or paste an sk-or-… key in Settings.");
+  return env;
+}
+
 export async function getNextReflectionStep(
   messages: Message[],
   apiKey?: string,
   opts?: { entries?: Entry[]; mode?: ReflectionMode; corrections?: Correction[] },
 ): Promise<ReflectStep> {
-  const anthropic = getClient(apiKey);
   const questionsAskedSoFar = messages.filter((m) => m.role === "assistant").length;
+  const systemPrompt = buildSystemPrompt(questionsAskedSoFar, { history: messages, entries: opts?.entries, mode: opts?.mode, corrections: opts?.corrections });
+  const key = resolveOpenRouterKey(apiKey);
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1800,
-    system: buildSystemPrompt(questionsAskedSoFar, { history: messages, entries: opts?.entries, mode: opts?.mode, corrections: opts?.corrections }),
-    tools: [ASK_TOOL, CONCLUDE_TOOL],
-    tool_choice: { type: "auto" },
-    messages: toAnthropicMessages(messages),
+  const step = await callOpenRouterStep({
+    apiKey: key,
+    systemPrompt,
+    messages: toChatMessages(messages),
+    tools: [
+      { name: ASK_TOOL.name, description: ASK_TOOL.description, parameters: ASK_TOOL.input_schema as unknown as Record<string, unknown> },
+      { name: CONCLUDE_TOOL.name, description: CONCLUDE_TOOL.description, parameters: CONCLUDE_TOOL.input_schema as unknown as Record<string, unknown> },
+    ],
   });
+  if (typeof step.question === "string") return normalizeQuestion(step.question);
+  if (step.summary && typeof step.summary === "object") return finalizeSummary(step.summary as ReflectionSummary, opts);
+  fail("OpenRouter model returned neither a question nor a structured summary");
+}
 
-  const toolUse = response.content.find((block: { type: string }) => block.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
-    fail("Claude did not return a structured response");
-  }
-
-  if (toolUse.name === "ask_followup") {
-    const input = toolUse.input as { question: string };
-    if (typeof input.question !== "string" || !input.question.trim()) fail("Claude returned an empty follow-up question");
-    if (input.question.length > 600) {
-      return { step: "question", question: `${input.question.trim().slice(0, 597)}…` };
-    }
-    return { step: "question", question: input.question.trim() };
-  }
-
-  if (toolUse.name !== CONCLUDE_TOOL.name) {
-    // The model emitted a tool outside the declared contract — reject clearly
-    // instead of misreading it as a summary.
-    fail(`Claude returned an unexpected tool (${String(toolUse.name)})`);
-  }
-
-  const summary = toolUse.input as ReflectionSummary;
+/** Shared post-processing for a raw summary from ANY provider. */
+function finalizeSummary(raw: ReflectionSummary, opts?: { corrections?: Correction[] }): ReflectStep {
+  const summary = raw;
   // Normalize / backfill for older localStorage entries and partial provider payloads
   if (summary.trace) {
     const t = summary.trace as unknown as Record<string, unknown>;
@@ -313,14 +311,14 @@ export async function getNextReflectionStep(
   return { step: "summary", summary };
 }
 
-// Exported for regression tests without constructing a real Anthropic client
+// Exported for regression tests without constructing a real client
 export const __test = {
   buildSystemPrompt,
   ASK_TOOL,
   CONCLUDE_TOOL,
-  MODEL,
   MIN_QUESTIONS,
   MAX_QUESTIONS,
   QUICK_MIN_QUESTIONS,
   QUICK_MAX_QUESTIONS,
+  resolveOpenRouterKey,
 };

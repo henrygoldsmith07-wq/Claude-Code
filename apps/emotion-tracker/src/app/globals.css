@@ -1,0 +1,68 @@
+@import "tailwindcss";
+@import "./le-studio.css";
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+/* This app was built on its own token names (--background, --card, --muted…)
+   before the Le Studio system existed. Rather than rewrite every className,
+   those names are now aliases onto the shared tokens — so the app inherits the
+   Le Studio palette, including its dark mode, and existing markup keeps
+   working. Prefer the shared names (bg-surface, text-ink3) in new code. */
+:root {
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-hover: var(--surface-2);
+  --border: var(--line);
+  --muted: var(--ink-3);
+  --accent-soft: var(--surface-2);
+  --accent-hover: var(--ink-2);
+  --warning: var(--review);
+  --sidebar: var(--surface-2);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-hover: var(--surface-2);
+  --color-border: var(--line);
+  --color-muted: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--surface-2);
+  --color-accent-hover: var(--ink-2);
+  --color-success: var(--success);
+  --color-warning: var(--review);
+  --color-danger: var(--danger);
+  --color-sidebar: var(--surface-2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Soft scrollbar, on the shared line colour */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+/* Kept for existing call sites; fade-in also ships in the shared theme. */
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out forwards;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}

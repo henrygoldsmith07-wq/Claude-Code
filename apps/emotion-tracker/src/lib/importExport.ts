@@ -114,6 +114,21 @@ function sanitizeSummary(raw: unknown): ReflectionSummary | null {
       })
     : [];
 
+  // falsification checks: keep only well-formed pairs referencing text
+  const assumptionTexts = asStringArray(t.assumptions).map((a) => a.trim().toLowerCase());
+  const assumptionChecks: ReflectionSummary["trace"]["assumptionChecks"] = Array.isArray(t.assumptionChecks)
+    ? (t.assumptionChecks as unknown[]).flatMap((c) => {
+        if (typeof c !== "object" || c === null || Array.isArray(c)) return [];
+        const check = c as Record<string, unknown>;
+        const assumption = typeof check.assumption === "string" ? check.assumption.slice(0, MAX_MESSAGE_CHARS) : "";
+        const falsifier = typeof check.falsifier === "string" ? check.falsifier.slice(0, MAX_MESSAGE_CHARS) : "";
+        if (!assumption.trim() || falsifier.trim().length < 12) return [];
+        return [{ assumption, falsifier }];
+      }).filter((c) => assumptionTexts.some((t2) => t2.includes(c.assumption.toLowerCase().slice(0, 24))))
+    : [];
+
+  const rawOverall = s.overallConfidence;
+
   return {
     trace: {
       event: asNonEmptyString(t.event),
@@ -126,6 +141,7 @@ function sanitizeSummary(raw: unknown): ReflectionSummary | null {
       predictedOutcome: asNonEmptyString(t.predictedOutcome),
       followUpAt: validDate(t.followUpAt) ? (t.followUpAt as string) : null,
       followUpNote: t.followUpNote === null || t.followUpNote === undefined ? null : asNonEmptyString(t.followUpNote) || null,
+      assumptionChecks,
     },
     coreEmotion: asNonEmptyString(s.coreEmotion),
     underlyingTriggers: asStringArray(s.underlyingTriggers),
@@ -135,6 +151,12 @@ function sanitizeSummary(raw: unknown): ReflectionSummary | null {
     cautionFlags: asStringArray(s.cautionFlags),
     suggestedNextSteps: asStringArray(s.suggestedNextSteps),
     hedgedDisclaimer: s.hedgedDisclaimer === null || s.hedgedDisclaimer === undefined ? null : asNonEmptyString(s.hedgedDisclaimer) || null,
+    overallConfidence:
+      typeof rawOverall === "number" && Number.isFinite(rawOverall)
+        ? Math.min(Math.max(rawOverall, 0), 1)
+        : rawOverall === undefined
+          ? undefined
+          : null,
   };
 }
 
