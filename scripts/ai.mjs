@@ -72,29 +72,59 @@ async function callOnce(env, chosen, messages, opts) {
   return { res, body };
 }
 
-export async function ai(prompt, opts = {}) {
+async function attempt(env, cand, messages, opts) {
+  // free-tier models rotate upstream rate limits constantly; retry once on 429
+  let { res, body } = await callOnce(env, cand, messages, opts);
+  if (res.status === 429 && opts.retries !== 0) {
+    // a DAILY-quota 429 ("free-models-per-day") applies to every :free model
+    // in the account — retrying or walking the chain is pointless; abort fast.
+    const msg = String(body.error?.message ?? res.statusText);
+    if (!/free-models-per-day/i.test(msg)) await sleep(6000);
+    ({ res, body } = await callOnce(env, cand, messages, opts));
+  }
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${body.error?.message ?? res.statusText}`);
+  }
+  const msg2 = body.choices?.[0]?.message ?? {};
+  // reasoning models can spend tokens in .reasoning before .content
+  const out = String(msg2.content ?? "").trim() || String(msg2.reasoning ?? "").trim();
+  if (body.usage && out === "") {
+    throw new Error(`no content (finish_reason: ${body.choices?.[0]?.finish_reason})`);
+  }
+  return out;
+}
+
+/**
+ * Ask the allowlist. Fallback chain: the requested model first, then every
+ * other ranked model from config/ai/models.json in intelligence order
+ * (entries with noFallback are skipped). ai() returns just the text;
+ * aiDetailed() also reports which model answered.
+ */
+export async function aiDetailed(prompt, opts = {}) {
   const env = loadEnv();
   const chosen = resolve(opts.model ?? prompt.model);
   const messages = Array.isArray(prompt)
     ? prompt
     : [{ role: "user", content: String(prompt) }];
+  const chain = [
+    chosen,
+    ...CFG.models.filter((m) => m.slug !== chosen.slug && !m.noFallback),
+  ];
+  let lastErr;
+  for (let i = 0; i < chain.length; i++) {
+    try {
+      return { text: await attempt(env, chain[i], messages, opts), model: chain[i].slug };
+    } catch (e) {
+      lastErr = e;
+      if (i < chain.length - 1 && opts.onFallback)
+        opts.onFallback(chain[i], chain[i + 1], e.message);
+    }
+  }
+  throw new Error(`ai: all ${chain.length} models failed; last error (${chain[chain.length - 1].slug}): ${lastErr?.message}`);
+}
 
-  // free-tier models rotate upstream rate limits constantly; retry once on 429
-  let { res, body } = await callOnce(env, chosen, messages, opts);
-  if (res.status === 429 && opts.retries !== 0) {
-    await sleep(6000);
-    ({ res, body } = await callOnce(env, chosen, messages, opts));
-  }
-  if (!res.ok) {
-    throw new Error(`ai: HTTP ${res.status} ${chosen.slug}: ${body.error?.message ?? res.statusText}`);
-  }
-  const msg = body.choices?.[0]?.message ?? {};
-  // reasoning models can spend tokens in .reasoning before .content
-  const out = String(msg.content ?? "").trim() || String(msg.reasoning ?? "").trim();
-  if (body.usage && out === "") {
-    throw new Error(`ai: ${chosen.slug} returned no content (finish_reason: ${body.choices?.[0]?.finish_reason}); try a higher --max-tokens`);
-  }
-  return out;
+export async function ai(prompt, opts = {}) {
+  return (await aiDetailed(prompt, opts)).text;
 }
 
 // ---- CLI ----
@@ -119,11 +149,13 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1].rep
     } else {
       const t0 = Date.now();
       try {
-        const out = await ai(prompt, {
+        const { text, model } = await aiDetailed(prompt, {
           model: modelIdx > -1 ? rest[modelIdx + 1] : undefined,
           maxTokens: maxIdx > -1 ? Number(rest[maxIdx + 1]) : undefined,
+          onFallback: (from, to, msg) =>
+            console.error(`ai: ${from.slug} failed (${msg}) — falling back to ${to.slug}`),
         });
-        console.log(out + `\n[${Date.now() - t0}ms]`);
+        console.log(text + `\n[${model} · ${(Date.now() - t0) / 1000}s]`);
       } catch (e) {
         console.error(String(e.message));
         process.exitCode = 1;
