@@ -36,8 +36,18 @@ function loadEnv() {
   return env;
 }
 
+function providerFor(chosen) {
+  const pid = chosen.provider || "openrouter";
+  const p = (CFG.providers || {})[pid];
+  if (!p) throw new Error(`ai: unknown provider "${pid}" for ${chosen.slug}`);
+  return p;
+}
+
 function resolve(model) {
-  if (!model || model === CFG.defaultModel) return { slug: CFG.defaultModel, label: "default" };
+  if (!model || model === CFG.defaultModel) {
+    return CFG.models.find((m) => m.slug === CFG.defaultModel)
+      ?? { slug: CFG.defaultModel, label: "default", provider: "openrouter" };
+  }
   const norm = (s) => String(s).toLowerCase().replace(/\s*\(free\)\s*$/i, "").trim();
   const hit =
     CFG.models.find((m) => m.slug === model) ??
@@ -52,23 +62,27 @@ function resolve(model) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function callOnce(env, chosen, messages, opts) {
-  // Policy: free models (":free" suffix or "free": true in the allowlist) are
-  // uncapped unless --max-tokens is passed explicitly; paid models default to
-  // 1024 so an accident can't burn real credit.
+  // Policy: entries flagged free (":free" suffix or "free": true) are uncapped
+  // unless --max-tokens is passed explicitly; paid models default to 1024 so
+  // an accident can't burn real credit.
   const isFree = String(chosen.slug).endsWith(":free") || chosen.free === true;
+  const prov = providerFor(chosen);
   const payload = { model: chosen.slug, messages };
   if (opts.maxTokens !== undefined) payload.max_tokens = opts.maxTokens;
   else if (!isFree) payload.max_tokens = 1024;
   if (opts.temperature !== undefined) payload.temperature = opts.temperature;
-  const res = await fetch(`${env.OPENROUTER_BASE_URL}${CFG.endpoint}`, {
+  const key = env[prov.envKey];
+  if (!key) throw new Error(`missing ${prov.envKey} in ${CFG.envFile}`);
+  const res = await fetch(`${prov.baseUrl}${CFG.endpoint}`, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+      authorization: `Bearer ${key}`,
       "content-type": "application/json",
     },
     body: JSON.stringify(payload),
   });
-  const body = await res.json().catch(() => ({}));
+  let body = {};
+  try { body = await res.json(); } catch { /* non-JSON error body */ }
   return { res, body };
 }
 
@@ -95,10 +109,11 @@ async function attempt(env, cand, messages, opts) {
 }
 
 /**
- * Ask the allowlist. Fallback chain: the requested model first, then every
- * other ranked model from config/ai/models.json in intelligence order
- * (entries with noFallback are skipped). ai() returns just the text;
- * aiDetailed() also reports which model answered.
+ * Ask the allowlist across providers. Fallback chain: the requested model
+ * first, then every other ranked model from config/ai/models.json in
+ * intelligence order (entries with noFallback are skipped). NVIDIA NIM models
+ * lead (no daily cap); OpenRouter :free models back them up. ai() returns just
+ * the text; aiDetailed() also reports which model answered.
  */
 export async function aiDetailed(prompt, opts = {}) {
   const env = loadEnv();
@@ -113,16 +128,17 @@ export async function aiDetailed(prompt, opts = {}) {
   let lastErr;
   for (let i = 0; i < chain.length; i++) {
     try {
-      return { text: await attempt(env, chain[i], messages, opts), model: chain[i].slug };
+      return { text: await attempt(env, chain[i], messages, opts), model: `${chain[i].provider || "openrouter"}:${chain[i].slug}` };
     } catch (e) {
       lastErr = e;
-      // account-wide daily free quota: every remaining :free model will fail too
-      if (/free-models-per-day/i.test(String(e.message))) {
-        throw new Error(
-          `ai: daily free-model quota exhausted (${chain[i].slug}: ${e.message}). ` +
-          `It resets on a rolling window — or add $10 of credits at openrouter.ai/credits ` +
-          `to unlock 1000 free requests/day. Paid models (Ox Alpha) still work: --model "Ox Alpha"`
-        );
+      // account-wide daily free quota on one provider: skip that provider's
+      // remaining models but keep walking other providers' lanes.
+      if (/free-models-per-day/i.test(String(e.message)) && opts.onFallback) {
+        const deadProvider = providerFor(chain[i]);
+        // mark rest of this provider's models as failed by filtering chain in place
+        for (let j = chain.length - 1; j > i; j--) {
+          if (providerFor(chain[j]) === deadProvider) chain.splice(j, 1);
+        }
       }
       if (i < chain.length - 1 && opts.onFallback)
         opts.onFallback(chain[i], chain[i + 1], e.message);
