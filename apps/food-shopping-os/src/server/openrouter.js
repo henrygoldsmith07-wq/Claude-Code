@@ -1,44 +1,56 @@
 /**
- * OpenRouter free-tier access.
+ * Free-tier AI providers: NVIDIA NIM first, OpenRouter second.
  *
- * When OPENROUTER_API_KEY is set, AI features run against OpenRouter's
- * `:free` models, ranked by capability: strongest chat models first, with
- * automatic fall-down the list when one is rate-limited or unavailable.
- * Non-chat endpoints (embeddings, rerankers, TTS, safety classifiers) are
- * excluded from selection. Free models are unmetered for the household —
- * the AI budget system does not apply to this provider.
+ * Both expose OpenAI-compatible catalogs. Chat model selection is ranked by
+ * capability (Ultra → Super/Lightning → size tiers), excludes non-chat
+ * endpoints (embeddings, rerankers, TTS, safety classifiers) and fails over
+ * down the ranking. Free/unmetered providers bypass the household AI budget.
  */
 
 /** Capability order: position = preference. Tokens must all appear in the id. */
 const CHAT_MODEL_ORDER = [
-  { name: 'GLM 5.2', tokens: ['glm'] },
-  { name: 'Nemotron 3 Ultra', tokens: ['nemotron', 'ultra'] },
-  { name: 'Nemotron 3.5 Lightning', tokens: ['lightning'] },
-  { name: 'Nemotron 3 Super', tokens: ['nemotron', 'super'] },
-  { name: 'Gemma 4 31B', tokens: ['gemma', '31b'] },
-  { name: 'Gemma 4 26B A4B', tokens: ['gemma', '26b'] },
-  { name: 'Nemotron 3 Nano 30B A3B', tokens: ['30b'] },
-  { name: 'Nemotron Nano 12B 2 VL', tokens: ['12b'] },
-  { name: 'Nemotron Nano 9B V2', tokens: ['9b'] },
-  { name: 'LFM2.5-2.6B', tokens: ['lfm'] },
-  { name: 'North Mini Code', tokens: ['north'] },
-  { name: 'Inkling Small', tokens: ['inkling-small'] },
+  { name: 'Nemotron Ultra', tokens: ['ultra'] },
+  { name: 'GLM', tokens: ['glm'] },
+  { name: 'Lightning', tokens: ['lightning'] },
+  { name: 'Super (non-nano)', tokens: ['super'] },
+  { name: 'Gemma large', tokens: ['gemma'] },
+  { name: '30B MoE', tokens: ['30b'] },
+  { name: 'Llama 70B class', tokens: ['70b'] },
+  { name: '12B VL', tokens: ['12b'] },
+  { name: '9B', tokens: ['9b'] },
+  { name: 'LFM', tokens: ['lfm'] },
   { name: 'Inkling', tokens: ['inkling'] },
-  { name: 'Laguna family', tokens: ['laguna'] },
-  { name: 'Dots3 Note', tokens: ['dots'] },
+  { name: 'Laguna', tokens: ['laguna'] },
 ];
 
 /** Endpoint-only models that can never serve chat completions. */
-const NON_CHAT_TOKENS = ['embed', 'rerank', 'tts', 'safety', 'moderation', 'whisper'];
+const NON_CHAT_TOKENS = ['embed', 'rerank', 'tts', 'safety', 'moderation', 'whisper', 'guard'];
 
 const CATALOG_TTL_MS = 10 * 60 * 1000;
 let cachedRanking = null;
 let cachedAt = 0;
 
-export const isOpenRouterConfigured = () => Boolean(process.env.OPENROUTER_API_KEY);
+export const activeProvider = () => {
+  if (process.env.NVIDIA_API_KEY) {
+    return {
+      id: 'nvidia',
+      base: (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/+$/, ''),
+      key: process.env.NVIDIA_API_KEY,
+      suffix: null,
+    };
+  }
+  if (process.env.OPENROUTER_API_KEY) {
+    return {
+      id: 'openrouter',
+      base: (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/+$/, ''),
+      key: process.env.OPENROUTER_API_KEY,
+      suffix: ':free',
+    };
+  }
+  return null;
+};
 
-export const openRouterBase = () =>
-  (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
+export const isOpenRouterConfigured = () => Boolean(activeProvider());
 
 const matchScore = (id) => {
   const lower = id.toLowerCase();
@@ -49,19 +61,21 @@ const matchScore = (id) => {
   return best;
 };
 
-/** Free chat-capable models, strongest first. */
+/** Free/chat-capable models, strongest first, for the active provider. */
 export async function rankedFreeModels(fetchImpl = fetch) {
-  if (!isOpenRouterConfigured()) return [];
+  const provider = activeProvider();
+  if (!provider) return [];
   if (cachedRanking && Date.now() - cachedAt < CATALOG_TTL_MS) return cachedRanking;
   try {
-    const res = await fetchImpl(`${openRouterBase()}/models`);
+    const res = await fetchImpl(`${provider.base}/models`, {
+      headers: { authorization: `Bearer ${provider.key}` },
+    });
     if (!res.ok) throw new Error(`catalog ${res.status}`);
     const body = await res.json();
-    const free = (body?.data || [])
-      .map((m) => m.id)
-      .filter((id) => typeof id === 'string' && id.endsWith(':free'))
-      .filter((id) => !NON_CHAT_TOKENS.some((t) => id.toLowerCase().includes(t)));
-    cachedRanking = free
+    let ids = (body?.data || []).map((m) => m.id).filter((id) => typeof id === 'string');
+    if (provider.suffix) ids = ids.filter((id) => id.endsWith(provider.suffix));
+    cachedRanking = ids
+      .filter((id) => !NON_CHAT_TOKENS.some((t) => id.toLowerCase().includes(t)))
       .map((id) => ({ id, rank: matchScore(id) }))
       .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
       .map((r) => r.id);
@@ -73,20 +87,21 @@ export async function rankedFreeModels(fetchImpl = fetch) {
 }
 
 /**
- * Chat completion with intelligent failover: try the smartest free model,
- * walk down the ranking on failure (rate limits, outages), give up only if
- * every slot refuses — the caller then decides whether to pay elsewhere.
+ * Chat completion with failover down the intelligence ranking. A 401 stops
+ * immediately — a bad key never fixes itself on the next model.
  */
 export async function freeChat({ system, user, maxTokens = 1200, fetchImpl = fetch } = {}) {
+  const provider = activeProvider();
+  if (!provider) throw new Error('no-free-model');
   const models = await rankedFreeModels(fetchImpl);
   if (!models.length) throw new Error('no-free-model');
   let lastError = null;
   for (const model of models.slice(0, 6)) {
     try {
-      const res = await fetchImpl(`${openRouterBase()}/chat/completions`, {
+      const res = await fetchImpl(`${provider.base}/chat/completions`, {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          authorization: `Bearer ${provider.key}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({
@@ -100,8 +115,8 @@ export async function freeChat({ system, user, maxTokens = 1200, fetchImpl = fet
         }),
       });
       if (!res.ok) {
-        lastError = Object.assign(new Error(`openrouter ${res.status}`), { status: res.status });
-        if (res.status === 401) break; // bad key never fixes itself on the next model
+        lastError = Object.assign(new Error(`provider ${res.status}`), { status: res.status });
+        if (res.status === 401) break;
         continue;
       }
       const body = await res.json();

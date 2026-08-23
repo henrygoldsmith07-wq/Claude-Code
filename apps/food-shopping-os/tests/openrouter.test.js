@@ -24,8 +24,8 @@ describe('rankedFreeModels — intelligence order with non-chat excluded', () =>
   it('ranks GLM above Nemotron Ultra above Nano, and never offers embed/TTS', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonRes(catalog));
     const models = await rankedFreeModels(fetchImpl);
-    expect(models[0]).toContain('glm');
-    expect(models[1]).toContain('ultra');
+    expect(models[0]).toContain('ultra');
+    expect(models[1]).toContain('glm');
     expect(models.some((m) => m.includes('nano'))).toBe(true);
     expect(models.some((m) => m.includes('embed'))).toBe(false);
     expect(models.some((m) => m.includes('tts'))).toBe(false);
@@ -43,9 +43,9 @@ describe('freeChat — failover walks down the intelligence ranking', () => {
       return jsonRes({ choices: [{ message: { content: 'hello from the fallback' } }] });
     });
     const out = await freeChat({ system: 's', user: 'u', fetchImpl });
-    expect(out.model).toContain('ultra'); // GLM failed → next in ranking
+    expect(out.model).toContain('glm'); // Ultra failed → next in ranking
     expect(out.text).toBe('hello from the fallback');
-    expect(tried[0]).toContain('glm');
+    expect(tried[0]).toContain('ultra');
   });
 
   it('gives up cleanly when every slot refuses, so callers can fall back', async () => {
