@@ -58,7 +58,10 @@ const rules = [];
 readFileSync(codeownersPath, 'utf8')
   .split('\n')
   .forEach((raw, i) => {
-    const line = raw.replace(/#.*$/, '').trim();
+    // Strip a trailing CR first: `.` never matches \r and `$` (without /m)
+    // will not anchor before one, so on CRLF checkouts the comment stripper
+    // below would silently keep whole comment lines and parse them as rules.
+    const line = raw.replace(/\r$/, '').replace(/#.*$/, '').trim();
     if (!line) return;
     const [pattern, ...owners] = line.split(/\s+/);
     if (!owners.length) {

@@ -1,169 +1,177 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": 1,
-  "description": "The checked-in dependency graph used by scripts/vercel-ignore.mjs. Paths are repository-relative.",
-  "globalPaths": [
-    ".nvmrc",
-    ".node-version",
-    ".npmrc",
-    "vercel.json",
-    "package.json",
-    "package-lock.json",
-    "npm-shrinkwrap.json",
-    "pnpm-workspace.yaml",
-    "pnpm-lock.yaml",
-    "yarn.lock",
-    "bun.lock",
-    "bun.lockb",
-    "turbo.json",
-    "nx.json",
-    "lerna.json",
-    "tsconfig.base.json",
-    "config/**"
-  ],
-  "ignoredPaths": [
-    ".github/**",
-    ".claude/**",
-    "docs/**",
-    "wiki/**",
-    "output/**",
-    "raw/**",
-    "scripts/**",
-    "src/**",
-    "vendor/**",
-    ".claude-flow/**",
-    "CLAUDE.md",
-    "IMPROVEMENT_LOG.md",
-    ".gitignore",
-    ".mcp.json",
-    "LICENSE",
-    "apps/registry.json",
-    "**/README.md",
-    "**/docs/**",
-    "**/tests/**",
-    "**/test/**",
-    "**/e2e/**",
-    "**/benchmark/**",
-    "**/__tests__/**",
-    "**/__snapshots__/**",
-    "**/*.test.*",
-    "**/*.spec.*",
-    "**/*.snap"
-  ],
-  "shared": {
-    "theme": {
-      "description": "Canonical Le Studio theme copied into each listed app by scripts/sync-theme.sh. A source change is treated as a runtime change for every vendored consumer; commit the generated copies with it.",
-      "paths": ["packages/theme/**"],
-      "consumers": [
-        "arise",
-        "daily-debate",
-        "emotion-tracker",
-        "food-shopping-os",
-        "french-practice",
-        "habit-tracker",
-        "mental-load-tracker",
-        "revise"
-      ]
-    },
-    "le-studio-tokens": {
-      "description": "Standalone token package. Current Vercel builds use the vendored theme copies and do not import this package at build time.",
-      "paths": ["packages/le-studio-tokens/**"],
-      "consumers": []
-    }
-  },
-  "projects": {
-    "root": {
-      "rootDirectory": ".",
-      "kind": "retired",
-      "deploy": false,
-      "description": "Repository root is a guardrail, not a deployable application. Retire any Vercel project still pointed here."
-    },
-    "arise-site": {
-      "rootDirectory": "apps/arise-site",
-      "kind": "marketing-site"
-    },
-    "arise": {
-      "rootDirectory": "apps/arise",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "daily-debate-site": {
-      "rootDirectory": "apps/daily-debate-site",
-      "kind": "marketing-site"
-    },
-    "daily-debate": {
-      "rootDirectory": "apps/daily-debate",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "ecosystem-shell": {
-      "rootDirectory": "apps/ecosystem-shell",
-      "kind": "infrastructure",
-      "description": "Only the shell's own HTML, route manifest, Vercel config, or other non-ignored files can change this deployment. Product output changes do not."
-    },
-    "emotion-tracker": {
-      "rootDirectory": "apps/emotion-tracker",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "food-shopping-os": {
-      "rootDirectory": "apps/food-shopping-os",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "forq-site": {
-      "rootDirectory": "apps/forq-site",
-      "kind": "marketing-site"
-    },
-    "french-practice": {
-      "rootDirectory": "apps/french-practice",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "habit-tracker": {
-      "rootDirectory": "apps/habit-tracker",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "le-studio-site": {
-      "rootDirectory": "apps/le-studio-site",
-      "kind": "marketing-site"
-    },
-    "mental-load-tracker": {
-      "rootDirectory": "apps/mental-load-tracker",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "pulse": {
-      "rootDirectory": "apps/pulse",
-      "kind": "product"
-    },
-    "rapport": {
-      "rootDirectory": "apps/rapport",
-      "kind": "product"
-    },
-    "reflect-site": {
-      "rootDirectory": "apps/reflect-site",
-      "kind": "marketing-site"
-    },
-    "revise-site": {
-      "rootDirectory": "apps/revise-site",
-      "kind": "marketing-site"
-    },
-    "revise": {
-      "rootDirectory": "apps/revise",
-      "kind": "product",
-      "shared": ["theme"]
-    },
-    "rtk": {
-      "rootDirectory": "apps/rtk",
-      "kind": "retired",
-      "deploy": false,
-      "description": "Node CLI; its code is not a Vercel deployment input. The separate rtk-site project remains independently deployable."
-    },
-    "rtk-site": {
-      "rootDirectory": "apps/rtk-site",
-      "kind": "marketing-site"
-    }
-  }
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "version":  1,
+    "description":  "The checked-in dependency graph used by scripts/vercel-ignore.mjs. Paths are repository-relative. All app projects migrated to standalone GitHub repos on 2026-08-21 (see apps/registry.json \u0027external\u0027); entries kept as deploy:false for provenance.",
+    "globalPaths":  [
+                        ".nvmrc",
+                        ".node-version",
+                        ".npmrc",
+                        "vercel.json",
+                        "package.json",
+                        "package-lock.json",
+                        "npm-shrinkwrap.json",
+                        "pnpm-workspace.yaml",
+                        "pnpm-lock.yaml",
+                        "yarn.lock",
+                        "bun.lock",
+                        "bun.lockb",
+                        "turbo.json",
+                        "nx.json",
+                        "lerna.json",
+                        "tsconfig.base.json",
+                        "config/**"
+                    ],
+    "ignoredPaths":  [
+                         ".github/**",
+                         ".claude/**",
+                         "docs/**",
+                         "wiki/**",
+                         "output/**",
+                         "raw/**",
+                         "scripts/**",
+                         "src/**",
+                         "vendor/**",
+                         ".claude-flow/**",
+                         "CLAUDE.md",
+                         "IMPROVEMENT_LOG.md",
+                         ".gitignore",
+                         ".mcp.json",
+                         "LICENSE",
+                         "apps/registry.json",
+                         "**/README.md",
+                         "**/docs/**",
+                         "**/tests/**",
+                         "**/test/**",
+                         "**/e2e/**",
+                         "**/benchmark/**",
+                         "**/__tests__/**",
+                         "**/__snapshots__/**",
+                         "**/*.test.*",
+                         "**/*.spec.*",
+                         "**/*.snap"
+                     ],
+    "shared":  {
+                   "theme":  {
+                                 "description":  "Canonical Le Studio theme. All app consumers moved to standalone repos on 2026-08-21; each repo now vendors its own copy. This canonical source remains for provenance.",
+                                 "paths":  [
+                                               "packages/theme/**"
+                                           ],
+                                 "consumers":  [
+
+                                               ]
+                             },
+                   "le-studio-tokens":  {
+                                            "description":  "Standalone token package. Current Vercel builds use the vendored theme copies and do not import this package at build time.",
+                                            "paths":  [
+                                                          "packages/le-studio-tokens/**"
+                                                      ],
+                                            "consumers":  [
+
+                                                          ]
+                                        }
+               },
+    "projects":  {
+                     "root":  {
+                                  "rootDirectory":  ".",
+                                  "kind":  "retired",
+                                  "deploy":  false,
+                                  "description":  "Repository root is a guardrail, not a deployable application. Retire any Vercel project still pointed here."
+                              },
+                     "arise-site":  {
+                                        "deploy":  false,
+                                        "kind":  "external-repo",
+                                        "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/arise-site; deploy from that repo now."
+                                    },
+                     "arise":  {
+                                   "deploy":  false,
+                                   "kind":  "external-repo",
+                                   "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/arise; deploy from that repo now."
+                               },
+                     "daily-debate-site":  {
+                                               "deploy":  false,
+                                               "kind":  "external-repo",
+                                               "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/daily-debate-site; deploy from that repo now."
+                                           },
+                     "daily-debate":  {
+                                          "deploy":  false,
+                                          "kind":  "external-repo",
+                                          "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/daily-debate; deploy from that repo now."
+                                      },
+                     "ecosystem-shell":  {
+                                             "deploy":  false,
+                                             "kind":  "external-repo",
+                                             "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/ecosystem-shell; deploy from that repo now."
+                                         },
+                     "emotion-tracker":  {
+                                             "deploy":  false,
+                                             "kind":  "external-repo",
+                                             "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/emotion-tracker; deploy from that repo now."
+                                         },
+                     "food-shopping-os":  {
+                                              "deploy":  false,
+                                              "kind":  "external-repo",
+                                              "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/food-shopping-os; deploy from that repo now."
+                                          },
+                     "forq-site":  {
+                                       "deploy":  false,
+                                       "kind":  "external-repo",
+                                       "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/forq-site; deploy from that repo now."
+                                   },
+                     "french-practice":  {
+                                             "deploy":  false,
+                                             "kind":  "external-repo",
+                                             "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/french-practice; deploy from that repo now."
+                                         },
+                     "habit-tracker":  {
+                                           "deploy":  false,
+                                           "kind":  "external-repo",
+                                           "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/habit-tracker; deploy from that repo now."
+                                       },
+                     "le-studio-site":  {
+                                            "deploy":  false,
+                                            "kind":  "external-repo",
+                                            "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/le-studio-site; deploy from that repo now."
+                                        },
+                     "mental-load-tracker":  {
+                                                 "deploy":  false,
+                                                 "kind":  "external-repo",
+                                                 "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/mental-load-tracker; deploy from that repo now."
+                                             },
+                     "pulse":  {
+                                   "deploy":  false,
+                                   "kind":  "external-repo",
+                                   "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/pulse; deploy from that repo now."
+                               },
+                     "rapport":  {
+                                     "deploy":  false,
+                                     "kind":  "external-repo",
+                                     "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/rapport; deploy from that repo now."
+                                 },
+                     "reflect-site":  {
+                                          "deploy":  false,
+                                          "kind":  "external-repo",
+                                          "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/reflect-site; deploy from that repo now."
+                                      },
+                     "revise-site":  {
+                                         "deploy":  false,
+                                         "kind":  "external-repo",
+                                         "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/revise-site; deploy from that repo now."
+                                     },
+                     "revise":  {
+                                    "deploy":  false,
+                                    "kind":  "external-repo",
+                                    "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/revise; deploy from that repo now."
+                                },
+                     "rtk":  {
+                                 "rootDirectory":  "apps/rtk",
+                                 "kind":  "external-repo",
+                                 "deploy":  false,
+                                 "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/rtk; Node CLI, never a Vercel deployment."
+                             },
+                     "rtk-site":  {
+                                      "deploy":  false,
+                                      "kind":  "external-repo",
+                                      "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/rtk-site; deploy from that repo now."
+                                  }
+                 }
 }

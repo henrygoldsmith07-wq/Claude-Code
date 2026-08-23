@@ -1,5 +1,0 @@
-2252d03 feat(arise): add Playwright E2E suite and real-history validation tests
-45ec153 Merge remote-tracking branch 'origin/main'
-5acff00 feat(arise): real-history validation, noisy-session handling, loadability, E2E + CI
-7a95029 feat(forq): close the household loop — outcomes, provenance, resilience
-c131841 feat(emotion-tracker): strengthen Reflect trust — review corpus, calibration, corrections, evidence, privacy (#177)

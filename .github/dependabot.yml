@@ -1,0 +1,73 @@
+version: 2
+updates:
+  # Each app has its own lockfile; group patch/minor to avoid PR flood
+  - package-ecosystem: npm
+    directory: "/apps/arise"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/daily-debate"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/emotion-tracker"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/food-shopping-os"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/french-practice"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/habit-tracker"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/mental-load-tracker"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/pulse"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/rapport"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/revise"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/apps/rtk"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    groups:
+      npm-patch-minor: { patterns: ["*"], update-types: ["minor", "patch"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly, day: monday, time: "06:00" }
+    open-pull-requests-limit: 3

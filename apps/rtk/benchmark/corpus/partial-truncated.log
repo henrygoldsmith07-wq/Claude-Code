@@ -1,4 +1,0 @@
-FAIL src/app.test.ts > boom
-AssertionError: expected 1 to equal 2
-  at src/app.ts:10:5
-[truncated mid-token — missing tail]

@@ -1,6 +1,0 @@
-Error: boom
-  at doThing (src/app.ts:42:10)
-  at run (src/app.ts:10:5)
-  at node:internal/process/task_queues:95:5
-  at node_modules/vitest/dist/run.js:10:5
-  at src/app.test.ts:12:3

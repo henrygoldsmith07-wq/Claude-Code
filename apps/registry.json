@@ -1,180 +1,18 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "description": "Machine-readable app registry for the Ruflo monorepo. Single source of truth for docs, tooling, and lifecycle. Update when adding, retiring, or moving any entry under apps/, packages/, vendor/, or standalone roots.",
- "version": 1,
+ "description": "Machine-readable app registry for the Ruflo workspace. Single source of truth for docs, tooling, and lifecycle. Update when adding, retiring, or moving any entry under packages/, vendor/, or standalone roots. On 2026-08-21 every app under apps/ was migrated to its own standalone GitHub repo and is listed under 'external'.",
+ "version": 2,
  "lifecycleStates": {
-  "active": "Shipped product; listed on the family hub and in README; has CI and an owner.",
+  "active": "Shipped product; has CI and an owner.",
   "incubating": "In development behind a branch or feature flag; not yet listed as active.",
   "maintenance": "Shipped but not under active feature work; security/bug fixes only.",
   "archived": "Frozen reference; not developed further (e.g. scraped build kept for provenance).",
   "superseded": "Replaced by another entry; kept only to document the migration.",
   "tooling": "Internal skill/helper/daemon — not a user-facing app but part of delivery.",
-  "external": "Standalone repo outside this monorepo; referenced for ecosystem completeness."
+  "external": "Standalone repo outside this workspace; referenced for ecosystem completeness."
  },
- "siteConvention": "Each active app's marketing landing lives in <app>-site (static Next export, vercel.json framework=Other). Sites inherit lifecycle from their app unless overridden. Each site deploys as its own Vercel project (Root Directory apps/<app>-site), so cross-site links must be absolute: siteUrl is the source of truth and every site page carries it as rel=canonical.",
- "apps": [
-  {
-   "id": "arise",
-   "path": "apps/arise",
-   "site": "apps/arise-site",
-   "siteUrl": "https://claude-code-5crn.vercel.app",
-   "name": "Arise",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Vite + React + Tailwind",
-   "owner": "apps/arise/README.md",
-   "workflow": ".github/workflows/arise.yml",
-   "description": "Offline-first training companion with programs, sessions, and levelled attributes."
-  },
-  {
-   "id": "daily-debate",
-   "path": "apps/daily-debate",
-   "site": "apps/daily-debate-site",
-   "siteUrl": "https://daily-debate-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Daily Debate",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Supabase + Anthropic",
-   "workflow": ".github/workflows/daily-debate.yml",
-   "description": "Daily critical-thinking debates (solo vs AI and PvP) with an argument graph."
-  },
-  {
-   "id": "ecosystem-shell",
-   "path": "apps/ecosystem-shell",
-   "site": null,
-   "name": "Ecosystem Shell",
-   "lifecycle": "active",
-   "kind": "infrastructure",
-   "stack": "Static HTML + Vercel rewrites",
-   "owner": "apps/ecosystem-shell/README.md",
-   "description": "Serves every app from one origin so Pulse can read the localStorage they write; routes each path prefix to that app's own Vercel project."
-  },
-  {
-   "id": "emotion-tracker",
-   "path": "apps/emotion-tracker",
-   "site": "apps/reflect-site",
-   "siteUrl": "https://reflect-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Reflect",
-   "siteId": "reflect",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Anthropic (Reflect pipeline)",
-   "workflow": ".github/workflows/emotion-tracker.yml",
-   "description": "Structured reflection (event→assumptions→alternatives→action→follow-up) with hedged bias language and longitudinal calibration."
-  },
-  {
-   "id": "food-shopping-os",
-   "path": "apps/food-shopping-os",
-   "site": "apps/forq-site",
-   "siteUrl": "https://forq-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Forq",
-   "siteId": "forq",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js — local-first, optional cloud",
-   "workflow": ".github/workflows/food-shopping-os.yml",
-   "description": "Meal/shopping planning OS with pantry, retailer and nutrition flows (Forq)."
-  },
-  {
-   "id": "french-practice",
-   "path": "apps/french-practice",
-   "site": "apps/le-studio-site",
-   "siteUrl": "https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Le Studio French",
-   "siteId": "le-studio",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Vite + React + Tailwind — local-first",
-   "workflow": ".github/workflows/french-practice.yml",
-   "description": "French speaking/study PWA (Today/Speak/Review/Learn/Progress, Groq STT/TTS arena).",
-    "designSystemOrigin": "packages/theme",
-   "notes": "Marketing site is the Le Studio family hub (French + Forq + Chrono) at apps/le-studio-site."
-  },
-  {
-   "id": "habit-tracker",
-   "path": "apps/habit-tracker",
-   "site": null,
-   "name": "Habit",
-   "siteId": "habit",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Supabase",
-   "workflow": ".github/workflows/habit-tracker.yml",
-   "description": "Quiet habit tracker — daily check-ins, weekly targets, streaks and an 8-week history."
-  },
-  {
-   "id": "le-studio-site",
-   "path": "apps/le-studio-site",
-   "site": null,
-   "name": "Le Studio (family hub)",
-   "lifecycle": "active",
-   "kind": "site",
-   "stack": "Static HTML",
-   "description": "Marketing hub for the Le Studio family (French, Forq, Chrono). Not an app itself — see french-practice for the product.",
-   "family": [
-    "french-practice",
-    "food-shopping-os"
-   ]
-  },
-  {
-   "id": "mental-load-tracker",
-   "path": "apps/mental-load-tracker",
-   "site": null,
-   "name": "Noticed",
-   "siteId": "noticed",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Supabase Realtime",
-   "description": "Shared board for the invisible labor of running a household — capture what you notice, compare side-by-side weekly."
-  },
-  {
-   "id": "pulse",
-   "path": "apps/pulse",
-   "site": null,
-   "name": "Pulse",
-   "lifecycle": "incubating",
-   "kind": "product",
-   "stack": "Vite + React + TypeScript (framework-free analytics core)",
-   "owner": "apps/pulse/README.md",
-   "workflow": ".github/workflows/pulse.yml",
-   "description": "Privacy-first personal analytics and experimentation engine: universal event schema, connector SDK, evidence-graded relationship discovery, personal experiments and recommendations across the ecosystem."
-  },
-  {
-   "id": "rapport",
-   "path": "apps/rapport",
-   "name": "Rapport",
-   "lifecycle": "incubating",
-   "kind": "product",
-   "stack": "Next.js + React + Tailwind (local-first, optional Supabase sync)",
-   "owner": "apps/rapport/README.md",
-   "workflow": ".github/workflows/rapport.yml",
-   "description": "Adaptive social-skills training: skill graph, mastery model, conversation simulator, real-world challenges and reflection. Works fully offline with no AI provider."
-  },
-  {
-   "id": "revise",
-   "path": "apps/revise",
-   "site": "apps/revise-site",
-   "siteUrl": "https://revise-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "Revise",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Next.js + Supabase + FSRS",
-   "workflow": ".github/workflows/revise.yml",
-   "description": "GCSE and A-level revision platform across WJEC, AQA, Edexcel and OCR (2,216 specPoints, statement-level coverage & validator)."
-  },
-  {
-   "id": "rtk",
-   "path": "apps/rtk",
-   "site": "apps/rtk-site",
-   "siteUrl": "https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app",
-   "name": "rtk",
-   "lifecycle": "active",
-   "kind": "product",
-   "stack": "Node CLI",
-   "workflow": ".github/workflows/rtk.yml",
-   "description": "Token-saving CLI that filters noisy tool output to what an LLM/human actually needs."
-  }
- ],
+ "siteConvention": "Each active app's marketing landing lives in a sibling folder inside the same repo (<app>-site). Sites inherit lifecycle from their app unless overridden. Each site deploys as its own Vercel project, so cross-site links must be absolute: siteUrl is the source of truth and every site page carries it as rel=canonical.",
+ "apps": [],
  "auxiliary": [
   {
    "id": "le-studio-tokens",
@@ -223,6 +61,148 @@
    "lifecycle": "external",
    "kind": "product",
    "description": "Calendar companion (standalone repo) — interop with Le Studio/Forq via ICS/JSON."
+  },
+  {
+   "id": "arise",
+   "repo": "henrygoldsmith07-wq/arise",
+   "name": "Arise",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "sitePath": "arise-site",
+   "siteUrl": "https://claude-code-5crn.vercel.app",
+   "description": "Offline-first training companion with programs, sessions, and levelled attributes."
+  },
+  {
+   "id": "daily-debate",
+   "repo": "henrygoldsmith07-wq/daily-debate",
+   "name": "Daily Debate",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "sitePath": "daily-debate-site",
+   "siteUrl": "https://daily-debate-site-henrygoldsmith07-9188s-projects.vercel.app",
+   "description": "Daily critical-thinking debates (solo vs AI and PvP) with an argument graph."
+  },
+  {
+   "id": "ecosystem-shell",
+   "repo": "henrygoldsmith07-wq/ecosystem-shell",
+   "name": "Ecosystem Shell",
+   "lifecycle": "external",
+   "kind": "infrastructure",
+   "migratedAt": "2026-08-21",
+   "description": "Serves every app from one origin so Pulse can read the localStorage they write; routes each path prefix to that app's own Vercel project."
+  },
+  {
+   "id": "emotion-tracker",
+   "repo": "henrygoldsmith07-wq/emotion-tracker",
+   "name": "Reflect",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "sitePath": "reflect-site",
+   "siteUrl": "https://reflect-site-henrygoldsmith07-9188s-projects.vercel.app",
+   "description": "Structured reflection (event→assumptions→alternatives→action→follow-up) with hedged bias language and longitudinal calibration."
+  },
+  {
+   "id": "food-shopping-os",
+   "repo": "henrygoldsmith07-wq/food-shopping-os",
+   "name": "Forq",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "sitePath": "forq-site",
+   "siteUrl": "https://forq-site-henrygoldsmith07-9188s-projects.vercel.app",
+   "description": "Meal/shopping planning OS with pantry, retailer and nutrition flows (Forq)."
+  },
+  {
+   "id": "french-practice",
+   "repo": "henrygoldsmith07-wq/french-practice",
+   "name": "Le Studio French",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "siteUrl": "https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app",
+   "description": "French speaking/study PWA (Today/Speak/Review/Learn/Progress, Groq STT/TTS arena). Marketing hub lives in the separate le-studio-site repo."
+  },
+  {
+   "id": "habit-tracker",
+   "repo": "henrygoldsmith07-wq/habit-tracker",
+   "name": "Habit",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "description": "Quiet habit tracker — daily check-ins, weekly targets, streaks and an 8-week history. The @ruflo/env-validation package is vendored at packages/env-validation inside the repo."
+  },
+  {
+   "id": "le-studio-site",
+   "repo": "henrygoldsmith07-wq/le-studio-site",
+   "name": "Le Studio (family hub)",
+   "lifecycle": "external",
+   "kind": "site",
+   "migratedAt": "2026-08-21",
+   "description": "Marketing hub for the Le Studio family (French, Forq, Chrono). Shared by french-practice and food-shopping-os, so it is its own repo rather than merged into either app.",
+   "family": [
+    "french-practice",
+    "food-shopping-os"
+   ]
+  },
+  {
+   "id": "mental-load-tracker",
+   "repo": "henrygoldsmith07-wq/mental-load-tracker",
+   "name": "Noticed",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "description": "Shared board for the invisible labor of running a household — capture what you notice, compare side-by-side weekly."
+  },
+  {
+   "id": "pulse",
+   "repo": "henrygoldsmith07-wq/pulse",
+   "name": "Pulse",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "description": "Privacy-first personal analytics and experimentation engine: universal event schema, connector SDK, evidence-graded relationship discovery, personal experiments and recommendations across the ecosystem."
+  },
+  {
+   "id": "rapport",
+   "repo": "henrygoldsmith07-wq/rapport",
+   "name": "Rapport",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "description": "Adaptive social-skills training: skill graph, mastery model, conversation simulator, real-world challenges and reflection. Works fully offline with no AI provider."
+  },
+  {
+   "id": "revise",
+   "repo": "henrygoldsmith07-wq/revise",
+   "name": "Revise",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "sitePath": "revise-site",
+   "siteUrl": "https://revise-site-henrygoldsmith07-9188s-projects.vercel.app",
+   "description": "GCSE and A-level revision platform across WJEC, AQA, Edexcel and OCR (2,216 specPoints, statement-level coverage & validator)."
+  },
+  {
+   "id": "rtk",
+   "repo": "henrygoldsmith07-wq/rtk",
+   "name": "rtk",
+   "lifecycle": "external",
+   "kind": "product",
+   "migratedAt": "2026-08-21",
+   "sitePath": "rtk-site",
+   "siteUrl": "https://rtk-site-henrygoldsmith07-9188s-projects.vercel.app",
+   "description": "Token-saving CLI that filters noisy tool output to what an LLM/human actually needs."
+  },
+  {
+   "id": "road-ready",
+   "repo": "henrygoldsmith07-wq/road-ready",
+   "name": "Road Ready",
+   "lifecycle": "external",
+   "kind": "product",
+   "description": "Offline-first DMV study PWA — adaptive practice, blueprint-stratified mock exams, sign flashcards and hazard perception. Vanilla JS, zero-build; Vitest unit tests, automated content-QA/provenance system and Playwright E2E."
   }
  ]
 }
