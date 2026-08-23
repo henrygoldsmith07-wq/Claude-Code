@@ -135,6 +135,7 @@ export const EMPTY_STATE = {
   autoUsePantry: false,
   plan: {}, // { 'YYYY-MM-DD': {breakfast,lunch,dinner} }
   mealPlanEvents: [], // {id,date,slot,plannedRecipeId,actualRecipeId,status,reason,at}
+  outcomeLedger: [], // immutable per-meal outcome records (see outcome-ledger.js)
   calendarBusy: [], // [{date,source,importedAt}] imported from a connected calendar
   myRecipes: [], // dishes you generated, imported or were sent
   favourites: [], // recipe ids

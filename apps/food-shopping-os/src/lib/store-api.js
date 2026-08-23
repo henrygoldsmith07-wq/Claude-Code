@@ -647,8 +647,25 @@ export function useStoreApi({
             at: Date.now(),
           };
           const existing = (s.mealPlanEvents || []).filter((item) => !(item.date === date && item.slot === slot));
-          return { mealPlanEvents: [...existing, event].slice(-500) };
+          // Mirror the execution onto the matching open ledger entry.
+          const ledgerHit = (s.outcomeLedger || []).find((e) => e.date === date && e.slot === slot && e.recipeId === plannedRecipeId && e.execution.cooked === null);
+          const outcomeLedger = ledgerHit
+            ? (s.outcomeLedger).map((e) => (e.id === ledgerHit.id
+              ? amendEntry(e, 'execution', { cooked: event.status === 'cooked', substituted: event.status === 'substituted', skipped: event.status === 'skipped' })
+              : e))
+            : s.outcomeLedger;
+          return { mealPlanEvents: [...existing, event].slice(-500), outcomeLedger };
         }),
+      openLedgerEntry: ({ date, slot = 'dinner', recipeId, recommendation = {} } = {}) =>
+        set((s) => {
+          if (!date || !recipeId) return {};
+          const alreadyOpen = (s.outcomeLedger || []).some((e) => e.date === date && e.slot === slot && e.recipeId === recipeId && e.execution.cooked === null);
+          if (alreadyOpen) return {};
+          const entry = createLedgerEntry({ plannedAt: new Date().toISOString(), date, slot, recipeId, recommendation });
+          return { outcomeLedger: [...(s.outcomeLedger || []), entry].slice(-400) };
+        }),
+      amendLedgerEntry: (id, section, patch) =>
+        set((s) => ({ outcomeLedger: (s.outcomeLedger || []).map((e) => (e.id === id ? amendEntry(e, section, patch) : e)) })),
       recordTakeaway: ({ date = null, reason = 'takeaway', note = '' } = {}) =>
         set((s) => {
           const d = date || s.day;

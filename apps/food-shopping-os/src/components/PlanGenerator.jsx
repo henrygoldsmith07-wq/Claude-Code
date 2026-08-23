@@ -102,6 +102,30 @@ export default function PlanGenerator({ weekDates, monthDates, openRecipe, onApp
       },
       seed,
     );
+
+    // Outcome Ledger: open an immutable record for every recommended meal.
+    if (plan?.meals?.length && app.openLedgerEntry) {
+      const recipeById = new Map((app.safeRecipes || []).map((r) => [r.id, r]));
+      const slotNames = ['breakfast', 'lunch', 'dinner'];
+      plan.meals.forEach((meal, index) => {
+        const recipe = recipeById.get(meal?.id) || {};
+        const ingredients = recipe.ingredients || [];
+        app.openLedgerEntry({
+          date: (planDates && planDates[index]) || app.day,
+          slot: scope === 'A day' ? slotNames[index % 3] : 'dinner',
+          recipeId: meal.id,
+          recommendation: {
+            reasons: plan.optimiserReasons || [],
+            predictedCost: recipe.costPerServing ?? null,
+            predictedTime: recipe.time ?? null,
+            requiredItems: ingredients.length,
+            alreadyOwnedItems: ingredients.filter((ing) => (app.pantry || [])
+              .some((p) => String(p.name || '').toLowerCase().includes(String(ing.name || '').toLowerCase()))).length,
+          },
+        });
+      });
+    }
+
     // pantryNames is rebuilt every render; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, scope, app.planDiets, app.goal, app.safeRecipes, app.tasteProfile, budget, quick, timeAvailable, occasion, people, batch, usePantry, availabilityOnly, seasonal, leftoverFirst, variety, minimiseWaste, app.leftovers, app.pantry, app.wasteProfile, app.aliasMemory, month, planDates.length, (app.equipment || []).join(',')]);
