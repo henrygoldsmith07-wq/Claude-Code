@@ -30,6 +30,7 @@ import {
 import {
   hydrate, loadStoredState, parseBackup, serialiseBackup,
 } from './store-persistence.js';
+import { getForqDb, syncCollection } from './idb.js';
 import { useStoreApi } from './store-api.js';
 import { isUnderEighteen } from './youth.js';
 import { readAnalyticsConsent, setAnalyticsConsent } from './product-analytics.js';
@@ -46,6 +47,7 @@ export {
 } from './state.js';
 
 const KEY = STORAGE_KEY;
+let outcomeLedgerPrev = new Map(); // last-known IndexedDB ledger rows (forq-db)
 
 export { hydrate, parseBackup, serialiseBackup };
 
@@ -139,6 +141,14 @@ export function AppProvider({ children }) {
             detail: error instanceof Error ? error.message : String(error),
             raw: null,
           }));
+      }
+      // Outcome Ledger lives in forq-db (IndexedDB): per-row writes instead
+      // of serialising the whole app on every change.
+      const forqDb = getForqDb();
+      if (forqDb && Array.isArray(next.outcomeLedger)) {
+        syncCollection(forqDb, 'mealOutcomes', next.outcomeLedger, outcomeLedgerPrev)
+          .then((map) => { outcomeLedgerPrev = map; })
+          .catch(() => { /* IndexedDB unavailable or quota — localStorage copy remains */ });
       }
       setStorageIssue((current) => (current?.kind === 'write' ? null : current));
       return true;
