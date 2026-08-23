@@ -116,6 +116,14 @@ export async function aiDetailed(prompt, opts = {}) {
       return { text: await attempt(env, chain[i], messages, opts), model: chain[i].slug };
     } catch (e) {
       lastErr = e;
+      // account-wide daily free quota: every remaining :free model will fail too
+      if (/free-models-per-day/i.test(String(e.message))) {
+        throw new Error(
+          `ai: daily free-model quota exhausted (${chain[i].slug}: ${e.message}). ` +
+          `It resets on a rolling window — or add $10 of credits at openrouter.ai/credits ` +
+          `to unlock 1000 free requests/day. Paid models (Ox Alpha) still work: --model "Ox Alpha"`
+        );
+      }
       if (i < chain.length - 1 && opts.onFallback)
         opts.onFallback(chain[i], chain[i + 1], e.message);
     }
