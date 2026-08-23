@@ -4,6 +4,9 @@
  *
  * Every call must use a model id from config/ai/models.json; anything else
  * is refused. Credentials come from config/ai/.env (gitignored).
+ * Token policy: free models (":free" suffix or "free": true in the
+ * allowlist) have no token limit by default (pass --max-tokens to cap);
+ * paid models default to 1024.
  *
  * CLI:
  *   node scripts/ai.mjs list                       # show allowed models
@@ -49,18 +52,21 @@ function resolve(model) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function callOnce(env, chosen, messages, opts) {
+  // Policy: free models (":free" suffix or "free": true in the allowlist) are
+  // uncapped unless --max-tokens is passed explicitly; paid models default to
+  // 1024 so an accident can't burn real credit.
+  const isFree = String(chosen.slug).endsWith(":free") || chosen.free === true;
+  const payload = { model: chosen.slug, messages };
+  if (opts.maxTokens !== undefined) payload.max_tokens = opts.maxTokens;
+  else if (!isFree) payload.max_tokens = 1024;
+  if (opts.temperature !== undefined) payload.temperature = opts.temperature;
   const res = await fetch(`${env.OPENROUTER_BASE_URL}${CFG.endpoint}`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      model: chosen.slug,
-      messages,
-      max_tokens: opts.maxTokens ?? 1024,
-      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
   return { res, body };
