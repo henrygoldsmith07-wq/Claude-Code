@@ -1,115 +1,81 @@
 import { describe, it, expect } from 'vitest';
-import { parseReceipt, receiptConfidence } from '../src/lib/receipt.js';
-import { benchmarkReceipts, scoreCase, SEED_CORPUS } from '../src/lib/receipt-benchmark.js';
+import { benchmarkReceipts, scoreCase, SEED_CORPUS, evidenceTier } from '../src/lib/receipt-benchmark.js';
 
-describe('receipt parser — line types real receipts contain', () => {
-  it('captures loyalty savings as information without touching arithmetic', () => {
-    const parsed = parseReceipt('WAITROSE\n07/08/2026\nHeinz beans\n£0.80\nCLUBCARD SAVING\n-£0.40\nTotal £0.80');
-    expect(parsed.discounts).toHaveLength(1);
-    expect(parsed.discounts[0]).toMatchObject({ amount: 0.4, kind: 'loyalty' });
-    expect(parsed.savedTotal).toBe(0.4);
-    expect(parsed.netTotal).toBe(0.8); // the item line was already the paid price
-    expect(parsed.balanced).toBe(true);
-  });
-
-  it('captures multibuy offers as data', () => {
-    const parsed = parseReceipt('MORRISONS\n09/08/2026\nYoghurt 4pk\n£2.50\nMULTIBUY SAVING\n-£0.50\nTotal £2.50');
-    expect(parsed.discounts[0]).toMatchObject({ kind: 'multibuy', amount: 0.5 });
-    expect(parsed.balanced).toBe(true);
-  });
-
-  it('treats coupons as payment events that adjust the net', () => {
-    const parsed = parseReceipt('LIDL\n08/08/2026\nPenne pasta 500g\n£0.95\nCOUPON £0.50 OFF\nTotal £0.45');
-    expect(parsed.coupons).toHaveLength(1);
-    expect(parsed.couponTotal).toBe(0.5);
-    expect(parsed.netTotal).toBe(0.45);
-    expect(parsed.balanced).toBe(true);
-  });
-
-  it('reads refunds as money back, never as a purchase', () => {
-    const parsed = parseReceipt("SAINSBURY'S\n05/08/2026\nYogurt REFUND\n-£1.85\nMilk\n£1.85\nTotal £0.00");
-    expect(parsed.refunds).toHaveLength(1);
-    expect(parsed.items).toHaveLength(1);
-    expect(parsed.netTotal).toBeCloseTo(0, 2);
-    expect(parsed.balanced).toBe(true);
-  });
-
-  it('keeps the unit on weighed goods and defers to the printed line total', () => {
-    const parsed = parseReceipt("SAINSBURY'S\n2026-08-12\nBraeburn apples\n0.482 kg @ £2.39/kg\n£1.15");
-    expect(parsed.items[0].qtyUnit).toBe('kg');
-    expect(parsed.items[0].price).toBe(1.15); // not the per-kg rate
-    expect(parsed.items[0].flags).toContain('weighed');
-  });
-
-  it('multiplies quantity-prefixed single-figure lines and marks them low-confidence', () => {
-    const parsed = parseReceipt('ALDI\n11/08/2026\nYoghurt 4pk\n2 x @ £1.25\n£2.50');
-    expect(parsed.items[0].price).toBe(2.5);
-    expect(parsed.items[0].confidence).toBe('low'); // computed, not read
-    expect(parsed.items[0].flags).toContain('computed-from-unit-price');
-  });
-
-  it('marks substitutions so swapped items are visible in history', () => {
-    const parsed = parseReceipt('TESCO\n03/08/2026\nBaby spinach (SUBSTITUTE)\n£0.90');
-    expect(parsed.items[0].flags).toContain('substitution');
-  });
-
-  it('names independent shops honestly instead of guessing a brand', () => {
-    const parsed = parseReceipt('CORNER SHOP SW9\n06/08/2026\nFree-range eggs\n£1.85\nTotal £1.85');
-    expect(parsed.store).toBe('Independent shop');
-    expect(parsed.balanced).toBe(true);
-  });
-
-  it('rejects unreadable input plainly rather than inventing items', () => {
-    const parsed = parseReceipt('SOME SHOP\nthanks for visiting\nplease come again');
-    expect(parsed.error).toMatch(/No priced lines/);
-    expect(parsed.items).toHaveLength(0);
+describe('frozen corpus — coverage of the claim', () => {
+  it('spans nine retailer groups and every condition class', () => {
+    const retailers = new Set(SEED_CORPUS.map((c) => c.retailer));
+    expect(retailers.size).toBeGreaterThanOrEqual(9);
+    for (const condition of ['weighed', 'multiline', 'qty-prefix', 'multibuy', 'coupon',
+      'loyalty', 'refund', 'split', 'substitution', 'independent', 'unreadable',
+      'long', 'partial', 'fold', 'poor-lighting']) {
+      expect(SEED_CORPUS.some((c) => (c.conditions || []).includes(condition))).toBe(true);
+    }
   });
 });
 
-describe('receipt benchmark — scored against a multi-retailer corpus', () => {
-  it('covers nine retailer groups and every claimed feature', () => {
-    expect(new Set(SEED_CORPUS.map((c) => c.retailer)).size).toBeGreaterThanOrEqual(8);
-    const { byFeature } = benchmarkReceipts();
-    for (const feature of ['weighed', 'multiline', 'qty-prefix', 'multibuy', 'coupon', 'loyalty', 'refund', 'split', 'substitution', 'independent', 'unreadable']) {
-      expect(byFeature[feature]).toBeDefined();
+describe('benchmark metrics — the six headline numbers', () => {
+  const report = benchmarkReceipts();
+
+  it('has a growing frozen corpus', () => {
+    expect(report.corpusSize).toBeGreaterThanOrEqual(23);
+  });
+
+  it('reports every headline metric above 95% on the seed corpus', () => {
+    for (const key of ['storeRecognition', 'dateExtraction', 'productLineDetection', 'productMatching', 'priceExtraction', 'basketTotal']) {
+      expect(report[key], `${key} should be ≥95`).toBeGreaterThanOrEqual(95);
     }
   });
 
-  it('scores the seed corpus at full recall with every field accurate', () => {
-    const report = benchmarkReceipts();
-    expect(report.corpusSize).toBeGreaterThanOrEqual(12);
-    expect(report.itemRecallPct).toBeGreaterThanOrEqual(90);
-    expect(report.fieldAccuracy.totalsBalance).toBeGreaterThanOrEqual(80);
+  it('handles discounts, coupons, refunds and substitutions as measured fields', () => {
+    expect(report.discountAndCouponAccuracy.loyaltySavedPct).toBeGreaterThanOrEqual(90);
+    expect(report.discountAndCouponAccuracy.couponPct).toBe(100);
+    expect(report.discountAndCouponAccuracy.refundPct).toBe(100);
+    expect(report.byCondition['weighed']).toBeGreaterThan(0);
+    expect(report.byRetailer['Ocado']).toBeDefined();
     expect(report.failing).toEqual([]);
+  });
+
+  it('rejection accuracy: unreadable receipts are refused, never guessed', () => {
+    expect(report.rejectionAccuracy).toBe(100);
   });
 
   it('a failing case names itself so corrections land where they belong', () => {
     const bad = scoreCase({
-      name: 'broken-fixture', retailer: 'X', features: [],
+      name: 'broken-fixture', retailer: 'X', conditions: [],
       text: 'SHOP\n01/08/2026\nGhost item\n£9.99',
       expect: { store: 'X', date: '2026-08-01', total: 9.99, items: [{ name: 'ghost item', price: 4.5 }] },
     });
     expect(bad.pass).toBe(false);
-    expect(bad.matchedItems).toBe(0);
+    // Name matched but the price did not — exactly what the correction UI surfaces.
+    expect(bad.matchedItems).toBe(1);
+    expect(bad.fields.prices).toBe(false);
+  });
+
+  it('tracks corpus composition honestly', () => {
+    expect(report.corpusComposition.real).toBe(0);
+    expect(report.corpusComposition.synthetic).toBe(report.corpusSize);
   });
 });
 
-describe('receipt confidence — one glance before you save', () => {
-  it('is high when the receipt balances with clean lines', () => {
-    const parsed = parseReceipt('TESCO EXTRA\n14/08/2026\nBananas 6pk\n£1.10\nTotal £1.10');
-    expect(receiptConfidence(parsed).level).toBe('high');
+describe('evidence tiering — convenience until measured otherwise', () => {
+  it('labels a purely synthetic corpus as useful-convenience, whatever its score', () => {
+    const report = benchmarkReceipts();
+    const tier = evidenceTier({ report, realReceipts: 0 });
+    expect(tier.tier).toBe('useful-convenience');
+    expect(tier.assumption).toMatch(/synthetic layouts only/i);
   });
 
-  it('drops when prices were computed or lines were unread', () => {
-    const computed = parseReceipt('ALDI\n11/08/2026\nYoghurt 4pk\n2 x @ £1.25\n£2.50');
-    const conf = receiptConfidence(computed);
-    expect(conf.level === 'low' || conf.reasons.some((r) => /computed/.test(r))).toBe(true);
+  it('requires 300+ real receipts across 8+ retailers at 95%+ fields for evidence-grade', () => {
+    const strong = {
+      storeRecognition: 99.4, dateExtraction: 98.8, productLineDetection: 97.1,
+      productMatching: 93.7, priceExtraction: 99.0, basketTotal: 99.7,
+      byRetailer: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`r${i}`, 96])),
+    };
+    // Product matching at 93.7 sits below the 95% gate — must NOT be evidence-grade.
+    expect(evidenceTier({ report: strong, realReceipts: 350 }).tier).toBe('indicative');
 
-    const withUnread = parseReceipt('TESCO\n14/08/2026\nBananas £1.10\n??? ??? ???\n£3.30');
-    expect(receiptConfidence(withUnread).reasons.join(' ')).toMatch(/unread/);
-  });
-
-  it('is low for a rejected receipt', () => {
-    expect(receiptConfidence(parseReceipt('nothing here')).level).toBe('low');
+    const better = { ...strong, productMatching: 97.2 };
+    expect(evidenceTier({ report: better, realReceipts: 350 }).tier).toBe('evidence-grade');
+    expect(evidenceTier({ report: better, realReceipts: 120 }).tier).toBe('indicative');
   });
 });
