@@ -59,7 +59,7 @@ export function createLedgerEntry({
     revision: 0,
     history: [],
     recommendation: {
-      source: 'forq',
+      source: recommendation.source || 'forq',
       reasons: recommendation.reasons || [],
       predictedCost: recommendation.predictedCost ?? null,
       predictedTime: recommendation.predictedTime ?? null,

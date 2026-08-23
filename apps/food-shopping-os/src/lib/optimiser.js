@@ -31,9 +31,10 @@ export const readQty = (qty) => {
 
 /** Share of the candidate's ingredient need already sitting in the pantry. */
 export const pantryCoverage = (meals = [], pantryItems = []) => {
+  const stem = (k) => k.replace(/s$/, ''); // onions ≈ onion at the matching layer
   const stock = new Map();
   for (const p of pantryItems || []) {
-    const k = key(p?.name);
+    const k = stem(key(p?.name));
     if (!k) continue;
     const q = readQty(p.qty);
     const cur = stock.get(k);
@@ -43,12 +44,19 @@ export const pantryCoverage = (meals = [], pantryItems = []) => {
   let covered = 0;
   for (const meal of meals) {
     for (const ing of meal?.ingredients || []) {
-      const k = key(ing?.name);
-      if (!k) continue;
+      const raw = key(ing?.name);
+      const k = stem(raw);
+      if (!raw) continue;
       const q = readQty(ing.qty);
-      need += q.amount;
+      // An ingredient listed without a quantity is a presence check: owning
+      // the item under any dimension counts.
+      const bare = q.dim === 'count' && !/\d/.test(String(ing?.qty ?? ''));
       const have = stock.get(k);
-      if (have && have.dim === q.dim && have.amount >= q.amount) covered += q.amount;
+      const ok = have && (q.dim === 'count'
+        ? (bare ? true : have.dim === 'count')
+        : have.dim === q.dim && have.amount >= q.amount);
+      need += bare ? 1 : q.amount;
+      if (ok) covered += bare ? 1 : q.amount;
     }
   }
   return need ? covered / need : null;
