@@ -7,7 +7,7 @@ describe('frozen corpus — coverage of the claim', () => {
     expect(retailers.size).toBeGreaterThanOrEqual(9);
     for (const condition of ['weighed', 'multiline', 'qty-prefix', 'multibuy', 'coupon',
       'loyalty', 'refund', 'split', 'substitution', 'independent', 'unreadable',
-      'long', 'partial', 'fold', 'poor-lighting']) {
+      'long', 'partial', 'fold', 'poor-lighting', 'duplicate', 'abbreviations']) {
       expect(SEED_CORPUS.some((c) => (c.conditions || []).includes(condition))).toBe(true);
     }
   });
@@ -24,6 +24,16 @@ describe('benchmark metrics — the six headline numbers', () => {
     for (const key of ['storeRecognition', 'dateExtraction', 'productLineDetection', 'productMatching', 'priceExtraction', 'basketTotal']) {
       expect(report[key], `${key} should be ≥95`).toBeGreaterThanOrEqual(95);
     }
+  });
+
+  it('meets evidence-grade targets on the seed corpus', () => {
+    // These are the targets for the synthetic corpus. Real receipts will be lower.
+    expect(report.storeRecognition, 'retailer recognition ≥99%').toBeGreaterThanOrEqual(99);
+    expect(report.dateExtraction, 'date extraction ≥98%').toBeGreaterThanOrEqual(98);
+    expect(report.productLineDetection, 'line detection ≥97%').toBeGreaterThanOrEqual(97);
+    expect(report.priceExtraction, 'price extraction ≥98%').toBeGreaterThanOrEqual(98);
+    expect(report.basketTotal, 'total extraction ≥99%').toBeGreaterThanOrEqual(99);
+    expect(report.rejectionAccuracy, 'rejection accuracy ≥99%').toBeGreaterThanOrEqual(99);
   });
 
   it('handles discounts, coupons, refunds and substitutions as measured fields', () => {

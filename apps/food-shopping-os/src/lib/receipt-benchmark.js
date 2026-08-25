@@ -118,6 +118,22 @@ export const SEED_CORPUS = [
     ] },
   },
   {
+    name: 'tesco-duplicate-product', retailer: 'Tesco', conditions: ['duplicate'],
+    text: 'TESCO\n15/08/2026\nHeinz beans 415g\n£0.60\nHeinz beans 415g\n£0.60\nCLUBCARD SAVING\n-£0.40\nTotal £1.20',
+    expect: { store: 'Tesco', date: '2026-08-15', total: 1.2, saved: 0.4, items: [
+      { name: 'heinz beans 415g', price: 0.6 },
+      { name: 'heinz beans 415g', price: 0.6 },
+    ] },
+  },
+  {
+    name: 'sainsburys-strange-abbreviations', retailer: "Sainsbury's", conditions: ['abbreviations'],
+    text: "SAINSBURY'S\n14/08/2026\nSK Skimmed Gr Mlk\n£1.35\nTU Tuna Snk Pk\n£1.80\nTotal £3.15",
+    expect: { store: "Sainsbury's", date: '2026-08-14', total: 3.15, items: [
+      { name: 'sk skimmed gr mlk', price: 1.35 },
+      { name: 'tu tuna snk pk', price: 1.8 },
+    ] },
+  },
+  {
     name: 'tesco-long-receipt', retailer: 'Tesco', conditions: ['long'],
     text: 'TESCO\n01/08/2026\nApples\n£1.30\nButter\n£2.10\nCereal\n£3.40\nDrain cleaner\n£1.20\nEggs 6\n£1.50\nFish fillets\n£4.60\nGrapes\n£2.70\nHoumous\n£1.80\nTotal £18.60',
     expect: { store: 'Tesco', date: '2026-08-01', total: 18.6, items: [
@@ -299,7 +315,7 @@ export function benchmarkReceipts(cases = SEED_CORPUS, options = {}) {
   const withSaved = scored.filter((r) => r.fields.saved != null);
   const withCoupons = judgedOnly.filter((r) => r.fields.coupons != null);
   const withRefunds = judgedOnly.filter((r) => r.fields.refunds != null);
-  const balanceCases = scored.filter((r) => r.fields.balanced !== null);
+  const balanceCases = scored.filter((r) => r.fields.balanced === true || r.fields.balanced === false);
   const storeCases = scored.filter((r) => typeof r.fields.store === 'boolean');
 
   const metrics = {
@@ -308,7 +324,7 @@ export function benchmarkReceipts(cases = SEED_CORPUS, options = {}) {
     productLineDetection: pct(judged.reduce((s, r) => s + Math.min(r.matchedItems, r.expectedItems), 0), judged.reduce((s, r) => s + r.expectedItems, 0)),
     productMatching: pct(judged.reduce((s, r) => s + r.matchedItems, 0), judged.reduce((s, r) => s + (r.parsedItems || 0), 0)),
     priceExtraction: pct(judged.reduce((s, r) => s + r.priceHits, 0), judged.reduce((s, r) => s + r.expectedItems, 0)),
-    basketTotal: pct(balanceCases.filter((r) => r.fields.balanced === true).length, balanceCases.length),
+    basketTotal: pct(balanceCases.filter((r) => r.fields.balanced === true).length, balanceCases.length || 1),
   };
 
   return {
