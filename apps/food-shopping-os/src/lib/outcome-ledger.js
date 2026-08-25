@@ -47,11 +47,14 @@ export function createLedgerEntry({
   date,
   slot = 'dinner',
   recipeId,
+  recommendationId,
   recommendation = {},
 } = {}) {
   const entry = {
     id: uid('ole'),
     schemaVersion: 1,
+    /** Stable ID that survives the entire lifecycle: plan → shop → cook → outcome. */
+    recommendationId: recommendationId || uid('rec'),
     plannedAt,
     date,
     slot,
@@ -273,3 +276,49 @@ export function ledgerInsights(entries = [], { baselineCostPerMeal = null } = {}
 }
 
 function round1(n) { return Math.round(n * 10) / 10; }
+
+
+/* ---------- Prediction-error metrics ---------- */
+
+export function predictionMetrics(entries = []) {
+  const all = entries || [];
+  const executed = all.filter((e) => e.execution.cooked !== null);
+  const meanAbs = (xs) => xs.length ? Math.round(xs.reduce((s, x) => s + Math.abs(x), 0) / xs.length * 100) / 100 : null;
+  const meanBias = (xs) => xs.length ? Math.round(xs.reduce((s, x) => s + x, 0) / xs.length * 100) / 100 : null;
+  const costRows = executed.filter((e) => e.recommendation.predictedCost != null && e.purchase.actualCost != null);
+  const costErrors = costRows.map((e) => e.purchase.actualCost - e.recommendation.predictedCost);
+  const timeRows = executed.filter((e) => e.recommendation.predictedTime != null && e.execution.actualCookMinutes != null);
+  const timeErrors = timeRows.map((e) => e.execution.actualCookMinutes - e.recommendation.predictedTime);
+  const adherencePct = executed.length ? Math.round(executed.filter((e) => e.execution.cooked).length / executed.length * 100) : null;
+  const purchaseRows = all.filter((e) => e.purchase.requiredItems != null && e.purchase.alreadyOwnedItems != null);
+  const unnecessaryPurchases = purchaseRows.reduce((s, e) => s + Math.max(0, (e.purchase.purchasedItems || 0) - (e.purchase.requiredItems - e.purchase.alreadyOwnedItems)), 0);
+  const covRows = all.filter((e) => e.purchase.alreadyOwnedItems != null && e.purchase.requiredItems > 0);
+  const pantryUtilisationPct = covRows.length ? Math.round(covRows.reduce((s, e) => s + e.purchase.alreadyOwnedItems / e.purchase.requiredItems, 0) / covRows.length * 100) : null;
+  const leftRows = all.filter((e) => e.leftovers.portionsCreated != null && e.leftovers.portionsCreated > 0);
+  const leftoverUtilisationPct = leftRows.length ? Math.round(leftRows.reduce((s, e) => s + (e.leftovers.portionsConsumed || 0) / e.leftovers.portionsCreated, 0) / leftRows.length * 100) : null;
+  const wasteRows = all.filter((e) => e.waste.grams != null || e.waste.estimatedCost != null);
+  const wasteCost = Math.round(wasteRows.reduce((s, e) => s + (e.waste.estimatedCost || 0), 0) * 100) / 100;
+  const wasteGrams = wasteRows.reduce((s, e) => s + (e.waste.grams || 0), 0);
+  const acceptancePct = executed.length ? Math.round(executed.filter((e) => !e.execution.skipped).length / executed.length * 100) : null;
+  const successRows = executed.filter((e) => e.recommendation.predictedCost != null && e.purchase.actualCost != null && e.leftovers.portionsWasted != null);
+  const successCount = successRows.filter((e) => e.execution.cooked && (e.leftovers.portionsWasted || 0) === 0 && e.purchase.actualCost <= e.recommendation.predictedCost * 1.1).length;
+  const recommendationSuccessPct = successRows.length ? Math.round(successCount / successRows.length * 100) : null;
+  const rated = all.filter((e) => e.feedback.rating != null);
+  const repeatSatisfaction = rated.length ? Math.round(rated.reduce((s, e) => s + e.feedback.rating, 0) / rated.length * 10) / 10 : null;
+
+  return {
+    samples: { total: all.length, executed: executed.length },
+    costPredictionError: { meanAbsGBP: meanAbs(costErrors), biasGBP: meanBias(costErrors), samples: costErrors.length },
+    cookTimeError: { meanAbsMins: meanAbs(timeErrors), biasMins: meanBias(timeErrors), samples: timeErrors.length },
+    planAdherencePct: adherencePct,
+    unnecessaryPurchases,
+    pantryUtilisationPct,
+    leftoverUtilisationPct,
+    foodWaste: { costGBP: wasteCost, grams: wasteGrams },
+    recommendationAcceptancePct: acceptancePct,
+    recommendationSuccessPct,
+    repeatSatisfaction,
+    assumption: executed.length ? 'Computed from settled ledger entries.' : 'No executed meals yet.',
+  };
+}
+
