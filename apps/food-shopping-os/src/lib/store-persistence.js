@@ -5,6 +5,21 @@ import {
 import { normalisePriceAlertConfig } from './price-alerts.js';
 import { HEALTH_VAULT_KEY, withoutHealth } from './health-vault.js';
 import { permissionsForRole } from './household.js';
+import { youthPolicy } from './youth.js';
+
+/** Hard youth-safety invariants applied to ANY state entering the app. */
+function enforceYouthInvariants(state) {
+  if (!youthPolicy(state).on) return state;
+  return {
+    ...state,
+    goal: ['lose-weight', 'maintain', 'gain-muscle'].includes(state.goal) && state.goal !== 'lose-weight' ? state.goal : 'maintain',
+    weeklyKcal: 0,
+    targetMode: 'auto',
+    calorieDeficit: undefined,
+    fasting: null,
+    fastPlan: undefined,
+  };
+}
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -36,7 +51,7 @@ export const hydrate = (stored = {}) => {
   state.priceAlertConfig = normalisePriceAlertConfig(state.priceAlertConfig || {});
   if (!Array.isArray(state.priceAlerts)) state.priceAlerts = [];
   if (!Array.isArray(state.offers)) state.offers = [];
-  return rolloverDay(state);
+  return enforceYouthInvariants(rolloverDay(state));
 };
 
 export const parseBackup = (text) => {
