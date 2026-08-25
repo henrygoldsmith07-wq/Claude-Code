@@ -13,7 +13,7 @@ import {
 import { scaleQty } from '../src/lib/week-loop.js';
 import { byId } from '../src/data/recipes.js';
 
-const DAY = '2026-08-03';
+const DAY = dayStamp();
 
 /* ---------- Track 1 · quantities, units and aliases ---------- */
 

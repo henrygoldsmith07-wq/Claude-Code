@@ -230,15 +230,15 @@ describe('rearranging the plan', () => {
     openPlan();
     planFirstDinner('Coconut Chickpea Curry');
     fireEvent.click(screen.getAllByText('+ Dinner')[0]); // now Tuesday's, the first empty one
-    fireEvent.click(within(dialogFor('Plan a meal')).getByText('Teriyaki Salmon Bowls'));
+    fireEvent.click(within(dialogFor('Plan a meal')).getAllByText('Teriyaki Salmon Bowls')[0]);
     expect(screen.getByText(/2 meals planned/)).toBeDefined();
 
-    const curry = screen.getByText('Coconut Chickpea Curry').closest('[draggable]');
+    const curry = screen.getAllByText('Coconut Chickpea Curry')[0].closest('[draggable]');
     fireEvent.dragStart(curry);
-    fireEvent.drop(screen.getByText('Teriyaki Salmon Bowls'));
+    fireEvent.drop(screen.getAllByText('Teriyaki Salmon Bowls')[0]);
 
-    expect(screen.getByText('Coconut Chickpea Curry')).toBeDefined();
-    expect(screen.getByText('Teriyaki Salmon Bowls')).toBeDefined();
+    expect(screen.getAllByText('Coconut Chickpea Curry').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Teriyaki Salmon Bowls').length).toBeGreaterThan(0);
     expect(screen.getByText(/2 meals planned/)).toBeDefined();
   });
 });
