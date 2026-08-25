@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Store, TrendingUp, Search, Info } from 'lucide-react';
+import { Store, TrendingUp, Search, Info, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useApp } from '../lib/store.jsx';
 import { gbp } from '../lib/utils.js';
 import { priceHistory } from '../lib/kitchen.js';
 import { compareStores, savingsAvailable, shoppingNameKey } from '../lib/shopping.js';
 import { fetchObservedForList, observedStaleness, clearObservedPriceCache } from '../lib/observed-prices.js';
+import { scoreExternalPrice, estimateBaskets } from '../lib/price-confidence.js';
 import { Card, Pill, Sparkline, Section } from './ui.jsx';
 import { Glyph } from './icons.jsx';
 import PriceGraphs from './PriceGraphs.jsx';
@@ -25,6 +26,14 @@ export default function PriceCompare() {
   const [observed, setObserved] = useState(null); // { byKey, checkedAt, fromCache, fetched, error } | null
   const [observedBusy, setObservedBusy] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
+  const estimated = useMemo(
+    () => estimateBaskets(app.shoppingList, { shops: app.shops, observedByKey: null, today: app.day }),
+    [app.shoppingList, app.shops, app.day]
+  );
+  const estimatedWithObserved = useMemo(
+    () => (observed?.byKey ? estimateBaskets(app.shoppingList, { shops: app.shops, observedByKey: observed.byKey, today: app.day }) : []),
+    [app.shoppingList, app.shops, observed, app.day]
+  );
   const fetchObserved = async () => {
     if (!app.shoppingList.length || observedBusy || app.shoppingPreferences?.offlineMode) return;
     setObservedBusy(true);
@@ -75,6 +84,47 @@ export default function PriceCompare() {
           </div>
         )}
       </Section>
+
+      {estimated.length > 0 && (
+        <Section className="rise rise-1" title="Estimated baskets, with uncertainty">
+          <p className="text-[0.75rem] font-semibold mb-3" style={{ color: 'var(--muted)' }}>
+            Ranges widen where evidence is thin — receipts are trusted, community observations less so.
+          </p>
+          <div className="space-y-2.5">
+            {estimated.map((row) => {
+              const tone = row.level === 'HIGH' ? 'good' : row.level === 'MEDIUM' ? 'warn' : 'danger';
+              const Icon = row.level === 'HIGH' ? ShieldCheck : ShieldAlert;
+              return (
+                <Card key={row.store} className="flex items-center justify-between !p-3.5">
+                  <div className="min-w-0">
+                    <p className="font-bold text-[0.90625rem] truncate flex items-center gap-1.5">
+                      <Icon size={14} style={{ color: tone === 'good' ? 'var(--good)' : tone === 'warn' ? 'var(--accent)' : 'var(--muted)' }} />
+                      {row.store}
+                    </p>
+                    <p className="text-[0.6875rem] font-semibold mt-0.5" style={{ color: 'var(--muted)' }}>
+                      {row.coveredPct}% coverage{row.sources.receipt > 0 ? ` · ${row.sources.receipt} receipt${row.sources.receipt === 1 ? '' : 's'}` : ''}
+                      {row.sources.observed > 0 ? ` · ${row.sources.observed} observed` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-extrabold text-[1rem]">
+                      {row.low > 0 && row.high > 0 && row.high !== row.low
+                        ? `${gbp(row.low)}–${gbp(row.high)}`
+                        : gbp(row.estimate, { always: true })}
+                    </p>
+                    {row.avgScore != null && (
+                      <Pill tone={tone}>{row.level}</Pill>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[0.6875rem] font-semibold" style={{ color: 'var(--faint)' }}>
+            Estimated £X–£Y means the data is uncertain enough that a single number would be misleading. Coverage below 100% means some items had no recorded or observed price.
+          </p>
+        </Section>
+      )}
 
       {app.shoppingList.length > 0 && (
         <Section className="rise rise-1">
@@ -166,6 +216,10 @@ export default function PriceCompare() {
                   const entry = observed.byKey[shoppingNameKey(item.name)];
                   const stale = entry?.observedAt ? observedStaleness(entry.observedAt) : null;
                   const tone = stale?.tone === 'good' ? 'good' : stale?.tone === 'warn' ? 'warn' : stale?.tone === 'danger' ? 'danger' : 'muted';
+                  const conf = entry?.price != null ? scoreExternalPrice(
+                    { price: entry.price, observedAt: entry.observedAt, barcode: entry.barcode || null, store: entry.store, location: entry.location },
+                    { supportingCount: Array.isArray(entry.raw) ? entry.raw.length : 1 }
+                  ) : null;
                   return (
                     <div key={item.id} className="flex items-center justify-between gap-3 p-3">
                       <div className="min-w-0">
@@ -178,7 +232,10 @@ export default function PriceCompare() {
                         {typeof entry?.price === 'number' ? (
                           <>
                             <p className="font-extrabold text-[0.9375rem]">{gbp(entry.price, { always: true })}</p>
-                            <Pill tone={tone}>{stale?.label || 'observed'}</Pill>
+                            {conf && <Pill tone={conf.tone}>{conf.level}</Pill>}
+                            <p className="mt-0.5 text-[0.5625rem] font-semibold" style={{ color: 'var(--faint)' }}>
+                              {stale?.label || 'observed'}
+                            </p>
                           </>
                         ) : (
                           <p className="text-[0.6875rem] font-semibold" style={{ color: 'var(--muted)' }}>{entry?.error || 'No observation'}</p>
