@@ -1,0 +1,54 @@
+{
+  "$comment": "AI provider config for this workspace. scripts/ai.mjs refuses any model id not present here. Resolved against OpenRouter + NVIDIA NIM catalogs on 2026-08-23. 'chain' IS the automatic fallback order (ranked by intelligence, strongest first): requested model first, then walk down; entries with noFallback are skipped. NVIDIA NIM lane has no daily request cap, so it leads; OpenRouter :free lane backs it up. Token policy: entries flagged free are uncapped by default; paid default to 1024 tokens. Never put API keys in this file - they live in config/ai/.env (gitignored).",
+  "provider": "multi",
+  "envFile": "config/ai/.env",
+  "endpoint": "/chat/completions",
+  "defaultModel": "nvidia/nemotron-3-ultra-550b-a55b",
+  "providers": {
+    "openrouter": {
+      "envKey": "OPENROUTER_API_KEY",
+      "baseUrl": "https://openrouter.ai/api/v1"
+    },
+    "nvidia": {
+      "envKey": "NVIDIA_API_KEY",
+      "baseUrl": "https://integrate.api.nvidia.com/v1"
+    }
+  },
+  "models": [
+    { "slug": "stealth/ox-alpha", "label": "Ox Alpha", "provider": "openrouter", "modality": "text+image+video->text", "noFallback": true, "note": "paid (standard tier); explicit requests only - excluded from automatic fallback so failures never bill credit" },
+
+    { "slug": "nvidia/nemotron-3-ultra-550b-a55b", "label": "Nemotron 3 Ultra (NIM)", "provider": "nvidia", "modality": "text->text", "free": true, "note": "550B-A55B MoE reasoning; NIM = no daily cap; chain head / default" },
+    { "slug": "nvidia/nemotron-4-340b-instruct", "label": "Nemotron 4 340B (NIM)", "provider": "nvidia", "modality": "text->text", "free": true },
+    { "slug": "z-ai/glm-5.2:free", "label": "GLM 5.2 (free)", "provider": "openrouter", "modality": "text->text" },
+    { "slug": "nvidia/nemotron-3-super-120b-a12b", "label": "Nemotron 3 Super (NIM)", "provider": "nvidia", "modality": "text->text", "free": true },
+    { "slug": "nvidia/llama-3.1-nemotron-ultra-253b-v1", "label": "Llama 3.1 Nemotron Ultra 253B (NIM)", "provider": "nvidia", "modality": "text->text", "free": true },
+    { "slug": "google/gemma-4-31b-it:free", "label": "Gemma 4 31B (free)", "provider": "openrouter", "modality": "text+image+video->text" },
+    { "slug": "nvidia/llama-3.3-nemotron-super-49b-v1.5", "label": "Llama 3.3 Nemotron Super 49B v1.5 (NIM)", "provider": "nvidia", "modality": "text->text", "free": true },
+    { "slug": "deepseek-ai/deepseek-v4-flash-0731", "label": "DeepSeek V4 Flash (NIM)", "provider": "nvidia", "modality": "text->text", "free": true, "note": "speed-tuned" },
+    { "slug": "mistralai/mistral-nemotron", "label": "Mistral Nemotron (NIM)", "provider": "nvidia", "modality": "text->text", "free": true },
+    { "slug": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "label": "Nemotron 3 Nano Omni (NIM)", "provider": "nvidia", "modality": "text+image+audio+video->text", "free": true },
+    { "slug": "nvidia/nemotron-3-nano-30b-a3b", "label": "Nemotron 3 Nano 30B A3B (NIM)", "provider": "nvidia", "modality": "text->text", "free": true },
+    { "slug": "thinkingmachines/inkling-small:free", "label": "Inkling Small (free)", "provider": "openrouter", "modality": "text+image+audio->text", "noFallback": true, "note": "403: OpenRouter restricts to agentic harnesses - not callable via plain API" },
+    { "slug": "google/gemma-4-26b-a4b-it:free", "label": "Gemma 4 26B A4B (free)", "provider": "openrouter", "modality": "text+image+video->text" },
+    { "slug": "nvidia/nemotron-3.5-lightning-30b-a3b", "label": "Nemotron 3.5 Lightning 30B (NIM)", "provider": "nvidia", "modality": "text->text", "free": true, "note": "speed-tuned" },
+    { "slug": "poolside/laguna-s-2.1:free", "label": "Laguna S 2.1 (free)", "provider": "openrouter", "modality": "text->text", "note": "code-focused" },
+    { "slug": "cohere/north-mini-code:free", "label": "North Mini Code (free)", "provider": "openrouter", "modality": "text->text", "use": "code" },
+    { "slug": "thinkingmachines/inkling:free", "label": "Inkling (free)", "provider": "openrouter", "modality": "text->text", "noFallback": true, "note": "403: agentic-harness-only on OpenRouter" },
+    { "slug": "dots-studio/dots-3-note-preview:free", "label": "Dots3-Note Preview (free)", "provider": "openrouter", "modality": "text+image->text", "noFallback": true, "note": "404: blocked by account data-policy/privacy settings" },
+    { "slug": "nvidia/nemotron-nano-12b-v2-vl", "label": "Nemotron Nano 12B 2 VL (NIM)", "provider": "nvidia", "modality": "text+image+video->text", "free": true },
+    { "slug": "nvidia/nvidia-nemotron-nano-9b-v2", "label": "Nemotron Nano 9B V2 (NIM)", "provider": "nvidia", "modality": "text->text", "free": true, "note": "fast" },
+    { "slug": "nvidia/nemotron-3-super-120b-a12b:free", "label": "Nemotron 3 Super (free)", "provider": "openrouter", "modality": "text->text" },
+    { "slug": "poolside/laguna-xs-2.1:free", "label": "Laguna XS 2.1 (free)", "provider": "openrouter", "modality": "text->text", "note": "code-focused" },
+    { "slug": "liquid/lfm-2.5-2.6b:free", "label": "LFM2.5-2.6B (free)", "provider": "openrouter", "modality": "text->text", "note": "edge-size; fastest" },
+    { "slug": "nvidia/nemotron-3.5-content-safety", "label": "Nemotron 3.5 Content Safety (NIM)", "provider": "nvidia", "modality": "text+image->text", "use": "content moderation", "noFallback": true },
+    { "slug": "nvidia/nemotron-3-ultra-550b-a55b:free", "label": "Nemotron 3 Ultra (free)", "provider": "openrouter", "modality": "text->text", "note": "OpenRouter backup of the chain head" }
+  ],
+  "unresolved": [
+    { "label": "LFM2.5-Embedding-350M (free)", "reason": "embedding model - not exposed via chat-completions catalogs" },
+    { "label": "Flux TTS (free)", "reason": "TTS model - no chat-completions slug in catalog" },
+    { "label": "S2.1 Pro Free (free)", "reason": "no matching entry in catalog" },
+    { "label": "Nemotron 3 Embed 1B (free)", "reason": "embedding model - not in catalog" },
+    { "label": "Llama Nemotron Rerank VL 1B V2 (free)", "reason": "reranker - not in catalog" },
+    { "label": "Llama Nemotron Embed VL 1B V2 (free)", "reason": "embedding model - not in catalog" }
+  ]
+}
