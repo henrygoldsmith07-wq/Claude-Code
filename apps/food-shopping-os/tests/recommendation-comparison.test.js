@@ -7,22 +7,28 @@ import { chooseOptimalPlan } from '../src/lib/optimiser.js';
 
 /* ---- Synthetic household: 12 recipes, 8 pantry rows, realistic constraints ---- */
 
-const r = (id, name, cost, time, ings, tags = []) =>
-  ({ id, name, costPerServing: cost, time, ingredients: ings.map((n) => ({ name: n })), tags });
+const r = (id, name, opts = {}) => ({
+  id, name,
+  costPerServing: opts.cost ?? null,
+  time: opts.time ?? null,
+  ingredients: (opts.ings || []).map((n) => ({ name: n })),
+  tags: opts.tags || [],
+  equipment: opts.equipment || [],
+});
 
 const RECIPES = [
-  r('curry', 'Coconut curry', 3.2, 30, ['Rice', 'Coconut milk', 'Curry paste', 'Coriander'], ['vegan']),
-  r('traybake', 'Chicken traybake', 4.8, 45, ['Chicken', 'Potato', 'Peppers', 'Paprika'], ['batch']),
-  r('pasta', 'Tomato pasta', 1.2, 15, ['Pasta', 'Tinned tomatoes', 'Garlic'], ['vegan', 'quick']),
-  r('stirfry', 'Tofu stir-fry', 2.8, 20, ['Tofu', 'Soy sauce', 'Broccoli', 'Ginger'], ['vegan', 'quick']),
-  r('salmon', 'Teriyaki salmon', 7.5, 35, ['Salmon', 'Soy sauce', 'Rice'], []),
-  r('soup', 'Lentil soup', 1.5, 40, ['Lentils', 'Carrot', 'Onion', 'Cumin'], ['vegan', 'batch']),
-  r('omelette', 'Cheese omelette', 2.0, 10, ['Eggs', 'Cheese', 'Butter'], ['quick']),
-  r('chilli', 'Bean chilli', 2.5, 35, ['Kidney beans', 'Tinned tomatoes', 'Rice'], ['vegan', 'batch']),
-  r('roast', 'Sunday roast', 6.0, 90, ['Chicken', 'Potato', 'Carrot', 'Gravy'], []),
-  r('stew', 'Beef stew', 5.5, 120, ['Beef', 'Potato', 'Carrot', 'Onion'], ['batch']),
-  r('salad', 'Greek salad', 3.0, 10, ['Feta', 'Cucumber', 'Olives', 'Onion'], ['vegetarian', 'quick']),
-  r('tacos', 'Fish tacos', 5.0, 25, ['White fish', 'Tortilla', 'Cabbage', 'Lime'], []),
+  r('curry', 'Coconut curry', { cost: 3.2, time: 30, ings: ['Rice', 'Coconut milk', 'Curry paste', 'Coriander'], tags: ['vegan'] }),
+  r('traybake', 'Chicken traybake', { cost: 4.8, time: 45, ings: ['Chicken', 'Potato', 'Peppers', 'Paprika'], tags: ['batch'] }),
+  r('pasta', 'Tomato pasta', { cost: 1.2, time: 15, ings: ['Pasta', 'Tinned tomatoes', 'Garlic'], tags: ['vegan', 'quick'] }),
+  r('stirfry', 'Tofu stir-fry', { cost: 2.8, time: 20, ings: ['Tofu', 'Soy sauce', 'Broccoli', 'Ginger'], tags: ['vegan', 'quick'] }),
+  r('salmon', 'Teriyaki salmon', { cost: 7.5, time: 35, ings: ['Salmon', 'Soy sauce', 'Rice'] }),
+  r('soup', 'Lentil soup', { cost: 1.5, time: 40, ings: ['Lentils', 'Carrot', 'Onion', 'Cumin'], tags: ['vegan', 'batch'] }),
+  r('omelette', 'Cheese omelette', { cost: 2.0, time: 10, ings: ['Eggs', 'Cheese', 'Butter'], tags: ['quick'] }),
+  r('chilli', 'Bean chilli', { cost: 2.5, time: 35, ings: ['Kidney beans', 'Tinned tomatoes', 'Rice'], tags: ['vegan', 'batch'] }),
+  r('roast', 'Sunday roast', { cost: 6.0, time: 90, ings: ['Chicken', 'Potato', 'Carrot', 'Gravy'] }),
+  r('stew', 'Beef stew', { cost: 5.5, time: 120, ings: ['Beef', 'Potato', 'Carrot', 'Onion'], tags: ['batch'] }),
+  r('salad', 'Greek salad', { cost: 3.0, time: 10, ings: ['Feta', 'Cucumber', 'Olives', 'Onion'], tags: ['vegetarian', 'quick'] }),
+  r('tacos', 'Fish tacos', { cost: 5.0, time: 25, ings: ['White fish', 'Tortilla', 'Cabbage', 'Lime'] }),
 ];
 
 const PANTRY = [
@@ -43,7 +49,7 @@ const STRATEGIES = {
   D_fastest: (eligible) => fastestPick(eligible),
   E_least_repeat: (eligible) => leastRepetitivePick(eligible, []),
   F_forq: (eligible) => chooseOptimalPlan(
-    eligible.map((recipe) => [{ id: recipe.id, title: recipe.name, time: recipe.time, ingredients: recipe.ingredients.map((i) => ({ name: i.name, qty: '100 g' })) }]),
+    eligible.map((recipe) => [{ id: recipe.id, title: recipe.name, time: recipe.time, costPerServing: recipe.costPerServing, tags: recipe.tags, ingredients: recipe.ingredients.map((i) => ({ name: i.name, qty: '100 g' })) }]),
     { pantryItems: PANTRY, today: '2026-08-23' }
   )?.meals?.[0] || null,
 };
@@ -61,7 +67,7 @@ function runExperiment({ trials = 50, seed = 42, eligiblePool = RECIPES }) {
         ...v,
         costGBP: picked.costPerServing,
         predictedTimeMins: picked.time,
-        dietaryOk: !picked.tags.includes('meat') || true,
+        dietaryOk: !(picked.tags || []).includes('meat'),
         repetitionCount: 0,
         ingredientsUsed: (picked.ingredients || []).filter((ing) =>
           PANTRY.some((p) => norm(p.name).includes(norm(ing.name)) || norm(ing.name).includes(norm(p.name)))
