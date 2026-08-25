@@ -73,6 +73,14 @@ export const randomPick = (eligible, rng = mulberry32(42)) =>
 export const cheapestPick = (eligible) =>
   [...eligible].sort((a, b) => (a.costPerServing ?? Infinity) - (b.costPerServing ?? Infinity))[0] || null;
 
+export const fastestPick = (eligible) =>
+  [...eligible].sort((a, b) => (a.time || Infinity) - (b.time || Infinity))[0] || null;
+
+export const leastRepetitivePick = (eligible, recentMeals = []) => {
+  const counts = new Map(recentMeals.map((id) => [id, recentMeals.filter((r) => r === id).length]));
+  return [...eligible].sort((a, b) => (counts.get(a.id) || 0) - (counts.get(b.id) || 0))[0] || null;
+};
+
 export const pantryFirstPick = (eligible, pantryItems = []) => {
   let best = null;
   let bestCov = -1;
