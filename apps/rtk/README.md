@@ -254,7 +254,7 @@ Requires Node ≥ 18. One dependency (`js-tiktoken`, loaded lazily for tokenizer
 
 ## Compatibility
 
-See [COMPATIBILITY.md](./COMPATIBILITY.md). CI (`.github/workflows/rtk.yml`) runs the full suite on **Ubuntu, Windows and macOS** at Node 20, plus Node 18/22 on Linux — type-check + `npm test` + `benchmark/run.js` + `benchmark/families.js` + `benchmark/detection.js` + `benchmark/retention.js` + `benchmark/retention-fields.js` + `benchmark/paired.js --count=250` + `benchmark/levels.js --count=250` + `benchmark/agent-solve.js` + `benchmark/agent-live.js` + `benchmark/perf.js` + `npm pack --dry-run`.
+See COMPATIBILITY.md in the standalone rtk repo. CI (`.github/workflows/rtk.yml`) runs the full suite on **Ubuntu, Windows and macOS** at Node 20, plus Node 18/22 on Linux — type-check + `npm test` + `benchmark/run.js` + `benchmark/families.js` + `benchmark/detection.js` + `benchmark/retention.js` + `benchmark/retention-fields.js` + `benchmark/paired.js --count=250` + `benchmark/levels.js --count=250` + `benchmark/agent-solve.js` + `benchmark/agent-live.js` + `benchmark/perf.js` + `npm pack --dry-run`.
 
 ## Development
 

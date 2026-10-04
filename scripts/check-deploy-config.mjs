@@ -163,6 +163,22 @@ for (const app of apps) {
     continue;
   }
 
+  // Projects retained only for provenance after the 2026-08-21 migration are
+  // marked `deploy: false` in config/affected-deployments.json — the source is
+  // committed here, but the live project deploys from its standalone repo. Those
+  // fragments are partial by nature, so requiring a build script, a lockfile or
+  // a package.json would fail on provenance copies rather than on real problems.
+  const project0 = dependencyMap?.projects?.[app];
+  if (project0 && project0.deploy === false) {
+    if (existsSync(configPath)) {
+      const cfg = readJson(configPath);
+      if (cfg && cfg.ignoreCommand !== expectedIgnoreCommand(app)) {
+        fail(`${rel}/vercel.json: expected ignoreCommand ${JSON.stringify(expectedIgnoreCommand(app))}, found ${JSON.stringify(cfg.ignoreCommand ?? null)}.`);
+      }
+    }
+    continue;
+  }
+
   if (!existsSync(configPath)) {
     fail(`${rel} has no vercel.json — its deploy settings live only in the Vercel dashboard, where they cannot be reviewed.`);
     continue;
@@ -278,9 +294,13 @@ if (existsSync(registryPath)) {
   // Marketing sites are registered on their parent app's `site` field rather
   // than as entries of their own — see siteConvention in the registry.
   const known = new Set();
-  for (const a of registry?.apps || []) {
+  // Apps migrated to standalone repos on 2026-08-21 live in the `external`
+  // section and declare their landing page as `sitePath` rather than `site`.
+  // Reading only `apps` (now empty) made every migrated app unrecognised here.
+  for (const a of [...(registry?.apps || []), ...(registry?.auxiliary || []), ...(registry?.external || [])]) {
     if (a.id) known.add(a.id);
     if (a.site) known.add(path.basename(a.site));
+    if (a.sitePath) known.add(path.basename(a.sitePath));
   }
   for (const app of apps) {
     if (!known.has(app)) {
