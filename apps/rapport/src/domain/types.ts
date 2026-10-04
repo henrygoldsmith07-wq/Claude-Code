@@ -312,6 +312,12 @@ export const BEHAVIOUR_KEYS = [
 export type BehaviourKey = (typeof BEHAVIOUR_KEYS)[number];
 
 /**
+ * Per-behaviour state. The behaviour-resolution counterpart to UserSkillState,
+ * re-exported here so Snapshot consumers can reach it from the data model.
+ */
+export type { UserBehaviourState } from "./behaviour-state";
+
+/**
  * Behaviours that only exist when there is more than one other person present.
  *
  * `scoreTranscript` drops these from a one-to-one transcript rather than
@@ -604,6 +610,8 @@ export interface Snapshot {
   preference: Preference;
   goals: Goal[];
   skillStates: UserSkillState[];
+  /** Behaviour-resolution projection of the same event log. Folded, never authored. */
+  behaviourStates: import("./behaviour-state").UserBehaviourState[];
   assessments: Assessment[];
   simulations: Simulation[];
   evaluations: SimulationEvaluation[];

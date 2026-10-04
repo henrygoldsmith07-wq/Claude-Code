@@ -1,7 +1,10 @@
-import { applyEvidence, applyUserCorrection, initialSkillState } from "./mastery";
+import { ageBehaviourStates, applyBehaviourEvidence, initialBehaviourState } from "./behaviour-state";
+import type { BehaviourEvidence, UserBehaviourState } from "./behaviour-state";
+import { applyEvidence, applyUserCorrection, decay, initialSkillState } from "./mastery";
 import type { Evidence } from "./mastery";
 import { localDateFrom } from "./scheduling";
 import { SKILLS } from "./skills";
+import { BEHAVIOUR_KEYS } from "./types";
 import type { BehaviourKey, ChallengeOutcome, Id, IsoInstant, UserSkillState } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -140,6 +143,11 @@ function evidenceFrom(event: DomainEvent): Evidence[] {
           at: event.at,
         }));
     case "challenge-attempted":
+      // This event is only ever emitted for a real attempt (store.tsx suppresses
+      // "no-opportunity" and "wrong-situation"), so it is never comfort-only.
+      // A `"no"` here means the user tried and failed — real evidence that must
+      // be allowed to pull mastery down and ratchet difficulty tolerance, which
+      // was previously impossible because `"no"` was mis-flagged as a non-attempt.
       return [
         {
           skillId: event.skillId,
@@ -149,9 +157,6 @@ function evidenceFrom(event: DomainEvent): Evidence[] {
           reliability: event.reliability,
           at: event.at,
           comfort: event.comfort,
-          // A logged non-attempt is confidence information only — it must
-          // never pull the competence estimate in either direction.
-          comfortOnly: event.outcome === "no",
         },
       ];
     case "exercise-completed":
@@ -168,6 +173,81 @@ function evidenceFrom(event: DomainEvent): Evidence[] {
     default:
       return [];
   }
+}
+
+/**
+ * Per-behaviour evidence from the same log, at behaviour resolution.
+ *
+ * `simulation-evaluated` already carries `behaviours: { key, score }[]` — the
+ * per-behaviour detail the skill fold above projects away. `challenge-attempted`
+ * carries the outcome and difficulty for the behaviour the challenge targeted.
+ * This is the extractor that keeps the behaviour detail alive in the projection,
+ * so "the exact behaviour worth practising next" is answerable from history
+ * rather than from the last conversation.
+ *
+ * Reliability is reused per behaviour: a simulation that was barely judgeable
+ * (`reliability` low) yields weak evidence about every behaviour it scored,
+ * which is correct — thin transcripts are thin evidence.
+ */
+function behaviourEvidenceFrom(event: DomainEvent): BehaviourEvidence[] {
+  switch (event.kind) {
+    case "simulation-evaluated":
+      return event.behaviours.map((item) => ({
+        behaviour: item.key,
+        performance: item.score,
+        difficulty: event.difficulty,
+        kind: "simulation" as const,
+        reliability: event.reliability,
+        at: event.at,
+      }));
+    case "challenge-attempted":
+      // The event targets a skill, not a behaviour. Without a behaviour on the
+      // event there is nothing trustworthy to attribute the attempt to, and
+      // guessing would invent a weakness; transfer.ts carries the per-behaviour
+      // real-world view when it is known.
+      return [];
+    case "human-rating-recorded":
+      // A named rater judged these behaviours present in a transcript. This is
+      // the strongest evidence in the system (human-rating weight 1.0) and,
+      // unlike a real-world self-report, it is an observation of behaviour.
+      return event.behaviourKeys.map((key) => ({
+        behaviour: key,
+        performance: event.meanConfidence,
+        difficulty: 3,
+        kind: "human-rating" as const,
+        reliability: 0.9,
+        at: event.at,
+      }));
+    default:
+      return [];
+  }
+}
+
+/**
+ * Fold the log into current behaviour states. Pure and total, the behaviour-
+ * resolution counterpart to recomputeStates. Given the same log it always
+ * produces the same states, so it is safe to run on every load alongside the
+ * skill projection.
+ */
+export function recomputeBehaviourStates(userId: Id, events: DomainEvent[], now: IsoInstant): UserBehaviourState[] {
+  const createdAt = events[0]?.at ?? now;
+  const states = new Map<BehaviourKey, UserBehaviourState>(
+    BEHAVIOUR_KEYS.map((behaviour) => [behaviour, initialBehaviourState(userId, behaviour, createdAt)]),
+  );
+
+  const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
+
+  for (const event of ordered) {
+    for (const evidence of behaviourEvidenceFrom(event)) {
+      const state = states.get(evidence.behaviour);
+      if (!state) continue;
+      states.set(evidence.behaviour, applyBehaviourEvidence(state, evidence));
+    }
+  }
+
+  // Age to `now`, matching the skill fold: retention must reflect elapsed time
+  // since the last observation, not the last observation's own timestamp.
+  return ageBehaviourStates([...states.values()], now);
 }
 
 /**
@@ -217,7 +297,15 @@ export function recomputeStates(userId: Id, events: DomainEvent[], now: IsoInsta
     }
   }
 
-  return [...states.values()];
+  // Age every skill to `now` so retention and uncertainty reflect elapsed time,
+  // not just the last event's timestamp. The fold above decays each state to the
+  // time of its most recent evidence; without this final step a lapsed user's
+  // retentionEstimate is frozen at that last event and never reflects the gap
+  // since — which would show a stale, flattering number and make "still fine
+  // after time away" (the independence signal) impossible to compute. Mastery
+  // itself is untouched by decay, which is correct: what someone can do is not
+  // what fades.
+  return [...states.values()].map((state) => decay(state, now));
 }
 
 /** Focus history for the recommender's variety and fatigue factors. */
@@ -254,5 +342,10 @@ export function eventsBetween(events: DomainEvent[], fromIso: IsoInstant, toIso:
 // is recomputed rather than left to mix two scales in one history.
 // 5: added interruption handling, turn-level replay evidence, and per-skill
 // evidence projection so historical mastery is recomputed from traceable data.
-export const SCORING_MODEL_VERSION = 5;
+// 6: added behaviour-resolution state (behaviour-state.ts) folded from the
+// per-behaviour detail that `simulation-evaluated` already carried but the skill
+// fold projected away. No new events and no new fields were added — the data was
+// already in the log — so this is a fold change, not a migration; the bump makes
+// the store recompute behaviour states for existing users.
+export const SCORING_MODEL_VERSION = 6;
 

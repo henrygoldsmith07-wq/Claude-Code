@@ -7,6 +7,7 @@ import {
   trainedVersusUntrained,
   formulaicityIndex,
   overFormulaicTrend,
+  isAttemptedOutcome,
 } from "@/domain/transfer";
 import type {
   BehaviourKey,
@@ -168,6 +169,9 @@ describe("transfer loop lifecycle", () => {
       simulations: [simulation("sim-a", "sc.a"), simulation("sim-b", "sc.b")],
       attempts: [attempt()],
       reflections: [reflection("attempt-1")],
+      // Promotion to a validated transfer is now deliberate: an omitted set means
+      // deterministic-only, so a human must confirm the unseen pair.
+      humanValidatedBehaviours: new Set(["eval-unseen:followUpQuality"]),
     }, NOW);
     const record = records[0]!;
     expect(record.unseenPracticeEvaluationId).toBe("eval-unseen");
@@ -175,6 +179,25 @@ describe("transfer loop lifecycle", () => {
     expect(record.validated).toBe(true);
     expect(record.validationNote).toContain("Validated transfer");
     expect(record.phase).toBe("analysis");
+  });
+
+  it("treats an omitted human-validation set as deterministic-only, not validated", () => {
+    const records = buildTransferRecords({
+      skillId: "conv.follow-up",
+      behaviour: "followUpQuality",
+      evaluations: [
+        evaluation("eval-base", "sim-a", 0.4, "2026-08-01T10:00:00.000Z"),
+        evaluation("eval-unseen", "sim-b", 0.7, "2026-08-15T10:00:00.000Z"),
+      ],
+      simulations: [simulation("sim-a", "sc.a"), simulation("sim-b", "sc.b")],
+      attempts: [attempt()],
+      reflections: [reflection("attempt-1")],
+      // No humanValidatedBehaviours at all — the old permissive default would
+      // have claimed "Validated transfer" here. It must not.
+    }, NOW);
+    expect(records[0]?.gain).toBeCloseTo(0.3);
+    expect(records[0]?.validated).toBe(false);
+    expect(records[0]?.validationNote).toContain("not yet human-validated");
   });
 
   it("refuses to claim transfer when the deterministic comparison is not human-validated", () => {
@@ -205,6 +228,53 @@ describe("transfer loop lifecycle", () => {
     }, NOW);
     expect(records[0]?.challengeCompleted).toBe(false);
     expect(records[0]?.phase).toBe("challenge");
+  });
+
+  it("does not treat a no-opportunity occasion as a completed attempt", () => {
+    // store.tsx stamps completedAt for every outcome except "no", so an occasion
+    // where the situation never arose carries a completion timestamp. The gate
+    // must still refuse it — otherwise a user who never got the chance
+    // accumulates a "validated transfer".
+    const records = buildTransferRecords({
+      skillId: "conv.follow-up",
+      behaviour: "followUpQuality",
+      evaluations: [
+        evaluation("eval-base", "sim-a", 0.4, "2026-08-01T10:00:00.000Z"),
+        evaluation("eval-unseen", "sim-b", 0.7, "2026-08-15T10:00:00.000Z"),
+      ],
+      simulations: [simulation("sim-a", "sc.a"), simulation("sim-b", "sc.b")],
+      attempts: [attempt({ outcome: "no-opportunity" })],
+      reflections: [reflection("attempt-1")],
+      humanValidatedBehaviours: new Set(["eval-unseen:followUpQuality"]),
+    }, NOW);
+    expect(records[0]?.challengeCompleted).toBe(false);
+    expect(records[0]?.validated).toBe(false);
+  });
+
+  it("does not treat a wrong-situation occasion as a completed attempt", () => {
+    const records = buildTransferRecords({
+      skillId: "conv.follow-up",
+      behaviour: "followUpQuality",
+      evaluations: [
+        evaluation("eval-base", "sim-a", 0.4, "2026-08-01T10:00:00.000Z"),
+        evaluation("eval-unseen", "sim-b", 0.7, "2026-08-15T10:00:00.000Z"),
+      ],
+      simulations: [simulation("sim-a", "sc.a"), simulation("sim-b", "sc.b")],
+      attempts: [attempt({ outcome: "wrong-situation" })],
+      reflections: [reflection("attempt-1")],
+      humanValidatedBehaviours: new Set(["eval-unseen:followUpQuality"]),
+    }, NOW);
+    expect(records[0]?.challengeCompleted).toBe(false);
+    expect(records[0]?.validated).toBe(false);
+  });
+
+  it("classifies only real attempts as attempted outcomes", () => {
+    expect(isAttemptedOutcome("yes")).toBe(true);
+    expect(isAttemptedOutcome("partly")).toBe(true);
+    expect(isAttemptedOutcome("no")).toBe(true);
+    expect(isAttemptedOutcome("no-opportunity")).toBe(false);
+    expect(isAttemptedOutcome("wrong-situation")).toBe(false);
+    expect(isAttemptedOutcome(undefined)).toBe(false);
   });
 
   it("summarises with a headline that never overclaims", () => {
@@ -282,6 +352,9 @@ describe("delayed transfer and persistence", () => {
     simulations: [simulation("sim-a", "sc.a"), simulation("sim-b", "sc.b"), simulation("sim-c", "sc.c")],
     attempts: [attempt()],
     reflections: [reflection("attempt-1")],
+    // Promotion to a validated transfer requires an explicit human-validation
+    // entry for the unseen pair; an omitted set is deterministic-only.
+    humanValidatedBehaviours: new Set<string>(["eval-unseen:followUpQuality"]),
   });
 
   it("reports persistence when the gain holds at a delayed check on another new scenario", () => {
