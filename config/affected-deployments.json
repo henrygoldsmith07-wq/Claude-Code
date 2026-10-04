@@ -78,16 +78,19 @@
                                   "description":  "Repository root is a guardrail, not a deployable application. Retire any Vercel project still pointed here."
                               },
                      "arise-site":  {
+                                        "rootDirectory": "apps/arise-site",
                                         "deploy":  false,
                                         "kind":  "external-repo",
                                         "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/arise-site; deploy from that repo now."
                                     },
                      "arise":  {
+                                   "rootDirectory": "apps/arise",
                                    "deploy":  false,
                                    "kind":  "external-repo",
                                    "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/arise; deploy from that repo now."
                                },
                      "daily-debate-site":  {
+                                               "rootDirectory": "apps/daily-debate-site",
                                                "deploy":  false,
                                                "kind":  "external-repo",
                                                "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/daily-debate-site; deploy from that repo now."
@@ -103,16 +106,19 @@
                                              "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/ecosystem-shell; deploy from that repo now."
                                          },
                      "emotion-tracker":  {
+                                             "rootDirectory": "apps/emotion-tracker",
                                              "deploy":  false,
                                              "kind":  "external-repo",
                                              "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/emotion-tracker; deploy from that repo now."
                                          },
                      "food-shopping-os":  {
+                                              "rootDirectory": "apps/food-shopping-os",
                                               "deploy":  false,
                                               "kind":  "external-repo",
                                               "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/food-shopping-os; deploy from that repo now."
                                           },
                      "forq-site":  {
+                                       "rootDirectory": "apps/forq-site",
                                        "deploy":  false,
                                        "kind":  "external-repo",
                                        "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/forq-site; deploy from that repo now."
@@ -128,6 +134,7 @@
                                            "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/habit-tracker; deploy from that repo now."
                                        },
                      "le-studio-site":  {
+                                            "rootDirectory": "apps/le-studio-site",
                                             "deploy":  false,
                                             "kind":  "external-repo",
                                             "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/le-studio-site; deploy from that repo now."
@@ -143,21 +150,25 @@
                                    "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/pulse; deploy from that repo now."
                                },
                      "rapport":  {
+                                     "rootDirectory": "apps/rapport",
                                      "deploy":  false,
                                      "kind":  "external-repo",
                                      "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/rapport; deploy from that repo now."
                                  },
                      "reflect-site":  {
+                                          "rootDirectory": "apps/reflect-site",
                                           "deploy":  false,
                                           "kind":  "external-repo",
                                           "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/reflect-site; deploy from that repo now."
                                       },
                      "revise-site":  {
+                                         "rootDirectory": "apps/revise-site",
                                          "deploy":  false,
                                          "kind":  "external-repo",
                                          "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/revise-site; deploy from that repo now."
                                      },
                      "revise":  {
+                                    "rootDirectory": "apps/revise",
                                     "deploy":  false,
                                     "kind":  "external-repo",
                                     "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/revise; deploy from that repo now."
@@ -169,6 +180,7 @@
                                  "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/rtk; Node CLI, never a Vercel deployment."
                              },
                      "rtk-site":  {
+                                      "rootDirectory": "apps/rtk-site",
                                       "deploy":  false,
                                       "kind":  "external-repo",
                                       "description":  "Migrated 2026-08-21 to henrygoldsmith07-wq/rtk-site; deploy from that repo now."

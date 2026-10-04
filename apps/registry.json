@@ -141,6 +141,8 @@
    "lifecycle": "external",
    "kind": "site",
    "migratedAt": "2026-08-21",
+    "sitePath": "le-studio-site",
+    "siteUrl": "https://le-studio-site-henrygoldsmith07-9188s-projects.vercel.app",
    "description": "Marketing hub for the Le Studio family (French, Forq, Chrono). Shared by french-practice and food-shopping-os, so it is its own repo rather than merged into either app.",
    "family": [
     "french-practice",

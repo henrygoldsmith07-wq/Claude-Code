@@ -8,7 +8,12 @@ for(const f of ["README.md",...readdirSync("apps").map(d=>`apps/${d}/README.md`)
 // Each site is its own Vercel project, so a relative ../other-site/ link resolves
 // on disk but 404s in production. registry.json:siteUrl is the source of truth.
 const reg=JSON.parse(readFileSync(path.join(ROOT,"apps/registry.json"),"utf8"));
-const siteUrl=new Map(reg.apps.filter(a=>a.site&&a.siteUrl).map(a=>[path.basename(a.site),a.siteUrl.replace(/\/$/,"")]));
+// Apps migrated to standalone repos on 2026-08-21 moved from `apps` to the
+// `external` section, but their site directories and siteUrl entries live in the
+// same registry. Reading only `reg.apps` emptied this map after the migration and
+// made every site report a missing URL, so read every section that can declare one.
+const registryEntries=[...(reg.apps??[]),...(reg.auxiliary??[]),...(reg.external??[])];
+const siteUrl=new Map(registryEntries.filter(a=>a.siteUrl&&(a.site||a.sitePath)).map(a=>[path.basename(a.site||a.sitePath),a.siteUrl.replace(/\/$/,"")]));
 for(const dir of readdirSync(path.join(ROOT,"apps"))){if(!dir.endsWith("-site"))continue;const idx=path.join(ROOT,`apps/${dir}/index.html`);if(!existsSync(idx)){console.error(`MISSING ${idx}`);errors++;continue;}const t=readFileSync(idx,"utf8");
   if(!t.includes("<title>")||!t.includes('meta name="description"')){console.error(`BAD SEO ${idx}`);errors++;}
   const want=siteUrl.get(dir);if(!want){console.error(`NO REGISTRY siteUrl for apps/${dir}`);errors++;}

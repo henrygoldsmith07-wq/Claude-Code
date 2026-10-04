@@ -75,11 +75,28 @@ const entries = [...(reg.apps ?? []), ...(reg.auxiliary ?? []), ...(reg.external
 let appDirs = [];
 try { appDirs = fs.readdirSync(path.join(root, "apps"), { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name); } catch {}
 const siteSuffix = name => name.endsWith("-site");
-const expectedAppDirs = new Set([...(reg.apps ?? []), ...(reg.auxiliary ?? [])].filter(e => e.path.startsWith("apps/")).map(e => e.path.split("/")[1]));
+// Apps moved to standalone repos on 2026-08-21 are declared in `external`. Their
+// source directories are still committed here (partial pre-migration copies), and
+// their landing pages still live in sibling `*-site` folders. A directory counts
+// as declared when any registry section names it: by `path`, by an external
+// entry whose `id` matches the directory, or by an entry's `sitePath`. Before
+// this, every migrated app read as "exists on disk but is not in registry.json"
+// purely because `external` entries carry no `path` field.
+const allEntries = [...(reg.apps ?? []), ...(reg.auxiliary ?? []), ...(reg.external ?? [])];
+const declaredAppDirs = new Set(
+  allEntries.flatMap((e) => {
+    const dirs = [];
+    if (typeof e.path === "string" && e.path.startsWith("apps/")) dirs.push(e.path.split("/")[1]);
+    if (typeof e.sitePath === "string" && e.sitePath.startsWith("apps/")) dirs.push(e.sitePath.split("/")[1]);
+    else if (typeof e.sitePath === "string") dirs.push(e.sitePath); // already a bare dir name
+    if (e.lifecycle === "external" && typeof e.id === "string") dirs.push(e.id);
+    return dirs.filter(Boolean);
+  }),
+);
 for (const dir of appDirs) {
   if (siteSuffix(dir)) continue;
   if (dir === "__snapshots__" || dir === "__mocks__") continue;
-  if (!expectedAppDirs.has(dir)) { fail(`apps/${dir} exists on disk but is not in apps/registry.json`); errors++; }
+  if (!declaredAppDirs.has(dir)) { fail(`apps/${dir} exists on disk but is not in apps/registry.json`); errors++; }
 }
 
 // README drift: every active product app in registry should appear in README
