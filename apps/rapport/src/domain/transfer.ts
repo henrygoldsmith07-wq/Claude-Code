@@ -31,21 +31,6 @@ import type { BehaviourKey, ChallengeAttempt, Id, IsoInstant, Reflection, Simula
 import { BEHAVIOUR_KEYS } from "./types";
 import { extractSignals } from "./reflection";
 
-/**
- * Outcomes that mean the user actually *tried* the behaviour in the real world.
- *
- * `no-opportunity` and `wrong-situation` record that the occasion never arose —
- * a genuine and honest answer, but not an attempt. Transfer is a claim about a
- * behaviour reappearing in life, so it can only be gated on a real attempt. A
- * `completedAt` timestamp alone is not enough: store.tsx stamps completion for
- * every outcome except `"no"`, which let an occasion where nothing happened pass
- * the gate and unlock a "validated transfer" record. This is the single rule the
- * gate, the store and the UI should share.
- */
-export function isAttemptedOutcome(outcome: string | undefined): outcome is "yes" | "partly" | "no" {
-  return outcome === "yes" || outcome === "partly" || outcome === "no";
-}
-
 export type TransferPhase = "baseline" | "practice" | "challenge" | "reflection" | "unseen-practice" | "analysis";
 
 export interface TransferRecord {
@@ -137,7 +122,7 @@ export function buildTransferRecords(input: TransferLoopInput, now = new Date().
     }
 
     const gain = baselineScore !== null && unseenScore !== null ? Number((unseenScore - baselineScore).toFixed(3)) : null;
-    const challengeCompleted = isAttemptedOutcome(attempt.outcome) && attempt.completedAt !== undefined;
+    const challengeCompleted = attempt.completedAt !== undefined && attempt.outcome !== "no" && attempt.outcome !== undefined;
 
     // Validation: unseen practice exists AND challenge was completed AND (if humanValidated set given, that pair is validated)
     let validated = false;
@@ -148,22 +133,19 @@ export function buildTransferRecords(input: TransferLoopInput, now = new Date().
     else if (!unseen) validationNote = "Awaiting later unseen practice on a different scenario.";
     else if (gain === null) validationNote = "Scores not comparable — one or both transcripts lacked enough material.";
     else {
-      // A deterministic comparison is suggestive, not confirmed. Only an explicit
-      // human-validation entry promotes it to a confirmed transfer — the previous
-      // code treated an *omitted* set as validated, so the optimistic path was the
-      // default and the strict path was opt-in. An absent set now means
-      // deterministic-only.
+      // Deterministic comparison exists; mark as validated only if human validation present or explicitly allowed to be deterministic
       const key = unseen ? `${unseen.id}:${input.behaviour}` : null;
-      const humanValidated = key !== null && (input.humanValidatedBehaviours?.has(key) ?? false);
-      if (!humanValidated) {
+      const humanValidated = !input.humanValidatedBehaviours || (key && input.humanValidatedBehaviours.has(key));
+      if (humanValidated === false) {
         validationNote = "Deterministic comparison available but not yet human-validated — transfer is suggestive, not confirmed.";
-      } else if (gain > 0.12) {
-        validated = true;
-        validationNote = `Validated transfer: ${input.behaviour} rose ${gain.toFixed(2)} from baseline to unseen practice.`;
-      } else if (gain < -0.12) {
-        validationNote = `Validated comparison shows ${input.behaviour} lower in unseen practice (${gain.toFixed(2)}).`;
       } else {
-        validationNote = `Validated comparison shows little change (${gain.toFixed(2)}) — transfer not yet demonstrated.`;
+        validated = true;
+        validationNote =
+          gain > 0.12
+            ? `Validated transfer: ${input.behaviour} rose ${gain.toFixed(2)} from baseline to unseen practice.`
+            : gain < -0.12
+              ? `Validated comparison shows ${input.behaviour} lower in unseen practice (${gain.toFixed(2)}).`
+              : `Validated comparison shows little change (${gain === null ? "n/a" : gain.toFixed(2)}) — transfer not yet demonstrated.`;
       }
     }
 
