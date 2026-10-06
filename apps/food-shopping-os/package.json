@@ -17,16 +17,16 @@
                     "typecheck":  "tsc --noEmit"
                 },
     "dependencies":  {
-                         "@upstash/redis":  "^1.38.0",
-                         "@vercel/blob":  "^2.6.1",
-                         "ably":  "^2.26.0",
-                         "lucide-react":  "^1.25.0",
+                         "@upstash/redis":  "^1.39.0",
+                         "@vercel/blob":  "^2.8.0",
+                         "ably":  "^2.29.0",
+                         "lucide-react":  "^1.49.0",
                          "next":  "^15.5.22",
                          "next-auth":  "^4.24.15",
-                         "openai":  "^7.1.0",
+                         "openai":  "^7.27.0",
                          "react":  "^18.3.1",
                          "react-dom":  "^18.3.1",
-                         "zod":  "^4.4.3"
+                         "zod":  "^4.6.5"
                      },
     "overrides":  {
                       "brace-expansion":  "5.0.8",
@@ -38,11 +38,11 @@
                       "nanoid":  "3.3.18"
                   },
     "devDependencies":  {
-                            "@axe-core/playwright":  "^4.12.1",
-                            "@babel/parser":  "^7.29.7",
-                            "@playwright/test":  "^1.62.0",
+                            "@axe-core/playwright":  "^4.13.0",
+                            "@babel/parser":  "^7.29.9",
+                            "@playwright/test":  "^1.63.0",
                             "@tailwindcss/postcss":  "^4.3.3",
-                            "@testing-library/react":  "^16.3.2",
+                            "@testing-library/react":  "^16.3.3",
                             "jsdom":  "^29.1.1",
                             "tailwindcss":  "^4.0.0",
                             "vitest":  "^4.1.10",
