@@ -61,7 +61,7 @@
     "access": "public"
   },
   "dependencies": {
-    "js-tiktoken": "1.0.20"
+    "js-tiktoken": "1.0.21"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
