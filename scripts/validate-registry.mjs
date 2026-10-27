@@ -4,8 +4,12 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
+// Resolve the repo root from this file's own location, not the caller's cwd:
+// running `node /path/to/scripts/validate-registry.mjs` from elsewhere used to
+// fail with 'cannot read/parse apps/registry.json: ENOENT ... /<cwd>/apps/registry.json'.
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registryPath = path.join(root, "apps/registry.json");
 const readmePath = path.join(root, "README.md");
 
