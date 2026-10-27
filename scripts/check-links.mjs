@@ -7,7 +7,7 @@ import path from "node:path";
 const ROOT = path.resolve(import.meta.dirname, "..");
 let errors=0;
 function checkREADME(file){const text=readFileSync(file,"utf8");const base=path.dirname(file);for(const m of text.matchAll(/\[.*?\]\(([^)]+)\)/g)){let href=m[1].trim().split(/[#\s]/)[0];if(!href||href.startsWith("http")||href.startsWith("mailto:")||href.startsWith("#")||href.startsWith("data:"))continue;const target=path.resolve(base,href);if(!existsSync(target)){console.error(`BROKEN ${file} -> ${href}`);errors++;}}}
-for(const f of ["README.md",...readdirSync(path.join(ROOT,"apps")).map(d=>`apps/${d}/README.md`).filter(f=>existsSync(f))]){if(existsSync(f))checkREADME(f);}
+for(const f of [path.join(ROOT,"README.md"),...readdirSync(path.join(ROOT,"apps")).map(d=>path.join(ROOT,"apps",d,"README.md")).filter(f=>existsSync(f))]){if(existsSync(f))checkREADME(f);}
 // Each site is its own Vercel project, so a relative ../other-site/ link resolves
 // on disk but 404s in production. registry.json:siteUrl is the source of truth.
 const reg=JSON.parse(readFileSync(path.join(ROOT,"apps/registry.json"),"utf8"));
