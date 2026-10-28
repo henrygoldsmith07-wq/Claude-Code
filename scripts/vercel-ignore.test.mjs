@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { affectedProjects, evaluateProject, loadDependencyMap, matchesGlob, readChangedPaths } from './vercel-ignore.mjs';
+import { affectedProjects, evaluateProject, loadDependencyMap, matchesGlob, optionValue, readChangedPaths } from './vercel-ignore.mjs';
 
 const map = loadDependencyMap();
 const activeProjects = Object.entries(map.projects)
@@ -56,4 +56,9 @@ test('diff reader is injectable and normalizes Git paths', () => {
     }
   });
   assert.deepEqual(changed, ['src/workspace_daemon/main.py']);
+});
+
+test('option values cannot consume the next option', () => {
+  assert.equal(optionValue(['--project', '--head', 'new'], '--project'), undefined);
+  assert.equal(optionValue(['--head', 'new'], '--head'), 'new');
 });

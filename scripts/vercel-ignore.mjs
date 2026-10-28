@@ -182,9 +182,10 @@ export function readChangedPaths({ base, head, cwd = REPO_ROOT, exec = execFileS
   return String(output).split(/\r?\n/).map(normalizePath).filter(Boolean);
 }
 
-function optionValue(args, name) {
+export function optionValue(args, name) {
   const index = args.indexOf(name);
-  return index === -1 ? undefined : args[index + 1];
+  const value = index === -1 ? undefined : args[index + 1];
+  return value && !value.startsWith('--') ? value : undefined;
 }
 
 export function main({ argv = process.argv.slice(2), env = process.env, cwd = REPO_ROOT } = {}) {
