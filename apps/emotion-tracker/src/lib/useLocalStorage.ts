@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+export function isCompatibleStoredValue<T>(parsed: unknown, initialValue: T): parsed is T {
+  if (Array.isArray(initialValue)) return Array.isArray(parsed);
+  if (initialValue === null) return parsed === null;
+  return typeof parsed === typeof initialValue && (typeof parsed !== "object" || parsed !== null);
+}
+
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [loaded, setLoaded] = useState(false);
   const [value, setValue] = useState<T>(initialValue);
@@ -17,8 +23,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
         try {
           const parsed: unknown = JSON.parse(stored);
           // Guard against corrupt-but-valid JSON of the wrong shape.
-          const shapeOk = Array.isArray(initialValue) ? Array.isArray(parsed) : parsed !== null && typeof parsed === "object";
-          if (shapeOk) {
+          if (isCompatibleStoredValue(parsed, initialValue)) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setValue(parsed as T);
           }
