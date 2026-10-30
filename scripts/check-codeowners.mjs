@@ -37,7 +37,7 @@ if (!existsSync(codeownersPath)) {
  * Paths that exist to be guarded. If one of these stops resolving to an
  * explicit rule, the protection story has a hole and this check fails.
  */
-const mustBeOwned = [
+export const mustBeOwned = [
   '.github/workflows/engineering.yml',
   'scripts/engineering-gates.mjs',
   'CLAUDE.md',
@@ -54,29 +54,33 @@ const mustBeOwned = [
   'apps/revise/.env.example',
 ];
 
-const rules = [];
-readFileSync(codeownersPath, 'utf8')
-  .split('\n')
-  .forEach((raw, i) => {
-    // Strip a trailing CR first: `.` never matches \r and `$` (without /m)
-    // will not anchor before one, so on CRLF checkouts the comment stripper
-    // below would silently keep whole comment lines and parse them as rules.
-    const line = raw.replace(/\r$/, '').replace(/#.*$/, '').trim();
-    if (!line) return;
-    const [pattern, ...owners] = line.split(/\s+/);
-    if (!owners.length) {
-      errors.push(`${rel}:${i + 1}: rule "${pattern}" has no owner`);
-      return;
-    }
-    for (const owner of owners) {
-      if (!/^@[A-Za-z0-9][A-Za-z0-9-]*(\/[A-Za-z0-9._-]+)?$/.test(owner)) {
-        errors.push(`${rel}:${i + 1}: "${owner}" is not a valid @user or @org/team`);
+/** Parse CODEOWNERS text into rules; returns the rules plus per-line errors. */
+export function parseCodeowners(text) {
+  const rules = [];
+  const parseErrors = [];
+  text
+    .split('\n')
+    .forEach((raw, i) => {
+      // Strip a trailing CR first: `.` never matches \r and `$` (without /m)
+      // will not anchor before one, so on CRLF checkouts the comment stripper
+      // below would silently keep whole comment lines and parse them as rules.
+      const line = raw.replace(/\r$/, '').replace(/#.*$/, '').trim();
+      if (!line) return;
+      const [pattern, ...owners] = line.split(/\s+/);
+      if (!owners.length) {
+        parseErrors.push(`${rel}:${i + 1}: rule "${pattern}" has no owner`);
+        return;
       }
-    }
-    rules.push({ pattern, owners, line: i + 1 });
-  });
-
-if (!rules.length) errors.push('CODEOWNERS defines no rules');
+      for (const owner of owners) {
+        if (!/^@[A-Za-z0-9][A-Za-z0-9-]*(\/[A-Za-z0-9._-]+)?$/.test(owner)) {
+          parseErrors.push(`${rel}:${i + 1}: "${owner}" is not a valid @user or @org/team`);
+        }
+      }
+      rules.push({ pattern, owners, line: i + 1 });
+    });
+  if (!rules.length) parseErrors.push('CODEOWNERS defines no rules');
+  return { rules, parseErrors };
+}
 
 const escape = (segment) =>
   segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]');
@@ -88,7 +92,7 @@ const escape = (segment) =>
  * before the trailing-slash directory form. Reading it the other way round
  * treats `**` as a literal directory name and the rule matches nothing.
  */
-const toRegExp = (pattern) => {
+export const toRegExp = (pattern) => {
   let body = pattern;
   const anchored = body.startsWith('/');
   if (anchored) body = body.slice(1);
@@ -110,20 +114,48 @@ const toRegExp = (pattern) => {
   // An unanchored pattern may start at any directory depth, which is how
   // `package-lock.json` covers every app's lockfile.
   const prefix = anchored ? '^' : '^(?:.*/)?';
-  // A directory rule owns everything beneath it; a file rule owns the file,
-  // and also its contents when the path turns out to be a directory.
-  const suffix = dirOnly ? '/.*$' : '(?:/.*)?$';
+  // Both file and directory rules own everything beneath the matched path;
+  // a trailing slash adds no restriction (GitHub strips it), so the same
+  // suffix serves both. The old `/.*$` dir-only suffix required a path
+  // *inside* the directory, leaving the directory itself owned only by
+  // whatever earlier rule matched it.
+  const suffix = '(?:/.*)?$';
   return new RegExp(`${prefix}${parts.join('')}${suffix}`);
 };
+export function compileRules(rules) {
+  const compiled = rules.map((rule) => ({ ...rule, re: toRegExp(rule.pattern) }));
+  const ownerOf = (file) => {
+    let match = null;
+    for (const rule of compiled) if (rule.re.test(file)) match = rule;
+    return match;
+  };
+  return { compiled, ownerOf };
+}
 
-const compiled = rules.map((rule) => ({ ...rule, re: toRegExp(rule.pattern) }));
+/** Rules that match no tracked file (drift warnings). */
+export function driftWarnings(compiled, trackedFiles) {
+  if (!trackedFiles.length) return [];
+  return compiled
+    .filter((rule) => rule.pattern !== '*' && !trackedFiles.some((file) => rule.re.test(file)))
+    .map((rule) => `${rel}:${rule.line}: "${rule.pattern}" matches no tracked file`);
+}
 
-/** Last matching rule wins, exactly as GitHub resolves ownership. */
-const ownerOf = (file) => {
-  let match = null;
-  for (const rule of compiled) if (rule.re.test(file)) match = rule;
-  return match;
-};
+/** Coverage check over the sensitive paths. */
+export function coverageErrors(compiled, paths) {
+  const { ownerOf } = compileRules(compiled);
+  const out = [];
+  for (const file of paths) {
+    const match = ownerOf(file);
+    if (!match) out.push(`${file}: no CODEOWNERS rule matches`);
+    else if (match.pattern === '*') out.push(`${file}: only the catch-all "*" rule matches; add an explicit rule`);
+  }
+  return out;
+}
+
+const { rules, parseErrors } = parseCodeowners(readFileSync(codeownersPath, 'utf8'));
+errors.push(...parseErrors);
+
+const { compiled, ownerOf } = compileRules(rules);
 
 for (const file of mustBeOwned) {
   const match = ownerOf(file);
