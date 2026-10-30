@@ -16,11 +16,19 @@ function readJson(key, fallback){
 
 function normaliseEvents(value){
   const events=Array.isArray(value) ? value : Array.isArray(value?.events) ? value.events : [];
-  return events.filter(e=> e && typeof e==='object' && typeof e.type==='string').map((e,i)=> ({
-    id: e.id || `legacy-${e.at||i}-${i}`,
-    schemaVersion: e.schemaVersion || 1,
-    ...e,
-  }));
+  return events.filter(e=> e && typeof e==='object' && typeof e.type==='string').map((e,i)=>{
+    const fallbackId=`legacy-${e.at||i}-${i}`;
+    return {
+      ...e,
+      // Identity fields are pinned after the payload spread (same rule as
+      // recordEvent): a stored event carrying { id: null } or an empty id
+      // would otherwise overwrite the fallback and every such event would
+      // dedup to the single id `null` — silently dropping all but the first.
+      // Also covers a stale v2 payload with no schemaVersion.
+      id: typeof e.id==='string' && e.id ? e.id : fallbackId,
+      schemaVersion: e.schemaVersion ?? 1,
+    };
+  });
 }
 
 function loadEvents(){
