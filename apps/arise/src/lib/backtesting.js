@@ -483,8 +483,8 @@ export function validateBenchmarkDataset(dataset){
   if(!Array.isArray(dataset?.history)) issues.push('history must be an array.');
   for(const [index, session] of (dataset?.history || []).entries()){
     if(!session?.dateISO || !Number.isFinite(dateMs(session.dateISO))) issues.push(`history[${index}].dateISO must be YYYY-MM-DD.`);
-    if(!Array.isArray(session?.blocks)) issues.push(`history[${index}].blocks must be an array.`);
-    for(const [blockIndex, block] of (session?.blocks || []).entries()){
+    if(!Array.isArray(session?.blocks)) { issues.push(`history[${index}].blocks must be an array.`); continue; }
+    for(const [blockIndex, block] of session.blocks.entries()){
       if(!block?.exerciseId) issues.push(`history[${index}].blocks[${blockIndex}].exerciseId is required.`);
       if(!Array.isArray(block?.sets)) issues.push(`history[${index}].blocks[${blockIndex}].sets must be an array.`);
     }
