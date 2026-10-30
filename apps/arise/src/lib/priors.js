@@ -326,9 +326,11 @@ export function resolveArisePriors(overrides = null){
 // estimate: sparse data remains visibly a prior instead of being presented as
 // learned precision.
 export function empiricalOrPrior({ prior, estimate, samples = 0, minimumSamples = 1 } = {}){
-  const n = Number(samples) || 0;
+  const n = Math.max(0, Number(samples) || 0);
   const min = Math.max(1, Number(minimumSamples) || 1);
-  const usable = n >= min && Number.isFinite(Number(estimate));
+  // Number(null) is 0, which is a finite estimate of "zero" that no estimate
+  // actually meant — an absent estimate must not present 0 as learned evidence.
+  const usable = n >= min && estimate != null && Number.isFinite(Number(estimate));
   return {
     value: usable ? Number(estimate) : prior,
     source: usable ? 'empirical' : 'prior',
@@ -337,6 +339,17 @@ export function empiricalOrPrior({ prior, estimate, samples = 0, minimumSamples 
   };
 }
 
+// clamp() feeds load arithmetic in progression.js and probability banding in
+// backtesting.js. A non-finite input used to fall straight through
+// Math.max/Math.min and return NaN, which then poisoned the value it guarded
+// (e.g. a NaN weeklyLoadPct silently nan'd the applied load increment instead
+// of collapsing to the conservative floor). NaN now clamps to min — the
+// conservative bound every call site passes — and a NaN bound falls back to the
+// other one rather than nan-ing a perfectly finite value. ±Infinity stays a
+// usable bound and keeps saturating on its own side.
 export function clamp(value, min, max){
-  return Math.max(min, Math.min(max, value));
+  if(Number.isNaN(value)) return min;
+  const lo = min === min ? min : max;   // NaN check: NaN !== NaN
+  const hi = max === max ? max : min;
+  return Math.max(lo, Math.min(hi, value));
 }
