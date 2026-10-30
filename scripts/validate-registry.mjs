@@ -27,6 +27,13 @@ function readJson(p) {
   }
 }
 
+function repoPath(value) {
+  const resolved = path.resolve(root, value);
+  const relative = path.relative(root, resolved);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return null;
+  return resolved;
+}
+
 const reg = readJson(registryPath);
 if (!reg) process.exit(1);
 
@@ -45,14 +52,16 @@ function checkEntry(e, i, section) {
   else if (!validStates.has(e.lifecycle)) { fail(`${loc} (${e.id}): unknown lifecycle '${e.lifecycle}' (expected one of ${[...validStates].join(", ")})`); errors++; }
   if (!e.path) { fail(`${loc} (${e.id}): missing path`); errors++; }
   else {
-    const abs = path.join(root, e.path);
-    if (!fs.existsSync(abs)) { fail(`${loc} (${e.id}): path does not exist: ${e.path}`); errors++; }
+    const abs = repoPath(e.path);
+    if (!abs) { fail(`${loc} (${e.id}): path must stay inside the repository: ${e.path}`); errors++; }
+    else if (!fs.existsSync(abs)) { fail(`${loc} (${e.id}): path does not exist: ${e.path}`); errors++; }
     if (seenPaths.has(e.path)) { fail(`${loc} (${e.id}): duplicate path '${e.path}'`); errors++; }
     seenPaths.add(e.path);
   }
   if (e.site) {
-    const sAbs = path.join(root, e.site);
-    if (!fs.existsSync(sAbs)) { fail(`${loc} (${e.id}): site path does not exist: ${e.site}`); errors++; }
+    const sAbs = repoPath(e.site);
+    if (!sAbs) { fail(`${loc} (${e.id}): site path must stay inside the repository: ${e.site}`); errors++; }
+    else if (!fs.existsSync(sAbs)) { fail(`${loc} (${e.id}): site path does not exist: ${e.site}`); errors++; }
   }
   if (e.lifecycle === "archived" || e.lifecycle === "superseded") {
     if (!e.description || !/frozen|superseded|provenance|mirror|reference/i.test(e.description)) {
